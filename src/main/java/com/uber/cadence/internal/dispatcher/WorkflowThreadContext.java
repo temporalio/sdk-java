@@ -18,25 +18,34 @@ package com.uber.cadence.internal.dispatcher;
 
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 class WorkflowThreadContext {
 
-    private Status status = Status.CREATED;
-    private Throwable unhandledException;
-    private Lock lock = new ReentrantLock();
+    // Shared runner lock
+    private final Lock lock;
     // Used to block yield call
-    private Condition yieldCondition = lock.newCondition();
+    private final Condition yieldCondition;
     // Used to block runUntilBlocked call
-    private Condition runCondition = lock.newCondition();
-    private Condition evaluationCondition = lock.newCondition();
+    private final Condition runCondition;
+    // Used to block evaluateInCoroutineContext
+    private final Condition evaluationCondition;
+
+    private Status status = Status.CREATED;
     private Consumer<String> evaluationFunction;
+    private Throwable unhandledException;
     private boolean destroyRequested;
     private boolean interrupted;
     private boolean inRunUntilBlocked;
     private boolean remainedBlocked;
+
+    WorkflowThreadContext(Lock lock) {
+        this.lock = lock;
+        this.yieldCondition = lock.newCondition();
+        this.runCondition = lock.newCondition();
+        this.evaluationCondition = lock.newCondition();
+    }
 
     public void initialYield() throws InterruptedException {
         if (getStatus() != Status.CREATED) {

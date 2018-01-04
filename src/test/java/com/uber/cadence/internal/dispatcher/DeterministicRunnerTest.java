@@ -181,6 +181,29 @@ public class DeterministicRunnerTest {
     }
 
     @Test
+    public void testRootSelfInterrupt() throws Throwable {
+        status = "initial";
+        DeterministicRunner d = new DeterministicRunnerImpl(() -> {
+            status = "started";
+            WorkflowThread.currentThread().interrupt();
+            try {
+                WorkflowThreadImpl.yield("reason1",
+                        () -> unblock1
+                );
+            } catch (InterruptedException e) {
+                if (WorkflowThread.interrupted()) {
+                    status = "still interrupted";
+                } else {
+                    status = "interrupted";
+                }
+            }
+        });
+        d.runUntilAllBlocked();
+        assertTrue(d.isDone());
+        assertEquals("interrupted", status);
+    }
+
+    @Test
     public void testChild() throws Throwable {
         DeterministicRunner d = new DeterministicRunnerImpl(() -> {
             WorkflowThread thread = Workflow.newThread(() -> {

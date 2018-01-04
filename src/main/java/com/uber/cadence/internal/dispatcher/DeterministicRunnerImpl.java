@@ -145,4 +145,8 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         threadsToAdd.add(result); // This is synchronized collection.
         return result;
     }
+
+    Lock getLock() {
+        return lock;
+    }
 }

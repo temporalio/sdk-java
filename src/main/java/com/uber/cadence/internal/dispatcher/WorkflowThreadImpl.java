@@ -86,7 +86,7 @@ class WorkflowThreadImpl implements WorkflowThread {
 
     public WorkflowThreadImpl(DeterministicRunnerImpl runner, String name, Runnable runnable) {
         this.runner = runner;
-        this.context = new WorkflowThreadContext();
+        this.context = new WorkflowThreadContext(runner.getLock());
         RunnableWrapper cr = new RunnableWrapper(context, runnable);
         // TODO: Use thread pool instead of creating new threads.
         if (name == null) {
