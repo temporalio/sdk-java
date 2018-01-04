@@ -17,6 +17,7 @@
 package com.uber.cadence.internal.dispatcher;
 
 import com.uber.cadence.AsyncDecisionContext;
+import com.uber.cadence.DataConverter;
 import com.uber.cadence.WorkflowException;
 import com.uber.cadence.worker.AsyncWorkflow;
 import com.uber.cadence.EventType;
@@ -34,19 +35,21 @@ import java.util.function.Function;
  */
 public class SyncWorkflow implements AsyncWorkflow {
 
-    private DeterministicRunner runner;
     private final Function<WorkflowType, SyncWorkflowDefinition> factory;
+    private final DataConverter converter;
     private WorkflowRunnable runnable;
+    private DeterministicRunner runner;
 
-    public SyncWorkflow(Function<WorkflowType, SyncWorkflowDefinition> factory) {
+    public SyncWorkflow(Function<WorkflowType, SyncWorkflowDefinition> factory, DataConverter converter) {
         this.factory = factory;
+        this.converter = converter;
     }
 
     @Override
     public void start(HistoryEvent event, AsyncDecisionContext context) {
         WorkflowType workflowType = event.getWorkflowExecutionStartedEventAttributes().getWorkflowType();
         SyncWorkflowDefinition workflow = factory.apply(workflowType);
-        SyncDecisionContext syncContext = new SyncDecisionContext(context);
+        SyncDecisionContext syncContext = new SyncDecisionContext(context, converter);
         if (event.getEventType() != EventType.WorkflowExecutionStarted) {
             throw new IllegalArgumentException("first event is not WorkflowExecutionStarted, but "
                     + event.getEventType());

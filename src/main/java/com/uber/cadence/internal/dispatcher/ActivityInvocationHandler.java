@@ -16,24 +16,19 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
-import com.uber.cadence.DataConverter;
-import com.uber.cadence.worker.AsyncWorkflow;
-import com.uber.cadence.worker.AsyncWorkflowFactory;
-import com.uber.cadence.WorkflowType;
+import com.uber.cadence.common.FlowHelpers;
 
-import java.util.function.Function;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
 
-public class SyncWorkflowFactory implements AsyncWorkflowFactory {
-    private final Function<WorkflowType, SyncWorkflowDefinition> factory;
-    private final DataConverter converter;
-
-    public SyncWorkflowFactory(Function<WorkflowType, SyncWorkflowDefinition> factory, DataConverter converter) {
-        this.factory = factory;
-        this.converter = converter;
-    }
+public class ActivityInvocationHandler implements InvocationHandler {
 
     @Override
-    public AsyncWorkflow getWorkflow(WorkflowType workflowType) {
-        return new SyncWorkflow(factory, converter);
+    public Object invoke(Object proxy, Method method, Object[] args) {
+        SyncDecisionContext decisionContext = WorkflowThreadImpl.currentThread().getDecisionContext();
+        // TODO: Add annotation to support overriding activity name.
+        String activityName = FlowHelpers.getActivityName(method);
+        return decisionContext.executeActivity(activityName, args, method.getReturnType());
     }
+
 }

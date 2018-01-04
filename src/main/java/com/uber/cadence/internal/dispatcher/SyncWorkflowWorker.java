@@ -16,6 +16,8 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import com.uber.cadence.DataConverter;
+import com.uber.cadence.JsonDataConverter;
 import com.uber.cadence.worker.AsyncDecisionTaskHandler;
 import com.uber.cadence.worker.AsyncWorkflowFactory;
 import com.uber.cadence.worker.DecisionTaskPoller;
@@ -34,6 +36,8 @@ public class SyncWorkflowWorker extends GenericWorker {
 
     private Function<WorkflowType, SyncWorkflowDefinition> factory;
 
+    private DataConverter dataConverter = new JsonDataConverter();
+
     public SyncWorkflowWorker() {
         setIdentity(ManagementFactory.getRuntimeMXBean().getName());
     }
@@ -49,6 +53,10 @@ public class SyncWorkflowWorker extends GenericWorker {
         this.factory = factory;
     }
 
+    public void setDataConverter(DataConverter dataConverter) {
+        this.dataConverter = dataConverter;
+    }
+
     @Override
     protected void checkRequredProperties() {
         checkRequiredProperty(factory, "factory");
@@ -62,7 +70,7 @@ public class SyncWorkflowWorker extends GenericWorker {
     @Override
     protected TaskPoller createPoller() {
         DecisionTaskPoller result = new DecisionTaskPoller();
-        AsyncWorkflowFactory workflowFactory = new SyncWorkflowFactory(factory);
+        AsyncWorkflowFactory workflowFactory = new SyncWorkflowFactory(factory, dataConverter);
         result.setDecisionTaskHandler(new AsyncDecisionTaskHandler(workflowFactory));
         result.setDomain(getDomain());
         result.setIdentity(getIdentity());

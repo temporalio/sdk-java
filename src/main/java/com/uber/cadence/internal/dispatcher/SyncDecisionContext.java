@@ -17,6 +17,7 @@
 package com.uber.cadence.internal.dispatcher;
 
 import com.uber.cadence.AsyncDecisionContext;
+import com.uber.cadence.DataConverter;
 import com.uber.cadence.generic.ExecuteActivityParameters;
 import com.uber.cadence.generic.GenericAsyncActivityClient;
 import com.uber.cadence.ActivityType;
@@ -28,11 +29,19 @@ import java.util.function.Consumer;
 
 public class SyncDecisionContext {
     private final AsyncDecisionContext context;
-    private GenericAsyncActivityClient activityClient;
+    private final GenericAsyncActivityClient activityClient;
+    private final DataConverter converter;
 
-    public SyncDecisionContext(AsyncDecisionContext context) {
+    public SyncDecisionContext(AsyncDecisionContext context, DataConverter converter) {
         this.context = context;
         activityClient = context.getActivityClient();
+        this.converter = converter;
+    }
+
+    public <T> T executeActivity(String name, Object[] args, Class<T> returnType) {
+        byte[] input  = converter.toData(args);
+        byte[] result = executeActivity(name, input);
+        return converter.fromData(result, returnType);
     }
 
     public byte[] executeActivity(String name, byte[] input) {

@@ -41,6 +41,10 @@ public final class FlowHelpers {
         return args;
     }
 
+    public static String getActivityName(Method method) {
+        return method.getDeclaringClass().getSimpleName() + "::" + method.getName();
+    }
+
 //    public static String taskPriorityToString(Integer taskPriority) {
 //        if (taskPriority == null) {
 //            return null;

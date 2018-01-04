@@ -16,22 +16,17 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
-import com.uber.cadence.ActivityExecutionContext;
-import com.uber.cadence.ActivityFailureException;
-import com.uber.cadence.WorkflowExecutionAlreadyStartedException;
-import com.uber.cadence.common.WorkflowExecutionUtils;
-import com.uber.cadence.generic.ActivityImplementation;
-import com.uber.cadence.generic.ActivityImplementationFactory;
-import com.uber.cadence.generic.StartWorkflowExecutionParameters;
-import com.uber.cadence.worker.ActivityTypeExecutionOptions;
-import com.uber.cadence.worker.GenericActivityWorker;
-import com.uber.cadence.worker.GenericWorkflowClientExternalImpl;
 import com.uber.cadence.ActivityType;
 import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowExecutionAlreadyStartedException;
 import com.uber.cadence.WorkflowExecutionCompletedEventAttributes;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.WorkflowType;
+import com.uber.cadence.common.WorkflowExecutionUtils;
+import com.uber.cadence.generic.StartWorkflowExecutionParameters;
 import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
+import com.uber.cadence.worker.ActivityWorker;
+import com.uber.cadence.worker.GenericWorkflowClientExternalImpl;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.log4j.ConsoleAppender;
@@ -46,7 +41,6 @@ import org.junit.Test;
 
 import java.util.Hashtable;
 import java.util.Map;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -85,19 +79,15 @@ public class SyncWorkfowTest {
     private GenericWorkflowClientExternalImpl clientExternal;
     private static WorkflowService.Iface service;
     private SyncWorkflowWorker workflowWorker;
-    private GenericActivityWorker activityWorker;
+    private ActivityWorker activityWorker;
     private Map<WorkflowType, SyncWorkflowDefinition> definitionMap = new Hashtable<>();
-    private Map<ActivityType, ActivityImplementation> activityMap = new Hashtable<>();
 
-    private Function<WorkflowType, SyncWorkflowDefinition> factory = new Function<WorkflowType, SyncWorkflowDefinition>() {
-        @Override
-        public SyncWorkflowDefinition apply(WorkflowType workflowType) {
-            SyncWorkflowDefinition result = definitionMap.get(workflowType);
-            if (result == null) {
-                throw new IllegalArgumentException("Unknown workflow type " + workflowType);
-            }
-            return result;
+    private Function<WorkflowType, SyncWorkflowDefinition> factory = workflowType -> {
+        SyncWorkflowDefinition result = definitionMap.get(workflowType);
+        if (result == null) {
+            throw new IllegalArgumentException("Unknown workflow type " + workflowType);
         }
+        return result;
     };
 
     @BeforeClass
@@ -108,17 +98,8 @@ public class SyncWorkfowTest {
 
     @Before
     public void setUp() {
-        activityWorker = new GenericActivityWorker(service, domain, taskList);
-        activityWorker.setActivityImplementationFactory(new ActivityImplementationFactory() {
-            @Override
-            public ActivityImplementation getActivityImplementation(ActivityType activityType) {
-                ActivityImplementation result = activityMap.get(activityType);
-                if (result == null) {
-                    throw new IllegalArgumentException("Unknown activity type " + activityType);
-                }
-                return result;
-            }
-        });
+        activityWorker = new ActivityWorker(service, domain, taskList);
+        activityWorker.addActivityImplementation(new TestActivitiesImpl());
         workflowWorker = new SyncWorkflowWorker(service, domain, taskList);
         workflowWorker.setFactory(factory);
         clientExternal = new GenericWorkflowClientExternalImpl(service, domain);
@@ -131,16 +112,16 @@ public class SyncWorkfowTest {
         activityWorker.shutdown();
         workflowWorker.shutdown();
         definitionMap.clear();
-        activityMap.clear();
     }
 
     @Test
     public void test() throws InterruptedException, WorkflowExecutionAlreadyStartedException, TimeoutException {
         WorkflowType type = new WorkflowType().setName("test1");
         definitionMap.put(type, (input) -> {
-            AtomicReference<byte[]> a1 = new AtomicReference<>();
+            AtomicReference<String> a1 = new AtomicReference<>();
+            TestActivities activities = Workflow.newActivityClient(TestActivities.class);
             WorkflowThread t = Workflow.newThread(() -> {
-                a1.set(Workflow.executeActivity("activity1", "activityInput".getBytes()));
+                a1.set(activities.activity1());
             });
             t.start();
             try {
@@ -150,32 +131,9 @@ public class SyncWorkfowTest {
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
-            return Workflow.executeActivity("activity2", a1.get());
+            return activities.activity2(a1.get()).getBytes();
         });
         ActivityType activity1Type = new ActivityType().setName("activity1");
-        activityMap.put(activity1Type, new ActivityImplementation() {
-            @Override
-            public ActivityTypeExecutionOptions getExecutionOptions() {
-                return new ActivityTypeExecutionOptions();
-            }
-
-            @Override
-            public byte[] execute(ActivityExecutionContext context) throws ActivityFailureException, CancellationException {
-                return "activity1".getBytes();
-            }
-        });
-        ActivityType activity2Type = new ActivityType().setName("activity2");
-        activityMap.put(activity2Type, new ActivityImplementation() {
-            @Override
-            public ActivityTypeExecutionOptions getExecutionOptions() {
-                return new ActivityTypeExecutionOptions();
-            }
-
-            @Override
-            public byte[] execute(ActivityExecutionContext context) throws ActivityFailureException, CancellationException {
-                return (new String(context.getTask().getInput()) + " - activity2").getBytes();
-            }
-        });
 
         StartWorkflowExecutionParameters startParameters = new StartWorkflowExecutionParameters();
         startParameters.setExecutionStartToCloseTimeoutSeconds(60);
@@ -187,5 +145,22 @@ public class SyncWorkfowTest {
         WorkflowExecution started = clientExternal.startWorkflow(startParameters);
         WorkflowExecutionCompletedEventAttributes result = WorkflowExecutionUtils.waitForWorkflowExecutionResult(service, domain, started, 10);
         assertEquals("activity1 - activity2", new String(result.getResult()));
+    }
+
+    public interface TestActivities {
+        String activity1();
+
+        String activity2(String input);
+
+    }
+
+    class TestActivitiesImpl implements TestActivities {
+        public String activity1() {
+            return "activity1";
+        }
+
+        public String activity2(String input) {
+            return input + " - activity2";
+        }
     }
 }

@@ -16,6 +16,7 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import java.lang.reflect.Proxy;
 import java.util.concurrent.Future;
 import java.util.concurrent.locks.Lock;
 
@@ -51,7 +52,13 @@ public class Workflow {
         return WorkflowThreadImpl.currentThread().getRunner().currentTimeMillis();
     }
 
-    public static byte[] executeActivity(String name, byte[] input)  {
-        return WorkflowThreadImpl.currentThread().getDecisionContext().executeActivity(name, input);
+    public static <T> T newActivityClient(Class<T> activityInterface) {
+        return (T) Proxy.newProxyInstance(Workflow.class.getClassLoader(),
+                new Class<?>[] {activityInterface},
+                new ActivityInvocationHandler());
+    }
+
+    public static <T> T executeActivity(String name, Class<T> returnType, Object... args)  {
+        return WorkflowThreadImpl.currentThread().getDecisionContext().executeActivity(name, args, returnType);
     }
 }
