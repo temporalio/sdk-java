@@ -16,18 +16,50 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import com.google.common.base.Defaults;
 import com.uber.cadence.common.FlowHelpers;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class ActivityInvocationHandler implements InvocationHandler {
+
+    public static void initAsyncInvocation() {
+        if (asyncResult.get() != null) {
+            throw new IllegalStateException("already in async invocation");
+        }
+        asyncResult.set(new AtomicReference<WorkflowFuture>());
+    }
+
+    public static WorkflowFuture getAsyncInvocationResult() {
+        try {
+            AtomicReference<WorkflowFuture> reference = asyncResult.get();
+            if (reference == null) {
+                throw new IllegalStateException("initAsyncInvocation wasn't called");
+            }
+            WorkflowFuture result = reference.get();
+            if (result == null) {
+                throw new IllegalStateException("async result wasn't set");
+            }
+            return result;
+        } finally {
+            asyncResult.remove();
+        }
+    }
+
+    private static final ThreadLocal<AtomicReference<WorkflowFuture>> asyncResult = new ThreadLocal<>();
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) {
         SyncDecisionContext decisionContext = WorkflowThreadImpl.currentThread().getDecisionContext();
         // TODO: Add annotation to support overriding activity name.
         String activityName = FlowHelpers.getActivityName(method);
+        AtomicReference<WorkflowFuture> async = asyncResult.get();
+        if (async != null) {
+            async.set(decisionContext.executeActivityAsync(activityName, args, method.getReturnType()));
+            return Defaults.defaultValue(method.getReturnType());
+        }
         return decisionContext.executeActivity(activityName, args, method.getReturnType());
     }
 

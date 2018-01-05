@@ -16,20 +16,36 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 public class WorkflowFuture<T> implements Future<T> {
+
+    private static class Handler {
+        final WorkflowFuture<Object> result;
+        final BiFunction function;
+
+        private Handler(WorkflowFuture<Object> result, BiFunction function) {
+            this.result = result;
+            this.function = function;
+        }
+    }
 
     private final BiConsumer<WorkflowFuture<T>, Boolean> cancellationHandler;
     private T value;
     private Exception failure;
     private boolean completed;
     private boolean cancelled;
+    private final List<Handler> handlers = new ArrayList<>();
 
     public WorkflowFuture() {
         this.cancellationHandler = null;
@@ -96,6 +112,7 @@ public class WorkflowFuture<T> implements Future<T> {
         }
         this.completed = true;
         this.value = value;
+        invokeHandlers();
         return true;
     }
 
@@ -105,7 +122,47 @@ public class WorkflowFuture<T> implements Future<T> {
         }
         this.completed = true;
         this.failure = value;
+        invokeHandlers();
         return true;
     }
 
+    public <U> WorkflowFuture<U> thenApply(Function<? super T, ? extends U> fn) {
+        return handle((r, e) -> {
+            if (e != null) {
+                if (e instanceof CompletionException) {
+                    throw (CompletionException)e;
+                }
+                throw new CompletionException(e);
+            }
+            return fn.apply(r);
+        });
+    }
+
+    public <U> WorkflowFuture<U> handle(BiFunction<? super T, Throwable, ? extends U> fn) {
+        // TODO: Cancellation handler
+        WorkflowFuture<Object> resultFuture = new WorkflowFuture<>();
+        if (completed) {
+            invokeHandler(fn, resultFuture);
+        } else {
+            handlers.add(new Handler(resultFuture, fn));
+        }
+        return (WorkflowFuture<U>) resultFuture;
+    }
+
+    private void invokeHandler(BiFunction fn, WorkflowFuture<Object> resultFuture) {
+        try {
+            Object result = fn.apply(value, failure);
+            resultFuture.complete(result);
+        } catch (CompletionException e) {
+                resultFuture.completeExceptionally(e);
+        } catch (Exception e) {
+            resultFuture.completeExceptionally(new CompletionException(e));
+        }
+    }
+
+    private void invokeHandlers() {
+        for (Handler handler : handlers) {
+            invokeHandler(handler.function, handler.result);
+        }
+    }
 }

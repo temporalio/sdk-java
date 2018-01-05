@@ -24,6 +24,7 @@ import com.uber.cadence.ActivityType;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -39,12 +40,30 @@ public class SyncDecisionContext {
     }
 
     public <T> T executeActivity(String name, Object[] args, Class<T> returnType) {
-        byte[] input  = converter.toData(args);
+        byte[] input = converter.toData(args);
         byte[] result = executeActivity(name, input);
         return converter.fromData(result, returnType);
     }
 
+    public <T> WorkflowFuture<T> executeActivityAsync(String name, Object[] args, Class<T> returnType) {
+        byte[] input = converter.toData(args);
+        WorkflowFuture<byte[]> binaryResult = executeActivityAsync(name, input);
+        return binaryResult.thenApply(r -> converter.fromData(r, returnType));
+    }
+
     public byte[] executeActivity(String name, byte[] input) {
+        Future<byte[]> result = executeActivityAsync(name, input);
+        // TODO: Exception mapping
+        try {
+            return result.get();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e.getCause());
+        }
+    }
+
+    public WorkflowFuture<byte[]> executeActivityAsync(String name, byte[] input) {
         ActivityFutureCancellationHandler cancellationHandler = new ActivityFutureCancellationHandler();
         WorkflowFuture<byte[]> result = new WorkflowFuture(cancellationHandler);
         ExecuteActivityParameters parameters = new ExecuteActivityParameters();
@@ -65,14 +84,7 @@ public class SyncDecisionContext {
                     }
                 });
         cancellationHandler.setCancellationCallback(cancellationCallback);
-        // TODO: Exception mapping
-        try {
-            return result.get();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        } catch (ExecutionException e) {
-            throw new RuntimeException(e.getCause());
-        }
+        return result;
     }
 
     private static class ActivityFutureCancellationHandler implements BiConsumer<WorkflowFuture, Boolean> {

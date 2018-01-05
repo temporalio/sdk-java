@@ -35,12 +35,14 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.Hashtable;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -76,13 +78,13 @@ public class SyncWorkfowTest {
 
     }
 
-    private GenericWorkflowClientExternalImpl clientExternal;
+    private static GenericWorkflowClientExternalImpl clientExternal;
     private static WorkflowService.Iface service;
-    private SyncWorkflowWorker workflowWorker;
-    private ActivityWorker activityWorker;
-    private Map<WorkflowType, SyncWorkflowDefinition> definitionMap = new Hashtable<>();
+    private static SyncWorkflowWorker workflowWorker;
+    private static ActivityWorker activityWorker;
+    private static Map<WorkflowType, SyncWorkflowDefinition> definitionMap = new Hashtable<>();
 
-    private Function<WorkflowType, SyncWorkflowDefinition> factory = workflowType -> {
+    private static Function<WorkflowType, SyncWorkflowDefinition> factory = workflowType -> {
         SyncWorkflowDefinition result = definitionMap.get(workflowType);
         if (result == null) {
             throw new IllegalArgumentException("Unknown workflow type " + workflowType);
@@ -94,10 +96,6 @@ public class SyncWorkfowTest {
     public static void setUpService() {
         WorkflowServiceTChannel.ClientOptions.Builder optionsBuilder = new WorkflowServiceTChannel.ClientOptions.Builder();
         service = new WorkflowServiceTChannel(host, port, serviceName, optionsBuilder.build());
-    }
-
-    @Before
-    public void setUp() {
         activityWorker = new ActivityWorker(service, domain, taskList);
         activityWorker.addActivityImplementation(new TestActivitiesImpl());
         workflowWorker = new SyncWorkflowWorker(service, domain, taskList);
@@ -107,16 +105,16 @@ public class SyncWorkfowTest {
         workflowWorker.start();
     }
 
-    @After
-    public void tearDown() {
+    @AfterClass
+    public static void tearDownService() {
         activityWorker.shutdown();
         workflowWorker.shutdown();
         definitionMap.clear();
     }
 
     @Test
-    public void test() throws InterruptedException, WorkflowExecutionAlreadyStartedException, TimeoutException {
-        WorkflowType type = new WorkflowType().setName("test1");
+    public void testSync() throws InterruptedException, WorkflowExecutionAlreadyStartedException, TimeoutException {
+        WorkflowType type = new WorkflowType().setName("testSync");
         definitionMap.put(type, (input) -> {
             AtomicReference<String> a1 = new AtomicReference<>();
             TestActivities activities = Workflow.newActivityClient(TestActivities.class);
@@ -133,8 +131,6 @@ public class SyncWorkfowTest {
             }
             return activities.activity2(a1.get()).getBytes();
         });
-        ActivityType activity1Type = new ActivityType().setName("activity1");
-
         StartWorkflowExecutionParameters startParameters = new StartWorkflowExecutionParameters();
         startParameters.setExecutionStartToCloseTimeoutSeconds(60);
         startParameters.setTaskStartToCloseTimeoutSeconds(2);
@@ -147,6 +143,33 @@ public class SyncWorkfowTest {
         assertEquals("activity1 - activity2", new String(result.getResult()));
     }
 
+    @Test
+    public void testAsync() throws InterruptedException, WorkflowExecutionAlreadyStartedException, TimeoutException {
+        WorkflowType type = new WorkflowType().setName("testAsync");
+        definitionMap.put(type, (input) -> {
+            TestActivities activities = Workflow.newActivityClient(TestActivities.class);
+            WorkflowFuture<String> result2 = Workflow.executeAsync(activities::activity2, "aaa");
+            try {
+                return result2.get().getBytes();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        StartWorkflowExecutionParameters startParameters = new StartWorkflowExecutionParameters();
+        startParameters.setExecutionStartToCloseTimeoutSeconds(60);
+        startParameters.setTaskStartToCloseTimeoutSeconds(2);
+        startParameters.setTaskList(taskList);
+        startParameters.setInput("input".getBytes());
+        startParameters.setWorkflowId("workflow1");
+        startParameters.setWorkflowType(type);
+        WorkflowExecution started = clientExternal.startWorkflow(startParameters);
+        WorkflowExecutionCompletedEventAttributes result = WorkflowExecutionUtils.waitForWorkflowExecutionResult(service, domain, started, 10);
+        assertEquals("aaa - activity2", new String(result.getResult()));
+    }
+
+
     public interface TestActivities {
         String activity1();
 
@@ -154,7 +177,7 @@ public class SyncWorkfowTest {
 
     }
 
-    class TestActivitiesImpl implements TestActivities {
+    static class TestActivitiesImpl implements TestActivities {
         public String activity1() {
             return "activity1";
         }
