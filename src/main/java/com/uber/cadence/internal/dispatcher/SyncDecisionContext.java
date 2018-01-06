@@ -48,6 +48,9 @@ public class SyncDecisionContext {
     public <T> WorkflowFuture<T> executeActivityAsync(String name, Object[] args, Class<T> returnType) {
         byte[] input = converter.toData(args);
         WorkflowFuture<byte[]> binaryResult = executeActivityAsync(name, input);
+        if (returnType == Void.TYPE) {
+            return binaryResult.thenApply(r -> null);
+        }
         return binaryResult.thenApply(r -> converter.fromData(r, returnType));
     }
 

@@ -16,7 +16,6 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
-import com.uber.cadence.ActivityType;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionAlreadyStartedException;
 import com.uber.cadence.WorkflowExecutionCompletedEventAttributes;
@@ -34,13 +33,15 @@ import org.apache.log4j.Level;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
-import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Hashtable;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -82,6 +83,7 @@ public class SyncWorkfowTest {
     private static WorkflowService.Iface service;
     private static SyncWorkflowWorker workflowWorker;
     private static ActivityWorker activityWorker;
+    private static TestActivitiesImpl activities;
     private static Map<WorkflowType, SyncWorkflowDefinition> definitionMap = new Hashtable<>();
 
     private static Function<WorkflowType, SyncWorkflowDefinition> factory = workflowType -> {
@@ -97,7 +99,8 @@ public class SyncWorkfowTest {
         WorkflowServiceTChannel.ClientOptions.Builder optionsBuilder = new WorkflowServiceTChannel.ClientOptions.Builder();
         service = new WorkflowServiceTChannel(host, port, serviceName, optionsBuilder.build());
         activityWorker = new ActivityWorker(service, domain, taskList);
-        activityWorker.addActivityImplementation(new TestActivitiesImpl());
+        activities = new TestActivitiesImpl();
+        activityWorker.addActivityImplementation(activities);
         workflowWorker = new SyncWorkflowWorker(service, domain, taskList);
         workflowWorker.setFactory(factory);
         clientExternal = new GenericWorkflowClientExternalImpl(service, domain);
@@ -112,6 +115,11 @@ public class SyncWorkfowTest {
         definitionMap.clear();
     }
 
+    @Before
+    public void setUp() {
+        activities.procResult.clear();
+    }
+
     @Test
     public void testSync() throws InterruptedException, WorkflowExecutionAlreadyStartedException, TimeoutException {
         WorkflowType type = new WorkflowType().setName("testSync");
@@ -119,7 +127,7 @@ public class SyncWorkfowTest {
             AtomicReference<String> a1 = new AtomicReference<>();
             TestActivities activities = Workflow.newActivityClient(TestActivities.class);
             WorkflowThread t = Workflow.newThread(() -> {
-                a1.set(activities.activity1());
+                a1.set(activities.activity());
             });
             t.start();
             try {
@@ -129,7 +137,7 @@ public class SyncWorkfowTest {
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
-            return activities.activity2(a1.get()).getBytes();
+            return activities.activity2(a1.get(), 10).getBytes();
         });
         StartWorkflowExecutionParameters startParameters = new StartWorkflowExecutionParameters();
         startParameters.setExecutionStartToCloseTimeoutSeconds(60);
@@ -140,22 +148,36 @@ public class SyncWorkfowTest {
         startParameters.setWorkflowType(type);
         WorkflowExecution started = clientExternal.startWorkflow(startParameters);
         WorkflowExecutionCompletedEventAttributes result = WorkflowExecutionUtils.waitForWorkflowExecutionResult(service, domain, started, 10);
-        assertEquals("activity1 - activity2", new String(result.getResult()));
+        assertEquals("activity10", new String(result.getResult()));
     }
 
     @Test
     public void testAsync() throws InterruptedException, WorkflowExecutionAlreadyStartedException, TimeoutException {
         WorkflowType type = new WorkflowType().setName("testAsync");
         definitionMap.put(type, (input) -> {
-            TestActivities activities = Workflow.newActivityClient(TestActivities.class);
-            WorkflowFuture<String> result2 = Workflow.executeAsync(activities::activity2, "aaa");
+            TestActivities testActivities = Workflow.newActivityClient(TestActivities.class);
             try {
-                return result2.get().getBytes();
+                assertEquals("activity", Workflow.executeAsync(testActivities::activity).get());
+                assertEquals("1", Workflow.executeAsync(testActivities::activity1, "1").get());
+                assertEquals("12", Workflow.executeAsync(testActivities::activity2, "1", 2).get());
+                assertEquals("123", Workflow.executeAsync(testActivities::activity3, "1", 2, 3).get());
+                assertEquals("1234", Workflow.executeAsync(testActivities::activity4, "1", 2, 3, 4).get());
+                assertEquals("12345", Workflow.executeAsync(testActivities::activity5, "1", 2, 3, 4, 5).get());
+                assertEquals("123456", Workflow.executeAsync(testActivities::activity6, "1", 2, 3, 4, 5, 6).get());
+
+                Workflow.executeAsync(testActivities::proc).get();
+                Workflow.executeAsync(testActivities::proc1, "1").get();
+                Workflow.executeAsync(testActivities::proc2, "1", 2).get();
+                Workflow.executeAsync(testActivities::proc3, "1", 2, 3).get();
+                Workflow.executeAsync(testActivities::proc4, "1", 2, 3, 4).get();
+                Workflow.executeAsync(testActivities::proc5, "1", 2, 3, 4, 5).get();
+                Workflow.executeAsync(testActivities::proc6, "1", 2, 3, 4, 5, 6).get();
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             } catch (ExecutionException e) {
                 throw new RuntimeException(e);
             }
+            return "workflow".getBytes();
         });
         StartWorkflowExecutionParameters startParameters = new StartWorkflowExecutionParameters();
         startParameters.setExecutionStartToCloseTimeoutSeconds(60);
@@ -166,24 +188,104 @@ public class SyncWorkfowTest {
         startParameters.setWorkflowType(type);
         WorkflowExecution started = clientExternal.startWorkflow(startParameters);
         WorkflowExecutionCompletedEventAttributes result = WorkflowExecutionUtils.waitForWorkflowExecutionResult(service, domain, started, 10);
-        assertEquals("aaa - activity2", new String(result.getResult()));
+        assertEquals("workflow", new String(result.getResult()));
+        assertEquals("proc", activities.procResult.get(0));
+        assertEquals("1", activities.procResult.get(1));
+        assertEquals("12", activities.procResult.get(2));
+        assertEquals("123", activities.procResult.get(3));
+        assertEquals("1234", activities.procResult.get(4));
+        assertEquals("12345", activities.procResult.get(5));
+        assertEquals("123456", activities.procResult.get(6));
     }
 
 
     public interface TestActivities {
-        String activity1();
+        String activity();
 
-        String activity2(String input);
+        String activity1(String input);
 
+        String activity2(String a1, int a2);
+
+        String activity3(String a1, int a2, int a3);
+
+        String activity4(String a1, int a2, int a3, int a4);
+
+        String activity5(String a1, int a2, int a3, int a4, int a5);
+
+        String activity6(String a1, int a2, int a3, int a4, int a5, int a6);
+
+        void proc();
+
+        void proc1(String input);
+
+        void proc2(String a1, int a2);
+
+        void proc3(String a1, int a2, int a3);
+
+        void proc4(String a1, int a2, int a3, int a4);
+
+        void proc5(String a1, int a2, int a3, int a4, int a5);
+
+        void proc6(String a1, int a2, int a3, int a4, int a5, int a6);
     }
 
-    static class TestActivitiesImpl implements TestActivities {
-        public String activity1() {
-            return "activity1";
+    private static class TestActivitiesImpl implements TestActivities {
+        public List<String> procResult = Collections.synchronizedList(new ArrayList<>());
+
+        public String activity() {
+            return "activity";
         }
 
-        public String activity2(String input) {
-            return input + " - activity2";
+        public String activity1(String a1) {
+            return a1;
+        }
+
+        public String activity2(String a1, int a2) {
+            return a1 + a2;
+        }
+
+        public String activity3(String a1, int a2, int a3) {
+            return a1 + a2 + a3;
+        }
+
+        public String activity4(String a1, int a2, int a3, int a4) {
+            return a1 + a2 + a3 + a4;
+        }
+
+        public String activity5(String a1, int a2, int a3, int a4, int a5) {
+            return a1 + a2 + a3 + a4 + a5;
+        }
+
+        public String activity6(String a1, int a2, int a3, int a4, int a5, int a6) {
+            return a1 + a2 + a3 + a4 + a5 + a6;
+        }
+
+        public void proc() {
+            procResult.add("proc");
+        }
+
+        public void proc1(String a1) {
+            procResult.add(a1);
+        }
+
+        public void proc2(String a1, int a2) {
+            procResult.add(a1 + a2);
+        }
+
+        public void proc3(String a1, int a2, int a3) {
+            procResult.add(a1 + a2 + a3);
+        }
+
+        public void proc4(String a1, int a2, int a3, int a4) {
+            procResult.add(a1 + a2 + a3 + a4);
+        }
+
+        public void proc5(String a1, int a2, int a3, int a4, int a5) {
+            procResult.add(a1 + a2 + a3 + a4 + a5);
+        }
+
+        public void proc6(String a1, int a2, int a3, int a4, int a5, int a6) {
+            procResult.add(a1 + a2 + a3 + a4 + a5 + a6);
         }
     }
 }

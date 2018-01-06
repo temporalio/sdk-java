@@ -36,6 +36,7 @@ import java.util.concurrent.CancellationException;
 
 public class POJOActivityImplementationFactory extends ActivityImplementationFactory {
 
+    private static final byte[] EMPTY_BLOB = {};
     private final DataConverter dataConverter;
     private final Map<String, ActivityImplementation> activities = Collections.synchronizedMap(new HashMap<>());
 
@@ -93,6 +94,9 @@ public class POJOActivityImplementationFactory extends ActivityImplementationFac
             Object[] args = dataConverter.fromData(input, Object[].class);
             try {
                 Object result = method.invoke(activity, args);
+                if (method.getReturnType() == Void.TYPE) {
+                    return EMPTY_BLOB;
+                }
                 return dataConverter.toData(result);
             } catch (IllegalAccessException e) {
                 throw throwActivityFailure(e);

@@ -53,7 +53,7 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * Convenience methods to be used by unit tests and during development.
- * 
+ *
  * @author fateev
  */
 public class WorkflowExecutionUtils {
@@ -95,12 +95,12 @@ public class WorkflowExecutionUtils {
     public static WorkflowExecutionCompletedEventAttributes waitForWorkflowExecutionResult(Iface service,
                                                                                            String domain, WorkflowExecution workflowExecution, long timeoutSeconds)
             throws InterruptedException, TimeoutException {
-        if (waitForWorkflowInstanceCompletion(service, domain, workflowExecution, timeoutSeconds) !=
-                WorkflowExecutionCloseStatus.COMPLETED) {
-            String historyDump = WorkflowExecutionUtils.prettyPrintHistory(service, domain, workflowExecution);
-            throw new RuntimeException("Workflow instance is not in completed state:\n" + historyDump);
+        WorkflowExecutionCloseStatus closeStatus = waitForWorkflowInstanceCompletion(service, domain, workflowExecution, timeoutSeconds);
+        if (closeStatus == WorkflowExecutionCloseStatus.COMPLETED) {
+            return getWorkflowExecutionResult(service, domain, workflowExecution);
         }
-        return getWorkflowExecutionResult(service, domain, workflowExecution);
+        String historyDump = WorkflowExecutionUtils.prettyPrintHistory(service, domain, workflowExecution);
+        throw new RuntimeException("Workflow instance is not in completed state:\n" + historyDump);
     }
 
     /**

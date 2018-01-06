@@ -47,6 +47,16 @@ public class WorkflowFuture<T> implements Future<T> {
     private boolean cancelled;
     private final List<Handler> handlers = new ArrayList<>();
 
+    public WorkflowFuture(Exception failure) {
+        this();
+        completeExceptionally(new CompletionException(failure));
+    }
+
+    public WorkflowFuture(T result) {
+        this();
+        complete(result);
+    }
+
     public WorkflowFuture() {
         this.cancellationHandler = null;
     }
