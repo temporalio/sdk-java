@@ -17,6 +17,7 @@
 package com.uber.cadence.internal.dispatcher;
 
 import com.uber.cadence.AsyncDecisionContext;
+import com.uber.cadence.AsyncWorkflowClock;
 import com.uber.cadence.DataConverter;
 import com.uber.cadence.generic.ExecuteActivityParameters;
 import com.uber.cadence.generic.GenericAsyncActivityClient;
@@ -25,6 +26,7 @@ import com.uber.cadence.ActivityType;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -32,6 +34,7 @@ public class SyncDecisionContext {
     private final AsyncDecisionContext context;
     private final GenericAsyncActivityClient activityClient;
     private final DataConverter converter;
+    private final WorkflowTimers timers = new WorkflowTimers();
 
     public SyncDecisionContext(AsyncDecisionContext context, DataConverter converter) {
         this.context = context;
@@ -88,6 +91,22 @@ public class SyncDecisionContext {
                 });
         cancellationHandler.setCancellationCallback(cancellationCallback);
         return result;
+    }
+
+    public WorkflowFuture<Void> newTimer(long delaySeconds) {
+        ActivityFutureCancellationHandler cancellationHandler = new ActivityFutureCancellationHandler();
+        WorkflowFuture<Void> timer = new WorkflowFuture(cancellationHandler);
+        long fireTime = context.getWorkflowClock().currentTimeMillis() + TimeUnit.SECONDS.toMillis(delaySeconds);
+        timers.addTimer(fireTime, timer);
+        return timer;
+    }
+
+    public void fireTimers() {
+        timers.fireTimers(context.getWorkflowClock().currentTimeMillis());
+    }
+
+    public long getNextFireTime() {
+        return timers.getNextFireTime();
     }
 
     private static class ActivityFutureCancellationHandler implements BiConsumer<WorkflowFuture, Boolean> {

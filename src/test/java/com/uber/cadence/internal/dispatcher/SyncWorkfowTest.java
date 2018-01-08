@@ -49,6 +49,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class SyncWorkfowTest {
 
@@ -132,7 +133,6 @@ public class SyncWorkfowTest {
             t.start();
             try {
                 t.join(3000);
-                long time = Workflow.currentTimeMillis();
                 WorkflowThread.sleep(1000);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
@@ -198,6 +198,39 @@ public class SyncWorkfowTest {
         assertEquals("123456", activities.procResult.get(6));
     }
 
+    @Test
+    public void testTimer() throws InterruptedException, WorkflowExecutionAlreadyStartedException, TimeoutException {
+        WorkflowType type = new WorkflowType().setName("testTimer");
+        definitionMap.put(type, (input) -> {
+            WorkflowFuture<Void> timer1 = Workflow.newTimer(1);
+            WorkflowFuture<Void> timer2 = Workflow.newTimer(2);
+
+            try {
+                long time = Workflow.currentTimeMillis();
+                timer1.get();
+                long slept = Workflow.currentTimeMillis() - time;
+                assertTrue(slept > 1000);
+                timer2.get();
+                slept = Workflow.currentTimeMillis() - time;
+                assertTrue(slept > 2000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+            return "testTimer".getBytes();
+        });
+        StartWorkflowExecutionParameters startParameters = new StartWorkflowExecutionParameters();
+        startParameters.setExecutionStartToCloseTimeoutSeconds(60);
+        startParameters.setTaskStartToCloseTimeoutSeconds(2);
+        startParameters.setTaskList(taskList);
+        startParameters.setInput("input".getBytes());
+        startParameters.setWorkflowId("workflow1");
+        startParameters.setWorkflowType(type);
+        WorkflowExecution started = clientExternal.startWorkflow(startParameters);
+        WorkflowExecutionCompletedEventAttributes result = WorkflowExecutionUtils.waitForWorkflowExecutionResult(service, domain, started, 10);
+        assertEquals("testTimer", new String(result.getResult()));
+    }
 
     public interface TestActivities {
         String activity();

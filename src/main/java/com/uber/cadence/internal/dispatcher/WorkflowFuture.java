@@ -32,9 +32,9 @@ public class WorkflowFuture<T> implements Future<T> {
 
     private static class Handler {
         final WorkflowFuture<Object> result;
-        final BiFunction function;
+        final Functions.Func2 function;
 
-        private Handler(WorkflowFuture<Object> result, BiFunction function) {
+        private Handler(WorkflowFuture<Object> result, Functions.Func2 function) {
             this.result = result;
             this.function = function;
         }
@@ -136,7 +136,7 @@ public class WorkflowFuture<T> implements Future<T> {
         return true;
     }
 
-    public <U> WorkflowFuture<U> thenApply(Function<? super T, ? extends U> fn) {
+    public <U> WorkflowFuture<U> thenApply(Functions.Func1<? super T, ? extends U> fn) {
         return handle((r, e) -> {
             if (e != null) {
                 if (e instanceof CompletionException) {
@@ -148,7 +148,7 @@ public class WorkflowFuture<T> implements Future<T> {
         });
     }
 
-    public <U> WorkflowFuture<U> handle(BiFunction<? super T, Throwable, ? extends U> fn) {
+    public <U> WorkflowFuture<U> handle(Functions.Func2<? super T, Exception, ? extends U> fn) {
         // TODO: Cancellation handler
         WorkflowFuture<Object> resultFuture = new WorkflowFuture<>();
         if (completed) {
@@ -159,7 +159,7 @@ public class WorkflowFuture<T> implements Future<T> {
         return (WorkflowFuture<U>) resultFuture;
     }
 
-    private void invokeHandler(BiFunction fn, WorkflowFuture<Object> resultFuture) {
+    private void invokeHandler(Functions.Func2 fn, WorkflowFuture<Object> resultFuture) {
         try {
             Object result = fn.apply(value, failure);
             resultFuture.complete(result);

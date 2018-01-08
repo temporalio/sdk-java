@@ -33,6 +33,9 @@ public class Workflow {
         return WorkflowThreadImpl.newThread(runnable, name);
     }
 
+    public static WorkflowFuture<Void> newTimer(long delaySeconds) {
+        return getDecisionContext().newTimer(delaySeconds);
+    }
 
     /**
      * Note that workflow executes all threads one at a time, ensures that they are interrupted
@@ -283,7 +286,11 @@ public class Workflow {
      * @return activity result
      */
     public static <R> R executeActivity(String name, Class<R> returnType, Object... args) {
-        return WorkflowThreadImpl.currentThread().getDecisionContext().executeActivity(name, args, returnType);
+        return getDecisionContext().executeActivity(name, args, returnType);
+    }
+
+    private static SyncDecisionContext getDecisionContext() {
+        return WorkflowThreadImpl.currentThread().getDecisionContext();
     }
 
     /**
@@ -295,7 +302,7 @@ public class Workflow {
      * @return future that contains the activity result
      */
     public static <R> WorkflowFuture<R> executeActivityAsync(String name, Class<R> returnType, Object... args) {
-        return WorkflowThreadImpl.currentThread().getDecisionContext().executeActivityAsync(name, args, returnType);
+        return getDecisionContext().executeActivityAsync(name, args, returnType);
     }
 
 }

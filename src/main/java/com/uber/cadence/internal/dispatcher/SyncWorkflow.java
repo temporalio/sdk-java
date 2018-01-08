@@ -33,7 +33,7 @@ import java.util.function.Function;
  * <p>
  * TOOD: rename AsyncWorkflow to something more reasonable.
  */
-public class SyncWorkflow implements AsyncWorkflow {
+class SyncWorkflow implements AsyncWorkflow {
 
     private final Function<WorkflowType, SyncWorkflowDefinition> factory;
     private final DataConverter converter;
@@ -56,7 +56,7 @@ public class SyncWorkflow implements AsyncWorkflow {
         }
 
         runnable = new WorkflowRunnable(syncContext, workflow, event.getWorkflowExecutionStartedEventAttributes());
-        runner = DeterministicRunner.newRunner(syncContext, ()-> context.getWorkflowClock().currentTimeMillis(), runnable);
+        runner = DeterministicRunner.newRunner(syncContext, context.getWorkflowClock()::currentTimeMillis, runnable);
     }
 
     @Override

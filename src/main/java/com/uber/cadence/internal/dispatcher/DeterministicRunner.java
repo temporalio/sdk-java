@@ -16,6 +16,8 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import java.util.function.Supplier;
+
 /**
  * Executes code passed to {@link #newRunner(Runnable)} as well as threads created from it using
  * {@link Workflow#newThread(Runnable)} deterministically. Requires use of provided wrappers for synchronization
@@ -27,7 +29,14 @@ public interface DeterministicRunner {
         return new DeterministicRunnerImpl(root);
     }
 
-    static DeterministicRunner newRunner(SyncDecisionContext decisionContext, WorkflowClock clock, Runnable root) {
+    /**
+     * Create new instance of DeterministicRunner
+     * @param decisionContext decision context to use
+     * @param clock Supplier that returns current time that dispatcher should use
+     * @param root function that root thread of the runner executes.
+     * @return instance of the DeterministicRunner.
+     */
+    static DeterministicRunner newRunner(SyncDecisionContext decisionContext, Supplier<Long> clock, Runnable root) {
         return new DeterministicRunnerImpl(decisionContext, clock, root);
     }
 
@@ -56,7 +65,7 @@ public interface DeterministicRunner {
     String stackTrace();
 
     /**
-     * @return time according to a {@link WorkflowClock} configured with the Runner.
+     * @return time according to a clock configured with the Runner.
      */
     long currentTimeMillis();
 

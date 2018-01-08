@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Supplier;
 
 class DeterministicRunnerImpl implements DeterministicRunner {
 
@@ -30,7 +31,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     private final SyncDecisionContext decisionContext;
     private List<WorkflowThreadImpl> threads = new LinkedList<>(); // protected by lock
     private List<WorkflowThreadImpl> threadsToAdd = Collections.synchronizedList(new ArrayList<>());
-    private final WorkflowClock clock;
+    private final Supplier<Long> clock;
     /**
      * Time at which any thread that runs under dispatcher can make progress.
      * For example when {@link WorkflowThread#sleep(long)} expires.
@@ -42,7 +43,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         this(null, System::currentTimeMillis, root);
     }
 
-    public DeterministicRunnerImpl(SyncDecisionContext decisionContext, WorkflowClock clock, Runnable root) {
+    public DeterministicRunnerImpl(SyncDecisionContext decisionContext, Supplier<Long> clock, Runnable root) {
         this.decisionContext = decisionContext;
         this.clock = clock;
         // TODO: thread name
@@ -63,6 +64,9 @@ class DeterministicRunnerImpl implements DeterministicRunner {
             // Keep repeating until at least one of the threads makes progress.
             boolean progress;
             do {
+                if (decisionContext != null) {
+                    decisionContext.fireTimers(); // Just updates their futures without running workflow code.
+                }
                 threadsToAdd.clear();
                 progress = false;
                 ListIterator<WorkflowThreadImpl> ci = threads.listIterator();
@@ -128,11 +132,21 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
     @Override
     public long currentTimeMillis() {
-        return clock.currentTimeMillis();
+        return clock.get();
     }
 
     @Override
     public long getNextWakeUpTime() {
+        if (decisionContext != null) {
+            long nextFireTime = decisionContext.getNextFireTime();
+            if (nextWakeUpTime == 0) {
+                return nextFireTime;
+            }
+            if (nextFireTime == 0) {
+                return nextWakeUpTime;
+            }
+            return Math.min(nextWakeUpTime, nextFireTime);
+        }
         return nextWakeUpTime;
     }
 
