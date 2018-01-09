@@ -22,6 +22,10 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 
 import static org.junit.Assert.assertEquals;
@@ -59,7 +63,8 @@ public class LockTest {
     @Test
     public void testLocking() throws Throwable {
         List<String> trace = new ArrayList<>();
-        DeterministicRunner r = DeterministicRunner.newRunner(null, () -> currentTime, () -> {
+        ExecutorService threadPool = new ThreadPoolExecutor(1, 1000, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
+        DeterministicRunner r = DeterministicRunner.newRunner(threadPool, null, () -> currentTime, () -> {
             trace.add("root begin");
             Workflow.newThread(
                     () -> {
@@ -109,6 +114,8 @@ public class LockTest {
                 "thread2 done"
         };
         assertTrace(expected, trace);
+        threadPool.shutdown();
+        threadPool.awaitTermination(1, TimeUnit.MINUTES);
     }
 
 

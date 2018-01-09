@@ -21,6 +21,10 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 
 import static org.junit.Assert.assertEquals;
@@ -140,7 +144,9 @@ public class DiningPhilosophersTest {
         currentTime = 0;
         trace = new ArrayList<>();
         random = new Random(1234); // Use seeded for determinism
+        ExecutorService threadPool = new ThreadPoolExecutor(1, 1000, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
         DeterministicRunner runner = DeterministicRunner.newRunner(
+                threadPool,
                 null,
                 () -> currentTime,
                 new DiningSimulation()
@@ -151,6 +157,8 @@ public class DiningPhilosophersTest {
             assertFalse("i=" + i, runner.isDone());
         }
         runner.close();
+        threadPool.shutdown();
+        threadPool.awaitTermination(1, TimeUnit.MINUTES);
         return trace;
     }
 }

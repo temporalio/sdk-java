@@ -21,6 +21,10 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
@@ -28,6 +32,7 @@ import java.util.function.Supplier;
 class DeterministicRunnerImpl implements DeterministicRunner {
 
     private final Lock lock = new ReentrantLock();
+    private final ExecutorService threadPool;
     private final SyncDecisionContext decisionContext;
     private List<WorkflowThreadImpl> threads = new LinkedList<>(); // protected by lock
     private List<WorkflowThreadImpl> threadsToAdd = Collections.synchronizedList(new ArrayList<>());
@@ -40,14 +45,17 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     private long nextWakeUpTime;
 
     public DeterministicRunnerImpl(Runnable root) {
-        this(null, System::currentTimeMillis, root);
+        this(new ThreadPoolExecutor(0, 1000, 1, TimeUnit.MINUTES, new SynchronousQueue<>()),
+                null,
+                System::currentTimeMillis, root);
     }
 
-    public DeterministicRunnerImpl(SyncDecisionContext decisionContext, Supplier<Long> clock, Runnable root) {
+    public DeterministicRunnerImpl(ExecutorService threadPool, SyncDecisionContext decisionContext, Supplier<Long> clock, Runnable root) {
+        this.threadPool = threadPool;
         this.decisionContext = decisionContext;
         this.clock = clock;
-        // TODO: thread name
-        WorkflowThreadImpl rootWorkflowThreadImpl = new WorkflowThreadImpl(this, "workflow-root", root);
+        // TODO: workflow instance specific thread name
+        WorkflowThreadImpl rootWorkflowThreadImpl = new WorkflowThreadImpl(threadPool, this, "workflow-root", root);
         threads.add(rootWorkflowThreadImpl);
         rootWorkflowThreadImpl.start();
     }
@@ -155,7 +163,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
 
     public WorkflowThreadImpl newThread(Runnable r, String name) {
-        WorkflowThreadImpl result = new WorkflowThreadImpl(this, name, r);
+        WorkflowThreadImpl result = new WorkflowThreadImpl(threadPool, this, name, r);
         threadsToAdd.add(result); // This is synchronized collection.
         return result;
     }

@@ -18,6 +18,9 @@ package com.uber.cadence.internal.dispatcher;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -30,9 +33,12 @@ class WorkflowThreadImpl implements WorkflowThread {
 
         private final WorkflowThreadContext context;
         private final Runnable r;
+        private String originalName;
+        private final String name;
 
-        RunnableWrapper(WorkflowThreadContext context, Runnable r) {
+        RunnableWrapper(WorkflowThreadContext context, String name, Runnable r) {
             this.context = context;
+            this.name = name;
             this.r = r;
             if (context.getStatus() != Status.CREATED) {
                 throw new IllegalStateException("context not in CREATED state");
@@ -41,6 +47,9 @@ class WorkflowThreadImpl implements WorkflowThread {
 
         @Override
         public void run() {
+            thread = Thread.currentThread();
+            originalName = thread.getName();
+            thread.setName(name);
             currentThreadThreadLocal.set(WorkflowThreadImpl.this);
             try {
                 // initialYield blocks thread until the first runUntilBlocked is called.
@@ -55,15 +64,19 @@ class WorkflowThreadImpl implements WorkflowThread {
                 context.setUnhandledException(e);
             } finally {
                 context.setStatus(Status.DONE);
+                thread.setName(originalName);
             }
         }
     }
 
     static final ThreadLocal<WorkflowThreadImpl> currentThreadThreadLocal = new ThreadLocal<>();
 
-    private final Thread thread;
+    private final ExecutorService threadPool;
     private final WorkflowThreadContext context;
     private final DeterministicRunnerImpl runner;
+    private final RunnableWrapper task;
+    private Thread thread;
+    private Future<?> taskFuture;
 
     /**
      * If not 0 then thread is blocked on a sleep (or on an operation with a timeout).
@@ -84,15 +97,15 @@ class WorkflowThreadImpl implements WorkflowThread {
         return result;
     }
 
-    public WorkflowThreadImpl(DeterministicRunnerImpl runner, String name, Runnable runnable) {
+    public WorkflowThreadImpl(ExecutorService threadPool, DeterministicRunnerImpl runner, String name, Runnable runnable) {
+        this.threadPool = threadPool;
         this.runner = runner;
         this.context = new WorkflowThreadContext(runner.getLock());
-        RunnableWrapper cr = new RunnableWrapper(context, runnable);
         // TODO: Use thread pool instead of creating new threads.
         if (name == null) {
             name = "workflow-" + super.hashCode();
         }
-        this.thread = new Thread(cr, name);
+        this.task = new RunnableWrapper(context, name, runnable);
     }
 
     public static WorkflowThread newThread(Runnable runnable) {
@@ -123,7 +136,7 @@ class WorkflowThreadImpl implements WorkflowThread {
         if (context.getStatus() != Status.CREATED) {
             throw new IllegalThreadStateException("already started");
         }
-        thread.start();
+        taskFuture = threadPool.submit(task);
     }
 
     public WorkflowThreadContext getContext() {
@@ -134,7 +147,9 @@ class WorkflowThreadImpl implements WorkflowThread {
         return runner;
     }
 
-    public SyncDecisionContext getDecisionContext() { return runner.getDecisionContext(); }
+    public SyncDecisionContext getDecisionContext() {
+        return runner.getDecisionContext();
+    }
 
     @Override
     public void join() throws InterruptedException {
@@ -148,7 +163,7 @@ class WorkflowThreadImpl implements WorkflowThread {
     }
 
     public boolean isAlive() {
-        return thread.isAlive() && !isDone();
+        return !isDone();
     }
 
     public void setName(String name) {
@@ -171,15 +186,11 @@ class WorkflowThreadImpl implements WorkflowThread {
         this.blockedUntil = blockedUntil;
     }
 
-    public Thread getThread() {
-        return thread;
-    }
-
     /**
      * @return true if coroutine made some progress.
      */
     public boolean runUntilBlocked() {
-        if (thread.getState() == Thread.State.NEW) {
+        if (taskFuture == null) {
             // Thread is not yet started
             return false;
         }
@@ -224,9 +235,11 @@ class WorkflowThreadImpl implements WorkflowThread {
                     "The blocked thread stack trace: " + getStackTrace());
         }
         try {
-            thread.join();
+            taskFuture.get();
         } catch (InterruptedException e) {
             throw new Error("Unexpected interrupt", e);
+        } catch (ExecutionException e) {
+            throw new Error("Unexpected failure stopping coroutine", e);
         }
     }
 
@@ -266,7 +279,7 @@ class WorkflowThreadImpl implements WorkflowThread {
         long blockedUntil = Workflow.currentTimeMillis() + timeoutMillis;
         current.setBlockedUntil(blockedUntil);
         YieldWithTimeoutCondition condition = new YieldWithTimeoutCondition(unblockCondition, blockedUntil);
-        yield("reason", condition);
+        yield(reason, condition);
         return !condition.isTimedOut();
     }
 

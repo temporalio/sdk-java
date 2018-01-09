@@ -25,24 +25,27 @@ import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.WorkflowType;
 
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
 /**
  * The best inheritance hierarchy :).
  * SyncWorkflow supports workflows that use blocking code.
  * <p>
- * TOOD: rename AsyncWorkflow to something more reasonable.
+ * TODO: rename AsyncWorkflow to something more reasonable.
  */
 class SyncWorkflow implements AsyncWorkflow {
 
     private final Function<WorkflowType, SyncWorkflowDefinition> factory;
     private final DataConverter converter;
+    private final ExecutorService threadPool;
     private WorkflowRunnable runnable;
     private DeterministicRunner runner;
 
-    public SyncWorkflow(Function<WorkflowType, SyncWorkflowDefinition> factory, DataConverter converter) {
+    public SyncWorkflow(Function<WorkflowType, SyncWorkflowDefinition> factory, DataConverter converter, ExecutorService threadPool) {
         this.factory = factory;
         this.converter = converter;
+        this.threadPool = threadPool;
     }
 
     @Override
@@ -56,7 +59,7 @@ class SyncWorkflow implements AsyncWorkflow {
         }
 
         runnable = new WorkflowRunnable(syncContext, workflow, event.getWorkflowExecutionStartedEventAttributes());
-        runner = DeterministicRunner.newRunner(syncContext, context.getWorkflowClock()::currentTimeMillis, runnable);
+        runner = DeterministicRunner.newRunner(threadPool, syncContext, context.getWorkflowClock()::currentTimeMillis, runnable);
     }
 
     @Override

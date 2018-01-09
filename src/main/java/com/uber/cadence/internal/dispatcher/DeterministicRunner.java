@@ -16,6 +16,8 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 
 /**
@@ -36,8 +38,8 @@ public interface DeterministicRunner {
      * @param root function that root thread of the runner executes.
      * @return instance of the DeterministicRunner.
      */
-    static DeterministicRunner newRunner(SyncDecisionContext decisionContext, Supplier<Long> clock, Runnable root) {
-        return new DeterministicRunnerImpl(decisionContext, clock, root);
+    static DeterministicRunner newRunner(ExecutorService threadPool, SyncDecisionContext decisionContext, Supplier<Long> clock, Runnable root) {
+        return new DeterministicRunnerImpl(threadPool, decisionContext, clock, root);
     }
 
     /**

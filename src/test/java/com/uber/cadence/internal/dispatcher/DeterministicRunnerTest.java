@@ -16,12 +16,17 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.*;
 
@@ -34,6 +39,7 @@ public class DeterministicRunnerTest {
     private Throwable failure;
     List<String> trace = new ArrayList<>();
     private long currentTime;
+    private ExecutorService threadPool;
 
     @Before
     public void setUp() {
@@ -44,6 +50,13 @@ public class DeterministicRunnerTest {
         status = "initial";
         trace.clear();
         currentTime = 0;
+        threadPool = new ThreadPoolExecutor(1, 1000, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
+    }
+
+    @After
+    public void tearDown() throws InterruptedException {
+        threadPool.shutdown();
+        threadPool.awaitTermination(10, TimeUnit.SECONDS);
     }
 
     @Test
@@ -82,6 +95,7 @@ public class DeterministicRunnerTest {
     @Test
     public void testSleep() throws Throwable {
         DeterministicRunnerImpl d = new DeterministicRunnerImpl(
+                threadPool,
                 null,
                 () -> currentTime, // clock override
                 () -> {
@@ -306,6 +320,7 @@ public class DeterministicRunnerTest {
     @Test
     public void testJoinTimeout() throws Throwable {
         DeterministicRunnerImpl d = new DeterministicRunnerImpl(
+                threadPool,
                 null,
                 () -> currentTime, // clock override
                 () -> {

@@ -24,6 +24,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -95,7 +98,10 @@ public class WorkflowFutureTest {
 
     @Test
     public void testGetTimeout() throws Throwable {
+        ExecutorService threadPool = new ThreadPoolExecutor(1, 1000, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
+
         DeterministicRunner r = DeterministicRunner.newRunner(
+                threadPool,
                 null,
                 () -> currentTime,
                 () -> {
@@ -135,6 +141,8 @@ public class WorkflowFutureTest {
                 "thread1 get timeout",
         };
         assertTrace(expected, trace);
+        threadPool.shutdown();
+        threadPool.awaitTermination(1, TimeUnit.MINUTES);
     }
 
     @Test

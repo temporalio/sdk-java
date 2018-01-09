@@ -27,6 +27,10 @@ import com.uber.cadence.WorkflowService;
 import com.uber.cadence.WorkflowType;
 
 import java.lang.management.ManagementFactory;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 
@@ -38,8 +42,12 @@ public class SyncWorkflowWorker extends GenericWorker {
 
     private DataConverter dataConverter = new JsonDataConverter();
 
+    private ExecutorService workflowThreadPool;
+
     public SyncWorkflowWorker() {
         setIdentity(ManagementFactory.getRuntimeMXBean().getName());
+        workflowThreadPool = new ThreadPoolExecutor(1, 1000,
+                10, TimeUnit.SECONDS, new SynchronousQueue<>());
     }
 
     public SyncWorkflowWorker(WorkflowService.Iface service, String domain, String taskListToPoll) {
@@ -57,6 +65,10 @@ public class SyncWorkflowWorker extends GenericWorker {
         this.dataConverter = dataConverter;
     }
 
+    public void setWorkflowThreadPool(ExecutorService workflowThreadPool) {
+        this.workflowThreadPool = workflowThreadPool;
+    }
+
     @Override
     protected void checkRequredProperties() {
         checkRequiredProperty(factory, "factory");
@@ -70,7 +82,7 @@ public class SyncWorkflowWorker extends GenericWorker {
     @Override
     protected TaskPoller createPoller() {
         DecisionTaskPoller result = new DecisionTaskPoller();
-        AsyncWorkflowFactory workflowFactory = new SyncWorkflowFactory(factory, dataConverter);
+        AsyncWorkflowFactory workflowFactory = new SyncWorkflowFactory(factory, dataConverter, workflowThreadPool);
         result.setDecisionTaskHandler(new AsyncDecisionTaskHandler(workflowFactory));
         result.setDomain(getDomain());
         result.setIdentity(getIdentity());
@@ -84,4 +96,32 @@ public class SyncWorkflowWorker extends GenericWorker {
         return this.getClass().getSimpleName() + "[super=" + super.toString() + ", workflowDefinitionFactoryFactory="
                 + factory + "]";
     }
+
+    @Override
+    public void shutdown() {
+        super.shutdown();
+        workflowThreadPool.shutdown();
+    }
+
+    @Override
+    public void shutdownNow() {
+        super.shutdownNow();
+        workflowThreadPool.shutdownNow();
+    }
+
+    @Override
+    public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+        long start = System.currentTimeMillis();
+        boolean terminated = super.awaitTermination(timeout, unit);
+        long elapsed = System.currentTimeMillis() - start;
+        long left = TimeUnit.MILLISECONDS.convert(timeout, unit) - elapsed;
+        return workflowThreadPool.awaitTermination(left, TimeUnit.MILLISECONDS) && terminated;
+    }
+
+    @Override
+    public boolean shutdownAndAwaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+        shutdownNow();
+        return awaitTermination(timeout, TimeUnit.MILLISECONDS);
+    }
+
 }
