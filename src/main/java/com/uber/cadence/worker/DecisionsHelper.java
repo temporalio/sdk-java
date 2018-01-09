@@ -465,7 +465,7 @@ class DecisionsHelper {
             reason = f.getReason();
             details = f.getDetails();
         } else {
-            reason = failure.getMessage();
+            reason = failure.toString();
             StringWriter sw = new StringWriter();
             failure.printStackTrace(new PrintWriter(sw));
             details = sw.toString().getBytes(TaskPoller.UTF8_CHARSET);

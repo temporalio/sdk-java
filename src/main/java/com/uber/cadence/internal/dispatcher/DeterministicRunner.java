@@ -33,9 +33,10 @@ public interface DeterministicRunner {
 
     /**
      * Create new instance of DeterministicRunner
+     *
      * @param decisionContext decision context to use
-     * @param clock Supplier that returns current time that dispatcher should use
-     * @param root function that root thread of the runner executes.
+     * @param clock           Supplier that returns current time that dispatcher should use
+     * @param root            function that root thread of the runner executes.
      * @return instance of the DeterministicRunner.
      */
     static DeterministicRunner newRunner(ExecutorService threadPool, SyncDecisionContext decisionContext, Supplier<Long> clock, Runnable root) {

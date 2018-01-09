@@ -50,6 +50,7 @@ import java.util.function.Function;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class SyncWorkfowTest {
 
@@ -230,6 +231,44 @@ public class SyncWorkfowTest {
         WorkflowExecution started = clientExternal.startWorkflow(startParameters);
         WorkflowExecutionCompletedEventAttributes result = WorkflowExecutionUtils.waitForWorkflowExecutionResult(service, domain, started, 10);
         assertEquals("testTimer", new String(result.getResult()));
+    }
+
+    @Test
+    public void testTimerCallbackBlocked() throws InterruptedException, WorkflowExecutionAlreadyStartedException, TimeoutException {
+        WorkflowType type = new WorkflowType().setName("testTimer");
+        definitionMap.put(type, (input) -> {
+            WorkflowFuture<Void> timer1 = Workflow.newTimer(0);
+            WorkflowFuture<Void> timer2 = Workflow.newTimer(1);
+
+            try {
+                WorkflowFuture<Void> f = new WorkflowFuture<>();
+                timer1.thenApply((e) -> {
+                    timer2.get(); // This is prohibited
+                    f.complete(null);
+                    return null;
+                });
+                f.get();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+            return "testTimer".getBytes();
+        });
+        StartWorkflowExecutionParameters startParameters = new StartWorkflowExecutionParameters();
+        startParameters.setExecutionStartToCloseTimeoutSeconds(60);
+        startParameters.setTaskStartToCloseTimeoutSeconds(2);
+        startParameters.setTaskList(taskList);
+        startParameters.setInput("input".getBytes());
+        startParameters.setWorkflowId("workflow1");
+        startParameters.setWorkflowType(type);
+        WorkflowExecution started = clientExternal.startWorkflow(startParameters);
+        try {
+            WorkflowExecutionUtils.waitForWorkflowExecutionResult(service, domain, started, 10);
+            fail("failure expected");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("Callback thread blocked"));
+        }
     }
 
     public interface TestActivities {

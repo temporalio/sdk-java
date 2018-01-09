@@ -68,13 +68,17 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     public void runUntilAllBlocked() throws Throwable {
         lock.lock();
         try {
+            WorkflowThreadImpl callbackThread = null;
+            if (decisionContext != null) {
+                // Call callbacks from a thread owned by the dispatcher.
+                callbackThread = newThread(decisionContext::fireTimers, "timer callbacks");
+                callbackThread.start();
+                threads.add(callbackThread);
+            }
             Throwable unhandledException = null;
             // Keep repeating until at least one of the threads makes progress.
             boolean progress;
             do {
-                if (decisionContext != null) {
-                    decisionContext.fireTimers(); // Just updates their futures without running workflow code.
-                }
                 threadsToAdd.clear();
                 progress = false;
                 ListIterator<WorkflowThreadImpl> ci = threads.listIterator();
@@ -101,6 +105,9 @@ class DeterministicRunnerImpl implements DeterministicRunner {
                 }
                 threads.addAll(threadsToAdd);
             } while (progress && !threads.isEmpty());
+            if (callbackThread != null && !callbackThread.isDone()) {
+                throw new IllegalStateException("Callback thread blocked:\n" + callbackThread.getStackTrace());
+            }
             if (nextWakeUpTime < currentTimeMillis()) {
                 nextWakeUpTime = 0;
             }
