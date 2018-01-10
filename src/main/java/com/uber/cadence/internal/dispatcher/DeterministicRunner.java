@@ -31,6 +31,10 @@ public interface DeterministicRunner {
         return new DeterministicRunnerImpl(root);
     }
 
+    static DeterministicRunner newRunner(Supplier<Long> clock, Runnable root) {
+        return new DeterministicRunnerImpl(clock, root);
+    }
+
     /**
      * Create new instance of DeterministicRunner
      *

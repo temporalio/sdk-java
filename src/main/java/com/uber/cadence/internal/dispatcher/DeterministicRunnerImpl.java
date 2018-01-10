@@ -45,9 +45,14 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     private long nextWakeUpTime;
 
     public DeterministicRunnerImpl(Runnable root) {
+        this(System::currentTimeMillis, root);
+    }
+
+
+    public DeterministicRunnerImpl(Supplier<Long> clock, Runnable root) {
         this(new ThreadPoolExecutor(0, 1000, 1, TimeUnit.MINUTES, new SynchronousQueue<>()),
                 null,
-                System::currentTimeMillis, root);
+                clock, root);
     }
 
     public DeterministicRunnerImpl(ExecutorService threadPool, SyncDecisionContext decisionContext, Supplier<Long> clock, Runnable root) {

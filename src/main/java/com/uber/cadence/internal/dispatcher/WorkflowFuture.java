@@ -25,10 +25,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
-import java.util.function.Function;
 
-public class WorkflowFuture<T> implements Future<T> {
+public final class WorkflowFuture<T> implements Future<T> {
 
     private static class Handler {
         final WorkflowFuture<Object> result;
