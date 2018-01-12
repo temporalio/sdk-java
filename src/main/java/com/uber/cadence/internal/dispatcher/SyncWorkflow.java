@@ -63,6 +63,11 @@ class SyncWorkflow implements AsyncWorkflow {
     }
 
     @Override
+    public void processSignal(String signalName, byte[] input) {
+        runnable.processSignal(signalName, input);
+    }
+
+    @Override
     public boolean eventLoop() throws Throwable {
         runner.runUntilAllBlocked();
         return runner.isDone();

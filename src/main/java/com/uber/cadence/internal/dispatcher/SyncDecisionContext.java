@@ -17,12 +17,13 @@
 package com.uber.cadence.internal.dispatcher;
 
 import com.uber.cadence.AsyncDecisionContext;
-import com.uber.cadence.AsyncWorkflowClock;
 import com.uber.cadence.DataConverter;
 import com.uber.cadence.generic.ExecuteActivityParameters;
 import com.uber.cadence.generic.GenericAsyncActivityClient;
 import com.uber.cadence.ActivityType;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -35,6 +36,7 @@ public class SyncDecisionContext {
     private final GenericAsyncActivityClient activityClient;
     private final DataConverter converter;
     private final WorkflowTimers timers = new WorkflowTimers();
+    private Map<String, WorkflowQueue<byte[]>> signalQueues = new HashMap<>();
 
     public SyncDecisionContext(AsyncDecisionContext context, DataConverter converter) {
         this.context = context;
@@ -107,6 +109,29 @@ public class SyncDecisionContext {
 
     public long getNextFireTime() {
         return timers.getNextFireTime();
+    }
+
+    public <E> QueueConsumer<E> getSignalQueue(String signalName, Class<E> signalClass) {
+        WorkflowQueue<byte[]> queue = getSignalQueue(signalName);
+        return queue.map((serialized) -> converter.fromData(serialized, signalClass));
+    }
+
+    private WorkflowQueue<byte[]> getSignalQueue(String signalName) {
+        WorkflowQueue<byte[]> queue = signalQueues.get(signalName);
+        if (queue == null) {
+            queue = Workflow.newQueue(Integer.MAX_VALUE);
+            signalQueues.put(signalName, queue);
+        }
+        return queue;
+    }
+
+    public void processSignal(String signalName, byte[] input) {
+        WorkflowQueue<byte[]> queue = getSignalQueue(signalName);
+        try {
+            queue.put(input);
+        } catch (InterruptedException e) {
+            throw new Error("unexpected", e);
+        }
     }
 
     private static class ActivityFutureCancellationHandler implements BiConsumer<WorkflowFuture, Boolean> {

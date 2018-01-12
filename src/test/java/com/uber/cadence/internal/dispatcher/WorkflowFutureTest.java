@@ -17,6 +17,7 @@
 package com.uber.cadence.internal.dispatcher;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -34,13 +35,14 @@ import static org.junit.Assert.*;
 
 public class WorkflowFutureTest {
 
+    @Rule
+    public final Tracer trace = new Tracer();
+
     private long currentTime;
-    private List<String> trace = new ArrayList<>();
 
     @Before
     public void setUp() {
         currentTime = 10;
-        trace.clear();
     }
 
     @Test
@@ -69,7 +71,7 @@ public class WorkflowFutureTest {
                 "root done",
                 "thread1 get failure",
         };
-        assertTrace(expected, trace);
+        trace.setExpected(expected);
     }
 
     @Test
@@ -93,7 +95,7 @@ public class WorkflowFutureTest {
                 "cancellation handler done",
                 "thread1 done",
         };
-        assertTrace(expected, trace);
+        trace.setExpected(expected);
     }
 
     @Test
@@ -130,7 +132,8 @@ public class WorkflowFutureTest {
                 "root done",
                 "thread1 begin",
         };
-        assertTrace(expected, trace);
+        trace.setExpected(expected);
+        trace.assertExpected();
 
         currentTime += 11000;
         r.runUntilAllBlocked();
@@ -140,7 +143,7 @@ public class WorkflowFutureTest {
                 "thread1 begin",
                 "thread1 get timeout",
         };
-        assertTrace(expected, trace);
+        trace.setExpected(expected);
         threadPool.shutdown();
         threadPool.awaitTermination(1, TimeUnit.MINUTES);
     }
@@ -208,11 +211,6 @@ public class WorkflowFutureTest {
                 "root done"
         };
 
-        assertTrace(expected, trace);
+        trace.setExpected(expected);
     }
-
-    void assertTrace(String[] expected, List<String> trace) {
-        assertEquals(Arrays.asList(expected), trace);
-    }
-
 }

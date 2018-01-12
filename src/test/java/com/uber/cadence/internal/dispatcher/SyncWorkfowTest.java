@@ -16,6 +16,8 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import com.uber.cadence.JsonDataConverter;
+import com.uber.cadence.SignalWorkflowExecutionRequest;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionAlreadyStartedException;
 import com.uber.cadence.WorkflowExecutionCompletedEventAttributes;
@@ -33,6 +35,7 @@ import org.apache.log4j.Level;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
+import org.apache.thrift.TException;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -231,6 +234,46 @@ public class SyncWorkfowTest {
         WorkflowExecution started = clientExternal.startWorkflow(startParameters);
         WorkflowExecutionCompletedEventAttributes result = WorkflowExecutionUtils.waitForWorkflowExecutionResult(service, domain, started, 10);
         assertEquals("testTimer", new String(result.getResult()));
+    }
+
+    @Test
+    public void testSignal() throws InterruptedException, WorkflowExecutionAlreadyStartedException, TimeoutException, TException {
+        WorkflowType type = new WorkflowType().setName("testTimer");
+        definitionMap.put(type, (input) -> {
+            try {
+                QueueConsumer<String> signalQueue = Workflow.getSignalQueue("testSignal", String.class);
+                String signal1 = signalQueue.take();
+                String signal2 = signalQueue.take();
+                return (signal1 + signal2).getBytes();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        StartWorkflowExecutionParameters startParameters = new StartWorkflowExecutionParameters();
+        startParameters.setExecutionStartToCloseTimeoutSeconds(60);
+        startParameters.setTaskStartToCloseTimeoutSeconds(2);
+        startParameters.setTaskList(taskList);
+        startParameters.setInput("input".getBytes());
+        String workflowId = "workflow1";
+        startParameters.setWorkflowId(workflowId);
+        startParameters.setWorkflowType(type);
+        WorkflowExecution started = clientExternal.startWorkflow(startParameters);
+        SignalWorkflowExecutionRequest signalRequest1 = new SignalWorkflowExecutionRequest();
+        String signalInput = "Hello ";
+        signalRequest1.setInput(new JsonDataConverter().toData(signalInput));
+        signalRequest1.setDomain(domain);
+        signalRequest1.setSignalName("testSignal");
+        signalRequest1.setWorkflowExecution(new WorkflowExecution().setWorkflowId(workflowId));
+        service.SignalWorkflowExecution(signalRequest1);
+        SignalWorkflowExecutionRequest signalRequest2 = new SignalWorkflowExecutionRequest();
+        String signalInput2 = "World!";
+        signalRequest2.setInput(new JsonDataConverter().toData(signalInput2));
+        signalRequest2.setDomain(domain);
+        signalRequest2.setSignalName("testSignal");
+        signalRequest2.setWorkflowExecution(new WorkflowExecution().setWorkflowId(workflowId));
+        service.SignalWorkflowExecution(signalRequest2);
+        WorkflowExecutionCompletedEventAttributes result = WorkflowExecutionUtils.waitForWorkflowExecutionResult(service, domain, started, 10);
+        assertEquals("Hello World!", new String(result.getResult()));
     }
 
     @Test

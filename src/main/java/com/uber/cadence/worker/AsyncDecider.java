@@ -278,11 +278,12 @@ class AsyncDecider {
     }
 
     private void handleWorkflowExecutionSignaled(HistoryEvent event) throws Throwable {
-        assert (event.getEventType().equals(EventType.WorkflowExecutionSignaled.toString()));
+        assert (event.getEventType() == EventType.WorkflowExecutionSignaled);
         final WorkflowExecutionSignaledEventAttributes signalAttributes = event.getWorkflowExecutionSignaledEventAttributes();
         if (completed) {
             throw new IllegalStateException("Signal received after workflow is closed. TODO: Change signal handling from callback to a queue to fix the issue.");
         }
+        this.workflow.processSignal(signalAttributes.getSignalName(), signalAttributes.getInput());
     }
 
     private void handleDecisionTaskCompleted(HistoryEvent event) {

@@ -18,7 +18,7 @@ package com.uber.cadence.internal.dispatcher;
 
 import java.util.concurrent.TimeUnit;
 
-public interface WorkflowQueueProducer<E> {
+public interface QueueProducer<E> {
 
     /**
      * Inserts the specified element into this queue if it is possible to do

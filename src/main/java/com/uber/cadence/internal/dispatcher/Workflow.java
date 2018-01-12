@@ -37,6 +37,28 @@ public class Workflow {
         return getDecisionContext().newTimer(delaySeconds);
     }
 
+    public static <E> WorkflowQueue<E> newQueue(int capacity) {
+        return new WorkflowQueueImpl<E>(capacity);
+    }
+
+    public static <E> WorkflowFuture<E> newFuture() {
+        return new WorkflowFuture<>();
+    }
+
+    public static <E> WorkflowFuture<E> newFuture(E value) {
+        return new WorkflowFuture<>(value);
+    }
+
+    public static <E> WorkflowFuture<E> newFailedFuture(Exception failure) {
+        WorkflowFuture<E>  result = new WorkflowFuture<>();
+        result.completeExceptionally(failure);
+        return result;
+    }
+
+    public static <E> QueueConsumer<E> getSignalQueue(String signalName, Class<E> signalClass) {
+        return getDecisionContext().getSignalQueue(signalName, signalClass);
+    }
+
     /**
      * Note that workflow executes all threads one at a time, ensures that they are interrupted
      * only when blocked on something like Lock or {@link Future#get()} and uses memory barrier to ensure
@@ -79,7 +101,7 @@ public class Workflow {
         try {
             activity.apply();
         } catch (Exception e) {
-            return new WorkflowFuture<R>(e);
+            return Workflow.newFailedFuture(e);
         } finally {
             return ActivityInvocationHandler.getAsyncInvocationResult();
         }
@@ -184,7 +206,7 @@ public class Workflow {
         try {
             activity.apply();
         } catch (Exception e) {
-            return new WorkflowFuture<>(e);
+            return Workflow.newFailedFuture(e);
         } finally {
             return ActivityInvocationHandler.getAsyncInvocationResult();
         }

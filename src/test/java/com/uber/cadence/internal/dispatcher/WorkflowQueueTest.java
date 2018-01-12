@@ -17,6 +17,7 @@
 package com.uber.cadence.internal.dispatcher;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -35,18 +36,18 @@ import static org.junit.Assert.*;
 public class WorkflowQueueTest {
 
     private long currentTime;
-    private List<String> trace = new ArrayList<>();
+    @Rule
+    public final Tracer trace = new Tracer();
 
     @Before
     public void setUp() {
         currentTime = 10;
-        trace.clear();
     }
 
     @Test
     public void testTakeBlocking() throws Throwable {
         DeterministicRunner r = DeterministicRunner.newRunner(() -> {
-            WorkflowQueue<Boolean> f = new WorkflowQueue<>(1);
+            WorkflowQueue<Boolean> f = Workflow.newQueue(1);
             trace.add("root begin");
             Workflow.newThread(() -> {
                 try {
@@ -78,13 +79,13 @@ public class WorkflowQueueTest {
                 "thread1 take success",
 
         };
-        assertTrace(expected, trace);
+        trace.setExpected(expected);
     }
 
     @Test
     public void testPutBlocking() throws Throwable {
         DeterministicRunner r = DeterministicRunner.newRunner(() -> currentTime, () -> {
-            WorkflowQueue<Boolean> f = new WorkflowQueue<>(1);
+            WorkflowQueue<Boolean> f = Workflow.newQueue(1);
             trace.add("root begin");
             Workflow.newThread(() -> {
                 try {
@@ -124,11 +125,6 @@ public class WorkflowQueueTest {
                 "thread2 put2 success",
                 "thread1 take2 success",
         };
-        assertTrace(expected, trace);
+        trace.setExpected(expected);
     }
-
-    void assertTrace(String[] expected, List<String> trace) {
-        assertEquals(Arrays.asList(expected), trace);
-    }
-
 }

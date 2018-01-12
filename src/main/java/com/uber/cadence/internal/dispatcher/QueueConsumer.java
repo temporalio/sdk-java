@@ -16,11 +16,9 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
-import java.util.Collection;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
-public interface WorkflowQueueConsumer<E>  {
+public interface QueueConsumer<E>  {
 
     /**
      * Retrieves and removes the head of this queue, waiting if necessary
@@ -46,4 +44,10 @@ public interface WorkflowQueueConsumer<E>  {
     E poll(long timeout, TimeUnit unit)
             throws InterruptedException;
 
+    /**
+     * Returns a queue consisting of the results of applying the given function to the elements of this queue.
+     * @param mapper a non-interfering, stateless function to apply to each element
+     * @return the new queue backed by this one.
+     */
+    <R> QueueConsumer<R> map(Functions.Func1<? super E,? extends R> mapper);
 }
