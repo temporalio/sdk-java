@@ -46,14 +46,15 @@ import java.util.Collections;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 public class SyncWorkfowTest {
 
@@ -148,7 +149,7 @@ public class SyncWorkfowTest {
         startParameters.setTaskStartToCloseTimeoutSeconds(2);
         startParameters.setTaskList(taskList);
         startParameters.setInput("input".getBytes());
-        startParameters.setWorkflowId("workflow1");
+        startParameters.setWorkflowId("testSync1");
         startParameters.setWorkflowType(type);
         WorkflowExecution started = clientExternal.startWorkflow(startParameters);
         WorkflowExecutionCompletedEventAttributes result = WorkflowExecutionUtils.waitForWorkflowExecutionResult(service, domain, started, 10);
@@ -238,7 +239,7 @@ public class SyncWorkfowTest {
 
     @Test
     public void testSignal() throws InterruptedException, WorkflowExecutionAlreadyStartedException, TimeoutException, TException {
-        WorkflowType type = new WorkflowType().setName("testTimer");
+        WorkflowType type = new WorkflowType().setName("testSignal");
         definitionMap.put(type, (input) -> {
             try {
                 QueueConsumer<String> signalQueue = Workflow.getSignalQueue("testSignal", String.class);
@@ -254,7 +255,7 @@ public class SyncWorkfowTest {
         startParameters.setTaskStartToCloseTimeoutSeconds(2);
         startParameters.setTaskList(taskList);
         startParameters.setInput("input".getBytes());
-        String workflowId = "workflow1";
+        String workflowId = "testSignal1";
         startParameters.setWorkflowId(workflowId);
         startParameters.setWorkflowType(type);
         WorkflowExecution started = clientExternal.startWorkflow(startParameters);
@@ -274,6 +275,58 @@ public class SyncWorkfowTest {
         service.SignalWorkflowExecution(signalRequest2);
         WorkflowExecutionCompletedEventAttributes result = WorkflowExecutionUtils.waitForWorkflowExecutionResult(service, domain, started, 10);
         assertEquals("Hello World!", new String(result.getResult()));
+    }
+
+    /**
+     * Tests that signal received during a decision that completes workflow
+     * is not lost.
+     */
+    @Test
+    public void testSignalDuringLastDecision() throws InterruptedException, WorkflowExecutionAlreadyStartedException, TimeoutException, TException, ExecutionException {
+        WorkflowType type = new WorkflowType().setName("testSignalDuringLastDecision");
+        AtomicInteger decisionCount = new AtomicInteger();
+        CompletableFuture<Boolean> sendSignal = new CompletableFuture<>();
+        definitionMap.put(type, (input) -> {
+            try {
+                QueueConsumer<String> signalQueue = Workflow.getSignalQueue("testSignal", String.class);
+                String signal = signalQueue.poll(0, TimeUnit.MILLISECONDS);
+                if (decisionCount.incrementAndGet() == 1) {
+                    sendSignal.complete(true);
+                    // Never sleep in real workflow using Thread.sleep.
+                    // Here it is to simulate race condition.
+                    Thread.sleep(500);
+                }
+                if (signal == null) {
+                    return null;
+                } else {
+                    return signal.getBytes();
+                }
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        });
+        StartWorkflowExecutionParameters startParameters = new StartWorkflowExecutionParameters();
+        startParameters.setExecutionStartToCloseTimeoutSeconds(60);
+        startParameters.setTaskStartToCloseTimeoutSeconds(2);
+        startParameters.setTaskList(taskList);
+        startParameters.setInput("input".getBytes());
+        String workflowId = "testSignalDuringLastDecision1";
+        startParameters.setWorkflowId(workflowId);
+        startParameters.setWorkflowType(type);
+        WorkflowExecution started = clientExternal.startWorkflow(startParameters);
+        SignalWorkflowExecutionRequest signalRequest = new SignalWorkflowExecutionRequest();
+        String signalInput = "Signal Input";
+        signalRequest.setInput(new JsonDataConverter().toData(signalInput));
+        signalRequest.setDomain(domain);
+        signalRequest.setSignalName("testSignal");
+        signalRequest.setWorkflowExecution(new WorkflowExecution().setWorkflowId(workflowId));
+        try {
+            sendSignal.get(2, TimeUnit.SECONDS);
+            service.SignalWorkflowExecution(signalRequest);
+        } catch (TimeoutException e) {
+        }
+        WorkflowExecutionCompletedEventAttributes result = WorkflowExecutionUtils.waitForWorkflowExecutionResult(service, domain, started, 10);
+        assertEquals("Signal Input", new String(result.getResult()));
     }
 
     @Test
@@ -303,7 +356,7 @@ public class SyncWorkfowTest {
         startParameters.setTaskStartToCloseTimeoutSeconds(2);
         startParameters.setTaskList(taskList);
         startParameters.setInput("input".getBytes());
-        startParameters.setWorkflowId("workflow1");
+        startParameters.setWorkflowId("testTimerCallbackBlocked1");
         startParameters.setWorkflowType(type);
         WorkflowExecution started = clientExternal.startWorkflow(startParameters);
         try {

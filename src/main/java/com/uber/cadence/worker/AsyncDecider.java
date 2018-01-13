@@ -290,6 +290,7 @@ class AsyncDecider {
         decisionsHelper.handleDecisionCompletion(event.getDecisionTaskCompletedEventAttributes());
     }
 
+    // TODO: Simplify as Cadence reorders concurrent decisions on the server.
     public void decide() throws Exception {
         try {
             long lastNonReplayedEventId = historyHelper.getLastNonReplayEventId();
@@ -298,65 +299,38 @@ class AsyncDecider {
             HistoryHelper.EventsIterator eventsIterator = historyHelper.getEvents();
             List<HistoryEvent> reordered = null;
             do {
-                List<HistoryEvent> decisionStartToCompletionEvents = new ArrayList<HistoryEvent>();
                 List<HistoryEvent> decisionCompletionToStartEvents = new ArrayList<HistoryEvent>();
-                boolean concurrentToDecision = true;
-                int lastDecisionIndex = -1;
                 while (eventsIterator.hasNext()) {
                     HistoryEvent event = eventsIterator.next();
                     EventType eventType = event.getEventType();
                     if (eventType == EventType.DecisionTaskCompleted) {
                         decisionsHelper.setWorkflowContextData(event.getDecisionTaskCompletedEventAttributes().getExecutionContext());
-                        concurrentToDecision = false;
                     } else if (eventType == EventType.DecisionTaskStarted) {
                         decisionsHelper.handleDecisionTaskStartedEvent();
 
-                        if (!eventsIterator.isNextDecisionTimedOut()) {
+                        if (!eventsIterator.isNextDecisionFailed()) {
                             // Cadence timestamp is in nanoseconds
                             long replayCurrentTimeMilliseconds = event.getTimestamp() / MILLION;
                             workflowClock.setReplayCurrentTimeMilliseconds(replayCurrentTimeMilliseconds);
                             break;
                         }
-                    } else if (eventType == EventType.DecisionTaskScheduled || eventType == EventType.DecisionTaskTimedOut) {
+                    } else if (eventType == EventType.DecisionTaskScheduled
+                            || eventType == EventType.DecisionTaskTimedOut
+                            || eventType == EventType.DecisionTaskFailed) {
                         // skip
                     } else {
-                        if (concurrentToDecision) {
-                            decisionStartToCompletionEvents.add(event);
-                        } else {
-                            if (isDecisionEvent(eventType)) {
-                                lastDecisionIndex = decisionCompletionToStartEvents.size();
-                            }
-                            decisionCompletionToStartEvents.add(event);
-                        }
+                        decisionCompletionToStartEvents.add(event);
                     }
                 }
-                int size = decisionStartToCompletionEvents.size() + decisionStartToCompletionEvents.size();
-                // Reorder events to correspond to the order that decider sees them. 
-                // The main difference is that events that were added during decision task execution 
-                // should be processed after events that correspond to the decisions. 
-                // Otherwise the replay is going to break.
-                reordered = new ArrayList<HistoryEvent>(size);
-                // First are events that correspond to the previous task decisions
-                if (lastDecisionIndex >= 0) {
-                    reordered.addAll(decisionCompletionToStartEvents.subList(0, lastDecisionIndex + 1));
-                }
-                // Second are events that were added during previous task execution
-                reordered.addAll(decisionStartToCompletionEvents);
-                // The last are events that were added after previous task completion
-                if (decisionCompletionToStartEvents.size() > lastDecisionIndex + 1) {
-                    reordered.addAll(decisionCompletionToStartEvents.subList(lastDecisionIndex + 1,
-                            decisionCompletionToStartEvents.size()));
-                }
-                for (HistoryEvent event : reordered) {
+                for (HistoryEvent event : decisionCompletionToStartEvents) {
                     if (event.getEventId() >= lastNonReplayedEventId) {
                         workflowClock.setReplaying(false);
                     }
                     EventType eventType = event.getEventType();
                     processEvent(event, eventType);
-                    eventLoop();
                 }
+                eventLoop();
                 completeWorkflow();
-
             }
             while (eventsIterator.hasNext());
             if (unhandledDecision) {
@@ -383,31 +357,6 @@ class AsyncDecider {
                 log.error("Failing workflow " + workflowContext.getWorkflowExecution(), e);
             }
             decisionsHelper.failWorkflowDueToUnexpectedError(e);
-        }
-    }
-
-    private boolean isDecisionEvent(EventType eventType) {
-        switch (eventType) {
-            case ActivityTaskScheduled:
-            case ActivityTaskCancelRequested:
-            case RequestCancelActivityTaskFailed:
-            case MarkerRecorded:
-            case WorkflowExecutionCompleted:
-            case WorkflowExecutionFailed:
-            case WorkflowExecutionCanceled:
-            case WorkflowExecutionContinuedAsNew:
-            case TimerStarted:
-            case TimerCanceled:
-            case CancelTimerFailed:
-//        case SignalExternalWorkflowExecutionInitiated:
-//        case SignalExternalWorkflowExecutionFailed:
-            case RequestCancelExternalWorkflowExecutionInitiated:
-            case RequestCancelExternalWorkflowExecutionFailed:
-            case StartChildWorkflowExecutionInitiated:
-            case StartChildWorkflowExecutionFailed:
-                return true;
-            default:
-                return false;
         }
     }
 

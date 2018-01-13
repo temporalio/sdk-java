@@ -40,8 +40,8 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
 
     @Override
     public E poll(long timeout, TimeUnit unit) throws InterruptedException {
-        boolean timedOut = WorkflowThreadImpl.yield(unit.toMillis(timeout), "WorkflowQueue.poll", () -> !queue.isEmpty());
-        if (timedOut) {
+        WorkflowThreadImpl.yield(unit.toMillis(timeout), "WorkflowQueue.poll", () -> !queue.isEmpty());
+        if (queue.isEmpty()) {
             return null;
         }
         return queue.remove();
@@ -60,7 +60,8 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
     public void put(E e) throws InterruptedException {
         // This condition is excessive as yield already checks it.
         // But yield can be called only from the dispatcher owned thread.
-        // This condition allows puts outside the dispatcher thread.
+        // This condition allows puts outside the dispatcher thread which
+        // is used by signal handling logic.
         if (queue.size() >= capacity) {
             WorkflowThreadImpl.yield("WorkflowQueue.put", () -> queue.size() < capacity);
         }
@@ -106,6 +107,9 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
         public R poll(long timeout, TimeUnit unit) throws InterruptedException {
             E element = source.poll(timeout, unit);
             try {
+                if (element == null) {
+                    return null;
+                }
                 return mapper.apply(element);
             } catch (Exception e) {
                 throw new RuntimeException("Failure mapping an element", e);

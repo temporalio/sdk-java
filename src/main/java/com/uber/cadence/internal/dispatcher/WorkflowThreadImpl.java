@@ -275,6 +275,9 @@ class WorkflowThreadImpl implements WorkflowThread {
      * @return false if timed out.
      */
     static boolean yield(long timeoutMillis, String reason, Supplier<Boolean> unblockCondition) throws InterruptedException, DestroyWorkflowThreadError {
+        if (timeoutMillis == 0) {
+            return unblockCondition.get();
+        }
         WorkflowThreadImpl current = WorkflowThreadImpl.currentThread();
         long blockedUntil = Workflow.currentTimeMillis() + timeoutMillis;
         current.setBlockedUntil(blockedUntil);
@@ -298,18 +301,17 @@ class WorkflowThreadImpl implements WorkflowThread {
             return timedOut;
         }
 
+        /**
+         * @return true if condition matched or timed out
+         */
         @Override
         public Boolean get() {
             boolean result = unblockCondition.get();
             if (result) {
                 return true;
             }
-            result = Workflow.currentTimeMillis() >= blockedUntil;
-            if (result) {
-                timedOut = true;
-                return true;
-            }
-            return false;
+            timedOut = Workflow.currentTimeMillis() >= blockedUntil;
+            return timedOut;
         }
     }
 }

@@ -61,12 +61,14 @@ class HistoryHelper {
             return decisionTaskWithHistoryIterator.getDecisionTask();
         }
 
-        public boolean isNextDecisionTimedOut() {
+        public boolean isNextDecisionFailed() {
             while (events.hasNext()) {
                 HistoryEvent event = events.next();
                 bufferedEvents.add(event);
                 EventType eventType = event.getEventType();
                 if (eventType.equals(EventType.DecisionTaskTimedOut)) {
+                    return true;
+                } else if (eventType.equals(EventType.DecisionTaskFailed)) {
                     return true;
                 }
                 else if (eventType.equals(EventType.DecisionTaskCompleted)) {

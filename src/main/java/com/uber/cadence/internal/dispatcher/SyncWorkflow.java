@@ -18,11 +18,11 @@ package com.uber.cadence.internal.dispatcher;
 
 import com.uber.cadence.AsyncDecisionContext;
 import com.uber.cadence.DataConverter;
-import com.uber.cadence.WorkflowException;
-import com.uber.cadence.worker.AsyncWorkflow;
 import com.uber.cadence.EventType;
 import com.uber.cadence.HistoryEvent;
+import com.uber.cadence.WorkflowException;
 import com.uber.cadence.WorkflowType;
+import com.uber.cadence.worker.AsyncWorkflow;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
@@ -69,6 +69,9 @@ class SyncWorkflow implements AsyncWorkflow {
 
     @Override
     public boolean eventLoop() throws Throwable {
+        if (runner == null) {
+            return false;
+        }
         runner.runUntilAllBlocked();
         return runner.isDone();
     }
