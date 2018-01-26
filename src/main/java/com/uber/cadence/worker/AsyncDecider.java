@@ -17,6 +17,7 @@
 package com.uber.cadence.worker;
 
 import com.uber.cadence.AsyncDecisionContext;
+import com.uber.cadence.WorkflowQuery;
 import com.uber.cadence.generic.ContinueAsNewWorkflowExecutionParameters;
 import com.uber.cadence.EventType;
 import com.uber.cadence.HistoryEvent;
@@ -379,4 +380,7 @@ class AsyncDecider {
         return decisionsHelper;
     }
 
+    public byte[] query(WorkflowQuery query) throws Exception {
+        return workflow.query(query);
+    }
 }

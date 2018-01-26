@@ -21,6 +21,7 @@ import com.uber.cadence.DataConverter;
 import com.uber.cadence.EventType;
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.WorkflowException;
+import com.uber.cadence.WorkflowQuery;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.worker.AsyncWorkflow;
 
@@ -39,7 +40,7 @@ class SyncWorkflow implements AsyncWorkflow {
     private final Function<WorkflowType, SyncWorkflowDefinition> factory;
     private final DataConverter converter;
     private final ExecutorService threadPool;
-    private WorkflowRunnable runnable;
+    private WorkflowProc workflowProc;
     private DeterministicRunner runner;
 
     public SyncWorkflow(Function<WorkflowType, SyncWorkflowDefinition> factory, DataConverter converter, ExecutorService threadPool) {
@@ -52,19 +53,22 @@ class SyncWorkflow implements AsyncWorkflow {
     public void start(HistoryEvent event, AsyncDecisionContext context) {
         WorkflowType workflowType = event.getWorkflowExecutionStartedEventAttributes().getWorkflowType();
         SyncWorkflowDefinition workflow = factory.apply(workflowType);
+        if (workflow == null) {
+            throw new IllegalArgumentException("Unknown workflow type: " + workflowType);
+        }
         SyncDecisionContext syncContext = new SyncDecisionContext(context, converter);
         if (event.getEventType() != EventType.WorkflowExecutionStarted) {
             throw new IllegalArgumentException("first event is not WorkflowExecutionStarted, but "
                     + event.getEventType());
         }
 
-        runnable = new WorkflowRunnable(syncContext, workflow, event.getWorkflowExecutionStartedEventAttributes());
-        runner = DeterministicRunner.newRunner(threadPool, syncContext, context.getWorkflowClock()::currentTimeMillis, runnable);
+        workflowProc = new WorkflowProc(syncContext, workflow, event.getWorkflowExecutionStartedEventAttributes());
+        runner = DeterministicRunner.newRunner(threadPool, syncContext, context.getWorkflowClock()::currentTimeMillis, workflowProc);
     }
 
     @Override
     public void processSignal(String signalName, byte[] input) {
-        runnable.processSignal(signalName, input);
+        workflowProc.processSignal(signalName, input);
     }
 
     @Override
@@ -78,22 +82,22 @@ class SyncWorkflow implements AsyncWorkflow {
 
     @Override
     public byte[] getOutput() {
-        return runnable.getOutput();
+        return workflowProc.getOutput();
     }
 
     @Override
     public void cancel(CancellationException e) {
-        runnable.cancel(e);
+        workflowProc.cancel(e);
     }
 
     @Override
     public Throwable getFailure() {
-        return runnable.getFailure();
+        return workflowProc.getFailure();
     }
 
     @Override
     public boolean isCancelRequested() {
-        return runnable.isCancelRequested();
+        return workflowProc.isCancelRequested();
     }
 
     @Override
@@ -108,11 +112,16 @@ class SyncWorkflow implements AsyncWorkflow {
 
     @Override
     public void close() {
-        runnable.close();
+        workflowProc.close();
     }
 
     @Override
     public long getNextWakeUpTime() {
         return runner.getNextWakeUpTime();
+    }
+
+    @Override
+    public byte[] query(WorkflowQuery query) throws Exception {
+        return workflowProc.query(query.getQueryType(), query.getQueryArgs());
     }
 }

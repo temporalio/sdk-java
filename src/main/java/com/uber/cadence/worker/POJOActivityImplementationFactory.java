@@ -53,7 +53,7 @@ public class POJOActivityImplementationFactory extends ActivityImplementationFac
         for (TypeToken<?> i : interfaces) {
             for (Method method : i.getRawType().getMethods()) {
                 ActivityImplementation implementation = new POJOActivityImplementation(method, activity);
-                activities.put(FlowHelpers.getActivityName(method), implementation);
+                activities.put(FlowHelpers.getSimpleName(method), implementation);
             }
         }
     }

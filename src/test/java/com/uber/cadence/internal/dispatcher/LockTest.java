@@ -130,7 +130,7 @@ public class LockTest {
         }
     }
 
-    private void run(Runnable runnable) throws Throwable {
+    private void run(Functions.Proc runnable) throws Throwable {
         DeterministicRunner r = DeterministicRunner.newRunner(runnable);
         r.runUntilAllBlocked();
         r.close();

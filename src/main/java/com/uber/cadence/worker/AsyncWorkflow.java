@@ -19,6 +19,7 @@ package com.uber.cadence.worker;
 import com.uber.cadence.AsyncDecisionContext;
 import com.uber.cadence.WorkflowException;
 import com.uber.cadence.HistoryEvent;
+import com.uber.cadence.WorkflowQuery;
 
 import java.util.concurrent.CancellationException;
 
@@ -52,4 +53,10 @@ public interface AsyncWorkflow {
      * For example when {@link com.uber.cadence.internal.dispatcher.WorkflowThread#sleep(long)} expires.
      */
     long getNextWakeUpTime();
+
+    /**
+     * Called after all history is replayed and workflow cannot make any progress if decision task is a query.
+     * @param query
+     */
+    byte[] query(WorkflowQuery query) throws Exception;
 }

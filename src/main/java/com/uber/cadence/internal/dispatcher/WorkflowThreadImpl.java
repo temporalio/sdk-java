@@ -32,11 +32,11 @@ class WorkflowThreadImpl implements WorkflowThread {
     class RunnableWrapper implements Runnable {
 
         private final WorkflowThreadContext context;
-        private final Runnable r;
+        private final Functions.Proc r;
         private String originalName;
         private final String name;
 
-        RunnableWrapper(WorkflowThreadContext context, String name, Runnable r) {
+        RunnableWrapper(WorkflowThreadContext context, String name, Functions.Proc r) {
             this.context = context;
             this.name = name;
             this.r = r;
@@ -55,7 +55,7 @@ class WorkflowThreadImpl implements WorkflowThread {
                 // initialYield blocks thread until the first runUntilBlocked is called.
                 // Otherwise r starts executing without control of the dispatcher.
                 context.initialYield();
-                r.run();
+                r.apply();
             } catch (DestroyWorkflowThreadError e) {
                 if (!context.destroyRequested()) {
                     context.setUnhandledException(e);
@@ -97,7 +97,7 @@ class WorkflowThreadImpl implements WorkflowThread {
         return result;
     }
 
-    public WorkflowThreadImpl(ExecutorService threadPool, DeterministicRunnerImpl runner, String name, Runnable runnable) {
+    public WorkflowThreadImpl(ExecutorService threadPool, DeterministicRunnerImpl runner, String name, Functions.Proc runnable) {
         this.threadPool = threadPool;
         this.runner = runner;
         this.context = new WorkflowThreadContext(runner.getLock());
@@ -108,11 +108,11 @@ class WorkflowThreadImpl implements WorkflowThread {
         this.task = new RunnableWrapper(context, name, runnable);
     }
 
-    public static WorkflowThread newThread(Runnable runnable) {
+    public static WorkflowThread newThread(Functions.Proc runnable) {
         return currentThread().getRunner().newThread(runnable);
     }
 
-    public static WorkflowThread newThread(Runnable runnable, String name) {
+    public static WorkflowThread newThread(Functions.Proc runnable, String name) {
         return currentThread().getRunner().newThread(runnable, name);
     }
 

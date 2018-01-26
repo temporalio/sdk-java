@@ -16,13 +16,17 @@
  */
 package com.uber.cadence.worker;
 
+import com.google.common.base.Charsets;
 import com.uber.cadence.Decision;
 import com.uber.cadence.PollForDecisionTaskResponse;
+import com.uber.cadence.QueryTaskCompletedType;
 import com.uber.cadence.RespondDecisionTaskCompletedRequest;
+import com.uber.cadence.RespondQueryTaskCompletedRequest;
 import com.uber.cadence.WorkflowType;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import java.nio.charset.Charset;
 import java.util.List;
 
 public class AsyncDecisionTaskHandler extends DecisionTaskHandler {
@@ -39,27 +43,47 @@ public class AsyncDecisionTaskHandler extends DecisionTaskHandler {
     }
 
     @Override
-    public RespondDecisionTaskCompletedRequest handleDecisionTask(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Exception {
+    public Object handleDecisionTask(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Exception {
         HistoryHelper historyHelper = new HistoryHelper(decisionTaskIterator);
         AsyncDecider decider = createDecider(historyHelper);
-        decider.decide();
-        DecisionsHelper decisionsHelper = decider.getDecisionsHelper();
-        List<Decision> decisions = decisionsHelper.getDecisions();
-        byte[] context = decisionsHelper.getWorkflowContextDataToReturn();
+        try {
+            decider.decide();
+        } catch (Throwable e) {
+            throw new Error("Add support for fail decision");
+        }
         PollForDecisionTaskResponse decisionTask = historyHelper.getDecisionTask();
-        if (log.isDebugEnabled()) {
-            log.debug("WorkflowTask taskId=" + decisionTask.getStartedEventId() + ", taskToken=" + decisionTask.getTaskToken()
-                    + " completed with " + decisions.size() + " new decisions");
+        if (decisionTask.isSetQuery()) {
+            RespondQueryTaskCompletedRequest queryCompletedRequest = new RespondQueryTaskCompletedRequest();
+            queryCompletedRequest.setTaskToken(decisionTask.getTaskToken());
+            try {
+                byte[] queryResult = decider.query(decisionTask.getQuery());
+                queryCompletedRequest.setQueryResult(queryResult);
+                queryCompletedRequest.setCompletedType(QueryTaskCompletedType.COMPLETED);
+            } catch (Exception e) {
+                // TODO: Appropriate exception serialization.
+                queryCompletedRequest.setQueryResult(e.toString().getBytes(Charsets.UTF_8));
+                queryCompletedRequest.setCompletedType(QueryTaskCompletedType.FAILED);
+            }
+            return queryCompletedRequest;
+        } else {
+            DecisionsHelper decisionsHelper = decider.getDecisionsHelper();
+            List<Decision> decisions = decisionsHelper.getDecisions();
+            byte[] context = decisionsHelper.getWorkflowContextDataToReturn();
+            if (log.isDebugEnabled()) {
+                log.debug("WorkflowTask taskId=" + decisionTask.getStartedEventId()
+                        + ", taskToken=" + decisionTask.getTaskToken()
+                        + " completed with " + decisions.size() + " new decisions");
+            }
+            if (decisions.size() == 0 && asyncThreadDumpLog.isTraceEnabled()) {
+                asyncThreadDumpLog.trace("Empty decision list with the following waiting tasks:\n"
+                        + decider.getAsynchronousThreadDumpAsString());
+            }
+            RespondDecisionTaskCompletedRequest completedRequest = new RespondDecisionTaskCompletedRequest();
+            completedRequest.setTaskToken(decisionTask.getTaskToken());
+            completedRequest.setDecisions(decisions);
+            completedRequest.setExecutionContext(context);
+            return completedRequest;
         }
-        if (decisions.size() == 0 && asyncThreadDumpLog.isTraceEnabled()) {
-            asyncThreadDumpLog.trace("Empty decision list with the following waiting tasks:\n"
-                    + decider.getAsynchronousThreadDumpAsString());
-        }
-        RespondDecisionTaskCompletedRequest completedRequest = new RespondDecisionTaskCompletedRequest();
-        completedRequest.setTaskToken(decisionTask.getTaskToken());
-        completedRequest.setDecisions(decisions);
-        completedRequest.setExecutionContext(context);
-        return completedRequest;
     }
 
 //    @Override

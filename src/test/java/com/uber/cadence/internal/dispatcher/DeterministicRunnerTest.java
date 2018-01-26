@@ -375,7 +375,7 @@ public class DeterministicRunnerTest {
 
     private static final int CHILDREN = 10;
 
-    private class TestChildTreeRunnable implements Runnable {
+    private class TestChildTreeRunnable implements Functions.Proc {
         final int depth;
 
         private TestChildTreeRunnable(int depth) {
@@ -383,7 +383,7 @@ public class DeterministicRunnerTest {
         }
 
         @Override
-        public void run() {
+        public void apply() {
             trace.add("child " + depth + " started");
             if (depth >= CHILDREN) {
                 trace.add("child " + depth + " done");

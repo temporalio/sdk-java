@@ -37,7 +37,7 @@ import static org.junit.Assert.assertTrue;
  */
 public class DiningPhilosophersTest {
 
-    public class Philosopher implements Runnable {
+    public class Philosopher implements Functions.Proc {
 
         private final Lock leftFork;
         private final Lock rightFork;
@@ -48,7 +48,7 @@ public class DiningPhilosophersTest {
         }
 
         @Override
-        public void run() {
+        public void apply() {
             try {
                 while (true) {
 
@@ -93,10 +93,10 @@ public class DiningPhilosophersTest {
         }
     }
 
-    private class DiningSimulation implements Runnable {
+    private class DiningSimulation implements Functions.Proc {
 
         @Override
-        public void run() {
+        public void apply() {
             Philosopher[] philosophers = new Philosopher[PHYLOSOPHER_COUNT];
             List<Lock> forks = new ArrayList<>(PHYLOSOPHER_COUNT);
             for (int i = 0; i < PHYLOSOPHER_COUNT; i++) {

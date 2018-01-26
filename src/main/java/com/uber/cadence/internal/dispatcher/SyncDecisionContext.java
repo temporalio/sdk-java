@@ -21,9 +21,11 @@ import com.uber.cadence.DataConverter;
 import com.uber.cadence.generic.ExecuteActivityParameters;
 import com.uber.cadence.generic.GenericAsyncActivityClient;
 import com.uber.cadence.ActivityType;
+import com.uber.cadence.worker.POJOQueryImplementationFactory;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -37,6 +39,7 @@ public class SyncDecisionContext {
     private final DataConverter converter;
     private final WorkflowTimers timers = new WorkflowTimers();
     private Map<String, WorkflowQueue<byte[]>> signalQueues = new HashMap<>();
+    private Map<String, Functions.Func1<byte[], byte[]>> queryCallbacks = new HashMap<>();
 
     public SyncDecisionContext(AsyncDecisionContext context, DataConverter converter) {
         this.context = context;
@@ -131,6 +134,29 @@ public class SyncDecisionContext {
             queue.put(input);
         } catch (InterruptedException e) {
             throw new Error("unexpected", e);
+        }
+    }
+
+    public byte[] query(String type, byte[] args) throws Exception {
+        Functions.Func1<byte[], byte[]> callback = queryCallbacks.get(type);
+        if (callback == null) {
+            throw new IllegalArgumentException("Unknown query type: " + type);
+        }
+        return callback.apply(args);
+    }
+
+    public void registerQuery(String queryType, Functions.Func1<byte[], byte[]> callback) {
+        Functions.Func1<byte[], byte[]> previous = queryCallbacks.put(queryType, callback);
+        if (previous != null) {
+            throw new IllegalStateException("Query " + queryType + " is already registered");
+        }
+    }
+
+    public void registerQuery(Object queryImplementation) {
+        POJOQueryImplementationFactory queryFactory = new POJOQueryImplementationFactory(converter, queryImplementation);
+        Set<String> queries = queryFactory.getQueryFunctionNames();
+        for (String query: queries) {
+            registerQuery(query, queryFactory.getQueryFunction(query));
         }
     }
 

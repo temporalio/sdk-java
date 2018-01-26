@@ -25,6 +25,8 @@ import com.fasterxml.jackson.databind.ObjectMapper.DefaultTyping;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
 import java.io.IOException;
+import java.lang.reflect.Array;
+import java.util.Arrays;
 
 /**
  * Implements conversion through Jackson JSON processor. Consult its
@@ -94,6 +96,16 @@ public class JsonDataConverter extends DataConverter {
 
     @Override
     public <T> T fromData(byte[] serialized, Class<T> valueType) throws DataConverterException {
+        if (serialized == null) {
+            try {
+                if (valueType.isArray()) {
+                    return (T) Array.newInstance(valueType.getComponentType(), 0);
+                }
+                return valueType.newInstance();
+            } catch (Exception e) {
+                throw new DataConverterException("Failure instantiating default value", e);
+            }
+        }
         try {
             return mapper.readValue(serialized, valueType);
         }

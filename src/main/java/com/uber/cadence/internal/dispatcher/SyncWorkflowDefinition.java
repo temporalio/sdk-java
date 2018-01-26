@@ -17,5 +17,5 @@
 package com.uber.cadence.internal.dispatcher;
 
 public interface SyncWorkflowDefinition {
-    byte[] execute(byte[] input);
+    byte[] execute(byte[] input) throws Exception;
 }

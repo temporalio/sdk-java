@@ -45,7 +45,7 @@ public interface AsyncWorkflowClock {
     }
 
     /**
-     * @return time of the {@link com.uber.cadence.PollForDecisionTaskResponse} start event of the decision
+     * @return time of the {@link com.uber.cadence.PollForDecisionTaskResponse} executeWorkflow event of the decision
      * being processed or replayed.
      */
     long currentTimeMillis();

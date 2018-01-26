@@ -20,7 +20,7 @@ import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
 
 import java.util.concurrent.CancellationException;
 
-public class WorkflowRunnable implements Runnable {
+public class WorkflowProc implements Functions.Proc {
     private final SyncDecisionContext context;
     private final SyncWorkflowDefinition workflow;
     private final WorkflowExecutionStartedEventAttributes attributes;
@@ -29,12 +29,17 @@ public class WorkflowRunnable implements Runnable {
     private boolean cancelRequested;
     private byte[] output;
 
-    public WorkflowRunnable(SyncDecisionContext syncDecisionContext,
-                            SyncWorkflowDefinition workflow,
-                            WorkflowExecutionStartedEventAttributes attributes) {
+    public WorkflowProc(SyncDecisionContext syncDecisionContext,
+                        SyncWorkflowDefinition workflow,
+                        WorkflowExecutionStartedEventAttributes attributes) {
         this.context = syncDecisionContext;
         this.workflow = workflow;
         this.attributes = attributes;
+    }
+
+    @Override
+    public void apply() throws Exception {
+        output = workflow.execute(attributes.getInput());
     }
 
     public void cancel(CancellationException e) {
@@ -49,20 +54,18 @@ public class WorkflowRunnable implements Runnable {
         return cancelRequested;
     }
 
-    @Override
-    public void run() {
-        output = workflow.execute(attributes.getInput());
-    }
-
     public byte[] getOutput() {
         return output;
     }
 
     public void close() {
-
     }
 
     public void processSignal(String signalName, byte[] input) {
         context.processSignal(signalName, input);
+    }
+
+    public byte[] query(String type, byte[] args) throws Exception {
+        return context.query(type, args);
     }
 }

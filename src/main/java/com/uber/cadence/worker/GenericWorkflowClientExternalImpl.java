@@ -16,8 +16,12 @@
  */
 package com.uber.cadence.worker;
 
+import com.uber.cadence.QueryWorkflowRequest;
+import com.uber.cadence.QueryWorkflowResponse;
 import com.uber.cadence.WorkflowExecutionAlreadyStartedException;
+import com.uber.cadence.WorkflowQuery;
 import com.uber.cadence.generic.GenericWorkflowClientExternal;
+import com.uber.cadence.generic.QueryWorkflowParameters;
 import com.uber.cadence.generic.SignalExternalWorkflowParameters;
 import com.uber.cadence.generic.StartWorkflowExecutionParameters;
 import com.uber.cadence.generic.TerminateWorkflowExecutionParameters;
@@ -43,6 +47,15 @@ public class GenericWorkflowClientExternalImpl implements GenericWorkflowClientE
     public GenericWorkflowClientExternalImpl(WorkflowService.Iface service, String domain) {
         this.service = service;
         this.domain = domain;
+    }
+
+    public String getDomain() {
+        return domain;
+    }
+
+    @Override
+    public WorkflowService.Iface getService() {
+        return service;
     }
 
     @Override
@@ -112,24 +125,28 @@ public class GenericWorkflowClientExternalImpl implements GenericWorkflowClientE
     }
 
     @Override
-    public String generateUniqueId() {
-        String workflowId = UUID.randomUUID().toString();
-        return workflowId;
+    public byte[] queryWorkflow(QueryWorkflowParameters queryParameters) {
+        QueryWorkflowRequest request = new QueryWorkflowRequest();
+        request.setDomain(domain);
+        WorkflowExecution execution = new WorkflowExecution();
+        execution.setWorkflowId(queryParameters.getWorkflowId()).setRunId(queryParameters.getRunId());
+        request.setExecution(execution);
+        WorkflowQuery query = new WorkflowQuery();
+        query.setQueryArgs(queryParameters.getInput());
+        query.setQueryType(queryParameters.getQueryType());
+        request.setQuery(query);
+        try {
+            QueryWorkflowResponse response = service.QueryWorkflow(request);
+            return response.getQueryResult();
+        } catch (TException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
-    public byte[] getWorkflowState(WorkflowExecution execution) {
-        throw new UnsupportedOperationException("latestExecutionContext is not part of DescribeWorkflowExecutionResponse yet");
-//        DescribeWorkflowExecutionRequest request = new DescribeWorkflowExecutionRequest();
-//        request.setDomain(domain);
-//        request.setExecution(execution);
-//        DescribeWorkflowExecutionResponse details = null;
-//        try {
-//            details = service.DescribeWorkflowExecution(request);
-//        } catch (TException e) {
-//            throw new RuntimeException(e);
-//        }
-//        return details.getGetLatestExecutionContext();
+    public String generateUniqueId() {
+        String workflowId = UUID.randomUUID().toString();
+        return workflowId;
     }
 
     @Override

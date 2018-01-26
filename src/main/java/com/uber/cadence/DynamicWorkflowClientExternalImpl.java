@@ -17,6 +17,7 @@
 package com.uber.cadence;
 
 import com.uber.cadence.generic.GenericWorkflowClientExternal;
+import com.uber.cadence.generic.QueryWorkflowParameters;
 import com.uber.cadence.generic.SignalExternalWorkflowParameters;
 import com.uber.cadence.generic.StartWorkflowExecutionParameters;
 import com.uber.cadence.generic.TerminateWorkflowExecutionParameters;
@@ -165,23 +166,13 @@ public class DynamicWorkflowClientExternalImpl implements DynamicWorkflowClientE
     }
 
     @Override
-    public <T> T getWorkflowExecutionState(Class<T> returnType) throws Throwable {
-        byte[] state = genericClient.getWorkflowState(workflowExecution);
-        if (state == null)
-            return null;
-
-        try {
-            Throwable failure = dataConverter.fromData(state, Throwable.class);
-            if (failure != null) {
-                throw failure;
-            }
-        }
-        catch (DataConverterException e) {
-        }
-        catch (RuntimeException e) {
-        }
-
-        return dataConverter.fromData(state, returnType);
+    public <T> T queryWorkflowExecution(String queryType, Object[] arguments, Class<T> returnType) {
+        QueryWorkflowParameters p = new QueryWorkflowParameters();
+        p.setWorkflowId(workflowExecution.getWorkflowId());
+        p.setRunId(workflowExecution.getRunId());
+        p.setQueryType(queryType);
+        p.setInput(dataConverter.toData(arguments));
+        byte[] result = genericClient.queryWorkflow(p);
+        return dataConverter.fromData(result, returnType);
     }
-
 }

@@ -41,7 +41,7 @@ public final class FlowHelpers {
         return args;
     }
 
-    public static String getActivityName(Method method) {
+    public static String getSimpleName(Method method) {
         return method.getDeclaringClass().getSimpleName() + "::" + method.getName();
     }
 

@@ -16,6 +16,7 @@
  */
 package com.uber.cadence.worker;
 
+import com.uber.cadence.RespondQueryTaskCompletedRequest;
 import com.uber.cadence.common.WorkflowExecutionUtils;
 import com.uber.cadence.GetWorkflowExecutionHistoryRequest;
 import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
@@ -58,7 +59,7 @@ public class DecisionTaskPoller implements TaskPoller {
     }
 
     public DecisionTaskPoller(WorkflowService.Iface service, String domain, String taskListToPoll,
-            DecisionTaskHandler decisionTaskHandler) {
+                              DecisionTaskHandler decisionTaskHandler) {
         this.service = service;
         this.domain = domain;
         this.taskListToPoll = taskListToPoll;
@@ -110,7 +111,7 @@ public class DecisionTaskPoller implements TaskPoller {
     }
 
     /**
-     * Poll for a task using {@link #getPollTimeoutInSeconds()}
+     * Poll for a decision task.
      *
      * @return null if poll timed out
      * @throws TException
@@ -145,13 +146,13 @@ public class DecisionTaskPoller implements TaskPoller {
      * Poll for a workflow task and call appropriate decider. This method might
      * call the service multiple times to retrieve the whole history it it is
      * paginated.
-     * 
+     *
      * @return true if task was polled and decided upon, false if poll timed out
      * @throws Exception
      */
     @Override
     public boolean pollAndProcessSingleTask() throws Exception {
-        RespondDecisionTaskCompletedRequest taskCompletedRequest = null;
+        Object taskCompletedRequest = null;
         PollForDecisionTaskResponse task = poll();
         if (task == null) {
             return false;
@@ -159,12 +160,17 @@ public class DecisionTaskPoller implements TaskPoller {
         DecisionTaskWithHistoryIterator historyIterator = new DecisionTaskWithHistoryIteratorImpl(task);
         try {
             taskCompletedRequest = decisionTaskHandler.handleDecisionTask(historyIterator);
-            if (decisionsLog.isTraceEnabled()) {
-                decisionsLog.trace(WorkflowExecutionUtils.prettyPrintDecisions(taskCompletedRequest.getDecisions()));
+            if (taskCompletedRequest instanceof RespondDecisionTaskCompletedRequest) {
+                RespondDecisionTaskCompletedRequest r = (RespondDecisionTaskCompletedRequest) taskCompletedRequest;
+                if (decisionsLog.isTraceEnabled()) {
+                    decisionsLog.trace(WorkflowExecutionUtils.prettyPrintDecisions(r.getDecisions()));
+                }
+                service.RespondDecisionTaskCompleted(r);
+            } else if (taskCompletedRequest instanceof RespondQueryTaskCompletedRequest) {
+                RespondQueryTaskCompletedRequest r = (RespondQueryTaskCompletedRequest) taskCompletedRequest;
+                service.RespondQueryTaskCompleted(r);
             }
-            service.RespondDecisionTaskCompleted(taskCompletedRequest);
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             PollForDecisionTaskResponse firstTask = historyIterator.getDecisionTask();
             if (firstTask != null) {
                 if (log.isWarnEnabled()) {
@@ -172,9 +178,11 @@ public class DecisionTaskPoller implements TaskPoller {
                             + firstTask.getWorkflowExecution(), e);
                 }
             }
-            if (taskCompletedRequest != null && decisionsLog.isWarnEnabled()) {
+            if (taskCompletedRequest instanceof RespondDecisionTaskCompletedRequest && decisionsLog.isWarnEnabled()) {
+                RespondDecisionTaskCompletedRequest r = (RespondDecisionTaskCompletedRequest) taskCompletedRequest;
+
                 decisionsLog.warn("Failed taskId=" + firstTask.getStartedEventId() + " decisions="
-                        + WorkflowExecutionUtils.prettyPrintDecisions(taskCompletedRequest.getDecisions()));
+                        + WorkflowExecutionUtils.prettyPrintDecisions(r.getDecisions()));
             }
             throw e;
         }

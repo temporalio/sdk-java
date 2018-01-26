@@ -315,7 +315,7 @@ public abstract class GenericWorker implements WorkerBase {
     @Override
     public void start() {
         if (log.isInfoEnabled()) {
-            log.info("start: " + toString());
+            log.info("executeWorkflow: " + toString());
         }
         checkStarted();
         checkRequiredProperty(service, "service");

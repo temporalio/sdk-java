@@ -44,18 +44,18 @@ class DeterministicRunnerImpl implements DeterministicRunner {
      */
     private long nextWakeUpTime;
 
-    public DeterministicRunnerImpl(Runnable root) {
+    public DeterministicRunnerImpl(Functions.Proc root) {
         this(System::currentTimeMillis, root);
     }
 
 
-    public DeterministicRunnerImpl(Supplier<Long> clock, Runnable root) {
+    public DeterministicRunnerImpl(Supplier<Long> clock, Functions.Proc root) {
         this(new ThreadPoolExecutor(0, 1000, 1, TimeUnit.MINUTES, new SynchronousQueue<>()),
                 null,
                 clock, root);
     }
 
-    public DeterministicRunnerImpl(ExecutorService threadPool, SyncDecisionContext decisionContext, Supplier<Long> clock, Runnable root) {
+    public DeterministicRunnerImpl(ExecutorService threadPool, SyncDecisionContext decisionContext, Supplier<Long> clock, Functions.Proc root) {
         this.threadPool = threadPool;
         this.decisionContext = decisionContext;
         this.clock = clock;
@@ -170,11 +170,11 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         return nextWakeUpTime;
     }
 
-    public WorkflowThreadImpl newThread(Runnable r) {
+    public WorkflowThreadImpl newThread(Functions.Proc r) {
         return newThread(r, null);
     }
 
-    public WorkflowThreadImpl newThread(Runnable r, String name) {
+    public WorkflowThreadImpl newThread(Functions.Proc r, String name) {
         WorkflowThreadImpl result = new WorkflowThreadImpl(threadPool, this, name, r);
         threadsToAdd.add(result); // This is synchronized collection.
         return result;

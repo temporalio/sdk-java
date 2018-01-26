@@ -16,8 +16,6 @@
  */
 package com.uber.cadence.worker;
 
-import com.uber.cadence.RespondDecisionTaskCompletedRequest;
-
 import java.util.Iterator;
 
 /**
@@ -38,7 +36,7 @@ public abstract class DecisionTaskHandler {
      *            It is expected that the method implementation aborts decision by rethrowing any
      *            exception from {@link Iterator#next()}.
      */
-    public abstract RespondDecisionTaskCompletedRequest handleDecisionTask(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Exception;
+    public abstract Object handleDecisionTask(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Exception;
 
     public abstract String getAsynchronousThreadDump(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Exception;
 

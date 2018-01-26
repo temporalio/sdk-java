@@ -18,29 +18,28 @@ package com.uber.cadence.internal.dispatcher;
 
 import com.uber.cadence.DataConverter;
 import com.uber.cadence.JsonDataConverter;
+import com.uber.cadence.WorkflowService;
 import com.uber.cadence.worker.AsyncDecisionTaskHandler;
 import com.uber.cadence.worker.AsyncWorkflowFactory;
 import com.uber.cadence.worker.DecisionTaskPoller;
 import com.uber.cadence.worker.GenericWorker;
+import com.uber.cadence.worker.POJOWorkflowImplementationFactory;
 import com.uber.cadence.worker.TaskPoller;
-import com.uber.cadence.WorkflowService;
-import com.uber.cadence.WorkflowType;
 
 import java.lang.management.ManagementFactory;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 
 
 public class SyncWorkflowWorker extends GenericWorker {
 
     private static final String THREAD_NAME_PREFIX = "Cadence workflow poller ";
 
-    private Function<WorkflowType, SyncWorkflowDefinition> factory;
-
     private DataConverter dataConverter = new JsonDataConverter();
+
+    private POJOWorkflowImplementationFactory factory = new POJOWorkflowImplementationFactory(dataConverter);
 
     private ExecutorService workflowThreadPool;
 
@@ -57,12 +56,13 @@ public class SyncWorkflowWorker extends GenericWorker {
         setTaskListToPoll(taskListToPoll);
     }
 
-    public void setFactory(Function<WorkflowType, SyncWorkflowDefinition> factory) {
-        this.factory = factory;
+    public void addWorkflow(Class<?> workflowImplementationClass) {
+        factory.addWorkflow(workflowImplementationClass);
     }
 
     public void setDataConverter(DataConverter dataConverter) {
         this.dataConverter = dataConverter;
+        factory.setDataConverter(dataConverter);
     }
 
     public void setWorkflowThreadPool(ExecutorService workflowThreadPool) {

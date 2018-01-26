@@ -16,18 +16,12 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import com.uber.cadence.DataConverter;
 import com.uber.cadence.JsonDataConverter;
-import com.uber.cadence.SignalWorkflowExecutionRequest;
-import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.WorkflowExecutionAlreadyStartedException;
-import com.uber.cadence.WorkflowExecutionCompletedEventAttributes;
+import com.uber.cadence.StartWorkflowOptions;
 import com.uber.cadence.WorkflowService;
-import com.uber.cadence.WorkflowType;
-import com.uber.cadence.common.WorkflowExecutionUtils;
-import com.uber.cadence.generic.StartWorkflowExecutionParameters;
 import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
 import com.uber.cadence.worker.ActivityWorker;
-import com.uber.cadence.worker.GenericWorkflowClientExternalImpl;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.log4j.ConsoleAppender;
@@ -35,7 +29,6 @@ import org.apache.log4j.Level;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
-import org.apache.thrift.TException;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -43,16 +36,13 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Hashtable;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
 
 import static org.junit.Assert.*;
 
@@ -64,6 +54,7 @@ public class SyncWorkfowTest {
     private static final String serviceName = "cadence-frontend";
     private static final String domain = "UnitTest";
     private static final String taskList = "UnitTest";
+    private static final DataConverter dataConverter = new JsonDataConverter();
     private static final Log log;
 
     static {
@@ -85,20 +76,12 @@ public class SyncWorkfowTest {
 
     }
 
-    private static GenericWorkflowClientExternalImpl clientExternal;
     private static WorkflowService.Iface service;
     private static SyncWorkflowWorker workflowWorker;
     private static ActivityWorker activityWorker;
     private static TestActivitiesImpl activities;
-    private static Map<WorkflowType, SyncWorkflowDefinition> definitionMap = new Hashtable<>();
-
-    private static Function<WorkflowType, SyncWorkflowDefinition> factory = workflowType -> {
-        SyncWorkflowDefinition result = definitionMap.get(workflowType);
-        if (result == null) {
-            throw new IllegalArgumentException("Unknown workflow type " + workflowType);
-        }
-        return result;
-    };
+    private static WorkflowExternal clientFactory;
+    private static StartWorkflowOptions startWorkflowOptions;
 
     @BeforeClass
     public static void setUpService() {
@@ -108,17 +91,19 @@ public class SyncWorkfowTest {
         activities = new TestActivitiesImpl();
         activityWorker.addActivityImplementation(activities);
         workflowWorker = new SyncWorkflowWorker(service, domain, taskList);
-        workflowWorker.setFactory(factory);
-        clientExternal = new GenericWorkflowClientExternalImpl(service, domain);
+        clientFactory = new WorkflowExternal(service, domain, dataConverter);
         activityWorker.start();
         workflowWorker.start();
+        startWorkflowOptions = new StartWorkflowOptions();
+        startWorkflowOptions.setExecutionStartToCloseTimeoutSeconds(60);
+        startWorkflowOptions.setTaskStartToCloseTimeoutSeconds(2);
+        startWorkflowOptions.setTaskList(taskList);
     }
 
     @AfterClass
     public static void tearDownService() {
         activityWorker.shutdown();
         workflowWorker.shutdown();
-        definitionMap.clear();
     }
 
     @Before
@@ -126,10 +111,28 @@ public class SyncWorkfowTest {
         activities.procResult.clear();
     }
 
-    @Test
-    public void testSync() throws InterruptedException, WorkflowExecutionAlreadyStartedException, TimeoutException {
-        WorkflowType type = new WorkflowType().setName("testSync");
-        definitionMap.put(type, (input) -> {
+    public interface TestWorkflow1 {
+        @WorkflowMethod
+        String execute();
+    }
+
+    public interface TestWorkflow2 {
+        @WorkflowMethod(name="testActivity")
+        String execute();
+    }
+
+    public interface QueryableWorkflow {
+        @WorkflowMethod
+        String execute();
+
+        @QueryMethod
+        String getState();
+    }
+
+    public static class TestSyncWorkflowImpl implements TestWorkflow1 {
+
+        @Override
+        public String execute() {
             AtomicReference<String> a1 = new AtomicReference<>();
             TestActivities activities = Workflow.newActivityClient(TestActivities.class);
             WorkflowThread t = Workflow.newThread(() -> {
@@ -142,24 +145,22 @@ public class SyncWorkfowTest {
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
-            return activities.activity2(a1.get(), 10).getBytes();
-        });
-        StartWorkflowExecutionParameters startParameters = new StartWorkflowExecutionParameters();
-        startParameters.setExecutionStartToCloseTimeoutSeconds(60);
-        startParameters.setTaskStartToCloseTimeoutSeconds(2);
-        startParameters.setTaskList(taskList);
-        startParameters.setInput("input".getBytes());
-        startParameters.setWorkflowId("testSync1");
-        startParameters.setWorkflowType(type);
-        WorkflowExecution started = clientExternal.startWorkflow(startParameters);
-        WorkflowExecutionCompletedEventAttributes result = WorkflowExecutionUtils.waitForWorkflowExecutionResult(service, domain, started, 10);
-        assertEquals("activity10", new String(result.getResult()));
+            return activities.activity2(a1.get(), 10);
+        }
     }
 
     @Test
-    public void testAsync() throws InterruptedException, WorkflowExecutionAlreadyStartedException, TimeoutException {
-        WorkflowType type = new WorkflowType().setName("testAsync");
-        definitionMap.put(type, (input) -> {
+    public void testSync() {
+        workflowWorker.addWorkflow(TestSyncWorkflowImpl.class);
+        TestWorkflow1 client = clientFactory.newClient(TestWorkflow1.class, startWorkflowOptions);
+        String result = client.execute();
+        assertEquals("activity10", result);
+    }
+
+    public static class TestAsyncActivityWorkflowImpl implements TestWorkflow1 {
+
+        @Override
+        public String execute() {
             TestActivities testActivities = Workflow.newActivityClient(TestActivities.class);
             try {
                 assertEquals("activity", Workflow.executeAsync(testActivities::activity).get());
@@ -182,18 +183,17 @@ public class SyncWorkfowTest {
             } catch (ExecutionException e) {
                 throw new RuntimeException(e);
             }
-            return "workflow".getBytes();
-        });
-        StartWorkflowExecutionParameters startParameters = new StartWorkflowExecutionParameters();
-        startParameters.setExecutionStartToCloseTimeoutSeconds(60);
-        startParameters.setTaskStartToCloseTimeoutSeconds(2);
-        startParameters.setTaskList(taskList);
-        startParameters.setInput("input".getBytes());
-        startParameters.setWorkflowId("workflow1");
-        startParameters.setWorkflowType(type);
-        WorkflowExecution started = clientExternal.startWorkflow(startParameters);
-        WorkflowExecutionCompletedEventAttributes result = WorkflowExecutionUtils.waitForWorkflowExecutionResult(service, domain, started, 10);
-        assertEquals("workflow", new String(result.getResult()));
+            return "workflow";
+        }
+    }
+
+    @Test
+    public void testAsyncActivity() {
+        workflowWorker.addWorkflow(TestAsyncActivityWorkflowImpl.class);
+        TestWorkflow1 client = clientFactory.newClient(TestWorkflow1.class, startWorkflowOptions);
+        String result = client.execute();
+        assertEquals("workflow", result);
+
         assertEquals("proc", activities.procResult.get(0));
         assertEquals("1", activities.procResult.get(1));
         assertEquals("12", activities.procResult.get(2));
@@ -203,10 +203,10 @@ public class SyncWorkfowTest {
         assertEquals("123456", activities.procResult.get(6));
     }
 
-    @Test
-    public void testTimer() throws InterruptedException, WorkflowExecutionAlreadyStartedException, TimeoutException {
-        WorkflowType type = new WorkflowType().setName("testTimer");
-        definitionMap.put(type, (input) -> {
+    public static class TestTimerWorkflowImpl implements TestWorkflow2 {
+
+        @Override
+        public String execute() {
             WorkflowFuture<Void> timer1 = Workflow.newTimer(1);
             WorkflowFuture<Void> timer2 = Workflow.newTimer(2);
 
@@ -223,70 +223,64 @@ public class SyncWorkfowTest {
             } catch (ExecutionException e) {
                 throw new RuntimeException(e);
             }
-            return "testTimer".getBytes();
-        });
-        StartWorkflowExecutionParameters startParameters = new StartWorkflowExecutionParameters();
-        startParameters.setExecutionStartToCloseTimeoutSeconds(60);
-        startParameters.setTaskStartToCloseTimeoutSeconds(2);
-        startParameters.setTaskList(taskList);
-        startParameters.setInput("input".getBytes());
-        startParameters.setWorkflowId("workflow1");
-        startParameters.setWorkflowType(type);
-        WorkflowExecution started = clientExternal.startWorkflow(startParameters);
-        WorkflowExecutionCompletedEventAttributes result = WorkflowExecutionUtils.waitForWorkflowExecutionResult(service, domain, started, 10);
-        assertEquals("testTimer", new String(result.getResult()));
+            return "testTimer";
+        }
     }
 
     @Test
-    public void testSignal() throws InterruptedException, WorkflowExecutionAlreadyStartedException, TimeoutException, TException {
-        WorkflowType type = new WorkflowType().setName("testSignal");
-        definitionMap.put(type, (input) -> {
+    public void testTimer() {
+        workflowWorker.addWorkflow(TestTimerWorkflowImpl.class);
+        TestWorkflow2 client = clientFactory.newClient(TestWorkflow2.class, startWorkflowOptions);
+        String result = client.execute();
+        assertEquals("testTimer", result);
+    }
+
+    public static class TestSignalWorkflowImpl implements QueryableWorkflow {
+
+        String state = "initial";
+
+        @Override
+        public String execute() {
             try {
                 QueueConsumer<String> signalQueue = Workflow.getSignalQueue("testSignal", String.class);
                 String signal1 = signalQueue.take();
+                state = signal1;
                 String signal2 = signalQueue.take();
-                return (signal1 + signal2).getBytes();
+                state = signal2;
+                return (signal1 + signal2);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
-        });
-        StartWorkflowExecutionParameters startParameters = new StartWorkflowExecutionParameters();
-        startParameters.setExecutionStartToCloseTimeoutSeconds(60);
-        startParameters.setTaskStartToCloseTimeoutSeconds(2);
-        startParameters.setTaskList(taskList);
-        startParameters.setInput("input".getBytes());
-        String workflowId = "testSignal1";
-        startParameters.setWorkflowId(workflowId);
-        startParameters.setWorkflowType(type);
-        WorkflowExecution started = clientExternal.startWorkflow(startParameters);
-        SignalWorkflowExecutionRequest signalRequest1 = new SignalWorkflowExecutionRequest();
-        String signalInput = "Hello ";
-        signalRequest1.setInput(new JsonDataConverter().toData(signalInput));
-        signalRequest1.setDomain(domain);
-        signalRequest1.setSignalName("testSignal");
-        signalRequest1.setWorkflowExecution(new WorkflowExecution().setWorkflowId(workflowId));
-        service.SignalWorkflowExecution(signalRequest1);
-        SignalWorkflowExecutionRequest signalRequest2 = new SignalWorkflowExecutionRequest();
-        String signalInput2 = "World!";
-        signalRequest2.setInput(new JsonDataConverter().toData(signalInput2));
-        signalRequest2.setDomain(domain);
-        signalRequest2.setSignalName("testSignal");
-        signalRequest2.setWorkflowExecution(new WorkflowExecution().setWorkflowId(workflowId));
-        service.SignalWorkflowExecution(signalRequest2);
-        WorkflowExecutionCompletedEventAttributes result = WorkflowExecutionUtils.waitForWorkflowExecutionResult(service, domain, started, 10);
-        assertEquals("Hello World!", new String(result.getResult()));
+        }
+
+        @Override
+        public String getState() {
+            return state;
+        }
     }
 
-    /**
-     * Tests that signal received during a decision that completes workflow
-     * is not lost.
-     */
     @Test
-    public void testSignalDuringLastDecision() throws InterruptedException, WorkflowExecutionAlreadyStartedException, TimeoutException, TException, ExecutionException {
-        WorkflowType type = new WorkflowType().setName("testSignalDuringLastDecision");
-        AtomicInteger decisionCount = new AtomicInteger();
-        CompletableFuture<Boolean> sendSignal = new CompletableFuture<>();
-        definitionMap.put(type, (input) -> {
+    public void testSignal() throws TimeoutException, InterruptedException {
+        workflowWorker.addWorkflow(TestSignalWorkflowImpl.class);
+        QueryableWorkflow client = clientFactory.newClient(QueryableWorkflow.class, startWorkflowOptions);
+        WorkflowExternalResult<String> result = WorkflowExternal.executeWorkflow(client::execute);
+        assertEquals("initial", client.getState());
+        result.signal("testSignal", "Hello ");
+        assertEquals("Hello ", client.getState());
+        result.signal("testSignal", "World!");
+        assertEquals("World!", client.getState());
+        assertEquals("Hello World!", result.getResult());
+    }
+
+
+    static final AtomicInteger decisionCount = new AtomicInteger();
+    static final CompletableFuture<Boolean> sendSignal = new CompletableFuture<>();
+
+    public static class TestSignalDuringLastDecisionWorkflowImpl implements TestWorkflow1 {
+
+
+        @Override
+        public String execute() {
             try {
                 QueueConsumer<String> signalQueue = Workflow.getSignalQueue("testSignal", String.class);
                 String signal = signalQueue.poll(0, TimeUnit.MILLISECONDS);
@@ -299,40 +293,35 @@ public class SyncWorkfowTest {
                 if (signal == null) {
                     return null;
                 } else {
-                    return signal.getBytes();
+                    return signal;
                 }
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
-        });
-        StartWorkflowExecutionParameters startParameters = new StartWorkflowExecutionParameters();
-        startParameters.setExecutionStartToCloseTimeoutSeconds(60);
-        startParameters.setTaskStartToCloseTimeoutSeconds(2);
-        startParameters.setTaskList(taskList);
-        startParameters.setInput("input".getBytes());
-        String workflowId = "testSignalDuringLastDecision1";
-        startParameters.setWorkflowId(workflowId);
-        startParameters.setWorkflowType(type);
-        WorkflowExecution started = clientExternal.startWorkflow(startParameters);
-        SignalWorkflowExecutionRequest signalRequest = new SignalWorkflowExecutionRequest();
-        String signalInput = "Signal Input";
-        signalRequest.setInput(new JsonDataConverter().toData(signalInput));
-        signalRequest.setDomain(domain);
-        signalRequest.setSignalName("testSignal");
-        signalRequest.setWorkflowExecution(new WorkflowExecution().setWorkflowId(workflowId));
-        try {
-            sendSignal.get(2, TimeUnit.SECONDS);
-            service.SignalWorkflowExecution(signalRequest);
-        } catch (TimeoutException e) {
         }
-        WorkflowExecutionCompletedEventAttributes result = WorkflowExecutionUtils.waitForWorkflowExecutionResult(service, domain, started, 10);
-        assertEquals("Signal Input", new String(result.getResult()));
     }
 
     @Test
-    public void testTimerCallbackBlocked() throws InterruptedException, WorkflowExecutionAlreadyStartedException, TimeoutException {
-        WorkflowType type = new WorkflowType().setName("testTimer");
-        definitionMap.put(type, (input) -> {
+    public void testSignalDuringLastDecision() throws TimeoutException, InterruptedException {
+        workflowWorker.addWorkflow(TestSignalDuringLastDecisionWorkflowImpl.class);
+        TestWorkflow1 client = clientFactory.newClient(TestWorkflow1.class, startWorkflowOptions);
+        WorkflowExternalResult<String> result = WorkflowExternal.executeWorkflow(client::execute);
+        try {
+            sendSignal.get(2, TimeUnit.SECONDS);
+            result.signal("testSignal", "Signal Input");
+        } catch (TimeoutException e) {
+            throw new RuntimeException(e);
+        } catch (ExecutionException e) {
+            throw new RuntimeException(e);
+        }
+        assertEquals("Signal Input", result.getResult());
+    }
+
+    public static class TestTimerCallbackBlockedWorkflowImpl implements TestWorkflow1 {
+
+
+        @Override
+        public String execute() {
             WorkflowFuture<Void> timer1 = Workflow.newTimer(0);
             WorkflowFuture<Void> timer2 = Workflow.newTimer(1);
 
@@ -349,18 +338,20 @@ public class SyncWorkfowTest {
             } catch (ExecutionException e) {
                 throw new RuntimeException(e);
             }
-            return "testTimer".getBytes();
-        });
-        StartWorkflowExecutionParameters startParameters = new StartWorkflowExecutionParameters();
-        startParameters.setExecutionStartToCloseTimeoutSeconds(60);
-        startParameters.setTaskStartToCloseTimeoutSeconds(2);
-        startParameters.setTaskList(taskList);
-        startParameters.setInput("input".getBytes());
-        startParameters.setWorkflowId("testTimerCallbackBlocked1");
-        startParameters.setWorkflowType(type);
-        WorkflowExecution started = clientExternal.startWorkflow(startParameters);
+            return "testTimerBlocked";
+        }
+    }
+
+    @Test
+    public void testTimerCallbackBlocked() {
+        workflowWorker.addWorkflow(TestTimerCallbackBlockedWorkflowImpl.class);
+        StartWorkflowOptions options = new StartWorkflowOptions();
+        options.setExecutionStartToCloseTimeoutSeconds(2);
+        options.setTaskStartToCloseTimeoutSeconds(1);
+        options.setTaskList(taskList);
+        TestWorkflow1 client = clientFactory.newClient(TestWorkflow1.class, options);
         try {
-            WorkflowExecutionUtils.waitForWorkflowExecutionResult(service, domain, started, 10);
+            client.execute();
             fail("failure expected");
         } catch (Exception e) {
             assertTrue(e.getMessage().contains("Callback thread blocked"));

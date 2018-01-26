@@ -18,19 +18,23 @@ package com.uber.cadence.generic;
 
 import com.uber.cadence.WorkflowExecutionAlreadyStartedException;
 import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowService;
 
 public interface GenericWorkflowClientExternal {
     
-    public WorkflowExecution startWorkflow(StartWorkflowExecutionParameters startParameters) throws WorkflowExecutionAlreadyStartedException;
+    WorkflowExecution startWorkflow(StartWorkflowExecutionParameters startParameters) throws WorkflowExecutionAlreadyStartedException;
     
-    public void signalWorkflowExecution(SignalExternalWorkflowParameters signalParameters);
+    void signalWorkflowExecution(SignalExternalWorkflowParameters signalParameters);
     
-    public void requestCancelWorkflowExecution(WorkflowExecution execution);
+    void requestCancelWorkflowExecution(WorkflowExecution execution);
     
-    public byte[] getWorkflowState(WorkflowExecution execution);
+    byte[] queryWorkflow(QueryWorkflowParameters queryParameters);
     
-    public void terminateWorkflowExecution(TerminateWorkflowExecutionParameters terminateParameters);
+    void terminateWorkflowExecution(TerminateWorkflowExecutionParameters terminateParameters);
 
-    public String generateUniqueId();
+    String generateUniqueId();
 
+    WorkflowService.Iface getService();
+
+    String getDomain();
 }

@@ -16,22 +16,21 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 
 /**
- * Executes code passed to {@link #newRunner(Runnable)} as well as threads created from it using
- * {@link Workflow#newThread(Runnable)} deterministically. Requires use of provided wrappers for synchronization
- * and notification instead of native ones.
+ * Executes code passed to {@link #newRunner(com.uber.cadence.internal.dispatcher.Functions.Proc)}
+ * as well as threads created from it using {@link Workflow#newThread(Functions.Proc)} deterministically.
+ * Requires use of provided wrappers for synchronization and notification instead of native ones.
  */
 public interface DeterministicRunner {
 
-    static DeterministicRunner newRunner(Runnable root) {
+    static DeterministicRunner newRunner(Functions.Proc root) {
         return new DeterministicRunnerImpl(root);
     }
 
-    static DeterministicRunner newRunner(Supplier<Long> clock, Runnable root) {
+    static DeterministicRunner newRunner(Supplier<Long> clock, Functions.Proc root) {
         return new DeterministicRunnerImpl(clock, root);
     }
 
@@ -43,7 +42,7 @@ public interface DeterministicRunner {
      * @param root            function that root thread of the runner executes.
      * @return instance of the DeterministicRunner.
      */
-    static DeterministicRunner newRunner(ExecutorService threadPool, SyncDecisionContext decisionContext, Supplier<Long> clock, Runnable root) {
+    static DeterministicRunner newRunner(ExecutorService threadPool, SyncDecisionContext decisionContext, Supplier<Long> clock, Functions.Proc root) {
         return new DeterministicRunnerImpl(threadPool, decisionContext, clock, root);
     }
 

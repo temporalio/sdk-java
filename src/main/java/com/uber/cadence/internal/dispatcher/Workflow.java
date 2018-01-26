@@ -22,11 +22,11 @@ import java.util.concurrent.locks.Lock;
 
 public class Workflow {
 
-    public static WorkflowThread newThread(Runnable runnable) {
+    public static WorkflowThread newThread(Functions.Proc runnable) {
         return WorkflowThreadImpl.newThread(runnable);
     }
 
-    public static WorkflowThread newThread(Runnable runnable, String name) {
+    public static WorkflowThread newThread(Functions.Proc runnable, String name) {
         if (name == null) {
             throw new NullPointerException("name cannot be null");
         }
@@ -57,6 +57,14 @@ public class Workflow {
 
     public static <E> QueueConsumer<E> getSignalQueue(String signalName, Class<E> signalClass) {
         return getDecisionContext().getSignalQueue(signalName, signalClass);
+    }
+
+    /**
+     * Register query or queries implementation object. There is no need to register top level workflow implementation
+     * object as it is done implicitly. Only methods annotated with @{@link QueryMethod} are registered.
+     */
+    public static void registerQuery(Object queryImplementation) {
+        getDecisionContext().registerQuery(queryImplementation);
     }
 
     /**
