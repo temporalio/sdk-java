@@ -16,6 +16,9 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -71,7 +74,10 @@ class WorkflowTimers {
         t.addTimer(result);
     }
 
-    public void fireTimers(long currentTime) {
+    /**
+     * @return true if any timer fired
+     */
+    public boolean fireTimers(long currentTime) {
         List<Long> toDelete = new ArrayList<>();
         for (Map.Entry<Long, Timers> pair : timers.entrySet()) {
             if (pair.getKey() > currentTime) {
@@ -83,6 +89,7 @@ class WorkflowTimers {
         for (Long key : toDelete) {
             timers.remove(key);
         }
+        return !toDelete.isEmpty();
     }
 
     public long getNextFireTime() {

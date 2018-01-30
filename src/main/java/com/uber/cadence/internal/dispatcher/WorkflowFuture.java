@@ -44,6 +44,8 @@ public final class WorkflowFuture<T> implements Future<T> {
     private boolean completed;
     private boolean cancelled;
     private final List<Handler> handlers = new ArrayList<>();
+    private final DeterministicRunnerImpl runner;
+    private boolean registeredWithRunner;
 
     WorkflowFuture(T result) {
         this();
@@ -51,10 +53,11 @@ public final class WorkflowFuture<T> implements Future<T> {
     }
 
     WorkflowFuture() {
-        this.cancellationHandler = null;
+        this((BiConsumer) null);
     }
 
     public WorkflowFuture(BiConsumer<WorkflowFuture<T>, Boolean> cancellationHandler) {
+        runner = WorkflowThreadImpl.currentThread().getRunner();
         this.cancellationHandler = cancellationHandler;
     }
 
@@ -90,6 +93,7 @@ public final class WorkflowFuture<T> implements Future<T> {
             WorkflowThreadImpl.yield("Feature.get", () -> completed);
         }
         if (failure != null) {
+            unregisterWithRunner();
             throw new ExecutionException(failure);
         }
         return value;
@@ -104,9 +108,17 @@ public final class WorkflowFuture<T> implements Future<T> {
             throw new TimeoutException();
         }
         if (failure != null) {
+            unregisterWithRunner();
             throw new ExecutionException(failure);
         }
         return value;
+    }
+
+    private void unregisterWithRunner() {
+        if (registeredWithRunner) {
+            runner.forgetFailedFuture(this);
+            registeredWithRunner = false;
+        }
     }
 
     public boolean complete(T value) {
@@ -125,7 +137,11 @@ public final class WorkflowFuture<T> implements Future<T> {
         }
         this.completed = true;
         this.failure = value;
-        invokeHandlers();
+        boolean invoked = invokeHandlers();
+        if (!invoked) {
+            runner.registerFailedFuture(this); // To ensure that failure is not ignored
+            registeredWithRunner = true;
+        }
         return true;
     }
 
@@ -133,7 +149,7 @@ public final class WorkflowFuture<T> implements Future<T> {
         return handle((r, e) -> {
             if (e != null) {
                 if (e instanceof CompletionException) {
-                    throw (CompletionException)e;
+                    throw (CompletionException) e;
                 }
                 throw new CompletionException(e);
             }
@@ -146,6 +162,7 @@ public final class WorkflowFuture<T> implements Future<T> {
         WorkflowFuture<Object> resultFuture = new WorkflowFuture<>();
         if (completed) {
             invokeHandler(fn, resultFuture);
+            unregisterWithRunner();
         } else {
             handlers.add(new Handler(resultFuture, fn));
         }
@@ -157,15 +174,19 @@ public final class WorkflowFuture<T> implements Future<T> {
             Object result = fn.apply(value, failure);
             resultFuture.complete(result);
         } catch (CompletionException e) {
-                resultFuture.completeExceptionally(e);
+            resultFuture.completeExceptionally(e);
         } catch (Exception e) {
             resultFuture.completeExceptionally(new CompletionException(e));
         }
     }
 
-    private void invokeHandlers() {
+    /**
+     * @return true if there were any handlers invoked
+     */
+    private boolean invokeHandlers() {
         for (Handler handler : handlers) {
             invokeHandler(handler.function, handler.result);
         }
+        return !handlers.isEmpty();
     }
 }

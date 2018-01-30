@@ -64,6 +64,7 @@ class SyncWorkflow implements AsyncWorkflow {
 
         workflowProc = new WorkflowProc(syncContext, workflow, event.getWorkflowExecutionStartedEventAttributes());
         runner = DeterministicRunner.newRunner(threadPool, syncContext, context.getWorkflowClock()::currentTimeMillis, workflowProc);
+        runner.newCallbackTask(syncContext::fireTimers, "timer callbacks");
     }
 
     @Override
@@ -77,7 +78,7 @@ class SyncWorkflow implements AsyncWorkflow {
             return false;
         }
         runner.runUntilAllBlocked();
-        return runner.isDone();
+        return workflowProc.isDone(); // Do not wait for all other threads.
     }
 
     @Override
@@ -112,7 +113,7 @@ class SyncWorkflow implements AsyncWorkflow {
 
     @Override
     public void close() {
-        workflowProc.close();
+        runner.close();
     }
 
     @Override

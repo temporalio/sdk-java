@@ -24,7 +24,7 @@ import java.util.concurrent.Future;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-class WorkflowThreadImpl implements WorkflowThread {
+class WorkflowThreadImpl implements WorkflowThread, DeterministicRunnerCoroutine {
 
     /**
      * Runnable passed to the thread that wraps a runnable passed to the WorkflowThreadImpl constructor.
@@ -34,7 +34,7 @@ class WorkflowThreadImpl implements WorkflowThread {
         private final WorkflowThreadContext context;
         private final Functions.Proc r;
         private String originalName;
-        private final String name;
+        private String name;
 
         RunnableWrapper(WorkflowThreadContext context, String name, Functions.Proc r) {
             this.context = context;
@@ -65,6 +65,25 @@ class WorkflowThreadImpl implements WorkflowThread {
             } finally {
                 context.setStatus(Status.DONE);
                 thread.setName(originalName);
+                thread = null;
+            }
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public StackTraceElement[] getStackTrace() {
+            if (thread != null) {
+                return thread.getStackTrace();
+            }
+            return new StackTraceElement[0];
+        }
+
+        public void setName(String name) {
+            this.name = name;
+            if (thread != null) {
+                thread.setName(name);
             }
         }
     }
@@ -88,7 +107,7 @@ class WorkflowThreadImpl implements WorkflowThread {
     static WorkflowThreadImpl currentThread() {
         WorkflowThreadImpl result = currentThreadThreadLocal.get();
         if (result == null) {
-            throw new IllegalStateException("Called from non coroutine thread");
+            throw new IllegalStateException("Called from non workflow or workflow callback thread");
         }
         WorkflowThreadContext context = result.getContext();
         if (context.getStatus() != Status.RUNNING) {
@@ -167,17 +186,18 @@ class WorkflowThreadImpl implements WorkflowThread {
     }
 
     public void setName(String name) {
-        thread.setName(name);
+        task.setName(name);
     }
 
     public String getName() {
-        return thread.getName();
+        return task.getName();
     }
 
     public long getId() {
-        return thread.getId();
+        return hashCode();
     }
 
+    @Override
     public long getBlockedUntil() {
         return blockedUntil;
     }
@@ -189,6 +209,7 @@ class WorkflowThreadImpl implements WorkflowThread {
     /**
      * @return true if coroutine made some progress.
      */
+    @Override
     public boolean runUntilBlocked() {
         if (taskFuture == null) {
             // Thread is not yet started
@@ -205,11 +226,14 @@ class WorkflowThreadImpl implements WorkflowThread {
     public Thread.State getState() {
         if (context.getStatus() == Status.YIELDED) {
             return Thread.State.BLOCKED;
+        } else if (context.getStatus() == Status.DONE) {
+            return Thread.State.TERMINATED;
         } else {
             return Thread.State.RUNNABLE;
         }
     }
 
+    @Override
     public Throwable getUnhandledException() {
         return context.getUnhandledException();
     }
@@ -246,8 +270,9 @@ class WorkflowThreadImpl implements WorkflowThread {
     /**
      * @return stack trace of the coroutine thread
      */
+    @Override
     public String getStackTrace() {
-        StackTraceElement[] st = thread.getStackTrace();
+        StackTraceElement[] st = task.getStackTrace();
         StringWriter sw = new StringWriter();
         PrintWriter pw = new PrintWriter(sw);
         for (StackTraceElement se : st) {

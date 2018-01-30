@@ -49,7 +49,7 @@ public class AsyncDecisionTaskHandler extends DecisionTaskHandler {
         try {
             decider.decide();
         } catch (Throwable e) {
-            throw new Error("Add support for fail decision");
+            throw new Error("Add support for fail decision", e);
         }
         PollForDecisionTaskResponse decisionTask = historyHelper.getDecisionTask();
         if (decisionTask.isSetQuery()) {

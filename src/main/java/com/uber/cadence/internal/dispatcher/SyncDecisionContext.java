@@ -106,8 +106,11 @@ public class SyncDecisionContext {
         return timer;
     }
 
-    public void fireTimers() {
-        timers.fireTimers(context.getWorkflowClock().currentTimeMillis());
+    /**
+     * @return true if any timer fired
+     */
+    public boolean fireTimers() {
+        return timers.fireTimers(context.getWorkflowClock().currentTimeMillis());
     }
 
     public long getNextFireTime() {
@@ -155,7 +158,7 @@ public class SyncDecisionContext {
     public void registerQuery(Object queryImplementation) {
         POJOQueryImplementationFactory queryFactory = new POJOQueryImplementationFactory(converter, queryImplementation);
         Set<String> queries = queryFactory.getQueryFunctionNames();
-        for (String query: queries) {
+        for (String query : queries) {
             registerQuery(query, queryFactory.getQueryFunction(query));
         }
     }

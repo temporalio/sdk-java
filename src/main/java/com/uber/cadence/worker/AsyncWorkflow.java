@@ -24,6 +24,7 @@ import com.uber.cadence.WorkflowQuery;
 import java.util.concurrent.CancellationException;
 
 public interface AsyncWorkflow {
+    
     void start(HistoryEvent event, AsyncDecisionContext context) throws Exception;
 
     void processSignal(String signalName, byte[] input);

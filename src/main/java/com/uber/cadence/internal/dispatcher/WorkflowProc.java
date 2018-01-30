@@ -28,6 +28,7 @@ public class WorkflowProc implements Functions.Proc {
     private Throwable failure;
     private boolean cancelRequested;
     private byte[] output;
+    private boolean done;
 
     public WorkflowProc(SyncDecisionContext syncDecisionContext,
                         SyncWorkflowDefinition workflow,
@@ -40,6 +41,7 @@ public class WorkflowProc implements Functions.Proc {
     @Override
     public void apply() throws Exception {
         output = workflow.execute(attributes.getInput());
+        done = true;
     }
 
     public void cancel(CancellationException e) {
@@ -52,6 +54,10 @@ public class WorkflowProc implements Functions.Proc {
 
     public boolean isCancelRequested() {
         return cancelRequested;
+    }
+
+    public boolean isDone() {
+        return done;
     }
 
     public byte[] getOutput() {

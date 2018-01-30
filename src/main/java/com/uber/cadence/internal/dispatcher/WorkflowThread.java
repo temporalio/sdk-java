@@ -16,8 +16,6 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
-import java.util.function.Supplier;
-
 public interface WorkflowThread {
 
     void start();
@@ -51,4 +49,6 @@ public interface WorkflowThread {
     static boolean interrupted() {
         return WorkflowThreadImpl.currentThread().resetInterrupted();
     }
+
+    String getStackTrace();
 }

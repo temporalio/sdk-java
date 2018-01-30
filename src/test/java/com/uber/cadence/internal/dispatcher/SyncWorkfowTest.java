@@ -135,9 +135,7 @@ public class SyncWorkfowTest {
         public String execute() {
             AtomicReference<String> a1 = new AtomicReference<>();
             TestActivities activities = Workflow.newActivityClient(TestActivities.class);
-            WorkflowThread t = Workflow.newThread(() -> {
-                a1.set(activities.activity());
-            });
+            WorkflowThread t = Workflow.newThread(() -> a1.set(activities.activity()));
             t.start();
             try {
                 t.join(3000);
@@ -331,7 +329,7 @@ public class SyncWorkfowTest {
                     timer2.get(); // This is prohibited
                     f.complete(null);
                     return null;
-                });
+                }).get();
                 f.get();
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
@@ -342,6 +340,9 @@ public class SyncWorkfowTest {
         }
     }
 
+    /**
+     * Test that it is not allowed to block in the timer callback thread.
+     */
     @Test
     public void testTimerCallbackBlocked() {
         workflowWorker.addWorkflow(TestTimerCallbackBlockedWorkflowImpl.class);
@@ -354,7 +355,7 @@ public class SyncWorkfowTest {
             client.execute();
             fail("failure expected");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("Callback thread blocked"));
+            assertTrue(e.getMessage().contains("Called from non workflow or workflow callback thread"));
         }
     }
 

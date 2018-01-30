@@ -358,6 +358,8 @@ class AsyncDecider {
                 log.error("Failing workflow " + workflowContext.getWorkflowExecution(), e);
             }
             decisionsHelper.failWorkflowDueToUnexpectedError(e);
+        } finally {
+            workflow.close();
         }
     }
 
