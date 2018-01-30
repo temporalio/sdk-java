@@ -23,6 +23,7 @@ import com.uber.cadence.WorkflowException;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.common.FlowHelpers;
 import com.uber.cadence.internal.dispatcher.Functions;
+import com.uber.cadence.internal.dispatcher.QueryMethod;
 import com.uber.cadence.internal.dispatcher.SignalMethod;
 import com.uber.cadence.internal.dispatcher.SyncWorkflowDefinition;
 import com.uber.cadence.internal.dispatcher.Workflow;
@@ -60,6 +61,13 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
             Map<String, Method> signalHandlers = new HashMap<>();
             for (Method method : i.getRawType().getMethods()) {
                 WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
+                QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);
+                SignalMethod signalMethod = method.getAnnotation(SignalMethod.class);
+                int count = (workflowMethod == null ? 0 : 1) + (queryMethod == null ? 0 : 1) + (signalMethod == null ? 0 : 1);
+                if (count > 1) {
+                    throw new IllegalArgumentException(method + " must contain at most one annotation " +
+                            "from @WorkflowMethod, @QueryMethod or @SignalMethod");
+                }
                 if (workflowMethod != null) {
                     Functions.Func<SyncWorkflowDefinition> factory =
                             ()-> new POJOWorkflowImplementation(method, workflowImplementationClass, signalHandlers);
@@ -71,11 +79,10 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
                     factories.put(workflowName, factory);
                     hasWorkflowMethod = true;
                 }
-                SignalMethod signalMethod = method.getAnnotation(SignalMethod.class);
                 if (signalMethod != null) {
                     if (method.getReturnType() != Void.TYPE) {
                         throw new IllegalArgumentException("Method annotated with @SignalMethod " +
-                                "must have void return type: " + method.getName());
+                                "must have void return type: " + method);
                     }
                     String signalName = signalMethod.name();
                     if (signalName.isEmpty()) {
@@ -83,6 +90,13 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
                     }
                     signalHandlers.put(signalName, method);
                 }
+                if (queryMethod != null) {
+                    if (method.getReturnType() == Void.TYPE) {
+                        throw new IllegalArgumentException("Method annotated with @QueryMethod " +
+                                "cannot have void return type: " + method);
+                    }
+                }
+
             }
             // TODO: Query methods.
         }

@@ -26,6 +26,7 @@ import com.uber.cadence.WorkflowType;
 import com.uber.cadence.common.FlowHelpers;
 import com.uber.cadence.generic.GenericWorkflowClientExternal;
 import com.uber.cadence.generic.QueryWorkflowParameters;
+import com.uber.cadence.generic.SignalExternalWorkflowParameters;
 import com.uber.cadence.generic.StartWorkflowExecutionParameters;
 import com.uber.cadence.worker.GenericWorkflowClientExternalImpl;
 
@@ -85,10 +86,13 @@ class WorkflowInvocationHandler implements InvocationHandler {
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
         QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);
+        SignalMethod signalMethod = method.getAnnotation(SignalMethod.class);
+        int count = (workflowMethod == null ? 0 : 1) + (queryMethod == null ? 0 : 1) + (signalMethod == null ? 0 : 1);
+        if (count > 1) {
+            throw new IllegalArgumentException(method + " must contain at most one annotation " +
+                    "from @WorkflowMethod, @QueryMethod or @SignalMethod");
+        }
         if (workflowMethod != null) {
-            if (queryMethod != null) {
-                throw new IllegalArgumentException(method.getName() + " annotated with both @WorkflowMethod and @QueryMethod");
-            }
             if (execution != null) {
                 throw new IllegalStateException("Already started: " + execution);
             }
@@ -100,10 +104,35 @@ class WorkflowInvocationHandler implements InvocationHandler {
             }
             return queryWorkflow(method, queryMethod, args);
         }
-        throw new IllegalArgumentException(method.getName() + " is not annotated with @WorkflowMethod or @QueryMethod");
+        if (signalMethod != null) {
+            signalWorkflow(method, signalMethod, args);
+            return null;
+        }
+        throw new IllegalArgumentException(method + " is not annotated with @WorkflowMethod or @QueryMethod");
+    }
+
+    private void signalWorkflow(Method method, SignalMethod signalMethod, Object[] args) {
+        if (method.getReturnType() != Void.TYPE) {
+            throw new IllegalArgumentException("Signal method must have void return type: " + method);
+        }
+
+        String signalName = signalMethod.name();
+        if (signalName.isEmpty()) {
+            signalName = FlowHelpers.getSimpleName(method);
+        }
+        SignalExternalWorkflowParameters signalParameters = new SignalExternalWorkflowParameters();
+        signalParameters.setRunId(execution.getRunId());
+        signalParameters.setWorkflowId(execution.getWorkflowId());
+        signalParameters.setSignalName(signalName);
+        byte[] input = dataConverter.toData(args);
+        signalParameters.setInput(input);
+        genericClient.signalWorkflowExecution(signalParameters);
     }
 
     private Object queryWorkflow(Method method, QueryMethod queryMethod, Object[] args) {
+        if (method.getReturnType() == Void.TYPE) {
+            throw new IllegalArgumentException("Query method cannot have void return type: " + method);
+        }
         String queryType = queryMethod.name();
         if (queryType.isEmpty()) {
             queryType = FlowHelpers.getSimpleName(method);
@@ -113,7 +142,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
         p.setQueryType(queryType);
         p.setRunId(execution.getRunId());
         p.setWorkflowId(execution.getWorkflowId());
-        byte[] queryResult= genericClient.queryWorkflow(p);
+        byte[] queryResult = genericClient.queryWorkflow(p);
         return dataConverter.fromData(queryResult, method.getReturnType());
     }
 

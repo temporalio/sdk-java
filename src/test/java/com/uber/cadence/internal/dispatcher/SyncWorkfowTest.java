@@ -283,11 +283,12 @@ public class SyncWorkfowTest {
     public void testSignal() throws TimeoutException, InterruptedException {
         workflowWorker.addWorkflow(TestSignalWorkflowImpl.class);
         QueryableWorkflow client = clientFactory.newClient(QueryableWorkflow.class, startWorkflowOptions);
+        // To execute workflow client.execute() would do. But we want to start workflow and immediately return.
         WorkflowExternalResult<String> result = WorkflowExternal.executeWorkflow(client::execute);
         assertEquals("initial", client.getState());
-        result.signal("testSignal", "Hello ");
+        client.signal("Hello ");
         assertEquals("Hello ", client.getState());
-        result.signal("testSignal", "World!");
+        client.signal("World!");
         assertEquals("World!", client.getState());
         assertEquals("Hello World!", result.getResult());
     }
@@ -328,7 +329,7 @@ public class SyncWorkfowTest {
         WorkflowExternalResult<String> result = WorkflowExternal.executeWorkflow(client::execute);
         try {
             sendSignal.get(2, TimeUnit.SECONDS);
-            result.signal("testSignal", "Signal Input");
+            client.signal1("Signal Input");
         } catch (TimeoutException e) {
             throw new RuntimeException(e);
         } catch (ExecutionException e) {
