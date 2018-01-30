@@ -38,7 +38,6 @@ public class SyncDecisionContext {
     private final GenericAsyncActivityClient activityClient;
     private final DataConverter converter;
     private final WorkflowTimers timers = new WorkflowTimers();
-    private Map<String, WorkflowQueue<byte[]>> signalQueues = new HashMap<>();
     private Map<String, Functions.Func1<byte[], byte[]>> queryCallbacks = new HashMap<>();
 
     public SyncDecisionContext(AsyncDecisionContext context, DataConverter converter) {
@@ -117,33 +116,10 @@ public class SyncDecisionContext {
         return timers.getNextFireTime();
     }
 
-    public <E> QueueConsumer<E> getSignalQueue(String signalName, Class<E> signalClass) {
-        WorkflowQueue<byte[]> queue = getSignalQueue(signalName);
-        return queue.map((serialized) -> converter.fromData(serialized, signalClass));
-    }
-
-    private WorkflowQueue<byte[]> getSignalQueue(String signalName) {
-        WorkflowQueue<byte[]> queue = signalQueues.get(signalName);
-        if (queue == null) {
-            queue = Workflow.newQueue(Integer.MAX_VALUE);
-            signalQueues.put(signalName, queue);
-        }
-        return queue;
-    }
-
-    public void processSignal(String signalName, byte[] input) {
-        WorkflowQueue<byte[]> queue = getSignalQueue(signalName);
-        try {
-            queue.put(input);
-        } catch (InterruptedException e) {
-            throw new Error("unexpected", e);
-        }
-    }
-
     public byte[] query(String type, byte[] args) throws Exception {
         Functions.Func1<byte[], byte[]> callback = queryCallbacks.get(type);
         if (callback == null) {
-            throw new IllegalArgumentException("Unknown query type: " + type);
+            throw new IllegalArgumentException("Unknown query type: " + type + ", knownTypes=" + queryCallbacks.keySet());
         }
         return callback.apply(args);
     }

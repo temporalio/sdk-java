@@ -122,7 +122,7 @@ class WorkflowThreadContext {
                 throw new IllegalArgumentException("null function");
             }
             if (status != Status.YIELDED) {
-                throw new IllegalStateException("Not in yielded status");
+                throw new IllegalStateException("Not in yielded status: " + status);
             }
             ;
             if (evaluationFunction != null) {

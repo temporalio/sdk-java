@@ -43,6 +43,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Lock;
 
 import static org.junit.Assert.*;
 
@@ -116,8 +117,16 @@ public class SyncWorkfowTest {
         String execute();
     }
 
+    public interface TestWorkflowSignaled {
+        @WorkflowMethod
+        String execute();
+
+        @SignalMethod(name = "testSignal")
+        void signal1(String arg);
+    }
+
     public interface TestWorkflow2 {
-        @WorkflowMethod(name="testActivity")
+        @WorkflowMethod(name = "testActivity")
         String execute();
     }
 
@@ -127,6 +136,9 @@ public class SyncWorkfowTest {
 
         @QueryMethod
         String getState();
+
+        @SignalMethod(name = "testSignal")
+        void signal(String value);
     }
 
     public static class TestSyncWorkflowImpl implements TestWorkflow1 {
@@ -236,24 +248,34 @@ public class SyncWorkfowTest {
     public static class TestSignalWorkflowImpl implements QueryableWorkflow {
 
         String state = "initial";
+        List<String> signals = new ArrayList<>();
+        WorkflowFuture future = Workflow.newFuture();
 
         @Override
         public String execute() {
             try {
-                QueueConsumer<String> signalQueue = Workflow.getSignalQueue("testSignal", String.class);
-                String signal1 = signalQueue.take();
-                state = signal1;
-                String signal2 = signalQueue.take();
-                state = signal2;
-                return (signal1 + signal2);
+                future.get();
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e);
             }
+            return signals.get(0) + signals.get(1);
         }
 
         @Override
         public String getState() {
             return state;
+        }
+
+        @Override
+        public void signal(String value) {
+            log.info("TestSignalWorkflowImpl.signal value=" + value);
+            state = value;
+            signals.add(value);
+            if (signals.size() == 2) {
+                future.complete(null);
+            }
         }
     }
 
@@ -274,35 +296,35 @@ public class SyncWorkfowTest {
     static final AtomicInteger decisionCount = new AtomicInteger();
     static final CompletableFuture<Boolean> sendSignal = new CompletableFuture<>();
 
-    public static class TestSignalDuringLastDecisionWorkflowImpl implements TestWorkflow1 {
+    public static class TestSignalDuringLastDecisionWorkflowImpl implements TestWorkflowSignaled {
 
+        private String signal;
 
         @Override
         public String execute() {
-            try {
-                QueueConsumer<String> signalQueue = Workflow.getSignalQueue("testSignal", String.class);
-                String signal = signalQueue.poll(0, TimeUnit.MILLISECONDS);
-                if (decisionCount.incrementAndGet() == 1) {
-                    sendSignal.complete(true);
-                    // Never sleep in real workflow using Thread.sleep.
-                    // Here it is to simulate race condition.
+            if (decisionCount.incrementAndGet() == 1) {
+                sendSignal.complete(true);
+                // Never sleep in real workflow using Thread.sleep.
+                // Here it is to simulate race condition.
+                try {
                     Thread.sleep(500);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
                 }
-                if (signal == null) {
-                    return null;
-                } else {
-                    return signal;
-                }
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
             }
+            return signal;
+        }
+
+        @Override
+        public void signal1(String arg) {
+            signal = arg;
         }
     }
 
     @Test
     public void testSignalDuringLastDecision() throws TimeoutException, InterruptedException {
         workflowWorker.addWorkflow(TestSignalDuringLastDecisionWorkflowImpl.class);
-        TestWorkflow1 client = clientFactory.newClient(TestWorkflow1.class, startWorkflowOptions);
+        TestWorkflowSignaled client = clientFactory.newClient(TestWorkflowSignaled.class, startWorkflowOptions);
         WorkflowExternalResult<String> result = WorkflowExternal.executeWorkflow(client::execute);
         try {
             sendSignal.get(2, TimeUnit.SECONDS);

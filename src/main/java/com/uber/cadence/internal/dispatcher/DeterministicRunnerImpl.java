@@ -203,6 +203,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     @Override
     public WorkflowThread newBeforeThread(Functions.Proc r, String name) {
         WorkflowThreadImpl result = new WorkflowThreadImpl(threadPool, this, name, r);
+        result.start();
         lock.lock();
         try {
             threads.addFirst(result);

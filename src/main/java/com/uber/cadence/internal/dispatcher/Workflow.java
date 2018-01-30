@@ -55,10 +55,6 @@ public class Workflow {
         return result;
     }
 
-    public static <E> QueueConsumer<E> getSignalQueue(String signalName, Class<E> signalClass) {
-        return getDecisionContext().getSignalQueue(signalName, signalClass);
-    }
-
     /**
      * Register query or queries implementation object. There is no need to register top level workflow implementation
      * object as it is done implicitly. Only methods annotated with @{@link QueryMethod} are registered.

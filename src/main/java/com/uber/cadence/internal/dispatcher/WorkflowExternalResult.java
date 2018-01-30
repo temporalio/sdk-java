@@ -54,7 +54,7 @@ public class WorkflowExternalResult<R> {
 
     public <G> void signal(String name, G input) {
         SignalWorkflowExecutionRequest signalRequest = new SignalWorkflowExecutionRequest();
-        signalRequest.setInput(dataConverter.toData(input));
+        signalRequest.setInput(dataConverter.toData(new Object[] {input}));
         signalRequest.setDomain(domain);
         signalRequest.setSignalName(name);
         signalRequest.setWorkflowExecution(execution);

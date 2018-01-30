@@ -26,6 +26,8 @@ import com.uber.cadence.WorkflowType;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.charset.Charset;
 import java.util.List;
 
@@ -61,7 +63,10 @@ public class AsyncDecisionTaskHandler extends DecisionTaskHandler {
                 queryCompletedRequest.setCompletedType(QueryTaskCompletedType.COMPLETED);
             } catch (Exception e) {
                 // TODO: Appropriate exception serialization.
-                queryCompletedRequest.setQueryResult(e.toString().getBytes(Charsets.UTF_8));
+                StringWriter sw = new StringWriter();
+                PrintWriter pw = new PrintWriter(sw);
+                e.printStackTrace(pw);
+                queryCompletedRequest.setErrorMessage(sw.toString());
                 queryCompletedRequest.setCompletedType(QueryTaskCompletedType.FAILED);
             }
             return queryCompletedRequest;

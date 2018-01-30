@@ -22,6 +22,8 @@ import com.uber.cadence.DataConverter;
 import com.uber.cadence.WorkflowException;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.common.FlowHelpers;
+import com.uber.cadence.internal.dispatcher.Functions;
+import com.uber.cadence.internal.dispatcher.SignalMethod;
 import com.uber.cadence.internal.dispatcher.SyncWorkflowDefinition;
 import com.uber.cadence.internal.dispatcher.Workflow;
 import com.uber.cadence.internal.dispatcher.WorkflowMethod;
@@ -39,7 +41,10 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
 
     private static final byte[] EMPTY_BLOB = {};
     private DataConverter dataConverter;
-    private final Map<String, SyncWorkflowDefinition> workflows = Collections.synchronizedMap(new HashMap<>());
+    /**
+     * Key: workflow type name, Value: function that creates SyncWorkflowDefinition instance.
+     */
+    private final Map<String, Functions.Func<SyncWorkflowDefinition>> factories = Collections.synchronizedMap(new HashMap<>());
 
     public POJOWorkflowImplementationFactory(DataConverter dataConverter) {
         this.dataConverter = dataConverter;
@@ -52,16 +57,31 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
         }
         boolean hasWorkflowMethod = false;
         for (TypeToken<?> i : interfaces) {
+            Map<String, Method> signalHandlers = new HashMap<>();
             for (Method method : i.getRawType().getMethods()) {
                 WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
                 if (workflowMethod != null) {
-                    SyncWorkflowDefinition implementation = new POJOWorkflowImplementation(method, workflowImplementationClass);
+                    Functions.Func<SyncWorkflowDefinition> factory =
+                            ()-> new POJOWorkflowImplementation(method, workflowImplementationClass, signalHandlers);
+
                     String workflowName = workflowMethod.name();
                     if (workflowName.isEmpty()) {
                         workflowName = FlowHelpers.getSimpleName(method);
                     }
-                    workflows.put(workflowName, implementation);
+                    factories.put(workflowName, factory);
                     hasWorkflowMethod = true;
+                }
+                SignalMethod signalMethod = method.getAnnotation(SignalMethod.class);
+                if (signalMethod != null) {
+                    if (method.getReturnType() != Void.TYPE) {
+                        throw new IllegalArgumentException("Method annotated with @SignalMethod " +
+                                "must have void return type: " + method.getName());
+                    }
+                    String signalName = signalMethod.name();
+                    if (signalName.isEmpty()) {
+                        signalName = FlowHelpers.getSimpleName(method);
+                    }
+                    signalHandlers.put(signalName, method);
                 }
             }
             // TODO: Query methods.
@@ -74,7 +94,15 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
 
     @Override
     public SyncWorkflowDefinition apply(WorkflowType workflowType) {
-        return workflows.get(workflowType.getName());
+        Functions.Func<SyncWorkflowDefinition> factory = factories.get(workflowType.getName());
+        if (factory == null) {
+            return null;
+        }
+        try {
+            return factory.apply();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void setDataConverter(DataConverter dataConverter) {
@@ -85,18 +113,20 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
 
         private final Method method;
         private final Class<?> workflowImplementationClass;
+        private final Map<String, Method> signalHandlers;
+        private Object workflow;
 
-        public POJOWorkflowImplementation(Method method, Class<?> workflowImplementationClass) {
+        public POJOWorkflowImplementation(Method method, Class<?> workflowImplementationClass, Map<String, Method> signalHandlers) {
             this.method = method;
             this.workflowImplementationClass = workflowImplementationClass;
+            this.signalHandlers = signalHandlers;
         }
 
         @Override
         public byte[] execute(byte[] input) throws CancellationException, WorkflowException {
             Object[] args = dataConverter.fromData(input, Object[].class);
             try {
-                Object workflow = workflowImplementationClass.newInstance();
-                Workflow.registerQuery(workflow);
+                newInstance();
                 Object result = method.invoke(workflow, args);
                 if (method.getReturnType() == Void.TYPE) {
                     return EMPTY_BLOB;
@@ -106,8 +136,34 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
                 throw throwWorkflowFailure(e);
             } catch (InvocationTargetException e) {
                 throw throwWorkflowFailure(e.getTargetException());
-            } catch (InstantiationException e) {
+            }
+        }
+
+        private void newInstance() throws IllegalAccessException {
+            if (workflow == null) {
+                try {
+                    workflow = workflowImplementationClass.newInstance();
+                } catch (InstantiationException e) {
+                    throw new RuntimeException(e);
+                }
+                Workflow.registerQuery(workflow);
+            }
+        }
+
+        @Override
+        public void processSignal(String signalName, byte[] input) {
+            Object[] args = dataConverter.fromData(input, Object[].class);
+            Method method = signalHandlers.get(signalName);
+            if (method == null) {
+                throw new IllegalArgumentException("Unknown signal: " + signalName);
+            }
+            try {
+                newInstance();
+                method.invoke(workflow, args);
+            } catch (IllegalAccessException e) {
                 throw new RuntimeException(e);
+            } catch (InvocationTargetException e) {
+                throw new RuntimeException(e.getTargetException());
             }
         }
 

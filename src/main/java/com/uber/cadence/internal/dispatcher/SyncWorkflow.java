@@ -69,7 +69,9 @@ class SyncWorkflow implements AsyncWorkflow {
 
     @Override
     public void processSignal(String signalName, byte[] input) {
-        workflowProc.processSignal(signalName, input);
+        String threadName = "\"" + signalName + "\" signal handler";
+        runner.newBeforeThread(() ->
+        workflowProc.processSignal(signalName, input), threadName);
     }
 
     @Override

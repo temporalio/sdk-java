@@ -133,7 +133,8 @@ public class DecisionTaskPoller implements TaskPoller {
         PollForDecisionTaskResponse result = service.PollForDecisionTask(pollRequest);
         if (log.isDebugEnabled()) {
             log.debug("poll request returned decision task: workflowType=" + result.getWorkflowType() + ", workflowExecution="
-                    + result.getWorkflowExecution() + ", startedEventId=" + result.getStartedEventId() + ", previousStartedEventId=" + result.getPreviousStartedEventId());
+                    + result.getWorkflowExecution() + ", startedEventId=" + result.getStartedEventId() + ", previousStartedEventId=" + result.getPreviousStartedEventId()
+                    + (result.getQuery() != null ? "queryType=" + result.getQuery().getQueryType() : ""));
         }
 
         if (result == null || result.getTaskToken() == null) {

@@ -68,7 +68,7 @@ public class WorkflowProc implements Functions.Proc {
     }
 
     public void processSignal(String signalName, byte[] input) {
-        context.processSignal(signalName, input);
+        workflow.processSignal(signalName, input);
     }
 
     public byte[] query(String type, byte[] args) throws Exception {

@@ -31,7 +31,7 @@ public class ActivityInvocationHandler implements InvocationHandler {
         if (asyncResult.get() != null) {
             throw new IllegalStateException("already in async invocation");
         }
-        asyncResult.set(new AtomicReference<WorkflowFuture>());
+        asyncResult.set(new AtomicReference<>());
     }
 
     public static WorkflowFuture getAsyncInvocationResult() {
