@@ -18,6 +18,7 @@ package com.uber.cadence;
 
 import com.uber.cadence.generic.GenericAsyncActivityClient;
 import com.uber.cadence.generic.GenericAsyncWorkflowClient;
+import com.uber.cadence.workflow.WorkflowContext;
 
 /**
  * Represents the context for decider. Should only be used within the scope of

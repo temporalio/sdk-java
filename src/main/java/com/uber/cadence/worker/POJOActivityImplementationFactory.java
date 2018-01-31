@@ -18,8 +18,8 @@ package com.uber.cadence.worker;
 
 import com.google.common.base.Throwables;
 import com.google.common.reflect.TypeToken;
-import com.uber.cadence.ActivityExecutionContext;
-import com.uber.cadence.ActivityFailureException;
+import com.uber.cadence.activity.ActivityExecutionContext;
+import com.uber.cadence.activity.ActivityFailureException;
 import com.uber.cadence.ActivityType;
 import com.uber.cadence.DataConverter;
 import com.uber.cadence.common.FlowHelpers;

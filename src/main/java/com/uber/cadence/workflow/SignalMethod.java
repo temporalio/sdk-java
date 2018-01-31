@@ -14,19 +14,22 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence;
+package com.uber.cadence.workflow;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
- * Used to access execution context of the currently executed activity. An
- * implementation might rely on thread local storage. So it is guaranteed to
- * return current context only in the thread that invoked the activity
- * implementation. If activity implementation needs to pass its execution
- * context to other threads it has to do it explicitly.
- * 
- * @author fateev
+ * Indicates that the method is a signal handler method. Signal method is executed when workflow receives signal.
+ * This annotation applies only to workflow interface methods.
  */
-public interface ActivityExecutionContextProvider {
-
-    public ActivityExecutionContext getActivityExecutionContext();
-
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+public @interface SignalMethod {
+    /**
+     * Name of the signal type. Default is {short class name}::{method name}.
+     */
+    String name() default "";
 }

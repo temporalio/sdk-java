@@ -16,13 +16,12 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import com.uber.cadence.workflow.Workflow;
+import com.uber.cadence.workflow.WorkflowFuture;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -33,7 +32,7 @@ import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.*;
 
-public class WorkflowFutureTest {
+public class WorkflowInternalFutureTest {
 
     @Rule
     public final Tracer trace = new Tracer();
@@ -48,10 +47,10 @@ public class WorkflowFutureTest {
     @Test
     public void testFailure() throws Throwable {
         DeterministicRunner r = DeterministicRunner.newRunner(() -> {
-            WorkflowFuture<Boolean> f = new WorkflowFuture<>();
+            WorkflowFuture<Boolean> f = Workflow.newFuture();
             trace.add("root begin");
-            Workflow.newThread(() -> f.completeExceptionally(new IllegalArgumentException("foo"))).start();
-            Workflow.newThread(() -> {
+            WorkflowInternal.newThread(() -> f.completeExceptionally(new IllegalArgumentException("foo"))).start();
+            WorkflowInternal.newThread(() -> {
                 try {
                     f.get();
                     trace.add("thread1 get success");
@@ -77,14 +76,14 @@ public class WorkflowFutureTest {
     @Test
     public void testCancellation() throws Throwable {
         DeterministicRunner r = DeterministicRunner.newRunner(() -> {
-            WorkflowFuture<Boolean> f = new WorkflowFuture<>((ff, i) -> {
+            WorkflowFuture<Boolean> f = new WorkflowFutureImpl<>((ff, i) -> {
                 ff.completeExceptionally(new CancellationException());
                 trace.add("cancellation handler done");
             });
             trace.add("root begin");
-            Workflow.newThread(() -> {
-                    f.cancel(true);
-                    trace.add("thread1 done");
+            WorkflowInternal.newThread(() -> {
+                f.cancel(true);
+                trace.add("thread1 done");
             }).start();
             trace.add("root done");
         });
@@ -107,9 +106,9 @@ public class WorkflowFutureTest {
                 null,
                 () -> currentTime,
                 () -> {
-                    WorkflowFuture<String> f = new WorkflowFuture<>();
+                    WorkflowFuture<String> f = Workflow.newFuture();
                     trace.add("root begin");
-                    Workflow.newThread(() -> {
+                    WorkflowInternal.newThread(() -> {
                         trace.add("thread1 begin");
                         try {
                             assertEquals("bar", f.get(10, TimeUnit.SECONDS));
@@ -152,11 +151,11 @@ public class WorkflowFutureTest {
     public void testMultiple() throws Throwable {
         DeterministicRunner r = DeterministicRunner.newRunner(() -> {
             trace.add("root begin");
-            WorkflowFuture<Boolean> f1 = new WorkflowFuture<>();
-            WorkflowFuture<Boolean> f2 = new WorkflowFuture<>();
-            WorkflowFuture<Boolean> f3 = new WorkflowFuture<>();
+            WorkflowFuture<Boolean> f1 = Workflow.newFuture();
+            WorkflowFuture<Boolean> f2 = Workflow.newFuture();
+            WorkflowFuture<Boolean> f3 = Workflow.newFuture();
 
-            Workflow.newThread(
+            WorkflowInternal.newThread(
                     () -> {
                         trace.add("thread1 begin");
                         try {
@@ -171,7 +170,7 @@ public class WorkflowFutureTest {
                         trace.add("thread1 done");
                     }
             ).start();
-            Workflow.newThread(
+            WorkflowInternal.newThread(
                     () -> {
                         trace.add("thread2 begin");
                         try {

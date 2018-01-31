@@ -14,29 +14,22 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.generic;
+package com.uber.cadence.workflow;
 
+import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.StartWorkflowOptions;
 
 import java.util.List;
 
-public class ContinueAsNewWorkflowExecutionParameters {
-    private String workflowTypeVersion;
+public final class ContinueAsNewWorkflowExecutionParameters {
+
     private int executionStartToCloseTimeoutSeconds;
     private byte[] input;
-    private List<String> tagList;
     private String taskList;
     private int taskStartToCloseTimeoutSeconds;
+    private ChildPolicy childPolicy;
 
     public ContinueAsNewWorkflowExecutionParameters() {
-    }
-    
-    public String getWorkflowTypeVersion() {
-        return workflowTypeVersion;
-    }
-    
-    public void setWorkflowTypeVersion(String workflowTypeVersion) {
-        this.workflowTypeVersion = workflowTypeVersion;
     }
     
     public int getExecutionStartToCloseTimeoutSeconds() {
@@ -52,30 +45,17 @@ public class ContinueAsNewWorkflowExecutionParameters {
         return this;
     }
 
+    public ContinueAsNewWorkflowExecutionParameters withInput(byte[] input) {
+        this.input = input;
+        return this;
+    }
+
     public byte[] getInput() {
         return input;
     }
 
     public void setInput(byte[] input) {
         this.input = input;
-    }
-    
-    public ContinueAsNewWorkflowExecutionParameters withInput(byte[] input) {
-        this.input = input;
-        return this;
-    } 
-
-    public List<String> getTagList() {
-        return tagList;
-    }
-    
-    public void setTagList(List<String> tagList) {
-        this.tagList = tagList;
-    }
-    
-    public ContinueAsNewWorkflowExecutionParameters withTagList(List<String> tagList) {
-        this.tagList = tagList;
-        return this;
     }
 
     public String getTaskList() {
@@ -98,7 +78,20 @@ public class ContinueAsNewWorkflowExecutionParameters {
     public void setTaskStartToCloseTimeoutSeconds(int taskStartToCloseTimeoutSeconds) {
         this.taskStartToCloseTimeoutSeconds = taskStartToCloseTimeoutSeconds;
     }
-    
+
+    public ChildPolicy getChildPolicy() {
+        return childPolicy;
+    }
+
+    public void setChildPolicy(ChildPolicy childPolicy) {
+        this.childPolicy = childPolicy;
+    }
+
+    public ContinueAsNewWorkflowExecutionParameters withChildPolicy(ChildPolicy childPolicy) {
+        this.childPolicy = childPolicy;
+        return this;
+    }
+
     public ContinueAsNewWorkflowExecutionParameters withTaskStartToCloseTimeoutSeconds(int taskStartToCloseTimeoutSeconds) {
         this.taskStartToCloseTimeoutSeconds = taskStartToCloseTimeoutSeconds;
         return this;
@@ -118,15 +111,15 @@ public class ContinueAsNewWorkflowExecutionParameters {
             if (taskStartToCloseTimeoutSeconds != null) {
                 continueAsNewWorkflowExecutionParameters.setTaskStartToCloseTimeoutSeconds(taskStartToCloseTimeoutSeconds);
             }
-            
-            List<String> tagList = options.getTagList();
-            if (tagList != null) {
-                continueAsNewWorkflowExecutionParameters.setTagList(tagList);
-            }
-            
+
             String taskList = options.getTaskList();
             if (taskList != null && !taskList.isEmpty()) { 
                 continueAsNewWorkflowExecutionParameters.setTaskList(taskList);
+            }
+
+            ChildPolicy childPolicy = options.getChildPolicy();
+            if (childPolicy != null) {
+                continueAsNewWorkflowExecutionParameters.setChildPolicy(childPolicy);
             }
         }
         
@@ -140,16 +133,17 @@ public class ContinueAsNewWorkflowExecutionParameters {
             if (taskStartToCloseTimeoutSeconds != null) {
                 continueAsNewWorkflowExecutionParameters.setTaskStartToCloseTimeoutSeconds(taskStartToCloseTimeoutSeconds);
             }
-            
-            List<String> tagList = optionsOverride.getTagList();
-            if (tagList != null) {
-                continueAsNewWorkflowExecutionParameters.setTagList(tagList);
-            }
-            
+
             String taskList = optionsOverride.getTaskList();
             if (taskList != null && !taskList.isEmpty()) { 
                 continueAsNewWorkflowExecutionParameters.setTaskList(taskList);
             }
+
+            ChildPolicy childPolicy = optionsOverride.getChildPolicy();
+            if (childPolicy != null) {
+                continueAsNewWorkflowExecutionParameters.setChildPolicy(childPolicy);
+            }
+
         }
         
         return continueAsNewWorkflowExecutionParameters;
@@ -162,7 +156,6 @@ public class ContinueAsNewWorkflowExecutionParameters {
         sb.append("Input: " + input + ", ");
         sb.append("ExecutionStartToCloseTimeout: " + executionStartToCloseTimeoutSeconds + ", ");
         sb.append("TaskStartToCloseTimeout: " + taskStartToCloseTimeoutSeconds + ", ");
-        sb.append("TagList: " + tagList + ", ");
         sb.append("TaskList: " + taskList + ", ");
         sb.append("}");
         return sb.toString();
@@ -170,13 +163,10 @@ public class ContinueAsNewWorkflowExecutionParameters {
     
     public ContinueAsNewWorkflowExecutionParameters clone() {
         ContinueAsNewWorkflowExecutionParameters result = new ContinueAsNewWorkflowExecutionParameters();
-        result.setWorkflowTypeVersion(workflowTypeVersion);
         result.setExecutionStartToCloseTimeoutSeconds(executionStartToCloseTimeoutSeconds);
         result.setInput(input);
-        result.setTagList(tagList);
         result.setTaskList(taskList);
         result.setTaskStartToCloseTimeoutSeconds(taskStartToCloseTimeoutSeconds);
         return result;
     }
-
 }

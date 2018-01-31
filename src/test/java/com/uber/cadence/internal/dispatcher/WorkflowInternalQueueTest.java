@@ -16,24 +16,15 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import com.uber.cadence.workflow.WorkflowQueue;
+import com.uber.cadence.workflow.WorkflowThread;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
 import static org.junit.Assert.*;
 
-public class WorkflowQueueTest {
+public class WorkflowInternalQueueTest {
 
     private long currentTime;
     @Rule
@@ -47,9 +38,9 @@ public class WorkflowQueueTest {
     @Test
     public void testTakeBlocking() throws Throwable {
         DeterministicRunner r = DeterministicRunner.newRunner(() -> {
-            WorkflowQueue<Boolean> f = Workflow.newQueue(1);
+            WorkflowQueue<Boolean> f = WorkflowInternal.newQueue(1);
             trace.add("root begin");
-            Workflow.newThread(() -> {
+            WorkflowInternal.newThread(() -> {
                 try {
                     trace.add("thread1 begin");
                     assertTrue(f.take());
@@ -58,7 +49,7 @@ public class WorkflowQueueTest {
                     throw new RuntimeException(e);
                 }
             }).start();
-            Workflow.newThread(() -> {
+            WorkflowInternal.newThread(() -> {
                 try {
                     trace.add("thread2 begin");
                     f.put(true);
@@ -85,9 +76,9 @@ public class WorkflowQueueTest {
     @Test
     public void testPutBlocking() throws Throwable {
         DeterministicRunner r = DeterministicRunner.newRunner(() -> currentTime, () -> {
-            WorkflowQueue<Boolean> f = Workflow.newQueue(1);
+            WorkflowQueue<Boolean> f = WorkflowInternal.newQueue(1);
             trace.add("root begin");
-            Workflow.newThread(() -> {
+            WorkflowInternal.newThread(() -> {
                 try {
                     trace.add("thread1 begin");
                     WorkflowThread.sleep(2000);
@@ -99,7 +90,7 @@ public class WorkflowQueueTest {
                     throw new RuntimeException(e);
                 }
             }).start();
-            Workflow.newThread(() -> {
+            WorkflowInternal.newThread(() -> {
                 try {
                     trace.add("thread2 begin");
                     f.put(true);

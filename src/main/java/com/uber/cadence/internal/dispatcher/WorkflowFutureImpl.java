@@ -16,23 +16,25 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import com.uber.cadence.workflow.Functions;
+import com.uber.cadence.workflow.WorkflowFuture;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 
-public final class WorkflowFuture<T> implements Future<T> {
+final class WorkflowFutureImpl<T> implements WorkflowFuture<T> {
 
     private static class Handler {
-        final WorkflowFuture<Object> result;
+        final WorkflowFutureImpl<Object> result;
         final Functions.Func2 function;
 
-        private Handler(WorkflowFuture<Object> result, Functions.Func2 function) {
+        private Handler(WorkflowFutureImpl<Object> result, Functions.Func2 function) {
             this.result = result;
             this.function = function;
         }
@@ -47,17 +49,12 @@ public final class WorkflowFuture<T> implements Future<T> {
     private final DeterministicRunnerImpl runner;
     private boolean registeredWithRunner;
 
-    WorkflowFuture(T result) {
-        this();
-        complete(result);
-    }
-
-    WorkflowFuture() {
+    WorkflowFutureImpl() {
         this((BiConsumer) null);
     }
 
-    public WorkflowFuture(BiConsumer<WorkflowFuture<T>, Boolean> cancellationHandler) {
-        runner = WorkflowThreadImpl.currentThread().getRunner();
+    public WorkflowFutureImpl(BiConsumer<WorkflowFuture<T>, Boolean> cancellationHandler) {
+        runner = WorkflowThreadInternal.currentThreadInternal().getRunner();
         this.cancellationHandler = cancellationHandler;
     }
 
@@ -90,7 +87,7 @@ public final class WorkflowFuture<T> implements Future<T> {
     @Override
     public T get() throws InterruptedException, ExecutionException {
         if (!completed) {
-            WorkflowThreadImpl.yield("Feature.get", () -> completed);
+            WorkflowThreadInternal.yield("Feature.get", () -> completed);
         }
         if (failure != null) {
             unregisterWithRunner();
@@ -102,7 +99,7 @@ public final class WorkflowFuture<T> implements Future<T> {
     @Override
     public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
         if (!completed) {
-            WorkflowThreadImpl.yield(unit.toMillis(timeout), "Feature.get", () -> completed);
+            WorkflowThreadInternal.yield(unit.toMillis(timeout), "Feature.get", () -> completed);
         }
         if (!completed) {
             throw new TimeoutException();
@@ -145,7 +142,7 @@ public final class WorkflowFuture<T> implements Future<T> {
         return true;
     }
 
-    public <U> WorkflowFuture<U> thenApply(Functions.Func1<? super T, ? extends U> fn) {
+    public <U> WorkflowFutureImpl<U> thenApply(Functions.Func1<? super T, ? extends U> fn) {
         return handle((r, e) -> {
             if (e != null) {
                 if (e instanceof CompletionException) {
@@ -157,19 +154,19 @@ public final class WorkflowFuture<T> implements Future<T> {
         });
     }
 
-    public <U> WorkflowFuture<U> handle(Functions.Func2<? super T, Exception, ? extends U> fn) {
+    public <U> WorkflowFutureImpl<U> handle(Functions.Func2<? super T, Exception, ? extends U> fn) {
         // TODO: Cancellation handler
-        WorkflowFuture<Object> resultFuture = new WorkflowFuture<>();
+        WorkflowFutureImpl<Object> resultFuture = new WorkflowFutureImpl<>();
         if (completed) {
             invokeHandler(fn, resultFuture);
             unregisterWithRunner();
         } else {
             handlers.add(new Handler(resultFuture, fn));
         }
-        return (WorkflowFuture<U>) resultFuture;
+        return (WorkflowFutureImpl<U>) resultFuture;
     }
 
-    private void invokeHandler(Functions.Func2 fn, WorkflowFuture<Object> resultFuture) {
+    private void invokeHandler(Functions.Func2 fn, WorkflowFutureImpl<Object> resultFuture) {
         try {
             Object result = fn.apply(value, failure);
             resultFuture.complete(result);

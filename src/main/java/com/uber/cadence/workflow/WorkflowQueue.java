@@ -14,24 +14,7 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.internal.dispatcher;
+package com.uber.cadence.workflow;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-
-
-/**
- * Indicates that the method is a query method. Query method can be used to query a workflow state
- * by external process at any time during its execution.
- * This annotation applies only to workflow interface methods.
- */
-@Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
-public @interface QueryMethod {
-    /**
-     * Name of the query type. Default is {short class name}::{method name}
-     */
-    String name() default "";
+public interface WorkflowQueue<E> extends QueueConsumer<E>, QueueProducer<E> {
 }

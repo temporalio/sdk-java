@@ -16,13 +16,19 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
-import com.uber.cadence.ActivitySchedulingOptions;
+import com.uber.cadence.workflow.ActivitySchedulingOptions;
 import com.uber.cadence.DataConverter;
 import com.uber.cadence.JsonDataConverter;
 import com.uber.cadence.StartWorkflowOptions;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
 import com.uber.cadence.worker.ActivityWorker;
+import com.uber.cadence.workflow.QueryMethod;
+import com.uber.cadence.workflow.SignalMethod;
+import com.uber.cadence.workflow.Workflow;
+import com.uber.cadence.workflow.WorkflowFuture;
+import com.uber.cadence.workflow.WorkflowMethod;
+import com.uber.cadence.workflow.WorkflowThread;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.log4j.ConsoleAppender;
@@ -44,7 +50,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.Lock;
 
 import static org.junit.Assert.*;
 
@@ -355,7 +360,7 @@ public class SyncWorkfowTest {
             WorkflowFuture<Void> timer2 = Workflow.newTimer(1);
 
             try {
-                WorkflowFuture<Void> f = new WorkflowFuture<>();
+                WorkflowFuture<Void> f = Workflow.newFuture();
                 timer1.thenApply((e) -> {
                     timer2.get(); // This is prohibited
                     f.complete(null);

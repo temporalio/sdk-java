@@ -14,21 +14,19 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.generic;
+package com.uber.cadence.workflow;
 
 import com.uber.cadence.StartWorkflowOptions;
 import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.WorkflowType;
 
-public class StartChildWorkflowExecutionParameters implements Cloneable {
+public final class StartChildWorkflowExecutionParameters implements Cloneable {
 
     private String control;
 
     private int executionStartToCloseTimeoutSeconds;
 
     private byte[] input;
-
-//    private List<String> tagList;
 
     private String taskList;
 
@@ -39,8 +37,6 @@ public class StartChildWorkflowExecutionParameters implements Cloneable {
     private WorkflowType workflowType;
 
     private ChildPolicy childPolicy;
-
-//    private int taskPriority;
 
     public StartChildWorkflowExecutionParameters() {
     }
@@ -83,19 +79,6 @@ public class StartChildWorkflowExecutionParameters implements Cloneable {
         this.input = input;
         return this;
     }
-
-//    public List<String> getTagList() {
-//        return tagList;
-//    }
-//
-//    public void setTagList(List<String> tagList) {
-//        this.tagList = tagList;
-//    }
-//
-//    public StartChildWorkflowExecutionParameters withTagList(List<String> tagList) {
-//        this.tagList = tagList;
-//        return this;
-//    }
 
     public String getTaskList() {
         return taskList;
@@ -162,19 +145,6 @@ public class StartChildWorkflowExecutionParameters implements Cloneable {
         return this;
     }
 
-//    public int getTaskPriority() {
-//        return taskPriority;
-//    }
-//
-//    public void setTaskPriority(int taskPriority) {
-//        this.taskPriority = taskPriority;
-//    }
-//
-//    public StartChildWorkflowExecutionParameters withTaskPriority(int taskPriority) {
-//        this.taskPriority = taskPriority;
-//        return this;
-//    }
-
     public StartChildWorkflowExecutionParameters createStartChildWorkflowExecutionParametersFromOptions(
             StartWorkflowOptions options, StartWorkflowOptions optionsOverride) {
         StartChildWorkflowExecutionParameters startChildWorkflowExecutionParameters = this.clone();
@@ -191,25 +161,15 @@ public class StartChildWorkflowExecutionParameters implements Cloneable {
                 startChildWorkflowExecutionParameters.setTaskStartToCloseTimeoutSeconds(taskStartToCloseTimeoutSeconds);
             }
 
-//            List<String> tagList = options.getTagList();
-//            if (tagList != null) {
-//                startChildWorkflowExecutionParameters.setTagList(tagList);
-//            }
-//
             String taskList = options.getTaskList();
             if (taskList != null && !taskList.isEmpty()) {
                 startChildWorkflowExecutionParameters.setTaskList(taskList);
             }
 
-//            ChildPolicy childPolicy = options.getChildPolicy();
-//            if (childPolicy != null) {
-//                startChildWorkflowExecutionParameters.setChildPolicy(childPolicy);
-//            }
-//
-//            Integer taskPriority = options.getTaskPriority();
-//            if (taskPriority != null) {
-//                startChildWorkflowExecutionParameters.setTaskPriority(taskPriority);
-//            }
+            ChildPolicy childPolicy = options.getChildPolicy();
+            if (childPolicy != null) {
+                startChildWorkflowExecutionParameters.setChildPolicy(childPolicy);
+            }
         }
 
         if (optionsOverride != null) {
@@ -223,26 +183,15 @@ public class StartChildWorkflowExecutionParameters implements Cloneable {
                 startChildWorkflowExecutionParameters.setTaskStartToCloseTimeoutSeconds(taskStartToCloseTimeoutSeconds);
             }
 
-//            List<String> tagList = optionsOverride.getTagList();
-//            if (tagList != null) {
-//                startChildWorkflowExecutionParameters.setTagList(tagList);
-//            }
-
             String taskList = optionsOverride.getTaskList();
             if (taskList != null && !taskList.isEmpty()) {
                 startChildWorkflowExecutionParameters.setTaskList(taskList);
             }
 
-//            ChildPolicy childPolicy = optionsOverride.getChildPolicy();
-//            if (childPolicy != null) {
-//                startChildWorkflowExecutionParameters.setChildPolicy(childPolicy);
-//            }
-//
-//            Integer taskPriority = optionsOverride.getTaskPriority();
-//            if (taskPriority != null) {
-//                startChildWorkflowExecutionParameters.setTaskPriority(taskPriority);
-//            }
-
+            ChildPolicy childPolicy = optionsOverride.getChildPolicy();
+            if (childPolicy != null) {
+                startChildWorkflowExecutionParameters.setChildPolicy(childPolicy);
+            }
         }
 
         return startChildWorkflowExecutionParameters;
@@ -258,9 +207,8 @@ public class StartChildWorkflowExecutionParameters implements Cloneable {
         sb.append("Control: " + control + ", ");
         sb.append("ExecutionStartToCloseTimeout: " + executionStartToCloseTimeoutSeconds + ", ");
         sb.append("TaskStartToCloseTimeout: " + taskStartToCloseTimeoutSeconds + ", ");
-//        sb.append("TagList: " + tagList + ", ");
+        sb.append("ChildPolicy: " + childPolicy + ", ");
         sb.append("TaskList: " + taskList + ", ");
-//        sb.append("TaskPriority: " + taskPriority + ", ");
         sb.append("}");
         return sb.toString();
     }
@@ -270,12 +218,11 @@ public class StartChildWorkflowExecutionParameters implements Cloneable {
         result.setControl(control);
         result.setExecutionStartToCloseTimeoutSeconds(executionStartToCloseTimeoutSeconds);
         result.setInput(input);
-//        result.setTagList(tagList);
+        result.setChildPolicy(childPolicy);
         result.setTaskList(taskList);
         result.setTaskStartToCloseTimeoutSeconds(taskStartToCloseTimeoutSeconds);
         result.setWorkflowId(workflowId);
         result.setWorkflowType(workflowType);
-//        result.setTaskPriority(taskPriority);
         return result;
     }
 

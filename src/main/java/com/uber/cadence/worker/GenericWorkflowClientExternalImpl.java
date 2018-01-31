@@ -22,7 +22,7 @@ import com.uber.cadence.WorkflowExecutionAlreadyStartedException;
 import com.uber.cadence.WorkflowQuery;
 import com.uber.cadence.generic.GenericWorkflowClientExternal;
 import com.uber.cadence.generic.QueryWorkflowParameters;
-import com.uber.cadence.generic.SignalExternalWorkflowParameters;
+import com.uber.cadence.workflow.SignalExternalWorkflowParameters;
 import com.uber.cadence.generic.StartWorkflowExecutionParameters;
 import com.uber.cadence.generic.TerminateWorkflowExecutionParameters;
 import com.uber.cadence.RequestCancelWorkflowExecutionRequest;

@@ -16,23 +16,32 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
-import com.uber.cadence.ActivitySchedulingOptions;
+import com.uber.cadence.workflow.ActivitySchedulingOptions;
+import com.uber.cadence.workflow.Functions;
+import com.uber.cadence.workflow.QueryMethod;
+import com.uber.cadence.workflow.WorkflowFuture;
+import com.uber.cadence.workflow.WorkflowQueue;
+import com.uber.cadence.workflow.WorkflowThread;
 
 import java.lang.reflect.Proxy;
 import java.util.concurrent.Future;
 import java.util.concurrent.locks.Lock;
+import java.util.function.Supplier;
 
-public class Workflow {
+/**
+ * Never reference directly. It is public only because Java doesn't have internal package support.
+ */
+public final class WorkflowInternal {
 
     public static WorkflowThread newThread(Functions.Proc runnable) {
-        return WorkflowThreadImpl.newThread(runnable);
+        return WorkflowThreadInternal.newThread(runnable);
     }
 
     public static WorkflowThread newThread(Functions.Proc runnable, String name) {
         if (name == null) {
             throw new NullPointerException("name cannot be null");
         }
-        return WorkflowThreadImpl.newThread(runnable, name);
+        return WorkflowThreadInternal.newThread(runnable, name);
     }
 
     public static WorkflowFuture<Void> newTimer(long delaySeconds) {
@@ -44,15 +53,17 @@ public class Workflow {
     }
 
     public static <E> WorkflowFuture<E> newFuture() {
-        return new WorkflowFuture<>();
+        return new WorkflowFutureImpl<>();
     }
 
     public static <E> WorkflowFuture<E> newFuture(E value) {
-        return new WorkflowFuture<>(value);
+        WorkflowFuture result = new WorkflowFutureImpl<>();
+        result.complete(value);
+        return result;
     }
 
     public static <E> WorkflowFuture<E> newFailedFuture(Exception failure) {
-        WorkflowFuture<E> result = new WorkflowFuture<>();
+        WorkflowFuture<E> result = new WorkflowFutureImpl<>();
         result.completeExceptionally(failure);
         return result;
     }
@@ -81,7 +92,7 @@ public class Workflow {
      * Should be used to get current time instead of {@link System#currentTimeMillis()}
      */
     public static long currentTimeMillis() {
-        return WorkflowThreadImpl.currentThread().getRunner().currentTimeMillis();
+        return WorkflowThreadInternal.currentThreadInternal().getRunner().currentTimeMillis();
     }
 
     /**
@@ -90,7 +101,7 @@ public class Workflow {
      * @param activityInterface interface type implemented by activities
      */
     public static <T> T newActivityClient(Class<T> activityInterface, ActivitySchedulingOptions options) {
-        return (T) Proxy.newProxyInstance(Workflow.class.getClassLoader(),
+        return (T) Proxy.newProxyInstance(WorkflowInternal.class.getClassLoader(),
                 new Class<?>[]{activityInterface},
                 new ActivityInvocationHandler(options));
     }
@@ -107,7 +118,7 @@ public class Workflow {
         try {
             activity.apply();
         } catch (Exception e) {
-            return Workflow.newFailedFuture(e);
+            return WorkflowInternal.newFailedFuture(e);
         } finally {
             return ActivityInvocationHandler.getAsyncInvocationResult();
         }
@@ -212,7 +223,7 @@ public class Workflow {
         try {
             activity.apply();
         } catch (Exception e) {
-            return Workflow.newFailedFuture(e);
+            return WorkflowInternal.newFailedFuture(e);
         } finally {
             return ActivityInvocationHandler.getAsyncInvocationResult();
         }
@@ -319,7 +330,7 @@ public class Workflow {
     }
 
     private static SyncDecisionContext getDecisionContext() {
-        return WorkflowThreadImpl.currentThread().getDecisionContext();
+        return WorkflowThreadInternal.currentThreadInternal().getDecisionContext();
     }
 
     /**
@@ -335,4 +346,22 @@ public class Workflow {
         return getDecisionContext().executeActivityAsync(name, options, args, returnType);
     }
 
+    public static WorkflowThread currentThread() {
+        return WorkflowThreadInternal.currentThreadInternal();
+    }
+
+    public static boolean currentThreadResetInterrupted() {
+        return WorkflowThreadInternal.currentThreadInternal().resetInterrupted();
+    }
+
+    public static boolean yield(long timeoutMillis, String reason, Supplier<Boolean> unblockCondition) throws InterruptedException, DestroyWorkflowThreadError {
+        return WorkflowThreadInternal.yield(timeoutMillis, reason, unblockCondition);
+    }
+
+    /**
+     * Prohibit instantiation
+     */
+    private WorkflowInternal() {
+
+    }
 }

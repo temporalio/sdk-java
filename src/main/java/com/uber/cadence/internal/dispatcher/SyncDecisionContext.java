@@ -16,13 +16,15 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
-import com.uber.cadence.ActivitySchedulingOptions;
+import com.uber.cadence.workflow.ActivitySchedulingOptions;
 import com.uber.cadence.AsyncDecisionContext;
 import com.uber.cadence.DataConverter;
 import com.uber.cadence.generic.ExecuteActivityParameters;
 import com.uber.cadence.generic.GenericAsyncActivityClient;
 import com.uber.cadence.ActivityType;
 import com.uber.cadence.worker.POJOQueryImplementationFactory;
+import com.uber.cadence.workflow.Functions;
+import com.uber.cadence.workflow.WorkflowFuture;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -34,7 +36,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-public class SyncDecisionContext {
+class SyncDecisionContext {
     private final AsyncDecisionContext context;
     private final GenericAsyncActivityClient activityClient;
     private final DataConverter converter;
@@ -75,8 +77,8 @@ public class SyncDecisionContext {
     }
 
     public WorkflowFuture<byte[]> executeActivityAsync(String name, ActivitySchedulingOptions options, byte[] input) {
-        ActivityFutureCancellationHandler cancellationHandler = new ActivityFutureCancellationHandler();
-        WorkflowFuture<byte[]> result = new WorkflowFuture(cancellationHandler);
+        ActivityFutureCancellationHandler cancellationHandler = new ActivityFutureCancellationHandler<>();
+        WorkflowFuture<byte[]> result = new WorkflowFutureImpl<>(cancellationHandler);
         ExecuteActivityParameters parameters = new ExecuteActivityParameters();
         //TODO: Real task list
         parameters.withActivityType(new ActivityType().setName(name)).
@@ -100,8 +102,8 @@ public class SyncDecisionContext {
     }
 
     public WorkflowFuture<Void> newTimer(long delaySeconds) {
-        ActivityFutureCancellationHandler cancellationHandler = new ActivityFutureCancellationHandler();
-        WorkflowFuture<Void> timer = new WorkflowFuture(cancellationHandler);
+        ActivityFutureCancellationHandler<Void> cancellationHandler = new ActivityFutureCancellationHandler<>();
+        WorkflowFuture<Void> timer = new WorkflowFutureImpl<>(cancellationHandler);
         long fireTime = context.getWorkflowClock().currentTimeMillis() + TimeUnit.SECONDS.toMillis(delaySeconds);
         timers.addTimer(fireTime, timer);
         return timer;
@@ -141,7 +143,7 @@ public class SyncDecisionContext {
         }
     }
 
-    private static class ActivityFutureCancellationHandler implements BiConsumer<WorkflowFuture, Boolean> {
+    private static class ActivityFutureCancellationHandler<T> implements BiConsumer<WorkflowFuture<T>, Boolean> {
         private Consumer<Throwable> cancellationCallback;
 
         public void setCancellationCallback(Consumer<Throwable> cancellationCallback) {
@@ -149,7 +151,7 @@ public class SyncDecisionContext {
         }
 
         @Override
-        public void accept(WorkflowFuture workflowFuture, Boolean aBoolean) {
+        public void accept(WorkflowFuture<T> workflowFuture, Boolean aBoolean) {
             cancellationCallback.accept(new CancellationException("result future cancelled"));
         }
     }

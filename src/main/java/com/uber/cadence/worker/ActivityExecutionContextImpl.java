@@ -16,7 +16,7 @@
  */
 package com.uber.cadence.worker;
 
-import com.uber.cadence.ActivityExecutionContext;
+import com.uber.cadence.activity.ActivityExecutionContext;
 import com.uber.cadence.ActivityTask;
 import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.RecordActivityTaskHeartbeatRequest;
@@ -50,7 +50,7 @@ class ActivityExecutionContextImpl extends ActivityExecutionContext {
      * @param service
      *            The {@link WorkflowService.Iface} this
      *            ActivityExecutionContextImpl will send service calls to.
-     * @param task
+     * @param response
      *            The {@link PollForActivityTaskResponse} this ActivityExecutionContextImpl
      *            will be used for.
      *

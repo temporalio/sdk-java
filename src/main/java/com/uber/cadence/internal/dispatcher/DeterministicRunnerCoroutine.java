@@ -16,7 +16,7 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
-public interface DeterministicRunnerCoroutine {
+interface DeterministicRunnerCoroutine {
     long getBlockedUntil();
 
     boolean runUntilBlocked();

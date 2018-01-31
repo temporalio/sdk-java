@@ -16,6 +16,8 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import com.uber.cadence.workflow.Functions;
+import com.uber.cadence.workflow.WorkflowThread;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -40,7 +42,7 @@ public class LockTest {
 
     @Before
     public void setUp() {
-        lock = Workflow.newReentrantLock();
+        lock = WorkflowInternal.newReentrantLock();
         unblock1 = false;
         unblock2 = false;
         currentTime = 10;
@@ -66,12 +68,12 @@ public class LockTest {
         ExecutorService threadPool = new ThreadPoolExecutor(1, 1000, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
         DeterministicRunner r = DeterministicRunner.newRunner(threadPool, null, () -> currentTime, () -> {
             trace.add("root begin");
-            Workflow.newThread(
+            WorkflowInternal.newThread(
                     () -> {
                         lock.lock();
                         trace.add("thread1 lock");
                         try {
-                            WorkflowThreadImpl.yield("thread1", () -> unblock1);
+                            WorkflowThreadInternal.yield("thread1", () -> unblock1);
                         } catch (InterruptedException e) {
                             throw new RuntimeException(e);
                         }
@@ -79,10 +81,10 @@ public class LockTest {
                         trace.add("thread1 done");
                     }
             ).start();
-            Workflow.newThread(
+            WorkflowInternal.newThread(
                     () -> {
                         try {
-                            WorkflowThreadImpl.yield("thread2", () -> unblock2);
+                            WorkflowThreadInternal.yield("thread2", () -> unblock2);
                         } catch (InterruptedException e) {
                             throw new RuntimeException(e);
                         }

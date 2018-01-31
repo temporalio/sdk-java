@@ -18,7 +18,7 @@ package com.uber.cadence.worker;
 
 import com.uber.cadence.WorkflowException;
 import com.uber.cadence.common.WorkflowExecutionUtils;
-import com.uber.cadence.generic.ContinueAsNewWorkflowExecutionParameters;
+import com.uber.cadence.workflow.ContinueAsNewWorkflowExecutionParameters;
 import com.uber.cadence.*;
 
 import java.io.PrintWriter;

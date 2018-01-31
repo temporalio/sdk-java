@@ -28,17 +28,15 @@ public class StartWorkflowOptions {
 	
     private String taskList;
 	
-//    private Integer taskPriority;
+    private ChildPolicy childPolicy;
 
-//    private ChildPolicy childPolicy;
-//
-//    public com.uber.cadence.ChildPolicy getChildPolicy() {
-//        return childPolicy;
-//    }
-//
-//    public void setChildPolicy(ChildPolicy childPolicy) {
-//        this.childPolicy = childPolicy;
-//    }
+    public com.uber.cadence.ChildPolicy getChildPolicy() {
+        return childPolicy;
+    }
+
+    public void setChildPolicy(ChildPolicy childPolicy) {
+        this.childPolicy = childPolicy;
+    }
     
     public Integer getExecutionStartToCloseTimeoutSeconds() {
 		return executionStartToCloseTimeoutSeconds;

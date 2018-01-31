@@ -14,23 +14,19 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.internal.dispatcher;
-
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+package com.uber.cadence.activity;
 
 /**
- * Indicates that the method is a workflow method. Workflow method is executed when workflow is started.
- * Workflow completes when workflow method returns.
- * This annotation applies only to workflow interface methods.
+ * Used to access execution context of the currently executed activity. An
+ * implementation might rely on thread local storage. So it is guaranteed to
+ * return current context only in the thread that invoked the activity
+ * implementation. If activity implementation needs to pass its execution
+ * context to other threads it has to do it explicitly.
+ * 
+ * @author fateev
  */
-@Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
-public @interface WorkflowMethod {
-    /**
-     * Name of the workflow type. Default is {short class name}::{method name}
-     */
-    String name() default "";
+public interface ActivityExecutionContextProvider {
+
+    public ActivityExecutionContext getActivityExecutionContext();
+
 }

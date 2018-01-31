@@ -14,11 +14,19 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.internal.dispatcher;
+package com.uber.cadence.activity;
 
 /**
- * Used to interrupt deterministic thread execution. Assumption is that none of the code
- * that thread executes catches it.
+ * The default implementation of the ActivityExecutionContextProvider. Can be
+ * shared across any number of activity implementation instances.
+ * 
+ * @author fateev
  */
-class DestroyWorkflowThreadError extends Error {
+public class ActivityExecutionContextProviderImpl implements ActivityExecutionContextProvider {
+
+    @Override
+    public ActivityExecutionContext getActivityExecutionContext() {
+        return CurrentActivityExecutionContext.get();
+    }
+
 }

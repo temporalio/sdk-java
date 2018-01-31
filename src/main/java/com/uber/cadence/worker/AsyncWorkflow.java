@@ -20,6 +20,7 @@ import com.uber.cadence.AsyncDecisionContext;
 import com.uber.cadence.WorkflowException;
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.WorkflowQuery;
+import com.uber.cadence.workflow.WorkflowThread;
 
 import java.util.concurrent.CancellationException;
 
@@ -51,7 +52,7 @@ public interface AsyncWorkflow {
 
     /**
      * @return time at which workflow can make progress.
-     * For example when {@link com.uber.cadence.internal.dispatcher.WorkflowThread#sleep(long)} expires.
+     * For example when {@link WorkflowThread#sleep(long)} expires.
      */
     long getNextWakeUpTime();
 

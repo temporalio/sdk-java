@@ -26,7 +26,7 @@ import org.apache.thrift.TException;
 
 import java.util.concurrent.TimeoutException;
 
-public class WorkflowExternalResult<R> {
+public final class WorkflowExternalResult<R> {
     private final WorkflowService.Iface service;
     private final String domain;
     private final WorkflowExecution execution;

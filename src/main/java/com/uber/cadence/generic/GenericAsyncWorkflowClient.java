@@ -17,6 +17,8 @@
 package com.uber.cadence.generic;
 
 import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.workflow.ContinueAsNewWorkflowExecutionParameters;
+import com.uber.cadence.workflow.StartChildWorkflowExecutionParameters;
 
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;

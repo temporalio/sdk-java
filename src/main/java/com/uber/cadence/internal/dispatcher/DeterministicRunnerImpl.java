@@ -16,6 +16,9 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import com.uber.cadence.workflow.Functions;
+import com.uber.cadence.workflow.WorkflowFuture;
+import com.uber.cadence.workflow.WorkflowThread;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -72,7 +75,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         this.decisionContext = decisionContext;
         this.clock = clock;
         // TODO: workflow instance specific thread name
-        WorkflowThreadImpl rootWorkflowThreadImpl = new WorkflowThreadImpl(threadPool, this, "workflow-root", root);
+        WorkflowThreadInternal rootWorkflowThreadImpl = new WorkflowThreadInternal(threadPool, this, "workflow-root", root);
         threads.add(rootWorkflowThreadImpl);
         rootWorkflowThreadImpl.start();
     }
@@ -180,12 +183,12 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         return nextWakeUpTime;
     }
 
-    public WorkflowThreadImpl newThread(Functions.Proc r) {
+    public WorkflowThreadInternal newThread(Functions.Proc r) {
         return newThread(r, null);
     }
 
-    public WorkflowThreadImpl newThread(Functions.Proc r, String name) {
-        WorkflowThreadImpl result = new WorkflowThreadImpl(threadPool, this, name, r);
+    public WorkflowThreadInternal newThread(Functions.Proc r, String name) {
+        WorkflowThreadInternal result = new WorkflowThreadInternal(threadPool, this, name, r);
         threadsToAdd.add(result); // This is synchronized collection.
         return result;
     }
@@ -202,7 +205,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
     @Override
     public WorkflowThread newBeforeThread(Functions.Proc r, String name) {
-        WorkflowThreadImpl result = new WorkflowThreadImpl(threadPool, this, name, r);
+        WorkflowThreadInternal result = new WorkflowThreadInternal(threadPool, this, name, r);
         result.start();
         lock.lock();
         try {

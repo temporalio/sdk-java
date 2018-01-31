@@ -16,11 +16,9 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import com.uber.cadence.workflow.WorkflowFuture;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;

@@ -14,7 +14,9 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.internal.dispatcher;
+package com.uber.cadence.workflow;
+
+import com.uber.cadence.internal.dispatcher.WorkflowInternal;
 
 public interface WorkflowThread {
 
@@ -39,15 +41,15 @@ public interface WorkflowThread {
     Thread.State getState();
 
     static WorkflowThread currentThread() {
-        return WorkflowThreadImpl.currentThread();
+        return WorkflowInternal.currentThread();
     }
 
     static void sleep(long millis) throws InterruptedException {
-        WorkflowThreadImpl.yield(millis, "sleep", () -> false   );
+        WorkflowInternal.yield(millis, "sleep", () -> false   );
     }
 
     static boolean interrupted() {
-        return WorkflowThreadImpl.currentThread().resetInterrupted();
+        return WorkflowInternal.currentThreadResetInterrupted();
     }
 
     String getStackTrace();

@@ -14,9 +14,9 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.generic;
+package com.uber.cadence.workflow;
 
-public class SignalExternalWorkflowParameters implements Cloneable {
+public final class SignalExternalWorkflowParameters implements Cloneable {
 
     private byte[] input;
     

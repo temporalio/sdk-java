@@ -14,10 +14,10 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence;
+package com.uber.cadence.workflow;
 
 
-public class ActivitySchedulingOptions {
+public final class ActivitySchedulingOptions {
     
     private Integer heartbeatTimeoutSeconds;
     

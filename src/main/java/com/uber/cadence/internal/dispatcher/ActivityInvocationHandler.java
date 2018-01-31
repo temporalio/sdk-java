@@ -17,14 +17,15 @@
 package com.uber.cadence.internal.dispatcher;
 
 import com.google.common.base.Defaults;
-import com.uber.cadence.ActivitySchedulingOptions;
+import com.uber.cadence.workflow.ActivitySchedulingOptions;
 import com.uber.cadence.common.FlowHelpers;
+import com.uber.cadence.workflow.WorkflowFuture;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class ActivityInvocationHandler implements InvocationHandler {
+class ActivityInvocationHandler implements InvocationHandler {
 
     private static final ThreadLocal<AtomicReference<WorkflowFuture>> asyncResult = new ThreadLocal<>();
     private final ActivitySchedulingOptions options;
@@ -58,7 +59,7 @@ public class ActivityInvocationHandler implements InvocationHandler {
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) {
-        SyncDecisionContext decisionContext = WorkflowThreadImpl.currentThread().getDecisionContext();
+        SyncDecisionContext decisionContext = WorkflowThreadInternal.currentThreadInternal().getDecisionContext();
         // TODO: Add annotation to support overriding activity name.
         String activityName = FlowHelpers.getSimpleName(method);
         AtomicReference<WorkflowFuture> async = asyncResult.get();

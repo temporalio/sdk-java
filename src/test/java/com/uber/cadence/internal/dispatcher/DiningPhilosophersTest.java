@@ -16,6 +16,8 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import com.uber.cadence.workflow.Functions;
+import com.uber.cadence.workflow.WorkflowThread;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -53,21 +55,21 @@ public class DiningPhilosophersTest {
                 while (true) {
 
                     // thinking
-                    doAction(Workflow.currentTimeMillis() + ": Thinking");
+                    doAction(WorkflowInternal.currentTimeMillis() + ": Thinking");
                     leftFork.lock();
                     try {
                         doAction(
-                                Workflow.currentTimeMillis()
+                                WorkflowInternal.currentTimeMillis()
                                         + ": Picked up left fork");
                         rightFork.lock();
                         try {
                             // eating
                             doAction(
-                                    Workflow.currentTimeMillis()
+                                    WorkflowInternal.currentTimeMillis()
                                             + ": Picked up right fork - eating");
 
                             doAction(
-                                    Workflow.currentTimeMillis()
+                                    WorkflowInternal.currentTimeMillis()
                                             + ": Put down right fork");
                         } finally {
                             rightFork.unlock();
@@ -75,7 +77,7 @@ public class DiningPhilosophersTest {
 
                         // Back to thinking
                         doAction(
-                                Workflow.currentTimeMillis()
+                                WorkflowInternal.currentTimeMillis()
                                         + ": Put down left fork. Back to thinking");
                     } finally {
                         leftFork.unlock();
@@ -100,7 +102,7 @@ public class DiningPhilosophersTest {
             Philosopher[] philosophers = new Philosopher[PHYLOSOPHER_COUNT];
             List<Lock> forks = new ArrayList<>(PHYLOSOPHER_COUNT);
             for (int i = 0; i < PHYLOSOPHER_COUNT; i++) {
-                forks.add(Workflow.newReentrantLock());
+                forks.add(WorkflowInternal.newReentrantLock());
             }
 
             for (int i = 0; i < philosophers.length; i++) {
@@ -117,7 +119,7 @@ public class DiningPhilosophersTest {
                 }
 
                 WorkflowThread t =
-                        Workflow.newThread(philosophers[i], "Philosopher " + (i + 1));
+                        WorkflowInternal.newThread(philosophers[i], "Philosopher " + (i + 1));
                 t.start();
             }
         }

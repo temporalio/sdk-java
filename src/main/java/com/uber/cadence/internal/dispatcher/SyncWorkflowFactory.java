@@ -24,7 +24,7 @@ import com.uber.cadence.WorkflowType;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
-public class SyncWorkflowFactory implements AsyncWorkflowFactory {
+class SyncWorkflowFactory implements AsyncWorkflowFactory {
     private final Function<WorkflowType, SyncWorkflowDefinition> factory;
     private final DataConverter converter;
     private final ExecutorService threadPool;
