@@ -16,14 +16,14 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
-import com.uber.cadence.AsyncDecisionContext;
-import com.uber.cadence.DataConverter;
+import com.uber.cadence.internal.AsyncDecisionContext;
+import com.uber.cadence.internal.DataConverter;
 import com.uber.cadence.EventType;
 import com.uber.cadence.HistoryEvent;
-import com.uber.cadence.WorkflowException;
+import com.uber.cadence.internal.WorkflowException;
 import com.uber.cadence.WorkflowQuery;
 import com.uber.cadence.WorkflowType;
-import com.uber.cadence.worker.AsyncWorkflow;
+import com.uber.cadence.internal.worker.AsyncWorkflow;
 
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;

@@ -16,15 +16,15 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
-import com.uber.cadence.DataConverter;
-import com.uber.cadence.JsonDataConverter;
+import com.uber.cadence.internal.DataConverter;
+import com.uber.cadence.internal.JsonDataConverter;
 import com.uber.cadence.WorkflowService;
-import com.uber.cadence.worker.AsyncDecisionTaskHandler;
-import com.uber.cadence.worker.AsyncWorkflowFactory;
-import com.uber.cadence.worker.DecisionTaskPoller;
-import com.uber.cadence.worker.GenericWorker;
-import com.uber.cadence.worker.POJOWorkflowImplementationFactory;
-import com.uber.cadence.worker.TaskPoller;
+import com.uber.cadence.internal.worker.AsyncDecisionTaskHandler;
+import com.uber.cadence.internal.worker.AsyncWorkflowFactory;
+import com.uber.cadence.internal.worker.DecisionTaskPoller;
+import com.uber.cadence.internal.worker.GenericWorker;
+import com.uber.cadence.internal.worker.POJOWorkflowImplementationFactory;
+import com.uber.cadence.internal.worker.TaskPoller;
 
 import java.lang.management.ManagementFactory;
 import java.util.concurrent.ExecutorService;

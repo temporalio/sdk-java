@@ -16,8 +16,8 @@
  */
 package com.uber.cadence.activity;
 
-import com.uber.cadence.ActivityTask;
-import com.uber.cadence.generic.ActivityImplementation;
+import com.uber.cadence.internal.ActivityTask;
+import com.uber.cadence.internal.generic.ActivityImplementation;
 import com.uber.cadence.WorkflowService.Iface;
 
 import java.util.concurrent.CancellationException;

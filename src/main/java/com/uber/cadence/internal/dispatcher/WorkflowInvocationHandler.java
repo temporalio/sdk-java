@@ -17,19 +17,19 @@
 package com.uber.cadence.internal.dispatcher;
 
 import com.google.common.base.Defaults;
-import com.uber.cadence.DataConverter;
-import com.uber.cadence.StartWorkflowOptions;
+import com.uber.cadence.internal.DataConverter;
+import com.uber.cadence.internal.StartWorkflowOptions;
 import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.WorkflowExecutionAlreadyStartedException;
+import com.uber.cadence.internal.WorkflowExecutionAlreadyStartedException;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.WorkflowType;
-import com.uber.cadence.common.FlowHelpers;
-import com.uber.cadence.generic.GenericWorkflowClientExternal;
-import com.uber.cadence.generic.QueryWorkflowParameters;
+import com.uber.cadence.internal.common.FlowHelpers;
+import com.uber.cadence.internal.generic.GenericWorkflowClientExternal;
+import com.uber.cadence.internal.generic.QueryWorkflowParameters;
 import com.uber.cadence.workflow.QueryMethod;
 import com.uber.cadence.workflow.SignalExternalWorkflowParameters;
-import com.uber.cadence.generic.StartWorkflowExecutionParameters;
-import com.uber.cadence.worker.GenericWorkflowClientExternalImpl;
+import com.uber.cadence.internal.generic.StartWorkflowExecutionParameters;
+import com.uber.cadence.internal.worker.GenericWorkflowClientExternalImpl;
 import com.uber.cadence.workflow.SignalMethod;
 import com.uber.cadence.workflow.WorkflowMethod;
 

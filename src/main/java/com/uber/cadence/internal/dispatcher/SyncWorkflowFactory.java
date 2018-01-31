@@ -16,9 +16,9 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
-import com.uber.cadence.DataConverter;
-import com.uber.cadence.worker.AsyncWorkflow;
-import com.uber.cadence.worker.AsyncWorkflowFactory;
+import com.uber.cadence.internal.DataConverter;
+import com.uber.cadence.internal.worker.AsyncWorkflow;
+import com.uber.cadence.internal.worker.AsyncWorkflowFactory;
 import com.uber.cadence.WorkflowType;
 
 import java.util.concurrent.ExecutorService;

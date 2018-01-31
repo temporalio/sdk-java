@@ -16,7 +16,7 @@
  */
 package com.uber.cadence.activity;
 
-import com.uber.cadence.generic.ActivityImplementation;
+import com.uber.cadence.internal.generic.ActivityImplementation;
 
 /**
  * This exception is expected to be thrown from

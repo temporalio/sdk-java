@@ -16,7 +16,7 @@
  */
 package com.uber.cadence.workflow;
 
-import com.uber.cadence.StartWorkflowOptions;
+import com.uber.cadence.internal.StartWorkflowOptions;
 import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.WorkflowType;
 

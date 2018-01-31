@@ -18,7 +18,7 @@ package com.uber.cadence.internal.dispatcher;
 
 import com.google.common.base.Defaults;
 import com.uber.cadence.workflow.ActivitySchedulingOptions;
-import com.uber.cadence.common.FlowHelpers;
+import com.uber.cadence.internal.common.FlowHelpers;
 import com.uber.cadence.workflow.WorkflowFuture;
 
 import java.lang.reflect.InvocationHandler;
