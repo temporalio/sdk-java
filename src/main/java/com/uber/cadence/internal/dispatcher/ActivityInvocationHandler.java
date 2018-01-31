@@ -17,6 +17,7 @@
 package com.uber.cadence.internal.dispatcher;
 
 import com.google.common.base.Defaults;
+import com.uber.cadence.ActivitySchedulingOptions;
 import com.uber.cadence.common.FlowHelpers;
 
 import java.lang.reflect.InvocationHandler;
@@ -26,6 +27,11 @@ import java.util.concurrent.atomic.AtomicReference;
 public class ActivityInvocationHandler implements InvocationHandler {
 
     private static final ThreadLocal<AtomicReference<WorkflowFuture>> asyncResult = new ThreadLocal<>();
+    private final ActivitySchedulingOptions options;
+
+    public ActivityInvocationHandler(ActivitySchedulingOptions options) {
+        this.options = options;
+    }
 
     public static void initAsyncInvocation() {
         if (asyncResult.get() != null) {
@@ -57,10 +63,10 @@ public class ActivityInvocationHandler implements InvocationHandler {
         String activityName = FlowHelpers.getSimpleName(method);
         AtomicReference<WorkflowFuture> async = asyncResult.get();
         if (async != null) {
-            async.set(decisionContext.executeActivityAsync(activityName, args, method.getReturnType()));
+            async.set(decisionContext.executeActivityAsync(activityName, options, args, method.getReturnType()));
             return Defaults.defaultValue(method.getReturnType());
         }
-        return decisionContext.executeActivity(activityName, args, method.getReturnType());
+        return decisionContext.executeActivity(activityName, options, args, method.getReturnType());
     }
 
 }

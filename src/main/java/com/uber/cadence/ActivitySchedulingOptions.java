@@ -29,8 +29,6 @@ public class ActivitySchedulingOptions {
 	
     private String taskList;
 	
-    private Integer taskPriority;
-    
 	public Integer getHeartbeatTimeoutSeconds() {
         return heartbeatTimeoutSeconds;
     }
@@ -95,17 +93,4 @@ public class ActivitySchedulingOptions {
 		this.taskList = taskList;
 		return this;
 	}
-	
-    public Integer getTaskPriority() {
-        return taskPriority;
-    }
-	
-    public void setTaskPriority(Integer taskPriority) {
-        this.taskPriority = taskPriority;
-    }
-    
-    public ActivitySchedulingOptions withTaskPriority(Integer taskPriority) {
-    	this.taskPriority = taskPriority;
-    	return this;
-    }
 }

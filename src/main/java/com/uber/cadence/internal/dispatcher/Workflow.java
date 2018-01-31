@@ -16,6 +16,8 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import com.uber.cadence.ActivitySchedulingOptions;
+
 import java.lang.reflect.Proxy;
 import java.util.concurrent.Future;
 import java.util.concurrent.locks.Lock;
@@ -50,7 +52,7 @@ public class Workflow {
     }
 
     public static <E> WorkflowFuture<E> newFailedFuture(Exception failure) {
-        WorkflowFuture<E>  result = new WorkflowFuture<>();
+        WorkflowFuture<E> result = new WorkflowFuture<>();
         result.completeExceptionally(failure);
         return result;
     }
@@ -87,20 +89,20 @@ public class Workflow {
      *
      * @param activityInterface interface type implemented by activities
      */
-    public static <T> T newActivityClient(Class<T> activityInterface) {
+    public static <T> T newActivityClient(Class<T> activityInterface, ActivitySchedulingOptions options) {
         return (T) Proxy.newProxyInstance(Workflow.class.getClassLoader(),
                 new Class<?>[]{activityInterface},
-                new ActivityInvocationHandler());
+                new ActivityInvocationHandler(options));
     }
 
     /**
      * Invokes zero argument activity asynchronously.
      *
      * @param activity The only supported parameter is method reference to a proxy created
-     *                 through {@link #newActivityClient(Class)}.
+     *                 through {@link #newActivityClient(Class, ActivitySchedulingOptions)}.
      * @return future that contains activity result or failure
      */
-    public static <R> WorkflowFuture<R> executeAsync(Functions.Func<R> activity) {
+    public static <R> WorkflowFuture<R> async(Functions.Func<R> activity) {
         ActivityInvocationHandler.initAsyncInvocation();
         try {
             activity.apply();
@@ -115,61 +117,61 @@ public class Workflow {
      * Invokes one argument activity asynchronously.
      *
      * @param activity The only supported parameter is method reference to a proxy created
-     *                 through {@link #newActivityClient(Class)}.
+     *                 through {@link #newActivityClient(Class, ActivitySchedulingOptions)}.
      * @param arg1     first activity argument
      * @return future that contains activity result or failure
      */
-    public static <A1, R> WorkflowFuture<R> executeAsync(Functions.Func1<A1, R> activity, A1 arg1) {
-        return executeAsync(() -> activity.apply(arg1));
+    public static <A1, R> WorkflowFuture<R> async(Functions.Func1<A1, R> activity, A1 arg1) {
+        return async(() -> activity.apply(arg1));
     }
 
     /**
      * Invokes two argument activity asynchronously.
      *
      * @param activity The only supported parameter is method reference to a proxy created
-     *                 through {@link #newActivityClient(Class)}.
+     *                 through {@link #newActivityClient(Class, ActivitySchedulingOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
      * @return future that contains activity result or failure
      */
-    public static <A1, A2, R> WorkflowFuture<R> executeAsync(Functions.Func2<A1, A2, R> activity, A1 arg1, A2 arg2) {
-        return executeAsync(() -> activity.apply(arg1, arg2));
+    public static <A1, A2, R> WorkflowFuture<R> async(Functions.Func2<A1, A2, R> activity, A1 arg1, A2 arg2) {
+        return async(() -> activity.apply(arg1, arg2));
     }
 
     /**
      * Invokes three argument activity asynchronously.
      *
      * @param activity The only supported parameter is method reference to a proxy created
-     *                 through {@link #newActivityClient(Class)}.
+     *                 through {@link #newActivityClient(Class, ActivitySchedulingOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
      * @param arg3     third activity argument
      * @return future that contains activity result or failure
      */
-    public static <A1, A2, A3, R> WorkflowFuture<R> executeAsync(Functions.Func3<A1, A2, A3, R> activity, A1 arg1, A2 arg2, A3 arg3) {
-        return executeAsync(() -> activity.apply(arg1, arg2, arg3));
+    public static <A1, A2, A3, R> WorkflowFuture<R> async(Functions.Func3<A1, A2, A3, R> activity, A1 arg1, A2 arg2, A3 arg3) {
+        return async(() -> activity.apply(arg1, arg2, arg3));
     }
 
     /**
      * Invokes four argument activity asynchronously.
      *
      * @param activity The only supported parameter is method reference to a proxy created
-     *                 through {@link #newActivityClient(Class)}.
+     *                 through {@link #newActivityClient(Class, ActivitySchedulingOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
      * @param arg3     third activity argument
      * @param arg4     forth activity argument
      * @return future that contains activity result or failure
      */
-    public static <A1, A2, A3, A4, R> WorkflowFuture<R> executeAsync(Functions.Func4<A1, A2, A3, A4, R> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
-        return executeAsync(() -> activity.apply(arg1, arg2, arg3, arg4));
+    public static <A1, A2, A3, A4, R> WorkflowFuture<R> async(Functions.Func4<A1, A2, A3, A4, R> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
+        return async(() -> activity.apply(arg1, arg2, arg3, arg4));
     }
 
     /**
      * Invokes five argument activity asynchronously.
      *
      * @param activity The only supported parameter is method reference to a proxy created
-     *                 through {@link #newActivityClient(Class)}.
+     *                 through {@link #newActivityClient(Class, ActivitySchedulingOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
      * @param arg3     third activity argument
@@ -177,15 +179,15 @@ public class Workflow {
      * @param arg5     fifth activity argument
      * @return future that contains activity result or failure
      */
-    public static <A1, A2, A3, A4, A5, R> WorkflowFuture<R> executeAsync(Functions.Func5<A1, A2, A3, A4, A5, R> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
-        return executeAsync(() -> activity.apply(arg1, arg2, arg3, arg4, arg5));
+    public static <A1, A2, A3, A4, A5, R> WorkflowFuture<R> async(Functions.Func5<A1, A2, A3, A4, A5, R> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
+        return async(() -> activity.apply(arg1, arg2, arg3, arg4, arg5));
     }
 
     /**
      * Invokes six argument activity asynchronously.
      *
      * @param activity The only supported parameter is method reference to a proxy created
-     *                 through {@link #newActivityClient(Class)}.
+     *                 through {@link #newActivityClient(Class, ActivitySchedulingOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
      * @param arg3     third activity argument
@@ -194,18 +196,18 @@ public class Workflow {
      * @param arg6     sixth activity argument
      * @return future that contains activity result or failure
      */
-    public static <A1, A2, A3, A4, A5, A6, R> WorkflowFuture<R> executeAsync(Functions.Func6<A1, A2, A3, A4, A5, A6, R> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5, A6 arg6) {
-        return executeAsync(() -> activity.apply(arg1, arg2, arg3, arg4, arg5, arg6));
+    public static <A1, A2, A3, A4, A5, A6, R> WorkflowFuture<R> async(Functions.Func6<A1, A2, A3, A4, A5, A6, R> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5, A6 arg6) {
+        return async(() -> activity.apply(arg1, arg2, arg3, arg4, arg5, arg6));
     }
 
     /**
      * Invokes zero argument activity asynchronously.
      *
      * @param activity The only supported parameter is method reference to a proxy created
-     *                 through {@link #newActivityClient(Class)}.
+     *                 through {@link #newActivityClient(Class, ActivitySchedulingOptions)}.
      * @return future that contains activity result or failure
      */
-    public static WorkflowFuture<Void> executeAsync(Functions.Proc activity) {
+    public static WorkflowFuture<Void> async(Functions.Proc activity) {
         ActivityInvocationHandler.initAsyncInvocation();
         try {
             activity.apply();
@@ -220,61 +222,61 @@ public class Workflow {
      * Invokes one argument activity asynchronously.
      *
      * @param activity The only supported parameter is method reference to a proxy created
-     *                 through {@link #newActivityClient(Class)}.
+     *                 through {@link #newActivityClient(Class, ActivitySchedulingOptions)}.
      * @param arg1     first activity argument
      * @return future that contains activity result or failure
      */
-    public static <A1> WorkflowFuture<Void> executeAsync(Functions.Proc1<A1> activity, A1 arg1) {
-        return executeAsync(() -> activity.apply(arg1));
+    public static <A1> WorkflowFuture<Void> async(Functions.Proc1<A1> activity, A1 arg1) {
+        return async(() -> activity.apply(arg1));
     }
 
     /**
      * Invokes two argument activity asynchronously.
      *
      * @param activity The only supported parameter is method reference to a proxy created
-     *                 through {@link #newActivityClient(Class)}.
+     *                 through {@link #newActivityClient(Class, ActivitySchedulingOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
      * @return future that contains activity result or failure
      */
-    public static <A1, A2> WorkflowFuture<Void> executeAsync(Functions.Proc2<A1, A2> activity, A1 arg1, A2 arg2) {
-        return executeAsync(() -> activity.apply(arg1, arg2));
+    public static <A1, A2> WorkflowFuture<Void> async(Functions.Proc2<A1, A2> activity, A1 arg1, A2 arg2) {
+        return async(() -> activity.apply(arg1, arg2));
     }
 
     /**
      * Invokes three argument activity asynchronously.
      *
      * @param activity The only supported parameter is method reference to a proxy created
-     *                 through {@link #newActivityClient(Class)}.
+     *                 through {@link #newActivityClient(Class, ActivitySchedulingOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
      * @param arg3     third activity argument
      * @return future that contains activity result or failure
      */
-    public static <A1, A2, A3> WorkflowFuture<Void> executeAsync(Functions.Proc3<A1, A2, A3> activity, A1 arg1, A2 arg2, A3 arg3) {
-        return executeAsync(() -> activity.apply(arg1, arg2, arg3));
+    public static <A1, A2, A3> WorkflowFuture<Void> async(Functions.Proc3<A1, A2, A3> activity, A1 arg1, A2 arg2, A3 arg3) {
+        return async(() -> activity.apply(arg1, arg2, arg3));
     }
 
     /**
      * Invokes four argument activity asynchronously.
      *
      * @param activity The only supported parameter is method reference to a proxy created
-     *                 through {@link #newActivityClient(Class)}.
+     *                 through {@link #newActivityClient(Class, ActivitySchedulingOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
      * @param arg3     third activity argument
      * @param arg4     forth activity argument
      * @return future that contains activity result or failure
      */
-    public static <A1, A2, A3, A4> WorkflowFuture<Void> executeAsync(Functions.Proc4<A1, A2, A3, A4> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
-        return executeAsync(() -> activity.apply(arg1, arg2, arg3, arg4));
+    public static <A1, A2, A3, A4> WorkflowFuture<Void> async(Functions.Proc4<A1, A2, A3, A4> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
+        return async(() -> activity.apply(arg1, arg2, arg3, arg4));
     }
 
     /**
      * Invokes five argument activity asynchronously.
      *
      * @param activity The only supported parameter is method reference to a proxy created
-     *                 through {@link #newActivityClient(Class)}.
+     *                 through {@link #newActivityClient(Class, ActivitySchedulingOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
      * @param arg3     third activity argument
@@ -282,15 +284,15 @@ public class Workflow {
      * @param arg5     fifth activity argument
      * @return future that contains activity result or failure
      */
-    public static <A1, A2, A3, A4, A5> WorkflowFuture<Void> executeAsync(Functions.Proc5<A1, A2, A3, A4, A5> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
-        return executeAsync(() -> activity.apply(arg1, arg2, arg3, arg4, arg5));
+    public static <A1, A2, A3, A4, A5> WorkflowFuture<Void> async(Functions.Proc5<A1, A2, A3, A4, A5> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
+        return async(() -> activity.apply(arg1, arg2, arg3, arg4, arg5));
     }
 
     /**
      * Invokes six argument activity asynchronously.
      *
      * @param activity The only supported parameter is method reference to a proxy created
-     *                 through {@link #newActivityClient(Class)}.
+     *                 through {@link #newActivityClient(Class, ActivitySchedulingOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
      * @param arg3     third activity argument
@@ -299,20 +301,21 @@ public class Workflow {
      * @param arg6     sixth activity argument
      * @return future that contains activity result or failure
      */
-    public static <A1, A2, A3, A4, A5, A6> WorkflowFuture<Void> executeAsync(Functions.Proc6<A1, A2, A3, A4, A5, A6> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5, A6 arg6) {
-        return executeAsync(() -> activity.apply(arg1, arg2, arg3, arg4, arg5, arg6));
+    public static <A1, A2, A3, A4, A5, A6> WorkflowFuture<Void> async(Functions.Proc6<A1, A2, A3, A4, A5, A6> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5, A6 arg6) {
+        return async(() -> activity.apply(arg1, arg2, arg3, arg4, arg5, arg6));
     }
 
     /**
      * Execute activity by name.
-     * @param name name of the activity
+     *
+     * @param name       name of the activity
      * @param returnType activity return type
-     * @param args list of activity arguments
-     * @param <R> activity return type
+     * @param args       list of activity arguments
+     * @param <R>        activity return type
      * @return activity result
      */
-    public static <R> R executeActivity(String name, Class<R> returnType, Object... args) {
-        return getDecisionContext().executeActivity(name, args, returnType);
+    public static <R> R executeActivity(String name, ActivitySchedulingOptions options, Class<R> returnType, Object... args) {
+        return getDecisionContext().executeActivity(name, options, args, returnType);
     }
 
     private static SyncDecisionContext getDecisionContext() {
@@ -321,14 +324,15 @@ public class Workflow {
 
     /**
      * Execute activity by name asynchronously.
-     * @param name name of the activity
+     *
+     * @param name       name of the activity
      * @param returnType activity return type
-     * @param args list of activity arguments
-     * @param <R> activity return type
+     * @param args       list of activity arguments
+     * @param <R>        activity return type
      * @return future that contains the activity result
      */
-    public static <R> WorkflowFuture<R> executeActivityAsync(String name, Class<R> returnType, Object... args) {
-        return getDecisionContext().executeActivityAsync(name, args, returnType);
+    public static <R> WorkflowFuture<R> executeActivityAsync(String name, ActivitySchedulingOptions options, Class<R> returnType, Object... args) {
+        return getDecisionContext().executeActivityAsync(name, options, args, returnType);
     }
 
 }

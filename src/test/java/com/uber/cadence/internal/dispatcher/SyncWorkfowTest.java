@@ -16,6 +16,7 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import com.uber.cadence.ActivitySchedulingOptions;
 import com.uber.cadence.DataConverter;
 import com.uber.cadence.JsonDataConverter;
 import com.uber.cadence.StartWorkflowOptions;
@@ -83,6 +84,7 @@ public class SyncWorkfowTest {
     private static TestActivitiesImpl activities;
     private static WorkflowExternal clientFactory;
     private static StartWorkflowOptions startWorkflowOptions;
+    private static ActivitySchedulingOptions activitySchedulingOptions;
 
     @BeforeClass
     public static void setUpService() {
@@ -99,6 +101,12 @@ public class SyncWorkfowTest {
         startWorkflowOptions.setExecutionStartToCloseTimeoutSeconds(60);
         startWorkflowOptions.setTaskStartToCloseTimeoutSeconds(2);
         startWorkflowOptions.setTaskList(taskList);
+        activitySchedulingOptions = new ActivitySchedulingOptions();
+        activitySchedulingOptions.setTaskList(taskList);
+        activitySchedulingOptions.setHeartbeatTimeoutSeconds(10);
+        activitySchedulingOptions.setScheduleToCloseTimeoutSeconds(20);
+        activitySchedulingOptions.setScheduleToStartTimeoutSeconds(10);
+        activitySchedulingOptions.setStartToCloseTimeoutSeconds(10);
     }
 
     @AfterClass
@@ -146,7 +154,7 @@ public class SyncWorkfowTest {
         @Override
         public String execute() {
             AtomicReference<String> a1 = new AtomicReference<>();
-            TestActivities activities = Workflow.newActivityClient(TestActivities.class);
+            TestActivities activities = Workflow.newActivityClient(TestActivities.class, activitySchedulingOptions);
             WorkflowThread t = Workflow.newThread(() -> a1.set(activities.activity()));
             t.start();
             try {
@@ -171,23 +179,23 @@ public class SyncWorkfowTest {
 
         @Override
         public String execute() {
-            TestActivities testActivities = Workflow.newActivityClient(TestActivities.class);
+            TestActivities testActivities = Workflow.newActivityClient(TestActivities.class, activitySchedulingOptions);
             try {
-                assertEquals("activity", Workflow.executeAsync(testActivities::activity).get());
-                assertEquals("1", Workflow.executeAsync(testActivities::activity1, "1").get());
-                assertEquals("12", Workflow.executeAsync(testActivities::activity2, "1", 2).get());
-                assertEquals("123", Workflow.executeAsync(testActivities::activity3, "1", 2, 3).get());
-                assertEquals("1234", Workflow.executeAsync(testActivities::activity4, "1", 2, 3, 4).get());
-                assertEquals("12345", Workflow.executeAsync(testActivities::activity5, "1", 2, 3, 4, 5).get());
-                assertEquals("123456", Workflow.executeAsync(testActivities::activity6, "1", 2, 3, 4, 5, 6).get());
+                assertEquals("activity", Workflow.async(testActivities::activity).get());
+                assertEquals("1", Workflow.async(testActivities::activity1, "1").get());
+                assertEquals("12", Workflow.async(testActivities::activity2, "1", 2).get());
+                assertEquals("123", Workflow.async(testActivities::activity3, "1", 2, 3).get());
+                assertEquals("1234", Workflow.async(testActivities::activity4, "1", 2, 3, 4).get());
+                assertEquals("12345", Workflow.async(testActivities::activity5, "1", 2, 3, 4, 5).get());
+                assertEquals("123456", Workflow.async(testActivities::activity6, "1", 2, 3, 4, 5, 6).get());
 
-                Workflow.executeAsync(testActivities::proc).get();
-                Workflow.executeAsync(testActivities::proc1, "1").get();
-                Workflow.executeAsync(testActivities::proc2, "1", 2).get();
-                Workflow.executeAsync(testActivities::proc3, "1", 2, 3).get();
-                Workflow.executeAsync(testActivities::proc4, "1", 2, 3, 4).get();
-                Workflow.executeAsync(testActivities::proc5, "1", 2, 3, 4, 5).get();
-                Workflow.executeAsync(testActivities::proc6, "1", 2, 3, 4, 5, 6).get();
+                Workflow.async(testActivities::proc).get();
+                Workflow.async(testActivities::proc1, "1").get();
+                Workflow.async(testActivities::proc2, "1", 2).get();
+                Workflow.async(testActivities::proc3, "1", 2, 3).get();
+                Workflow.async(testActivities::proc4, "1", 2, 3, 4).get();
+                Workflow.async(testActivities::proc5, "1", 2, 3, 4, 5).get();
+                Workflow.async(testActivities::proc6, "1", 2, 3, 4, 5, 6).get();
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             } catch (ExecutionException e) {

@@ -16,6 +16,7 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import com.uber.cadence.ActivitySchedulingOptions;
 import com.uber.cadence.AsyncDecisionContext;
 import com.uber.cadence.DataConverter;
 import com.uber.cadence.generic.ExecuteActivityParameters;
@@ -46,23 +47,23 @@ public class SyncDecisionContext {
         this.converter = converter;
     }
 
-    public <T> T executeActivity(String name, Object[] args, Class<T> returnType) {
+    public <T> T executeActivity(String name, ActivitySchedulingOptions options, Object[] args, Class<T> returnType) {
         byte[] input = converter.toData(args);
-        byte[] result = executeActivity(name, input);
+        byte[] result = executeActivity(name, options, input);
         return converter.fromData(result, returnType);
     }
 
-    public <T> WorkflowFuture<T> executeActivityAsync(String name, Object[] args, Class<T> returnType) {
+    public <T> WorkflowFuture<T> executeActivityAsync(String name, ActivitySchedulingOptions options, Object[] args, Class<T> returnType) {
         byte[] input = converter.toData(args);
-        WorkflowFuture<byte[]> binaryResult = executeActivityAsync(name, input);
+        WorkflowFuture<byte[]> binaryResult = executeActivityAsync(name, options, input);
         if (returnType == Void.TYPE) {
             return binaryResult.thenApply(r -> null);
         }
         return binaryResult.thenApply(r -> converter.fromData(r, returnType));
     }
 
-    public byte[] executeActivity(String name, byte[] input) {
-        Future<byte[]> result = executeActivityAsync(name, input);
+    public byte[] executeActivity(String name, ActivitySchedulingOptions options, byte[] input) {
+        Future<byte[]> result = executeActivityAsync(name, options, input);
         // TODO: Exception mapping
         try {
             return result.get();
@@ -73,17 +74,18 @@ public class SyncDecisionContext {
         }
     }
 
-    public WorkflowFuture<byte[]> executeActivityAsync(String name, byte[] input) {
+    public WorkflowFuture<byte[]> executeActivityAsync(String name, ActivitySchedulingOptions options, byte[] input) {
         ActivityFutureCancellationHandler cancellationHandler = new ActivityFutureCancellationHandler();
         WorkflowFuture<byte[]> result = new WorkflowFuture(cancellationHandler);
         ExecuteActivityParameters parameters = new ExecuteActivityParameters();
         //TODO: Real task list
         parameters.withActivityType(new ActivityType().setName(name)).
                 withInput(input).
-                withTaskList(context.getWorkflowContext().getTaskList()).
-                withScheduleToStartTimeoutSeconds(10).
-                withStartToCloseTimeoutSeconds(10).
-                withScheduleToCloseTimeoutSeconds(30);
+                withTaskList(options.getTaskList()).
+                withScheduleToStartTimeoutSeconds(options.getScheduleToStartTimeoutSeconds()).
+                withStartToCloseTimeoutSeconds(options.getStartToCloseTimeoutSeconds()).
+                withScheduleToCloseTimeoutSeconds(options.getScheduleToCloseTimeoutSeconds()).
+                setHeartbeatTimeoutSeconds(options.getHeartbeatTimeoutSeconds());
         Consumer<Throwable> cancellationCallback = activityClient.scheduleActivityTask(parameters,
                 (output, failure) -> {
                     if (failure != null) {
