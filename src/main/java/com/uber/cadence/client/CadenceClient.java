@@ -14,13 +14,15 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.internal.dispatcher;
+package com.uber.cadence.client;
 
 import com.google.common.reflect.TypeToken;
 import com.uber.cadence.internal.DataConverter;
 import com.uber.cadence.internal.StartWorkflowOptions;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
+import com.uber.cadence.internal.dispatcher.WorkflowInternal;
+import com.uber.cadence.internal.dispatcher.WorkflowInvocationHandler;
 import com.uber.cadence.internal.worker.GenericWorkflowClientExternalImpl;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.QueryMethod;
@@ -30,17 +32,17 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 
-public class WorkflowExternal {
+public class CadenceClient {
 
     private final GenericWorkflowClientExternalImpl genericClient;
     private final DataConverter dataConverter;
 
-    public WorkflowExternal(WorkflowService.Iface service, String domain, DataConverter dataConverter) {
+    public CadenceClient(WorkflowService.Iface service, String domain, DataConverter dataConverter) {
         this.genericClient = new GenericWorkflowClientExternalImpl(service, domain);
         this.dataConverter = dataConverter;
     }
 
-    public <T> T newClient(Class<T> workflowInterface, StartWorkflowOptions options) {
+    public <T> T newWorkflowClient(Class<T> workflowInterface, StartWorkflowOptions options) {
         checkAnnotation(workflowInterface, WorkflowMethod.class);
         return (T) Proxy.newProxyInstance(WorkflowInternal.class.getClassLoader(),
                 new Class<?>[]{workflowInterface},
@@ -66,7 +68,7 @@ public class WorkflowExternal {
                 " doesn't have method annotated with any of " + annotationClasses);
     }
 
-    public <T> T newClient(Class<T> workflowInterface, WorkflowExecution execution) {
+    public <T> T newWorkflowClient(Class<T> workflowInterface, WorkflowExecution execution) {
         checkAnnotation(workflowInterface, WorkflowMethod.class, QueryMethod.class);
 
         return (T) Proxy.newProxyInstance(WorkflowInternal.class.getClassLoader(),
@@ -79,7 +81,7 @@ public class WorkflowExternal {
      * Starts zero argument workflow.
      *
      * @param workflow The only supported parameter is method reference to a proxy created
-     *                 through {@link #newClient(Class, StartWorkflowOptions)}.
+     *                 through {@link #newWorkflowClient(Class, StartWorkflowOptions)}.
      * @return future that contains workflow result or failure
      */
     public static <R> WorkflowExternalResult<R> executeWorkflow(Functions.Func<R> workflow) {
@@ -100,7 +102,7 @@ public class WorkflowExternal {
      * Invokes one argument workflow asynchronously.
      *
      * @param workflow The only supported parameter is method reference to a proxy created
-     *                 through {@link #newClient(Class, StartWorkflowOptions)}.
+     *                 through {@link #newWorkflowClient(Class, StartWorkflowOptions)}.
      * @param arg1     first workflow argument
      * @return future that contains workflow result or failure
      */
@@ -112,7 +114,7 @@ public class WorkflowExternal {
      * Perform zero argument query of workflow instance.
      *
      * @param query The only supported parameter is method reference to a proxy created
-     *                 through {@link #newClient(Class, WorkflowExecution)} or {@link #newClient(Class, StartWorkflowOptions)}.
+     *                 through {@link #newWorkflowClient(Class, WorkflowExecution)} or {@link #newWorkflowClient(Class, StartWorkflowOptions)}.
      * @return future that contains workflow result or failure
      */
     public static <R> R queryWorkflow(Functions.Func<R> query) {

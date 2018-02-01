@@ -14,7 +14,7 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.internal.dispatcher;
+package com.uber.cadence.client;
 
 import com.uber.cadence.internal.DataConverter;
 import com.uber.cadence.SignalWorkflowExecutionRequest;
@@ -34,12 +34,12 @@ public final class WorkflowExternalResult<R> {
     private final DataConverter dataConverter;
     private final Class<R> returnType;
 
-    WorkflowExternalResult(WorkflowService.Iface service,
-                           String domain,
-                           WorkflowExecution execution,
-                           int executionStartToCloseTimeoutSeconds,
-                           DataConverter dataConverter,
-                           Class<R> returnType) {
+    public WorkflowExternalResult(WorkflowService.Iface service,
+                                  String domain,
+                                  WorkflowExecution execution,
+                                  int executionStartToCloseTimeoutSeconds,
+                                  DataConverter dataConverter,
+                                  Class<R> returnType) {
         this.service = service;
         this.domain = domain;
         this.execution = execution;

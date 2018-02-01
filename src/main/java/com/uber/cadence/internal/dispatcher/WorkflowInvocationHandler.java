@@ -17,6 +17,7 @@
 package com.uber.cadence.internal.dispatcher;
 
 import com.google.common.base.Defaults;
+import com.uber.cadence.client.WorkflowExternalResult;
 import com.uber.cadence.internal.DataConverter;
 import com.uber.cadence.internal.StartWorkflowOptions;
 import com.uber.cadence.WorkflowExecution;
@@ -38,7 +39,7 @@ import java.lang.reflect.Method;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
-class WorkflowInvocationHandler implements InvocationHandler {
+public class WorkflowInvocationHandler implements InvocationHandler {
 
     private static final ThreadLocal<AtomicReference<WorkflowExternalResult>> asyncResult = new ThreadLocal<>();
     private final GenericWorkflowClientExternal genericClient;
@@ -79,7 +80,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
         this.dataConverter = dataConverter;
     }
 
-    WorkflowInvocationHandler(GenericWorkflowClientExternal genericClient, StartWorkflowOptions options, DataConverter dataConverter) {
+    public WorkflowInvocationHandler(GenericWorkflowClientExternal genericClient, StartWorkflowOptions options, DataConverter dataConverter) {
         this.genericClient = genericClient;
         this.options = options;
         this.dataConverter = dataConverter;
@@ -159,7 +160,11 @@ class WorkflowInvocationHandler implements InvocationHandler {
         parameters.setTaskList(options.getTaskList());
         parameters.setTaskStartToCloseTimeoutSeconds(options.getTaskStartToCloseTimeoutSeconds());
         parameters.setWorkflowType(new WorkflowType().setName(workflowName));
-        parameters.setWorkflowId(UUID.randomUUID().toString()); // TODO: specifying id.
+        if (options.getWorkflowId() == null) {
+            parameters.setWorkflowId(UUID.randomUUID().toString());
+        } else {
+            parameters.setWorkflowId(options.getWorkflowId());
+        }
         byte[] input = dataConverter.toData(args);
         parameters.setInput(input);
         // TODO: Return workflow result or its execution through async.
