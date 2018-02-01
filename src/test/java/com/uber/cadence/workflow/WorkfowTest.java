@@ -16,7 +16,6 @@
  */
 package com.uber.cadence.workflow;
 
-import com.uber.cadence.internal.dispatcher.SyncWorkflowWorker;
 import com.uber.cadence.internal.dispatcher.WorkflowExternal;
 import com.uber.cadence.internal.dispatcher.WorkflowExternalResult;
 import com.uber.cadence.internal.DataConverter;
@@ -24,7 +23,7 @@ import com.uber.cadence.internal.JsonDataConverter;
 import com.uber.cadence.internal.StartWorkflowOptions;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
-import com.uber.cadence.internal.worker.ActivityWorker;
+import com.uber.cadence.worker.Worker;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.log4j.ConsoleAppender;
@@ -80,8 +79,7 @@ public class WorkfowTest {
     }
 
     private static WorkflowService.Iface service;
-    private static SyncWorkflowWorker workflowWorker;
-    private static ActivityWorker activityWorker;
+    private static Worker worker;
     private static TestActivitiesImpl activities;
     private static WorkflowExternal clientFactory;
     private static StartWorkflowOptions startWorkflowOptions;
@@ -91,13 +89,11 @@ public class WorkfowTest {
     public static void setUpService() {
         WorkflowServiceTChannel.ClientOptions.Builder optionsBuilder = new WorkflowServiceTChannel.ClientOptions.Builder();
         service = new WorkflowServiceTChannel(host, port, serviceName, optionsBuilder.build());
-        activityWorker = new ActivityWorker(service, domain, taskList);
+        worker = new Worker(service, domain, taskList, null);
         activities = new TestActivitiesImpl();
-        activityWorker.addActivityImplementation(activities);
-        workflowWorker = new SyncWorkflowWorker(service, domain, taskList);
+        worker.addActivities(activities);
         clientFactory = new WorkflowExternal(service, domain, dataConverter);
-        activityWorker.start();
-        workflowWorker.start();
+        worker.start();
         startWorkflowOptions = new StartWorkflowOptions();
         startWorkflowOptions.setExecutionStartToCloseTimeoutSeconds(60);
         startWorkflowOptions.setTaskStartToCloseTimeoutSeconds(2);
@@ -112,8 +108,7 @@ public class WorkfowTest {
 
     @AfterClass
     public static void tearDownService() {
-        activityWorker.shutdown();
-        workflowWorker.shutdown();
+        worker.shutdown(100, TimeUnit.MILLISECONDS);
     }
 
     @Before
@@ -170,7 +165,7 @@ public class WorkfowTest {
 
     @Test
     public void testSync() {
-        workflowWorker.addWorkflow(TestSyncWorkflowImpl.class);
+        worker.addWorkflowType(TestSyncWorkflowImpl.class);
         TestWorkflow1 client = clientFactory.newClient(TestWorkflow1.class, startWorkflowOptions);
         String result = client.execute();
         assertEquals("activity10", result);
@@ -208,7 +203,7 @@ public class WorkfowTest {
 
     @Test
     public void testAsyncActivity() {
-        workflowWorker.addWorkflow(TestAsyncActivityWorkflowImpl.class);
+        worker.addWorkflowType(TestAsyncActivityWorkflowImpl.class);
         TestWorkflow1 client = clientFactory.newClient(TestWorkflow1.class, startWorkflowOptions);
         String result = client.execute();
         assertEquals("workflow", result);
@@ -248,7 +243,7 @@ public class WorkfowTest {
 
     @Test
     public void testTimer() {
-        workflowWorker.addWorkflow(TestTimerWorkflowImpl.class);
+        worker.addWorkflowType(TestTimerWorkflowImpl.class);
         TestWorkflow2 client = clientFactory.newClient(TestWorkflow2.class, startWorkflowOptions);
         String result = client.execute();
         assertEquals("testTimer", result);
@@ -290,7 +285,7 @@ public class WorkfowTest {
 
     @Test
     public void testSignal() throws TimeoutException, InterruptedException {
-        workflowWorker.addWorkflow(TestSignalWorkflowImpl.class);
+        worker.addWorkflowType(TestSignalWorkflowImpl.class);
         QueryableWorkflow client = clientFactory.newClient(QueryableWorkflow.class, startWorkflowOptions);
         // To execute workflow client.execute() would do. But we want to start workflow and immediately return.
         WorkflowExternalResult<String> result = WorkflowExternal.executeWorkflow(client::execute);
@@ -333,7 +328,7 @@ public class WorkfowTest {
 
     @Test
     public void testSignalDuringLastDecision() throws TimeoutException, InterruptedException {
-        workflowWorker.addWorkflow(TestSignalDuringLastDecisionWorkflowImpl.class);
+        worker.addWorkflowType(TestSignalDuringLastDecisionWorkflowImpl.class);
         TestWorkflowSignaled client = clientFactory.newClient(TestWorkflowSignaled.class, startWorkflowOptions);
         WorkflowExternalResult<String> result = WorkflowExternal.executeWorkflow(client::execute);
         try {
@@ -377,7 +372,7 @@ public class WorkfowTest {
      */
     @Test
     public void testTimerCallbackBlocked() {
-        workflowWorker.addWorkflow(TestTimerCallbackBlockedWorkflowImpl.class);
+        worker.addWorkflowType(TestTimerCallbackBlockedWorkflowImpl.class);
         StartWorkflowOptions options = new StartWorkflowOptions();
         options.setExecutionStartToCloseTimeoutSeconds(2);
         options.setTaskStartToCloseTimeoutSeconds(1);

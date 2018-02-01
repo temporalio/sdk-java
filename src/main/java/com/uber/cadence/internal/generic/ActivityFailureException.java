@@ -14,13 +14,16 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.activity;
+package com.uber.cadence.internal.generic;
 
+import com.uber.cadence.PollForActivityTaskResponse;
+import com.uber.cadence.WorkflowService;
+import com.uber.cadence.internal.activity.ActivityExecutionContext;
 import com.uber.cadence.internal.generic.ActivityImplementation;
 
 /**
  * This exception is expected to be thrown from
- * {@link ActivityImplementation#execute(ActivityExecutionContext)}
+ * {@link ActivityImplementation#execute(WorkflowService.Iface, String, PollForActivityTaskResponse)} )}
  * as it contains details property in the format that the activity client code
  * in the decider understands.
  * <p>

@@ -16,7 +16,7 @@
  */
 package com.uber.cadence.internal.worker;
 
-import com.uber.cadence.activity.ActivityExecutionContext;
+import com.uber.cadence.internal.activity.ActivityExecutionContext;
 import com.uber.cadence.internal.ActivityTask;
 import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.RecordActivityTaskHeartbeatRequest;
@@ -24,6 +24,7 @@ import com.uber.cadence.RecordActivityTaskHeartbeatResponse;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.WorkflowService.Iface;
+import com.uber.cadence.internal.DataConverter;
 import org.apache.thrift.TException;
 
 import java.util.concurrent.CancellationException;
@@ -36,13 +37,14 @@ import java.util.concurrent.CancellationException;
  * @author fateev, suskin
  * 
  */
-class ActivityExecutionContextImpl extends ActivityExecutionContext {
+class ActivityExecutionContextImpl implements ActivityExecutionContext {
 
     private final Iface service;
 
     private final String domain;
     
     private final ActivityTask task;
+    private final DataConverter dataConverter;
 
     /**
      * Create an ActivityExecutionContextImpl with the given attributes.
@@ -56,22 +58,24 @@ class ActivityExecutionContextImpl extends ActivityExecutionContext {
      *
      * @see ActivityExecutionContext
      */
-    public ActivityExecutionContextImpl(Iface service, String domain, PollForActivityTaskResponse response) {
+    public ActivityExecutionContextImpl(Iface service, String domain, PollForActivityTaskResponse response, DataConverter dataConverter) {
         this.domain = domain;
         this.service = service;
         this.task = new ActivityTask(response);
+        this.dataConverter = dataConverter;
     }
 
     /**
      * @throws CancellationException
-     * @see ActivityExecutionContext#recordActivityHeartbeat(byte[])
+     * @see ActivityExecutionContext#recordActivityHeartbeat(Object...)
      */
     @Override
-    public void recordActivityHeartbeat(byte[] details) throws CancellationException {
+    public void recordActivityHeartbeat(Object... args) throws CancellationException {
         //TODO: call service with the specified minimal interval (through @ActivityExecutionOptions)
         // allowing more frequent calls of this method.
         RecordActivityTaskHeartbeatRequest r = new RecordActivityTaskHeartbeatRequest();
         r.setTaskToken(task.getTaskToken());
+        byte[] details = dataConverter.toData(args);
         r.setDetails(details);
         RecordActivityTaskHeartbeatResponse status;
         try {

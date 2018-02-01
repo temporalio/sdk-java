@@ -18,10 +18,13 @@ package com.uber.cadence.internal.worker;
 
 import com.google.common.base.Throwables;
 import com.google.common.reflect.TypeToken;
-import com.uber.cadence.activity.ActivityExecutionContext;
-import com.uber.cadence.activity.ActivityFailureException;
+import com.uber.cadence.PollForActivityTaskResponse;
+import com.uber.cadence.WorkflowService;
+import com.uber.cadence.internal.activity.ActivityExecutionContext;
+import com.uber.cadence.internal.generic.ActivityFailureException;
 import com.uber.cadence.ActivityType;
 import com.uber.cadence.internal.DataConverter;
+import com.uber.cadence.internal.activity.CurrentActivityExecutionContext;
 import com.uber.cadence.internal.common.FlowHelpers;
 import com.uber.cadence.internal.generic.ActivityImplementation;
 import com.uber.cadence.internal.generic.ActivityImplementationFactory;
@@ -32,15 +35,22 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.CancellationException;
 
 public class POJOActivityImplementationFactory extends ActivityImplementationFactory {
 
     private static final byte[] EMPTY_BLOB = {};
-    private final DataConverter dataConverter;
+    private DataConverter dataConverter;
     private final Map<String, ActivityImplementation> activities = Collections.synchronizedMap(new HashMap<>());
 
     public POJOActivityImplementationFactory(DataConverter dataConverter) {
+        this.dataConverter = dataConverter;
+    }
+
+    public DataConverter getDataConverter() {
+        return dataConverter;
+    }
+
+    public void setDataConverter(DataConverter dataConverter) {
         this.dataConverter = dataConverter;
     }
 
@@ -60,7 +70,7 @@ public class POJOActivityImplementationFactory extends ActivityImplementationFac
 
     private ActivityFailureException throwActivityFailure(Throwable e) {
         if (e instanceof ActivityFailureException) {
-            return (ActivityFailureException)e;
+            return (ActivityFailureException) e;
         }
         return new ActivityFailureException(e.getMessage(),
                 Throwables.getStackTraceAsString(e).getBytes(StandardCharsets.UTF_8));
@@ -71,7 +81,7 @@ public class POJOActivityImplementationFactory extends ActivityImplementationFac
         return activities.get(activityType.getName());
     }
 
-    private class POJOActivityImplementation extends ActivityImplementation {
+    private class POJOActivityImplementation implements ActivityImplementation {
         private final Method method;
         private final Object activity;
 
@@ -79,6 +89,7 @@ public class POJOActivityImplementationFactory extends ActivityImplementationFac
             this.method = method;
             this.activity = activity;
         }
+
 
         /**
          * TODO: Annotation that contains the execution options.
@@ -89,9 +100,11 @@ public class POJOActivityImplementationFactory extends ActivityImplementationFac
         }
 
         @Override
-        public byte[] execute(ActivityExecutionContext context) throws ActivityFailureException, CancellationException {
+        public byte[] execute(WorkflowService.Iface service, String domain, PollForActivityTaskResponse task) {
+            ActivityExecutionContext context = new ActivityExecutionContextImpl(service, domain, task, dataConverter);
             byte[] input = context.getTask().getInput();
             Object[] args = dataConverter.fromData(input, Object[].class);
+            CurrentActivityExecutionContext.set(context);
             try {
                 Object result = method.invoke(activity, args);
                 if (method.getReturnType() == Void.TYPE) {
@@ -102,6 +115,8 @@ public class POJOActivityImplementationFactory extends ActivityImplementationFac
                 throw throwActivityFailure(e);
             } catch (InvocationTargetException e) {
                 throw throwActivityFailure(e.getTargetException());
+            } finally {
+                CurrentActivityExecutionContext.unset();
             }
         }
     }

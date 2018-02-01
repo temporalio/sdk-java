@@ -20,14 +20,14 @@ import java.util.concurrent.TimeUnit;
 
 public interface WorkerLifecycle {
 
-    public abstract void start();
+    void start();
 
-    public abstract void shutdown();
+    void shutdown();
 
-    public abstract void shutdownNow();
+    void shutdownNow();
 
-    public abstract boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException;
+    boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException;
 
-    public abstract boolean shutdownAndAwaitTermination(long timeout, TimeUnit unit) throws InterruptedException;
+    boolean shutdownAndAwaitTermination(long timeout, TimeUnit unit) throws InterruptedException;
 
 }

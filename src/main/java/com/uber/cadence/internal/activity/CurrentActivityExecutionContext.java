@@ -14,19 +14,15 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.activity;
-
-import com.uber.cadence.activity.ActivityExecutionContext;
-import com.uber.cadence.activity.ActivityExecutionContextProviderImpl;
+package com.uber.cadence.internal.activity;
 
 /**
  * Thread local store of the context object passed to an activity
- * implementation. Avoid using this class directly. Use
- * {@link ActivityExecutionContextProviderImpl} instead.
- * 
+ * implementation. Avoid using this class directly.
+ *
  * @author fateev
  */
-class CurrentActivityExecutionContext {
+public class CurrentActivityExecutionContext {
 
     private final static ThreadLocal<ActivityExecutionContext> CURRENT = new ThreadLocal<ActivityExecutionContext>();
 

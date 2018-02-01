@@ -14,7 +14,7 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.activity;
+package com.uber.cadence.internal.activity;
 
 import com.uber.cadence.internal.ActivityTask;
 import com.uber.cadence.internal.generic.ActivityImplementation;
@@ -29,28 +29,28 @@ import java.util.concurrent.CancellationException;
  * 
  * @author fateev
  */
-public abstract class ActivityExecutionContext {
+public interface ActivityExecutionContext {
 
     /**
      * @return task token that is required to report task completion when
      *         manual activity completion is used.
      */
-    public abstract byte[] getTaskToken();
+    byte[] getTaskToken();
 
     /**
      * @return workfow execution that requested the activity execution
      */
-    public abstract com.uber.cadence.WorkflowExecution getWorkflowExecution();
+    com.uber.cadence.WorkflowExecution getWorkflowExecution();
 
     /**
      * @return task that caused activity execution
      */
-    public abstract ActivityTask getTask();
+    ActivityTask getTask();
 
     /**
      * Use to notify Simple Workflow that activity execution is alive.
      * 
-     * @param details
+     * @param args
      *            In case of activity timeout details are returned as a field of
      *            the exception thrown.
      * @throws CancellationException
@@ -58,17 +58,14 @@ public abstract class ActivityExecutionContext {
      *             workflow.Should be rethrown from activity implementation to
      *             indicate successful cancellation.
      */
-    public abstract void recordActivityHeartbeat(byte[] details)
+    void recordActivityHeartbeat(Object... args)
             throws CancellationException;
 
     /**
      * @return an instance of the Simple Workflow Java client that is the same
      *         used by the invoked activity worker.
      */
-    public abstract Iface getService();
+    Iface getService();
     
-    public String getDomain() {
-        // Throwing implementation is provided to not break existing subclasses
-        throw new UnsupportedOperationException();
-    }
+    String getDomain();
 }

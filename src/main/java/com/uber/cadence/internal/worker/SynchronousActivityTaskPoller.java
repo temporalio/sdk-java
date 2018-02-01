@@ -16,8 +16,7 @@
  */
 package com.uber.cadence.internal.worker;
 
-import com.uber.cadence.activity.ActivityExecutionContext;
-import com.uber.cadence.activity.ActivityFailureException;
+import com.uber.cadence.internal.generic.ActivityFailureException;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.generic.ActivityImplementation;
 import com.uber.cadence.internal.generic.ActivityImplementationFactory;
@@ -192,12 +191,11 @@ public class SynchronousActivityTaskPoller implements TaskPoller {
         byte[] output = null;
         ActivityType activityType = task.getActivityType();
         try {
-            ActivityExecutionContext context = new ActivityExecutionContextImpl(service, domain, task);
             ActivityImplementation activityImplementation = activityImplementationFactory.getActivityImplementation(activityType);
             if (activityImplementation == null) {
                 throw new ActivityFailureException("Unknown activity type: " + activityType);
             }
-            output = activityImplementation.execute(context);
+            output = activityImplementation.execute(service, domain, task);
             if (!activityImplementation.getExecutionOptions().isManualActivityCompletion()) {
                 respondActivityTaskCompletedWithRetry(task.getTaskToken(), output);
             }

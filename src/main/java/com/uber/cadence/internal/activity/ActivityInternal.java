@@ -14,19 +14,18 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.activity;
+package com.uber.cadence.internal.activity;
 
-/**
- * Used to access execution context of the currently executed activity. An
- * implementation might rely on thread local storage. So it is guaranteed to
- * return current context only in the thread that invoked the activity
- * implementation. If activity implementation needs to pass its execution
- * context to other threads it has to do it explicitly.
- * 
- * @author fateev
- */
-public interface ActivityExecutionContextProvider {
+public final class ActivityInternal {
 
-    public ActivityExecutionContext getActivityExecutionContext();
+    private ActivityInternal() {
+    }
 
+    public static ActivityExecutionContext getContext() {
+        return CurrentActivityExecutionContext.get();
+    }
+
+    public static void recordActivityHeartbeat(Object[] args) {
+        getContext().recordActivityHeartbeat(args);
+    }
 }

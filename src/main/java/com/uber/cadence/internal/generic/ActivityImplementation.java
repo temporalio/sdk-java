@@ -16,11 +16,9 @@
  */
 package com.uber.cadence.internal.generic;
 
-import com.uber.cadence.activity.ActivityExecutionContext;
-import com.uber.cadence.activity.ActivityFailureException;
+import com.uber.cadence.PollForActivityTaskResponse;
+import com.uber.cadence.WorkflowService;
 import com.uber.cadence.internal.worker.ActivityTypeExecutionOptions;
-
-import java.util.concurrent.CancellationException;
 
 /**
  * Base class for activity implementation. Extending
@@ -31,21 +29,16 @@ import java.util.concurrent.CancellationException;
  * 
  * @author fateev, suskin
  */
-public abstract class ActivityImplementation {
+public interface ActivityImplementation {
 
-    public abstract ActivityTypeExecutionOptions getExecutionOptions();
+    ActivityTypeExecutionOptions getExecutionOptions();
 
     /**
      * Execute external activity or initiate its execution if
      * {@link ActivityTypeExecutionOptions#isManualActivityCompletion()} is <code>true</code>.
      * 
-     * @param context
-     *            information about activity to be executed. Use
-     *            {@link com.uber.cadence.PollForActivityTaskResponse#getInput()} to get activity input
-     *            arguments.
      * @return result of activity execution if {@link ActivityTypeExecutionOptions#isManualActivityCompletion()} is set
      *         to false.
      */
-    public abstract byte[] execute(ActivityExecutionContext context) throws ActivityFailureException, CancellationException;
-
+    byte[] execute(WorkflowService.Iface service, String domain, PollForActivityTaskResponse task);
 }

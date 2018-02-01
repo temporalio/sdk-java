@@ -50,10 +50,10 @@ final class WorkflowFutureImpl<T> implements WorkflowFuture<T> {
     private boolean registeredWithRunner;
 
     WorkflowFutureImpl() {
-        this((BiConsumer) null);
+        this(null);
     }
 
-    public WorkflowFutureImpl(BiConsumer<WorkflowFuture<T>, Boolean> cancellationHandler) {
+    WorkflowFutureImpl(BiConsumer<WorkflowFuture<T>, Boolean> cancellationHandler) {
         runner = WorkflowThreadInternal.currentThreadInternal().getRunner();
         this.cancellationHandler = cancellationHandler;
     }

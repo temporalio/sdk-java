@@ -79,6 +79,14 @@ public class ActivityWorker {
         worker.setTaskListToPoll(taskListToPoll);
     }
 
+    public DataConverter getDataConverter() {
+        return factory.getDataConverter();
+    }
+
+    public void setDataConverter(DataConverter dataConverter) {
+        factory.setDataConverter(dataConverter);
+    }
+
     public double getMaximumPollRatePerSecond() {
         return worker.getMaximumPollRatePerSecond();
     }
@@ -141,6 +149,14 @@ public class ActivityWorker {
 
     public void setPollThreadCount(int threadCount) {
         worker.setPollThreadCount(threadCount);
+    }
+
+    public int getTaskExecutorThreadPoolSize() {
+        return worker.getTaskExecutorThreadPoolSize();
+    }
+
+    public void setTaskExecutorThreadPoolSize(int taskExecutorThreadPoolSize) {
+        worker.setTaskExecutorThreadPoolSize(taskExecutorThreadPoolSize);
     }
 
     public void start() {
