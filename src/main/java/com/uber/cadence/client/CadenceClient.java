@@ -32,6 +32,8 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 
+import static com.uber.cadence.internal.common.FlowDefaults.DEFAULT_DATA_CONVERTER;
+
 public class CadenceClient {
 
     private final GenericWorkflowClientExternalImpl genericClient;
@@ -39,7 +41,11 @@ public class CadenceClient {
 
     public CadenceClient(WorkflowService.Iface service, String domain, DataConverter dataConverter) {
         this.genericClient = new GenericWorkflowClientExternalImpl(service, domain);
-        this.dataConverter = dataConverter;
+        if (dataConverter == null) {
+            this.dataConverter = DEFAULT_DATA_CONVERTER;
+        } else {
+            this.dataConverter = dataConverter;
+        }
     }
 
     public <T> T newWorkflowClient(Class<T> workflowInterface, StartWorkflowOptions options) {

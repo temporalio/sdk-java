@@ -22,9 +22,9 @@ import com.uber.cadence.WorkflowService;
 
 import java.util.concurrent.TimeUnit;
 
-public class ActivityWorker {
+import static com.uber.cadence.internal.common.FlowDefaults.DEFAULT_DATA_CONVERTER;
 
-    private final static DataConverter DEFAULT_DATA_CONVERTER = new JsonDataConverter();
+public class ActivityWorker {
 
     private final GenericActivityWorker worker;
     private final POJOActivityImplementationFactory factory =

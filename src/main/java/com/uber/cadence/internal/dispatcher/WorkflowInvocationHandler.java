@@ -151,34 +151,40 @@ public class WorkflowInvocationHandler implements InvocationHandler {
     }
 
     private Object startWorkflow(Method method, WorkflowMethod workflowMethod, Object[] args) throws WorkflowExecutionAlreadyStartedException, java.util.concurrent.TimeoutException, InterruptedException {
-        String workflowName = workflowMethod.name();
-        if (workflowName.isEmpty()) {
-            workflowName = FlowHelpers.getSimpleName(method);
+        WorkflowExternalResult result = null;
+        try {
+            String workflowName = workflowMethod.name();
+            if (workflowName.isEmpty()) {
+                workflowName = FlowHelpers.getSimpleName(method);
+            }
+            StartWorkflowExecutionParameters parameters = new StartWorkflowExecutionParameters();
+            parameters.setExecutionStartToCloseTimeoutSeconds(options.getExecutionStartToCloseTimeoutSeconds());
+            parameters.setTaskList(options.getTaskList());
+            parameters.setTaskStartToCloseTimeoutSeconds(options.getTaskStartToCloseTimeoutSeconds());
+            parameters.setWorkflowType(new WorkflowType().setName(workflowName));
+            if (options.getWorkflowId() == null) {
+                parameters.setWorkflowId(UUID.randomUUID().toString());
+            } else {
+                parameters.setWorkflowId(options.getWorkflowId());
+            }
+            byte[] input = dataConverter.toData(args);
+            parameters.setInput(input);
+            // TODO: Return workflow result or its execution through async.
+            execution = genericClient.startWorkflow(parameters);
+            // TODO: Wait for result using long poll Cadence API.
+            WorkflowService.Iface service = genericClient.getService();
+            String domain = genericClient.getDomain();
+
+            result = new WorkflowExternalResultImpl(
+                    service,
+                    domain,
+                    execution,
+                    options.getExecutionStartToCloseTimeoutSeconds(),
+                    dataConverter,
+                    method.getReturnType());
+        } catch (Exception e) {
+            result = new FailedWorkflowExternalResult<>(e);
         }
-        StartWorkflowExecutionParameters parameters = new StartWorkflowExecutionParameters();
-        parameters.setExecutionStartToCloseTimeoutSeconds(options.getExecutionStartToCloseTimeoutSeconds());
-        parameters.setTaskList(options.getTaskList());
-        parameters.setTaskStartToCloseTimeoutSeconds(options.getTaskStartToCloseTimeoutSeconds());
-        parameters.setWorkflowType(new WorkflowType().setName(workflowName));
-        if (options.getWorkflowId() == null) {
-            parameters.setWorkflowId(UUID.randomUUID().toString());
-        } else {
-            parameters.setWorkflowId(options.getWorkflowId());
-        }
-        byte[] input = dataConverter.toData(args);
-        parameters.setInput(input);
-        // TODO: Return workflow result or its execution through async.
-        execution = genericClient.startWorkflow(parameters);
-        // TODO: Wait for result using long poll Cadence API.
-        WorkflowService.Iface service = genericClient.getService();
-        String domain = genericClient.getDomain();
-        WorkflowExternalResult result = new WorkflowExternalResult(
-                service,
-                domain,
-                execution,
-                options.getExecutionStartToCloseTimeoutSeconds(),
-                dataConverter,
-                method.getReturnType());
         AtomicReference<WorkflowExternalResult> async = asyncResult.get();
         if (async != null) {
             async.set(result);

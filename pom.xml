@@ -6,7 +6,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.uber</groupId>
     <artifactId>cadence-client</artifactId>
-    <version>1.0.0</version>
+    <version>0.1.0</version>
     <packaging>jar</packaging>
     <name>Uber Cadence Java Client</name>
     <description>Library used to author Cadence workflows and activities in Java.

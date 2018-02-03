@@ -32,12 +32,13 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import static com.uber.cadence.internal.common.FlowDefaults.DEFAULT_DATA_CONVERTER;
 
 public class SyncWorkflowWorker extends GenericWorker {
 
     private static final String THREAD_NAME_PREFIX = "Cadence workflow poller ";
 
-    private DataConverter dataConverter = new JsonDataConverter();
+    private DataConverter dataConverter = DEFAULT_DATA_CONVERTER;
 
     private POJOWorkflowImplementationFactory factory = new POJOWorkflowImplementationFactory(dataConverter);
 
