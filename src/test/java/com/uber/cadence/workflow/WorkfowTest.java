@@ -16,12 +16,12 @@
  */
 package com.uber.cadence.workflow;
 
+import com.uber.cadence.WorkflowService;
 import com.uber.cadence.client.CadenceClient;
 import com.uber.cadence.client.WorkflowExternalResult;
 import com.uber.cadence.internal.DataConverter;
 import com.uber.cadence.internal.JsonDataConverter;
 import com.uber.cadence.internal.StartWorkflowOptions;
-import com.uber.cadence.WorkflowService;
 import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
 import com.uber.cadence.worker.Worker;
 import org.apache.commons.logging.Log;
@@ -92,7 +92,7 @@ public class WorkfowTest {
         worker = new Worker(service, domain, taskList, null);
         activities = new TestActivitiesImpl();
         worker.addActivities(activities);
-        cadenceClient = new CadenceClient(service, domain, dataConverter);
+        cadenceClient = CadenceClient.newClient(service, domain);
         worker.start();
         newStartWorkflowOptions();
         activitySchedulingOptions = new ActivitySchedulingOptions();
@@ -171,7 +171,7 @@ public class WorkfowTest {
     @Test
     public void testSync() {
         worker.addWorkflowType(TestSyncWorkflowImpl.class);
-        TestWorkflow1 client = cadenceClient.newWorkflowClient(TestWorkflow1.class, newStartWorkflowOptions());
+        TestWorkflow1 client = cadenceClient.newWorkflowStub(TestWorkflow1.class, newStartWorkflowOptions());
         String result = client.execute();
         assertEquals("activity10", result);
     }
@@ -209,7 +209,7 @@ public class WorkfowTest {
     @Test
     public void testAsyncActivity() {
         worker.addWorkflowType(TestAsyncActivityWorkflowImpl.class);
-        TestWorkflow1 client = cadenceClient.newWorkflowClient(TestWorkflow1.class, newStartWorkflowOptions());
+        TestWorkflow1 client = cadenceClient.newWorkflowStub(TestWorkflow1.class, newStartWorkflowOptions());
         String result = client.execute();
         assertEquals("workflow", result);
 
@@ -220,6 +220,47 @@ public class WorkfowTest {
         assertEquals("1234", activities.procResult.get(4));
         assertEquals("12345", activities.procResult.get(5));
         assertEquals("123456", activities.procResult.get(6));
+    }
+
+    @Test
+    public void testAsyncStart() throws TimeoutException, InterruptedException {
+        worker.addWorkflowType(TestMultiargsWorkflowsImpl.class);
+        TestMultiargsWorkflows stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        assertEquals("func", CadenceClient.asyncStart(stub::func).getResult());
+        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        assertEquals("1", CadenceClient.asyncStart(stub::func1, "1").getResult());
+        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        assertEquals("12", CadenceClient.asyncStart(stub::func2, "1", 2).getResult());
+        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        assertEquals("123", CadenceClient.asyncStart(stub::func3, "1", 2, 3).getResult());
+        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        assertEquals("1234", CadenceClient.asyncStart(stub::func4, "1", 2, 3, 4).getResult());
+        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        assertEquals("12345", CadenceClient.asyncStart(stub::func5, "1", 2, 3, 4, 5).getResult());
+        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        assertEquals("123456", CadenceClient.asyncStart(stub::func6, "1", 2, 3, 4, 5, 6).getResult());
+
+        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        CadenceClient.asyncStart(stub::proc).getResult();
+        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        CadenceClient.asyncStart(stub::proc1, "1").getResult();
+        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        CadenceClient.asyncStart(stub::proc2, "1", 2).getResult();
+        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        CadenceClient.asyncStart(stub::proc3, "1", 2, 3).getResult();
+        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        CadenceClient.asyncStart(stub::proc4, "1", 2, 3, 4).getResult();
+        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        CadenceClient.asyncStart(stub::proc5, "1", 2, 3, 4, 5).getResult();
+        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        CadenceClient.asyncStart(stub::proc6, "1", 2, 3, 4, 5, 6).getResult();
+        assertEquals("proc", TestMultiargsWorkflowsImpl.procResult.get(0));
+        assertEquals("1",  TestMultiargsWorkflowsImpl.procResult.get(1));
+        assertEquals("12", TestMultiargsWorkflowsImpl.procResult.get(2));
+        assertEquals("123", TestMultiargsWorkflowsImpl.procResult.get(3));
+        assertEquals("1234", TestMultiargsWorkflowsImpl.procResult.get(4));
+        assertEquals("12345", TestMultiargsWorkflowsImpl.procResult.get(5));
+        assertEquals("123456", TestMultiargsWorkflowsImpl.procResult.get(6));
     }
 
     public static class TestTimerWorkflowImpl implements TestWorkflow2 {
@@ -249,7 +290,7 @@ public class WorkfowTest {
     @Test
     public void testTimer() {
         worker.addWorkflowType(TestTimerWorkflowImpl.class);
-        TestWorkflow2 client = cadenceClient.newWorkflowClient(TestWorkflow2.class, newStartWorkflowOptions());
+        TestWorkflow2 client = cadenceClient.newWorkflowStub(TestWorkflow2.class, newStartWorkflowOptions());
         String result = client.execute();
         assertEquals("testTimer", result);
     }
@@ -291,9 +332,9 @@ public class WorkfowTest {
     @Test
     public void testSignal() throws TimeoutException, InterruptedException {
         worker.addWorkflowType(TestSignalWorkflowImpl.class);
-        QueryableWorkflow client = cadenceClient.newWorkflowClient(QueryableWorkflow.class, newStartWorkflowOptions());
+        QueryableWorkflow client = cadenceClient.newWorkflowStub(QueryableWorkflow.class, newStartWorkflowOptions());
         // To execute workflow client.execute() would do. But we want to start workflow and immediately return.
-        WorkflowExternalResult<String> result = CadenceClient.executeWorkflow(client::execute);
+        WorkflowExternalResult<String> result = CadenceClient.asyncStart(client::execute);
         assertEquals("initial", client.getState());
         client.signal("Hello ");
         assertEquals("Hello ", client.getState());
@@ -336,8 +377,8 @@ public class WorkfowTest {
         worker.addWorkflowType(TestSignalDuringLastDecisionWorkflowImpl.class);
         StartWorkflowOptions options = newStartWorkflowOptions();
         options.setWorkflowId("testSignalDuringLastDecision-" + UUID.randomUUID().toString());
-        TestWorkflowSignaled client = cadenceClient.newWorkflowClient(TestWorkflowSignaled.class, options);
-        WorkflowExternalResult<String> result = CadenceClient.executeWorkflow(client::execute);
+        TestWorkflowSignaled client = cadenceClient.newWorkflowStub(TestWorkflowSignaled.class, options);
+        WorkflowExternalResult<String> result = CadenceClient.asyncStart(client::execute);
         try {
             sendSignal.get(2, TimeUnit.SECONDS);
             client.signal1("Signal Input");
@@ -384,12 +425,14 @@ public class WorkfowTest {
         options.setExecutionStartToCloseTimeoutSeconds(2);
         options.setTaskStartToCloseTimeoutSeconds(1);
         options.setTaskList(taskList);
-        TestWorkflow1 client = cadenceClient.newWorkflowClient(TestWorkflow1.class, options);
+        TestWorkflow1 client = cadenceClient.newWorkflowStub(TestWorkflow1.class, options);
         try {
             client.execute();
             fail("failure expected");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("Called from non workflow or workflow callback thread"));
+            Throwable cause = e;
+            while(cause.getCause() != null) { cause = cause.getCause(); }
+            assertTrue(e.toString(), cause.getMessage().contains("Called from non workflow or workflow callback thread"));
         }
     }
 
@@ -482,4 +525,109 @@ public class WorkfowTest {
             procResult.add(a1 + a2 + a3 + a4 + a5 + a6);
         }
     }
+
+    public interface TestMultiargsWorkflows {
+        @WorkflowMethod
+        String func();
+
+        @WorkflowMethod
+        String func1(String input);
+
+        @WorkflowMethod
+        String func2(String a1, int a2);
+
+        @WorkflowMethod
+        String func3(String a1, int a2, int a3);
+
+        @WorkflowMethod
+        String func4(String a1, int a2, int a3, int a4);
+
+        @WorkflowMethod
+        String func5(String a1, int a2, int a3, int a4, int a5);
+
+        @WorkflowMethod
+        String func6(String a1, int a2, int a3, int a4, int a5, int a6);
+
+        @WorkflowMethod
+        void proc();
+
+        @WorkflowMethod
+        void proc1(String input);
+
+        @WorkflowMethod
+        void proc2(String a1, int a2);
+
+        @WorkflowMethod
+        void proc3(String a1, int a2, int a3);
+
+        @WorkflowMethod
+        void proc4(String a1, int a2, int a3, int a4);
+
+        @WorkflowMethod
+        void proc5(String a1, int a2, int a3, int a4, int a5);
+
+        @WorkflowMethod
+        void proc6(String a1, int a2, int a3, int a4, int a5, int a6);
+    }
+
+    public static class TestMultiargsWorkflowsImpl implements TestMultiargsWorkflows {
+        public static List<String> procResult = Collections.synchronizedList(new ArrayList<>());
+
+        public String func() {
+            return "func";
+        }
+
+        public String func1(String a1) {
+            return a1;
+        }
+
+        public String func2(String a1, int a2) {
+            return a1 + a2;
+        }
+
+        public String func3(String a1, int a2, int a3) {
+            return a1 + a2 + a3;
+        }
+
+        public String func4(String a1, int a2, int a3, int a4) {
+            return a1 + a2 + a3 + a4;
+        }
+
+        public String func5(String a1, int a2, int a3, int a4, int a5) {
+            return a1 + a2 + a3 + a4 + a5;
+        }
+
+        public String func6(String a1, int a2, int a3, int a4, int a5, int a6) {
+            return a1 + a2 + a3 + a4 + a5 + a6;
+        }
+
+        public void proc() {
+            procResult.add("proc");
+        }
+
+        public void proc1(String a1) {
+            procResult.add(a1);
+        }
+
+        public void proc2(String a1, int a2) {
+            procResult.add(a1 + a2);
+        }
+
+        public void proc3(String a1, int a2, int a3) {
+            procResult.add(a1 + a2 + a3);
+        }
+
+        public void proc4(String a1, int a2, int a3, int a4) {
+            procResult.add(a1 + a2 + a3 + a4);
+        }
+
+        public void proc5(String a1, int a2, int a3, int a4, int a5) {
+            procResult.add(a1 + a2 + a3 + a4 + a5);
+        }
+
+        public void proc6(String a1, int a2, int a3, int a4, int a5, int a6) {
+            procResult.add(a1 + a2 + a3 + a4 + a5 + a6);
+        }
+    }
+
 }

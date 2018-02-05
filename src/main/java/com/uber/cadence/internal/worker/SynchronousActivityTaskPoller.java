@@ -137,7 +137,7 @@ public class SynchronousActivityTaskPoller implements TaskPoller {
     }
 
     /**
-     * Poll for a task using {@link #getPollTimeoutInSeconds()}
+     * Poll for an activity task.
      * 
      * @return null if poll timed out
      */

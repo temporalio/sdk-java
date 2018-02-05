@@ -505,6 +505,33 @@ public class WorkflowServiceTChannel implements WorkflowService.Iface {
     }
 
     @Override
+    public void RespondDecisionTaskFailed(RespondDecisionTaskFailedRequest failedRequest) throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+        ThriftResponse<WorkflowService.RespondDecisionTaskFailed_result> response = null;
+        try {
+            ThriftRequest<WorkflowService.RespondDecisionTaskFailed_args> request = buildThriftRequest("RespondDecisionTaskFailed", new WorkflowService.RespondDecisionTaskFailed_args(failedRequest));
+            response = doRemoteCall(request);
+            WorkflowService.RespondDecisionTaskFailed_result result = response.getBody(WorkflowService.RespondDecisionTaskFailed_result.class);
+            if (response.getResponseCode() == ResponseCode.OK) {
+                return;
+            }
+            if (result.isSetBadRequestError()) {
+                throw result.getBadRequestError();
+            }
+            if (result.isSetInternalServiceError()) {
+                throw result.getInternalServiceError();
+            }
+            if (result.isSetEntityNotExistError()) {
+                throw result.getEntityNotExistError();
+            }
+            throw new TException("RespondDecisionTaskFailed failed with unknown error:" + result);
+        } finally {
+            if (response != null) {
+                response.release();
+            }
+        }
+    }
+
+    @Override
     public PollForActivityTaskResponse PollForActivityTask(PollForActivityTaskRequest pollRequest) throws BadRequestError, InternalServiceError, ServiceBusyError, TException {
         ThriftResponse<WorkflowService.PollForActivityTask_result> response = null;
         try {
@@ -586,6 +613,33 @@ public class WorkflowServiceTChannel implements WorkflowService.Iface {
     }
 
     @Override
+    public void RespondActivityTaskCompletedByID(RespondActivityTaskCompletedByIDRequest completeRequest) throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+        ThriftResponse<WorkflowService.RespondActivityTaskCompletedByID_result> response = null;
+        try {
+            ThriftRequest<WorkflowService.RespondActivityTaskCompletedByID_args> request = buildThriftRequest("RespondActivityTaskCompletedByID", new WorkflowService.RespondActivityTaskCompletedByID_args(completeRequest));
+            response = doRemoteCall(request);
+            WorkflowService.RespondActivityTaskCompletedByID_result result = response.getBody(WorkflowService.RespondActivityTaskCompletedByID_result.class);
+            if (response.getResponseCode() == ResponseCode.OK) {
+                return;
+            }
+            if (result.isSetBadRequestError()) {
+                throw result.getBadRequestError();
+            }
+            if (result.isSetInternalServiceError()) {
+                throw result.getInternalServiceError();
+            }
+            if (result.isSetEntityNotExistError()) {
+                throw result.getEntityNotExistError();
+            }
+            throw new TException("RespondActivityTaskCompletedByID failed with unknown error:" + result);
+        } finally {
+            if (response != null) {
+                response.release();
+            }
+        }
+    }
+
+    @Override
     public void RespondActivityTaskFailed(RespondActivityTaskFailedRequest failRequest) throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
         ThriftResponse<WorkflowService.RespondActivityTaskFailed_result> response = null;
         try {
@@ -613,6 +667,33 @@ public class WorkflowServiceTChannel implements WorkflowService.Iface {
     }
 
     @Override
+    public void RespondActivityTaskFailedByID(RespondActivityTaskFailedByIDRequest failRequest) throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+        ThriftResponse<WorkflowService.RespondActivityTaskFailedByID_result> response = null;
+        try {
+            ThriftRequest<WorkflowService.RespondActivityTaskFailedByID_args> request = buildThriftRequest("RespondActivityTaskFailedByID", new WorkflowService.RespondActivityTaskFailedByID_args(failRequest));
+            response = doRemoteCall(request);
+            WorkflowService.RespondActivityTaskFailedByID_result result = response.getBody(WorkflowService.RespondActivityTaskFailedByID_result.class);
+            if (response.getResponseCode() == ResponseCode.OK) {
+                return;
+            }
+            if (result.isSetBadRequestError()) {
+                throw result.getBadRequestError();
+            }
+            if (result.isSetInternalServiceError()) {
+                throw result.getInternalServiceError();
+            }
+            if (result.isSetEntityNotExistError()) {
+                throw result.getEntityNotExistError();
+            }
+            throw new TException("RespondActivityTaskFailedByID failedByID with unknown error:" + result);
+        } finally {
+            if (response != null) {
+                response.release();
+            }
+        }
+    }
+
+    @Override
     public void RespondActivityTaskCanceled(RespondActivityTaskCanceledRequest canceledRequest) throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
         ThriftResponse<WorkflowService.RespondActivityTaskCanceled_result> response = null;
         try {
@@ -632,6 +713,33 @@ public class WorkflowServiceTChannel implements WorkflowService.Iface {
                 throw result.getEntityNotExistError();
             }
             throw new TException("RespondActivityTaskCanceled failed with unknown error:" + result);
+        } finally {
+            if (response != null) {
+                response.release();
+            }
+        }
+    }
+
+    @Override
+    public void RespondActivityTaskCanceledByID(RespondActivityTaskCanceledByIDRequest canceledByIDRequest) throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+        ThriftResponse<WorkflowService.RespondActivityTaskCanceledByID_result> response = null;
+        try {
+            ThriftRequest<WorkflowService.RespondActivityTaskCanceledByID_args> request = buildThriftRequest("RespondActivityTaskCanceledByID", new WorkflowService.RespondActivityTaskCanceledByID_args(canceledByIDRequest));
+            response = doRemoteCall(request);
+            WorkflowService.RespondActivityTaskCanceledByID_result result = response.getBody(WorkflowService.RespondActivityTaskCanceledByID_result.class);
+            if (response.getResponseCode() == ResponseCode.OK) {
+                return;
+            }
+            if (result.isSetBadRequestError()) {
+                throw result.getBadRequestError();
+            }
+            if (result.isSetInternalServiceError()) {
+                throw result.getInternalServiceError();
+            }
+            if (result.isSetEntityNotExistError()) {
+                throw result.getEntityNotExistError();
+            }
+            throw new TException("RespondActivityTaskCanceledByID failed with unknown error:" + result);
         } finally {
             if (response != null) {
                 response.release();
@@ -870,6 +978,33 @@ public class WorkflowServiceTChannel implements WorkflowService.Iface {
                 throw result.getEntityNotExistError();
             }
             throw new TException("DescribeWorkflowExecution failed with unknown error:" + result);
+        } finally {
+            if (response != null) {
+                response.release();
+            }
+        }
+    }
+
+    @Override
+    public DescribeTaskListResponse DescribeTaskList(DescribeTaskListRequest describeRequest) throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+        ThriftResponse<WorkflowService.DescribeTaskList_result> response = null;
+        try {
+            ThriftRequest<WorkflowService.DescribeTaskList_args> request = buildThriftRequest("DescribeTaskList", new WorkflowService.DescribeTaskList_args(describeRequest));
+            response = doRemoteCall(request);
+            WorkflowService.DescribeTaskList_result result = response.getBody(WorkflowService.DescribeTaskList_result.class);
+            if (response.getResponseCode() == ResponseCode.OK) {
+                return result.getSuccess();
+            }
+            if (result.isSetBadRequestError()) {
+                throw result.getBadRequestError();
+            }
+            if (result.isSetInternalServiceError()) {
+                throw result.getInternalServiceError();
+            }
+            if (result.isSetEntityNotExistError()) {
+                throw result.getEntityNotExistError();
+            }
+            throw new TException("DescribeTaskList failed with unknown error:" + result);
         } finally {
             if (response != null) {
                 response.release();

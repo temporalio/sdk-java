@@ -16,20 +16,17 @@
  */
 package com.uber.cadence.internal.worker;
 
+import com.uber.cadence.workflow.Functions;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 public class SynchronousRetrier<T extends Throwable> {
-    
+
     private static final Log log = LogFactory.getLog(SynchronousRetrier.class);
 
     private final ExponentialRetryParameters retryParameters;
 
     private final Class<?>[] exceptionsToNotRetry;
-
-    interface Retryable<T extends Throwable> {
-        void run() throws T;
-    }
 
     public SynchronousRetrier(ExponentialRetryParameters retryParameters, Class<?>... exceptionsToNotRetry) {
         if (retryParameters.getBackoffCoefficient() < 0) {
@@ -51,30 +48,34 @@ public class SynchronousRetrier<T extends Throwable> {
     public ExponentialRetryParameters getRetryParameters() {
         return retryParameters;
     }
-    
+
     public Class<?>[] getExceptionsToNotRetry() {
         return exceptionsToNotRetry;
     }
 
-    public void retry(Retryable<T> r) throws T {
+    public void retry(Functions.Proc r) throws T {
+        retryWithResult(() -> {
+            r.apply();
+            return null;
+        });
+    }
+
+    public <R> R retryWithResult(Functions.Func<R> r) throws T {
         int attempt = 0;
         long startTime = System.currentTimeMillis();
         BackoffThrottler throttler = new BackoffThrottler(retryParameters.getInitialInterval(),
                 retryParameters.getMaximumRetryInterval(), retryParameters.getBackoffCoefficient());
-        boolean success = false;
         do {
             try {
                 attempt++;
                 throttler.throttle();
-                r.run();
-                success = true;
+                R result = r.apply();
                 throttler.success();
-            }
-            catch (InterruptedException e) {
+                return result;
+            } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                return;
-            }
-            catch (Exception e) {
+                return null;
+            } catch (Exception e) {
                 throttler.failure();
                 for (Class<?> exceptionToNotRetry : exceptionsToNotRetry) {
                     if (exceptionToNotRetry.isAssignableFrom(e.getClass())) {
@@ -89,14 +90,14 @@ public class SynchronousRetrier<T extends Throwable> {
                 log.warn("Retrying after failure", e);
             }
         }
-        while (!success);
+        while (true);
     }
 
     private void rethrow(Exception e) throws T {
         if (e instanceof RuntimeException) {
-            throw (RuntimeException)e;
+            throw (RuntimeException) e;
         } else {
-            throw (T)e;
+            throw (T) e;
         }
     }
 }

@@ -69,6 +69,7 @@ class WorkflowThreadInternal implements WorkflowThread, DeterministicRunnerCorou
                 context.setStatus(Status.DONE);
                 thread.setName(originalName);
                 thread = null;
+                currentThreadThreadLocal.set(null);
             }
         }
 
@@ -114,7 +115,7 @@ class WorkflowThreadInternal implements WorkflowThread, DeterministicRunnerCorou
         }
         WorkflowThreadContext context = result.getContext();
         if (context.getStatus() != Status.RUNNING) {
-            throw new IllegalStateException("Called from non running coroutine thread");
+            throw new IllegalStateException("Called from non running coroutine thread. Thread status is " + context.getStatus());
         }
         return result;
     }

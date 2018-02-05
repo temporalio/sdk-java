@@ -115,7 +115,9 @@ class SyncWorkflow implements AsyncWorkflow {
 
     @Override
     public void close() {
-        runner.close();
+        if (runner != null) {
+            runner.close();
+        }
     }
 
     @Override

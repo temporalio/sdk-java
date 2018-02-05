@@ -19,6 +19,8 @@ package com.uber.cadence.internal.dispatcher;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.client.WorkflowExternalResult;
 
+import java.util.concurrent.TimeUnit;
+
 final class FailedWorkflowExternalResult<R> implements WorkflowExternalResult<R> {
     private final Exception failure;
 
@@ -38,9 +40,14 @@ final class FailedWorkflowExternalResult<R> implements WorkflowExternalResult<R>
 
     @Override
     public R getResult() {
+        return getResult(0, TimeUnit.SECONDS);
+    }
+
+    @Override
+    public R getResult(long timeout, TimeUnit unit) {
         if (failure != null) {
             if (failure instanceof RuntimeException) {
-                throw (RuntimeException)failure;
+                throw (RuntimeException) failure;
             } else {
                 throw new RuntimeException(failure);
             }

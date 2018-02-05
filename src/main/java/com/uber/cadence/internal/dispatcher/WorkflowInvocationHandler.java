@@ -37,9 +37,10 @@ import com.uber.cadence.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class WorkflowInvocationHandler implements InvocationHandler {
+class WorkflowInvocationHandler implements InvocationHandler {
 
     private static final ThreadLocal<AtomicReference<WorkflowExternalResult>> asyncResult = new ThreadLocal<>();
     private final GenericWorkflowClientExternal genericClient;
@@ -49,12 +50,12 @@ public class WorkflowInvocationHandler implements InvocationHandler {
 
     public static void initAsyncInvocation() {
         if (asyncResult.get() != null) {
-            throw new IllegalStateException("already in async invocation");
+            throw new IllegalStateException("already in asyncStart invocation");
         }
         asyncResult.set(new AtomicReference<>());
     }
 
-    public static WorkflowExternalResult getAsyncInvocationResult() {
+    public static <R> WorkflowExternalResult<R> getAsyncInvocationResult() {
         try {
             AtomicReference<WorkflowExternalResult> reference = asyncResult.get();
             if (reference == null) {
@@ -62,7 +63,8 @@ public class WorkflowInvocationHandler implements InvocationHandler {
             }
             WorkflowExternalResult result = reference.get();
             if (result == null) {
-                throw new IllegalStateException("async result wasn't set");
+                throw new IllegalStateException("Only methods of a stub created through CadenceClient.newWorkflowStub " +
+                        "can be used as a parameter to the asyncStart.");
             }
             return result;
         } finally {
@@ -169,7 +171,7 @@ public class WorkflowInvocationHandler implements InvocationHandler {
             }
             byte[] input = dataConverter.toData(args);
             parameters.setInput(input);
-            // TODO: Return workflow result or its execution through async.
+            // TODO: Return workflow result or its execution through asyncStart.
             execution = genericClient.startWorkflow(parameters);
             // TODO: Wait for result using long poll Cadence API.
             WorkflowService.Iface service = genericClient.getService();
@@ -190,6 +192,6 @@ public class WorkflowInvocationHandler implements InvocationHandler {
             async.set(result);
             return Defaults.defaultValue(method.getReturnType());
         }
-        return result.getResult();
+        return result.getResult(options.getExecutionStartToCloseTimeoutSeconds(), TimeUnit.SECONDS);
     }
 }

@@ -36,7 +36,7 @@ class ActivityInvocationHandler implements InvocationHandler {
 
     public static void initAsyncInvocation() {
         if (asyncResult.get() != null) {
-            throw new IllegalStateException("already in async invocation");
+            throw new IllegalStateException("already in asyncStart invocation");
         }
         asyncResult.set(new AtomicReference<>());
     }
@@ -49,7 +49,7 @@ class ActivityInvocationHandler implements InvocationHandler {
             }
             WorkflowFuture result = reference.get();
             if (result == null) {
-                throw new IllegalStateException("async result wasn't set");
+                throw new IllegalStateException("asyncStart result wasn't set");
             }
             return result;
         } finally {

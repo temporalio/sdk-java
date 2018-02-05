@@ -16,20 +16,17 @@
  */
 package com.uber.cadence.client;
 
-import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.internal.DataConverter;
 
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+public final class CadenceClientOptions {
 
-public interface WorkflowExternalResult<R> {
-    WorkflowExecution getExecution();
+    private DataConverter dataConverter;
 
-    <G> void signal(String name, G input);
+    public DataConverter getDataConverter() {
+        return dataConverter;
+    }
 
-    /**
-     * The same as getResult without timeout.
-     */
-    R getResult() throws InterruptedException;
-
-    R getResult(long timeout, TimeUnit unit) throws TimeoutException, InterruptedException;
+    public void setDataConverter(DataConverter dataConverter) {
+        this.dataConverter = dataConverter;
+    }
 }

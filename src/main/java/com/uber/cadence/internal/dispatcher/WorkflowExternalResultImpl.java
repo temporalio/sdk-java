@@ -25,6 +25,8 @@ import com.uber.cadence.WorkflowService;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import org.apache.thrift.TException;
 
+import java.lang.reflect.Type;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 final class WorkflowExternalResultImpl<R> implements WorkflowExternalResult<R> {
@@ -34,7 +36,6 @@ final class WorkflowExternalResultImpl<R> implements WorkflowExternalResult<R> {
     private final int executionStartToCloseTimeoutSeconds;
     private final DataConverter dataConverter;
     private final Class<R> returnType;
-    private Exception failure;
 
     public WorkflowExternalResultImpl(WorkflowService.Iface service,
                                       String domain,
@@ -58,7 +59,7 @@ final class WorkflowExternalResultImpl<R> implements WorkflowExternalResult<R> {
     @Override
     public <G> void signal(String name, G input) {
         SignalWorkflowExecutionRequest signalRequest = new SignalWorkflowExecutionRequest();
-        signalRequest.setInput(dataConverter.toData(new Object[] {input}));
+        signalRequest.setInput(dataConverter.toData(new Object[]{input}));
         signalRequest.setDomain(domain);
         signalRequest.setSignalName(name);
         signalRequest.setWorkflowExecution(execution);
@@ -70,21 +71,22 @@ final class WorkflowExternalResultImpl<R> implements WorkflowExternalResult<R> {
     }
 
     @Override
-    public R getResult() throws TimeoutException, InterruptedException {
-        if (failure != null) {
-            if (failure instanceof RuntimeException) {
-                throw (RuntimeException)failure;
-            } else {
-                throw new RuntimeException(failure);
-            }
+    public R getResult() throws InterruptedException {
+        try {
+            return getResult(0, TimeUnit.MICROSECONDS);
+        } catch (TimeoutException e) {
+            throw new RuntimeException("Unexpected", e);
         }
-        WorkflowExecutionCompletedEventAttributes result =
-                WorkflowExecutionUtils.waitForWorkflowExecutionResult(
-                        service, domain, execution, executionStartToCloseTimeoutSeconds + 1);
-        return dataConverter.fromData(result.getResult(), returnType);
     }
 
-    public void completeExceptionally(Exception e) {
-        failure = e;
+    @Override
+    public R getResult(long timeout, TimeUnit unit) throws TimeoutException, InterruptedException {
+        WorkflowExecutionCompletedEventAttributes result =
+                WorkflowExecutionUtils.getWorkflowExecutionResult(service, domain, execution, timeout, unit);
+        byte[] resultValue = result.getResult();
+        if (resultValue == null) {
+            return null;
+        }
+        return dataConverter.fromData(resultValue, returnType);
     }
 }
