@@ -74,7 +74,7 @@ public interface CadenceClient {
      * @param execution         workflow id and optional run id for execution
      * @return Stub that can be used to start workflow and later to signal or query it.
      */
-    UntypedWorkflowStub newUntypedWorkflowStub(String workflowType, WorkflowExecution execution);
+    UntypedWorkflowStub newUntypedWorkflowStub(WorkflowExecution execution);
 
     /**
      * Starts zero argument workflow with void return type

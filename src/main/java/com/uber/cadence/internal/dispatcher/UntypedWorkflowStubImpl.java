@@ -35,10 +35,10 @@ public class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
     private final StartWorkflowOptions options;
 
     public UntypedWorkflowStubImpl(GenericWorkflowClientExternal genericClient, DataConverter dataConverter,
-                                   String workflowType, WorkflowExecution execution) {
+                                   WorkflowExecution execution) {
         this.genericClient = genericClient;
         this.dataConverter = dataConverter;
-        this.workflowType = workflowType;
+        this.workflowType = null;
         this.execution = execution;
         this.options = null;
     }

@@ -19,14 +19,12 @@ package com.uber.cadence.internal.dispatcher;
 import com.google.common.reflect.TypeToken;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
-import com.uber.cadence.WorkflowType;
 import com.uber.cadence.client.CadenceClient;
 import com.uber.cadence.client.CadenceClientOptions;
 import com.uber.cadence.client.UntypedWorkflowStub;
 import com.uber.cadence.client.WorkflowExternalResult;
 import com.uber.cadence.internal.DataConverter;
 import com.uber.cadence.internal.StartWorkflowOptions;
-import com.uber.cadence.internal.generic.StartWorkflowExecutionParameters;
 import com.uber.cadence.internal.worker.GenericWorkflowClientExternalImpl;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.QueryMethod;
@@ -91,8 +89,8 @@ public final class CadenceClientInternal implements CadenceClient {
     }
 
     @Override
-    public UntypedWorkflowStub newUntypedWorkflowStub(String workflowType, WorkflowExecution execution) {
-        return new UntypedWorkflowStubImpl(genericClient, dataConverter, workflowType, execution);
+    public UntypedWorkflowStub newUntypedWorkflowStub(WorkflowExecution execution) {
+        return new UntypedWorkflowStubImpl(genericClient, dataConverter, execution);
     }
     
     public static WorkflowExternalResult<Void> asyncStart(Functions.Proc workflow) {
