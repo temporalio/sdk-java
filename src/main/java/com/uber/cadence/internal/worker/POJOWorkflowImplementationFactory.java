@@ -28,6 +28,8 @@ import com.uber.cadence.workflow.SignalMethod;
 import com.uber.cadence.internal.dispatcher.SyncWorkflowDefinition;
 import com.uber.cadence.internal.dispatcher.WorkflowInternal;
 import com.uber.cadence.workflow.WorkflowMethod;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -40,8 +42,11 @@ import java.util.function.Function;
 
 public class POJOWorkflowImplementationFactory implements Function<WorkflowType, SyncWorkflowDefinition> {
 
+    private static final Log log = LogFactory.getLog(GenericWorker.class);
     private static final byte[] EMPTY_BLOB = {};
+
     private DataConverter dataConverter;
+
     /**
      * Key: workflow type name, Value: function that creates SyncWorkflowDefinition instance.
      */
@@ -169,6 +174,7 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
             Object[] args = dataConverter.fromData(input, Object[].class);
             Method method = signalHandlers.get(signalName);
             if (method == null) {
+                log.warn("Unknown signal: " + signalName + ", knownSignals=" + signalHandlers.keySet());
                 throw new IllegalArgumentException("Unknown signal: " + signalName);
             }
             try {

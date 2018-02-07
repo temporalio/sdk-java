@@ -16,7 +16,7 @@
  */
 package com.uber.cadence.internal;
 
-public class WorkflowExecutionAlreadyStartedException extends Exception {
+public class WorkflowExecutionAlreadyStartedException extends RuntimeException {
     public WorkflowExecutionAlreadyStartedException(String message, Throwable cause) {
         super(message, cause);
     }

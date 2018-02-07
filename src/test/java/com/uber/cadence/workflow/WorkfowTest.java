@@ -18,6 +18,7 @@ package com.uber.cadence.workflow;
 
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.client.CadenceClient;
+import com.uber.cadence.client.UntypedWorkflowStub;
 import com.uber.cadence.client.WorkflowExternalResult;
 import com.uber.cadence.internal.DataConverter;
 import com.uber.cadence.internal.JsonDataConverter;
@@ -147,7 +148,7 @@ public class WorkfowTest {
         String getState();
 
         @SignalMethod(name = "testSignal")
-        void signal(String value);
+        void mySignal(String value);
     }
 
     public static class TestSyncWorkflowImpl implements TestWorkflow1 {
@@ -173,6 +174,15 @@ public class WorkfowTest {
         worker.addWorkflowType(TestSyncWorkflowImpl.class);
         TestWorkflow1 client = cadenceClient.newWorkflowStub(TestWorkflow1.class, newStartWorkflowOptions());
         String result = client.execute();
+        assertEquals("activity10", result);
+    }
+
+    @Test
+    public void testSyncUntyped() throws InterruptedException {
+        worker.addWorkflowType(TestSyncWorkflowImpl.class);
+        UntypedWorkflowStub client = cadenceClient.newUntypedWorkflowStub("TestWorkflow1::execute",
+                newStartWorkflowOptions());
+        String result = client.execute(String.class).getResult();
         assertEquals("activity10", result);
     }
 
@@ -319,8 +329,8 @@ public class WorkfowTest {
         }
 
         @Override
-        public void signal(String value) {
-            log.info("TestSignalWorkflowImpl.signal value=" + value);
+        public void mySignal(String value) {
+            log.info("TestSignalWorkflowImpl.mySignal value=" + value);
             state = value;
             signals.add(value);
             if (signals.size() == 2) {
@@ -336,10 +346,25 @@ public class WorkfowTest {
         // To execute workflow client.execute() would do. But we want to start workflow and immediately return.
         WorkflowExternalResult<String> result = CadenceClient.asyncStart(client::execute);
         assertEquals("initial", client.getState());
-        client.signal("Hello ");
+        client.mySignal("Hello ");
         assertEquals("Hello ", client.getState());
-        client.signal("World!");
+        client.mySignal("World!");
         assertEquals("World!", client.getState());
+        assertEquals("Hello World!", result.getResult());
+    }
+
+    @Test
+    public void testSignalUntyped() throws TimeoutException, InterruptedException {
+        worker.addWorkflowType(TestSignalWorkflowImpl.class);
+        String workflowType = QueryableWorkflow.class.getSimpleName() + "::execute";
+        UntypedWorkflowStub client = cadenceClient.newUntypedWorkflowStub(workflowType, newStartWorkflowOptions());
+        // To execute workflow client.execute() would do. But we want to start workflow and immediately return.
+        WorkflowExternalResult<String> result = client.execute(String.class);
+        assertEquals("initial", client.query("QueryableWorkflow::getState", String.class));
+        client.signal("testSignal","Hello ");
+        assertEquals("Hello ", client.query("QueryableWorkflow::getState", String.class));
+        client.signal("testSignal","World!");
+        assertEquals("World!", client.query("QueryableWorkflow::getState", String.class));
         assertEquals("Hello World!", result.getResult());
     }
 

@@ -181,7 +181,6 @@ class WorkflowInvocationHandler implements InvocationHandler {
                     service,
                     domain,
                     execution,
-                    options.getExecutionStartToCloseTimeoutSeconds(),
                     dataConverter,
                     method.getReturnType());
         } catch (Exception e) {

@@ -33,19 +33,48 @@ public interface CadenceClient {
     }
 
     /**
-     * Creates workflow client proxy that can be used to start a single workflow.
+     * Creates workflow client stub that can be used to start a single workflow execution.
      * The first call must be to a method annotated with @WorkflowMethod.
      * After workflow is started it can be also used to send signals or queries to it.
      * IMPORTANT! Stub is per workflow instance. So new stub should be created for each new one.
+     *
+     * @param workflowInterface interface that given workflow implements
+     * @param options           options used to start a workflow through returned stub
+     * @return Stub that implements workflowInterface and can be used to start workflow and later to
+     * signal or query it.
      */
     <T> T newWorkflowStub(Class<T> workflowInterface, StartWorkflowOptions options);
 
     /**
-     * Creates workflow client proxy for a known execution.
+     * Creates workflow client stub for a known execution.
      * Use it to send signals or queries to a running workflow.
      * Do not call methods annotated with @WorkflowMethod.
+     *
+     * @param workflowInterface interface that given workflow implements
+     * @param execution         workflow id and optional run id for execution
+     * @return Stub that implements workflowInterface and can be used to signal or query it.
      */
     <T> T newWorkflowStub(Class<T> workflowInterface, WorkflowExecution execution);
+
+    /**
+     * Creates workflow untyped client stub that can be used to start a single workflow execution.
+     * After workflow is started it can be also used to send signals or queries to it.
+     * IMPORTANT! Stub is per workflow instance. So new stub should be created for each new one.
+     *
+     * @param workflowType name of the workflow type
+     * @param options           options used to start a workflow through returned stub
+     * @return Stub that can be used to start workflow and later to signal or query it.
+     */
+    UntypedWorkflowStub newUntypedWorkflowStub(String workflowType, StartWorkflowOptions options);
+
+    /**
+     * Creates workflow untyped client stub for a known execution.
+     * Use it to send signals or queries to a running workflow.
+     * Do not call methods annotated with @WorkflowMethod.
+     * @param execution         workflow id and optional run id for execution
+     * @return Stub that can be used to start workflow and later to signal or query it.
+     */
+    UntypedWorkflowStub newUntypedWorkflowStub(String workflowType, WorkflowExecution execution);
 
     /**
      * Starts zero argument workflow with void return type

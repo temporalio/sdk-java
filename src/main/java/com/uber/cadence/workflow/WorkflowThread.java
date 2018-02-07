@@ -18,6 +18,8 @@ package com.uber.cadence.workflow;
 
 import com.uber.cadence.internal.dispatcher.WorkflowInternal;
 
+import java.util.concurrent.TimeUnit;
+
 public interface WorkflowThread {
 
     void start();
@@ -42,6 +44,10 @@ public interface WorkflowThread {
 
     static WorkflowThread currentThread() {
         return WorkflowInternal.currentThread();
+    }
+
+    static void sleep(long time, TimeUnit unit) throws InterruptedException {
+        WorkflowInternal.yield(unit.toMillis(time), "sleep", () -> false   );
     }
 
     static void sleep(long millis) throws InterruptedException {

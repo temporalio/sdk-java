@@ -19,11 +19,14 @@ package com.uber.cadence.internal.dispatcher;
 import com.google.common.reflect.TypeToken;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
+import com.uber.cadence.WorkflowType;
 import com.uber.cadence.client.CadenceClient;
 import com.uber.cadence.client.CadenceClientOptions;
+import com.uber.cadence.client.UntypedWorkflowStub;
 import com.uber.cadence.client.WorkflowExternalResult;
 import com.uber.cadence.internal.DataConverter;
 import com.uber.cadence.internal.StartWorkflowOptions;
+import com.uber.cadence.internal.generic.StartWorkflowExecutionParameters;
 import com.uber.cadence.internal.worker.GenericWorkflowClientExternalImpl;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.QueryMethod;
@@ -77,13 +80,21 @@ public final class CadenceClientInternal implements CadenceClient {
 
     public <T> T newWorkflowStub(Class<T> workflowInterface, WorkflowExecution execution) {
         checkAnnotation(workflowInterface, WorkflowMethod.class, QueryMethod.class);
-
         return (T) Proxy.newProxyInstance(WorkflowInternal.class.getClassLoader(),
                 new Class<?>[]{workflowInterface},
                 new WorkflowInvocationHandler(genericClient, execution, dataConverter));
     }
 
+    @Override
+    public UntypedWorkflowStub newUntypedWorkflowStub(String workflowType, StartWorkflowOptions options) {
+        return new UntypedWorkflowStubImpl(genericClient, dataConverter, workflowType, options);
+    }
 
+    @Override
+    public UntypedWorkflowStub newUntypedWorkflowStub(String workflowType, WorkflowExecution execution) {
+        return new UntypedWorkflowStubImpl(genericClient, dataConverter, workflowType, execution);
+    }
+    
     public static WorkflowExternalResult<Void> asyncStart(Functions.Proc workflow) {
         WorkflowInvocationHandler.initAsyncInvocation();
         try {

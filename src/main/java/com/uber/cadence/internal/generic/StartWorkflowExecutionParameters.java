@@ -16,6 +16,8 @@
  */
 package com.uber.cadence.internal.generic;
 
+import com.uber.cadence.ChildPolicy;
+import com.uber.cadence.WorkflowIdReusePolicy;
 import com.uber.cadence.internal.StartWorkflowOptions;
 import com.uber.cadence.WorkflowType;
 
@@ -33,11 +35,9 @@ public class StartWorkflowExecutionParameters {
     
     private int taskStartToCloseTimeoutSeconds;
     
-    private java.util.List<String> tagList;
-    
-    private int taskPriority;
+    private ChildPolicy childPolicy;
 
-//    private ChildPolicy childPolicy;
+    private WorkflowIdReusePolicy workflowIdReusePolicy;
 
     /**
      * Returns the value of the WorkflowId property for this object.
@@ -114,8 +114,20 @@ public class StartWorkflowExecutionParameters {
         this.workflowType = workflowType;
         return this;
     }
-    
-    
+
+    public WorkflowIdReusePolicy getWorkflowIdReusePolicy() {
+        return workflowIdReusePolicy;
+    }
+
+    public void setWorkflowIdReusePolicy(WorkflowIdReusePolicy workflowIdReusePolicy) {
+        this.workflowIdReusePolicy = workflowIdReusePolicy;
+    }
+
+    public StartWorkflowExecutionParameters withWorkflowIdReusePolicy(WorkflowIdReusePolicy workflowIdReusePolicy) {
+        this.workflowIdReusePolicy = workflowIdReusePolicy;
+        return this;
+    }
+
     /**
      * Returns the value of the TaskList property for this object.
      *
@@ -201,7 +213,7 @@ public class StartWorkflowExecutionParameters {
      *
      * @return The value of the StartToCloseTimeout property for this object.
      */
-    public int getExecutionStartToCloseTimeout() {
+    public int getExecutionStartToCloseTimeoutSeconds() {
         return executionStartToCloseTimeoutSeconds;
     }
     
@@ -248,110 +260,22 @@ public class StartWorkflowExecutionParameters {
         return this;
     }
 
-//    public ChildPolicy getChildPolicy() {
-//        return childPolicy;
-//    }
-//
-//    public void setChildPolicy(ChildPolicy childPolicy) {
-//        this.childPolicy = childPolicy;
-//    }
-//
-//    public StartWorkflowExecutionParameters withChildPolicy(ChildPolicy childPolicy) {
-//        this.childPolicy = childPolicy;
-//        return this;
-//    }
-    
-    /**
-     * Returns the value of the TagList property for this object.
-     * <p>
-     * <b>Constraints:</b><br/>
-     * <b>Length: </b>0 - 5<br/>
-     *
-     * @return The value of the TagList property for this object.
-     */
-    public java.util.List<String> getTagList() {
-        if (tagList == null) {
-            tagList = new java.util.ArrayList<String>();
-        }
-        return tagList;
-    }
-    
-    /**
-     * Sets the value of the TagList property for this object.
-     * <p>
-     * <b>Constraints:</b><br/>
-     * <b>Length: </b>0 - 5<br/>
-     *
-     * @param tagList The new value for the TagList property for this object.
-     */
-    public void setTagList(java.util.Collection<String> tagList) {
-        java.util.List<String> tagListCopy = new java.util.ArrayList<String>();
-        if (tagList != null) {
-            tagListCopy.addAll(tagList);
-        }
-        this.tagList = tagListCopy;
-    }
-    
-    /**
-     * Sets the value of the TagList property for this object.
-     * <p>
-     * Returns a reference to this object so that method calls can be chained together.
-     * <p>
-     * <b>Constraints:</b><br/>
-     * <b>Length: </b>0 - 5<br/>
-     *
-     * @param tagList The new value for the TagList property for this object.
-     *
-     * @return A reference to this updated object so that method calls can be chained 
-     *         together. 
-     */
-    public StartWorkflowExecutionParameters withTagList(String... tagList) {
-        for (String value : tagList) {
-            getTagList().add(value);
-        }
-        return this;
-    }
-    
-    /**
-     * Sets the value of the TagList property for this object.
-     * <p>
-     * Returns a reference to this object so that method calls can be chained together.
-     * <p>
-     * <b>Constraints:</b><br/>
-     * <b>Length: </b>0 - 5<br/>
-     *
-     * @param tagList The new value for the TagList property for this object.
-     *
-     * @return A reference to this updated object so that method calls can be chained 
-     *         together. 
-     */
-    public StartWorkflowExecutionParameters withTagList(java.util.Collection<String> tagList) {
-        java.util.List<String> tagListCopy = new java.util.ArrayList<String>();
-        if (tagList != null) {
-            tagListCopy.addAll(tagList);
-        }
-        this.tagList = tagListCopy;
-
-        return this;
-    }
-    
-    public int getTaskPriority() {
-        return taskPriority;
+    public ChildPolicy getChildPolicy() {
+        return childPolicy;
     }
 
-    public void setTaskPriority(int taskPriority) {
-        this.taskPriority = taskPriority;
+    public void setChildPolicy(ChildPolicy childPolicy) {
+        this.childPolicy = childPolicy;
     }
 
-    public StartWorkflowExecutionParameters withTaskPriority(int taskPriority) {
-        this.taskPriority = taskPriority;
+    public StartWorkflowExecutionParameters withChildPolicy(ChildPolicy childPolicy) {
+        this.childPolicy = childPolicy;
         return this;
     }
 
     public StartWorkflowExecutionParameters createStartWorkflowExecutionParametersFromOptions(StartWorkflowOptions options, 
     		StartWorkflowOptions optionsOverride) {
     	StartWorkflowExecutionParameters parameters = this.clone();
-    	
     	if (options != null) {
     		Integer executionStartToCloseTimeout = options.getExecutionStartToCloseTimeoutSeconds();
     		if (executionStartToCloseTimeout != null) {
@@ -362,29 +286,17 @@ public class StartWorkflowExecutionParameters {
             if (taskStartToCloseTimeout != null) {
                 parameters.setTaskStartToCloseTimeoutSeconds(taskStartToCloseTimeout);
             }
-    		
-    		java.util.Collection<String> tagList = options.getTagList();
-    		if (tagList != null) {
-    			parameters.setTagList(tagList);
-    		}
-    		
+
     		String taskList = options.getTaskList();
     		if (taskList != null && !taskList.isEmpty()) { 
     			parameters.setTaskList(taskList);
     		}
     		
-//            Integer taskPriority = options.getTaskPriority();
-//            if (taskPriority != null) {
-//                parameters.setTaskPriority(taskPriority);
-//            }
-
-//    		ChildPolicy childPolicy = options.getChildPolicy();
-//    		if (childPolicy != null) {
-//    		    parameters.setChildPolicy(childPolicy);
-//    		}
-
+    		ChildPolicy childPolicy = options.getChildPolicy();
+    		if (childPolicy != null) {
+    		    parameters.setChildPolicy(childPolicy);
+    		}
         }
-    	
     	if (optionsOverride != null) {
     	    Integer executionStartToCloseTimeout = optionsOverride.getExecutionStartToCloseTimeoutSeconds();
             if (executionStartToCloseTimeout != null) {
@@ -395,29 +307,17 @@ public class StartWorkflowExecutionParameters {
             if (taskStartToCloseTimeout != null) {
                 parameters.setTaskStartToCloseTimeoutSeconds(taskStartToCloseTimeout);
             }
-            
-    		java.util.Collection<String> tagList = optionsOverride.getTagList();
-    		if (tagList != null) {
-    			parameters.setTagList(tagList);
-    		}
-    		
+
     		String taskList = optionsOverride.getTaskList();
     		if (taskList != null && !taskList.isEmpty()) { 
     			parameters.setTaskList(taskList);
     		}
     		
-//            Integer taskPriority = optionsOverride.getTaskPriority();
-//            if (taskPriority != null) {
-//                parameters.setTaskPriority(taskPriority);
-//            }
-//
-//    		ChildPolicy childPolicy = optionsOverride.getChildPolicy();
-//    		if (childPolicy != null) {
-//    		    parameters.setChildPolicy(childPolicy);
-//    		}
-
+    		ChildPolicy childPolicy = optionsOverride.getChildPolicy();
+    		if (childPolicy != null) {
+    		    parameters.setChildPolicy(childPolicy);
+    		}
         }
-    	
     	return parameters;
     }
     
@@ -438,9 +338,7 @@ public class StartWorkflowExecutionParameters {
         sb.append("TaskList: " + taskList + ", ");
         sb.append("Input: " + input + ", ");
         sb.append("StartToCloseTimeout: " + executionStartToCloseTimeoutSeconds + ", ");
-        sb.append("TagList: " + tagList + ", ");
-        sb.append("TaskPriority: " + taskPriority + ", ");
-//        sb.append("ChildPolicy: " + childPolicy + ", ");
+        sb.append("ChildPolicy: " + childPolicy + ", ");
         sb.append("}");
         return sb.toString();
     }
@@ -450,14 +348,11 @@ public class StartWorkflowExecutionParameters {
         result.setInput(input);
         result.setExecutionStartToCloseTimeoutSeconds(executionStartToCloseTimeoutSeconds);
         result.setTaskStartToCloseTimeoutSeconds(taskStartToCloseTimeoutSeconds);
-        result.setTagList(tagList);
         result.setTaskList(taskList);
         result.setWorkflowId(workflowId);
         result.setWorkflowType(workflowType);
-        result.setTaskPriority(taskPriority);
-//        result.setChildPolicy(childPolicy);
+        result.setChildPolicy(childPolicy);
         return result;
     }
-
 }
     

@@ -59,20 +59,25 @@ public class GenericWorkflowClientExternalImpl implements GenericWorkflowClientE
     }
 
     @Override
-    public WorkflowExecution startWorkflow(StartWorkflowExecutionParameters startParameters) throws WorkflowExecutionAlreadyStartedException{
+    public WorkflowExecution startWorkflow(StartWorkflowExecutionParameters startParameters) throws WorkflowExecutionAlreadyStartedException {
         StartWorkflowExecutionRequest request = new StartWorkflowExecutionRequest();
         request.setDomain(domain);
 
         request.setInput(startParameters.getInput());
-        request.setExecutionStartToCloseTimeoutSeconds(startParameters.getExecutionStartToCloseTimeout());
+        request.setExecutionStartToCloseTimeoutSeconds(startParameters.getExecutionStartToCloseTimeoutSeconds());
         request.setTaskStartToCloseTimeoutSeconds(startParameters.getTaskStartToCloseTimeoutSeconds());
+        request.setWorkflowIdReusePolicy(startParameters.getWorkflowIdReusePolicy());
         String taskList = startParameters.getTaskList();
         if (taskList != null && !taskList.isEmpty()) {
             TaskList tl = new TaskList();
             tl.setName(taskList);
             request.setTaskList(tl);
         }
-        request.setWorkflowId(startParameters.getWorkflowId());
+        String workflowId = startParameters.getWorkflowId();
+        if (workflowId == null) {
+            workflowId = UUID.randomUUID().toString();
+        }
+        request.setWorkflowId(workflowId);
         request.setWorkflowType(startParameters.getWorkflowType());
 
 //        if(startParameters.getChildPolicy() != null) {
@@ -83,7 +88,7 @@ public class GenericWorkflowClientExternalImpl implements GenericWorkflowClientE
         try {
             result = service.StartWorkflowExecution(request);
         } catch (WorkflowExecutionAlreadyStartedError e) {
-            throw new WorkflowExecutionAlreadyStartedException(startParameters.getWorkflowId(), e);
+            throw new WorkflowExecutionAlreadyStartedException(workflowId, e);
         } catch (TException e) {
             throw new RuntimeException(e);
         }

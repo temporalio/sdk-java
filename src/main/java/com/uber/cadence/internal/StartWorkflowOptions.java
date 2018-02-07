@@ -17,12 +17,15 @@
 package com.uber.cadence.internal;
 
 import com.uber.cadence.ChildPolicy;
+import com.uber.cadence.WorkflowIdReusePolicy;
 
 import java.util.List;
 
 public class StartWorkflowOptions {
 
     private String workflowId;
+
+    private WorkflowIdReusePolicy workflowIdReusePolicy;
 
     private Integer executionStartToCloseTimeoutSeconds;
 
@@ -40,6 +43,19 @@ public class StartWorkflowOptions {
 
     public void setWorkflowId(String workflowId) {
         this.workflowId = workflowId;
+    }
+
+    public WorkflowIdReusePolicy getWorkflowIdReusePolicy() {
+        return workflowIdReusePolicy;
+    }
+
+    public void setWorkflowIdReusePolicy(WorkflowIdReusePolicy workflowIdReusePolicy) {
+        this.workflowIdReusePolicy = workflowIdReusePolicy;
+    }
+
+    public StartWorkflowOptions withWorkflowIdReusePolicy(WorkflowIdReusePolicy workflowIdReusePolicy) {
+        this.workflowIdReusePolicy = workflowIdReusePolicy;
+        return this;
     }
 
     public com.uber.cadence.ChildPolicy getChildPolicy() {
