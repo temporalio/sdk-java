@@ -259,7 +259,12 @@ class WorkflowThreadInternal implements WorkflowThread, DeterministicRunnerCorou
      * it is blocked on and wait for coroutine thread to finish execution.
      */
     public void stop() {
-        context.destroy();
+        // Cannot call destroy() on itself
+        if (thread == Thread.currentThread()) {
+            context.exit();
+        } else {
+            context.destroy();
+        }
         if (!context.isDone()) {
             throw new RuntimeException("Couldn't destroy the thread. " +
                     "The blocked thread stack trace: " + getStackTrace());
@@ -271,6 +276,16 @@ class WorkflowThreadInternal implements WorkflowThread, DeterministicRunnerCorou
         } catch (ExecutionException e) {
             throw new Error("Unexpected failure stopping coroutine", e);
         }
+    }
+
+    /**
+     * Stop executing all workflow threads and puts {@link DeterministicRunner} into closed state.
+     * To be called only from a workflow thread.
+     *
+     * @param value accessible through {@link DeterministicRunner#getExitValue()}.
+     */
+    static <R> void exit(R value) {
+        currentThreadInternal().runner.exit(value);
     }
 
     /**

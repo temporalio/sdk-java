@@ -40,7 +40,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-class WorkflowInvocationHandler implements InvocationHandler {
+class WorkflowExternalInvocationHandler implements InvocationHandler {
 
     private static final ThreadLocal<AtomicReference<WorkflowExternalResult>> asyncResult = new ThreadLocal<>();
     private final GenericWorkflowClientExternal genericClient;
@@ -72,7 +72,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
         }
     }
 
-    public WorkflowInvocationHandler(GenericWorkflowClientExternalImpl genericClient, WorkflowExecution execution, DataConverter dataConverter) {
+    public WorkflowExternalInvocationHandler(GenericWorkflowClientExternalImpl genericClient, WorkflowExecution execution, DataConverter dataConverter) {
         if (execution == null || execution.getWorkflowId() == null || execution.getWorkflowId().isEmpty()) {
             throw new IllegalArgumentException("null or empty workflowId");
         }
@@ -82,7 +82,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
         this.dataConverter = dataConverter;
     }
 
-    public WorkflowInvocationHandler(GenericWorkflowClientExternal genericClient, StartWorkflowOptions options, DataConverter dataConverter) {
+    public WorkflowExternalInvocationHandler(GenericWorkflowClientExternal genericClient, StartWorkflowOptions options, DataConverter dataConverter) {
         this.genericClient = genericClient;
         this.options = options;
         this.dataConverter = dataConverter;

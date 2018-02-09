@@ -16,15 +16,15 @@
  */
 package com.uber.cadence.internal.worker;
 
-import com.uber.cadence.internal.AsyncDecisionContext;
-import com.uber.cadence.WorkflowQuery;
-import com.uber.cadence.workflow.ContinueAsNewWorkflowExecutionParameters;
 import com.uber.cadence.EventType;
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.TimerFiredEventAttributes;
 import com.uber.cadence.TimerStartedEventAttributes;
 import com.uber.cadence.WorkflowExecutionSignaledEventAttributes;
+import com.uber.cadence.WorkflowQuery;
+import com.uber.cadence.internal.AsyncDecisionContext;
+import com.uber.cadence.workflow.ContinueAsNewWorkflowExecutionParameters;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -69,7 +69,7 @@ class AsyncDecider {
         this.decisionsHelper = decisionsHelper;
         this.activityClient = new GenericAsyncActivityClientImpl(decisionsHelper);
         PollForDecisionTaskResponse decisionTask = historyHelper.getDecisionTask();
-        workflowContext = new WorkfowContextImpl(decisionTask);
+        workflowContext = new WorkfowContextImpl(decisionTask, historyHelper.getWorkflowExecutionStartedEventAttributes());
         this.workflowClient = new GenericAsyncWorkflowClientImpl(decisionsHelper, workflowContext);
         this.workflowClock = new AsyncWorkflowClockImpl(decisionsHelper);
         context = new AsyncDecisionContextImpl(activityClient, workflowClient, workflowClock, workflowContext);

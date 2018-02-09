@@ -22,6 +22,7 @@ import com.uber.cadence.internal.common.FlowHelpers;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.QueryMethod;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;
@@ -76,11 +77,22 @@ public class POJOQueryImplementationFactory {
         @Override
         public byte[] apply(byte[] input) throws Exception {
             Object[] args = dataConverter.fromData(input, Object[].class);
-            Object result = method.invoke(activity, args);
-            if (method.getReturnType() == Void.TYPE) {
-                return EMPTY_BLOB;
+            try {
+                Object result = method.invoke(activity, args);
+                if (method.getReturnType() == Void.TYPE) {
+                    return EMPTY_BLOB;
+                }
+                return dataConverter.toData(result);
+            } catch (InvocationTargetException e) {
+                Throwable targetException = e.getTargetException();
+                if (targetException instanceof Exception) {
+                    throw (Exception) targetException;
+                }
+                if (targetException instanceof Error) {
+                    throw (Error) targetException;
+                }
+                throw e;
             }
-            return dataConverter.toData(result);
         }
     }
 }

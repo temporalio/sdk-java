@@ -16,7 +16,9 @@
  */
 package com.uber.cadence.internal.worker;
 
+import com.uber.cadence.History;
 import com.uber.cadence.RespondQueryTaskCompletedRequest;
+import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.GetWorkflowExecutionHistoryRequest;
 import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
@@ -230,10 +232,17 @@ public class DecisionTaskPoller implements TaskPoller {
         private final PollForDecisionTaskResponse task;
         private Iterator<HistoryEvent> current;
         private byte[] nextPageToken;
+        private WorkflowExecutionStartedEventAttributes workflowExecutionStartedEventAttributes;
 
         public DecisionTaskWithHistoryIteratorImpl(PollForDecisionTaskResponse task) {
             this.task = task;
-            current = task.getHistory().getEventsIterator();
+            History history = task.getHistory();
+            HistoryEvent firstEvent = history.getEvents().get(0);
+            this.workflowExecutionStartedEventAttributes = firstEvent.getWorkflowExecutionStartedEventAttributes();
+            if (this.workflowExecutionStartedEventAttributes == null) {
+                throw new IllegalArgumentException("First event in the history is not WorkflowExecutionStarted");
+            }
+            current = history.getEventsIterator();
             nextPageToken = task.getNextPageToken();
         }
 
@@ -269,6 +278,11 @@ public class DecisionTaskPoller implements TaskPoller {
                     return current.next();
                 }
             };
+        }
+
+        @Override
+        public WorkflowExecutionStartedEventAttributes getWorkflowExecutionStartedEventAttributes() {
+            return workflowExecutionStartedEventAttributes;
         }
     }
 }

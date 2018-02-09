@@ -106,8 +106,8 @@ public class WorkfowTest {
 
     private static StartWorkflowOptions newStartWorkflowOptions() {
         StartWorkflowOptions result = new StartWorkflowOptions();
-        result.setExecutionStartToCloseTimeoutSeconds(60);
-        result.setTaskStartToCloseTimeoutSeconds(2);
+        result.setExecutionStartToCloseTimeoutSeconds(300);
+        result.setTaskStartToCloseTimeoutSeconds(300);
         result.setTaskList(taskList);
         return result;
     }
@@ -156,7 +156,7 @@ public class WorkfowTest {
         @Override
         public String execute() {
             AtomicReference<String> a1 = new AtomicReference<>();
-            TestActivities activities = Workflow.newActivityClient(TestActivities.class, activitySchedulingOptions);
+            TestActivities activities = Workflow.newActivityStub(TestActivities.class, activitySchedulingOptions);
             WorkflowThread t = Workflow.newThread(() -> a1.set(activities.activity()));
             t.start();
             try {
@@ -169,17 +169,44 @@ public class WorkfowTest {
         }
     }
 
+    public interface TestContinueAsNew {
+        @WorkflowMethod
+        int execute(int count);
+    }
+
+    public static class TestContinueAsNewImpl implements TestContinueAsNew {
+
+        @Override
+        public int execute(int count) {
+            if (count == 0) {
+                return 111;
+            }
+            TestContinueAsNew next = Workflow.newContinueAsNewStub(TestContinueAsNew.class, null);
+            next.execute(count - 1);
+            throw new RuntimeException("unreachable");
+        }
+    }
+
     @Test
     public void testSync() {
-        worker.addWorkflowType(TestSyncWorkflowImpl.class);
+        worker.addWorkflowImplementationType(TestSyncWorkflowImpl.class);
         TestWorkflow1 client = cadenceClient.newWorkflowStub(TestWorkflow1.class, newStartWorkflowOptions());
         String result = client.execute();
         assertEquals("activity10", result);
     }
 
     @Test
+    public void testContinueAsNew() {
+        worker.addWorkflowImplementationType(TestContinueAsNewImpl.class);
+        TestContinueAsNew client = cadenceClient.newWorkflowStub(TestContinueAsNew.class, newStartWorkflowOptions());
+        int result = client.execute(4);
+        assertEquals(111, result);
+    }
+
+
+    @Test
     public void testSyncUntyped() throws InterruptedException {
-        worker.addWorkflowType(TestSyncWorkflowImpl.class);
+        worker.addWorkflowImplementationType(TestSyncWorkflowImpl.class);
         UntypedWorkflowStub client = cadenceClient.newUntypedWorkflowStub("TestWorkflow1::execute",
                 newStartWorkflowOptions());
         String result = client.execute(String.class).getResult();
@@ -190,7 +217,7 @@ public class WorkfowTest {
 
         @Override
         public String execute() {
-            TestActivities testActivities = Workflow.newActivityClient(TestActivities.class, activitySchedulingOptions);
+            TestActivities testActivities = Workflow.newActivityStub(TestActivities.class, activitySchedulingOptions);
             try {
                 assertEquals("activity", Workflow.async(testActivities::activity).get());
                 assertEquals("1", Workflow.async(testActivities::activity1, "1").get());
@@ -218,7 +245,7 @@ public class WorkfowTest {
 
     @Test
     public void testAsyncActivity() {
-        worker.addWorkflowType(TestAsyncActivityWorkflowImpl.class);
+        worker.addWorkflowImplementationType(TestAsyncActivityWorkflowImpl.class);
         TestWorkflow1 client = cadenceClient.newWorkflowStub(TestWorkflow1.class, newStartWorkflowOptions());
         String result = client.execute();
         assertEquals("workflow", result);
@@ -234,7 +261,7 @@ public class WorkfowTest {
 
     @Test
     public void testAsyncStart() throws TimeoutException, InterruptedException {
-        worker.addWorkflowType(TestMultiargsWorkflowsImpl.class);
+        worker.addWorkflowImplementationType(TestMultiargsWorkflowsImpl.class);
         TestMultiargsWorkflows stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
         assertEquals("func", CadenceClient.asyncStart(stub::func).getResult());
         stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
@@ -265,7 +292,7 @@ public class WorkfowTest {
         stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
         CadenceClient.asyncStart(stub::proc6, "1", 2, 3, 4, 5, 6).getResult();
         assertEquals("proc", TestMultiargsWorkflowsImpl.procResult.get(0));
-        assertEquals("1",  TestMultiargsWorkflowsImpl.procResult.get(1));
+        assertEquals("1", TestMultiargsWorkflowsImpl.procResult.get(1));
         assertEquals("12", TestMultiargsWorkflowsImpl.procResult.get(2));
         assertEquals("123", TestMultiargsWorkflowsImpl.procResult.get(3));
         assertEquals("1234", TestMultiargsWorkflowsImpl.procResult.get(4));
@@ -299,7 +326,7 @@ public class WorkfowTest {
 
     @Test
     public void testTimer() {
-        worker.addWorkflowType(TestTimerWorkflowImpl.class);
+        worker.addWorkflowImplementationType(TestTimerWorkflowImpl.class);
         TestWorkflow2 client = cadenceClient.newWorkflowStub(TestWorkflow2.class, newStartWorkflowOptions());
         String result = client.execute();
         assertEquals("testTimer", result);
@@ -341,12 +368,13 @@ public class WorkfowTest {
 
     @Test
     public void testSignal() throws TimeoutException, InterruptedException {
-        worker.addWorkflowType(TestSignalWorkflowImpl.class);
+        worker.addWorkflowImplementationType(TestSignalWorkflowImpl.class);
         QueryableWorkflow client = cadenceClient.newWorkflowStub(QueryableWorkflow.class, newStartWorkflowOptions());
         // To execute workflow client.execute() would do. But we want to start workflow and immediately return.
         WorkflowExternalResult<String> result = CadenceClient.asyncStart(client::execute);
         assertEquals("initial", client.getState());
         client.mySignal("Hello ");
+        Thread.sleep(200);
         assertEquals("Hello ", client.getState());
         client.mySignal("World!");
         assertEquals("World!", client.getState());
@@ -354,16 +382,16 @@ public class WorkfowTest {
     }
 
     @Test
-    public void testSignalUntyped() throws TimeoutException, InterruptedException {
-        worker.addWorkflowType(TestSignalWorkflowImpl.class);
+    public void testSignalUntyped() throws InterruptedException {
+        worker.addWorkflowImplementationType(TestSignalWorkflowImpl.class);
         String workflowType = QueryableWorkflow.class.getSimpleName() + "::execute";
         UntypedWorkflowStub client = cadenceClient.newUntypedWorkflowStub(workflowType, newStartWorkflowOptions());
         // To execute workflow client.execute() would do. But we want to start workflow and immediately return.
         WorkflowExternalResult<String> result = client.execute(String.class);
         assertEquals("initial", client.query("QueryableWorkflow::getState", String.class));
-        client.signal("testSignal","Hello ");
+        client.signal("testSignal", "Hello ");
         assertEquals("Hello ", client.query("QueryableWorkflow::getState", String.class));
-        client.signal("testSignal","World!");
+        client.signal("testSignal", "World!");
         assertEquals("World!", client.query("QueryableWorkflow::getState", String.class));
         assertEquals("Hello World!", result.getResult());
     }
@@ -399,7 +427,7 @@ public class WorkfowTest {
 
     @Test
     public void testSignalDuringLastDecision() throws TimeoutException, InterruptedException {
-        worker.addWorkflowType(TestSignalDuringLastDecisionWorkflowImpl.class);
+        worker.addWorkflowImplementationType(TestSignalDuringLastDecisionWorkflowImpl.class);
         StartWorkflowOptions options = newStartWorkflowOptions();
         options.setWorkflowId("testSignalDuringLastDecision-" + UUID.randomUUID().toString());
         TestWorkflowSignaled client = cadenceClient.newWorkflowStub(TestWorkflowSignaled.class, options);
@@ -445,7 +473,7 @@ public class WorkfowTest {
      */
     @Test
     public void testTimerCallbackBlocked() {
-        worker.addWorkflowType(TestTimerCallbackBlockedWorkflowImpl.class);
+        worker.addWorkflowImplementationType(TestTimerCallbackBlockedWorkflowImpl.class);
         StartWorkflowOptions options = new StartWorkflowOptions();
         options.setExecutionStartToCloseTimeoutSeconds(2);
         options.setTaskStartToCloseTimeoutSeconds(1);
@@ -456,7 +484,9 @@ public class WorkfowTest {
             fail("failure expected");
         } catch (Exception e) {
             Throwable cause = e;
-            while(cause.getCause() != null) { cause = cause.getCause(); }
+            while (cause.getCause() != null) {
+                cause = cause.getCause();
+            }
             assertTrue(e.toString(), cause.getMessage().contains("Called from non workflow or workflow callback thread"));
         }
     }

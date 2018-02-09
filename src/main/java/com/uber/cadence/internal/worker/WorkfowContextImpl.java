@@ -27,9 +27,11 @@ class WorkfowContextImpl implements WorkflowContext {
     private final PollForDecisionTaskResponse decisionTask;
     private boolean cancelRequested;
     private ContinueAsNewWorkflowExecutionParameters continueAsNewOnCompletion;
+    private WorkflowExecutionStartedEventAttributes startedAttributes;
     
-    public WorkfowContextImpl(PollForDecisionTaskResponse decisionTask) {
+    public WorkfowContextImpl(PollForDecisionTaskResponse decisionTask, WorkflowExecutionStartedEventAttributes startedAttributes) {
         this.decisionTask = decisionTask;
+        this.startedAttributes = startedAttributes;
     }
     
     @Override
@@ -58,6 +60,19 @@ class WorkfowContextImpl implements WorkflowContext {
 
     @Override
     public void setContinueAsNewOnCompletion(ContinueAsNewWorkflowExecutionParameters continueParameters) {
+        if (continueParameters == null) {
+            continueParameters = new ContinueAsNewWorkflowExecutionParameters();
+        }
+//            continueParameters.setChildPolicy(startedAttributes);
+        if (continueParameters.getExecutionStartToCloseTimeoutSeconds() == 0) {
+            continueParameters.setExecutionStartToCloseTimeoutSeconds(startedAttributes.getExecutionStartToCloseTimeoutSeconds());
+        }
+        if (continueParameters.getTaskList() == null) {
+            continueParameters.setTaskList(startedAttributes.getTaskList().getName());
+        }
+        if (continueParameters.getTaskStartToCloseTimeoutSeconds() == 0) {
+            continueParameters.setTaskStartToCloseTimeoutSeconds(startedAttributes.getTaskStartToCloseTimeoutSeconds());
+        }
         this.continueAsNewOnCompletion = continueParameters;
     }
 

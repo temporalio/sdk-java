@@ -471,6 +471,9 @@ class DecisionsHelper {
             details = sw.toString().getBytes(TaskPoller.UTF8_CHARSET);
         }
         FailWorkflowExecutionDecisionAttributes result = new FailWorkflowExecutionDecisionAttributes();
+        if (reason == null || reason.isEmpty()) {
+            reason = "unknown"; // required field by Cadence
+        }
         result.setReason(WorkflowExecutionUtils.truncateReason(reason));
         result.setDetails(details);
         return result;

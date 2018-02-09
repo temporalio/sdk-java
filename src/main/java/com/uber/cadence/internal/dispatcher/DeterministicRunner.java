@@ -64,6 +64,11 @@ interface DeterministicRunner {
     boolean isDone();
 
     /**
+     * @return exit value passed to WorkflowThreadInternal.exit().
+     */
+    <R> R getExitValue();
+
+    /**
      * * Destroys all threads by throwing {@link DestroyWorkflowThreadError} without waiting for their completion
      */
     void close();

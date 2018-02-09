@@ -16,6 +16,7 @@
  */
 package com.uber.cadence.internal.worker;
 
+import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.EventType;
 import com.uber.cadence.HistoryEvent;
@@ -38,8 +39,10 @@ class HistoryHelper {
         private Iterator<HistoryEvent> events;
 
         private Queue<HistoryEvent> bufferedEvents = new LinkedList<>();
+        private WorkflowExecutionStartedEventAttributes workflowExecutionStartedEventAttributes;
 
         public EventsIterator(DecisionTaskWithHistoryIterator decisionTaskWithHistoryIterator) {
+            this.workflowExecutionStartedEventAttributes = decisionTaskWithHistoryIterator.getWorkflowExecutionStartedEventAttributes();
             this.decisionTaskWithHistoryIterator = decisionTaskWithHistoryIterator;
             this.events = decisionTaskWithHistoryIterator.getHistory();
         }
@@ -82,12 +85,20 @@ class HistoryHelper {
         public void remove() {
             throw new UnsupportedOperationException();
         }
+
+        public WorkflowExecutionStartedEventAttributes getWorkflowExecutionStartedEventAttributes() {
+            return workflowExecutionStartedEventAttributes;
+        }
     }
 
     private final EventsIterator events;
 
     public HistoryHelper(DecisionTaskWithHistoryIterator decisionTasks) {
         this.events = new EventsIterator(decisionTasks);
+    }
+
+    public WorkflowExecutionStartedEventAttributes getWorkflowExecutionStartedEventAttributes() {
+        return events.getWorkflowExecutionStartedEventAttributes();
     }
 
     public EventsIterator getEvents() {

@@ -151,11 +151,18 @@ public class WorkflowExecutionUtils {
             pageToken = response.getNextPageToken();
             History history = response.getHistory();
             if (history != null) {
-                List<HistoryEvent> events = history.getEvents();
-                event = events.get(history.getEventsSize() - 1);
-                if (isWorkflowExecutionCompletedEvent(event)) {
-                    break;
+                event = history.getEvents().get(0);
+                if (!isWorkflowExecutionCompletedEvent(event)) {
+                    throw new RuntimeException("Last history event is not completion event: " + event);
                 }
+                // Workflow called continueAsNew. Start polling the new generation with new runId.
+                if (event.getEventType() == EventType.WorkflowExecutionContinuedAsNew) {
+                    pageToken = null;
+                    workflowExecution = new WorkflowExecution().setWorkflowId(workflowExecution.getWorkflowId()).
+                            setRunId(event.getWorkflowExecutionContinuedAsNewEventAttributes().getNewExecutionRunId());
+                    continue;
+                }
+                break;
             }
         } while (true);
         return event;

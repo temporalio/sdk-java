@@ -80,7 +80,7 @@ class SyncWorkflow implements AsyncWorkflow {
             return false;
         }
         runner.runUntilAllBlocked();
-        return workflowProc.isDone(); // Do not wait for all other threads.
+        return runner.isDone() || workflowProc.isDone(); // Do not wait for all other threads.
     }
 
     @Override

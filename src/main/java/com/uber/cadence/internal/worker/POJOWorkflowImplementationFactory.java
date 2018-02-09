@@ -154,7 +154,11 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
             } catch (IllegalAccessException e) {
                 throw throwWorkflowFailure(e);
             } catch (InvocationTargetException e) {
-                throw throwWorkflowFailure(e.getTargetException());
+                Throwable targetException = e.getTargetException();
+                if (targetException instanceof Error) {
+                    throw (Error)targetException;
+                }
+                throw throwWorkflowFailure(targetException);
             }
         }
 
@@ -183,6 +187,10 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
             } catch (IllegalAccessException e) {
                 throw new RuntimeException(e);
             } catch (InvocationTargetException e) {
+                Throwable targetException = e.getTargetException();
+                if (targetException instanceof Error) {
+                    throw (Error)targetException;
+                }
                 throw new RuntimeException(e.getTargetException());
             }
         }

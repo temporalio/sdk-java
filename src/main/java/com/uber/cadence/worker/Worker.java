@@ -67,7 +67,7 @@ public final class Worker {
         }
     }
 
-    public void addWorkflowType(Class<?> workflowImplementationClass) {
+    public void addWorkflowImplementationType(Class<?> workflowImplementationClass) {
         if (workflowWorker == null) {
             throw new IllegalStateException("disableWorkflowWorker is set in worker options");
         }

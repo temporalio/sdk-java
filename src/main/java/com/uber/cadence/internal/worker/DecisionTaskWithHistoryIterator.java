@@ -18,6 +18,7 @@ package com.uber.cadence.internal.worker;
 
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.PollForDecisionTaskResponse;
+import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
 
 import java.util.Iterator;
 
@@ -27,4 +28,5 @@ import java.util.Iterator;
 public interface DecisionTaskWithHistoryIterator {
     PollForDecisionTaskResponse getDecisionTask();
     Iterator<HistoryEvent> getHistory();
+    WorkflowExecutionStartedEventAttributes getWorkflowExecutionStartedEventAttributes();
 }

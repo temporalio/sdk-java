@@ -197,6 +197,48 @@ public class DeterministicRunnerTest {
     }
 
     @Test
+    public void testDispatcherExit() throws Throwable {
+        DeterministicRunner d = new DeterministicRunnerImpl(() -> {
+            trace.add("root started");
+            WorkflowThread thread1 = WorkflowInternal.newThread(() -> {
+                trace.add("child1 started");
+                WorkflowThreadInternal.yield("reason1",
+                        () -> unblock1
+                );
+                trace.add("child1 done");
+            });
+            WorkflowThread thread2 = WorkflowInternal.newThread(() -> {
+                trace.add("child2 started");
+                WorkflowThreadInternal.yield("reason2",
+                        () -> unblock2
+                );
+                trace.add("child2 exiting");
+                WorkflowThreadInternal.exit("exitValue");
+                trace.add("child2 done");
+            });
+            thread1.start();
+            thread2.start();
+            thread1.join();
+            thread2.join();
+            trace.add("root done");
+        });
+        d.runUntilAllBlocked();
+        assertFalse(d.isDone());
+        unblock2 = true;
+        d.runUntilAllBlocked();
+        assertTrue(d.isDone());
+        assertEquals("exitValue", d.getExitValue());
+        String[] expected = new String[]{
+                "root started",
+                "child1 started",
+                "child2 started",
+                "child2 exiting",
+        };
+        assertTrace(expected, trace);
+
+    }
+
+    @Test
     public void testRootSelfInterrupt() throws Throwable {
         status = "initial";
         DeterministicRunner d = new DeterministicRunnerImpl(() -> {

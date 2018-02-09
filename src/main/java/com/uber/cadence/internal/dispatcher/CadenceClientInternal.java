@@ -54,7 +54,7 @@ public final class CadenceClientInternal implements CadenceClient {
         checkAnnotation(workflowInterface, WorkflowMethod.class);
         return (T) Proxy.newProxyInstance(WorkflowInternal.class.getClassLoader(),
                 new Class<?>[]{workflowInterface},
-                new WorkflowInvocationHandler(genericClient, options, dataConverter));
+                new WorkflowExternalInvocationHandler(genericClient, options, dataConverter));
     }
 
     private <T> void checkAnnotation(Class<T> workflowInterface, Class<? extends Annotation>... annotationClasses) {
@@ -80,7 +80,7 @@ public final class CadenceClientInternal implements CadenceClient {
         checkAnnotation(workflowInterface, WorkflowMethod.class, QueryMethod.class);
         return (T) Proxy.newProxyInstance(WorkflowInternal.class.getClassLoader(),
                 new Class<?>[]{workflowInterface},
-                new WorkflowInvocationHandler(genericClient, execution, dataConverter));
+                new WorkflowExternalInvocationHandler(genericClient, execution, dataConverter));
     }
 
     @Override
@@ -94,10 +94,10 @@ public final class CadenceClientInternal implements CadenceClient {
     }
     
     public static WorkflowExternalResult<Void> asyncStart(Functions.Proc workflow) {
-        WorkflowInvocationHandler.initAsyncInvocation();
+        WorkflowExternalInvocationHandler.initAsyncInvocation();
         try {
             workflow.apply();
-            return WorkflowInvocationHandler.getAsyncInvocationResult();
+            return WorkflowExternalInvocationHandler.getAsyncInvocationResult();
         } catch (Exception e) {
             return new FailedWorkflowExternalResult<>(e);
         }

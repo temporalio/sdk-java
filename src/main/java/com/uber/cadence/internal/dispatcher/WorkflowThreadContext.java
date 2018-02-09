@@ -249,6 +249,19 @@ class WorkflowThreadContext {
         runUntilBlocked();
     }
 
+    /**
+     * To be called only from a workflow thread.
+     */
+    public void exit() {
+        lock.lock();
+        try {
+            destroyRequested = true;
+        } finally {
+            lock.unlock();
+        }
+        throw new DestroyWorkflowThreadError();
+    }
+
     public void interrupt() {
         lock.lock();
         try {
