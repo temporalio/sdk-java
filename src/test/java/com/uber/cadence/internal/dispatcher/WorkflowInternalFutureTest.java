@@ -22,6 +22,8 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -210,6 +212,118 @@ public class WorkflowInternalFutureTest {
                 "root done"
         };
 
+        trace.setExpected(expected);
+    }
+
+    @Test
+    public void testAllOf() throws Throwable {
+        DeterministicRunner r = DeterministicRunner.newRunner(() -> {
+            trace.add("root begin");
+            WorkflowFuture<String> f1 = Workflow.newFuture();
+            WorkflowFuture<String> f2 = Workflow.newFuture();
+            WorkflowFuture<String> f3 = Workflow.newFuture();
+
+            WorkflowInternal.newThread(
+                    () -> {
+                        trace.add("thread1 begin");
+                        f1.complete("value1");
+                        trace.add("thread1 done");
+                    }
+            ).start();
+            WorkflowInternal.newThread(
+                    () -> {
+                        trace.add("thread3 begin");
+                        f3.complete("value3");
+                        trace.add("thread3 done");
+                    }
+            ).start();
+            WorkflowInternal.newThread(
+                    () -> {
+                        trace.add("thread2 begin");
+                        f2.complete("value2");
+                        trace.add("thread2 done");
+                    }
+            ).start();
+            List<WorkflowFuture<String>> futures = new ArrayList<>();
+            futures.add(f1);
+            futures.add(f2);
+            futures.add(f3);
+            trace.add("root before allOf");
+            WorkflowFuture<List<String>> all = WorkflowFuture.allOf(futures);
+            List<String> expected = new ArrayList<>();
+            expected.add("value1");
+            expected.add("value2");
+            expected.add("value3");
+            assertEquals(expected, all.get());
+            trace.add("root done");
+        });
+        r.runUntilAllBlocked();
+        String[] expected = new String[]{
+                "root begin",
+                "root before allOf",
+                "thread1 begin",
+                "thread1 done",
+                "thread3 begin",
+                "thread3 done",
+                "thread2 begin",
+                "thread2 done",
+                "root done"
+        };
+        trace.setExpected(expected);
+    }
+
+    @Test
+    public void testAllOfArray() throws Throwable {
+        DeterministicRunner r = DeterministicRunner.newRunner(() -> {
+            trace.add("root begin");
+            WorkflowFuture<String> f1 = Workflow.newFuture();
+            WorkflowFuture<Integer> f2 = Workflow.newFuture();
+            WorkflowFuture<Boolean> f3 = Workflow.newFuture();
+
+            WorkflowInternal.newThread(
+                    () -> {
+                        trace.add("thread1 begin");
+                        f1.complete("value1");
+                        trace.add("thread1 done");
+                    }
+            ).start();
+            WorkflowInternal.newThread(
+                    () -> {
+                        trace.add("thread3 begin");
+                        f3.complete(true);
+                        trace.add("thread3 done");
+                    }
+            ).start();
+            WorkflowInternal.newThread(
+                    () -> {
+                        trace.add("thread2 begin");
+                        f2.complete(111);
+                        trace.add("thread2 done");
+                    }
+            ).start();
+            trace.add("root before allOf");
+            assertFalse(f1.isDone());
+            assertFalse(f2.isDone());
+            assertFalse(f3.isDone());
+            WorkflowFuture<Void> done = WorkflowFuture.allOf(f1, f2, f3);
+            done.get();
+            assertTrue(f1.isDone());
+            assertTrue(f2.isDone());
+            assertTrue(f3.isDone());
+            trace.add("root done");
+        });
+        r.runUntilAllBlocked();
+        String[] expected = new String[]{
+                "root begin",
+                "root before allOf",
+                "thread1 begin",
+                "thread1 done",
+                "thread3 begin",
+                "thread3 done",
+                "thread2 begin",
+                "thread2 done",
+                "root done"
+        };
         trace.setExpected(expected);
     }
 }

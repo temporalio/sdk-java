@@ -16,6 +16,10 @@
  */
 package com.uber.cadence.workflow;
 
+import com.uber.cadence.internal.dispatcher.WorkflowInternal;
+
+import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.Future;
 
 public interface WorkflowFuture<T> extends Future<T> {
@@ -28,4 +32,11 @@ public interface WorkflowFuture<T> extends Future<T> {
 
     <U> WorkflowFuture<U> handle(Functions.Func2<? super T, Exception, ? extends U> fn);
 
+    static <U> WorkflowFuture<List<U>> allOf(Collection<WorkflowFuture<U>> futures) {
+        return WorkflowInternal.futureAllOf(futures);
+    }
+
+    static WorkflowFuture<Void> allOf(WorkflowFuture<?>... futures) {
+        return WorkflowInternal.futureAllOf(futures);
+    }
 }

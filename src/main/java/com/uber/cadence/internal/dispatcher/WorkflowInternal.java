@@ -26,6 +26,8 @@ import com.uber.cadence.workflow.WorkflowQueue;
 import com.uber.cadence.workflow.WorkflowThread;
 
 import java.lang.reflect.Proxy;
+import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Supplier;
@@ -380,5 +382,13 @@ public final class WorkflowInternal {
 
     public static WorkflowContext getContext() {
         return getDecisionContext().getWorkflowContext();
+    }
+
+    public static <U> WorkflowFuture<List<U>> futureAllOf(Collection<WorkflowFuture<U>> futures) {
+        return new AllOfFuture(futures);
+    }
+
+    public static WorkflowFuture<Void> futureAllOf(WorkflowFuture<?>... futures) {
+        return new AllOfFuture(futures);
     }
 }
