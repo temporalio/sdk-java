@@ -23,6 +23,13 @@ import java.util.concurrent.locks.Lock;
 
 public final class Workflow {
 
+    /**
+     * @return context that contains information about currently running workflow.
+     */
+    public static WorkflowContext getContext() {
+        return WorkflowInternal.getContext();
+    }
+
     public static WorkflowThread newThread(Functions.Proc runnable) {
         return WorkflowInternal.newThread(runnable);
     }

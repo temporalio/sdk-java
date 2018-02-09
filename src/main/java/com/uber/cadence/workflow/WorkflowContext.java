@@ -31,17 +31,14 @@ public interface WorkflowContext {
     
     void setContinueAsNewOnCompletion(ContinueAsNewWorkflowExecutionParameters continueParameters);
 
-//    List<String> getTagList();
-
 //    com.uber.cadence.ChildPolicy getChildPolicy();
 
 //    String getContinuedExecutionRunId();
 
     int getExecutionStartToCloseTimeoutSeconds();
 
-    String getTaskList();
+    int getDecisionTaskTimeoutSeconds();
 
-    //TODO: Cadence doesn't support task priority
-//    int getTaskPriority();
+    String getTaskList();
 
 }

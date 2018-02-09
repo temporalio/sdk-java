@@ -20,6 +20,7 @@ import com.uber.cadence.workflow.ActivitySchedulingOptions;
 import com.uber.cadence.workflow.ContinueAsNewWorkflowExecutionParameters;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.QueryMethod;
+import com.uber.cadence.workflow.WorkflowContext;
 import com.uber.cadence.workflow.WorkflowFuture;
 import com.uber.cadence.workflow.WorkflowQueue;
 import com.uber.cadence.workflow.WorkflowThread;
@@ -375,5 +376,9 @@ public final class WorkflowInternal {
      */
     private WorkflowInternal() {
 
+    }
+
+    public static WorkflowContext getContext() {
+        return getDecisionContext().getWorkflowContext();
     }
 }

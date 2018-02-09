@@ -25,6 +25,7 @@ import com.uber.cadence.ActivityType;
 import com.uber.cadence.internal.worker.POJOQueryImplementationFactory;
 import com.uber.cadence.workflow.ContinueAsNewWorkflowExecutionParameters;
 import com.uber.cadence.workflow.Functions;
+import com.uber.cadence.workflow.WorkflowContext;
 import com.uber.cadence.workflow.WorkflowFuture;
 
 import java.util.HashMap;
@@ -150,6 +151,10 @@ class SyncDecisionContext {
 
     public DataConverter getDataConverter() {
         return converter;
+    }
+
+    public WorkflowContext getWorkflowContext() {
+        return context.getWorkflowContext();
     }
 
     private static class ActivityFutureCancellationHandler<T> implements BiConsumer<WorkflowFuture<T>, Boolean> {
