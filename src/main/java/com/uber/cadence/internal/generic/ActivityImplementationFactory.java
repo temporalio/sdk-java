@@ -18,8 +18,8 @@ package com.uber.cadence.internal.generic;
 
 import com.uber.cadence.ActivityType;
 
-public abstract class ActivityImplementationFactory {
+public interface ActivityImplementationFactory {
 
-    public abstract ActivityImplementation getActivityImplementation(ActivityType activityType);
-    
+    ActivityImplementation getActivityImplementation(ActivityType activityType);
+
 }

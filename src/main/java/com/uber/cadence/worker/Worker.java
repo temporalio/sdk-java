@@ -71,14 +71,22 @@ public final class Worker {
         if (workflowWorker == null) {
             throw new IllegalStateException("disableWorkflowWorker is set in worker options");
         }
-        workflowWorker.addWorkflow(workflowImplementationClass);
+        workflowWorker.addWorkflowImplementationType(workflowImplementationClass);
     }
 
-    public void addActivities(Object activityImplementation) {
+    public void setWorkflowImplementationTypes(Class<?>... workflowImplementationType) {
+        workflowWorker.setWorkflowImplementationTypes(workflowImplementationType);
+    }
+
+    public void addActivitiesImplementation(Object activityImplementation) {
         if (activityWorker == null) {
             throw new IllegalStateException("disableActivityWorker is set in worker options");
         }
         activityWorker.addActivityImplementation(activityImplementation);
+    }
+
+    public void setActivitiesImplementation(Object... activitiesImplementation) {
+        activityWorker.setActivitiesImplementation(activitiesImplementation);
     }
 
     public void setIdentity(String identity) {

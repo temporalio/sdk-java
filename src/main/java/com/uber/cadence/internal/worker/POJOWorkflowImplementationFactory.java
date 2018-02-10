@@ -56,7 +56,14 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
         this.dataConverter = dataConverter;
     }
 
-    public void addWorkflow(Class<?> workflowImplementationClass) {
+    public void setWorkflowImplementationTypes(Class<?>[] workflowImplementationTypes) {
+        factories.clear();
+        for (Class<?> type : workflowImplementationTypes) {
+            addWorkflowImplementationType(type);
+        }
+    }
+
+    public void addWorkflowImplementationType(Class<?> workflowImplementationClass) {
         TypeToken<?>.TypeSet interfaces = TypeToken.of(workflowImplementationClass).getTypes().interfaces();
         if (interfaces.isEmpty()) {
             throw new IllegalArgumentException("Workflow must implement at least one interface");
@@ -75,7 +82,7 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
                 }
                 if (workflowMethod != null) {
                     Functions.Func<SyncWorkflowDefinition> factory =
-                            ()-> new POJOWorkflowImplementation(method, workflowImplementationClass, signalHandlers);
+                            () -> new POJOWorkflowImplementation(method, workflowImplementationClass, signalHandlers);
 
                     String workflowName = workflowMethod.name();
                     if (workflowName.isEmpty()) {
@@ -156,7 +163,7 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
             } catch (InvocationTargetException e) {
                 Throwable targetException = e.getTargetException();
                 if (targetException instanceof Error) {
-                    throw (Error)targetException;
+                    throw (Error) targetException;
                 }
                 throw throwWorkflowFailure(targetException);
             }
@@ -189,7 +196,7 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
             } catch (InvocationTargetException e) {
                 Throwable targetException = e.getTargetException();
                 if (targetException instanceof Error) {
-                    throw (Error)targetException;
+                    throw (Error) targetException;
                 }
                 throw new RuntimeException(e.getTargetException());
             }

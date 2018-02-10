@@ -17,7 +17,6 @@
 package com.uber.cadence.internal.dispatcher;
 
 import com.uber.cadence.internal.DataConverter;
-import com.uber.cadence.internal.JsonDataConverter;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.internal.worker.AsyncDecisionTaskHandler;
 import com.uber.cadence.internal.worker.AsyncWorkflowFactory;
@@ -57,8 +56,12 @@ public class SyncWorkflowWorker extends GenericWorker {
         setTaskListToPoll(taskListToPoll);
     }
 
-    public void addWorkflow(Class<?> workflowImplementationClass) {
-        factory.addWorkflow(workflowImplementationClass);
+    public void addWorkflowImplementationType(Class<?> workflowImplementationClass) {
+        factory.addWorkflowImplementationType(workflowImplementationClass);
+    }
+
+    public void setWorkflowImplementationTypes(Class<?>[] workflowImplementationTypes) {
+        factory.setWorkflowImplementationTypes(workflowImplementationTypes);
     }
 
     public void setDataConverter(DataConverter dataConverter) {
@@ -124,5 +127,4 @@ public class SyncWorkflowWorker extends GenericWorker {
         shutdownNow();
         return awaitTermination(timeout, TimeUnit.MILLISECONDS);
     }
-
 }

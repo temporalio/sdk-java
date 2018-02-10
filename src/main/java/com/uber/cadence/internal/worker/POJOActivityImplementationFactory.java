@@ -36,7 +36,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-public class POJOActivityImplementationFactory extends ActivityImplementationFactory {
+public class POJOActivityImplementationFactory implements ActivityImplementationFactory {
 
     private static final byte[] EMPTY_BLOB = {};
     private DataConverter dataConverter;
@@ -79,6 +79,13 @@ public class POJOActivityImplementationFactory extends ActivityImplementationFac
     @Override
     public ActivityImplementation getActivityImplementation(ActivityType activityType) {
         return activities.get(activityType.getName());
+    }
+
+    public void setActivitiesImplementation(Object[] activitiesImplementation) {
+        activities.clear();
+        for (Object activity : activitiesImplementation) {
+            addActivityImplementation(activity);
+        }
     }
 
     private class POJOActivityImplementation implements ActivityImplementation {

@@ -92,7 +92,7 @@ public class WorkfowTest {
         service = new WorkflowServiceTChannel(host, port, serviceName, optionsBuilder.build());
         worker = new Worker(service, domain, taskList, null);
         activities = new TestActivitiesImpl();
-        worker.addActivities(activities);
+        worker.addActivitiesImplementation(activities);
         cadenceClient = CadenceClient.newClient(service, domain);
         worker.start();
         newStartWorkflowOptions();

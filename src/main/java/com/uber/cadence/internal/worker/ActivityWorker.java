@@ -39,6 +39,11 @@ public class ActivityWorker {
         factory.addActivityImplementation(activity);
     }
 
+
+    public void setActivitiesImplementation(Object[] activitiesImplementation) {
+        factory.setActivitiesImplementation(activitiesImplementation);
+    }
+
     public WorkflowService.Iface getService() {
         return worker.getService();
     }
