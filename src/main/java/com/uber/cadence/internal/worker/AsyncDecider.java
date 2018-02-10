@@ -292,15 +292,14 @@ class AsyncDecider {
     }
 
     // TODO: Simplify as Cadence reorders concurrent decisions on the server.
-    public void decide() throws Exception {
+    public void decide() {
         try {
             long lastNonReplayedEventId = historyHelper.getLastNonReplayEventId();
             // Buffer events until the next DecisionTaskStarted and then process them
             // setting current time to the time of DecisionTaskStarted event
             HistoryHelper.EventsIterator eventsIterator = historyHelper.getEvents();
-            List<HistoryEvent> reordered = null;
             do {
-                List<HistoryEvent> decisionCompletionToStartEvents = new ArrayList<HistoryEvent>();
+                List<HistoryEvent> decisionCompletionToStartEvents = new ArrayList<>();
                 while (eventsIterator.hasNext()) {
                     HistoryEvent event = eventsIterator.next();
                     EventType eventType = event.getEventType();

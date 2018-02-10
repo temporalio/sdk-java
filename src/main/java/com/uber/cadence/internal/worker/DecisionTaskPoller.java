@@ -16,18 +16,20 @@
  */
 package com.uber.cadence.internal.worker;
 
-import com.uber.cadence.History;
-import com.uber.cadence.RespondQueryTaskCompletedRequest;
-import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
-import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.GetWorkflowExecutionHistoryRequest;
 import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
+import com.uber.cadence.History;
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.PollForDecisionTaskRequest;
 import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.RespondDecisionTaskCompletedRequest;
+import com.uber.cadence.RespondQueryTaskCompletedRequest;
 import com.uber.cadence.TaskList;
+import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
+import com.uber.cadence.WorkflowQuery;
 import com.uber.cadence.WorkflowService;
+import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.thrift.TException;
@@ -192,6 +194,21 @@ public class DecisionTaskPoller implements TaskPoller {
         return true;
     }
 
+    public byte[] queryWorkflowExecution(WorkflowExecution execution, String queryType, byte[] args) throws Exception {
+        PollForDecisionTaskResponse task = new PollForDecisionTaskResponse();
+        Iterator<HistoryEvent> history = WorkflowExecutionUtils.getHistory(service, domain, execution);
+        DecisionTaskWithHistoryIterator historyIterator = new ReplayDecisionTaskWithHistoryIterator(execution, history);
+        WorkflowQuery query = new WorkflowQuery();
+        query.setQueryType(queryType).setQueryArgs(args);
+        historyIterator.getDecisionTask().setQuery(query);
+        Object taskCompletedRequest = decisionTaskHandler.handleDecisionTask(historyIterator);
+        if (taskCompletedRequest instanceof RespondQueryTaskCompletedRequest) {
+            RespondQueryTaskCompletedRequest r = (RespondQueryTaskCompletedRequest) taskCompletedRequest;
+            return r.getQueryResult();
+        }
+        throw new RuntimeException("Query returned wrong response: " + taskCompletedRequest);
+    }
+
     private void validate() throws IllegalStateException {
         if (validated) {
             return;
@@ -283,6 +300,58 @@ public class DecisionTaskPoller implements TaskPoller {
         @Override
         public WorkflowExecutionStartedEventAttributes getWorkflowExecutionStartedEventAttributes() {
             return workflowExecutionStartedEventAttributes;
+        }
+    }
+
+    private static class ReplayDecisionTaskWithHistoryIterator implements DecisionTaskWithHistoryIterator {
+
+        private final Iterator<HistoryEvent> history;
+        private final PollForDecisionTaskResponse task;
+        private final WorkflowExecutionStartedEventAttributes startedEvent;
+        private HistoryEvent first;
+
+        private ReplayDecisionTaskWithHistoryIterator(WorkflowExecution execution, Iterator<HistoryEvent> history) {
+            this.history = history;
+            first = history.next();
+            this.startedEvent = first.getWorkflowExecutionStartedEventAttributes();
+            if (startedEvent == null) {
+                throw new IllegalArgumentException("First history event is not WorkflowExecutionStarted, but: " + first.getEventType());
+            }
+            task = new PollForDecisionTaskResponse();
+            task.setWorkflowExecution(execution);
+            task.setStartedEventId(Long.MAX_VALUE);
+            task.setPreviousStartedEventId(Long.MAX_VALUE);
+            task.setWorkflowType(startedEvent.getWorkflowType());
+        }
+
+        @Override
+        public PollForDecisionTaskResponse getDecisionTask() {
+            return task;
+        }
+
+        @Override
+        public Iterator<HistoryEvent> getHistory() {
+            return new Iterator<HistoryEvent>() {
+                @Override
+                public boolean hasNext() {
+                    return first != null || history.hasNext();
+                }
+
+                @Override
+                public HistoryEvent next() {
+                    if (first != null) {
+                        HistoryEvent result = first;
+                        first = null;
+                        return result;
+                    }
+                    return history.next();
+                }
+            };
+        }
+
+        @Override
+        public WorkflowExecutionStartedEventAttributes getWorkflowExecutionStartedEventAttributes() {
+            return startedEvent;
         }
     }
 }

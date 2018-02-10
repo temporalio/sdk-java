@@ -367,7 +367,7 @@ public class WorkfowTest {
     }
 
     @Test
-    public void testSignal() throws TimeoutException, InterruptedException {
+    public void testSignal() throws Exception {
         worker.addWorkflowImplementationType(TestSignalWorkflowImpl.class);
         QueryableWorkflow client = cadenceClient.newWorkflowStub(QueryableWorkflow.class, newStartWorkflowOptions());
         // To execute workflow client.execute() would do. But we want to start workflow and immediately return.
@@ -376,6 +376,13 @@ public class WorkfowTest {
         client.mySignal("Hello ");
         Thread.sleep(200);
         assertEquals("Hello ", client.getState());
+
+        // Test query through replay by a local worker.
+        Worker queryWorker = new Worker(service, domain, taskList, null);
+        queryWorker.addWorkflowImplementationType(TestSignalWorkflowImpl.class);
+        String queryResult = queryWorker.queryWorkflowExecution(result.getExecution(), "QueryableWorkflow::getState", String.class);
+        assertEquals("Hello ", queryResult);
+
         client.mySignal("World!");
         assertEquals("World!", client.getState());
         assertEquals("Hello World!", result.getResult());

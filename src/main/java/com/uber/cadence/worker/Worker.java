@@ -16,6 +16,7 @@
  */
 package com.uber.cadence.worker;
 
+import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.internal.dispatcher.SyncWorkflowWorker;
 import com.uber.cadence.internal.worker.ActivityWorker;
@@ -127,5 +128,24 @@ public final class Worker {
         return "Worker{" +
                 "options=" + options +
                 '}';
+    }
+
+    /**
+     * This is an utility method to query a workflow execution using this particular instance of a worker.
+     * It gets a history from a Cadence service, replays a workflow code and then runs the query.
+     * This method is useful to troubleshoot workflows by running them in a debugger.
+     * To work the workflow implementation type must be registered with this worker.
+     * In most cases using {@link com.uber.cadence.client.CadenceClient} to query workflows is preferable,
+     * as it doesn't require workflow implementation code to be available.
+     *
+     * @param execution  workflow execution to replay and then query locally
+     * @param queryType  query type to execute
+     * @param returnType return type of the query result
+     * @param args       query arguments
+     * @param <R>        type of the query result
+     * @return query result
+     */
+    public <R> R queryWorkflowExecution(WorkflowExecution execution, String queryType, Class<R> returnType, Object... args) throws Exception {
+        return workflowWorker.queryWorkflowExecution(execution, queryType, returnType, args);
     }
 }

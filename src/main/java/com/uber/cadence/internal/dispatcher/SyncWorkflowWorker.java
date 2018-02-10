@@ -16,8 +16,9 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
-import com.uber.cadence.internal.DataConverter;
+import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
+import com.uber.cadence.internal.DataConverter;
 import com.uber.cadence.internal.worker.AsyncDecisionTaskHandler;
 import com.uber.cadence.internal.worker.AsyncWorkflowFactory;
 import com.uber.cadence.internal.worker.DecisionTaskPoller;
@@ -42,6 +43,8 @@ public class SyncWorkflowWorker extends GenericWorker {
     private POJOWorkflowImplementationFactory factory = new POJOWorkflowImplementationFactory(dataConverter);
 
     private ExecutorService workflowThreadPool;
+
+    private DecisionTaskPoller decisionTaskPoller;
 
     public SyncWorkflowWorker() {
         setIdentity(ManagementFactory.getRuntimeMXBean().getName());
@@ -83,16 +86,30 @@ public class SyncWorkflowWorker extends GenericWorker {
         return THREAD_NAME_PREFIX + getTaskListToPoll() + " ";
     }
 
+    public <R> R queryWorkflowExecution(WorkflowExecution execution, String queryType, Class<R> returnType, Object... args) throws Exception {
+        createDecisionTaskPoller();
+        byte[] serializedArgs = dataConverter.toData(args);
+        byte[] result = decisionTaskPoller.queryWorkflowExecution(execution, queryType, serializedArgs);
+        return dataConverter.fromData(result, returnType);
+    }
+
     @Override
     protected TaskPoller createPoller() {
-        DecisionTaskPoller result = new DecisionTaskPoller();
+        createDecisionTaskPoller();
+        return decisionTaskPoller;
+    }
+
+    private void createDecisionTaskPoller() {
+        if (decisionTaskPoller != null) {
+            return;
+        }
+        decisionTaskPoller = new DecisionTaskPoller();
         AsyncWorkflowFactory workflowFactory = new SyncWorkflowFactory(factory, dataConverter, workflowThreadPool);
-        result.setDecisionTaskHandler(new AsyncDecisionTaskHandler(workflowFactory));
-        result.setDomain(getDomain());
-        result.setIdentity(getIdentity());
-        result.setService(getService());
-        result.setTaskListToPoll(getTaskListToPoll());
-        return result;
+        decisionTaskPoller.setDecisionTaskHandler(new AsyncDecisionTaskHandler(workflowFactory));
+        decisionTaskPoller.setDomain(getDomain());
+        decisionTaskPoller.setIdentity(getIdentity());
+        decisionTaskPoller.setService(getService());
+        decisionTaskPoller.setTaskListToPoll(getTaskListToPoll());
     }
 
     @Override

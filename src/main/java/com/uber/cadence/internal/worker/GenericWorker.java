@@ -16,13 +16,13 @@
  */
 package com.uber.cadence.internal.worker;
 
-import com.uber.cadence.internal.WorkerBase;
-import com.uber.cadence.internal.common.FlowConstants;
 import com.uber.cadence.BadRequestError;
 import com.uber.cadence.DomainAlreadyExistsError;
 import com.uber.cadence.InternalServiceError;
 import com.uber.cadence.RegisterDomainRequest;
 import com.uber.cadence.WorkflowService;
+import com.uber.cadence.internal.WorkerBase;
+import com.uber.cadence.internal.common.FlowConstants;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.thrift.TException;
