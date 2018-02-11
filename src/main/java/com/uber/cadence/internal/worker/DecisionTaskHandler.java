@@ -38,7 +38,7 @@ public abstract class DecisionTaskHandler {
      */
     public abstract Object handleDecisionTask(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Exception;
 
-    public abstract String getAsynchronousThreadDump(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Exception;
+    public abstract String getAsynchronousThreadDump(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Throwable;
 
 //    public abstract WorkflowDefinition loadWorkflowThroughReplay(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Exception;
 

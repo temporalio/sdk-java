@@ -16,12 +16,51 @@
  */
 package com.uber.cadence.workflow;
 
+import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.internal.StartWorkflowOptions;
 import com.uber.cadence.internal.dispatcher.WorkflowInternal;
 
 import java.util.concurrent.Future;
 import java.util.concurrent.locks.Lock;
 
 public final class Workflow {
+
+    /**
+     * Creates client stub to activities that implement given interface.
+     *
+     * @param activityInterface interface type implemented by activities
+     */
+    public static <T> T newActivityStub(Class<T> activityInterface, ActivitySchedulingOptions options) {
+        return WorkflowInternal.newActivityStub(activityInterface, options);
+    }
+
+    /**
+     * Creates client stub to a child workflow that implements given interface using
+     * parent options.
+     *
+     * @param workflowInterface interface type implemented by activities
+     */
+    public static <T> T newChildWorkflowStub(Class<T> workflowInterface) {
+        return WorkflowInternal.newChildWorkflowStub(workflowInterface, null);
+    }
+
+    /**
+     * Creates client stub to a child workflow that implements given interface.
+     *
+     * @param workflowInterface interface type implemented by activities
+     * @param options
+     */
+    public static <T> T newChildWorkflowStub(Class<T> workflowInterface, StartWorkflowOptions options) {
+        return WorkflowInternal.newChildWorkflowStub(workflowInterface, options);
+    }
+
+    /**
+     * Extracts workflow execution from a stub created through {@link #newChildWorkflowStub(Class, StartWorkflowOptions)}.
+     * Wrapped in a future as child workflow is started asynchronously.
+     */
+    public static WorkflowFuture<WorkflowExecution> getWorkflowExecution(Object workflowStub) {
+        return WorkflowInternal.getWorkflowExecution(workflowStub);
+    }
 
     /**
      * @return context that contains information about currently running workflow.
@@ -83,15 +122,6 @@ public final class Workflow {
      */
     public static long currentTimeMillis() {
         return WorkflowInternal.currentTimeMillis();
-    }
-
-    /**
-     * Creates client proxy to activities that implement given interface.
-     *
-     * @param activityInterface interface type implemented by activities
-     */
-    public static <T> T newActivityStub(Class<T> activityInterface, ActivitySchedulingOptions options) {
-        return WorkflowInternal.newActivityStub(activityInterface, options);
     }
 
     /**

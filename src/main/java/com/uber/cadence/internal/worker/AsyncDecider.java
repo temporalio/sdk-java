@@ -63,13 +63,13 @@ class AsyncDecider {
 
     private Throwable failure;
 
-    public AsyncDecider(AsyncWorkflow workflow, HistoryHelper historyHelper, DecisionsHelper decisionsHelper) throws Exception {
+    public AsyncDecider(String domain, AsyncWorkflow workflow, HistoryHelper historyHelper, DecisionsHelper decisionsHelper) {
         this.workflow = workflow;
         this.historyHelper = historyHelper;
         this.decisionsHelper = decisionsHelper;
         this.activityClient = new GenericAsyncActivityClientImpl(decisionsHelper);
         PollForDecisionTaskResponse decisionTask = historyHelper.getDecisionTask();
-        workflowContext = new WorkfowContextImpl(decisionTask, historyHelper.getWorkflowExecutionStartedEventAttributes());
+        workflowContext = new WorkfowContextImpl(domain, decisionTask, historyHelper.getWorkflowExecutionStartedEventAttributes());
         this.workflowClient = new GenericAsyncWorkflowClientImpl(decisionsHelper, workflowContext);
         this.workflowClock = new AsyncWorkflowClockImpl(decisionsHelper);
         context = new AsyncDecisionContextImpl(activityClient, workflowClient, workflowClock, workflowContext);
@@ -292,7 +292,7 @@ class AsyncDecider {
     }
 
     // TODO: Simplify as Cadence reorders concurrent decisions on the server.
-    public void decide() {
+    public void decide() throws Throwable {
         try {
             long lastNonReplayedEventId = historyHelper.getLastNonReplayEventId();
             // Buffer events until the next DecisionTaskStarted and then process them
@@ -344,7 +344,7 @@ class AsyncDecider {
 //            // Throwing from here drops decision task which is OK as it is rescheduled after its StartToClose timeout.
 //            if (e.getErrorType() == ErrorType.Client && !"ThrottlingException".equals(e.getErrorCode())) {
 //                if (log.isErrorEnabled()) {
-//                    log.error("Failing workflow " + workflowContext.getWorkflowExecution(), e);
+//                    log.error("Failing workflow " + workflowContext.__getWorkflowExecution(), e);
 //                }
 //                decisionsHelper.failWorkflowDueToUnexpectedError(e);
 //            }
@@ -354,9 +354,10 @@ class AsyncDecider {
 //        }
         catch (Throwable e) {
             if (log.isErrorEnabled()) {
-                log.error("Failing workflow " + workflowContext.getWorkflowExecution(), e);
+                log.error("Failing decision due to unexpected problem: " + workflowContext.getWorkflowExecution(), e);
             }
-            decisionsHelper.failWorkflowDueToUnexpectedError(e);
+            throw e;
+//            decisionsHelper.failWorkflowDueToUnexpectedError(e);
         } finally {
             workflow.close();
         }

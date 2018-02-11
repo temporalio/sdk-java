@@ -16,14 +16,6 @@
  */
 package com.uber.cadence.internal.worker;
 
-import com.uber.cadence.internal.ChildWorkflowFailedException;
-import com.uber.cadence.internal.ChildWorkflowTerminatedException;
-import com.uber.cadence.internal.ChildWorkflowTimedOutException;
-import com.uber.cadence.internal.StartChildWorkflowFailedException;
-import com.uber.cadence.workflow.WorkflowContext;
-import com.uber.cadence.workflow.ContinueAsNewWorkflowExecutionParameters;
-import com.uber.cadence.internal.generic.GenericAsyncWorkflowClient;
-import com.uber.cadence.workflow.StartChildWorkflowExecutionParameters;
 import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.ChildWorkflowExecutionCanceledEventAttributes;
 import com.uber.cadence.ChildWorkflowExecutionCompletedEventAttributes;
@@ -39,6 +31,14 @@ import com.uber.cadence.StartChildWorkflowExecutionFailedEventAttributes;
 import com.uber.cadence.TaskList;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
+import com.uber.cadence.internal.ChildWorkflowFailedException;
+import com.uber.cadence.internal.ChildWorkflowTerminatedException;
+import com.uber.cadence.internal.ChildWorkflowTimedOutException;
+import com.uber.cadence.internal.StartChildWorkflowFailedException;
+import com.uber.cadence.internal.generic.GenericAsyncWorkflowClient;
+import com.uber.cadence.workflow.ContinueAsNewWorkflowExecutionParameters;
+import com.uber.cadence.workflow.StartChildWorkflowExecutionParameters;
+import com.uber.cadence.workflow.WorkflowContext;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -89,7 +89,7 @@ class GenericAsyncWorkflowClientImpl implements GenericAsyncWorkflowClient {
 
     @Override
     public Consumer<Throwable> startChildWorkflow(StartChildWorkflowExecutionParameters parameters,
-                                                  Consumer<String> runIdCallback,
+                                                  Consumer<WorkflowExecution> executionCallback,
                                                   BiConsumer<byte[], Throwable> callback) {
         final StartChildWorkflowExecutionDecisionAttributes attributes = new StartChildWorkflowExecutionDecisionAttributes();
         attributes.setWorkflowType(parameters.getWorkflowType());
@@ -97,27 +97,43 @@ class GenericAsyncWorkflowClientImpl implements GenericAsyncWorkflowClient {
         if (workflowId == null) {
             workflowId = generateUniqueId();
         }
+        if (parameters.getDomain() == null) {
+            // Could be removed as soon as server allows null for domain.
+            attributes.setDomain(workflowContext.getDomain());
+        } else {
+            attributes.setDomain(parameters.getDomain());
+        }
         attributes.setWorkflowId(workflowId);
         attributes.setInput(parameters.getInput());
-        attributes.setExecutionStartToCloseTimeoutSeconds(parameters.getExecutionStartToCloseTimeoutSeconds());
-        attributes.setTaskStartToCloseTimeoutSeconds(parameters.getTaskStartToCloseTimeoutSeconds());
-//        attributes.setTaskPriority(FlowHelpers.taskPriorityToString(parameters.getTaskPriority()));
-//        List<String> tagList = parameters.getTagList();
-//        if (tagList != null) {
-//            attributes.setTagList(tagList);
-//        }
-        ChildPolicy childPolicy = parameters.getChildPolicy();
-        if (childPolicy != null) {
-            attributes.setChildPolicy(childPolicy);
+        if (parameters.getExecutionStartToCloseTimeoutSeconds() == 0) {
+            // TODO: Substract time passed since the parent start
+            attributes.setExecutionStartToCloseTimeoutSeconds(workflowContext.getExecutionStartToCloseTimeoutSeconds());
+        } else {
+            attributes.setExecutionStartToCloseTimeoutSeconds(parameters.getExecutionStartToCloseTimeoutSeconds());
+        }
+        if (parameters.getTaskStartToCloseTimeoutSeconds() == 0) {
+            attributes.setTaskStartToCloseTimeoutSeconds(workflowContext.getDecisionTaskTimeoutSeconds());
+        } else {
+            attributes.setTaskStartToCloseTimeoutSeconds(parameters.getTaskStartToCloseTimeoutSeconds());
+        }
+        if (parameters.getChildPolicy() == null) {
+            // TODO: Child policy from a parent as soon as it is available in the WorkflowExecutionStarted event
+            // Or when server accepts null
+//            attributes.setChildPolicy(workflowContext.getChildPolicy());
+            attributes.setChildPolicy(ChildPolicy.TERMINATE);
+        } else {
+            attributes.setChildPolicy(parameters.getChildPolicy());
         }
         String taskList = parameters.getTaskList();
+        TaskList tl = new TaskList();
         if (taskList != null && !taskList.isEmpty()) {
-            TaskList tl = new TaskList();
             tl.setName(taskList);
-            attributes.setTaskList(tl);
+        } else {
+            tl.setName(workflowContext.getTaskList());
         }
+        attributes.setTaskList(tl);
         decisions.startChildWorkflowExecution(attributes);
-        final OpenChildWorkflowRequestInfo context = new OpenChildWorkflowRequestInfo(runIdCallback);
+        final OpenChildWorkflowRequestInfo context = new OpenChildWorkflowRequestInfo(executionCallback);
         context.setCompletionHandle(callback);
         scheduledExternalWorkflows.put(attributes.getWorkflowId(), context);
         return new ChildWorkflowCancellationHandler(attributes.getWorkflowId(), callback);
@@ -129,14 +145,14 @@ class GenericAsyncWorkflowClientImpl implements GenericAsyncWorkflowClient {
     }
 
     @Override
-    public Consumer<Throwable> startChildWorkflow(String workflow, byte[] input, Consumer<String> runIdCallback, BiConsumer<byte[], Throwable> callback) {
+    public Consumer<Throwable> startChildWorkflow(String workflow, byte[] input, Consumer<WorkflowExecution> executionCallback, BiConsumer<byte[], Throwable> callback) {
         StartChildWorkflowExecutionParameters parameters = new StartChildWorkflowExecutionParameters();
         WorkflowType workflowType = new WorkflowType();
         workflowType.setName(workflow);
         parameters.setWorkflowType(workflowType);
         parameters.setInput(input);
-        return startChildWorkflow(parameters, runIdCallback, (result, failure) -> {
-                callback.accept(result, failure);
+        return startChildWorkflow(parameters, executionCallback, (result, failure) -> {
+            callback.accept(result, failure);
         });
     }
 
@@ -229,8 +245,7 @@ class GenericAsyncWorkflowClientImpl implements GenericAsyncWorkflowClient {
         decisions.handleChildWorkflowExecutionStarted(event);
         OpenChildWorkflowRequestInfo scheduled = scheduledExternalWorkflows.get(workflowId);
         if (scheduled != null) {
-            String runId = attributes.getWorkflowExecution().getRunId();
-            scheduled.getRunIdCallback().accept(runId);
+            scheduled.getExecutionCallback().accept(attributes.getWorkflowExecution());
         }
     }
 

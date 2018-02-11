@@ -41,4 +41,5 @@ public interface WorkflowContext {
 
     String getTaskList();
 
+    String getDomain();
 }

@@ -105,7 +105,7 @@ public class SyncWorkflowWorker extends GenericWorker {
         }
         decisionTaskPoller = new DecisionTaskPoller();
         AsyncWorkflowFactory workflowFactory = new SyncWorkflowFactory(factory, dataConverter, workflowThreadPool);
-        decisionTaskPoller.setDecisionTaskHandler(new AsyncDecisionTaskHandler(workflowFactory));
+        decisionTaskPoller.setDecisionTaskHandler(new AsyncDecisionTaskHandler(domain, workflowFactory));
         decisionTaskPoller.setDomain(getDomain());
         decisionTaskPoller.setIdentity(getIdentity());
         decisionTaskPoller.setService(getService());

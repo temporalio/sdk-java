@@ -16,6 +16,8 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.internal.StartWorkflowOptions;
 import com.uber.cadence.workflow.ActivitySchedulingOptions;
 import com.uber.cadence.workflow.ContinueAsNewWorkflowExecutionParameters;
 import com.uber.cadence.workflow.Functions;
@@ -108,6 +110,20 @@ public final class WorkflowInternal {
         return (T) Proxy.newProxyInstance(WorkflowInternal.class.getClassLoader(),
                 new Class<?>[]{activityInterface},
                 new ActivityInvocationHandler(options));
+    }
+
+
+    public static <T> T newChildWorkflowStub(Class<T> workflowInterface, StartWorkflowOptions options) {
+        return (T) Proxy.newProxyInstance(WorkflowInternal.class.getClassLoader(),
+                new Class<?>[]{workflowInterface, WorkflowStub.class},
+                new ChildWorkflowInvocationHandler(options, getDecisionContext()));
+    }
+
+    public static WorkflowFuture<WorkflowExecution> getWorkflowExecution(Object workflowStub) {
+        if (workflowStub instanceof WorkflowStub) {
+            return ((WorkflowStub) workflowStub).__getWorkflowExecution();
+        }
+        throw new IllegalArgumentException("Not a workflow stub created through Workflow.newChildWorkflowStub: " + workflowStub);
     }
 
     /**

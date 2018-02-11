@@ -14,21 +14,19 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.internal.worker;
+package com.uber.cadence.internal.dispatcher;
 
 import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.workflow.WorkflowFuture;
 
-import java.util.function.Consumer;
+/**
+ * Interface that stub created through {@link com.uber.cadence.workflow.Workflow#newChildWorkflowStub(Class)} implements.
+ * Do not implement or use this interface in any application code.
+ * Use {@link com.uber.cadence.workflow.Workflow#getWorkflowExecution(Object)} to access {@link WorkflowExecution}
+ * out of a child workflow stub.
+ */
+public interface WorkflowStub {
+    String GET_EXECUTION_METHOD_NAME = "__getWorkflowExecution";
 
-class OpenChildWorkflowRequestInfo extends OpenRequestInfo<byte[], String> {
-
-    private final Consumer<WorkflowExecution> executionCallback;
-
-    public OpenChildWorkflowRequestInfo(Consumer<WorkflowExecution> executionCallback) {
-        this.executionCallback = executionCallback;
-    }
-
-    public Consumer<WorkflowExecution> getExecutionCallback() {
-        return executionCallback;
-    }
+    WorkflowFuture<WorkflowExecution> __getWorkflowExecution();
 }

@@ -22,6 +22,8 @@ import com.uber.cadence.WorkflowType;
 
 public final class StartChildWorkflowExecutionParameters implements Cloneable {
 
+    private String domain;
+
     private String control;
 
     private int executionStartToCloseTimeoutSeconds;
@@ -38,7 +40,12 @@ public final class StartChildWorkflowExecutionParameters implements Cloneable {
 
     private ChildPolicy childPolicy;
 
-    public StartChildWorkflowExecutionParameters() {
+    public String getDomain() {
+        return domain;
+    }
+
+    public void setDomain(String domain) {
+        this.domain = domain;
     }
 
     public String getControl() {

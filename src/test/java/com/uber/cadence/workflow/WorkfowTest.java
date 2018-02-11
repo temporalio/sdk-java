@@ -498,6 +498,61 @@ public class WorkfowTest {
         }
     }
 
+    public interface ITestChild {
+        @WorkflowMethod
+        String execute(String arg);
+    }
+
+    private static String child2Id = UUID.randomUUID().toString();
+
+    public static class TestParentWorkflow implements TestWorkflow1 {
+
+        private final ITestChild child1 = Workflow.newChildWorkflowStub(ITestChild.class);
+        private final ITestChild child2;
+
+        public TestParentWorkflow() {
+            StartWorkflowOptions options = new StartWorkflowOptions();
+            options.setWorkflowId(child2Id);
+            child2 = Workflow.newChildWorkflowStub(ITestChild.class, options);
+        }
+
+        @Override
+        public String execute() {
+            WorkflowFuture<String> r1 = Workflow.async(child1::execute, "Hello ");
+            String r2 = child2.execute("World!");
+            try {
+                assertEquals(child2Id, Workflow.getWorkflowExecution(child2).get().getWorkflowId());
+                return r1.get() + r2;
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    public static class TestChild implements ITestChild {
+
+        @Override
+        public String execute(String arg) {
+            return arg.toUpperCase();
+        }
+    }
+
+    @Test
+    public void testChildWorkflow() {
+        worker.addWorkflowImplementationType(TestParentWorkflow.class);
+        worker.addWorkflowImplementationType(TestChild.class);
+
+        StartWorkflowOptions options = new StartWorkflowOptions();
+        options.setExecutionStartToCloseTimeoutSeconds(2);
+        options.setTaskStartToCloseTimeoutSeconds(1);
+        options.setTaskList(taskList);
+        TestWorkflow1 client = cadenceClient.newWorkflowStub(TestWorkflow1.class, options);
+        assertEquals("HELLO WORLD!", client.execute());
+    }
+
+
     public interface TestActivities {
         String activity();
 

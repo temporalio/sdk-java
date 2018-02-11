@@ -63,6 +63,9 @@ class WorkflowThreadInternal implements WorkflowThread, DeterministicRunnerCorou
                 if (!context.destroyRequested()) {
                     context.setUnhandledException(e);
                 }
+            } catch (Error e) {
+                // Error aborts decision, not fail a workflow.
+                throw e;
             } catch (Throwable e) {
                 context.setUnhandledException(e);
             } finally {

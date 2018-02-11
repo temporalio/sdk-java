@@ -180,7 +180,7 @@ public class DecisionTaskPoller implements TaskPoller {
             if (firstTask != null) {
                 if (log.isWarnEnabled()) {
                     log.warn("DecisionTask failure: taskId= " + firstTask.getStartedEventId() + ", workflowExecution="
-                            + firstTask.getWorkflowExecution(), e);
+                            + firstTask.getWorkflowExecution() + ", reply=" + taskCompletedRequest, e);
                 }
             }
             if (taskCompletedRequest instanceof RespondDecisionTaskCompletedRequest && decisionsLog.isWarnEnabled()) {

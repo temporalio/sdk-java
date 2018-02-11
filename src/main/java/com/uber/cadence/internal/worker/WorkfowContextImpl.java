@@ -28,8 +28,10 @@ class WorkfowContextImpl implements WorkflowContext {
     private boolean cancelRequested;
     private ContinueAsNewWorkflowExecutionParameters continueAsNewOnCompletion;
     private WorkflowExecutionStartedEventAttributes startedAttributes;
-    
-    public WorkfowContextImpl(PollForDecisionTaskResponse decisionTask, WorkflowExecutionStartedEventAttributes startedAttributes) {
+    private final String domain;
+
+    public WorkfowContextImpl(String domain, PollForDecisionTaskResponse decisionTask, WorkflowExecutionStartedEventAttributes startedAttributes) {
+        this.domain = domain;
         this.decisionTask = decisionTask;
         this.startedAttributes = startedAttributes;
     }
@@ -76,16 +78,11 @@ class WorkfowContextImpl implements WorkflowContext {
         this.continueAsNewOnCompletion = continueParameters;
     }
 
+    // TODO: Implement as soon as WorkflowExecutionStartedEventAttributes have these fields added.
 //    @Override
 //    public WorkflowExecution getParentWorkflowExecution() {
 //        WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
 //        return attributes.getParentWorkflowExecution();
-//    }
-
-//    @Override
-//    public List<String> getTagList() {
-//        WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-//        return attributes.getTagList();
 //    }
 
 //    @Override
@@ -117,22 +114,14 @@ class WorkfowContextImpl implements WorkflowContext {
         return attributes.getTaskList().getName();
     }
 
-//    @Override
-//    public String getLambdaRole() {
-//        WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-//        return attributes.getLambdaRole();
-//    }
+    @Override
+    public String getDomain() {
+        return domain;
+    }
 
     private WorkflowExecutionStartedEventAttributes getWorkflowStartedEventAttributes() {
         HistoryEvent firstHistoryEvent = decisionTask.getHistory().getEvents().get(0);
         WorkflowExecutionStartedEventAttributes attributes = firstHistoryEvent.getWorkflowExecutionStartedEventAttributes();
         return attributes;
     }
-
-//    @Override
-//    public int getTaskPriority() {
-//        WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-//        String result = attributes.getTaskPriority();
-//        return FlowHelpers.taskPriorityToInt(result);
-//    }
 }

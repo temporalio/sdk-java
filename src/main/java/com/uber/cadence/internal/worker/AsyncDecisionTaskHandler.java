@@ -37,8 +37,10 @@ public class AsyncDecisionTaskHandler extends DecisionTaskHandler {
             + ".waitingTasksStacks");
 
     private final AsyncWorkflowFactory asyncWorkflowFactory;
+    private final String domain;
 
-    public AsyncDecisionTaskHandler(AsyncWorkflowFactory asyncWorkflowFactory) {
+    public AsyncDecisionTaskHandler(String domain, AsyncWorkflowFactory asyncWorkflowFactory) {
+        this.domain = domain;
         this.asyncWorkflowFactory = asyncWorkflowFactory;
     }
 
@@ -104,7 +106,7 @@ public class AsyncDecisionTaskHandler extends DecisionTaskHandler {
 //    }
 
     @Override
-    public String getAsynchronousThreadDump(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Exception {
+    public String getAsynchronousThreadDump(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Throwable {
         HistoryHelper historyHelper = new HistoryHelper(decisionTaskIterator);
         AsyncDecider decider = createDecider(historyHelper);
         decider.decide();
@@ -115,7 +117,7 @@ public class AsyncDecisionTaskHandler extends DecisionTaskHandler {
         PollForDecisionTaskResponse decisionTask = historyHelper.getDecisionTask();
         WorkflowType workflowType = decisionTask.getWorkflowType();
         DecisionsHelper decisionsHelper = new DecisionsHelper(decisionTask);
-        AsyncDecider decider = new AsyncDecider(asyncWorkflowFactory.getWorkflow(workflowType), historyHelper, decisionsHelper);
+        AsyncDecider decider = new AsyncDecider(domain, asyncWorkflowFactory.getWorkflow(workflowType), historyHelper, decisionsHelper);
         return decider;
     }
 }

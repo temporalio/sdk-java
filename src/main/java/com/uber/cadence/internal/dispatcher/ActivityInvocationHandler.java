@@ -21,40 +21,15 @@ import com.uber.cadence.workflow.ActivitySchedulingOptions;
 import com.uber.cadence.internal.common.FlowHelpers;
 import com.uber.cadence.workflow.WorkflowFuture;
 
-import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.util.concurrent.atomic.AtomicReference;
 
-class ActivityInvocationHandler implements InvocationHandler {
+class ActivityInvocationHandler extends AsyncInvocationHandler {
 
-    private static final ThreadLocal<AtomicReference<WorkflowFuture>> asyncResult = new ThreadLocal<>();
     private final ActivitySchedulingOptions options;
 
     public ActivityInvocationHandler(ActivitySchedulingOptions options) {
         this.options = options;
-    }
-
-    public static void initAsyncInvocation() {
-        if (asyncResult.get() != null) {
-            throw new IllegalStateException("already in asyncStart invocation");
-        }
-        asyncResult.set(new AtomicReference<>());
-    }
-
-    public static WorkflowFuture getAsyncInvocationResult() {
-        try {
-            AtomicReference<WorkflowFuture> reference = asyncResult.get();
-            if (reference == null) {
-                throw new IllegalStateException("initAsyncInvocation wasn't called");
-            }
-            WorkflowFuture result = reference.get();
-            if (result == null) {
-                throw new IllegalStateException("asyncStart result wasn't set");
-            }
-            return result;
-        } finally {
-            asyncResult.remove();
-        }
     }
 
     @Override

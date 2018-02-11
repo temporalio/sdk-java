@@ -33,10 +33,10 @@ public interface GenericAsyncWorkflowClient {
      * @param callback   Callback that is called upon child workflow completion or failure.
      * @return cancellation handle. Invoke {@link Consumer#accept(Object)} to cancel activity task.
      */
-    Consumer<Throwable> startChildWorkflow(StartChildWorkflowExecutionParameters parameters, Consumer<String> runIdCallback,
+    Consumer<Throwable> startChildWorkflow(StartChildWorkflowExecutionParameters parameters, Consumer<WorkflowExecution> executionCallback,
                                            BiConsumer<byte[], Throwable> callback);
 
-    Consumer<Throwable> startChildWorkflow(String workflow, byte[] input, Consumer<String> runIdCallback, BiConsumer<byte[], Throwable> callback);
+    Consumer<Throwable> startChildWorkflow(String workflow, byte[] input, Consumer<WorkflowExecution> executionCallback, BiConsumer<byte[], Throwable> callback);
 
     Consumer<Throwable> startChildWorkflow(String workflow, byte[] input, BiConsumer<byte[], Throwable> callback);
 

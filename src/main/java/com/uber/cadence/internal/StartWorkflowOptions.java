@@ -23,6 +23,8 @@ import java.util.List;
 
 public class StartWorkflowOptions {
 
+    private String domain;
+
     private String workflowId;
 
     private WorkflowIdReusePolicy workflowIdReusePolicy;
@@ -36,6 +38,14 @@ public class StartWorkflowOptions {
     private String taskList;
 
     private ChildPolicy childPolicy;
+
+    public String getDomain() {
+        return domain;
+    }
+
+    public void setDomain(String domain) {
+        this.domain = domain;
+    }
 
     public String getWorkflowId() {
         return workflowId;
