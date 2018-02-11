@@ -24,6 +24,11 @@ import com.uber.cadence.workflow.Functions;
 
 public interface CadenceClient {
 
+    /**
+     * Use this constant as a query type to get a workflow stack trace.
+     */
+    String QUERY_TYPE_STACK_TRCE = "__stack_trace";
+
     static CadenceClient newClient(WorkflowService.Iface service, String domain, CadenceClientOptions options) {
         return new CadenceClientInternal(service, domain, options);
     }

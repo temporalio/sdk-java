@@ -25,6 +25,7 @@ import com.uber.cadence.WorkflowExecutionSignaledEventAttributes;
 import com.uber.cadence.WorkflowQuery;
 import com.uber.cadence.internal.AsyncDecisionContext;
 import com.uber.cadence.workflow.ContinueAsNewWorkflowExecutionParameters;
+import com.uber.cadence.workflow.Functions;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -32,6 +33,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 class AsyncDecider {
 
@@ -282,7 +284,7 @@ class AsyncDecider {
         assert (event.getEventType() == EventType.WorkflowExecutionSignaled);
         final WorkflowExecutionSignaledEventAttributes signalAttributes = event.getWorkflowExecutionSignaledEventAttributes();
         if (completed) {
-            throw new IllegalStateException("Signal received after workflow is closed. TODO: Change signal handling from callback to a queue to fix the issue.");
+            throw new IllegalStateException("Signal received after workflow is closed.");
         }
         this.workflow.processSignal(signalAttributes.getSignalName(), signalAttributes.getInput());
     }
@@ -291,8 +293,11 @@ class AsyncDecider {
         decisionsHelper.handleDecisionCompletion(event.getDecisionTaskCompletedEventAttributes());
     }
 
-    // TODO: Simplify as Cadence reorders concurrent decisions on the server.
     public void decide() throws Throwable {
+        decideImpl(null);
+    }
+
+    private void decideImpl(Functions.Proc query) throws Throwable {
         try {
             long lastNonReplayedEventId = historyHelper.getLastNonReplayEventId();
             // Buffer events until the next DecisionTaskStarted and then process them
@@ -305,7 +310,9 @@ class AsyncDecider {
                     EventType eventType = event.getEventType();
                     if (eventType == EventType.DecisionTaskCompleted) {
                         decisionsHelper.setWorkflowContextData(event.getDecisionTaskCompletedEventAttributes().getExecutionContext());
-                    } else if (eventType == EventType.DecisionTaskStarted) {
+                    } else if (eventType == EventType.DecisionTaskStarted || !eventsIterator.hasNext()) {
+                        // Above check for the end of history is to support queries that get histories
+                        // without DecisionTaskStarted being the last event.
                         decisionsHelper.handleDecisionTaskStartedEvent();
 
                         if (!eventsIterator.isNextDecisionFailed()) {
@@ -354,27 +361,14 @@ class AsyncDecider {
 //        }
         catch (Throwable e) {
             if (log.isErrorEnabled()) {
-                log.error("Failing decision due to unexpected problem: " + workflowContext.getWorkflowExecution(), e);
+                log.warn("Failing decision due to unexpected problem: " + workflowContext.getWorkflowExecution(), e);
             }
             throw e;
-//            decisionsHelper.failWorkflowDueToUnexpectedError(e);
         } finally {
+            if (query != null) {
+                query.apply();
+            }
             workflow.close();
-        }
-    }
-
-    public String getAsynchronousThreadDumpAsString() {
-        checkAsynchronousThreadDumpState();
-        return workflow.getAsynchronousThreadDump();
-    }
-
-    private void checkAsynchronousThreadDumpState() {
-        if (workflow == null) {
-            throw new IllegalStateException("workflow hasn't started yet");
-        }
-        if (decisionsHelper.isWorkflowFailed()) {
-            throw new IllegalStateException("Cannot get AsynchronousThreadDump of a failed workflow",
-                    decisionsHelper.getWorkflowFailureCause());
         }
     }
 
@@ -382,7 +376,9 @@ class AsyncDecider {
         return decisionsHelper;
     }
 
-    public byte[] query(WorkflowQuery query) throws Exception {
-        return workflow.query(query);
+    public byte[] query(WorkflowQuery query) throws Throwable {
+        AtomicReference<byte[]> result = new AtomicReference<>();
+        decideImpl(() -> result.set(workflow.query(query)));
+        return result.get();
     }
 }

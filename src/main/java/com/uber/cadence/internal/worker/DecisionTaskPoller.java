@@ -138,7 +138,7 @@ public class DecisionTaskPoller implements TaskPoller {
         if (log.isDebugEnabled()) {
             log.debug("poll request returned decision task: workflowType=" + result.getWorkflowType() + ", workflowExecution="
                     + result.getWorkflowExecution() + ", startedEventId=" + result.getStartedEventId() + ", previousStartedEventId=" + result.getPreviousStartedEventId()
-                    + (result.getQuery() != null ? "queryType=" + result.getQuery().getQueryType() : ""));
+                    + (result.getQuery() != null ? ", queryType=" + result.getQuery().getQueryType() : ""));
         }
 
         if (result == null || result.getTaskToken() == null) {
@@ -175,6 +175,9 @@ public class DecisionTaskPoller implements TaskPoller {
                 RespondQueryTaskCompletedRequest r = (RespondQueryTaskCompletedRequest) taskCompletedRequest;
                 service.RespondQueryTaskCompleted(r);
             }
+        } catch (Error e) {
+            log.debug("Failed history:\n" + WorkflowExecutionUtils.prettyPrintHistory(task.getHistory(), true));
+            throw e;
         } catch (Exception e) {
             PollForDecisionTaskResponse firstTask = historyIterator.getDecisionTask();
             if (firstTask != null) {

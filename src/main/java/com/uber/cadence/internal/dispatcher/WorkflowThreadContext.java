@@ -39,6 +39,7 @@ class WorkflowThreadContext {
     private boolean interrupted;
     private boolean inRunUntilBlocked;
     private boolean remainedBlocked;
+    private String yieldReason;
 
     WorkflowThreadContext(Lock lock) {
         this.lock = lock;
@@ -67,10 +68,12 @@ class WorkflowThreadContext {
                 runCondition.signal();
                 yieldCondition.await();
                 mayBeEvaluate(reason);
+                yieldReason = reason;
             }
         } finally {
             setStatus(Status.RUNNING);
             remainedBlocked = false;
+            yieldReason = null;
             lock.unlock();
         }
     }
@@ -201,6 +204,10 @@ class WorkflowThreadContext {
         } finally {
             lock.unlock();
         }
+    }
+
+    public String getYieldReason() {
+        return yieldReason;
     }
 
     /**

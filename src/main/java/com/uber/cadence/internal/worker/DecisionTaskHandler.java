@@ -37,9 +37,4 @@ public abstract class DecisionTaskHandler {
      *            exception from {@link Iterator#next()}.
      */
     public abstract Object handleDecisionTask(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Exception;
-
-    public abstract String getAsynchronousThreadDump(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Throwable;
-
-//    public abstract WorkflowDefinition loadWorkflowThroughReplay(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Exception;
-
 }

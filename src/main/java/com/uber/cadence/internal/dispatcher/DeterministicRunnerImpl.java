@@ -41,6 +41,7 @@ import java.util.function.Supplier;
 class DeterministicRunnerImpl implements DeterministicRunner {
 
     private static final Log log = LogFactory.getLog(DeterministicRunnerImpl.class);
+    public static final String WORKFLOW_ROOT_THREAD_NAME = "workflow-root";
 
     private final Lock lock = new ReentrantLock();
     private final ExecutorService threadPool;
@@ -78,7 +79,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         this.decisionContext = decisionContext;
         this.clock = clock;
         // TODO: workflow instance specific thread name
-        WorkflowThreadInternal rootWorkflowThreadImpl = new WorkflowThreadInternal(threadPool, this, "workflow-root", root);
+        WorkflowThreadInternal rootWorkflowThreadImpl = new WorkflowThreadInternal(threadPool, this, WORKFLOW_ROOT_THREAD_NAME, root);
         threads.add(rootWorkflowThreadImpl);
         rootWorkflowThreadImpl.start();
     }
@@ -180,7 +181,22 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
     @Override
     public String stackTrace() {
-        return null;
+        StringBuilder result = new StringBuilder();
+        lock.lock();
+        try {
+            for (DeterministicRunnerCoroutine coroutine : threads) {
+                if (coroutine instanceof CallbackCoroutine) {
+                    continue;
+                }
+                if (result.length() > 0) {
+                    result.append("\n");
+                }
+                coroutine.addStackTrace(result);
+            }
+        } finally {
+            lock.unlock();
+        }
+        return result.toString();
     }
 
     @Override

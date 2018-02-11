@@ -50,7 +50,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.*;
 
-public class WorkfowTest {
+public class WorkflowTest {
 
     // TODO: Make this configuratble instead of always using local instance.
     private static final String host = "127.0.0.1";
@@ -76,7 +76,7 @@ public class WorkfowTest {
         root.setLevel(Level.DEBUG);
 
         Logger.getLogger("io.netty").setLevel(Level.INFO);
-        log = LogFactory.getLog(WorkfowTest.class);
+        log = LogFactory.getLog(WorkflowTest.class);
 
     }
 
@@ -157,7 +157,7 @@ public class WorkfowTest {
         public String execute() {
             AtomicReference<String> a1 = new AtomicReference<>();
             TestActivities activities = Workflow.newActivityStub(TestActivities.class, activitySchedulingOptions);
-            WorkflowThread t = Workflow.newThread(() -> a1.set(activities.activity()));
+            WorkflowThread t = Workflow.newThread(() -> a1.set(activities.activityWithDelay(1000)));
             t.start();
             try {
                 t.join(3000);
@@ -188,7 +188,7 @@ public class WorkfowTest {
     }
 
     @Test
-    public void testSync() {
+    public void testSync() throws InterruptedException {
         worker.addWorkflowImplementationType(TestSyncWorkflowImpl.class);
         TestWorkflow1 client = cadenceClient.newWorkflowStub(TestWorkflow1.class, newStartWorkflowOptions());
         String result = client.execute();
@@ -205,11 +205,16 @@ public class WorkfowTest {
 
 
     @Test
-    public void testSyncUntyped() throws InterruptedException {
+    public void testSyncUntypedAndStackTrace() throws InterruptedException {
         worker.addWorkflowImplementationType(TestSyncWorkflowImpl.class);
         UntypedWorkflowStub client = cadenceClient.newUntypedWorkflowStub("TestWorkflow1::execute",
                 newStartWorkflowOptions());
-        String result = client.execute(String.class).getResult();
+        WorkflowExternalResult<String> workflowResult = client.execute(String.class);
+        Thread.sleep(500);
+        String stackTrace = client.query(CadenceClient.QUERY_TYPE_STACK_TRCE, String.class);
+        assertTrue(stackTrace, stackTrace.contains("WorkflowTest$TestSyncWorkflowImpl.execute"));
+        assertTrue(stackTrace, stackTrace.contains("activityWithDelay"));
+        String result = workflowResult.getResult();
         assertEquals("activity10", result);
     }
 
@@ -554,6 +559,9 @@ public class WorkfowTest {
 
 
     public interface TestActivities {
+
+        String activityWithDelay(long milliseconds);
+
         String activity();
 
         String activity1(String input);
@@ -585,6 +593,16 @@ public class WorkfowTest {
 
     private static class TestActivitiesImpl implements TestActivities {
         public List<String> procResult = Collections.synchronizedList(new ArrayList<>());
+
+        @Override
+        public String activityWithDelay(long milliseconds) {
+            try {
+                Thread.sleep(milliseconds);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            return "activity";
+        }
 
         public String activity() {
             return "activity";

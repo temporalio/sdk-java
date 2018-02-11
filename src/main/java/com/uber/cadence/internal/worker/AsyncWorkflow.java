@@ -44,8 +44,6 @@ public interface AsyncWorkflow {
 
     boolean isCancelRequested();
 
-    String getAsynchronousThreadDump();
-
     byte[] getWorkflowState() throws WorkflowException;
 
     void close();

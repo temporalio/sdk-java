@@ -33,9 +33,6 @@ public class AsyncDecisionTaskHandler extends DecisionTaskHandler {
 
     private static final Log log = LogFactory.getLog(AsyncDecisionTaskHandler.class);
 
-    private static final Log asyncThreadDumpLog = LogFactory.getLog(AsyncDecisionTaskHandler.class.getName()
-            + ".waitingTasksStacks");
-
     private final AsyncWorkflowFactory asyncWorkflowFactory;
     private final String domain;
 
@@ -48,11 +45,6 @@ public class AsyncDecisionTaskHandler extends DecisionTaskHandler {
     public Object handleDecisionTask(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Exception {
         HistoryHelper historyHelper = new HistoryHelper(decisionTaskIterator);
         AsyncDecider decider = createDecider(historyHelper);
-        try {
-            decider.decide();
-        } catch (Throwable e) {
-            throw new Error("Add support for fail decision", e);
-        }
         PollForDecisionTaskResponse decisionTask = historyHelper.getDecisionTask();
         if (decisionTask.isSetQuery()) {
             RespondQueryTaskCompletedRequest queryCompletedRequest = new RespondQueryTaskCompletedRequest();
@@ -61,7 +53,7 @@ public class AsyncDecisionTaskHandler extends DecisionTaskHandler {
                 byte[] queryResult = decider.query(decisionTask.getQuery());
                 queryCompletedRequest.setQueryResult(queryResult);
                 queryCompletedRequest.setCompletedType(QueryTaskCompletedType.COMPLETED);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 // TODO: Appropriate exception serialization.
                 StringWriter sw = new StringWriter();
                 PrintWriter pw = new PrintWriter(sw);
@@ -71,6 +63,11 @@ public class AsyncDecisionTaskHandler extends DecisionTaskHandler {
             }
             return queryCompletedRequest;
         } else {
+            try {
+                decider.decide();
+            } catch (Throwable e) {
+                throw new Error("Add support for fail decision", e);
+            }
             DecisionsHelper decisionsHelper = decider.getDecisionsHelper();
             List<Decision> decisions = decisionsHelper.getDecisions();
             byte[] context = decisionsHelper.getWorkflowContextDataToReturn();
@@ -78,10 +75,6 @@ public class AsyncDecisionTaskHandler extends DecisionTaskHandler {
                 log.debug("WorkflowTask taskId=" + decisionTask.getStartedEventId()
                         + ", taskToken=" + decisionTask.getTaskToken()
                         + " completed with " + decisions.size() + " new decisions");
-            }
-            if (decisions.size() == 0 && asyncThreadDumpLog.isTraceEnabled()) {
-                asyncThreadDumpLog.trace("Empty decision list with the following waiting tasks:\n"
-                        + decider.getAsynchronousThreadDumpAsString());
             }
             RespondDecisionTaskCompletedRequest completedRequest = new RespondDecisionTaskCompletedRequest();
             completedRequest.setTaskToken(decisionTask.getTaskToken());
@@ -104,14 +97,6 @@ public class AsyncDecisionTaskHandler extends DecisionTaskHandler {
 //        }
 //        return decider.getWorkflowDefinition();
 //    }
-
-    @Override
-    public String getAsynchronousThreadDump(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Throwable {
-        HistoryHelper historyHelper = new HistoryHelper(decisionTaskIterator);
-        AsyncDecider decider = createDecider(historyHelper);
-        decider.decide();
-        return decider.getAsynchronousThreadDumpAsString();
-    }
 
     private AsyncDecider createDecider(HistoryHelper historyHelper) throws Exception {
         PollForDecisionTaskResponse decisionTask = historyHelper.getDecisionTask();

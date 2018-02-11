@@ -281,6 +281,24 @@ class WorkflowThreadInternal implements WorkflowThread, DeterministicRunnerCorou
         }
     }
 
+    @Override
+    public void addStackTrace(StringBuilder result) {
+        result.append(getName() + ": (BLOCKED on " + getContext().getYieldReason() + ")\n");
+        // These numbers might change if implementation changes.
+        int omitTop = 5;
+        int omitBottom = 7;
+        if (DeterministicRunnerImpl.WORKFLOW_ROOT_THREAD_NAME.equals(getName())) {
+            omitBottom = 11;
+        }
+        StackTraceElement[] stackTrace = thread.getStackTrace();
+        for (int i = omitTop; i < stackTrace.length - omitBottom; i++) {
+            StackTraceElement e = stackTrace[i];
+            if (i == omitTop && "yield".equals(e.getMethodName())) continue;
+            result.append(e);
+            result.append("\n");
+        }
+    }
+
     /**
      * Stop executing all workflow threads and puts {@link DeterministicRunner} into closed state.
      * To be called only from a workflow thread.

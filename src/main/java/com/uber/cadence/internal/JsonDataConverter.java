@@ -95,7 +95,7 @@ public class JsonDataConverter extends DataConverter {
 
     @Override
     public <T> T fromData(byte[] serialized, Class<T> valueType) throws DataConverterException {
-        if (serialized == null) {
+        if (serialized == null || serialized.length == 0) {
             try {
                 if (valueType.isArray()) {
                     return (T) Array.newInstance(valueType.getComponentType(), 0);
