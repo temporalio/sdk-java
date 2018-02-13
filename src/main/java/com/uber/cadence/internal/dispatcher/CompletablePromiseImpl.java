@@ -19,8 +19,10 @@ package com.uber.cadence.internal.dispatcher;
 import com.uber.cadence.workflow.CompletablePromise;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.Promise;
+import com.uber.cadence.workflow.Workflow;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -43,6 +45,24 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
     private final List<Handler> handlers = new ArrayList<>();
     private final DeterministicRunnerImpl runner;
     private boolean registeredWithRunner;
+
+    static Promise<Object> promiseAnyOf(Promise<?>[] promises) {
+        CompletablePromise<Object> result = Workflow.newCompletablePromise();
+        for (Promise<?> p : promises) {
+            // Rely on the fact that promise ignores all duplicated completions.
+            result.completeFrom((Promise<Object>) p);
+        }
+        return result;
+    }
+
+    static Promise<Object> promiseAnyOf(Iterable<Promise<?>> promises) {
+        CompletablePromise<Object> result = Workflow.newCompletablePromise();
+        for (Promise<?> p : promises) {
+            // Rely on the fact that promise ignores all duplicated completions.
+            result.completeFrom((Promise<Object>) p);
+        }
+        return result;
+    }
 
     CompletablePromiseImpl() {
         runner = WorkflowThreadInternal.currentThreadInternal().getRunner();

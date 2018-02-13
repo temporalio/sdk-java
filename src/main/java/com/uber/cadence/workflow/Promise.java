@@ -126,10 +126,26 @@ public interface Promise<V> {
     }
 
     /**
-     * Returns Promise that becomes completed when all arguments a completed.
+     * Returns Promise that becomes completed when all arguments are completed.
      * A single promise failure causes resulting promise to deliver the failure immediately.
      */
     static Promise<Void> allOf(Promise<?>... promises) {
         return WorkflowInternal.promiseAllOf(promises);
+    }
+
+    /**
+     * Returns Promise that becomes completed when any of the arguments is completed.
+     * If it completes exceptionally then result is also completes exceptionally.
+     */
+    static Promise<Object> anyOf(Iterable<Promise<?>> promises) {
+        return WorkflowInternal.promiseAnyOf(promises);
+    }
+
+    /**
+     * Returns Promise that becomes completed when any of the arguments is completed.
+     * If it completes exceptionally then result is also completes exceptionally.
+     */
+    static Promise<Object> anyOf(Promise<?>... promises) {
+        return WorkflowInternal.promiseAnyOf(promises);
     }
 }

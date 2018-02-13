@@ -389,6 +389,14 @@ public final class WorkflowInternal {
         return new AllOfPromise(promises);
     }
 
+    public static Promise<Object> promiseAnyOf(Iterable<Promise<?>> promises) {
+        return CompletablePromiseImpl.promiseAnyOf(promises);
+    }
+
+    public static Promise<Object> promiseAnyOf(Promise<?>... promises) {
+        return CompletablePromiseImpl.promiseAnyOf(promises);
+    }
+
     public static CancellationScope newCancellationScope(boolean detached, Runnable runnable) {
         CancellationScopeImpl result = new  CancellationScopeImpl(detached, runnable);
         result.run();
@@ -404,4 +412,5 @@ public final class WorkflowInternal {
      */
     private WorkflowInternal() {
     }
+
 }

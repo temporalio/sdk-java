@@ -349,7 +349,115 @@ public class PromiseTest {
     }
 
     @Test
+    public void testAnyOf() throws Throwable {
+        DeterministicRunner r = DeterministicRunner.newRunner(() -> {
+            trace.add("root begin");
+            CompletablePromise<String> f1 = Workflow.newCompletablePromise();
+            CompletablePromise<String> f2 = Workflow.newCompletablePromise();
+            CompletablePromise<String> f3 = Workflow.newCompletablePromise();
+
+            WorkflowInternal.newThread(false,
+                    () -> {
+                        trace.add("thread1 begin");
+                        f1.complete("value1");
+                        trace.add("thread1 done");
+                    }
+            ).start();
+            WorkflowInternal.newThread(false,
+                    () -> {
+                        trace.add("thread3 begin");
+                        f3.complete("value3");
+                        trace.add("thread3 done");
+                    }
+            ).start();
+            WorkflowInternal.newThread(false,
+                    () -> {
+                        trace.add("thread2 begin");
+                        f2.complete("value2");
+                        trace.add("thread2 done");
+                    }
+            ).start();
+            List<Promise<?>> promises = new ArrayList<>();
+            promises.add(f1);
+            promises.add(f2);
+            promises.add(f3);
+            trace.add("root before anyOf");
+            Promise<Object> any = Promise.anyOf(promises);
+            // Relying on ordered execution of threads.
+            assertEquals("value1", any.get());
+            trace.add("root done");
+        });
+        r.runUntilAllBlocked();
+        String[] expected = new String[]{
+                "root begin",
+                "root before anyOf",
+                "thread1 begin",
+                "thread1 done",
+                "thread3 begin",
+                "thread3 done",
+                "thread2 begin",
+                "thread2 done",
+                "root done"
+        };
+        trace.setExpected(expected);
+    }
+
+    @Test
     public void testAllOfArray() throws Throwable {
+        DeterministicRunner r = DeterministicRunner.newRunner(() -> {
+            trace.add("root begin");
+            CompletablePromise<String> f1 = Workflow.newCompletablePromise();
+            CompletablePromise<Integer> f2 = Workflow.newCompletablePromise();
+            CompletablePromise<Boolean> f3 = Workflow.newCompletablePromise();
+
+            WorkflowInternal.newThread(false,
+                    () -> {
+                        trace.add("thread1 begin");
+                        f1.complete("value1");
+                        trace.add("thread1 done");
+                    }
+            ).start();
+            WorkflowInternal.newThread(false,
+                    () -> {
+                        trace.add("thread3 begin");
+                        f3.complete(true);
+                        trace.add("thread3 done");
+                    }
+            ).start();
+            WorkflowInternal.newThread(false,
+                    () -> {
+                        trace.add("thread2 begin");
+                        f2.complete(111);
+                        trace.add("thread2 done");
+                    }
+            ).start();
+            trace.add("root before allOf");
+            assertFalse(f1.isCompleted());
+            assertFalse(f2.isCompleted());
+            assertFalse(f3.isCompleted());
+            // Relying on ordered execution of threads.
+            Promise<Object> done = Promise.anyOf(f3, f2, f1);
+            assertEquals("value1", done.get());
+            assertTrue(f1.isCompleted());
+            trace.add("root done");
+        });
+        r.runUntilAllBlocked();
+        String[] expected = new String[]{
+                "root begin",
+                "root before allOf",
+                "thread1 begin",
+                "thread1 done",
+                "thread3 begin",
+                "thread3 done",
+                "thread2 begin",
+                "thread2 done",
+                "root done"
+        };
+        trace.setExpected(expected);
+    }
+
+    @Test
+    public void testAnyOfArray() throws Throwable {
         DeterministicRunner r = DeterministicRunner.newRunner(() -> {
             trace.add("root begin");
             CompletablePromise<String> f1 = Workflow.newCompletablePromise();
