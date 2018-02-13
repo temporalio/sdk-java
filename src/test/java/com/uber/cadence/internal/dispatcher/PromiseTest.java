@@ -94,6 +94,7 @@ public class PromiseTest {
                             trace.add("thread1 get cancellation");
                         } catch (TimeoutException e) {
                             trace.add("thread1 get timeout");
+                            // Test default value
                         } catch (Exception e) {
                             assertEquals(IllegalArgumentException.class, e.getCause().getClass());
                             trace.add("thread1 get failure");
@@ -117,6 +118,125 @@ public class PromiseTest {
                 "root done",
                 "thread1 begin",
                 "thread1 get timeout",
+        };
+        trace.setExpected(expected);
+        threadPool.shutdown();
+        threadPool.awaitTermination(1, TimeUnit.MINUTES);
+    }
+
+    @Test
+    public void testGetDefaultOnTimeout() throws Throwable {
+        ExecutorService threadPool = new ThreadPoolExecutor(1, 1000, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
+
+        DeterministicRunner r = DeterministicRunner.newRunner(
+                threadPool,
+                null,
+                () -> currentTime,
+                () -> {
+                    CompletablePromise<String> f = Workflow.newCompletablePromise();
+                    trace.add("root begin");
+                    WorkflowInternal.newThread(false, () -> {
+                        trace.add("thread1 begin");
+                        try {
+                            assertEquals("default", f.get(10, TimeUnit.SECONDS, "default"));
+                            trace.add("thread1 get success");
+                        } catch (Exception e) {
+                            assertEquals(IllegalArgumentException.class, e.getCause().getClass());
+                            trace.add("thread1 get failure");
+                        }
+                    }).start();
+                    trace.add("root done");
+                });
+        r.runUntilAllBlocked();
+        String[] expected = new String[]{
+                "root begin",
+                "root done",
+                "thread1 begin",
+        };
+        trace.setExpected(expected);
+        trace.assertExpected();
+
+        currentTime += 11000;
+        r.runUntilAllBlocked();
+        expected = new String[]{
+                "root begin",
+                "root done",
+                "thread1 begin",
+                "thread1 get success",
+        };
+        trace.setExpected(expected);
+        threadPool.shutdown();
+        threadPool.awaitTermination(1, TimeUnit.MINUTES);
+    }
+
+    @Test
+    public void testTimedGetDefaultOnFailure() throws Throwable {
+        ExecutorService threadPool = new ThreadPoolExecutor(1, 1000, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
+
+        DeterministicRunner r = DeterministicRunner.newRunner(
+                threadPool,
+                null,
+                () -> currentTime,
+                () -> {
+                    CompletablePromise<String> f = Workflow.newCompletablePromise();
+                    trace.add("root begin");
+                    WorkflowInternal.newThread(false, () -> {
+                        trace.add("thread1 begin");
+                        try {
+                            assertEquals("default", f.get(10, TimeUnit.SECONDS, "default"));
+                            trace.add("thread1 get success");
+                        } catch (Exception e) {
+                            assertEquals(IllegalArgumentException.class, e.getCause().getClass());
+                            trace.add("thread1 get failure");
+                        }
+                    }).start();
+                    f.completeExceptionally(new RuntimeException("boo"));
+                    trace.add("root done");
+                });
+        r.runUntilAllBlocked();
+        r.runUntilAllBlocked();
+        String[] expected = new String[]{
+                "root begin",
+                "root done",
+                "thread1 begin",
+                "thread1 get success",
+        };
+        trace.setExpected(expected);
+        threadPool.shutdown();
+        threadPool.awaitTermination(1, TimeUnit.MINUTES);
+    }
+
+    @Test
+    public void testGetDefaultOnFailure() throws Throwable {
+        ExecutorService threadPool = new ThreadPoolExecutor(1, 1000, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
+
+        DeterministicRunner r = DeterministicRunner.newRunner(
+                threadPool,
+                null,
+                () -> currentTime,
+                () -> {
+                    CompletablePromise<String> f = Workflow.newCompletablePromise();
+                    trace.add("root begin");
+                    WorkflowInternal.newThread(false, () -> {
+                        trace.add("thread1 begin");
+                        try {
+                            assertEquals("default", f.get("default"));
+                            trace.add("thread1 get success");
+                        } catch (Exception e) {
+                            assertEquals(IllegalArgumentException.class, e.getCause().getClass());
+                            trace.add("thread1 get failure");
+                        }
+                    }).start();
+                    f.completeExceptionally(new RuntimeException("boo"));
+                    trace.add("root done");
+                });
+        r.runUntilAllBlocked();
+        r.runUntilAllBlocked();
+        String[] expected = new String[]{
+                "root begin",
+                "root done",
+                "thread1 begin",
+                "thread1 get success",
         };
         trace.setExpected(expected);
         threadPool.shutdown();

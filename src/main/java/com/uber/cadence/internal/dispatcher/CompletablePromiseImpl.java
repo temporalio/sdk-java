@@ -66,6 +66,18 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
     }
 
     @Override
+    public V get(V defaultValue) {
+        if (!completed) {
+            WorkflowThreadInternal.yield("Feature.get", () -> completed);
+        }
+        if (failure != null) {
+            unregisterWithRunner();
+            return defaultValue;
+        }
+        return value;
+    }
+
+    @Override
     public V get(long timeout, TimeUnit unit) throws TimeoutException {
         if (!completed) {
             WorkflowThreadInternal.yield(unit.toMillis(timeout), "Feature.get", () -> completed);
@@ -76,6 +88,21 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
         if (failure != null) {
             unregisterWithRunner();
             throw failure;
+        }
+        return value;
+    }
+
+    @Override
+    public V get(long timeout, TimeUnit unit, V defaultValue) {
+        if (!completed) {
+            WorkflowThreadInternal.yield(unit.toMillis(timeout), "Feature.get", () -> completed);
+        }
+        if (!completed) {
+            return defaultValue;
+        }
+        if (failure != null) {
+            unregisterWithRunner();
+            return defaultValue;
         }
         return value;
     }
