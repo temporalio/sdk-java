@@ -21,24 +21,28 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.internal.DataConverter;
 import com.uber.cadence.internal.StartWorkflowOptions;
 import com.uber.cadence.internal.common.FlowHelpers;
+import com.uber.cadence.workflow.CompletablePromise;
+import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.QueryMethod;
 import com.uber.cadence.workflow.SignalMethod;
-import com.uber.cadence.workflow.WFuture;
 import com.uber.cadence.workflow.Workflow;
 import com.uber.cadence.workflow.WorkflowMethod;
 
 import java.lang.reflect.Method;
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * Dynamic implementation of a strongly typed child workflow interface.
+ */
 public class ChildWorkflowInvocationHandler extends AsyncInvocationHandler {
 
     private final StartWorkflowOptions options;
     private final SyncDecisionContext decisionContext;
     private final DataConverter dataConverter;
-    private WFuture<WorkflowExecution> execution = Workflow.newFuture();
+    private CompletablePromise<WorkflowExecution> execution = Workflow.newCompletablePromise();
     private boolean startRequested;
 
-    public ChildWorkflowInvocationHandler(StartWorkflowOptions options, SyncDecisionContext decisionContext) {
+    ChildWorkflowInvocationHandler(StartWorkflowOptions options, SyncDecisionContext decisionContext) {
         this.options = options;
         this.decisionContext = decisionContext;
         dataConverter = decisionContext.getDataConverter();
@@ -90,11 +94,11 @@ public class ChildWorkflowInvocationHandler extends AsyncInvocationHandler {
     private Object executeChildWorkflow(Method method, Object[] args) {
         String workflowName = FlowHelpers.getSimpleName(method);
         byte[] input = dataConverter.toData(args);
-        WFuture<byte[]> encodedResult = decisionContext.executeChildWorkflow(
+        Promise<byte[]> encodedResult = decisionContext.executeChildWorkflow(
                 workflowName, options, input, execution);
-        WFuture result = encodedResult.thenApply(
+        Promise<?> result = encodedResult.thenApply(
                 (encoded) -> dataConverter.fromData(encoded, method.getReturnType()));
-        AtomicReference<WFuture> async = asyncResult.get();
+        AtomicReference<Promise<?>> async = asyncResult.get();
         if (async != null) {
             async.set(result);
             return Defaults.defaultValue(method.getReturnType());

@@ -16,15 +16,22 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
-import com.uber.cadence.workflow.WFuture;
+import com.uber.cadence.workflow.Promise;
 
 import java.lang.reflect.InvocationHandler;
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * Base class for dynamic interface implementations. Contains support for asynchronous invocations.
+ */
 abstract class AsyncInvocationHandler implements InvocationHandler {
 
-    protected static final ThreadLocal<AtomicReference<WFuture>> asyncResult = new ThreadLocal<>();
+    protected static final ThreadLocal<AtomicReference<Promise<?>>> asyncResult = new ThreadLocal<>();
 
+    /**
+     * Indicate to the dynamic interface implementation that call was done through
+     * Workflow{@link #asyncResult}.
+     */
     public static void initAsyncInvocation() {
         if (asyncResult.get() != null) {
             throw new IllegalStateException("already in asyncStart invocation");
@@ -32,13 +39,16 @@ abstract class AsyncInvocationHandler implements InvocationHandler {
         asyncResult.set(new AtomicReference<>());
     }
 
-    public static WFuture getAsyncInvocationResult() {
+    /**
+     * @return asynchronous result of an invocation.
+     */
+    public static Promise<?> getAsyncInvocationResult() {
         try {
-            AtomicReference<WFuture> reference = asyncResult.get();
+            AtomicReference<Promise<?>> reference = asyncResult.get();
             if (reference == null) {
                 throw new IllegalStateException("initAsyncInvocation wasn't called");
             }
-            WFuture result = reference.get();
+            Promise<?> result = reference.get();
             if (result == null) {
                 throw new IllegalStateException("asyncStart result wasn't set");
             }

@@ -188,7 +188,7 @@ abstract class DecisionStateMachineBase implements DecisionStateMachine {
 
     @Override
     public String toString() {
-        return "DecisionStateMachineBase [id=" + id + ", state=" + state + ", isDone()=" + isDone() + ", stateHistory="
+        return "DecisionStateMachineBase [id=" + id + ", state=" + state + ", isDone=" + isDone() + ", stateHistory="
                 + stateHistory + "]";
     }
 

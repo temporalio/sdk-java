@@ -16,14 +16,25 @@
  */
 package com.uber.cadence.workflow;
 
-public interface WFuture<V> extends RFuture<V> {
+/**
+ * {@link Promise} that exposes completion methods.
+ */
+public interface CompletablePromise<V> extends Promise<V> {
 
+    /**
+     * Completes this Promise with a value if not yet done.
+     * @return true if wasn't already completed.
+     */
     boolean complete(V value);
 
+    /**
+     * Completes this Promise with a an exception if not yet done.
+     * @return true if wasn't already completed.
+     */
     boolean completeExceptionally(RuntimeException value);
 
     /**
-     * Completes or completes exceptionally this future from the source future when it becomes completed.
+     * Completes or completes exceptionally this promise from the source promise when it becomes completed.
      * <pre><code>
      * destination.completeFrom(source);
      * </code></pre>
@@ -39,8 +50,8 @@ public interface WFuture<V> extends RFuture<V> {
      * }
      * </code></pre>
      *
-     * @param source future that is being watched.
+     * @param source promise that is being watched.
      * @return
      */
-    boolean completeFrom(RFuture<V> source);
+    boolean completeFrom(Promise<V> source);
 }

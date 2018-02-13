@@ -16,8 +16,8 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
-import com.uber.cadence.workflow.RFuture;
-import com.uber.cadence.workflow.WFuture;
+import com.uber.cadence.workflow.CompletablePromise;
+import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.Workflow;
 import org.junit.Before;
 import org.junit.Rule;
@@ -26,7 +26,6 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -35,7 +34,7 @@ import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.*;
 
-public class WorkflowInternalFutureTest {
+public class PromiseTest {
 
     @Rule
     public final Tracer trace = new Tracer();
@@ -50,7 +49,7 @@ public class WorkflowInternalFutureTest {
     @Test
     public void testFailure() throws Throwable {
         DeterministicRunner r = DeterministicRunner.newRunner(() -> {
-            WFuture<Boolean> f = Workflow.newFuture();
+            CompletablePromise<Boolean> f = Workflow.newCompletablePromise();
             trace.add("root begin");
             WorkflowInternal.newThread(false, () -> f.completeExceptionally(new IllegalArgumentException("foo"))).start();
             WorkflowInternal.newThread(false, () -> {
@@ -83,7 +82,7 @@ public class WorkflowInternalFutureTest {
                 null,
                 () -> currentTime,
                 () -> {
-                    WFuture<String> f = Workflow.newFuture();
+                    CompletablePromise<String> f = Workflow.newCompletablePromise();
                     trace.add("root begin");
                     WorkflowInternal.newThread(false, () -> {
                         trace.add("thread1 begin");
@@ -128,9 +127,9 @@ public class WorkflowInternalFutureTest {
     public void testMultiple() throws Throwable {
         DeterministicRunner r = DeterministicRunner.newRunner(() -> {
             trace.add("root begin");
-            WFuture<Boolean> f1 = Workflow.newFuture();
-            WFuture<Boolean> f2 = Workflow.newFuture();
-            WFuture<Boolean> f3 = Workflow.newFuture();
+            CompletablePromise<Boolean> f1 = Workflow.newCompletablePromise();
+            CompletablePromise<Boolean> f2 = Workflow.newCompletablePromise();
+            CompletablePromise<Boolean> f3 = Workflow.newCompletablePromise();
 
             WorkflowInternal.newThread(false,
                     () -> {
@@ -176,9 +175,9 @@ public class WorkflowInternalFutureTest {
     public void testAllOf() throws Throwable {
         DeterministicRunner r = DeterministicRunner.newRunner(() -> {
             trace.add("root begin");
-            WFuture<String> f1 = Workflow.newFuture();
-            WFuture<String> f2 = Workflow.newFuture();
-            WFuture<String> f3 = Workflow.newFuture();
+            CompletablePromise<String> f1 = Workflow.newCompletablePromise();
+            CompletablePromise<String> f2 = Workflow.newCompletablePromise();
+            CompletablePromise<String> f3 = Workflow.newCompletablePromise();
 
             WorkflowInternal.newThread(false,
                     () -> {
@@ -201,12 +200,12 @@ public class WorkflowInternalFutureTest {
                         trace.add("thread2 done");
                     }
             ).start();
-            List<WFuture<String>> futures = new ArrayList<>();
-            futures.add(f1);
-            futures.add(f2);
-            futures.add(f3);
+            List<Promise<String>> promises = new ArrayList<>();
+            promises.add(f1);
+            promises.add(f2);
+            promises.add(f3);
             trace.add("root before allOf");
-            WFuture<List<String>> all = RFuture.allOf(futures);
+            Promise<List<String>> all = Promise.allOf(promises);
             List<String> expected = new ArrayList<>();
             expected.add("value1");
             expected.add("value2");
@@ -233,9 +232,9 @@ public class WorkflowInternalFutureTest {
     public void testAllOfArray() throws Throwable {
         DeterministicRunner r = DeterministicRunner.newRunner(() -> {
             trace.add("root begin");
-            WFuture<String> f1 = Workflow.newFuture();
-            WFuture<Integer> f2 = Workflow.newFuture();
-            WFuture<Boolean> f3 = Workflow.newFuture();
+            CompletablePromise<String> f1 = Workflow.newCompletablePromise();
+            CompletablePromise<Integer> f2 = Workflow.newCompletablePromise();
+            CompletablePromise<Boolean> f3 = Workflow.newCompletablePromise();
 
             WorkflowInternal.newThread(false,
                     () -> {
@@ -259,14 +258,14 @@ public class WorkflowInternalFutureTest {
                     }
             ).start();
             trace.add("root before allOf");
-            assertFalse(f1.isDone());
-            assertFalse(f2.isDone());
-            assertFalse(f3.isDone());
-            WFuture<Void> done = RFuture.allOf(f1, f2, f3);
+            assertFalse(f1.isCompleted());
+            assertFalse(f2.isCompleted());
+            assertFalse(f3.isCompleted());
+            Promise<Void> done = Promise.allOf(f1, f2, f3);
             done.get();
-            assertTrue(f1.isDone());
-            assertTrue(f2.isDone());
-            assertTrue(f3.isDone());
+            assertTrue(f1.isCompleted());
+            assertTrue(f2.isCompleted());
+            assertTrue(f3.isCompleted());
             trace.add("root done");
         });
         r.runUntilAllBlocked();

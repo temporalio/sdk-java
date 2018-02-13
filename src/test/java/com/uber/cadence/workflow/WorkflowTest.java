@@ -341,8 +341,8 @@ public class WorkflowTest {
 
         @Override
         public String execute() {
-            RFuture<Void> timer1 = Workflow.newTimer( 1);
-            RFuture<Void> timer2 = Workflow.newTimer(2);
+            Promise<Void> timer1 = Workflow.newTimer( 1);
+            Promise<Void> timer2 = Workflow.newTimer(2);
 
             long time = Workflow.currentTimeMillis();
             timer1.get();
@@ -378,11 +378,11 @@ public class WorkflowTest {
 
         String state = "initial";
         List<String> signals = new ArrayList<>();
-        WFuture future = Workflow.newFuture();
+        CompletablePromise promise = Workflow.newCompletablePromise();
 
         @Override
         public String execute() {
-            future.get();
+            promise.get();
             return signals.get(0) + signals.get(1);
         }
 
@@ -397,7 +397,7 @@ public class WorkflowTest {
             state = value;
             signals.add(value);
             if (signals.size() == 2) {
-                future.complete(null);
+                promise.complete(null);
             }
         }
     }
@@ -489,10 +489,10 @@ public class WorkflowTest {
 
         @Override
         public String execute() {
-            RFuture<Void> timer1 = Workflow.newTimer(0);
-            RFuture<Void> timer2 = Workflow.newTimer(1);
+            Promise<Void> timer1 = Workflow.newTimer(0);
+            Promise<Void> timer2 = Workflow.newTimer(1);
 
-            WFuture<Void> f = Workflow.newFuture();
+            CompletablePromise<Void> f = Workflow.newCompletablePromise();
             timer1.thenApply((e) -> {
                 timer2.get(); // This is prohibited
                 f.complete(null);
@@ -546,7 +546,7 @@ public class WorkflowTest {
 
         @Override
         public String execute() {
-            RFuture<String> r1 = Workflow.async(child1::execute, "Hello ");
+            Promise<String> r1 = Workflow.async(child1::execute, "Hello ");
             String r2 = child2.execute("World!");
             assertEquals(child2Id, Workflow.getWorkflowExecution(child2).get().getWorkflowId());
             return r1.get() + r2;

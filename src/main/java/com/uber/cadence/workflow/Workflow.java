@@ -21,11 +21,7 @@ import com.uber.cadence.error.CheckedExceptionWrapper;
 import com.uber.cadence.internal.StartWorkflowOptions;
 import com.uber.cadence.internal.dispatcher.WorkflowInternal;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Lock;
 
 public final class Workflow {
 
@@ -52,7 +48,7 @@ public final class Workflow {
      * Creates client stub to a child workflow that implements given interface.
      *
      * @param workflowInterface interface type implemented by activities
-     * @param options
+     * @param options options passed to the child workflow.
      */
     public static <T> T newChildWorkflowStub(Class<T> workflowInterface, StartWorkflowOptions options) {
         return WorkflowInternal.newChildWorkflowStub(workflowInterface, options);
@@ -60,9 +56,9 @@ public final class Workflow {
 
     /**
      * Extracts workflow execution from a stub created through {@link #newChildWorkflowStub(Class, StartWorkflowOptions)}.
-     * Wrapped in a future as child workflow is started asynchronously.
+     * Wrapped in a Promise as child workflow start is asynchronous.
      */
-    public static RFuture<WorkflowExecution> getWorkflowExecution(Object workflowStub) {
+    public static Promise<WorkflowExecution> getWorkflowExecution(Object workflowStub) {
         return WorkflowInternal.getWorkflowExecution(workflowStub);
     }
 
@@ -101,9 +97,9 @@ public final class Workflow {
      * Create new timer.
      *
      * @return feature that becomes ready when at least specified number of seconds passes.
-     * Future is failed with {@link java.util.concurrent.CancellationException}ion if enclosing scope is cancelled.
+     * promise is failed with {@link java.util.concurrent.CancellationException} if enclosing scope is cancelled.
      */
-    public static RFuture<Void> newTimer(long delaySeconds) {
+    public static Promise<Void> newTimer(long delaySeconds) {
         return WorkflowInternal.newTimer(delaySeconds);
     }
 
@@ -112,9 +108,9 @@ public final class Workflow {
      * So all partial values are rounded up to the nearest second.
      *
      * @return feature that becomes ready when at least specified number of seconds passes.
-     * Future is failed with {@link java.util.concurrent.CancellationException} if enclosing scope is cancelled.
+     * promise is failed with {@link java.util.concurrent.CancellationException} if enclosing scope is cancelled.
      */
-    public static RFuture<Void> newTimer(long time, TimeUnit unit) {
+    public static Promise<Void> newTimer(long time, TimeUnit unit) {
         long milliseconds = (long) Math.ceil(unit.toMillis(time) / 1000000f);
         return WorkflowInternal.newTimer(TimeUnit.MILLISECONDS.toSeconds(milliseconds));
     }
@@ -123,16 +119,16 @@ public final class Workflow {
         return WorkflowInternal.newQueue(capacity);
     }
 
-    public static <E> WFuture<E> newFuture() {
-        return WorkflowInternal.newFuture();
+    public static <E> CompletablePromise<E> newCompletablePromise() {
+        return WorkflowInternal.newCompletablePromise();
     }
 
-    public static <E> WFuture<E> newFuture(E value) {
-        return WorkflowInternal.newFuture(value);
+    public static <E> Promise<E> newCompletablePromise(E value) {
+        return WorkflowInternal.newPromise(value);
     }
 
-    public static <E> WFuture<E> newFailedFuture(Exception failure) {
-        return WorkflowInternal.newFailedFuture(CheckedExceptionWrapper.wrap(failure));
+    public static <E> Promise<E> newFailedPromise(Exception failure) {
+        return WorkflowInternal.newFailedPromise(CheckedExceptionWrapper.wrap(failure));
     }
 
     /**
@@ -171,88 +167,88 @@ public final class Workflow {
     /**
      * Invokes zero argument activity asynchronously.
      *
-     * @param activity The only supported parameter is method reference to a proxy created
+     * @param activity The only supported parameter is a method reference to a proxy created
      *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
-     * @return future that contains activity result or failure
+     * @return promise that contains activity result or failure
      */
-    public static <R> RFuture<R> async(Functions.Func<R> activity) {
+    public static <R> Promise<R> async(Functions.Func<R> activity) {
         return WorkflowInternal.async(activity);
     }
 
     /**
      * Invokes one argument activity asynchronously.
      *
-     * @param activity The only supported parameter is method reference to a proxy created
+     * @param activity The only supported parameter is a method reference to a proxy created
      *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
      * @param arg1     first activity argument
-     * @return future that contains activity result or failure
+     * @return promise that contains activity result or failure
      */
-    public static <A1, R> RFuture<R> async(Functions.Func1<A1, R> activity, A1 arg1) {
+    public static <A1, R> Promise<R> async(Functions.Func1<A1, R> activity, A1 arg1) {
         return WorkflowInternal.async(activity, arg1);
     }
 
     /**
      * Invokes two argument activity asynchronously.
      *
-     * @param activity The only supported parameter is method reference to a proxy created
+     * @param activity The only supported parameter is a method reference to a proxy created
      *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
-     * @return future that contains activity result or failure
+     * @return Promise that contains activity result or failure
      */
-    public static <A1, A2, R> RFuture<R> async(Functions.Func2<A1, A2, R> activity, A1 arg1, A2 arg2) {
+    public static <A1, A2, R> Promise<R> async(Functions.Func2<A1, A2, R> activity, A1 arg1, A2 arg2) {
         return WorkflowInternal.async(activity, arg1, arg2);
     }
 
     /**
      * Invokes three argument activity asynchronously.
      *
-     * @param activity The only supported parameter is method reference to a proxy created
+     * @param activity The only supported parameter is a method reference to a proxy created
      *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
      * @param arg3     third activity argument
-     * @return future that contains activity result or failure
+     * @return Promise that contains activity result or failure
      */
-    public static <A1, A2, A3, R> RFuture<R> async(Functions.Func3<A1, A2, A3, R> activity, A1 arg1, A2 arg2, A3 arg3) {
+    public static <A1, A2, A3, R> Promise<R> async(Functions.Func3<A1, A2, A3, R> activity, A1 arg1, A2 arg2, A3 arg3) {
         return WorkflowInternal.async(activity, arg1, arg2, arg3);
     }
 
     /**
      * Invokes four argument activity asynchronously.
      *
-     * @param activity The only supported parameter is method reference to a proxy created
+     * @param activity The only supported parameter is a method reference to a proxy created
      *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
      * @param arg3     third activity argument
      * @param arg4     forth activity argument
-     * @return future that contains activity result or failure
+     * @return Promise that contains activity result or failure
      */
-    public static <A1, A2, A3, A4, R> RFuture<R> async(Functions.Func4<A1, A2, A3, A4, R> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
+    public static <A1, A2, A3, A4, R> Promise<R> async(Functions.Func4<A1, A2, A3, A4, R> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
         return WorkflowInternal.async(activity, arg1, arg2, arg3, arg4);
     }
 
     /**
      * Invokes five argument activity asynchronously.
      *
-     * @param activity The only supported parameter is method reference to a proxy created
+     * @param activity The only supported parameter is a method reference to a proxy created
      *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
      * @param arg3     third activity argument
      * @param arg4     forth activity argument
      * @param arg5     fifth activity argument
-     * @return future that contains activity result or failure
+     * @return Promise that contains activity result or failure
      */
-    public static <A1, A2, A3, A4, A5, R> RFuture<R> async(Functions.Func5<A1, A2, A3, A4, A5, R> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
+    public static <A1, A2, A3, A4, A5, R> Promise<R> async(Functions.Func5<A1, A2, A3, A4, A5, R> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
         return WorkflowInternal.async(activity, arg1, arg2, arg3, arg4, arg5);
     }
 
     /**
      * Invokes six argument activity asynchronously.
      *
-     * @param activity The only supported parameter is method reference to a proxy created
+     * @param activity The only supported parameter is a method reference to a proxy created
      *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
@@ -260,97 +256,97 @@ public final class Workflow {
      * @param arg4     forth activity argument
      * @param arg5     fifth activity argument
      * @param arg6     sixth activity argument
-     * @return future that contains activity result or failure
+     * @return Promise that contains activity result or failure
      */
-    public static <A1, A2, A3, A4, A5, A6, R> RFuture<R> async(Functions.Func6<A1, A2, A3, A4, A5, A6, R> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5, A6 arg6) {
+    public static <A1, A2, A3, A4, A5, A6, R> Promise<R> async(Functions.Func6<A1, A2, A3, A4, A5, A6, R> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5, A6 arg6) {
         return WorkflowInternal.async(activity, arg1, arg2, arg3, arg4, arg5, arg6);
     }
 
     /**
      * Invokes zero argument activity asynchronously.
      *
-     * @param activity The only supported parameter is method reference to a proxy created
+     * @param activity The only supported parameter is a method reference to a proxy created
      *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
-     * @return future that contains activity result or failure
+     * @return Promise that contains activity result or failure
      */
-    public static RFuture<Void> async(Functions.Proc activity) {
+    public static Promise<Void> async(Functions.Proc activity) {
         return WorkflowInternal.async(activity);
     }
 
     /**
      * Invokes one argument activity asynchronously.
      *
-     * @param activity The only supported parameter is method reference to a proxy created
+     * @param activity The only supported parameter is a method reference to a proxy created
      *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
      * @param arg1     first activity argument
-     * @return future that contains activity result or failure
+     * @return Promise that contains activity result or failure
      */
-    public static <A1> RFuture<Void> async(Functions.Proc1<A1> activity, A1 arg1) {
+    public static <A1> Promise<Void> async(Functions.Proc1<A1> activity, A1 arg1) {
         return async(() -> activity.apply(arg1));
     }
 
     /**
      * Invokes two argument activity asynchronously.
      *
-     * @param activity The only supported parameter is method reference to a proxy created
+     * @param activity The only supported parameter is a method reference to a proxy created
      *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
-     * @return future that contains activity result or failure
+     * @return Promise that contains activity result or failure
      */
-    public static <A1, A2> RFuture<Void> async(Functions.Proc2<A1, A2> activity, A1 arg1, A2 arg2) {
+    public static <A1, A2> Promise<Void> async(Functions.Proc2<A1, A2> activity, A1 arg1, A2 arg2) {
         return WorkflowInternal.async(activity, arg1, arg2);
     }
 
     /**
      * Invokes three argument activity asynchronously.
      *
-     * @param activity The only supported parameter is method reference to a proxy created
+     * @param activity The only supported parameter is a method reference to a proxy created
      *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
      * @param arg3     third activity argument
-     * @return future that contains activity result or failure
+     * @return Promise that contains activity result or failure
      */
-    public static <A1, A2, A3> RFuture<Void> async(Functions.Proc3<A1, A2, A3> activity, A1 arg1, A2 arg2, A3 arg3) {
+    public static <A1, A2, A3> Promise<Void> async(Functions.Proc3<A1, A2, A3> activity, A1 arg1, A2 arg2, A3 arg3) {
         return WorkflowInternal.async(activity, arg1, arg2, arg3);
     }
 
     /**
      * Invokes four argument activity asynchronously.
      *
-     * @param activity The only supported parameter is method reference to a proxy created
+     * @param activity The only supported parameter is a method reference to a proxy created
      *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
      * @param arg3     third activity argument
      * @param arg4     forth activity argument
-     * @return future that contains activity result or failure
+     * @return Promise that contains activity result or failure
      */
-    public static <A1, A2, A3, A4> RFuture<Void> async(Functions.Proc4<A1, A2, A3, A4> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
+    public static <A1, A2, A3, A4> Promise<Void> async(Functions.Proc4<A1, A2, A3, A4> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
         return WorkflowInternal.async(activity, arg1, arg2, arg3, arg4);
     }
 
     /**
      * Invokes five argument activity asynchronously.
      *
-     * @param activity The only supported parameter is method reference to a proxy created
+     * @param activity The only supported parameter is a method reference to a proxy created
      *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
      * @param arg3     third activity argument
      * @param arg4     forth activity argument
      * @param arg5     fifth activity argument
-     * @return future that contains activity result or failure
+     * @return Promise that contains activity result or failure
      */
-    public static <A1, A2, A3, A4, A5> RFuture<Void> async(Functions.Proc5<A1, A2, A3, A4, A5> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
+    public static <A1, A2, A3, A4, A5> Promise<Void> async(Functions.Proc5<A1, A2, A3, A4, A5> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
         return WorkflowInternal.async(activity, arg1, arg2, arg3, arg4, arg5);
     }
 
     /**
      * Invokes six argument activity asynchronously.
      *
-     * @param activity The only supported parameter is method reference to a proxy created
+     * @param activity The only supported parameter is a method reference to a proxy created
      *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
@@ -358,9 +354,9 @@ public final class Workflow {
      * @param arg4     forth activity argument
      * @param arg5     fifth activity argument
      * @param arg6     sixth activity argument
-     * @return future that contains activity result or failure
+     * @return Promise that contains activity result or failure
      */
-    public static <A1, A2, A3, A4, A5, A6> RFuture<Void> async(Functions.Proc6<A1, A2, A3, A4, A5, A6> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5, A6 arg6) {
+    public static <A1, A2, A3, A4, A5, A6> Promise<Void> async(Functions.Proc6<A1, A2, A3, A4, A5, A6> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5, A6 arg6) {
         return WorkflowInternal.async(activity, arg1, arg2, arg3, arg4, arg5, arg6);
     }
 
@@ -384,9 +380,9 @@ public final class Workflow {
      * @param returnType activity return type
      * @param args       list of activity arguments
      * @param <R>        activity return type
-     * @return future that contains the activity result
+     * @return Promise that contains the activity result
      */
-    public static <R> RFuture<R> executeActivityAsync(String name, ActivitySchedulingOptions options, Class<R> returnType, Object... args) {
+    public static <R> Promise<R> executeActivityAsync(String name, ActivitySchedulingOptions options, Class<R> returnType, Object... args) {
         return WorkflowInternal.executeActivityAsync(name, options, returnType, args);
     }
 

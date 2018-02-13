@@ -54,10 +54,10 @@ public interface CancellationScope {
     boolean isCancelRequested();
 
     /**
-     * Use this future to perform cancellation of async operations.
-     * @return future that becomes ready when scope is cancelled. It contains reason value or null if none was provided.
+     * Use this promise to perform cancellation of async operations.
+     * @return promise that becomes ready when scope is cancelled. It contains reason value or null if none was provided.
      */
-    WFuture<String> getCancellationRequest();
+    Promise<String> getCancellationRequest();
 
     /**
      * If scope and optionally all its connected children completed execution.

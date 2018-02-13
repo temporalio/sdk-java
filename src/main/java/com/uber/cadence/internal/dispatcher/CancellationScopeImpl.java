@@ -17,7 +17,7 @@
 package com.uber.cadence.internal.dispatcher;
 
 import com.uber.cadence.workflow.CancellationScope;
-import com.uber.cadence.workflow.WFuture;
+import com.uber.cadence.workflow.CompletablePromise;
 import com.uber.cadence.workflow.Workflow;
 
 import java.util.HashSet;
@@ -28,7 +28,7 @@ class CancellationScopeImpl implements CancellationScope {
 
     private static ThreadLocal<Stack<CancellationScopeImpl>> scopeStack = ThreadLocal.withInitial(Stack::new);
     private boolean ignoreParentCancellation;
-    private WFuture<String> cancellationFuture;
+    private CompletablePromise<String> cancellationPromise;
 
     static CancellationScopeImpl current() {
         if (scopeStack.get().empty()) {
@@ -101,8 +101,8 @@ class CancellationScopeImpl implements CancellationScope {
         for (CancellationScopeImpl child : children) {
             child.cancel();
         }
-        if (cancellationFuture != null) {
-            cancellationFuture.complete(null);
+        if (cancellationPromise != null) {
+            cancellationPromise.complete(null);
         }
     }
 
@@ -113,8 +113,8 @@ class CancellationScopeImpl implements CancellationScope {
         for (CancellationScopeImpl child : children) {
             child.cancel(reason);
         }
-        if (cancellationFuture != null) {
-            cancellationFuture.complete(reason);
+        if (cancellationPromise != null) {
+            cancellationPromise.complete(reason);
         }
     }
 
@@ -139,14 +139,14 @@ class CancellationScopeImpl implements CancellationScope {
     }
 
     @Override
-    public WFuture<String> getCancellationRequest() {
-        if (cancellationFuture == null) {
-            cancellationFuture = Workflow.newFuture();
+    public CompletablePromise<String> getCancellationRequest() {
+        if (cancellationPromise == null) {
+            cancellationPromise = Workflow.newCompletablePromise();
             if (isCancelRequested()) {
-                cancellationFuture.complete(getCancellationReason());
+                cancellationPromise.complete(getCancellationReason());
             }
         }
-        return cancellationFuture;
+        return cancellationPromise;
     }
 
     @Override

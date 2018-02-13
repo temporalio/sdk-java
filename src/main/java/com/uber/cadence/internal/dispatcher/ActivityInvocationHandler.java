@@ -19,11 +19,14 @@ package com.uber.cadence.internal.dispatcher;
 import com.google.common.base.Defaults;
 import com.uber.cadence.internal.common.FlowHelpers;
 import com.uber.cadence.workflow.ActivitySchedulingOptions;
-import com.uber.cadence.workflow.WFuture;
+import com.uber.cadence.workflow.Promise;
 
 import java.lang.reflect.Method;
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * Dynamic implementation of a strongly typed child workflow interface.
+ */
 class ActivityInvocationHandler extends AsyncInvocationHandler {
 
     private final ActivitySchedulingOptions options;
@@ -37,8 +40,8 @@ class ActivityInvocationHandler extends AsyncInvocationHandler {
         SyncDecisionContext decisionContext = WorkflowThreadInternal.currentThreadInternal().getDecisionContext();
         // TODO: Add annotation to support overriding activity name.
         String activityName = FlowHelpers.getSimpleName(method);
-        AtomicReference<WFuture> async = asyncResult.get();
-        WFuture<?> result = decisionContext.executeActivity(activityName, options, args, method.getReturnType());
+        AtomicReference<Promise<?>> async = asyncResult.get();
+        Promise<?> result = decisionContext.executeActivity(activityName, options, args, method.getReturnType());
         if (async != null) {
             async.set(result);
             return Defaults.defaultValue(method.getReturnType());

@@ -16,7 +16,7 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
-import com.uber.cadence.workflow.WFuture;
+import com.uber.cadence.workflow.CompletablePromise;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -37,9 +37,9 @@ class WorkflowTimers {
      */
     private static class Timers {
 
-        private final Set<WFuture<Void>> results = new HashSet<>();
+        private final Set<CompletablePromise<Void>> results = new HashSet<>();
 
-        public void addTimer(WFuture<Void> result) {
+        public void addTimer(CompletablePromise<Void> result) {
             results.add(result);
             // Remove timer on cancellation
             result.handle((r, failure) -> {
@@ -52,12 +52,12 @@ class WorkflowTimers {
         }
 
         public void fire() {
-            for (WFuture<Void> t : results) {
+            for (CompletablePromise<Void> t : results) {
                 t.complete(null);
             }
         }
 
-        public void remove(WFuture<Void> result) {
+        public void remove(CompletablePromise<Void> result) {
             results.remove(result);
         }
     }
@@ -67,7 +67,7 @@ class WorkflowTimers {
      */
     private final SortedMap<Long, Timers> timers = new TreeMap<>();
 
-    public void addTimer(long fireTime, WFuture<Void> result) {
+    public void addTimer(long fireTime, CompletablePromise<Void> result) {
         Timers t = timers.get(fireTime);
         if (t == null) {
             t = new Timers();
@@ -76,7 +76,7 @@ class WorkflowTimers {
         t.addTimer(result);
     }
 
-    public void removeTimer(long fireTime, WFuture<Void> result) {
+    public void removeTimer(long fireTime, CompletablePromise<Void> result) {
         Timers t = timers.get(fireTime);
         if (t == null) {
             throw new Error("Unknown timer");

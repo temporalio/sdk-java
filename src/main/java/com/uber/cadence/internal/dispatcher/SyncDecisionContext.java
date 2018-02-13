@@ -28,10 +28,11 @@ import com.uber.cadence.internal.generic.GenericAsyncWorkflowClient;
 import com.uber.cadence.internal.worker.POJOQueryImplementationFactory;
 import com.uber.cadence.workflow.ActivitySchedulingOptions;
 import com.uber.cadence.workflow.CancellationScope;
+import com.uber.cadence.workflow.CompletablePromise;
 import com.uber.cadence.workflow.ContinueAsNewWorkflowExecutionParameters;
 import com.uber.cadence.workflow.Functions;
+import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.StartChildWorkflowExecutionParameters;
-import com.uber.cadence.workflow.WFuture;
 import com.uber.cadence.workflow.Workflow;
 import com.uber.cadence.workflow.WorkflowContext;
 
@@ -40,7 +41,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 class SyncDecisionContext {
@@ -58,17 +58,17 @@ class SyncDecisionContext {
         this.converter = converter;
     }
 
-    public <T> WFuture<T> executeActivity(String name, ActivitySchedulingOptions options, Object[] args, Class<T> returnType) {
+    public <T> Promise<T> executeActivity(String name, ActivitySchedulingOptions options, Object[] args, Class<T> returnType) {
         byte[] input = converter.toData(args);
-        WFuture<byte[]> binaryResult = executeActivity(name, options, input);
+        Promise<byte[]> binaryResult = executeActivity(name, options, input);
         if (returnType == Void.TYPE) {
             return binaryResult.thenApply(r -> null);
         }
         return binaryResult.thenApply(r -> converter.fromData(r, returnType));
     }
 
-    private WFuture<byte[]> executeActivity(String name, ActivitySchedulingOptions options, byte[] input) {
-        WFuture<byte[]> result = Workflow.newFuture();
+    private Promise<byte[]> executeActivity(String name, ActivitySchedulingOptions options, byte[] input) {
+        CompletablePromise<byte[]> result = Workflow.newCompletablePromise();
         ExecuteActivityParameters parameters = new ExecuteActivityParameters();
         //TODO: Real task list
         parameters.withActivityType(new ActivityType().setName(name)).
@@ -98,12 +98,10 @@ class SyncDecisionContext {
     // TODO: Child workflow cancellation
 
     /**
-     * @param executionResult future that is set bu this method when child workflow is started.
+     * @param executionResult promise that is set bu this method when child workflow is started.
      */
-    public WFuture<byte[]> executeChildWorkflow(
-            String name, StartWorkflowOptions options, byte[] input, WFuture<WorkflowExecution> executionResult) {
-//        ActivityFutureCancellationHandler cancellationHandler = new ActivityFutureCancellationHandler<>();
-//        WFuture<byte[]> result = new WFutureImpl<>(cancellationHandler);
+    public Promise<byte[]> executeChildWorkflow(
+            String name, StartWorkflowOptions options, byte[] input, CompletablePromise<WorkflowExecution> executionResult) {
         StartChildWorkflowExecutionParameters parameters = new StartChildWorkflowExecutionParameters();
         parameters.withWorkflowType(new WorkflowType().setName(name)).withInput(input);
         if (options != null) {
@@ -115,7 +113,7 @@ class SyncDecisionContext {
                 parameters.setTaskStartToCloseTimeoutSeconds(options.getTaskStartToCloseTimeoutSeconds());
             }
         }
-        WFuture<byte[]> result = Workflow.newFuture();
+        CompletablePromise<byte[]> result = Workflow.newCompletablePromise();
         Consumer<Throwable> cancellationCallback = workflowClient.startChildWorkflow(parameters,
                 executionResult::complete,
                 (output, failure) -> {
@@ -133,8 +131,8 @@ class SyncDecisionContext {
         return result;
     }
 
-    public WFuture<Void> newTimer(long delaySeconds) {
-        WFuture<Void> timer = Workflow.newFuture();
+    public Promise<Void> newTimer(long delaySeconds) {
+        CompletablePromise<Void> timer = Workflow.newCompletablePromise();
         long fireTime = context.getWorkflowClock().currentTimeMillis() + TimeUnit.SECONDS.toMillis(delaySeconds);
         timers.addTimer(fireTime, timer);
         CancellationScope.current().getCancellationRequest().thenApply((reason) ->

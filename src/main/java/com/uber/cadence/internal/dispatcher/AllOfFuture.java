@@ -16,9 +16,9 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import com.uber.cadence.workflow.CompletablePromise;
 import com.uber.cadence.workflow.Functions;
-import com.uber.cadence.workflow.RFuture;
-import com.uber.cadence.workflow.WFuture;
+import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.Workflow;
 
 import java.util.Arrays;
@@ -27,35 +27,35 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-class AllOfFuture<G> implements WFuture<List<G>> {
+class AllOfPromise<G> implements Promise<List<G>> {
 
     private G[] result;
-    private final WFuture<List<G>> impl = Workflow.newFuture();
+    private final CompletablePromise<List<G>> impl = Workflow.newCompletablePromise();
 
     private int notReadyCount;
 
-    public AllOfFuture(WFuture<G>[] futures) {
+    public AllOfPromise(Promise<G>[] promises) {
         // Using array to initialize it to the desired size with nulls.
-        result = (G[]) new Object[futures.length];
+        result = (G[]) new Object[promises.length];
         int index = 0;
-        for (WFuture<G> f : futures) {
-            addFuture(index, f);
+        for (Promise<G> f : promises) {
+            addPromise(index, f);
             index++;
         }
     }
 
-    public AllOfFuture(Collection<WFuture<G>> futures) {
+    public AllOfPromise(Collection<CompletablePromise<G>> promises) {
         // Using array to initialize it to the desired size with nulls.
-        result = (G[]) new Object[futures.size()];
+        result = (G[]) new Object[promises.size()];
         int index = 0;
-        for (WFuture<G> f : futures) {
-            addFuture(index, f);
+        for (CompletablePromise<G> f : promises) {
+            addPromise(index, f);
             index++;
         }
     }
 
-    private void addFuture(int index, WFuture<G> f) {
-        if (f.isDone()) {
+    private void addPromise(int index, Promise<G> f) {
+        if (f.isCompleted()) {
             result[index] = f.get();
         } else {
             notReadyCount++;
@@ -64,7 +64,7 @@ class AllOfFuture<G> implements WFuture<List<G>> {
                 if (notReadyCount == 0) {
                     throw new Error("Unexpected 0 count");
                 }
-                if (impl.isDone()) {
+                if (impl.isCompleted()) {
                     return null;
                 }
                 if (e != null) {
@@ -80,33 +80,18 @@ class AllOfFuture<G> implements WFuture<List<G>> {
     }
 
     @Override
-    public boolean complete(List<G> value) {
-        return impl.complete(value);
-    }
-
-    @Override
-    public boolean completeExceptionally(RuntimeException value) {
-        return impl.completeExceptionally(value);
-    }
-
-    @Override
-    public boolean completeFrom(RFuture<List<G>> source) {
-        return impl.completeFrom(source);
-    }
-
-    @Override
-    public <U> WFuture<U> thenApply(Functions.Func1<? super List<G>, ? extends U> fn) {
+    public <U> Promise<U> thenApply(Functions.Func1<? super List<G>, ? extends U> fn) {
         return impl.thenApply(fn);
     }
 
     @Override
-    public <U> WFuture<U> handle(Functions.Func2<? super List<G>, RuntimeException, ? extends U> fn) {
+    public <U> Promise<U> handle(Functions.Func2<? super List<G>, RuntimeException, ? extends U> fn) {
         return impl.handle(fn);
     }
 
     @Override
-    public boolean isDone() {
-        return impl.isDone();
+    public boolean isCompleted() {
+        return impl.isCompleted();
     }
 
     @Override

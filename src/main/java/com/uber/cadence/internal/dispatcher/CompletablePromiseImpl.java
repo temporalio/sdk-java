@@ -16,22 +16,22 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import com.uber.cadence.workflow.CompletablePromise;
 import com.uber.cadence.workflow.Functions;
-import com.uber.cadence.workflow.RFuture;
-import com.uber.cadence.workflow.WFuture;
+import com.uber.cadence.workflow.Promise;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-final class WFutureImpl<V> implements WFuture<V> {
+class CompletablePromiseImpl<V> implements CompletablePromise<V> {
 
     private static class Handler {
-        final WFutureImpl<Object> result;
+        final CompletablePromiseImpl<Object> result;
         final Functions.Func2 function;
 
-        private Handler(WFutureImpl<Object> result, Functions.Func2 function) {
+        private Handler(CompletablePromiseImpl<Object> result, Functions.Func2 function) {
             this.result = result;
             this.function = function;
         }
@@ -44,12 +44,12 @@ final class WFutureImpl<V> implements WFuture<V> {
     private final DeterministicRunnerImpl runner;
     private boolean registeredWithRunner;
 
-    WFutureImpl() {
+    CompletablePromiseImpl() {
         runner = WorkflowThreadInternal.currentThreadInternal().getRunner();
     }
 
     @Override
-    public boolean isDone() {
+    public boolean isCompleted() {
         return completed;
     }
 
@@ -82,7 +82,7 @@ final class WFutureImpl<V> implements WFuture<V> {
 
     private void unregisterWithRunner() {
         if (registeredWithRunner) {
-            runner.forgetFailedFuture(this);
+            runner.forgetFailedPromise(this);
             registeredWithRunner = false;
         }
     }
@@ -105,14 +105,14 @@ final class WFutureImpl<V> implements WFuture<V> {
         this.failure = value;
         boolean invoked = invokeHandlers();
         if (!invoked) {
-            runner.registerFailedFuture(this); // To ensure that failure is not ignored
+            runner.registerFailedPromise(this); // To ensure that failure is not ignored
             registeredWithRunner = true;
         }
         return true;
     }
 
     @Override
-    public boolean completeFrom(RFuture<V> source) {
+    public boolean completeFrom(Promise<V> source) {
         if (completed) {
             return false;
         }
@@ -127,7 +127,7 @@ final class WFutureImpl<V> implements WFuture<V> {
         return true;
     }
 
-    public <U> WFutureImpl<U> thenApply(Functions.Func1<? super V, ? extends U> fn) {
+    public <U> Promise<U> thenApply(Functions.Func1<? super V, ? extends U> fn) {
         return handle((r, e) -> {
             if (e != null) {
                 throw e;
@@ -136,24 +136,24 @@ final class WFutureImpl<V> implements WFuture<V> {
         });
     }
 
-    public <U> WFutureImpl<U> handle(Functions.Func2<? super V, RuntimeException, ? extends U> fn) {
+    public <U> Promise<U> handle(Functions.Func2<? super V, RuntimeException, ? extends U> fn) {
         // TODO: Cancellation handler
-        WFutureImpl<Object> resultFuture = new WFutureImpl<>();
+        CompletablePromiseImpl<Object> resultPromise = new CompletablePromiseImpl<>();
         if (completed) {
-            invokeHandler(fn, resultFuture);
+            invokeHandler(fn, resultPromise);
             unregisterWithRunner();
         } else {
-            handlers.add(new Handler(resultFuture, fn));
+            handlers.add(new Handler(resultPromise, fn));
         }
-        return (WFutureImpl<U>) resultFuture;
+        return (Promise<U>) resultPromise;
     }
 
-    private void invokeHandler(Functions.Func2 fn, WFutureImpl<Object> resultFuture) {
+    private void invokeHandler(Functions.Func2 fn, CompletablePromiseImpl<Object> resultPromise) {
         try {
             Object result = fn.apply(value, failure);
-            resultFuture.complete(result);
+            resultPromise.complete(result);
         } catch (RuntimeException e) {
-            resultFuture.completeExceptionally(e);
+            resultPromise.completeExceptionally(e);
         }
     }
 

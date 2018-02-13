@@ -17,13 +17,12 @@
 package com.uber.cadence.internal.dispatcher;
 
 import com.uber.cadence.workflow.CancellationScope;
-import com.uber.cadence.workflow.RFuture;
-import com.uber.cadence.workflow.WFuture;
+import com.uber.cadence.workflow.CompletablePromise;
+import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.Workflow;
 import com.uber.cadence.workflow.WorkflowThread;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -42,9 +41,8 @@ public class DeterministicRunnerTest {
     private String status;
     private boolean unblock1;
     private boolean unblock2;
-    private boolean unblockRoot;
     private Throwable failure;
-    List<String> trace = new ArrayList<>();
+    private List<String> trace = new ArrayList<>();
     private long currentTime;
     private ExecutorService threadPool;
 
@@ -52,7 +50,6 @@ public class DeterministicRunnerTest {
     public void setUp() {
         unblock1 = false;
         unblock2 = false;
-        unblockRoot = false;
         failure = null;
         status = "initial";
         trace.clear();
@@ -150,7 +147,7 @@ public class DeterministicRunnerTest {
         try {
             d.runUntilAllBlocked();
             fail("exception expected");
-        } catch (Throwable throwable) {
+        } catch (Throwable ignored) {
         }
         assertTrue(d.isDone());
     }
@@ -260,7 +257,7 @@ public class DeterministicRunnerTest {
         trace.add("init");
         DeterministicRunner d = new DeterministicRunnerImpl(() -> {
             trace.add("root started");
-            WFuture<Void> var = Workflow.newFuture();
+            CompletablePromise<Void> var = Workflow.newCompletablePromise();
             CancellationScope scope = Workflow.newCancellationScope(() -> {
                 trace.add("scope started");
                 var.completeFrom(newTimer(300));
@@ -296,7 +293,7 @@ public class DeterministicRunnerTest {
         trace.add("init");
         DeterministicRunner d = new DeterministicRunnerImpl(() -> {
             trace.add("root started");
-            WFuture<Void> var = Workflow.newFuture();
+            CompletablePromise<Void> var = Workflow.newCompletablePromise();
             CancellationScope scope = Workflow.newDetachedCancellationScope(() -> {
                 trace.add("scope started");
                 var.completeFrom(newTimer(300));
@@ -327,8 +324,8 @@ public class DeterministicRunnerTest {
         assertTrace(expected, trace);
     }
 
-    private RFuture<Void> newTimer(int milliseconds) {
-        WFuture<Void> result = Workflow.newFuture();
+    private Promise<Void> newTimer(int milliseconds) {
+        CompletablePromise<Void> result = Workflow.newCompletablePromise();
         Workflow.newThread(() -> {
             try {
                 WorkflowThread.sleep(milliseconds);
@@ -349,7 +346,7 @@ public class DeterministicRunnerTest {
             trace.add("root started");
             WorkflowThread thread1 = Workflow.newThread(() -> {
                 trace.add("thread started");
-                WFuture<String> cancellation = CancellationScope.current().getCancellationRequest();
+                Promise<String> cancellation = CancellationScope.current().getCancellationRequest();
                 WorkflowThreadInternal.yield("reason1",
                         () -> CancellationScope.current().isCancelRequested()
                 );
