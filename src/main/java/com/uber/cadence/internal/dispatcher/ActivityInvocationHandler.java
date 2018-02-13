@@ -17,9 +17,9 @@
 package com.uber.cadence.internal.dispatcher;
 
 import com.google.common.base.Defaults;
-import com.uber.cadence.workflow.ActivitySchedulingOptions;
 import com.uber.cadence.internal.common.FlowHelpers;
-import com.uber.cadence.workflow.WorkflowFuture;
+import com.uber.cadence.workflow.ActivitySchedulingOptions;
+import com.uber.cadence.workflow.WFuture;
 
 import java.lang.reflect.Method;
 import java.util.concurrent.atomic.AtomicReference;
@@ -28,7 +28,7 @@ class ActivityInvocationHandler extends AsyncInvocationHandler {
 
     private final ActivitySchedulingOptions options;
 
-    public ActivityInvocationHandler(ActivitySchedulingOptions options) {
+    ActivityInvocationHandler(ActivitySchedulingOptions options) {
         this.options = options;
     }
 
@@ -37,12 +37,13 @@ class ActivityInvocationHandler extends AsyncInvocationHandler {
         SyncDecisionContext decisionContext = WorkflowThreadInternal.currentThreadInternal().getDecisionContext();
         // TODO: Add annotation to support overriding activity name.
         String activityName = FlowHelpers.getSimpleName(method);
-        AtomicReference<WorkflowFuture> async = asyncResult.get();
+        AtomicReference<WFuture> async = asyncResult.get();
+        WFuture<?> result = decisionContext.executeActivity(activityName, options, args, method.getReturnType());
         if (async != null) {
-            async.set(decisionContext.executeActivityAsync(activityName, options, args, method.getReturnType()));
+            async.set(result);
             return Defaults.defaultValue(method.getReturnType());
         }
-        return decisionContext.executeActivity(activityName, options, args, method.getReturnType());
+        return result.get();
     }
 
 }

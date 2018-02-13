@@ -100,4 +100,12 @@ public class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
         byte[] result = genericClient.queryWorkflow(p);
         return dataConverter.fromData(result, returnType);
     }
+
+    @Override
+    public void cancel() {
+        if (execution == null || execution.getWorkflowId() == null) {
+            throw new IllegalStateException("Null workflowId. Was workflow started?");
+        }
+        genericClient.requestCancelWorkflowExecution(execution);
+    }
 }

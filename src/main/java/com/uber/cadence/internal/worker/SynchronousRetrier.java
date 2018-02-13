@@ -16,11 +16,18 @@
  */
 package com.uber.cadence.internal.worker;
 
-import com.uber.cadence.workflow.Functions;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 public class SynchronousRetrier<T extends Throwable> {
+
+    public interface RetryableProc<E extends Throwable> {
+        void apply() throws E;
+    }
+
+    public interface RetryableFunc<R, E extends Throwable> {
+        R apply() throws E;
+    }
 
     private static final Log log = LogFactory.getLog(SynchronousRetrier.class);
 
@@ -53,14 +60,14 @@ public class SynchronousRetrier<T extends Throwable> {
         return exceptionsToNotRetry;
     }
 
-    public void retry(Functions.Proc r) throws T {
+    public void retry(RetryableProc<T> r) throws T {
         retryWithResult(() -> {
             r.apply();
             return null;
         });
     }
 
-    public <R> R retryWithResult(Functions.Func<R> r) throws T {
+    public <R> R retryWithResult(RetryableFunc<R, T> r) throws T {
         int attempt = 0;
         long startTime = System.currentTimeMillis();
         BackoffThrottler throttler = new BackoffThrottler(retryParameters.getInitialInterval(),

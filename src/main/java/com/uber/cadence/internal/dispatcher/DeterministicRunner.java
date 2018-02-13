@@ -16,6 +16,7 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import com.uber.cadence.workflow.CancellationScope;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.WorkflowThread;
 
@@ -23,17 +24,17 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 
 /**
- * Executes code passed to {@link #newRunner(Functions.Proc)}
- * as well as threads created from it using {@link WorkflowInternal#newThread(Functions.Proc)} deterministically.
+ * Executes code passed to {@link #newRunner(Runnable)}
+ * as well as threads created from it using {@link WorkflowInternal#newThread(boolean, Runnable)} deterministically.
  * Requires use of provided wrappers for synchronization and notification instead of native ones.
  */
 interface DeterministicRunner {
 
-    static DeterministicRunner newRunner(Functions.Proc root) {
+    static DeterministicRunner newRunner(Runnable root) {
         return new DeterministicRunnerImpl(root);
     }
 
-    static DeterministicRunner newRunner(Supplier<Long> clock, Functions.Proc root) {
+    static DeterministicRunner newRunner(Supplier<Long> clock, Runnable root) {
         return new DeterministicRunnerImpl(clock, root);
     }
 
@@ -45,7 +46,7 @@ interface DeterministicRunner {
      * @param root            function that root thread of the runner executes.
      * @return instance of the DeterministicRunner.
      */
-    static DeterministicRunner newRunner(ExecutorService threadPool, SyncDecisionContext decisionContext, Supplier<Long> clock, Functions.Proc root) {
+    static DeterministicRunner newRunner(ExecutorService threadPool, SyncDecisionContext decisionContext, Supplier<Long> clock, Runnable root) {
         return new DeterministicRunnerImpl(threadPool, decisionContext, clock, root);
     }
 
@@ -53,7 +54,6 @@ interface DeterministicRunner {
      * ExecuteUntilAllBlocked executes threads one by one in deterministic order
      * until all of them are completed or blocked.
      *
-     * @return nearest time when at least one of the threads is expected to wake up.
      * @throws Throwable if one of the threads didn't handle an exception.
      */
     void runUntilAllBlocked() throws Throwable;
@@ -67,6 +67,12 @@ interface DeterministicRunner {
      * @return exit value passed to WorkflowThreadInternal.exit().
      */
     <R> R getExitValue();
+
+    /**
+     * Request cancellation of the computation. Calls {@link CancellationScope#cancel(String)} on the
+     * root scope that wraps the root Runnable.
+     */
+    void cancel(String reason);
 
     /**
      * * Destroys all threads by throwing {@link DestroyWorkflowThreadError} without waiting for their completion
@@ -99,7 +105,7 @@ interface DeterministicRunner {
 
     /**
      * Adds already started thread before all other threads. To be called before runUntilAllBlocked.
-     * This is used to ensure that some operations (like signal callbacks) are executed before other threads.
+     * This is used to ensure that some operations (like signal callbacks) are executed before all other threads.
      */
-    WorkflowThread newBeforeThread(Functions.Proc r, String name);
+    WorkflowThread newBeforeThread(String name, Runnable r);
 }

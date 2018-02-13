@@ -21,7 +21,7 @@ package com.uber.cadence.internal;
  * that workflow execution should be failed with the given reason and details.
  */
 @SuppressWarnings("serial")
-public class WorkflowException extends Exception {
+public class WorkflowException extends RuntimeException {
 
     private final byte[] details;
 

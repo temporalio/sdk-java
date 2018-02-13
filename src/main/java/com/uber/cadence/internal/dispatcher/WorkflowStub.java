@@ -17,7 +17,7 @@
 package com.uber.cadence.internal.dispatcher;
 
 import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.workflow.WorkflowFuture;
+import com.uber.cadence.workflow.WFuture;
 
 /**
  * Interface that stub created through {@link com.uber.cadence.workflow.Workflow#newChildWorkflowStub(Class)} implements.
@@ -28,5 +28,5 @@ import com.uber.cadence.workflow.WorkflowFuture;
 public interface WorkflowStub {
     String GET_EXECUTION_METHOD_NAME = "__getWorkflowExecution";
 
-    WorkflowFuture<WorkflowExecution> __getWorkflowExecution();
+    WFuture<WorkflowExecution> __getWorkflowExecution();
 }

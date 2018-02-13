@@ -20,7 +20,7 @@ import java.util.function.BiConsumer;
 
 class OpenRequestInfo<T, C> {
 
-    BiConsumer<T, Throwable> completionHandle;
+    BiConsumer<T, RuntimeException> completionHandle;
 
     final C userContext;
 
@@ -32,11 +32,11 @@ class OpenRequestInfo<T, C> {
         this.userContext = userContext;
     }
 
-    BiConsumer<T, Throwable> getCompletionCallback() {
+    BiConsumer<T, RuntimeException> getCompletionCallback() {
         return completionHandle;
     }
 
-    void setCompletionHandle(BiConsumer<T, Throwable> context) {
+    void setCompletionHandle(BiConsumer<T, RuntimeException> context) {
         this.completionHandle = context;
     }
 

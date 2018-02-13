@@ -34,11 +34,7 @@ public interface GenericAsyncWorkflowClient {
      * @return cancellation handle. Invoke {@link Consumer#accept(Object)} to cancel activity task.
      */
     Consumer<Throwable> startChildWorkflow(StartChildWorkflowExecutionParameters parameters, Consumer<WorkflowExecution> executionCallback,
-                                           BiConsumer<byte[], Throwable> callback);
-
-    Consumer<Throwable> startChildWorkflow(String workflow, byte[] input, Consumer<WorkflowExecution> executionCallback, BiConsumer<byte[], Throwable> callback);
-
-    Consumer<Throwable> startChildWorkflow(String workflow, byte[] input, BiConsumer<byte[], Throwable> callback);
+                                           BiConsumer<byte[], RuntimeException> callback);
 
 // TODO(Cadence):   Promise<Void> signalWorkflowExecution(SignalExternalWorkflowParameters signalParameters);
 

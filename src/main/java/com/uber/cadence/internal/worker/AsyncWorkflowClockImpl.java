@@ -48,7 +48,7 @@ class AsyncWorkflowClockImpl implements AsyncWorkflowClock {
                 @Override
                 public void run() {
                     OpenRequestInfo<?, ?> scheduled = scheduledTimers.remove(timerId);
-                    BiConsumer<?, Throwable> context = scheduled.getCompletionCallback();
+                    BiConsumer<?, RuntimeException> context = scheduled.getCompletionCallback();
                     CancellationException exception = new CancellationException("Cancelled by request");
                     exception.initCause(reason);
                     context.accept(null, exception);
@@ -125,7 +125,7 @@ class AsyncWorkflowClockImpl implements AsyncWorkflowClock {
             OpenRequestInfo<?, ?> pair = scheduledTimers.get(timerId);
             decisions.cancelTimer(timerId, () -> {
                 OpenRequestInfo<?, ?> scheduled = scheduledTimers.remove(timerId);
-                BiConsumer<?, Throwable> context = scheduled.getCompletionCallback();
+                BiConsumer<?, RuntimeException> context = scheduled.getCompletionCallback();
                 CancellationException exception = new CancellationException("Cancelled as next unblock time changed");
                 context.accept(null, exception);
             });
@@ -140,7 +140,7 @@ class AsyncWorkflowClockImpl implements AsyncWorkflowClock {
             OpenRequestInfo<?, ?> pair = scheduledTimers.get(timerId);
             decisions.cancelTimer(timerId, () -> {
                 OpenRequestInfo<?, ?> scheduled = scheduledTimers.remove(timerId);
-                BiConsumer<?, Throwable> context = scheduled.getCompletionCallback();
+                BiConsumer<?, RuntimeException> context = scheduled.getCompletionCallback();
                 CancellationException exception = new CancellationException("Cancelled as next unblock time changed");
                 context.accept(null, exception);
             });
@@ -172,7 +172,7 @@ class AsyncWorkflowClockImpl implements AsyncWorkflowClock {
         if (decisions.handleTimerCanceled(event)) {
             OpenRequestInfo<?, ?> scheduled = scheduledTimers.remove(timerId);
             if (scheduled != null) {
-                BiConsumer<?, Throwable> completionCallback = scheduled.getCompletionCallback();
+                BiConsumer<?, RuntimeException> completionCallback = scheduled.getCompletionCallback();
                 CancellationException exception = new CancellationException("Cancelled by request");
                 completionCallback.accept(null, exception);
             }

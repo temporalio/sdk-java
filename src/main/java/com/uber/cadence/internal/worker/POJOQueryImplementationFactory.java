@@ -17,6 +17,7 @@
 package com.uber.cadence.internal.worker;
 
 import com.google.common.reflect.TypeToken;
+import com.uber.cadence.error.CheckedExceptionWrapper;
 import com.uber.cadence.internal.DataConverter;
 import com.uber.cadence.internal.common.FlowHelpers;
 import com.uber.cadence.workflow.Functions;
@@ -75,7 +76,7 @@ public class POJOQueryImplementationFactory {
         }
 
         @Override
-        public byte[] apply(byte[] input) throws Exception {
+        public byte[] apply(byte[] input) {
             Object[] args = dataConverter.fromData(input, Object[].class);
             try {
                 Object result = method.invoke(activity, args);
@@ -83,15 +84,8 @@ public class POJOQueryImplementationFactory {
                     return EMPTY_BLOB;
                 }
                 return dataConverter.toData(result);
-            } catch (InvocationTargetException e) {
-                Throwable targetException = e.getTargetException();
-                if (targetException instanceof Exception) {
-                    throw (Exception) targetException;
-                }
-                if (targetException instanceof Error) {
-                    throw (Error) targetException;
-                }
-                throw e;
+            } catch (Throwable e) {
+                throw CheckedExceptionWrapper.wrap(e);
             }
         }
     }

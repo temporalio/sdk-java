@@ -21,7 +21,7 @@ import com.uber.cadence.workflow.Functions;
 
 import java.util.concurrent.CancellationException;
 
-class WorkflowProc implements Functions.Proc {
+class WorkflowRunnable implements Runnable {
     private final SyncDecisionContext context;
     private final SyncWorkflowDefinition workflow;
     private final WorkflowExecutionStartedEventAttributes attributes;
@@ -31,22 +31,25 @@ class WorkflowProc implements Functions.Proc {
     private byte[] output;
     private boolean done;
 
-    public WorkflowProc(SyncDecisionContext syncDecisionContext,
-                        SyncWorkflowDefinition workflow,
-                        WorkflowExecutionStartedEventAttributes attributes) {
+    public WorkflowRunnable(SyncDecisionContext syncDecisionContext,
+                            SyncWorkflowDefinition workflow,
+                            WorkflowExecutionStartedEventAttributes attributes) {
         this.context = syncDecisionContext;
         this.workflow = workflow;
         this.attributes = attributes;
     }
 
     @Override
-    public void apply() throws Exception {
-        output = workflow.execute(attributes.getInput());
-        done = true;
+    public void run() {
+        try {
+            output = workflow.execute(attributes.getInput());
+        } finally {
+            done = true;
+        }
     }
 
-    public void cancel(CancellationException e) {
-        throw new UnsupportedOperationException("not implemented yet");
+    public void cancel(String reason) {
+
     }
 
     public Throwable getFailure() {
@@ -72,7 +75,7 @@ class WorkflowProc implements Functions.Proc {
         workflow.processSignal(signalName, input);
     }
 
-    public byte[] query(String type, byte[] args) throws Exception {
+    public byte[] query(String type, byte[] args) {
         return context.query(type, args);
     }
 }

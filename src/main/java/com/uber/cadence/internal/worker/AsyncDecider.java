@@ -258,7 +258,8 @@ class AsyncDecider {
 
     private void handleWorkflowExecutionCancelRequested(HistoryEvent event) throws Throwable {
         workflowContext.setCancelRequested(true);
-        workflow.cancel(new CancellationException());
+        String cause = event.getWorkflowExecutionCancelRequestedEventAttributes().getCause();
+        workflow.cancel(cause);
         cancelRequested = true;
     }
 

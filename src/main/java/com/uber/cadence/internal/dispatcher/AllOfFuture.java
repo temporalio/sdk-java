@@ -17,59 +17,52 @@
 package com.uber.cadence.internal.dispatcher;
 
 import com.uber.cadence.workflow.Functions;
+import com.uber.cadence.workflow.RFuture;
+import com.uber.cadence.workflow.WFuture;
 import com.uber.cadence.workflow.Workflow;
-import com.uber.cadence.workflow.WorkflowFuture;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-class AllOfFuture<G> implements WorkflowFuture<List<G>> {
+class AllOfFuture<G> implements WFuture<List<G>> {
 
     private G[] result;
-    private final WorkflowFuture<List<G>> impl = Workflow.newFuture();
+    private final WFuture<List<G>> impl = Workflow.newFuture();
 
     private int notReadyCount;
 
-    public AllOfFuture(WorkflowFuture<G>[] futures) {
+    public AllOfFuture(WFuture<G>[] futures) {
         // Using array to initialize it to the desired size with nulls.
-        result = (G[])new Object[futures.length];
+        result = (G[]) new Object[futures.length];
         int index = 0;
-        for (WorkflowFuture<G> f : futures) {
+        for (WFuture<G> f : futures) {
             addFuture(index, f);
             index++;
         }
     }
 
-    public AllOfFuture(Collection<WorkflowFuture<G>> futures) {
+    public AllOfFuture(Collection<WFuture<G>> futures) {
         // Using array to initialize it to the desired size with nulls.
-        result = (G[])new Object[futures.size()];
+        result = (G[]) new Object[futures.size()];
         int index = 0;
-        for (WorkflowFuture<G> f : futures) {
+        for (WFuture<G> f : futures) {
             addFuture(index, f);
             index++;
         }
     }
 
-    private void addFuture(int index, WorkflowFuture<G> f) {
+    private void addFuture(int index, WFuture<G> f) {
         if (f.isDone()) {
-            try {
-                result[index] = f.get();
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            } catch (ExecutionException e) {
-                throw new RuntimeException(e);
-            }
+            result[index] = f.get();
         } else {
             notReadyCount++;
             final int i = index;
             f.handle((r, e) -> {
                 if (notReadyCount == 0) {
-                    throw new Exception("Unexpected 0 count");
+                    throw new Error("Unexpected 0 count");
                 }
                 if (impl.isDone()) {
                     return null;
@@ -77,7 +70,7 @@ class AllOfFuture<G> implements WorkflowFuture<List<G>> {
                 if (e != null) {
                     impl.completeExceptionally(e);
                 }
-                result[i] =  r;
+                result[i] = r;
                 if (--notReadyCount == 0) {
                     impl.complete(Arrays.asList(result));
                 }
@@ -92,28 +85,23 @@ class AllOfFuture<G> implements WorkflowFuture<List<G>> {
     }
 
     @Override
-    public boolean completeExceptionally(Exception value) {
+    public boolean completeExceptionally(RuntimeException value) {
         return impl.completeExceptionally(value);
     }
 
     @Override
-    public <U> WorkflowFuture<U> thenApply(Functions.Func1<? super List<G>, ? extends U> fn) {
+    public boolean completeFrom(RFuture<List<G>> source) {
+        return impl.completeFrom(source);
+    }
+
+    @Override
+    public <U> WFuture<U> thenApply(Functions.Func1<? super List<G>, ? extends U> fn) {
         return impl.thenApply(fn);
     }
 
     @Override
-    public <U> WorkflowFuture<U> handle(Functions.Func2<? super List<G>, Exception, ? extends U> fn) {
+    public <U> WFuture<U> handle(Functions.Func2<? super List<G>, RuntimeException, ? extends U> fn) {
         return impl.handle(fn);
-    }
-
-    @Override
-    public boolean cancel(boolean mayInterruptIfRunning) {
-        return impl.cancel(mayInterruptIfRunning);
-    }
-
-    @Override
-    public boolean isCancelled() {
-        return impl.isCancelled();
     }
 
     @Override
@@ -122,12 +110,12 @@ class AllOfFuture<G> implements WorkflowFuture<List<G>> {
     }
 
     @Override
-    public List<G> get() throws InterruptedException, ExecutionException {
+    public List<G> get() {
         return impl.get();
     }
 
     @Override
-    public List<G> get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+    public List<G> get(long timeout, TimeUnit unit) throws TimeoutException {
         return impl.get(timeout, unit);
     }
 }

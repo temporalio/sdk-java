@@ -16,10 +16,6 @@
  */
 package com.uber.cadence.internal.worker;
 
-import com.uber.cadence.internal.generic.ActivityFailureException;
-import com.uber.cadence.internal.common.WorkflowExecutionUtils;
-import com.uber.cadence.internal.generic.ActivityImplementation;
-import com.uber.cadence.internal.generic.ActivityImplementationFactory;
 import com.uber.cadence.ActivityType;
 import com.uber.cadence.EntityNotExistsError;
 import com.uber.cadence.PollForActivityTaskRequest;
@@ -29,6 +25,10 @@ import com.uber.cadence.RespondActivityTaskCompletedRequest;
 import com.uber.cadence.RespondActivityTaskFailedRequest;
 import com.uber.cadence.TaskList;
 import com.uber.cadence.WorkflowService;
+import com.uber.cadence.internal.common.WorkflowExecutionUtils;
+import com.uber.cadence.internal.generic.ActivityFailureException;
+import com.uber.cadence.internal.generic.ActivityImplementation;
+import com.uber.cadence.internal.generic.ActivityImplementationFactory;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.thrift.TException;
@@ -232,9 +232,7 @@ public class SynchronousActivityTaskPoller implements TaskPoller {
             respondActivityTaskFailed(taskToken, reason, details);
         }
         else {
-            reportFailureRetrier.retry(() -> {
-                    respondActivityTaskFailed(taskToken, reason, details);
-            });
+            reportFailureRetrier.retry(() -> respondActivityTaskFailed(taskToken, reason, details));
         }
     }
 

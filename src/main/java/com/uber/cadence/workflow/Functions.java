@@ -20,71 +20,71 @@ public class Functions {
 
     @FunctionalInterface
     public interface Func<R> {
-        R apply() throws Exception;
+        R apply();
     }
 
     @FunctionalInterface
     public interface Func1<T1, R> {
-        R apply(T1 t1) throws Exception;
+        R apply(T1 t1);
     }
 
     @FunctionalInterface
     public interface Func2<T1, T2, R> {
-        R apply(T1 t1, T2 t2) throws Exception;
+        R apply(T1 t1, T2 t2);
     }
 
     @FunctionalInterface
     public interface Func3<T1, T2, T3, R> {
-        R apply(T1 t1, T2 t2, T3 t3) throws Exception;
+        R apply(T1 t1, T2 t2, T3 t3);
     }
 
     @FunctionalInterface
     public interface Func4<T1, T2, T3, T4, R> {
-        R apply(T1 t1, T2 t2, T3 t3, T4 t4) throws Exception;
+        R apply(T1 t1, T2 t2, T3 t3, T4 t4);
     }
 
     @FunctionalInterface
     public interface Func5<T1, T2, T3, T4, T5, R> {
-        R apply(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5) throws Exception;
+        R apply(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5);
     }
 
     @FunctionalInterface
     public interface Func6<T1, T2, T3, T4, T5, T6, R> {
-        R apply(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6) throws Exception;
+        R apply(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6);
     }
 
     @FunctionalInterface
     public interface Proc {
-        void apply() throws Exception;
+        void apply();
     }
 
     @FunctionalInterface
     public interface Proc1<T1> {
-        void apply(T1 t1) throws Exception;
+        void apply(T1 t1);
     }
 
     @FunctionalInterface
     public interface Proc2<T1, T2> {
-        void apply(T1 t1, T2 t2) throws Exception;
+        void apply(T1 t1, T2 t2);
     }
 
     @FunctionalInterface
     public interface Proc3<T1, T2, T3> {
-        void apply(T1 t1, T2 t2, T3 t3) throws Exception;
+        void apply(T1 t1, T2 t2, T3 t3);
     }
 
     @FunctionalInterface
     public interface Proc4<T1, T2, T3, T4> {
-        void apply(T1 t1, T2 t2, T3 t3, T4 t4) throws Exception;
+        void apply(T1 t1, T2 t2, T3 t3, T4 t4);
     }
 
     @FunctionalInterface
     public interface Proc5<T1, T2, T3, T4, T5> {
-        void apply(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5) throws Exception;
+        void apply(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5);
     }
 
     @FunctionalInterface
     public interface Proc6<T1, T2, T3, T4, T5, T6> {
-        void apply(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6) throws Exception;
+        void apply(T1 t1, T2 t2, T3 t3, T4 t4, T5 t5, T6 t6);
     }
 }

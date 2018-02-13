@@ -17,66 +17,35 @@
 package com.uber.cadence.internal.dispatcher;
 
 import com.uber.cadence.workflow.Functions;
-import com.uber.cadence.workflow.WorkflowFuture;
+import com.uber.cadence.workflow.RFuture;
+import com.uber.cadence.workflow.WFuture;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.BiConsumer;
 
-final class WorkflowFutureImpl<T> implements WorkflowFuture<T> {
+final class WFutureImpl<V> implements WFuture<V> {
 
     private static class Handler {
-        final WorkflowFutureImpl<Object> result;
+        final WFutureImpl<Object> result;
         final Functions.Func2 function;
 
-        private Handler(WorkflowFutureImpl<Object> result, Functions.Func2 function) {
+        private Handler(WFutureImpl<Object> result, Functions.Func2 function) {
             this.result = result;
             this.function = function;
         }
     }
 
-    private final BiConsumer<WorkflowFuture<T>, Boolean> cancellationHandler;
-    private T value;
-    private Exception failure;
+    private V value;
+    private RuntimeException failure;
     private boolean completed;
-    private boolean cancelled;
     private final List<Handler> handlers = new ArrayList<>();
     private final DeterministicRunnerImpl runner;
     private boolean registeredWithRunner;
 
-    WorkflowFutureImpl() {
-        this(null);
-    }
-
-    WorkflowFutureImpl(BiConsumer<WorkflowFuture<T>, Boolean> cancellationHandler) {
+    WFutureImpl() {
         runner = WorkflowThreadInternal.currentThreadInternal().getRunner();
-        this.cancellationHandler = cancellationHandler;
-    }
-
-    @Override
-    public boolean cancel(boolean mayInterruptIfRunning) {
-        if (isDone()) {
-            return false;
-        }
-        if (cancellationHandler != null) {
-            // Ideally cancellationHandler completes this future
-            cancellationHandler.accept(this, mayInterruptIfRunning);
-        }
-        if (!isDone()) {
-            completeExceptionally(new CancellationException());
-        }
-        cancelled = true;
-        return true;
-    }
-
-    @Override
-    public boolean isCancelled() {
-        return cancelled;
     }
 
     @Override
@@ -85,19 +54,19 @@ final class WorkflowFutureImpl<T> implements WorkflowFuture<T> {
     }
 
     @Override
-    public T get() throws InterruptedException, ExecutionException {
+    public V get() {
         if (!completed) {
             WorkflowThreadInternal.yield("Feature.get", () -> completed);
         }
         if (failure != null) {
             unregisterWithRunner();
-            throw new ExecutionException(failure);
+            throw failure;
         }
         return value;
     }
 
     @Override
-    public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+    public V get(long timeout, TimeUnit unit) throws TimeoutException {
         if (!completed) {
             WorkflowThreadInternal.yield(unit.toMillis(timeout), "Feature.get", () -> completed);
         }
@@ -106,7 +75,7 @@ final class WorkflowFutureImpl<T> implements WorkflowFuture<T> {
         }
         if (failure != null) {
             unregisterWithRunner();
-            throw new ExecutionException(failure);
+            throw failure;
         }
         return value;
     }
@@ -118,7 +87,7 @@ final class WorkflowFutureImpl<T> implements WorkflowFuture<T> {
         }
     }
 
-    public boolean complete(T value) {
+    public boolean complete(V value) {
         if (completed) {
             return false;
         }
@@ -128,7 +97,7 @@ final class WorkflowFutureImpl<T> implements WorkflowFuture<T> {
         return true;
     }
 
-    public boolean completeExceptionally(Exception value) {
+    public boolean completeExceptionally(RuntimeException value) {
         if (completed) {
             return false;
         }
@@ -142,38 +111,49 @@ final class WorkflowFutureImpl<T> implements WorkflowFuture<T> {
         return true;
     }
 
-    public <U> WorkflowFutureImpl<U> thenApply(Functions.Func1<? super T, ? extends U> fn) {
+    @Override
+    public boolean completeFrom(RFuture<V> source) {
+        if (completed) {
+            return false;
+        }
+        source.handle((value, failure) -> {
+            if (failure != null) {
+                this.completeExceptionally(failure);
+            } else {
+                this.complete(value);
+            }
+            return null;
+        });
+        return true;
+    }
+
+    public <U> WFutureImpl<U> thenApply(Functions.Func1<? super V, ? extends U> fn) {
         return handle((r, e) -> {
             if (e != null) {
-                if (e instanceof CompletionException) {
-                    throw (CompletionException) e;
-                }
-                throw new CompletionException(e);
+                throw e;
             }
             return fn.apply(r);
         });
     }
 
-    public <U> WorkflowFutureImpl<U> handle(Functions.Func2<? super T, Exception, ? extends U> fn) {
+    public <U> WFutureImpl<U> handle(Functions.Func2<? super V, RuntimeException, ? extends U> fn) {
         // TODO: Cancellation handler
-        WorkflowFutureImpl<Object> resultFuture = new WorkflowFutureImpl<>();
+        WFutureImpl<Object> resultFuture = new WFutureImpl<>();
         if (completed) {
             invokeHandler(fn, resultFuture);
             unregisterWithRunner();
         } else {
             handlers.add(new Handler(resultFuture, fn));
         }
-        return (WorkflowFutureImpl<U>) resultFuture;
+        return (WFutureImpl<U>) resultFuture;
     }
 
-    private void invokeHandler(Functions.Func2 fn, WorkflowFutureImpl<Object> resultFuture) {
+    private void invokeHandler(Functions.Func2 fn, WFutureImpl<Object> resultFuture) {
         try {
             Object result = fn.apply(value, failure);
             resultFuture.complete(result);
-        } catch (CompletionException e) {
+        } catch (RuntimeException e) {
             resultFuture.completeExceptionally(e);
-        } catch (Exception e) {
-            resultFuture.completeExceptionally(new CompletionException(e));
         }
     }
 

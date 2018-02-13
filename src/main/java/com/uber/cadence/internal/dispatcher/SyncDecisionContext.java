@@ -27,19 +27,18 @@ import com.uber.cadence.internal.generic.GenericAsyncActivityClient;
 import com.uber.cadence.internal.generic.GenericAsyncWorkflowClient;
 import com.uber.cadence.internal.worker.POJOQueryImplementationFactory;
 import com.uber.cadence.workflow.ActivitySchedulingOptions;
+import com.uber.cadence.workflow.CancellationScope;
 import com.uber.cadence.workflow.ContinueAsNewWorkflowExecutionParameters;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.StartChildWorkflowExecutionParameters;
+import com.uber.cadence.workflow.WFuture;
 import com.uber.cadence.workflow.Workflow;
 import com.uber.cadence.workflow.WorkflowContext;
-import com.uber.cadence.workflow.WorkflowFuture;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -59,36 +58,17 @@ class SyncDecisionContext {
         this.converter = converter;
     }
 
-    public <T> T executeActivity(String name, ActivitySchedulingOptions options, Object[] args, Class<T> returnType) {
+    public <T> WFuture<T> executeActivity(String name, ActivitySchedulingOptions options, Object[] args, Class<T> returnType) {
         byte[] input = converter.toData(args);
-        byte[] result = executeActivity(name, options, input);
-        return converter.fromData(result, returnType);
-    }
-
-    public <T> WorkflowFuture<T> executeActivityAsync(String name, ActivitySchedulingOptions options, Object[] args, Class<T> returnType) {
-        byte[] input = converter.toData(args);
-        WorkflowFuture<byte[]> binaryResult = executeActivityAsync(name, options, input);
+        WFuture<byte[]> binaryResult = executeActivity(name, options, input);
         if (returnType == Void.TYPE) {
             return binaryResult.thenApply(r -> null);
         }
         return binaryResult.thenApply(r -> converter.fromData(r, returnType));
     }
 
-    public byte[] executeActivity(String name, ActivitySchedulingOptions options, byte[] input) {
-        Future<byte[]> result = executeActivityAsync(name, options, input);
-        // TODO: Exception mapping
-        try {
-            return result.get();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        } catch (ExecutionException e) {
-            throw new RuntimeException(e.getCause());
-        }
-    }
-
-    public WorkflowFuture<byte[]> executeActivityAsync(String name, ActivitySchedulingOptions options, byte[] input) {
-        ActivityFutureCancellationHandler cancellationHandler = new ActivityFutureCancellationHandler<>();
-        WorkflowFuture<byte[]> result = new WorkflowFutureImpl<>(cancellationHandler);
+    private WFuture<byte[]> executeActivity(String name, ActivitySchedulingOptions options, byte[] input) {
+        WFuture<byte[]> result = Workflow.newFuture();
         ExecuteActivityParameters parameters = new ExecuteActivityParameters();
         //TODO: Real task list
         parameters.withActivityType(new ActivityType().setName(name)).
@@ -102,12 +82,16 @@ class SyncDecisionContext {
                 (output, failure) -> {
                     if (failure != null) {
                         // TODO: Make sure that only Exceptions are passed into the callback.
-                        result.completeExceptionally((Exception) failure);
+                        result.completeExceptionally(failure);
                     } else {
                         result.complete(output);
                     }
                 });
-        cancellationHandler.setCancellationCallback(cancellationCallback);
+        CancellationScope.current().getCancellationRequest().thenApply((reason) ->
+        {
+            cancellationCallback.accept(new CancellationException(reason));
+            return null;
+        });
         return result;
     }
 
@@ -116,10 +100,10 @@ class SyncDecisionContext {
     /**
      * @param executionResult future that is set bu this method when child workflow is started.
      */
-    public WorkflowFuture<byte[]> executeChildWorkflow(
-            String name, StartWorkflowOptions options, byte[] input, WorkflowFuture<WorkflowExecution> executionResult) {
+    public WFuture<byte[]> executeChildWorkflow(
+            String name, StartWorkflowOptions options, byte[] input, WFuture<WorkflowExecution> executionResult) {
 //        ActivityFutureCancellationHandler cancellationHandler = new ActivityFutureCancellationHandler<>();
-//        WorkflowFuture<byte[]> result = new WorkflowFutureImpl<>(cancellationHandler);
+//        WFuture<byte[]> result = new WFutureImpl<>(cancellationHandler);
         StartChildWorkflowExecutionParameters parameters = new StartChildWorkflowExecutionParameters();
         parameters.withWorkflowType(new WorkflowType().setName(name)).withInput(input);
         if (options != null) {
@@ -131,26 +115,34 @@ class SyncDecisionContext {
                 parameters.setTaskStartToCloseTimeoutSeconds(options.getTaskStartToCloseTimeoutSeconds());
             }
         }
-        WorkflowFuture<byte[]> result = Workflow.newFuture();
+        WFuture<byte[]> result = Workflow.newFuture();
         Consumer<Throwable> cancellationCallback = workflowClient.startChildWorkflow(parameters,
-                (execution) -> executionResult.complete(execution),
+                executionResult::complete,
                 (output, failure) -> {
                     if (failure != null) {
-                        // TODO: Make sure that only Exceptions are passed into the callback.
-                        result.completeExceptionally((Exception) failure);
+                        result.completeExceptionally(failure);
                     } else {
                         result.complete(output);
                     }
                 });
-//        cancellationHandler.setCancellationCallback(cancellationCallback);
+        CancellationScope.current().getCancellationRequest().thenApply((reason) ->
+        {
+            cancellationCallback.accept(new CancellationException(reason));
+            return null;
+        });
         return result;
     }
 
-    public WorkflowFuture<Void> newTimer(long delaySeconds) {
-        ActivityFutureCancellationHandler<Void> cancellationHandler = new ActivityFutureCancellationHandler<>();
-        WorkflowFuture<Void> timer = new WorkflowFutureImpl<>(cancellationHandler);
+    public WFuture<Void> newTimer(long delaySeconds) {
+        WFuture<Void> timer = Workflow.newFuture();
         long fireTime = context.getWorkflowClock().currentTimeMillis() + TimeUnit.SECONDS.toMillis(delaySeconds);
         timers.addTimer(fireTime, timer);
+        CancellationScope.current().getCancellationRequest().thenApply((reason) ->
+        {
+            timers.removeTimer(fireTime, timer);
+            timer.completeExceptionally(new CancellationException(reason));
+            return null;
+        });
         return timer;
     }
 
@@ -165,7 +157,7 @@ class SyncDecisionContext {
         return timers.getNextFireTime();
     }
 
-    public byte[] query(String type, byte[] args) throws Exception {
+    public byte[] query(String type, byte[] args) {
         Functions.Func1<byte[], byte[]> callback = queryCallbacks.get(type);
         if (callback == null) {
             throw new IllegalArgumentException("Unknown query type: " + type + ", knownTypes=" + queryCallbacks.keySet());
@@ -173,7 +165,7 @@ class SyncDecisionContext {
         return callback.apply(args);
     }
 
-    public void registerQuery(String queryType, Functions.Func1<byte[], byte[]> callback) {
+    private void registerQuery(String queryType, Functions.Func1<byte[], byte[]> callback) {
         Functions.Func1<byte[], byte[]> previous = queryCallbacks.put(queryType, callback);
         if (previous != null) {
             throw new IllegalStateException("Query " + queryType + " is already registered");
@@ -198,18 +190,5 @@ class SyncDecisionContext {
 
     public WorkflowContext getWorkflowContext() {
         return context.getWorkflowContext();
-    }
-
-    private static class ActivityFutureCancellationHandler<T> implements BiConsumer<WorkflowFuture<T>, Boolean> {
-        private Consumer<Throwable> cancellationCallback;
-
-        public void setCancellationCallback(Consumer<Throwable> cancellationCallback) {
-            this.cancellationCallback = cancellationCallback;
-        }
-
-        @Override
-        public void accept(WorkflowFuture<T> workflowFuture, Boolean aBoolean) {
-            cancellationCallback.accept(new CancellationException("result future cancelled"));
-        }
     }
 }

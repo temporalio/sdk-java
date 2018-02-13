@@ -23,12 +23,11 @@ import com.uber.cadence.internal.StartWorkflowOptions;
 import com.uber.cadence.internal.common.FlowHelpers;
 import com.uber.cadence.workflow.QueryMethod;
 import com.uber.cadence.workflow.SignalMethod;
+import com.uber.cadence.workflow.WFuture;
 import com.uber.cadence.workflow.Workflow;
-import com.uber.cadence.workflow.WorkflowFuture;
 import com.uber.cadence.workflow.WorkflowMethod;
 
 import java.lang.reflect.Method;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class ChildWorkflowInvocationHandler extends AsyncInvocationHandler {
@@ -36,7 +35,7 @@ public class ChildWorkflowInvocationHandler extends AsyncInvocationHandler {
     private final StartWorkflowOptions options;
     private final SyncDecisionContext decisionContext;
     private final DataConverter dataConverter;
-    private WorkflowFuture<WorkflowExecution> execution = Workflow.newFuture();
+    private WFuture<WorkflowExecution> execution = Workflow.newFuture();
     private boolean startRequested;
 
     public ChildWorkflowInvocationHandler(StartWorkflowOptions options, SyncDecisionContext decisionContext) {
@@ -91,21 +90,15 @@ public class ChildWorkflowInvocationHandler extends AsyncInvocationHandler {
     private Object executeChildWorkflow(Method method, Object[] args) {
         String workflowName = FlowHelpers.getSimpleName(method);
         byte[] input = dataConverter.toData(args);
-        WorkflowFuture<byte[]> encodedResult = decisionContext.executeChildWorkflow(
+        WFuture<byte[]> encodedResult = decisionContext.executeChildWorkflow(
                 workflowName, options, input, execution);
-        WorkflowFuture result = encodedResult.thenApply(
+        WFuture result = encodedResult.thenApply(
                 (encoded) -> dataConverter.fromData(encoded, method.getReturnType()));
-        AtomicReference<WorkflowFuture> async = asyncResult.get();
+        AtomicReference<WFuture> async = asyncResult.get();
         if (async != null) {
             async.set(result);
             return Defaults.defaultValue(method.getReturnType());
         }
-        try {
-            return result.get();
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        } catch (ExecutionException e) {
-            throw new RuntimeException(e);
-        }
+        return result.get();
     }
 }

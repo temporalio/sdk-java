@@ -40,7 +40,7 @@ public class WorkflowInternalQueueTest {
         DeterministicRunner r = DeterministicRunner.newRunner(() -> {
             WorkflowQueue<Boolean> f = WorkflowInternal.newQueue(1);
             trace.add("root begin");
-            WorkflowInternal.newThread(() -> {
+            WorkflowInternal.newThread(false, () -> {
                 try {
                     trace.add("thread1 begin");
                     assertTrue(f.take());
@@ -49,7 +49,7 @@ public class WorkflowInternalQueueTest {
                     throw new RuntimeException(e);
                 }
             }).start();
-            WorkflowInternal.newThread(() -> {
+            WorkflowInternal.newThread(false, () -> {
                 try {
                     trace.add("thread2 begin");
                     f.put(true);
@@ -78,7 +78,7 @@ public class WorkflowInternalQueueTest {
         DeterministicRunner r = DeterministicRunner.newRunner(() -> currentTime, () -> {
             WorkflowQueue<Boolean> f = WorkflowInternal.newQueue(1);
             trace.add("root begin");
-            WorkflowInternal.newThread(() -> {
+            WorkflowInternal.newThread(false, () -> {
                 try {
                     trace.add("thread1 begin");
                     WorkflowThread.sleep(2000);
@@ -90,7 +90,7 @@ public class WorkflowInternalQueueTest {
                     throw new RuntimeException(e);
                 }
             }).start();
-            WorkflowInternal.newThread(() -> {
+            WorkflowInternal.newThread(false, () -> {
                 try {
                     trace.add("thread2 begin");
                     f.put(true);

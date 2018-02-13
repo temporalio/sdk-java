@@ -31,7 +31,7 @@ public interface GenericAsyncActivityClient {
      * @return cancellation handle. Invoke {@link Consumer#accept(Object)} to cancel activity task.
      */
     Consumer<Throwable> scheduleActivityTask(ExecuteActivityParameters parameters,
-                                             BiConsumer<byte[], Throwable> callback);
+                                             BiConsumer<byte[], RuntimeException> callback);
 
     /**
      * Used to dynamically schedule an activity for execution

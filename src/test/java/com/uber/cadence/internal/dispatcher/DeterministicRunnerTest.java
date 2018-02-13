@@ -16,15 +16,20 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
-import com.uber.cadence.workflow.Functions;
+import com.uber.cadence.workflow.CancellationScope;
+import com.uber.cadence.workflow.RFuture;
+import com.uber.cadence.workflow.WFuture;
+import com.uber.cadence.workflow.Workflow;
 import com.uber.cadence.workflow.WorkflowThread;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -65,17 +70,13 @@ public class DeterministicRunnerTest {
     public void testYield() throws Throwable {
         DeterministicRunner d = new DeterministicRunnerImpl(() -> {
             status = "started";
-            try {
-                WorkflowThreadInternal.yield("reason1",
-                        () -> unblock1
-                );
-                status = "after1";
-                WorkflowThreadInternal.yield("reason2",
-                        () -> unblock2
-                );
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+            WorkflowThreadInternal.yield("reason1",
+                    () -> unblock1
+            );
+            status = "after1";
+            WorkflowThreadInternal.yield("reason2",
+                    () -> unblock2
+            );
             status = "done";
         });
         assertEquals("initial", status);
@@ -102,13 +103,9 @@ public class DeterministicRunnerTest {
                 () -> currentTime, // clock override
                 () -> {
                     status = "started";
-                    try {
-                        WorkflowThread.sleep(60000);
-                        status = "afterSleep1";
-                        WorkflowThread.sleep(60000);
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
+                    WorkflowThread.sleep(60000);
+                    status = "afterSleep1";
+                    WorkflowThread.sleep(60000);
                     status = "done";
                 });
         currentTime = 1000;
@@ -140,13 +137,9 @@ public class DeterministicRunnerTest {
     public void testRootFailure() throws Throwable {
         DeterministicRunner d = new DeterministicRunnerImpl(() -> {
             status = "started";
-            try {
-                WorkflowThreadInternal.yield("reason1",
-                        () -> unblock1
-                );
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+            WorkflowThreadInternal.yield("reason1",
+                    () -> unblock1
+            );
             throw new RuntimeException("simulated");
         });
         assertEquals("initial", status);
@@ -166,23 +159,19 @@ public class DeterministicRunnerTest {
     public void testDispatcherStop() throws Throwable {
         DeterministicRunner d = new DeterministicRunnerImpl(() -> {
             status = "started";
+            WorkflowThreadInternal.yield("reason1",
+                    () -> unblock1
+            );
+            status = "after1";
             try {
-                WorkflowThreadInternal.yield("reason1",
-                        () -> unblock1
+                WorkflowThreadInternal.yield("reason2",
+                        () -> unblock2
                 );
-                status = "after1";
-                try {
-                    WorkflowThreadInternal.yield("reason2",
-                            () -> unblock2
-                    );
-                } catch (DestroyWorkflowThreadError e) {
-                    failure = e;
-                    throw e;
-                }
-                status = "done";
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+            } catch (DestroyWorkflowThreadError e) {
+                failure = e;
+                throw e;
             }
+            status = "done";
         });
         assertEquals("initial", status);
         d.runUntilAllBlocked();
@@ -200,14 +189,14 @@ public class DeterministicRunnerTest {
     public void testDispatcherExit() throws Throwable {
         DeterministicRunner d = new DeterministicRunnerImpl(() -> {
             trace.add("root started");
-            WorkflowThread thread1 = WorkflowInternal.newThread(() -> {
+            WorkflowThread thread1 = WorkflowInternal.newThread(false, () -> {
                 trace.add("child1 started");
                 WorkflowThreadInternal.yield("reason1",
                         () -> unblock1
                 );
                 trace.add("child1 done");
             });
-            WorkflowThread thread2 = WorkflowInternal.newThread(() -> {
+            WorkflowThread thread2 = WorkflowInternal.newThread(false, () -> {
                 trace.add("child2 started");
                 WorkflowThreadInternal.yield("reason2",
                         () -> unblock2
@@ -239,52 +228,212 @@ public class DeterministicRunnerTest {
     }
 
     @Test
-    public void testRootSelfInterrupt() throws Throwable {
-        status = "initial";
+    public void testRootCancellation() throws Throwable {
+        trace.add("init");
         DeterministicRunner d = new DeterministicRunnerImpl(() -> {
-            status = "started";
-            WorkflowThread.currentThread().interrupt();
-            try {
-                WorkflowThreadInternal.yield("reason1",
-                        () -> unblock1
-                );
-            } catch (InterruptedException e) {
-                if (WorkflowThread.interrupted()) {
-                    status = "still interrupted";
-                } else {
-                    status = "interrupted";
-                }
-            }
+            trace.add("root started");
+            WorkflowThreadInternal.yield("reason1",
+                    () -> CancellationScope.current().isCancelRequested()
+            );
+            trace.add("second yield: " + CancellationScope.current().getCancellationReason());
+            WorkflowThreadInternal.yield("reason1",
+                    () -> CancellationScope.current().isCancelRequested()
+            );
+            trace.add("root done");
         });
         d.runUntilAllBlocked();
+        assertFalse(d.isDone());
+        d.cancel("I just feel like it");
+        d.runUntilAllBlocked();
         assertTrue(d.isDone());
-        assertEquals("interrupted", status);
+        String[] expected = new String[]{
+                "init",
+                "root started",
+                "second yield: I just feel like it",
+                "root done",
+        };
+        assertTrace(expected, trace);
+    }
+
+    @Test
+    public void testExplicitScopeCancellation() throws Throwable {
+        trace.add("init");
+        DeterministicRunner d = new DeterministicRunnerImpl(() -> {
+            trace.add("root started");
+            WFuture<Void> var = Workflow.newFuture();
+            CancellationScope scope = Workflow.newCancellationScope(() -> {
+                trace.add("scope started");
+                var.completeFrom(newTimer(300));
+                trace.add("scope done");
+            });
+            trace.add("root before cancel");
+            scope.cancel("from root");
+            try {
+                var.get();
+                trace.add("after get");
+            } catch (CancellationException e) {
+                trace.add("scope cancelled");
+            }
+            trace.add("root done");
+        });
+        d.runUntilAllBlocked();
+        assertTrue(trace.toString(), d.isDone());
+        String[] expected = new String[]{
+                "init",
+                "root started",
+                "scope started",
+                "scope done",
+                "root before cancel",
+                "timer cancelled",
+                "scope cancelled",
+                "root done",
+        };
+        assertTrace(expected, trace);
+    }
+
+    @Test
+    public void testExplicitDetachedScopeCancellation() throws Throwable {
+        trace.add("init");
+        DeterministicRunner d = new DeterministicRunnerImpl(() -> {
+            trace.add("root started");
+            WFuture<Void> var = Workflow.newFuture();
+            CancellationScope scope = Workflow.newDetachedCancellationScope(() -> {
+                trace.add("scope started");
+                var.completeFrom(newTimer(300));
+                trace.add("scope done");
+            });
+            trace.add("root before cancel");
+            scope.cancel("from root");
+            try {
+                var.get();
+                trace.add("after get");
+            } catch (CancellationException e) {
+                trace.add("scope cancelled");
+            }
+            trace.add("root done");
+        });
+        d.runUntilAllBlocked();
+        assertTrue(trace.toString(), d.isDone());
+        String[] expected = new String[]{
+                "init",
+                "root started",
+                "scope started",
+                "scope done",
+                "root before cancel",
+                "timer cancelled",
+                "scope cancelled",
+                "root done",
+        };
+        assertTrace(expected, trace);
+    }
+
+    private RFuture<Void> newTimer(int milliseconds) {
+        WFuture<Void> result = Workflow.newFuture();
+        Workflow.newThread(() -> {
+            try {
+                WorkflowThread.sleep(milliseconds);
+                result.complete(null);
+                trace.add("timer fired");
+            } catch (CancellationException e) {
+                trace.add("timer cancelled");
+                result.completeExceptionally(e);
+            }
+        }).start();
+        return result;
+    }
+
+    @Test
+    public void testExplicitThreadCancellation() throws Throwable {
+        trace.add("init");
+        DeterministicRunner d = new DeterministicRunnerImpl(() -> {
+            trace.add("root started");
+            WorkflowThread thread1 = Workflow.newThread(() -> {
+                trace.add("thread started");
+                WFuture<String> cancellation = CancellationScope.current().getCancellationRequest();
+                WorkflowThreadInternal.yield("reason1",
+                        () -> CancellationScope.current().isCancelRequested()
+                );
+                trace.add("thread done: " + cancellation.get());
+            });
+            thread1.start();
+            trace.add("root before cancel");
+            thread1.cancel("from root");
+            thread1.join();
+            trace.add("root done");
+        });
+        d.runUntilAllBlocked();
+        assertTrue(d.stackTrace(), d.isDone());
+        String[] expected = new String[]{
+                "init",
+                "root started",
+                "root before cancel",
+                "thread started",
+                "thread done: from root",
+                "root done",
+        };
+        assertTrace(expected, trace);
+    }
+
+    @Test
+    public void testDetachedCancellation() throws Throwable {
+        trace.add("init");
+        DeterministicRunner d = new DeterministicRunnerImpl(() -> {
+            trace.add("root started");
+            WorkflowThread thread1 = Workflow.newDetachedThread(() -> {
+                trace.add("thread started");
+                WorkflowThreadInternal.yield("reason1",
+                        () -> unblock1 || CancellationScope.current().isCancelRequested()
+                );
+                trace.add("yield done");
+            });
+            thread1.start();
+            try {
+                thread1.join();
+            } catch (CancellationException e) {
+                trace.add("join cancelled");
+            }
+            trace.add("root done");
+        });
+        d.runUntilAllBlocked();
+        assertFalse(trace.toString(), d.isDone());
+        d.cancel("I just feel like it");
+        d.runUntilAllBlocked();
+        assertFalse(d.isDone());
+        String[] expected = new String[]{
+                "init",
+                "root started",
+                "thread started",
+        };
+        assertTrace(expected, trace);
+        unblock1 = true;
+        d.runUntilAllBlocked();
+        assertTrue(d.isDone());
+        expected = new String[]{
+                "init",
+                "root started",
+                "thread started",
+                "yield done",
+                "root done",
+        };
+        assertTrace(expected, trace);
     }
 
     @Test
     public void testChild() throws Throwable {
         DeterministicRunner d = new DeterministicRunnerImpl(() -> {
-            WorkflowThread thread = WorkflowInternal.newThread(() -> {
+            WorkflowThread thread = WorkflowInternal.newThread(false, () -> {
                 status = "started";
-                try {
-                    WorkflowThreadInternal.yield("reason1",
-                            () -> unblock1
-                    );
-                    status = "after1";
-                    WorkflowThreadInternal.yield("reason2",
-                            () -> unblock2
-                    );
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
+                WorkflowThreadInternal.yield("reason1",
+                        () -> unblock1
+                );
+                status = "after1";
+                WorkflowThreadInternal.yield("reason2",
+                        () -> unblock2
+                );
                 status = "done";
             });
             thread.start();
-            try {
-                thread.join();
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+            thread.join();
         });
         assertEquals("initial", status);
         d.runUntilAllBlocked();
@@ -303,65 +452,6 @@ public class DeterministicRunnerTest {
     }
 
     @Test
-    public void testChildInterrupt() throws Throwable {
-        DeterministicRunner d = new DeterministicRunnerImpl(() -> {
-            trace.add("root started");
-            WorkflowThread thread = WorkflowInternal.newThread(() -> {
-                trace.add("child started");
-                try {
-                    WorkflowThreadInternal.yield("reason1",
-                            () -> unblock1
-                    );
-                    trace.add("child after1");
-                    WorkflowThreadInternal.yield("reason2",
-                            () -> unblock2
-                    );
-                } catch (InterruptedException e) {
-                    // Set to false when exception was thrown.
-                    assertFalse(Thread.currentThread().isInterrupted());
-                    trace.add("child interrupted");
-                }
-                trace.add("child done");
-            });
-            thread.start();
-            try {
-                trace.add("root blocked");
-                WorkflowThreadInternal.yield("rootReason1",
-                        () -> unblockRoot
-                );
-                assertFalse(thread.isInterrupted());
-                thread.interrupt();
-                assertTrue(thread.isInterrupted());
-                trace.add("root waiting for join");
-                thread.join();
-                trace.add("root done");
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        });
-
-        d.runUntilAllBlocked();
-        unblock1 = true;
-        d.runUntilAllBlocked();
-        unblockRoot = true;
-        d.runUntilAllBlocked();
-        unblock2 = true;
-        d.runUntilAllBlocked();
-        assertTrue(d.isDone());
-        String[] expected = new String[]{
-                "root started",
-                "root blocked",
-                "child started",
-                "child after1",
-                "root waiting for join",
-                "child interrupted",
-                "child done",
-                "root done"
-        };
-        assertTrace(expected, trace);
-    }
-
-    @Test
     public void testJoinTimeout() throws Throwable {
         DeterministicRunnerImpl d = new DeterministicRunnerImpl(
                 threadPool,
@@ -370,23 +460,15 @@ public class DeterministicRunnerTest {
                 () -> {
                     trace.add("root started");
 
-                    WorkflowThread thread = WorkflowInternal.newThread(() -> {
+                    WorkflowThread thread = WorkflowInternal.newThread(false, () -> {
                         trace.add("child started");
-                        try {
-                            WorkflowThreadInternal.yield("blockForever",
-                                    () -> false
-                            );
-                        } catch (InterruptedException e) {
-                            throw new RuntimeException(e);
-                        }
+                        WorkflowThreadInternal.yield("blockForever",
+                                () -> false
+                        );
                         trace.add("child done");
                     });
                     thread.start();
-                    try {
-                        thread.join(60000);
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
+                    thread.join(60000);
                     trace.add("root done");
                 });
         currentTime = 1000;
@@ -413,13 +495,13 @@ public class DeterministicRunnerTest {
         d.close();
     }
 
-    void assertTrace(String[] expected, List<String> trace) {
+    private void assertTrace(String[] expected, List<String> trace) {
         assertEquals(Arrays.asList(expected), trace);
     }
 
     private static final int CHILDREN = 10;
 
-    private class TestChildTreeRunnable implements Functions.Proc {
+    private class TestChildTreeRunnable implements Runnable {
         final int depth;
 
         private TestChildTreeRunnable(int depth) {
@@ -427,26 +509,19 @@ public class DeterministicRunnerTest {
         }
 
         @Override
-        public void apply() {
+        public void run() {
             trace.add("child " + depth + " started");
             if (depth >= CHILDREN) {
                 trace.add("child " + depth + " done");
                 return;
             }
-            WorkflowThread thread = WorkflowInternal.newThread(new TestChildTreeRunnable(depth + 1));
+            WorkflowThread thread = WorkflowInternal.newThread(false,
+                    new TestChildTreeRunnable(depth + 1));
             thread.start();
-            try {
-                WorkflowThreadInternal.yield("reason1",
-                        () -> unblock1
-                );
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-            try {
-                thread.join();
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+            WorkflowThreadInternal.yield("reason1",
+                    () -> unblock1
+            );
+            thread.join();
             trace.add("child " + depth + " done");
         }
     }

@@ -38,13 +38,11 @@ public interface AsyncWorkflow {
      */
     byte[] getOutput();
 
-    void cancel(CancellationException e);
+    void cancel(String reason);
 
     Throwable getFailure();
 
     boolean isCancelRequested();
-
-    byte[] getWorkflowState() throws WorkflowException;
 
     void close();
 
@@ -58,5 +56,5 @@ public interface AsyncWorkflow {
      * Called after all history is replayed and workflow cannot make any progress if decision task is a query.
      * @param query
      */
-    byte[] query(WorkflowQuery query) throws Exception;
+    byte[] query(WorkflowQuery query);
 }

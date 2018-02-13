@@ -17,7 +17,7 @@
 package com.uber.cadence.internal.dispatcher;
 
 import com.uber.cadence.workflow.Functions;
-import com.uber.cadence.workflow.WorkflowFuture;
+import com.uber.cadence.workflow.WFuture;
 import com.uber.cadence.workflow.WorkflowThread;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -29,7 +29,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -61,27 +60,28 @@ class DeterministicRunnerImpl implements DeterministicRunner {
      * Used to check for failedFutures that contain an error, but never where accessed.
      * It is to avoid failure swallowing by failedFutures which is very hard to troubleshoot.
      */
-    private Set<WorkflowFuture> failedFutures = new HashSet<>();
+    private Set<WFuture> failedFutures = new HashSet<>();
     private Object exitValue;
+    private WorkflowThreadInternal rootWorkflowThread;
 
-    public DeterministicRunnerImpl(Functions.Proc root) {
+    DeterministicRunnerImpl(Runnable root) {
         this(System::currentTimeMillis, root);
     }
 
-    public DeterministicRunnerImpl(Supplier<Long> clock, Functions.Proc root) {
+    DeterministicRunnerImpl(Supplier<Long> clock, Runnable root) {
         this(new ThreadPoolExecutor(0, 1000, 1, TimeUnit.MINUTES, new SynchronousQueue<>()),
                 null,
                 clock, root);
     }
 
-    public DeterministicRunnerImpl(ExecutorService threadPool, SyncDecisionContext decisionContext, Supplier<Long> clock, Functions.Proc root) {
+    DeterministicRunnerImpl(ExecutorService threadPool, SyncDecisionContext decisionContext, Supplier<Long> clock, Runnable root) {
         this.threadPool = threadPool;
         this.decisionContext = decisionContext;
         this.clock = clock;
         // TODO: workflow instance specific thread name
-        WorkflowThreadInternal rootWorkflowThreadImpl = new WorkflowThreadInternal(threadPool, this, WORKFLOW_ROOT_THREAD_NAME, root);
-        threads.add(rootWorkflowThreadImpl);
-        rootWorkflowThreadImpl.start();
+        rootWorkflowThread = new WorkflowThreadInternal(threadPool, this, WORKFLOW_ROOT_THREAD_NAME, true, root);
+        threads.add(rootWorkflowThread);
+        rootWorkflowThread.start();
     }
 
     public SyncDecisionContext getDecisionContext() {
@@ -154,6 +154,11 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
 
     @Override
+    public void cancel(String reason) {
+        rootWorkflowThread.cancel(reason);
+    }
+
+    @Override
     public void close() {
         lock.lock();
         if (closed) {
@@ -164,13 +169,12 @@ class DeterministicRunnerImpl implements DeterministicRunner {
                 c.stop();
             }
             threads.clear();
-            for (WorkflowFuture<?> f : failedFutures) {
+            for (WFuture<?> f : failedFutures) {
                 try {
                     f.get();
                     throw new Error("unreachable");
-                } catch (ExecutionException e) {
-                    log.warn("Failed WorkflowFuture was never accessed. The ignored exception:", e.getCause());
-                } catch (InterruptedException e) {
+                } catch (RuntimeException e) {
+                    log.warn("Failed WFuture was never accessed. The ignored exception:", e.getCause());
                 }
             }
         } finally {
@@ -219,7 +223,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         return nextWakeUpTime;
     }
 
-    public WorkflowThreadInternal newThread(Functions.Proc r) {
+    public WorkflowThreadInternal newThread(Runnable runnable, boolean ignoreParentCancellation, String name) {
         lock.lock();
         try {
             if (closed) {
@@ -228,19 +232,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         } finally {
             lock.unlock();
         }
-        return newThread(r, null);
-    }
-
-    public WorkflowThreadInternal newThread(Functions.Proc r, String name) {
-        lock.lock();
-        try {
-            if (closed) {
-                throw new IllegalStateException("closed");
-            }
-        } finally {
-            lock.unlock();
-        }
-        WorkflowThreadInternal result = new WorkflowThreadInternal(threadPool, this, name, r);
+        WorkflowThreadInternal result = new WorkflowThreadInternal(threadPool, this, name, ignoreParentCancellation, runnable);
         threadsToAdd.add(result); // This is synchronized collection.
         return result;
     }
@@ -259,8 +251,8 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
 
     @Override
-    public WorkflowThread newBeforeThread(Functions.Proc r, String name) {
-        WorkflowThreadInternal result = new WorkflowThreadInternal(threadPool, this, name, r);
+    public WorkflowThread newBeforeThread(String name, Runnable r) {
+        WorkflowThreadInternal result = new WorkflowThreadInternal(threadPool, this, name, false, r);
         result.start();
         lock.lock();
         try {
@@ -278,14 +270,14 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     /**
      * Register a future that had failed but wasn't accessed yet.
      */
-    public <T> void registerFailedFuture(WorkflowFuture future) {
+    public void registerFailedFuture(WFuture future) {
         failedFutures.add(future);
     }
 
     /**
      * Forget a failed future as it was accessed.
      */
-    public <T> void forgetFailedFuture(WorkflowFuture future) {
+    public void forgetFailedFuture(WFuture future) {
         failedFutures.remove(future);
     }
 

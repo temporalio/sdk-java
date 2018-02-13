@@ -16,18 +16,15 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
-import com.google.common.base.Charsets;
+import com.uber.cadence.EventType;
+import com.uber.cadence.HistoryEvent;
+import com.uber.cadence.WorkflowQuery;
+import com.uber.cadence.WorkflowType;
 import com.uber.cadence.client.CadenceClient;
 import com.uber.cadence.internal.AsyncDecisionContext;
 import com.uber.cadence.internal.DataConverter;
-import com.uber.cadence.EventType;
-import com.uber.cadence.HistoryEvent;
-import com.uber.cadence.internal.WorkflowException;
-import com.uber.cadence.WorkflowQuery;
-import com.uber.cadence.WorkflowType;
 import com.uber.cadence.internal.worker.AsyncWorkflow;
 
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
@@ -42,7 +39,7 @@ class SyncWorkflow implements AsyncWorkflow {
     private final Function<WorkflowType, SyncWorkflowDefinition> factory;
     private final DataConverter converter;
     private final ExecutorService threadPool;
-    private WorkflowProc workflowProc;
+    private WorkflowRunnable workflowProc;
     private DeterministicRunner runner;
 
     public SyncWorkflow(Function<WorkflowType, SyncWorkflowDefinition> factory, DataConverter converter, ExecutorService threadPool) {
@@ -64,7 +61,7 @@ class SyncWorkflow implements AsyncWorkflow {
                     + event.getEventType());
         }
 
-        workflowProc = new WorkflowProc(syncContext, workflow, event.getWorkflowExecutionStartedEventAttributes());
+        workflowProc = new WorkflowRunnable(syncContext, workflow, event.getWorkflowExecutionStartedEventAttributes());
         runner = DeterministicRunner.newRunner(threadPool, syncContext, context.getWorkflowClock()::currentTimeMillis, workflowProc);
         runner.newCallbackTask(syncContext::fireTimers, "timer callbacks");
     }
@@ -72,8 +69,7 @@ class SyncWorkflow implements AsyncWorkflow {
     @Override
     public void processSignal(String signalName, byte[] input) {
         String threadName = "\"" + signalName + "\" signal handler";
-        runner.newBeforeThread(() ->
-        workflowProc.processSignal(signalName, input), threadName);
+        runner.newBeforeThread(threadName, () -> workflowProc.processSignal(signalName, input));
     }
 
     @Override
@@ -91,8 +87,8 @@ class SyncWorkflow implements AsyncWorkflow {
     }
 
     @Override
-    public void cancel(CancellationException e) {
-        workflowProc.cancel(e);
+    public void cancel(String reason) {
+        runner.cancel(reason);
     }
 
     @Override
@@ -103,11 +99,6 @@ class SyncWorkflow implements AsyncWorkflow {
     @Override
     public boolean isCancelRequested() {
         return workflowProc.isCancelRequested();
-    }
-
-    @Override
-    public byte[] getWorkflowState() throws WorkflowException {
-        throw new UnsupportedOperationException("not supported by Cadence, use query instead");
     }
 
     @Override
@@ -123,7 +114,7 @@ class SyncWorkflow implements AsyncWorkflow {
     }
 
     @Override
-    public byte[] query(WorkflowQuery query) throws Exception {
+    public byte[] query(WorkflowQuery query) {
         if (CadenceClient.QUERY_TYPE_STACK_TRCE.equals(query.getQueryType())) {
             return converter.toData(runner.stackTrace());
         }

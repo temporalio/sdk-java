@@ -35,11 +35,10 @@ class WorkflowThreadContext {
     private Status status = Status.CREATED;
     private Consumer<String> evaluationFunction;
     private Throwable unhandledException;
-    private boolean destroyRequested;
-    private boolean interrupted;
     private boolean inRunUntilBlocked;
     private boolean remainedBlocked;
     private String yieldReason;
+    private boolean destroyRequested;
 
     WorkflowThreadContext(Lock lock) {
         this.lock = lock;
@@ -48,14 +47,14 @@ class WorkflowThreadContext {
         this.evaluationCondition = lock.newCondition();
     }
 
-    public void initialYield() throws InterruptedException {
+    public void initialYield() {
         if (getStatus() != Status.CREATED) {
             throw new IllegalStateException("not in CREATED but in " + getStatus() + " state");
         }
         yield("created", () -> true);
     }
 
-    public void yield(String reason, Supplier<Boolean> unblockFunction) throws InterruptedException {
+    public void yield(String reason, Supplier<Boolean> unblockFunction) {
         if (unblockFunction == null) {
             throw new IllegalArgumentException("null unblockFunction");
         }
@@ -63,34 +62,22 @@ class WorkflowThreadContext {
         lock.lock();
         try {
             // TODO: Verify that calling unblockFunction under the lock is a sane thing to do.
-            while (!inRunUntilBlocked || throwInterrupted() || !unblockFunction.get()) {
+            while (!inRunUntilBlocked || !unblockFunction.get()) {
                 status = Status.YIELDED;
                 runCondition.signal();
                 yieldCondition.await();
                 mayBeEvaluate(reason);
                 yieldReason = reason;
             }
+        } catch (InterruptedException e) {
+            // Throwing Error in workflow code aborts decision without failing workflow.
+            throw new Error("Unexpected interrupt", e);
         } finally {
             setStatus(Status.RUNNING);
             remainedBlocked = false;
             yieldReason = null;
             lock.unlock();
         }
-    }
-
-    /**
-     * Throws InterruptedException if interrupted is true resetting it to false.
-     * Should be called under the lock.
-     *
-     * @return true just to be able to use in the while expression.
-     * @throws InterruptedException if interrupted is true
-     */
-    private boolean throwInterrupted() throws InterruptedException {
-        if (interrupted) {
-            interrupted = false;
-            throw new InterruptedException();
-        }
-        return false;
     }
 
     /**
@@ -127,7 +114,6 @@ class WorkflowThreadContext {
             if (status != Status.YIELDED) {
                 throw new IllegalStateException("Not in yielded status: " + status);
             }
-            ;
             if (evaluationFunction != null) {
                 throw new IllegalStateException("Already evaluating");
             }
@@ -144,15 +130,6 @@ class WorkflowThreadContext {
             throw new Error("Unexpected interrupt", e);
         } finally {
             evaluationFunction = null;
-            lock.unlock();
-        }
-    }
-
-    public boolean destroyRequested() {
-        lock.lock();
-        try {
-            return destroyRequested;
-        } finally {
             lock.unlock();
         }
     }
@@ -223,12 +200,12 @@ class WorkflowThreadContext {
                 throw new IllegalStateException("Cannot runUntilBlocked while evaluating");
             }
             inRunUntilBlocked = true;
-            if (status != status.CREATED) {
+            if (status != Status.CREATED) {
                 status = Status.RUNNING;
             }
             remainedBlocked = true;
             yieldCondition.signal();
-            while (status == status.RUNNING || status == Status.CREATED) {
+            while (status == Status.RUNNING || status == Status.CREATED) {
                 runCondition.await();
                 if (evaluationFunction != null) {
                     throw new IllegalStateException("Cannot runUntilBlocked while evaluating");
@@ -239,6 +216,15 @@ class WorkflowThreadContext {
             throw new Error("Unexpected interrupt", e);
         } finally {
             inRunUntilBlocked = false;
+            lock.unlock();
+        }
+    }
+
+    public boolean isDestroyRequested() {
+        lock.lock();
+        try {
+            return destroyRequested;
+        } finally {
             lock.unlock();
         }
     }
@@ -267,34 +253,5 @@ class WorkflowThreadContext {
             lock.unlock();
         }
         throw new DestroyWorkflowThreadError();
-    }
-
-    public void interrupt() {
-        lock.lock();
-        try {
-            interrupted = true;
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    public boolean isInterrupted() {
-        lock.lock();
-        try {
-            return interrupted;
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    public boolean resetInterrupted() {
-        lock.lock();
-        try {
-            boolean result = interrupted;
-            interrupted = false;
-            return result;
-        } finally {
-            lock.unlock();
-        }
     }
 }

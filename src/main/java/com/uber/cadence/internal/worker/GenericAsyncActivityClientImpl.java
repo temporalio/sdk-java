@@ -16,10 +16,6 @@
  */
 package com.uber.cadence.internal.worker;
 
-import com.uber.cadence.internal.ActivityTaskFailedException;
-import com.uber.cadence.internal.ActivityTaskTimedOutException;
-import com.uber.cadence.internal.generic.ExecuteActivityParameters;
-import com.uber.cadence.internal.generic.GenericAsyncActivityClient;
 import com.uber.cadence.ActivityTaskCanceledEventAttributes;
 import com.uber.cadence.ActivityTaskCompletedEventAttributes;
 import com.uber.cadence.ActivityTaskFailedEventAttributes;
@@ -30,6 +26,10 @@ import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.ScheduleActivityTaskDecisionAttributes;
 import com.uber.cadence.TaskList;
 import com.uber.cadence.TimeoutType;
+import com.uber.cadence.internal.ActivityTaskFailedException;
+import com.uber.cadence.internal.ActivityTaskTimedOutException;
+import com.uber.cadence.internal.generic.ExecuteActivityParameters;
+import com.uber.cadence.internal.generic.GenericAsyncActivityClient;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -43,9 +43,9 @@ class GenericAsyncActivityClientImpl implements GenericAsyncActivityClient {
 
         private final String activityId;
 
-        private final  BiConsumer<byte[], Throwable> callback;
+        private final  BiConsumer<byte[], RuntimeException> callback;
 
-        private ActivityCancellationHandler(String activityId, BiConsumer<byte[], Throwable> callaback) {
+        private ActivityCancellationHandler(String activityId, BiConsumer<byte[], RuntimeException> callaback) {
             this.activityId = activityId;
             this.callback = callaback;
         }
@@ -63,7 +63,7 @@ class GenericAsyncActivityClientImpl implements GenericAsyncActivityClient {
     }
 
     @Override
-    public Consumer<Throwable> scheduleActivityTask(ExecuteActivityParameters parameters, BiConsumer<byte[], Throwable> callback) {
+    public Consumer<Throwable> scheduleActivityTask(ExecuteActivityParameters parameters, BiConsumer<byte[], RuntimeException> callback) {
         final OpenRequestInfo<byte[], ActivityType> context = new OpenRequestInfo<>(parameters.getActivityType());
         final ScheduleActivityTaskDecisionAttributes attributes = new ScheduleActivityTaskDecisionAttributes();
         attributes.setActivityType(parameters.getActivityType());
@@ -109,7 +109,7 @@ class GenericAsyncActivityClientImpl implements GenericAsyncActivityClient {
             CancellationException e = new CancellationException();
             OpenRequestInfo<byte[], ActivityType> scheduled = scheduledActivities.remove(activityId);
             if (scheduled != null) {
-                BiConsumer<byte[], Throwable> completionHandle = scheduled.getCompletionCallback();
+                BiConsumer<byte[], RuntimeException> completionHandle = scheduled.getCompletionCallback();
                 // It is OK to fail with subclass of CancellationException when cancellation requested.
                 // It allows passing information about cancellation (details in this case) to the surrounding doCatch block
                 completionHandle.accept(null, e);
@@ -124,7 +124,7 @@ class GenericAsyncActivityClientImpl implements GenericAsyncActivityClient {
             OpenRequestInfo<byte[], ActivityType> scheduled = scheduledActivities.remove(activityId);
             if (scheduled != null) {
                 byte[] result = attributes.getResult();
-                BiConsumer<byte[], Throwable> completionHandle = scheduled.getCompletionCallback();
+                BiConsumer<byte[], RuntimeException> completionHandle = scheduled.getCompletionCallback();
                 completionHandle.accept(result, null);
             }
         }
@@ -140,7 +140,7 @@ class GenericAsyncActivityClientImpl implements GenericAsyncActivityClient {
                 byte[] details = attributes.getDetails();
                 ActivityTaskFailedException failure = new ActivityTaskFailedException(event.getEventId(),
                         scheduled.getUserContext(), activityId, reason, details);
-                BiConsumer<byte[], Throwable> completionHandle = scheduled.getCompletionCallback();
+                BiConsumer<byte[], RuntimeException> completionHandle = scheduled.getCompletionCallback();
                 completionHandle.accept(null, failure);
             }
         }
@@ -156,7 +156,7 @@ class GenericAsyncActivityClientImpl implements GenericAsyncActivityClient {
                 byte[] details = attributes.getDetails();
                 ActivityTaskTimedOutException failure = new ActivityTaskTimedOutException(event.getEventId(),
                         scheduled.getUserContext(), activityId, timeoutType, details);
-                BiConsumer<byte[], Throwable> completionHandle = scheduled.getCompletionCallback();
+                BiConsumer<byte[], RuntimeException> completionHandle = scheduled.getCompletionCallback();
                 completionHandle.accept(null, failure);
             }
         }

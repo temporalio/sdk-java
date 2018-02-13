@@ -16,14 +16,14 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
-import com.uber.cadence.workflow.WorkflowFuture;
+import com.uber.cadence.workflow.WFuture;
 
 import java.lang.reflect.InvocationHandler;
 import java.util.concurrent.atomic.AtomicReference;
 
 abstract class AsyncInvocationHandler implements InvocationHandler {
 
-    protected static final ThreadLocal<AtomicReference<WorkflowFuture>> asyncResult = new ThreadLocal<>();
+    protected static final ThreadLocal<AtomicReference<WFuture>> asyncResult = new ThreadLocal<>();
 
     public static void initAsyncInvocation() {
         if (asyncResult.get() != null) {
@@ -32,13 +32,13 @@ abstract class AsyncInvocationHandler implements InvocationHandler {
         asyncResult.set(new AtomicReference<>());
     }
 
-    public static WorkflowFuture getAsyncInvocationResult() {
+    public static WFuture getAsyncInvocationResult() {
         try {
-            AtomicReference<WorkflowFuture> reference = asyncResult.get();
+            AtomicReference<WFuture> reference = asyncResult.get();
             if (reference == null) {
                 throw new IllegalStateException("initAsyncInvocation wasn't called");
             }
-            WorkflowFuture result = reference.get();
+            WFuture result = reference.get();
             if (result == null) {
                 throw new IllegalStateException("asyncStart result wasn't set");
             }

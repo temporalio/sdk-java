@@ -18,14 +18,14 @@ package com.uber.cadence.internal.worker;
 
 import com.google.common.base.Throwables;
 import com.google.common.reflect.TypeToken;
+import com.uber.cadence.ActivityType;
 import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.WorkflowService;
-import com.uber.cadence.internal.activity.ActivityExecutionContext;
-import com.uber.cadence.internal.generic.ActivityFailureException;
-import com.uber.cadence.ActivityType;
 import com.uber.cadence.internal.DataConverter;
+import com.uber.cadence.internal.activity.ActivityExecutionContext;
 import com.uber.cadence.internal.activity.CurrentActivityExecutionContext;
 import com.uber.cadence.internal.common.FlowHelpers;
+import com.uber.cadence.internal.generic.ActivityFailureException;
 import com.uber.cadence.internal.generic.ActivityImplementation;
 import com.uber.cadence.internal.generic.ActivityImplementationFactory;
 
@@ -35,6 +35,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
 
 public class POJOActivityImplementationFactory implements ActivityImplementationFactory {
 
@@ -71,6 +72,9 @@ public class POJOActivityImplementationFactory implements ActivityImplementation
     private ActivityFailureException throwActivityFailure(Throwable e) {
         if (e instanceof ActivityFailureException) {
             return (ActivityFailureException) e;
+        }
+        if (e instanceof CancellationException) {
+            throw (CancellationException) e;
         }
         return new ActivityFailureException(e.getMessage(),
                 Throwables.getStackTraceAsString(e).getBytes(StandardCharsets.UTF_8));

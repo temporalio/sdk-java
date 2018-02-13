@@ -18,9 +18,14 @@ package com.uber.cadence.client;
 
 public interface UntypedWorkflowStub {
 
-    void signal(String signalName, Object... input);
+    void signal(String signalName, Object... args);
 
     <R> WorkflowExternalResult<R> execute(Class<R> returnType, Object... args);
 
     <R> R query(String queryType, Class<R> returnType, Object... args);
+
+    /**
+     * Request cancellation.
+     */
+    void cancel();
 }

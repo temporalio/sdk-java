@@ -16,8 +16,9 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import com.uber.cadence.workflow.RFuture;
+import com.uber.cadence.workflow.WFuture;
 import com.uber.cadence.workflow.Workflow;
-import com.uber.cadence.workflow.WorkflowFuture;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -49,18 +50,16 @@ public class WorkflowInternalFutureTest {
     @Test
     public void testFailure() throws Throwable {
         DeterministicRunner r = DeterministicRunner.newRunner(() -> {
-            WorkflowFuture<Boolean> f = Workflow.newFuture();
+            WFuture<Boolean> f = Workflow.newFuture();
             trace.add("root begin");
-            WorkflowInternal.newThread(() -> f.completeExceptionally(new IllegalArgumentException("foo"))).start();
-            WorkflowInternal.newThread(() -> {
+            WorkflowInternal.newThread(false, () -> f.completeExceptionally(new IllegalArgumentException("foo"))).start();
+            WorkflowInternal.newThread(false, () -> {
                 try {
                     f.get();
                     trace.add("thread1 get success");
                     fail("failure expected");
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                } catch (ExecutionException e) {
-                    assertEquals(IllegalArgumentException.class, e.getCause().getClass());
+                } catch (Exception e) {
+                    assertEquals(IllegalArgumentException.class, e.getClass());
                     trace.add("thread1 get failure");
                 }
             }).start();
@@ -76,30 +75,6 @@ public class WorkflowInternalFutureTest {
     }
 
     @Test
-    public void testCancellation() throws Throwable {
-        DeterministicRunner r = DeterministicRunner.newRunner(() -> {
-            WorkflowFuture<Boolean> f = new WorkflowFutureImpl<>((ff, i) -> {
-                ff.completeExceptionally(new CancellationException());
-                trace.add("cancellation handler done");
-            });
-            trace.add("root begin");
-            WorkflowInternal.newThread(() -> {
-                f.cancel(true);
-                trace.add("thread1 done");
-            }).start();
-            trace.add("root done");
-        });
-        r.runUntilAllBlocked();
-        String[] expected = new String[]{
-                "root begin",
-                "root done",
-                "cancellation handler done",
-                "thread1 done",
-        };
-        trace.setExpected(expected);
-    }
-
-    @Test
     public void testGetTimeout() throws Throwable {
         ExecutorService threadPool = new ThreadPoolExecutor(1, 1000, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
 
@@ -108,21 +83,21 @@ public class WorkflowInternalFutureTest {
                 null,
                 () -> currentTime,
                 () -> {
-                    WorkflowFuture<String> f = Workflow.newFuture();
+                    WFuture<String> f = Workflow.newFuture();
                     trace.add("root begin");
-                    WorkflowInternal.newThread(() -> {
+                    WorkflowInternal.newThread(false, () -> {
                         trace.add("thread1 begin");
                         try {
                             assertEquals("bar", f.get(10, TimeUnit.SECONDS));
                             trace.add("thread1 get success");
                             fail("failure expected");
-                        } catch (InterruptedException e) {
-                            throw new RuntimeException(e);
-                        } catch (ExecutionException e) {
-                            assertEquals(IllegalArgumentException.class, e.getCause().getClass());
-                            trace.add("thread1 get failure");
+                        } catch (CancellationException e) {
+                            trace.add("thread1 get cancellation");
                         } catch (TimeoutException e) {
                             trace.add("thread1 get timeout");
+                        } catch (Exception e) {
+                            assertEquals(IllegalArgumentException.class, e.getCause().getClass());
+                            trace.add("thread1 get failure");
                         }
                     }).start();
                     trace.add("root done");
@@ -153,50 +128,32 @@ public class WorkflowInternalFutureTest {
     public void testMultiple() throws Throwable {
         DeterministicRunner r = DeterministicRunner.newRunner(() -> {
             trace.add("root begin");
-            WorkflowFuture<Boolean> f1 = Workflow.newFuture();
-            WorkflowFuture<Boolean> f2 = Workflow.newFuture();
-            WorkflowFuture<Boolean> f3 = Workflow.newFuture();
+            WFuture<Boolean> f1 = Workflow.newFuture();
+            WFuture<Boolean> f2 = Workflow.newFuture();
+            WFuture<Boolean> f3 = Workflow.newFuture();
 
-            WorkflowInternal.newThread(
+            WorkflowInternal.newThread(false,
                     () -> {
                         trace.add("thread1 begin");
-                        try {
-                            assertTrue(f1.get());
-                            trace.add("thread1 f1");
-                            f2.complete(true);
-                        } catch (InterruptedException e) {
-                            throw new RuntimeException(e);
-                        } catch (ExecutionException e) {
-                            throw new RuntimeException(e);
-                        }
+                        assertTrue(f1.get());
+                        trace.add("thread1 f1");
+                        f2.complete(true);
                         trace.add("thread1 done");
                     }
             ).start();
-            WorkflowInternal.newThread(
+            WorkflowInternal.newThread(false,
                     () -> {
                         trace.add("thread2 begin");
-                        try {
-                            assertTrue(f2.get());
-                            trace.add("thread2 f2");
-                            f3.complete(true);
-                        } catch (InterruptedException e) {
-                            throw new RuntimeException(e);
-                        } catch (ExecutionException e) {
-                            throw new RuntimeException(e);
-                        }
+                        assertTrue(f2.get());
+                        trace.add("thread2 f2");
+                        f3.complete(true);
                         trace.add("thread2 done");
                     }
             ).start();
             f1.complete(true);
             assertFalse(f1.complete(false));
             trace.add("root before f3");
-            try {
-                assertTrue(f3.get());
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            } catch (ExecutionException e) {
-                throw new RuntimeException(e);
-            }
+            assertTrue(f3.get());
             trace.add("root done");
         });
         r.runUntilAllBlocked();
@@ -219,37 +176,37 @@ public class WorkflowInternalFutureTest {
     public void testAllOf() throws Throwable {
         DeterministicRunner r = DeterministicRunner.newRunner(() -> {
             trace.add("root begin");
-            WorkflowFuture<String> f1 = Workflow.newFuture();
-            WorkflowFuture<String> f2 = Workflow.newFuture();
-            WorkflowFuture<String> f3 = Workflow.newFuture();
+            WFuture<String> f1 = Workflow.newFuture();
+            WFuture<String> f2 = Workflow.newFuture();
+            WFuture<String> f3 = Workflow.newFuture();
 
-            WorkflowInternal.newThread(
+            WorkflowInternal.newThread(false,
                     () -> {
                         trace.add("thread1 begin");
                         f1.complete("value1");
                         trace.add("thread1 done");
                     }
             ).start();
-            WorkflowInternal.newThread(
+            WorkflowInternal.newThread(false,
                     () -> {
                         trace.add("thread3 begin");
                         f3.complete("value3");
                         trace.add("thread3 done");
                     }
             ).start();
-            WorkflowInternal.newThread(
+            WorkflowInternal.newThread(false,
                     () -> {
                         trace.add("thread2 begin");
                         f2.complete("value2");
                         trace.add("thread2 done");
                     }
             ).start();
-            List<WorkflowFuture<String>> futures = new ArrayList<>();
+            List<WFuture<String>> futures = new ArrayList<>();
             futures.add(f1);
             futures.add(f2);
             futures.add(f3);
             trace.add("root before allOf");
-            WorkflowFuture<List<String>> all = WorkflowFuture.allOf(futures);
+            WFuture<List<String>> all = RFuture.allOf(futures);
             List<String> expected = new ArrayList<>();
             expected.add("value1");
             expected.add("value2");
@@ -276,25 +233,25 @@ public class WorkflowInternalFutureTest {
     public void testAllOfArray() throws Throwable {
         DeterministicRunner r = DeterministicRunner.newRunner(() -> {
             trace.add("root begin");
-            WorkflowFuture<String> f1 = Workflow.newFuture();
-            WorkflowFuture<Integer> f2 = Workflow.newFuture();
-            WorkflowFuture<Boolean> f3 = Workflow.newFuture();
+            WFuture<String> f1 = Workflow.newFuture();
+            WFuture<Integer> f2 = Workflow.newFuture();
+            WFuture<Boolean> f3 = Workflow.newFuture();
 
-            WorkflowInternal.newThread(
+            WorkflowInternal.newThread(false,
                     () -> {
                         trace.add("thread1 begin");
                         f1.complete("value1");
                         trace.add("thread1 done");
                     }
             ).start();
-            WorkflowInternal.newThread(
+            WorkflowInternal.newThread(false,
                     () -> {
                         trace.add("thread3 begin");
                         f3.complete(true);
                         trace.add("thread3 done");
                     }
             ).start();
-            WorkflowInternal.newThread(
+            WorkflowInternal.newThread(false,
                     () -> {
                         trace.add("thread2 begin");
                         f2.complete(111);
@@ -305,7 +262,7 @@ public class WorkflowInternalFutureTest {
             assertFalse(f1.isDone());
             assertFalse(f2.isDone());
             assertFalse(f3.isDone());
-            WorkflowFuture<Void> done = WorkflowFuture.allOf(f1, f2, f3);
+            WFuture<Void> done = RFuture.allOf(f1, f2, f3);
             done.get();
             assertTrue(f1.isDone());
             assertTrue(f2.isDone());

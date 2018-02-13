@@ -52,9 +52,9 @@ class GenericAsyncWorkflowClientImpl implements GenericAsyncWorkflowClient {
 
         private final String workflowId;
 
-        private final BiConsumer<byte[], Throwable> callback;
+        private final BiConsumer<byte[], RuntimeException> callback;
 
-        private ChildWorkflowCancellationHandler(String workflowId, BiConsumer<byte[], Throwable> callback) {
+        private ChildWorkflowCancellationHandler(String workflowId, BiConsumer<byte[], RuntimeException> callback) {
             this.workflowId = workflowId;
             this.callback = callback;
         }
@@ -90,7 +90,7 @@ class GenericAsyncWorkflowClientImpl implements GenericAsyncWorkflowClient {
     @Override
     public Consumer<Throwable> startChildWorkflow(StartChildWorkflowExecutionParameters parameters,
                                                   Consumer<WorkflowExecution> executionCallback,
-                                                  BiConsumer<byte[], Throwable> callback) {
+                                                  BiConsumer<byte[], RuntimeException> callback) {
         final StartChildWorkflowExecutionDecisionAttributes attributes = new StartChildWorkflowExecutionDecisionAttributes();
         attributes.setWorkflowType(parameters.getWorkflowType());
         String workflowId = parameters.getWorkflowId();
@@ -137,23 +137,6 @@ class GenericAsyncWorkflowClientImpl implements GenericAsyncWorkflowClient {
         context.setCompletionHandle(callback);
         scheduledExternalWorkflows.put(attributes.getWorkflowId(), context);
         return new ChildWorkflowCancellationHandler(attributes.getWorkflowId(), callback);
-    }
-
-    @Override
-    public Consumer<Throwable> startChildWorkflow(String workflow, byte[] input, BiConsumer<byte[], Throwable> callback) {
-        return startChildWorkflow(workflow, input, (s) -> {}, callback);
-    }
-
-    @Override
-    public Consumer<Throwable> startChildWorkflow(String workflow, byte[] input, Consumer<WorkflowExecution> executionCallback, BiConsumer<byte[], Throwable> callback) {
-        StartChildWorkflowExecutionParameters parameters = new StartChildWorkflowExecutionParameters();
-        WorkflowType workflowType = new WorkflowType();
-        workflowType.setName(workflow);
-        parameters.setWorkflowType(workflowType);
-        parameters.setInput(input);
-        return startChildWorkflow(parameters, executionCallback, (result, failure) -> {
-            callback.accept(result, failure);
-        });
     }
 
 //    @Override
@@ -232,7 +215,7 @@ class GenericAsyncWorkflowClientImpl implements GenericAsyncWorkflowClient {
             OpenChildWorkflowRequestInfo scheduled = scheduledExternalWorkflows.remove(workflowId);
             if (scheduled != null) {
                 CancellationException e = new CancellationException();
-                BiConsumer<byte[], Throwable> completionCallback = scheduled.getCompletionCallback();
+                BiConsumer<byte[], RuntimeException> completionCallback = scheduled.getCompletionCallback();
                 completionCallback.accept(null, e);
             }
         }
@@ -256,9 +239,9 @@ class GenericAsyncWorkflowClientImpl implements GenericAsyncWorkflowClient {
         if (decisions.handleChildWorkflowExecutionClosed(workflowId)) {
             OpenChildWorkflowRequestInfo scheduled = scheduledExternalWorkflows.remove(workflowId);
             if (scheduled != null) {
-                Exception failure = new ChildWorkflowTimedOutException(event.getEventId(), execution,
+                RuntimeException failure = new ChildWorkflowTimedOutException(event.getEventId(), execution,
                         attributes.getWorkflowType());
-                BiConsumer<byte[], Throwable> completionCallback = scheduled.getCompletionCallback();
+                BiConsumer<byte[], RuntimeException> completionCallback = scheduled.getCompletionCallback();
                 completionCallback.accept(null, failure);
             }
         }
@@ -271,9 +254,9 @@ class GenericAsyncWorkflowClientImpl implements GenericAsyncWorkflowClient {
         if (decisions.handleChildWorkflowExecutionClosed(workflowId)) {
             OpenChildWorkflowRequestInfo scheduled = scheduledExternalWorkflows.remove(workflowId);
             if (scheduled != null) {
-                Exception failure = new ChildWorkflowTerminatedException(event.getEventId(), execution,
-                        attributes.getWorkflowType());
-                BiConsumer<byte[], Throwable> completionCallback = scheduled.getCompletionCallback();
+                RuntimeException failure = new ChildWorkflowTerminatedException(
+                        event.getEventId(), execution, attributes.getWorkflowType());
+                BiConsumer<byte[], RuntimeException> completionCallback = scheduled.getCompletionCallback();
                 completionCallback.accept(null, failure);
             }
         }
@@ -289,9 +272,9 @@ class GenericAsyncWorkflowClientImpl implements GenericAsyncWorkflowClient {
                 workflowExecution.setWorkflowId(workflowId);
                 WorkflowType workflowType = attributes.getWorkflowType();
                 ChildWorkflowExecutionFailedCause cause = attributes.getCause();
-                Exception failure = new StartChildWorkflowFailedException(event.getEventId(), workflowExecution, workflowType,
-                        cause);
-                BiConsumer<byte[], Throwable> completionCallback = scheduled.getCompletionCallback();
+                RuntimeException failure = new StartChildWorkflowFailedException(
+                        event.getEventId(), workflowExecution, workflowType, cause);
+                BiConsumer<byte[], RuntimeException> completionCallback = scheduled.getCompletionCallback();
                 completionCallback.accept(null, failure);
             }
         }
@@ -306,9 +289,9 @@ class GenericAsyncWorkflowClientImpl implements GenericAsyncWorkflowClient {
             if (scheduled != null) {
                 String reason = attributes.getReason();
                 byte[] details = attributes.getDetails();
-                Exception failure = new ChildWorkflowFailedException(event.getEventId(), execution, attributes.getWorkflowType(),
-                        reason, details);
-                BiConsumer<byte[], Throwable> completionCallback = scheduled.getCompletionCallback();
+                RuntimeException failure = new ChildWorkflowFailedException(
+                        event.getEventId(), execution, attributes.getWorkflowType(), reason, details);
+                BiConsumer<byte[], RuntimeException> completionCallback = scheduled.getCompletionCallback();
                 completionCallback.accept(null, failure);
             }
         }
@@ -321,7 +304,7 @@ class GenericAsyncWorkflowClientImpl implements GenericAsyncWorkflowClient {
         if (decisions.handleChildWorkflowExecutionClosed(workflowId)) {
             OpenChildWorkflowRequestInfo scheduled = scheduledExternalWorkflows.remove(workflowId);
             if (scheduled != null) {
-                BiConsumer<byte[], Throwable> completionCallback = scheduled.getCompletionCallback();
+                BiConsumer<byte[], RuntimeException> completionCallback = scheduled.getCompletionCallback();
                 byte[] result = attributes.getResult();
                 completionCallback.accept(result, null);
             }

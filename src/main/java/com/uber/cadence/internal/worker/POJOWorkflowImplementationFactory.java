@@ -18,15 +18,15 @@ package com.uber.cadence.internal.worker;
 
 import com.google.common.base.Throwables;
 import com.google.common.reflect.TypeToken;
+import com.uber.cadence.WorkflowType;
 import com.uber.cadence.internal.DataConverter;
 import com.uber.cadence.internal.WorkflowException;
-import com.uber.cadence.WorkflowType;
 import com.uber.cadence.internal.common.FlowHelpers;
+import com.uber.cadence.internal.dispatcher.SyncWorkflowDefinition;
+import com.uber.cadence.internal.dispatcher.WorkflowInternal;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.QueryMethod;
 import com.uber.cadence.workflow.SignalMethod;
-import com.uber.cadence.internal.dispatcher.SyncWorkflowDefinition;
-import com.uber.cadence.internal.dispatcher.WorkflowInternal;
 import com.uber.cadence.workflow.WorkflowMethod;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -165,6 +165,9 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
                 if (targetException instanceof Error) {
                     throw (Error) targetException;
                 }
+                if (targetException instanceof CancellationException) {
+                    throw (CancellationException) targetException;
+                }
                 throw throwWorkflowFailure(targetException);
             }
         }
@@ -203,6 +206,9 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
         }
 
         private WorkflowException throwWorkflowFailure(Throwable e) {
+            if (e instanceof CancellationException) {
+                throw (CancellationException) e;
+            }
             if (e instanceof WorkflowException) {
                 return (WorkflowException) e;
             }
