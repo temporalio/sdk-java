@@ -18,12 +18,11 @@ package com.uber.cadence.internal.worker;
 
 import com.google.common.reflect.TypeToken;
 import com.uber.cadence.error.CheckedExceptionWrapper;
-import com.uber.cadence.internal.DataConverter;
+import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.common.FlowHelpers;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.QueryMethod;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;

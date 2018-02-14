@@ -25,7 +25,7 @@ import com.uber.cadence.client.CadenceClient;
 import com.uber.cadence.client.CadenceClientOptions;
 import com.uber.cadence.client.UntypedWorkflowStub;
 import com.uber.cadence.client.WorkflowExternalResult;
-import com.uber.cadence.internal.JsonDataConverter;
+import com.uber.cadence.converter.JsonDataConverter;
 import com.uber.cadence.internal.StartWorkflowOptions;
 import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
 import com.uber.cadence.worker.Worker;

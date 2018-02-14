@@ -19,7 +19,7 @@ package com.uber.cadence.internal.dispatcher;
 import com.google.common.base.Defaults;
 import com.uber.cadence.client.WorkflowExternalResult;
 import com.uber.cadence.error.CheckedExceptionWrapper;
-import com.uber.cadence.internal.DataConverter;
+import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.StartWorkflowOptions;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.internal.WorkflowExecutionAlreadyStartedException;

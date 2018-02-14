@@ -24,7 +24,7 @@ import com.uber.cadence.RecordActivityTaskHeartbeatResponse;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.WorkflowService.Iface;
-import com.uber.cadence.internal.DataConverter;
+import com.uber.cadence.converter.DataConverter;
 import org.apache.thrift.TException;
 
 import java.util.concurrent.CancellationException;

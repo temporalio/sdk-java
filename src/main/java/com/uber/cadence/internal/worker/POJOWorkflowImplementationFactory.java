@@ -19,7 +19,7 @@ package com.uber.cadence.internal.worker;
 import com.google.common.base.Throwables;
 import com.google.common.reflect.TypeToken;
 import com.uber.cadence.WorkflowType;
-import com.uber.cadence.internal.DataConverter;
+import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.WorkflowException;
 import com.uber.cadence.internal.common.FlowHelpers;
 import com.uber.cadence.internal.dispatcher.SyncWorkflowDefinition;

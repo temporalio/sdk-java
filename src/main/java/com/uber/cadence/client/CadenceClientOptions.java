@@ -16,7 +16,7 @@
  */
 package com.uber.cadence.client;
 
-import com.uber.cadence.internal.DataConverter;
+import com.uber.cadence.converter.DataConverter;
 
 public final class CadenceClientOptions {
 

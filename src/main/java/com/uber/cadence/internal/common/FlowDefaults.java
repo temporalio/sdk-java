@@ -16,8 +16,8 @@
  */
 package com.uber.cadence.internal.common;
 
-import com.uber.cadence.internal.DataConverter;
-import com.uber.cadence.internal.JsonDataConverter;
+import com.uber.cadence.converter.DataConverter;
+import com.uber.cadence.converter.JsonDataConverter;
 
 public class FlowDefaults {
     public static final long EXPONENTIAL_RETRY_MAXIMUM_RETRY_INTERVAL_SECONDS =  FlowConstants.NONE;

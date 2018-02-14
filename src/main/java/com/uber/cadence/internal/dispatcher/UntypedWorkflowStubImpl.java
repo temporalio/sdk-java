@@ -20,7 +20,7 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.client.UntypedWorkflowStub;
 import com.uber.cadence.client.WorkflowExternalResult;
-import com.uber.cadence.internal.DataConverter;
+import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.StartWorkflowOptions;
 import com.uber.cadence.internal.generic.GenericWorkflowClientExternal;
 import com.uber.cadence.internal.generic.QueryWorkflowParameters;

@@ -16,7 +16,7 @@
  */
 package com.uber.cadence.worker;
 
-import com.uber.cadence.internal.DataConverter;
+import com.uber.cadence.converter.DataConverter;
 
 public final class WorkerOptions {
 

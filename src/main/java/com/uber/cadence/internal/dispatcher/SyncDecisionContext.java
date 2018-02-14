@@ -20,7 +20,7 @@ import com.uber.cadence.ActivityType;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.internal.AsyncDecisionContext;
-import com.uber.cadence.internal.DataConverter;
+import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.StartWorkflowOptions;
 import com.uber.cadence.internal.generic.ExecuteActivityParameters;
 import com.uber.cadence.internal.generic.GenericAsyncActivityClient;

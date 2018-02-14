@@ -26,6 +26,7 @@ import com.uber.cadence.RespondActivityTaskFailedByIDRequest;
 import com.uber.cadence.RespondActivityTaskFailedRequest;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
+import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import org.apache.thrift.TException;
 

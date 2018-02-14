@@ -22,7 +22,7 @@ import com.uber.cadence.WorkflowQuery;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.client.CadenceClient;
 import com.uber.cadence.internal.AsyncDecisionContext;
-import com.uber.cadence.internal.DataConverter;
+import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.worker.AsyncWorkflow;
 
 import java.util.concurrent.ExecutorService;

@@ -22,14 +22,13 @@ import com.uber.cadence.ActivityType;
 import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.activity.DoNotCompleteOnReturn;
-import com.uber.cadence.internal.DataConverter;
+import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.activity.ActivityExecutionContext;
 import com.uber.cadence.internal.activity.CurrentActivityExecutionContext;
 import com.uber.cadence.internal.common.FlowHelpers;
 import com.uber.cadence.internal.generic.ActivityFailureException;
 import com.uber.cadence.internal.generic.ActivityImplementation;
 import com.uber.cadence.internal.generic.ActivityImplementationFactory;
-import com.uber.cadence.workflow.QueryMethod;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
