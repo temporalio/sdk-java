@@ -17,9 +17,11 @@
 package com.uber.cadence.internal;
 
 
+import com.uber.cadence.WorkflowExecution;
 
 public abstract class ManualActivityCompletionClientFactory {
 
     public abstract ManualActivityCompletionClient getClient(byte[] taskToken);
-    
+
+    public abstract ManualActivityCompletionClient getClient(WorkflowExecution execution, String activityId);
 }

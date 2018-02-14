@@ -19,11 +19,14 @@ package com.uber.cadence.internal.dispatcher;
 import com.google.common.reflect.TypeToken;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
+import com.uber.cadence.client.ActivityCompletionClient;
 import com.uber.cadence.client.CadenceClient;
 import com.uber.cadence.client.CadenceClientOptions;
 import com.uber.cadence.client.UntypedWorkflowStub;
 import com.uber.cadence.client.WorkflowExternalResult;
 import com.uber.cadence.internal.DataConverter;
+import com.uber.cadence.internal.ManualActivityCompletionClientFactory;
+import com.uber.cadence.internal.ManualActivityCompletionClientFactoryImpl;
 import com.uber.cadence.internal.StartWorkflowOptions;
 import com.uber.cadence.internal.worker.GenericWorkflowClientExternalImpl;
 import com.uber.cadence.workflow.Functions;
@@ -39,6 +42,7 @@ import static com.uber.cadence.internal.common.FlowDefaults.DEFAULT_DATA_CONVERT
 public final class CadenceClientInternal implements CadenceClient {
 
     private final GenericWorkflowClientExternalImpl genericClient;
+    private final ManualActivityCompletionClientFactory manualActivityCompletionClientFactory;
     private final DataConverter dataConverter;
 
     public CadenceClientInternal(WorkflowService.Iface service, String domain, CadenceClientOptions options) {
@@ -48,6 +52,7 @@ public final class CadenceClientInternal implements CadenceClient {
         } else {
             this.dataConverter = options.getDataConverter();
         }
+        this.manualActivityCompletionClientFactory = new ManualActivityCompletionClientFactoryImpl(service, domain, dataConverter);
     }
 
     public <T> T newWorkflowStub(Class<T> workflowInterface, StartWorkflowOptions options) {
@@ -92,7 +97,12 @@ public final class CadenceClientInternal implements CadenceClient {
     public UntypedWorkflowStub newUntypedWorkflowStub(WorkflowExecution execution) {
         return new UntypedWorkflowStubImpl(genericClient, dataConverter, execution);
     }
-    
+
+    @Override
+    public ActivityCompletionClient newActivityCompletionClient() {
+        return new ActivityCompletionClientImpl(manualActivityCompletionClientFactory);
+    }
+
     public static WorkflowExternalResult<Void> asyncStart(Functions.Proc workflow) {
         WorkflowExternalInvocationHandler.initAsyncInvocation();
         try {

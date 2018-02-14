@@ -130,6 +130,9 @@ public class SyncWorkflowWorker extends GenericWorker {
         workflowThreadPool.shutdownNow();
     }
 
+    /**
+     * @return true if terminated
+     */
     @Override
     public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
         long start = System.currentTimeMillis();
@@ -139,6 +142,9 @@ public class SyncWorkflowWorker extends GenericWorker {
         return workflowThreadPool.awaitTermination(left, TimeUnit.MILLISECONDS) && terminated;
     }
 
+    /**
+     * @return true if terminated
+     */
     @Override
     public boolean shutdownAndAwaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
         shutdownNow();

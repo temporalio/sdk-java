@@ -17,7 +17,7 @@
 package com.uber.cadence.internal.worker;
 
 public class ActivityTypeExecutionOptions {
-	private boolean manualActivityCompletion;
+	private boolean doNotCompleteOnReturn;
 	private long respondTaskCompletedRetryInitialInterval = 1000;
     private long respondTaskCompletedRetryMaximumInterval = 60000;
     private int respondTaskCompletedMaximumRetries = 5;
@@ -32,12 +32,12 @@ public class ActivityTypeExecutionOptions {
         this.respondTaskCompletedBackoffCoefficient = respondTaskCompletedBackoffCoefficient;
     }
 
-    public boolean isManualActivityCompletion() {
-		return manualActivityCompletion;
+    public boolean isDoNotCompleteOnReturn() {
+		return doNotCompleteOnReturn;
 	}
 
-	public void setManualActivityCompletion(boolean flag) {
-		this.manualActivityCompletion = flag;
+	public void setDoNotCompleteOnReturn(boolean flag) {
+		this.doNotCompleteOnReturn = flag;
 	}
 	
 	public long getRespondTaskCompletedRetryInitialInterval() {
@@ -74,6 +74,6 @@ public class ActivityTypeExecutionOptions {
 
     @Override
     public String toString() {
-        return "ActivityTypeExecutionOptions [isAsynchronous=" + manualActivityCompletion + "]";
+        return "ActivityTypeExecutionOptions [isAsynchronous=" + doNotCompleteOnReturn + "]";
     }
 }

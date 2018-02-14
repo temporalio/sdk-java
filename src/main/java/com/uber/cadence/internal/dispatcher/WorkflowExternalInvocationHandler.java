@@ -18,6 +18,7 @@ package com.uber.cadence.internal.dispatcher;
 
 import com.google.common.base.Defaults;
 import com.uber.cadence.client.WorkflowExternalResult;
+import com.uber.cadence.error.CheckedExceptionWrapper;
 import com.uber.cadence.internal.DataConverter;
 import com.uber.cadence.internal.StartWorkflowOptions;
 import com.uber.cadence.WorkflowExecution;
@@ -191,6 +192,10 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
             async.set(result);
             return Defaults.defaultValue(method.getReturnType());
         }
-        return result.getResult(options.getExecutionStartToCloseTimeoutSeconds(), TimeUnit.SECONDS);
+        try {
+            return result.getResult(options.getExecutionStartToCloseTimeoutSeconds(), TimeUnit.SECONDS);
+        } catch (Exception e) {
+            throw CheckedExceptionWrapper.wrap(e);
+        }
     }
 }

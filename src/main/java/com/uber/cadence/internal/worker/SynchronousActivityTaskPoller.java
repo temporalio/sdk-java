@@ -196,7 +196,7 @@ public class SynchronousActivityTaskPoller implements TaskPoller {
                 throw new ActivityFailureException("Unknown activity type: " + activityType);
             }
             output = activityImplementation.execute(service, domain, task);
-            if (!activityImplementation.getExecutionOptions().isManualActivityCompletion()) {
+            if (!activityImplementation.getExecutionOptions().isDoNotCompleteOnReturn()) {
                 respondActivityTaskCompletedWithRetry(task.getTaskToken(), output);
             }
         }

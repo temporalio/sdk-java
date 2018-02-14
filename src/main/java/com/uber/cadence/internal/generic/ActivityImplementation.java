@@ -35,9 +35,9 @@ public interface ActivityImplementation {
 
     /**
      * Execute external activity or initiate its execution if
-     * {@link ActivityTypeExecutionOptions#isManualActivityCompletion()} is <code>true</code>.
+     * {@link ActivityTypeExecutionOptions#isDoNotCompleteOnReturn()} is <code>true</code>.
      * 
-     * @return result of activity execution if {@link ActivityTypeExecutionOptions#isManualActivityCompletion()} is set
+     * @return result of activity execution if {@link ActivityTypeExecutionOptions#isDoNotCompleteOnReturn()} is set
      *         to false.
      */
     byte[] execute(WorkflowService.Iface service, String domain, PollForActivityTaskResponse task);

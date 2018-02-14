@@ -16,11 +16,16 @@
  */
 package com.uber.cadence.workflow;
 
+import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.activity.Activity;
+import com.uber.cadence.activity.DoNotCompleteOnReturn;
+import com.uber.cadence.client.ActivityCompletionClient;
 import com.uber.cadence.client.CadenceClient;
+import com.uber.cadence.client.CadenceClientOptions;
 import com.uber.cadence.client.UntypedWorkflowStub;
 import com.uber.cadence.client.WorkflowExternalResult;
+import com.uber.cadence.internal.JsonDataConverter;
 import com.uber.cadence.internal.StartWorkflowOptions;
 import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
 import com.uber.cadence.worker.Worker;
@@ -44,6 +49,8 @@ import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -60,6 +67,7 @@ public class WorkflowTest {
     private static final String domain = "UnitTest";
     private static final String taskList = "UnitTest";
     private static final Log log;
+    private static ActivityCompletionClient completionClient;
 
     static {
         LogManager.resetConfiguration();
@@ -84,6 +92,7 @@ public class WorkflowTest {
     private static Worker worker;
     private static TestActivitiesImpl activitiesImpl;
     private static CadenceClient cadenceClient;
+    private static CadenceClient cadenceClientWithOptions;
     private static ActivitySchedulingOptions activitySchedulingOptions;
 
     @BeforeClass
@@ -91,9 +100,13 @@ public class WorkflowTest {
         WorkflowServiceTChannel.ClientOptions.Builder optionsBuilder = new WorkflowServiceTChannel.ClientOptions.Builder();
         service = new WorkflowServiceTChannel(host, port, serviceName, optionsBuilder.build());
         worker = new Worker(service, domain, taskList, null);
-        activitiesImpl = new TestActivitiesImpl();
-        worker.addActivitiesImplementation(activitiesImpl);
         cadenceClient = CadenceClient.newClient(service, domain);
+        completionClient = cadenceClient.newActivityCompletionClient();
+        activitiesImpl = new TestActivitiesImpl(completionClient);
+        worker.addActivitiesImplementation(activitiesImpl);
+        CadenceClientOptions clientOptions = new CadenceClientOptions();
+        clientOptions.setDataConverter(new JsonDataConverter());
+        cadenceClientWithOptions = CadenceClient.newClient(service, domain, clientOptions);
         worker.start();
         newStartWorkflowOptions();
         activitySchedulingOptions = new ActivitySchedulingOptions();
@@ -106,8 +119,8 @@ public class WorkflowTest {
 
     private static StartWorkflowOptions newStartWorkflowOptions() {
         StartWorkflowOptions result = new StartWorkflowOptions();
-        result.setExecutionStartToCloseTimeoutSeconds(300);
-        result.setTaskStartToCloseTimeoutSeconds(300);
+        result.setExecutionStartToCloseTimeoutSeconds(30);
+        result.setTaskStartToCloseTimeoutSeconds(5);
         result.setTaskList(taskList);
         return result;
     }
@@ -115,6 +128,7 @@ public class WorkflowTest {
     @AfterClass
     public static void tearDownService() {
         worker.shutdown(100, TimeUnit.MILLISECONDS);
+        activitiesImpl.close();
     }
 
     @Before
@@ -158,19 +172,24 @@ public class WorkflowTest {
     @Test
     public void testSync() {
         worker.addWorkflowImplementationType(TestSyncWorkflowImpl.class);
-        TestWorkflow1 client = cadenceClient.newWorkflowStub(TestWorkflow1.class, newStartWorkflowOptions());
-        String result = client.execute();
+        TestWorkflow1 workflowStub = cadenceClient.newWorkflowStub(TestWorkflow1.class, newStartWorkflowOptions());
+        String result = workflowStub.execute();
         assertEquals("activity10", result);
     }
 
     @Test
     public void testSyncUntypedAndStackTrace() throws InterruptedException {
         worker.addWorkflowImplementationType(TestSyncWorkflowImpl.class);
-        UntypedWorkflowStub client = cadenceClient.newUntypedWorkflowStub("TestWorkflow1::execute",
+        UntypedWorkflowStub workflowStub = cadenceClient.newUntypedWorkflowStub("TestWorkflow1::execute",
                 newStartWorkflowOptions());
-        WorkflowExternalResult<String> workflowResult = client.execute(String.class);
+        WorkflowExternalResult<String> workflowResult = workflowStub.execute(String.class);
         Thread.sleep(500);
-        String stackTrace = client.query(CadenceClient.QUERY_TYPE_STACK_TRCE, String.class);
+        String stackTrace = workflowStub.query(CadenceClient.QUERY_TYPE_STACK_TRCE, String.class);
+        assertTrue(stackTrace, stackTrace.contains("WorkflowTest$TestSyncWorkflowImpl.execute"));
+        assertTrue(stackTrace, stackTrace.contains("activityWithDelay"));
+        // Test stub created from workflow execution.
+        workflowStub = cadenceClient.newUntypedWorkflowStub(workflowResult.getExecution());
+        stackTrace = workflowStub.query(CadenceClient.QUERY_TYPE_STACK_TRCE, String.class);
         assertTrue(stackTrace, stackTrace.contains("WorkflowTest$TestSyncWorkflowImpl.execute"));
         assertTrue(stackTrace, stackTrace.contains("activityWithDelay"));
         String result = workflowResult.getResult();
@@ -221,6 +240,7 @@ public class WorkflowTest {
         UntypedWorkflowStub client = cadenceClient.newUntypedWorkflowStub("TestWorkflow1::execute",
                 newStartWorkflowOptions());
         WorkflowExternalResult<String> workflowResult = client.execute(String.class);
+        Thread.sleep(500); // To let activityWithDelay start.
         client.cancel();
         try {
             workflowResult.getResult();
@@ -303,7 +323,7 @@ public class WorkflowTest {
         assertEquals("func", CadenceClient.asyncStart(stub::func).getResult());
         stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
         assertEquals("1", CadenceClient.asyncStart(stub::func1, "1").getResult());
-        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        stub = cadenceClientWithOptions.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
         assertEquals("12", CadenceClient.asyncStart(stub::func2, "1", 2).getResult());
         stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
         assertEquals("123", CadenceClient.asyncStart(stub::func3, "1", 2, 3).getResult());
@@ -314,7 +334,7 @@ public class WorkflowTest {
         stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
         assertEquals("123456", CadenceClient.asyncStart(stub::func6, "1", 2, 3, 4, 5, 6).getResult());
 
-        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        stub = cadenceClientWithOptions.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
         CadenceClient.asyncStart(stub::proc).getResult();
         stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
         CadenceClient.asyncStart(stub::proc1, "1").getResult();
@@ -341,7 +361,7 @@ public class WorkflowTest {
 
         @Override
         public String execute() {
-            Promise<Void> timer1 = Workflow.newTimer( 1);
+            Promise<Void> timer1 = Workflow.newTimer(1);
             Promise<Void> timer2 = Workflow.newTimer(2);
 
             long time = Workflow.currentTimeMillis();
@@ -411,6 +431,9 @@ public class WorkflowTest {
         assertEquals("initial", client.getState());
         client.mySignal("Hello ");
         Thread.sleep(200);
+
+        // Test client created using WorkflowExecution
+        client = cadenceClient.newWorkflowStub(QueryableWorkflow.class, result.getExecution());
         assertEquals("Hello ", client.getState());
 
         // Test query through replay by a local worker.
@@ -574,6 +597,24 @@ public class WorkflowTest {
         assertEquals("HELLO WORLD!", client.execute());
     }
 
+    /**
+     * Used to test that worker rejects activities with DoNotCompleteOnReturn annotation on interface.
+     */
+    public interface ActivitiesWithDoNotCompleteAnnotation {
+        @DoNotCompleteOnReturn
+        void activity();
+    }
+
+    public class ActivitiesWithDoNotCompleteAnnotationImpl implements ActivitiesWithDoNotCompleteAnnotation {
+        @Override
+        public void activity() {
+        }
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testActivitiesWithDoNotCompleteAnnotationInterface() {
+        worker.addActivitiesImplementation(new ActivitiesWithDoNotCompleteAnnotationImpl());
+    }
 
     public interface TestActivities {
 
@@ -609,58 +650,94 @@ public class WorkflowTest {
     }
 
     private static class TestActivitiesImpl implements TestActivities {
-        List<String> invocations = Collections.synchronizedList(new ArrayList<>());
-        List<String> procResult = Collections.synchronizedList(new ArrayList<>());
+
+        final ActivityCompletionClient completionClient;
+        final List<String> invocations = Collections.synchronizedList(new ArrayList<>());
+        final List<String> procResult = Collections.synchronizedList(new ArrayList<>());
+        private final ThreadPoolExecutor executor = new ThreadPoolExecutor(2, 100, 1, TimeUnit.MINUTES, new LinkedBlockingQueue<>());
+
+        private TestActivitiesImpl(ActivityCompletionClient completionClient) {
+            this.completionClient = completionClient;
+        }
+
+        void close() {
+            executor.shutdown();
+        }
 
         void assertInvocations(String... expected) {
             assertEquals(Arrays.asList(expected), invocations);
         }
 
         @Override
+        @DoNotCompleteOnReturn
         public String activityWithDelay(long delay) {
-            invocations.add("activityWithDelay");
-            long start = System.currentTimeMillis();
-            try {
-                while (System.currentTimeMillis() - start < delay) {
-                    Thread.sleep(100);
-                    Activity.heartbeat();
+            byte[] taskToken = Activity.getTaskToken();
+            executor.execute(() -> {
+                invocations.add("activityWithDelay");
+                long start = System.currentTimeMillis();
+                try {
+                    while (System.currentTimeMillis() - start < delay) {
+                        Thread.sleep(100);
+                        completionClient.heartbeat(taskToken, "value");
+                    }
+                    completionClient.complete(taskToken, "activity");
+                } catch (InterruptedException e) {
+                    throw new RuntimeException("unexpected", e);
+                } catch (CancellationException e) {
+                    completionClient.reportCancellation(taskToken, null);
                 }
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-            return "activity";
+            });
+            return "ignored";
         }
 
+        @Override
         public String activity() {
             invocations.add("activity");
             return "activity";
         }
 
+        @Override
         public String activity1(String a1) {
             invocations.add("activity1");
             return a1;
         }
 
+        @Override
         public String activity2(String a1, int a2) {
             invocations.add("activity2");
             return a1 + a2;
         }
 
+        @Override
         public String activity3(String a1, int a2, int a3) {
             invocations.add("activity3");
             return a1 + a2 + a3;
         }
 
+        @DoNotCompleteOnReturn
+        @Override
         public String activity4(String a1, int a2, int a3, int a4) {
-            invocations.add("activity4");
-            return a1 + a2 + a3 + a4;
+            byte[] taskToken = Activity.getTaskToken();
+            executor.execute(() -> {
+                invocations.add("activity4");
+                completionClient.complete(taskToken, a1 + a2 + a3 + a4);
+            });
+            return "ignored";
         }
 
+        @DoNotCompleteOnReturn
+        @Override
         public String activity5(String a1, int a2, int a3, int a4, int a5) {
-            invocations.add("activity5");
-            return a1 + a2 + a3 + a4 + a5;
+            WorkflowExecution execution = Activity.getWorkflowExecution();
+            String id = Activity.getTask().getActivityId();
+            executor.execute(() -> {
+                invocations.add("activity5");
+                completionClient.complete(execution, id, a1 + a2 + a3 + a4 + a5);
+            });
+            return "ignored";
         }
 
+        @Override
         public String activity6(String a1, int a2, int a3, int a4, int a5, int a6) {
             invocations.add("activity6");
             return a1 + a2 + a3 + a4 + a5 + a6;

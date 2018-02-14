@@ -46,6 +46,9 @@ public class CurrentActivityExecutionContext {
         if (context == null) {
             throw new IllegalArgumentException("null context");
         }
+        if (CURRENT.get() !=  null) {
+            throw new IllegalStateException("current already set");
+        }
         CURRENT.set(context);
     }
 

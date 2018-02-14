@@ -422,6 +422,10 @@ public abstract class GenericWorker implements WorkerBase {
     @Override
     public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
         long start = System.currentTimeMillis();
+        if (pollExecutor == null) {
+            // not started yet.
+            return true;
+        }
         boolean terminated = pollExecutor.awaitTermination(timeout, unit);
         long elapsed = System.currentTimeMillis() - start;
         long left = TimeUnit.MILLISECONDS.convert(timeout, unit) - elapsed;

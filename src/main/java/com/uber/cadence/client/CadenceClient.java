@@ -67,7 +67,7 @@ public interface CadenceClient {
      * IMPORTANT! Stub is per workflow instance. So new stub should be created for each new one.
      *
      * @param workflowType name of the workflow type
-     * @param options           options used to start a workflow through returned stub
+     * @param options      options used to start a workflow through returned stub
      * @return Stub that can be used to start workflow and later to signal or query it.
      */
     UntypedWorkflowStub newUntypedWorkflowStub(String workflowType, StartWorkflowOptions options);
@@ -76,10 +76,20 @@ public interface CadenceClient {
      * Creates workflow untyped client stub for a known execution.
      * Use it to send signals or queries to a running workflow.
      * Do not call methods annotated with @WorkflowMethod.
-     * @param execution         workflow id and optional run id for execution
+     *
+     * @param execution workflow id and optional run id for execution
      * @return Stub that can be used to start workflow and later to signal or query it.
      */
     UntypedWorkflowStub newUntypedWorkflowStub(WorkflowExecution execution);
+
+    /**
+     * Creates new {@link ActivityCompletionClient} that can be used to complete activities asynchronously.
+     * Only relevant for activity implementations annotated with {@link com.uber.cadence.activity.DoNotCompleteOnReturn}.
+     * <p>
+     * TODO: Activity completion options with retries and timeouts.
+     * </p><
+     */
+    ActivityCompletionClient newActivityCompletionClient();
 
     /**
      * Starts zero argument workflow with void return type

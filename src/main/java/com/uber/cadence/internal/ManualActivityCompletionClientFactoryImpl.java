@@ -16,32 +16,28 @@
  */
 package com.uber.cadence.internal;
 
+import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
 
 public class ManualActivityCompletionClientFactoryImpl extends ManualActivityCompletionClientFactory {
 
-    private WorkflowService.Iface service;
+    private final WorkflowService.Iface service;
 
-    private DataConverter dataConverter = new JsonDataConverter();
-    
-    public ManualActivityCompletionClientFactoryImpl(WorkflowService.Iface service) {
+    private final DataConverter dataConverter;
+    private final String domain;
+
+    public ManualActivityCompletionClientFactoryImpl(WorkflowService.Iface service, String domain, DataConverter dataConverter) {
         this.service = service;
+        this.domain = domain;
+        this.dataConverter = dataConverter;
     }
-    
+
     public WorkflowService.Iface getService() {
         return service;
     }
-    
-    public void setService(WorkflowService.Iface service) {
-        this.service = service;
-    }
-    
+
     public DataConverter getDataConverter() {
         return dataConverter;
-    }
-    
-    public void setDataConverter(DataConverter dataConverter) {
-        this.dataConverter = dataConverter;
     }
 
     @Override
@@ -52,7 +48,21 @@ public class ManualActivityCompletionClientFactoryImpl extends ManualActivityCom
         if (dataConverter == null) {
             throw new IllegalStateException("required property dataConverter is null");
         }
+        if (taskToken == null || taskToken.length == 0) {
+            throw new IllegalArgumentException("null or empty task token");
+        }
         return new ManualActivityCompletionClientImpl(service, taskToken, dataConverter);
+    }
+
+    @Override
+    public ManualActivityCompletionClient getClient(WorkflowExecution execution, String activityId) {
+        if (execution == null) {
+            throw new IllegalArgumentException("null execution");
+        }
+        if (activityId == null) {
+            throw new IllegalArgumentException("null activityId");
+        }
+        return new ManualActivityCompletionClientImpl(service, domain, execution, activityId, dataConverter);
     }
 
 }

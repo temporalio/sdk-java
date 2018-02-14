@@ -18,15 +18,20 @@ package com.uber.cadence.internal;
 
 import com.uber.cadence.RecordActivityTaskHeartbeatRequest;
 import com.uber.cadence.RecordActivityTaskHeartbeatResponse;
+import com.uber.cadence.RespondActivityTaskCanceledByIDRequest;
 import com.uber.cadence.RespondActivityTaskCanceledRequest;
+import com.uber.cadence.RespondActivityTaskCompletedByIDRequest;
 import com.uber.cadence.RespondActivityTaskCompletedRequest;
+import com.uber.cadence.RespondActivityTaskFailedByIDRequest;
 import com.uber.cadence.RespondActivityTaskFailedRequest;
+import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import org.apache.thrift.TException;
 
 import java.util.concurrent.CancellationException;
 
+// TODO: service call retries
 class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient {
 
     private final WorkflowService.Iface service;
@@ -34,66 +39,128 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
     private final byte[] taskToken;
 
     private final DataConverter dataConverter;
+    private final String domain;
+    private final WorkflowExecution execution;
+    private final String activityId;
 
     public ManualActivityCompletionClientImpl(WorkflowService.Iface service, byte[] taskToken, DataConverter dataConverter) {
         this.service = service;
         this.taskToken = taskToken;
         this.dataConverter = dataConverter;
+        this.domain = null;
+        this.execution = null;
+        this.activityId = null;
+
+    }
+
+    public ManualActivityCompletionClientImpl(WorkflowService.Iface service, String domain, WorkflowExecution execution, String activityId, DataConverter dataConverter) {
+        this.service = service;
+        this.taskToken = null;
+        this.domain = domain;
+        this.execution = execution;
+        this.activityId = activityId;
+        this.dataConverter = dataConverter;
     }
 
     @Override
     public void complete(Object result) {
-        RespondActivityTaskCompletedRequest request = new RespondActivityTaskCompletedRequest();
-        byte[] convertedResult = dataConverter.toData(result);
-        request.setResult(convertedResult);
-        request.setTaskToken(taskToken);
-        try {
-            service.RespondActivityTaskCompleted(request);
-        } catch (TException e) {
-            throw new RuntimeException(e);
+        if (taskToken != null) {
+            RespondActivityTaskCompletedRequest request = new RespondActivityTaskCompletedRequest();
+            byte[] convertedResult = dataConverter.toData(result);
+            request.setResult(convertedResult);
+            request.setTaskToken(taskToken);
+            try {
+                service.RespondActivityTaskCompleted(request);
+            } catch (TException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            RespondActivityTaskCompletedByIDRequest request = new RespondActivityTaskCompletedByIDRequest();
+            request.setActivityID(activityId);
+            byte[] convertedResult = dataConverter.toData(result);
+            request.setResult(convertedResult);
+            request.setDomain(domain);
+            request.setWorkflowID(execution.getWorkflowId());
+            request.setRunID(execution.getRunId());
+            try {
+                service.RespondActivityTaskCompletedByID(request);
+            } catch (TException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
     @Override
     public void fail(Throwable failure) {
-        RespondActivityTaskFailedRequest request = new RespondActivityTaskFailedRequest();
-        byte[] convertedFailure = dataConverter.toData(failure);
-        request.setReason(WorkflowExecutionUtils.truncateReason(failure.getMessage()));
-        request.setDetails(convertedFailure);
-        request.setTaskToken(taskToken);
-        try {
-            service.RespondActivityTaskFailed(request);
-        } catch (TException e) {
-            throw new RuntimeException(e);
+        if (taskToken != null) {
+            RespondActivityTaskFailedRequest request = new RespondActivityTaskFailedRequest();
+            byte[] convertedFailure = dataConverter.toData(failure);
+            request.setReason(WorkflowExecutionUtils.truncateReason(failure.getMessage()));
+            request.setDetails(convertedFailure);
+            request.setTaskToken(taskToken);
+            try {
+                service.RespondActivityTaskFailed(request);
+            } catch (TException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            RespondActivityTaskFailedByIDRequest request = new RespondActivityTaskFailedByIDRequest();
+            byte[] convertedFailure = dataConverter.toData(failure);
+            request.setReason(WorkflowExecutionUtils.truncateReason(failure.getMessage()));
+            request.setDetails(convertedFailure);
+            request.setDomain(domain);
+            request.setWorkflowID(execution.getWorkflowId());
+            request.setRunID(execution.getRunId());
+            try {
+                service.RespondActivityTaskFailedByID(request);
+            } catch (TException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
     @Override
-    public void recordHeartbeat(byte[] details) throws CancellationException {
-        RecordActivityTaskHeartbeatRequest request = new RecordActivityTaskHeartbeatRequest();
-        request.setDetails(details);
-        request.setTaskToken(taskToken);
-        RecordActivityTaskHeartbeatResponse status = null;
-        try {
-            status = service.RecordActivityTaskHeartbeat(request);
-        } catch (TException e) {
-            throw new RuntimeException(e);
-        }
-        if (status.isCancelRequested()) {
-            throw new CancellationException();
+    public void recordHeartbeat(Object details) throws CancellationException {
+        if (taskToken != null) {
+            RecordActivityTaskHeartbeatRequest request = new RecordActivityTaskHeartbeatRequest();
+            request.setDetails(dataConverter.toData(details));
+            request.setTaskToken(taskToken);
+            RecordActivityTaskHeartbeatResponse status = null;
+            try {
+                status = service.RecordActivityTaskHeartbeat(request);
+            } catch (TException e) {
+                throw new RuntimeException(e);
+            }
+            if (status.isCancelRequested()) {
+                throw new CancellationException();
+            }
+        } else {
+            throw new UnsupportedOperationException("Heartbeating by id is not implemented by Cadence service yet.");
         }
     }
 
     @Override
-    public void reportCancellation(byte[] details) {
-        RespondActivityTaskCanceledRequest request = new RespondActivityTaskCanceledRequest();
-        request.setDetails(details);
-        request.setTaskToken(taskToken);
-        try {
-            service.RespondActivityTaskCanceled(request);
-        } catch (TException e) {
-            throw new RuntimeException(e);
+    public void reportCancellation(Object details) {
+        if (taskToken != null) {
+            RespondActivityTaskCanceledRequest request = new RespondActivityTaskCanceledRequest();
+            request.setDetails(dataConverter.toData(details));
+            request.setTaskToken(taskToken);
+            try {
+                service.RespondActivityTaskCanceled(request);
+            } catch (TException e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            RespondActivityTaskCanceledByIDRequest request = new RespondActivityTaskCanceledByIDRequest();
+            request.setDetails(dataConverter.toData(details));
+            request.setDomain(domain);
+            request.setWorkflowID(execution.getWorkflowId());
+            request.setRunID(execution.getRunId());
+            try {
+                service.RespondActivityTaskCanceledByID(request);
+            } catch (TException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
-
 }
