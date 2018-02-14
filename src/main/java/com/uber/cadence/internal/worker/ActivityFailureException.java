@@ -14,11 +14,10 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.internal.generic;
+package com.uber.cadence.internal.worker;
 
 import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.WorkflowService;
-import com.uber.cadence.internal.activity.ActivityExecutionContext;
 import com.uber.cadence.internal.generic.ActivityImplementation;
 
 /**
@@ -32,11 +31,11 @@ import com.uber.cadence.internal.generic.ActivityImplementation;
  * @author fateev
  */
 @SuppressWarnings("serial")
-public class ActivityFailureException extends RuntimeException {
+class ActivityFailureException extends RuntimeException {
 
     private byte[] details;
 
-    public ActivityFailureException(String reason) {
+    ActivityFailureException(String reason) {
         super(reason);
     }
     
@@ -48,7 +47,7 @@ public class ActivityFailureException extends RuntimeException {
      * @param details
      *            application specific failure details
      */
-    public ActivityFailureException(String reason, byte[] details) {
+    ActivityFailureException(String reason, byte[] details) {
         this(reason);
         this.details = details;
     }
@@ -69,5 +68,4 @@ public class ActivityFailureException extends RuntimeException {
     public String toString() {
         return super.toString() + " : " + getDetails();
     }
-
 }

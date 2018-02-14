@@ -14,18 +14,27 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.internal.activity;
+package com.uber.cadence.activity;
 
-public final class ActivityInternal {
+import com.uber.cadence.ActivityType;
+import com.uber.cadence.WorkflowExecution;
 
-    private ActivityInternal() {
-    }
+public interface ActivityTask {
+    byte[] getTaskToken();
 
-    public static ActivityExecutionContext getContext() {
-        return CurrentActivityExecutionContext.get();
-    }
+    WorkflowExecution getWorkflowExecution();
 
-    public static void recordActivityHeartbeat(Object[] args) {
-        getContext().recordActivityHeartbeat(args);
-    }
+    String getActivityId();
+
+    ActivityType getActivityType();
+
+    long getScheduledTimestamp();
+
+    int getScheduleToCloseTimeoutSeconds();
+
+    void setScheduleToCloseTimeoutSecondsIsSet(boolean value);
+
+    int getStartToCloseTimeoutSeconds();
+
+    int getHeartbeatTimeoutSeconds();
 }

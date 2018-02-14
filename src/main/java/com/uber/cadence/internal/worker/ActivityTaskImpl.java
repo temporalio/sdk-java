@@ -14,51 +14,61 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.internal;
+package com.uber.cadence.internal.worker;
 
 import com.uber.cadence.ActivityType;
 import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.activity.ActivityTask;
 
-public final class ActivityTask {
+final class ActivityTaskImpl implements ActivityTask {
     private final PollForActivityTaskResponse response;
 
-    public ActivityTask(PollForActivityTaskResponse response) {
+    public ActivityTaskImpl(PollForActivityTaskResponse response) {
         this.response = response;
     }
 
+    @Override
     public byte[] getTaskToken() {
         return response.getTaskToken();
     }
 
+    @Override
     public WorkflowExecution getWorkflowExecution() {
         return response.getWorkflowExecution();
     }
 
+    @Override
     public String getActivityId() {
         return response.getActivityId();
     }
 
+    @Override
     public ActivityType getActivityType() {
         return response.getActivityType();
     }
 
+    @Override
     public long getScheduledTimestamp() {
         return response.getScheduledTimestamp();
     }
 
+    @Override
     public int getScheduleToCloseTimeoutSeconds() {
         return response.getScheduleToCloseTimeoutSeconds();
     }
 
+    @Override
     public void setScheduleToCloseTimeoutSecondsIsSet(boolean value) {
         response.setScheduleToCloseTimeoutSecondsIsSet(value);
     }
 
+    @Override
     public int getStartToCloseTimeoutSeconds() {
         return response.getStartToCloseTimeoutSeconds();
     }
 
+    @Override
     public int getHeartbeatTimeoutSeconds() {
         return response.getHeartbeatTimeoutSeconds();
     }

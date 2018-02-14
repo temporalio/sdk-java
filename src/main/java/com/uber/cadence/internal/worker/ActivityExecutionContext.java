@@ -14,9 +14,9 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.internal.activity;
+package com.uber.cadence.internal.worker;
 
-import com.uber.cadence.internal.ActivityTask;
+import com.uber.cadence.activity.ActivityTask;
 import com.uber.cadence.internal.generic.ActivityImplementation;
 import com.uber.cadence.WorkflowService.Iface;
 
@@ -29,7 +29,7 @@ import java.util.concurrent.CancellationException;
  * 
  * @author fateev
  */
-public interface ActivityExecutionContext {
+interface ActivityExecutionContext {
 
     /**
      * @return task token that is required to report task completion when

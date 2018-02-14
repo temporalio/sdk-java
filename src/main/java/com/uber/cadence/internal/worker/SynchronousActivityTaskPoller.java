@@ -26,7 +26,6 @@ import com.uber.cadence.RespondActivityTaskFailedRequest;
 import com.uber.cadence.TaskList;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
-import com.uber.cadence.internal.generic.ActivityFailureException;
 import com.uber.cadence.internal.generic.ActivityImplementation;
 import com.uber.cadence.internal.generic.ActivityImplementationFactory;
 import org.apache.commons.logging.Log;

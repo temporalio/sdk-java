@@ -16,14 +16,13 @@
  */
 package com.uber.cadence.internal.worker;
 
-import com.uber.cadence.internal.activity.ActivityExecutionContext;
-import com.uber.cadence.internal.ActivityTask;
 import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.RecordActivityTaskHeartbeatRequest;
 import com.uber.cadence.RecordActivityTaskHeartbeatResponse;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.WorkflowService.Iface;
+import com.uber.cadence.activity.ActivityTask;
 import com.uber.cadence.converter.DataConverter;
 import org.apache.thrift.TException;
 
@@ -43,7 +42,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
 
     private final String domain;
     
-    private final ActivityTask task;
+    private final ActivityTaskImpl task;
     private final DataConverter dataConverter;
 
     /**
@@ -58,10 +57,10 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
      *
      * @see ActivityExecutionContext
      */
-    public ActivityExecutionContextImpl(Iface service, String domain, PollForActivityTaskResponse response, DataConverter dataConverter) {
+    ActivityExecutionContextImpl(Iface service, String domain, PollForActivityTaskResponse response, DataConverter dataConverter) {
         this.domain = domain;
         this.service = service;
-        this.task = new ActivityTask(response);
+        this.task = new ActivityTaskImpl(response);
         this.dataConverter = dataConverter;
     }
 

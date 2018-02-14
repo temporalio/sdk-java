@@ -17,8 +17,7 @@
 package com.uber.cadence.activity;
 
 import com.uber.cadence.WorkflowService;
-import com.uber.cadence.internal.ActivityTask;
-import com.uber.cadence.internal.activity.ActivityInternal;
+import com.uber.cadence.internal.worker.ActivityInternal;
 
 import java.util.concurrent.CancellationException;
 
@@ -33,21 +32,21 @@ public final class Activity {
      * manual activity completion is used.
      */
     public static byte[] getTaskToken() {
-        return ActivityInternal.getContext().getTaskToken();
+        return ActivityInternal.getTask().getTaskToken();
     }
 
     /**
      * @return workfow execution that requested the activity execution
      */
     public static com.uber.cadence.WorkflowExecution getWorkflowExecution() {
-        return ActivityInternal.getContext().getWorkflowExecution();
+        return ActivityInternal.getTask().getWorkflowExecution();
     }
 
     /**
      * @return task that caused activity execution
      */
     public static ActivityTask getTask() {
-        return ActivityInternal.getContext().getTask();
+        return ActivityInternal.getTask();
     }
 
     /**
@@ -69,11 +68,11 @@ public final class Activity {
      * used by the invoked activity worker.
      */
     public static WorkflowService.Iface getService() {
-        return ActivityInternal.getContext().getService();
+        return ActivityInternal.getService();
     }
 
     public static String getDomain() {
-        return ActivityInternal.getContext().getDomain();
+        return ActivityInternal.getDomain();
     }
 
     /**

@@ -23,10 +23,7 @@ import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.activity.DoNotCompleteOnReturn;
 import com.uber.cadence.converter.DataConverter;
-import com.uber.cadence.internal.activity.ActivityExecutionContext;
-import com.uber.cadence.internal.activity.CurrentActivityExecutionContext;
 import com.uber.cadence.internal.common.FlowHelpers;
-import com.uber.cadence.internal.generic.ActivityFailureException;
 import com.uber.cadence.internal.generic.ActivityImplementation;
 import com.uber.cadence.internal.generic.ActivityImplementationFactory;
 
@@ -38,13 +35,13 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
 
-public class POJOActivityImplementationFactory implements ActivityImplementationFactory {
+class POJOActivityImplementationFactory implements ActivityImplementationFactory {
 
     private static final byte[] EMPTY_BLOB = {};
     private DataConverter dataConverter;
     private final Map<String, ActivityImplementation> activities = Collections.synchronizedMap(new HashMap<>());
 
-    public POJOActivityImplementationFactory(DataConverter dataConverter) {
+    POJOActivityImplementationFactory(DataConverter dataConverter) {
         this.dataConverter = dataConverter;
     }
 
@@ -98,12 +95,12 @@ public class POJOActivityImplementationFactory implements ActivityImplementation
         private final Object activity;
         private boolean doNotCompleteOnReturn;
 
-        public POJOActivityImplementation(Method interfaceMethod, Object activity) {
+        POJOActivityImplementation(Method interfaceMethod, Object activity) {
             this.method = interfaceMethod;
 
             // @DoNotCompleteOnReturn is expected to be on implementation method, not the interface.
             // So lookup method starting from the implementation object class.
-            DoNotCompleteOnReturn annotation = null;
+            DoNotCompleteOnReturn annotation;
             try {
                 Method implementationMethod = activity.getClass().getMethod(interfaceMethod.getName(), interfaceMethod.getParameterTypes());
                 annotation = implementationMethod.getAnnotation(DoNotCompleteOnReturn.class);
@@ -135,7 +132,7 @@ public class POJOActivityImplementationFactory implements ActivityImplementation
         @Override
         public byte[] execute(WorkflowService.Iface service, String domain, PollForActivityTaskResponse task) {
             ActivityExecutionContext context = new ActivityExecutionContextImpl(service, domain, task, dataConverter);
-            byte[] input = context.getTask().getInput();
+            byte[] input = task.getInput();
             Object[] args = dataConverter.fromData(input, Object[].class);
             CurrentActivityExecutionContext.set(context);
             try {
