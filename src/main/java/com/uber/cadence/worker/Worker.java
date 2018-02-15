@@ -20,6 +20,7 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.internal.dispatcher.SyncWorkflowWorker;
 import com.uber.cadence.internal.worker.ActivityWorker;
+import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
 
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -31,7 +32,64 @@ public final class Worker {
     private final SyncWorkflowWorker workflowWorker;
     private final ActivityWorker activityWorker;
 
+    /**
+     * Creates worker that connects to the local instance of the Cadence Service that listens
+     * on a default port (7933).
+     *
+     * @param domain   domain that worker uses to poll.
+     * @param taskList task list name worker uses to poll.
+     *                 It uses this name for both decision and activity task list polls.
+     */
+    public Worker(String domain, String taskList) {
+        this(new WorkflowServiceTChannel(), domain, taskList, null);
+    }
+
+    /**
+     * Creates worker that connects to an instance of the Cadence Service.
+     *
+     * @param host     of the Cadence Service endpoint
+     * @param port     of the Cadence Service endpoint
+     * @param domain   domain that worker uses to poll.
+     * @param taskList task list name worker uses to poll.
+     *                 It uses this name for both decision and activity task list polls.
+     */
+    public Worker(String host, int port, String domain, String taskList) {
+        this(new WorkflowServiceTChannel(host, port), domain, taskList, null);
+    }
+
+    /**
+     * Creates worker that connects to an instance of the Cadence Service.
+     *
+     * @param host     of the Cadence Service endpoint
+     * @param port     of the Cadence Service endpoint
+     * @param domain   domain that worker uses to poll.
+     * @param taskList task list name worker uses to poll.
+     *                 It uses this name for both decision and activity task list polls.
+     * @param options  Options (like {@link com.uber.cadence.converter.DataConverter}er override) for configuring worker.
+     */
+    public Worker(String host, int port, String domain, String taskList, WorkerOptions options) {
+        this(new WorkflowServiceTChannel(host, port), domain, taskList, options);
+    }
+
+    /**
+     * Creates worker that connects to an instance of the Cadence Service.
+     *
+     * @param service  client to the Cadence Service endpoint.
+     * @param domain   domain that worker uses to poll.
+     * @param taskList task list name worker uses to poll.
+     *                 It uses this name for both decision and activity task list polls.
+     * @param options  Options (like {@link com.uber.cadence.converter.DataConverter}er override) for configuring worker.
+     */
     public Worker(WorkflowService.Iface service, String domain, String taskList, WorkerOptions options) {
+        if (service == null) {
+            throw new IllegalArgumentException("null service");
+        }
+        if (domain == null) {
+            throw new IllegalArgumentException("null domain");
+        }
+        if (taskList == null) {
+            throw new IllegalArgumentException("null taskList");
+        }
         if (options == null) {
             options = new WorkerOptions();
         }

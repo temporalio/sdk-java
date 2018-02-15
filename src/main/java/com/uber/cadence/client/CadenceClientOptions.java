@@ -17,15 +17,23 @@
 package com.uber.cadence.client;
 
 import com.uber.cadence.converter.DataConverter;
+import com.uber.cadence.converter.JsonDataConverter;
 
+/**
+ * Options for CadenceClient configuration.
+ */
 public final class CadenceClientOptions {
 
-    private DataConverter dataConverter;
+    private DataConverter dataConverter = new JsonDataConverter();
 
     public DataConverter getDataConverter() {
         return dataConverter;
     }
 
+    /**
+     * Used to override default (JSON) data converter implementation.
+     * @param dataConverter data converter to serialize and deserialize arguments and return values.
+     */
     public void setDataConverter(DataConverter dataConverter) {
         this.dataConverter = dataConverter;
     }

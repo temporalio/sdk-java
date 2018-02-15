@@ -30,7 +30,7 @@ import java.util.concurrent.TimeoutException;
  * <ul>
  * <li>Can be used only inside a Cadence workflow code. Use {@link java.util.concurrent.Future} and its derivatives
  * to implement activities and workflow starting and querying code.</li>
- * <li>{@link #get()} doesn't throw InterruptedException. The only way to unblock {@link #get()}t is to complete the Promise</li>
+ * <li>{@link #get()} doesn't throw InterruptedException. The only way to unblock {@link #get()} is to complete the Promise</li>
  * <li>Exceptions passed to {@link CompletablePromise#completeExceptionally(RuntimeException)} are not wrapped.
  * It is possible as {@link CompletablePromise#completeExceptionally(RuntimeException)} accepts only runtime exceptions.
  * So wrapping must be done by the caller of that method.</li>

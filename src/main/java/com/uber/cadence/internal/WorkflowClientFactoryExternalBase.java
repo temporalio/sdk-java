@@ -35,10 +35,6 @@ public abstract class WorkflowClientFactoryExternalBase<T> implements WorkflowCl
         this(new GenericWorkflowClientExternalImpl(service, domain));
     }
 
-    public WorkflowClientFactoryExternalBase() {
-        this(null);
-    }
-
     public WorkflowClientFactoryExternalBase(GenericWorkflowClientExternal genericClient) {
         this.genericClient = genericClient;
     }

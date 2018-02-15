@@ -59,10 +59,6 @@ import static org.junit.Assert.*;
 
 public class WorkflowTest {
 
-    // TODO: Make this configuratble instead of always using local instance.
-    private static final String host = "127.0.0.1";
-    private static final int port = 7933;
-    private static final String serviceName = "cadence-frontend";
     private static final String domain = "UnitTest";
     private static final String taskList = "UnitTest";
     private static final Log log;
@@ -87,7 +83,6 @@ public class WorkflowTest {
 
     }
 
-    private static WorkflowService.Iface service;
     private static Worker worker;
     private static TestActivitiesImpl activitiesImpl;
     private static CadenceClient cadenceClient;
@@ -97,15 +92,15 @@ public class WorkflowTest {
     @BeforeClass
     public static void setUpService() {
         WorkflowServiceTChannel.ClientOptions.Builder optionsBuilder = new WorkflowServiceTChannel.ClientOptions.Builder();
-        service = new WorkflowServiceTChannel(host, port, serviceName, optionsBuilder.build());
-        worker = new Worker(service, domain, taskList, null);
-        cadenceClient = CadenceClient.newClient(service, domain);
+        // TODO: Make this configuratble instead of always using local instance.
+        worker = new Worker(domain, taskList);
+        cadenceClient = CadenceClient.newClient(domain);
         completionClient = cadenceClient.newActivityCompletionClient();
         activitiesImpl = new TestActivitiesImpl(completionClient);
         worker.addActivitiesImplementation(activitiesImpl);
         CadenceClientOptions clientOptions = new CadenceClientOptions();
         clientOptions.setDataConverter(new JsonDataConverter());
-        cadenceClientWithOptions = CadenceClient.newClient(service, domain, clientOptions);
+        cadenceClientWithOptions = CadenceClient.newClient(domain, clientOptions);
         worker.start();
         newStartWorkflowOptions();
         activitySchedulingOptions = new ActivitySchedulingOptions();
@@ -445,7 +440,7 @@ public class WorkflowTest {
         assertEquals("Hello ", client.getState());
 
         // Test query through replay by a local worker.
-        Worker queryWorker = new Worker(service, domain, taskList, null);
+        Worker queryWorker = new Worker(domain, taskList);
         queryWorker.addWorkflowImplementationType(TestSignalWorkflowImpl.class);
         String queryResult = queryWorker.queryWorkflowExecution(execution, "QueryableWorkflow::getState", String.class);
         assertEquals("Hello ", queryResult);
@@ -469,7 +464,6 @@ public class WorkflowTest {
         assertEquals("World!", client.query("QueryableWorkflow::getState", String.class));
         assertEquals("Hello World!", cadenceClient.newUntypedWorkflowStub(execution).getResult(String.class));
     }
-
 
     static final AtomicInteger decisionCount = new AtomicInteger();
     static final CompletableFuture<Boolean> sendSignal = new CompletableFuture<>();
@@ -501,7 +495,7 @@ public class WorkflowTest {
 
     @Test
     public void testSignalDuringLastDecision() throws InterruptedException {
-        worker.addWorkflowImplementationType(TestSignalDuringLastDecisionWorkflowImpl.class);
+        worker.setWorkflowImplementationTypes(TestSignalDuringLastDecisionWorkflowImpl.class);
         StartWorkflowOptions options = newStartWorkflowOptions();
         options.setWorkflowId("testSignalDuringLastDecision-" + UUID.randomUUID().toString());
         TestWorkflowSignaled client = cadenceClient.newWorkflowStub(TestWorkflowSignaled.class, options);

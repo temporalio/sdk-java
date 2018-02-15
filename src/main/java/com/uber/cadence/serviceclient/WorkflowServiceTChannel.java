@@ -41,45 +41,85 @@ import java.util.concurrent.TimeUnit;
 
 public class WorkflowServiceTChannel implements WorkflowService.Iface {
 
+    public static final int DEFAULT_LOCAL_CADENCE_SERVER_PORT = 7933;
+
+    private static final String LOCALHOST = "127.0.0.1";
+
+    /**
+     * Default RPC timeout used for all non long poll calls.
+     */
+    private static final long DEFAULT_RPC_TIMEOUT_MILLIS = 1000;
+    /**
+     * Default RPC timeout used for all long poll calls.
+     */
+    private static final long DEFAULT_POLL_RPC_TIMEOUT_MILLIS = 61 * 1000;
+
+    /**
+     * Default RPC timeout for QueryWorkflow
+     */
+    private static final long DEFAULT_QUERY_RPC_TIMEOUT_MILLIS = 10000;
+
+
+    public static final String DEFAULT_CLIENT_APP_NAME = "cadence-client";
+
+    /**
+     * Name of the Cadence service front end as required by TChannel.
+     */
+    public static final String DEFAULT_SERVICE_NAME = "cadence-frontend";
+
     public static class ClientOptions {
-        private static final long DEFAULT_RPC_TIMEOUT_MILLIS = 60 * 1000;
 
         /**
          * The tChannel timeout in milliseconds
          */
-        private long rpcTimeoutMillis = DEFAULT_RPC_TIMEOUT_MILLIS;
+        private final long rpcTimeoutMillis;
 
         /**
-         * Deployment string that gets added
-         * as a suffix to the cherami service
-         * name. Example - if this value is
-         * staging, then the cherami hyperbahn
-         * endpoint would be cherami-frontendhost_staging.
+         * The tChannel timeout for long poll calls in milliseconds
          */
-        private String deploymentStr = "prod";
+        private final long rpcLongPollTimeoutMillis;
 
         /**
-         * Name of the service using the cheramiClient.
+         * The tChannel timeout for query workflow call in milliseconds
          */
-        private String clientAppName = "unknown";
+        private final long rpcQueryTimeoutMillis;
+
+        /**
+         * TChannel service name that the Cadence service was started with.
+         */
+        private final String serviceName;
+
+        /**
+         * Name of the service using the cadence-client.
+         */
+        private final String clientAppName;
 
         /**
          * Client for metrics reporting.
          */
 //        private MetricsClient metricsClient = new DefaultMetricsClient();
-
         private ClientOptions(Builder builder) {
             this.rpcTimeoutMillis = builder.rpcTimeoutMillis;
-            this.deploymentStr = builder.deploymentStr;
-            this.clientAppName = builder.clientAppName;
+            if (builder.clientAppName == null) {
+                this.clientAppName = DEFAULT_CLIENT_APP_NAME;
+            } else {
+                this.clientAppName = builder.clientAppName;
+            }
+            if (builder.serviceName == null) {
+                this.serviceName = DEFAULT_SERVICE_NAME;
+            } else {
+                this.serviceName = builder.serviceName;
+            }
+            this.rpcLongPollTimeoutMillis = builder.rpcLongPollTimeoutMillis;
+            this.rpcQueryTimeoutMillis = builder.rpcQueryTimeoutMillis;
 //            this.metricsClient = builder.metricsClient;
         }
 
-        /**
-         * Copy to another client options with a different metrics client to report metrics.
-         * @param metricsClient metrics client
-         * @return client options
-         */
+//        /**
+//         * Copy to another client options with a different metrics client to report metrics.
+//         * @param metricsClient metrics client
+//         * @return client options
+//         */
 //        public ClientOptions copyWithMetricsClient(MetricsClient metricsClient) {
 //            ClientOptions clone = new ClientOptions();
 //            clone.rpcTimeoutMillis = this.rpcTimeoutMillis;
@@ -90,19 +130,24 @@ public class WorkflowServiceTChannel implements WorkflowService.Iface {
 //        }
 
         /**
-         * @return
-         *      Returns the rpc timeout value in millis.
+         * @return Returns the rpc timeout value in millis.
          */
         public long getRpcTimeoutMillis() {
             return rpcTimeoutMillis;
         }
 
         /**
-         * @return DeploymentStr, representing the custom suffix that will be
-         *         appended to the cherami hyperbahn endpoint name.
+         * @return Returns the rpc timout for long poll requests in millis.
          */
-        public String getDeploymentStr() {
-            return this.deploymentStr;
+        public long getRpcLongPollTimeoutMillis() {
+            return rpcLongPollTimeoutMillis;
+        }
+
+        /**
+         * @return Returns the rpc timout for query workflow requests in millis.
+         */
+        public long getRpcQueryTimeoutMillis() {
+            return rpcQueryTimeoutMillis;
         }
 
         /**
@@ -110,6 +155,10 @@ public class WorkflowServiceTChannel implements WorkflowService.Iface {
          */
         public String getClientAppName() {
             return this.clientAppName;
+        }
+
+        public String getServiceName() {
+            return serviceName;
         }
 //
 //        /**
@@ -126,16 +175,18 @@ public class WorkflowServiceTChannel implements WorkflowService.Iface {
          */
         public static class Builder {
 
-            private String deploymentStr = "prod";
-            private String clientAppName = "unknown";
-//            private MetricsClient metricsClient = new DefaultMetricsClient();
+            private String clientAppName = DEFAULT_CLIENT_APP_NAME;
+            //            private MetricsClient metricsClient = new DefaultMetricsClient();
             private long rpcTimeoutMillis = DEFAULT_RPC_TIMEOUT_MILLIS;
+            private long rpcLongPollTimeoutMillis = DEFAULT_POLL_RPC_TIMEOUT_MILLIS;
+            public long rpcQueryTimeoutMillis = DEFAULT_QUERY_RPC_TIMEOUT_MILLIS;
+            public String serviceName;
 
             /**
-             * Sets the rpc timeout value.
+             * Sets the rpc timeout value for non query and non long poll calls.
+             * Default is 1000.
              *
-             * @param timeoutMillis
-             *            timeout, in millis.
+             * @param timeoutMillis timeout, in millis.
              */
             public Builder setRpcTimeout(long timeoutMillis) {
                 this.rpcTimeoutMillis = timeoutMillis;
@@ -143,30 +194,54 @@ public class WorkflowServiceTChannel implements WorkflowService.Iface {
             }
 
             /**
-             * Sets the deploymentStr.
+             * Sets the rpc timeout value for the following long poll based operations:
+             * PollForDecisionTask, PollForActivityTask, GetWorkflowExecutionHistory.
+             * Should never be below 60000 as this is server side timeout for the long poll.
+             * Default is 61000.
              *
-             * @param deploymentStr
-             *            String representing the deployment suffix.
+             * @param timeoutMillis timeout, in millis.
              */
-            public Builder setDeploymentStr(String deploymentStr) {
-                this.deploymentStr = deploymentStr;
+            public Builder setRpcLongPollTimeout(long timeoutMillis) {
+                this.rpcLongPollTimeoutMillis = timeoutMillis;
+                return this;
+            }
+
+            /**
+             * Sets the rpc timeout value for query calls.
+             * Default is 10000.
+             *
+             * @param timeoutMillis timeout, in millis.
+             */
+            public Builder setQueryRpcTimeout(long timeoutMillis) {
+                this.rpcQueryTimeoutMillis = timeoutMillis;
                 return this;
             }
 
             /**
              * Sets the client application name.
-             *
+             * <p>
              * This name will be used as the tchannel client service name. It will
              * also be reported as a tag along with metrics emitted to m3.
              *
-             * @param clientAppName
-             *            String representing the client application name.
-             * @return Builder for CheramiClient.
+             * @param clientAppName String representing the client application name.
+             * @return Builder for ClentOptions
              */
             public Builder setClientAppName(String clientAppName) {
                 this.clientAppName = clientAppName;
                 return this;
             }
+
+            /**
+             * Sets the service name that Cadence service was started with.
+             *
+             * @param serviceName String representing the service name
+             * @return Builder for ClentOptions
+             */
+            public Builder setServiceName(String serviceName) {
+                this.serviceName = serviceName;
+                return this;
+            }
+
 
 //            /**
 //             * Sets the metrics client to be used for metrics reporting.
@@ -201,10 +276,39 @@ public class WorkflowServiceTChannel implements WorkflowService.Iface {
     private final Map<String, String> thriftHeaders;
     private final TChannel tChannel;
     private final SubChannel subChannel;
-    private final String serviceName;
 
-    public WorkflowServiceTChannel(String host, int port, String serviceName, ClientOptions options) {
-        this.serviceName = serviceName;
+    /**
+     * Creates Cadence client that connects to the local instance of the Cadence Service that listens
+     * on a default port (7933).
+     */
+    public WorkflowServiceTChannel() {
+        this(LOCALHOST, DEFAULT_LOCAL_CADENCE_SERVER_PORT, new ClientOptions.Builder().build());
+    }
+
+    /**
+     * Creates Cadence client that connects to the specified host and port using default options.
+     *
+     * @param host host to connect
+     * @param port port to connect
+     */
+    public WorkflowServiceTChannel(String host, int port) {
+        this(host, port, new ClientOptions.Builder().build());
+    }
+
+    /**
+     * Creates Cadence client that connects to the specified host and port using specified options.
+     *
+     * @param host    host to connect
+     * @param port    port to connect
+     * @param options configuration options like rpc timeouts.
+     */
+    public WorkflowServiceTChannel(String host, int port, ClientOptions options) {
+        if (host == null) {
+            throw new IllegalArgumentException("null host");
+        }
+        if (port <= 0) {
+            throw new IllegalArgumentException("0 or negative port");
+        }
         this.options = options;
         String envUserName = System.getenv("USER");
         String envHostname;
@@ -225,15 +329,12 @@ public class WorkflowServiceTChannel implements WorkflowService.Iface {
             InetAddress address = InetAddress.getByName(host);
             ArrayList<InetSocketAddress> peers = new ArrayList<>();
             peers.add(new InetSocketAddress(address, port));
-            this.subChannel = tChannel.makeSubChannel(serviceName).setPeers(peers);
+            this.subChannel = tChannel.makeSubChannel(options.getServiceName()).setPeers(peers);
+            logger.info("Initialized TChannel: " + this.subChannel.toString());
         } catch (UnknownHostException e) {
             tChannel.shutdown();
             throw new RuntimeException("Unable to get name of host " + host, e);
         }
-    }
-
-    private boolean isProd(String deploymentStr) {
-        return (deploymentStr == null || deploymentStr.isEmpty() || deploymentStr.toLowerCase().startsWith("prod"));
     }
 
     /**
@@ -244,10 +345,18 @@ public class WorkflowServiceTChannel implements WorkflowService.Iface {
     }
 
     private <T> ThriftRequest<T> buildThriftRequest(String apiName, T body) {
+        return buildThriftRequest(apiName, body, null);
+    }
+
+    private <T> ThriftRequest<T> buildThriftRequest(String apiName, T body, Long rpcTimeoutOverride) {
         String endpoint = getEndpoint(INTERFACE_NAME, apiName);
-        ThriftRequest.Builder<T> builder = new ThriftRequest.Builder<T>(serviceName, endpoint);
+        ThriftRequest.Builder<T> builder = new ThriftRequest.Builder<T>(options.getServiceName(), endpoint);
         builder.setHeaders(thriftHeaders);
-        builder.setTimeout(this.options.getRpcTimeoutMillis());
+        if (rpcTimeoutOverride != null) {
+            builder.setTimeout(rpcTimeoutOverride);
+        } else {
+            builder.setTimeout(this.options.getRpcTimeoutMillis());
+        }
         builder.setBody(body);
         return builder.build();
     }
@@ -275,7 +384,7 @@ public class WorkflowServiceTChannel implements WorkflowService.Iface {
         }
     }
 
-    public void close() throws IOException {
+    public void close() {
         if (tChannel != null) {
             tChannel.shutdown();
         }
@@ -424,7 +533,8 @@ public class WorkflowServiceTChannel implements WorkflowService.Iface {
     public GetWorkflowExecutionHistoryResponse GetWorkflowExecutionHistory(GetWorkflowExecutionHistoryRequest getRequest) throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError, TException {
         ThriftResponse<WorkflowService.GetWorkflowExecutionHistory_result> response = null;
         try {
-            ThriftRequest<WorkflowService.GetWorkflowExecutionHistory_args> request = buildThriftRequest("GetWorkflowExecutionHistory", new WorkflowService.GetWorkflowExecutionHistory_args(getRequest));
+            ThriftRequest<WorkflowService.GetWorkflowExecutionHistory_args> request = buildThriftRequest(
+                    "GetWorkflowExecutionHistory", new WorkflowService.GetWorkflowExecutionHistory_args(getRequest), options.getRpcLongPollTimeoutMillis());
             response = doRemoteCall(request);
             WorkflowService.GetWorkflowExecutionHistory_result result = response.getBody(WorkflowService.GetWorkflowExecutionHistory_result.class);
             if (response.getResponseCode() == ResponseCode.OK) {
@@ -454,7 +564,8 @@ public class WorkflowServiceTChannel implements WorkflowService.Iface {
     public PollForDecisionTaskResponse PollForDecisionTask(PollForDecisionTaskRequest pollRequest) throws BadRequestError, InternalServiceError, ServiceBusyError, TException {
         ThriftResponse<WorkflowService.PollForDecisionTask_result> response = null;
         try {
-            ThriftRequest<WorkflowService.PollForDecisionTask_args> request = buildThriftRequest("PollForDecisionTask", new WorkflowService.PollForDecisionTask_args(pollRequest));
+            ThriftRequest<WorkflowService.PollForDecisionTask_args> request = buildThriftRequest(
+                    "PollForDecisionTask", new WorkflowService.PollForDecisionTask_args(pollRequest), options.getRpcLongPollTimeoutMillis());
             response = doRemoteCall(request);
             WorkflowService.PollForDecisionTask_result result = response.getBody(WorkflowService.PollForDecisionTask_result.class);
             if (response.getResponseCode() == ResponseCode.OK) {
@@ -535,7 +646,8 @@ public class WorkflowServiceTChannel implements WorkflowService.Iface {
     public PollForActivityTaskResponse PollForActivityTask(PollForActivityTaskRequest pollRequest) throws BadRequestError, InternalServiceError, ServiceBusyError, TException {
         ThriftResponse<WorkflowService.PollForActivityTask_result> response = null;
         try {
-            ThriftRequest<WorkflowService.PollForActivityTask_args> request = buildThriftRequest("PollForActivityTask", new WorkflowService.PollForActivityTask_args(pollRequest));
+            ThriftRequest<WorkflowService.PollForActivityTask_args> request = buildThriftRequest(
+                    "PollForActivityTask", new WorkflowService.PollForActivityTask_args(pollRequest), options.getRpcLongPollTimeoutMillis());
             response = doRemoteCall(request);
             WorkflowService.PollForActivityTask_result result = response.getBody(WorkflowService.PollForActivityTask_result.class);
             if (response.getResponseCode() == ResponseCode.OK) {
@@ -932,7 +1044,8 @@ public class WorkflowServiceTChannel implements WorkflowService.Iface {
     public QueryWorkflowResponse QueryWorkflow(QueryWorkflowRequest queryRequest) throws BadRequestError, InternalServiceError, EntityNotExistsError, QueryFailedError, TException {
         ThriftResponse<WorkflowService.QueryWorkflow_result> response = null;
         try {
-            ThriftRequest<WorkflowService.QueryWorkflow_args> request = buildThriftRequest("QueryWorkflow", new WorkflowService.QueryWorkflow_args(queryRequest));
+            ThriftRequest<WorkflowService.QueryWorkflow_args> request = buildThriftRequest(
+                    "QueryWorkflow", new WorkflowService.QueryWorkflow_args(queryRequest), options.getRpcQueryTimeoutMillis());
             response = doRemoteCall(request);
             WorkflowService.QueryWorkflow_result result = response.getBody(WorkflowService.QueryWorkflow_result.class);
             if (response.getResponseCode() == ResponseCode.OK) {
@@ -950,6 +1063,7 @@ public class WorkflowServiceTChannel implements WorkflowService.Iface {
             if (result.isSetQueryFailedError()) {
                 throw result.getQueryFailedError();
             }
+
             throw new TException("QueryWorkflow failed with unknown error:" + result);
         } finally {
             if (response != null) {

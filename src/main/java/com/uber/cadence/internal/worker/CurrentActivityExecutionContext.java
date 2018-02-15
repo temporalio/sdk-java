@@ -33,7 +33,8 @@ public class CurrentActivityExecutionContext {
     public static ActivityExecutionContext get() {
         ActivityExecutionContext result = CURRENT.get();
         if (result == null) {
-            throw new IllegalStateException("ActivityExecutionContext can be used only inside of acitivty implementation methods");
+            throw new IllegalStateException("ActivityExecutionContext can be used only inside of activity " +
+                    "implementation methods and in the same thread that invoked an activity.");
         }
         return result;
     };

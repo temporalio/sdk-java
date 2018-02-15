@@ -22,14 +22,6 @@
 
     <developers>
         <developer>
-            <id>amazonwebservices</id>
-            <organization>Amazon Web Services</organization>
-            <organizationUrl>https://aws.amazon.com</organizationUrl>
-            <roles>
-                <role>swf-framework-java-developer</role>
-            </roles>
-        </developer>
-        <developer>
             <id>uber</id>
             <organization>Uber</organization>
             <organizationUrl>https://uber.com</organizationUrl>
@@ -37,7 +29,6 @@
                 <role>developer</role>
             </roles>
         </developer>
-
     </developers>
     <scm>
         <url>https://github.com/uber-java/cadence-client.git</url>
@@ -118,16 +109,6 @@
                 </configuration>
             </plugin>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-javadoc-plugin</artifactId>
-                <version>2.9.1</version>
-                <configuration>
-                    <excludePackageNames>*.internal:*.transform</excludePackageNames>
-                    <minmemory>128m</minmemory>
-                    <maxmemory>1024m</maxmemory>
-                </configuration>
-            </plugin>
-            <plugin>
                 <groupId>com.mycila</groupId>
                 <artifactId>license-maven-plugin</artifactId>
                 <version>3.0</version>
@@ -142,7 +123,8 @@
                         <exclude>src/main/resources/**</exclude>
                         <exclude>src/main/thrift/**</exclude>
                     </excludes>
-                    <errorMessage>Some files do not have the expected license header. Run "mvn license:format" to add.</errorMessage>
+                    <errorMessage>Some files do not have the expected license header. Run "mvn license:format" to add.
+                    </errorMessage>
                 </configuration>
                 <executions>
                     <execution>
@@ -155,4 +137,24 @@
             </plugin>
         </plugins>
     </build>
+    <reporting>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-project-info-reports-plugin</artifactId>
+                <version>2.9</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>2.9.1</version>
+                <configuration>
+                    <excludePackageNames>*.internal:*.transform</excludePackageNames>
+                    <minmemory>128m</minmemory>
+                    <maxmemory>1024m</maxmemory>
+                    <additionalparam>-Xdoclint:none</additionalparam>
+                </configuration>
+            </plugin>
+        </plugins>
+    </reporting>
 </project>
