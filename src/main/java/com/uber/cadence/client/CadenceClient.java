@@ -98,7 +98,7 @@ public interface CadenceClient {
      *                 through {@link #newWorkflowStub(Class, StartWorkflowOptions)}.
      * @return future becomes ready upon workflow completion with null value or failure
      */
-    static WorkflowExternalResult<Void> asyncStart(Functions.Proc workflow) {
+    static WorkflowExecution asyncStart(Functions.Proc workflow) {
         return CadenceClientInternal.asyncStart(workflow);
     }
 
@@ -110,7 +110,7 @@ public interface CadenceClient {
      * @param arg1     first workflow function parameter
      * @return future becomes ready upon workflow completion with null value or failure
      */
-    static <A1> WorkflowExternalResult<Void> asyncStart(Functions.Proc1<A1> workflow, A1 arg1) {
+    static <A1> WorkflowExecution asyncStart(Functions.Proc1<A1> workflow, A1 arg1) {
         return CadenceClientInternal.asyncStart(workflow, arg1);
     }
 
@@ -123,7 +123,7 @@ public interface CadenceClient {
      * @param arg2     second workflow function parameter
      * @return future becomes ready upon workflow completion with null value or failure
      */
-    static <A1, A2> WorkflowExternalResult<Void> asyncStart(Functions.Proc2<A1, A2> workflow, A1 arg1, A2 arg2) {
+    static <A1, A2> WorkflowExecution asyncStart(Functions.Proc2<A1, A2> workflow, A1 arg1, A2 arg2) {
         return CadenceClientInternal.asyncStart(workflow, arg1, arg2);
     }
 
@@ -137,7 +137,7 @@ public interface CadenceClient {
      * @param arg3     third workflow function parameter
      * @return future becomes ready upon workflow completion with null value or failure
      */
-    static <A1, A2, A3> WorkflowExternalResult<Void> asyncStart(Functions.Proc3<A1, A2, A3> workflow, A1 arg1, A2 arg2, A3 arg3) {
+    static <A1, A2, A3> WorkflowExecution asyncStart(Functions.Proc3<A1, A2, A3> workflow, A1 arg1, A2 arg2, A3 arg3) {
         return CadenceClientInternal.asyncStart(workflow, arg1, arg2, arg3);
     }
 
@@ -152,7 +152,7 @@ public interface CadenceClient {
      * @param arg4     fourth workflow function parameter
      * @return future becomes ready upon workflow completion with null value or failure
      */
-    static <A1, A2, A3, A4> WorkflowExternalResult<Void> asyncStart(Functions.Proc4<A1, A2, A3, A4> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
+    static <A1, A2, A3, A4> WorkflowExecution asyncStart(Functions.Proc4<A1, A2, A3, A4> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
         return CadenceClientInternal.asyncStart(workflow, arg1, arg2, arg3, arg4);
     }
 
@@ -168,7 +168,7 @@ public interface CadenceClient {
      * @param arg5     fifth workflow function parameter
      * @return future becomes ready upon workflow completion with null value or failure
      */
-    static <A1, A2, A3, A4, A5> WorkflowExternalResult<Void> asyncStart(Functions.Proc5<A1, A2, A3, A4, A5> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
+    static <A1, A2, A3, A4, A5> WorkflowExecution asyncStart(Functions.Proc5<A1, A2, A3, A4, A5> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
         return CadenceClientInternal.asyncStart(workflow, arg1, arg2, arg3, arg4, arg5);
     }
 
@@ -185,7 +185,7 @@ public interface CadenceClient {
      * @param arg6     sixth workflow function parameter
      * @return future becomes ready upon workflow completion with null value or failure
      */
-    static <A1, A2, A3, A4, A5, A6> WorkflowExternalResult<Void> asyncStart(Functions.Proc6<A1, A2, A3, A4, A5, A6> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5, A6 arg6) {
+    static <A1, A2, A3, A4, A5, A6> WorkflowExecution asyncStart(Functions.Proc6<A1, A2, A3, A4, A5, A6> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5, A6 arg6) {
         return CadenceClientInternal.asyncStart(workflow, arg1, arg2, arg3, arg4, arg5, arg6);
     }
 
@@ -196,7 +196,7 @@ public interface CadenceClient {
      *                 through {@link #newWorkflowStub(Class, StartWorkflowOptions)}.
      * @return future that contains workflow result or failure
      */
-    static <R> WorkflowExternalResult<R> asyncStart(Functions.Func<R> workflow) {
+    static <R> WorkflowExecution asyncStart(Functions.Func<R> workflow) {
         return CadenceClientInternal.asyncStart(workflow);
     }
 
@@ -208,7 +208,7 @@ public interface CadenceClient {
      * @param arg1     first workflow argument
      * @return future that contains workflow result or failure
      */
-    static <A1, R> WorkflowExternalResult<R> asyncStart(Functions.Func1<A1, R> workflow, A1 arg1) {
+    static <A1, R> WorkflowExecution asyncStart(Functions.Func1<A1, R> workflow, A1 arg1) {
         return CadenceClientInternal.asyncStart(workflow, arg1);
     }
 
@@ -221,7 +221,7 @@ public interface CadenceClient {
      * @param arg2     second workflow function parameter
      * @return future that contains workflow result or failure
      */
-    static <A1, A2, R> WorkflowExternalResult<R> asyncStart(Functions.Func2<A1, A2, R> workflow, A1 arg1, A2 arg2) {
+    static <A1, A2, R> WorkflowExecution asyncStart(Functions.Func2<A1, A2, R> workflow, A1 arg1, A2 arg2) {
         return CadenceClientInternal.asyncStart(workflow, arg1, arg2);
     }
 
@@ -235,7 +235,7 @@ public interface CadenceClient {
      * @param arg3     third workflow function parameter
      * @return future that contains workflow result or failure
      */
-    static <A1, A2, A3, R> WorkflowExternalResult<R> asyncStart(Functions.Func3<A1, A2, A3, R> workflow, A1 arg1, A2 arg2, A3 arg3) {
+    static <A1, A2, A3, R> WorkflowExecution asyncStart(Functions.Func3<A1, A2, A3, R> workflow, A1 arg1, A2 arg2, A3 arg3) {
         return CadenceClientInternal.asyncStart(workflow, arg1, arg2, arg3);
     }
 
@@ -250,7 +250,7 @@ public interface CadenceClient {
      * @param arg4     fourth workflow function parameter
      * @return future that contains workflow result or failure
      */
-    static <A1, A2, A3, A4, R> WorkflowExternalResult<R> asyncStart(Functions.Func4<A1, A2, A3, A4, R> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
+    static <A1, A2, A3, A4, R> WorkflowExecution asyncStart(Functions.Func4<A1, A2, A3, A4, R> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
         return CadenceClientInternal.asyncStart(workflow, arg1, arg2, arg3, arg4);
     }
 
@@ -266,7 +266,7 @@ public interface CadenceClient {
      * @param arg5     sixth workflow function parameter
      * @return future that contains workflow result or failure
      */
-    static <A1, A2, A3, A4, A5, R> WorkflowExternalResult<R> asyncStart(Functions.Func5<A1, A2, A3, A4, A5, R> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
+    static <A1, A2, A3, A4, A5, R> WorkflowExecution asyncStart(Functions.Func5<A1, A2, A3, A4, A5, R> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
         return CadenceClientInternal.asyncStart(workflow, arg1, arg2, arg3, arg4, arg5);
     }
 
@@ -283,7 +283,7 @@ public interface CadenceClient {
      * @param arg6     sixth workflow function parameter
      * @return future that contains workflow result or failure
      */
-    static <A1, A2, A3, A4, A5, A6, R> WorkflowExternalResult<R> asyncStart(Functions.Func6<A1, A2, A3, A4, A5, A6, R> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5, A6 arg6) {
+    static <A1, A2, A3, A4, A5, A6, R> WorkflowExecution asyncStart(Functions.Func6<A1, A2, A3, A4, A5, A6, R> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5, A6 arg6) {
         return CadenceClientInternal.asyncStart(workflow, arg1, arg2, arg3, arg4, arg5, arg6);
     }
 }

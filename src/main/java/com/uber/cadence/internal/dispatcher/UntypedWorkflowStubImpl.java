@@ -17,21 +17,27 @@
 package com.uber.cadence.internal.dispatcher;
 
 import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowExecutionCompletedEventAttributes;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.client.UntypedWorkflowStub;
-import com.uber.cadence.client.WorkflowExternalResult;
 import com.uber.cadence.converter.DataConverter;
+import com.uber.cadence.error.CheckedExceptionWrapper;
 import com.uber.cadence.internal.StartWorkflowOptions;
+import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.generic.GenericWorkflowClientExternal;
 import com.uber.cadence.internal.generic.QueryWorkflowParameters;
 import com.uber.cadence.internal.generic.StartWorkflowExecutionParameters;
 import com.uber.cadence.workflow.SignalExternalWorkflowParameters;
 
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
+
 public class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
     private final GenericWorkflowClientExternal genericClient;
     private final DataConverter dataConverter;
     private final String workflowType;
-    private WorkflowExecution execution;
+    private AtomicReference<WorkflowExecution> execution = new AtomicReference<>();
     private final StartWorkflowOptions options;
 
     public UntypedWorkflowStubImpl(GenericWorkflowClientExternal genericClient, DataConverter dataConverter,
@@ -39,7 +45,7 @@ public class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
         this.genericClient = genericClient;
         this.dataConverter = dataConverter;
         this.workflowType = null;
-        this.execution = execution;
+        this.execution.set(execution);
         this.options = null;
     }
 
@@ -53,13 +59,11 @@ public class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
 
     @Override
     public void signal(String signalName, Object... input) {
-        if (execution == null || execution.getWorkflowId() == null) {
-            throw new IllegalStateException("Null workflowId. Was workflow started?");
-        }
+        checkStarted();
         SignalExternalWorkflowParameters p = new SignalExternalWorkflowParameters();
         p.setInput(dataConverter.toData(input));
         p.setSignalName(signalName);
-        p.setWorkflowId(execution.getWorkflowId());
+        p.setWorkflowId(execution.get().getWorkflowId());
         // TODO: Deal with signalling started workflow only, when requested
         // Commented out to support signalling workflows that called continue as new.
 //        p.setRunId(execution.getRunId());
@@ -67,15 +71,15 @@ public class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
     }
 
     @Override
-    public <R> WorkflowExternalResult<R> execute(Class<R> returnType, Object... args) {
+    public WorkflowExecution start(Object... args) {
         if (options == null) {
             throw new IllegalStateException("UntypedWorkflowStub wasn't created through " +
                     "CadenceClient::newUntypedWorkflowStub(String workflowType, StartWorkflowOptions options)");
         }
-        StartWorkflowExecutionParameters p = new StartWorkflowExecutionParameters();
-        if (execution != null) {
-            p.setWorkflowId(execution.getWorkflowId());
+        if (execution.get() != null) {
+            throw new IllegalStateException("already started for execution=" + execution.get());
         }
+        StartWorkflowExecutionParameters p = new StartWorkflowExecutionParameters();
         p.setTaskStartToCloseTimeoutSeconds(options.getTaskStartToCloseTimeoutSeconds());
         p.setWorkflowId(options.getWorkflowId());
         p.setExecutionStartToCloseTimeoutSeconds(options.getExecutionStartToCloseTimeoutSeconds());
@@ -83,29 +87,55 @@ public class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
         p.setWorkflowType(new WorkflowType().setName(workflowType));
         p.setTaskList(options.getTaskList());
         p.setChildPolicy(options.getChildPolicy());
-        execution = genericClient.startWorkflow(p);
-        return new WorkflowExternalResultImpl<>(genericClient.getService(), genericClient.getDomain(), execution,
-                dataConverter, returnType);
+        execution.set(genericClient.startWorkflow(p));
+        return execution.get();
     }
 
     @Override
-    public <R> R query(String queryType, Class<R> returnType, Object... args) {
-        if (execution == null || execution.getWorkflowId() == null) {
-            throw new IllegalStateException("Null workflowId. Was workflow started?");
+    public <R> R getResult(Class<R> returnType) {
+        try {
+            return getResult(Long.MAX_VALUE, TimeUnit.MILLISECONDS, returnType);
+        } catch (TimeoutException e) {
+            throw CheckedExceptionWrapper.wrap(e);
         }
+    }
+
+    @Override
+    public <R> R getResult(long timeout, TimeUnit unit, Class<R> returnType) throws TimeoutException {
+        checkStarted();
+        WorkflowExecutionCompletedEventAttributes result =
+                WorkflowExecutionUtils.getWorkflowExecutionResult(genericClient.getService(), genericClient.getDomain(),
+                        execution.get(), timeout, unit);
+        byte[] resultValue = result.getResult();
+        if (resultValue == null) {
+            return null;
+        }
+        return dataConverter.fromData(resultValue, returnType);
+    }
+
+
+    @Override
+    public <R> R query(String queryType, Class<R> returnType, Object... args) {
+        checkStarted();
         QueryWorkflowParameters p = new QueryWorkflowParameters();
         p.setInput(dataConverter.toData(args));
         p.setQueryType(queryType);
-        p.setWorkflowId(execution.getWorkflowId());
+        p.setWorkflowId(execution.get().getWorkflowId());
         byte[] result = genericClient.queryWorkflow(p);
         return dataConverter.fromData(result, returnType);
     }
 
     @Override
     public void cancel() {
-        if (execution == null || execution.getWorkflowId() == null) {
+        if (execution.get() == null || execution.get().getWorkflowId() == null) {
+            return;
+        }
+        genericClient.requestCancelWorkflowExecution(execution.get());
+    }
+
+    private void checkStarted() {
+        if (execution.get() == null || execution.get().getWorkflowId() == null) {
             throw new IllegalStateException("Null workflowId. Was workflow started?");
         }
-        genericClient.requestCancelWorkflowExecution(execution);
     }
 }
