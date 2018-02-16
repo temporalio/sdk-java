@@ -62,6 +62,14 @@ class GenericAsyncActivityClientImpl implements GenericAsyncActivityClient {
         }
     }
 
+    private final DecisionsHelper decisions;
+
+    private final Map<String, OpenRequestInfo<byte[], ActivityType>> scheduledActivities = new HashMap<>();
+
+    public GenericAsyncActivityClientImpl(DecisionsHelper decisions) {
+        this.decisions = decisions;
+    }
+
     @Override
     public Consumer<Throwable> scheduleActivityTask(ExecuteActivityParameters parameters, BiConsumer<byte[], RuntimeException> callback) {
         final OpenRequestInfo<byte[], ActivityType> context = new OpenRequestInfo<>(parameters.getActivityType());
@@ -91,13 +99,6 @@ class GenericAsyncActivityClientImpl implements GenericAsyncActivityClient {
         return new ActivityCancellationHandler(attributes.getActivityId(), callback);
     }
 
-    private final DecisionsHelper decisions;
-
-    private final Map<String, OpenRequestInfo<byte[], ActivityType>> scheduledActivities = new HashMap<>();
-
-    public GenericAsyncActivityClientImpl(DecisionsHelper decisions) {
-        this.decisions = decisions;
-    }
 
     void handleActivityTaskStarted(ActivityTaskStartedEventAttributes attributes) {
     }

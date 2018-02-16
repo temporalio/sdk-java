@@ -92,12 +92,11 @@ public class WorkflowTest {
 
     private static WorkflowOptions.Builder newWorkflowOptionsBuilder() {
         return new WorkflowOptions.Builder()
-                .setExecutionStartToCloseTimeoutSeconds(3000)
-                .setTaskStartToCloseTimeoutSeconds(60)
+                .setExecutionStartToCloseTimeoutSeconds(10)
                 .setTaskList(taskList);
     }
 
-    private static ActivityOptions newActivitySchedulingOptions() {
+    private static ActivityOptions newActivitySchedulingOptions1() {
         return new ActivityOptions.Builder()
                 .setTaskList(taskList)
                 .setHeartbeatTimeoutSeconds(10)
@@ -106,6 +105,13 @@ public class WorkflowTest {
                 .setStartToCloseTimeoutSeconds(10)
                 .build();
     }
+
+    private static ActivityOptions newActivitySchedulingOptions2() {
+        return new ActivityOptions.Builder()
+                .setScheduleToCloseTimeoutSeconds(20)
+                .build();
+    }
+
 
     @Before
     public void setUp() {
@@ -121,7 +127,7 @@ public class WorkflowTest {
                 .build();
         cadenceClientWithOptions = CadenceClient.newClient(domain, clientOptions);
         newWorkflowOptionsBuilder();
-        newActivitySchedulingOptions();
+        newActivitySchedulingOptions1();
         activitiesImpl.invocations.clear();
         activitiesImpl.procResult.clear();
     }
@@ -160,7 +166,7 @@ public class WorkflowTest {
         @Override
         public String execute() {
             AtomicReference<String> a1 = new AtomicReference<>();
-            TestActivities activities = Workflow.newActivityStub(TestActivities.class, newActivitySchedulingOptions());
+            TestActivities activities = Workflow.newActivityStub(TestActivities.class, newActivitySchedulingOptions1());
             WorkflowThread t = Workflow.newThread(() -> a1.set(activities.activityWithDelay(1000)));
             t.start();
             t.join(3000);
@@ -214,7 +220,7 @@ public class WorkflowTest {
 
         @Override
         public String execute() {
-            TestActivities testActivities = Workflow.newActivityStub(TestActivities.class, newActivitySchedulingOptions());
+            TestActivities testActivities = Workflow.newActivityStub(TestActivities.class, newActivitySchedulingOptions1());
             try {
                 testActivities.activityWithDelay(100000);
             } catch (CancellationException e) {
@@ -280,7 +286,7 @@ public class WorkflowTest {
 
         @Override
         public String execute() {
-            TestActivities testActivities = Workflow.newActivityStub(TestActivities.class, newActivitySchedulingOptions());
+            TestActivities testActivities = Workflow.newActivityStub(TestActivities.class, newActivitySchedulingOptions2());
             assertEquals("activity", Workflow.async(testActivities::activity).get());
             assertEquals("1", Workflow.async(testActivities::activity1, "1").get());
             assertEquals("12", Workflow.async(testActivities::activity2, "1", 2).get());

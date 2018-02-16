@@ -32,7 +32,13 @@ class ActivityInvocationHandler extends AsyncInvocationHandler {
     private final ActivityOptions options;
 
     ActivityInvocationHandler(ActivityOptions options) {
-        this.options = options;
+        // Default task list to the same name as the workflow one.
+        if (options.getTaskList() == null) {
+            String workflowTaskList = WorkflowInternal.getContext().getTaskList();
+            this.options = new ActivityOptions.Builder(options).setTaskList(workflowTaskList).build();
+        } else {
+            this.options = options;
+        }
     }
 
     @Override
@@ -48,5 +54,4 @@ class ActivityInvocationHandler extends AsyncInvocationHandler {
         }
         return result.get();
     }
-
 }

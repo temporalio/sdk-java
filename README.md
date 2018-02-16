@@ -282,10 +282,9 @@ public class FileProcessingWorkflowImpl implements FileProcessingWorkflow {
     
     public FileProcessingWorkflowImpl() {
         // Options are required as there are no good defaults for the timeouts.
-        ActivitySchedulingOptions ao = new ActivitySchedulingOptions();
-        ao.setScheduleToStartTimeoutSeconds(3600); // from schedule to worker picking it up
-        ao.setScheduleToStartTimeoutSeconds(300); // execution time
-        ao.setTaskList(FileProcessingWorker.TASK_LIST);
+        ActivityOptions ao = new ActivityOptions.Builder()
+            .setScheduleToCloseTimeoutSeconds(300)
+            .build();
         this.store = Workflow.newActivityStub(FileProcessingActivities.class, ao);
     }
 

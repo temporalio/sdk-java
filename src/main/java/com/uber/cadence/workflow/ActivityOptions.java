@@ -33,6 +33,17 @@ public final class ActivityOptions {
 
         private String taskList;
 
+        public Builder() {
+        }
+
+        public Builder(ActivityOptions options) {
+            this.scheduleToStartTimeoutSeconds = options.getScheduleToStartTimeoutSeconds();
+            this.scheduleToCloseTimeoutSeconds = options.getScheduleToCloseTimeoutSeconds();
+            this.heartbeatTimeoutSeconds = options.getHeartbeatTimeoutSeconds();
+            this.startToCloseTimeoutSeconds = options.getStartToCloseTimeoutSeconds();
+            this.taskList = options.taskList;
+        }
+
         /**
          * Overall timeout workflow is willing to wait for activity to complete.
          * It includes time in a task list (use {@link #setScheduleToStartTimeoutSeconds(int)} to limit it)
@@ -101,8 +112,25 @@ public final class ActivityOptions {
                             int scheduleToStartTimeoutSeconds, int startToCloseTimeoutSeconds, String taskList) {
         this.heartbeatTimeoutSeconds = heartbeatTimeoutSeconds;
         this.scheduleToCloseTimeoutSeconds = scheduleToCloseTimeoutSeconds;
-        this.scheduleToStartTimeoutSeconds = scheduleToStartTimeoutSeconds;
-        this.startToCloseTimeoutSeconds = startToCloseTimeoutSeconds;
+        if (scheduleToCloseTimeoutSeconds != 0) {
+            if (scheduleToStartTimeoutSeconds == 0) {
+                this.scheduleToStartTimeoutSeconds = scheduleToCloseTimeoutSeconds;
+            } else {
+                this.scheduleToStartTimeoutSeconds = scheduleToStartTimeoutSeconds;
+            }
+            if (startToCloseTimeoutSeconds == 0) {
+                this.startToCloseTimeoutSeconds = scheduleToCloseTimeoutSeconds;
+            } else {
+                this.startToCloseTimeoutSeconds = startToCloseTimeoutSeconds;
+            }
+        } else {
+            if (scheduleToStartTimeoutSeconds == 0 || startToCloseTimeoutSeconds == 0) {
+                throw new IllegalStateException("Either ScheduleToClose or both ScheduleToStart and StarToClose " +
+                        "timeouts are required: ");
+            }
+            this.scheduleToStartTimeoutSeconds = scheduleToStartTimeoutSeconds;
+            this.startToCloseTimeoutSeconds = startToCloseTimeoutSeconds;
+        }
         this.taskList = taskList;
     }
 
