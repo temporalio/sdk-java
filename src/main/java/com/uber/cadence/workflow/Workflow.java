@@ -18,7 +18,6 @@ package com.uber.cadence.workflow;
 
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.error.CheckedExceptionWrapper;
-import com.uber.cadence.internal.StartWorkflowOptions;
 import com.uber.cadence.internal.dispatcher.WorkflowInternal;
 
 import java.util.concurrent.TimeUnit;
@@ -30,7 +29,7 @@ public final class Workflow {
      *
      * @param activityInterface interface type implemented by activities
      */
-    public static <T> T newActivityStub(Class<T> activityInterface, ActivitySchedulingOptions options) {
+    public static <T> T newActivityStub(Class<T> activityInterface, ActivityOptions options) {
         return WorkflowInternal.newActivityStub(activityInterface, options);
     }
 
@@ -46,16 +45,16 @@ public final class Workflow {
 
     /**
      * Creates client stub to a child workflow that implements given interface.
-     *
+     *W
      * @param workflowInterface interface type implemented by activities
      * @param options options passed to the child workflow.
      */
-    public static <T> T newChildWorkflowStub(Class<T> workflowInterface, StartWorkflowOptions options) {
+    public static <T> T newChildWorkflowStub(Class<T> workflowInterface, ChildWorkflowOptions options) {
         return WorkflowInternal.newChildWorkflowStub(workflowInterface, options);
     }
 
     /**
-     * Extracts workflow execution from a stub created through {@link #newChildWorkflowStub(Class, StartWorkflowOptions)}.
+     * Extracts workflow execution from a stub created through {@link #newChildWorkflowStub(Class, ChildWorkflowOptions)}.
      * Wrapped in a Promise as child workflow start is asynchronous.
      */
     public static Promise<WorkflowExecution> getWorkflowExecution(Object workflowStub) {
@@ -168,7 +167,7 @@ public final class Workflow {
      * Invokes zero argument activity asynchronously.
      *
      * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
+     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
      * @return promise that contains activity result or failure
      */
     public static <R> Promise<R> async(Functions.Func<R> activity) {
@@ -179,7 +178,7 @@ public final class Workflow {
      * Invokes one argument activity asynchronously.
      *
      * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
+     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
      * @param arg1     first activity argument
      * @return promise that contains activity result or failure
      */
@@ -191,7 +190,7 @@ public final class Workflow {
      * Invokes two argument activity asynchronously.
      *
      * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
+     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
      * @return Promise that contains activity result or failure
@@ -204,7 +203,7 @@ public final class Workflow {
      * Invokes three argument activity asynchronously.
      *
      * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
+     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
      * @param arg3     third activity argument
@@ -218,7 +217,7 @@ public final class Workflow {
      * Invokes four argument activity asynchronously.
      *
      * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
+     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
      * @param arg3     third activity argument
@@ -233,7 +232,7 @@ public final class Workflow {
      * Invokes five argument activity asynchronously.
      *
      * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
+     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
      * @param arg3     third activity argument
@@ -249,7 +248,7 @@ public final class Workflow {
      * Invokes six argument activity asynchronously.
      *
      * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
+     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
      * @param arg3     third activity argument
@@ -266,7 +265,7 @@ public final class Workflow {
      * Invokes zero argument activity asynchronously.
      *
      * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
+     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
      * @return Promise that contains activity result or failure
      */
     public static Promise<Void> async(Functions.Proc activity) {
@@ -277,7 +276,7 @@ public final class Workflow {
      * Invokes one argument activity asynchronously.
      *
      * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
+     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
      * @param arg1     first activity argument
      * @return Promise that contains activity result or failure
      */
@@ -289,7 +288,7 @@ public final class Workflow {
      * Invokes two argument activity asynchronously.
      *
      * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
+     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
      * @return Promise that contains activity result or failure
@@ -302,7 +301,7 @@ public final class Workflow {
      * Invokes three argument activity asynchronously.
      *
      * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
+     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
      * @param arg3     third activity argument
@@ -316,7 +315,7 @@ public final class Workflow {
      * Invokes four argument activity asynchronously.
      *
      * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
+     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
      * @param arg3     third activity argument
@@ -331,7 +330,7 @@ public final class Workflow {
      * Invokes five argument activity asynchronously.
      *
      * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
+     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
      * @param arg3     third activity argument
@@ -347,7 +346,7 @@ public final class Workflow {
      * Invokes six argument activity asynchronously.
      *
      * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivitySchedulingOptions)}.
+     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
      * @param arg1     first activity argument
      * @param arg2     second activity argument
      * @param arg3     third activity argument
@@ -369,7 +368,7 @@ public final class Workflow {
      * @param <R>        activity return type
      * @return activity result
      */
-    public static <R> R executeActivity(String name, ActivitySchedulingOptions options, Class<R> returnType, Object... args) {
+    public static <R> R executeActivity(String name, ActivityOptions options, Class<R> returnType, Object... args) {
         return WorkflowInternal.executeActivity(name, options, returnType, args);
     }
 
@@ -382,7 +381,7 @@ public final class Workflow {
      * @param <R>        activity return type
      * @return Promise that contains the activity result
      */
-    public static <R> Promise<R> executeActivityAsync(String name, ActivitySchedulingOptions options, Class<R> returnType, Object... args) {
+    public static <R> Promise<R> executeActivityAsync(String name, ActivityOptions options, Class<R> returnType, Object... args) {
         return WorkflowInternal.executeActivityAsync(name, options, returnType, args);
     }
 

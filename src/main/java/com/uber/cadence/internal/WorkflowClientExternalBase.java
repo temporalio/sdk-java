@@ -19,6 +19,7 @@ package com.uber.cadence.internal;
 import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
+import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.generic.GenericWorkflowClientExternal;
 
@@ -43,7 +44,7 @@ public abstract class WorkflowClientExternalBase implements WorkflowClientExtern
     protected final DynamicWorkflowClientExternal dynamicWorkflowClient;
 
     public WorkflowClientExternalBase(WorkflowExecution workflowExecution, WorkflowType workflowType,
-                                      StartWorkflowOptions options, DataConverter dataConverter, GenericWorkflowClientExternal genericClient) {
+                                      WorkflowOptions options, DataConverter dataConverter, GenericWorkflowClientExternal genericClient) {
         this.dynamicWorkflowClient = new DynamicWorkflowClientExternalImpl(workflowExecution, workflowType, options,
                 dataConverter, genericClient);
     }
@@ -64,7 +65,7 @@ public abstract class WorkflowClientExternalBase implements WorkflowClientExtern
     }
 
     @Override
-    public StartWorkflowOptions getSchedulingOptions() {
+    public WorkflowOptions getSchedulingOptions() {
         return dynamicWorkflowClient.getSchedulingOptions();
     }
 
@@ -78,7 +79,7 @@ public abstract class WorkflowClientExternalBase implements WorkflowClientExtern
         return dynamicWorkflowClient.getWorkflowExecution();
     }
 
-    protected void startWorkflowExecution(Object[] arguments, StartWorkflowOptions startOptionsOverride) throws WorkflowExecutionAlreadyStartedException {
+    protected void startWorkflowExecution(Object[] arguments, WorkflowOptions startOptionsOverride) throws WorkflowExecutionAlreadyStartedException {
         dynamicWorkflowClient.startWorkflowExecution(arguments, startOptionsOverride);
     }
 

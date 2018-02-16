@@ -18,18 +18,18 @@ package com.uber.cadence.internal;
 
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
+import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.converter.DataConverter;
-import com.uber.cadence.converter.JsonDataConverter;
 import com.uber.cadence.internal.generic.GenericWorkflowClientExternal;
 import com.uber.cadence.internal.worker.GenericWorkflowClientExternalImpl;
 
-public abstract class WorkflowClientFactoryExternalBase<T> implements WorkflowClientFactoryExternal<T> {
+abstract class WorkflowClientFactoryExternalBase<T> implements WorkflowClientFactoryExternal<T> {
 
     private GenericWorkflowClientExternal genericClient;
 
-    private DataConverter dataConverter = new JsonDataConverter();
+    private DataConverter dataConverter;
 
-    private StartWorkflowOptions startWorkflowOptions = new StartWorkflowOptions();
+    private WorkflowOptions startWorkflowOptions = new WorkflowOptions.Builder().build();
 
     public WorkflowClientFactoryExternalBase(WorkflowService.Iface service, String domain) {
         this(new GenericWorkflowClientExternalImpl(service, domain));
@@ -58,17 +58,17 @@ public abstract class WorkflowClientFactoryExternalBase<T> implements WorkflowCl
     }
 
     @Override
-    public StartWorkflowOptions getStartWorkflowOptions() {
+    public WorkflowOptions getStartWorkflowOptions() {
         return startWorkflowOptions;
     }
 
-    public void setStartWorkflowOptions(StartWorkflowOptions startWorkflowOptions) {
+    public void setStartWorkflowOptions(WorkflowOptions startWorkflowOptions) {
         this.startWorkflowOptions = startWorkflowOptions;
     }
 
     @Override
     public T getClient() {
-        checkGenericClient();
+        checkConfigured();
         String workflowId = genericClient.generateUniqueId();
         WorkflowExecution workflowExecution = new WorkflowExecution().setWorkflowId(workflowId);
         return getClient(workflowExecution, startWorkflowOptions, dataConverter, genericClient);
@@ -89,23 +89,26 @@ public abstract class WorkflowClientFactoryExternalBase<T> implements WorkflowCl
     }
 
     @Override
-    public T getClient(WorkflowExecution workflowExecution, StartWorkflowOptions options) {
+    public T getClient(WorkflowExecution workflowExecution, WorkflowOptions options) {
         return getClient(workflowExecution, options, dataConverter, genericClient);
     }
 
     @Override
-    public T getClient(WorkflowExecution workflowExecution, StartWorkflowOptions options, DataConverter dataConverter) {
+    public T getClient(WorkflowExecution workflowExecution, WorkflowOptions options, DataConverter dataConverter) {
         return getClient(workflowExecution, options, dataConverter, genericClient);
     }
 
     @Override
-    public T getClient(WorkflowExecution workflowExecution, StartWorkflowOptions options, DataConverter dataConverter,
-            GenericWorkflowClientExternal genericClient) {
-        checkGenericClient();
+    public T getClient(WorkflowExecution workflowExecution, WorkflowOptions options, DataConverter dataConverter,
+                       GenericWorkflowClientExternal genericClient) {
+        checkConfigured();
         return createClientInstance(workflowExecution, options, dataConverter, genericClient);
     }
 
-    private void checkGenericClient() {
+    private void checkConfigured() {
+        if (dataConverter == null) {
+            throw new IllegalStateException("required property dataConverter is not set");
+        }
         if (genericClient == null) {
             throw new IllegalStateException("The required property genericClient is null. "
                     + "It could be caused by instantiating the factory through the default constructor instead of the one "
@@ -113,7 +116,7 @@ public abstract class WorkflowClientFactoryExternalBase<T> implements WorkflowCl
         }
     }
 
-    protected abstract T createClientInstance(WorkflowExecution workflowExecution, StartWorkflowOptions options,
+    protected abstract T createClientInstance(WorkflowExecution workflowExecution, WorkflowOptions options,
             DataConverter dataConverter, GenericWorkflowClientExternal genericClient);
 
 }

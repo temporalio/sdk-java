@@ -18,7 +18,6 @@ package com.uber.cadence.client;
 
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
-import com.uber.cadence.internal.StartWorkflowOptions;
 import com.uber.cadence.internal.dispatcher.CadenceClientInternal;
 import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
 import com.uber.cadence.workflow.Functions;
@@ -35,12 +34,13 @@ import com.uber.cadence.workflow.Functions;
  * CadenceClient client = CadenceClient.newClient(host, port);
  *
  * // Specify workflow start options.
- * StartWorkflowOptions options = new StartWorkflowOptions();
- * options.setTaskList(HelloWorldWorker.TASK_LIST);
- * options.setExecutionStartToCloseTimeoutSeconds(20);
- * options.setTaskStartToCloseTimeoutSeconds(3);
- * // Cadence guarantees uniqueness of workflows by their id.
- * options.setWorkflowId("MyHelloWorld1");
+ * WorkflowOptions options = new WorkflowOptions.Builder()
+ *     .setTaskList(HelloWorldWorker.TASK_LIST);
+ *     .setExecutionStartToCloseTimeoutSeconds(20);
+ *     .setTaskStartToCloseTimeoutSeconds(3)
+ *     // Cadence guarantees uniqueness of workflows by their id.
+ *     .setWorkflowId("MyHelloWorld1")
+ *     .build();
  *
  * // Create client side stub to the workflow execution.
  * HelloWorldWorkflow workflow = client.newWorkflowStub(HelloWorldWorkflow.class, options);
@@ -67,7 +67,8 @@ public interface CadenceClient {
      * @param domain domain that worker uses to poll.
      */
     static CadenceClient newClient(String domain) {
-        return new CadenceClientInternal(new WorkflowServiceTChannel(), domain, new CadenceClientOptions());
+        return new CadenceClientInternal(new WorkflowServiceTChannel(), domain,
+                new CadenceClientOptions.Builder().build());
     }
 
     /**
@@ -89,7 +90,8 @@ public interface CadenceClient {
      * @param domain domain that worker uses to poll.
      */
     static CadenceClient newClient(String host, int port, String domain) {
-        return new CadenceClientInternal(new WorkflowServiceTChannel(host, port), domain, new CadenceClientOptions());
+        return new CadenceClientInternal(new WorkflowServiceTChannel(host, port), domain,
+                new CadenceClientOptions.Builder().build());
     }
 
     /**
@@ -136,7 +138,7 @@ public interface CadenceClient {
      * @return Stub that implements workflowInterface and can be used to start workflow and later to
      * signal or query it.
      */
-    <T> T newWorkflowStub(Class<T> workflowInterface, StartWorkflowOptions options);
+    <T> T newWorkflowStub(Class<T> workflowInterface, WorkflowOptions options);
 
     /**
      * Creates workflow client stub for a known execution.
@@ -158,7 +160,7 @@ public interface CadenceClient {
      * @param options      options used to start a workflow through returned stub
      * @return Stub that can be used to start workflow and later to signal or query it.
      */
-    UntypedWorkflowStub newUntypedWorkflowStub(String workflowType, StartWorkflowOptions options);
+    UntypedWorkflowStub newUntypedWorkflowStub(String workflowType, WorkflowOptions options);
 
     /**
      * Creates workflow untyped client stub for a known execution.
@@ -183,7 +185,7 @@ public interface CadenceClient {
      * Starts zero argument workflow with void return type
      *
      * @param workflow The only supported value is method reference to a proxy created
-     *                 through {@link #newWorkflowStub(Class, StartWorkflowOptions)}.
+     *                 through {@link #newWorkflowStub(Class, WorkflowOptions)}.
      * @return future becomes ready upon workflow completion with null value or failure
      */
     static WorkflowExecution asyncStart(Functions.Proc workflow) {
@@ -194,7 +196,7 @@ public interface CadenceClient {
      * Starts one argument workflow with void return type
      *
      * @param workflow The only supported value is method reference to a proxy created
-     *                 through {@link #newWorkflowStub(Class, StartWorkflowOptions)}.
+     *                 through {@link #newWorkflowStub(Class, WorkflowOptions)}.
      * @param arg1     first workflow function parameter
      * @return future becomes ready upon workflow completion with null value or failure
      */
@@ -206,7 +208,7 @@ public interface CadenceClient {
      * Starts two argument workflow with void return type
      *
      * @param workflow The only supported value is method reference to a proxy created
-     *                 through {@link #newWorkflowStub(Class, StartWorkflowOptions)}.
+     *                 through {@link #newWorkflowStub(Class, WorkflowOptions)}.
      * @param arg1     first workflow function parameter
      * @param arg2     second workflow function parameter
      * @return future becomes ready upon workflow completion with null value or failure
@@ -219,7 +221,7 @@ public interface CadenceClient {
      * Starts three argument workflow with void return type
      *
      * @param workflow The only supported value is method reference to a proxy created
-     *                 through {@link #newWorkflowStub(Class, StartWorkflowOptions)}.
+     *                 through {@link #newWorkflowStub(Class, WorkflowOptions)}.
      * @param arg1     first workflow function parameter
      * @param arg2     second workflow function parameter
      * @param arg3     third workflow function parameter
@@ -233,7 +235,7 @@ public interface CadenceClient {
      * Starts four argument workflow with void return type
      *
      * @param workflow The only supported value is method reference to a proxy created
-     *                 through {@link #newWorkflowStub(Class, StartWorkflowOptions)}.
+     *                 through {@link #newWorkflowStub(Class, WorkflowOptions)}.
      * @param arg1     first workflow function parameter
      * @param arg2     second workflow function parameter
      * @param arg3     third workflow function parameter
@@ -248,7 +250,7 @@ public interface CadenceClient {
      * Starts zero argument workflow with void return type
      *
      * @param workflow The only supported value is method reference to a proxy created
-     *                 through {@link #newWorkflowStub(Class, StartWorkflowOptions)}.
+     *                 through {@link #newWorkflowStub(Class, WorkflowOptions)}.
      * @param arg1     first workflow function parameter
      * @param arg2     second workflow function parameter
      * @param arg3     third workflow function parameter
@@ -264,7 +266,7 @@ public interface CadenceClient {
      * Starts zero argument workflow with void return type
      *
      * @param workflow The only supported value is method reference to a proxy created
-     *                 through {@link #newWorkflowStub(Class, StartWorkflowOptions)}.
+     *                 through {@link #newWorkflowStub(Class, WorkflowOptions)}.
      * @param arg1     first workflow function parameter
      * @param arg2     second workflow function parameter
      * @param arg3     third workflow function parameter
@@ -281,7 +283,7 @@ public interface CadenceClient {
      * Starts zero argument workflow.
      *
      * @param workflow The only supported value is method reference to a proxy created
-     *                 through {@link #newWorkflowStub(Class, StartWorkflowOptions)}.
+     *                 through {@link #newWorkflowStub(Class, WorkflowOptions)}.
      * @return future that contains workflow result or failure
      */
     static <R> WorkflowExecution asyncStart(Functions.Func<R> workflow) {
@@ -292,7 +294,7 @@ public interface CadenceClient {
      * Invokes one argument workflow asynchronously.
      *
      * @param workflow The only supported value is method reference to a proxy created
-     *                 through {@link #newWorkflowStub(Class, StartWorkflowOptions)}.
+     *                 through {@link #newWorkflowStub(Class, WorkflowOptions)}.
      * @param arg1     first workflow argument
      * @return future that contains workflow result or failure
      */
@@ -304,7 +306,7 @@ public interface CadenceClient {
      * Invokes two argument workflow asynchronously.
      *
      * @param workflow The only supported value is method reference to a proxy created
-     *                 through {@link #newWorkflowStub(Class, StartWorkflowOptions)}.
+     *                 through {@link #newWorkflowStub(Class, WorkflowOptions)}.
      * @param arg1     first workflow function parameter
      * @param arg2     second workflow function parameter
      * @return future that contains workflow result or failure
@@ -317,7 +319,7 @@ public interface CadenceClient {
      * Invokes two argument workflow asynchronously.
      *
      * @param workflow The only supported value is method reference to a proxy created
-     *                 through {@link #newWorkflowStub(Class, StartWorkflowOptions)}.
+     *                 through {@link #newWorkflowStub(Class, WorkflowOptions)}.
      * @param arg1     first workflow function parameter
      * @param arg2     second workflow function parameter
      * @param arg3     third workflow function parameter
@@ -331,7 +333,7 @@ public interface CadenceClient {
      * Invokes two argument workflow asynchronously.
      *
      * @param workflow The only supported value is method reference to a proxy created
-     *                 through {@link #newWorkflowStub(Class, StartWorkflowOptions)}.
+     *                 through {@link #newWorkflowStub(Class, WorkflowOptions)}.
      * @param arg1     first workflow function parameter
      * @param arg2     second workflow function parameter
      * @param arg3     third workflow function parameter
@@ -346,7 +348,7 @@ public interface CadenceClient {
      * Invokes two argument workflow asynchronously.
      *
      * @param workflow The only supported value is method reference to a proxy created
-     *                 through {@link #newWorkflowStub(Class, StartWorkflowOptions)}.
+     *                 through {@link #newWorkflowStub(Class, WorkflowOptions)}.
      * @param arg1     first workflow function parameter
      * @param arg2     second workflow function parameter
      * @param arg3     third workflow function parameter
@@ -362,7 +364,7 @@ public interface CadenceClient {
      * Invokes two argument workflow asynchronously.
      *
      * @param workflow The only supported value is method reference to a proxy created
-     *                 through {@link #newWorkflowStub(Class, StartWorkflowOptions)}.
+     *                 through {@link #newWorkflowStub(Class, WorkflowOptions)}.
      * @param arg1     first workflow argument
      * @param arg2     second workflow function parameter
      * @param arg3     third workflow function parameter

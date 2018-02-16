@@ -19,9 +19,9 @@ package com.uber.cadence.internal.dispatcher;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionCompletedEventAttributes;
 import com.uber.cadence.WorkflowType;
+import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.error.CheckedExceptionWrapper;
-import com.uber.cadence.internal.StartWorkflowOptions;
 import com.uber.cadence.internal.common.FlowHelpers;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.generic.GenericWorkflowClientExternal;
@@ -43,7 +43,7 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
 
     private static final ThreadLocal<AtomicReference<WorkflowExecution>> asyncResult = new ThreadLocal<>();
     private final GenericWorkflowClientExternal genericClient;
-    private final StartWorkflowOptions options;
+    private final WorkflowOptions options;
     private final DataConverter dataConverter;
     private final AtomicReference<WorkflowExecution> execution = new AtomicReference<>();
 
@@ -81,7 +81,7 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
         this.dataConverter = dataConverter;
     }
 
-    public WorkflowExternalInvocationHandler(GenericWorkflowClientExternal genericClient, StartWorkflowOptions options, DataConverter dataConverter) {
+    public WorkflowExternalInvocationHandler(GenericWorkflowClientExternal genericClient, WorkflowOptions options, DataConverter dataConverter) {
         this.genericClient = genericClient;
         this.options = options;
         this.dataConverter = dataConverter;

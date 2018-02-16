@@ -25,9 +25,11 @@ import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class Worker {
 
+    private final AtomicBoolean started = new AtomicBoolean();
     private final WorkerOptions options;
     private final SyncWorkflowWorker workflowWorker;
     private final ActivityWorker activityWorker;
@@ -91,7 +93,7 @@ public final class Worker {
             throw new IllegalArgumentException("null taskList");
         }
         if (options == null) {
-            options = new WorkerOptions();
+            options = new WorkerOptions.Builder().build();
         }
         this.options = options;
         if (!options.isDisableActivityWorker()) {
@@ -100,9 +102,7 @@ public final class Worker {
             if (options.getIdentity() != null) {
                 activityWorker.setIdentity(options.getIdentity());
             }
-            if (options.getDataConverter() != null) {
-                activityWorker.setDataConverter(options.getDataConverter());
-            }
+            activityWorker.setDataConverter(options.getDataConverter());
             if (options.getMaxConcurrentActivityExecutionSize() > 0) {
                 activityWorker.setTaskExecutorThreadPoolSize(options.getMaxConcurrentActivityExecutionSize());
             }
@@ -110,12 +110,9 @@ public final class Worker {
             activityWorker = null;
         }
         if (!options.isDisableWorkflowWorker()) {
-            workflowWorker = new SyncWorkflowWorker(service, domain, taskList);
+            workflowWorker = new SyncWorkflowWorker(service, domain, taskList, options.getDataConverter());
             if (options.getIdentity() != null) {
                 workflowWorker.setIdentity(options.getIdentity());
-            }
-            if (options.getDataConverter() != null) {
-                workflowWorker.setDataConverter(options.getDataConverter());
             }
             if (options.getMaxWorkflowThreads() > 0) {
                 workflowWorker.setWorkflowThreadPool(new ThreadPoolExecutor(1, options.getMaxWorkflowThreads(),
@@ -130,10 +127,15 @@ public final class Worker {
         if (workflowWorker == null) {
             throw new IllegalStateException("disableWorkflowWorker is set in worker options");
         }
+        checkStarted();
         workflowWorker.addWorkflowImplementationType(workflowImplementationClass);
     }
 
     public void setWorkflowImplementationTypes(Class<?>... workflowImplementationType) {
+        if (workflowWorker == null) {
+            throw new IllegalStateException("disableWorkflowWorker is set in worker options");
+        }
+        checkStarted();
         workflowWorker.setWorkflowImplementationTypes(workflowImplementationType);
     }
 
@@ -141,23 +143,28 @@ public final class Worker {
         if (activityWorker == null) {
             throw new IllegalStateException("disableActivityWorker is set in worker options");
         }
+        checkStarted();
         activityWorker.addActivityImplementation(activityImplementation);
     }
 
     public void setActivitiesImplementation(Object... activitiesImplementation) {
+        if (activityWorker == null) {
+            throw new IllegalStateException("disableActivityWorker is set in worker options");
+        }
+        checkStarted();
         activityWorker.setActivitiesImplementation(activitiesImplementation);
     }
 
-    public void setIdentity(String identity) {
-        if (workflowWorker != null) {
-            workflowWorker.setIdentity(identity);
-        }
-        if (activityWorker != null) {
-            activityWorker.setIdentity(identity);
+    private void checkStarted() {
+        if (started.get()) {
+            throw new IllegalStateException("already started");
         }
     }
 
     public void start() {
+        if (!started.compareAndSet(false, true)) {
+            return;
+        }
         if (workflowWorker != null) {
             workflowWorker.start();
         }

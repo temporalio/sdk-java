@@ -22,4 +22,8 @@ public interface ActivityImplementationFactory {
 
     ActivityImplementation getActivityImplementation(ActivityType activityType);
 
+    /**
+     * @return true if there is at least one activity type that factory can create implementation of.
+     */
+    boolean isAnyTypeSupported();
 }

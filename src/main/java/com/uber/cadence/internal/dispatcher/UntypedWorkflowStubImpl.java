@@ -20,9 +20,9 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionCompletedEventAttributes;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.client.UntypedWorkflowStub;
+import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.error.CheckedExceptionWrapper;
-import com.uber.cadence.internal.StartWorkflowOptions;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.generic.GenericWorkflowClientExternal;
 import com.uber.cadence.internal.generic.QueryWorkflowParameters;
@@ -33,15 +33,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
+class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
     private final GenericWorkflowClientExternal genericClient;
     private final DataConverter dataConverter;
     private final String workflowType;
     private AtomicReference<WorkflowExecution> execution = new AtomicReference<>();
-    private final StartWorkflowOptions options;
+    private final WorkflowOptions options;
 
-    public UntypedWorkflowStubImpl(GenericWorkflowClientExternal genericClient, DataConverter dataConverter,
-                                   WorkflowExecution execution) {
+    UntypedWorkflowStubImpl(GenericWorkflowClientExternal genericClient, DataConverter dataConverter,
+                            WorkflowExecution execution) {
         this.genericClient = genericClient;
         this.dataConverter = dataConverter;
         this.workflowType = null;
@@ -49,8 +49,8 @@ public class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
         this.options = null;
     }
 
-    public UntypedWorkflowStubImpl(GenericWorkflowClientExternal genericClient, DataConverter dataConverter,
-                                   String workflowType, StartWorkflowOptions options) {
+    UntypedWorkflowStubImpl(GenericWorkflowClientExternal genericClient, DataConverter dataConverter,
+                            String workflowType, WorkflowOptions options) {
         this.genericClient = genericClient;
         this.dataConverter = dataConverter;
         this.workflowType = workflowType;
@@ -74,7 +74,7 @@ public class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
     public WorkflowExecution start(Object... args) {
         if (options == null) {
             throw new IllegalStateException("UntypedWorkflowStub wasn't created through " +
-                    "CadenceClient::newUntypedWorkflowStub(String workflowType, StartWorkflowOptions options)");
+                    "CadenceClient::newUntypedWorkflowStub(String workflowType, WorkflowOptions options)");
         }
         if (execution.get() != null) {
             throw new IllegalStateException("already started for execution=" + execution.get());

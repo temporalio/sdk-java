@@ -17,16 +17,14 @@
 package com.uber.cadence.workflow;
 
 import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.WorkflowService;
 import com.uber.cadence.activity.Activity;
 import com.uber.cadence.activity.DoNotCompleteOnReturn;
 import com.uber.cadence.client.ActivityCompletionClient;
 import com.uber.cadence.client.CadenceClient;
 import com.uber.cadence.client.CadenceClientOptions;
 import com.uber.cadence.client.UntypedWorkflowStub;
+import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.converter.JsonDataConverter;
-import com.uber.cadence.internal.StartWorkflowOptions;
-import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
 import com.uber.cadence.worker.Worker;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -35,10 +33,11 @@ import org.apache.log4j.Level;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
-import org.junit.AfterClass;
+import org.junit.After;
 import org.junit.Before;
-import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -59,10 +58,13 @@ import static org.junit.Assert.*;
 
 public class WorkflowTest {
 
+    @Rule
+    public TestName testName = new TestName();
+
     private static final String domain = "UnitTest";
-    private static final String taskList = "UnitTest";
     private static final Log log;
     private static ActivityCompletionClient completionClient;
+    private static String taskList;
 
     static {
         LogManager.resetConfiguration();
@@ -83,52 +85,56 @@ public class WorkflowTest {
 
     }
 
-    private static Worker worker;
-    private static TestActivitiesImpl activitiesImpl;
-    private static CadenceClient cadenceClient;
-    private static CadenceClient cadenceClientWithOptions;
-    private static ActivitySchedulingOptions activitySchedulingOptions;
+    private Worker worker;
+    private TestActivitiesImpl activitiesImpl;
+    private CadenceClient cadenceClient;
+    private CadenceClient cadenceClientWithOptions;
 
-    @BeforeClass
-    public static void setUpService() {
-        WorkflowServiceTChannel.ClientOptions.Builder optionsBuilder = new WorkflowServiceTChannel.ClientOptions.Builder();
+    private static WorkflowOptions.Builder newWorkflowOptionsBuilder() {
+        return new WorkflowOptions.Builder()
+                .setExecutionStartToCloseTimeoutSeconds(3000)
+                .setTaskStartToCloseTimeoutSeconds(60)
+                .setTaskList(taskList);
+    }
+
+    private static ActivityOptions newActivitySchedulingOptions() {
+        return new ActivityOptions.Builder()
+                .setTaskList(taskList)
+                .setHeartbeatTimeoutSeconds(10)
+                .setScheduleToCloseTimeoutSeconds(20)
+                .setScheduleToStartTimeoutSeconds(10)
+                .setStartToCloseTimeoutSeconds(10)
+                .build();
+    }
+
+    @Before
+    public void setUp() {
+        taskList = "WorkflowTest-" + testName.getMethodName();
         // TODO: Make this configuratble instead of always using local instance.
         worker = new Worker(domain, taskList);
         cadenceClient = CadenceClient.newClient(domain);
         completionClient = cadenceClient.newActivityCompletionClient();
         activitiesImpl = new TestActivitiesImpl(completionClient);
         worker.addActivitiesImplementation(activitiesImpl);
-        CadenceClientOptions clientOptions = new CadenceClientOptions();
-        clientOptions.setDataConverter(new JsonDataConverter());
+        CadenceClientOptions clientOptions = new CadenceClientOptions.Builder()
+                .setDataConverter(JsonDataConverter.getInstance())
+                .build();
         cadenceClientWithOptions = CadenceClient.newClient(domain, clientOptions);
-        worker.start();
-        newStartWorkflowOptions();
-        activitySchedulingOptions = new ActivitySchedulingOptions();
-        activitySchedulingOptions.setTaskList(taskList);
-        activitySchedulingOptions.setHeartbeatTimeoutSeconds(10);
-        activitySchedulingOptions.setScheduleToCloseTimeoutSeconds(20);
-        activitySchedulingOptions.setScheduleToStartTimeoutSeconds(10);
-        activitySchedulingOptions.setStartToCloseTimeoutSeconds(10);
+        newWorkflowOptionsBuilder();
+        newActivitySchedulingOptions();
+        activitiesImpl.invocations.clear();
+        activitiesImpl.procResult.clear();
     }
 
-    private static StartWorkflowOptions newStartWorkflowOptions() {
-        StartWorkflowOptions result = new StartWorkflowOptions();
-        result.setExecutionStartToCloseTimeoutSeconds(30);
-        result.setTaskStartToCloseTimeoutSeconds(5);
-        result.setTaskList(taskList);
-        return result;
-    }
-
-    @AfterClass
-    public static void tearDownService() {
-        worker.shutdown(100, TimeUnit.MILLISECONDS);
+    @After
+    public void tearDown() {
+        worker.shutdown(1, TimeUnit.MILLISECONDS);
         activitiesImpl.close();
     }
 
-    @Before
-    public void setUp() {
-        activitiesImpl.invocations.clear();
-        activitiesImpl.procResult.clear();
+    private void startWorkerFor(Class<?> workflowType) {
+        worker.addWorkflowImplementationType(workflowType);
+        worker.start();
     }
 
     public interface TestWorkflow1 {
@@ -154,7 +160,7 @@ public class WorkflowTest {
         @Override
         public String execute() {
             AtomicReference<String> a1 = new AtomicReference<>();
-            TestActivities activities = Workflow.newActivityStub(TestActivities.class, activitySchedulingOptions);
+            TestActivities activities = Workflow.newActivityStub(TestActivities.class, newActivitySchedulingOptions());
             WorkflowThread t = Workflow.newThread(() -> a1.set(activities.activityWithDelay(1000)));
             t.start();
             t.join(3000);
@@ -165,17 +171,17 @@ public class WorkflowTest {
 
     @Test
     public void testSync() {
-        worker.addWorkflowImplementationType(TestSyncWorkflowImpl.class);
-        TestWorkflow1 workflowStub = cadenceClient.newWorkflowStub(TestWorkflow1.class, newStartWorkflowOptions());
+        startWorkerFor(TestSyncWorkflowImpl.class);
+        TestWorkflow1 workflowStub = cadenceClient.newWorkflowStub(TestWorkflow1.class, newWorkflowOptionsBuilder().build());
         String result = workflowStub.execute();
         assertEquals("activity10", result);
     }
 
     @Test
     public void testSyncUntypedAndStackTrace() throws InterruptedException {
-        worker.addWorkflowImplementationType(TestSyncWorkflowImpl.class);
+        startWorkerFor(TestSyncWorkflowImpl.class);
         UntypedWorkflowStub workflowStub = cadenceClient.newUntypedWorkflowStub("TestWorkflow1::execute",
-                newStartWorkflowOptions());
+                newWorkflowOptionsBuilder().build());
         WorkflowExecution execution = workflowStub.start();
         Thread.sleep(500);
         String stackTrace = workflowStub.query(CadenceClient.QUERY_TYPE_STACK_TRCE, String.class);
@@ -192,9 +198,9 @@ public class WorkflowTest {
 
     @Test
     public void testWorkflowCancellation() {
-        worker.addWorkflowImplementationType(TestSyncWorkflowImpl.class);
+        startWorkerFor(TestSyncWorkflowImpl.class);
         UntypedWorkflowStub client = cadenceClient.newUntypedWorkflowStub("TestWorkflow1::execute",
-                newStartWorkflowOptions());
+                newWorkflowOptionsBuilder().build());
         client.start();
         client.cancel();
         try {
@@ -208,7 +214,7 @@ public class WorkflowTest {
 
         @Override
         public String execute() {
-            TestActivities testActivities = Workflow.newActivityStub(TestActivities.class, activitySchedulingOptions);
+            TestActivities testActivities = Workflow.newActivityStub(TestActivities.class, newActivitySchedulingOptions());
             try {
                 testActivities.activityWithDelay(100000);
             } catch (CancellationException e) {
@@ -230,9 +236,9 @@ public class WorkflowTest {
 
     @Test
     public void testDetachedScope() throws InterruptedException {
-        worker.addWorkflowImplementationType(TestDetachedCancellationScope.class);
+        startWorkerFor(TestDetachedCancellationScope.class);
         UntypedWorkflowStub client = cadenceClient.newUntypedWorkflowStub("TestWorkflow1::execute",
-                newStartWorkflowOptions());
+                newWorkflowOptionsBuilder().build());
         client.start();
         Thread.sleep(500); // To let activityWithDelay start.
         client.cancel();
@@ -264,8 +270,8 @@ public class WorkflowTest {
 
     @Test
     public void testContinueAsNew() {
-        worker.addWorkflowImplementationType(TestContinueAsNewImpl.class);
-        TestContinueAsNew client = cadenceClient.newWorkflowStub(TestContinueAsNew.class, newStartWorkflowOptions());
+        startWorkerFor(TestContinueAsNewImpl.class);
+        TestContinueAsNew client = cadenceClient.newWorkflowStub(TestContinueAsNew.class, newWorkflowOptionsBuilder().build());
         int result = client.execute(4);
         assertEquals(111, result);
     }
@@ -274,7 +280,7 @@ public class WorkflowTest {
 
         @Override
         public String execute() {
-            TestActivities testActivities = Workflow.newActivityStub(TestActivities.class, activitySchedulingOptions);
+            TestActivities testActivities = Workflow.newActivityStub(TestActivities.class, newActivitySchedulingOptions());
             assertEquals("activity", Workflow.async(testActivities::activity).get());
             assertEquals("1", Workflow.async(testActivities::activity1, "1").get());
             assertEquals("12", Workflow.async(testActivities::activity2, "1", 2).get());
@@ -296,8 +302,8 @@ public class WorkflowTest {
 
     @Test
     public void testAsyncActivity() {
-        worker.addWorkflowImplementationType(TestAsyncActivityWorkflowImpl.class);
-        TestWorkflow1 client = cadenceClient.newWorkflowStub(TestWorkflow1.class, newStartWorkflowOptions());
+        startWorkerFor(TestAsyncActivityWorkflowImpl.class);
+        TestWorkflow1 client = cadenceClient.newWorkflowStub(TestWorkflow1.class, newWorkflowOptionsBuilder().build());
         String result = client.execute();
         assertEquals("workflow", result);
 
@@ -321,35 +327,35 @@ public class WorkflowTest {
 
     @Test
     public void testAsyncStart() {
-        worker.addWorkflowImplementationType(TestMultiargsWorkflowsImpl.class);
-        TestMultiargsWorkflows stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        startWorkerFor(TestMultiargsWorkflowsImpl.class);
+        TestMultiargsWorkflows stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newWorkflowOptionsBuilder().build());
         assertResult("func", CadenceClient.asyncStart(stub::func));
-        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newWorkflowOptionsBuilder().build());
         assertResult("1", CadenceClient.asyncStart(stub::func1, "1"));
-        stub = cadenceClientWithOptions.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        stub = cadenceClientWithOptions.newWorkflowStub(TestMultiargsWorkflows.class, newWorkflowOptionsBuilder().build());
         assertResult("12", CadenceClient.asyncStart(stub::func2, "1", 2));
-        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newWorkflowOptionsBuilder().build());
         assertResult("123", CadenceClient.asyncStart(stub::func3, "1", 2, 3));
-        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newWorkflowOptionsBuilder().build());
         assertResult("1234", CadenceClient.asyncStart(stub::func4, "1", 2, 3, 4));
-        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newWorkflowOptionsBuilder().build());
         assertResult("12345", CadenceClient.asyncStart(stub::func5, "1", 2, 3, 4, 5));
-        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newWorkflowOptionsBuilder().build());
         assertResult("123456", CadenceClient.asyncStart(stub::func6, "1", 2, 3, 4, 5, 6));
 
-        stub = cadenceClientWithOptions.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        stub = cadenceClientWithOptions.newWorkflowStub(TestMultiargsWorkflows.class, newWorkflowOptionsBuilder().build());
         waitForProc(CadenceClient.asyncStart(stub::proc));
-        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newWorkflowOptionsBuilder().build());
         waitForProc(CadenceClient.asyncStart(stub::proc1, "1"));
-        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newWorkflowOptionsBuilder().build());
         waitForProc(CadenceClient.asyncStart(stub::proc2, "1", 2));
-        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newWorkflowOptionsBuilder().build());
         waitForProc(CadenceClient.asyncStart(stub::proc3, "1", 2, 3));
-        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newWorkflowOptionsBuilder().build());
         waitForProc(CadenceClient.asyncStart(stub::proc4, "1", 2, 3, 4));
-        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newWorkflowOptionsBuilder().build());
         waitForProc(CadenceClient.asyncStart(stub::proc5, "1", 2, 3, 4, 5));
-        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newStartWorkflowOptions());
+        stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newWorkflowOptionsBuilder().build());
         waitForProc(CadenceClient.asyncStart(stub::proc6, "1", 2, 3, 4, 5, 6));
         assertEquals("proc", TestMultiargsWorkflowsImpl.procResult.get(0));
         assertEquals("1", TestMultiargsWorkflowsImpl.procResult.get(1));
@@ -380,8 +386,8 @@ public class WorkflowTest {
 
     @Test
     public void testTimer() {
-        worker.addWorkflowImplementationType(TestTimerWorkflowImpl.class);
-        TestWorkflow2 client = cadenceClient.newWorkflowStub(TestWorkflow2.class, newStartWorkflowOptions());
+        startWorkerFor(TestTimerWorkflowImpl.class);
+        TestWorkflow2 client = cadenceClient.newWorkflowStub(TestWorkflow2.class, newWorkflowOptionsBuilder().build());
         String result = client.execute();
         assertEquals("testTimer", result);
     }
@@ -427,8 +433,8 @@ public class WorkflowTest {
 
     @Test
     public void testSignal() throws Exception {
-        worker.addWorkflowImplementationType(TestSignalWorkflowImpl.class);
-        QueryableWorkflow client = cadenceClient.newWorkflowStub(QueryableWorkflow.class, newStartWorkflowOptions());
+        startWorkerFor(TestSignalWorkflowImpl.class);
+        QueryableWorkflow client = cadenceClient.newWorkflowStub(QueryableWorkflow.class, newWorkflowOptionsBuilder().build());
         // To execute workflow client.execute() would do. But we want to start workflow and immediately return.
         WorkflowExecution execution = CadenceClient.asyncStart(client::execute);
         assertEquals("initial", client.getState());
@@ -452,9 +458,9 @@ public class WorkflowTest {
 
     @Test
     public void testSignalUntyped() {
-        worker.addWorkflowImplementationType(TestSignalWorkflowImpl.class);
+        startWorkerFor(TestSignalWorkflowImpl.class);
         String workflowType = QueryableWorkflow.class.getSimpleName() + "::execute";
-        UntypedWorkflowStub client = cadenceClient.newUntypedWorkflowStub(workflowType, newStartWorkflowOptions());
+        UntypedWorkflowStub client = cadenceClient.newUntypedWorkflowStub(workflowType, newWorkflowOptionsBuilder().build());
         // To execute workflow client.execute() would do. But we want to start workflow and immediately return.
         WorkflowExecution execution = client.start();
         assertEquals("initial", client.query("QueryableWorkflow::getState", String.class));
@@ -495,10 +501,10 @@ public class WorkflowTest {
 
     @Test
     public void testSignalDuringLastDecision() throws InterruptedException {
-        worker.setWorkflowImplementationTypes(TestSignalDuringLastDecisionWorkflowImpl.class);
-        StartWorkflowOptions options = newStartWorkflowOptions();
+        startWorkerFor(TestSignalDuringLastDecisionWorkflowImpl.class);
+        WorkflowOptions.Builder options = newWorkflowOptionsBuilder();
         options.setWorkflowId("testSignalDuringLastDecision-" + UUID.randomUUID().toString());
-        TestWorkflowSignaled client = cadenceClient.newWorkflowStub(TestWorkflowSignaled.class, options);
+        TestWorkflowSignaled client = cadenceClient.newWorkflowStub(TestWorkflowSignaled.class, options.build());
         WorkflowExecution execution = CadenceClient.asyncStart(client::execute);
         try {
             sendSignal.get(2, TimeUnit.SECONDS);
@@ -510,7 +516,6 @@ public class WorkflowTest {
     }
 
     public static class TestTimerCallbackBlockedWorkflowImpl implements TestWorkflow1 {
-
 
         @Override
         public String execute() {
@@ -533,12 +538,12 @@ public class WorkflowTest {
      */
     @Test
     public void testTimerCallbackBlocked() {
-        worker.addWorkflowImplementationType(TestTimerCallbackBlockedWorkflowImpl.class);
-        StartWorkflowOptions options = new StartWorkflowOptions();
+        startWorkerFor(TestTimerCallbackBlockedWorkflowImpl.class);
+        WorkflowOptions.Builder options = new WorkflowOptions.Builder();
         options.setExecutionStartToCloseTimeoutSeconds(2);
         options.setTaskStartToCloseTimeoutSeconds(1);
         options.setTaskList(taskList);
-        TestWorkflow1 client = cadenceClient.newWorkflowStub(TestWorkflow1.class, options);
+        TestWorkflow1 client = cadenceClient.newWorkflowStub(TestWorkflow1.class, options.build());
         try {
             client.execute();
             fail("failure expected");
@@ -564,9 +569,9 @@ public class WorkflowTest {
         private final ITestChild child2;
 
         public TestParentWorkflow() {
-            StartWorkflowOptions options = new StartWorkflowOptions();
+            ChildWorkflowOptions.Builder options = new ChildWorkflowOptions.Builder();
             options.setWorkflowId(child2Id);
-            child2 = Workflow.newChildWorkflowStub(ITestChild.class, options);
+            child2 = Workflow.newChildWorkflowStub(ITestChild.class, options.build());
         }
 
         @Override
@@ -589,13 +594,13 @@ public class WorkflowTest {
     @Test
     public void testChildWorkflow() {
         worker.addWorkflowImplementationType(TestParentWorkflow.class);
-        worker.addWorkflowImplementationType(TestChild.class);
+        startWorkerFor(TestChild.class);
 
-        StartWorkflowOptions options = new StartWorkflowOptions();
-        options.setExecutionStartToCloseTimeoutSeconds(2);
-        options.setTaskStartToCloseTimeoutSeconds(1);
+        WorkflowOptions.Builder options = new WorkflowOptions.Builder();
+        options.setExecutionStartToCloseTimeoutSeconds(200);
+        options.setTaskStartToCloseTimeoutSeconds(60);
         options.setTaskList(taskList);
-        TestWorkflow1 client = cadenceClient.newWorkflowStub(TestWorkflow1.class, options);
+        TestWorkflow1 client = cadenceClient.newWorkflowStub(TestWorkflow1.class, options.build());
         assertEquals("HELLO WORLD!", client.execute());
     }
 

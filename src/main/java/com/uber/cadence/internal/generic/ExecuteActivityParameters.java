@@ -16,7 +16,7 @@
  */
 package com.uber.cadence.internal.generic;
 
-import com.uber.cadence.workflow.ActivitySchedulingOptions;
+import com.uber.cadence.workflow.ActivityOptions;
 import com.uber.cadence.ActivityType;
 
 public class ExecuteActivityParameters implements Cloneable {
@@ -357,8 +357,8 @@ public class ExecuteActivityParameters implements Cloneable {
 //        return this;
 //    }
 
-    public ExecuteActivityParameters createExecuteActivityParametersFromOptions(ActivitySchedulingOptions options, 
-    		ActivitySchedulingOptions optionsOverride) {
+    public ExecuteActivityParameters createExecuteActivityParametersFromOptions(ActivityOptions options,
+    		ActivityOptions optionsOverride) {
     	ExecuteActivityParameters scheduleActivityParameters = this.clone();
     	
     	if (options != null) {

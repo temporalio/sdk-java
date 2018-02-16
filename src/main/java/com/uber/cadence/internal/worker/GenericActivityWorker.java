@@ -49,6 +49,11 @@ public class GenericActivityWorker extends GenericWorker {
         super();
     }
 
+    @Override
+    protected boolean isNeeded() {
+        return activityImplementationFactory.isAnyTypeSupported();
+    }
+
     public ActivityImplementationFactory getActivityImplementationFactory() {
         return activityImplementationFactory;
     }

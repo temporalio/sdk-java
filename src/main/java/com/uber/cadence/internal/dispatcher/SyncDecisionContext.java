@@ -19,15 +19,15 @@ package com.uber.cadence.internal.dispatcher;
 import com.uber.cadence.ActivityType;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
-import com.uber.cadence.internal.AsyncDecisionContext;
 import com.uber.cadence.converter.DataConverter;
-import com.uber.cadence.internal.StartWorkflowOptions;
+import com.uber.cadence.internal.AsyncDecisionContext;
 import com.uber.cadence.internal.generic.ExecuteActivityParameters;
 import com.uber.cadence.internal.generic.GenericAsyncActivityClient;
 import com.uber.cadence.internal.generic.GenericAsyncWorkflowClient;
 import com.uber.cadence.internal.worker.POJOQueryImplementationFactory;
-import com.uber.cadence.workflow.ActivitySchedulingOptions;
+import com.uber.cadence.workflow.ActivityOptions;
 import com.uber.cadence.workflow.CancellationScope;
+import com.uber.cadence.workflow.ChildWorkflowOptions;
 import com.uber.cadence.workflow.CompletablePromise;
 import com.uber.cadence.workflow.ContinueAsNewWorkflowExecutionParameters;
 import com.uber.cadence.workflow.Functions;
@@ -58,7 +58,7 @@ class SyncDecisionContext {
         this.converter = converter;
     }
 
-    public <T> Promise<T> executeActivity(String name, ActivitySchedulingOptions options, Object[] args, Class<T> returnType) {
+    public <T> Promise<T> executeActivity(String name, ActivityOptions options, Object[] args, Class<T> returnType) {
         byte[] input = converter.toData(args);
         Promise<byte[]> binaryResult = executeActivity(name, options, input);
         if (returnType == Void.TYPE) {
@@ -67,7 +67,7 @@ class SyncDecisionContext {
         return binaryResult.thenApply(r -> converter.fromData(r, returnType));
     }
 
-    private Promise<byte[]> executeActivity(String name, ActivitySchedulingOptions options, byte[] input) {
+    private Promise<byte[]> executeActivity(String name, ActivityOptions options, byte[] input) {
         CompletablePromise<byte[]> result = Workflow.newCompletablePromise();
         ExecuteActivityParameters parameters = new ExecuteActivityParameters();
         //TODO: Real task list
@@ -101,18 +101,18 @@ class SyncDecisionContext {
      * @param executionResult promise that is set bu this method when child workflow is started.
      */
     public Promise<byte[]> executeChildWorkflow(
-            String name, StartWorkflowOptions options, byte[] input, CompletablePromise<WorkflowExecution> executionResult) {
-        StartChildWorkflowExecutionParameters parameters = new StartChildWorkflowExecutionParameters();
-        parameters.withWorkflowType(new WorkflowType().setName(name)).withInput(input);
-        if (options != null) {
-            parameters.withTaskList(options.getTaskList()).withWorkflowId(options.getWorkflowId());
-            if (options.getExecutionStartToCloseTimeoutSeconds() != null) {
-                parameters.setExecutionStartToCloseTimeoutSeconds(options.getExecutionStartToCloseTimeoutSeconds());
-            }
-            if (options.getTaskStartToCloseTimeoutSeconds() != null) {
-                parameters.setTaskStartToCloseTimeoutSeconds(options.getTaskStartToCloseTimeoutSeconds());
-            }
-        }
+            String name, ChildWorkflowOptions options, byte[] input, CompletablePromise<WorkflowExecution> executionResult) {
+        StartChildWorkflowExecutionParameters parameters = new StartChildWorkflowExecutionParameters.Builder()
+                .setWorkflowType(new WorkflowType().setName(name))
+                .setWorkflowId(options.getWorkflowId())
+                .setInput(input)
+                .setChildPolicy(options.getChildPolicy())
+                .setExecutionStartToCloseTimeoutSeconds(options.getExecutionStartToCloseTimeoutSeconds())
+                .setDomain(options.getDomain())
+                .setTaskList(options.getTaskList())
+                .setTaskStartToCloseTimeoutSeconds(options.getTaskStartToCloseTimeoutSeconds())
+                .setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy())
+                .build();
         CompletablePromise<byte[]> result = Workflow.newCompletablePromise();
         Consumer<Throwable> cancellationCallback = workflowClient.startChildWorkflow(parameters,
                 executionResult::complete,

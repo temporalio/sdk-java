@@ -18,7 +18,7 @@ package com.uber.cadence.internal.dispatcher;
 
 import com.google.common.base.Defaults;
 import com.uber.cadence.internal.common.FlowHelpers;
-import com.uber.cadence.workflow.ActivitySchedulingOptions;
+import com.uber.cadence.workflow.ActivityOptions;
 import com.uber.cadence.workflow.Promise;
 
 import java.lang.reflect.Method;
@@ -29,9 +29,9 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 class ActivityInvocationHandler extends AsyncInvocationHandler {
 
-    private final ActivitySchedulingOptions options;
+    private final ActivityOptions options;
 
-    ActivityInvocationHandler(ActivitySchedulingOptions options) {
+    ActivityInvocationHandler(ActivityOptions options) {
         this.options = options;
     }
 

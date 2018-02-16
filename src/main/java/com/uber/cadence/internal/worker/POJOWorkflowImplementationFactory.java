@@ -63,6 +63,10 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
         }
     }
 
+    public int getWorkflowImplementationTypeCount() {
+        return factories.size();
+    }
+
     public void addWorkflowImplementationType(Class<?> workflowImplementationClass) {
         TypeToken<?>.TypeSet interfaces = TypeToken.of(workflowImplementationClass).getTypes().interfaces();
         if (interfaces.isEmpty()) {

@@ -16,16 +16,10 @@
  */
 package com.uber.cadence.internal.worker;
 
-import com.uber.cadence.BadRequestError;
-import com.uber.cadence.DomainAlreadyExistsError;
-import com.uber.cadence.InternalServiceError;
-import com.uber.cadence.RegisterDomainRequest;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.internal.WorkerBase;
-import com.uber.cadence.internal.common.FlowConstants;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.thrift.TException;
 
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.lang.management.ManagementFactory;
@@ -45,7 +39,7 @@ public abstract class GenericWorker implements WorkerBase {
 
         private final String threadPrefix;
 
-        public ExecutorThreadFactory(String threadPrefix) {
+        ExecutorThreadFactory(String threadPrefix) {
             this.threadPrefix = threadPrefix;
         }
 
@@ -121,10 +115,6 @@ public abstract class GenericWorker implements WorkerBase {
 
     protected String domain;
 
-    protected boolean registerDomain;
-
-    protected int domainRetentionPeriodInDays = FlowConstants.NONE;
-
     private String taskListToPoll;
 
     private int maximumPollRateIntervalMilliseconds = 1000;
@@ -141,7 +131,7 @@ public abstract class GenericWorker implements WorkerBase {
 
     private String identity = ManagementFactory.getRuntimeMXBean().getName();
 
-    protected final AtomicReference<CountDownLatch> suspendLatch = new AtomicReference<CountDownLatch>();
+    private final AtomicReference<CountDownLatch> suspendLatch = new AtomicReference<>();
 
     private int pollThreadCount = 1;
 
@@ -149,23 +139,17 @@ public abstract class GenericWorker implements WorkerBase {
 
     private Throttler pollRateThrottler;
 
-    protected UncaughtExceptionHandler uncaughtExceptionHandler = new UncaughtExceptionHandler() {
-
-        @Override
-        public void uncaughtException(Thread t, Throwable e) {
-            log.error("Failure in thread " + t.getName(), e);
-        }
-    };
+    private UncaughtExceptionHandler uncaughtExceptionHandler = (t, e) -> log.error("Failure in thread " + t.getName(), e);
 
     private TaskPoller poller;
 
-    public GenericWorker(WorkflowService.Iface service, String domain, String taskListToPoll) {
+    GenericWorker(WorkflowService.Iface service, String domain, String taskListToPoll) {
         this.service = service;
         this.domain = domain;
         this.taskListToPoll = taskListToPoll;
     }
 
-    public GenericWorker() {
+    protected GenericWorker() {
         identity = ManagementFactory.getRuntimeMXBean().getName();
         int length = Math.min(identity.length(), GenericWorker.MAX_IDENTITY_LENGTH);
         identity = identity.substring(0, length);
@@ -187,30 +171,6 @@ public abstract class GenericWorker implements WorkerBase {
 
     public void setDomain(String domain) {
         this.domain = domain;
-    }
-
-    @Override
-    public boolean isRegisterDomain() {
-        return registerDomain;
-    }
-
-    /**
-     * Should domain be registered on startup. Default is <code>false</code>.
-     * When enabled workflowExecutionRetentionPeriodInDays property is required.
-     */
-    @Override
-    public void setRegisterDomain(boolean registerDomain) {
-        this.registerDomain = registerDomain;
-    }
-
-    @Override
-    public int getDomainRetentionPeriodInDays() {
-        return domainRetentionPeriodInDays;
-    }
-
-    @Override
-    public void setDomainRetentionPeriodInDays(int domainRetentionPeriodInDays) {
-        this.domainRetentionPeriodInDays = domainRetentionPeriodInDays;
     }
 
     @Override
@@ -315,7 +275,11 @@ public abstract class GenericWorker implements WorkerBase {
     @Override
     public void start() {
         if (log.isInfoEnabled()) {
-            log.info("asyncStart: " + toString());
+            log.info("start(): " + toString());
+        }
+        if (!isNeeded()) {
+            log.info("Nothing is registered with " + this.getClass().getSimpleName() + ". Skipping start.");
+            return;
         }
         checkStarted();
         checkRequiredProperty(service, "service");
@@ -323,17 +287,13 @@ public abstract class GenericWorker implements WorkerBase {
         checkRequiredProperty(taskListToPoll, "taskListToPoll");
         checkRequredProperties();
 
-        if (registerDomain) {
-            registerDomain();
-        }
-
         if (maximumPollRatePerSecond > 0.0) {
             pollRateThrottler = new Throttler("pollRateThrottler " + taskListToPoll, maximumPollRatePerSecond,
                     maximumPollRateIntervalMilliseconds);
         }
 
         pollExecutor = new ThreadPoolExecutor(pollThreadCount, pollThreadCount, 1, TimeUnit.MINUTES,
-                new LinkedBlockingQueue<Runnable>(pollThreadCount));
+                new LinkedBlockingQueue<>(pollThreadCount));
         ExecutorThreadFactory pollExecutorThreadFactory = getExecutorThreadFactory();
         pollExecutor.setThreadFactory(pollExecutorThreadFactory);
 
@@ -345,9 +305,15 @@ public abstract class GenericWorker implements WorkerBase {
         }
     }
 
+    /**
+     * Should this worker be started. There is no reason to start polling if there is no single
+     * activity or workflow type is implemented by a worker.
+     * @return false if worker start should not actually start a worker.
+     */
+    protected abstract boolean isNeeded();
+
     private ExecutorThreadFactory getExecutorThreadFactory() {
-        ExecutorThreadFactory pollExecutorThreadFactory = new ExecutorThreadFactory(getPollThreadNamePrefix());
-        return pollExecutorThreadFactory;
+        return new ExecutorThreadFactory(getPollThreadNamePrefix());
     }
 
     protected abstract String getPollThreadNamePrefix();
@@ -355,29 +321,6 @@ public abstract class GenericWorker implements WorkerBase {
     protected abstract TaskPoller createPoller();
 
     protected abstract void checkRequredProperties();
-
-    private void registerDomain() {
-        if (domainRetentionPeriodInDays == FlowConstants.NONE) {
-            throw new IllegalStateException("required property domainRetentionPeriodInSeconds is not set");
-        }
-        try {
-            RegisterDomainRequest registerDomainRequest = new RegisterDomainRequest();
-            registerDomainRequest.setName(domain);
-            registerDomainRequest.setWorkflowExecutionRetentionPeriodInDays(domainRetentionPeriodInDays);
-            service.RegisterDomain(registerDomainRequest);
-        }
-        catch (DomainAlreadyExistsError e) {
-            if (log.isTraceEnabled()) {
-                log.trace("Domain is already registered: " + domain);
-            }
-        } catch (BadRequestError e) {
-            throw new RuntimeException(e);
-        } catch (InternalServiceError e) {
-            throw new RuntimeException(e);
-        } catch (TException e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     protected void checkRequiredProperty(Object value, String name) {
         if (value == null) {

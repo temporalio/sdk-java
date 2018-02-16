@@ -43,6 +43,12 @@ import java.lang.reflect.Array;
  */
 public class JsonDataConverter implements DataConverter {
 
+    private static final DataConverter INSTANCE = new JsonDataConverter();
+
+    public static DataConverter getInstance() {
+        return INSTANCE;
+    }
+
     protected final ObjectMapper mapper;
 
     /**
@@ -50,7 +56,7 @@ public class JsonDataConverter implements DataConverter {
      * {@link DeserializationFeature#FAIL_ON_UNKNOWN_PROPERTIES} set to <code>false</code> and
      * default typing set to {@link DefaultTyping#NON_FINAL}.
      */
-    public JsonDataConverter() {
+    private JsonDataConverter() {
         this(new ObjectMapper());
         // ignoring unknown properties makes us more robust to changes in the schema
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);

@@ -97,13 +97,13 @@ class GenericAsyncWorkflowClientImpl implements GenericAsyncWorkflowClient {
         if (workflowId == null) {
             workflowId = generateUniqueId();
         }
+        attributes.setWorkflowId(workflowId);
         if (parameters.getDomain() == null) {
             // Could be removed as soon as server allows null for domain.
             attributes.setDomain(workflowContext.getDomain());
         } else {
             attributes.setDomain(parameters.getDomain());
         }
-        attributes.setWorkflowId(workflowId);
         attributes.setInput(parameters.getInput());
         if (parameters.getExecutionStartToCloseTimeoutSeconds() == 0) {
             // TODO: Substract time passed since the parent start
@@ -132,6 +132,7 @@ class GenericAsyncWorkflowClientImpl implements GenericAsyncWorkflowClient {
             tl.setName(workflowContext.getTaskList());
         }
         attributes.setTaskList(tl);
+        attributes.setWorkflowIdReusePolicy(parameters.getWorkflowIdReusePolicy());
         decisions.startChildWorkflowExecution(attributes);
         final OpenChildWorkflowRequestInfo context = new OpenChildWorkflowRequestInfo(executionCallback);
         context.setCompletionHandle(callback);

@@ -18,8 +18,8 @@ package com.uber.cadence.internal.generic;
 
 import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.WorkflowIdReusePolicy;
-import com.uber.cadence.internal.StartWorkflowOptions;
 import com.uber.cadence.WorkflowType;
+import com.uber.cadence.client.WorkflowOptions;
 
 public class StartWorkflowExecutionParameters {
 
@@ -273,8 +273,8 @@ public class StartWorkflowExecutionParameters {
         return this;
     }
 
-    public StartWorkflowExecutionParameters createStartWorkflowExecutionParametersFromOptions(StartWorkflowOptions options, 
-    		StartWorkflowOptions optionsOverride) {
+    public StartWorkflowExecutionParameters createStartWorkflowExecutionParametersFromOptions(WorkflowOptions options,
+    		WorkflowOptions optionsOverride) {
     	StartWorkflowExecutionParameters parameters = this.clone();
     	if (options != null) {
     		Integer executionStartToCloseTimeout = options.getExecutionStartToCloseTimeoutSeconds();

@@ -83,6 +83,11 @@ class POJOActivityImplementationFactory implements ActivityImplementationFactory
         return activities.get(activityType.getName());
     }
 
+    @Override
+    public boolean isAnyTypeSupported() {
+        return !activities.isEmpty();
+    }
+
     public void setActivitiesImplementation(Object[] activitiesImplementation) {
         activities.clear();
         for (Object activity : activitiesImplementation) {

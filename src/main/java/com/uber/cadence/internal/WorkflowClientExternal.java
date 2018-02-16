@@ -18,21 +18,22 @@ package com.uber.cadence.internal;
 
 import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.generic.GenericWorkflowClientExternal;
 
 public interface WorkflowClientExternal {
     
-    public void requestCancelWorkflowExecution();
+    void requestCancelWorkflowExecution();
 
-    public void terminateWorkflowExecution(String reason, byte[] details, ChildPolicy childPolicy);
+    void terminateWorkflowExecution(String reason, byte[] details, ChildPolicy childPolicy);
     
-    public DataConverter getDataConverter();
+    DataConverter getDataConverter();
 
-    public StartWorkflowOptions getSchedulingOptions();
+    WorkflowOptions getSchedulingOptions();
     
-    public GenericWorkflowClientExternal getGenericClient();
+    GenericWorkflowClientExternal getGenericClient();
     
-    public WorkflowExecution getWorkflowExecution();
+    WorkflowExecution getWorkflowExecution();
     
 }

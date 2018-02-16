@@ -24,17 +24,36 @@ import com.uber.cadence.converter.JsonDataConverter;
  */
 public final class CadenceClientOptions {
 
-    private DataConverter dataConverter = new JsonDataConverter();
+    public static final class Builder {
+
+        private DataConverter dataConverter = JsonDataConverter.getInstance();
+
+        /**
+         * Used to override default (JSON) data converter implementation.
+         *
+         * @param dataConverter data converter to serialize and deserialize arguments and return values.
+         */
+        public Builder setDataConverter(DataConverter dataConverter) {
+            if (dataConverter == null) {
+                throw new IllegalArgumentException("null");
+            }
+            this.dataConverter = dataConverter;
+            return this;
+        }
+
+        public CadenceClientOptions build() {
+            return new CadenceClientOptions(dataConverter);
+        }
+    }
+
+
+    private final DataConverter dataConverter;
+
+    private CadenceClientOptions(DataConverter dataConverter) {
+        this.dataConverter = dataConverter;
+    }
 
     public DataConverter getDataConverter() {
         return dataConverter;
-    }
-
-    /**
-     * Used to override default (JSON) data converter implementation.
-     * @param dataConverter data converter to serialize and deserialize arguments and return values.
-     */
-    public void setDataConverter(DataConverter dataConverter) {
-        this.dataConverter = dataConverter;
     }
 }

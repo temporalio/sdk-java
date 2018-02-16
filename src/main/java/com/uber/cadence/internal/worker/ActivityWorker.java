@@ -18,16 +18,18 @@ package com.uber.cadence.internal.worker;
 
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.converter.DataConverter;
+import com.uber.cadence.converter.JsonDataConverter;
 
 import java.util.concurrent.TimeUnit;
 
-import static com.uber.cadence.internal.common.FlowDefaults.DEFAULT_DATA_CONVERTER;
-
+/**
+ * TODO: Refactor all the old worker code to use Options instead of setters to configure.
+ */
 public class ActivityWorker {
 
     private final GenericActivityWorker worker;
     private final POJOActivityImplementationFactory factory =
-            new POJOActivityImplementationFactory(DEFAULT_DATA_CONVERTER);
+            new POJOActivityImplementationFactory(JsonDataConverter.getInstance());
 
     public ActivityWorker(WorkflowService.Iface service, String domain, String taskList) {
         worker = new GenericActivityWorker(service, domain, taskList);
@@ -57,22 +59,6 @@ public class ActivityWorker {
 
     public void setDomain(String domain) {
         worker.setDomain(domain);
-    }
-
-    public boolean isRegisterDomain() {
-        return worker.isRegisterDomain();
-    }
-
-    public void setRegisterDomain(boolean registerDomain) {
-        worker.setRegisterDomain(registerDomain);
-    }
-
-    public int getDomainRetentionPeriodInDays() {
-        return worker.getDomainRetentionPeriodInDays();
-    }
-
-    public void setDomainRetentionPeriodInDays(int domainRetentionPeriodInDays) {
-        worker.setDomainRetentionPeriodInDays(domainRetentionPeriodInDays);
     }
 
     public String getTaskListToPoll() {

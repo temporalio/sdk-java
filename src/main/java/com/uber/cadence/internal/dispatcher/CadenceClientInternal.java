@@ -23,10 +23,10 @@ import com.uber.cadence.client.ActivityCompletionClient;
 import com.uber.cadence.client.CadenceClient;
 import com.uber.cadence.client.CadenceClientOptions;
 import com.uber.cadence.client.UntypedWorkflowStub;
+import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.ManualActivityCompletionClientFactory;
 import com.uber.cadence.internal.ManualActivityCompletionClientFactoryImpl;
-import com.uber.cadence.internal.StartWorkflowOptions;
 import com.uber.cadence.internal.worker.GenericWorkflowClientExternalImpl;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.QueryMethod;
@@ -35,9 +35,6 @@ import com.uber.cadence.workflow.WorkflowMethod;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.util.concurrent.CompletableFuture;
-
-import static com.uber.cadence.internal.common.FlowDefaults.DEFAULT_DATA_CONVERTER;
 
 public final class CadenceClientInternal implements CadenceClient {
 
@@ -47,15 +44,11 @@ public final class CadenceClientInternal implements CadenceClient {
 
     public CadenceClientInternal(WorkflowService.Iface service, String domain, CadenceClientOptions options) {
         this.genericClient = new GenericWorkflowClientExternalImpl(service, domain);
-        if (options == null || options.getDataConverter() == null) {
-            this.dataConverter = DEFAULT_DATA_CONVERTER;
-        } else {
-            this.dataConverter = options.getDataConverter();
-        }
+        this.dataConverter = options.getDataConverter();
         this.manualActivityCompletionClientFactory = new ManualActivityCompletionClientFactoryImpl(service, domain, dataConverter);
     }
 
-    public <T> T newWorkflowStub(Class<T> workflowInterface, StartWorkflowOptions options) {
+    public <T> T newWorkflowStub(Class<T> workflowInterface, WorkflowOptions options) {
         checkAnnotation(workflowInterface, WorkflowMethod.class);
         return (T) Proxy.newProxyInstance(WorkflowInternal.class.getClassLoader(),
                 new Class<?>[]{workflowInterface},
@@ -81,6 +74,7 @@ public final class CadenceClientInternal implements CadenceClient {
                 " doesn't have method annotated with any of " + annotationClasses);
     }
 
+    @SuppressWarnings("unchecked")
     public <T> T newWorkflowStub(Class<T> workflowInterface, WorkflowExecution execution) {
         checkAnnotation(workflowInterface, WorkflowMethod.class, QueryMethod.class);
         return (T) Proxy.newProxyInstance(WorkflowInternal.class.getClassLoader(),
@@ -89,7 +83,7 @@ public final class CadenceClientInternal implements CadenceClient {
     }
 
     @Override
-    public UntypedWorkflowStub newUntypedWorkflowStub(String workflowType, StartWorkflowOptions options) {
+    public UntypedWorkflowStub newUntypedWorkflowStub(String workflowType, WorkflowOptions options) {
         return new UntypedWorkflowStubImpl(genericClient, dataConverter, workflowType, options);
     }
 

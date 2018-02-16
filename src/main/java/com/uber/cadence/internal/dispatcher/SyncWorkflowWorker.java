@@ -32,31 +32,27 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import static com.uber.cadence.internal.common.FlowDefaults.DEFAULT_DATA_CONVERTER;
-
 public class SyncWorkflowWorker extends GenericWorker {
 
     private static final String THREAD_NAME_PREFIX = "Cadence workflow poller ";
 
-    private DataConverter dataConverter = DEFAULT_DATA_CONVERTER;
-
-    private POJOWorkflowImplementationFactory factory = new POJOWorkflowImplementationFactory(dataConverter);
+    private final POJOWorkflowImplementationFactory factory;
 
     private ExecutorService workflowThreadPool;
 
     private DecisionTaskPoller decisionTaskPoller;
 
-    public SyncWorkflowWorker() {
+    private final DataConverter dataConverter;
+
+    public SyncWorkflowWorker(WorkflowService.Iface service, String domain, String taskListToPoll, DataConverter dataConverter) {
         setIdentity(ManagementFactory.getRuntimeMXBean().getName());
         workflowThreadPool = new ThreadPoolExecutor(1, 1000,
                 10, TimeUnit.SECONDS, new SynchronousQueue<>());
-    }
-
-    public SyncWorkflowWorker(WorkflowService.Iface service, String domain, String taskListToPoll) {
-        this();
         setService(service);
         setDomain(domain);
         setTaskListToPoll(taskListToPoll);
+        this.dataConverter = dataConverter;
+        factory = new POJOWorkflowImplementationFactory(dataConverter);
     }
 
     public void addWorkflowImplementationType(Class<?> workflowImplementationClass) {
@@ -67,11 +63,6 @@ public class SyncWorkflowWorker extends GenericWorker {
         factory.setWorkflowImplementationTypes(workflowImplementationTypes);
     }
 
-    public void setDataConverter(DataConverter dataConverter) {
-        this.dataConverter = dataConverter;
-        factory.setDataConverter(dataConverter);
-    }
-
     public void setWorkflowThreadPool(ExecutorService workflowThreadPool) {
         this.workflowThreadPool = workflowThreadPool;
     }
@@ -79,6 +70,11 @@ public class SyncWorkflowWorker extends GenericWorker {
     @Override
     protected void checkRequredProperties() {
         checkRequiredProperty(factory, "factory");
+    }
+
+    @Override
+    protected boolean isNeeded() {
+        return factory.getWorkflowImplementationTypeCount() > 0;
     }
 
     @Override
