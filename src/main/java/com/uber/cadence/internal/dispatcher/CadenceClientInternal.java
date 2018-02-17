@@ -44,6 +44,9 @@ public final class CadenceClientInternal implements CadenceClient {
 
     public CadenceClientInternal(WorkflowService.Iface service, String domain, CadenceClientOptions options) {
         this.genericClient = new GenericWorkflowClientExternalImpl(service, domain);
+        if (options == null) {
+            options = new CadenceClientOptions.Builder().build();
+        }
         this.dataConverter = options.getDataConverter();
         this.manualActivityCompletionClientFactory = new ManualActivityCompletionClientFactoryImpl(service, domain, dataConverter);
     }

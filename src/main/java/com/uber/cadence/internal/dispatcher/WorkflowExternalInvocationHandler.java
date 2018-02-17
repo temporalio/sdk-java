@@ -162,6 +162,8 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
         parameters.setTaskList(options.getTaskList());
         parameters.setTaskStartToCloseTimeoutSeconds(options.getTaskStartToCloseTimeoutSeconds());
         parameters.setWorkflowType(new WorkflowType().setName(workflowName));
+        parameters.setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy());
+        parameters.setChildPolicy(options.getChildPolicy());
         if (options.getWorkflowId() == null) {
             parameters.setWorkflowId(UUID.randomUUID().toString());
         } else {
