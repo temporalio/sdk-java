@@ -41,8 +41,8 @@ class ActivityExecutionException extends RuntimeException {
      * @param reason  value of reason field
      * @param details application specific failure details
      */
-    ActivityExecutionException(String reason, byte[] details) {
-        super(reason);
+    ActivityExecutionException(String reason, byte[] details, Throwable cause) {
+        super(reason, cause);
         this.details = details;
     }
 

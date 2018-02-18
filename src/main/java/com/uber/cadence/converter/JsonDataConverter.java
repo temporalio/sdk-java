@@ -16,8 +16,6 @@
  */
 package com.uber.cadence.converter;
 
-import com.google.gson.ExclusionStrategy;
-import com.google.gson.FieldAttributes;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -37,22 +35,37 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * Implements conversion through GSON JSON processor.
- * To extend create a subclass and override {@link #configure(GsonBuilder)} method.
+ * To extend use {@link JsonDataConverter(Function)} constructor.
  *
  * @author fateev
  */
-public class JsonDataConverter implements DataConverter {
+public final class JsonDataConverter implements DataConverter {
 
     private static final Log log = LogFactory.getLog(JsonDataConverter.class);
 
+    /**
+     * Used to parse a stack trace line.
+     */
     private static final String TRACE_ELEMENT_REGEXP = "((?<className>.*)\\.(?<methodName>.*))\\(((?<fileName>.*?)(:(?<lineNumber>\\d+))?)\\)";
+
     private static final Pattern TRACE_ELEMENT_PATTERN = Pattern.compile(TRACE_ELEMENT_REGEXP);
 
+    /**
+     * Stop emitting stack trace after this line.
+     * Makes serialized stack traces more readable and compact as it omits most of framework level code.
+     */
+    private static final Set<String> CUTOFF_METHOD_NAMES = new HashSet<String>() {{
+        add("com.uber.cadence.internal.worker.POJOActivityImplementationFactory$POJOActivityImplementation.execute");
+        add("com.uber.cadence.internal.worker.POJOWorkflowImplementationFactory$POJOWorkflowImplementation.execute");
+    }};
 
     private static final DataConverter INSTANCE = new JsonDataConverter();
     private static final byte[] EMPTY_BLOB = new byte[0];
@@ -64,22 +77,20 @@ public class JsonDataConverter implements DataConverter {
         return INSTANCE;
     }
 
-    protected JsonDataConverter() {
-        GsonBuilder gsonBuilder = new GsonBuilder()
-                .serializeNulls()
-                .addDeserializationExclusionStrategy(new StackTraceExclusion())
-                .addSerializationExclusionStrategy(new StackTraceExclusion())
-                .registerTypeAdapterFactory(new ThrowableTypeAdapterFactory());
-        GsonBuilder reconfigured = configure(gsonBuilder);
-        gson = reconfigured.create();
+    public JsonDataConverter() {
+        this((b) -> b);
     }
 
     /**
-     * Override this method to add additional configuration to Gson.
-     * Be careful as this method is called from a constructor.
+     * Constructs an instance giving an ability to override {@link Gson} initialization.
+     * @param builderInterceptor function that intercepts {@link GsonBuilder} construction.
      */
-    protected GsonBuilder configure(GsonBuilder builder) {
-        return builder;
+    public JsonDataConverter(Function<GsonBuilder, GsonBuilder> builderInterceptor) {
+        GsonBuilder gsonBuilder = new GsonBuilder()
+                .serializeNulls()
+                .registerTypeAdapterFactory(new ThrowableTypeAdapterFactory());
+        GsonBuilder intercepted = builderInterceptor.apply(gsonBuilder);
+        gson = intercepted.create();
     }
 
     /**
@@ -162,7 +173,12 @@ public class JsonDataConverter implements DataConverter {
                     Throwable throwable = (Throwable) value;
                     StackTraceElement[] trace = throwable.getStackTrace();
                     for (int i = 0; i < trace.length; i++) {
-                        pw.println(trace[i]);
+                        StackTraceElement element = trace[i];
+                        pw.println(element);
+                        String fullMethodName = element.getClassName() + "." + element.getMethodName();
+                        if (CUTOFF_METHOD_NAMES.contains(fullMethodName)) {
+                            break;
+                        }
                     }
                     JsonObject object = exceptionTypeAdapter.toJsonTree(value).getAsJsonObject();
                     object.add("class", new JsonPrimitive(throwable.getClass().getName()));
@@ -187,6 +203,9 @@ public class JsonDataConverter implements DataConverter {
                         }
                         final TypeAdapter<?> adapter = gson.getDelegateAdapter(ThrowableTypeAdapterFactory.this, TypeToken.get(classType));
                         StackTraceElement[] stackTrace = parseStackTrace(object);
+                        // This is important. Initially I tried configuring ExclusionStrategy to not deserialize the stackTrace field.
+                        // But it left it null, which caused Thread.setStackTrace implementation to become silent noop.
+                        object.add("stackTrace", new JsonArray());
                         Throwable result = (Throwable) adapter.fromJsonTree(object);
                         result.setStackTrace(stackTrace);
                         return (T) result;
@@ -243,21 +262,5 @@ public class JsonDataConverter implements DataConverter {
             }
         }
         return new StackTraceElement(declaringClass, methodName, fileName, lineNumber);
-    }
-
-    /**
-     * Skips default serialization of the stackTrace field.
-     */
-    private static class StackTraceExclusion implements ExclusionStrategy {
-        @Override
-        public boolean shouldSkipField(FieldAttributes fieldAttributes) {
-            String name = fieldAttributes.getName();
-            return name.equals("stackTrace") || name.equals("suppressedExceptions");
-        }
-
-        @Override
-        public boolean shouldSkipClass(Class<?> aClass) {
-            return false;
-        }
     }
 }

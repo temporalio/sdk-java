@@ -464,7 +464,9 @@ public class WorkflowTest {
             } catch (RuntimeException e) {
                 assertTrue(e.getMessage().contains("::throwNPE"));
                 assertNotNull(e.getCause() instanceof ActivityFailureException);
+                assertTrue(e.getStackTrace().length > 0);
                 assertNotNull(e.getCause().getCause() instanceof NullPointerException);
+                assertTrue(e.getCause().getStackTrace().length > 0);
                 assertEquals("simulated NPE", e.getCause().getCause().getMessage());
                 throw e;
             }
@@ -491,11 +493,14 @@ public class WorkflowTest {
             client.execute();
             fail("Unreachable");
         } catch (WorkflowFailureException e) {
-            e.printStackTrace();
             assertTrue(e.getMessage().contains("::throwNPE"));
+            assertTrue(e.getStackTrace().length > 0);
             assertNotNull(e.getCause().getCause() instanceof ActivityFailureException);
+            assertTrue(e.getCause().getStackTrace().length > 0);
             assertNotNull(e.getCause() instanceof WorkflowFailureException);
+            assertTrue(e.getCause().getCause().getStackTrace().length > 0);
             assertNotNull(e.getCause().getCause().getCause() instanceof NullPointerException);
+            assertTrue(e.getCause().getCause().getCause().getStackTrace().length > 0);
             assertEquals("simulated NPE", e.getCause().getCause().getCause().getMessage());
         }
     }
