@@ -14,28 +14,25 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.internal;
+package com.uber.cadence.workflow;
+
+import com.uber.cadence.TimeoutType;
+import com.uber.cadence.WorkflowExecution;
 
 /**
- * Exception that is thrown from generic workflow implementation to indicate
- * that workflow execution should be failed with the given reason and details.
+ * Indicates that a workflow exceeded its execution timeout and was forcefully terminated by the Cadence
+ * service.
  */
-@SuppressWarnings("serial")
-public class WorkflowException extends RuntimeException {
+public final class WorkflowTimedOutException extends WorkflowException {
 
-    private final byte[] details;
+    private final TimeoutType timeoutType;
 
-    public WorkflowException(String reason, byte[] details) {
-        super(reason);
-        this.details = details;
+    public WorkflowTimedOutException(WorkflowExecution execution, String workflowType, TimeoutType timeoutType) {
+        super("Timed out because of " + timeoutType, execution, workflowType, null);
+        this.timeoutType = timeoutType;
     }
 
-    public String getReason() {
-        return getMessage();
+    public TimeoutType getTimeoutType() {
+        return timeoutType;
     }
-
-    public byte[] getDetails() {
-        return details;
-    }
-
 }

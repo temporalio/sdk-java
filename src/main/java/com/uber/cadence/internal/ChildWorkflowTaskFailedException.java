@@ -16,46 +16,46 @@
  */
 package com.uber.cadence.internal;
 
+
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
 
 /**
- * Exception used to communicate failure of remote activity.
+ * Internal. Do not catch or throw by application level code.
  */
 @SuppressWarnings("serial")
-public abstract class ChildWorkflowException extends DecisionException {
-    
-    private WorkflowExecution workflowExecution;
-    
-    private WorkflowType workflowType;
-    
-    public ChildWorkflowException(String message) {
-        super(message);
-    }
+public class ChildWorkflowTaskFailedException extends RuntimeException {
 
-    public ChildWorkflowException(String message, Throwable cause) {
-        super(message, cause);
-    }
-    
-    public ChildWorkflowException(String message, long eventId, WorkflowExecution workflowExecution, WorkflowType workflowType) {
-        super(message + " for workflowExecution=\"" + workflowExecution + "\" of workflowType=" + workflowType, eventId);
+    private final long eventId;
+
+    private final WorkflowExecution workflowExecution;
+
+    private final WorkflowType workflowType;
+
+    private final byte[] details;
+
+    public ChildWorkflowTaskFailedException(long eventId, WorkflowExecution workflowExecution, WorkflowType workflowType,
+                                            String reason, byte[] details) {
+        super(reason);
+        this.eventId = eventId;
         this.workflowExecution = workflowExecution;
         this.workflowType = workflowType;
+        this.details = details;
     }
-    
+
+    public long getEventId() {
+        return eventId;
+    }
+
     public WorkflowExecution getWorkflowExecution() {
         return workflowExecution;
     }
-    
-    public void setWorkflowExecution(WorkflowExecution workflowExecution) {
-        this.workflowExecution = workflowExecution;
-    }
-    
+
     public WorkflowType getWorkflowType() {
         return workflowType;
     }
-    
-    public void setWorkflowType(WorkflowType workflowType) {
-        this.workflowType = workflowType;
-    }
+
+    public byte[] getDetails() { return details; }
+
+    public String getReason() { return getMessage(); }
 }

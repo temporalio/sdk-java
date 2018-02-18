@@ -17,7 +17,6 @@
 package com.uber.cadence.internal.dispatcher;
 
 import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.WorkflowExecutionCompletedEventAttributes;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.converter.DataConverter;
@@ -31,6 +30,7 @@ import com.uber.cadence.internal.worker.GenericWorkflowClientExternalImpl;
 import com.uber.cadence.workflow.QueryMethod;
 import com.uber.cadence.workflow.SignalExternalWorkflowParameters;
 import com.uber.cadence.workflow.SignalMethod;
+import com.uber.cadence.workflow.WorkflowFailureException;
 import com.uber.cadence.workflow.WorkflowMethod;
 
 import java.lang.reflect.InvocationHandler;
@@ -46,6 +46,7 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
     private final WorkflowOptions options;
     private final DataConverter dataConverter;
     private final AtomicReference<WorkflowExecution> execution = new AtomicReference<>();
+    private String workflowType;
 
     public static void initAsyncInvocation() {
         if (asyncResult.get() != null) {
@@ -155,13 +156,15 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
     private Object startWorkflow(Method method, WorkflowMethod workflowMethod, Object[] args) {
         String workflowName = workflowMethod.name();
         if (workflowName.isEmpty()) {
-            workflowName = FlowHelpers.getSimpleName(method);
+            workflowType = FlowHelpers.getSimpleName(method);
+        } else {
+            workflowType = workflowName;
         }
         StartWorkflowExecutionParameters parameters = new StartWorkflowExecutionParameters();
         parameters.setExecutionStartToCloseTimeoutSeconds(options.getExecutionStartToCloseTimeoutSeconds());
         parameters.setTaskList(options.getTaskList());
         parameters.setTaskStartToCloseTimeoutSeconds(options.getTaskStartToCloseTimeoutSeconds());
-        parameters.setWorkflowType(new WorkflowType().setName(workflowName));
+        parameters.setWorkflowType(new WorkflowType().setName(workflowType));
         parameters.setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy());
         parameters.setChildPolicy(options.getChildPolicy());
         if (options.getWorkflowId() == null) {
@@ -178,14 +181,21 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
             return null;
         }
         try {
-            WorkflowExecutionCompletedEventAttributes result =
-                    WorkflowExecutionUtils.getWorkflowExecutionResult(genericClient.getService(), genericClient.getDomain(),
-                            execution.get(), options.getExecutionStartToCloseTimeoutSeconds(), TimeUnit.SECONDS);
-            byte[] resultValue = result.getResult();
-            if (resultValue == null) {
-                return null;
-            }
+            byte[] resultValue = WorkflowExecutionUtils.getWorkflowExecutionResult(
+                    genericClient.getService(), genericClient.getDomain(), execution.get(), workflowType,
+                    options.getExecutionStartToCloseTimeoutSeconds(), TimeUnit.SECONDS);
             return dataConverter.fromData(resultValue, method.getReturnType());
+        } catch (WorkflowExecutionFailedException e) {
+            Class<Throwable> causeClass = null;
+            try {
+                causeClass = (Class<Throwable>) Class.forName(e.getReason());
+            } catch (Exception ee) {
+                RuntimeException failure = new RuntimeException("Failed to deserialize workflow failure cause. " +
+                        "Reason field is expected to contain a failure cause class name", ee);
+                throw new WorkflowFailureException(execution.get(), workflowType, e.getDecisionTaskCompletedEventId(), failure);
+            }
+            Throwable cause = dataConverter.fromData(e.getDetails(), causeClass);
+            throw new WorkflowFailureException(execution.get(), workflowType, e.getDecisionTaskCompletedEventId(), cause);
         } catch (Exception e) {
             throw CheckedExceptionWrapper.wrap(e);
         }

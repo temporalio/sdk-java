@@ -16,10 +16,9 @@
  */
 package com.uber.cadence.internal.worker;
 
-import com.uber.cadence.internal.WorkflowException;
+import com.uber.cadence.*;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.workflow.ContinueAsNewWorkflowExecutionParameters;
-import com.uber.cadence.*;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -460,8 +459,8 @@ class DecisionsHelper {
     private FailWorkflowExecutionDecisionAttributes createFailWorkflowInstanceAttributes(Throwable failure) {
         String reason;
         byte[] details;
-        if (failure instanceof WorkflowException) {
-            WorkflowException f = (WorkflowException) failure;
+        if (failure instanceof WorkflowExecutionException) {
+            WorkflowExecutionException f = (WorkflowExecutionException) failure;
             reason = f.getReason();
             details = f.getDetails();
         } else {

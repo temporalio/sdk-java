@@ -14,42 +14,36 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.internal;
+package com.uber.cadence.internal.worker;
 
 import com.uber.cadence.ActivityType;
 import com.uber.cadence.TimeoutType;
+import com.uber.cadence.internal.ActivityException;
 
 /**
  * Exception that indicates Activity time out.
  */
 @SuppressWarnings("serial")
-public class ActivityTaskTimedOutException extends ActivityTaskException {
+public final class ActivityTaskTimeoutException extends RuntimeException {
 
-    private TimeoutType timeoutType;
+    private final long eventId;
 
-    private byte[] details;
+    private final TimeoutType timeoutType;
 
-    public ActivityTaskTimedOutException(String message, Throwable cause) {
-        super(message, cause);
-    }
+    private final byte[] details;
 
-    public ActivityTaskTimedOutException(String message) {
-        super(message);
-    }
+    private final ActivityType activityType;
 
-    public ActivityTaskTimedOutException(long eventId, ActivityType activityType, String activityId, TimeoutType timeoutType,
-                                         byte[] details) {
-        super(String.valueOf(timeoutType), eventId, activityType, activityId);
+    private final String activityId;
+
+    ActivityTaskTimeoutException(long eventId, ActivityType activityType, String activityId, TimeoutType timeoutType,
+                                 byte[] details) {
+        super(String.valueOf(timeoutType));
+        this.eventId = eventId;
+        this.activityType = activityType;
+        this.activityId = activityId;
         this.timeoutType = timeoutType;
         this.details = details;
-    }
-
-    public TimeoutType getTimeoutType() {
-        return timeoutType;
-    }
-
-    public void setTimeoutType(TimeoutType timeoutType) {
-        this.timeoutType = timeoutType;
     }
 
     /**
@@ -59,8 +53,19 @@ public class ActivityTaskTimedOutException extends ActivityTaskException {
         return details;
     }
 
-    public void setDetails(byte[] details) {
-        this.details = details;
+    public long getEventId() {
+        return eventId;
     }
 
+    public TimeoutType getTimeoutType() {
+        return timeoutType;
+    }
+
+    public ActivityType getActivityType() {
+        return activityType;
+    }
+
+    public String getActivityId() {
+        return activityId;
+    }
 }

@@ -79,7 +79,8 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         this.decisionContext = decisionContext;
         this.clock = clock;
         // TODO: workflow instance specific thread name
-        rootWorkflowThread = new WorkflowThreadInternal(threadPool, this, WORKFLOW_ROOT_THREAD_NAME, true, root);
+        rootWorkflowThread = new WorkflowThreadInternal(true, threadPool, this,
+                WORKFLOW_ROOT_THREAD_NAME, true, root);
         threads.add(rootWorkflowThread);
         rootWorkflowThread.start();
     }
@@ -236,7 +237,8 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         } finally {
             lock.unlock();
         }
-        WorkflowThreadInternal result = new WorkflowThreadInternal(threadPool, this, name, ignoreParentCancellation, runnable);
+        WorkflowThreadInternal result = new WorkflowThreadInternal(false, threadPool, this, name,
+                ignoreParentCancellation, runnable);
         threadsToAdd.add(result); // This is synchronized collection.
         return result;
     }
@@ -256,7 +258,8 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
     @Override
     public WorkflowThread newBeforeThread(String name, Runnable r) {
-        WorkflowThreadInternal result = new WorkflowThreadInternal(threadPool, this, name, false, r);
+        WorkflowThreadInternal result = new WorkflowThreadInternal(false, threadPool, this, name,
+                false, r);
         result.start();
         lock.lock();
         try {

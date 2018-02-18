@@ -31,9 +31,9 @@ import com.uber.cadence.StartChildWorkflowExecutionFailedEventAttributes;
 import com.uber.cadence.TaskList;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
-import com.uber.cadence.internal.ChildWorkflowFailedException;
-import com.uber.cadence.internal.ChildWorkflowTerminatedException;
-import com.uber.cadence.internal.ChildWorkflowTimedOutException;
+import com.uber.cadence.internal.ChildWorkflowTaskFailedException;
+import com.uber.cadence.workflow.ChildWorkflowTerminatedException;
+import com.uber.cadence.workflow.ChildWorkflowTimedOutException;
 import com.uber.cadence.internal.StartChildWorkflowFailedException;
 import com.uber.cadence.internal.generic.GenericAsyncWorkflowClient;
 import com.uber.cadence.workflow.ContinueAsNewWorkflowExecutionParameters;
@@ -290,7 +290,7 @@ class GenericAsyncWorkflowClientImpl implements GenericAsyncWorkflowClient {
             if (scheduled != null) {
                 String reason = attributes.getReason();
                 byte[] details = attributes.getDetails();
-                RuntimeException failure = new ChildWorkflowFailedException(
+                RuntimeException failure = new ChildWorkflowTaskFailedException(
                         event.getEventId(), execution, attributes.getWorkflowType(), reason, details);
                 BiConsumer<byte[], RuntimeException> completionCallback = scheduled.getCompletionCallback();
                 completionCallback.accept(null, failure);

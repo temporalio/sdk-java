@@ -16,6 +16,7 @@
  */
 package com.uber.cadence.internal;
 
+import com.uber.cadence.EntityNotExistsError;
 import com.uber.cadence.RecordActivityTaskHeartbeatRequest;
 import com.uber.cadence.RecordActivityTaskHeartbeatResponse;
 import com.uber.cadence.RespondActivityTaskCanceledByIDRequest;
@@ -129,6 +130,10 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
             RecordActivityTaskHeartbeatResponse status = null;
             try {
                 status = service.RecordActivityTaskHeartbeat(request);
+            } catch (EntityNotExistsError e) {
+                // Usually it means that activity timed out or workflow has closed.
+                // Treating it as cancellation.
+                throw new CancellationException(e.getMessage());
             } catch (TException e) {
                 throw new RuntimeException(e);
             }
@@ -149,7 +154,8 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
             try {
                 service.RespondActivityTaskCanceled(request);
             } catch (TException e) {
-                throw new RuntimeException(e);
+                // There is nothing that can be done at this point.
+                // so let's just ignore.
             }
         } else {
             RespondActivityTaskCanceledByIDRequest request = new RespondActivityTaskCanceledByIDRequest();

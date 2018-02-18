@@ -18,6 +18,7 @@ package com.uber.cadence.activity;
 
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.internal.worker.ActivityInternal;
+import com.uber.cadence.workflow.ActivityTimeoutException;
 
 import java.util.concurrent.CancellationException;
 
@@ -52,15 +53,14 @@ public final class Activity {
     /**
      * Use to notify Cadence service that activity execution is alive.
      *
-     * @param args In case of activity timeout details are returned as a field of
-     *             the exception thrown.
+     * @param details In case of activity timeout can be accessed through
+     *                {@link ActivityTimeoutException#getDetails(Class)} method.
      * @throws CancellationException Indicates that activity cancellation was requested by the
      *                               workflow.Should be rethrown from activity implementation to
      *                               indicate successful cancellation.
      */
-    public static void heartbeat(Object... args)
-            throws CancellationException {
-        ActivityInternal.recordActivityHeartbeat(args);
+    public static void heartbeat(Object details) throws CancellationException {
+        ActivityInternal.recordActivityHeartbeat(details);
     }
 
     /**

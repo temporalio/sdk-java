@@ -30,31 +30,26 @@ import java.util.concurrent.CancellationException;
 
 /**
  * Base implementation of an {@link ActivityExecutionContext}.
- * 
- * @see ActivityExecutionContext
- * 
+ *
  * @author fateev, suskin
- * 
+ * @see ActivityExecutionContext
  */
 class ActivityExecutionContextImpl implements ActivityExecutionContext {
 
     private final Iface service;
 
     private final String domain;
-    
+
     private final ActivityTaskImpl task;
     private final DataConverter dataConverter;
 
     /**
      * Create an ActivityExecutionContextImpl with the given attributes.
-     * 
-     * @param service
-     *            The {@link WorkflowService.Iface} this
-     *            ActivityExecutionContextImpl will send service calls to.
-     * @param response
-     *            The {@link PollForActivityTaskResponse} this ActivityExecutionContextImpl
-     *            will be used for.
      *
+     * @param service  The {@link WorkflowService.Iface} this
+     *                 ActivityExecutionContextImpl will send service calls to.
+     * @param response The {@link PollForActivityTaskResponse} this ActivityExecutionContextImpl
+     *                 will be used for.
      * @see ActivityExecutionContext
      */
     ActivityExecutionContextImpl(Iface service, String domain, PollForActivityTaskResponse response, DataConverter dataConverter) {
@@ -66,16 +61,16 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
 
     /**
      * @throws CancellationException
-     * @see ActivityExecutionContext#recordActivityHeartbeat(Object...)
+     * @see ActivityExecutionContext#recordActivityHeartbeat(Object)
      */
     @Override
-    public void recordActivityHeartbeat(Object... args) throws CancellationException {
+    public void recordActivityHeartbeat(Object details) throws CancellationException {
         //TODO: call service with the specified minimal interval (through @ActivityExecutionOptions)
         // allowing more frequent calls of this method.
         RecordActivityTaskHeartbeatRequest r = new RecordActivityTaskHeartbeatRequest();
         r.setTaskToken(task.getTaskToken());
-        byte[] details = dataConverter.toData(args);
-        r.setDetails(details);
+        byte[] serialized = dataConverter.toData(details);
+        r.setDetails(serialized);
         RecordActivityTaskHeartbeatResponse status;
         try {
             status = service.RecordActivityTaskHeartbeat(r);

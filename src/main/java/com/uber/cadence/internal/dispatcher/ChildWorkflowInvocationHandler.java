@@ -20,6 +20,7 @@ import com.google.common.base.Defaults;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.common.FlowHelpers;
+import com.uber.cadence.workflow.ChildWorkflowException;
 import com.uber.cadence.workflow.ChildWorkflowOptions;
 import com.uber.cadence.workflow.CompletablePromise;
 import com.uber.cadence.workflow.Promise;
@@ -103,6 +104,13 @@ class ChildWorkflowInvocationHandler extends AsyncInvocationHandler {
             async.set(result);
             return Defaults.defaultValue(method.getReturnType());
         }
-        return result.get();
+        try {
+            return result.get();
+        } catch (ChildWorkflowException e) {
+            // Reset stack to the current one. Otherwise it is very confusing to see a stack of
+            // an event handling method.
+            e.setStackTrace(Thread.currentThread().getStackTrace());
+            throw e;
+        }
     }
 }

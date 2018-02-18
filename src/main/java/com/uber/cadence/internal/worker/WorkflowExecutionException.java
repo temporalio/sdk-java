@@ -16,31 +16,22 @@
  */
 package com.uber.cadence.internal.worker;
 
-import com.uber.cadence.WorkflowService;
-import com.uber.cadence.activity.ActivityTask;
+/**
+ * Internal. Do not throw or catch in application level code.
+ */
+class WorkflowExecutionException extends RuntimeException {
+    private final byte[] details;
 
-public final class ActivityInternal {
-
-    private ActivityInternal() {
+    public WorkflowExecutionException(String reason, byte[] details) {
+        super(reason);
+        this.details = details;
     }
 
-    static ActivityExecutionContext getContext() {
-        return CurrentActivityExecutionContext.get();
+    public byte[] getDetails() {
+        return details;
     }
 
-    public static void recordActivityHeartbeat(Object details) {
-        getContext().recordActivityHeartbeat(details);
-    }
-
-    public static ActivityTask getTask() {
-        return getContext().getTask();
-    }
-
-    public static String getDomain() {
-        return getContext().getDomain();
-    }
-
-    public static WorkflowService.Iface getService() {
-        return getContext().getService();
+    public String getReason() {
+        return getMessage();
     }
 }

@@ -19,24 +19,16 @@ package com.uber.cadence.internal;
 import com.uber.cadence.WorkflowExecution;
 
 /**
- * Exception used to communicate failure of a signal.
+ * Exception used to communicate failure of a request to signal an external workflow.
  */
 @SuppressWarnings("serial")
-public class SignalExternalWorkflowException extends DecisionException {
+public final class SignalExternalWorkflowException extends WorkflowOperationException {
 
 //    private SignalExternalWorkflowExecutionFailedCause failureCause;
 
     private String failureCause;
 
     private WorkflowExecution signaledExecution;
-    
-    public SignalExternalWorkflowException(String message) {
-        super(message);
-    }
-
-    public SignalExternalWorkflowException(String message, Throwable cause) {
-        super(message, cause);
-    }
 
     public SignalExternalWorkflowException(long eventId, WorkflowExecution signaledExecution, String cause) {
         super(cause + " for signaledExecution=\"" + signaledExecution, eventId);

@@ -18,34 +18,40 @@ package com.uber.cadence.converter;
 
 /**
  * Used by the framework to serialize/deserialize method parameters that need to
- * be sent over the wire. 
- * 
+ * be sent over the wire.
+ *
  * @author fateev
  */
 public interface DataConverter {
 
     /**
-     * Implements conversion of the single value.
-     * 
-     * @param value
-     *            Java value to convert to String.
+     * Implements conversion of a list of values.
+     *
+     * @param value Java value to convert to String.
      * @return converted value
-     * @throws DataConverterException
-     *             if conversion of the value passed as parameter failed for any
-     *             reason.
+     * @throws DataConverterException if conversion of the value passed as parameter failed for any
+     *                                reason.
      */
-    byte[] toData(Object value) throws DataConverterException;
+    byte[] toData(Object... value) throws DataConverterException;
 
     /**
-     * Implements conversion of the single value.
-     * 
-     * @param content
-     *            Simple Workflow Data value to convert to a Java object.
+     * Implements conversion of a single value.
+     *
+     * @param content Serialized value to convert to a Java object.
      * @return converted Java object
-     * @throws DataConverterException
-     *             if conversion of the data passed as parameter failed for any
-     *             reason.
+     * @throws DataConverterException if conversion of the data passed as parameter failed for any
+     *                                reason.
      */
     <T> T fromData(byte[] content, Class<T> valueType) throws DataConverterException;
 
+    /**
+     * Implements conversion of an array of values of different types.
+     * Useful for deserializing arguments of function invocations.
+     *
+     * @param content serialized value to convert to Java objects.
+     * @return array of converted Java objects
+     * @throws DataConverterException if conversion of the data passed as parameter failed for any
+     *                                reason.
+     */
+    Object[] fromDataArray(byte[] content, Class<?>... valueType) throws DataConverterException;
 }

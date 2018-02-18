@@ -16,18 +16,16 @@
  */
 package com.uber.cadence.internal.common;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectMapper.DefaultTyping;
 import com.uber.cadence.*;
 import com.uber.cadence.WorkflowService.Iface;
 import com.uber.cadence.error.CheckedExceptionWrapper;
+import com.uber.cadence.internal.dispatcher.WorkflowExecutionFailedException;
 import com.uber.cadence.internal.worker.ExponentialRetryParameters;
 import com.uber.cadence.internal.worker.SynchronousRetrier;
+import com.uber.cadence.workflow.WorkflowTerminatedException;
+import com.uber.cadence.workflow.WorkflowTimedOutException;
 import org.apache.thrift.TException;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -59,71 +57,40 @@ public class WorkflowExecutionUtils {
     }
 
     /**
-     * Blocks until workflow instance completes and returns its result. Useful
-     * for unit tests and during development. <strong>Never</strong> use in
-     * production setting as polling for worklow instance status is an expensive
-     * operation.
-     *
-     * @param workflowExecution result of
-     *                          {@link Iface#StartWorkflowExecution(StartWorkflowExecutionRequest)}
-     * @return workflow instance result.
-     * @throws InterruptedException if thread is destroyRequested
-     * @throws RuntimeException     if workflow instance ended up in any state but completed
+     * Returns result of a workflow instance execution or throws an exception if workflow did not complete successfully.
+     * @param workflowType is optional.
+     * @throws TimeoutException if workflow didn't complete within specified timeout
+     * @throws CancellationException if workflow was cancelled
+     * @throws WorkflowExecutionFailedException if workflow execution failed
+     * @throws WorkflowTimedOutException if workflow execution exceeded its execution timeout and was forcefully terminated by the Cadence server.
+     * @throws WorkflowTerminatedException if workflow execution was terminated through an external terminate command.
      */
-    public static WorkflowExecutionCompletedEventAttributes waitForWorkflowExecutionResult(
-            Iface service, String domain, WorkflowExecution workflowExecution) throws InterruptedException {
-        try {
-            return waitForWorkflowExecutionResult(service, domain, workflowExecution, 0, TimeUnit.MILLISECONDS);
-        } catch (TimeoutException e) {
-            throw new Error("should never happen", e);
-        }
-    }
-
-    /**
-     * Waits up to specified timeout until workflow instance completes and
-     * returns its result. Useful for unit tests and during development.
-     * <strong>Never</strong> use in production setting as polling for worklow
-     * instance status is an expensive operation.
-     *
-     * @param workflowExecution result of
-     *                          {@link Iface#StartWorkflowExecution(StartWorkflowExecutionRequest)}
-     * @return workflow instance result.
-     * @throws InterruptedException if thread is destroyRequested
-     * @throws TimeoutException     if instance is not complete after specified timeout
-     * @throws RuntimeException     if workflow instance ended up in any state but completed
-     */
-    public static WorkflowExecutionCompletedEventAttributes waitForWorkflowExecutionResult(Iface service,
-                                                                                           String domain, WorkflowExecution workflowExecution, long timeout, TimeUnit unit)
-            throws InterruptedException, TimeoutException {
-        WorkflowExecutionCloseStatus closeStatus = waitForWorkflowInstanceCompletion(service, domain, workflowExecution, timeout, unit);
-        if (closeStatus == WorkflowExecutionCloseStatus.COMPLETED) {
-            return getWorkflowExecutionResult(service, domain, workflowExecution, timeout, unit);
-        }
-        String historyDump = WorkflowExecutionUtils.prettyPrintHistory(service, domain, workflowExecution);
-        throw new RuntimeException("Workflow instance is not in completed state:\n" + historyDump);
-    }
-
-    /**
-     * Returns result of workflow instance execution. result of
-     * {@link Iface#StartWorkflowExecution(StartWorkflowExecutionRequest)}
-     *
-     * @throws IllegalStateException if workflow is still running
-     * @throws RuntimeException      if workflow instance ended up in any state but completed
-     */
-    public static WorkflowExecutionCompletedEventAttributes getWorkflowExecutionResult(Iface service,
-                                                                                       String domain, WorkflowExecution workflowExecution, long timeout, TimeUnit unit) throws TimeoutException {
+    public static byte[] getWorkflowExecutionResult(Iface service, String domain, WorkflowExecution workflowExecution, String workflowType, long timeout, TimeUnit unit)
+            throws TimeoutException, CancellationException, WorkflowExecutionFailedException, WorkflowTerminatedException, WorkflowTimedOutException {
+        // getIntanceCloseEvent waits for workflow completion including new runs.
         HistoryEvent closeEvent = getInstanceCloseEvent(service, domain, workflowExecution, timeout, unit);
         if (closeEvent == null) {
             throw new IllegalStateException("Workflow is still running");
         }
-        if (closeEvent.getEventType() == EventType.WorkflowExecutionCompleted) {
-            return closeEvent.getWorkflowExecutionCompletedEventAttributes();
+        switch (closeEvent.getEventType()) {
+            case WorkflowExecutionCompleted:
+                return closeEvent.getWorkflowExecutionCompletedEventAttributes().getResult();
+            case WorkflowExecutionCanceled:
+                byte[] details = closeEvent.getWorkflowExecutionCanceledEventAttributes().getDetails();
+                String message = details != null ? new String(details, StandardCharsets.UTF_8) : null;
+                throw new CancellationException(message);
+            case WorkflowExecutionFailed:
+                WorkflowExecutionFailedEventAttributes failed = closeEvent.getWorkflowExecutionFailedEventAttributes();
+                throw new WorkflowExecutionFailedException(failed.getReason(), failed.getDetails(), failed.getDecisionTaskCompletedEventId());
+            case WorkflowExecutionTerminated:
+                WorkflowExecutionTerminatedEventAttributes terminated = closeEvent.getWorkflowExecutionTerminatedEventAttributes();
+                throw new WorkflowTerminatedException(workflowExecution, workflowType, terminated.getReason(), terminated.getIdentity(), terminated.getDetails());
+            case WorkflowExecutionTimedOut:
+                WorkflowExecutionTimedOutEventAttributes timedOut = closeEvent.getWorkflowExecutionTimedOutEventAttributes();
+                throw new WorkflowTimedOutException(workflowExecution, workflowType, timedOut.getTimeoutType());
+            default:
+                throw new RuntimeException("Workflow end state is not completed: " + prettyPrintHistoryEvent(closeEvent));
         }
-        if (closeEvent.getEventType() == EventType.WorkflowExecutionCanceled) {
-            throw new CancellationException();
-        }
-        // TODO: Appropriate exception
-        throw new RuntimeException("Workflow end state is not completed: " + prettyPrintHistoryEvent(closeEvent));
     }
 
     /**
@@ -579,12 +546,12 @@ public class WorkflowExecutionUtils {
             try {
                 value = method.invoke(object, (Object[]) null);
                 if (value != null && value.getClass().equals(String.class) && name.equals("getDetails")) {
-                    value = printDetails((String) value);
+                    value = truncateDetails((String) value);
                 }
             } catch (InvocationTargetException e) {
                 throw new RuntimeException(e.getTargetException());
             } catch (RuntimeException e) {
-                throw (RuntimeException) e;
+                throw e;
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -621,34 +588,6 @@ public class WorkflowExecutionUtils {
             result.append("}");
         }
         return result.toString();
-    }
-
-    public static String printDetails(String details) {
-        Throwable failure = null;
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-            mapper.enableDefaultTyping(DefaultTyping.NON_FINAL);
-
-            failure = mapper.readValue(details, Throwable.class);
-        } catch (Exception e) {
-            // eat up any data converter exceptions
-        }
-
-        if (failure != null) {
-            StringBuilder builder = new StringBuilder();
-
-            // Also print callstack
-            StringWriter sw = new StringWriter();
-            PrintWriter pw = new PrintWriter(sw);
-            failure.printStackTrace(pw);
-
-            builder.append(sw.toString());
-
-            details = builder.toString();
-        }
-
-        return details;
     }
 
     /**

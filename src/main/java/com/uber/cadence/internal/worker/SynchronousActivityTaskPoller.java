@@ -24,6 +24,7 @@ import com.uber.cadence.RespondActivityTaskCanceledRequest;
 import com.uber.cadence.RespondActivityTaskCompletedRequest;
 import com.uber.cadence.RespondActivityTaskFailedRequest;
 import com.uber.cadence.TaskList;
+import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.generic.ActivityImplementation;
@@ -189,10 +190,11 @@ public class SynchronousActivityTaskPoller implements TaskPoller {
     protected void execute(final PollForActivityTaskResponse task) throws Exception {
         byte[] output = null;
         ActivityType activityType = task.getActivityType();
+        WorkflowExecution workflowExecution = task.getWorkflowExecution();
         try {
             ActivityImplementation activityImplementation = activityImplementationFactory.getActivityImplementation(activityType);
             if (activityImplementation == null) {
-                throw new ActivityFailureException("Unknown activity type: " + activityType);
+                throw new IllegalArgumentException("Unknown activity type: " + activityType);
             }
             output = activityImplementation.execute(service, domain, task);
             if (!activityImplementation.getExecutionOptions().isDoNotCompleteOnReturn()) {
@@ -203,19 +205,23 @@ public class SynchronousActivityTaskPoller implements TaskPoller {
             respondActivityTaskCanceledWithRetry(task.getTaskToken(), null);
             return;
         }
-        catch (ActivityFailureException e) {
+        catch (ActivityExecutionException e) {
             if (log.isErrorEnabled()) {
-                log.error("Failure processing activity task with taskId=" + ", workflowGenerationId="
-                        + task.getWorkflowExecution().getWorkflowId() + ", activity=" + activityType
-                        + ", activityInstanceId=" + task.getActivityId(), e);
+                log.error("Failure processing activity task with WorkflowId="
+                        + workflowExecution.getWorkflowId()
+                        + ", RunID=" + workflowExecution.getRunId()
+                        + ", activity=" + activityType
+                        + ", activityId=" + task.getActivityId(), e);
             }
             respondActivityTaskFailedWithRetry(task.getTaskToken(), e.getReason(), e.getDetails());
         }
         catch (Exception e) {
             if (log.isErrorEnabled()) {
-                log.error("Failure processing activity task with taskId=" + ", workflowGenerationId="
-                        + task.getWorkflowExecution().getWorkflowId() + ", activity=" + activityType
-                        + ", activityInstanceId=" + task.getActivityId(), e);
+                log.error("Failure processing activity task with WorkflowId="
+                        + workflowExecution.getWorkflowId()
+                        + ", RunID=" + workflowExecution.getRunId()
+                        + ", activity=" + activityType
+                        + ", activityId=" + task.getActivityId(), e);
             }
             String reason = e.getMessage();
             StringWriter sw = new StringWriter();

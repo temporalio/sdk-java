@@ -20,13 +20,19 @@ import com.uber.cadence.ActivityType;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.converter.DataConverter;
+import com.uber.cadence.internal.ActivityException;
 import com.uber.cadence.internal.AsyncDecisionContext;
+import com.uber.cadence.internal.ChildWorkflowTaskFailedException;
 import com.uber.cadence.internal.generic.ExecuteActivityParameters;
 import com.uber.cadence.internal.generic.GenericAsyncActivityClient;
 import com.uber.cadence.internal.generic.GenericAsyncWorkflowClient;
+import com.uber.cadence.internal.worker.ActivityTaskTimeoutException;
 import com.uber.cadence.internal.worker.POJOQueryImplementationFactory;
+import com.uber.cadence.workflow.ActivityFailureException;
 import com.uber.cadence.workflow.ActivityOptions;
+import com.uber.cadence.workflow.ActivityTimeoutException;
 import com.uber.cadence.workflow.CancellationScope;
+import com.uber.cadence.workflow.ChildWorkflowFailureException;
 import com.uber.cadence.workflow.ChildWorkflowOptions;
 import com.uber.cadence.workflow.CompletablePromise;
 import com.uber.cadence.workflow.ContinueAsNewWorkflowExecutionParameters;
@@ -62,9 +68,41 @@ class SyncDecisionContext {
         byte[] input = converter.toData(args);
         Promise<byte[]> binaryResult = executeActivity(name, options, input);
         if (returnType == Void.TYPE) {
-            return binaryResult.thenApply(r -> null);
+            return binaryResult.thenApply((r) -> null);
         }
-        return binaryResult.thenApply(r -> converter.fromData(r, returnType));
+        return binaryResult.thenApply((r) -> converter.fromData(r, returnType));
+    }
+
+    private RuntimeException mapActivityException(RuntimeException failure) {
+        if (failure == null) {
+            return null;
+        }
+        if (failure instanceof CancellationException) {
+            return failure;
+        }
+        if (failure instanceof ActivityTaskFailedException) {
+            ActivityTaskFailedException taskFailed = (ActivityTaskFailedException) failure;
+            String causeClassName = taskFailed.getReason();
+            Class<? extends Throwable> causeClass;
+            Throwable cause;
+            try {
+                causeClass = (Class<? extends Throwable>) Class.forName(causeClassName);
+                cause = getDataConverter().fromData(taskFailed.getDetails(), causeClass);
+            } catch (Exception e) {
+                cause = e;
+            }
+            return new ActivityFailureException(taskFailed.getEventId(),
+                    taskFailed.getActivityType(), taskFailed.getActivityId(), cause);
+        }
+        if (failure instanceof ActivityTaskTimeoutException) {
+            ActivityTaskTimeoutException timedOut = (ActivityTaskTimeoutException) failure;
+            return new ActivityTimeoutException(timedOut.getEventId(), timedOut.getActivityType(),
+                    timedOut.getActivityId(), timedOut.getTimeoutType(), timedOut.getDetails(), getDataConverter());
+        }
+        if (failure instanceof ActivityException) {
+            return failure;
+        }
+        throw new IllegalArgumentException("Unexpected exception type: " + failure.getClass().getName(), failure);
     }
 
     private Promise<byte[]> executeActivity(String name, ActivityOptions options, byte[] input) {
@@ -82,7 +120,7 @@ class SyncDecisionContext {
                 (output, failure) -> {
                     if (failure != null) {
                         // TODO: Make sure that only Exceptions are passed into the callback.
-                        result.completeExceptionally(failure);
+                        result.completeExceptionally(mapActivityException(failure));
                     } else {
                         result.complete(output);
                     }
@@ -95,13 +133,37 @@ class SyncDecisionContext {
         return result;
     }
 
-    // TODO: Child workflow cancellation
+
+    private RuntimeException mapChildWorkflowException(RuntimeException failure) {
+        if (failure == null) {
+            return null;
+        }
+        if (failure instanceof CancellationException) {
+            return failure;
+        }
+
+        if (!(failure instanceof ChildWorkflowTaskFailedException)) {
+            throw new IllegalArgumentException("Unexpected exception type: ", failure);
+        }
+        ChildWorkflowTaskFailedException taskFailed = (ChildWorkflowTaskFailedException) failure;
+        String causeClassName = taskFailed.getReason();
+        Class<? extends Throwable> causeClass;
+        Throwable cause;
+        try {
+            causeClass = (Class<? extends Throwable>) Class.forName(causeClassName);
+            cause = getDataConverter().fromData(taskFailed.getDetails(), causeClass);
+        } catch (Exception e) {
+            cause = e;
+        }
+        return new ChildWorkflowFailureException(taskFailed.getEventId(), taskFailed.getWorkflowExecution(), taskFailed.getWorkflowType(), cause);
+    }
 
     /**
      * @param executionResult promise that is set bu this method when child workflow is started.
      */
     public Promise<byte[]> executeChildWorkflow(
-            String name, ChildWorkflowOptions options, byte[] input, CompletablePromise<WorkflowExecution> executionResult) {
+            String name, ChildWorkflowOptions options, byte[] input, CompletablePromise<
+            WorkflowExecution> executionResult) {
         StartChildWorkflowExecutionParameters parameters = new StartChildWorkflowExecutionParameters.Builder()
                 .setWorkflowType(new WorkflowType().setName(name))
                 .setWorkflowId(options.getWorkflowId())
@@ -118,7 +180,7 @@ class SyncDecisionContext {
                 executionResult::complete,
                 (output, failure) -> {
                     if (failure != null) {
-                        result.completeExceptionally(failure);
+                        result.completeExceptionally(mapChildWorkflowException(failure));
                     } else {
                         result.complete(output);
                     }

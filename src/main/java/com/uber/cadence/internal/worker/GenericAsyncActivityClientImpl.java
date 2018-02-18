@@ -26,8 +26,7 @@ import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.ScheduleActivityTaskDecisionAttributes;
 import com.uber.cadence.TaskList;
 import com.uber.cadence.TimeoutType;
-import com.uber.cadence.internal.ActivityTaskFailedException;
-import com.uber.cadence.internal.ActivityTaskTimedOutException;
+import com.uber.cadence.internal.dispatcher.ActivityTaskFailedException;
 import com.uber.cadence.internal.generic.ExecuteActivityParameters;
 import com.uber.cadence.internal.generic.GenericAsyncActivityClient;
 
@@ -155,7 +154,7 @@ class GenericAsyncActivityClientImpl implements GenericAsyncActivityClient {
             if (scheduled != null) {
                 TimeoutType timeoutType = attributes.getTimeoutType();
                 byte[] details = attributes.getDetails();
-                ActivityTaskTimedOutException failure = new ActivityTaskTimedOutException(event.getEventId(),
+                ActivityTaskTimeoutException failure = new ActivityTaskTimeoutException(event.getEventId(),
                         scheduled.getUserContext(), activityId, timeoutType, details);
                 BiConsumer<byte[], RuntimeException> completionHandle = scheduled.getCompletionCallback();
                 completionHandle.accept(null, failure);

@@ -19,31 +19,26 @@ package com.uber.cadence.internal;
 import com.uber.cadence.ActivityType;
 
 /**
- * Exception used to communicate failure of remote activity.
+ * Exception used to communicate failure of a remote activity.
  */
 @SuppressWarnings("serial")
-public class ActivityTaskFailedException extends ActivityTaskException {
+public abstract class ActivityException extends WorkflowOperationException {
     
-    private byte[] details;
-    
-    public ActivityTaskFailedException(String message, Throwable cause) {
-        super(message, cause);
-    }
+    private final ActivityType activityType;
 
-    public ActivityTaskFailedException(String message) {
-        super(message);
-    }
-    
-    public ActivityTaskFailedException(long eventId, ActivityType activityType, String activityId, String reason, byte[] details) {
-        super(reason, eventId, activityType, activityId);
-        this.details = details;
-    }
-    
-    public byte[] getDetails() {
-        return details;
-    }
+    private final String activityId;
 
-    public void setDetails(byte[] details) {
-        this.details = details;
+    protected ActivityException(String message, long eventId, ActivityType activityType, String activityId) {
+        super("\"" + message + "\" while executing \"" + activityType.getName() + "\" activity with ID=\"" + activityId + "\" and EventID=" +  eventId, eventId);
+        this.activityType = activityType;
+        this.activityId = activityId;
+    }
+    
+    public ActivityType getActivityType() {
+        return activityType;
+    }
+    
+    public String getActivityId() {
+        return activityId;
     }
 }

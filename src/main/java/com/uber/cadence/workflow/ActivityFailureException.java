@@ -14,25 +14,20 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.internal;
+package com.uber.cadence.workflow;
 
+import com.uber.cadence.ActivityType;
+import com.uber.cadence.internal.ActivityException;
 
-import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.WorkflowType;
+/**
+ * Indicates that an activity implementation threw an unhandled exception.
+ * Contains the unhandled exception as a cause. Note that an unhandled exception stack trace
+ * might belong to a separate process or even program.
+ */
+public final class ActivityFailureException extends ActivityException {
 
-@SuppressWarnings("serial")
-public class ChildWorkflowTerminatedException extends ChildWorkflowException {
-    
-    public ChildWorkflowTerminatedException(String message) {
-        super(message);
+    public ActivityFailureException(long eventId, ActivityType activityType, String activityId, Throwable cause) {
+        super(cause.getMessage(), eventId, activityType, activityId);
+        initCause(cause);
     }
-
-    public ChildWorkflowTerminatedException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
-    public ChildWorkflowTerminatedException(long eventId, WorkflowExecution workflowExecution, WorkflowType workflowType) {
-        super("Terminate", eventId, workflowExecution, workflowType);
-    }
-
 }

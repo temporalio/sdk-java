@@ -17,39 +17,49 @@
 package com.uber.cadence.converter;
 
 
-import com.uber.cadence.converter.DataConverter;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 /**
- * @see DataConverter
- * 
  * @author fateev
+ * @see DataConverter
  */
 @SuppressWarnings("serial")
 public class DataConverterException extends RuntimeException {
 
-    private String key;
+    private Class<?>[] valueTypes;
 
-    public DataConverterException() {
-    }
+    private String content;
 
-    public DataConverterException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
-    public DataConverterException(String message) {
-        super(message);
-    }
-
-    public DataConverterException(Throwable cause) {
+    public DataConverterException(byte[] content, Class<?>[] valueTypes, Throwable cause) {
         super(cause);
+        this.valueTypes = valueTypes;
+        setContent(content);
     }
 
-    public void setKey(String key) {
-        this.key = key;
+    public DataConverterException(byte[] content, Throwable cause) {
+        super(cause);
+        setContent(content);
+    }
+
+    public DataConverterException(Exception e) {
+        super(e);
+    }
+
+    private void setContent(byte[] content) {
+        if (content != null) {
+            // Limit size of the string.
+            int maxIndex = Math.min(content.length, 255);
+            this.content = new String(content, 0, maxIndex, StandardCharsets.UTF_8);
+        }
     }
 
     @Override
     public String getMessage() {
-        return super.getMessage() + " when mapping key \"" + key + "\"";
+        if (content == null && valueTypes == null) {
+            return super.getMessage();
+        }
+        return super.getMessage() + " when parsing:\"" + content + "\" into following types: "
+                + Arrays.toString(valueTypes);
     }
 }

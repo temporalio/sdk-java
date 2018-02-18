@@ -76,7 +76,7 @@ public class POJOQueryImplementationFactory {
 
         @Override
         public byte[] apply(byte[] input) {
-            Object[] args = dataConverter.fromData(input, Object[].class);
+            Object[] args = dataConverter.fromDataArray(input, method.getParameterTypes());
             try {
                 Object result = method.invoke(activity, args);
                 if (method.getReturnType() == Void.TYPE) {

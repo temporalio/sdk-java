@@ -14,48 +14,51 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.internal;
+package com.uber.cadence.internal.dispatcher;
 
 import com.uber.cadence.ActivityType;
 
 /**
+ * Internal. Do not catch or throw in application level code.
  * Exception used to communicate failure of remote activity.
+ * TODO: Make package level visibility.
  */
 @SuppressWarnings("serial")
-public abstract class ActivityTaskException extends DecisionException {
-    
-    private ActivityType activityType;
+public class ActivityTaskFailedException extends RuntimeException {
 
-    private String activityId;
-    
-    public ActivityTaskException(String message) {
-        super(message);
-    }
-    
-    public ActivityTaskException(String message, Throwable cause) {
-        super(message, cause);
-    }
-    
-    public ActivityTaskException(String message, long eventId, ActivityType activityType, String activityId) {
-        super(message + " for activityId=\"" + activityId + "\" of activityType=" + activityType, eventId);
+    private final long eventId;
+    private final ActivityType activityType;
+    private final String activityId;
+    private final byte[] details;
+    private final String reason;
+
+    public ActivityTaskFailedException(long eventId, ActivityType activityType,
+                                       String activityId, String reason, byte[] details) {
+        super(reason);
+        this.eventId = eventId;
         this.activityType = activityType;
         this.activityId = activityId;
+        this.reason = reason;
+        this.details = details;
     }
-    
+
+    public long getEventId() {
+        return eventId;
+    }
+
     public ActivityType getActivityType() {
         return activityType;
     }
-    
-    public void setActivityType(ActivityType activityType) {
-        this.activityType = activityType;
-    }
-    
+
     public String getActivityId() {
         return activityId;
     }
-    
-    public void setActivityId(String activityId) {
-        this.activityId = activityId;
+
+    public byte[] getDetails() {
+        return details;
     }
-    
+
+    public String getReason() {
+        return reason;
+    }
 }

@@ -17,34 +17,19 @@
 package com.uber.cadence.internal;
 
 /**
- * Exception used to communicate failure during fulfillment of a decision sent
- * to SWF. This exception and all its subclasses are expected to be thrown by
- * the framework. The only reason its constructor is public is so allow unit
- * tests that throw it.
+ * Base exception used to communicate a failure that can be thrown by operations requested by a workflow code.
  */
 @SuppressWarnings("serial")
-public abstract class DecisionException extends RuntimeException {
+public abstract class WorkflowOperationException extends RuntimeException {
 
     private long eventId;
-    
-    public DecisionException(String message) {
-        super(message);
-    }
 
-    public DecisionException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
-    public DecisionException(String message, long eventId) {
+    protected WorkflowOperationException(String message, long eventId) {
         super(message);
         this.eventId = eventId;
     }
 
     public long getEventId() {
         return eventId;
-    }
-    
-    public void setEventId(long eventId) {
-        this.eventId = eventId;
     }
 }

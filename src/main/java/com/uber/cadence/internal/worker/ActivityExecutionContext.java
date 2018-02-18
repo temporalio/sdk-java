@@ -16,24 +16,23 @@
  */
 package com.uber.cadence.internal.worker;
 
+import com.uber.cadence.WorkflowService.Iface;
 import com.uber.cadence.activity.ActivityTask;
 import com.uber.cadence.internal.generic.ActivityImplementation;
-import com.uber.cadence.WorkflowService.Iface;
 
 import java.util.concurrent.CancellationException;
 
 /**
  * Context object passed to an activity implementation.
- * 
- * @see ActivityImplementation
- * 
+ *
  * @author fateev
+ * @see ActivityImplementation
  */
 interface ActivityExecutionContext {
 
     /**
      * @return task token that is required to report task completion when
-     *         manual activity completion is used.
+     * manual activity completion is used.
      */
     byte[] getTaskToken();
 
@@ -49,23 +48,20 @@ interface ActivityExecutionContext {
 
     /**
      * Use to notify Simple Workflow that activity execution is alive.
-     * 
-     * @param args
-     *            In case of activity timeout details are returned as a field of
-     *            the exception thrown.
-     * @throws CancellationException
-     *             Indicates that activity cancellation was requested by the
-     *             workflow.Should be rethrown from activity implementation to
-     *             indicate successful cancellation.
+     *
+     * @param details In case of activity timeout details are returned as a field of
+     *                the exception thrown.
+     * @throws CancellationException Indicates that activity cancellation was requested by the
+     *                               workflow.Should be rethrown from activity implementation to
+     *                               indicate successful cancellation.
      */
-    void recordActivityHeartbeat(Object... args)
-            throws CancellationException;
+    void recordActivityHeartbeat(Object details) throws CancellationException;
 
     /**
      * @return an instance of the Simple Workflow Java client that is the same
-     *         used by the invoked activity worker.
+     * used by the invoked activity worker.
      */
     Iface getService();
-    
+
     String getDomain();
 }

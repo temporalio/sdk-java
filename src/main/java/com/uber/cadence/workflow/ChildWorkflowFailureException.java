@@ -14,24 +14,21 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.internal;
+package com.uber.cadence.workflow;
+
 
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
 
+/**
+ * Indicates that a child workflow failed. An original cause of the child workflow failure can be retrieved
+ * through {@link #getCause()}.
+ */
 @SuppressWarnings("serial")
-public class ChildWorkflowTimedOutException extends ChildWorkflowException {
-    
-    public ChildWorkflowTimedOutException(String message) {
-        super(message);
-    }
+public final class ChildWorkflowFailureException extends ChildWorkflowException {
 
-    public ChildWorkflowTimedOutException(String message, Throwable cause) {
-        super(message, cause);
+    public ChildWorkflowFailureException(long eventId, WorkflowExecution workflowExecution, WorkflowType workflowType, Throwable cause) {
+        super(cause.getMessage(), eventId, workflowExecution, workflowType);
+        initCause(cause);
     }
-
-    public ChildWorkflowTimedOutException(long eventId, WorkflowExecution workflowExecution, WorkflowType workflowType) {
-        super("Time Out", eventId, workflowExecution, workflowType);
-    }
-
 }

@@ -16,6 +16,7 @@
  */
 package com.uber.cadence.workflow;
 
+import com.uber.cadence.TimeoutType;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.activity.Activity;
 import com.uber.cadence.activity.DoNotCompleteOnReturn;
@@ -99,9 +100,9 @@ public class WorkflowTest {
     private static ActivityOptions newActivitySchedulingOptions1() {
         return new ActivityOptions.Builder()
                 .setTaskList(taskList)
-                .setHeartbeatTimeoutSeconds(10)
-                .setScheduleToCloseTimeoutSeconds(20)
-                .setScheduleToStartTimeoutSeconds(10)
+                .setHeartbeatTimeoutSeconds(5)
+                .setScheduleToCloseTimeoutSeconds(5)
+                .setScheduleToStartTimeoutSeconds(5)
                 .setStartToCloseTimeoutSeconds(10)
                 .build();
     }
@@ -167,7 +168,7 @@ public class WorkflowTest {
         public String execute() {
             AtomicReference<String> a1 = new AtomicReference<>();
             TestActivities activities = Workflow.newActivityStub(TestActivities.class, newActivitySchedulingOptions1());
-            WorkflowThread t = Workflow.newThread(() -> a1.set(activities.activityWithDelay(1000)));
+            WorkflowThread t = Workflow.newThread(() -> a1.set(activities.activityWithDelay(1000, true)));
             t.start();
             t.join(3000);
             WorkflowThread.sleep(1000);
@@ -181,6 +182,36 @@ public class WorkflowTest {
         TestWorkflow1 workflowStub = cadenceClient.newWorkflowStub(TestWorkflow1.class, newWorkflowOptionsBuilder().build());
         String result = workflowStub.execute();
         assertEquals("activity10", result);
+    }
+
+    public static class TestHeartbeatTimeoutDetails implements TestWorkflow1 {
+
+        @Override
+        public String execute() {
+            ActivityOptions options = new ActivityOptions.Builder()
+                    .setTaskList(taskList)
+                    .setHeartbeatTimeoutSeconds(1) // short heartbeat timeout;
+                    .setScheduleToCloseTimeoutSeconds(5)
+                    .build();
+
+            TestActivities activities = Workflow.newActivityStub(TestActivities.class, options);
+            try {
+                // false for second argument means to heartbeat once to set details and then stop.
+                activities.activityWithDelay(5000, false);
+            } catch (ActivityTimeoutException e) {
+                assertEquals(TimeoutType.HEARTBEAT, e.getTimeoutType());
+                return e.getDetails(String.class);
+            }
+            throw new RuntimeException("unreachable");
+        }
+    }
+
+    @Test
+    public void testHeartbeatTimeoutDetails() {
+        startWorkerFor(TestHeartbeatTimeoutDetails.class);
+        TestWorkflow1 workflowStub = cadenceClient.newWorkflowStub(TestWorkflow1.class, newWorkflowOptionsBuilder().build());
+        String result = workflowStub.execute();
+        assertEquals("heartbeatValue", result);
     }
 
     @Test
@@ -222,7 +253,7 @@ public class WorkflowTest {
         public String execute() {
             TestActivities testActivities = Workflow.newActivityStub(TestActivities.class, newActivitySchedulingOptions1());
             try {
-                testActivities.activityWithDelay(100000);
+                testActivities.activityWithDelay(100000, true);
             } catch (CancellationException e) {
                 Workflow.newDetachedCancellationScope(() -> assertEquals("a1", testActivities.activity1("a1")));
             }
@@ -397,6 +428,78 @@ public class WorkflowTest {
         String result = client.execute();
         assertEquals("testTimer", result);
     }
+
+    public interface TestExceptionPropagation {
+        @WorkflowMethod
+        void execute();
+    }
+
+    public static class ThrowingChild implements TestWorkflow1 {
+
+        @Override
+        public String execute() {
+            TestActivities testActivities = Workflow.newActivityStub(TestActivities.class, newActivitySchedulingOptions2());
+            try {
+                testActivities.throwNPE();
+                fail("unreachable");
+                return "ignored";
+            } catch (ActivityFailureException e) {
+                assertTrue(e.getMessage().contains("::throwNPE"));
+                assertNotNull(e.getCause() instanceof NullPointerException);
+                assertEquals("simulated NPE", e.getCause().getMessage());
+                throw e;
+            }
+        }
+    }
+
+    public static class TestExceptionPropagationImpl implements TestExceptionPropagation {
+        @Override
+        public void execute() {
+            ChildWorkflowOptions options = new ChildWorkflowOptions.Builder()
+                    .setExecutionStartToCloseTimeoutSeconds(5000).build();
+            TestWorkflow1 child = Workflow.newChildWorkflowStub(TestWorkflow1.class, options);
+            try {
+                child.execute();
+                fail("unreachable");
+            } catch (RuntimeException e) {
+                assertTrue(e.getMessage().contains("::throwNPE"));
+                assertNotNull(e.getCause() instanceof ActivityFailureException);
+                assertNotNull(e.getCause().getCause() instanceof NullPointerException);
+                assertEquals("simulated NPE", e.getCause().getCause().getMessage());
+                throw e;
+            }
+        }
+    }
+
+    /**
+     * Test that an NPE thrown in an activity executed from a child workflow results in the following chain
+     * of exceptions when an exception is received in an external client that executed workflow through a CadenceClient:
+     * <pre>
+     * {@link WorkflowFailureException}
+     *     ->{@link ChildWorkflowFailureException}
+     *         ->{@link ActivityFailureException}
+     *             ->{@link NullPointerException}
+     * </pre>
+     */
+    @Test
+    public void testExceptionPropagation() {
+        worker.addWorkflowImplementationType(ThrowingChild.class);
+        startWorkerFor(TestExceptionPropagationImpl.class);
+        TestExceptionPropagation client = cadenceClient.newWorkflowStub(TestExceptionPropagation.class,
+                newWorkflowOptionsBuilder().build());
+        try {
+            client.execute();
+            fail("Unreachable");
+        } catch (WorkflowFailureException e) {
+            e.printStackTrace();
+            assertTrue(e.getMessage().contains("::throwNPE"));
+            assertNotNull(e.getCause().getCause() instanceof ActivityFailureException);
+            assertNotNull(e.getCause() instanceof WorkflowFailureException);
+            assertNotNull(e.getCause().getCause().getCause() instanceof NullPointerException);
+            assertEquals("simulated NPE", e.getCause().getCause().getCause().getMessage());
+        }
+    }
+
 
     public interface QueryableWorkflow {
         @WorkflowMethod
@@ -629,9 +732,30 @@ public class WorkflowTest {
         worker.addActivitiesImplementation(new ActivitiesWithDoNotCompleteAnnotationImpl());
     }
 
+    public static class MyCheckedException extends Exception {
+        public MyCheckedException() {
+        }
+
+        public MyCheckedException(String message) {
+            super(message);
+        }
+
+        public MyCheckedException(String message, Throwable cause) {
+            super(message, cause);
+        }
+
+        public MyCheckedException(Throwable cause) {
+            super(cause);
+        }
+
+        public MyCheckedException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace) {
+            super(message, cause, enableSuppression, writableStackTrace);
+        }
+    }
+
     public interface TestActivities {
 
-        String activityWithDelay(long milliseconds);
+        String activityWithDelay(long milliseconds, boolean heartbeatMoreThanOnce);
 
         String activity();
 
@@ -660,6 +784,8 @@ public class WorkflowTest {
         void proc5(String a1, int a2, int a3, int a4, int a5);
 
         void proc6(String a1, int a2, int a3, int a4, int a5, int a6);
+
+        void throwNPE();
     }
 
     private static class TestActivitiesImpl implements TestActivities {
@@ -683,15 +809,19 @@ public class WorkflowTest {
 
         @Override
         @DoNotCompleteOnReturn
-        public String activityWithDelay(long delay) {
+        public String activityWithDelay(long delay, boolean heartbeatMoreThanOnce) {
             byte[] taskToken = Activity.getTaskToken();
             executor.execute(() -> {
                 invocations.add("activityWithDelay");
                 long start = System.currentTimeMillis();
                 try {
+                    int count = 0;
                     while (System.currentTimeMillis() - start < delay) {
+                        if (heartbeatMoreThanOnce || count == 0) {
+                            completionClient.heartbeat(taskToken, "heartbeatValue");
+                        }
+                        count++;
                         Thread.sleep(100);
-                        completionClient.heartbeat(taskToken, "value");
                     }
                     completionClient.complete(taskToken, "activity");
                 } catch (InterruptedException e) {
@@ -789,6 +919,11 @@ public class WorkflowTest {
         public void proc6(String a1, int a2, int a3, int a4, int a5, int a6) {
             invocations.add("proc6");
             procResult.add(a1 + a2 + a3 + a4 + a5 + a6);
+        }
+
+        @Override
+        public void throwNPE() {
+            throw new NullPointerException("simulated NPE");
         }
     }
 
