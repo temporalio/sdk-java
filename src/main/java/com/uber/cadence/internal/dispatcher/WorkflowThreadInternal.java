@@ -23,6 +23,7 @@ import org.apache.commons.logging.LogFactory;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.time.Duration;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -239,6 +240,11 @@ class WorkflowThreadInternal implements WorkflowThread, DeterministicRunnerCorou
     @Override
     public void join(long millis) {
         WorkflowThreadInternal.yield(millis, "WorkflowThread.join", this::isDone);
+    }
+
+    @Override
+    public void join(Duration duration) {
+        join(duration.toMillis());
     }
 
     public void setName(String name) {

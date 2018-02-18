@@ -20,7 +20,7 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.error.CheckedExceptionWrapper;
 import com.uber.cadence.internal.dispatcher.WorkflowInternal;
 
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 
 public final class Workflow {
 
@@ -45,9 +45,9 @@ public final class Workflow {
 
     /**
      * Creates client stub to a child workflow that implements given interface.
-     *W
+     *
      * @param workflowInterface interface type implemented by activities
-     * @param options options passed to the child workflow.
+     * @param options           options passed to the child workflow.
      */
     public static <T> T newChildWorkflowStub(Class<T> workflowInterface, ChildWorkflowOptions options) {
         return WorkflowInternal.newChildWorkflowStub(workflowInterface, options);
@@ -93,25 +93,14 @@ public final class Workflow {
     }
 
     /**
-     * Create new timer.
+     * Create new timer.  Note that Cadence service time resolution is in seconds.
+     * So all durations are rounded <b>up</b> to the nearest second.
      *
      * @return feature that becomes ready when at least specified number of seconds passes.
      * promise is failed with {@link java.util.concurrent.CancellationException} if enclosing scope is cancelled.
      */
-    public static Promise<Void> newTimer(long delaySeconds) {
-        return WorkflowInternal.newTimer(delaySeconds);
-    }
-
-    /**
-     * Create new timer. Note that time resolution is in seconds.
-     * So all partial values are rounded up to the nearest second.
-     *
-     * @return feature that becomes ready when at least specified number of seconds passes.
-     * promise is failed with {@link java.util.concurrent.CancellationException} if enclosing scope is cancelled.
-     */
-    public static Promise<Void> newTimer(long time, TimeUnit unit) {
-        long milliseconds = (long) Math.ceil(unit.toMillis(time) / 1000000f);
-        return WorkflowInternal.newTimer(TimeUnit.MILLISECONDS.toSeconds(milliseconds));
+    public static Promise<Void> newTimer(Duration delay) {
+        return  WorkflowInternal.newTimer(delay);
     }
 
     public static <E> WorkflowQueue<E> newQueue(int capacity) {

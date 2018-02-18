@@ -30,6 +30,7 @@ import com.uber.cadence.workflow.WorkflowQueue;
 import com.uber.cadence.workflow.WorkflowThread;
 
 import java.lang.reflect.Proxy;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Supplier;
@@ -50,8 +51,11 @@ public final class WorkflowInternal {
         return WorkflowThreadInternal.newThread(runnable, ignoreParentCancellation, name);
     }
 
-    public static Promise<Void> newTimer(long delaySeconds) {
-        return getDecisionContext().newTimer(delaySeconds);
+    public static Promise<Void> newTimer(Duration duration) {
+        long millis = duration.toMillis();
+        float toRound = millis / 1000f;
+        long seconds = (long) Math.ceil(toRound);
+        return getDecisionContext().newTimer(seconds);
     }
 
     public static <E> WorkflowQueue<E> newQueue(int capacity) {

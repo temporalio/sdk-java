@@ -240,7 +240,10 @@ class AsyncDecider {
             }
             long delayMilliseconds = nextWakeUpTime - workflowClock.currentTimeMillis();
             if (nextWakeUpTime > workflowClock.currentTimeMillis()) {
-                long delaySeconds = TimeUnit.MILLISECONDS.toSeconds(delayMilliseconds);
+                // Round up to the nearest second as we don't want to deliver a timer
+                // earlier than requested.
+                long roundedDelay = (long) Math.ceil(delayMilliseconds / 1000f);
+                long delaySeconds = TimeUnit.MILLISECONDS.toSeconds(roundedDelay);
                 if (delaySeconds == 0) {
                     delaySeconds = 1; //TODO: Deal with subsecond delays.
                 }

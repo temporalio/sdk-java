@@ -205,7 +205,7 @@ public class SynchronousActivityTaskPoller implements TaskPoller {
             respondActivityTaskCanceledWithRetry(task.getTaskToken(), null);
             return;
         }
-        catch (ActivityExecutionException e) {
+        catch (Throwable e) {
             if (log.isErrorEnabled()) {
                 log.error("Failure processing activity task with WorkflowId="
                         + workflowExecution.getWorkflowId()
@@ -213,21 +213,12 @@ public class SynchronousActivityTaskPoller implements TaskPoller {
                         + ", activity=" + activityType
                         + ", activityId=" + task.getActivityId(), e);
             }
-            respondActivityTaskFailedWithRetry(task.getTaskToken(), e.getReason(), e.getDetails());
-        }
-        catch (Exception e) {
-            if (log.isErrorEnabled()) {
-                log.error("Failure processing activity task with WorkflowId="
-                        + workflowExecution.getWorkflowId()
-                        + ", RunID=" + workflowExecution.getRunId()
-                        + ", activity=" + activityType
-                        + ", activityId=" + task.getActivityId(), e);
+            if (!(e instanceof ActivityExecutionException)) {
+                e = activityImplementationFactory.serializeUnexpectedFailure(e);
             }
-            String reason = e.getMessage();
-            StringWriter sw = new StringWriter();
-            e.printStackTrace(new PrintWriter(sw));
-            byte[] details = sw.toString().getBytes(UTF8_CHARSET);
-            respondActivityTaskFailedWithRetry(task.getTaskToken(), reason, details);
+            ActivityExecutionException executionException = (ActivityExecutionException) e;
+            respondActivityTaskFailedWithRetry(task.getTaskToken(), executionException.getReason(),
+                    executionException.getDetails());
         }
     }
 

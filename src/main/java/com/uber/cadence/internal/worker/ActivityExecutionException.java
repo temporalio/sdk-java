@@ -31,7 +31,7 @@ import com.uber.cadence.internal.generic.ActivityImplementation;
  * @author fateev
  */
 @SuppressWarnings("serial")
-class ActivityExecutionException extends RuntimeException {
+public class ActivityExecutionException extends RuntimeException {
 
     private byte[] details;
 

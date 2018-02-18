@@ -16,13 +16,13 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import com.uber.cadence.internal.WorkflowOperationException;
 import com.uber.cadence.workflow.CompletablePromise;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.Workflow;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -80,7 +80,7 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
         }
         if (failure != null) {
             unregisterWithRunner();
-            throw failure;
+            throwFailure();
         }
         return value;
     }
@@ -107,9 +107,17 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
         }
         if (failure != null) {
             unregisterWithRunner();
-            throw failure;
+            return throwFailure();
         }
         return value;
+    }
+
+    private V throwFailure() {
+        // Replace confusing async stack with the current one.
+        if (failure instanceof WorkflowOperationException) {
+            failure.setStackTrace(Thread.currentThread().getStackTrace());
+        }
+        throw failure;
     }
 
     @Override

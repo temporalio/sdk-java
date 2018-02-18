@@ -22,6 +22,7 @@ import com.uber.cadence.internal.dispatcher.SyncWorkflowWorker;
 import com.uber.cadence.internal.worker.ActivityWorker;
 import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
 
+import java.time.Duration;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -123,36 +124,49 @@ public final class Worker {
         }
     }
 
-    public void addWorkflowImplementationType(Class<?> workflowImplementationClass) {
+    /**
+     * Register workflow implementation classes with a worker.
+     * A workflow implementation class must implement at least one interface with a method annotated with
+     * {@link com.uber.cadence.workflow.WorkflowMethod}. That method becomes a workflow type
+     * that this worker supports.
+     * <p>
+     * Implementations that share a worker must implement different interfaces as a workflow type
+     * is identified by the workflow interface, not by the implementation.
+     * </p><p>
+     * The reason for registration accepting workflow class, but not the workflow instance is
+     * that workflows are stateful and a new instance is created for each workflow execution.
+     * </p>
+     *
+     * @param workflowImplementationClasses
+     */
+    public void registerWorkflowImplementationTypes(Class<?>... workflowImplementationClasses) {
         if (workflowWorker == null) {
             throw new IllegalStateException("disableWorkflowWorker is set in worker options");
         }
         checkStarted();
-        workflowWorker.addWorkflowImplementationType(workflowImplementationClass);
-    }
-
-    public void setWorkflowImplementationTypes(Class<?>... workflowImplementationType) {
-        if (workflowWorker == null) {
-            throw new IllegalStateException("disableWorkflowWorker is set in worker options");
+        for (Class<?> type : workflowImplementationClasses) {
+            workflowWorker.addWorkflowImplementationType(type);
         }
-        checkStarted();
-        workflowWorker.setWorkflowImplementationTypes(workflowImplementationType);
     }
 
-    public void addActivitiesImplementation(Object activityImplementation) {
+    /**
+     * Register activity implementation objects with a worker.
+     * As activities are reentrant and stateless only one instance per activity type
+     * is registered.
+     * <p>
+     * Implementations that share a worker must implement different interfaces as an activity type
+     * is identified by the activity interface, not by the implementation.
+     * <p>
+     * </p>
+     */
+    public void registerActivitiesImplementations(Object... activityImplementations) {
         if (activityWorker == null) {
             throw new IllegalStateException("disableActivityWorker is set in worker options");
         }
         checkStarted();
-        activityWorker.addActivityImplementation(activityImplementation);
-    }
-
-    public void setActivitiesImplementation(Object... activitiesImplementation) {
-        if (activityWorker == null) {
-            throw new IllegalStateException("disableActivityWorker is set in worker options");
+        for (Object implementation : activityImplementations) {
+            activityWorker.addActivityImplementation(implementation);
         }
-        checkStarted();
-        activityWorker.setActivitiesImplementation(activitiesImplementation);
     }
 
     private void checkStarted() {
@@ -173,14 +187,17 @@ public final class Worker {
         }
     }
 
-    public void shutdown(long timeout, TimeUnit unit) {
+    /**
+     * Shutdown a worker, waiting for activities to complete execution up to the specified timeout.
+     */
+    public void shutdown(Duration timeout) {
         try {
             long time = System.currentTimeMillis();
             if (activityWorker != null) {
-                activityWorker.shutdownAndAwaitTermination(timeout, unit);
+                activityWorker.shutdownAndAwaitTermination(timeout.toMillis(), TimeUnit.MILLISECONDS);
             }
             if (workflowWorker != null) {
-                long left = unit.toMillis(timeout) - (System.currentTimeMillis() - time);
+                long left = timeout.toMillis() - (System.currentTimeMillis() - time);
                 workflowWorker.shutdownAndAwaitTermination(left, TimeUnit.MILLISECONDS);
             }
         } catch (InterruptedException e) {
@@ -202,6 +219,7 @@ public final class Worker {
      * To work the workflow implementation type must be registered with this worker.
      * In most cases using {@link com.uber.cadence.client.CadenceClient} to query workflows is preferable,
      * as it doesn't require workflow implementation code to be available.
+     * There is no need to call {@link #start()} to be able to call this method.
      *
      * @param execution  workflow execution to replay and then query locally
      * @param queryType  query type to execute

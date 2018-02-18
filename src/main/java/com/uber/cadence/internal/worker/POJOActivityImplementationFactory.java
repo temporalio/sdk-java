@@ -20,6 +20,7 @@ import com.google.common.reflect.TypeToken;
 import com.uber.cadence.ActivityType;
 import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.WorkflowService;
+import com.uber.cadence.activity.ActivityMethod;
 import com.uber.cadence.activity.DoNotCompleteOnReturn;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.common.FlowHelpers;
@@ -60,7 +61,17 @@ class POJOActivityImplementationFactory implements ActivityImplementationFactory
         for (TypeToken<?> i : interfaces) {
             for (Method method : i.getRawType().getMethods()) {
                 ActivityImplementation implementation = new POJOActivityImplementation(method, activity);
-                activities.put(FlowHelpers.getSimpleName(method), implementation);
+                ActivityMethod annotation = method.getAnnotation(ActivityMethod.class);
+                String activityType;
+                if (annotation != null && !annotation.name().isEmpty()) {
+                    activityType = annotation.name();
+                } else {
+                    activityType = FlowHelpers.getSimpleName(method);
+                }
+                if (activities.containsKey(activityType)) {
+                    throw new IllegalStateException(activityType + " activity type is already registered with the worker");
+                }
+                activities.put(activityType, implementation);
             }
         }
     }
@@ -80,6 +91,11 @@ class POJOActivityImplementationFactory implements ActivityImplementationFactory
     @Override
     public boolean isAnyTypeSupported() {
         return !activities.isEmpty();
+    }
+
+    @Override
+    public ActivityExecutionException serializeUnexpectedFailure(Throwable e) {
+        return mapToActivityFailure(e);
     }
 
     public void setActivitiesImplementation(Object[] activitiesImplementation) {

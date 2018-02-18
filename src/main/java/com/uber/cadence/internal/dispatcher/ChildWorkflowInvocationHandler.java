@@ -68,7 +68,7 @@ class ChildWorkflowInvocationHandler extends AsyncInvocationHandler {
                 throw new IllegalStateException("Already started: " + execution);
             }
             startRequested = true;
-            return executeChildWorkflow(method, args);
+            return executeChildWorkflow(method, workflowMethod, args);
         }
         if (queryMethod != null) {
             if (execution == null) {
@@ -92,8 +92,11 @@ class ChildWorkflowInvocationHandler extends AsyncInvocationHandler {
                 "Use activity that perform the query instead.");
     }
 
-    private Object executeChildWorkflow(Method method, Object[] args) {
-        String workflowName = FlowHelpers.getSimpleName(method);
+    private Object executeChildWorkflow(Method method, WorkflowMethod workflowMethod, Object[] args) {
+        String workflowName = workflowMethod.name();
+        if (workflowName.isEmpty()) {
+            workflowName = FlowHelpers.getSimpleName(method);
+        }
         byte[] input = dataConverter.toData(args);
         Promise<byte[]> encodedResult = decisionContext.executeChildWorkflow(
                 workflowName, options, input, execution);

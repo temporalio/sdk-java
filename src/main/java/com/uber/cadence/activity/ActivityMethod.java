@@ -14,22 +14,23 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.internal.generic;
+package com.uber.cadence.activity;
 
-import com.uber.cadence.ActivityType;
-import com.uber.cadence.internal.worker.ActivityExecutionException;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-public interface ActivityImplementationFactory {
-
-    ActivityImplementation getActivityImplementation(ActivityType activityType);
-
+/**
+ * Indicates that the method is an activity method.
+ * This annotation applies only to activity interface methods.
+ * Not required. Use it to override default activity type name.
+ */
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+public @interface ActivityMethod {
     /**
-     * @return true if there is at least one activity type that factory can create implementation of.
+     * Name of the workflow type. Default is {short class name}::{method name}
      */
-    boolean isAnyTypeSupported();
-
-    /**
-     * Used by a low level worker code that is not aware about DataConverter to serialize unexpected exceptions.
-     */
-    ActivityExecutionException serializeUnexpectedFailure(Throwable e);
+    String name() default "";
 }

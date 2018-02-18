@@ -18,8 +18,7 @@ package com.uber.cadence.workflow;
 
 import com.uber.cadence.internal.dispatcher.WorkflowInternal;
 
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 
 public interface WorkflowThread extends CancellationScope {
 
@@ -28,6 +27,8 @@ public interface WorkflowThread extends CancellationScope {
     void join();
 
     void join(long millis);
+
+    void join(Duration duration);
 
     void setName(String name);
 
@@ -39,11 +40,8 @@ public interface WorkflowThread extends CancellationScope {
         return WorkflowInternal.currentThread();
     }
 
-    static void sleep(long time, TimeUnit unit) {
-        WorkflowInternal.yield(unit.toMillis(time), "sleep", () -> {
-            CancellationScope.throwCancelled();
-            return false;
-        });
+    static void sleep(Duration duration) {
+        sleep(duration.toMillis());
     }
 
     static void sleep(long millis) {
