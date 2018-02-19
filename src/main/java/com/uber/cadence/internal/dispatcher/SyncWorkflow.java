@@ -24,6 +24,8 @@ import com.uber.cadence.client.CadenceClient;
 import com.uber.cadence.internal.AsyncDecisionContext;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.worker.AsyncWorkflow;
+import com.uber.cadence.internal.worker.POJOWorkflowImplementationFactory;
+import com.uber.cadence.internal.worker.WorkflowExecutionException;
 
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
@@ -37,14 +39,14 @@ import java.util.function.Function;
 class SyncWorkflow implements AsyncWorkflow {
 
     private final Function<WorkflowType, SyncWorkflowDefinition> factory;
-    private final DataConverter converter;
+    private final DataConverter dataConverter;
     private final ExecutorService threadPool;
     private WorkflowRunnable workflowProc;
     private DeterministicRunner runner;
 
-    public SyncWorkflow(Function<WorkflowType, SyncWorkflowDefinition> factory, DataConverter converter, ExecutorService threadPool) {
+    public SyncWorkflow(Function<WorkflowType, SyncWorkflowDefinition> factory, DataConverter dataConverter, ExecutorService threadPool) {
         this.factory = factory;
-        this.converter = converter;
+        this.dataConverter = dataConverter;
         this.threadPool = threadPool;
     }
 
@@ -55,7 +57,7 @@ class SyncWorkflow implements AsyncWorkflow {
         if (workflow == null) {
             throw new IllegalArgumentException("Unknown workflow type: " + workflowType);
         }
-        SyncDecisionContext syncContext = new SyncDecisionContext(context, converter);
+        SyncDecisionContext syncContext = new SyncDecisionContext(context, dataConverter);
         if (event.getEventType() != EventType.WorkflowExecutionStarted) {
             throw new IllegalArgumentException("first event is not WorkflowExecutionStarted, but "
                     + event.getEventType());
@@ -67,9 +69,9 @@ class SyncWorkflow implements AsyncWorkflow {
     }
 
     @Override
-    public void processSignal(String signalName, byte[] input) {
+    public void handleSignal(String signalName, byte[] input, long eventId) {
         String threadName = "\"" + signalName + "\" signal handler";
-        runner.newBeforeThread(threadName, () -> workflowProc.processSignal(signalName, input));
+        runner.newBeforeThread(threadName, () -> workflowProc.processSignal(signalName, input, eventId));
     }
 
     @Override
@@ -116,8 +118,13 @@ class SyncWorkflow implements AsyncWorkflow {
     @Override
     public byte[] query(WorkflowQuery query) {
         if (CadenceClient.QUERY_TYPE_STACK_TRCE.equals(query.getQueryType())) {
-            return converter.toData(runner.stackTrace());
+            return dataConverter.toData(runner.stackTrace());
         }
         return workflowProc.query(query.getQueryType(), query.getQueryArgs());
+    }
+
+    @Override
+    public WorkflowExecutionException mapUnexpectedException(Throwable failure) {
+        return POJOWorkflowImplementationFactory.mapWorkflowFailure(failure, dataConverter);
     }
 }

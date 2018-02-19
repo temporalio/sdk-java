@@ -19,7 +19,7 @@ package com.uber.cadence.internal.dispatcher;
 import com.google.common.base.Defaults;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.converter.DataConverter;
-import com.uber.cadence.internal.common.FlowHelpers;
+import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.workflow.ChildWorkflowException;
 import com.uber.cadence.workflow.ChildWorkflowOptions;
 import com.uber.cadence.workflow.CompletablePromise;
@@ -95,7 +95,7 @@ class ChildWorkflowInvocationHandler extends AsyncInvocationHandler {
     private Object executeChildWorkflow(Method method, WorkflowMethod workflowMethod, Object[] args) {
         String workflowName = workflowMethod.name();
         if (workflowName.isEmpty()) {
-            workflowName = FlowHelpers.getSimpleName(method);
+            workflowName = InternalUtils.getSimpleName(method);
         }
         byte[] input = dataConverter.toData(args);
         Promise<byte[]> encodedResult = decisionContext.executeChildWorkflow(

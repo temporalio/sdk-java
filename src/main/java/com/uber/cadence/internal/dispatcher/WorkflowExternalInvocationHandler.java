@@ -21,7 +21,7 @@ import com.uber.cadence.WorkflowType;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.error.CheckedExceptionWrapper;
-import com.uber.cadence.internal.common.FlowHelpers;
+import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.generic.GenericWorkflowClientExternal;
 import com.uber.cadence.internal.generic.QueryWorkflowParameters;
@@ -124,7 +124,7 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
 
         String signalName = signalMethod.name();
         if (signalName.isEmpty()) {
-            signalName = FlowHelpers.getSimpleName(method);
+            signalName = InternalUtils.getSimpleName(method);
         }
         SignalExternalWorkflowParameters signalParameters = new SignalExternalWorkflowParameters();
         WorkflowExecution exe = execution.get();
@@ -142,7 +142,7 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
         }
         String queryType = queryMethod.name();
         if (queryType.isEmpty()) {
-            queryType = FlowHelpers.getSimpleName(method);
+            queryType = InternalUtils.getSimpleName(method);
         }
         QueryWorkflowParameters p = new QueryWorkflowParameters();
         p.setInput(dataConverter.toData(args));
@@ -156,7 +156,7 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
     private Object startWorkflow(Method method, WorkflowMethod workflowMethod, Object[] args) {
         String workflowName = workflowMethod.name();
         if (workflowName.isEmpty()) {
-            workflowType = FlowHelpers.getSimpleName(method);
+            workflowType = InternalUtils.getSimpleName(method);
         } else {
             workflowType = workflowName;
         }

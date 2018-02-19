@@ -57,8 +57,8 @@ public class SynchronousActivityTaskPoller implements TaskPoller {
 
     private boolean initialized;
 
-    public SynchronousActivityTaskPoller(WorkflowService.Iface service, String domain, String taskListToPoll,
-            ActivityImplementationFactory activityImplementationFactory) {
+    SynchronousActivityTaskPoller(WorkflowService.Iface service, String domain, String taskListToPoll,
+                                  ActivityImplementationFactory activityImplementationFactory) {
         this();
         this.service = service;
         this.domain = domain;
@@ -68,7 +68,7 @@ public class SynchronousActivityTaskPoller implements TaskPoller {
         setReportFailureRetryParameters(new ExponentialRetryParameters());
     }
 
-    public SynchronousActivityTaskPoller() {
+    private SynchronousActivityTaskPoller() {
         identity = ManagementFactory.getRuntimeMXBean().getName();
         int length = Math.min(identity.length(), GenericWorker.MAX_IDENTITY_LENGTH);
         identity = identity.substring(0, length);
@@ -118,7 +118,7 @@ public class SynchronousActivityTaskPoller implements TaskPoller {
         return reportCompletionRetrier.getRetryParameters();
     }
 
-    public void setReportCompletionRetryParameters(ExponentialRetryParameters reportCompletionRetryParameters) {
+    private void setReportCompletionRetryParameters(ExponentialRetryParameters reportCompletionRetryParameters) {
         this.reportCompletionRetrier = new SynchronousRetrier(reportCompletionRetryParameters, EntityNotExistsError.class);
     }
 
@@ -126,7 +126,7 @@ public class SynchronousActivityTaskPoller implements TaskPoller {
         return reportFailureRetrier.getRetryParameters();
     }
 
-    public void setReportFailureRetryParameters(ExponentialRetryParameters reportFailureRetryParameters) {
+    private void setReportFailureRetryParameters(ExponentialRetryParameters reportFailureRetryParameters) {
         this.reportFailureRetrier = new SynchronousRetrier(reportFailureRetryParameters, EntityNotExistsError.class);
     }
 
@@ -220,7 +220,7 @@ public class SynchronousActivityTaskPoller implements TaskPoller {
         }
     }
 
-    protected void respondActivityTaskFailedWithRetry(final byte[] taskToken, final String reason, final byte[] details)
+    private void respondActivityTaskFailedWithRetry(final byte[] taskToken, final String reason, final byte[] details)
         throws TException {
         if (reportFailureRetrier == null) {
             respondActivityTaskFailed(taskToken, reason, details);
@@ -230,16 +230,16 @@ public class SynchronousActivityTaskPoller implements TaskPoller {
         }
     }
 
-    protected void respondActivityTaskFailed(byte[] taskToken, String reason, byte[] details)
+    private void respondActivityTaskFailed(byte[] taskToken, String reason, byte[] details)
         throws TException {
         RespondActivityTaskFailedRequest failedResponse = new RespondActivityTaskFailedRequest();
         failedResponse.setTaskToken(taskToken);
-        failedResponse.setReason(WorkflowExecutionUtils.truncateReason(reason));
+        failedResponse.setReason(reason);
         failedResponse.setDetails(details);
         service.RespondActivityTaskFailed(failedResponse);
     }
 
-    protected void respondActivityTaskCanceledWithRetry(final byte[] taskToken, final byte[] details)
+    private void respondActivityTaskCanceledWithRetry(final byte[] taskToken, final byte[] details)
         throws TException {
         if (reportFailureRetrier == null) {
             respondActivityTaskCanceled(taskToken, details);
@@ -249,14 +249,14 @@ public class SynchronousActivityTaskPoller implements TaskPoller {
         }
     }
 
-    protected void respondActivityTaskCanceled(byte[] taskToken, byte[] details) throws TException {
+    private void respondActivityTaskCanceled(byte[] taskToken, byte[] details) throws TException {
         RespondActivityTaskCanceledRequest canceledResponse = new RespondActivityTaskCanceledRequest();
         canceledResponse.setTaskToken(taskToken);
         canceledResponse.setDetails(details);
         service.RespondActivityTaskCanceled(canceledResponse);
     }
 
-    protected void respondActivityTaskCompletedWithRetry(final byte[] taskToken, final byte[] output)
+    private void respondActivityTaskCompletedWithRetry(final byte[] taskToken, final byte[] output)
         throws TException {
         if (reportCompletionRetrier == null) {
             respondActivityTaskCompleted(taskToken, output);
@@ -266,14 +266,14 @@ public class SynchronousActivityTaskPoller implements TaskPoller {
         }
     }
 
-    protected void respondActivityTaskCompleted(byte[] taskToken, byte[] output) throws TException {
+    private void respondActivityTaskCompleted(byte[] taskToken, byte[] output) throws TException {
         RespondActivityTaskCompletedRequest completedReponse = new RespondActivityTaskCompletedRequest();
         completedReponse.setTaskToken(taskToken);
         completedReponse.setResult(output);
         service.RespondActivityTaskCompleted(completedReponse);
     }
 
-    protected void checkRequiredProperty(Object value, String name) {
+    private void checkRequiredProperty(Object value, String name) {
         if (value == null) {
             throw new IllegalStateException("required property " + name + " is not set");
         }

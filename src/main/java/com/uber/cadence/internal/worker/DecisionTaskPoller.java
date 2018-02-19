@@ -23,6 +23,7 @@ import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.PollForDecisionTaskRequest;
 import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.RespondDecisionTaskCompletedRequest;
+import com.uber.cadence.RespondDecisionTaskFailedRequest;
 import com.uber.cadence.RespondQueryTaskCompletedRequest;
 import com.uber.cadence.TaskList;
 import com.uber.cadence.WorkflowExecution;
@@ -174,6 +175,9 @@ public class DecisionTaskPoller implements TaskPoller {
             } else if (taskCompletedRequest instanceof RespondQueryTaskCompletedRequest) {
                 RespondQueryTaskCompletedRequest r = (RespondQueryTaskCompletedRequest) taskCompletedRequest;
                 service.RespondQueryTaskCompleted(r);
+            } else if (taskCompletedRequest instanceof RespondDecisionTaskFailedRequest) {
+                RespondDecisionTaskFailedRequest r = (RespondDecisionTaskFailedRequest) taskCompletedRequest;
+                service.RespondDecisionTaskFailed(r);
             }
         } catch (Error e) {
             log.debug("Failed history:\n" + WorkflowExecutionUtils.prettyPrintHistory(task.getHistory(), true));

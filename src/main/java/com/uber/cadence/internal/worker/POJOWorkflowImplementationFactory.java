@@ -19,7 +19,8 @@ package com.uber.cadence.internal.worker;
 import com.google.common.reflect.TypeToken;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.converter.DataConverter;
-import com.uber.cadence.internal.common.FlowHelpers;
+import com.uber.cadence.converter.DataConverterException;
+import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.dispatcher.SyncWorkflowDefinition;
 import com.uber.cadence.internal.dispatcher.WorkflowInternal;
 import com.uber.cadence.workflow.Functions;
@@ -88,7 +89,7 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
 
                     String workflowName = workflowMethod.name();
                     if (workflowName.isEmpty()) {
-                        workflowName = FlowHelpers.getSimpleName(method);
+                        workflowName = InternalUtils.getSimpleName(method);
                     }
                     if (factories.containsKey(workflowName)) {
                         throw new IllegalStateException(workflowName + " workflow type is already registered with the worker");
@@ -103,7 +104,7 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
                     }
                     String signalName = signalMethod.name();
                     if (signalName.isEmpty()) {
-                        signalName = FlowHelpers.getSimpleName(method);
+                        signalName = InternalUtils.getSimpleName(method);
                     }
                     signalHandlers.put(signalName, method);
                 }
@@ -163,57 +164,70 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
                 }
                 return dataConverter.toData(result);
             } catch (IllegalAccessException e) {
-                throw mapWorkflowFailure(e);
+                throw mapWorkflowFailure(e, dataConverter);
             } catch (InvocationTargetException e) {
                 Throwable targetException = e.getTargetException();
                 if (targetException instanceof Error) {
                     throw (Error) targetException;
                 }
+                // Cancellation should be delivered as it impacts which decision closes a workflow.
                 if (targetException instanceof CancellationException) {
                     throw (CancellationException) targetException;
                 }
-                throw mapWorkflowFailure(targetException);
+                throw mapWorkflowFailure(targetException, dataConverter);
             }
         }
 
-        private void newInstance() throws IllegalAccessException {
+        private void newInstance() {
             if (workflow == null) {
                 try {
                     workflow = workflowImplementationClass.newInstance();
-                } catch (InstantiationException e) {
-                    throw new RuntimeException(e);
+                } catch (InstantiationException | IllegalAccessException e) {
+                    // Error to fail decision as this can be fixed by a new deployment.
+                    throw new Error("Failure instantiating workflow implementation class "
+                            + workflowImplementationClass.getName(), e);
                 }
                 WorkflowInternal.registerQuery(workflow);
             }
         }
 
+        /**
+         * Signals that failed to deserialize are logged, but do not lead to workflow or decision failure.
+         * Otherwise a single bad signal from CLI would kill any workflow.
+         * Not that throwing Error leads to decision being aborted. Throwing any other exception leads to
+         * workflow failure.
+         * TODO: Unknown and corrupted signals handler in application code or server side DLQ.
+         */
         @Override
-        public void processSignal(String signalName, byte[] input) {
+        public void processSignal(String signalName, byte[] input, long eventId) {
             Method signalMethod = signalHandlers.get(signalName);
             if (signalMethod == null) {
-                log.warn("Unknown signal: " + signalName + ", knownSignals=" + signalHandlers.keySet());
-                throw new IllegalArgumentException("Unknown signal: " + signalName);
+                log.error("Unknown signal: " + signalName + " at eventID " + eventId
+                        + ", knownSignals=" + signalHandlers.keySet());
+                return;
             }
             Object[] args = dataConverter.fromDataArray(input, signalMethod.getParameterTypes());
             try {
                 newInstance();
                 signalMethod.invoke(workflow, args);
             } catch (IllegalAccessException e) {
-                throw new RuntimeException(e);
+                throw new Error("Failure processing \"" + signalName
+                        + "\" at eventID " + eventId, e);
             } catch (InvocationTargetException e) {
                 Throwable targetException = e.getTargetException();
-                if (targetException instanceof Error) {
-                    throw (Error) targetException;
+                if (targetException instanceof DataConverterException) {
+                    log.error("Failure deserializing signal input for \"" + signalName
+                            + "\" at eventID " + eventId + ". Dropping it.", targetException);
+                } else {
+                    throw new Error("Failure processing \"" + signalName
+                            + "\" at eventID " + eventId, targetException);
                 }
-                throw new RuntimeException(e.getTargetException());
             }
         }
 
-        private WorkflowException mapWorkflowFailure(Throwable e) {
-            if (e instanceof CancellationException) {
-                throw (CancellationException) e;
-            }
-            throw new WorkflowExecutionException(e.getClass().getName(), dataConverter.toData(e));
-        }
+    }
+
+    public static WorkflowExecutionException mapWorkflowFailure(Throwable e, DataConverter dataConverter) {
+        return new WorkflowExecutionException(e.getClass().getName(), dataConverter.toData(e));
     }
 }

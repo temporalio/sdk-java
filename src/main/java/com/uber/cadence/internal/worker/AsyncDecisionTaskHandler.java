@@ -20,13 +20,16 @@ import com.uber.cadence.Decision;
 import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.QueryTaskCompletedType;
 import com.uber.cadence.RespondDecisionTaskCompletedRequest;
+import com.uber.cadence.RespondDecisionTaskFailedRequest;
 import com.uber.cadence.RespondQueryTaskCompletedRequest;
+import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 public class AsyncDecisionTaskHandler extends DecisionTaskHandler {
@@ -66,14 +69,30 @@ public class AsyncDecisionTaskHandler extends DecisionTaskHandler {
             try {
                 decider.decide();
             } catch (Throwable e) {
-                throw new Error("Add support for fail decision", e);
+                if (log.isErrorEnabled()) {
+                    WorkflowExecution execution = decisionTask.getWorkflowExecution();
+                    log.error("Workflow task failure. startedEventId=" + decisionTask.getStartedEventId()
+                            + ", WorkflowID=" + execution.getWorkflowId()
+                            + ", RunID=" + execution.getRunId()
+                            + ". If see continuously the workflow might be stuck.", e);
+                }
+                RespondDecisionTaskFailedRequest failedRequest = new RespondDecisionTaskFailedRequest();
+                failedRequest.setTaskToken(decisionTask.getTaskToken());
+                StringWriter sw = new StringWriter();
+                PrintWriter pw = new PrintWriter(sw);
+                e.printStackTrace(pw);
+                String stackTrace = sw.toString();
+                failedRequest.setDetails(stackTrace.getBytes(StandardCharsets.UTF_8));
+                return failedRequest;
             }
             DecisionsHelper decisionsHelper = decider.getDecisionsHelper();
             List<Decision> decisions = decisionsHelper.getDecisions();
             byte[] context = decisionsHelper.getWorkflowContextDataToReturn();
             if (log.isDebugEnabled()) {
-                log.debug("WorkflowTask taskId=" + decisionTask.getStartedEventId()
-                        + ", taskToken=" + decisionTask.getTaskToken()
+                WorkflowExecution execution = decisionTask.getWorkflowExecution();
+                log.debug("WorkflowTask startedEventId=" + decisionTask.getStartedEventId()
+                        + ", WorkflowID=" + execution.getWorkflowId()
+                        + ", RunID=" + execution.getRunId()
                         + " completed with " + decisions.size() + " new decisions");
             }
             RespondDecisionTaskCompletedRequest completedRequest = new RespondDecisionTaskCompletedRequest();

@@ -79,7 +79,7 @@ class GenericAsyncActivityClientImpl implements GenericAsyncActivityClient {
         attributes.setScheduleToCloseTimeoutSeconds(parameters.getScheduleToCloseTimeoutSeconds());
         attributes.setScheduleToStartTimeoutSeconds(parameters.getScheduleToStartTimeoutSeconds());
         attributes.setStartToCloseTimeoutSeconds(parameters.getStartToCloseTimeoutSeconds());
-//        attributes.setTaskPriority(FlowHelpers.taskPriorityToString(parameters.getTaskPriority()));
+//        attributes.setTaskPriority(InternalUtils.taskPriorityToString(parameters.getTaskPriority()));
         String activityId = parameters.getActivityId();
         if (activityId == null) {
             activityId = String.valueOf(decisions.getNextId());

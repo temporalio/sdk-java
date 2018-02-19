@@ -21,16 +21,20 @@ import com.uber.cadence.WorkflowQuery;
 import com.uber.cadence.internal.AsyncDecisionContext;
 import com.uber.cadence.workflow.WorkflowThread;
 
+import java.util.concurrent.CancellationException;
+
 public interface AsyncWorkflow {
-    
+
     void start(HistoryEvent event, AsyncDecisionContext context) throws Exception;
 
-    void processSignal(String signalName, byte[] input);
+    /**
+     * Handle an external signal event.
+     */
+    void handleSignal(String signalName, byte[] input, long eventId);
 
     boolean eventLoop() throws Throwable;
 
     /**
-     *
      * @return null means no output yet
      */
     byte[] getOutput();
@@ -51,7 +55,18 @@ public interface AsyncWorkflow {
 
     /**
      * Called after all history is replayed and workflow cannot make any progress if decision task is a query.
+     *
      * @param query
      */
     byte[] query(WorkflowQuery query);
+
+    /**
+     * Convert exception that happened in the framework code to the format
+     * that AsyncWorkflow implementation understands. The framework code is not aware of DataConverter so this is
+     * working around this layering.
+     *
+     * @param failure Unexpected failure cause
+     * @return Serialized failure
+     */
+    WorkflowExecutionException mapUnexpectedException(Throwable failure);
 }

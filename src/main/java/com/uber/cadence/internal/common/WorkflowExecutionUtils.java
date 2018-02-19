@@ -462,9 +462,21 @@ public class WorkflowExecutionUtils {
     public static String prettyPrintHistoryEvent(HistoryEvent event) {
         String eventType = event.getEventType().toString();
         StringBuffer result = new StringBuffer();
+        result.append(event.getEventId());
+        result.append(": ");
         result.append(eventType);
-        result.append(prettyPrintObject(event, "getFieldValue", true, "    ", false, true));
+        result.append(" ");
+        result.append(prettyPrintObject(getEventAttributes(event), "getFieldValue", true, "    ", false, false));
         return result.toString();
+    }
+
+    private static Object getEventAttributes(HistoryEvent event) {
+        try {
+            Method m = HistoryEvent.class.getMethod("get" + event.getEventType() + "EventAttributes");
+            return m.invoke(event);
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            return event;
+        }
     }
 
     /**
@@ -545,9 +557,6 @@ public class WorkflowExecutionUtils {
             Object value;
             try {
                 value = method.invoke(object, (Object[]) null);
-                if (value != null && value.getClass().equals(String.class) && name.equals("getDetails")) {
-                    value = truncateDetails((String) value);
-                }
             } catch (InvocationTargetException e) {
                 throw new RuntimeException(e.getTargetException());
             } catch (RuntimeException e) {
@@ -588,26 +597,5 @@ public class WorkflowExecutionUtils {
             result.append("}");
         }
         return result.toString();
-    }
-
-    /**
-     * Simple Workflow limits length of the reason field. This method truncates
-     * the passed argument to the maximum length.
-     *
-     * @param reason string value to truncate
-     * @return truncated value
-     */
-    public static String truncateReason(String reason) {
-        if (reason != null && reason.length() > FlowValueConstraint.FAILURE_REASON.getMaxSize()) {
-            reason = reason.substring(0, FlowValueConstraint.FAILURE_REASON.getMaxSize());
-        }
-        return reason;
-    }
-
-    public static String truncateDetails(String details) {
-        if (details != null && details.length() > FlowValueConstraint.FAILURE_DETAILS.getMaxSize()) {
-            details = details.substring(0, FlowValueConstraint.FAILURE_DETAILS.getMaxSize());
-        }
-        return details;
     }
 }

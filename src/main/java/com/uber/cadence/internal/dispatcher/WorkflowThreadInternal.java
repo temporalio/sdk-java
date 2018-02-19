@@ -71,15 +71,15 @@ class WorkflowThreadInternal implements WorkflowThread, DeterministicRunnerCorou
                     context.setUnhandledException(e);
                 }
             } catch (Error e) {
-                // Error aborts decision, not fail a workflow.
-                if (log.isDebugEnabled()) {
+                // Error aborts decision, not fails the workflow.
+                if (log.isErrorEnabled() && !root) {
                     StringWriter sw = new StringWriter();
                     PrintWriter pw = new PrintWriter(sw, true);
                     e.printStackTrace(pw);
                     String stackTrace = sw.getBuffer().toString();
-                    log.debug(String.format("Workflow thread \"%s\" run failed with Error:\n%s", name, stackTrace));
+                    log.error(String.format("Workflow thread \"%s\" run failed with Error:\n%s", name, stackTrace));
                 }
-                throw e;
+                context.setUnhandledException(e);
             } catch (CancellationException e) {
                 log.debug(String.format("Workflow thread \"%s\" run cancelled", name));
             } catch (Throwable e) {

@@ -19,7 +19,7 @@ package com.uber.cadence.internal.dispatcher;
 import com.google.common.base.Defaults;
 import com.uber.cadence.activity.ActivityMethod;
 import com.uber.cadence.internal.ActivityException;
-import com.uber.cadence.internal.common.FlowHelpers;
+import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.workflow.ActivityOptions;
 import com.uber.cadence.workflow.Promise;
 
@@ -48,7 +48,7 @@ class ActivityInvocationHandler extends AsyncInvocationHandler {
         ActivityMethod activityMethod = method.getAnnotation(ActivityMethod.class);
         String activityName;
         if (activityMethod == null || activityMethod.name().isEmpty()) {
-            activityName = FlowHelpers.getSimpleName(method);
+            activityName = InternalUtils.getSimpleName(method);
         } else {
             activityName = activityMethod.name();
         }

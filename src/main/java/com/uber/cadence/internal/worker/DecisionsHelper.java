@@ -33,7 +33,11 @@ class DecisionsHelper {
 
     //    private static final Log log = LogFactory.getLog(DecisionsHelper.class);
 
-    static final int MAXIMUM_DECISIONS_PER_COMPLETION = 100;
+    /**
+     * TODO: Update constant once Cadence introduces the limit of decision per completion. Or remove code path
+     * if Cadence deals with this problem differently like paginating through decisions.
+     */
+    static final int MAXIMUM_DECISIONS_PER_COMPLETION = 10000;
 
     static final String FORCE_IMMEDIATE_DECISION_TIMER = "FORCE_IMMEDIATE_DECISION";
 
@@ -41,20 +45,16 @@ class DecisionsHelper {
 
     private long idCounter;
 
-    private final Map<Long, String> activitySchedulingEventIdToActivityId = new HashMap<Long, String>();
+    private final Map<Long, String> activitySchedulingEventIdToActivityId = new HashMap<>();
 
-    private final Map<Long, String> signalInitiatedEventIdToSignalId = new HashMap<Long, String>();
-
-    private final Map<Long, String> lambdaSchedulingEventIdToLambdaId = new HashMap<Long, String>();
+    private final Map<Long, String> signalInitiatedEventIdToSignalId = new HashMap<>();
 
     /**
      * Use access-order to ensure that decisions are emitted in order of their
      * creation
      */
-    private final Map<DecisionId, DecisionStateMachine> decisions = new LinkedHashMap<DecisionId, DecisionStateMachine>(100,
+    private final Map<DecisionId, DecisionStateMachine> decisions = new LinkedHashMap<>(100,
             0.75f, true);
-
-    private Throwable workflowFailureCause;
 
     private byte[] workflowContextData;
 
@@ -275,40 +275,15 @@ class DecisionsHelper {
         addDecision(decisionId, new CompleteWorkflowStateMachine(decisionId, decision));
     }
 
-    void failWorkflowExecution(Throwable e) {
+    void failWorkflowExecution(WorkflowExecutionException failure) {
         Decision decision = new Decision();
-        FailWorkflowExecutionDecisionAttributes fail = createFailWorkflowInstanceAttributes(e);
-        decision.setFailWorkflowExecutionDecisionAttributes(fail);
+        FailWorkflowExecutionDecisionAttributes failAttributes = new FailWorkflowExecutionDecisionAttributes();
+        failAttributes.setReason(failure.getReason());
+        failAttributes.setDetails(failure.getDetails());
+        decision.setFailWorkflowExecutionDecisionAttributes(failAttributes);
         decision.setDecisionType(DecisionType.FailWorkflowExecution);
         DecisionId decisionId = new DecisionId(DecisionTarget.SELF, null);
         addDecision(decisionId, new CompleteWorkflowStateMachine(decisionId, decision));
-        workflowFailureCause = e;
-    }
-
-    void failWorkflowDueToUnexpectedError(Throwable e) {
-        // To make sure that failure goes through do not make any other decisions
-        decisions.clear();
-        this.failWorkflowExecution(e);
-    }
-
-    void handleCompleteWorkflowExecutionFailed(HistoryEvent event) {
-        DecisionStateMachine decision = getDecision(new DecisionId(DecisionTarget.SELF, null));
-        decision.handleInitiationFailedEvent(event);
-    }
-
-    void handleFailWorkflowExecutionFailed(HistoryEvent event) {
-        DecisionStateMachine decision = getDecision(new DecisionId(DecisionTarget.SELF, null));
-        decision.handleInitiationFailedEvent(event);
-    }
-
-    void handleCancelWorkflowExecutionFailed(HistoryEvent event) {
-        DecisionStateMachine decision = getDecision(new DecisionId(DecisionTarget.SELF, null));
-        decision.handleInitiationFailedEvent(event);
-    }
-
-    void handleContinueAsNewWorkflowExecutionFailed(HistoryEvent event) {
-        DecisionStateMachine decision = getDecision(new DecisionId(DecisionTarget.SELF, null));
-        decision.handleInitiationFailedEvent(event);
     }
 
     /**
@@ -326,7 +301,7 @@ class DecisionsHelper {
     }
 
     List<Decision> getDecisions() {
-        List<Decision> result = new ArrayList<Decision>(MAXIMUM_DECISIONS_PER_COMPLETION + 1);
+        List<Decision> result = new ArrayList<>(MAXIMUM_DECISIONS_PER_COMPLETION + 1);
         for (DecisionStateMachine decisionStateMachine : decisions.values()) {
             Decision decision = decisionStateMachine.getDecision();
             if (decision != null) {
@@ -396,18 +371,6 @@ class DecisionsHelper {
         return WorkflowExecutionUtils.prettyPrintDecisions(getDecisions());
     }
 
-    boolean isWorkflowFailed() {
-        return workflowFailureCause != null;
-    }
-
-    public Throwable getWorkflowFailureCause() {
-        return workflowFailureCause;
-    }
-
-    byte[] getWorkflowContextData() {
-        return workflowContextData;
-    }
-
     void setWorkflowContextData(byte[] workflowState) {
         this.workflowContextData = workflowState;
     }
@@ -454,28 +417,6 @@ class DecisionsHelper {
 
     String getSignalIdFromExternalWorkflowExecutionSignaled(long initiatedEventId) {
         return signalInitiatedEventIdToSignalId.get(initiatedEventId);
-    }
-
-    private FailWorkflowExecutionDecisionAttributes createFailWorkflowInstanceAttributes(Throwable failure) {
-        String reason;
-        byte[] details;
-        if (failure instanceof WorkflowExecutionException) {
-            WorkflowExecutionException f = (WorkflowExecutionException) failure;
-            reason = f.getReason();
-            details = f.getDetails();
-        } else {
-            reason = failure.toString();
-            StringWriter sw = new StringWriter();
-            failure.printStackTrace(new PrintWriter(sw));
-            details = sw.toString().getBytes(TaskPoller.UTF8_CHARSET);
-        }
-        FailWorkflowExecutionDecisionAttributes result = new FailWorkflowExecutionDecisionAttributes();
-        if (reason == null || reason.isEmpty()) {
-            reason = "unknown"; // required field by Cadence
-        }
-        result.setReason(WorkflowExecutionUtils.truncateReason(reason));
-        result.setDetails(details);
-        return result;
     }
 
     void addDecision(DecisionId decisionId, DecisionStateMachine decision) {

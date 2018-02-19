@@ -446,9 +446,14 @@ public class WorkflowTest {
                 fail("unreachable");
                 return "ignored";
             } catch (ActivityFailureException e) {
-                assertTrue(e.getMessage().contains("::throwNPE"));
-                assertTrue(e.getCause() instanceof NullPointerException);
-                assertEquals("simulated NPE", e.getCause().getMessage());
+                try {
+                    assertTrue(e.getMessage().contains("TestActivities::throwNPE"));
+                    assertTrue(e.getCause() instanceof NullPointerException);
+                    assertEquals("simulated NPE", e.getCause().getMessage());
+                } catch (AssertionError ae) {
+                    // Errors cause decision to fail. But we want workflow to fail in this case.
+                    throw new RuntimeException(ae);
+                }
                 throw e;
             }
         }
@@ -464,12 +469,17 @@ public class WorkflowTest {
                 child.execute();
                 fail("unreachable");
             } catch (RuntimeException e) {
-                assertTrue(e.getMessage().contains("::throwNPE"));
-                assertTrue(e.getCause() instanceof ActivityFailureException);
-                assertTrue(e.getStackTrace().length > 0);
-                assertTrue(e.getCause().getCause() instanceof NullPointerException);
-                assertTrue(e.getCause().getStackTrace().length > 0);
-                assertEquals("simulated NPE", e.getCause().getCause().getMessage());
+                try {
+                    assertTrue(e.getMessage().contains("TestWorkflow1::execute"));
+                    assertTrue(e.getCause() instanceof ActivityFailureException);
+                    assertTrue(e.getStackTrace().length > 0);
+                    assertTrue(e.getCause().getCause() instanceof NullPointerException);
+                    assertTrue(e.getCause().getStackTrace().length > 0);
+                    assertEquals("simulated NPE", e.getCause().getCause().getMessage());
+                } catch (AssertionError ae) {
+                    // Errors cause decision to fail. But we want workflow to fail in this case.
+                    throw new RuntimeException(ae);
+                }
                 throw e;
             }
         }
@@ -495,7 +505,11 @@ public class WorkflowTest {
             client.execute();
             fail("Unreachable");
         } catch (WorkflowFailureException e) {
-            assertTrue(e.getMessage().contains("::throwNPE"));
+            // Rethrow the assertion failure
+            if (e.getCause().getCause() instanceof AssertionError) {
+                throw (AssertionError)e.getCause().getCause();
+            }
+            assertTrue(e.getMessage(), e.getMessage().contains("TestExceptionPropagation::execute"));
             assertTrue(e.getStackTrace().length > 0);
             assertTrue(e.getCause().getCause() instanceof ActivityFailureException);
             assertTrue(e.getCause().getStackTrace().length > 0);
@@ -756,7 +770,7 @@ public class WorkflowTest {
 
         String activity();
 
-        @ActivityMethod(name="customActivity1")
+        @ActivityMethod(name = "customActivity1")
         String activity1(String input);
 
         String activity2(String a1, int a2);

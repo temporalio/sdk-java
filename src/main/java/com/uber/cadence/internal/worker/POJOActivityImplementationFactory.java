@@ -24,7 +24,7 @@ import com.uber.cadence.WorkflowService;
 import com.uber.cadence.activity.ActivityMethod;
 import com.uber.cadence.activity.DoNotCompleteOnReturn;
 import com.uber.cadence.converter.DataConverter;
-import com.uber.cadence.internal.common.FlowHelpers;
+import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.generic.ActivityImplementation;
 import com.uber.cadence.internal.generic.ActivityImplementationFactory;
 
@@ -67,7 +67,7 @@ class POJOActivityImplementationFactory implements ActivityImplementationFactory
                 if (annotation != null && !annotation.name().isEmpty()) {
                     activityType = annotation.name();
                 } else {
-                    activityType = FlowHelpers.getSimpleName(method);
+                    activityType = InternalUtils.getSimpleName(method);
                 }
                 if (activities.containsKey(activityType)) {
                     throw new IllegalStateException(activityType + " activity type is already registered with the worker");

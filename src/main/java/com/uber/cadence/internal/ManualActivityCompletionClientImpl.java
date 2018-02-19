@@ -94,11 +94,14 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
 
     @Override
     public void fail(Throwable failure) {
+        if (failure == null) {
+            throw new IllegalArgumentException("null failure");
+        }
+        // When converting failures reason is class name, details are serialized exception.
         if (taskToken != null) {
             RespondActivityTaskFailedRequest request = new RespondActivityTaskFailedRequest();
-            byte[] convertedFailure = dataConverter.toData(failure);
-            request.setReason(WorkflowExecutionUtils.truncateReason(failure.getMessage()));
-            request.setDetails(convertedFailure);
+            request.setReason(failure.getClass().getName());
+            request.setDetails(dataConverter.toData(failure));
             request.setTaskToken(taskToken);
             try {
                 service.RespondActivityTaskFailed(request);
@@ -107,9 +110,8 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
             }
         } else {
             RespondActivityTaskFailedByIDRequest request = new RespondActivityTaskFailedByIDRequest();
-            byte[] convertedFailure = dataConverter.toData(failure);
-            request.setReason(WorkflowExecutionUtils.truncateReason(failure.getMessage()));
-            request.setDetails(convertedFailure);
+            request.setReason(failure.getClass().getName());
+            request.setDetails(dataConverter.toData(failure));
             request.setDomain(domain);
             request.setWorkflowID(execution.getWorkflowId());
             request.setRunID(execution.getRunId());

@@ -24,6 +24,7 @@ import com.uber.cadence.TimerStartedEventAttributes;
 import com.uber.cadence.WorkflowExecutionSignaledEventAttributes;
 import com.uber.cadence.WorkflowQuery;
 import com.uber.cadence.internal.AsyncDecisionContext;
+import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.workflow.ContinueAsNewWorkflowExecutionParameters;
 import com.uber.cadence.workflow.Functions;
 import org.apache.commons.logging.Log;
@@ -32,7 +33,6 @@ import org.apache.commons.logging.LogFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 class AsyncDecider {
@@ -63,7 +63,7 @@ class AsyncDecider {
 
     private boolean completed;
 
-    private Throwable failure;
+    private WorkflowExecutionException failure;
 
     public AsyncDecider(String domain, AsyncWorkflow workflow, HistoryHelper historyHelper, DecisionsHelper decisionsHelper) {
         this.workflow = workflow;
@@ -201,19 +201,24 @@ class AsyncDecider {
         }
     }
 
-    private void eventLoop() throws Throwable {
+    private void eventLoop() {
         if (completed) {
             return;
         }
         try {
             completed = workflow.eventLoop();
+        } catch (Error e) {
+            throw e; // errors fail decision, not a workflow
+        } catch (WorkflowExecutionException e) {
+            failure = e;
+            completed = true;
         } catch (CancellationException e) {
             if (!cancelRequested) {
-                failure = e;
+                failure = workflow.mapUnexpectedException(e);
             }
             completed = true;
         } catch (Throwable e) {
-            failure = e;
+            failure = workflow.mapUnexpectedException(e);
             completed = true;
         }
     }
@@ -242,11 +247,7 @@ class AsyncDecider {
             if (nextWakeUpTime > workflowClock.currentTimeMillis()) {
                 // Round up to the nearest second as we don't want to deliver a timer
                 // earlier than requested.
-                long roundedDelay = (long) Math.ceil(delayMilliseconds / 1000f);
-                long delaySeconds = TimeUnit.MILLISECONDS.toSeconds(roundedDelay);
-                if (delaySeconds == 0) {
-                    delaySeconds = 1; //TODO: Deal with subsecond delays.
-                }
+                long delaySeconds = InternalUtils.roundUpMillisToSeconds(delayMilliseconds);
                 workflowClock.createTimer(delaySeconds, (t) -> {
                     // Intentionally left empty.
                     // Timer ensures that decision is scheduled at the time workflow can make progress.
@@ -290,7 +291,7 @@ class AsyncDecider {
         if (completed) {
             throw new IllegalStateException("Signal received after workflow is closed.");
         }
-        this.workflow.processSignal(signalAttributes.getSignalName(), signalAttributes.getInput());
+        this.workflow.handleSignal(signalAttributes.getSignalName(), signalAttributes.getInput(), event.getEventId());
     }
 
     private void handleDecisionTaskCompleted(HistoryEvent event) {
@@ -348,8 +349,7 @@ class AsyncDecider {
                 unhandledDecision = false;
                 completeWorkflow();
             }
-        }
-        //TODO (Cadence): Handle Cadence exception gracefully.
+            //TODO (Cadence): Handle Cadence exception gracefully.
 //        catch (AmazonServiceException e) {
 //            // We don't want to fail workflow on service exceptions like 500 or throttling
 //            // Throwing from here drops decision task which is OK as it is rescheduled after its StartToClose timeout.
@@ -363,11 +363,6 @@ class AsyncDecider {
 //                throw e;
 //            }
 //        }
-        catch (Throwable e) {
-            if (log.isErrorEnabled()) {
-                log.warn("Failing decision due to unexpected problem: " + workflowContext.getWorkflowExecution(), e);
-            }
-            throw e;
         } finally {
             if (query != null) {
                 query.apply();

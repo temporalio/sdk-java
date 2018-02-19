@@ -31,8 +31,9 @@ public abstract class ChildWorkflowException extends WorkflowOperationException 
     private final WorkflowType workflowType;
 
     protected ChildWorkflowException(String message, long eventId, WorkflowExecution workflowExecution, WorkflowType workflowType) {
-        super("\"" + message + "\" while executing \"" + workflowType.getName() + "\" workflow with ID=\""
-                + workflowExecution.getWorkflowId() + "\", RunID=\"" + workflowExecution.getRunId() + " and EventID=" + eventId, eventId);
+        super("WorkflowType=\"" + workflowType.getName() + "\", ID=\""
+                + workflowExecution.getWorkflowId() + "\", RunID=\"" + workflowExecution.getRunId()
+                + ", EventID=" + eventId, eventId);
 
         this.workflowExecution = workflowExecution;
         this.workflowType = workflowType;

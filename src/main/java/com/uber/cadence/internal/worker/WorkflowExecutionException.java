@@ -19,7 +19,7 @@ package com.uber.cadence.internal.worker;
 /**
  * Internal. Do not throw or catch in application level code.
  */
-class WorkflowExecutionException extends RuntimeException {
+public class WorkflowExecutionException extends RuntimeException {
     private final byte[] details;
 
     public WorkflowExecutionException(String reason, byte[] details) {

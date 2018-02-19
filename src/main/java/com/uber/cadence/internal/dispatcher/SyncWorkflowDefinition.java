@@ -20,5 +20,5 @@ public interface SyncWorkflowDefinition {
 
     byte[] execute(byte[] input);
 
-    void processSignal(String signalName, byte[] input);
+    void processSignal(String signalName, byte[] input, long eventId);
 }
