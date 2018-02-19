@@ -33,16 +33,20 @@ import com.uber.cadence.internal.generic.ActivityImplementation;
 @SuppressWarnings("serial")
 public class ActivityExecutionException extends RuntimeException {
 
-    private byte[] details;
+    private final byte[] details;
+
+    private final String reason;
 
     /**
      * Construct exception with given arguments.
      *
+     * @param message
      * @param reason  value of reason field
      * @param details application specific failure details
      */
-    ActivityExecutionException(String reason, byte[] details, Throwable cause) {
-        super(reason, cause);
+    ActivityExecutionException(String message, String reason, byte[] details, Throwable cause) {
+        super(message, cause, false, false);
+        this.reason = reason;
         this.details = details;
     }
 
@@ -50,16 +54,7 @@ public class ActivityExecutionException extends RuntimeException {
         return details;
     }
 
-    public void setDetails(byte[] details) {
-        this.details = details;
-    }
-
     public String getReason() {
-        return getMessage();
-    }
-
-    @Override
-    public String toString() {
-        return super.toString() + " : " + getDetails();
+        return reason;
     }
 }

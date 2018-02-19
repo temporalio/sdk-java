@@ -33,8 +33,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.thrift.TException;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.lang.management.ManagementFactory;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
@@ -214,7 +212,7 @@ public class SynchronousActivityTaskPoller implements TaskPoller {
                         + ", activityId=" + task.getActivityId(), e);
             }
             if (!(e instanceof ActivityExecutionException)) {
-                e = activityImplementationFactory.serializeUnexpectedFailure(e);
+                e = activityImplementationFactory.serializeUnexpectedFailure(task, e);
             }
             ActivityExecutionException executionException = (ActivityExecutionException) e;
             respondActivityTaskFailedWithRetry(task.getTaskToken(), executionException.getReason(),

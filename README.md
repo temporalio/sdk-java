@@ -32,15 +32,40 @@ especially long-running business logic, synchronously or asynchronously.
 A Cadence client application consists from two main types of components:
 activities and workflows.
 
-Activities are business level tasks that implement your application logic like calling services or transcoding media files.
-Activities can be both short and long running. Usually it is expected that each activity implements a single well defined action.
 
-Workflows are orchestrators of activities. They fully control which activities and in what order are executed.
-Workflows do not affect external world directly, only through activities. What makes workflow code "a workflow" is that its state
-is preserved by Cadence. So any failure of a worker process that hosts a workflow code does not affect workflow execution.
-It continues as if these failures do not happen. At the same time activities can fail any moment for any reason.
-But as workflow code is fully fault tolerant it is guaranteed to get notification about activity failure or timeout and
-act accordingly.
+## Cadence Terminology
+- *Activity* is a business level task that implement your application logic like calling a service or transcoding a media file.
+             Usually it is expected that an activity implements a single well defined action. Activity can be both short and long running. 
+              It can be implemented as synchronous method or fully asynchronously involving multiple processes. Activity is executed *at most once*.
+              It means that Cadence service never request activity execution more than once. If for any reason activity is not completed
+              within specified timeout an error is reported to the workflow and it decides how to handle it.
+              There is no limit on potential activity duration. 
+
+- *Workflow* is a program that orchestrates activities. It has a full control which activities and in what order are executed.
+             Workflow must not affect external world directly, only through activities. What makes workflow code "a workflow" is that its state
+             is preserved by Cadence. So any failure of a worker process that hosts a workflow code does not affect workflow execution.
+             It continues as if these failures do not happen. At the same time activities can fail any moment for any reason.
+             But as workflow code is fully fault tolerant it is guaranteed to get notification about activity failure or timeout and
+             act accordingly. There is no limit on a potential workflow duration.
+- *Query* is a synchronous (from the caller point of view) operation that is used to report a workflow state. Note that query is inherently
+             read only and cannot affect a workflow state.
+- *Signal* is an external asynchronous request to a workflow. It can be used to deliver any notification or update to a running workflow
+             at any point of its existence.
+- *Domain* is a namespace like concept. Any entity stored in Cadence is always stored in a specific domain. For example when
+a workflow is started it is started in a specific domain. Cadence guarantees a workflow id uniqueness within a domain. Domains
+are created and updated though a separate CRUD API or through CLI.
+- *Task List* When a workflow requests an execution of an activity behind the scene Cadence creates an *activity task* and puts it
+into a *Task List* which is essentially a queue persisted inside a Cadence service. Then a client side worker that implement the activity
+receives the task from the task list and invokes an activity implementation. For this to work task list name that is used to request an
+activity execution and configure a worker should match.
+- *Workflow ID* is a business level ID of a workflow execution (aka instance). Cadence guarantees uniqueness of an ID within a domain.
+An attempt to start a workflow with a duplicated ID results in a *already started* error.
+- *Run ID* is a UUID a Cadence service assigns to each workflow run. If allowed by a configured policy it might be possible that 
+after workflow is closed or failed it can be executed again with the same *Workflow ID*. Each such reexecution is called a *run*.
+*Run ID* is used to uniquely identify a run even if it shares a *Workflow ID* with others.
+- *Client Stub* is a client side proxy used to make remote invocations to an entity it represents. For example to start a workflow
+a stub object that represents this workflow is created through a special API. Then this stub is used to start, query or signal
+the corresponding workflow.
 
 # Activities
 
@@ -222,8 +247,22 @@ public interface FileProcessingWorkflow {
 ```
 ## Starting workflow executions
 
-
-
+Given a workflow interface executing a workflow requires initializing a `CadenceClient` instance, creating 
+a client side stub to the workflow and then calling a method annotated with @WorkflowMethod.
+```java
+        // CadenceClient abstracts low level Cadence API.
+        CadenceClient cadenceClient = CadenceClient.newClient(cadenceServiceHost, cadenceServicePort, domain);
+        // At least workflow timeout and task list to use are required.
+        WorkflowOptions options = new WorkflowOptions.Builder()
+                .setExecutionStartToCloseTimeoutSeconds(300)
+                .setTaskList(WORKFLOW_TASK_LIST)
+                .build();
+        // Create workflow stub
+        FileProcessingWorkflow workflow = cadenceClient.newWorkflowStub(FileProcessingWorkflow.class, options);
+        // Start workflow and the wait for a result.
+        // Note that if process that waits is killed the workflow will continue execution.
+        String result = workflow.processFile(workflowArgs);
+```
 ## Workflow Implementation Guidelines
 A workflow implementation implements a workflow interface. Each time a new workflow execution is started 
 a new instance of the workflow implementation object is created. Then one of the methods 

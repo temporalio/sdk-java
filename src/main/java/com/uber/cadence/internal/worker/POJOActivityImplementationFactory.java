@@ -19,6 +19,7 @@ package com.uber.cadence.internal.worker;
 import com.google.common.reflect.TypeToken;
 import com.uber.cadence.ActivityType;
 import com.uber.cadence.PollForActivityTaskResponse;
+import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.activity.ActivityMethod;
 import com.uber.cadence.activity.DoNotCompleteOnReturn;
@@ -76,11 +77,16 @@ class POJOActivityImplementationFactory implements ActivityImplementationFactory
         }
     }
 
-    private ActivityExecutionException mapToActivityFailure(Throwable e) {
+    private ActivityExecutionException mapToActivityFailure(PollForActivityTaskResponse task, Throwable e) {
         if (e instanceof CancellationException) {
             throw (CancellationException) e;
         }
-        return new ActivityExecutionException(e.getClass().getName(), dataConverter.toData(e), e);
+        WorkflowExecution workflowExecution = task.getWorkflowExecution();
+        String message = "\"" + task.getActivityType().getName() + "\" activity execution failed with "
+                + "ActivityID=\"" + task.getActivityId()
+                + "\", WorkflowID=\"" + workflowExecution.getWorkflowId()
+                + "\" and RunID=\"" + workflowExecution.getRunId() + "\"";
+        return new ActivityExecutionException(message, e.getClass().getName(), dataConverter.toData(e), e);
     }
 
     @Override
@@ -94,8 +100,8 @@ class POJOActivityImplementationFactory implements ActivityImplementationFactory
     }
 
     @Override
-    public ActivityExecutionException serializeUnexpectedFailure(Throwable e) {
-        return mapToActivityFailure(e);
+    public ActivityExecutionException serializeUnexpectedFailure(PollForActivityTaskResponse task, Throwable e) {
+        return mapToActivityFailure(task, e);
     }
 
     public void setActivitiesImplementation(Object[] activitiesImplementation) {
@@ -157,11 +163,11 @@ class POJOActivityImplementationFactory implements ActivityImplementationFactory
                 }
                 return dataConverter.toData(result);
             } catch (RuntimeException e) {
-                throw mapToActivityFailure(e);
+                throw mapToActivityFailure(task, e);
             } catch (InvocationTargetException e) {
-                throw mapToActivityFailure(e.getTargetException());
+                throw mapToActivityFailure(task, e.getTargetException());
             } catch (IllegalAccessException e) {
-                throw mapToActivityFailure(e);
+                throw mapToActivityFailure(task, e);
             } finally {
                 CurrentActivityExecutionContext.unset();
             }
