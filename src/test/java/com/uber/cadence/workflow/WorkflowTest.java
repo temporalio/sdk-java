@@ -26,11 +26,10 @@ import com.uber.cadence.client.ActivityCompletionClient;
 import com.uber.cadence.client.CadenceClient;
 import com.uber.cadence.client.CadenceClientOptions;
 import com.uber.cadence.client.UntypedWorkflowStub;
-import com.uber.cadence.client.WorkflowException;
+import com.uber.cadence.client.WorkflowExecutionAlreadyStartedException;
 import com.uber.cadence.client.WorkflowFailureException;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.converter.JsonDataConverter;
-import com.uber.cadence.client.WorkflowExecutionAlreadyStartedException;
 import com.uber.cadence.worker.Worker;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -61,7 +60,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.*;
 
@@ -173,12 +171,12 @@ public class WorkflowTest {
 
         @Override
         public String execute() {
-            AtomicReference<String> a1 = new AtomicReference<>();
             TestActivities activities = Workflow.newActivityStub(TestActivities.class, newActivitySchedulingOptions1());
-            WorkflowThread t = Workflow.newThread(() -> a1.set(activities.activityWithDelay(1000, true)));
-            t.start();
-            t.join(3000);
-            WorkflowThread.sleep(1000);
+            // Invoke synchronously in a separate thread for testing purposes only.
+            // In real workflows use
+            // Async.invoke(activities::activityWithDelay, 1000, true)
+            Promise<String> a1 = Async.invoke(() -> activities.activityWithDelay(1000, true));
+            WorkflowThread.sleep(2000);
             return activities.activity2(a1.get(), 10);
         }
     }
@@ -325,21 +323,28 @@ public class WorkflowTest {
         @Override
         public String execute() {
             TestActivities testActivities = Workflow.newActivityStub(TestActivities.class, newActivitySchedulingOptions2());
-            assertEquals("activity", Workflow.async(testActivities::activity).get());
-            assertEquals("1", Workflow.async(testActivities::activity1, "1").get());
-            assertEquals("12", Workflow.async(testActivities::activity2, "1", 2).get());
-            assertEquals("123", Workflow.async(testActivities::activity3, "1", 2, 3).get());
-            assertEquals("1234", Workflow.async(testActivities::activity4, "1", 2, 3, 4).get());
-            assertEquals("12345", Workflow.async(testActivities::activity5, "1", 2, 3, 4, 5).get());
-            assertEquals("123456", Workflow.async(testActivities::activity6, "1", 2, 3, 4, 5, 6).get());
+            Promise<String> a = Async.invoke(testActivities::activity);
+            Promise<String> a1 = Async.invoke(testActivities::activity1, "1");
+            Promise<String> a2 = Async.invoke(testActivities::activity2, "1", 2);
+            Promise<String> a3 = Async.invoke(testActivities::activity3, "1", 2, 3);
+            Promise<String> a4 = Async.invoke(testActivities::activity4, "1", 2, 3, 4);
+            Promise<String> a5 = Async.invoke(testActivities::activity5, "1", 2, 3, 4, 5);
+            Promise<String> a6 = Async.invoke(testActivities::activity6, "1", 2, 3, 4, 5, 6);
+            assertEquals("activity", a.get());
+            assertEquals("1", a1.get());
+            assertEquals("12", a2.get());
+            assertEquals("123", a3.get());
+            assertEquals("1234", a4.get());
+            assertEquals("12345", a5.get());
+            assertEquals("123456", a6.get());
 
-            Workflow.async(testActivities::proc).get();
-            Workflow.async(testActivities::proc1, "1").get();
-            Workflow.async(testActivities::proc2, "1", 2).get();
-            Workflow.async(testActivities::proc3, "1", 2, 3).get();
-            Workflow.async(testActivities::proc4, "1", 2, 3, 4).get();
-            Workflow.async(testActivities::proc5, "1", 2, 3, 4, 5).get();
-            Workflow.async(testActivities::proc6, "1", 2, 3, 4, 5, 6).get();
+            Async.invoke(testActivities::proc).get();
+            Async.invoke(testActivities::proc1, "1").get();
+            Async.invoke(testActivities::proc2, "1", 2).get();
+            Async.invoke(testActivities::proc3, "1", 2, 3).get();
+            Async.invoke(testActivities::proc4, "1", 2, 3, 4).get();
+            Async.invoke(testActivities::proc5, "1", 2, 3, 4, 5).get();
+            Async.invoke(testActivities::proc6, "1", 2, 3, 4, 5, 6).get();
             return "workflow";
         }
     }
@@ -350,7 +355,6 @@ public class WorkflowTest {
         TestWorkflow1 client = cadenceClient.newWorkflowStub(TestWorkflow1.class, newWorkflowOptionsBuilder().build());
         String result = client.execute();
         assertEquals("workflow", result);
-
         assertEquals("proc", activitiesImpl.procResult.get(0));
         assertEquals("1", activitiesImpl.procResult.get(1));
         assertEquals("12", activitiesImpl.procResult.get(2));
@@ -542,11 +546,10 @@ public class WorkflowTest {
                 throw (AssertionError) e.getCause().getCause();
             }
             assertNoEmptyStacks(e);
-
-            e.printStackTrace();
+            // Uncomment to see the actual trace.
+//            e.printStackTrace();
             assertTrue(e.getMessage(), e.getMessage().contains("TestExceptionPropagation::execute"));
             assertTrue(e.getStackTrace().length > 0);
-            assertTrue(e instanceof WorkflowException);
             assertTrue(e.getCause() instanceof FileNotFoundException);
             assertTrue(e.getCause().getCause() instanceof ChildWorkflowException);
             assertTrue(e.getCause().getCause().getCause() instanceof NumberFormatException);
@@ -647,8 +650,8 @@ public class WorkflowTest {
         public String execute() {
             if (decisionCount.incrementAndGet() == 1) {
                 sendSignal.complete(true);
-                // Never sleep in real workflow using Thread.sleep.
-                // Here it is to simulate race condition.
+                // Never sleep in a real workflow using Thread.sleep.
+                // Here it is to simulate a race condition.
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException e) {
@@ -746,7 +749,7 @@ public class WorkflowTest {
 
         @Override
         public String execute() {
-            Promise<String> r1 = Workflow.async(child1::execute, "Hello ");
+            Promise<String> r1 = Async.invoke(child1::execute, "Hello ");
             String r2 = child2.execute("World!");
             assertEquals(child2Id, Workflow.getWorkflowExecution(child2).get().getWorkflowId());
             return r1.get() + r2;

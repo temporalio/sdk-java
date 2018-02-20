@@ -22,14 +22,15 @@ import com.uber.cadence.internal.ActivityException;
 import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.workflow.ActivityOptions;
 import com.uber.cadence.workflow.Promise;
+import com.uber.cadence.workflow.Workflow;
 
+import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Dynamic implementation of a strongly typed child workflow interface.
  */
-class ActivityInvocationHandler extends AsyncInvocationHandler {
+class ActivityInvocationHandler implements InvocationHandler {
 
     private final ActivityOptions options;
 
@@ -45,6 +46,14 @@ class ActivityInvocationHandler extends AsyncInvocationHandler {
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) {
+        try {
+            if (method.equals(Object.class.getMethod("toString"))) {
+                // TODO: activity info
+                return "ActivityInvocationHandler";
+            }
+        } catch (NoSuchMethodException e) {
+            throw Workflow.throwWrapped(e);
+        }
         ActivityMethod activityMethod = method.getAnnotation(ActivityMethod.class);
         String activityName;
         if (activityMethod == null || activityMethod.name().isEmpty()) {
@@ -53,10 +62,9 @@ class ActivityInvocationHandler extends AsyncInvocationHandler {
             activityName = activityMethod.name();
         }
         SyncDecisionContext decisionContext = WorkflowThreadInternal.currentThreadInternal().getDecisionContext();
-        AtomicReference<Promise<?>> async = asyncResult.get();
         Promise<?> result = decisionContext.executeActivity(activityName, options, args, method.getReturnType());
-        if (async != null) {
-            async.set(result);
+        if (AsyncInternal.isAsync()) {
+            AsyncInternal.setAsyncResult(result);
             return Defaults.defaultValue(method.getReturnType());
         }
         try {

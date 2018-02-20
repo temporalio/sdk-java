@@ -29,13 +29,13 @@ import com.uber.cadence.workflow.SignalMethod;
 import com.uber.cadence.workflow.Workflow;
 import com.uber.cadence.workflow.WorkflowMethod;
 
+import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Dynamic implementation of a strongly typed child workflow interface.
  */
-class ChildWorkflowInvocationHandler extends AsyncInvocationHandler {
+class ChildWorkflowInvocationHandler implements InvocationHandler {
 
     private final ChildWorkflowOptions options;
     private final SyncDecisionContext decisionContext;
@@ -102,9 +102,8 @@ class ChildWorkflowInvocationHandler extends AsyncInvocationHandler {
                 workflowName, options, input, execution);
         Promise<?> result = encodedResult.thenApply(
                 (encoded) -> dataConverter.fromData(encoded, method.getReturnType()));
-        AtomicReference<Promise<?>> async = asyncResult.get();
-        if (async != null) {
-            async.set(result);
+        if (AsyncInternal.isAsync()) {
+            AsyncInternal.setAsyncResult(result);
             return Defaults.defaultValue(method.getReturnType());
         }
         try {

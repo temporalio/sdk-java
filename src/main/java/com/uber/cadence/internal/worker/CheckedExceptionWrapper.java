@@ -58,16 +58,24 @@ public final class CheckedExceptionWrapper extends RuntimeException {
      * @return never returns as always throws.
      */
     public static RuntimeException throwWrapped(Throwable e) {
+        throw getWrapped(e);
+    }
+
+    /**
+     * Similar to throwWrapped but just returns wrapped error without throwing it.
+     * Only Error is thrown as it should propagate up the stack without any delay.
+     */
+    public static RuntimeException getWrapped(Throwable e) {
         if (e instanceof Error) {
             throw (Error) e;
         }
         if (e instanceof InvocationTargetException) {
-            throw throwWrapped(e.getCause());
+            return getWrapped(e.getCause());
         }
         if (e instanceof RuntimeException) {
-            throw (RuntimeException) e;
+            return (RuntimeException) e;
         }
-        throw new CheckedExceptionWrapper((Exception) e);
+        return new CheckedExceptionWrapper((Exception) e);
     }
 
     /**

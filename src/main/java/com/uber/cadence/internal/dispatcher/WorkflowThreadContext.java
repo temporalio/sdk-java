@@ -48,8 +48,8 @@ class WorkflowThreadContext {
     }
 
     public void initialYield() {
-        if (getStatus() != Status.CREATED) {
-            throw new IllegalStateException("not in CREATED but in " + getStatus() + " state");
+        if (getStatus() != Status.RUNNING) {
+            throw new IllegalStateException("not in RUNNING but in " + getStatus() + " state");
         }
         yield("created", () -> true);
     }
@@ -233,6 +233,11 @@ class WorkflowThreadContext {
         lock.lock();
         try {
             destroyRequested = true;
+            if (status == Status.CREATED) {
+                // Happens when start wasn't ever called on the thread.
+                status = Status.DONE;
+                return;
+            }
         } finally {
             lock.unlock();
         }

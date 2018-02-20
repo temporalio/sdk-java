@@ -16,6 +16,7 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import com.uber.cadence.workflow.Async;
 import com.uber.cadence.workflow.CancellationScope;
 import com.uber.cadence.workflow.CompletablePromise;
 import com.uber.cadence.workflow.Promise;
@@ -325,18 +326,15 @@ public class DeterministicRunnerTest {
     }
 
     private Promise<Void> newTimer(int milliseconds) {
-        CompletablePromise<Void> result = Workflow.newCompletablePromise();
-        Workflow.newThread(() -> {
+        return Async.invoke(() -> {
             try {
                 WorkflowThread.sleep(milliseconds);
-                result.complete(null);
                 trace.add("timer fired");
             } catch (CancellationException e) {
                 trace.add("timer cancelled");
-                result.completeExceptionally(e);
+                throw e;
             }
-        }).start();
-        return result;
+        });
     }
 
     @Test
@@ -344,20 +342,24 @@ public class DeterministicRunnerTest {
         trace.add("init");
         DeterministicRunner d = new DeterministicRunnerImpl(() -> {
             trace.add("root started");
-            WorkflowThread thread1 = Workflow.newThread(() -> {
-                trace.add("thread started");
-                Promise<String> cancellation = CancellationScope.current().getCancellationRequest();
-                WorkflowThreadInternal.yield("reason1",
-                        () -> CancellationScope.current().isCancelRequested()
-                );
-                trace.add("thread done: " + cancellation.get());
+            CompletablePromise<Object> threadDone = Workflow.newCompletablePromise();
+            CancellationScope scope = Workflow.newCancellationScope(() -> {
+                Async.invoke(() -> {
+                    trace.add("thread started");
+                    Promise<String> cancellation = CancellationScope.current().getCancellationRequest();
+                    WorkflowThreadInternal.yield("reason1",
+                            () -> CancellationScope.current().isCancelRequested()
+                    );
+                    trace.add("thread done: " + cancellation.get());
+                    threadDone.complete(null);
+                });
             });
-            thread1.start();
             trace.add("root before cancel");
-            thread1.cancel("from root");
-            thread1.join();
+            scope.cancel("from root");
+            threadDone.get();
             trace.add("root done");
         });
+
         d.runUntilAllBlocked();
         assertTrue(d.stackTrace(), d.isDone());
         String[] expected = new String[]{
@@ -376,18 +378,25 @@ public class DeterministicRunnerTest {
         trace.add("init");
         DeterministicRunner d = new DeterministicRunnerImpl(() -> {
             trace.add("root started");
-            WorkflowThread thread1 = Workflow.newDetachedThread(() -> {
-                trace.add("thread started");
-                WorkflowThreadInternal.yield("reason1",
-                        () -> unblock1 || CancellationScope.current().isCancelRequested()
-                );
-                trace.add("yield done");
+            CompletablePromise<Void> done = Workflow.newCompletablePromise();
+            Workflow.newDetachedCancellationScope(() -> {
+                Async.invoke(() -> {
+                    trace.add("thread started");
+                    WorkflowThreadInternal.yield("reason1",
+                            () -> unblock1 || CancellationScope.current().isCancelRequested()
+                    );
+                    if (CancellationScope.current().isCancelRequested()) {
+                        done.completeExceptionally(new CancellationException());
+                    } else {
+                        done.complete(null);
+                    }
+                    trace.add("yield done");
+                });
             });
-            thread1.start();
             try {
-                thread1.join();
+                done.get();
             } catch (CancellationException e) {
-                trace.add("join cancelled");
+                trace.add("done cancelled");
             }
             trace.add("root done");
         });
@@ -404,7 +413,7 @@ public class DeterministicRunnerTest {
         assertTrace(expected, trace);
         unblock1 = true;
         d.runUntilAllBlocked();
-        assertTrue(d.isDone());
+        assertTrue(d.stackTrace(), d.isDone());
         expected = new String[]{
                 "init",
                 "root started",

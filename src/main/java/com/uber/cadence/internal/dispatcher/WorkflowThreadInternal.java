@@ -216,6 +216,7 @@ class WorkflowThreadInternal implements WorkflowThread, DeterministicRunnerCorou
             throw new IllegalThreadStateException("already started");
         }
         log.debug(String.format("Workflow thread \"%s\" started", getName()));
+        context.setStatus(Status.RUNNING);
         taskFuture = threadPool.submit(task);
     }
 
@@ -325,7 +326,10 @@ class WorkflowThreadInternal implements WorkflowThread, DeterministicRunnerCorou
                     "The blocked thread stack trace: " + getStackTrace());
         }
         try {
-            taskFuture.get();
+            // Check if thread was started
+            if (taskFuture != null) {
+                taskFuture.get();
+            }
         } catch (InterruptedException e) {
             throw new Error("Unexpected interrupt", e);
         } catch (ExecutionException e) {

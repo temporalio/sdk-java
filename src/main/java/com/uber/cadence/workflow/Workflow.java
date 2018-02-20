@@ -68,22 +68,6 @@ public final class Workflow {
         return WorkflowInternal.getContext();
     }
 
-    public static WorkflowThread newThread(Runnable runnable) {
-        return WorkflowInternal.newThread(false, runnable);
-    }
-
-    public static WorkflowThread newThread(String name, Runnable runnable) {
-        return WorkflowInternal.newThread(false, name, runnable);
-    }
-
-    public static WorkflowThread newDetachedThread(Runnable runnable) {
-        return WorkflowInternal.newThread(true, runnable);
-    }
-
-    public static WorkflowThread newDetachedThread(String name, Runnable runnable) {
-        return WorkflowInternal.newThread(true, name, runnable);
-    }
-
     public static <R> CancellationScope newCancellationScope(Runnable runnable) {
         return WorkflowInternal.newCancellationScope(false, runnable);
     }
@@ -153,202 +137,6 @@ public final class Workflow {
     }
 
     /**
-     * Invokes zero argument activity asynchronously.
-     *
-     * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
-     * @return promise that contains activity result or failure
-     */
-    public static <R> Promise<R> async(Functions.Func<R> activity) {
-        return WorkflowInternal.async(activity);
-    }
-
-    /**
-     * Invokes one argument activity asynchronously.
-     *
-     * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
-     * @param arg1     first activity argument
-     * @return promise that contains activity result or failure
-     */
-    public static <A1, R> Promise<R> async(Functions.Func1<A1, R> activity, A1 arg1) {
-        return WorkflowInternal.async(activity, arg1);
-    }
-
-    /**
-     * Invokes two argument activity asynchronously.
-     *
-     * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
-     * @param arg1     first activity argument
-     * @param arg2     second activity argument
-     * @return Promise that contains activity result or failure
-     */
-    public static <A1, A2, R> Promise<R> async(Functions.Func2<A1, A2, R> activity, A1 arg1, A2 arg2) {
-        return WorkflowInternal.async(activity, arg1, arg2);
-    }
-
-    /**
-     * Invokes three argument activity asynchronously.
-     *
-     * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
-     * @param arg1     first activity argument
-     * @param arg2     second activity argument
-     * @param arg3     third activity argument
-     * @return Promise that contains activity result or failure
-     */
-    public static <A1, A2, A3, R> Promise<R> async(Functions.Func3<A1, A2, A3, R> activity, A1 arg1, A2 arg2, A3 arg3) {
-        return WorkflowInternal.async(activity, arg1, arg2, arg3);
-    }
-
-    /**
-     * Invokes four argument activity asynchronously.
-     *
-     * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
-     * @param arg1     first activity argument
-     * @param arg2     second activity argument
-     * @param arg3     third activity argument
-     * @param arg4     forth activity argument
-     * @return Promise that contains activity result or failure
-     */
-    public static <A1, A2, A3, A4, R> Promise<R> async(Functions.Func4<A1, A2, A3, A4, R> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
-        return WorkflowInternal.async(activity, arg1, arg2, arg3, arg4);
-    }
-
-    /**
-     * Invokes five argument activity asynchronously.
-     *
-     * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
-     * @param arg1     first activity argument
-     * @param arg2     second activity argument
-     * @param arg3     third activity argument
-     * @param arg4     forth activity argument
-     * @param arg5     fifth activity argument
-     * @return Promise that contains activity result or failure
-     */
-    public static <A1, A2, A3, A4, A5, R> Promise<R> async(Functions.Func5<A1, A2, A3, A4, A5, R> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
-        return WorkflowInternal.async(activity, arg1, arg2, arg3, arg4, arg5);
-    }
-
-    /**
-     * Invokes six argument activity asynchronously.
-     *
-     * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
-     * @param arg1     first activity argument
-     * @param arg2     second activity argument
-     * @param arg3     third activity argument
-     * @param arg4     forth activity argument
-     * @param arg5     fifth activity argument
-     * @param arg6     sixth activity argument
-     * @return Promise that contains activity result or failure
-     */
-    public static <A1, A2, A3, A4, A5, A6, R> Promise<R> async(Functions.Func6<A1, A2, A3, A4, A5, A6, R> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5, A6 arg6) {
-        return WorkflowInternal.async(activity, arg1, arg2, arg3, arg4, arg5, arg6);
-    }
-
-    /**
-     * Invokes zero argument activity asynchronously.
-     *
-     * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
-     * @return Promise that contains activity result or failure
-     */
-    public static Promise<Void> async(Functions.Proc activity) {
-        return WorkflowInternal.async(activity);
-    }
-
-    /**
-     * Invokes one argument activity asynchronously.
-     *
-     * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
-     * @param arg1     first activity argument
-     * @return Promise that contains activity result or failure
-     */
-    public static <A1> Promise<Void> async(Functions.Proc1<A1> activity, A1 arg1) {
-        return async(() -> activity.apply(arg1));
-    }
-
-    /**
-     * Invokes two argument activity asynchronously.
-     *
-     * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
-     * @param arg1     first activity argument
-     * @param arg2     second activity argument
-     * @return Promise that contains activity result or failure
-     */
-    public static <A1, A2> Promise<Void> async(Functions.Proc2<A1, A2> activity, A1 arg1, A2 arg2) {
-        return WorkflowInternal.async(activity, arg1, arg2);
-    }
-
-    /**
-     * Invokes three argument activity asynchronously.
-     *
-     * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
-     * @param arg1     first activity argument
-     * @param arg2     second activity argument
-     * @param arg3     third activity argument
-     * @return Promise that contains activity result or failure
-     */
-    public static <A1, A2, A3> Promise<Void> async(Functions.Proc3<A1, A2, A3> activity, A1 arg1, A2 arg2, A3 arg3) {
-        return WorkflowInternal.async(activity, arg1, arg2, arg3);
-    }
-
-    /**
-     * Invokes four argument activity asynchronously.
-     *
-     * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
-     * @param arg1     first activity argument
-     * @param arg2     second activity argument
-     * @param arg3     third activity argument
-     * @param arg4     forth activity argument
-     * @return Promise that contains activity result or failure
-     */
-    public static <A1, A2, A3, A4> Promise<Void> async(Functions.Proc4<A1, A2, A3, A4> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
-        return WorkflowInternal.async(activity, arg1, arg2, arg3, arg4);
-    }
-
-    /**
-     * Invokes five argument activity asynchronously.
-     *
-     * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
-     * @param arg1     first activity argument
-     * @param arg2     second activity argument
-     * @param arg3     third activity argument
-     * @param arg4     forth activity argument
-     * @param arg5     fifth activity argument
-     * @return Promise that contains activity result or failure
-     */
-    public static <A1, A2, A3, A4, A5> Promise<Void> async(Functions.Proc5<A1, A2, A3, A4, A5> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
-        return WorkflowInternal.async(activity, arg1, arg2, arg3, arg4, arg5);
-    }
-
-    /**
-     * Invokes six argument activity asynchronously.
-     *
-     * @param activity The only supported parameter is a method reference to a proxy created
-     *                 through {@link #newActivityStub(Class, ActivityOptions)}.
-     * @param arg1     first activity argument
-     * @param arg2     second activity argument
-     * @param arg3     third activity argument
-     * @param arg4     forth activity argument
-     * @param arg5     fifth activity argument
-     * @param arg6     sixth activity argument
-     * @return Promise that contains activity result or failure
-     */
-    public static <A1, A2, A3, A4, A5, A6> Promise<Void> async(Functions.Proc6<A1, A2, A3, A4, A5, A6> activity, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5, A6 arg6) {
-        return WorkflowInternal.async(activity, arg1, arg2, arg3, arg4, arg5, arg6);
-    }
-
-    /**
      * Execute activity by name.
      *
      * @param name       name of the activity
@@ -356,22 +144,10 @@ public final class Workflow {
      * @param args       list of activity arguments
      * @param <R>        activity return type
      * @return activity result
+     * @TODO Provide untyped stub instead the same way CadenceClient provides.
      */
     public static <R> R executeActivity(String name, ActivityOptions options, Class<R> returnType, Object... args) {
         return WorkflowInternal.executeActivity(name, options, returnType, args);
-    }
-
-    /**
-     * Execute activity by name asynchronously.
-     *
-     * @param name       name of the activity
-     * @param returnType activity return type
-     * @param args       list of activity arguments
-     * @param <R>        activity return type
-     * @return Promise that contains the activity result
-     */
-    public static <R> Promise<R> executeActivityAsync(String name, ActivityOptions options, Class<R> returnType, Object... args) {
-        return WorkflowInternal.executeActivityAsync(name, options, returnType, args);
     }
 
     /**
@@ -405,6 +181,14 @@ public final class Workflow {
      */
     public static RuntimeException throwWrapped(Throwable e) {
         return WorkflowInternal.throwWrapped(e);
+    }
+
+    /**
+     * Similar to throwWrapped, but doesn't throws but returns the wrapped exception.
+     * Useful when completing Promise.
+     */
+    public static RuntimeException getWrapped(Throwable e) {
+        return WorkflowInternal.getWrapped(e);
     }
 
     /**
