@@ -18,13 +18,6 @@ package com.uber.cadence.internal.worker;
 
 import com.uber.cadence.QueryWorkflowRequest;
 import com.uber.cadence.QueryWorkflowResponse;
-import com.uber.cadence.internal.WorkflowExecutionAlreadyStartedException;
-import com.uber.cadence.WorkflowQuery;
-import com.uber.cadence.internal.generic.GenericWorkflowClientExternal;
-import com.uber.cadence.internal.generic.QueryWorkflowParameters;
-import com.uber.cadence.workflow.SignalExternalWorkflowParameters;
-import com.uber.cadence.internal.generic.StartWorkflowExecutionParameters;
-import com.uber.cadence.internal.generic.TerminateWorkflowExecutionParameters;
 import com.uber.cadence.RequestCancelWorkflowExecutionRequest;
 import com.uber.cadence.SignalWorkflowExecutionRequest;
 import com.uber.cadence.StartWorkflowExecutionRequest;
@@ -32,8 +25,14 @@ import com.uber.cadence.StartWorkflowExecutionResponse;
 import com.uber.cadence.TaskList;
 import com.uber.cadence.TerminateWorkflowExecutionRequest;
 import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
+import com.uber.cadence.WorkflowQuery;
 import com.uber.cadence.WorkflowService;
+import com.uber.cadence.client.WorkflowExecutionAlreadyStartedException;
+import com.uber.cadence.internal.generic.GenericWorkflowClientExternal;
+import com.uber.cadence.internal.generic.QueryWorkflowParameters;
+import com.uber.cadence.internal.generic.StartWorkflowExecutionParameters;
+import com.uber.cadence.internal.generic.TerminateWorkflowExecutionParameters;
+import com.uber.cadence.workflow.SignalExternalWorkflowParameters;
 import org.apache.thrift.TException;
 
 import java.util.UUID;
@@ -84,11 +83,9 @@ public class GenericWorkflowClientExternalImpl implements GenericWorkflowClientE
 //            request.setChildPolicy(startParameters.getChildPolicy());
 //        }
 
-        StartWorkflowExecutionResponse result = null;
+        StartWorkflowExecutionResponse result;
         try {
             result = service.StartWorkflowExecution(request);
-        } catch (WorkflowExecutionAlreadyStartedError e) {
-            throw new WorkflowExecutionAlreadyStartedException(workflowId, e);
         } catch (TException e) {
             throw new RuntimeException(e);
         }

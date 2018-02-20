@@ -17,6 +17,7 @@
 package com.uber.cadence.internal;
 
 
+import com.uber.cadence.client.WorkflowExecutionAlreadyStartedException;
 import com.uber.cadence.client.WorkflowOptions;
 
 public interface DynamicWorkflowClientExternal extends WorkflowClientExternal {

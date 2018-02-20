@@ -18,6 +18,7 @@ package com.uber.cadence.workflow;
 
 import com.uber.cadence.TimeoutType;
 import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowIdReusePolicy;
 import com.uber.cadence.activity.Activity;
 import com.uber.cadence.activity.ActivityMethod;
 import com.uber.cadence.activity.DoNotCompleteOnReturn;
@@ -25,8 +26,11 @@ import com.uber.cadence.client.ActivityCompletionClient;
 import com.uber.cadence.client.CadenceClient;
 import com.uber.cadence.client.CadenceClientOptions;
 import com.uber.cadence.client.UntypedWorkflowStub;
+import com.uber.cadence.client.WorkflowException;
+import com.uber.cadence.client.WorkflowFailureException;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.converter.JsonDataConverter;
+import com.uber.cadence.client.WorkflowExecutionAlreadyStartedException;
 import com.uber.cadence.worker.Worker;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -370,10 +374,20 @@ public class WorkflowTest {
         startWorkerFor(TestMultiargsWorkflowsImpl.class);
         TestMultiargsWorkflows stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newWorkflowOptionsBuilder().build());
         assertResult("func", CadenceClient.asyncStart(stub::func));
+        assertEquals("func", stub.func()); // Check that duplicated start just returns the result.
         stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newWorkflowOptionsBuilder().build());
         assertResult("1", CadenceClient.asyncStart(stub::func1, "1"));
-        stub = cadenceClientWithOptions.newWorkflowStub(TestMultiargsWorkflows.class, newWorkflowOptionsBuilder().build());
+        assertEquals("1", stub.func1("1")); // Check that duplicated start just returns the result.
+        // Check that duplicated start is not allowed for AllowDuplicate IdReusePolicy
+        stub = cadenceClientWithOptions.newWorkflowStub(TestMultiargsWorkflows.class,
+                newWorkflowOptionsBuilder().setWorkflowIdReusePolicy(WorkflowIdReusePolicy.AllowDuplicate).build());
         assertResult("12", CadenceClient.asyncStart(stub::func2, "1", 2));
+        try {
+            stub.func2("1", 2);
+            fail("unreachable");
+        } catch (WorkflowExecutionAlreadyStartedException e) {
+            // expected
+        }
         stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newWorkflowOptionsBuilder().build());
         assertResult("123", CadenceClient.asyncStart(stub::func3, "1", 2, 3));
         stub = cadenceClient.newWorkflowStub(TestMultiargsWorkflows.class, newWorkflowOptionsBuilder().build());

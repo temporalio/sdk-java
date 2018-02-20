@@ -22,8 +22,8 @@ import com.uber.cadence.internal.worker.CheckedExceptionWrapper;
 import com.uber.cadence.internal.dispatcher.WorkflowExecutionFailedException;
 import com.uber.cadence.internal.worker.ExponentialRetryParameters;
 import com.uber.cadence.internal.worker.SynchronousRetrier;
-import com.uber.cadence.workflow.WorkflowTerminatedException;
-import com.uber.cadence.workflow.WorkflowTimedOutException;
+import com.uber.cadence.client.WorkflowTerminatedException;
+import com.uber.cadence.client.WorkflowTimedOutException;
 import org.apache.thrift.TException;
 
 import java.lang.reflect.InvocationTargetException;

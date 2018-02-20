@@ -14,7 +14,7 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.workflow;
+package com.uber.cadence.client;
 
 import com.uber.cadence.TimeoutType;
 import com.uber.cadence.WorkflowExecution;

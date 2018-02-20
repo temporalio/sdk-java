@@ -16,7 +16,7 @@
  */
 package com.uber.cadence.internal.generic;
 
-import com.uber.cadence.internal.WorkflowExecutionAlreadyStartedException;
+import com.uber.cadence.client.WorkflowExecutionAlreadyStartedException;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.workflow.SignalExternalWorkflowParameters;

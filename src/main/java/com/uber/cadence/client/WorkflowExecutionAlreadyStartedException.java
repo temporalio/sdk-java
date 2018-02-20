@@ -14,10 +14,13 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.internal;
+package com.uber.cadence.client;
 
-public class WorkflowExecutionAlreadyStartedException extends RuntimeException {
-    public WorkflowExecutionAlreadyStartedException(String message, Throwable cause) {
-        super(message, cause);
+import com.uber.cadence.WorkflowExecution;
+
+public final class WorkflowExecutionAlreadyStartedException extends WorkflowException {
+
+    public WorkflowExecutionAlreadyStartedException(String message, WorkflowExecution execution, String workflowType, Throwable cause) {
+        super(message, execution, workflowType, cause);
     }
 }

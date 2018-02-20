@@ -27,7 +27,7 @@ import com.uber.cadence.internal.generic.GenericWorkflowClientExternal;
 import com.uber.cadence.internal.generic.QueryWorkflowParameters;
 import com.uber.cadence.internal.generic.StartWorkflowExecutionParameters;
 import com.uber.cadence.workflow.SignalExternalWorkflowParameters;
-import com.uber.cadence.workflow.WorkflowFailureException;
+import com.uber.cadence.client.WorkflowFailureException;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;

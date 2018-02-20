@@ -17,20 +17,22 @@
 package com.uber.cadence.internal.dispatcher;
 
 import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowIdReusePolicy;
 import com.uber.cadence.WorkflowType;
+import com.uber.cadence.client.WorkflowExecutionAlreadyStartedException;
+import com.uber.cadence.client.WorkflowFailureException;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.converter.DataConverter;
-import com.uber.cadence.internal.worker.CheckedExceptionWrapper;
 import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.generic.GenericWorkflowClientExternal;
 import com.uber.cadence.internal.generic.QueryWorkflowParameters;
 import com.uber.cadence.internal.generic.StartWorkflowExecutionParameters;
+import com.uber.cadence.internal.worker.CheckedExceptionWrapper;
 import com.uber.cadence.internal.worker.GenericWorkflowClientExternalImpl;
 import com.uber.cadence.workflow.QueryMethod;
 import com.uber.cadence.workflow.SignalExternalWorkflowParameters;
 import com.uber.cadence.workflow.SignalMethod;
-import com.uber.cadence.workflow.WorkflowFailureException;
 import com.uber.cadence.workflow.WorkflowMethod;
 
 import java.lang.reflect.InvocationHandler;
@@ -99,8 +101,13 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
                     "from @WorkflowMethod, @QueryMethod or @SignalMethod");
         }
         if (workflowMethod != null) {
-            if (execution.get() != null) {
-                throw new IllegalStateException("Already started: " + execution);
+            // We do allow duplicated calls if policy is not AllowDuplicate. Semantic is to wait for result.
+            if (execution.get() != null) { // stub is reused
+                if (options.getWorkflowIdReusePolicy() == WorkflowIdReusePolicy.AllowDuplicate) {
+                    throw new WorkflowExecutionAlreadyStartedException(
+                            "Cannot call @WorkflowMethod more than once per stub instance", execution.get(), workflowType, null);
+                }
+                return waitForWorkflowResult(method);
             }
             return startWorkflow(method, workflowMethod, args);
         }
@@ -174,12 +181,24 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
         }
         byte[] input = dataConverter.toData(args);
         parameters.setInput(input);
-        execution.set(genericClient.startWorkflow(parameters));
+        try {
+            execution.set(genericClient.startWorkflow(parameters));
+        } catch (WorkflowExecutionAlreadyStartedException e) {
+            // We do allow duplicated calls if policy is not AllowDuplicate. Semantic is to wait for result.
+            if (options.getWorkflowIdReusePolicy() == WorkflowIdReusePolicy.AllowDuplicate) {
+                throw e;
+            }
+            return waitForWorkflowResult(method);
+        }
         AtomicReference<WorkflowExecution> async = asyncResult.get();
         if (async != null) {
             async.set(execution.get());
             return null;
         }
+        return waitForWorkflowResult(method);
+    }
+
+    private Object waitForWorkflowResult(Method method) {
         try {
             byte[] resultValue = WorkflowExecutionUtils.getWorkflowExecutionResult(
                     genericClient.getService(), genericClient.getDomain(), execution.get(), workflowType,
