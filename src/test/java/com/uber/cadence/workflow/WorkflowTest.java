@@ -41,6 +41,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -442,19 +444,21 @@ public class WorkflowTest {
         public String execute() {
             TestActivities testActivities = Workflow.newActivityStub(TestActivities.class, newActivitySchedulingOptions2());
             try {
-                testActivities.throwNPE();
+                testActivities.throwIO();
                 fail("unreachable");
                 return "ignored";
             } catch (ActivityFailureException e) {
                 try {
-                    assertTrue(e.getMessage().contains("TestActivities::throwNPE"));
-                    assertTrue(e.getCause() instanceof NullPointerException);
-                    assertEquals("simulated NPE", e.getCause().getMessage());
+                    assertTrue(e.getMessage().contains("TestActivities::throwIO"));
+                    assertTrue(e.getCause() instanceof IOException);
+                    assertEquals("simulated IO problem", e.getCause().getMessage());
                 } catch (AssertionError ae) {
                     // Errors cause decision to fail. But we want workflow to fail in this case.
                     throw new RuntimeException(ae);
                 }
-                throw e;
+                Throwable ee = new NumberFormatException();
+                ee.initCause(e);
+                throw Workflow.throwWrapped(ee);
             }
         }
     }
@@ -470,18 +474,30 @@ public class WorkflowTest {
                 fail("unreachable");
             } catch (RuntimeException e) {
                 try {
+                    assertNoEmptyStacks(e);
                     assertTrue(e.getMessage().contains("TestWorkflow1::execute"));
-                    assertTrue(e.getCause() instanceof ActivityFailureException);
-                    assertTrue(e.getStackTrace().length > 0);
-                    assertTrue(e.getCause().getCause() instanceof NullPointerException);
-                    assertTrue(e.getCause().getStackTrace().length > 0);
-                    assertEquals("simulated NPE", e.getCause().getCause().getMessage());
+                    assertTrue(e instanceof ChildWorkflowException);
+                    assertTrue(e.getCause() instanceof NumberFormatException);
+                    assertTrue(e.getCause().getCause() instanceof ActivityFailureException);
+                    assertTrue(e.getCause().getCause().getCause() instanceof IOException);
+                    assertEquals("simulated IO problem", e.getCause().getCause().getCause().getMessage());
                 } catch (AssertionError ae) {
                     // Errors cause decision to fail. But we want workflow to fail in this case.
                     throw new RuntimeException(ae);
                 }
-                throw e;
+                Throwable fnf = new FileNotFoundException();
+                fnf.initCause(e);
+                throw Workflow.throwWrapped(fnf);
             }
+        }
+    }
+
+    private static void assertNoEmptyStacks(RuntimeException e) {
+        // Check that there are no empty stacks
+        Throwable c = e;
+        while (c != null) {
+            assertTrue(c.getStackTrace().length > 0);
+            c = c.getCause();
         }
     }
 
@@ -492,8 +508,10 @@ public class WorkflowTest {
      * {@link WorkflowFailureException}
      *     ->{@link ChildWorkflowFailureException}
      *         ->{@link ActivityFailureException}
-     *             ->{@link NullPointerException}
+     *             ->OriginalActivityException
      * </pre>
+     * This test also tests that Checked exception wrapping and unwrapping works producing a nice
+     * exception chain without the wrappers.
      */
     @Test
     public void testExceptionPropagation() {
@@ -507,17 +525,20 @@ public class WorkflowTest {
         } catch (WorkflowFailureException e) {
             // Rethrow the assertion failure
             if (e.getCause().getCause() instanceof AssertionError) {
-                throw (AssertionError)e.getCause().getCause();
+                throw (AssertionError) e.getCause().getCause();
             }
+            assertNoEmptyStacks(e);
+
+            e.printStackTrace();
             assertTrue(e.getMessage(), e.getMessage().contains("TestExceptionPropagation::execute"));
             assertTrue(e.getStackTrace().length > 0);
-            assertTrue(e.getCause().getCause() instanceof ActivityFailureException);
-            assertTrue(e.getCause().getStackTrace().length > 0);
-            assertTrue(e.getCause().getClass().toString(), e.getCause() instanceof ChildWorkflowFailureException);
-            assertTrue(e.getCause().getCause().getStackTrace().length > 0);
-            assertTrue(e.getCause().getCause().getCause() instanceof NullPointerException);
-            assertTrue(e.getCause().getCause().getCause().getStackTrace().length > 0);
-            assertEquals("simulated NPE", e.getCause().getCause().getCause().getMessage());
+            assertTrue(e instanceof WorkflowException);
+            assertTrue(e.getCause() instanceof FileNotFoundException);
+            assertTrue(e.getCause().getCause() instanceof ChildWorkflowException);
+            assertTrue(e.getCause().getCause().getCause() instanceof NumberFormatException);
+            assertTrue(e.getCause().getCause().getCause().getCause() instanceof ActivityFailureException);
+            assertTrue(e.getCause().getCause().getCause().getCause().getCause() instanceof IOException);
+            assertEquals("simulated IO problem", e.getCause().getCause().getCause().getCause().getCause().getMessage());
         }
     }
 
@@ -797,7 +818,7 @@ public class WorkflowTest {
 
         void proc6(String a1, int a2, int a3, int a4, int a5, int a6);
 
-        void throwNPE();
+        void throwIO();
     }
 
     private static class TestActivitiesImpl implements TestActivities {
@@ -934,8 +955,12 @@ public class WorkflowTest {
         }
 
         @Override
-        public void throwNPE() {
-            throw new NullPointerException("simulated NPE");
+        public void throwIO() {
+            try {
+                throw new IOException("simulated IO problem");
+            } catch (IOException e) {
+                throw Activity.throwWrapped(e);
+            }
         }
     }
 

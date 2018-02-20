@@ -125,6 +125,6 @@ class SyncWorkflow implements AsyncWorkflow {
 
     @Override
     public WorkflowExecutionException mapUnexpectedException(Throwable failure) {
-        return POJOWorkflowImplementationFactory.mapWorkflowFailure(failure, dataConverter);
+        return POJOWorkflowImplementationFactory.mapToWorkflowExecutionException(failure, dataConverter);
     }
 }

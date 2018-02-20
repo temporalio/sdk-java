@@ -81,6 +81,7 @@ class POJOActivityImplementationFactory implements ActivityImplementationFactory
         if (e instanceof CancellationException) {
             throw (CancellationException) e;
         }
+        e = CheckedExceptionWrapper.unwrap(e);
         WorkflowExecution workflowExecution = task.getWorkflowExecution();
         String message = "\"" + task.getActivityType().getName() + "\" activity execution failed with "
                 + "ActivityID=\"" + task.getActivityId()

@@ -17,7 +17,7 @@
 package com.uber.cadence.workflow;
 
 import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.error.CheckedExceptionWrapper;
+import com.uber.cadence.internal.worker.CheckedExceptionWrapper;
 import com.uber.cadence.internal.dispatcher.WorkflowInternal;
 
 import java.time.Duration;
@@ -100,7 +100,7 @@ public final class Workflow {
      * promise is failed with {@link java.util.concurrent.CancellationException} if enclosing scope is cancelled.
      */
     public static Promise<Void> newTimer(Duration delay) {
-        return  WorkflowInternal.newTimer(delay);
+        return WorkflowInternal.newTimer(delay);
     }
 
     public static <E> WorkflowQueue<E> newQueue(int capacity) {
@@ -116,7 +116,7 @@ public final class Workflow {
     }
 
     public static <E> Promise<E> newFailedPromise(Exception failure) {
-        return WorkflowInternal.newFailedPromise(CheckedExceptionWrapper.wrap(failure));
+        return WorkflowInternal.newFailedPromise(CheckedExceptionWrapper.throwWrapped(failure));
     }
 
     /**
@@ -372,6 +372,39 @@ public final class Workflow {
      */
     public static <R> Promise<R> executeActivityAsync(String name, ActivityOptions options, Class<R> returnType, Object... args) {
         return WorkflowInternal.executeActivityAsync(name, options, returnType, args);
+    }
+
+    /**
+     * If there is a need to return a checked exception from a workflow implementation
+     * do not add the exception to a method signature but rethrow it using this method.
+     * The library code will unwrap it automatically when propagating exception to the caller.
+     * There is no need to wrap unchecked exceptions, but it is safe to call this method on them.
+     * <p>
+     * The reason for such design is that returning originally thrown exception from a remote call
+     * (which child workflow and activity invocations are ) would not allow adding context information about
+     * a failure, like activity and child workflow id. So stubs always throw a subclass of
+     * {@link com.uber.cadence.internal.ActivityException} from calls to an activity and subclass of
+     * {@link com.uber.cadence.workflow.ChildWorkflowException} from calls to a child workflow.
+     * The original exception is attached as a cause to these wrapper exceptions. So as exceptions are always wrapped
+     * adding checked ones to method signature causes more pain than benefit.
+     * </p>
+     * <p>
+     * Throws original exception if e is {@link RuntimeException} or {@link Error}.
+     * Never returns. But return type is not empty to be able to use it as:
+     * <pre>
+     * try {
+     *     return someCall();
+     * } catch (Exception e) {
+     *     throw CheckedExceptionWrapper.throwWrapped(e);
+     * }
+     * </pre>
+     * If throwWrapped returned void it wouldn't be possible to write <code>throw CheckedExceptionWrapper.throwWrapped</code>
+     * and compiler would complain about missing return.
+     *
+     * @return never returns as always throws.
+     */
+    public static RuntimeException throwWrapped(Throwable e) {
+        return WorkflowInternal.throwWrapped(e);
     }
 
     /**

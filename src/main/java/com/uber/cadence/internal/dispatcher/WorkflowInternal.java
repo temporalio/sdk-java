@@ -18,6 +18,7 @@ package com.uber.cadence.internal.dispatcher;
 
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.internal.common.InternalUtils;
+import com.uber.cadence.internal.worker.CheckedExceptionWrapper;
 import com.uber.cadence.workflow.ActivityOptions;
 import com.uber.cadence.workflow.CancellationScope;
 import com.uber.cadence.workflow.ChildWorkflowOptions;
@@ -409,10 +410,14 @@ public final class WorkflowInternal {
         return CancellationScopeImpl.current();
     }
 
+
+    public static RuntimeException throwWrapped(Throwable e) {
+        return CheckedExceptionWrapper.throwWrapped(e);
+    }
+
     /**
      * Prohibit instantiation
      */
     private WorkflowInternal() {
     }
-
 }

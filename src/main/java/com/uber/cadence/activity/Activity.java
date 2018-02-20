@@ -17,6 +17,7 @@
 package com.uber.cadence.activity;
 
 import com.uber.cadence.WorkflowService;
+import com.uber.cadence.internal.dispatcher.WorkflowInternal;
 import com.uber.cadence.internal.worker.ActivityInternal;
 import com.uber.cadence.workflow.ActivityTimeoutException;
 
@@ -65,7 +66,9 @@ public final class Activity {
 
     /**
      * @return an instance of the Simple Workflow Java client that is the same
-     * used by the invoked activity worker.
+     * used by the invoked activity worker. It can be useful if activity wants to use CadenceClient for
+     * some operations like sending signal to its parent workflow.
+     * @TODO getCadenceClient method to hide the service.
      */
     public static WorkflowService.Iface getService() {
         return ActivityInternal.getService();
@@ -73,6 +76,38 @@ public final class Activity {
 
     public static String getDomain() {
         return ActivityInternal.getDomain();
+    }
+
+    /**
+     * If there is a need to return a checked exception from an activity
+     * do not add the exception to a method signature but rethrow it using this method.
+     * The library code will unwrap it automatically when propagating exception to the caller.
+     * There is no need to wrap unchecked exceptions, but it is safe to call this method on them.
+     * <p>
+     * The reason for such design is that returning originally thrown exception from a remote call
+     * (which child workflow and activity invocations are ) would not allow adding context information about
+     * a failure, like activity and child workflow id. So stubs always throw a subclass of
+     * {@link com.uber.cadence.internal.ActivityException} from calls to an activity and subclass of
+     * {@link com.uber.cadence.workflow.ChildWorkflowException} from calls to a child workflow.
+     * The original exception is attached as a cause to these wrapper exceptions. So as exceptions are always wrapped
+     * adding checked ones to method signature causes more pain than benefit.
+     * </p>
+     * Throws original exception if e is {@link RuntimeException} or {@link Error}.
+     * Never returns. But return type is not empty to be able to use it as:
+     * <pre>
+     * try {
+     *     return someCall();
+     * } catch (Exception e) {
+     *     throw CheckedExceptionWrapper.throwWrapped(e);
+     * }
+     * </pre>
+     * If throwWrapped returned void it wouldn't be possible to write <code>throw CheckedExceptionWrapper.throwWrapped</code>
+     * and compiler would complain about missing return.
+     *
+     * @return never returns as always throws.
+     */
+    public static RuntimeException throwWrapped(Throwable e) {
+        return WorkflowInternal.throwWrapped(e);
     }
 
     /**

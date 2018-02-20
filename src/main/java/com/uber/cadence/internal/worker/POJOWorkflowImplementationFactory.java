@@ -26,7 +26,6 @@ import com.uber.cadence.internal.dispatcher.WorkflowInternal;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.QueryMethod;
 import com.uber.cadence.workflow.SignalMethod;
-import com.uber.cadence.workflow.WorkflowException;
 import com.uber.cadence.workflow.WorkflowMethod;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -164,7 +163,7 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
                 }
                 return dataConverter.toData(result);
             } catch (IllegalAccessException e) {
-                throw mapWorkflowFailure(e, dataConverter);
+                throw mapToWorkflowExecutionException(e, dataConverter);
             } catch (InvocationTargetException e) {
                 Throwable targetException = e.getTargetException();
                 if (targetException instanceof Error) {
@@ -174,7 +173,7 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
                 if (targetException instanceof CancellationException) {
                     throw (CancellationException) targetException;
                 }
-                throw mapWorkflowFailure(targetException, dataConverter);
+                throw mapToWorkflowExecutionException(targetException, dataConverter);
             }
         }
 
@@ -227,7 +226,8 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
 
     }
 
-    public static WorkflowExecutionException mapWorkflowFailure(Throwable e, DataConverter dataConverter) {
+    public static WorkflowExecutionException mapToWorkflowExecutionException(Throwable e, DataConverter dataConverter) {
+        e = CheckedExceptionWrapper.unwrap(e);
         return new WorkflowExecutionException(e.getClass().getName(), dataConverter.toData(e));
     }
 }
