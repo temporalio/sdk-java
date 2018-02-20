@@ -66,9 +66,9 @@ public final class Activity {
 
     /**
      * @return an instance of the Simple Workflow Java client that is the same
-     * used by the invoked activity worker. It can be useful if activity wants to use CadenceClient for
+     * used by the invoked activity worker. It can be useful if activity wants to use WorkflowClient for
      * some operations like sending signal to its parent workflow.
-     * @TODO getCadenceClient method to hide the service.
+     * @TODO getWorkflowClient method to hide the service.
      */
     public static WorkflowService.Iface getService() {
         return ActivityInternal.getService();

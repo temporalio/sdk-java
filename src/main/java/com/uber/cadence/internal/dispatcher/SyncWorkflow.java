@@ -20,7 +20,7 @@ import com.uber.cadence.EventType;
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.WorkflowQuery;
 import com.uber.cadence.WorkflowType;
-import com.uber.cadence.client.CadenceClient;
+import com.uber.cadence.client.WorkflowClient;
 import com.uber.cadence.internal.AsyncDecisionContext;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.worker.AsyncWorkflow;
@@ -117,7 +117,7 @@ class SyncWorkflow implements AsyncWorkflow {
 
     @Override
     public byte[] query(WorkflowQuery query) {
-        if (CadenceClient.QUERY_TYPE_STACK_TRCE.equals(query.getQueryType())) {
+        if (WorkflowClient.QUERY_TYPE_STACK_TRCE.equals(query.getQueryType())) {
             return dataConverter.toData(runner.stackTrace());
         }
         return workflowProc.query(query.getQueryType(), query.getQueryArgs());

@@ -251,18 +251,17 @@ public interface FileProcessingWorkflow {
 ```
 ## Starting workflow executions
 
-Given a workflow interface executing a workflow requires initializing a `CadenceClient` instance, creating 
+Given a workflow interface executing a workflow requires initializing a `WorkflowClient` instance, creating 
 a client side stub to the workflow and then calling a method annotated with @WorkflowMethod.
 ```java
-// CadenceClient abstracts low level Cadence API.
-CadenceClient cadenceClient = CadenceClient.newClient(cadenceServiceHost, cadenceServicePort, domain);
+WorkflowClient workflowClient = WorkflowClient.newClient(cadenceServiceHost, cadenceServicePort, domain);
 // At least workflow timeout and task list to use are required.
 WorkflowOptions options = new WorkflowOptions.Builder()
         .setExecutionStartToCloseTimeoutSeconds(300)
         .setTaskList(WORKFLOW_TASK_LIST)
         .build();
 // Create workflow stub
-FileProcessingWorkflow workflow = cadenceClient.newWorkflowStub(FileProcessingWorkflow.class, options);
+FileProcessingWorkflow workflow = workflowClient.newWorkflowStub(FileProcessingWorkflow.class, options);
 ```
 There are two ways to start workflow execution. Synchronously and asynchronously. Synchronous invocation starts a workflow
 and then waits for its completion. If process that started workflow crashes or stops waiting workflow continues execution.
@@ -279,7 +278,7 @@ String result = workflow.processFile(workflowArgs);
 Asynchronous:
 ```java
 // Returns as soon as workflow starts
-WorkflowExecution workflowExecution = CadenceClient.asyncStart(workflow::processFile, workflowArgs);
+WorkflowExecution workflowExecution = WorkflowClient.asyncStart(workflow::processFile, workflowArgs);
 
 System.out.println("Started process file workflow with workflowId=\"" + workflowExecution.getWorkflowId()
                     + "\" and runId=\"" + workflowExecution.getRunId() + "\"");
@@ -291,7 +290,7 @@ The following example shows how to do it from a different process than the one t
 needs is a `WorkflowID`.
 ```java
 WorkflowExecution execution = new WorkflowExecution().setWorkflowId(workflowId);
-FileProcessingWorkflow workflow = cadenceClient.newWorkflowStub(execution);
+FileProcessingWorkflow workflow = workflowClient.newWorkflowStub(execution);
 // Returns result potentially waiting for workflow to complete.
 String result = workflow.processFile(workflowArgs);
 ```
@@ -422,7 +421,7 @@ Besides activities a workflow can also orchestrate other workflows.
  returns a `Promise` that can be used to wait for the completion. After an async call returns the stub can be used to send signals to the child
  by calling methods annotated with `@SignalMethod`. Querying a child workflow by calling methods annotated with @QueryMethod 
  from within workflow code is not currently supported. If needed queries can be done from activities
- using `CadenceClient` provided stub. 
+ using `WorkflowClient` provided stub. 
  ```java
 public interface GreetingChild {
     @WorkflowMethod

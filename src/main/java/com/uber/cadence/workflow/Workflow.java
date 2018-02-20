@@ -144,7 +144,7 @@ public final class Workflow {
      * @param args       list of activity arguments
      * @param <R>        activity return type
      * @return activity result
-     * @TODO Provide untyped stub instead the same way CadenceClient provides.
+     * @TODO Provide untyped stub instead the same way WorkflowClient provides.
      */
     public static <R> R executeActivity(String name, ActivityOptions options, Class<R> returnType, Object... args) {
         return WorkflowInternal.executeActivity(name, options, returnType, args);

@@ -65,7 +65,7 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
             }
             WorkflowExecution result = reference.get();
             if (result == null) {
-                throw new IllegalStateException("Only methods of a stub created through CadenceClient.newWorkflowStub " +
+                throw new IllegalStateException("Only methods of a stub created through WorkflowClient.newWorkflowStub " +
                         "can be used as a parameter to the asyncStart.");
             }
             return result;

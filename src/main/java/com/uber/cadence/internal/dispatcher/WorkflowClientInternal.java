@@ -20,8 +20,8 @@ import com.google.common.reflect.TypeToken;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.client.ActivityCompletionClient;
-import com.uber.cadence.client.CadenceClient;
-import com.uber.cadence.client.CadenceClientOptions;
+import com.uber.cadence.client.WorkflowClient;
+import com.uber.cadence.client.WorkflowClientOptions;
 import com.uber.cadence.client.UntypedWorkflowStub;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.converter.DataConverter;
@@ -36,16 +36,16 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 
-public final class CadenceClientInternal implements CadenceClient {
+public final class WorkflowClientInternal implements WorkflowClient {
 
     private final GenericWorkflowClientExternalImpl genericClient;
     private final ManualActivityCompletionClientFactory manualActivityCompletionClientFactory;
     private final DataConverter dataConverter;
 
-    public CadenceClientInternal(WorkflowService.Iface service, String domain, CadenceClientOptions options) {
+    public WorkflowClientInternal(WorkflowService.Iface service, String domain, WorkflowClientOptions options) {
         this.genericClient = new GenericWorkflowClientExternalImpl(service, domain);
         if (options == null) {
-            options = new CadenceClientOptions.Builder().build();
+            options = new WorkflowClientOptions.Builder().build();
         }
         this.dataConverter = options.getDataConverter();
         this.manualActivityCompletionClientFactory = new ManualActivityCompletionClientFactoryImpl(service, domain, dataConverter);

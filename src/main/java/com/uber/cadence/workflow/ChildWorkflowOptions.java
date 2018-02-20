@@ -40,7 +40,7 @@ public final class ChildWorkflowOptions {
         /**
          * Specify domain in which workflow should be started.
          * <p>
-         * TODO: Resolve conflict with CadenceClient domain.
+         * TODO: Resolve conflict with WorkflowClient domain.
          * </p>
          */
         public Builder setDomain(String domain) {

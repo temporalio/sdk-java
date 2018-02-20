@@ -20,9 +20,9 @@ import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.converter.JsonDataConverter;
 
 /**
- * Options for CadenceClient configuration.
+ * Options for WorkflowClient configuration.
  */
-public final class CadenceClientOptions {
+public final class WorkflowClientOptions {
 
     public static final class Builder {
 
@@ -41,15 +41,15 @@ public final class CadenceClientOptions {
             return this;
         }
 
-        public CadenceClientOptions build() {
-            return new CadenceClientOptions(dataConverter);
+        public WorkflowClientOptions build() {
+            return new WorkflowClientOptions(dataConverter);
         }
     }
 
 
     private final DataConverter dataConverter;
 
-    private CadenceClientOptions(DataConverter dataConverter) {
+    private WorkflowClientOptions(DataConverter dataConverter) {
         this.dataConverter = dataConverter;
     }
 

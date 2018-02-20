@@ -24,7 +24,7 @@ import java.util.concurrent.CancellationException;
  * Used to complete asynchronously activities that have their implementation method annotated with
  * {@link com.uber.cadence.activity.DoNotCompleteOnReturn}.
  * <p>
- *     Use {@link CadenceClient#newActivityCompletionClient()} to create an instance.
+ *     Use {@link WorkflowClient#newActivityCompletionClient()} to create an instance.
  * </p>
  * TODO: Throw relevant exceptions like EntityNotExists, etc.
  */

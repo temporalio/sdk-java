@@ -74,7 +74,7 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
     public WorkflowExecution start(Object... args) {
         if (options == null) {
             throw new IllegalStateException("UntypedWorkflowStub wasn't created through " +
-                    "CadenceClient::newUntypedWorkflowStub(String workflowType, WorkflowOptions options)");
+                    "WorkflowClient::newUntypedWorkflowStub(String workflowType, WorkflowOptions options)");
         }
         if (execution.get() != null) {
             throw new IllegalStateException("already started for execution=" + execution.get());

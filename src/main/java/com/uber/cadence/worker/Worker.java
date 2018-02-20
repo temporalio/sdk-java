@@ -18,6 +18,7 @@ package com.uber.cadence.worker;
 
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
+import com.uber.cadence.client.WorkflowClient;
 import com.uber.cadence.internal.dispatcher.SyncWorkflowWorker;
 import com.uber.cadence.internal.worker.ActivityWorker;
 import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
@@ -217,7 +218,7 @@ public final class Worker {
      * It gets a history from a Cadence service, replays a workflow code and then runs the query.
      * This method is useful to troubleshoot workflows by running them in a debugger.
      * To work the workflow implementation type must be registered with this worker.
-     * In most cases using {@link com.uber.cadence.client.CadenceClient} to query workflows is preferable,
+     * In most cases using {@link WorkflowClient} to query workflows is preferable,
      * as it doesn't require workflow implementation code to be available.
      * There is no need to call {@link #start()} to be able to call this method.
      *

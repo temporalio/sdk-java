@@ -18,7 +18,7 @@ package com.uber.cadence.client;
 
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
-import com.uber.cadence.internal.dispatcher.CadenceClientInternal;
+import com.uber.cadence.internal.dispatcher.WorkflowClientInternal;
 import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
 import com.uber.cadence.workflow.Functions;
 
@@ -27,12 +27,12 @@ import com.uber.cadence.workflow.Functions;
  * Also can be used to create instances of {@link ActivityCompletionClient} to complete activities asynchronously.
  * Do not create this object for each request, keep it for the duration of the process.
  * <p>
- * Use {@link #newInstance(WorkflowService.Iface, String, CadenceClientOptions)} method to create an instance.
+ * Use {@link #newInstance(WorkflowService.Iface, String, WorkflowClientOptions)} method to create an instance.
  * </p>
  * Example usage:
  * <pre>
  * // Create cadence client using cadence service host and port.
- * CadenceClient client = CadenceClient.newInstance(host, port);
+ * WorkflowClient client = WorkflowClient.newInstance(host, port);
  *
  * // Specify workflow start options.
  * WorkflowOptions options = new WorkflowOptions.Builder()
@@ -47,14 +47,14 @@ import com.uber.cadence.workflow.Functions;
  * HelloWorldWorkflow workflow = client.newWorkflowStub(HelloWorldWorkflow.class, options);
  *
  * // Start Workflow Execution
- * WorkflowExecution started = CadenceClient.asyncStart(workflow::helloWorld, "User");
+ * WorkflowExecution started = WorkflowClient.asyncStart(workflow::helloWorld, "User");
  *
  * // started.getWorkflowId() should match the one in the options: "MyHelloWorld1"
  * System.out.println("Started helloWorld workflow with workflowId=\"" + started.getWorkflowId()
  *                     + "\" and runId=\"" + started.getRunId() + "\"");
  * </pre>
  */
-public interface CadenceClient {
+public interface WorkflowClient {
 
     /**
      * Use this constant as a query type to get a workflow stack trace.
@@ -67,9 +67,9 @@ public interface CadenceClient {
      *
      * @param domain domain that worker uses to poll.
      */
-    static CadenceClient newInstance(String domain) {
-        return new CadenceClientInternal(new WorkflowServiceTChannel(), domain,
-                new CadenceClientOptions.Builder().build());
+    static WorkflowClient newInstance(String domain) {
+        return new WorkflowClientInternal(new WorkflowServiceTChannel(), domain,
+                new WorkflowClientOptions.Builder().build());
     }
 
     /**
@@ -79,8 +79,8 @@ public interface CadenceClient {
      * @param domain  domain that worker uses to poll.
      * @param options Options (like {@link com.uber.cadence.converter.DataConverter}er override) for configuring client.
      */
-    static CadenceClient newInstance(String domain, CadenceClientOptions options) {
-        return new CadenceClientInternal(new WorkflowServiceTChannel(), domain, options);
+    static WorkflowClient newInstance(String domain, WorkflowClientOptions options) {
+        return new WorkflowClientInternal(new WorkflowServiceTChannel(), domain, options);
     }
 
     /**
@@ -90,9 +90,9 @@ public interface CadenceClient {
      * @param port   of the Cadence Service endpoint
      * @param domain domain that worker uses to poll.
      */
-    static CadenceClient newInstance(String host, int port, String domain) {
-        return new CadenceClientInternal(new WorkflowServiceTChannel(host, port), domain,
-                new CadenceClientOptions.Builder().build());
+    static WorkflowClient newInstance(String host, int port, String domain) {
+        return new WorkflowClientInternal(new WorkflowServiceTChannel(host, port), domain,
+                new WorkflowClientOptions.Builder().build());
     }
 
     /**
@@ -103,8 +103,8 @@ public interface CadenceClient {
      * @param domain  domain that worker uses to poll.
      * @param options Options (like {@link com.uber.cadence.converter.DataConverter}er override) for configuring client.
      */
-    static CadenceClient newInstance(String host, int port, String domain, CadenceClientOptions options) {
-        return new CadenceClientInternal(new WorkflowServiceTChannel(host, port), domain, options);
+    static WorkflowClient newInstance(String host, int port, String domain, WorkflowClientOptions options) {
+        return new WorkflowClientInternal(new WorkflowServiceTChannel(host, port), domain, options);
     }
 
     /**
@@ -113,8 +113,8 @@ public interface CadenceClient {
      * @param service client to the Cadence Service endpoint.
      * @param domain  domain that worker uses to poll.
      */
-    static CadenceClient newInstance(WorkflowService.Iface service, String domain) {
-        return new CadenceClientInternal(service, domain, null);
+    static WorkflowClient newInstance(WorkflowService.Iface service, String domain) {
+        return new WorkflowClientInternal(service, domain, null);
     }
 
     /**
@@ -124,8 +124,8 @@ public interface CadenceClient {
      * @param domain  domain that worker uses to poll.
      * @param options Options (like {@link com.uber.cadence.converter.DataConverter}er override) for configuring client.
      */
-    static CadenceClient newInstance(WorkflowService.Iface service, String domain, CadenceClientOptions options) {
-        return new CadenceClientInternal(service, domain, options);
+    static WorkflowClient newInstance(WorkflowService.Iface service, String domain, WorkflowClientOptions options) {
+        return new WorkflowClientInternal(service, domain, options);
     }
 
     /**
@@ -190,7 +190,7 @@ public interface CadenceClient {
      * @return future becomes ready upon workflow completion with null value or failure
      */
     static WorkflowExecution asyncStart(Functions.Proc workflow) {
-        return CadenceClientInternal.asyncStart(workflow);
+        return WorkflowClientInternal.asyncStart(workflow);
     }
 
     /**
@@ -202,7 +202,7 @@ public interface CadenceClient {
      * @return future becomes ready upon workflow completion with null value or failure
      */
     static <A1> WorkflowExecution asyncStart(Functions.Proc1<A1> workflow, A1 arg1) {
-        return CadenceClientInternal.asyncStart(workflow, arg1);
+        return WorkflowClientInternal.asyncStart(workflow, arg1);
     }
 
     /**
@@ -215,7 +215,7 @@ public interface CadenceClient {
      * @return future becomes ready upon workflow completion with null value or failure
      */
     static <A1, A2> WorkflowExecution asyncStart(Functions.Proc2<A1, A2> workflow, A1 arg1, A2 arg2) {
-        return CadenceClientInternal.asyncStart(workflow, arg1, arg2);
+        return WorkflowClientInternal.asyncStart(workflow, arg1, arg2);
     }
 
     /**
@@ -229,7 +229,7 @@ public interface CadenceClient {
      * @return future becomes ready upon workflow completion with null value or failure
      */
     static <A1, A2, A3> WorkflowExecution asyncStart(Functions.Proc3<A1, A2, A3> workflow, A1 arg1, A2 arg2, A3 arg3) {
-        return CadenceClientInternal.asyncStart(workflow, arg1, arg2, arg3);
+        return WorkflowClientInternal.asyncStart(workflow, arg1, arg2, arg3);
     }
 
     /**
@@ -244,7 +244,7 @@ public interface CadenceClient {
      * @return future becomes ready upon workflow completion with null value or failure
      */
     static <A1, A2, A3, A4> WorkflowExecution asyncStart(Functions.Proc4<A1, A2, A3, A4> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
-        return CadenceClientInternal.asyncStart(workflow, arg1, arg2, arg3, arg4);
+        return WorkflowClientInternal.asyncStart(workflow, arg1, arg2, arg3, arg4);
     }
 
     /**
@@ -260,7 +260,7 @@ public interface CadenceClient {
      * @return future becomes ready upon workflow completion with null value or failure
      */
     static <A1, A2, A3, A4, A5> WorkflowExecution asyncStart(Functions.Proc5<A1, A2, A3, A4, A5> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
-        return CadenceClientInternal.asyncStart(workflow, arg1, arg2, arg3, arg4, arg5);
+        return WorkflowClientInternal.asyncStart(workflow, arg1, arg2, arg3, arg4, arg5);
     }
 
     /**
@@ -277,7 +277,7 @@ public interface CadenceClient {
      * @return future becomes ready upon workflow completion with null value or failure
      */
     static <A1, A2, A3, A4, A5, A6> WorkflowExecution asyncStart(Functions.Proc6<A1, A2, A3, A4, A5, A6> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5, A6 arg6) {
-        return CadenceClientInternal.asyncStart(workflow, arg1, arg2, arg3, arg4, arg5, arg6);
+        return WorkflowClientInternal.asyncStart(workflow, arg1, arg2, arg3, arg4, arg5, arg6);
     }
 
     /**
@@ -288,7 +288,7 @@ public interface CadenceClient {
      * @return future that contains workflow result or failure
      */
     static <R> WorkflowExecution asyncStart(Functions.Func<R> workflow) {
-        return CadenceClientInternal.asyncStart(workflow);
+        return WorkflowClientInternal.asyncStart(workflow);
     }
 
     /**
@@ -300,7 +300,7 @@ public interface CadenceClient {
      * @return future that contains workflow result or failure
      */
     static <A1, R> WorkflowExecution asyncStart(Functions.Func1<A1, R> workflow, A1 arg1) {
-        return CadenceClientInternal.asyncStart(workflow, arg1);
+        return WorkflowClientInternal.asyncStart(workflow, arg1);
     }
 
     /**
@@ -313,7 +313,7 @@ public interface CadenceClient {
      * @return future that contains workflow result or failure
      */
     static <A1, A2, R> WorkflowExecution asyncStart(Functions.Func2<A1, A2, R> workflow, A1 arg1, A2 arg2) {
-        return CadenceClientInternal.asyncStart(workflow, arg1, arg2);
+        return WorkflowClientInternal.asyncStart(workflow, arg1, arg2);
     }
 
     /**
@@ -327,7 +327,7 @@ public interface CadenceClient {
      * @return future that contains workflow result or failure
      */
     static <A1, A2, A3, R> WorkflowExecution asyncStart(Functions.Func3<A1, A2, A3, R> workflow, A1 arg1, A2 arg2, A3 arg3) {
-        return CadenceClientInternal.asyncStart(workflow, arg1, arg2, arg3);
+        return WorkflowClientInternal.asyncStart(workflow, arg1, arg2, arg3);
     }
 
     /**
@@ -342,7 +342,7 @@ public interface CadenceClient {
      * @return future that contains workflow result or failure
      */
     static <A1, A2, A3, A4, R> WorkflowExecution asyncStart(Functions.Func4<A1, A2, A3, A4, R> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
-        return CadenceClientInternal.asyncStart(workflow, arg1, arg2, arg3, arg4);
+        return WorkflowClientInternal.asyncStart(workflow, arg1, arg2, arg3, arg4);
     }
 
     /**
@@ -358,7 +358,7 @@ public interface CadenceClient {
      * @return future that contains workflow result or failure
      */
     static <A1, A2, A3, A4, A5, R> WorkflowExecution asyncStart(Functions.Func5<A1, A2, A3, A4, A5, R> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
-        return CadenceClientInternal.asyncStart(workflow, arg1, arg2, arg3, arg4, arg5);
+        return WorkflowClientInternal.asyncStart(workflow, arg1, arg2, arg3, arg4, arg5);
     }
 
     /**
@@ -375,6 +375,6 @@ public interface CadenceClient {
      * @return future that contains workflow result or failure
      */
     static <A1, A2, A3, A4, A5, A6, R> WorkflowExecution asyncStart(Functions.Func6<A1, A2, A3, A4, A5, A6, R> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5, A6 arg6) {
-        return CadenceClientInternal.asyncStart(workflow, arg1, arg2, arg3, arg4, arg5, arg6);
+        return WorkflowClientInternal.asyncStart(workflow, arg1, arg2, arg3, arg4, arg5, arg6);
     }
 }
