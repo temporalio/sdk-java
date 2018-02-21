@@ -618,7 +618,7 @@ public class WorkflowTest {
         queryWorker.registerWorkflowImplementationTypes(TestSignalWorkflowImpl.class);
         String queryResult = queryWorker.queryWorkflowExecution(execution, "QueryableWorkflow::getState", String.class);
         assertEquals("Hello ", queryResult);
-
+        Thread.sleep(500);
         client.mySignal("World!");
         assertEquals("World!", client.getState());
         assertEquals("Hello World!", workflowClient.newUntypedWorkflowStub(execution).getResult(String.class));

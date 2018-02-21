@@ -3,3 +3,6 @@ target
 .*.swo
 *.iml
 .idea
+.gradle
+/build
+/out
