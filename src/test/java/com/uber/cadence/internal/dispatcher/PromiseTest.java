@@ -292,6 +292,62 @@ public class PromiseTest {
     }
 
     @Test
+    public void tstAsync() throws Throwable {
+        DeterministicRunner runner = DeterministicRunner.newRunner(() -> {
+            trace.add("root begin");
+            CompletablePromise<String> f1 = Workflow.newCompletablePromise();
+            CompletablePromise<String> f2 = Workflow.newCompletablePromise();
+            Promise<String> f3 = f1.thenApply((r)->r+".thenApply").thenCompose((r) -> f2.handle((v, e) -> r + v));
+            CompletablePromise<String> f4 = Workflow.newCompletablePromise();
+            f4.completeFrom(f3);
+            f4.thenApply((r) -> { trace.add(r); return null; });
+            f2.complete(".f2Handle");
+            f1.complete("value1");
+            trace.add("root done");
+        });
+        runner.runUntilAllBlocked();
+        String[] expected = new String[]{
+                "root begin",
+                "value1.thenApply.f2Handle",
+                "root done"
+        };
+
+        trace.setExpected(expected);
+    }
+
+    @Test
+    public void testAsyncFailure() throws Throwable {
+        DeterministicRunner runner = DeterministicRunner.newRunner(() -> {
+            trace.add("root begin");
+            CompletablePromise<String> f1 = Workflow.newCompletablePromise();
+            CompletablePromise<String> f2 = Workflow.newCompletablePromise();
+            Promise<String> f3 = f1.thenApply((r)->r+".thenApply").thenCompose((r) -> f2.handle((v, e) -> r + v));
+            CompletablePromise<String> f4 = Workflow.newCompletablePromise();
+            f4.completeFrom(f3);
+            Promise<String> f5 = f4.thenApply((r) -> { trace.add(r); return null; });
+            f2.complete(".f2Handle");
+            f1.completeExceptionally(new IllegalThreadStateException("Simulated"));
+            try {
+                f5.get();
+                fail("unreachable");
+            } catch (IllegalThreadStateException e) {
+                assertEquals("Simulated", e.getMessage());
+                trace.add("failure caught");
+            }
+            trace.add("root done");
+        });
+        runner.runUntilAllBlocked();
+        String[] expected = new String[]{
+                "root begin",
+                "failure caught",
+                "root done"
+        };
+
+        trace.setExpected(expected);
+    }
+
+
+    @Test
     public void testAllOf() throws Throwable {
         DeterministicRunner r = DeterministicRunner.newRunner(() -> {
             trace.add("root begin");

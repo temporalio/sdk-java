@@ -29,20 +29,10 @@ import java.util.concurrent.TimeoutException;
 
 class CompletablePromiseImpl<V> implements CompletablePromise<V> {
 
-    private static class Handler {
-        final CompletablePromiseImpl<Object> result;
-        final Functions.Func2 function;
-
-        private Handler(CompletablePromiseImpl<Object> result, Functions.Func2 function) {
-            this.result = result;
-            this.function = function;
-        }
-    }
-
     private V value;
     private RuntimeException failure;
     private boolean completed;
-    private final List<Handler> handlers = new ArrayList<>();
+    private final List<Functions.Proc> handlers = new ArrayList<>();
     private final DeterministicRunnerImpl runner;
     private boolean registeredWithRunner;
 
@@ -198,9 +188,34 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
             invokeHandler(fn, resultPromise);
             unregisterWithRunner();
         } else {
-            handlers.add(new Handler(resultPromise, fn));
+            handlers.add(() -> invokeHandler(fn, resultPromise));
         }
         return (Promise<U>) resultPromise;
+    }
+
+    @Override
+    public <U> Promise<U> thenCompose(Functions.Func1<? super V, ? extends Promise<U>> func) {
+        CompletablePromiseImpl<Object> resultPromise = new CompletablePromiseImpl<>();
+        if (completed) {
+            invokeComposeHandler(func, resultPromise);
+            unregisterWithRunner();
+        } else {
+            handlers.add(() -> invokeComposeHandler(func, resultPromise));
+        }
+        return (Promise<U>) resultPromise;
+    }
+
+    private void invokeComposeHandler(Functions.Func1 fn, CompletablePromiseImpl<Object> resultPromise) {
+        if (failure != null) {
+            resultPromise.completeExceptionally(failure);
+            return;
+        }
+        try {
+            Promise<Object> result = (Promise<Object>) fn.apply(value);
+            resultPromise.completeFrom(result);
+        } catch (RuntimeException e) {
+            resultPromise.completeExceptionally(e);
+        }
     }
 
     private void invokeHandler(Functions.Func2 fn, CompletablePromiseImpl<Object> resultPromise) {
@@ -216,8 +231,8 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
      * @return true if there were any handlers invoked
      */
     private boolean invokeHandlers() {
-        for (Handler handler : handlers) {
-            invokeHandler(handler.function, handler.result);
+        for (Functions.Proc handler : handlers) {
+            handler.apply();
         }
         return !handlers.isEmpty();
     }

@@ -90,6 +90,11 @@ class AllOfPromise<G> implements Promise<List<G>> {
     }
 
     @Override
+    public <U> Promise<U> thenCompose(Functions.Func1<? super List<G>, ? extends Promise<U>> func) {
+        return impl.thenCompose(func);
+    }
+
+    @Override
     public boolean isCompleted() {
         return impl.isCompleted();
     }

@@ -18,6 +18,7 @@
 package com.uber.cadence.workflow;
 
 import com.uber.cadence.internal.dispatcher.WorkflowInternal;
+import com.uber.cadence.workflow.Functions.Func2;
 
 import java.util.Collection;
 import java.util.List;
@@ -37,7 +38,8 @@ import java.util.concurrent.TimeoutException;
  * <li>Promise doesn't directly supports cancellation. Use {@link CancellationScope} to cancel and handle cancellations.
  * The pattern is that a cancelled operation completes its Promise with
  * {@link java.util.concurrent.CancellationException} when cancelled.</li>
- * <li>{@link #handle(Functions.Func2)} and similar callback operations do not allow blocking calls inside functions</li>
+ * <li>{@link #handle(Func2)} and similar callback operations do not allow
+ * blocking calls inside functions</li>
  * </ul>
  */
 public interface Promise<V> {
@@ -113,6 +115,17 @@ public interface Promise<V> {
      * </p>
      */
     <U> Promise<U> handle(Functions.Func2<? super V, RuntimeException, ? extends U> fn);
+
+    /**
+     * Returns a new Promise that, when this promise completes
+     * normally, is executed with this promise as the argument
+     * to the supplied function.
+     *
+     * @param func the function returning a new Promise
+     * @param <U> the type of the returned CompletionStage's result
+     * @return the Promise that completes when func returned Promise completes.
+     */
+    <U> Promise<U> thenCompose(Functions.Func1<? super V, ? extends Promise<U>> func);
 
     /**
      * Returns Promise that becomes completed when all promises in the collection are completed.
