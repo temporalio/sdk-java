@@ -42,12 +42,6 @@ public interface CancellationScope {
     String getCancellationReason();
 
     /**
-     * Changes canceled flag in the current scope and all its connected children.
-     * @return true if scope had {@link #isCancelRequested()} == true before this call.
-     */
-    boolean resetCanceled();
-
-    /**
      * Is scope was asked to cancel through {@link #cancel()} or by a parent scope.
      * @return
      */

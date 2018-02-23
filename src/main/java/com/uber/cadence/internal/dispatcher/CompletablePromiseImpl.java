@@ -55,7 +55,7 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
     }
 
     CompletablePromiseImpl() {
-        runner = WorkflowThreadInternal.currentThreadInternal().getRunner();
+        runner = DeterministicRunnerImpl.currentThreadInternal().getRunner();
     }
 
     @Override

@@ -28,7 +28,6 @@ import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.QueryMethod;
 import com.uber.cadence.workflow.WorkflowContext;
 import com.uber.cadence.workflow.WorkflowQueue;
-import com.uber.cadence.workflow.WorkflowThread;
 
 import java.lang.reflect.Proxy;
 import java.time.Duration;
@@ -90,7 +89,7 @@ public final class WorkflowInternal {
      * Should be used to get current time instead of {@link System#currentTimeMillis()}
      */
     public static long currentTimeMillis() {
-        return WorkflowThreadInternal.currentThreadInternal().getRunner().currentTimeMillis();
+        return DeterministicRunnerImpl.currentThreadInternal().getRunner().currentTimeMillis();
     }
 
     /**
@@ -148,15 +147,11 @@ public final class WorkflowInternal {
     }
 
     private static SyncDecisionContext getDecisionContext() {
-        return WorkflowThreadInternal.currentThreadInternal().getDecisionContext();
+        return DeterministicRunnerImpl.currentThreadInternal().getDecisionContext();
     }
 
-    public static WorkflowThread currentThread() {
-        return WorkflowThreadInternal.currentThreadInternal();
-    }
-
-    public static boolean currentThreadResetCanceled() {
-        return WorkflowThreadInternal.currentThreadInternal().resetCanceled();
+    public static void yield(String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError {
+        WorkflowThreadInternal.yield(reason, unblockCondition);
     }
 
     public static boolean yield(long timeoutMillis, String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError {
@@ -189,7 +184,7 @@ public final class WorkflowInternal {
         return result;
     }
 
-    public static CancellationScope currentCancellationScope() {
+    public static CancellationScopeImpl currentCancellationScope() {
         return CancellationScopeImpl.current();
     }
 

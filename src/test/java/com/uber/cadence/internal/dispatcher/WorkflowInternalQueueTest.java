@@ -16,8 +16,8 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import com.uber.cadence.workflow.Workflow;
 import com.uber.cadence.workflow.WorkflowQueue;
-import com.uber.cadence.workflow.WorkflowThread;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -81,7 +81,7 @@ public class WorkflowInternalQueueTest {
             WorkflowInternal.newThread(false, () -> {
                 try {
                     trace.add("thread1 begin");
-                    WorkflowThread.sleep(2000);
+                    Workflow.sleep(2000);
                     assertTrue(f.take());
                     trace.add("thread1 take1 success");
                     assertFalse(f.take());

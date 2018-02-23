@@ -118,6 +118,17 @@ public final class Workflow {
         return WorkflowInternal.currentTimeMillis();
     }
 
+    public static void sleep(Duration duration) {
+        sleep(duration.toMillis());
+    }
+
+    public static void sleep(long millis) {
+        WorkflowInternal.yield(millis, "sleep", () -> {
+            CancellationScope.throwCancelled();
+            return false;
+        });
+    }
+
     /**
      * Creates client stub that can be used to continue this workflow as new generation.
      *

@@ -61,9 +61,13 @@ class CancellationScopeImpl implements CancellationScope {
     private String reason;
 
     CancellationScopeImpl(boolean ignoreParentCancellation, Runnable runnable) {
+        this(ignoreParentCancellation, runnable, current());
+    }
+
+    CancellationScopeImpl(boolean ignoreParentCancellation, Runnable runnable, CancellationScopeImpl parent) {
         this.ignoreParentCancellation = ignoreParentCancellation;
         this.runnable = runnable;
-        setParent(current());
+        setParent(parent);
     }
 
     private void setParent(CancellationScopeImpl parent) {
@@ -121,16 +125,6 @@ class CancellationScopeImpl implements CancellationScope {
     @Override
     public String getCancellationReason() {
         return reason;
-    }
-
-    @Override
-    public boolean resetCanceled() {
-        boolean result = cancelRequested;
-        cancelRequested = false;
-        for (CancellationScopeImpl child : children) {
-            child.resetCanceled();
-        }
-        return result;
     }
 
     @Override

@@ -176,7 +176,7 @@ public class WorkflowTest {
             // In real workflows use
             // Async.invoke(activities::activityWithDelay, 1000, true)
             Promise<String> a1 = Async.invoke(() -> activities.activityWithDelay(1000, true));
-            WorkflowThread.sleep(2000);
+            Workflow.sleep(2000);
             return activities.activity2(a1.get(), 10);
         }
     }
@@ -263,7 +263,7 @@ public class WorkflowTest {
                 Workflow.newDetachedCancellationScope(() -> assertEquals("a1", testActivities.activity1("a1")));
             }
             try {
-                WorkflowThread.sleep(Duration.ofHours(1));
+                Workflow.sleep(Duration.ofHours(1));
             } catch (CancellationException e) {
                 Workflow.newDetachedCancellationScope(() -> assertEquals("a12", testActivities.activity2("a1", 2)));
             }
@@ -432,6 +432,12 @@ public class WorkflowTest {
             Promise<Void> timer2 = Workflow.newTimer(Duration.ofMillis(1300));
 
             long time = Workflow.currentTimeMillis();
+            timer1.thenApply((r) -> {
+                // Testing that timer can be created from a callback thread.
+                Workflow.newTimer(Duration.ofSeconds(10));
+                Workflow.currentTimeMillis(); // Testing that time is available here.
+                return r;
+            }).get();
             timer1.get();
             long slept = Workflow.currentTimeMillis() - time;
             // Also checks that rounding up to a second works.
@@ -720,7 +726,7 @@ public class WorkflowTest {
             while (cause.getCause() != null) {
                 cause = cause.getCause();
             }
-            assertTrue(e.toString(), cause.getMessage().contains("Called from non workflow or workflow callback thread"));
+            assertTrue(e.toString(), cause.getMessage().contains("Blocking calls are not allowed in callback threads"));
         }
     }
 

@@ -18,7 +18,6 @@ package com.uber.cadence.internal.dispatcher;
 
 import com.uber.cadence.workflow.CancellationScope;
 import com.uber.cadence.workflow.Functions;
-import com.uber.cadence.workflow.WorkflowThread;
 
 import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;

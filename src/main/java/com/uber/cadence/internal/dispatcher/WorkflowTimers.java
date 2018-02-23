@@ -39,7 +39,13 @@ class WorkflowTimers {
 
         private final Set<CompletablePromise<Void>> results = new HashSet<>();
 
-        public void addTimer(CompletablePromise<Void> result) {
+        private final long fireTime;
+
+        private Timers(long fireTime) {
+            this.fireTime = fireTime;
+        }
+
+        void addTimer(CompletablePromise<Void> result) {
             results.add(result);
             // Remove timer on cancellation
             result.handle((r, failure) -> {
@@ -51,7 +57,7 @@ class WorkflowTimers {
             });
         }
 
-        public void fire() {
+        void fire() {
             for (CompletablePromise<Void> t : results) {
                 t.complete(null);
             }
@@ -70,7 +76,7 @@ class WorkflowTimers {
     public void addTimer(long fireTime, CompletablePromise<Void> result) {
         Timers t = timers.get(fireTime);
         if (t == null) {
-            t = new Timers();
+            t = new Timers(fireTime);
             timers.put(fireTime, t);
         }
         t.addTimer(result);
@@ -88,18 +94,25 @@ class WorkflowTimers {
      * @return true if any timer fired
      */
     public boolean fireTimers(long currentTime) {
-        List<Long> toDelete = new ArrayList<>();
-        for (Map.Entry<Long, Timers> pair : timers.entrySet()) {
-            if (pair.getKey() > currentTime) {
-                break;
+        boolean fired = false;
+        boolean newTimersAdded;
+        do {
+            List<Timers> toFire = new ArrayList<>();
+            for (Map.Entry<Long, Timers> pair : timers.entrySet()) {
+                if (pair.getKey() > currentTime) {
+                    break;
+                }
+                toFire.add(pair.getValue());
             }
-            pair.getValue().fire();
-            toDelete.add(pair.getKey());
-        }
-        for (Long key : toDelete) {
-            timers.remove(key);
-        }
-        return !toDelete.isEmpty();
+            int beforeSize = timers.size() - toFire.size();
+            for (Timers t : toFire) {
+                t.fire();
+                timers.remove(t.fireTime);
+            }
+            newTimersAdded = timers.size() > beforeSize;
+            fired = fired || !toFire.isEmpty();
+        } while (newTimersAdded);
+        return fired;
     }
 
     public long getNextFireTime() {

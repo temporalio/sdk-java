@@ -14,13 +14,13 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.workflow;
+package com.uber.cadence.internal.dispatcher;
 
-import com.uber.cadence.internal.dispatcher.WorkflowInternal;
+import com.uber.cadence.workflow.CancellationScope;
 
 import java.time.Duration;
 
-public interface WorkflowThread extends CancellationScope {
+interface WorkflowThread extends CancellationScope {
 
     void start();
 
@@ -35,21 +35,6 @@ public interface WorkflowThread extends CancellationScope {
     String getName();
 
     long getId();
-
-    static WorkflowThread currentThread() {
-        return WorkflowInternal.currentThread();
-    }
-
-    static void sleep(Duration duration) {
-        sleep(duration.toMillis());
-    }
-
-    static void sleep(long millis) {
-        WorkflowInternal.yield(millis, "sleep", () -> {
-            CancellationScope.throwCancelled();
-            return false;
-        });
-    }
 
     String getStackTrace();
 }

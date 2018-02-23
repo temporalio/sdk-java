@@ -16,7 +16,13 @@
  */
 package com.uber.cadence.internal.dispatcher;
 
+import java.util.function.Supplier;
+
 interface DeterministicRunnerCoroutine {
+
+    DeterministicRunnerImpl getRunner();
+
+    SyncDecisionContext getDecisionContext();
 
     long getBlockedUntil();
 
@@ -29,4 +35,8 @@ interface DeterministicRunnerCoroutine {
     void stop();
 
     void addStackTrace(StringBuilder result);
+
+    void yieldImpl(String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError;
+
+    boolean yieldImpl(long timeoutMillis, String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError;
 }

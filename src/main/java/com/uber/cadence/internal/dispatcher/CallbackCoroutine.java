@@ -21,8 +21,10 @@ import com.uber.cadence.workflow.Functions;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.function.Supplier;
 
 class CallbackCoroutine implements DeterministicRunnerCoroutine {
+
 
     /**
      * Runnable passed to the thread that wraps a runnable passed to the WorkflowThreadImpl constructor.
@@ -46,11 +48,13 @@ class CallbackCoroutine implements DeterministicRunnerCoroutine {
             thread = Thread.currentThread();
             originalName = thread.getName();
             thread.setName(name);
+            DeterministicRunnerImpl.setCurrentThreadInternal(CallbackCoroutine.this);
             try {
                 result = r.apply();
             } catch (Throwable e) {
                 unhandledException = e;
             } finally {
+                DeterministicRunnerImpl.setCurrentThreadInternal(null);
                 thread.setName(originalName);
                 thread = null;
             }
@@ -69,7 +73,7 @@ class CallbackCoroutine implements DeterministicRunnerCoroutine {
 
         boolean getResult() {
             if (result == null) {
-                throw new IllegalStateException("Result is not ready");
+                throw new IllegalStateException("Result is not ready", unhandledException);
             }
             return result;
         }
@@ -78,22 +82,17 @@ class CallbackCoroutine implements DeterministicRunnerCoroutine {
     private final ExecutorService threadPool;
     private final DeterministicRunnerImpl runner;
     private final RunnableWrapper task;
+    private final CancellationScopeImpl cancellationScope;
     private Thread thread;
     private Throwable unhandledException;
     private boolean stopped;
 
-
     /**
-     * If not 0 then thread is blocked on a sleep (or on an operation with a timeout).
-     * The value is the time in milliseconds (as in currentTimeMillis()) when thread will continue.
-     * Note that thread still has to be called for evaluation as other threads might interrupt the blocking call.
+     * @param coroutineFunction        returns false if no progress was made.
+     * @param ignoreParentCancellation
      */
-    private long blockedUntil;
-
-    /**
-     * @param coroutineFunction returns false if no progress was made.
-     */
-    public CallbackCoroutine(ExecutorService threadPool, DeterministicRunnerImpl runner, String name, Functions.Func<Boolean> coroutineFunction) {
+    public CallbackCoroutine(ExecutorService threadPool, DeterministicRunnerImpl runner, String name,
+                             Functions.Func<Boolean> coroutineFunction, boolean ignoreParentCancellation, CancellationScopeImpl parent) {
         this.threadPool = threadPool;
         this.runner = runner;
         // TODO: Use thread pool instead of creating new threads.
@@ -101,6 +100,8 @@ class CallbackCoroutine implements DeterministicRunnerCoroutine {
             name = "workflow-callbacks-" + super.hashCode();
         }
         this.task = new RunnableWrapper(name, coroutineFunction);
+        cancellationScope = new CancellationScopeImpl(ignoreParentCancellation, task, parent);
+
     }
 
     public DeterministicRunnerImpl getRunner() {
@@ -113,19 +114,15 @@ class CallbackCoroutine implements DeterministicRunnerCoroutine {
 
     @Override
     public long getBlockedUntil() {
-        return blockedUntil;
+        return 0;
     }
 
-//    public void setBlockedUntil(long blockedUntil) {
-//        this.blockedUntil = blockedUntil;
-//    }
-//
     /**
      * @return true if coroutine made some progress.
      */
     @Override
     public boolean runUntilBlocked() {
-        Future<?> taskFuture = threadPool.submit(task);
+        Future<?> taskFuture = threadPool.submit(cancellationScope::run);
         try {
             taskFuture.get();
         } catch (InterruptedException e) {
@@ -156,5 +153,15 @@ class CallbackCoroutine implements DeterministicRunnerCoroutine {
 
     @Override
     public void addStackTrace(StringBuilder result) {
+    }
+
+    @Override
+    public void yieldImpl(String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError {
+        throw new IllegalStateException("Blocking calls are not allowed in callback threads");
+    }
+
+    @Override
+    public boolean yieldImpl(long timeoutMillis, String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError {
+        throw new IllegalStateException("Blocking calls are not allowed in callback threads");
     }
 }
