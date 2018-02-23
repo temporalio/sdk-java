@@ -27,6 +27,7 @@ import com.uber.cadence.internal.worker.POJOWorkflowImplementationFactory;
 import com.uber.cadence.internal.worker.TaskPoller;
 
 import java.lang.management.ManagementFactory;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -46,8 +47,8 @@ public class SyncWorkflowWorker extends GenericWorker {
 
     public SyncWorkflowWorker(WorkflowService.Iface service, String domain, String taskListToPoll, DataConverter dataConverter) {
         setIdentity(ManagementFactory.getRuntimeMXBean().getName());
-        workflowThreadPool = new ThreadPoolExecutor(1, 1000,
-                10, TimeUnit.SECONDS, new SynchronousQueue<>());
+        workflowThreadPool = new ThreadPoolExecutor(1000, 1000,
+                10, TimeUnit.SECONDS, new ArrayBlockingQueue<>(10000));
         setService(service);
         setDomain(domain);
         setTaskListToPoll(taskListToPoll);

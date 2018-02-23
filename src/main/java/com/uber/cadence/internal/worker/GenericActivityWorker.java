@@ -91,8 +91,8 @@ public class GenericActivityWorker extends GenericWorker {
 
     @Override
     protected TaskPoller createPoller() {
-        ThreadPoolExecutor tasksExecutor = new ThreadPoolExecutor(1, taskExecutorThreadPoolSize, 1, TimeUnit.MINUTES,
-                new SynchronousQueue<Runnable>());
+        ThreadPoolExecutor tasksExecutor = new ThreadPoolExecutor(taskExecutorThreadPoolSize, taskExecutorThreadPoolSize, 10, TimeUnit.SECONDS,
+                new SynchronousQueue<>());
         tasksExecutor.setThreadFactory(new ExecutorThreadFactory(ACTIVITY_THREAD_NAME_PREFIX + " " + getTaskListToPoll() + " "));
         tasksExecutor.setRejectedExecutionHandler(new BlockCallerPolicy());
         return new ActivityTaskPoller(service, domain, getTaskListToPoll(), activityImplementationFactory, tasksExecutor);
