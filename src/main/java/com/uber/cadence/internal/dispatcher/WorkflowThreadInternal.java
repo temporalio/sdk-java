@@ -191,11 +191,6 @@ class WorkflowThreadInternal implements WorkflowThread, DeterministicRunnerCorou
         return task.cancellationScope.getCancellationRequest();
     }
 
-    @Override
-    public boolean isDone(boolean skipChildren) {
-        return task.cancellationScope.isDone(skipChildren);
-    }
-
     public void start() {
         if (context.getStatus() != Status.CREATED) {
             throw new IllegalThreadStateException("already started");

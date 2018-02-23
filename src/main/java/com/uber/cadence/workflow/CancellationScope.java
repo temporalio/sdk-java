@@ -20,6 +20,11 @@ import com.uber.cadence.internal.dispatcher.WorkflowInternal;
 
 import java.util.concurrent.CancellationException;
 
+/**
+ * Handle to a cancellation scope created through {@link Workflow#newCancellationScope(Runnable)} or
+ * {@link Workflow#newDetachedCancellationScope(Runnable)}. Supports explicit cancelling of the code
+ * a cancellation scope wraps.
+ */
 public interface CancellationScope {
 
     /**
@@ -52,13 +57,6 @@ public interface CancellationScope {
      * @return promise that becomes ready when scope is cancelled. It contains reason value or null if none was provided.
      */
     Promise<String> getCancellationRequest();
-
-    /**
-     * If scope and optionally all its connected children completed execution.
-     * @param skipChildren if true only a parent scope is checked for completion.
-     * @return true if scope is done.
-     */
-    boolean isDone(boolean skipChildren);
 
     static CancellationScope current() {
         return WorkflowInternal.currentCancellationScope();

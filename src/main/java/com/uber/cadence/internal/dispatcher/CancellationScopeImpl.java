@@ -143,11 +143,6 @@ class CancellationScopeImpl implements CancellationScope {
         return cancellationPromise;
     }
 
-    @Override
-    public boolean isDone(boolean skipChildren) {
-        return false;
-    }
-
     private void addChild(CancellationScopeImpl scope) {
         children.add(scope);
     }
