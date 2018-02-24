@@ -137,7 +137,9 @@ class SyncDecisionContext {
             Class<? extends Throwable> causeClass;
             Throwable cause;
             try {
-                causeClass = (Class<? extends Throwable>) Class.forName(causeClassName);
+                @SuppressWarnings("unchecked") // cc is just to have a place to put this annotation
+                Class<? extends Throwable> cc = (Class<? extends Throwable>) Class.forName(causeClassName);
+                causeClass = cc;
                 cause = getDataConverter().fromData(taskFailed.getDetails(), causeClass);
             } catch (Exception e) {
                 cause = e;

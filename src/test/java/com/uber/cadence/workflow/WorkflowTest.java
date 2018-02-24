@@ -715,7 +715,7 @@ public class WorkflowTest {
 
         String state = "initial";
         List<String> signals = new ArrayList<>();
-        CompletablePromise promise = Workflow.newPromise();
+        CompletablePromise<Void> promise = Workflow.newPromise();
 
         @Override
         public String execute() {

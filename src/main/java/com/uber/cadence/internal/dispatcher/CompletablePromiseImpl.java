@@ -36,6 +36,7 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
     private final DeterministicRunnerImpl runner;
     private boolean registeredWithRunner;
 
+    @SuppressWarnings("unchecked")
     static Promise<Object> promiseAnyOf(Promise<?>[] promises) {
         CompletablePromise<Object> result = Workflow.newPromise();
         for (Promise<?> p : promises) {
@@ -45,6 +46,7 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
         return result;
     }
 
+    @SuppressWarnings("unchecked")
     static Promise<Object> promiseAnyOf(Iterable<Promise<?>> promises) {
         CompletablePromise<Object> result = Workflow.newPromise();
         for (Promise<?> p : promises) {

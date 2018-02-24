@@ -200,6 +200,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <R> R getExitValue() {
         lock.lock();
         try {

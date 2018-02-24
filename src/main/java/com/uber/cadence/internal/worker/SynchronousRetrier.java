@@ -104,7 +104,9 @@ public class SynchronousRetrier<T extends Throwable> {
         if (e instanceof RuntimeException) {
             throw (RuntimeException) e;
         } else {
-            throw (T) e;
+            @SuppressWarnings("unchecked")
+            T toRethrow = (T) e;
+            throw toRethrow;
         }
     }
 }

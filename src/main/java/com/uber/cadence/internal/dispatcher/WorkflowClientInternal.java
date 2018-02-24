@@ -51,6 +51,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
         this.manualActivityCompletionClientFactory = new ManualActivityCompletionClientFactoryImpl(service, domain, dataConverter);
     }
 
+    @SuppressWarnings("unchecked")
     public <T> T newWorkflowStub(Class<T> workflowInterface, WorkflowOptions options) {
         checkAnnotation(workflowInterface, WorkflowMethod.class);
         return (T) Proxy.newProxyInstance(WorkflowInternal.class.getClassLoader(),
@@ -58,7 +59,8 @@ public final class WorkflowClientInternal implements WorkflowClient {
                 new WorkflowExternalInvocationHandler(genericClient, options, dataConverter));
     }
 
-    private <T> void checkAnnotation(Class<T> workflowInterface, Class<? extends Annotation>... annotationClasses) {
+    @SafeVarargs
+    static private <T> void checkAnnotation(Class<T> workflowInterface, Class<? extends Annotation>... annotationClasses) {
         TypeToken<?>.TypeSet interfaces = TypeToken.of(workflowInterface).getTypes().interfaces();
         if (interfaces.isEmpty()) {
             throw new IllegalArgumentException("Workflow must implement at least one interface");

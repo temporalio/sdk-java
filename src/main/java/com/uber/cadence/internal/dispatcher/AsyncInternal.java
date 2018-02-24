@@ -243,7 +243,7 @@ public final class AsyncInternal {
             } catch (Throwable e) {
                 return Workflow.newFailedPromise(Workflow.getWrapped(e));
             }
-            return (Promise<R>) getAsyncInvocationResult();
+            return getAsyncInvocationResult();
         } else {
             CompletablePromise<R> result = Workflow.newPromise();
             WorkflowInternal.newThread(false, () -> {
@@ -321,13 +321,14 @@ public final class AsyncInternal {
     /**
      * @return asynchronous result of an invocation.
      */
-    private static Promise<?> getAsyncInvocationResult() {
+    private static <R> Promise<R> getAsyncInvocationResult() {
         try {
             AtomicReference<Promise<?>> reference = asyncResult.get();
             if (reference == null) {
                 throw new IllegalStateException("initAsyncInvocation wasn't called");
             }
-            Promise<?> result = reference.get();
+            @SuppressWarnings("unchecked")
+            Promise<R> result = (Promise<R>) reference.get();
             if (result == null) {
                 throw new IllegalStateException("asyncStart result wasn't set");
             }

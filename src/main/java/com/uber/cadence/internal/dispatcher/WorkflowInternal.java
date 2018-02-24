@@ -26,6 +26,7 @@ import com.uber.cadence.workflow.CompletablePromise;
 import com.uber.cadence.workflow.ContinueAsNewWorkflowExecutionParameters;
 import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.QueryMethod;
+import com.uber.cadence.workflow.Workflow;
 import com.uber.cadence.workflow.WorkflowContext;
 import com.uber.cadence.workflow.WorkflowQueue;
 
@@ -58,7 +59,7 @@ public final class WorkflowInternal {
     }
 
     public static <E> WorkflowQueue<E> newQueue(int capacity) {
-        return new WorkflowQueueImpl<E>(capacity);
+        return new WorkflowQueueImpl<>(capacity);
     }
 
     public static <E> CompletablePromise<E> newCompletablePromise() {
@@ -66,7 +67,7 @@ public final class WorkflowInternal {
     }
 
     public static <E> Promise<E> newPromise(E value) {
-        CompletablePromise result = new CompletablePromiseImpl<>();
+        CompletablePromise<E> result = Workflow.newPromise();
         result.complete(value);
         return result;
     }
@@ -97,6 +98,7 @@ public final class WorkflowInternal {
      *
      * @param activityInterface interface type implemented by activities
      */
+    @SuppressWarnings("unchecked")
     public static <T> T newActivityStub(Class<T> activityInterface, ActivityOptions options) {
         return (T) Proxy.newProxyInstance(WorkflowInternal.class.getClassLoader(),
                 new Class<?>[]{activityInterface, AsyncMarker.class},
@@ -104,6 +106,7 @@ public final class WorkflowInternal {
     }
 
 
+    @SuppressWarnings("unchecked")
     public static <T> T newChildWorkflowStub(Class<T> workflowInterface, ChildWorkflowOptions options) {
         return (T) Proxy.newProxyInstance(WorkflowInternal.class.getClassLoader(),
                 new Class<?>[]{workflowInterface, WorkflowStub.class, AsyncMarker.class},
@@ -122,6 +125,7 @@ public final class WorkflowInternal {
      *
      * @param workflowInterface interface type implemented by the next generation of workflow
      */
+    @SuppressWarnings("unchecked")
     public static <T> T newContinueAsNewStub(Class<T> workflowInterface, ContinueAsNewWorkflowExecutionParameters parameters) {
         return (T) Proxy.newProxyInstance(WorkflowInternal.class.getClassLoader(),
                 new Class<?>[]{workflowInterface},
@@ -163,9 +167,10 @@ public final class WorkflowInternal {
     }
 
     public static <U> Promise<List<U>> promiseAllOf(Collection<Promise<U>> promises) {
-        return new AllOfPromise(promises);
+        return new AllOfPromise<>(promises);
     }
 
+    @SuppressWarnings("unchecked")
     public static Promise<Void> promiseAllOf(Promise<?>... promises) {
         return new AllOfPromise(promises);
     }

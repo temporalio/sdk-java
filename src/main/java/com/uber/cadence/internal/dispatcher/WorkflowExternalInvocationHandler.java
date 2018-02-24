@@ -207,7 +207,9 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
         } catch (WorkflowExecutionFailedException e) {
             Class<Throwable> causeClass = null;
             try {
-                causeClass = (Class<Throwable>) Class.forName(e.getReason());
+                @SuppressWarnings("unchecked")
+                Class<Throwable> cc = (Class<Throwable>) Class.forName(e.getReason());
+                causeClass = cc;
             } catch (Exception ee) {
                 RuntimeException failure = new RuntimeException("Failed to deserialize workflow failure cause. " +
                         "Reason field is expected to contain a failure cause class name", ee);

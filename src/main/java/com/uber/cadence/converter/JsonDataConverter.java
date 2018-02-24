@@ -83,6 +83,7 @@ public final class JsonDataConverter implements DataConverter {
 
     /**
      * Constructs an instance giving an ability to override {@link Gson} initialization.
+     *
      * @param builderInterceptor function that intercepts {@link GsonBuilder} construction.
      */
     public JsonDataConverter(Function<GsonBuilder, GsonBuilder> builderInterceptor) {
@@ -208,9 +209,11 @@ public final class JsonDataConverter implements DataConverter {
                         object.add("stackTrace", new JsonArray());
                         Throwable result = (Throwable) adapter.fromJsonTree(object);
                         result.setStackTrace(stackTrace);
-                        return (T) result;
+                        @SuppressWarnings("unchecked")
+                        T typedResult = (T) result;
+                        return typedResult;
                     }
-                    return (T) exceptionTypeAdapter.fromJsonTree(object);
+                    return exceptionTypeAdapter.fromJsonTree(object);
                 }
             }.nullSafe();
             return result;

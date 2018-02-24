@@ -113,7 +113,9 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
         } catch (WorkflowExecutionFailedException e) {
             Class<Throwable> detailsClass = null;
             try {
-                detailsClass = (Class<Throwable>) Class.forName(e.getReason());
+                @SuppressWarnings("unchecked")
+                Class<Throwable> dc = (Class<Throwable>) Class.forName(e.getReason());
+                detailsClass = dc;
             } catch (Exception ee) {
                 RuntimeException failure = new RuntimeException("Couldn't deserialize failure cause " +
                         "as the reason field is expected to contain an exception class name", e);

@@ -119,7 +119,7 @@ public class SynchronousActivityTaskPoller implements TaskPoller {
     }
 
     private void setReportCompletionRetryParameters(ExponentialRetryParameters reportCompletionRetryParameters) {
-        this.reportCompletionRetrier = new SynchronousRetrier(reportCompletionRetryParameters, EntityNotExistsError.class);
+        this.reportCompletionRetrier = new SynchronousRetrier<>(reportCompletionRetryParameters, EntityNotExistsError.class);
     }
 
     public ExponentialRetryParameters getReportFailureRetryParameters() {
@@ -127,7 +127,7 @@ public class SynchronousActivityTaskPoller implements TaskPoller {
     }
 
     private void setReportFailureRetryParameters(ExponentialRetryParameters reportFailureRetryParameters) {
-        this.reportFailureRetrier = new SynchronousRetrier(reportFailureRetryParameters, EntityNotExistsError.class);
+        this.reportFailureRetrier = new SynchronousRetrier<>(reportFailureRetryParameters, EntityNotExistsError.class);
     }
 
     public String getTaskListToPoll() {

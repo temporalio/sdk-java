@@ -34,7 +34,8 @@ class AllOfPromise<G> implements Promise<List<G>> {
 
     private int notReadyCount;
 
-    public AllOfPromise(Promise<G>[] promises) {
+    @SuppressWarnings("unchecked")
+    AllOfPromise(Promise<G>[] promises) {
         // Using array to initialize it to the desired size with nulls.
         result = (G[]) new Object[promises.length];
         int index = 0;
@@ -44,11 +45,12 @@ class AllOfPromise<G> implements Promise<List<G>> {
         }
     }
 
-    public AllOfPromise(Collection<CompletablePromise<G>> promises) {
+    @SuppressWarnings("unchecked")
+    public AllOfPromise(Collection<Promise<G>> promises) {
         // Using array to initialize it to the desired size with nulls.
         result = (G[]) new Object[promises.size()];
         int index = 0;
-        for (CompletablePromise<G> f : promises) {
+        for (Promise<G> f : promises) {
             addPromise(index, f);
             index++;
         }
