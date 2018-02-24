@@ -245,7 +245,7 @@ public final class AsyncInternal {
             }
             return (Promise<R>) getAsyncInvocationResult();
         } else {
-            CompletablePromise<R> result = Workflow.newCompletablePromise();
+            CompletablePromise<R> result = Workflow.newPromise();
             WorkflowInternal.newThread(false, () -> {
                 try {
                     result.complete(func.apply());

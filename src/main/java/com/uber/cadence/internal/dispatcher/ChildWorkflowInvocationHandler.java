@@ -40,7 +40,7 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
     private final ChildWorkflowOptions options;
     private final SyncDecisionContext decisionContext;
     private final DataConverter dataConverter;
-    private CompletablePromise<WorkflowExecution> execution = Workflow.newCompletablePromise();
+    private CompletablePromise<WorkflowExecution> execution = Workflow.newPromise();
     private boolean startRequested;
 
     ChildWorkflowInvocationHandler(ChildWorkflowOptions options, SyncDecisionContext decisionContext) {

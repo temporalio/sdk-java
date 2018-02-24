@@ -65,13 +65,13 @@ class SyncWorkflow implements AsyncWorkflow {
 
         workflowProc = new WorkflowRunnable(syncContext, workflow, event.getWorkflowExecutionStartedEventAttributes());
         runner = DeterministicRunner.newRunner(threadPool, syncContext, context.getWorkflowClock()::currentTimeMillis, workflowProc);
-        runner.newCallbackTask(syncContext::fireTimers, "timer callbacks");
+        syncContext.setRunner(runner);
     }
 
     @Override
     public void handleSignal(String signalName, byte[] input, long eventId) {
         String threadName = "\"" + signalName + "\" signal handler";
-        runner.newBeforeThread(threadName, () -> workflowProc.processSignal(signalName, input, eventId));
+        runner.executeInWorkflowThread(threadName, () -> workflowProc.processSignal(signalName, input, eventId));
     }
 
     @Override
@@ -79,6 +79,7 @@ class SyncWorkflow implements AsyncWorkflow {
         if (runner == null) {
             return false;
         }
+        workflowProc.fireTimers();
         runner.runUntilAllBlocked();
         return runner.isDone() || workflowProc.isDone(); // Do not wait for all other threads.
     }

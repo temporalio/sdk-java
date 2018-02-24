@@ -20,5 +20,12 @@ package com.uber.cadence.internal.dispatcher;
  * Used to interrupt deterministic thread execution. Assumption is that none of the code
  * that thread executes catches it.
  */
-class DestroyWorkflowThreadError extends Error {
+final class DestroyWorkflowThreadError extends Error {
+
+    public DestroyWorkflowThreadError() {
+    }
+
+    public DestroyWorkflowThreadError(String message) {
+        super(message);
+    }
 }

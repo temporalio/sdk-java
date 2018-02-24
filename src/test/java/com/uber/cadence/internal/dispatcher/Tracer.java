@@ -29,10 +29,10 @@ import java.util.List;
  * JUnit rule that records sequence of strings through {@link #add(String)} call
  * and checks it against expected value (set through {@link #setExpected(String[])} after unit test execution.
  */
-public class Tracer implements TestRule {
+public final class Tracer implements TestRule {
 
     private final List<String> trace = new ArrayList<>();
-    private String[] expected;
+    private  List<String> expected = new ArrayList<>();
 
     @Override
     public Statement apply(Statement base, Description description) {
@@ -40,7 +40,7 @@ public class Tracer implements TestRule {
             @Override
             public void evaluate() throws Throwable {
                 trace.clear();
-                expected = null;
+                expected.clear();
                 base.evaluate();
                 if (expected != null) {
                     assertExpected();
@@ -56,11 +56,15 @@ public class Tracer implements TestRule {
         trace.add(value);
     }
 
+    public void addExpected(String value) {
+        expected.add(value);
+    }
+
     /**
      * Set list of expected values.
      */
-    void setExpected(String[] expected) {
-        this.expected = expected;
+    public void setExpected(String... expected) {
+        this.expected = Arrays.asList(expected);
     }
 
     /**
@@ -69,6 +73,6 @@ public class Tracer implements TestRule {
      * It can be called directly to evaluate a progress in the middle of a test.
      */
     public void assertExpected() {
-        Assert.assertEquals(Arrays.asList(expected), trace);
+        Assert.assertEquals(expected, trace);
     }
 }

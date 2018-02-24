@@ -37,6 +37,22 @@ public final class ChildWorkflowOptions {
 
         private ChildPolicy childPolicy;
 
+        private RetryOptions retryOptions;
+
+        public Builder() {
+        }
+
+        public Builder(ChildWorkflowOptions source) {
+            this.domain = source.getDomain();
+            this.workflowId = source.getWorkflowId();
+            this.workflowIdReusePolicy = source.getWorkflowIdReusePolicy();
+            this.executionStartToCloseTimeoutSeconds = source.getExecutionStartToCloseTimeoutSeconds();
+            this.taskStartToCloseTimeoutSeconds = source.getTaskStartToCloseTimeoutSeconds();
+            this.taskList = source.getTaskList();
+            this.childPolicy = source.getChildPolicy();
+            this.retryOptions = source.getRetryOptions();
+        }
+
         /**
          * Specify domain in which workflow should be started.
          * <p>
@@ -111,9 +127,18 @@ public final class ChildWorkflowOptions {
             return this;
         }
 
+        /**
+         * RetryOptions that define how child workflow is retried in case of failure.
+         * Default is null which is no reties.
+         */
+        public Builder setRetryOptions(RetryOptions retryOptions) {
+            this.retryOptions = retryOptions;
+            return this;
+        }
+
         public ChildWorkflowOptions build() {
             return new ChildWorkflowOptions(domain, workflowId, workflowIdReusePolicy, executionStartToCloseTimeoutSeconds,
-                    taskStartToCloseTimeoutSeconds, taskList, childPolicy);
+                    taskStartToCloseTimeoutSeconds, taskList, retryOptions, childPolicy);
         }
     }
 
@@ -129,16 +154,19 @@ public final class ChildWorkflowOptions {
 
     private final String taskList;
 
+    private final RetryOptions retryOptions;
+
     private final ChildPolicy childPolicy;
 
     private ChildWorkflowOptions(String domain, String workflowId, WorkflowIdReusePolicy workflowIdReusePolicy,
-                            int executionStartToCloseTimeoutSeconds, int taskStartToCloseTimeoutSeconds, String taskList, ChildPolicy childPolicy) {
+                                 int executionStartToCloseTimeoutSeconds, int taskStartToCloseTimeoutSeconds, String taskList, RetryOptions retryOptions, ChildPolicy childPolicy) {
         this.domain = domain;
         this.workflowId = workflowId;
         this.workflowIdReusePolicy = workflowIdReusePolicy;
         this.executionStartToCloseTimeoutSeconds = executionStartToCloseTimeoutSeconds;
         this.taskStartToCloseTimeoutSeconds = taskStartToCloseTimeoutSeconds;
         this.taskList = taskList;
+        this.retryOptions = retryOptions;
         this.childPolicy = childPolicy;
     }
 
@@ -170,15 +198,20 @@ public final class ChildWorkflowOptions {
         return childPolicy;
     }
 
+    public RetryOptions getRetryOptions() {
+        return retryOptions;
+    }
+
     @Override
     public String toString() {
-        return "WorkflowOptions{" +
+        return "ChildWorkflowOptions{" +
                 "domain='" + domain + '\'' +
                 ", workflowId='" + workflowId + '\'' +
                 ", workflowIdReusePolicy=" + workflowIdReusePolicy +
                 ", executionStartToCloseTimeoutSeconds=" + executionStartToCloseTimeoutSeconds +
                 ", taskStartToCloseTimeoutSeconds=" + taskStartToCloseTimeoutSeconds +
                 ", taskList='" + taskList + '\'' +
+                ", retryOptions=" + retryOptions +
                 ", childPolicy=" + childPolicy +
                 '}';
     }

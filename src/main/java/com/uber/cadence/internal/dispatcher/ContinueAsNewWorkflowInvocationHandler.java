@@ -52,7 +52,7 @@ class ContinueAsNewWorkflowInvocationHandler implements InvocationHandler {
         }
         parameters.setInput(dataConverter.toData(args));
         decisionContext.continueAsNewOnCompletion(parameters);
-        WorkflowThreadInternal.exit(null);
+        WorkflowThread.exit(null);
         return null;
     }
 }

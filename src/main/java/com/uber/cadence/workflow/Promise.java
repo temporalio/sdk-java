@@ -121,11 +121,25 @@ public interface Promise<V> {
      * normally, is executed with this promise as the argument
      * to the supplied function.
      *
-     * @param func the function returning a new Promise
+     * @param fn the function returning a new Promise
      * @param <U> the type of the returned CompletionStage's result
-     * @return the Promise that completes when func returned Promise completes.
+     * @return the Promise that completes when fn returned Promise completes.
      */
-    <U> Promise<U> thenCompose(Functions.Func1<? super V, ? extends Promise<U>> func);
+    <U> Promise<U> thenCompose(Functions.Func1<? super V, ? extends Promise<U>> fn);
+
+    /**
+     * Returns a new Promise that, when this promise completes
+     * exceptionally, is executed with this promise's exception as the
+     * argument to the supplied function.  Otherwise, if this promise
+     * completes normally, then the returned promise also completes
+     * normally with the same value.
+     *
+     * @param fn the function to use to compute the value of the
+     * returned CompletionPromise if this CompletionPromise completed
+     * exceptionally
+     * @return the new Promise
+     */
+    Promise<V> exceptionally(Functions.Func1<Throwable, ? extends V> fn);
 
     /**
      * Returns Promise that becomes completed when all promises in the collection are completed.

@@ -24,6 +24,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.IllegalFormatCodePointException;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
@@ -49,7 +50,7 @@ public class PromiseTest {
     @Test
     public void testFailure() throws Throwable {
         DeterministicRunner r = DeterministicRunner.newRunner(() -> {
-            CompletablePromise<Boolean> f = Workflow.newCompletablePromise();
+            CompletablePromise<Boolean> f = Workflow.newPromise();
             trace.add("root begin");
             WorkflowInternal.newThread(false, () -> f.completeExceptionally(new IllegalArgumentException("foo"))).start();
             WorkflowInternal.newThread(false, () -> {
@@ -82,7 +83,7 @@ public class PromiseTest {
                 null,
                 () -> currentTime,
                 () -> {
-                    CompletablePromise<String> f = Workflow.newCompletablePromise();
+                    CompletablePromise<String> f = Workflow.newPromise();
                     trace.add("root begin");
                     WorkflowInternal.newThread(false, () -> {
                         trace.add("thread1 begin");
@@ -133,7 +134,7 @@ public class PromiseTest {
                 null,
                 () -> currentTime,
                 () -> {
-                    CompletablePromise<String> f = Workflow.newCompletablePromise();
+                    CompletablePromise<String> f = Workflow.newPromise();
                     trace.add("root begin");
                     WorkflowInternal.newThread(false, () -> {
                         trace.add("thread1 begin");
@@ -178,7 +179,7 @@ public class PromiseTest {
                 null,
                 () -> currentTime,
                 () -> {
-                    CompletablePromise<String> f = Workflow.newCompletablePromise();
+                    CompletablePromise<String> f = Workflow.newPromise();
                     trace.add("root begin");
                     WorkflowInternal.newThread(false, () -> {
                         trace.add("thread1 begin");
@@ -215,7 +216,7 @@ public class PromiseTest {
                 null,
                 () -> currentTime,
                 () -> {
-                    CompletablePromise<String> f = Workflow.newCompletablePromise();
+                    CompletablePromise<String> f = Workflow.newPromise();
                     trace.add("root begin");
                     WorkflowInternal.newThread(false, () -> {
                         trace.add("thread1 begin");
@@ -247,9 +248,9 @@ public class PromiseTest {
     public void testMultiple() throws Throwable {
         DeterministicRunner r = DeterministicRunner.newRunner(() -> {
             trace.add("root begin");
-            CompletablePromise<Boolean> f1 = Workflow.newCompletablePromise();
-            CompletablePromise<Boolean> f2 = Workflow.newCompletablePromise();
-            CompletablePromise<Boolean> f3 = Workflow.newCompletablePromise();
+            CompletablePromise<Boolean> f1 = Workflow.newPromise();
+            CompletablePromise<Boolean> f2 = Workflow.newPromise();
+            CompletablePromise<Boolean> f3 = Workflow.newPromise();
 
             WorkflowInternal.newThread(false,
                     () -> {
@@ -295,12 +296,18 @@ public class PromiseTest {
     public void tstAsync() throws Throwable {
         DeterministicRunner runner = DeterministicRunner.newRunner(() -> {
             trace.add("root begin");
-            CompletablePromise<String> f1 = Workflow.newCompletablePromise();
-            CompletablePromise<String> f2 = Workflow.newCompletablePromise();
-            Promise<String> f3 = f1.thenApply((r)->r+".thenApply").thenCompose((r) -> f2.handle((v, e) -> r + v));
-            CompletablePromise<String> f4 = Workflow.newCompletablePromise();
+            CompletablePromise<String> f1 = Workflow.newPromise();
+            CompletablePromise<String> f2 = Workflow.newPromise();
+            Promise<String> f3 = f1.thenApply((r) -> r + ".thenApply").thenCompose((r) -> f2.handle((v, e) -> r + v));
+            CompletablePromise<String> f4 = Workflow.newPromise();
             f4.completeFrom(f3);
-            f4.thenApply((r) -> { trace.add(r); return null; });
+            f4.thenApply((r) -> {
+                trace.add(r);
+                return null;
+            }).exceptionally((e) -> {
+                trace.add("exceptionally");
+                throw new RuntimeException("unexpected");
+            });
             f2.complete(".f2Handle");
             f1.complete("value1");
             trace.add("root done");
@@ -319,19 +326,28 @@ public class PromiseTest {
     public void testAsyncFailure() throws Throwable {
         DeterministicRunner runner = DeterministicRunner.newRunner(() -> {
             trace.add("root begin");
-            CompletablePromise<String> f1 = Workflow.newCompletablePromise();
-            CompletablePromise<String> f2 = Workflow.newCompletablePromise();
-            Promise<String> f3 = f1.thenApply((r)->r+".thenApply").thenCompose((r) -> f2.handle((v, e) -> r + v));
-            CompletablePromise<String> f4 = Workflow.newCompletablePromise();
+            CompletablePromise<String> f1 = Workflow.newPromise();
+            CompletablePromise<String> f2 = Workflow.newPromise();
+            Promise<String> f3 = f1.thenApply((r) -> r + ".thenApply").thenCompose((r) -> f2.handle((v, e) -> r + v));
+            CompletablePromise<String> f4 = Workflow.newPromise();
             f4.completeFrom(f3);
-            Promise<String> f5 = f4.thenApply((r) -> { trace.add(r); return null; });
+            Promise<String> f5 = f4.thenApply(
+                    (r) -> {
+                        trace.add(r);
+                        return "ignored";
+                    })
+                    .exceptionally((e) -> {
+                        trace.add("exceptionally");
+                        assertTrue(e instanceof IllegalThreadStateException);
+                        throw new IllegalFormatCodePointException(10);
+                    });
             f2.complete(".f2Handle");
             f1.completeExceptionally(new IllegalThreadStateException("Simulated"));
             try {
                 f5.get();
                 fail("unreachable");
-            } catch (IllegalThreadStateException e) {
-                assertEquals("Simulated", e.getMessage());
+            } catch (IllegalFormatCodePointException e) {
+                assertEquals(10, e.getCodePoint());
                 trace.add("failure caught");
             }
             trace.add("root done");
@@ -339,6 +355,7 @@ public class PromiseTest {
         runner.runUntilAllBlocked();
         String[] expected = new String[]{
                 "root begin",
+                "exceptionally",
                 "failure caught",
                 "root done"
         };
@@ -351,9 +368,9 @@ public class PromiseTest {
     public void testAllOf() throws Throwable {
         DeterministicRunner r = DeterministicRunner.newRunner(() -> {
             trace.add("root begin");
-            CompletablePromise<String> f1 = Workflow.newCompletablePromise();
-            CompletablePromise<String> f2 = Workflow.newCompletablePromise();
-            CompletablePromise<String> f3 = Workflow.newCompletablePromise();
+            CompletablePromise<String> f1 = Workflow.newPromise();
+            CompletablePromise<String> f2 = Workflow.newPromise();
+            CompletablePromise<String> f3 = Workflow.newPromise();
 
             WorkflowInternal.newThread(false,
                     () -> {
@@ -408,9 +425,9 @@ public class PromiseTest {
     public void testAnyOf() throws Throwable {
         DeterministicRunner r = DeterministicRunner.newRunner(() -> {
             trace.add("root begin");
-            CompletablePromise<String> f1 = Workflow.newCompletablePromise();
-            CompletablePromise<String> f2 = Workflow.newCompletablePromise();
-            CompletablePromise<String> f3 = Workflow.newCompletablePromise();
+            CompletablePromise<String> f1 = Workflow.newPromise();
+            CompletablePromise<String> f2 = Workflow.newPromise();
+            CompletablePromise<String> f3 = Workflow.newPromise();
 
             WorkflowInternal.newThread(false,
                     () -> {
@@ -462,9 +479,9 @@ public class PromiseTest {
     public void testAllOfArray() throws Throwable {
         DeterministicRunner r = DeterministicRunner.newRunner(() -> {
             trace.add("root begin");
-            CompletablePromise<String> f1 = Workflow.newCompletablePromise();
-            CompletablePromise<Integer> f2 = Workflow.newCompletablePromise();
-            CompletablePromise<Boolean> f3 = Workflow.newCompletablePromise();
+            CompletablePromise<String> f1 = Workflow.newPromise();
+            CompletablePromise<Integer> f2 = Workflow.newPromise();
+            CompletablePromise<Boolean> f3 = Workflow.newPromise();
 
             WorkflowInternal.newThread(false,
                     () -> {
@@ -516,9 +533,9 @@ public class PromiseTest {
     public void testAnyOfArray() throws Throwable {
         DeterministicRunner r = DeterministicRunner.newRunner(() -> {
             trace.add("root begin");
-            CompletablePromise<String> f1 = Workflow.newCompletablePromise();
-            CompletablePromise<Integer> f2 = Workflow.newCompletablePromise();
-            CompletablePromise<Boolean> f3 = Workflow.newCompletablePromise();
+            CompletablePromise<String> f1 = Workflow.newPromise();
+            CompletablePromise<Integer> f2 = Workflow.newPromise();
+            CompletablePromise<Boolean> f3 = Workflow.newPromise();
 
             WorkflowInternal.newThread(false,
                     () -> {

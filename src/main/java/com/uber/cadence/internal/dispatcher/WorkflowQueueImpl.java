@@ -38,13 +38,13 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
 
     @Override
     public E take() throws InterruptedException {
-        WorkflowThreadInternal.yield("WorkflowQueue.take", () -> !queue.isEmpty());
+        WorkflowThread.yield("WorkflowQueue.take", () -> !queue.isEmpty());
         return queue.remove();
     }
 
     @Override
     public E poll(long timeout, TimeUnit unit) throws InterruptedException {
-        WorkflowThreadInternal.yield(unit.toMillis(timeout), "WorkflowQueue.poll", () -> !queue.isEmpty());
+        WorkflowThread.yield(unit.toMillis(timeout), "WorkflowQueue.poll", () -> !queue.isEmpty());
         if (queue.isEmpty()) {
             return null;
         }
@@ -67,14 +67,14 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
         // This condition allows puts outside the dispatcher thread which
         // is used by signal handling logic.
         if (queue.size() >= capacity) {
-            WorkflowThreadInternal.yield("WorkflowQueue.put", () -> queue.size() < capacity);
+            WorkflowThread.yield("WorkflowQueue.put", () -> queue.size() < capacity);
         }
         queue.add(e);
     }
 
     @Override
     public boolean offer(E e, long timeout, TimeUnit unit) throws InterruptedException {
-        boolean timedOut = WorkflowThreadInternal.yield(unit.toMillis(timeout), "WorkflowQueue.offer", () -> queue.size() < capacity);
+        boolean timedOut = WorkflowThread.yield(unit.toMillis(timeout), "WorkflowQueue.offer", () -> queue.size() < capacity);
         if (timedOut) {
             return false;
         }

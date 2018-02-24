@@ -17,7 +17,6 @@
 package com.uber.cadence.internal.dispatcher;
 
 import com.uber.cadence.internal.worker.CheckedExceptionWrapper;
-import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.Promise;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -37,29 +36,45 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
+/**
+ * Throws Error in case of any unexpected condition. It is to fail a decision, not a workflow.
+ */
 class DeterministicRunnerImpl implements DeterministicRunner {
+
+    private static class NamedRunnable {
+        private final String name;
+        private final Runnable runnable;
+
+        private NamedRunnable(String name, Runnable runnable) {
+            this.name = name;
+            this.runnable = runnable;
+        }
+    }
 
     private static final Log log = LogFactory.getLog(DeterministicRunnerImpl.class);
     public static final String WORKFLOW_ROOT_THREAD_NAME = "workflow-root";
-    private static final ThreadLocal<DeterministicRunnerCoroutine> currentThreadThreadLocal = new ThreadLocal<>();
+    private static final ThreadLocal<WorkflowThread> currentThreadThreadLocal = new ThreadLocal<>();
 
     private final Lock lock = new ReentrantLock();
     private final ExecutorService threadPool;
     private final SyncDecisionContext decisionContext;
-    private LinkedList<DeterministicRunnerCoroutine> threads = new LinkedList<>(); // protected by lock
-    private List<DeterministicRunnerCoroutine> threadsToAdd = Collections.synchronizedList(new ArrayList<>());
+    private final LinkedList<WorkflowThread> threads = new LinkedList<>(); // protected by lock
+    private final List<WorkflowThread> threadsToAdd = Collections.synchronizedList(new ArrayList<>());
+    private final List<NamedRunnable> toExecuteInWorkflowThread = new ArrayList<>();
     private final Supplier<Long> clock;
+    private boolean inRunUntilAllBlocked;
+    private boolean closeRequested;
     private boolean closed;
 
-    static DeterministicRunnerCoroutine currentThreadInternal() {
-        DeterministicRunnerCoroutine result = currentThreadThreadLocal.get();
+    static WorkflowThread currentThreadInternal() {
+        WorkflowThread result = currentThreadThreadLocal.get();
         if (result == null) {
-            throw new IllegalStateException("Called from non workflow or workflow callback thread");
+            throw new Error("Called from non workflow or workflow callback thread");
         }
         return result;
     }
 
-    static void setCurrentThreadInternal(DeterministicRunnerCoroutine coroutine) {
+    static void setCurrentThreadInternal(WorkflowThread coroutine) {
         currentThreadThreadLocal.set(coroutine);
     }
 
@@ -74,8 +89,9 @@ class DeterministicRunnerImpl implements DeterministicRunner {
      * It is to avoid failure swallowing by failedPromises which is very hard to troubleshoot.
      */
     private Set<Promise> failedPromises = new HashSet<>();
+    private boolean exitRequested;
     private Object exitValue;
-    private WorkflowThreadInternal rootWorkflowThread;
+    private WorkflowThread rootWorkflowThread;
     private final CancellationScopeImpl runnerCancellationScope;
 
 
@@ -95,7 +111,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         this.clock = clock;
         runnerCancellationScope = new CancellationScopeImpl(true, null, null);
         // TODO: workflow instance specific thread name
-        rootWorkflowThread = new WorkflowThreadInternal(true, threadPool, this,
+        rootWorkflowThread = new WorkflowThreadImpl(true, threadPool, this,
                 WORKFLOW_ROOT_THREAD_NAME, false, runnerCancellationScope, root);
         threads.add(rootWorkflowThread);
         rootWorkflowThread.start();
@@ -109,25 +125,36 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     public void runUntilAllBlocked() throws Throwable {
         lock.lock();
         try {
-            lock.lock();
-            try {
-                if (closed) {
-                    throw new IllegalStateException("closed");
-                }
-            } finally {
-                lock.unlock();
-            }
+            checkClosed();
+
+            inRunUntilAllBlocked = true;
             Throwable unhandledException = null;
             // Keep repeating until at least one of the threads makes progress.
             boolean progress;
+            outerLoop:
             do {
                 threadsToAdd.clear();
+                for (NamedRunnable nr : toExecuteInWorkflowThread) {
+                    WorkflowThread thread = new WorkflowThreadImpl(false, threadPool,
+                            this, nr.name, false, runnerCancellationScope, nr.runnable);
+                    // It is important to prepend threads as there are callbacks
+                    // like signals that have to run before any other threads.
+                    // Otherwise signal might be never processed if it was received
+                    // after workflow decided to close.
+                    threads.addFirst(thread);
+                    thread.start();
+                }
+                toExecuteInWorkflowThread.clear();
                 progress = false;
-                ListIterator<DeterministicRunnerCoroutine> ci = threads.listIterator();
+                ListIterator<WorkflowThread> ci = threads.listIterator();
                 nextWakeUpTime = 0;
                 while (ci.hasNext()) {
-                    DeterministicRunnerCoroutine c = ci.next();
+                    WorkflowThread c = ci.next();
                     progress = c.runUntilBlocked() || progress;
+                    if (exitRequested) {
+                        close();
+                        break outerLoop;
+                    }
                     if (c.isDone()) {
                         ci.remove();
                         if (c.getUnhandledException() != null) {
@@ -145,12 +172,19 @@ class DeterministicRunnerImpl implements DeterministicRunner {
                     close();
                     throw unhandledException;
                 }
-                threads.addAll(threadsToAdd);
+                for (WorkflowThread c : threadsToAdd) {
+                    threads.add(c);
+                }
             } while (progress && !threads.isEmpty());
             if (nextWakeUpTime < currentTimeMillis()) {
                 nextWakeUpTime = 0;
             }
         } finally {
+            inRunUntilAllBlocked = false;
+            // Close was requested while running
+            if (closeRequested) {
+                close();
+            }
             lock.unlock();
         }
     }
@@ -167,12 +201,21 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
     @Override
     public <R> R getExitValue() {
+        lock.lock();
+        try {
+            if (!closed) {
+                throw new Error("not done");
+            }
+        } finally {
+            lock.unlock();
+        }
+
         return (R) exitValue;
     }
 
     @Override
     public void cancel(String reason) {
-        rootWorkflowThread.cancel(reason);
+        executeInWorkflowThread("cancel workflow callback", () -> rootWorkflowThread.cancel(reason));
     }
 
     @Override
@@ -181,8 +224,14 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         if (closed) {
             return;
         }
+        // Do not close while runUntilAllBlocked executes.
+        // closeRequested tells it to call close() at the end.
+        closeRequested = true;
+        if (inRunUntilAllBlocked) {
+            return;
+        }
         try {
-            for (DeterministicRunnerCoroutine c : threads) {
+            for (WorkflowThread c : threads) {
                 c.stop();
             }
             threads.clear();
@@ -206,13 +255,11 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
     @Override
     public String stackTrace() {
-        StringBuilder result = new StringBuilder();
         lock.lock();
+        checkClosed();
+        StringBuilder result = new StringBuilder();
         try {
-            for (DeterministicRunnerCoroutine coroutine : threads) {
-                if (coroutine instanceof CallbackCoroutine) {
-                    continue;
-                }
+            for (WorkflowThread coroutine : threads) {
                 if (result.length() > 0) {
                     result.append("\n");
                 }
@@ -224,6 +271,12 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         return result.toString();
     }
 
+    private void checkClosed() {
+        if (closed) {
+            throw new Error("closed");
+        }
+    }
+
     @Override
     public long currentTimeMillis() {
         return clock.get();
@@ -231,61 +284,47 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
     @Override
     public long getNextWakeUpTime() {
-        if (decisionContext != null) {
-            long nextFireTime = decisionContext.getNextFireTime();
-            if (nextWakeUpTime == 0) {
-                return nextFireTime;
-            }
-            if (nextFireTime == 0) {
-                return nextWakeUpTime;
-            }
-            return Math.min(nextWakeUpTime, nextFireTime);
-        }
-        return nextWakeUpTime;
-    }
-
-    public WorkflowThreadInternal newThread(Runnable runnable, boolean ignoreParentCancellation, String name) {
         lock.lock();
         try {
-            if (closed) {
-                throw new IllegalStateException("closed");
+            checkClosed();
+            if (decisionContext != null) {
+                long nextFireTime = decisionContext.getNextFireTime();
+                if (nextWakeUpTime == 0) {
+                    return nextFireTime;
+                }
+                if (nextFireTime == 0) {
+                    return nextWakeUpTime;
+                }
+                return Math.min(nextWakeUpTime, nextFireTime);
             }
+            return nextWakeUpTime;
         } finally {
             lock.unlock();
         }
-        WorkflowThreadInternal result = new WorkflowThreadInternal(false, threadPool, this, name,
-                ignoreParentCancellation, CancellationScopeImpl.current(), runnable);
+    }
+
+    WorkflowThread newThread(Runnable runnable, boolean detached, String name) {
+        checkWorkflowThreadOnly();
+        checkClosed();
+        WorkflowThread result = new WorkflowThreadImpl(false, threadPool, this, name,
+                detached, CancellationScopeImpl.current(), runnable);
         threadsToAdd.add(result); // This is synchronized collection.
         return result;
     }
 
+    /**
+     * Executes before any other threads next time runUntilBlockedCalled.
+     * Must never be called from any workflow threads.
+     */
     @Override
-    public void newCallbackTask(Functions.Func<Boolean> task, String taskName) {
+    public void executeInWorkflowThread(String name, Runnable runnable) {
         lock.lock();
-        if (closed) {
-            throw new IllegalStateException("closed");
-        }
+        checkClosed();
         try {
-
-            threads.add(new CallbackCoroutine(threadPool, this, taskName, task, false,
-                    WorkflowInternal.currentCancellationScope()));
+            toExecuteInWorkflowThread.add(new NamedRunnable(name, runnable));
         } finally {
             lock.unlock();
         }
-    }
-
-    @Override
-    public WorkflowThread newBeforeThread(String name, Runnable r) {
-        WorkflowThreadInternal result = new WorkflowThreadInternal(false, threadPool, this, name,
-                false, runnerCancellationScope, r);
-        result.start();
-        lock.lock();
-        try {
-            threads.addFirst(result);
-        } finally {
-            lock.unlock();
-        }
-        return result;
     }
 
     Lock getLock() {
@@ -307,7 +346,15 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
 
     <R> void exit(R value) {
+        checkClosed();
+        checkWorkflowThreadOnly();
         this.exitValue = value;
-        close();
+        this.exitRequested = true;
+    }
+
+    private void checkWorkflowThreadOnly() {
+        if (!inRunUntilAllBlocked) {
+            throw new Error("called from non workflow thread");
+        }
     }
 }

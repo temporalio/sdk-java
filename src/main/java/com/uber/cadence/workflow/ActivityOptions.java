@@ -33,15 +33,21 @@ public final class ActivityOptions {
 
         private String taskList;
 
+        private RetryOptions retryOptions;
+
         public Builder() {
         }
 
+        /**
+         * Copy Builder fields from the options.
+         */
         public Builder(ActivityOptions options) {
             this.scheduleToStartTimeoutSeconds = options.getScheduleToStartTimeoutSeconds();
             this.scheduleToCloseTimeoutSeconds = options.getScheduleToCloseTimeoutSeconds();
             this.heartbeatTimeoutSeconds = options.getHeartbeatTimeoutSeconds();
             this.startToCloseTimeoutSeconds = options.getStartToCloseTimeoutSeconds();
             this.taskList = options.taskList;
+            this.retryOptions = options.retryOptions;
         }
 
         /**
@@ -92,9 +98,17 @@ public final class ActivityOptions {
             return this;
         }
 
+        /**
+         * RetryOptions that define how activity is retried in case of failure. Default is null which is no reties.
+         */
+        public Builder setRetryOptions(RetryOptions retryOptions) {
+            this.retryOptions = retryOptions;
+            return this;
+        }
+
         public ActivityOptions build() {
             return new ActivityOptions(heartbeatTimeoutSeconds, scheduleToCloseTimeoutSeconds, scheduleToStartTimeoutSeconds,
-                    startToCloseTimeoutSeconds, taskList);
+                    startToCloseTimeoutSeconds, taskList, retryOptions);
         }
     }
 
@@ -108,8 +122,10 @@ public final class ActivityOptions {
 
     private final String taskList;
 
+    private final RetryOptions retryOptions;
+
     private ActivityOptions(int heartbeatTimeoutSeconds, int scheduleToCloseTimeoutSeconds,
-                            int scheduleToStartTimeoutSeconds, int startToCloseTimeoutSeconds, String taskList) {
+                            int scheduleToStartTimeoutSeconds, int startToCloseTimeoutSeconds, String taskList, RetryOptions retryOptions) {
         this.heartbeatTimeoutSeconds = heartbeatTimeoutSeconds;
         this.scheduleToCloseTimeoutSeconds = scheduleToCloseTimeoutSeconds;
         if (scheduleToCloseTimeoutSeconds != 0) {
@@ -132,6 +148,7 @@ public final class ActivityOptions {
             this.startToCloseTimeoutSeconds = startToCloseTimeoutSeconds;
         }
         this.taskList = taskList;
+        this.retryOptions = retryOptions;
     }
 
     public int getHeartbeatTimeoutSeconds() {
@@ -154,6 +171,10 @@ public final class ActivityOptions {
         return taskList;
     }
 
+    public RetryOptions getRetryOptions() {
+        return retryOptions;
+    }
+
     @Override
     public String toString() {
         return "ActivityOptions{" +
@@ -162,6 +183,7 @@ public final class ActivityOptions {
                 ", scheduleToStartTimeoutSeconds=" + scheduleToStartTimeoutSeconds +
                 ", startToCloseTimeoutSeconds=" + startToCloseTimeoutSeconds +
                 ", taskList='" + taskList + '\'' +
+                retryOptions != null ? ", retryOptions=" + retryOptions : "" +
                 '}';
     }
 }

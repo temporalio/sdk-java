@@ -37,7 +37,7 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
     private boolean registeredWithRunner;
 
     static Promise<Object> promiseAnyOf(Promise<?>[] promises) {
-        CompletablePromise<Object> result = Workflow.newCompletablePromise();
+        CompletablePromise<Object> result = Workflow.newPromise();
         for (Promise<?> p : promises) {
             // Rely on the fact that promise ignores all duplicated completions.
             result.completeFrom((Promise<Object>) p);
@@ -46,7 +46,7 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
     }
 
     static Promise<Object> promiseAnyOf(Iterable<Promise<?>> promises) {
-        CompletablePromise<Object> result = Workflow.newCompletablePromise();
+        CompletablePromise<Object> result = Workflow.newPromise();
         for (Promise<?> p : promises) {
             // Rely on the fact that promise ignores all duplicated completions.
             result.completeFrom((Promise<Object>) p);
@@ -66,7 +66,7 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
     @Override
     public V get() {
         if (!completed) {
-            WorkflowThreadInternal.yield("Feature.get", () -> completed);
+            WorkflowThread.yield("Feature.get", () -> completed);
         }
         if (failure != null) {
             unregisterWithRunner();
@@ -78,7 +78,7 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
     @Override
     public V get(V defaultValue) {
         if (!completed) {
-            WorkflowThreadInternal.yield("Feature.get", () -> completed);
+            WorkflowThread.yield("Feature.get", () -> completed);
         }
         if (failure != null) {
             unregisterWithRunner();
@@ -90,7 +90,7 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
     @Override
     public V get(long timeout, TimeUnit unit) throws TimeoutException {
         if (!completed) {
-            WorkflowThreadInternal.yield(unit.toMillis(timeout), "Feature.get", () -> completed);
+            WorkflowThread.yield(unit.toMillis(timeout), "Feature.get", () -> completed);
         }
         if (!completed) {
             throw new TimeoutException();
@@ -113,7 +113,7 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
     @Override
     public V get(long timeout, TimeUnit unit, V defaultValue) {
         if (!completed) {
-            WorkflowThreadInternal.yield(unit.toMillis(timeout), "Feature.get", () -> completed);
+            WorkflowThread.yield(unit.toMillis(timeout), "Feature.get", () -> completed);
         }
         if (!completed) {
             return defaultValue;
@@ -182,49 +182,60 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
     }
 
     public <U> Promise<U> handle(Functions.Func2<? super V, RuntimeException, ? extends U> fn) {
-        // TODO: Cancellation handler
-        CompletablePromiseImpl<Object> resultPromise = new CompletablePromiseImpl<>();
-        if (completed) {
-            invokeHandler(fn, resultPromise);
-            unregisterWithRunner();
-        } else {
-            handlers.add(() -> invokeHandler(fn, resultPromise));
-        }
-        return (Promise<U>) resultPromise;
+        return then((result) -> {
+            try {
+                U r = fn.apply(value, failure);
+                result.complete(r);
+            } catch (RuntimeException e) {
+                result.completeExceptionally(e);
+            }
+        });
     }
 
     @Override
-    public <U> Promise<U> thenCompose(Functions.Func1<? super V, ? extends Promise<U>> func) {
-        CompletablePromiseImpl<Object> resultPromise = new CompletablePromiseImpl<>();
+    public <U> Promise<U> thenCompose(Functions.Func1<? super V, ? extends Promise<U>> fn) {
+        return then((result) -> {
+            if (failure != null) {
+                result.completeExceptionally(failure);
+                return;
+            }
+            try {
+                Promise<U> r = fn.apply(value);
+                result.completeFrom(r);
+            } catch (RuntimeException e) {
+                result.completeExceptionally(e);
+            }
+        });
+    }
+
+    @Override
+    public Promise<V> exceptionally(Functions.Func1<Throwable, ? extends V> fn) {
+        return then((result) -> {
+            if (failure == null) {
+                result.complete(value);
+                return;
+            }
+            try {
+                V r = fn.apply(failure);
+                result.complete(r);
+            } catch (RuntimeException e) {
+                result.completeExceptionally(e);
+            }
+        });
+    }
+
+    /**
+     * Call proc immediately if ready or register with handlers.
+     */
+    private <U> Promise<U> then(Functions.Proc1<CompletablePromise<U>> proc) {
+        CompletablePromise<U> resultPromise = new CompletablePromiseImpl<>();
         if (completed) {
-            invokeComposeHandler(func, resultPromise);
+            proc.apply(resultPromise);
             unregisterWithRunner();
         } else {
-            handlers.add(() -> invokeComposeHandler(func, resultPromise));
+            handlers.add(() -> proc.apply(resultPromise));
         }
-        return (Promise<U>) resultPromise;
-    }
-
-    private void invokeComposeHandler(Functions.Func1 fn, CompletablePromiseImpl<Object> resultPromise) {
-        if (failure != null) {
-            resultPromise.completeExceptionally(failure);
-            return;
-        }
-        try {
-            Promise<Object> result = (Promise<Object>) fn.apply(value);
-            resultPromise.completeFrom(result);
-        } catch (RuntimeException e) {
-            resultPromise.completeExceptionally(e);
-        }
-    }
-
-    private void invokeHandler(Functions.Func2 fn, CompletablePromiseImpl<Object> resultPromise) {
-        try {
-            Object result = fn.apply(value, failure);
-            resultPromise.complete(result);
-        } catch (RuntimeException e) {
-            resultPromise.completeExceptionally(e);
-        }
+        return resultPromise;
     }
 
     /**

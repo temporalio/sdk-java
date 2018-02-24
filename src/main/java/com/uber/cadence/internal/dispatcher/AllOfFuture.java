@@ -30,7 +30,7 @@ import java.util.concurrent.TimeoutException;
 class AllOfPromise<G> implements Promise<List<G>> {
 
     private G[] result;
-    private final CompletablePromise<List<G>> impl = Workflow.newCompletablePromise();
+    private final CompletablePromise<List<G>> impl = Workflow.newPromise();
 
     private int notReadyCount;
 
@@ -92,6 +92,11 @@ class AllOfPromise<G> implements Promise<List<G>> {
     @Override
     public <U> Promise<U> thenCompose(Functions.Func1<? super List<G>, ? extends Promise<U>> func) {
         return impl.thenCompose(func);
+    }
+
+    @Override
+    public Promise<List<G>> exceptionally(Functions.Func1<Throwable, ? extends List<G>> fn) {
+        return impl.exceptionally(fn);
     }
 
     @Override

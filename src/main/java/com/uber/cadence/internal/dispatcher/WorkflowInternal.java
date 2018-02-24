@@ -43,14 +43,14 @@ import static com.uber.cadence.internal.dispatcher.AsyncInternal.AsyncMarker;
 public final class WorkflowInternal {
 
     public static WorkflowThread newThread(boolean ignoreParentCancellation, Runnable runnable) {
-        return WorkflowThreadInternal.newThread(runnable, ignoreParentCancellation);
+        return WorkflowThread.newThread(runnable, ignoreParentCancellation);
     }
 
     public static WorkflowThread newThread(boolean ignoreParentCancellation, String name, Runnable runnable) {
         if (name == null) {
             throw new NullPointerException("name cannot be null");
         }
-        return WorkflowThreadInternal.newThread(runnable, ignoreParentCancellation, name);
+        return WorkflowThread.newThread(runnable, ignoreParentCancellation, name);
     }
 
     public static Promise<Void> newTimer(Duration duration) {
@@ -151,11 +151,11 @@ public final class WorkflowInternal {
     }
 
     public static void yield(String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError {
-        WorkflowThreadInternal.yield(reason, unblockCondition);
+        WorkflowThread.yield(reason, unblockCondition);
     }
 
     public static boolean yield(long timeoutMillis, String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError {
-        return WorkflowThreadInternal.yield(timeoutMillis, reason, unblockCondition);
+        return WorkflowThread.yield(timeoutMillis, reason, unblockCondition);
     }
 
     public static WorkflowContext getContext() {
@@ -201,5 +201,9 @@ public final class WorkflowInternal {
      * Prohibit instantiation
      */
     private WorkflowInternal() {
+    }
+
+    public static boolean isReplaying() {
+        return getDecisionContext().isReplaying();
     }
 }

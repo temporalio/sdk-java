@@ -17,10 +17,12 @@
 package com.uber.cadence.workflow;
 
 import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.internal.WorkflowRetryerInternal;
 import com.uber.cadence.internal.worker.CheckedExceptionWrapper;
 import com.uber.cadence.internal.dispatcher.WorkflowInternal;
 
 import java.time.Duration;
+import java.util.Objects;
 
 public final class Workflow {
 
@@ -84,6 +86,7 @@ public final class Workflow {
      * promise is failed with {@link java.util.concurrent.CancellationException} if enclosing scope is cancelled.
      */
     public static Promise<Void> newTimer(Duration delay) {
+        Objects.nonNull(delay);
         return WorkflowInternal.newTimer(delay);
     }
 
@@ -91,16 +94,16 @@ public final class Workflow {
         return WorkflowInternal.newQueue(capacity);
     }
 
-    public static <E> CompletablePromise<E> newCompletablePromise() {
+    public static <E> CompletablePromise<E> newPromise() {
         return WorkflowInternal.newCompletablePromise();
     }
 
-    public static <E> Promise<E> newCompletablePromise(E value) {
+    public static <E> Promise<E> newPromise(E value) {
         return WorkflowInternal.newPromise(value);
     }
 
     public static <E> Promise<E> newFailedPromise(Exception failure) {
-        return WorkflowInternal.newFailedPromise(CheckedExceptionWrapper.throwWrapped(failure));
+        return WorkflowInternal.newFailedPromise(CheckedExceptionWrapper.getWrapped(failure));
     }
 
     /**
@@ -127,6 +130,17 @@ public final class Workflow {
             CancellationScope.throwCancelled();
             return false;
         });
+    }
+
+    /**
+     * Invokes function retrying in case of failures according to retry options.
+     * Synchronous variant. Use {@link Async#retry(RetryOptions, Functions.Func)} for asynchronous functions.
+     * @param options retry options that specify retry policy
+     * @param fn function to invoke and retry
+     * @return result of the function or the last failure.
+     */
+    public static <R> R retry(RetryOptions options, Functions.Func<R> fn) {
+        return WorkflowRetryerInternal.retry(options, fn);
     }
 
     /**
@@ -200,6 +214,16 @@ public final class Workflow {
      */
     public static RuntimeException getWrapped(Throwable e) {
         return WorkflowInternal.getWrapped(e);
+    }
+
+    /**
+     * True if workflow code is being replayed.
+     * <b>Warning!</b> Never make workflow logic depend on this flag as it is going to break determinism.
+     * The only reasonable uses for this flag are deduping external never failing side effects
+     * like logging or metric reporting.
+     */
+    public static boolean isReplaying() {
+        return WorkflowInternal.isReplaying();
     }
 
     /**

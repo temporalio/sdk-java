@@ -26,10 +26,12 @@ import com.uber.cadence.client.ActivityCompletionClient;
 import com.uber.cadence.client.WorkflowClient;
 import com.uber.cadence.client.WorkflowClientOptions;
 import com.uber.cadence.client.UntypedWorkflowStub;
+import com.uber.cadence.client.WorkflowException;
 import com.uber.cadence.client.WorkflowExecutionAlreadyStartedException;
 import com.uber.cadence.client.WorkflowFailureException;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.converter.JsonDataConverter;
+import com.uber.cadence.internal.dispatcher.DeterministicRunnerTest;
 import com.uber.cadence.worker.Worker;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -102,7 +104,7 @@ public class WorkflowTest {
                 .setTaskList(taskList);
     }
 
-    private static ActivityOptions newActivitySchedulingOptions1() {
+    private static ActivityOptions newActivityOptions1() {
         return new ActivityOptions.Builder()
                 .setTaskList(taskList)
                 .setHeartbeatTimeoutSeconds(5)
@@ -112,7 +114,7 @@ public class WorkflowTest {
                 .build();
     }
 
-    private static ActivityOptions newActivitySchedulingOptions2() {
+    private static ActivityOptions newActivityOptions2() {
         return new ActivityOptions.Builder()
                 .setScheduleToCloseTimeoutSeconds(20)
                 .build();
@@ -133,7 +135,7 @@ public class WorkflowTest {
                 .build();
         workflowClientWithOptions = WorkflowClient.newInstance(domain, clientOptions);
         newWorkflowOptionsBuilder();
-        newActivitySchedulingOptions1();
+        newActivityOptions1();
         activitiesImpl.invocations.clear();
         activitiesImpl.procResult.clear();
     }
@@ -144,8 +146,8 @@ public class WorkflowTest {
         activitiesImpl.close();
     }
 
-    private void startWorkerFor(Class<?> workflowType) {
-        worker.registerWorkflowImplementationTypes(workflowType);
+    private void startWorkerFor(Class<?>... workflowTypes) {
+        worker.registerWorkflowImplementationTypes(workflowTypes);
         worker.start();
     }
 
@@ -171,7 +173,7 @@ public class WorkflowTest {
 
         @Override
         public String execute() {
-            TestActivities activities = Workflow.newActivityStub(TestActivities.class, newActivitySchedulingOptions1());
+            TestActivities activities = Workflow.newActivityStub(TestActivities.class, newActivityOptions1());
             // Invoke synchronously in a separate thread for testing purposes only.
             // In real workflows use
             // Async.invoke(activities::activityWithDelay, 1000, true)
@@ -188,6 +190,89 @@ public class WorkflowTest {
         String result = workflowStub.execute();
         assertEquals("activity10", result);
     }
+
+    public static class TestActivityRetry implements TestWorkflow1 {
+
+        private final TestActivities activities;
+
+        public TestActivityRetry() {
+            ActivityOptions options = new ActivityOptions.Builder()
+                    .setTaskList(taskList)
+                    .setHeartbeatTimeoutSeconds(5)
+                    .setScheduleToCloseTimeoutSeconds(5)
+                    .setScheduleToStartTimeoutSeconds(5)
+                    .setStartToCloseTimeoutSeconds(10)
+                    .setRetryOptions(new RetryOptions.Builder()
+                            .setMinimumAttempts(2)
+                            .setMaximumInterval(Duration.ofSeconds(1))
+                            .setInitialInterval(Duration.ofSeconds(1))
+                            .setMaximumAttempts(3)
+                            .build())
+                    .build();
+            this.activities = Workflow.newActivityStub(TestActivities.class, options);
+        }
+
+        @Override
+        public String execute() {
+            activities.throwIO();
+            return "ignored";
+        }
+    }
+
+    @Test
+    public void testActivityRetry() {
+        startWorkerFor(TestActivityRetry.class);
+        TestWorkflow1 workflowStub = workflowClient.newWorkflowStub(TestWorkflow1.class, newWorkflowOptionsBuilder().build());
+        try {
+            workflowStub.execute();
+            fail("unreachable");
+        } catch (WorkflowException e) {
+            assertTrue(e.getCause().getCause() instanceof IOException);
+        }
+        assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
+    }
+
+    public static class TestAsyncActivityRetry implements TestWorkflow1 {
+
+        private final TestActivities activities;
+
+        public TestAsyncActivityRetry() {
+            ActivityOptions options = new ActivityOptions.Builder()
+                    .setTaskList(taskList)
+                    .setHeartbeatTimeoutSeconds(5)
+                    .setScheduleToCloseTimeoutSeconds(5)
+                    .setScheduleToStartTimeoutSeconds(5)
+                    .setStartToCloseTimeoutSeconds(10)
+                    .setRetryOptions(new RetryOptions.Builder()
+                            .setMinimumAttempts(2)
+                            .setMaximumInterval(Duration.ofSeconds(1))
+                            .setInitialInterval(Duration.ofSeconds(1))
+                            .setMaximumAttempts(3)
+                            .build())
+                    .build();
+            this.activities = Workflow.newActivityStub(TestActivities.class, options);
+        }
+
+        @Override
+        public String execute() {
+            Async.invoke(activities::throwIO).get();
+            return "ignored";
+        }
+    }
+
+    @Test
+    public void testAsyncActivityRetry() {
+        startWorkerFor(TestAsyncActivityRetry.class);
+        TestWorkflow1 workflowStub = workflowClient.newWorkflowStub(TestWorkflow1.class, newWorkflowOptionsBuilder().build());
+        try {
+            workflowStub.execute();
+            fail("unreachable");
+        } catch (WorkflowException e) {
+            assertTrue(e.getCause().getCause() instanceof IOException);
+        }
+        assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
+    }
+
 
     public static class TestHeartbeatTimeoutDetails implements TestWorkflow1 {
 
@@ -256,7 +341,7 @@ public class WorkflowTest {
 
         @Override
         public String execute() {
-            TestActivities testActivities = Workflow.newActivityStub(TestActivities.class, newActivitySchedulingOptions1());
+            TestActivities testActivities = Workflow.newActivityStub(TestActivities.class, newActivityOptions1());
             try {
                 testActivities.activityWithDelay(100000, true);
             } catch (CancellationException e) {
@@ -322,7 +407,7 @@ public class WorkflowTest {
 
         @Override
         public String execute() {
-            TestActivities testActivities = Workflow.newActivityStub(TestActivities.class, newActivitySchedulingOptions2());
+            TestActivities testActivities = Workflow.newActivityStub(TestActivities.class, newActivityOptions2());
             Promise<String> a = Async.invoke(testActivities::activity);
             Promise<String> a1 = Async.invoke(testActivities::activity1, "1");
             Promise<String> a2 = Async.invoke(testActivities::activity2, "1", 2);
@@ -457,6 +542,55 @@ public class WorkflowTest {
         assertEquals("testTimer", result);
     }
 
+    private static final RetryOptions retryOptions = new RetryOptions.Builder()
+            .setInitialInterval(Duration.ofSeconds(1))
+            .setMaximumInterval(Duration.ofSeconds(1))
+            .setExpiration(Duration.ofSeconds(2))
+            .setBackoffCoefficient(1)
+            .build();
+
+    public static class TestAsyncRetryWorkflowImpl implements TestWorkflow2 {
+
+        static List<String> trace = new ArrayList<>();
+
+        @Override
+        public String execute() {
+            trace.clear(); // clear because of replay
+            trace.add("started");
+            Async.retry(retryOptions, () -> {
+                trace.add("retry at " + Workflow.currentTimeMillis());
+                return Workflow.newFailedPromise(new IllegalThreadStateException("simulated"));
+            }).get();
+            trace.add("beforeSleep");
+            Workflow.sleep(60000);
+            trace.add("done");
+            return "";
+        }
+    }
+
+    /**
+     * @see DeterministicRunnerTest#testRetry()
+     */
+    @Test
+    public void testAsyncRetry() {
+        startWorkerFor(TestAsyncRetryWorkflowImpl.class);
+        TestWorkflow2 client = workflowClient.newWorkflowStub(TestWorkflow2.class, newWorkflowOptionsBuilder().build());
+        String result = null;
+        try {
+            result = client.execute();
+            fail("unreachable");
+        } catch (WorkflowException e) {
+            assertTrue(e.getCause() instanceof IllegalThreadStateException);
+            assertEquals("simulated", e.getCause().getMessage());
+        }
+        assertNull(result);
+        assertEquals(TestAsyncRetryWorkflowImpl.trace.toString(), 3, TestAsyncRetryWorkflowImpl.trace.size());
+        assertEquals("started", TestAsyncRetryWorkflowImpl.trace.get(0));
+        assertTrue(TestAsyncRetryWorkflowImpl.trace.get(1).startsWith("retry at "));
+        assertTrue(TestAsyncRetryWorkflowImpl.trace.get(2).startsWith("retry at "));
+    }
+
+
     public interface TestExceptionPropagation {
         @WorkflowMethod
         void execute();
@@ -466,7 +600,7 @@ public class WorkflowTest {
 
         @Override
         public String execute() {
-            TestActivities testActivities = Workflow.newActivityStub(TestActivities.class, newActivitySchedulingOptions2());
+            TestActivities testActivities = Workflow.newActivityStub(TestActivities.class, newActivityOptions2());
             try {
                 testActivities.throwIO();
                 fail("unreachable");
@@ -581,7 +715,7 @@ public class WorkflowTest {
 
         String state = "initial";
         List<String> signals = new ArrayList<>();
-        CompletablePromise promise = Workflow.newCompletablePromise();
+        CompletablePromise promise = Workflow.newPromise();
 
         @Override
         public String execute() {
@@ -696,14 +830,10 @@ public class WorkflowTest {
             Promise<Void> timer1 = Workflow.newTimer(Duration.ZERO);
             Promise<Void> timer2 = Workflow.newTimer(Duration.ofSeconds(1));
 
-            CompletablePromise<Void> f = Workflow.newCompletablePromise();
-            timer1.thenApply((e) -> {
-                timer2.get(); // This is prohibited
-                f.complete(null);
-                return null;
+            return timer1.thenApply((e) -> {
+                timer2.get();
+                return "timer2Fired";
             }).get();
-            f.get();
-            return "testTimerBlocked";
         }
     }
 
@@ -714,20 +844,12 @@ public class WorkflowTest {
     public void testTimerCallbackBlocked() {
         startWorkerFor(TestTimerCallbackBlockedWorkflowImpl.class);
         WorkflowOptions.Builder options = new WorkflowOptions.Builder();
-        options.setExecutionStartToCloseTimeoutSeconds(2);
+        options.setExecutionStartToCloseTimeoutSeconds(10);
         options.setTaskStartToCloseTimeoutSeconds(1);
         options.setTaskList(taskList);
         TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
-        try {
-            client.execute();
-            fail("failure expected");
-        } catch (Exception e) {
-            Throwable cause = e;
-            while (cause.getCause() != null) {
-                cause = cause.getCause();
-            }
-            assertTrue(e.toString(), cause.getMessage().contains("Blocking calls are not allowed in callback threads"));
-        }
+        String result = client.execute();
+        assertEquals("timer2Fired", result);
     }
 
     public interface ITestChild {
@@ -788,6 +910,110 @@ public class WorkflowTest {
         TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
         assertEquals("HELLO WORLD!", client.execute());
     }
+
+    public static class TestChildWorkflowRetryWorkflow implements TestWorkflow1 {
+
+        private final ITestChild child;
+
+        public TestChildWorkflowRetryWorkflow() {
+            ChildWorkflowOptions options = new ChildWorkflowOptions.Builder()
+                    .setExecutionStartToCloseTimeoutSeconds(5)
+                    .setTaskStartToCloseTimeoutSeconds(2)
+                    .setTaskList(taskList)
+                    .setRetryOptions(new RetryOptions.Builder()
+                            .setMinimumAttempts(2)
+                            .setMaximumInterval(Duration.ofSeconds(1))
+                            .setInitialInterval(Duration.ofSeconds(1))
+                            .setMaximumAttempts(3)
+                            .build())
+                    .build();
+            child = Workflow.newChildWorkflowStub(ITestChild.class, options);
+        }
+
+        @Override
+        public String execute() {
+            return child.execute("wash dishes");
+        }
+    }
+
+    public static class AngryChild implements ITestChild {
+
+        static int invocationCount;
+
+        @Override
+        public String execute(String arg) {
+            if (!Workflow.isReplaying()) {
+                invocationCount++;
+            }
+            throw new UnsupportedOperationException("no way");
+        }
+    }
+
+    @Test
+    public void testChildWorkflowRetry() {
+        AngryChild.invocationCount = 0;
+        startWorkerFor(TestChildWorkflowRetryWorkflow.class, AngryChild.class);
+
+        WorkflowOptions.Builder options = new WorkflowOptions.Builder();
+        options.setExecutionStartToCloseTimeoutSeconds(20);
+        options.setTaskStartToCloseTimeoutSeconds(2);
+        options.setTaskList(taskList);
+        TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
+        try {
+            client.execute();
+        } catch (WorkflowException e) {
+            assertTrue(e.getCause() instanceof ChildWorkflowFailureException);
+            assertTrue(e.getCause().getCause() instanceof UnsupportedOperationException);
+            assertEquals("no way", e.getCause().getCause().getMessage());
+        }
+        assertEquals(3, AngryChild.invocationCount);
+    }
+
+    public static class TestChildWorkflowAsyncRetryWorkflow implements TestWorkflow1 {
+
+        private final ITestChild child;
+
+        public TestChildWorkflowAsyncRetryWorkflow() {
+            ChildWorkflowOptions options = new ChildWorkflowOptions.Builder()
+                    .setExecutionStartToCloseTimeoutSeconds(5)
+                    .setTaskStartToCloseTimeoutSeconds(2)
+                    .setTaskList(taskList)
+                    .setRetryOptions(new RetryOptions.Builder()
+                            .setMinimumAttempts(2)
+                            .setMaximumInterval(Duration.ofSeconds(1))
+                            .setInitialInterval(Duration.ofSeconds(1))
+                            .setMaximumAttempts(3)
+                            .build())
+                    .build();
+            child = Workflow.newChildWorkflowStub(ITestChild.class, options);
+        }
+
+        @Override
+        public String execute() {
+            return Async.invoke(child::execute, "wash dishes").get();
+        }
+    }
+
+    @Test
+    public void testChildWorkflowAsyncRetry() {
+        AngryChild.invocationCount = 0;
+        startWorkerFor(TestChildWorkflowAsyncRetryWorkflow.class, AngryChild.class);
+
+        WorkflowOptions.Builder options = new WorkflowOptions.Builder();
+        options.setExecutionStartToCloseTimeoutSeconds(20);
+        options.setTaskStartToCloseTimeoutSeconds(2);
+        options.setTaskList(taskList);
+        TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
+        try {
+            client.execute();
+        } catch (WorkflowException e) {
+            assertTrue(e.getCause() instanceof ChildWorkflowFailureException);
+            assertTrue(e.getCause().getCause() instanceof UnsupportedOperationException);
+            assertEquals("no way", e.getCause().getCause().getMessage());
+        }
+        assertEquals(3, AngryChild.invocationCount);
+    }
+
 
     /**
      * Used to test that worker rejects activities with DoNotCompleteOnReturn annotation on interface.
@@ -979,6 +1205,7 @@ public class WorkflowTest {
 
         @Override
         public void throwIO() {
+            invocations.add("throwIO");
             try {
                 throw new IOException("simulated IO problem");
             } catch (IOException e) {

@@ -202,7 +202,7 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
         try {
             byte[] resultValue = WorkflowExecutionUtils.getWorkflowExecutionResult(
                     genericClient.getService(), genericClient.getDomain(), execution.get(), workflowType,
-                    options.getExecutionStartToCloseTimeoutSeconds(), TimeUnit.SECONDS);
+                    options.getExecutionStartToCloseTimeoutSeconds() + 1, TimeUnit.SECONDS);
             return dataConverter.fromData(resultValue, method.getReturnType());
         } catch (WorkflowExecutionFailedException e) {
             Class<Throwable> causeClass = null;

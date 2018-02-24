@@ -16,6 +16,7 @@
  */
 package com.uber.cadence.workflow;
 
+import com.uber.cadence.internal.WorkflowRetryerInternal;
 import com.uber.cadence.internal.dispatcher.AsyncInternal;
 
 /**
@@ -203,6 +204,17 @@ public final class Async {
      */
     public static <A1, A2, A3, A4, A5, A6> Promise<Void> invoke(Functions.Proc6<A1, A2, A3, A4, A5, A6> procedure, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5, A6 arg6) {
         return AsyncInternal.invoke(procedure, arg1, arg2, arg3, arg4, arg5, arg6);
+    }
+
+    /**
+     * Invokes function retrying in case of failures according to retry options.
+     * Asynchronous variant. Use {@link Workflow#retry(RetryOptions, Functions.Func)} for synchronous functions.
+     * @param options retry options that specify retry policy
+     * @param fn function to invoke and retry
+     * @return result of the function or the last failure.
+     */
+    public static <R> Promise<R> retry(RetryOptions options, Functions.Func<Promise<R>> fn) {
+        return WorkflowRetryerInternal.retryAsync(options, fn);
     }
 
     /**

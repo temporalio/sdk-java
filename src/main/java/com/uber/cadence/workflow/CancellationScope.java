@@ -31,7 +31,7 @@ public interface CancellationScope {
      * When set to false parent thread cancellation causes this one to get cancelled automatically.
      * When set to true only call to {@link #cancel()} leads to this scope cancellation.
      */
-    boolean isIgnoreParentCancellation();
+    boolean isDetached();
 
     /**
      * Cancels the scope as well as all its children

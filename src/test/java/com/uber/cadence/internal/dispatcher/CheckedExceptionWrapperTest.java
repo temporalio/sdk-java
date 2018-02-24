@@ -44,9 +44,7 @@ public class CheckedExceptionWrapperTest {
                 throw Workflow.throwWrapped(e);
             }
         } catch (Exception e) {
-            e.printStackTrace();
             Throwable result = CheckedExceptionWrapper.unwrap(e);
-            System.err.println("Unwrapped:");
             result.printStackTrace();
             Assert.assertEquals("2", result.getMessage());
             Assert.assertEquals("1", result.getCause().getMessage());

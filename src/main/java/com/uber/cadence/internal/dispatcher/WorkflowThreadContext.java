@@ -233,8 +233,7 @@ class WorkflowThreadContext {
         lock.lock();
         try {
             destroyRequested = true;
-            if (status == Status.CREATED) {
-                // Happens when start wasn't ever called on the thread.
+            if (status == Status.CREATED || status == Status.RUNNING || status == Status.DONE) {
                 status = Status.DONE;
                 return;
             }

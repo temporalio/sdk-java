@@ -78,4 +78,10 @@ class WorkflowRunnable implements Runnable {
     public byte[] query(String type, byte[] args) {
         return context.query(type, args);
     }
+
+    public void fireTimers() {
+        if (context.hasTimersToFire()) {
+            context.getRunner().executeInWorkflowThread("timers callback", () -> context.fireTimers());
+        }
+    }
 }
