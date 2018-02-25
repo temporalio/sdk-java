@@ -16,14 +16,23 @@
  */
 package com.uber.cadence.client;
 
-import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.activity.ActivityTask;
 
 /**
- * Indicates that a workflow with this WorkflowID is already running.
+ * Unexpected failure when completing an activity.
  */
-public final class WorkflowAlreadyRunningException extends WorkflowException {
+public final class ActivityCompletionFailureException extends ActivityCompletionException {
 
-    public WorkflowAlreadyRunningException(WorkflowExecution execution, String workflowType, String message) {
-        super(message, execution, workflowType, null);
+    public ActivityCompletionFailureException(Throwable cause) {
+        super(cause);
     }
+
+    public ActivityCompletionFailureException(ActivityTask task, Throwable cause) {
+        super(task, cause);
+    }
+
+    public ActivityCompletionFailureException(String activityId, Throwable cause) {
+        super(activityId, cause);
+    }
+
 }

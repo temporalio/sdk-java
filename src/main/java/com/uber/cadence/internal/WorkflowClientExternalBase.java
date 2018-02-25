@@ -18,28 +18,28 @@ package com.uber.cadence.internal;
 
 import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
 import com.uber.cadence.WorkflowType;
-import com.uber.cadence.client.WorkflowExecutionAlreadyStartedException;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.generic.GenericWorkflowClientExternal;
 
 public abstract class WorkflowClientExternalBase implements WorkflowClientExternal {
-    
+
     private static boolean BOOLEAN_DEFAULT = false;
-    
+
     private static byte BYTE_DEFAULT = 0;
-    
+
     private static char CHARACTER_DEFAULT = '\u0000';
-    
+
     private static short SHORT_DEFAULT = 0;
-    
+
     private static int INTEGER_DEFAULT = 0;
-    
+
     private static long LONG_DEFAULT = 0L;
-    
+
     private static float FLOAT_DEFAULT = 0.0f;
-    
+
     private static double DOUBLE_DEFAULT = 0.0d;
 
     protected final DynamicWorkflowClientExternal dynamicWorkflowClient;
@@ -80,20 +80,20 @@ public abstract class WorkflowClientExternalBase implements WorkflowClientExtern
         return dynamicWorkflowClient.getWorkflowExecution();
     }
 
-    protected void startWorkflowExecution(Object[] arguments, WorkflowOptions startOptionsOverride) throws WorkflowExecutionAlreadyStartedException {
+    protected void startWorkflowExecution(Object[] arguments, WorkflowOptions startOptionsOverride) throws WorkflowExecutionAlreadyStartedError {
         dynamicWorkflowClient.startWorkflowExecution(arguments, startOptionsOverride);
     }
 
-    protected void startWorkflowExecution(Object[] arguments) throws WorkflowExecutionAlreadyStartedException {
+    protected void startWorkflowExecution(Object[] arguments) throws WorkflowExecutionAlreadyStartedError {
         dynamicWorkflowClient.startWorkflowExecution(arguments);
     }
 
     protected void signalWorkflowExecution(String signalName, Object[] arguments) {
         dynamicWorkflowClient.signalWorkflowExecution(signalName, arguments);
     }
-    
-    @SuppressWarnings({ "unchecked" })
-    protected<T> T defaultPrimitiveValue(Class<T> clazz) {
+
+    @SuppressWarnings({"unchecked"})
+    protected <T> T defaultPrimitiveValue(Class<T> clazz) {
         Object returnValue = null;
         if (clazz.equals(Boolean.TYPE)) {
             returnValue = BOOLEAN_DEFAULT;
@@ -114,7 +114,7 @@ public abstract class WorkflowClientExternalBase implements WorkflowClientExtern
         } else {
             throw new IllegalArgumentException("Type not supported: " + clazz);
         }
-        
-        return (T)returnValue;
+
+        return (T) returnValue;
     }
 }

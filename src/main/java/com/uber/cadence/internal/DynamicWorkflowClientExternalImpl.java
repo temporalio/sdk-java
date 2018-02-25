@@ -18,8 +18,9 @@ package com.uber.cadence.internal;
 
 import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
 import com.uber.cadence.WorkflowType;
-import com.uber.cadence.client.WorkflowExecutionAlreadyStartedException;
+import com.uber.cadence.client.DuplicateWorkflowException;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.converter.JsonDataConverter;
@@ -135,12 +136,12 @@ public class DynamicWorkflowClientExternalImpl implements DynamicWorkflowClientE
     }
 
     @Override
-    public void startWorkflowExecution(Object[] arguments) throws WorkflowExecutionAlreadyStartedException {
+    public void startWorkflowExecution(Object[] arguments) throws WorkflowExecutionAlreadyStartedError {
         startWorkflowExecution(arguments, null);
     }
 
     @Override
-    public void startWorkflowExecution(Object[] arguments, WorkflowOptions startOptionsOverride) throws WorkflowExecutionAlreadyStartedException {
+    public void startWorkflowExecution(Object[] arguments, WorkflowOptions startOptionsOverride) throws DuplicateWorkflowException, WorkflowExecutionAlreadyStartedError {
         if (workflowType == null) {
             throw new IllegalStateException("Required property workflowType is null");
         }

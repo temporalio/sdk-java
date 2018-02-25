@@ -18,6 +18,7 @@ package com.uber.cadence.internal.dispatcher;
 
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.client.ActivityCompletionClient;
+import com.uber.cadence.client.ActivityCompletionException;
 import com.uber.cadence.internal.ManualActivityCompletionClientFactory;
 
 import java.util.concurrent.CancellationException;
@@ -61,12 +62,12 @@ public class ActivityCompletionClientImpl implements ActivityCompletionClient {
     }
 
     @Override
-    public <V> void heartbeat(byte[] taskToken, V details) throws CancellationException {
+    public <V> void heartbeat(byte[] taskToken, V details) throws ActivityCompletionException {
         factory.getClient(taskToken).recordHeartbeat(details);
     }
 
     @Override
-    public <V> void heartbeat(WorkflowExecution execution, String activityId, V details) throws CancellationException {
+    public <V> void heartbeat(WorkflowExecution execution, String activityId, V details) throws ActivityCompletionException {
         factory.getClient(execution, activityId).recordHeartbeat(details);
     }
 }

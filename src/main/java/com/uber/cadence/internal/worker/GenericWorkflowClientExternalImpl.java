@@ -25,9 +25,9 @@ import com.uber.cadence.StartWorkflowExecutionResponse;
 import com.uber.cadence.TaskList;
 import com.uber.cadence.TerminateWorkflowExecutionRequest;
 import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
 import com.uber.cadence.WorkflowQuery;
 import com.uber.cadence.WorkflowService;
-import com.uber.cadence.client.WorkflowExecutionAlreadyStartedException;
 import com.uber.cadence.internal.generic.GenericWorkflowClientExternal;
 import com.uber.cadence.internal.generic.QueryWorkflowParameters;
 import com.uber.cadence.internal.generic.StartWorkflowExecutionParameters;
@@ -58,7 +58,7 @@ public class GenericWorkflowClientExternalImpl implements GenericWorkflowClientE
     }
 
     @Override
-    public WorkflowExecution startWorkflow(StartWorkflowExecutionParameters startParameters) throws WorkflowExecutionAlreadyStartedException {
+    public WorkflowExecution startWorkflow(StartWorkflowExecutionParameters startParameters) throws WorkflowExecutionAlreadyStartedError {
         StartWorkflowExecutionRequest request = new StartWorkflowExecutionRequest();
         request.setDomain(domain);
 
@@ -86,6 +86,8 @@ public class GenericWorkflowClientExternalImpl implements GenericWorkflowClientE
         StartWorkflowExecutionResponse result;
         try {
             result = service.StartWorkflowExecution(request);
+        } catch (WorkflowExecutionAlreadyStartedError e) {
+            throw e;
         } catch (TException e) {
             throw new RuntimeException(e);
         }

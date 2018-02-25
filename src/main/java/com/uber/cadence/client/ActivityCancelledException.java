@@ -16,11 +16,19 @@
  */
 package com.uber.cadence.client;
 
-import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.activity.ActivityTask;
 
-public final class WorkflowExecutionAlreadyStartedException extends WorkflowException {
+/**
+ * Usually indicates that activity was already completed (duplicated request to complete) or timed out
+ * or workflow is closed.
+ */
+public final class ActivityCancelledException extends ActivityCompletionException {
 
-    public WorkflowExecutionAlreadyStartedException(String message, WorkflowExecution execution, String workflowType, Throwable cause) {
-        super(message, execution, workflowType, cause);
+    public ActivityCancelledException(ActivityTask task) {
+        super(task);
+    }
+
+    public ActivityCancelledException() {
+        super();
     }
 }

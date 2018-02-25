@@ -22,12 +22,14 @@ import com.uber.cadence.WorkflowIdReusePolicy;
 import com.uber.cadence.activity.Activity;
 import com.uber.cadence.activity.ActivityMethod;
 import com.uber.cadence.activity.DoNotCompleteOnReturn;
+import com.uber.cadence.client.ActivityCancelledException;
 import com.uber.cadence.client.ActivityCompletionClient;
+import com.uber.cadence.client.ActivityNotExistsException;
 import com.uber.cadence.client.WorkflowClient;
 import com.uber.cadence.client.WorkflowClientOptions;
 import com.uber.cadence.client.UntypedWorkflowStub;
 import com.uber.cadence.client.WorkflowException;
-import com.uber.cadence.client.WorkflowExecutionAlreadyStartedException;
+import com.uber.cadence.client.DuplicateWorkflowException;
 import com.uber.cadence.client.WorkflowFailureException;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.converter.JsonDataConverter;
@@ -344,16 +346,19 @@ public class WorkflowTest {
             TestActivities testActivities = Workflow.newActivityStub(TestActivities.class, newActivityOptions1());
             try {
                 testActivities.activityWithDelay(100000, true);
+                fail("unreachable");
             } catch (CancellationException e) {
                 Workflow.newDetachedCancellationScope(() -> assertEquals("a1", testActivities.activity1("a1")));
             }
             try {
                 Workflow.sleep(Duration.ofHours(1));
+                fail("unreachable");
             } catch (CancellationException e) {
                 Workflow.newDetachedCancellationScope(() -> assertEquals("a12", testActivities.activity2("a1", 2)));
             }
             try {
                 Workflow.newTimer(Duration.ofHours(1)).get();
+                fail("unreachable");
             } catch (CancellationException e) {
                 Workflow.newDetachedCancellationScope(() -> assertEquals("a123", testActivities.activity3("a1", 2, 3)));
             }
@@ -474,7 +479,7 @@ public class WorkflowTest {
         try {
             stub.func2("1", 2);
             fail("unreachable");
-        } catch (WorkflowExecutionAlreadyStartedException e) {
+        } catch (DuplicateWorkflowException e) {
             // expected
         }
         stub = workflowClient.newWorkflowStub(TestMultiargsWorkflows.class, newWorkflowOptionsBuilder().build());
@@ -1108,7 +1113,7 @@ public class WorkflowTest {
                     completionClient.complete(taskToken, "activity");
                 } catch (InterruptedException e) {
                     throw new RuntimeException("unexpected", e);
-                } catch (CancellationException e) {
+                } catch (ActivityNotExistsException | ActivityCancelledException e) {
                     completionClient.reportCancellation(taskToken, null);
                 }
             });

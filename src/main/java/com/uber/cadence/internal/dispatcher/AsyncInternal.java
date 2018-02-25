@@ -158,7 +158,7 @@ public final class AsyncInternal {
      * Invokes one argument procedure asynchronously.
      *
      * @param procedure Procedure to execute asynchronously
-     * @param arg1     first procedure argument
+     * @param arg1      first procedure argument
      * @return promise that contains procedure result or failure
      */
     public static <A1> Promise<Void> invoke(Functions.Proc1<A1> procedure, A1 arg1) {
@@ -169,8 +169,8 @@ public final class AsyncInternal {
      * Invokes two argument procedure asynchronously.
      *
      * @param procedure Procedure to execute asynchronously
-     * @param arg1     first procedure argument
-     * @param arg2     second procedure argument
+     * @param arg1      first procedure argument
+     * @param arg2      second procedure argument
      * @return promise that contains procedure result or failure
      */
     public static <A1, A2> Promise<Void> invoke(Functions.Proc2<A1, A2> procedure, A1 arg1, A2 arg2) {
@@ -181,9 +181,9 @@ public final class AsyncInternal {
      * Invokes three argument procedure asynchronously.
      *
      * @param procedure Procedure to execute asynchronously
-     * @param arg1     first procedure argument
-     * @param arg2     second procedure argument
-     * @param arg3     third procedure argument
+     * @param arg1      first procedure argument
+     * @param arg2      second procedure argument
+     * @param arg3      third procedure argument
      * @return promise that contains procedure result or failure
      */
     public static <A1, A2, A3> Promise<Void> invoke(Functions.Proc3<A1, A2, A3> procedure, A1 arg1, A2 arg2, A3 arg3) {
@@ -194,10 +194,10 @@ public final class AsyncInternal {
      * Invokes four argument procedure asynchronously.
      *
      * @param procedure Procedure to execute asynchronously
-     * @param arg1     first procedure argument
-     * @param arg2     second procedure argument
-     * @param arg3     third procedure argument
-     * @param arg4     forth procedure argument
+     * @param arg1      first procedure argument
+     * @param arg2      second procedure argument
+     * @param arg3      third procedure argument
+     * @param arg4      forth procedure argument
      * @return promise that contains procedure result or failure
      */
     public static <A1, A2, A3, A4> Promise<Void> invoke(Functions.Proc4<A1, A2, A3, A4> procedure, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
@@ -208,11 +208,11 @@ public final class AsyncInternal {
      * Invokes five argument procedure asynchronously.
      *
      * @param procedure Procedure to execute asynchronously
-     * @param arg1     first procedure argument
-     * @param arg2     second procedure argument
-     * @param arg3     third procedure argument
-     * @param arg4     forth procedure argument
-     * @param arg5     fifth procedure argument
+     * @param arg1      first procedure argument
+     * @param arg2      second procedure argument
+     * @param arg3      third procedure argument
+     * @param arg4      forth procedure argument
+     * @param arg5      fifth procedure argument
      * @return promise that contains procedure result or failure
      */
     public static <A1, A2, A3, A4, A5> Promise<Void> invoke(Functions.Proc5<A1, A2, A3, A4, A5> procedure, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
@@ -223,12 +223,12 @@ public final class AsyncInternal {
      * Invokes six argument procedure asynchronously.
      *
      * @param procedure Procedure to execute asynchronously
-     * @param arg1     first procedure argument
-     * @param arg2     second procedure argument
-     * @param arg3     third procedure argument
-     * @param arg4     forth procedure argument
-     * @param arg5     fifth procedure argument
-     * @param arg6     sixth procedure argument
+     * @param arg1      first procedure argument
+     * @param arg2      second procedure argument
+     * @param arg3      third procedure argument
+     * @param arg4      forth procedure argument
+     * @param arg5      fifth procedure argument
+     * @param arg6      sixth procedure argument
      * @return promise that contains procedure result or failure
      */
     public static <A1, A2, A3, A4, A5, A6> Promise<Void> invoke(Functions.Proc6<A1, A2, A3, A4, A5, A6> procedure, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5, A6 arg6) {
@@ -240,10 +240,12 @@ public final class AsyncInternal {
             initAsyncInvocation();
             try {
                 func.apply();
+                return getAsyncInvocationResult();
             } catch (Throwable e) {
                 return Workflow.newFailedPromise(Workflow.getWrapped(e));
+            } finally {
+                closeAsyncInvocation();
             }
-            return getAsyncInvocationResult();
         } else {
             CompletablePromise<R> result = Workflow.newPromise();
             WorkflowInternal.newThread(false, () -> {
@@ -309,7 +311,9 @@ public final class AsyncInternal {
 
     /**
      * Indicate to the dynamic interface implementation that call was done through
+     *
      * @link Async#invoke}.
+     * Must be closed through {@link #closeAsyncInvocation()}
      */
     private static void initAsyncInvocation() {
         if (asyncResult.get() != null) {
@@ -322,20 +326,23 @@ public final class AsyncInternal {
      * @return asynchronous result of an invocation.
      */
     private static <R> Promise<R> getAsyncInvocationResult() {
-        try {
-            AtomicReference<Promise<?>> reference = asyncResult.get();
-            if (reference == null) {
-                throw new IllegalStateException("initAsyncInvocation wasn't called");
-            }
-            @SuppressWarnings("unchecked")
-            Promise<R> result = (Promise<R>) reference.get();
-            if (result == null) {
-                throw new IllegalStateException("asyncStart result wasn't set");
-            }
-            return result;
-        } finally {
-            asyncResult.remove();
+        AtomicReference<Promise<?>> reference = asyncResult.get();
+        if (reference == null) {
+            throw new IllegalStateException("initAsyncInvocation wasn't called");
         }
+        @SuppressWarnings("unchecked")
+        Promise<R> result = (Promise<R>) reference.get();
+        if (result == null) {
+            throw new IllegalStateException("asyncStart result wasn't set");
+        }
+        return result;
+    }
+
+    /**
+     * Closes async invocation created through {@link #initAsyncInvocation()}
+     */
+    public static void closeAsyncInvocation() {
+        asyncResult.remove();
     }
 
     /**

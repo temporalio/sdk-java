@@ -27,14 +27,20 @@ import com.uber.cadence.RespondActivityTaskFailedByIDRequest;
 import com.uber.cadence.RespondActivityTaskFailedRequest;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
+import com.uber.cadence.client.ActivityCancelledException;
+import com.uber.cadence.client.ActivityCompletionFailureException;
+import com.uber.cadence.client.ActivityNotExistsException;
 import com.uber.cadence.converter.DataConverter;
-import com.uber.cadence.internal.common.WorkflowExecutionUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.thrift.TException;
 
 import java.util.concurrent.CancellationException;
 
 // TODO: service call retries
 class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient {
+
+    private static final Log log = LogFactory.getLog(ManualActivityCompletionClientImpl.class);
 
     private final WorkflowService.Iface service;
 
@@ -73,10 +79,15 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
             request.setTaskToken(taskToken);
             try {
                 service.RespondActivityTaskCompleted(request);
+            } catch (EntityNotExistsError e) {
+                throw new ActivityNotExistsException(e);
             } catch (TException e) {
-                throw new RuntimeException(e);
+                throw new ActivityCompletionFailureException(e);
             }
         } else {
+            if (activityId == null) {
+                throw new IllegalArgumentException("Either activity id or task token are required");
+            }
             RespondActivityTaskCompletedByIDRequest request = new RespondActivityTaskCompletedByIDRequest();
             request.setActivityID(activityId);
             byte[] convertedResult = dataConverter.toData(result);
@@ -86,8 +97,10 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
             request.setRunID(execution.getRunId());
             try {
                 service.RespondActivityTaskCompletedByID(request);
+            } catch (EntityNotExistsError e) {
+                throw new ActivityNotExistsException(e);
             } catch (TException e) {
-                throw new RuntimeException(e);
+                throw new ActivityCompletionFailureException(activityId, e);
             }
         }
     }
@@ -105,8 +118,10 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
             request.setTaskToken(taskToken);
             try {
                 service.RespondActivityTaskFailed(request);
+            } catch (EntityNotExistsError e) {
+                throw new ActivityNotExistsException(e);
             } catch (TException e) {
-                throw new RuntimeException(e);
+                throw new ActivityCompletionFailureException(e);
             }
         } else {
             RespondActivityTaskFailedByIDRequest request = new RespondActivityTaskFailedByIDRequest();
@@ -117,8 +132,10 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
             request.setRunID(execution.getRunId());
             try {
                 service.RespondActivityTaskFailedByID(request);
+            } catch (EntityNotExistsError e) {
+                throw new ActivityNotExistsException(e);
             } catch (TException e) {
-                throw new RuntimeException(e);
+                throw new ActivityCompletionFailureException(activityId, e);
             }
         }
     }
@@ -132,15 +149,13 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
             RecordActivityTaskHeartbeatResponse status = null;
             try {
                 status = service.RecordActivityTaskHeartbeat(request);
+                if (status.isCancelRequested()) {
+                    throw new ActivityCancelledException();
+                }
             } catch (EntityNotExistsError e) {
-                // Usually it means that activity timed out or workflow has closed.
-                // Treating it as cancellation.
-                throw new CancellationException(e.getMessage());
+                throw new ActivityNotExistsException(e);
             } catch (TException e) {
-                throw new RuntimeException(e);
-            }
-            if (status.isCancelRequested()) {
-                throw new CancellationException();
+                throw new ActivityCompletionFailureException(e);
             }
         } else {
             throw new UnsupportedOperationException("Heartbeating by id is not implemented by Cadence service yet.");
@@ -158,6 +173,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
             } catch (TException e) {
                 // There is nothing that can be done at this point.
                 // so let's just ignore.
+                log.info("reportCancellation", e);
             }
         } else {
             RespondActivityTaskCanceledByIDRequest request = new RespondActivityTaskCanceledByIDRequest();
@@ -168,7 +184,9 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
             try {
                 service.RespondActivityTaskCanceledByID(request);
             } catch (TException e) {
-                throw new RuntimeException(e);
+                // There is nothing that can be done at this point.
+                // so let's just ignore.
+                log.info("reportCancellation", e);
             }
         }
     }

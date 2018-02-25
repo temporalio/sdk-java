@@ -17,10 +17,10 @@
 package com.uber.cadence.internal.dispatcher;
 
 import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.client.UntypedWorkflowStub;
-import com.uber.cadence.client.WorkflowAlreadyRunningException;
-import com.uber.cadence.client.WorkflowExecutionAlreadyStartedException;
+import com.uber.cadence.client.DuplicateWorkflowException;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.worker.CheckedExceptionWrapper;
@@ -96,8 +96,11 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
         p.setChildPolicy(options.getChildPolicy());
         try {
             execution.set(genericClient.startWorkflow(p));
-        } catch (WorkflowExecutionAlreadyStartedException e) {
-            throw new WorkflowAlreadyRunningException(e.getExecution(), e.getWorkflowType(), e.getMessage());
+        } catch (WorkflowExecutionAlreadyStartedError e) {
+            WorkflowExecution execution = new WorkflowExecution()
+                    .setWorkflowId(p.getWorkflowId())
+                    .setRunId(e.getRunId());
+            throw new DuplicateWorkflowException(execution, workflowType, e.getMessage());
         }
         return execution.get();
     }

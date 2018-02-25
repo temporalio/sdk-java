@@ -23,6 +23,7 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.activity.ActivityMethod;
 import com.uber.cadence.activity.DoNotCompleteOnReturn;
+import com.uber.cadence.client.ActivityCancelledException;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.generic.ActivityImplementation;
@@ -78,8 +79,8 @@ class POJOActivityImplementationFactory implements ActivityImplementationFactory
     }
 
     private ActivityExecutionException mapToActivityFailure(PollForActivityTaskResponse task, Throwable e) {
-        if (e instanceof CancellationException) {
-            throw (CancellationException) e;
+        if (e instanceof ActivityCancelledException) {
+            throw new CancellationException(e.getMessage());
         }
         e = CheckedExceptionWrapper.unwrap(e);
         WorkflowExecution workflowExecution = task.getWorkflowExecution();

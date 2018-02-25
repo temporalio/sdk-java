@@ -18,9 +18,8 @@ package com.uber.cadence.internal.dispatcher;
 
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowIdReusePolicy;
+import com.uber.cadence.client.DuplicateWorkflowException;
 import com.uber.cadence.client.UntypedWorkflowStub;
-import com.uber.cadence.client.WorkflowAlreadyRunningException;
-import com.uber.cadence.client.WorkflowExecutionAlreadyStartedException;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.common.InternalUtils;
@@ -43,6 +42,9 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
     private final GenericWorkflowClientExternal genericClient;
     private String workflowType;
 
+    /**
+     * Must call {@link #closeAsyncInvocation()} if this one was called.
+     */
     public static void initAsyncInvocation() {
         if (asyncResult.get() != null) {
             throw new IllegalStateException("already in asyncStart invocation");
@@ -51,7 +53,6 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
     }
 
     public static WorkflowExecution getAsyncInvocationResult() {
-        try {
             AtomicReference<WorkflowExecution> reference = asyncResult.get();
             if (reference == null) {
                 throw new IllegalStateException("initAsyncInvocation wasn't called");
@@ -62,9 +63,13 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
                         "can be used as a parameter to the asyncStart.");
             }
             return result;
-        } finally {
-            asyncResult.remove();
-        }
+    }
+
+    /**
+     * Closes async invocation created through {@link #initAsyncInvocation()}
+     */
+    public static void closeAsyncInvocation() {
+        asyncResult.remove();
     }
 
     WorkflowExternalInvocationHandler(GenericWorkflowClientExternal genericClient, WorkflowExecution execution,
@@ -100,8 +105,8 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
             // We do allow duplicated calls if policy is not AllowDuplicate. Semantic is to wait for result.
             if (execution.get() != null) { // stub is reused
                 if (options.getWorkflowIdReusePolicy() == WorkflowIdReusePolicy.AllowDuplicate) {
-                    throw new WorkflowExecutionAlreadyStartedException(
-                            "Cannot call @WorkflowMethod more than once per stub instance", execution.get(), workflowType, null);
+                    throw new DuplicateWorkflowException(
+                            execution.get(), workflowType, "Cannot call @WorkflowMethod more than once per stub instance");
                 }
                 return getUntyped().getResult(method.getReturnType());
             }
@@ -167,7 +172,7 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
         }
         try {
             execution.set(getUntyped().start(args));
-        } catch (WorkflowAlreadyRunningException e) {
+        } catch (DuplicateWorkflowException e) {
             execution.set(e.getExecution());
             // We do allow duplicated calls if policy is not AllowDuplicate. Semantic is to wait for result.
             if (options.getWorkflowIdReusePolicy() == WorkflowIdReusePolicy.AllowDuplicate) {

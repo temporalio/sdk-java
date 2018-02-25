@@ -104,8 +104,12 @@ public final class WorkflowClientInternal implements WorkflowClient {
 
     public static WorkflowExecution asyncStart(Functions.Proc workflow) {
         WorkflowExternalInvocationHandler.initAsyncInvocation();
-        workflow.apply();
-        return WorkflowExternalInvocationHandler.getAsyncInvocationResult();
+        try {
+            workflow.apply();
+            return WorkflowExternalInvocationHandler.getAsyncInvocationResult();
+        } finally {
+            WorkflowExternalInvocationHandler.closeAsyncInvocation();
+        }
     }
 
     public static <A1> WorkflowExecution asyncStart(Functions.Proc1<A1> workflow, A1 arg1) {

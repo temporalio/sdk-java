@@ -285,7 +285,7 @@ System.out.println("Started process file workflow with workflowId=\"" + workflow
 ```
 If for whatever reason there is a need to wait for a workflow completion after an asynchronous start the simplest way
 is to call the blocking version again. If `WorkflowOptions.WorkflowIdReusePolicy` is not `AllowDuplicate` then instead 
-of throwing `WorkflowExecutionAlreadyStartedException` it reconnects to an existing workflow and waits for its completion.
+of throwing `DuplicateWorkflowException` it reconnects to an existing workflow and waits for its completion.
 The following example shows how to do it from a different process than the one that started the workflow. All this process 
 needs is a `WorkflowID`.
 ```java

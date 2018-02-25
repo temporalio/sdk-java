@@ -21,11 +21,8 @@ import com.uber.cadence.WorkflowService;
 import com.uber.cadence.internal.worker.ActivityTypeExecutionOptions;
 
 /**
- * Base class for activity implementation. Extending
- * {@link ActivityImplementationBase} instead of {@link ActivityImplementation}
- * is recommended.
- * 
- * @see ActivityImplementationBase
+ * Base class for activity implementation.
+ * Internal.
  * 
  * @author fateev, suskin
  */

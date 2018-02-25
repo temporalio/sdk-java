@@ -17,14 +17,15 @@
 package com.uber.cadence.internal;
 
 
-import com.uber.cadence.client.WorkflowExecutionAlreadyStartedException;
+import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
+import com.uber.cadence.client.DuplicateWorkflowException;
 import com.uber.cadence.client.WorkflowOptions;
 
 public interface DynamicWorkflowClientExternal extends WorkflowClientExternal {
     
-    void startWorkflowExecution(Object[] arguments, WorkflowOptions startOptionsOverride) throws WorkflowExecutionAlreadyStartedException;
+    void startWorkflowExecution(Object[] arguments, WorkflowOptions startOptionsOverride) throws DuplicateWorkflowException, WorkflowExecutionAlreadyStartedError;
     
-    void startWorkflowExecution(Object[] arguments) throws WorkflowExecutionAlreadyStartedException;
+    void startWorkflowExecution(Object[] arguments) throws WorkflowExecutionAlreadyStartedError;
 
     void signalWorkflowExecution(String signalName, Object[] arguments);
     

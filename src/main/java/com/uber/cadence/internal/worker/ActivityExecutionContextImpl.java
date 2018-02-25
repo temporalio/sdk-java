@@ -16,6 +16,8 @@
  */
 package com.uber.cadence.internal.worker;
 
+import com.uber.cadence.BadRequestError;
+import com.uber.cadence.EntityNotExistsError;
 import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.RecordActivityTaskHeartbeatRequest;
 import com.uber.cadence.RecordActivityTaskHeartbeatResponse;
@@ -23,7 +25,13 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.WorkflowService.Iface;
 import com.uber.cadence.activity.ActivityTask;
+import com.uber.cadence.client.ActivityCancelledException;
+import com.uber.cadence.client.ActivityCompletionException;
+import com.uber.cadence.client.ActivityCompletionFailureException;
+import com.uber.cadence.client.ActivityNotExistsException;
 import com.uber.cadence.converter.DataConverter;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.thrift.TException;
 
 import java.util.concurrent.CancellationException;
@@ -35,6 +43,8 @@ import java.util.concurrent.CancellationException;
  * @see ActivityExecutionContext
  */
 class ActivityExecutionContextImpl implements ActivityExecutionContext {
+
+    private static final Log log = LogFactory.getLog(ActivityExecutionContextImpl.class);
 
     private final Iface service;
 
@@ -64,7 +74,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
      * @see ActivityExecutionContext#recordActivityHeartbeat(Object)
      */
     @Override
-    public void recordActivityHeartbeat(Object details) throws CancellationException {
+    public void recordActivityHeartbeat(Object details) throws ActivityCompletionException {
         //TODO: call service with the specified minimal interval (through @ActivityExecutionOptions)
         // allowing more frequent calls of this method.
         RecordActivityTaskHeartbeatRequest r = new RecordActivityTaskHeartbeatRequest();
@@ -74,11 +84,17 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
         RecordActivityTaskHeartbeatResponse status;
         try {
             status = service.RecordActivityTaskHeartbeat(r);
+            if (status.isCancelRequested()) {
+                throw new ActivityCancelledException(task);
+            }
+        } catch (EntityNotExistsError e) {
+            throw new ActivityNotExistsException(task, e);
+        } catch (BadRequestError e) {
+            throw new ActivityCompletionFailureException(task, e);
         } catch (TException e) {
-            throw new RuntimeException(e);
-        }
-        if (status.isCancelRequested()) {
-            throw new CancellationException();
+            log.warn("Failure heartbeating on activityID=" + task.getActivityId()
+                    + " of Workflow=" + task.getWorkflowExecution(), e);
+            // Not rethrowing to not fail activity implementation on intermittent connection or Cadence errors.
         }
     }
 

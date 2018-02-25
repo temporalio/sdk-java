@@ -18,6 +18,7 @@ package com.uber.cadence.internal.worker;
 
 import com.uber.cadence.WorkflowService.Iface;
 import com.uber.cadence.activity.ActivityTask;
+import com.uber.cadence.client.ActivityCompletionException;
 import com.uber.cadence.internal.generic.ActivityImplementation;
 
 import java.util.concurrent.CancellationException;
@@ -55,7 +56,7 @@ interface ActivityExecutionContext {
      *                               workflow.Should be rethrown from activity implementation to
      *                               indicate successful cancellation.
      */
-    void recordActivityHeartbeat(Object details) throws CancellationException;
+    void recordActivityHeartbeat(Object details) throws ActivityCompletionException;
 
     /**
      * @return an instance of the Simple Workflow Java client that is the same
