@@ -53,19 +53,19 @@ public final class WorkflowRetryerInternal {
      * @return result of func if ever completed successfully.
      */
     public static <R> R retry(RetryOptions options, Functions.Func<R> func) {
-        int retry = 0;
+        int attempt = 1;
         long startTime = Workflow.currentTimeMillis();
         while (true) {
-            long nextSleepTime = calculateSleepTime(retry, options);
+            long nextSleepTime = calculateSleepTime(attempt, options);
             try {
                 return func.apply();
             } catch (Exception e) {
                 long elapsed = Workflow.currentTimeMillis() - startTime;
-                if (shouldRethrow(e, options, retry, elapsed, nextSleepTime)) {
+                if (shouldRethrow(e, options, attempt, elapsed, nextSleepTime)) {
                     Workflow.throwWrapped(e);
                 }
             }
-            retry++;
+            attempt++;
             Workflow.sleep(nextSleepTime);
         }
     }
@@ -95,7 +95,7 @@ public final class WorkflowRetryerInternal {
                 return Workflow.newPromise(r);
             }
             long elapsed = Workflow.currentTimeMillis() - startTime;
-            long sleepTime = calculateSleepTime(attempt + 1, options);
+            long sleepTime = calculateSleepTime(attempt, options);
             if (shouldRethrow(e, options, attempt, elapsed, sleepTime)) {
                 throw e;
             }

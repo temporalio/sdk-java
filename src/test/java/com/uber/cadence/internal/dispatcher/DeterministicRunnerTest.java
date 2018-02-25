@@ -171,14 +171,14 @@ public class DeterministicRunnerTest {
         } catch (IllegalThreadStateException e) {
             assertEquals("simulated", e.getMessage());
         }
-        int retry = 0;
+        int attempt = 1;
         long time = 0;
         trace.addExpected("started");
         while (time < retryOptions.getExpiration().toMillis()) {
             trace.addExpected("retry at " + time);
-            long sleepMillis = (long) ((Math.pow(retryOptions.getBackoffCoefficient(), retry - 1)) * retryOptions.getInitialInterval().toMillis());
+            long sleepMillis = (long) ((Math.pow(retryOptions.getBackoffCoefficient(), attempt - 1)) * retryOptions.getInitialInterval().toMillis());
             sleepMillis = Math.min(sleepMillis, retryOptions.getMaximumInterval().toMillis());
-            retry++;
+            attempt++;
             time += sleepMillis;
         }
     }
