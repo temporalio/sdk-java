@@ -18,6 +18,7 @@ repositories {
 apply plugin: 'java'
 apply plugin: 'maven'
 apply plugin: "org.jruyi.thrift"
+apply plugin: 'maven-publish'
 
 group = 'com.uber'
 version = '0.2.0-SNAPSHOT'
@@ -47,14 +48,6 @@ license {
     strictCheck true
 }
 
-if (JavaVersion.current().isJava8Compatible()) {
-    allprojects {
-        tasks.withType(Javadoc) {
-            options.addStringOption('Xdoclint:none', '-quiet')
-        }
-    }
-}
-
 compileJava {
     options.encoding = 'UTF-8'
     options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
@@ -63,4 +56,33 @@ compileJava {
 compileTestJava {
     options.encoding = 'UTF-8'
     options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
+}
+
+if (JavaVersion.current().isJava8Compatible()) {
+    allprojects {
+        tasks.withType(Javadoc) {
+            options.addStringOption('Xdoclint:none', '-quiet')
+        }
+    }
+}
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+artifacts {
+    archives sourcesJar
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifact sourcesJar
+        }
+    }
+    repositories {
+        mavenLocal()
+    }
 }

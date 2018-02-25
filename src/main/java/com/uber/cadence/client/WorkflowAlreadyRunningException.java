@@ -14,19 +14,16 @@
  *  express or implied. See the License for the specific language governing
  *  permissions and limitations under the License.
  */
-package com.uber.cadence.internal.dispatcher;
+package com.uber.cadence.client;
 
 import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.workflow.Promise;
 
 /**
- * Interface that stub created through {@link com.uber.cadence.workflow.Workflow#newChildWorkflowStub(Class)} implements.
- * Do not implement or use this interface in any application code.
- * Use {@link com.uber.cadence.workflow.Workflow#getChildWorkflowExecution(Object)} to access {@link WorkflowExecution}
- * out of a child workflow stub.
+ * Indicates that a workflow with this WorkflowID is already running.
  */
-public interface WorkflowStub {
-    String GET_EXECUTION_METHOD_NAME = "__getWorkflowExecution";
+public final class WorkflowAlreadyRunningException extends WorkflowException {
 
-    Promise<WorkflowExecution> __getWorkflowExecution();
+    public WorkflowAlreadyRunningException(WorkflowExecution execution, String workflowType, String message) {
+        super(message, execution, workflowType, null);
+    }
 }

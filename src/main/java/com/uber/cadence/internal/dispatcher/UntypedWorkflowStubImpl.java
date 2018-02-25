@@ -19,6 +19,8 @@ package com.uber.cadence.internal.dispatcher;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.client.UntypedWorkflowStub;
+import com.uber.cadence.client.WorkflowAlreadyRunningException;
+import com.uber.cadence.client.WorkflowExecutionAlreadyStartedException;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.worker.CheckedExceptionWrapper;
@@ -29,6 +31,7 @@ import com.uber.cadence.internal.generic.StartWorkflowExecutionParameters;
 import com.uber.cadence.workflow.SignalExternalWorkflowParameters;
 import com.uber.cadence.client.WorkflowFailureException;
 
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -81,13 +84,21 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
         }
         StartWorkflowExecutionParameters p = new StartWorkflowExecutionParameters();
         p.setTaskStartToCloseTimeoutSeconds(options.getTaskStartToCloseTimeoutSeconds());
-        p.setWorkflowId(options.getWorkflowId());
+        if (options.getWorkflowId() == null) {
+            p.setWorkflowId(UUID.randomUUID().toString());
+        } else {
+            p.setWorkflowId(options.getWorkflowId());
+        }
         p.setExecutionStartToCloseTimeoutSeconds(options.getExecutionStartToCloseTimeoutSeconds());
         p.setInput(dataConverter.toData(args));
         p.setWorkflowType(new WorkflowType().setName(workflowType));
         p.setTaskList(options.getTaskList());
         p.setChildPolicy(options.getChildPolicy());
-        execution.set(genericClient.startWorkflow(p));
+        try {
+            execution.set(genericClient.startWorkflow(p));
+        } catch (WorkflowExecutionAlreadyStartedException e) {
+            throw new WorkflowAlreadyRunningException(e.getExecution(), e.getWorkflowType(), e.getMessage());
+        }
         return execution.get();
     }
 

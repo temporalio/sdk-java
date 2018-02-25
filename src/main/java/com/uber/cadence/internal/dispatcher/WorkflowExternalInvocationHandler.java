@@ -18,36 +18,29 @@ package com.uber.cadence.internal.dispatcher;
 
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowIdReusePolicy;
-import com.uber.cadence.WorkflowType;
+import com.uber.cadence.client.UntypedWorkflowStub;
+import com.uber.cadence.client.WorkflowAlreadyRunningException;
 import com.uber.cadence.client.WorkflowExecutionAlreadyStartedException;
-import com.uber.cadence.client.WorkflowFailureException;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.common.InternalUtils;
-import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.generic.GenericWorkflowClientExternal;
-import com.uber.cadence.internal.generic.QueryWorkflowParameters;
-import com.uber.cadence.internal.generic.StartWorkflowExecutionParameters;
-import com.uber.cadence.internal.worker.CheckedExceptionWrapper;
-import com.uber.cadence.internal.worker.GenericWorkflowClientExternalImpl;
 import com.uber.cadence.workflow.QueryMethod;
-import com.uber.cadence.workflow.SignalExternalWorkflowParameters;
 import com.uber.cadence.workflow.SignalMethod;
 import com.uber.cadence.workflow.WorkflowMethod;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 class WorkflowExternalInvocationHandler implements InvocationHandler {
 
     private static final ThreadLocal<AtomicReference<WorkflowExecution>> asyncResult = new ThreadLocal<>();
-    private final GenericWorkflowClientExternal genericClient;
+    private final AtomicReference<UntypedWorkflowStub> untyped = new AtomicReference<>();
     private final WorkflowOptions options;
     private final DataConverter dataConverter;
     private final AtomicReference<WorkflowExecution> execution = new AtomicReference<>();
+    private final GenericWorkflowClientExternal genericClient;
     private String workflowType;
 
     public static void initAsyncInvocation() {
@@ -74,17 +67,20 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
         }
     }
 
-    public WorkflowExternalInvocationHandler(GenericWorkflowClientExternalImpl genericClient, WorkflowExecution execution, DataConverter dataConverter) {
+    WorkflowExternalInvocationHandler(GenericWorkflowClientExternal genericClient, WorkflowExecution execution,
+                                      DataConverter dataConverter) {
         if (execution == null || execution.getWorkflowId() == null || execution.getWorkflowId().isEmpty()) {
             throw new IllegalArgumentException("null or empty workflowId");
         }
         this.genericClient = genericClient;
+        this.untyped.set(new UntypedWorkflowStubImpl(genericClient, dataConverter, execution));
         this.execution.set(execution);
         this.options = null;
         this.dataConverter = dataConverter;
     }
 
-    public WorkflowExternalInvocationHandler(GenericWorkflowClientExternal genericClient, WorkflowOptions options, DataConverter dataConverter) {
+    WorkflowExternalInvocationHandler(GenericWorkflowClientExternal genericClient, WorkflowOptions options,
+                                      DataConverter dataConverter) {
         this.genericClient = genericClient;
         this.options = options;
         this.dataConverter = dataConverter;
@@ -107,7 +103,7 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
                     throw new WorkflowExecutionAlreadyStartedException(
                             "Cannot call @WorkflowMethod more than once per stub instance", execution.get(), workflowType, null);
                 }
-                return waitForWorkflowResult(method);
+                return getUntyped().getResult(method.getReturnType());
             }
             return startWorkflow(method, workflowMethod, args);
         }
@@ -133,14 +129,15 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
         if (signalName.isEmpty()) {
             signalName = InternalUtils.getSimpleName(method);
         }
-        SignalExternalWorkflowParameters signalParameters = new SignalExternalWorkflowParameters();
-        WorkflowExecution exe = execution.get();
-        signalParameters.setRunId(exe.getRunId());
-        signalParameters.setWorkflowId(exe.getWorkflowId());
-        signalParameters.setSignalName(signalName);
-        byte[] input = dataConverter.toData(args);
-        signalParameters.setInput(input);
-        genericClient.signalWorkflowExecution(signalParameters);
+        getUntyped().signal(signalName, args);
+    }
+
+    private UntypedWorkflowStub getUntyped() {
+        UntypedWorkflowStub result = untyped.get();
+        if (result == null) {
+            throw new IllegalStateException("Not started yet");
+        }
+        return result;
     }
 
     private Object queryWorkflow(Method method, QueryMethod queryMethod, Object[] args) {
@@ -151,13 +148,8 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
         if (queryType.isEmpty()) {
             queryType = InternalUtils.getSimpleName(method);
         }
-        QueryWorkflowParameters p = new QueryWorkflowParameters();
-        p.setInput(dataConverter.toData(args));
-        p.setQueryType(queryType);
-        p.setRunId(execution.get().getRunId());
-        p.setWorkflowId(execution.get().getWorkflowId());
-        byte[] queryResult = genericClient.queryWorkflow(p);
-        return dataConverter.fromData(queryResult, method.getReturnType());
+
+        return getUntyped().query(queryType, method.getReturnType(), args);
     }
 
     private Object startWorkflow(Method method, WorkflowMethod workflowMethod, Object[] args) {
@@ -167,58 +159,26 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
         } else {
             workflowType = workflowName;
         }
-        StartWorkflowExecutionParameters parameters = new StartWorkflowExecutionParameters();
-        parameters.setExecutionStartToCloseTimeoutSeconds(options.getExecutionStartToCloseTimeoutSeconds());
-        parameters.setTaskList(options.getTaskList());
-        parameters.setTaskStartToCloseTimeoutSeconds(options.getTaskStartToCloseTimeoutSeconds());
-        parameters.setWorkflowType(new WorkflowType().setName(workflowType));
-        parameters.setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy());
-        parameters.setChildPolicy(options.getChildPolicy());
-        if (options.getWorkflowId() == null) {
-            parameters.setWorkflowId(UUID.randomUUID().toString());
-        } else {
-            parameters.setWorkflowId(options.getWorkflowId());
+        // There is no race condition here.
+        // If it is not set then it means the invocation handler was created passing workflow type rather than execution.
+        // So in worst case scenario set will be called twice with the same object.
+        if (untyped.get() == null) {
+            untyped.set(new UntypedWorkflowStubImpl(genericClient, dataConverter, workflowType, options));
         }
-        byte[] input = dataConverter.toData(args);
-        parameters.setInput(input);
         try {
-            execution.set(genericClient.startWorkflow(parameters));
-        } catch (WorkflowExecutionAlreadyStartedException e) {
+            execution.set(getUntyped().start(args));
+        } catch (WorkflowAlreadyRunningException e) {
+            execution.set(e.getExecution());
             // We do allow duplicated calls if policy is not AllowDuplicate. Semantic is to wait for result.
             if (options.getWorkflowIdReusePolicy() == WorkflowIdReusePolicy.AllowDuplicate) {
                 throw e;
             }
-            return waitForWorkflowResult(method);
         }
         AtomicReference<WorkflowExecution> async = asyncResult.get();
         if (async != null) {
             async.set(execution.get());
             return null;
         }
-        return waitForWorkflowResult(method);
-    }
-
-    private Object waitForWorkflowResult(Method method) {
-        try {
-            byte[] resultValue = WorkflowExecutionUtils.getWorkflowExecutionResult(
-                    genericClient.getService(), genericClient.getDomain(), execution.get(), workflowType,
-                    options.getExecutionStartToCloseTimeoutSeconds() + 1, TimeUnit.SECONDS);
-            return dataConverter.fromData(resultValue, method.getReturnType());
-        } catch (WorkflowExecutionFailedException e) {
-            Class<Throwable> causeClass = null;
-            try {
-                @SuppressWarnings("unchecked")
-                Class<Throwable> cc = (Class<Throwable>) Class.forName(e.getReason());
-                causeClass = cc;
-            } catch (Exception ee) {
-                RuntimeException failure = new RuntimeException("Failed to deserialize workflow failure cause. " +
-                        "Reason field is expected to contain a failure cause class name", ee);
-                throw new WorkflowFailureException(execution.get(), workflowType, e.getDecisionTaskCompletedEventId(), failure);
-            }
-            Throwable cause = dataConverter.fromData(e.getDetails(), causeClass);
-            throw new WorkflowFailureException(execution.get(), workflowType, e.getDecisionTaskCompletedEventId(), cause);
-        } catch (Exception e) {
-            throw CheckedExceptionWrapper.throwWrapped(e);
-        }
+        return getUntyped().getResult(method.getReturnType());
     }
 }

@@ -18,8 +18,8 @@ package com.uber.cadence.workflow;
 
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.internal.WorkflowRetryerInternal;
-import com.uber.cadence.internal.worker.CheckedExceptionWrapper;
 import com.uber.cadence.internal.dispatcher.WorkflowInternal;
+import com.uber.cadence.internal.worker.CheckedExceptionWrapper;
 
 import java.time.Duration;
 import java.util.Objects;
@@ -59,7 +59,7 @@ public final class Workflow {
      * Extracts workflow execution from a stub created through {@link #newChildWorkflowStub(Class, ChildWorkflowOptions)}.
      * Wrapped in a Promise as child workflow start is asynchronous.
      */
-    public static Promise<WorkflowExecution> getWorkflowExecution(Object workflowStub) {
+    public static Promise<WorkflowExecution> getChildWorkflowExecution(Object workflowStub) {
         return WorkflowInternal.getWorkflowExecution(workflowStub);
     }
 
@@ -68,6 +68,10 @@ public final class Workflow {
      */
     public static WorkflowContext getContext() {
         return WorkflowInternal.getContext();
+    }
+
+    public static WorkflowExecution getWorkflowExecution() {
+        return getContext().getWorkflowExecution();
     }
 
     public static <R> CancellationScope newCancellationScope(Runnable runnable) {
@@ -135,8 +139,9 @@ public final class Workflow {
     /**
      * Invokes function retrying in case of failures according to retry options.
      * Synchronous variant. Use {@link Async#retry(RetryOptions, Functions.Func)} for asynchronous functions.
+     *
      * @param options retry options that specify retry policy
-     * @param fn function to invoke and retry
+     * @param fn      function to invoke and retry
      * @return result of the function or the last failure.
      */
     public static <R> R retry(RetryOptions options, Functions.Func<R> fn) {
