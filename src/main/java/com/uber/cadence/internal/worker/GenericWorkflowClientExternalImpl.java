@@ -63,8 +63,8 @@ public class GenericWorkflowClientExternalImpl implements GenericWorkflowClientE
         request.setDomain(domain);
 
         request.setInput(startParameters.getInput());
-        request.setExecutionStartToCloseTimeoutSeconds(startParameters.getExecutionStartToCloseTimeoutSeconds());
-        request.setTaskStartToCloseTimeoutSeconds(startParameters.getTaskStartToCloseTimeoutSeconds());
+        request.setExecutionStartToCloseTimeoutSeconds((int) startParameters.getExecutionStartToCloseTimeoutSeconds());
+        request.setTaskStartToCloseTimeoutSeconds((int) startParameters.getTaskStartToCloseTimeoutSeconds());
         request.setWorkflowIdReusePolicy(startParameters.getWorkflowIdReusePolicy());
         String taskList = startParameters.getTaskList();
         if (taskList != null && !taskList.isEmpty()) {

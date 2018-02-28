@@ -45,7 +45,6 @@ public class CheckedExceptionWrapperTest {
             }
         } catch (Exception e) {
             Throwable result = CheckedExceptionWrapper.unwrap(e);
-            result.printStackTrace();
             Assert.assertEquals("2", result.getMessage());
             Assert.assertEquals("1", result.getCause().getMessage());
             Assert.assertNull(result.getCause().getCause());

@@ -18,9 +18,10 @@ package com.uber.cadence.internal.dispatcher;
 
 import com.google.common.base.Defaults;
 import com.uber.cadence.activity.ActivityMethod;
+import com.uber.cadence.activity.MethodRetry;
 import com.uber.cadence.internal.ActivityException;
 import com.uber.cadence.internal.common.InternalUtils;
-import com.uber.cadence.workflow.ActivityOptions;
+import com.uber.cadence.activity.ActivityOptions;
 import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.Workflow;
 
@@ -35,13 +36,7 @@ class ActivityInvocationHandler implements InvocationHandler {
     private final ActivityOptions options;
 
     ActivityInvocationHandler(ActivityOptions options) {
-        // Default task list to the same name as the workflow one.
-        if (options.getTaskList() == null) {
-            String workflowTaskList = WorkflowInternal.getContext().getTaskList();
-            this.options = new ActivityOptions.Builder(options).setTaskList(workflowTaskList).build();
-        } else {
-            this.options = options;
-        }
+        this.options = options;
     }
 
     @Override
@@ -54,6 +49,9 @@ class ActivityInvocationHandler implements InvocationHandler {
         } catch (NoSuchMethodException e) {
             throw Workflow.throwWrapped(e);
         }
+        if (!method.getDeclaringClass().isInterface()) {
+            throw new IllegalArgumentException("Interface type is expected: " + method.getDeclaringClass());
+        }
         ActivityMethod activityMethod = method.getAnnotation(ActivityMethod.class);
         String activityName;
         if (activityMethod == null || activityMethod.name().isEmpty()) {
@@ -61,8 +59,10 @@ class ActivityInvocationHandler implements InvocationHandler {
         } else {
             activityName = activityMethod.name();
         }
+        MethodRetry methodRetry = method.getAnnotation(MethodRetry.class);
+        ActivityOptions mergedOptions = ActivityOptions.merge(activityMethod, methodRetry, options);
         SyncDecisionContext decisionContext = DeterministicRunnerImpl.currentThreadInternal().getDecisionContext();
-        Promise<?> result = decisionContext.executeActivity(activityName, options, args, method.getReturnType());
+        Promise<?> result = decisionContext.executeActivity(activityName, mergedOptions, args, method.getReturnType());
         if (AsyncInternal.isAsync()) {
             AsyncInternal.setAsyncResult(result);
             return Defaults.defaultValue(method.getReturnType());

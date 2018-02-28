@@ -24,17 +24,17 @@ import com.uber.cadence.client.WorkflowOptions;
 public class StartWorkflowExecutionParameters {
 
     private String workflowId;
-    
+
     private WorkflowType workflowType;
-    
+
     private String taskList;
-    
+
     private byte[] input;
-    
-    private int executionStartToCloseTimeoutSeconds;
-    
-    private int taskStartToCloseTimeoutSeconds;
-    
+
+    private long executionStartToCloseTimeoutSeconds;
+
+    private long taskStartToCloseTimeoutSeconds;
+
     private ChildPolicy childPolicy;
 
     private WorkflowIdReusePolicy workflowIdReusePolicy;
@@ -50,7 +50,7 @@ public class StartWorkflowExecutionParameters {
     public String getWorkflowId() {
         return workflowId;
     }
-    
+
     /**
      * Sets the value of the WorkflowId property for this object.
      * <p>
@@ -62,7 +62,7 @@ public class StartWorkflowExecutionParameters {
     public void setWorkflowId(String workflowId) {
         this.workflowId = workflowId;
     }
-    
+
     /**
      * Sets the value of the WorkflowId property for this object.
      * <p>
@@ -72,16 +72,15 @@ public class StartWorkflowExecutionParameters {
      * <b>Length: </b>1 - 64<br/>
      *
      * @param workflowId The new value for the WorkflowId property for this object.
-     *
-     * @return A reference to this updated object so that method calls can be chained 
-     *         together. 
+     * @return A reference to this updated object so that method calls can be chained
+     * together.
      */
     public StartWorkflowExecutionParameters withWorkflowId(String workflowId) {
         this.workflowId = workflowId;
         return this;
     }
-    
-    
+
+
     /**
      * Returns the value of the WorkflowType property for this object.
      *
@@ -90,7 +89,7 @@ public class StartWorkflowExecutionParameters {
     public WorkflowType getWorkflowType() {
         return workflowType;
     }
-    
+
     /**
      * Sets the value of the WorkflowType property for this object.
      *
@@ -99,16 +98,15 @@ public class StartWorkflowExecutionParameters {
     public void setWorkflowType(WorkflowType workflowType) {
         this.workflowType = workflowType;
     }
-    
+
     /**
      * Sets the value of the WorkflowType property for this object.
      * <p>
      * Returns a reference to this object so that method calls can be chained together.
      *
      * @param workflowType The new value for the WorkflowType property for this object.
-     *
-     * @return A reference to this updated object so that method calls can be chained 
-     *         together. 
+     * @return A reference to this updated object so that method calls can be chained
+     * together.
      */
     public StartWorkflowExecutionParameters withWorkflowType(WorkflowType workflowType) {
         this.workflowType = workflowType;
@@ -136,7 +134,7 @@ public class StartWorkflowExecutionParameters {
     public String getTaskList() {
         return taskList;
     }
-    
+
     /**
      * Sets the value of the TaskList property for this object.
      *
@@ -145,23 +143,22 @@ public class StartWorkflowExecutionParameters {
     public void setTaskList(String taskList) {
         this.taskList = taskList;
     }
-    
+
     /**
      * Sets the value of the TaskList property for this object.
      * <p>
      * Returns a reference to this object so that method calls can be chained together.
      *
      * @param taskList The new value for the TaskList property for this object.
-     *
-     * @return A reference to this updated object so that method calls can be chained 
-     *         together. 
+     * @return A reference to this updated object so that method calls can be chained
+     * together.
      */
     public StartWorkflowExecutionParameters withTaskList(String taskList) {
         this.taskList = taskList;
         return this;
     }
-    
-    
+
+
     /**
      * Returns the value of the Input property for this object.
      * <p>
@@ -173,7 +170,7 @@ public class StartWorkflowExecutionParameters {
     public byte[] getInput() {
         return input;
     }
-    
+
     /**
      * Sets the value of the Input property for this object.
      * <p>
@@ -185,7 +182,7 @@ public class StartWorkflowExecutionParameters {
     public void setInput(byte[] input) {
         this.input = input;
     }
-    
+
     /**
      * Sets the value of the Input property for this object.
      * <p>
@@ -195,16 +192,15 @@ public class StartWorkflowExecutionParameters {
      * <b>Length: </b>0 - 100000<br/>
      *
      * @param input The new value for the Input property for this object.
-     *
-     * @return A reference to this updated object so that method calls can be chained 
-     *         together. 
+     * @return A reference to this updated object so that method calls can be chained
+     * together.
      */
     public StartWorkflowExecutionParameters withInput(byte[] input) {
         this.input = input;
         return this;
     }
-    
-    
+
+
     /**
      * Returns the value of the StartToCloseTimeout property for this object.
      * <p>
@@ -213,10 +209,10 @@ public class StartWorkflowExecutionParameters {
      *
      * @return The value of the StartToCloseTimeout property for this object.
      */
-    public int getExecutionStartToCloseTimeoutSeconds() {
+    public long getExecutionStartToCloseTimeoutSeconds() {
         return executionStartToCloseTimeoutSeconds;
     }
-    
+
     /**
      * Sets the value of the StartToCloseTimeout property for this object.
      * <p>
@@ -225,10 +221,10 @@ public class StartWorkflowExecutionParameters {
      *
      * @param executionStartToCloseTimeoutSeconds The new value for the StartToCloseTimeout property for this object.
      */
-    public void setExecutionStartToCloseTimeoutSeconds(int executionStartToCloseTimeoutSeconds) {
+    public void setExecutionStartToCloseTimeoutSeconds(long executionStartToCloseTimeoutSeconds) {
         this.executionStartToCloseTimeoutSeconds = executionStartToCloseTimeoutSeconds;
     }
-    
+
     /**
      * Sets the value of the StartToCloseTimeout property for this object.
      * <p>
@@ -238,23 +234,22 @@ public class StartWorkflowExecutionParameters {
      * <b>Length: </b>0 - 64<br/>
      *
      * @param executionStartToCloseTimeoutSeconds The new value for the StartToCloseTimeout property for this object.
-     *
-     * @return A reference to this updated object so that method calls can be chained 
-     *         together. 
+     * @return A reference to this updated object so that method calls can be chained
+     * together.
      */
-    public StartWorkflowExecutionParameters withExecutionStartToCloseTimeoutSeconds(int executionStartToCloseTimeoutSeconds) {
+    public StartWorkflowExecutionParameters withExecutionStartToCloseTimeoutSeconds(long executionStartToCloseTimeoutSeconds) {
         this.executionStartToCloseTimeoutSeconds = executionStartToCloseTimeoutSeconds;
         return this;
     }
-    
-    public int getTaskStartToCloseTimeoutSeconds() {
+
+    public long getTaskStartToCloseTimeoutSeconds() {
         return taskStartToCloseTimeoutSeconds;
     }
-    
-    public void setTaskStartToCloseTimeoutSeconds(int taskStartToCloseTimeoutSeconds) {
+
+    public void setTaskStartToCloseTimeoutSeconds(long taskStartToCloseTimeoutSeconds) {
         this.taskStartToCloseTimeoutSeconds = taskStartToCloseTimeoutSeconds;
     }
-    
+
     public StartWorkflowExecutionParameters withTaskStartToCloseTimeoutSeconds(int taskStartToCloseTimeoutSeconds) {
         this.taskStartToCloseTimeoutSeconds = taskStartToCloseTimeoutSeconds;
         return this;
@@ -273,60 +268,20 @@ public class StartWorkflowExecutionParameters {
         return this;
     }
 
-    public StartWorkflowExecutionParameters createStartWorkflowExecutionParametersFromOptions(WorkflowOptions options,
-    		WorkflowOptions optionsOverride) {
-    	StartWorkflowExecutionParameters parameters = this.clone();
-    	if (options != null) {
-    		Integer executionStartToCloseTimeout = options.getExecutionStartToCloseTimeoutSeconds();
-    		if (executionStartToCloseTimeout != null) {
-    			parameters.setExecutionStartToCloseTimeoutSeconds(executionStartToCloseTimeout);
-    		}
-    		
-    		Integer taskStartToCloseTimeout = options.getTaskStartToCloseTimeoutSeconds();
-            if (taskStartToCloseTimeout != null) {
-                parameters.setTaskStartToCloseTimeoutSeconds(taskStartToCloseTimeout);
-            }
-
-    		String taskList = options.getTaskList();
-    		if (taskList != null && !taskList.isEmpty()) { 
-    			parameters.setTaskList(taskList);
-    		}
-    		
-    		ChildPolicy childPolicy = options.getChildPolicy();
-    		if (childPolicy != null) {
-    		    parameters.setChildPolicy(childPolicy);
-    		}
-        }
-    	if (optionsOverride != null) {
-    	    Integer executionStartToCloseTimeout = optionsOverride.getExecutionStartToCloseTimeoutSeconds();
-            if (executionStartToCloseTimeout != null) {
-                parameters.setExecutionStartToCloseTimeoutSeconds(executionStartToCloseTimeout);
-            }
-            
-            Integer taskStartToCloseTimeout = optionsOverride.getTaskStartToCloseTimeoutSeconds();
-            if (taskStartToCloseTimeout != null) {
-                parameters.setTaskStartToCloseTimeoutSeconds(taskStartToCloseTimeout);
-            }
-
-    		String taskList = optionsOverride.getTaskList();
-    		if (taskList != null && !taskList.isEmpty()) { 
-    			parameters.setTaskList(taskList);
-    		}
-    		
-    		ChildPolicy childPolicy = optionsOverride.getChildPolicy();
-    		if (childPolicy != null) {
-    		    parameters.setChildPolicy(childPolicy);
-    		}
-        }
-    	return parameters;
+    public static StartWorkflowExecutionParameters createStartWorkflowExecutionParametersFromOptions(WorkflowOptions options) {
+        StartWorkflowExecutionParameters parameters = new StartWorkflowExecutionParameters();
+        parameters.setExecutionStartToCloseTimeoutSeconds((int) options.getExecutionStartToCloseTimeout().getSeconds());
+        parameters.setTaskStartToCloseTimeoutSeconds((int) options.getTaskStartToCloseTimeout().getSeconds());
+        parameters.setTaskList(options.getTaskList());
+        parameters.setChildPolicy(options.getChildPolicy());
+        return parameters;
     }
-    
+
     /**
      * Returns a string representation of this object; useful for testing and
      * debugging.
      *
      * @return A string representation of this object.
-     *
      * @see java.lang.Object#toString()
      */
     @Override
@@ -342,9 +297,9 @@ public class StartWorkflowExecutionParameters {
         sb.append("}");
         return sb.toString();
     }
-    
+
     public StartWorkflowExecutionParameters clone() {
-    	StartWorkflowExecutionParameters result = new StartWorkflowExecutionParameters();
+        StartWorkflowExecutionParameters result = new StartWorkflowExecutionParameters();
         result.setInput(input);
         result.setExecutionStartToCloseTimeoutSeconds(executionStartToCloseTimeoutSeconds);
         result.setTaskStartToCloseTimeoutSeconds(taskStartToCloseTimeoutSeconds);

@@ -19,7 +19,7 @@ package com.uber.cadence.internal;
 import com.uber.cadence.workflow.CompletablePromise;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.Promise;
-import com.uber.cadence.workflow.RetryOptions;
+import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.workflow.Workflow;
 
 import java.time.Duration;
@@ -31,6 +31,9 @@ import java.time.Duration;
  * Async{@link #retry(RetryOptions, Functions.Func)}.
  */
 public final class WorkflowRetryerInternal {
+
+    private static final double DEFAULT_COEFFICIENT = 2.0;
+    public static final int DEFAULT_MAXIMUM_MULTIPLIER = 100;
 
     /**
      * Retry procedure synchronously.
@@ -106,25 +109,31 @@ public final class WorkflowRetryerInternal {
     }
 
     private static boolean shouldRethrow(Exception e, RetryOptions options, long attempt, long elapsed, long sleepTime) {
-        if (!options.getExceptionFilter().apply(e)) {
-            return true;
+        if (options.getDoNotRetry() != null) {
+            for (Class<? extends Throwable> doNotRetry : options.getDoNotRetry()) {
+                if (doNotRetry.equals(e.getClass())) {
+                    return true;
+                }
+            }
         }
         // Attempt that failed.
-        if (attempt >= options.getMaximumAttempts()) {
+        if (options.getMaximumAttempts() != 0 && attempt >= options.getMaximumAttempts()) {
             return true;
         }
         Duration expiration = options.getExpiration();
-        if (expiration != null && elapsed + sleepTime >= expiration.toMillis() && attempt > options.getMinimumAttempts()) {
+        if (expiration != null && elapsed + sleepTime >= expiration.toMillis()
+                && (attempt > options.getMinimumAttempts())) {
             return true;
         }
         return false;
     }
 
     private static long calculateSleepTime(long attempt, RetryOptions options) {
-        double sleepMillis = (Math.pow(options.getBackoffCoefficient(), attempt - 1)) * options.getInitialInterval().toMillis();
+        double backoffCoefficient = options.getBackoffCoefficient() == 0d ? DEFAULT_COEFFICIENT : options.getBackoffCoefficient();
+        double sleepMillis = (Math.pow(backoffCoefficient, attempt - 1)) * options.getInitialInterval().toMillis();
         Duration maximumInterval = options.getMaximumInterval();
         if (maximumInterval == null) {
-            return (long) sleepMillis;
+            return (long) Math.min(sleepMillis, options.getInitialInterval().toMillis() * DEFAULT_MAXIMUM_MULTIPLIER);
         }
         return Math.min((long) sleepMillis, maximumInterval.toMillis());
     }

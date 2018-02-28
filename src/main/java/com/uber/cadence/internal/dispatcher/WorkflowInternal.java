@@ -19,7 +19,7 @@ package com.uber.cadence.internal.dispatcher;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.worker.CheckedExceptionWrapper;
-import com.uber.cadence.workflow.ActivityOptions;
+import com.uber.cadence.activity.ActivityOptions;
 import com.uber.cadence.workflow.CancellationScope;
 import com.uber.cadence.workflow.ChildWorkflowOptions;
 import com.uber.cadence.workflow.CompletablePromise;
@@ -55,7 +55,7 @@ public final class WorkflowInternal {
     }
 
     public static Promise<Void> newTimer(Duration duration) {
-        return getDecisionContext().newTimer(InternalUtils.roundUpToSeconds(duration));
+        return getDecisionContext().newTimer(InternalUtils.roundUpToSeconds(duration).getSeconds());
     }
 
     public static <E> WorkflowQueue<E> newQueue(int capacity) {

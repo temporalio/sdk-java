@@ -30,13 +30,13 @@ public final class StartChildWorkflowExecutionParameters {
 
         private String control;
 
-        private int executionStartToCloseTimeoutSeconds;
+        private long executionStartToCloseTimeoutSeconds;
 
         private byte[] input;
 
         private String taskList;
 
-        private int taskStartToCloseTimeoutSeconds;
+        private long taskStartToCloseTimeoutSeconds;
 
         private String workflowId;
 
@@ -56,7 +56,7 @@ public final class StartChildWorkflowExecutionParameters {
             return this;
         }
 
-        public Builder setExecutionStartToCloseTimeoutSeconds(int executionStartToCloseTimeoutSeconds) {
+        public Builder setExecutionStartToCloseTimeoutSeconds(long executionStartToCloseTimeoutSeconds) {
             this.executionStartToCloseTimeoutSeconds = executionStartToCloseTimeoutSeconds;
             return this;
         }
@@ -71,7 +71,7 @@ public final class StartChildWorkflowExecutionParameters {
             return this;
         }
 
-        public Builder setTaskStartToCloseTimeoutSeconds(int taskStartToCloseTimeoutSeconds) {
+        public Builder setTaskStartToCloseTimeoutSeconds(long taskStartToCloseTimeoutSeconds) {
             this.taskStartToCloseTimeoutSeconds = taskStartToCloseTimeoutSeconds;
             return this;
         }
@@ -106,13 +106,13 @@ public final class StartChildWorkflowExecutionParameters {
 
     private final String control;
 
-    private final int executionStartToCloseTimeoutSeconds;
+    private final long executionStartToCloseTimeoutSeconds;
 
     private final byte[] input;
 
     private final String taskList;
 
-    private final int taskStartToCloseTimeoutSeconds;
+    private final long taskStartToCloseTimeoutSeconds;
 
     private final String workflowId;
 
@@ -122,8 +122,8 @@ public final class StartChildWorkflowExecutionParameters {
 
     private final WorkflowIdReusePolicy workflowIdReusePolicy;
 
-    private StartChildWorkflowExecutionParameters(String domain, byte[] input, String control, int executionStartToCloseTimeoutSeconds,
-                                                 String taskList, int taskStartToCloseTimeoutSeconds,
+    private StartChildWorkflowExecutionParameters(String domain, byte[] input, String control, long executionStartToCloseTimeoutSeconds,
+                                                 String taskList, long taskStartToCloseTimeoutSeconds,
                                                  String workflowId, WorkflowType workflowType, ChildPolicy childPolicy,
                                                  WorkflowIdReusePolicy workflowIdReusePolicy) {
         this.domain = domain;
@@ -146,7 +146,7 @@ public final class StartChildWorkflowExecutionParameters {
         return control;
     }
 
-    public int getExecutionStartToCloseTimeoutSeconds() {
+    public long getExecutionStartToCloseTimeoutSeconds() {
         return executionStartToCloseTimeoutSeconds;
     }
 
@@ -158,7 +158,7 @@ public final class StartChildWorkflowExecutionParameters {
         return taskList;
     }
 
-    public int getTaskStartToCloseTimeoutSeconds() {
+    public long getTaskStartToCloseTimeoutSeconds() {
         return taskStartToCloseTimeoutSeconds;
     }
 

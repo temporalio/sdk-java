@@ -18,22 +18,64 @@ package com.uber.cadence.client;
 
 import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.WorkflowIdReusePolicy;
+import com.uber.cadence.internal.common.OptionsUtils;
+import com.uber.cadence.workflow.WorkflowMethod;
+
+import java.time.Duration;
+
+import static com.uber.cadence.internal.common.InternalUtils.roundUpToSeconds;
 
 public final class WorkflowOptions {
+
+    public static WorkflowOptions merge(WorkflowMethod a, WorkflowOptions o) {
+        if (a == null) {
+            return new WorkflowOptions.Builder(o).validateBuildWithDefaults();
+        }
+        if (o == null) {
+            o = new WorkflowOptions.Builder().build();
+        }
+        return new WorkflowOptions.Builder()
+                .setWorkflowIdReusePolicy(
+                        OptionsUtils.merge(a.workflowIdReusePolicy(), o.getWorkflowIdReusePolicy(), WorkflowIdReusePolicy.class))
+                .setWorkflowId(
+                        OptionsUtils.merge(a.workflowId(), o.getWorkflowId(), String.class))
+                .setTaskStartToCloseTimeout(
+                        OptionsUtils.merge(a.taskStartToCloseTimeoutSeconds(), o.getTaskStartToCloseTimeout()))
+                .setExecutionStartToCloseTimeout(
+                        OptionsUtils.merge(a.executionStartToCloseTimeoutSeconds(), o.getExecutionStartToCloseTimeout()))
+                .setTaskList(
+                        OptionsUtils.merge(a.taskList(), o.getTaskList(), String.class))
+                .validateBuildWithDefaults();
+    }
 
     public static final class Builder {
 
         private String workflowId;
 
-        private WorkflowIdReusePolicy workflowIdReusePolicy = WorkflowIdReusePolicy.AllowDuplicateFailedOnly;
+        private WorkflowIdReusePolicy workflowIdReusePolicy;
 
-        private int executionStartToCloseTimeoutSeconds;
+        private Duration executionStartToCloseTimeout;
 
-        private int taskStartToCloseTimeoutSeconds = 10;
+        private Duration taskStartToCloseTimeout;
 
         private String taskList;
 
         private ChildPolicy childPolicy;
+
+        public Builder() {
+        }
+
+        public Builder(WorkflowOptions o) {
+            if (o == null) {
+                return;
+            }
+            this.workflowIdReusePolicy = o.workflowIdReusePolicy;
+            this.workflowId = o.workflowId;
+            this.taskStartToCloseTimeout = o.taskStartToCloseTimeout;
+            this.executionStartToCloseTimeout = o.executionStartToCloseTimeout;
+            this.taskList = o.taskList;
+            this.childPolicy = o.childPolicy;
+        }
 
         /**
          * Workflow id to use when starting. If not specified a UUID is generated. Note that it is dangerous
@@ -64,8 +106,8 @@ public final class WorkflowOptions {
          * Do not rely on execution timeout for business level timeouts. It is preferred to use
          * in workflow timers for this purpose.
          */
-        public Builder setExecutionStartToCloseTimeoutSeconds(int executionStartToCloseTimeoutSeconds) {
-            this.executionStartToCloseTimeoutSeconds = executionStartToCloseTimeoutSeconds;
+        public Builder setExecutionStartToCloseTimeout(Duration executionStartToCloseTimeout) {
+            this.executionStartToCloseTimeout = executionStartToCloseTimeout;
             return this;
         }
 
@@ -73,11 +115,11 @@ public final class WorkflowOptions {
          * Maximum execution time of a single decision task. Default is 10 seconds.
          * Maximum accepted value is 60 seconds.
          */
-        public Builder setTaskStartToCloseTimeoutSeconds(int taskStartToCloseTimeoutSeconds) {
-            if (taskStartToCloseTimeoutSeconds > 60) {
-                throw new IllegalArgumentException("TaskStartToCloseTimeout over one minute: " + taskStartToCloseTimeoutSeconds);
+        public Builder setTaskStartToCloseTimeout(Duration taskStartToCloseTimeout) {
+            if (roundUpToSeconds(taskStartToCloseTimeout).getSeconds() > 60) {
+                throw new IllegalArgumentException("TaskStartToCloseTimeout over one minute: " + taskStartToCloseTimeout);
             }
-            this.taskStartToCloseTimeoutSeconds = taskStartToCloseTimeoutSeconds;
+            this.taskStartToCloseTimeout = taskStartToCloseTimeout;
             return this;
         }
 
@@ -99,8 +141,32 @@ public final class WorkflowOptions {
         }
 
         public WorkflowOptions build() {
-            return new WorkflowOptions(workflowId, workflowIdReusePolicy, executionStartToCloseTimeoutSeconds,
-                    taskStartToCloseTimeoutSeconds, taskList, childPolicy);
+            return new WorkflowOptions(workflowId, workflowIdReusePolicy, executionStartToCloseTimeout,
+                    taskStartToCloseTimeout, taskList, childPolicy);
+        }
+
+        /**
+         * Validates that all required properties are set and fills all other with default parameters.
+         */
+        public WorkflowOptions validateBuildWithDefaults() {
+            if (executionStartToCloseTimeout == null) {
+                throw new IllegalStateException("Required property executionStartToCloseTimeout is not set");
+            }
+            if (taskList ==  null) {
+                throw new IllegalStateException("Required property taskList is not set");
+            }
+            WorkflowIdReusePolicy policy = workflowIdReusePolicy;
+            if (policy == null) {
+                policy = WorkflowIdReusePolicy.AllowDuplicateFailedOnly;
+            }
+            ChildPolicy cPolicy = childPolicy;
+            if (cPolicy == null) {
+                cPolicy = ChildPolicy.TERMINATE;
+            }
+            return new WorkflowOptions(workflowId, policy,
+                    roundUpToSeconds(executionStartToCloseTimeout),
+                    roundUpToSeconds(taskStartToCloseTimeout, OptionsUtils.DEFAULT_TASK_START_TO_CLOSE_TIMEOUT),
+                    taskList, cPolicy);
         }
     }
 
@@ -108,20 +174,20 @@ public final class WorkflowOptions {
 
     private final WorkflowIdReusePolicy workflowIdReusePolicy;
 
-    private final int executionStartToCloseTimeoutSeconds;
+    private final Duration executionStartToCloseTimeout;
 
-    private final int taskStartToCloseTimeoutSeconds;
+    private final Duration taskStartToCloseTimeout;
 
     private final String taskList;
 
     private final ChildPolicy childPolicy;
 
     private WorkflowOptions(String workflowId, WorkflowIdReusePolicy workflowIdReusePolicy,
-                            int executionStartToCloseTimeoutSeconds, int taskStartToCloseTimeoutSeconds, String taskList, ChildPolicy childPolicy) {
+                            Duration executionStartToCloseTimeout, Duration taskStartToCloseTimeout, String taskList, ChildPolicy childPolicy) {
         this.workflowId = workflowId;
         this.workflowIdReusePolicy = workflowIdReusePolicy;
-        this.executionStartToCloseTimeoutSeconds = executionStartToCloseTimeoutSeconds;
-        this.taskStartToCloseTimeoutSeconds = taskStartToCloseTimeoutSeconds;
+        this.executionStartToCloseTimeout = executionStartToCloseTimeout;
+        this.taskStartToCloseTimeout = taskStartToCloseTimeout;
         this.taskList = taskList;
         this.childPolicy = childPolicy;
     }
@@ -134,12 +200,12 @@ public final class WorkflowOptions {
         return workflowIdReusePolicy;
     }
 
-    public int getExecutionStartToCloseTimeoutSeconds() {
-        return executionStartToCloseTimeoutSeconds;
+    public Duration getExecutionStartToCloseTimeout() {
+        return executionStartToCloseTimeout;
     }
 
-    public int getTaskStartToCloseTimeoutSeconds() {
-        return taskStartToCloseTimeoutSeconds;
+    public Duration getTaskStartToCloseTimeout() {
+        return taskStartToCloseTimeout;
     }
 
     public String getTaskList() {
@@ -151,12 +217,40 @@ public final class WorkflowOptions {
     }
 
     @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        WorkflowOptions that = (WorkflowOptions) o;
+
+        if (workflowId != null ? !workflowId.equals(that.workflowId) : that.workflowId != null) return false;
+        if (workflowIdReusePolicy != that.workflowIdReusePolicy) return false;
+        if (executionStartToCloseTimeout != null ? !executionStartToCloseTimeout.equals(that.executionStartToCloseTimeout) : that.executionStartToCloseTimeout != null)
+            return false;
+        if (taskStartToCloseTimeout != null ? !taskStartToCloseTimeout.equals(that.taskStartToCloseTimeout) : that.taskStartToCloseTimeout != null)
+            return false;
+        if (taskList != null ? !taskList.equals(that.taskList) : that.taskList != null) return false;
+        return childPolicy == that.childPolicy;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = workflowId != null ? workflowId.hashCode() : 0;
+        result = 31 * result + (workflowIdReusePolicy != null ? workflowIdReusePolicy.hashCode() : 0);
+        result = 31 * result + (executionStartToCloseTimeout != null ? executionStartToCloseTimeout.hashCode() : 0);
+        result = 31 * result + (taskStartToCloseTimeout != null ? taskStartToCloseTimeout.hashCode() : 0);
+        result = 31 * result + (taskList != null ? taskList.hashCode() : 0);
+        result = 31 * result + (childPolicy != null ? childPolicy.hashCode() : 0);
+        return result;
+    }
+
+    @Override
     public String toString() {
         return "WorkflowOptions{" +
-                ", workflowId='" + workflowId + '\'' +
+                "workflowId='" + workflowId + '\'' +
                 ", workflowIdReusePolicy=" + workflowIdReusePolicy +
-                ", executionStartToCloseTimeoutSeconds=" + executionStartToCloseTimeoutSeconds +
-                ", taskStartToCloseTimeoutSeconds=" + taskStartToCloseTimeoutSeconds +
+                ", executionStartToCloseTimeout=" + executionStartToCloseTimeout +
+                ", taskStartToCloseTimeout=" + taskStartToCloseTimeout +
                 ", taskList='" + taskList + '\'' +
                 ", childPolicy=" + childPolicy +
                 '}';

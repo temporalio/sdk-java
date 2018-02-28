@@ -21,7 +21,9 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowIdReusePolicy;
 import com.uber.cadence.activity.Activity;
 import com.uber.cadence.activity.ActivityMethod;
+import com.uber.cadence.activity.ActivityOptions;
 import com.uber.cadence.activity.DoNotCompleteOnReturn;
+import com.uber.cadence.activity.MethodRetry;
 import com.uber.cadence.client.ActivityCancelledException;
 import com.uber.cadence.client.ActivityCompletionClient;
 import com.uber.cadence.client.ActivityNotExistsException;
@@ -32,6 +34,7 @@ import com.uber.cadence.client.WorkflowException;
 import com.uber.cadence.client.DuplicateWorkflowException;
 import com.uber.cadence.client.WorkflowFailureException;
 import com.uber.cadence.client.WorkflowOptions;
+import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.converter.JsonDataConverter;
 import com.uber.cadence.internal.dispatcher.DeterministicRunnerTest;
 import com.uber.cadence.worker.Worker;
@@ -102,23 +105,23 @@ public class WorkflowTest {
 
     private static WorkflowOptions.Builder newWorkflowOptionsBuilder() {
         return new WorkflowOptions.Builder()
-                .setExecutionStartToCloseTimeoutSeconds(10)
+                .setExecutionStartToCloseTimeout(Duration.ofSeconds(10))
                 .setTaskList(taskList);
     }
 
     private static ActivityOptions newActivityOptions1() {
         return new ActivityOptions.Builder()
                 .setTaskList(taskList)
-                .setHeartbeatTimeoutSeconds(5)
-                .setScheduleToCloseTimeoutSeconds(5)
-                .setScheduleToStartTimeoutSeconds(5)
-                .setStartToCloseTimeoutSeconds(10)
+                .setScheduleToCloseTimeout(Duration.ofSeconds(5))
+                .setHeartbeatTimeout(Duration.ofSeconds(5))
+                .setScheduleToStartTimeout(Duration.ofSeconds(5))
+                .setStartToCloseTimeout(Duration.ofSeconds(10))
                 .build();
     }
 
     private static ActivityOptions newActivityOptions2() {
         return new ActivityOptions.Builder()
-                .setScheduleToCloseTimeoutSeconds(20)
+                .setScheduleToCloseTimeout(Duration.ofSeconds(20))
                 .build();
     }
 
@@ -200,10 +203,10 @@ public class WorkflowTest {
         public TestActivityRetry() {
             ActivityOptions options = new ActivityOptions.Builder()
                     .setTaskList(taskList)
-                    .setHeartbeatTimeoutSeconds(5)
-                    .setScheduleToCloseTimeoutSeconds(5)
-                    .setScheduleToStartTimeoutSeconds(5)
-                    .setStartToCloseTimeoutSeconds(10)
+                    .setHeartbeatTimeout(Duration.ofSeconds(5))
+                    .setScheduleToCloseTimeout(Duration.ofSeconds(5))
+                    .setScheduleToStartTimeout(Duration.ofSeconds(5))
+                    .setStartToCloseTimeout(Duration.ofSeconds(10))
                     .setRetryOptions(new RetryOptions.Builder()
                             .setMinimumAttempts(2)
                             .setMaximumInterval(Duration.ofSeconds(1))
@@ -234,6 +237,35 @@ public class WorkflowTest {
         assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
     }
 
+    public static class TestActivityRetryAnnotated implements TestWorkflow1 {
+
+        private final TestActivities activities;
+
+        public TestActivityRetryAnnotated() {
+            this.activities = Workflow.newActivityStub(TestActivities.class);
+        }
+
+        @Override
+        public String execute() {
+            activities.throwIOAnnotated();
+            return "ignored";
+        }
+    }
+
+    @Test
+    public void testActivityRetryAnnotated() {
+        startWorkerFor(TestActivityRetryAnnotated.class);
+        TestWorkflow1 workflowStub = workflowClient.newWorkflowStub(TestWorkflow1.class, newWorkflowOptionsBuilder().build());
+        try {
+            workflowStub.execute();
+            fail("unreachable");
+        } catch (WorkflowException e) {
+            e.printStackTrace();
+            assertTrue(e.getCause().getCause() instanceof IOException);
+        }
+        assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
+    }
+
     public static class TestAsyncActivityRetry implements TestWorkflow1 {
 
         private final TestActivities activities;
@@ -241,10 +273,10 @@ public class WorkflowTest {
         public TestAsyncActivityRetry() {
             ActivityOptions options = new ActivityOptions.Builder()
                     .setTaskList(taskList)
-                    .setHeartbeatTimeoutSeconds(5)
-                    .setScheduleToCloseTimeoutSeconds(5)
-                    .setScheduleToStartTimeoutSeconds(5)
-                    .setStartToCloseTimeoutSeconds(10)
+                    .setHeartbeatTimeout(Duration.ofSeconds(5))
+                    .setScheduleToCloseTimeout(Duration.ofSeconds(5))
+                    .setScheduleToStartTimeout(Duration.ofSeconds(5))
+                    .setStartToCloseTimeout(Duration.ofSeconds(10))
                     .setRetryOptions(new RetryOptions.Builder()
                             .setMinimumAttempts(2)
                             .setMaximumInterval(Duration.ofSeconds(1))
@@ -282,8 +314,8 @@ public class WorkflowTest {
         public String execute() {
             ActivityOptions options = new ActivityOptions.Builder()
                     .setTaskList(taskList)
-                    .setHeartbeatTimeoutSeconds(1) // short heartbeat timeout;
-                    .setScheduleToCloseTimeoutSeconds(5)
+                    .setHeartbeatTimeout(Duration.ofSeconds(1)) // short heartbeat timeout;
+                    .setScheduleToCloseTimeout(Duration.ofSeconds(5))
                     .build();
 
             TestActivities activities = Workflow.newActivityStub(TestActivities.class, options);
@@ -469,7 +501,7 @@ public class WorkflowTest {
         TestMultiargsWorkflows stub = workflowClient.newWorkflowStub(TestMultiargsWorkflows.class, newWorkflowOptionsBuilder().build());
         assertResult("func", WorkflowClient.asyncStart(stub::func));
         assertEquals("func", stub.func()); // Check that duplicated start just returns the result.
-        stub = workflowClient.newWorkflowStub(TestMultiargsWorkflows.class, newWorkflowOptionsBuilder().build());
+        stub = workflowClient.newWorkflowStub(TestMultiargsWorkflows.class);
         assertResult("1", WorkflowClient.asyncStart(stub::func1, "1"));
         assertEquals("1", stub.func1("1")); // Check that duplicated start just returns the result.
         // Check that duplicated start is not allowed for AllowDuplicate IdReusePolicy
@@ -630,7 +662,7 @@ public class WorkflowTest {
         @Override
         public void execute() {
             ChildWorkflowOptions options = new ChildWorkflowOptions.Builder()
-                    .setExecutionStartToCloseTimeoutSeconds(5000).build();
+                    .setExecutionStartToCloseTimeout(Duration.ofHours(1)).build();
             TestWorkflow1 child = Workflow.newChildWorkflowStub(TestWorkflow1.class, options);
             try {
                 child.execute();
@@ -849,8 +881,8 @@ public class WorkflowTest {
     public void testTimerCallbackBlocked() {
         startWorkerFor(TestTimerCallbackBlockedWorkflowImpl.class);
         WorkflowOptions.Builder options = new WorkflowOptions.Builder();
-        options.setExecutionStartToCloseTimeoutSeconds(10);
-        options.setTaskStartToCloseTimeoutSeconds(1);
+        options.setExecutionStartToCloseTimeout(Duration.ofSeconds(10));
+        options.setTaskStartToCloseTimeout(Duration.ofSeconds(1));
         options.setTaskList(taskList);
         TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
         String result = client.execute();
@@ -909,8 +941,8 @@ public class WorkflowTest {
         startWorkerFor(TestChild.class);
 
         WorkflowOptions.Builder options = new WorkflowOptions.Builder();
-        options.setExecutionStartToCloseTimeoutSeconds(200);
-        options.setTaskStartToCloseTimeoutSeconds(60);
+        options.setExecutionStartToCloseTimeout(Duration.ofSeconds(200));
+        options.setTaskStartToCloseTimeout(Duration.ofSeconds(60));
         options.setTaskList(taskList);
         TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
         assertEquals("HELLO WORLD!", client.execute());
@@ -922,8 +954,8 @@ public class WorkflowTest {
 
         public TestChildWorkflowRetryWorkflow() {
             ChildWorkflowOptions options = new ChildWorkflowOptions.Builder()
-                    .setExecutionStartToCloseTimeoutSeconds(5)
-                    .setTaskStartToCloseTimeoutSeconds(2)
+                    .setExecutionStartToCloseTimeout(Duration.ofSeconds(5))
+                    .setTaskStartToCloseTimeout(Duration.ofSeconds(2))
                     .setTaskList(taskList)
                     .setRetryOptions(new RetryOptions.Builder()
                             .setMinimumAttempts(2)
@@ -960,8 +992,8 @@ public class WorkflowTest {
         startWorkerFor(TestChildWorkflowRetryWorkflow.class, AngryChild.class);
 
         WorkflowOptions.Builder options = new WorkflowOptions.Builder();
-        options.setExecutionStartToCloseTimeoutSeconds(20);
-        options.setTaskStartToCloseTimeoutSeconds(2);
+        options.setExecutionStartToCloseTimeout(Duration.ofSeconds(20));
+        options.setTaskStartToCloseTimeout(Duration.ofSeconds(2));
         options.setTaskList(taskList);
         TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
         try {
@@ -980,8 +1012,8 @@ public class WorkflowTest {
 
         public TestChildWorkflowAsyncRetryWorkflow() {
             ChildWorkflowOptions options = new ChildWorkflowOptions.Builder()
-                    .setExecutionStartToCloseTimeoutSeconds(5)
-                    .setTaskStartToCloseTimeoutSeconds(2)
+                    .setExecutionStartToCloseTimeout(Duration.ofSeconds(5))
+                    .setTaskStartToCloseTimeout(Duration.ofSeconds(2))
                     .setTaskList(taskList)
                     .setRetryOptions(new RetryOptions.Builder()
                             .setMinimumAttempts(2)
@@ -1005,8 +1037,8 @@ public class WorkflowTest {
         startWorkerFor(TestChildWorkflowAsyncRetryWorkflow.class, AngryChild.class);
 
         WorkflowOptions.Builder options = new WorkflowOptions.Builder();
-        options.setExecutionStartToCloseTimeoutSeconds(20);
-        options.setTaskStartToCloseTimeoutSeconds(2);
+        options.setExecutionStartToCloseTimeout(Duration.ofSeconds(20));
+        options.setTaskStartToCloseTimeout(Duration.ofSeconds(2));
         options.setTaskList(taskList);
         TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
         try {
@@ -1073,6 +1105,11 @@ public class WorkflowTest {
         void proc6(String a1, int a2, int a3, int a4, int a5, int a6);
 
         void throwIO();
+
+        @ActivityMethod(scheduleToStartTimeoutSeconds = 5, scheduleToCloseTimeoutSeconds = 5,
+                heartbeatTimeoutSeconds = 5, startToCloseTimeoutSeconds = 10)
+        @MethodRetry(initialIntervalSeconds = 1, maximumIntervalSeconds = 1, minimumAttempts = 2, maximumAttempts = 3)
+        void throwIOAnnotated();
     }
 
     private static class TestActivitiesImpl implements TestActivities {
@@ -1217,13 +1254,25 @@ public class WorkflowTest {
                 throw Activity.throwWrapped(e);
             }
         }
+
+        @Override
+        public void throwIOAnnotated() {
+            invocations.add("throwIOAnnotated");
+            try {
+                throw new IOException("simulated IO problem");
+            } catch (IOException e) {
+                throw Activity.throwWrapped(e);
+            }
+        }
     }
 
     public interface TestMultiargsWorkflows {
         @WorkflowMethod
         String func();
 
-        @WorkflowMethod
+        @WorkflowMethod(name = "func1", taskList = "WorkflowTest-testAsyncStart",
+                workflowIdReusePolicy = WorkflowIdReusePolicy.RejectDuplicate,
+                executionStartToCloseTimeoutSeconds = 10)
         String func1(String input);
 
         @WorkflowMethod

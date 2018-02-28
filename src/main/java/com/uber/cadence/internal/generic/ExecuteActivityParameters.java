@@ -16,18 +16,17 @@
  */
 package com.uber.cadence.internal.generic;
 
-import com.uber.cadence.workflow.ActivityOptions;
 import com.uber.cadence.ActivityType;
 
 public class ExecuteActivityParameters implements Cloneable {
     private String activityId;
     private ActivityType activityType;
 //    private String control;
-    private int heartbeatTimeoutSeconds;
+    private long heartbeatTimeoutSeconds;
     private byte[] input;
-    private int scheduleToCloseTimeoutSeconds;
-    private int scheduleToStartTimeoutSeconds;
-    private int startToCloseTimeoutSeconds;
+    private long scheduleToCloseTimeoutSeconds;
+    private long scheduleToStartTimeoutSeconds;
+    private long startToCloseTimeoutSeconds;
     private String taskList;
 //    private int taskPriority;
     
@@ -108,7 +107,6 @@ public class ExecuteActivityParameters implements Cloneable {
         this.activityType = activityType;
         return this;
     }
-    
     
     /**
      * Returns the value of the ActivityId property for this object.
@@ -195,16 +193,16 @@ public class ExecuteActivityParameters implements Cloneable {
         return this;
     }    
     
-    public int getHeartbeatTimeoutSeconds() {
+    public long getHeartbeatTimeoutSeconds() {
         return heartbeatTimeoutSeconds;
     }
 
     
-    public void setHeartbeatTimeoutSeconds(int heartbeatTimeoutSeconds) {
+    public void setHeartbeatTimeoutSeconds(long heartbeatTimeoutSeconds) {
         this.heartbeatTimeoutSeconds = heartbeatTimeoutSeconds;
     }
     
-    public ExecuteActivityParameters withHeartbeatTimeoutSeconds(int heartbeatTimeoutSeconds) {
+    public ExecuteActivityParameters withHeartbeatTimeoutSeconds(long heartbeatTimeoutSeconds) {
         this.heartbeatTimeoutSeconds = heartbeatTimeoutSeconds;
         return this;
     }
@@ -219,7 +217,7 @@ public class ExecuteActivityParameters implements Cloneable {
      *
      * @return The value of the ScheduleToStartTimeout property for this object.
      */
-    public int getScheduleToStartTimeoutSeconds() {
+    public long getScheduleToStartTimeoutSeconds() {
         return scheduleToStartTimeoutSeconds;
     }
     
@@ -231,7 +229,7 @@ public class ExecuteActivityParameters implements Cloneable {
      *
      * @param scheduleToStartTimeoutSeconds The new value for the ScheduleToStartTimeout property for this object.
      */
-    public void setScheduleToStartTimeoutSeconds(int scheduleToStartTimeoutSeconds) {
+    public void setScheduleToStartTimeoutSeconds(long scheduleToStartTimeoutSeconds) {
         this.scheduleToStartTimeoutSeconds = scheduleToStartTimeoutSeconds;
     }
     
@@ -248,7 +246,7 @@ public class ExecuteActivityParameters implements Cloneable {
      * @return A reference to this updated object so that method calls can be chained 
      *         together. 
      */
-    public ExecuteActivityParameters withScheduleToStartTimeoutSeconds(int scheduleToStartTimeoutSeconds) {
+    public ExecuteActivityParameters withScheduleToStartTimeoutSeconds(long scheduleToStartTimeoutSeconds) {
         this.scheduleToStartTimeoutSeconds = scheduleToStartTimeoutSeconds;
         return this;
     }
@@ -263,7 +261,7 @@ public class ExecuteActivityParameters implements Cloneable {
      *
      * @return The value of the ScheduleToCloseTimeout property for this object.
      */
-    public int getScheduleToCloseTimeoutSeconds() {
+    public long getScheduleToCloseTimeoutSeconds() {
         return scheduleToCloseTimeoutSeconds;
     }
     
@@ -275,7 +273,7 @@ public class ExecuteActivityParameters implements Cloneable {
      *
      * @param scheduleToCloseTimeoutSeconds The new value for the ScheduleToCloseTimeout property for this object.
      */
-    public void setScheduleToCloseTimeoutSeconds(int scheduleToCloseTimeoutSeconds) {
+    public void setScheduleToCloseTimeoutSeconds(long scheduleToCloseTimeoutSeconds) {
         this.scheduleToCloseTimeoutSeconds = scheduleToCloseTimeoutSeconds;
     }
     
@@ -292,21 +290,21 @@ public class ExecuteActivityParameters implements Cloneable {
      * @return A reference to this updated object so that method calls can be chained 
      *         together. 
      */
-    public ExecuteActivityParameters withScheduleToCloseTimeoutSeconds(int scheduleToCloseTimeoutSeconds) {
+    public ExecuteActivityParameters withScheduleToCloseTimeoutSeconds(long scheduleToCloseTimeoutSeconds) {
         this.scheduleToCloseTimeoutSeconds = scheduleToCloseTimeoutSeconds;
         return this;
     }
     
-    public int getStartToCloseTimeoutSeconds() {
+    public long getStartToCloseTimeoutSeconds() {
         return startToCloseTimeoutSeconds;
     }
 
     
-    public void setStartToCloseTimeoutSeconds(int startToCloseTimeoutSeconds) {
+    public void setStartToCloseTimeoutSeconds(long startToCloseTimeoutSeconds) {
         this.startToCloseTimeoutSeconds = startToCloseTimeoutSeconds;
     }
     
-    public ExecuteActivityParameters withStartToCloseTimeoutSeconds(int startToCloseTimeoutSeconds) {
+    public ExecuteActivityParameters withStartToCloseTimeoutSeconds(long startToCloseTimeoutSeconds) {
         this.startToCloseTimeoutSeconds = startToCloseTimeoutSeconds;
         return this;
     }

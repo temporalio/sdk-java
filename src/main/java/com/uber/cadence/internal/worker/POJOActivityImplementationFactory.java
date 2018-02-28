@@ -23,6 +23,7 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.activity.ActivityMethod;
 import com.uber.cadence.activity.DoNotCompleteOnReturn;
+import com.uber.cadence.activity.MethodRetry;
 import com.uber.cadence.client.ActivityCancelledException;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.common.InternalUtils;
@@ -56,6 +57,16 @@ class POJOActivityImplementationFactory implements ActivityImplementationFactory
 
     public void addActivityImplementation(Object activity) {
         Class<?> cls = activity.getClass();
+        for (Method method : cls.getMethods()) {
+            if (method.getAnnotation(ActivityMethod.class) != null) {
+                throw new IllegalArgumentException("Found @ActivityMethod annotation on \"" + method
+                        + "\" This annotation can be used only on the interface method it implements.");
+            }
+            if (method.getAnnotation(MethodRetry.class) != null) {
+                throw new IllegalArgumentException("Found @MethodRetry annotation on \"" + method
+                        + "\" This annotation can be used only on the interface method it implements.");
+            }
+        }
         TypeToken<?>.TypeSet interfaces = TypeToken.of(cls).getTypes().interfaces();
         if (interfaces.isEmpty()) {
             throw new IllegalArgumentException("Activity must implement at least one interface");

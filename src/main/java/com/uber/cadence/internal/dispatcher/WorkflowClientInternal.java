@@ -51,7 +51,11 @@ public final class WorkflowClientInternal implements WorkflowClient {
         this.manualActivityCompletionClientFactory = new ManualActivityCompletionClientFactoryImpl(service, domain, dataConverter);
     }
 
-    @SuppressWarnings("unchecked")
+    public <T> T newWorkflowStub(Class<T> workflowInterface) {
+        return newWorkflowStub(workflowInterface, (WorkflowOptions)null);
+    }
+
+        @SuppressWarnings("unchecked")
     public <T> T newWorkflowStub(Class<T> workflowInterface, WorkflowOptions options) {
         checkAnnotation(workflowInterface, WorkflowMethod.class);
         return (T) Proxy.newProxyInstance(WorkflowInternal.class.getClassLoader(),

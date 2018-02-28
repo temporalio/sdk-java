@@ -37,8 +37,8 @@ import com.uber.cadence.workflow.Functions;
  * // Specify workflow start options.
  * WorkflowOptions options = new WorkflowOptions.Builder()
  *     .setTaskList(HelloWorldWorker.TASK_LIST);
- *     .setExecutionStartToCloseTimeoutSeconds(20);
- *     .setTaskStartToCloseTimeoutSeconds(3)
+ *     .setExecutionStartToCloseTimeout(20);
+ *     .setTaskStartToCloseTimeout(3)
  *     // Cadence guarantees uniqueness of workflows by their id.
  *     .setWorkflowId("MyHelloWorld1")
  *     .build();
@@ -127,6 +127,18 @@ public interface WorkflowClient {
     static WorkflowClient newInstance(WorkflowService.Iface service, String domain, WorkflowClientOptions options) {
         return new WorkflowClientInternal(service, domain, options);
     }
+
+    /**
+     * Creates workflow client stub that can be used to start a single workflow execution.
+     * The first call must be to a method annotated with @WorkflowMethod.
+     * After workflow is started it can be also used to send signals or queries to it.
+     * IMPORTANT! Stub is per workflow instance. So new stub should be created for each new one.
+     *
+     * @param workflowInterface interface that given workflow implements
+     * @return Stub that implements workflowInterface and can be used to start workflow and later to
+     * signal or query it.
+     */
+    <T> T newWorkflowStub(Class<T> workflowInterface);
 
     /**
      * Creates workflow client stub that can be used to start a single workflow execution.

@@ -18,6 +18,7 @@ package com.uber.cadence.internal.dispatcher;
 
 import com.google.common.base.Defaults;
 import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.activity.MethodRetry;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.workflow.ChildWorkflowException;
@@ -44,7 +45,7 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
     private boolean startRequested;
 
     ChildWorkflowInvocationHandler(ChildWorkflowOptions options, SyncDecisionContext decisionContext) {
-        this.options = options == null ? new ChildWorkflowOptions.Builder().build() : options;
+        this.options = options;
         this.decisionContext = decisionContext;
         dataConverter = decisionContext.getDataConverter();
     }
@@ -98,8 +99,10 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
             workflowName = InternalUtils.getSimpleName(method);
         }
         byte[] input = dataConverter.toData(args);
+        MethodRetry retry = method.getAnnotation(MethodRetry.class);
+        ChildWorkflowOptions merged = ChildWorkflowOptions.merge(workflowMethod, retry, options);
         Promise<byte[]> encodedResult = decisionContext.executeChildWorkflow(
-                workflowName, options, input, execution);
+                workflowName, merged, input, execution);
         Promise<?> result = encodedResult.thenApply(
                 (encoded) -> dataConverter.fromData(encoded, method.getReturnType()));
         if (AsyncInternal.isAsync()) {

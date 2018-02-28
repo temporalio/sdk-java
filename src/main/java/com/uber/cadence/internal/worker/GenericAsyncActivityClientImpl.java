@@ -75,10 +75,10 @@ class GenericAsyncActivityClientImpl implements GenericAsyncActivityClient {
         final ScheduleActivityTaskDecisionAttributes attributes = new ScheduleActivityTaskDecisionAttributes();
         attributes.setActivityType(parameters.getActivityType());
         attributes.setInput(parameters.getInput());
-        attributes.setHeartbeatTimeoutSeconds(parameters.getHeartbeatTimeoutSeconds());
-        attributes.setScheduleToCloseTimeoutSeconds(parameters.getScheduleToCloseTimeoutSeconds());
-        attributes.setScheduleToStartTimeoutSeconds(parameters.getScheduleToStartTimeoutSeconds());
-        attributes.setStartToCloseTimeoutSeconds(parameters.getStartToCloseTimeoutSeconds());
+        attributes.setHeartbeatTimeoutSeconds((int) parameters.getHeartbeatTimeoutSeconds());
+        attributes.setScheduleToCloseTimeoutSeconds((int) parameters.getScheduleToCloseTimeoutSeconds());
+        attributes.setScheduleToStartTimeoutSeconds((int) parameters.getScheduleToStartTimeoutSeconds());
+        attributes.setStartToCloseTimeoutSeconds((int) parameters.getStartToCloseTimeoutSeconds());
 //        attributes.setTaskPriority(InternalUtils.taskPriorityToString(parameters.getTaskPriority()));
         String activityId = parameters.getActivityId();
         if (activityId == null) {
@@ -97,7 +97,6 @@ class GenericAsyncActivityClientImpl implements GenericAsyncActivityClient {
         scheduledActivities.put(attributes.getActivityId(), context);
         return new ActivityCancellationHandler(attributes.getActivityId(), callback);
     }
-
 
     void handleActivityTaskStarted(ActivityTaskStartedEventAttributes attributes) {
     }

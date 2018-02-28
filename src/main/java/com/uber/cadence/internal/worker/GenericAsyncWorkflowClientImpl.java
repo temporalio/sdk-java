@@ -109,12 +109,12 @@ class GenericAsyncWorkflowClientImpl implements GenericAsyncWorkflowClient {
             // TODO: Substract time passed since the parent start
             attributes.setExecutionStartToCloseTimeoutSeconds(workflowContext.getExecutionStartToCloseTimeoutSeconds());
         } else {
-            attributes.setExecutionStartToCloseTimeoutSeconds(parameters.getExecutionStartToCloseTimeoutSeconds());
+            attributes.setExecutionStartToCloseTimeoutSeconds((int) parameters.getExecutionStartToCloseTimeoutSeconds());
         }
         if (parameters.getTaskStartToCloseTimeoutSeconds() == 0) {
             attributes.setTaskStartToCloseTimeoutSeconds(workflowContext.getDecisionTaskTimeoutSeconds());
         } else {
-            attributes.setTaskStartToCloseTimeoutSeconds(parameters.getTaskStartToCloseTimeoutSeconds());
+            attributes.setTaskStartToCloseTimeoutSeconds((int) parameters.getTaskStartToCloseTimeoutSeconds());
         }
         if (parameters.getChildPolicy() == null) {
             // TODO: Child policy from a parent as soon as it is available in the WorkflowExecutionStarted event

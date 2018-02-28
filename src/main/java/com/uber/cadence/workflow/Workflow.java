@@ -17,6 +17,8 @@
 package com.uber.cadence.workflow;
 
 import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.activity.ActivityOptions;
+import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.internal.WorkflowRetryerInternal;
 import com.uber.cadence.internal.dispatcher.WorkflowInternal;
 import com.uber.cadence.internal.worker.CheckedExceptionWrapper;
@@ -33,6 +35,15 @@ public final class Workflow {
      */
     public static <T> T newActivityStub(Class<T> activityInterface, ActivityOptions options) {
         return WorkflowInternal.newActivityStub(activityInterface, options);
+    }
+
+    /**
+     * Creates client stub to activities that implement given interface.
+     *
+     * @param activityInterface interface type implemented by activities
+     */
+    public static <T> T newActivityStub(Class<T> activityInterface) {
+        return WorkflowInternal.newActivityStub(activityInterface, null);
     }
 
     /**

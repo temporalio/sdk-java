@@ -30,6 +30,7 @@ import com.uber.cadence.workflow.Functions;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
@@ -247,7 +248,7 @@ class AsyncDecider {
             if (nextWakeUpTime > workflowClock.currentTimeMillis()) {
                 // Round up to the nearest second as we don't want to deliver a timer
                 // earlier than requested.
-                long delaySeconds = InternalUtils.roundUpMillisToSeconds(delayMilliseconds);
+                long delaySeconds = InternalUtils.roundUpToSeconds(Duration.ofMillis(delayMilliseconds)).getSeconds();
                 workflowClock.createTimer(delaySeconds, (t) -> {
                     // Intentionally left empty.
                     // Timer ensures that decision is scheduled at the time workflow can make progress.

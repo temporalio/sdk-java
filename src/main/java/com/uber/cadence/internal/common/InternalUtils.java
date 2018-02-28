@@ -28,6 +28,7 @@ public final class InternalUtils {
 
     /**
      * Used to construct default name of an activity or workflow type from a method it implements.
+     *
      * @return "Simple class name"::"methodName"
      */
     public static String getSimpleName(Method method) {
@@ -38,20 +39,28 @@ public final class InternalUtils {
      * Convert milliseconds to seconds rounding up. Used by timers to ensure that
      * they never fire earlier than requested.
      */
-    public static long roundUpToSeconds(Duration duration) {
-        return roundUpMillisToSeconds(duration.toMillis());
+    public static Duration roundUpToSeconds(Duration duration, Duration defaultValue) {
+        if (duration == null) {
+            return defaultValue;
+        }
+        return roundUpToSeconds(duration);
     }
 
     /**
-     * Convert milliseconds to seconds rounding up. Used by timers to ensure that
-     * they never fire earlier than requested.
+     * Round durations to seconds rounding up. As all timeouts and timers resolution is in seconds
+     * ensures that nothing times out or fires before the requested time.
      */
-    public static long roundUpMillisToSeconds(long millis) {
-        return (long) Math.ceil(millis / SECOND);
+    public static Duration roundUpToSeconds(Duration duration) {
+        if (duration == null) {
+            return Duration.ZERO;
+        }
+        Duration result = Duration.ofMillis((long) (Math.ceil(duration.toMillis() / SECOND) * SECOND));
+        return result;
     }
 
     /**
      * Prohibit instantiation
      */
-    private InternalUtils() {}
+    private InternalUtils() {
+    }
 }

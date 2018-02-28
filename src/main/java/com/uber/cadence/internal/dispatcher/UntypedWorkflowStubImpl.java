@@ -19,17 +19,17 @@ package com.uber.cadence.internal.dispatcher;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
 import com.uber.cadence.WorkflowType;
-import com.uber.cadence.client.UntypedWorkflowStub;
 import com.uber.cadence.client.DuplicateWorkflowException;
+import com.uber.cadence.client.UntypedWorkflowStub;
+import com.uber.cadence.client.WorkflowFailureException;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.converter.DataConverter;
-import com.uber.cadence.internal.worker.CheckedExceptionWrapper;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.generic.GenericWorkflowClientExternal;
 import com.uber.cadence.internal.generic.QueryWorkflowParameters;
 import com.uber.cadence.internal.generic.StartWorkflowExecutionParameters;
+import com.uber.cadence.internal.worker.CheckedExceptionWrapper;
 import com.uber.cadence.workflow.SignalExternalWorkflowParameters;
-import com.uber.cadence.client.WorkflowFailureException;
 
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -73,9 +73,8 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
         genericClient.signalWorkflowExecution(p);
     }
 
-    @Override
-    public WorkflowExecution start(Object... args) {
-        if (options == null) {
+    WorkflowExecution startWithOptions(WorkflowOptions o, Object... args) {
+        if (o == null) {
             throw new IllegalStateException("UntypedWorkflowStub wasn't created through " +
                     "WorkflowClient::newUntypedWorkflowStub(String workflowType, WorkflowOptions options)");
         }
@@ -83,17 +82,17 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
             throw new IllegalStateException("already started for execution=" + execution.get());
         }
         StartWorkflowExecutionParameters p = new StartWorkflowExecutionParameters();
-        p.setTaskStartToCloseTimeoutSeconds(options.getTaskStartToCloseTimeoutSeconds());
-        if (options.getWorkflowId() == null) {
+        p.setTaskStartToCloseTimeoutSeconds(o.getTaskStartToCloseTimeout().getSeconds());
+        if (o.getWorkflowId() == null) {
             p.setWorkflowId(UUID.randomUUID().toString());
         } else {
-            p.setWorkflowId(options.getWorkflowId());
+            p.setWorkflowId(o.getWorkflowId());
         }
-        p.setExecutionStartToCloseTimeoutSeconds(options.getExecutionStartToCloseTimeoutSeconds());
+        p.setExecutionStartToCloseTimeoutSeconds(o.getExecutionStartToCloseTimeout().getSeconds());
         p.setInput(dataConverter.toData(args));
         p.setWorkflowType(new WorkflowType().setName(workflowType));
-        p.setTaskList(options.getTaskList());
-        p.setChildPolicy(options.getChildPolicy());
+        p.setTaskList(o.getTaskList());
+        p.setChildPolicy(o.getChildPolicy());
         try {
             execution.set(genericClient.startWorkflow(p));
         } catch (WorkflowExecutionAlreadyStartedError e) {
@@ -103,6 +102,11 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
             throw new DuplicateWorkflowException(execution, workflowType, e.getMessage());
         }
         return execution.get();
+    }
+
+    @Override
+    public WorkflowExecution start(Object... args) {
+        return startWithOptions(WorkflowOptions.merge(null, options), args);
     }
 
     @Override
@@ -125,7 +129,7 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
             }
             return dataConverter.fromData(resultValue, returnType);
         } catch (WorkflowExecutionFailedException e) {
-            Class<Throwable> detailsClass = null;
+            Class<Throwable> detailsClass;
             try {
                 @SuppressWarnings("unchecked")
                 Class<Throwable> dc = (Class<Throwable>) Class.forName(e.getReason());
