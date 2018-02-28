@@ -34,17 +34,8 @@ import com.uber.cadence.workflow.Functions;
  * // Create cadence client using cadence service host and port.
  * WorkflowClient client = WorkflowClient.newInstance(host, port);
  *
- * // Specify workflow start options.
- * WorkflowOptions options = new WorkflowOptions.Builder()
- *     .setTaskList(HelloWorldWorker.TASK_LIST);
- *     .setExecutionStartToCloseTimeout(20);
- *     .setTaskStartToCloseTimeout(3)
- *     // Cadence guarantees uniqueness of workflows by their id.
- *     .setWorkflowId("MyHelloWorld1")
- *     .build();
- *
  * // Create client side stub to the workflow execution.
- * HelloWorldWorkflow workflow = client.newWorkflowStub(HelloWorldWorkflow.class, options);
+ * HelloWorldWorkflow workflow = client.newWorkflowStub(HelloWorldWorkflow.class);
  *
  * // Start Workflow Execution
  * WorkflowExecution started = WorkflowClient.asyncStart(workflow::helloWorld, "User");

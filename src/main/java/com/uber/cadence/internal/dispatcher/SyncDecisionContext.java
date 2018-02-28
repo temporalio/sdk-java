@@ -19,18 +19,18 @@ package com.uber.cadence.internal.dispatcher;
 import com.uber.cadence.ActivityType;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
+import com.uber.cadence.activity.ActivityOptions;
+import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.ActivityException;
 import com.uber.cadence.internal.AsyncDecisionContext;
 import com.uber.cadence.internal.ChildWorkflowTaskFailedException;
-import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.generic.ExecuteActivityParameters;
 import com.uber.cadence.internal.generic.GenericAsyncActivityClient;
 import com.uber.cadence.internal.generic.GenericAsyncWorkflowClient;
 import com.uber.cadence.internal.worker.ActivityTaskTimeoutException;
 import com.uber.cadence.internal.worker.POJOQueryImplementationFactory;
 import com.uber.cadence.workflow.ActivityFailureException;
-import com.uber.cadence.activity.ActivityOptions;
 import com.uber.cadence.workflow.ActivityTimeoutException;
 import com.uber.cadence.workflow.Async;
 import com.uber.cadence.workflow.CancellationScope;
@@ -40,7 +40,6 @@ import com.uber.cadence.workflow.CompletablePromise;
 import com.uber.cadence.workflow.ContinueAsNewWorkflowExecutionParameters;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.Promise;
-import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.workflow.StartChildWorkflowExecutionParameters;
 import com.uber.cadence.workflow.Workflow;
 import com.uber.cadence.workflow.WorkflowContext;
@@ -51,8 +50,6 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-
-import static com.uber.cadence.internal.common.InternalUtils.roundUpToSeconds;
 
 class SyncDecisionContext {
     private final AsyncDecisionContext context;
