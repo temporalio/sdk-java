@@ -152,8 +152,25 @@ public final class ActivityOptions {
                 throw new IllegalStateException("Either ScheduleToClose or both ScheduleToStart and StarToClose " +
                         "timeouts are required: ");
             }
-            return new ActivityOptions(roundUpToSeconds(heartbeatTimeout), roundUpToSeconds(scheduleToCloseTimeout),
-                    roundUpToSeconds(scheduleToStartTimeout), roundUpToSeconds(startToCloseTimeout),
+            Duration scheduleToClose = scheduleToCloseTimeout;
+            if (scheduleToClose == null) {
+                scheduleToClose = scheduleToStartTimeout.plus(startToCloseTimeout);
+            }
+            Duration startToClose = startToCloseTimeout;
+            if (startToClose == null) {
+                startToClose = scheduleToCloseTimeout;
+            }
+            Duration scheduleToStart = scheduleToStartTimeout;
+            if (scheduleToStartTimeout == null) {
+                scheduleToStart = scheduleToClose;
+            }
+            // Cadence still requires it.
+            Duration heartbeat = heartbeatTimeout;
+            if (heartbeatTimeout == null) {
+                heartbeat = scheduleToClose;
+            }
+            return new ActivityOptions(roundUpToSeconds(heartbeat), roundUpToSeconds(scheduleToClose),
+                    roundUpToSeconds(scheduleToStart), roundUpToSeconds(startToClose),
                     taskList, retryOptions);
         }
     }
@@ -261,6 +278,9 @@ public final class ActivityOptions {
 
     private static Duration merge(int annotationSeconds, Duration options) {
         if (options == null) {
+            if (annotationSeconds == 0) {
+                return null;
+            }
             return Duration.ofSeconds(annotationSeconds);
         } else {
             return options;

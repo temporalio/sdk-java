@@ -25,6 +25,7 @@ import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.ActivityException;
 import com.uber.cadence.internal.AsyncDecisionContext;
 import com.uber.cadence.internal.ChildWorkflowTaskFailedException;
+import com.uber.cadence.internal.WorkflowRetryerInternal;
 import com.uber.cadence.internal.generic.ExecuteActivityParameters;
 import com.uber.cadence.internal.generic.GenericAsyncActivityClient;
 import com.uber.cadence.internal.generic.GenericAsyncWorkflowClient;
@@ -32,7 +33,6 @@ import com.uber.cadence.internal.worker.ActivityTaskTimeoutException;
 import com.uber.cadence.internal.worker.POJOQueryImplementationFactory;
 import com.uber.cadence.workflow.ActivityFailureException;
 import com.uber.cadence.workflow.ActivityTimeoutException;
-import com.uber.cadence.workflow.Async;
 import com.uber.cadence.workflow.CancellationScope;
 import com.uber.cadence.workflow.ChildWorkflowFailureException;
 import com.uber.cadence.workflow.ChildWorkflowOptions;
@@ -81,7 +81,7 @@ class SyncDecisionContext {
     public <T> Promise<T> executeActivity(String name, ActivityOptions options, Object[] args, Class<T> returnType) {
         RetryOptions retryOptions = options.getRetryOptions();
         if (retryOptions != null) {
-            return Async.retry(retryOptions, () -> executeActivityOnce(name, options, args, returnType));
+            return WorkflowRetryerInternal.retryAsync(retryOptions, () -> executeActivityOnce(name, options, args, returnType));
         }
         return executeActivityOnce(name, options, args, returnType);
     }
@@ -166,7 +166,7 @@ class SyncDecisionContext {
                                                 CompletablePromise<WorkflowExecution> executionResult) {
         RetryOptions retryOptions = options.getRetryOptions();
         if (retryOptions != null) {
-            return Async.retry(retryOptions, () -> executeChildWorkflowOnce(name, options, input, executionResult));
+            return WorkflowRetryerInternal.retryAsync(retryOptions, () -> executeChildWorkflowOnce(name, options, input, executionResult));
         }
         return executeChildWorkflowOnce(name, options, input, executionResult);
     }

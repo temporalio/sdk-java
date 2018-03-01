@@ -142,7 +142,7 @@ class WorkflowThreadImpl implements WorkflowThread {
         if (name == null) {
             name = "workflow-" + super.hashCode();
         }
-        log.debug(String.format("Workflow thread \"%s\" created", name));
+        log.trace(String.format("Workflow thread \"%s\" created", name));
         this.task = new RunnableWrapper(context, name, detached, parentCancellationScope, runnable);
     }
 
@@ -153,13 +153,13 @@ class WorkflowThreadImpl implements WorkflowThread {
 
     @Override
     public void cancel() {
-        log.debug(String.format("Workflow thread \"%s\" cancel called", getName()));
+        log.trace(String.format("Workflow thread \"%s\" cancel called", getName()));
         task.cancellationScope.cancel();
     }
 
     @Override
     public void cancel(String reason) {
-        log.debug(String.format("Workflow thread \"%s cancel called with \"%s\" reason", getName(), reason));
+        log.trace(String.format("Workflow thread \"%s cancel called with \"%s\" reason", getName(), reason));
         task.cancellationScope.cancel(reason);
     }
 
@@ -182,7 +182,7 @@ class WorkflowThreadImpl implements WorkflowThread {
         if (context.getStatus() != Status.CREATED) {
             throw new IllegalThreadStateException("already started");
         }
-        log.debug(String.format("Workflow thread \"%s\" started", getName()));
+        log.trace(String.format("Workflow thread \"%s\" started", getName()));
         context.setStatus(Status.RUNNING);
         taskFuture = threadPool.submit(task);
     }

@@ -75,7 +75,9 @@ class GenericAsyncActivityClientImpl implements GenericAsyncActivityClient {
         final ScheduleActivityTaskDecisionAttributes attributes = new ScheduleActivityTaskDecisionAttributes();
         attributes.setActivityType(parameters.getActivityType());
         attributes.setInput(parameters.getInput());
-        attributes.setHeartbeatTimeoutSeconds((int) parameters.getHeartbeatTimeoutSeconds());
+        if (parameters.getHeartbeatTimeoutSeconds() > 0) {
+            attributes.setHeartbeatTimeoutSeconds((int) parameters.getHeartbeatTimeoutSeconds());
+        }
         attributes.setScheduleToCloseTimeoutSeconds((int) parameters.getScheduleToCloseTimeoutSeconds());
         attributes.setScheduleToStartTimeoutSeconds((int) parameters.getScheduleToStartTimeoutSeconds());
         attributes.setStartToCloseTimeoutSeconds((int) parameters.getStartToCloseTimeoutSeconds());

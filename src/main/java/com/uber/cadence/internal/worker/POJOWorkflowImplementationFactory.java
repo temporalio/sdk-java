@@ -17,6 +17,7 @@
 package com.uber.cadence.internal.worker;
 
 import com.google.common.reflect.TypeToken;
+import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.converter.DataConverterException;
@@ -26,6 +27,8 @@ import com.uber.cadence.internal.dispatcher.WorkflowInternal;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.QueryMethod;
 import com.uber.cadence.workflow.SignalMethod;
+import com.uber.cadence.workflow.Workflow;
+import com.uber.cadence.workflow.WorkflowContext;
 import com.uber.cadence.workflow.WorkflowMethod;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -163,7 +166,7 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
                 }
                 return dataConverter.toData(result);
             } catch (IllegalAccessException e) {
-                throw mapToWorkflowExecutionException(e, dataConverter);
+                throw new Error(mapToWorkflowExecutionException(e, dataConverter));
             } catch (InvocationTargetException e) {
                 Throwable targetException = e.getTargetException();
                 if (targetException instanceof Error) {
@@ -172,6 +175,14 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
                 // Cancellation should be delivered as it impacts which decision closes a workflow.
                 if (targetException instanceof CancellationException) {
                     throw (CancellationException) targetException;
+                }
+                if (log.isErrorEnabled()) {
+                    WorkflowContext context = Workflow.getContext();
+                    WorkflowExecution execution = context.getWorkflowExecution();
+                    log.error("Workflow execution failure " +
+                            "WorkflowID=" + execution.getWorkflowId()
+                            + ", RunID=" + execution.getRunId()
+                            + ", WorkflowType=" + context.getWorkflowType().getName(), targetException);
                 }
                 throw mapToWorkflowExecutionException(targetException, dataConverter);
             }

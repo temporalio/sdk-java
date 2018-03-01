@@ -20,7 +20,6 @@ import com.google.common.base.Defaults;
 import com.uber.cadence.activity.MethodRetry;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -34,7 +33,10 @@ public final class RetryOptions {
      */
     public static RetryOptions merge(MethodRetry r, RetryOptions o) {
         if (r == null) {
-            return o;
+            if (o == null) {
+                return null;
+            }
+            return new RetryOptions.Builder(o).validateAndBuild();
         }
         if (o == null) {
             o = new RetryOptions.Builder().build();
@@ -47,7 +49,7 @@ public final class RetryOptions {
                 .setMaximumAttempts(merge(r.maximumAttempts(), o.getMaximumAttempts(), int.class))
                 .setMinimumAttempts(merge(r.minimumAttempts(), o.getMinimumAttempts(), int.class))
                 .setDoNotRetry(merge(r.doNotRetry(), o.getDoNotRetry()))
-                .buildValidating();
+                .validateAndBuild();
     }
 
     public final static class Builder {
@@ -64,7 +66,23 @@ public final class RetryOptions {
 
         private Duration maximumInterval;
 
-        private List<Class<? extends Throwable>> doNotRetry = new ArrayList<>(0);
+        private List<Class<? extends Throwable>> doNotRetry;
+
+        public Builder() {
+        }
+
+        public Builder(RetryOptions o) {
+            if (o == null) {
+                return;
+            }
+            this.backoffCoefficient = o.getBackoffCoefficient();
+            this.minimumAttempts = o.getMinimumAttempts();
+            this.maximumAttempts = o.getMaximumAttempts();
+            this.expiration = o.getExpiration();
+            this.initialInterval = o.getInitialInterval();
+            this.maximumInterval = o.getMaximumInterval();
+            this.doNotRetry = o.getDoNotRetry();
+         }
 
         /**
          * Interval of the first retry. If coefficient is 1.0 then it is used for all retries.
@@ -137,6 +155,9 @@ public final class RetryOptions {
          * RuntimeException.class to this list is going to include only RuntimeException itself, not all of
          * its subclasses. The reason for such behaviour is to be able to support server side
          * retries without knowledge of Java exception hierarchy.
+         * When considering an exception type a cause of {@link com.uber.cadence.workflow.ActivityFailureException} and
+         * {@link com.uber.cadence.workflow.ChildWorkflowFailureException} is looked at.
+         * <p>
          * {@link Error} and {@link java.util.concurrent.CancellationException} are never retried and
          * are not even passed to this filter.
          */
@@ -160,7 +181,13 @@ public final class RetryOptions {
         /**
          * Builds validating merged options.
          */
-        private RetryOptions buildValidating() {
+        private RetryOptions validateAndBuild() {
+            validate();
+            return new RetryOptions(initialInterval, backoffCoefficient, expiration, maximumAttempts,
+                    minimumAttempts, maximumInterval, doNotRetry);
+        }
+
+        private void validate() {
             if (initialInterval == null) {
                 throw new IllegalStateException("required property initialInterval not set");
             }
@@ -178,11 +205,7 @@ public final class RetryOptions {
             if (maximumAttempts != 0 && maximumAttempts < 0) {
                 throw new IllegalArgumentException("negative maximum attempts");
             }
-
-            return new RetryOptions(initialInterval, backoffCoefficient, expiration, maximumAttempts,
-                    minimumAttempts, maximumInterval, doNotRetry);
         }
-
     }
 
     private final Duration initialInterval;
@@ -232,6 +255,26 @@ public final class RetryOptions {
 
     public Duration getMaximumInterval() {
         return maximumInterval;
+    }
+
+    public void validate() {
+        if (initialInterval == null) {
+            throw new IllegalStateException("required property initialInterval not set");
+        }
+        if (maximumInterval != null && maximumInterval.compareTo(initialInterval) == -1) {
+            throw new IllegalStateException("maximumInterval(" + maximumInterval
+                    + ") cannot be smaller than initialInterval(" + initialInterval);
+        }
+        if (maximumAttempts != 0 && minimumAttempts != 0 && maximumAttempts < minimumAttempts) {
+            throw new IllegalStateException("maximumAttempts(" + maximumAttempts
+                    + ") cannot be smaller than minimumAttempts(" + minimumAttempts);
+        }
+        if (backoffCoefficient != 0d && backoffCoefficient < 1.0) {
+            throw new IllegalArgumentException("coefficient less than 1");
+        }
+        if (maximumAttempts != 0 && maximumAttempts < 0) {
+            throw new IllegalArgumentException("negative maximum attempts");
+        }
     }
 
     /**

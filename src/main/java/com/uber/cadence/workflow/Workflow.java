@@ -156,7 +156,7 @@ public final class Workflow {
      * @return result of the function or the last failure.
      */
     public static <R> R retry(RetryOptions options, Functions.Func<R> fn) {
-        return WorkflowRetryerInternal.retry(options, fn);
+        return WorkflowRetryerInternal.validateOptionsAndRetry(options, fn);
     }
 
     /**

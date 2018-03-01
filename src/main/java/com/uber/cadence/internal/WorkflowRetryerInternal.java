@@ -16,10 +16,12 @@
  */
 package com.uber.cadence.internal;
 
+import com.uber.cadence.common.RetryOptions;
+import com.uber.cadence.workflow.ActivityFailureException;
+import com.uber.cadence.workflow.ChildWorkflowFailureException;
 import com.uber.cadence.workflow.CompletablePromise;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.Promise;
-import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.workflow.Workflow;
 
 import java.time.Duration;
@@ -48,14 +50,18 @@ public final class WorkflowRetryerInternal {
         });
     }
 
-    /**
-     * Retry function synchronously.
-     *
-     * @param options retry options.
-     * @param func    procedure to retry.
-     * @return result of func if ever completed successfully.
-     */
+    public static <R> R validateOptionsAndRetry(RetryOptions options, Functions.Func<R> func) {
+        return retry(RetryOptions.merge(null, options), func);
+    }
+        /**
+         * Retry function synchronously.
+         *
+         * @param options retry options.
+         * @param func    procedure to retry.
+         * @return result of func if ever completed successfully.
+         */
     public static <R> R retry(RetryOptions options, Functions.Func<R> func) {
+        options.validate();
         int attempt = 1;
         long startTime = Workflow.currentTimeMillis();
         while (true) {
@@ -87,6 +93,7 @@ public final class WorkflowRetryerInternal {
 
     private static <R> Promise<R> retryAsync(RetryOptions options, Functions.Func<Promise<R>> func, long startTime,
                                              long attempt) {
+        options.validate();
         CompletablePromise<R> funcResult = Workflow.newPromise();
         try {
             funcResult.completeFrom(func.apply());
@@ -108,7 +115,10 @@ public final class WorkflowRetryerInternal {
         }).thenCompose((r) -> r);
     }
 
-    private static boolean shouldRethrow(Exception e, RetryOptions options, long attempt, long elapsed, long sleepTime) {
+    private static boolean shouldRethrow(Throwable e, RetryOptions options, long attempt, long elapsed, long sleepTime) {
+        if (e instanceof ActivityFailureException || e instanceof ChildWorkflowFailureException) {
+            e = e.getCause();
+        }
         if (options.getDoNotRetry() != null) {
             for (Class<? extends Throwable> doNotRetry : options.getDoNotRetry()) {
                 if (doNotRetry.equals(e.getClass())) {

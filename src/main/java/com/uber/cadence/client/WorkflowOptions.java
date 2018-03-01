@@ -45,6 +45,7 @@ public final class WorkflowOptions {
                         OptionsUtils.merge(a.executionStartToCloseTimeoutSeconds(), o.getExecutionStartToCloseTimeout()))
                 .setTaskList(
                         OptionsUtils.merge(a.taskList(), o.getTaskList(), String.class))
+                .setChildPolicy(o.getChildPolicy())
                 .validateBuildWithDefaults();
     }
 
@@ -159,14 +160,10 @@ public final class WorkflowOptions {
             if (policy == null) {
                 policy = WorkflowIdReusePolicy.AllowDuplicateFailedOnly;
             }
-            ChildPolicy cPolicy = childPolicy;
-            if (cPolicy == null) {
-                cPolicy = ChildPolicy.TERMINATE;
-            }
             return new WorkflowOptions(workflowId, policy,
                     roundUpToSeconds(executionStartToCloseTimeout),
                     roundUpToSeconds(taskStartToCloseTimeout, OptionsUtils.DEFAULT_TASK_START_TO_CLOSE_TIMEOUT),
-                    taskList, cPolicy);
+                    taskList, childPolicy);
         }
     }
 
