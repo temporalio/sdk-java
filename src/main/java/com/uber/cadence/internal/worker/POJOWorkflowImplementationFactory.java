@@ -28,7 +28,7 @@ import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.QueryMethod;
 import com.uber.cadence.workflow.SignalMethod;
 import com.uber.cadence.workflow.Workflow;
-import com.uber.cadence.workflow.WorkflowContext;
+import com.uber.cadence.workflow.WorkflowInfo;
 import com.uber.cadence.workflow.WorkflowMethod;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -177,12 +177,11 @@ public class POJOWorkflowImplementationFactory implements Function<WorkflowType,
                     throw (CancellationException) targetException;
                 }
                 if (log.isErrorEnabled()) {
-                    WorkflowContext context = Workflow.getContext();
-                    WorkflowExecution execution = context.getWorkflowExecution();
+                    WorkflowInfo context = Workflow.getWorkflowInfo();
                     log.error("Workflow execution failure " +
-                            "WorkflowID=" + execution.getWorkflowId()
-                            + ", RunID=" + execution.getRunId()
-                            + ", WorkflowType=" + context.getWorkflowType().getName(), targetException);
+                            "WorkflowID=" + context.getWorkflowId()
+                            + ", RunID=" + context.getRunId()
+                            + ", WorkflowType=" + context.getWorkflowType(), targetException);
                 }
                 throw mapToWorkflowExecutionException(targetException, dataConverter);
             }

@@ -23,13 +23,11 @@ import com.uber.cadence.activity.ActivityOptions;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.ActivityException;
-import com.uber.cadence.internal.AsyncDecisionContext;
 import com.uber.cadence.internal.ChildWorkflowTaskFailedException;
 import com.uber.cadence.internal.WorkflowRetryerInternal;
 import com.uber.cadence.internal.generic.ExecuteActivityParameters;
-import com.uber.cadence.internal.generic.GenericAsyncActivityClient;
-import com.uber.cadence.internal.generic.GenericAsyncWorkflowClient;
 import com.uber.cadence.internal.worker.ActivityTaskTimeoutException;
+import com.uber.cadence.internal.worker.DecisionContext;
 import com.uber.cadence.internal.worker.POJOQueryImplementationFactory;
 import com.uber.cadence.workflow.ActivityFailureException;
 import com.uber.cadence.workflow.ActivityTimeoutException;
@@ -42,7 +40,6 @@ import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.StartChildWorkflowExecutionParameters;
 import com.uber.cadence.workflow.Workflow;
-import com.uber.cadence.workflow.WorkflowContext;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -52,18 +49,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 class SyncDecisionContext {
-    private final AsyncDecisionContext context;
-    private final GenericAsyncActivityClient activityClient;
-    private final GenericAsyncWorkflowClient workflowClient;
+    private final DecisionContext context;
     private DeterministicRunner runner;
     private final DataConverter converter;
     private final WorkflowTimers timers = new WorkflowTimers();
     private Map<String, Functions.Func1<byte[], byte[]>> queryCallbacks = new HashMap<>();
 
-    public SyncDecisionContext(AsyncDecisionContext context, DataConverter converter) {
+    public SyncDecisionContext(DecisionContext context, DataConverter converter) {
         this.context = context;
-        activityClient = context.getActivityClient();
-        workflowClient = context.getWorkflowClient();
         this.converter = converter;
     }
 
@@ -101,7 +94,7 @@ class SyncDecisionContext {
         //TODO: Real task list
         String taskList = options.getTaskList();
         if (taskList == null) {
-            taskList = getWorkflowContext().getTaskList();
+            taskList = context.getTaskList();
         }
         parameters.withActivityType(new ActivityType().setName(name)).
                 withInput(input)
@@ -110,7 +103,7 @@ class SyncDecisionContext {
                 .withStartToCloseTimeoutSeconds(options.getStartToCloseTimeout().getSeconds())
                 .withScheduleToCloseTimeoutSeconds(options.getScheduleToCloseTimeout().getSeconds())
                 .setHeartbeatTimeoutSeconds(options.getHeartbeatTimeout().getSeconds());
-        Consumer<Throwable> cancellationCallback = activityClient.scheduleActivityTask(parameters,
+        Consumer<Throwable> cancellationCallback = context.scheduleActivityTask(parameters,
                 (output, failure) -> {
                     if (failure != null) {
                         runner.executeInWorkflowThread("activity failure callback",
@@ -190,7 +183,7 @@ class SyncDecisionContext {
                         .setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy())
                         .build();
         CompletablePromise<byte[]> result = Workflow.newPromise();
-        Consumer<Throwable> cancellationCallback = workflowClient.startChildWorkflow(parameters,
+        Consumer<Throwable> cancellationCallback = context.startChildWorkflow(parameters,
                 executionResult::complete,
                 (output, failure) -> {
                     if (failure != null) {
@@ -241,7 +234,7 @@ class SyncDecisionContext {
             return Workflow.newPromise(null);
         }
         CompletablePromise<Void> timer = Workflow.newPromise();
-        long fireTime = context.getWorkflowClock().currentTimeMillis() + TimeUnit.SECONDS.toMillis(delaySeconds);
+        long fireTime = context.currentTimeMillis() + TimeUnit.SECONDS.toMillis(delaySeconds);
         timers.addTimer(fireTime, timer);
         CancellationScope.current().getCancellationRequest().thenApply((reason) ->
         {
@@ -252,15 +245,12 @@ class SyncDecisionContext {
         return timer;
     }
 
-    /**
-     * @return true if any timer fired
-     */
     public void fireTimers() {
-        timers.fireTimers(context.getWorkflowClock().currentTimeMillis());
+        timers.fireTimers(context.currentTimeMillis());
     }
 
     public boolean hasTimersToFire() {
-        return timers.hasTimersToFire(context.getWorkflowClock().currentTimeMillis());
+        return timers.hasTimersToFire(context.currentTimeMillis());
     }
 
     public long getNextFireTime() {
@@ -291,18 +281,18 @@ class SyncDecisionContext {
     }
 
     public void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionParameters parameters) {
-        context.getWorkflowClient().continueAsNewOnCompletion(parameters);
+        context.continueAsNewOnCompletion(parameters);
     }
 
     public DataConverter getDataConverter() {
         return converter;
     }
 
-    public WorkflowContext getWorkflowContext() {
-        return context.getWorkflowContext();
+    public boolean isReplaying() {
+        return context.isReplaying();
     }
 
-    public boolean isReplaying() {
-        return context.getWorkflowClock().isReplaying();
+    public DecisionContext getContext() {
+        return context;
     }
 }

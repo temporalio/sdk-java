@@ -70,19 +70,12 @@ public final class Workflow {
      * Extracts workflow execution from a stub created through {@link #newChildWorkflowStub(Class, ChildWorkflowOptions)}.
      * Wrapped in a Promise as child workflow start is asynchronous.
      */
-    public static Promise<WorkflowExecution> getChildWorkflowExecution(Object workflowStub) {
-        return WorkflowInternal.getWorkflowExecution(workflowStub);
+    public static Promise<WorkflowExecution> getChildWorkflowExecution(Object childWorkflowStub) {
+        return WorkflowInternal.getChildWorkflowExecution(childWorkflowStub);
     }
 
-    /**
-     * @return context that contains information about currently running workflow.
-     */
-    public static WorkflowContext getContext() {
-        return WorkflowInternal.getContext();
-    }
-
-    public static WorkflowExecution getWorkflowExecution() {
-        return getContext().getWorkflowExecution();
+    public static WorkflowInfo getWorkflowInfo() {
+        return WorkflowInternal.getWorkflowInfo();
     }
 
     public static <R> CancellationScope newCancellationScope(Runnable runnable) {

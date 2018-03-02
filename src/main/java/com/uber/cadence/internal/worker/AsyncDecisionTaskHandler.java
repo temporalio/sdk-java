@@ -47,7 +47,7 @@ public class AsyncDecisionTaskHandler extends DecisionTaskHandler {
     @Override
     public Object handleDecisionTask(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Exception {
         HistoryHelper historyHelper = new HistoryHelper(decisionTaskIterator);
-        AsyncDecider decider = createDecider(historyHelper);
+        ReplayDecider decider = createDecider(historyHelper);
         PollForDecisionTaskResponse decisionTask = historyHelper.getDecisionTask();
         if (decisionTask.isSetQuery()) {
             RespondQueryTaskCompletedRequest queryCompletedRequest = new RespondQueryTaskCompletedRequest();
@@ -108,7 +108,7 @@ public class AsyncDecisionTaskHandler extends DecisionTaskHandler {
 //        // TODO(Cadence): Decide if needed in this form.
 //        throw new UnsupportedOperationException("not impelemented");
 //        HistoryHelper historyHelper = new HistoryHelper(decisionTaskIterator);
-//        AsyncDecider decider = createDecider(historyHelper);
+//        ReplayDecider decider = createDecider(historyHelper);
 //        decider.decide();
 //        DecisionsHelper decisionsHelper = decider.getDecisionsHelper();
 //        if (decisionsHelper.isWorkflowFailed()) {
@@ -117,11 +117,11 @@ public class AsyncDecisionTaskHandler extends DecisionTaskHandler {
 //        return decider.getWorkflowDefinition();
 //    }
 
-    private AsyncDecider createDecider(HistoryHelper historyHelper) throws Exception {
+    private ReplayDecider createDecider(HistoryHelper historyHelper) throws Exception {
         PollForDecisionTaskResponse decisionTask = historyHelper.getDecisionTask();
         WorkflowType workflowType = decisionTask.getWorkflowType();
         DecisionsHelper decisionsHelper = new DecisionsHelper(decisionTask);
-        AsyncDecider decider = new AsyncDecider(domain, asyncWorkflowFactory.getWorkflow(workflowType), historyHelper, decisionsHelper);
+        ReplayDecider decider = new ReplayDecider(domain, asyncWorkflowFactory.getWorkflow(workflowType), historyHelper, decisionsHelper);
         return decider;
     }
 }

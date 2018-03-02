@@ -23,7 +23,6 @@ import com.uber.cadence.TimerFiredEventAttributes;
 import com.uber.cadence.TimerStartedEventAttributes;
 import com.uber.cadence.WorkflowExecutionSignaledEventAttributes;
 import com.uber.cadence.WorkflowQuery;
-import com.uber.cadence.internal.AsyncDecisionContext;
 import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.workflow.ContinueAsNewWorkflowExecutionParameters;
 import com.uber.cadence.workflow.Functions;
@@ -36,9 +35,9 @@ import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicReference;
 
-class AsyncDecider {
+class ReplayDecider {
 
-    private static final Log log = LogFactory.getLog(AsyncDecider.class);
+    private static final Log log = LogFactory.getLog(ReplayDecider.class);
 
     private static final int MILLION = 1000000;
 
@@ -46,19 +45,11 @@ class AsyncDecider {
 
     private final DecisionsHelper decisionsHelper;
 
-    private final GenericAsyncActivityClientImpl activityClient;
-
-    private final GenericAsyncWorkflowClientImpl workflowClient;
-
-    private final AsyncWorkflowClockImpl workflowClock;
-
-    private final AsyncDecisionContext context;
+    private final DecisionContextImpl context;
 
     private AsyncWorkflow workflow;
 
     private boolean cancelRequested;
-
-    private WorkfowContextImpl workflowContext;
 
     private boolean unhandledDecision;
 
@@ -66,16 +57,12 @@ class AsyncDecider {
 
     private WorkflowExecutionException failure;
 
-    public AsyncDecider(String domain, AsyncWorkflow workflow, HistoryHelper historyHelper, DecisionsHelper decisionsHelper) {
+    ReplayDecider(String domain, AsyncWorkflow workflow, HistoryHelper historyHelper, DecisionsHelper decisionsHelper) {
         this.workflow = workflow;
         this.historyHelper = historyHelper;
         this.decisionsHelper = decisionsHelper;
-        this.activityClient = new GenericAsyncActivityClientImpl(decisionsHelper);
         PollForDecisionTaskResponse decisionTask = historyHelper.getDecisionTask();
-        workflowContext = new WorkfowContextImpl(domain, decisionTask, historyHelper.getWorkflowExecutionStartedEventAttributes());
-        this.workflowClient = new GenericAsyncWorkflowClientImpl(decisionsHelper, workflowContext);
-        this.workflowClock = new AsyncWorkflowClockImpl(decisionsHelper);
-        context = new AsyncDecisionContextImpl(activityClient, workflowClient, workflowClock, workflowContext);
+        context = new DecisionContextImpl(decisionsHelper, domain, decisionTask, historyHelper.getWorkflowExecutionStartedEventAttributes());
     }
 
     public boolean isCancelRequested() {
@@ -89,40 +76,40 @@ class AsyncDecider {
     private void processEvent(HistoryEvent event, EventType eventType) throws Throwable {
         switch (eventType) {
             case ActivityTaskCanceled:
-                activityClient.handleActivityTaskCanceled(event);
+                context.handleActivityTaskCanceled(event);
                 break;
             case ActivityTaskCompleted:
-                activityClient.handleActivityTaskCompleted(event);
+                context.handleActivityTaskCompleted(event);
                 break;
             case ActivityTaskFailed:
-                activityClient.handleActivityTaskFailed(event);
+                context.handleActivityTaskFailed(event);
                 break;
             case ActivityTaskStarted:
-                activityClient.handleActivityTaskStarted(event.getActivityTaskStartedEventAttributes());
+                context.handleActivityTaskStarted(event.getActivityTaskStartedEventAttributes());
                 break;
             case ActivityTaskTimedOut:
-                activityClient.handleActivityTaskTimedOut(event);
+                context.handleActivityTaskTimedOut(event);
                 break;
             case ExternalWorkflowExecutionCancelRequested:
-                workflowClient.handleChildWorkflowExecutionCancelRequested(event);
+                context.handleChildWorkflowExecutionCancelRequested(event);
                 break;
             case ChildWorkflowExecutionCanceled:
-                workflowClient.handleChildWorkflowExecutionCanceled(event);
+                context.handleChildWorkflowExecutionCanceled(event);
                 break;
             case ChildWorkflowExecutionCompleted:
-                workflowClient.handleChildWorkflowExecutionCompleted(event);
+                context.handleChildWorkflowExecutionCompleted(event);
                 break;
             case ChildWorkflowExecutionFailed:
-                workflowClient.handleChildWorkflowExecutionFailed(event);
+                context.handleChildWorkflowExecutionFailed(event);
                 break;
             case ChildWorkflowExecutionStarted:
-                workflowClient.handleChildWorkflowExecutionStarted(event);
+                context.handleChildWorkflowExecutionStarted(event);
                 break;
             case ChildWorkflowExecutionTerminated:
-                workflowClient.handleChildWorkflowExecutionTerminated(event);
+                context.handleChildWorkflowExecutionTerminated(event);
                 break;
             case ChildWorkflowExecutionTimedOut:
-                workflowClient.handleChildWorkflowExecutionTimedOut(event);
+                context.handleChildWorkflowExecutionTimedOut(event);
                 break;
             case DecisionTaskCompleted:
                 handleDecisionTaskCompleted(event);
@@ -140,7 +127,7 @@ class AsyncDecider {
 //            workflowClient.handleExternalWorkflowExecutionSignaled(event);
 //            break;
             case StartChildWorkflowExecutionFailed:
-                workflowClient.handleStartChildWorkflowExecutionFailed(event);
+                context.handleStartChildWorkflowExecutionFailed(event);
                 break;
             case TimerFired:
                 handleTimerFired(event);
@@ -183,7 +170,7 @@ class AsyncDecider {
                 handleTimerStarted(event);
                 break;
             case TimerCanceled:
-                workflowClock.handleTimerCanceled(event);
+                context.handleTimerCanceled(event);
                 break;
 //        case SignalExternalWorkflowExecutionInitiated:
 //            decisionsHelper.handleSignalExternalWorkflowExecutionInitiated(event);
@@ -231,7 +218,7 @@ class AsyncDecider {
             } else if (cancelRequested) {
                 decisionsHelper.cancelWorkflowExecution();
             } else {
-                ContinueAsNewWorkflowExecutionParameters continueAsNewOnCompletion = workflowContext.getContinueAsNewOnCompletion();
+                ContinueAsNewWorkflowExecutionParameters continueAsNewOnCompletion = context.getContinueAsNewOnCompletion();
                 if (continueAsNewOnCompletion != null) {
                     decisionsHelper.continueAsNewWorkflowExecution(continueAsNewOnCompletion);
                 } else {
@@ -242,14 +229,14 @@ class AsyncDecider {
         } else {
             long nextWakeUpTime = workflow.getNextWakeUpTime();
             if (nextWakeUpTime == 0) { // No time based waiting
-                workflowClock.cancelAllTimers();
+                context.cancelAllTimers();
             }
-            long delayMilliseconds = nextWakeUpTime - workflowClock.currentTimeMillis();
-            if (nextWakeUpTime > workflowClock.currentTimeMillis()) {
+            long delayMilliseconds = nextWakeUpTime - context.currentTimeMillis();
+            if (nextWakeUpTime > context.currentTimeMillis()) {
                 // Round up to the nearest second as we don't want to deliver a timer
                 // earlier than requested.
                 long delaySeconds = InternalUtils.roundUpToSeconds(Duration.ofMillis(delayMilliseconds)).getSeconds();
-                workflowClock.createTimer(delaySeconds, (t) -> {
+                context.createTimer(delaySeconds, (t) -> {
                     // Intentionally left empty.
                     // Timer ensures that decision is scheduled at the time workflow can make progress.
                     // But no specific timer related action is necessary.
@@ -258,23 +245,23 @@ class AsyncDecider {
         }
     }
 
-    private void handleDecisionTaskStarted(HistoryEvent event) throws Throwable {
+    private void handleDecisionTaskStarted(HistoryEvent event) {
     }
 
-    private void handleWorkflowExecutionCancelRequested(HistoryEvent event) throws Throwable {
-        workflowContext.setCancelRequested(true);
+    private void handleWorkflowExecutionCancelRequested(HistoryEvent event) {
+        context.setCancelRequested(true);
         String cause = event.getWorkflowExecutionCancelRequestedEventAttributes().getCause();
         workflow.cancel(cause);
         cancelRequested = true;
     }
 
-    private void handleTimerFired(HistoryEvent event) throws Throwable {
+    private void handleTimerFired(HistoryEvent event) {
         TimerFiredEventAttributes attributes = event.getTimerFiredEventAttributes();
         String timerId = attributes.getTimerId();
         if (timerId.equals(DecisionsHelper.FORCE_IMMEDIATE_DECISION_TIMER)) {
             return;
         }
-        workflowClock.handleTimerFired(event.getEventId(), attributes);
+        context.handleTimerFired(attributes);
     }
 
     private void handleTimerStarted(HistoryEvent event) {
@@ -286,7 +273,7 @@ class AsyncDecider {
         decisionsHelper.handleTimerStarted(event);
     }
 
-    private void handleWorkflowExecutionSignaled(HistoryEvent event) throws Throwable {
+    private void handleWorkflowExecutionSignaled(HistoryEvent event) {
         assert (event.getEventType() == EventType.WorkflowExecutionSignaled);
         final WorkflowExecutionSignaledEventAttributes signalAttributes = event.getWorkflowExecutionSignaledEventAttributes();
         if (completed) {
@@ -324,20 +311,18 @@ class AsyncDecider {
                         if (!eventsIterator.isNextDecisionFailed()) {
                             // Cadence timestamp is in nanoseconds
                             long replayCurrentTimeMilliseconds = event.getTimestamp() / MILLION;
-                            workflowClock.setReplayCurrentTimeMilliseconds(replayCurrentTimeMilliseconds);
+                            context.setReplayCurrentTimeMilliseconds(replayCurrentTimeMilliseconds);
                             break;
                         }
-                    } else if (eventType == EventType.DecisionTaskScheduled
-                            || eventType == EventType.DecisionTaskTimedOut
-                            || eventType == EventType.DecisionTaskFailed) {
-                        // skip
-                    } else {
+                    } else if (eventType != EventType.DecisionTaskScheduled
+                            && eventType != EventType.DecisionTaskTimedOut
+                            && eventType != EventType.DecisionTaskFailed) {
                         decisionCompletionToStartEvents.add(event);
                     }
                 }
                 for (HistoryEvent event : decisionCompletionToStartEvents) {
                     if (event.getEventId() >= lastNonReplayedEventId) {
-                        workflowClock.setReplaying(false);
+                        context.setReplaying(false);
                     }
                     EventType eventType = event.getEventType();
                     processEvent(event, eventType);

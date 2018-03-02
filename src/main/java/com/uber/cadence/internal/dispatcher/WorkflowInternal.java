@@ -17,9 +17,9 @@
 package com.uber.cadence.internal.dispatcher;
 
 import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.activity.ActivityOptions;
 import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.worker.CheckedExceptionWrapper;
-import com.uber.cadence.activity.ActivityOptions;
 import com.uber.cadence.workflow.CancellationScope;
 import com.uber.cadence.workflow.ChildWorkflowOptions;
 import com.uber.cadence.workflow.CompletablePromise;
@@ -27,7 +27,7 @@ import com.uber.cadence.workflow.ContinueAsNewWorkflowExecutionParameters;
 import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.QueryMethod;
 import com.uber.cadence.workflow.Workflow;
-import com.uber.cadence.workflow.WorkflowContext;
+import com.uber.cadence.workflow.WorkflowInfo;
 import com.uber.cadence.workflow.WorkflowQueue;
 
 import java.lang.reflect.Proxy;
@@ -113,7 +113,7 @@ public final class WorkflowInternal {
                 new ChildWorkflowInvocationHandler(options, getDecisionContext()));
     }
 
-    public static Promise<WorkflowExecution> getWorkflowExecution(Object workflowStub) {
+    public static Promise<WorkflowExecution> getChildWorkflowExecution(Object workflowStub) {
         if (workflowStub instanceof WorkflowStub) {
             return ((WorkflowStub) workflowStub).__getWorkflowExecution();
         }
@@ -162,10 +162,6 @@ public final class WorkflowInternal {
         return WorkflowThread.yield(timeoutMillis, reason, unblockCondition);
     }
 
-    public static WorkflowContext getContext() {
-        return getDecisionContext().getWorkflowContext();
-    }
-
     public static <U> Promise<List<U>> promiseAllOf(Collection<Promise<U>> promises) {
         return new AllOfPromise<>(promises);
     }
@@ -210,5 +206,9 @@ public final class WorkflowInternal {
 
     public static boolean isReplaying() {
         return getDecisionContext().isReplaying();
+    }
+
+    public static WorkflowInfo getWorkflowInfo() {
+       return new WorkflowInfoImpl(getDecisionContext().getContext());
     }
 }
