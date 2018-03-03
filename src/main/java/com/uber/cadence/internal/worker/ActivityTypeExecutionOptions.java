@@ -16,7 +16,7 @@
  */
 package com.uber.cadence.internal.worker;
 
-public class ActivityTypeExecutionOptions {
+public final class ActivityTypeExecutionOptions {
 	private boolean doNotCompleteOnReturn;
 	private long respondTaskCompletedRetryInitialInterval = 1000;
     private long respondTaskCompletedRetryMaximumInterval = 60000;

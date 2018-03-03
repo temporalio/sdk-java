@@ -64,7 +64,7 @@ public final class JsonDataConverter implements DataConverter {
      */
     private static final Set<String> CUTOFF_METHOD_NAMES = new HashSet<String>() {{
         add("com.uber.cadence.internal.worker.POJOActivityImplementationFactory$POJOActivityImplementation.execute");
-        add("com.uber.cadence.internal.worker.POJOWorkflowImplementationFactory$POJOWorkflowImplementation.execute");
+        add("com.uber.cadence.internal.sync.POJOWorkflowImplementationFactory$POJOWorkflowImplementation.execute");
     }};
 
     private static final DataConverter INSTANCE = new JsonDataConverter();

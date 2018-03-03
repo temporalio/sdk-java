@@ -17,8 +17,9 @@
 package com.uber.cadence.activity;
 
 import com.uber.cadence.WorkflowService;
-import com.uber.cadence.internal.dispatcher.WorkflowInternal;
-import com.uber.cadence.internal.worker.ActivityInternal;
+import com.uber.cadence.internal.sync.ActivityInternal;
+import com.uber.cadence.internal.sync.WorkflowInternal;
+import com.uber.cadence.workflow.ActivityException;
 import com.uber.cadence.workflow.ActivityTimeoutException;
 
 import java.util.concurrent.CancellationException;
@@ -87,7 +88,7 @@ public final class Activity {
      * The reason for such design is that returning originally thrown exception from a remote call
      * (which child workflow and activity invocations are ) would not allow adding context information about
      * a failure, like activity and child workflow id. So stubs always throw a subclass of
-     * {@link com.uber.cadence.internal.ActivityException} from calls to an activity and subclass of
+     * {@link ActivityException} from calls to an activity and subclass of
      * {@link com.uber.cadence.workflow.ChildWorkflowException} from calls to a child workflow.
      * The original exception is attached as a cause to these wrapper exceptions. So as exceptions are always wrapped
      * adding checked ones to method signature causes more pain than benefit.

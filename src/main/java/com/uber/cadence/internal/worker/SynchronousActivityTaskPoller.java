@@ -26,9 +26,7 @@ import com.uber.cadence.RespondActivityTaskFailedRequest;
 import com.uber.cadence.TaskList;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
-import com.uber.cadence.internal.common.WorkflowExecutionUtils;
-import com.uber.cadence.internal.generic.ActivityImplementation;
-import com.uber.cadence.internal.generic.ActivityImplementationFactory;
+import com.uber.cadence.internal.common.SynchronousRetrier;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.thrift.TException;
@@ -37,7 +35,7 @@ import java.lang.management.ManagementFactory;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 
-public class SynchronousActivityTaskPoller implements TaskPoller {
+class SynchronousActivityTaskPoller implements TaskPoller {
 
     private static final Log log = LogFactory.getLog(SynchronousActivityTaskPoller.class);
 
@@ -194,7 +192,7 @@ public class SynchronousActivityTaskPoller implements TaskPoller {
             if (activityImplementation == null) {
                 throw new IllegalArgumentException("Unknown activity type: " + activityType);
             }
-            output = activityImplementation.execute(service, domain, task);
+            output = activityImplementation.execute(service, domain, new ActivityTaskImpl(task));
             if (!activityImplementation.getExecutionOptions().isDoNotCompleteOnReturn()) {
                 respondActivityTaskCompletedWithRetry(task.getTaskToken(), output);
             }
@@ -212,7 +210,7 @@ public class SynchronousActivityTaskPoller implements TaskPoller {
                         + ", activityId=" + task.getActivityId(), e);
             }
             if (!(e instanceof ActivityExecutionException)) {
-                e = activityImplementationFactory.serializeUnexpectedFailure(task, e);
+                e = activityImplementationFactory.serializeUnexpectedFailure(new ActivityTaskImpl(task), e);
             }
             ActivityExecutionException executionException = (ActivityExecutionException) e;
             respondActivityTaskFailedWithRetry(task.getTaskToken(), executionException.getReason(),

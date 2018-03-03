@@ -22,6 +22,8 @@ import com.uber.cadence.WorkflowExecution;
 public interface ActivityTask {
     byte[] getTaskToken();
 
+    byte[] getInput();
+
     WorkflowExecution getWorkflowExecution();
 
     String getActivityId();

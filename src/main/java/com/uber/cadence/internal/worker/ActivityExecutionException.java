@@ -18,7 +18,6 @@ package com.uber.cadence.internal.worker;
 
 import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.WorkflowService;
-import com.uber.cadence.internal.generic.ActivityImplementation;
 
 /**
  * This exception is expected to be thrown from
@@ -31,7 +30,7 @@ import com.uber.cadence.internal.generic.ActivityImplementation;
  * @author fateev
  */
 @SuppressWarnings("serial")
-public class ActivityExecutionException extends RuntimeException {
+public final class ActivityExecutionException extends RuntimeException {
 
     private final byte[] details;
 
@@ -44,7 +43,7 @@ public class ActivityExecutionException extends RuntimeException {
      * @param reason  value of reason field
      * @param details application specific failure details
      */
-    ActivityExecutionException(String message, String reason, byte[] details, Throwable cause) {
+    public ActivityExecutionException(String message, String reason, byte[] details, Throwable cause) {
         super(message, cause, false, false);
         this.reason = reason;
         this.details = details;

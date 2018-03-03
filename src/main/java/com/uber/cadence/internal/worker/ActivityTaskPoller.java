@@ -16,7 +16,6 @@
  */
 package com.uber.cadence.internal.worker;
 
-import com.uber.cadence.internal.generic.ActivityImplementationFactory;
 import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.WorkflowService;
 import org.apache.commons.logging.Log;
@@ -28,7 +27,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-public class ActivityTaskPoller extends SynchronousActivityTaskPoller {
+final class ActivityTaskPoller extends SynchronousActivityTaskPoller {
 
     private static final Log log = LogFactory.getLog(ActivityTaskPoller.class);
 

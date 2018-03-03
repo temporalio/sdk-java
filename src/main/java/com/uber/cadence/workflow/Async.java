@@ -17,8 +17,7 @@
 package com.uber.cadence.workflow;
 
 import com.uber.cadence.common.RetryOptions;
-import com.uber.cadence.internal.WorkflowRetryerInternal;
-import com.uber.cadence.internal.dispatcher.AsyncInternal;
+import com.uber.cadence.internal.sync.AsyncInternal;
 
 /**
  * Supports invoking lambdas and activity and child workflow references asynchronously.
@@ -215,7 +214,7 @@ public final class Async {
      * @return result of the function or the last failure.
      */
     public static <R> Promise<R> retry(RetryOptions options, Functions.Func<Promise<R>> fn) {
-        return WorkflowRetryerInternal.retryAsync(options, fn);
+        return AsyncInternal.retry(options, fn);
     }
 
     /**

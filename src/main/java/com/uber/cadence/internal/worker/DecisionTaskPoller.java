@@ -39,7 +39,7 @@ import java.lang.management.ManagementFactory;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 
-public class DecisionTaskPoller implements TaskPoller {
+public final class DecisionTaskPoller implements TaskPoller {
 
     private static final Log log = LogFactory.getLog(DecisionTaskPoller.class);
 

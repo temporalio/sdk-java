@@ -16,7 +16,6 @@
  */
 package com.uber.cadence.internal.worker;
 
-import com.uber.cadence.internal.generic.ActivityImplementationFactory;
 import com.uber.cadence.WorkflowService;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -26,7 +25,7 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-public class GenericActivityWorker extends GenericWorker {
+public final class GenericActivityWorker extends GenericWorker {
 
     private static final Log log = LogFactory.getLog(GenericActivityWorker.class);
 

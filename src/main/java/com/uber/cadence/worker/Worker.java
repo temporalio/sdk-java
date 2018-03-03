@@ -19,8 +19,8 @@ package com.uber.cadence.worker;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.client.WorkflowClient;
-import com.uber.cadence.internal.dispatcher.SyncWorkflowWorker;
-import com.uber.cadence.internal.worker.ActivityWorker;
+import com.uber.cadence.internal.sync.SyncActivityWorker;
+import com.uber.cadence.internal.sync.SyncWorkflowWorker;
 import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
 
 import java.time.Duration;
@@ -34,7 +34,7 @@ public final class Worker {
     private final AtomicBoolean started = new AtomicBoolean();
     private final WorkerOptions options;
     private final SyncWorkflowWorker workflowWorker;
-    private final ActivityWorker activityWorker;
+    private final SyncActivityWorker activityWorker;
 
     /**
      * Creates worker that connects to the local instance of the Cadence Service that listens
@@ -99,7 +99,7 @@ public final class Worker {
         }
         this.options = options;
         if (!options.isDisableActivityWorker()) {
-            activityWorker = new ActivityWorker(service, domain, taskList);
+            activityWorker = new SyncActivityWorker(service, domain, taskList);
             activityWorker.setMaximumPollRatePerSecond(options.getWorkerActivitiesPerSecond());
             if (options.getIdentity() != null) {
                 activityWorker.setIdentity(options.getIdentity());

@@ -19,7 +19,6 @@ package com.uber.cadence.workflow;
 import com.uber.cadence.ActivityType;
 import com.uber.cadence.TimeoutType;
 import com.uber.cadence.converter.DataConverter;
-import com.uber.cadence.internal.ActivityException;
 
 /**
  * Exception that indicates Activity that activity timed out.

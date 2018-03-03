@@ -16,7 +16,7 @@
  */
 package com.uber.cadence.workflow;
 
-import com.uber.cadence.internal.dispatcher.WorkflowInternal;
+import com.uber.cadence.internal.sync.WorkflowInternal;
 
 import java.util.concurrent.CancellationException;
 

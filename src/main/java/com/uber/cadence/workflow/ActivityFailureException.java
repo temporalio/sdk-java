@@ -17,7 +17,6 @@
 package com.uber.cadence.workflow;
 
 import com.uber.cadence.ActivityType;
-import com.uber.cadence.internal.ActivityException;
 
 /**
  * Indicates that an activity implementation threw an unhandled exception.

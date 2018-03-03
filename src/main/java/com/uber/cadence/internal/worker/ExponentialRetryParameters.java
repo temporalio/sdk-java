@@ -16,7 +16,7 @@
  */
 package com.uber.cadence.internal.worker;
 
-public class ExponentialRetryParameters {
+public final class ExponentialRetryParameters {
 
     private long initialInterval = 500;
 

@@ -19,12 +19,12 @@ package com.uber.cadence.internal.worker;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-public class Throttler {
+final class Throttler {
 
     private static final Log log = LogFactory.getLog(Throttler.class);
-    
+
     /**
-     * Human readable name of the resource being throttled. 
+     * Human readable name of the resource being throttled.
      * Used for logging only.
      */
     private final String name_;
@@ -51,10 +51,11 @@ public class Throttler {
 
     /**
      * Construct throttler.
-     * @param name Human readable name of the resource being throttled. Used for logging only.
-     * @param maxRatePerSecond maximum rate allowed
+     *
+     * @param name                     Human readable name of the resource being throttled. Used for logging only.
+     * @param maxRatePerSecond         maximum rate allowed
      * @param rateIntervalMilliseconds rate measurement interval. Interval should be at least
-     *        1000 / maxRatePerSecond. 
+     *                                 1000 / maxRatePerSecond.
      */
     public Throttler(String name, double maxRatePerSecond, long rateIntervalMilliseconds) {
         if (null == name) {
@@ -67,7 +68,7 @@ public class Throttler {
         if (rateIntervalMilliseconds <= 0) {
             throw new IllegalArgumentException("0 or negative rateIntervalMilliseconds");
         }
-        synchronized(this) {
+        synchronized (this) {
             rateIntervalMilliseconds_ = rateIntervalMilliseconds;
             setMaxRatePerSecond(maxRatePerSecond);
         }
@@ -77,7 +78,7 @@ public class Throttler {
         int maxMessagesPerRateInterval = (int) (maxRatePerSecond * rateIntervalMilliseconds_ / 1000);
         if (maxMessagesPerRateInterval == 0) {
             maxMessagesPerRateInterval = 1;
-            rateInterval_ =  (long) (1.0 / maxRatePerSecond * 1000.0);
+            rateInterval_ = (long) (1.0 / maxRatePerSecond * 1000.0);
         } else {
             rateInterval_ = rateIntervalMilliseconds_;
         }
@@ -93,13 +94,14 @@ public class Throttler {
     }
 
     public synchronized void throttle(int count) throws InterruptedException {
-        for(int i=0; i<count; ++i) {
+        for (int i = 0; i < count; ++i) {
             throttle();
         }
     }
-    
+
     /**
      * When called on each request sleeps if called faster then configured average rate.
+     *
      * @throws InterruptedException when destroyRequested
      */
     public synchronized void throttle() throws InterruptedException {
@@ -107,7 +109,7 @@ public class Throttler {
         long checkPoint = checkPointTimes_.get(index_);
         if (checkPoint > 0) {
             long elapsed = now - checkPoint;
-            
+
             // if the time for this window is less than the minimum per window
             if (elapsed >= 0 && elapsed < rateInterval_) {
                 long sleepInterval = rateInterval_ - elapsed - overslept_;
@@ -132,5 +134,5 @@ public class Throttler {
         }
         checkPointTimes_.set(index_++, System.currentTimeMillis());
     }
-    
+
 }

@@ -18,7 +18,6 @@ package com.uber.cadence.workflow;
 
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
-import com.uber.cadence.internal.WorkflowOperationException;
 
 /**
  * Base exception for failures of a child workflow.

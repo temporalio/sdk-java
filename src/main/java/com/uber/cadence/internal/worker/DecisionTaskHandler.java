@@ -20,21 +20,22 @@ import java.util.Iterator;
 
 /**
  * Base class for workflow task handlers.
- * 
+ *
  * @author fateev, suskin
- * 
  */
-public abstract class DecisionTaskHandler {
+public interface DecisionTaskHandler {
 
     /**
      * The implementation should be called when a polling SWF Decider receives a
      * new WorkflowTask.
      *
-     * @param decisionTaskIterator
-     *            The decision task to handle. Iterator wraps the task to support
-     *            pagination of the history. The events are loaded lazily when history iterator next is called.
-     *            It is expected that the method implementation aborts decision by rethrowing any
-     *            exception from {@link Iterator#next()}.
+     * @param decisionTaskIterator The decision task to handle. Iterator wraps the task to support
+     *                             pagination of the history. The events are loaded lazily when history iterator next is called.
+     *                             It is expected that the method implementation aborts decision by rethrowing any
+     *                             exception from {@link Iterator#next()}.
+     * @return One of the possible decision task replies: RespondDecisionTaskCompletedRequest,
+     * RespondQueryTaskCompletedRequest, RespondDecisionTaskFailedRequest
+     * @throws Exception if processing task wasn't possible which would lead to decision failure.
      */
-    public abstract Object handleDecisionTask(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Exception;
+    Object handleDecisionTask(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Exception;
 }

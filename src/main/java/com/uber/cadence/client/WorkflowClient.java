@@ -18,7 +18,7 @@ package com.uber.cadence.client;
 
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
-import com.uber.cadence.internal.dispatcher.WorkflowClientInternal;
+import com.uber.cadence.internal.sync.WorkflowClientInternal;
 import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
 import com.uber.cadence.workflow.Functions;
 

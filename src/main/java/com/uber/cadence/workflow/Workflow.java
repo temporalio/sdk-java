@@ -19,9 +19,8 @@ package com.uber.cadence.workflow;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.activity.ActivityOptions;
 import com.uber.cadence.common.RetryOptions;
-import com.uber.cadence.internal.WorkflowRetryerInternal;
-import com.uber.cadence.internal.dispatcher.WorkflowInternal;
-import com.uber.cadence.internal.worker.CheckedExceptionWrapper;
+import com.uber.cadence.internal.replay.ContinueAsNewWorkflowExecutionParameters;
+import com.uber.cadence.internal.sync.WorkflowInternal;
 
 import java.time.Duration;
 import java.util.Objects;
@@ -111,7 +110,7 @@ public final class Workflow {
     }
 
     public static <E> Promise<E> newFailedPromise(Exception failure) {
-        return WorkflowInternal.newFailedPromise(CheckedExceptionWrapper.getWrapped(failure));
+        return WorkflowInternal.newFailedPromise(failure);
     }
 
     /**
@@ -149,7 +148,7 @@ public final class Workflow {
      * @return result of the function or the last failure.
      */
     public static <R> R retry(RetryOptions options, Functions.Func<R> fn) {
-        return WorkflowRetryerInternal.validateOptionsAndRetry(options, fn);
+        return WorkflowInternal.retry(options, fn);
     }
 
     /**
@@ -193,7 +192,7 @@ public final class Workflow {
      * The reason for such design is that returning originally thrown exception from a remote call
      * (which child workflow and activity invocations are ) would not allow adding context information about
      * a failure, like activity and child workflow id. So stubs always throw a subclass of
-     * {@link com.uber.cadence.internal.ActivityException} from calls to an activity and subclass of
+     * {@link ActivityException} from calls to an activity and subclass of
      * {@link com.uber.cadence.workflow.ChildWorkflowException} from calls to a child workflow.
      * The original exception is attached as a cause to these wrapper exceptions. So as exceptions are always wrapped
      * adding checked ones to method signature causes more pain than benefit.
