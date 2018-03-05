@@ -27,7 +27,6 @@ import com.uber.cadence.internal.replay.ReplayWorkflow;
 import com.uber.cadence.internal.worker.WorkflowExecutionException;
 
 import java.util.concurrent.ExecutorService;
-import java.util.function.Function;
 
 /**
  * SyncWorkflow supports workflows that use synchronous blocking code.

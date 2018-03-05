@@ -391,11 +391,11 @@ public class WorkflowExecutionUtils {
         getHistoryRequest.setExecution(workflowExecution);
         getHistoryRequest.setNextPageToken(nextPageToken);
 
-        GetWorkflowExecutionHistoryResponse history = null;
+        GetWorkflowExecutionHistoryResponse history;
         try {
             history = service.GetWorkflowExecutionHistory(getHistoryRequest);
         } catch (TException e) {
-            throw new RuntimeException(e);
+            throw new Error(e);
         }
         if (history == null) {
             throw new IllegalArgumentException("unknown workflow execution: " + workflowExecution);

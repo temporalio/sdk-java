@@ -31,5 +31,5 @@ public interface DecisionTaskWithHistoryIterator {
 
     Iterator<HistoryEvent> getHistory();
 
-    WorkflowExecutionStartedEventAttributes getWorkflowExecutionStartedEventAttributes();
+    WorkflowExecutionStartedEventAttributes getStartedEvent();
 }

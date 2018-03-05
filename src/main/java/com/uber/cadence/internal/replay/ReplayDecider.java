@@ -55,8 +55,6 @@ class ReplayDecider {
 
     private boolean cancelRequested;
 
-    private boolean unhandledDecision;
-
     private boolean completed;
 
     private WorkflowExecutionException failure;
@@ -216,7 +214,7 @@ class ReplayDecider {
     }
 
     private void completeWorkflow() {
-        if (completed && !unhandledDecision) {
+        if (completed) {
             if (failure != null) {
                 decisionsHelper.failWorkflowExecution(failure);
             } else if (cancelRequested) {
@@ -300,6 +298,12 @@ class ReplayDecider {
             // Buffer events until the next DecisionTaskStarted and then process them
             // setting current time to the time of DecisionTaskStarted event
             HistoryHelper.EventsIterator eventsIterator = historyHelper.getEvents();
+            // Processes history in batches. One batch per decision. The idea is to push all events to a workflow
+            // before running event loop. This way it can make decisions based on the complete information
+            // instead of a partial one. For example if workflow waits on two activities to proceed and takes
+            // different action if one of them is not ready it would behave differently if both activities
+            // are completed before the event loop or if the event loop runs after every activity event.
+            // Looks ahead to the DecisionTaskStarted event to get current time before calling eventLoop.
             do {
                 List<HistoryEvent> decisionCompletionToStartEvents = new ArrayList<>();
                 while (eventsIterator.hasNext()) {
@@ -310,8 +314,8 @@ class ReplayDecider {
                     } else if (eventType == EventType.DecisionTaskStarted || !eventsIterator.hasNext()) {
                         // Above check for the end of history is to support queries that get histories
                         // without DecisionTaskStarted being the last event.
-                        decisionsHelper.handleDecisionTaskStartedEvent();
 
+                        decisionsHelper.handleDecisionTaskStartedEvent();
                         if (!eventsIterator.isNextDecisionFailed()) {
                             // Cadence timestamp is in nanoseconds
                             long replayCurrentTimeMilliseconds = event.getTimestamp() / MILLION;
@@ -335,24 +339,6 @@ class ReplayDecider {
                 completeWorkflow();
             }
             while (eventsIterator.hasNext());
-            if (unhandledDecision) {
-                unhandledDecision = false;
-                completeWorkflow();
-            }
-            //TODO (Cadence): Handle Cadence exception gracefully.
-//        catch (AmazonServiceException e) {
-//            // We don't want to fail workflow on service exceptions like 500 or throttling
-//            // Throwing from here drops decision task which is OK as it is rescheduled after its StartToClose timeout.
-//            if (e.getErrorType() == ErrorType.Client && !"ThrottlingException".equals(e.getErrorCode())) {
-//                if (log.isErrorEnabled()) {
-//                    log.error("Failing workflow " + workflowContext.__getWorkflowExecution(), e);
-//                }
-//                decisionsHelper.failWorkflowDueToUnexpectedError(e);
-//            }
-//            else {
-//                throw e;
-//            }
-//        }
         } finally {
             if (query != null) {
                 query.apply();

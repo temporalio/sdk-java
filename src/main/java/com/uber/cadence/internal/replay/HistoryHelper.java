@@ -43,7 +43,7 @@ class HistoryHelper {
         private WorkflowExecutionStartedEventAttributes workflowExecutionStartedEventAttributes;
 
         public EventsIterator(DecisionTaskWithHistoryIterator decisionTaskWithHistoryIterator) {
-            this.workflowExecutionStartedEventAttributes = decisionTaskWithHistoryIterator.getWorkflowExecutionStartedEventAttributes();
+            this.workflowExecutionStartedEventAttributes = decisionTaskWithHistoryIterator.getStartedEvent();
             this.decisionTaskWithHistoryIterator = decisionTaskWithHistoryIterator;
             this.events = decisionTaskWithHistoryIterator.getHistory();
         }

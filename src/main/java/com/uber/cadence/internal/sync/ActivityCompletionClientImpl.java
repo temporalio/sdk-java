@@ -21,7 +21,7 @@ import com.uber.cadence.client.ActivityCompletionClient;
 import com.uber.cadence.client.ActivityCompletionException;
 import com.uber.cadence.internal.external.ManualActivityCompletionClientFactory;
 
-public class ActivityCompletionClientImpl implements ActivityCompletionClient {
+class ActivityCompletionClientImpl implements ActivityCompletionClient {
 
     private final ManualActivityCompletionClientFactory factory;
 

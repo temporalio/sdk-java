@@ -26,8 +26,6 @@ import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
 
 import java.time.Duration;
 import java.util.Objects;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 

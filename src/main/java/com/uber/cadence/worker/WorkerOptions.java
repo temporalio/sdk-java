@@ -21,7 +21,6 @@ import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.converter.JsonDataConverter;
 import com.uber.cadence.internal.worker.PollerOptions;
 
-import javax.management.JMX;
 import java.lang.management.ManagementFactory;
 
 public final class WorkerOptions {
