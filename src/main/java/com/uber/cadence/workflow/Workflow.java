@@ -93,7 +93,7 @@ public final class Workflow {
      * promise is failed with {@link java.util.concurrent.CancellationException} if enclosing scope is cancelled.
      */
     public static Promise<Void> newTimer(Duration delay) {
-        Objects.nonNull(delay);
+        Objects.requireNonNull(delay);
         return WorkflowInternal.newTimer(delay);
     }
 

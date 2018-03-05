@@ -52,6 +52,24 @@ public final class RetryOptions {
                 .validateAndBuild();
     }
 
+    /**
+     * The parameter options takes precedence.
+     */
+    public RetryOptions merge(RetryOptions o) {
+        if (o == null) {
+            return this;
+        }
+        return new RetryOptions.Builder()
+                .setInitialInterval(merge(getInitialInterval(), o.getInitialInterval(), Duration.class))
+                .setExpiration(merge(getExpiration(), o.getExpiration(), Duration.class))
+                .setMaximumInterval(merge(getMaximumInterval(), o.getMaximumInterval(), Duration.class))
+                .setBackoffCoefficient(merge(getBackoffCoefficient(), o.getBackoffCoefficient(), double.class))
+                .setMaximumAttempts(merge(getMaximumAttempts(), o.getMaximumAttempts(), int.class))
+                .setMinimumAttempts(merge(getMinimumAttempts(), o.getMinimumAttempts(), int.class))
+                .setDoNotRetry(merge(getDoNotRetry(), o.getDoNotRetry()))
+                .validateAndBuild();
+    }
+
     public final static class Builder {
 
         private Duration initialInterval;
@@ -353,5 +371,19 @@ public final class RetryOptions {
             return o.toArray(result);
         }
         return a.length == 0 ? null : a;
+    }
+
+    private Class<? extends Throwable>[]  merge(List<Class<? extends Throwable>> o1, List<Class<? extends Throwable>> o2) {
+        if (o2 != null) {
+            @SuppressWarnings("unchecked")
+            Class<? extends Throwable>[] result = new Class[o2.size()];
+            return o2.toArray(result);
+        }
+        if (o1.size() > 0) {
+            @SuppressWarnings("unchecked")
+            Class<? extends Throwable>[] result = new Class[o1.size()];
+            return o1.toArray(result);
+        }
+        return null;
     }
 }

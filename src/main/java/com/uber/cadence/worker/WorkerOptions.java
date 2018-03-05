@@ -16,20 +16,32 @@
  */
 package com.uber.cadence.worker;
 
+import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.converter.JsonDataConverter;
+import com.uber.cadence.internal.worker.PollerOptions;
+
+import javax.management.JMX;
+import java.lang.management.ManagementFactory;
 
 public final class WorkerOptions {
 
     public final static class Builder {
 
-        boolean disableWorkflowWorker;
-        boolean disableActivityWorker;
-        double workerActivitiesPerSecond;
-        String identity;
-        DataConverter dataConverter = JsonDataConverter.getInstance();
-        int maxConcurrentActivityExecutionSize;
-        int maxWorkflowThreads;
+        private boolean disableWorkflowWorker;
+        private boolean disableActivityWorker;
+        private double workerActivitiesPerSecond;
+        private String identity;
+        private DataConverter dataConverter = JsonDataConverter.getInstance();
+        private int maxConcurrentActivityExecutionSize = 100;
+        private int maxConcurrentWorklfowExecutionSize = 50;
+        private int maxWorkflowThreads = 200;
+        private PollerOptions activityPollerOptions;
+        private PollerOptions workflowPollerOptions;
+        private RetryOptions reportActivityCompletionRetryOptions;
+        private RetryOptions reportActivityFailureRetryOptions;
+        private RetryOptions reportWorkflowCompletionRetryOptions;
+        private RetryOptions reportWorkflowFailureRetryOptions;
 
         /**
          * When set to true doesn't poll on workflow task list even if there are registered workflows with a worker.
@@ -93,16 +105,59 @@ public final class WorkerOptions {
         }
 
         /**
-         * Maximum size of a thread pool used to execute workflows.
+         * Maximum number of parallely executed decision tasks.
+         */
+        public Builder setMaxConcurrentWorklfowExecutionSize(int maxConcurrentWorklfowExecutionSize) {
+            this.maxConcurrentWorklfowExecutionSize = maxConcurrentWorklfowExecutionSize;
+            return this;
+        }
+
+        /**
+         * Maximum size of a thread pool used by workflow threads.
          */
         public Builder setMaxWorkflowThreads(int maxWorkflowThreads) {
             this.maxWorkflowThreads = maxWorkflowThreads;
             return this;
         }
 
+        public Builder setActivityPollerOptions(PollerOptions activityPollerOptions) {
+            this.activityPollerOptions = activityPollerOptions;
+            return this;
+        }
+
+        public Builder setWorkflowPollerOptions(PollerOptions workflowPollerOptions) {
+            this.workflowPollerOptions = workflowPollerOptions;
+            return this;
+        }
+
+        public Builder setReportActivityCompletionRetryOptions(RetryOptions reportActivityCompletionRetryOptions) {
+            this.reportActivityCompletionRetryOptions = reportActivityCompletionRetryOptions;
+            return this;
+        }
+
+        public Builder setReportActivityFailureRetryOptions(RetryOptions reportActivityFailureRetryOptions) {
+            this.reportActivityFailureRetryOptions = reportActivityFailureRetryOptions;
+            return this;
+        }
+
+        public Builder setReportWorkflowCompletionRetryOptions(RetryOptions reportWorkflowCompletionRetryOptions) {
+            this.reportWorkflowCompletionRetryOptions = reportWorkflowCompletionRetryOptions;
+            return this;
+        }
+
+        public Builder setReportWorkflowFailureRetryOptions(RetryOptions reportWorkflowFailureRetryOptions) {
+            this.reportWorkflowFailureRetryOptions = reportWorkflowFailureRetryOptions;
+            return this;
+        }
+
         public WorkerOptions build() {
+            if (identity == null) {
+                identity = ManagementFactory.getRuntimeMXBean().getName();
+            }
             return new WorkerOptions(disableWorkflowWorker, disableActivityWorker, workerActivitiesPerSecond, identity,
-                    dataConverter, maxConcurrentActivityExecutionSize, maxWorkflowThreads);
+                    dataConverter, maxConcurrentActivityExecutionSize, maxConcurrentWorklfowExecutionSize, maxWorkflowThreads, activityPollerOptions,
+                    workflowPollerOptions, reportActivityCompletionRetryOptions, reportActivityFailureRetryOptions,
+                    reportWorkflowCompletionRetryOptions, reportWorkflowFailureRetryOptions);
         }
     }
 
@@ -112,17 +167,42 @@ public final class WorkerOptions {
     private final String identity;
     private final DataConverter dataConverter;
     private final int maxConcurrentActivityExecutionSize;
+    private final int maxConcurrentWorklfowExecutionSize;
     private final int maxWorkflowThreads;
+    private final PollerOptions activityPollerOptions;
+    private final PollerOptions workflowPollerOptions;
+    private final RetryOptions reportActivityCompletionRetryOptions;
+    private final RetryOptions reportActivityFailureRetryOptions;
+    private final RetryOptions reportWorkflowCompletionRetryOptions;
+    private final RetryOptions reportWorkflowFailureRetryOptions;
 
-    private WorkerOptions(boolean disableWorkflowWorker, boolean disableActivityWorker, double workerActivitiesPerSecond,
-                          String identity, DataConverter dataConverter, int maxConcurrentActivityExecutionSize, int maxWorkflowThreads) {
+    private WorkerOptions(boolean disableWorkflowWorker,
+                          boolean disableActivityWorker,
+                          double workerActivitiesPerSecond,
+                          String identity,
+                          DataConverter dataConverter,
+                          int maxConcurrentActivityExecutionSize,
+                          int maxConcurrentWorklfowExecutionSize, int maxWorkflowThreads,
+                          PollerOptions activityPollerOptions,
+                          PollerOptions workflowPollerOptions,
+                          RetryOptions reportActivityCompletionRetryOptions,
+                          RetryOptions reportActivityFailureRetryOptions,
+                          RetryOptions reportWorkflowCompletionRetryOptions,
+                          RetryOptions reportWorkflowFailureRetryOptions) {
         this.disableWorkflowWorker = disableWorkflowWorker;
         this.disableActivityWorker = disableActivityWorker;
         this.workerActivitiesPerSecond = workerActivitiesPerSecond;
         this.identity = identity;
         this.dataConverter = dataConverter;
         this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
+        this.maxConcurrentWorklfowExecutionSize = maxConcurrentWorklfowExecutionSize;
         this.maxWorkflowThreads = maxWorkflowThreads;
+        this.activityPollerOptions = activityPollerOptions;
+        this.workflowPollerOptions = workflowPollerOptions;
+        this.reportActivityCompletionRetryOptions = reportActivityCompletionRetryOptions;
+        this.reportActivityFailureRetryOptions = reportActivityFailureRetryOptions;
+        this.reportWorkflowCompletionRetryOptions = reportWorkflowCompletionRetryOptions;
+        this.reportWorkflowFailureRetryOptions = reportWorkflowFailureRetryOptions;
     }
 
     public boolean isDisableWorkflowWorker() {
@@ -149,8 +229,36 @@ public final class WorkerOptions {
         return maxConcurrentActivityExecutionSize;
     }
 
+    public int getMaxConcurrentWorklfowExecutionSize() {
+        return maxConcurrentWorklfowExecutionSize;
+    }
+
     public int getMaxWorkflowThreads() {
         return maxWorkflowThreads;
+    }
+
+    public PollerOptions getActivityPollerOptions() {
+        return activityPollerOptions;
+    }
+
+    public PollerOptions getWorkflowPollerOptions() {
+        return workflowPollerOptions;
+    }
+
+    public RetryOptions getReportActivityCompletionRetryOptions() {
+        return reportActivityCompletionRetryOptions;
+    }
+
+    public RetryOptions getReportActivityFailureRetryOptions() {
+        return reportActivityFailureRetryOptions;
+    }
+
+    public RetryOptions getReportWorkflowCompletionRetryOptions() {
+        return reportWorkflowCompletionRetryOptions;
+    }
+
+    public RetryOptions getReportWorkflowFailureRetryOptions() {
+        return reportWorkflowFailureRetryOptions;
     }
 
     @Override
@@ -163,6 +271,12 @@ public final class WorkerOptions {
                 ", dataConverter=" + dataConverter +
                 ", maxConcurrentActivityExecutionSize=" + maxConcurrentActivityExecutionSize +
                 ", maxWorkflowThreads=" + maxWorkflowThreads +
+                ", activityPollerOptions=" + activityPollerOptions +
+                ", workflowPollerOptions=" + workflowPollerOptions +
+                ", reportActivityCompletionRetryOptions=" + reportActivityCompletionRetryOptions +
+                ", reportActivityFailureRetryOptions=" + reportActivityFailureRetryOptions +
+                ", reportWorkflowCompletionRetryOptions=" + reportWorkflowCompletionRetryOptions +
+                ", reportWorkflowFailureRetryOptions=" + reportWorkflowFailureRetryOptions +
                 '}';
     }
 }

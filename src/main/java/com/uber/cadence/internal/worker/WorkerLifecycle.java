@@ -22,6 +22,8 @@ interface WorkerLifecycle {
 
     void start();
 
+    boolean isRunning();
+
     void shutdown();
 
     void shutdownNow();

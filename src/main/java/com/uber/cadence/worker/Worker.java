@@ -21,14 +21,20 @@ import com.uber.cadence.WorkflowService;
 import com.uber.cadence.client.WorkflowClient;
 import com.uber.cadence.internal.sync.SyncActivityWorker;
 import com.uber.cadence.internal.sync.SyncWorkflowWorker;
+import com.uber.cadence.internal.worker.SingleWorkerOptions;
 import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
 
 import java.time.Duration;
+import java.util.Objects;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * Hosts activity and workflow implementations.
+ * Uses long poll to receive activity and decision tasks and processes them in a correspondent thread pool.
+ */
 public final class Worker {
 
     private final AtomicBoolean started = new AtomicBoolean();
@@ -85,44 +91,47 @@ public final class Worker {
      * @param options  Options (like {@link com.uber.cadence.converter.DataConverter}er override) for configuring worker.
      */
     public Worker(WorkflowService.Iface service, String domain, String taskList, WorkerOptions options) {
-        if (service == null) {
-            throw new IllegalArgumentException("null service");
-        }
-        if (domain == null) {
-            throw new IllegalArgumentException("null domain");
-        }
-        if (taskList == null) {
-            throw new IllegalArgumentException("null taskList");
-        }
+        Objects.requireNonNull(service, "service");
+        Objects.requireNonNull(domain, "domain");
+        Objects.requireNonNull(taskList, "taskList");
         if (options == null) {
             options = new WorkerOptions.Builder().build();
         }
         this.options = options;
+        SingleWorkerOptions activityOptions = toActivityOptions(options);
         if (!options.isDisableActivityWorker()) {
-            activityWorker = new SyncActivityWorker(service, domain, taskList);
-            activityWorker.setMaximumPollRatePerSecond(options.getWorkerActivitiesPerSecond());
-            if (options.getIdentity() != null) {
-                activityWorker.setIdentity(options.getIdentity());
-            }
-            activityWorker.setDataConverter(options.getDataConverter());
-            if (options.getMaxConcurrentActivityExecutionSize() > 0) {
-                activityWorker.setTaskExecutorThreadPoolSize(options.getMaxConcurrentActivityExecutionSize());
-            }
+            activityWorker = new SyncActivityWorker(service, domain, taskList, activityOptions);
         } else {
             activityWorker = null;
         }
+        SingleWorkerOptions workflowOptions = toWorkflowOptions(options);
         if (!options.isDisableWorkflowWorker()) {
-            workflowWorker = new SyncWorkflowWorker(service, domain, taskList, options.getDataConverter());
-            if (options.getIdentity() != null) {
-                workflowWorker.setIdentity(options.getIdentity());
-            }
-            if (options.getMaxWorkflowThreads() > 0) {
-                workflowWorker.setWorkflowThreadPool(new ThreadPoolExecutor(1, options.getMaxWorkflowThreads(),
-                        10, TimeUnit.SECONDS, new SynchronousQueue<>()));
-            }
+            workflowWorker = new SyncWorkflowWorker(service, domain, taskList, workflowOptions);
         } else {
             workflowWorker = null;
         }
+    }
+
+    private SingleWorkerOptions toActivityOptions(WorkerOptions options) {
+        return new SingleWorkerOptions.Builder()
+                .setDataConverter(options.getDataConverter())
+                .setIdentity(options.getIdentity())
+                .setPollerOptions(options.getActivityPollerOptions())
+                .setReportCompletionRetryOptions(options.getReportActivityCompletionRetryOptions())
+                .setReportFailureRetryOptions(options.getReportActivityFailureRetryOptions())
+                .setTaskExecutorThreadPoolSize(options.getMaxConcurrentActivityExecutionSize())
+                .build();
+    }
+
+    private SingleWorkerOptions toWorkflowOptions(WorkerOptions options) {
+        return new SingleWorkerOptions.Builder()
+                .setDataConverter(options.getDataConverter())
+                .setIdentity(options.getIdentity())
+                .setPollerOptions(options.getWorkflowPollerOptions())
+                .setReportCompletionRetryOptions(options.getReportWorkflowCompletionRetryOptions())
+                .setReportFailureRetryOptions(options.getReportWorkflowFailureRetryOptions())
+                .setTaskExecutorThreadPoolSize(options.getMaxConcurrentWorklfowExecutionSize())
+                .build();
     }
 
     /**
@@ -137,17 +146,9 @@ public final class Worker {
      * The reason for registration accepting workflow class, but not the workflow instance is
      * that workflows are stateful and a new instance is created for each workflow execution.
      * </p>
-     *
-     * @param workflowImplementationClasses
      */
     public void registerWorkflowImplementationTypes(Class<?>... workflowImplementationClasses) {
-        if (workflowWorker == null) {
-            throw new IllegalStateException("disableWorkflowWorker is set in worker options");
-        }
-        checkStarted();
-        for (Class<?> type : workflowImplementationClasses) {
-            workflowWorker.addWorkflowImplementationType(type);
-        }
+        workflowWorker.setWorkflowImplementationTypes(workflowImplementationClasses);
     }
 
     /**
@@ -165,9 +166,7 @@ public final class Worker {
             throw new IllegalStateException("disableActivityWorker is set in worker options");
         }
         checkStarted();
-        for (Object implementation : activityImplementations) {
-            activityWorker.addActivityImplementation(implementation);
-        }
+        activityWorker.setActivitiesImplementation(activityImplementations);
     }
 
     private void checkStarted() {
@@ -229,7 +228,11 @@ public final class Worker {
      * @param <R>        type of the query result
      * @return query result
      */
-    public <R> R queryWorkflowExecution(WorkflowExecution execution, String queryType, Class<R> returnType, Object... args) throws Exception {
+    public <R> R queryWorkflowExecution(WorkflowExecution execution, String queryType, Class<R> returnType,
+                                        Object... args) {
+        if (workflowWorker == null) {
+            throw new IllegalStateException("disableWorkflowWorker is set in worker options");
+        }
         return workflowWorker.queryWorkflowExecution(execution, queryType, returnType, args);
     }
 }

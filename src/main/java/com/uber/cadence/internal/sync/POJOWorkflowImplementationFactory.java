@@ -21,6 +21,8 @@ import com.uber.cadence.WorkflowType;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.converter.DataConverterException;
 import com.uber.cadence.internal.common.InternalUtils;
+import com.uber.cadence.internal.replay.ReplayWorkflow;
+import com.uber.cadence.internal.replay.ReplayWorkflowFactory;
 import com.uber.cadence.internal.worker.WorkflowExecutionException;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.QueryMethod;
@@ -37,9 +39,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
-import java.util.function.Function;
+import java.util.concurrent.ExecutorService;
 
-final class POJOWorkflowImplementationFactory implements Function<WorkflowType, SyncWorkflowDefinition> {
+final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
     private static final Log log = LogFactory.getLog(POJOWorkflowImplementationFactory.class);
     private static final byte[] EMPTY_BLOB = {};
@@ -49,21 +51,19 @@ final class POJOWorkflowImplementationFactory implements Function<WorkflowType, 
     /**
      * Key: workflow type name, Value: function that creates SyncWorkflowDefinition instance.
      */
-    private final Map<String, Functions.Func<SyncWorkflowDefinition>> factories = Collections.synchronizedMap(new HashMap<>());
+    private final Map<String, Functions.Func<SyncWorkflowDefinition>> workflowDefinitions = Collections.synchronizedMap(new HashMap<>());
+    private final ExecutorService threadPool;
 
-    public POJOWorkflowImplementationFactory(DataConverter dataConverter) {
+    public POJOWorkflowImplementationFactory(DataConverter dataConverter, ExecutorService threadPool) {
         this.dataConverter = dataConverter;
+        this.threadPool = threadPool;
     }
 
     public void setWorkflowImplementationTypes(Class<?>[] workflowImplementationTypes) {
-        factories.clear();
+        workflowDefinitions.clear();
         for (Class<?> type : workflowImplementationTypes) {
             addWorkflowImplementationType(type);
         }
-    }
-
-    public int getWorkflowImplementationTypeCount() {
-        return factories.size();
     }
 
     public void addWorkflowImplementationType(Class<?> workflowImplementationClass) {
@@ -91,10 +91,10 @@ final class POJOWorkflowImplementationFactory implements Function<WorkflowType, 
                     if (workflowName.isEmpty()) {
                         workflowName = InternalUtils.getSimpleName(method);
                     }
-                    if (factories.containsKey(workflowName)) {
+                    if (workflowDefinitions.containsKey(workflowName)) {
                         throw new IllegalStateException(workflowName + " workflow type is already registered with the worker");
                     }
-                    factories.put(workflowName, factory);
+                    workflowDefinitions.put(workflowName, factory);
                     hasWorkflowMethod = true;
                 }
                 if (signalMethod != null) {
@@ -123,21 +123,31 @@ final class POJOWorkflowImplementationFactory implements Function<WorkflowType, 
         }
     }
 
-    @Override
-    public SyncWorkflowDefinition apply(WorkflowType workflowType) {
-        Functions.Func<SyncWorkflowDefinition> factory = factories.get(workflowType.getName());
+    private SyncWorkflowDefinition getWorkflowDefinition(WorkflowType workflowType) {
+        Functions.Func<SyncWorkflowDefinition> factory = workflowDefinitions.get(workflowType.getName());
         if (factory == null) {
             return null;
         }
         try {
             return factory.apply();
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new Error(e);
         }
     }
 
     public void setDataConverter(DataConverter dataConverter) {
         this.dataConverter = dataConverter;
+    }
+
+    @Override
+    public ReplayWorkflow getWorkflow(WorkflowType workflowType) throws Exception {
+        SyncWorkflowDefinition workflow = getWorkflowDefinition(workflowType);
+        return new SyncWorkflow(workflow, dataConverter, threadPool);
+    }
+
+    @Override
+    public boolean isAnyTypeSupported() {
+        return !workflowDefinitions.isEmpty();
     }
 
     private class POJOWorkflowImplementation implements SyncWorkflowDefinition {

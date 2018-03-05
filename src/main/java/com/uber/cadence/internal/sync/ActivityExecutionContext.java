@@ -19,7 +19,6 @@ package com.uber.cadence.internal.sync;
 import com.uber.cadence.WorkflowService.Iface;
 import com.uber.cadence.activity.ActivityTask;
 import com.uber.cadence.client.ActivityCompletionException;
-import com.uber.cadence.internal.worker.ActivityImplementation;
 
 import java.util.concurrent.CancellationException;
 
@@ -27,7 +26,6 @@ import java.util.concurrent.CancellationException;
  * Context object passed to an activity implementation.
  *
  * @author fateev
- * @see ActivityImplementation
  */
 public interface ActivityExecutionContext {
 

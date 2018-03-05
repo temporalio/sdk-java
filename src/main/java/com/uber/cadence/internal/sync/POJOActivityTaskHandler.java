@@ -16,9 +16,11 @@
  */
 package com.uber.cadence.internal.sync;
 
+import com.google.common.base.Joiner;
 import com.google.common.reflect.TypeToken;
-import com.uber.cadence.ActivityType;
-import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.PollForActivityTaskResponse;
+import com.uber.cadence.RespondActivityTaskCompletedRequest;
+import com.uber.cadence.RespondActivityTaskFailedRequest;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.activity.ActivityMethod;
 import com.uber.cadence.activity.ActivityTask;
@@ -27,10 +29,7 @@ import com.uber.cadence.activity.MethodRetry;
 import com.uber.cadence.client.ActivityCancelledException;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.common.InternalUtils;
-import com.uber.cadence.internal.worker.ActivityExecutionException;
-import com.uber.cadence.internal.worker.ActivityImplementation;
-import com.uber.cadence.internal.worker.ActivityImplementationFactory;
-import com.uber.cadence.internal.worker.ActivityTypeExecutionOptions;
+import com.uber.cadence.internal.worker.ActivityTaskHandler;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -39,13 +38,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
 
-class POJOActivityImplementationFactory implements ActivityImplementationFactory {
+class POJOActivityTaskHandler implements ActivityTaskHandler {
 
-    private static final byte[] EMPTY_BLOB = {};
     private DataConverter dataConverter;
-    private final Map<String, ActivityImplementation> activities = Collections.synchronizedMap(new HashMap<>());
+    private final Map<String, POJOActivityImplementation> activities = Collections.synchronizedMap(new HashMap<>());
 
-    POJOActivityImplementationFactory(DataConverter dataConverter) {
+    POJOActivityTaskHandler(DataConverter dataConverter) {
         this.dataConverter = dataConverter;
     }
 
@@ -75,7 +73,7 @@ class POJOActivityImplementationFactory implements ActivityImplementationFactory
         }
         for (TypeToken<?> i : interfaces) {
             for (Method method : i.getRawType().getMethods()) {
-                ActivityImplementation implementation = new POJOActivityImplementation(method, activity);
+                POJOActivityImplementation implementation = new POJOActivityImplementation(method, activity);
                 ActivityMethod annotation = method.getAnnotation(ActivityMethod.class);
                 String activityType;
                 if (annotation != null && !annotation.name().isEmpty()) {
@@ -91,32 +89,20 @@ class POJOActivityImplementationFactory implements ActivityImplementationFactory
         }
     }
 
-    private ActivityExecutionException mapToActivityFailure(ActivityTask task, Throwable e) {
+    private ActivityTaskHandler.Result mapToActivityFailure(ActivityTask task, Throwable e) {
         if (e instanceof ActivityCancelledException) {
             throw new CancellationException(e.getMessage());
         }
+        RespondActivityTaskFailedRequest result = new RespondActivityTaskFailedRequest();
         e = CheckedExceptionWrapper.unwrap(e);
-        WorkflowExecution workflowExecution = task.getWorkflowExecution();
-        String message = "\"" + task.getActivityType().getName() + "\" activity execution failed with "
-                + "ActivityID=\"" + task.getActivityId()
-                + "\", WorkflowID=\"" + workflowExecution.getWorkflowId()
-                + "\" and RunID=\"" + workflowExecution.getRunId() + "\"";
-        return new ActivityExecutionException(message, e.getClass().getName(), dataConverter.toData(e), e);
-    }
-
-    @Override
-    public ActivityImplementation getActivityImplementation(ActivityType activityType) {
-        return activities.get(activityType.getName());
+        result.setReason(e.getClass().getName());
+        result.setDetails(dataConverter.toData(e));
+        return new ActivityTaskHandler.Result(null, result, null, null);
     }
 
     @Override
     public boolean isAnyTypeSupported() {
         return !activities.isEmpty();
-    }
-
-    @Override
-    public ActivityExecutionException serializeUnexpectedFailure(ActivityTask task, Throwable e) {
-        return mapToActivityFailure(task, e);
     }
 
     public void setActivitiesImplementation(Object[] activitiesImplementation) {
@@ -126,7 +112,20 @@ class POJOActivityImplementationFactory implements ActivityImplementationFactory
         }
     }
 
-    private class POJOActivityImplementation implements ActivityImplementation {
+    @Override
+    public Result handle(WorkflowService.Iface service, String domain, PollForActivityTaskResponse pollResponse) {
+        String activityType = pollResponse.getActivityType().getName();
+        ActivityTaskImpl activityTask = new ActivityTaskImpl(pollResponse);
+        POJOActivityImplementation activity = activities.get(activityType);
+        if (activity == null) {
+            String knownTypes = Joiner.on(", ").join(activities.keySet());
+            return mapToActivityFailure(activityTask, new IllegalArgumentException("Activity Type \""
+                    + activityType + "\" is not registered with a worker. Known types are: " + knownTypes));
+        }
+        return activity.execute(service, domain, activityTask);
+    }
+
+    private class POJOActivityImplementation {
         private final Method method;
         private final Object activity;
         private boolean doNotCompleteOnReturn;
@@ -155,34 +154,27 @@ class POJOActivityImplementationFactory implements ActivityImplementationFactory
             this.activity = activity;
         }
 
-        /**
-         * TODO: Annotation that contains the execution options.
-         */
-        @Override
-        public ActivityTypeExecutionOptions getExecutionOptions() {
-            ActivityTypeExecutionOptions result = new ActivityTypeExecutionOptions();
-            result.setDoNotCompleteOnReturn(doNotCompleteOnReturn);
-            return result;
-        }
-
-        @Override
-        public byte[] execute(WorkflowService.Iface service, String domain, ActivityTask task) {
+        public ActivityTaskHandler.Result execute(WorkflowService.Iface service, String domain, ActivityTask task) {
             ActivityExecutionContext context = new ActivityExecutionContextImpl(service, domain, task, dataConverter);
             byte[] input = task.getInput();
             Object[] args = dataConverter.fromDataArray(input, method.getParameterTypes());
             CurrentActivityExecutionContext.set(context);
             try {
                 Object result = method.invoke(activity, args);
-                if (doNotCompleteOnReturn || method.getReturnType() == Void.TYPE) {
-                    return EMPTY_BLOB;
+                RespondActivityTaskCompletedRequest request = new RespondActivityTaskCompletedRequest();
+                if (doNotCompleteOnReturn) {
+                    return new ActivityTaskHandler.Result(null, null, null, null);
                 }
-                return dataConverter.toData(result);
+                if (method.getReturnType() != Void.TYPE) {
+                    request.setResult(dataConverter.toData(result));
+                }
+                return new ActivityTaskHandler.Result(request, null, null, null);
             } catch (RuntimeException e) {
-                throw mapToActivityFailure(task, e);
+                return mapToActivityFailure(task, e);
             } catch (InvocationTargetException e) {
-                throw mapToActivityFailure(task, e.getTargetException());
+                return mapToActivityFailure(task, e.getTargetException());
             } catch (IllegalAccessException e) {
-                throw mapToActivityFailure(task, e);
+                return mapToActivityFailure(task, e);
             } finally {
                 CurrentActivityExecutionContext.unset();
             }

@@ -16,18 +16,20 @@
  */
 package com.uber.cadence.internal.common;
 
+import java.time.Duration;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Used to throttle code execution in presence of failures using exponential
  * backoff logic. The formula used to calculate the next sleep interval is:
- * 
+ * <p>
  * <pre>
  * min(pow(backoffCoefficient, failureCount - 1) * initialSleep, maxSleep);
  * </pre>
  * <p>
  * Example usage:
- * 
+ * <p>
  * <pre>
  * BackoffThrottler throttler = new BackoffThrottler(1000, 60000, 2);
  * while(!stopped) {
@@ -42,14 +44,14 @@ import java.util.concurrent.atomic.AtomicLong;
  *     }
  * }
  * </pre>
- * 
+ *
  * @author fateev
  */
 public final class BackoffThrottler {
 
-    private final long initialSleep;
+    private final Duration initialSleep;
 
-    private final long maxSleep;
+    private final Duration maxSleep;
 
     private final double backoffCoefficient;
 
@@ -57,28 +59,29 @@ public final class BackoffThrottler {
 
     /**
      * Construct an instance of the throttler.
-     * 
-     * @param initialSleep
-     *            time to sleep on the first failure
-     * @param maxSleep
-     *            maximum time to sleep independently of number of failures
-     * @param backoffCoefficient
-     *            coefficient used to calculate the next time to sleep.
+     *
+     * @param initialSleep       time to sleep on the first failure
+     * @param maxSleep           maximum time to sleep independently of number of failures
+     * @param backoffCoefficient coefficient used to calculate the next time to sleep.
      */
-    public BackoffThrottler(long initialSleep, long maxSleep, double backoffCoefficient) {
+    public BackoffThrottler(Duration initialSleep, Duration maxSleep, double backoffCoefficient) {
+        Objects.requireNonNull(initialSleep, "initialSleep");
         this.initialSleep = initialSleep;
         this.maxSleep = maxSleep;
         this.backoffCoefficient = backoffCoefficient;
     }
 
     private long calculateSleepTime() {
-        double sleepMillis = (Math.pow(backoffCoefficient, failureCount.get() - 1)) * initialSleep;
-        return Math.min((long) sleepMillis, maxSleep);
+        double sleepMillis = (Math.pow(backoffCoefficient, failureCount.get() - 1)) * initialSleep.toMillis();
+        if (maxSleep != null) {
+            return Math.min((long) sleepMillis, maxSleep.toMillis());
+        }
+        return (long) sleepMillis;
     }
 
     /**
      * Sleep if there were failures since the last success call.
-     * 
+     *
      * @throws InterruptedException
      */
     public void throttle() throws InterruptedException {

@@ -17,137 +17,26 @@
 package com.uber.cadence.internal.sync;
 
 import com.uber.cadence.WorkflowService;
-import com.uber.cadence.converter.DataConverter;
-import com.uber.cadence.converter.JsonDataConverter;
-import com.uber.cadence.internal.worker.GenericActivityWorker;
+import com.uber.cadence.internal.worker.ActivityWorker;
+import com.uber.cadence.internal.worker.SingleWorkerOptions;
 
 import java.util.concurrent.TimeUnit;
 
 /**
- * TODO: Refactor all the old worker code to use Options instead of setters to configure.
+ * Activity worker that supports POJO activity implementations.
  */
 public class SyncActivityWorker {
 
-    private final GenericActivityWorker worker;
-    private final POJOActivityImplementationFactory factory =
-            new POJOActivityImplementationFactory(JsonDataConverter.getInstance());
+    private final ActivityWorker worker;
+    private final POJOActivityTaskHandler taskHandler;
 
-    public SyncActivityWorker(WorkflowService.Iface service, String domain, String taskList) {
-        worker = new GenericActivityWorker(service, domain, taskList);
-        worker.setActivityImplementationFactory(factory);
+    public SyncActivityWorker(WorkflowService.Iface service, String domain, String taskList, SingleWorkerOptions options) {
+        taskHandler = new POJOActivityTaskHandler(options.getDataConverter());
+        worker = new ActivityWorker(service, domain, taskList, options, taskHandler);
     }
 
-    public void addActivityImplementation(Object activity) {
-        factory.addActivityImplementation(activity);
-    }
-
-
-    public void setActivitiesImplementation(Object[] activitiesImplementation) {
-        factory.setActivitiesImplementation(activitiesImplementation);
-    }
-
-    public WorkflowService.Iface getService() {
-        return worker.getService();
-    }
-
-    public void setService(WorkflowService.Iface service) {
-        worker.setService(service);
-    }
-
-    public String getDomain() {
-        return worker.getDomain();
-    }
-
-    public void setDomain(String domain) {
-        worker.setDomain(domain);
-    }
-
-    public String getTaskListToPoll() {
-        return worker.getTaskListToPoll();
-    }
-
-    public void setTaskListToPoll(String taskListToPoll) {
-        worker.setTaskListToPoll(taskListToPoll);
-    }
-
-    public DataConverter getDataConverter() {
-        return factory.getDataConverter();
-    }
-
-    public void setDataConverter(DataConverter dataConverter) {
-        factory.setDataConverter(dataConverter);
-    }
-
-    public double getMaximumPollRatePerSecond() {
-        return worker.getMaximumPollRatePerSecond();
-    }
-
-    public void setMaximumPollRatePerSecond(double maximumPollRatePerSecond) {
-        worker.setMaximumPollRatePerSecond(maximumPollRatePerSecond);
-    }
-
-    public int getMaximumPollRateIntervalMilliseconds() {
-        return worker.getMaximumPollRateIntervalMilliseconds();
-    }
-
-    public void setMaximumPollRateIntervalMilliseconds(int maximumPollRateIntervalMilliseconds) {
-        worker.setMaximumPollRateIntervalMilliseconds(maximumPollRateIntervalMilliseconds);
-    }
-
-    public Thread.UncaughtExceptionHandler getUncaughtExceptionHandler() {
-        return worker.getUncaughtExceptionHandler();
-    }
-
-    public void setUncaughtExceptionHandler(Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
-        worker.setUncaughtExceptionHandler(uncaughtExceptionHandler);
-    }
-
-    public String getIdentity() {
-        return worker.getIdentity();
-    }
-
-    public void setIdentity(String identity) {
-        worker.setIdentity(identity);
-    }
-
-    public long getPollBackoffInitialInterval() {
-        return worker.getPollBackoffInitialInterval();
-    }
-
-    public void setPollBackoffInitialInterval(long backoffInitialInterval) {
-        worker.setPollBackoffInitialInterval(backoffInitialInterval);
-    }
-
-    public long getPollBackoffMaximumInterval() {
-        return worker.getPollBackoffMaximumInterval();
-    }
-
-    public void setPollBackoffMaximumInterval(long backoffMaximumInterval) {
-        worker.setPollBackoffMaximumInterval(backoffMaximumInterval);
-    }
-
-    public double getPollBackoffCoefficient() {
-        return worker.getPollBackoffCoefficient();
-    }
-
-    public void setPollBackoffCoefficient(double backoffCoefficient) {
-        worker.setPollBackoffCoefficient(backoffCoefficient);
-    }
-
-    public int getPollThreadCount() {
-        return worker.getPollThreadCount();
-    }
-
-    public void setPollThreadCount(int threadCount) {
-        worker.setPollThreadCount(threadCount);
-    }
-
-    public int getTaskExecutorThreadPoolSize() {
-        return worker.getTaskExecutorThreadPoolSize();
-    }
-
-    public void setTaskExecutorThreadPoolSize(int taskExecutorThreadPoolSize) {
-        worker.setTaskExecutorThreadPoolSize(taskExecutorThreadPoolSize);
+    public void setActivitiesImplementation(Object... activitiesImplementation) {
+        taskHandler.setActivitiesImplementation(activitiesImplementation);
     }
 
     public void start() {

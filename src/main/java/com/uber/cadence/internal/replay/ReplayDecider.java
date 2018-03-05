@@ -35,6 +35,10 @@ import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * Implements decider that relies on replay of a worklfow code.
+ * An instance of this class is created per decision.
+ */
 class ReplayDecider {
 
     private static final Log log = LogFactory.getLog(ReplayDecider.class);

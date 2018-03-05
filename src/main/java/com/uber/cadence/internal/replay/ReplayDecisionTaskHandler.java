@@ -38,16 +38,39 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
 
     private static final Log log = LogFactory.getLog(ReplayDecisionTaskHandler.class);
 
-    private final ReplayWorkflowFactory asyncWorkflowFactory;
+    private final ReplayWorkflowFactory workflowFactory;
     private final String domain;
 
     public ReplayDecisionTaskHandler(String domain, ReplayWorkflowFactory asyncWorkflowFactory) {
         this.domain = domain;
-        this.asyncWorkflowFactory = asyncWorkflowFactory;
+        this.workflowFactory = asyncWorkflowFactory;
     }
 
     @Override
-    public Object handleDecisionTask(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Exception {
+    public DecisionTaskHandler.Result handleDecisionTask(DecisionTaskWithHistoryIterator decisionTaskIterator) {
+        try {
+            return handleDecisionTaskImpl(decisionTaskIterator);
+        } catch (Throwable e) {
+            PollForDecisionTaskResponse decisionTask = decisionTaskIterator.getDecisionTask();
+            if (log.isErrorEnabled()) {
+                WorkflowExecution execution = decisionTask.getWorkflowExecution();
+                log.error("Workflow task failure. startedEventId=" + decisionTask.getStartedEventId()
+                        + ", WorkflowID=" + execution.getWorkflowId()
+                        + ", RunID=" + execution.getRunId()
+                        + ". If see continuously the workflow might be stuck.", e);
+            }
+            RespondDecisionTaskFailedRequest failedRequest = new RespondDecisionTaskFailedRequest();
+            failedRequest.setTaskToken(decisionTask.getTaskToken());
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            e.printStackTrace(pw);
+            String stackTrace = sw.toString();
+            failedRequest.setDetails(stackTrace.getBytes(StandardCharsets.UTF_8));
+            return new DecisionTaskHandler.Result(null, failedRequest, null, null);
+        }
+    }
+
+    private Result handleDecisionTaskImpl(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Throwable {
         HistoryHelper historyHelper = new HistoryHelper(decisionTaskIterator);
         ReplayDecider decider = createDecider(historyHelper);
         PollForDecisionTaskResponse decisionTask = historyHelper.getDecisionTask();
@@ -66,27 +89,9 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
                 queryCompletedRequest.setErrorMessage(sw.toString());
                 queryCompletedRequest.setCompletedType(QueryTaskCompletedType.FAILED);
             }
-            return queryCompletedRequest;
+            return new DecisionTaskHandler.Result(null, null, queryCompletedRequest, null);
         } else {
-            try {
-                decider.decide();
-            } catch (Throwable e) {
-                if (log.isErrorEnabled()) {
-                    WorkflowExecution execution = decisionTask.getWorkflowExecution();
-                    log.error("Workflow task failure. startedEventId=" + decisionTask.getStartedEventId()
-                            + ", WorkflowID=" + execution.getWorkflowId()
-                            + ", RunID=" + execution.getRunId()
-                            + ". If see continuously the workflow might be stuck.", e);
-                }
-                RespondDecisionTaskFailedRequest failedRequest = new RespondDecisionTaskFailedRequest();
-                failedRequest.setTaskToken(decisionTask.getTaskToken());
-                StringWriter sw = new StringWriter();
-                PrintWriter pw = new PrintWriter(sw);
-                e.printStackTrace(pw);
-                String stackTrace = sw.toString();
-                failedRequest.setDetails(stackTrace.getBytes(StandardCharsets.UTF_8));
-                return failedRequest;
-            }
+            decider.decide();
             DecisionsHelper decisionsHelper = decider.getDecisionsHelper();
             List<Decision> decisions = decisionsHelper.getDecisions();
             byte[] context = decisionsHelper.getWorkflowContextDataToReturn();
@@ -101,28 +106,19 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
             completedRequest.setTaskToken(decisionTask.getTaskToken());
             completedRequest.setDecisions(decisions);
             completedRequest.setExecutionContext(context);
-            return completedRequest;
+            return new DecisionTaskHandler.Result(completedRequest, null, null, null);
         }
     }
 
-//    @Override
-//    public WorkflowDefinition loadWorkflowThroughReplay(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Exception {
-//        // TODO(Cadence): Decide if needed in this form.
-//        throw new UnsupportedOperationException("not impelemented");
-//        HistoryHelper historyHelper = new HistoryHelper(decisionTaskIterator);
-//        ReplayDecider decider = createDecider(historyHelper);
-//        decider.decide();
-//        DecisionsHelper decisionsHelper = decider.getDecisionsHelper();
-//        if (decisionsHelper.isWorkflowFailed()) {
-//            throw new IllegalStateException("Cannot load failed workflow", decisionsHelper.getWorkflowFailureCause());
-//        }
-//        return decider.getWorkflowDefinition();
-//    }
+    @Override
+    public boolean isAnyTypeSupported() {
+        return workflowFactory.isAnyTypeSupported();
+    }
 
     private ReplayDecider createDecider(HistoryHelper historyHelper) throws Exception {
         PollForDecisionTaskResponse decisionTask = historyHelper.getDecisionTask();
         WorkflowType workflowType = decisionTask.getWorkflowType();
         DecisionsHelper decisionsHelper = new DecisionsHelper(decisionTask);
-        return new ReplayDecider(domain, asyncWorkflowFactory.getWorkflow(workflowType), historyHelper, decisionsHelper);
+        return new ReplayDecider(domain, workflowFactory.getWorkflow(workflowType), historyHelper, decisionsHelper);
     }
 }

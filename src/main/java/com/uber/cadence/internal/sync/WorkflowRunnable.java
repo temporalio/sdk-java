@@ -18,20 +18,23 @@ package com.uber.cadence.internal.sync;
 
 import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
 
+import java.util.Objects;
+
 class WorkflowRunnable implements Runnable {
     private final SyncDecisionContext context;
     private final SyncWorkflowDefinition workflow;
     private final WorkflowExecutionStartedEventAttributes attributes;
 
-    private Throwable failure;
-    private boolean cancelRequested;
     private byte[] output;
     private boolean done;
 
-    public WorkflowRunnable(SyncDecisionContext syncDecisionContext,
+    public WorkflowRunnable(SyncDecisionContext context,
                             SyncWorkflowDefinition workflow,
                             WorkflowExecutionStartedEventAttributes attributes) {
-        this.context = syncDecisionContext;
+        Objects.requireNonNull(context);
+        Objects.requireNonNull(workflow);
+        Objects.requireNonNull(attributes);
+        this.context = context;
         this.workflow = workflow;
         this.attributes = attributes;
     }
@@ -47,14 +50,6 @@ class WorkflowRunnable implements Runnable {
 
     public void cancel(String reason) {
 
-    }
-
-    public Throwable getFailure() {
-        return failure;
-    }
-
-    public boolean isCancelRequested() {
-        return cancelRequested;
     }
 
     public boolean isDone() {

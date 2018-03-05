@@ -30,21 +30,20 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
 /**
- * The best inheritance hierarchy :).
- * SyncWorkflow supports workflows that use blocking code.
- * <p>
- * TODO: rename ReplayWorkflow to something more reasonable.
+ * SyncWorkflow supports workflows that use synchronous blocking code.
+ * An instance is created per decision.
  */
 class SyncWorkflow implements ReplayWorkflow {
 
-    private final Function<WorkflowType, SyncWorkflowDefinition> factory;
     private final DataConverter dataConverter;
     private final ExecutorService threadPool;
+    private final SyncWorkflowDefinition workflow;
     private WorkflowRunnable workflowProc;
     private DeterministicRunner runner;
 
-    public SyncWorkflow(Function<WorkflowType, SyncWorkflowDefinition> factory, DataConverter dataConverter, ExecutorService threadPool) {
-        this.factory = factory;
+    public SyncWorkflow(SyncWorkflowDefinition workflow, DataConverter dataConverter,
+                        ExecutorService threadPool) {
+        this.workflow = workflow;
         this.dataConverter = dataConverter;
         this.threadPool = threadPool;
     }
@@ -52,7 +51,6 @@ class SyncWorkflow implements ReplayWorkflow {
     @Override
     public void start(HistoryEvent event, DecisionContext context) {
         WorkflowType workflowType = event.getWorkflowExecutionStartedEventAttributes().getWorkflowType();
-        SyncWorkflowDefinition workflow = factory.apply(workflowType);
         if (workflow == null) {
             throw new IllegalArgumentException("Unknown workflow type: " + workflowType);
         }
@@ -91,16 +89,6 @@ class SyncWorkflow implements ReplayWorkflow {
     @Override
     public void cancel(String reason) {
         runner.cancel(reason);
-    }
-
-    @Override
-    public Throwable getFailure() {
-        return workflowProc.getFailure();
-    }
-
-    @Override
-    public boolean isCancelRequested() {
-        return workflowProc.isCancelRequested();
     }
 
     @Override

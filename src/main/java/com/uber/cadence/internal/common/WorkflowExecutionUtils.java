@@ -20,7 +20,7 @@ import com.uber.cadence.*;
 import com.uber.cadence.WorkflowService.Iface;
 import com.uber.cadence.client.WorkflowTerminatedException;
 import com.uber.cadence.client.WorkflowTimedOutException;
-import com.uber.cadence.internal.worker.ExponentialRetryParameters;
+import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.workflow.Workflow;
 import org.apache.thrift.TException;
 
@@ -28,6 +28,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Iterator;
@@ -43,25 +44,22 @@ import java.util.concurrent.TimeoutException;
  */
 public class WorkflowExecutionUtils {
 
-    private static SynchronousRetrier<TException> getInstanceCloseEventRetryer;
-
-    static {
-        ExponentialRetryParameters retryParameters = new ExponentialRetryParameters();
-        retryParameters.setBackoffCoefficient(2);
-        retryParameters.setInitialInterval(500);
-        // Exceptions to NOT retry.
-        getInstanceCloseEventRetryer = new SynchronousRetrier<>(retryParameters,
-                BadRequestError.class, EntityNotExistsError.class);
-    }
+    private static RetryOptions retryParameters = new RetryOptions.Builder()
+            .setBackoffCoefficient(2)
+            .setInitialInterval(Duration.ofMillis(500))
+            .setMaximumInterval(Duration.ofSeconds(30))
+            .setDoNotRetry(BadRequestError.class, EntityNotExistsError.class)
+            .build();
 
     /**
      * Returns result of a workflow instance execution or throws an exception if workflow did not complete successfully.
+     *
      * @param workflowType is optional.
-     * @throws TimeoutException if workflow didn't complete within specified timeout
-     * @throws CancellationException if workflow was cancelled
+     * @throws TimeoutException                 if workflow didn't complete within specified timeout
+     * @throws CancellationException            if workflow was cancelled
      * @throws WorkflowExecutionFailedException if workflow execution failed
-     * @throws WorkflowTimedOutException if workflow execution exceeded its execution timeout and was forcefully terminated by the Cadence server.
-     * @throws WorkflowTerminatedException if workflow execution was terminated through an external terminate command.
+     * @throws WorkflowTimedOutException        if workflow execution exceeded its execution timeout and was forcefully terminated by the Cadence server.
+     * @throws WorkflowTerminatedException      if workflow execution was terminated through an external terminate command.
      */
     public static byte[] getWorkflowExecutionResult(Iface service, String domain, WorkflowExecution workflowExecution, String workflowType, long timeout, TimeUnit unit)
             throws TimeoutException, CancellationException, WorkflowExecutionFailedException, WorkflowTerminatedException, WorkflowTimedOutException {
@@ -108,7 +106,8 @@ public class WorkflowExecutionUtils {
             r.setHistoryEventFilterType(HistoryEventFilterType.CLOSE_EVENT);
             r.setNextPageToken(pageToken);
             try {
-                response = getInstanceCloseEventRetryer.retryWithResult(() -> service.GetWorkflowExecutionHistory(r));
+                response = SynchronousRetryer.retryWithResult(retryParameters,
+                        () -> service.GetWorkflowExecutionHistory(r));
             } catch (TException e) {
                 // TODO: Refactor to avoid this ugly circular dependency.
                 throw Workflow.throwWrapped(e);

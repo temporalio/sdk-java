@@ -38,10 +38,6 @@ public interface ReplayWorkflow {
 
     void cancel(String reason);
 
-    Throwable getFailure();
-
-    boolean isCancelRequested();
-
     void close();
 
     /**
