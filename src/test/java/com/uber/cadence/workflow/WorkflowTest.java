@@ -38,13 +38,8 @@ import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.converter.JsonDataConverter;
 import com.uber.cadence.internal.sync.DeterministicRunnerTest;
 import com.uber.cadence.worker.Worker;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.apache.log4j.ConsoleAppender;
-import org.apache.log4j.Level;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
-import org.apache.log4j.PatternLayout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -76,25 +71,10 @@ public class WorkflowTest {
     public TestName testName = new TestName();
 
     private static final String domain = "UnitTest";
-    private static final Log log;
+    private static final Logger log = LoggerFactory.getLogger(WorkflowTest.class);
     private static String taskList;
 
     static {
-        LogManager.resetConfiguration();
-
-        final PatternLayout layout = new PatternLayout();
-        layout.setConversionPattern("%-4r %-30c{1} %x: %m%n");
-
-        final ConsoleAppender dst = new ConsoleAppender(layout, ConsoleAppender.SYSTEM_OUT);
-        dst.setThreshold(Level.DEBUG);
-
-        final Logger root = Logger.getRootLogger();
-        root.removeAllAppenders();
-        root.addAppender(dst);
-        root.setLevel(Level.DEBUG);
-
-        Logger.getLogger("io.netty").setLevel(Level.INFO);
-        log = LogFactory.getLog(WorkflowTest.class);
 
     }
 

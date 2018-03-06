@@ -30,8 +30,8 @@ import com.uber.cadence.workflow.SignalMethod;
 import com.uber.cadence.workflow.Workflow;
 import com.uber.cadence.workflow.WorkflowInfo;
 import com.uber.cadence.workflow.WorkflowMethod;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -43,7 +43,7 @@ import java.util.concurrent.ExecutorService;
 
 final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
-    private static final Log log = LogFactory.getLog(POJOWorkflowImplementationFactory.class);
+    private static final Logger log = LoggerFactory.getLogger(POJOWorkflowImplementationFactory.class);
     private static final byte[] EMPTY_BLOB = {};
 
     private DataConverter dataConverter;

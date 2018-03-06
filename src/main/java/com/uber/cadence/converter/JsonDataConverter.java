@@ -28,8 +28,8 @@ import com.google.gson.TypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -49,7 +49,7 @@ import java.util.regex.Pattern;
  */
 public final class JsonDataConverter implements DataConverter {
 
-    private static final Log log = LogFactory.getLog(JsonDataConverter.class);
+    private static final Logger log = LoggerFactory.getLogger(JsonDataConverter.class);
 
     /**
      * Used to parse a stack trace line.

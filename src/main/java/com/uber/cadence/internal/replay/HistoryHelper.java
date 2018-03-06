@@ -22,8 +22,8 @@ import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.worker.DecisionTaskWithHistoryIterator;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -31,7 +31,7 @@ import java.util.Queue;
 
 class HistoryHelper {
 
-    private static final Log historyLog = LogFactory.getLog(HistoryHelper.class.getName() + ".history");
+    private static final Logger historyLog = LoggerFactory.getLogger(HistoryHelper.class.getName() + ".history");
 
     class EventsIterator implements Iterator<HistoryEvent> {
 

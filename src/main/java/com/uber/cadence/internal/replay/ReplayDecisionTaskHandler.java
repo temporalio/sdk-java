@@ -26,8 +26,8 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.internal.worker.DecisionTaskHandler;
 import com.uber.cadence.internal.worker.DecisionTaskWithHistoryIterator;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -36,7 +36,7 @@ import java.util.List;
 
 public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
 
-    private static final Log log = LogFactory.getLog(ReplayDecisionTaskHandler.class);
+    private static final Logger log = LoggerFactory.getLogger(ReplayDecisionTaskHandler.class);
 
     private final ReplayWorkflowFactory workflowFactory;
     private final String domain;

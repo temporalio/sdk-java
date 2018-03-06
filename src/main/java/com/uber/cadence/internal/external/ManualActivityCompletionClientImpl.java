@@ -31,8 +31,8 @@ import com.uber.cadence.client.ActivityCancelledException;
 import com.uber.cadence.client.ActivityCompletionFailureException;
 import com.uber.cadence.client.ActivityNotExistsException;
 import com.uber.cadence.converter.DataConverter;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.thrift.TException;
 
 import java.util.concurrent.CancellationException;
@@ -40,7 +40,7 @@ import java.util.concurrent.CancellationException;
 // TODO: service call retries
 class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient {
 
-    private static final Log log = LogFactory.getLog(ManualActivityCompletionClientImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(ManualActivityCompletionClientImpl.class);
 
     private final WorkflowService.Iface service;
 

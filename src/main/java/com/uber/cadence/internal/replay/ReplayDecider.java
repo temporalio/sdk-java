@@ -26,8 +26,8 @@ import com.uber.cadence.WorkflowQuery;
 import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.worker.WorkflowExecutionException;
 import com.uber.cadence.workflow.Functions;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -41,7 +41,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 class ReplayDecider {
 
-    private static final Log log = LogFactory.getLog(ReplayDecider.class);
+    private static final Logger log = LoggerFactory.getLogger(ReplayDecider.class);
 
     private static final int MILLION = 1000000;
 

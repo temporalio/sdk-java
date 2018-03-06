@@ -29,7 +29,7 @@ import java.util.Map;
 
 class DecisionsHelper {
 
-    //    private static final Log log = LogFactory.getLog(DecisionsHelper.class);
+    //    private static final Logger log = LoggerFactory.getLogger(DecisionsHelper.class);
 
     /**
      * TODO: Update constant once Cadence introduces the limit of decision per completion. Or remove code path

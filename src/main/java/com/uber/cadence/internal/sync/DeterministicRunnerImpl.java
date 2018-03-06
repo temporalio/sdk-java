@@ -17,8 +17,9 @@
 package com.uber.cadence.internal.sync;
 
 import com.uber.cadence.workflow.Promise;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -50,7 +51,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         }
     }
 
-    private static final Log log = LogFactory.getLog(DeterministicRunnerImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(DeterministicRunnerImpl.class);
     public static final String WORKFLOW_ROOT_THREAD_NAME = "workflow-root";
     private static final ThreadLocal<WorkflowThread> currentThreadThreadLocal = new ThreadLocal<>();
 

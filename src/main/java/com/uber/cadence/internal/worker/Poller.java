@@ -17,8 +17,8 @@
 package com.uber.cadence.internal.worker;
 
 import com.uber.cadence.internal.common.BackoffThrottler;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -88,7 +88,7 @@ final class Poller implements SuspendableWorker {
         }
     }
 
-    private static final Log log = LogFactory.getLog(Poller.class);
+    private static final Logger log = LoggerFactory.getLogger(Poller.class);
 
     private final PollerOptions options;
 

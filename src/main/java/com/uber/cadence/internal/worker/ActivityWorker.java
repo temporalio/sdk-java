@@ -26,8 +26,8 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.internal.common.SynchronousRetryer;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.thrift.TException;
 
 import java.util.Objects;
@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit;
 
 public final class ActivityWorker implements SuspendableWorker {
 
-    private static final Log log = LogFactory.getLog(ActivityWorker.class);
+    private static final Logger log = LoggerFactory.getLogger(ActivityWorker.class);
 
     private static final String POLL_THREAD_NAME_PREFIX = "SWF Activity Poll ";
 

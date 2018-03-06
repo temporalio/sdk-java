@@ -28,8 +28,8 @@ import com.uber.cadence.client.ActivityCompletionException;
 import com.uber.cadence.client.ActivityCompletionFailureException;
 import com.uber.cadence.client.ActivityNotExistsException;
 import com.uber.cadence.converter.DataConverter;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.thrift.TException;
 
 import java.util.concurrent.CancellationException;
@@ -42,7 +42,7 @@ import java.util.concurrent.CancellationException;
  */
 class ActivityExecutionContextImpl implements ActivityExecutionContext {
 
-    private static final Log log = LogFactory.getLog(ActivityExecutionContextImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(ActivityExecutionContextImpl.class);
 
     private final Iface service;
 

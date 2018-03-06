@@ -17,8 +17,8 @@
 package com.uber.cadence.internal.common;
 
 import com.uber.cadence.common.RetryOptions;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class SynchronousRetryer {
 
@@ -30,7 +30,7 @@ public final class SynchronousRetryer {
         R apply() throws E;
     }
 
-    private static final Log log = LogFactory.getLog(SynchronousRetryer.class);
+    private static final Logger log = LoggerFactory.getLogger(SynchronousRetryer.class);
 
 
     public static <T extends Throwable> void retry(RetryOptions options, RetryableProc<T> r) throws T {
