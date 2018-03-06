@@ -18,7 +18,7 @@ class ExecutorThreadFactory implements ThreadFactory {
     @Override
     public Thread newThread(Runnable r) {
         Thread result = new Thread(r);
-        result.setName(threadPrefix + (threadIndex.incrementAndGet()));
+        result.setName(threadPrefix + ": " + (threadIndex.incrementAndGet()));
         result.setUncaughtExceptionHandler(uncaughtExceptionHandler);
         return result;
     }

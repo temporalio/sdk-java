@@ -37,7 +37,7 @@ public final class ActivityWorker implements SuspendableWorker {
 
     private static final Logger log = LoggerFactory.getLogger(ActivityWorker.class);
 
-    private static final String POLL_THREAD_NAME_PREFIX = "SWF Activity Poll ";
+    private static final String POLL_THREAD_NAME_PREFIX = "Activity Poller ";
 
     private Poller poller;
     private final ActivityTaskHandler handler;
@@ -63,7 +63,8 @@ public final class ActivityWorker implements SuspendableWorker {
             PollerOptions pollerOptions = options.getPollerOptions();
             if (pollerOptions.getPollThreadNamePrefix() == null) {
                 pollerOptions = new PollerOptions.Builder(pollerOptions)
-                        .setPollThreadNamePrefix(POLL_THREAD_NAME_PREFIX)
+                        .setPollThreadNamePrefix(POLL_THREAD_NAME_PREFIX + "\"" + taskList +
+                                "\", domain=\"" + domain + "\", type=\"activity\"")
                         .build();
             }
             Poller.ThrowingRunnable pollTask =

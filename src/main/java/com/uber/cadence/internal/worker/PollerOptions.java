@@ -21,7 +21,7 @@ public final class PollerOptions {
 
         private int pollThreadCount = 1;
 
-        private String pollThreadNamePrefix = "poller";
+        private String pollThreadNamePrefix;
 
         private Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
 
@@ -153,5 +153,18 @@ public final class PollerOptions {
 
     public String getPollThreadNamePrefix() {
         return pollThreadNamePrefix;
+    }
+
+    @Override
+    public String toString() {
+        return "PollerOptions{" +
+                "maximumPollRateIntervalMilliseconds=" + maximumPollRateIntervalMilliseconds +
+                ", maximumPollRatePerSecond=" + maximumPollRatePerSecond +
+                ", pollBackoffCoefficient=" + pollBackoffCoefficient +
+                ", pollBackoffInitialInterval=" + pollBackoffInitialInterval +
+                ", pollBackoffMaximumInterval=" + pollBackoffMaximumInterval +
+                ", pollThreadCount=" + pollThreadCount +
+                ", pollThreadNamePrefix='" + pollThreadNamePrefix + '\'' +
+                '}';
     }
 }

@@ -27,27 +27,27 @@ final class Throttler {
      * Human readable name of the resource being throttled.
      * Used for logging only.
      */
-    private final String name_;
+    private final String name;
 
     /**
      * Used as a circular buffer
      */
-    private CircularLongBuffer checkPointTimes_;
+    private CircularLongBuffer checkPointTimes;
 
     /**
      * Used as an index to a circular buffer
      */
-    private long index_;
+    private long index;
 
     /**
      * Interval used to measure the rate. Shorter interval allows less spikey
      * rates.
      */
-    private long rateInterval_;
+    private long rateInterval;
 
-    private long rateIntervalMilliseconds_;
+    private final long rateIntervalMilliseconds;
 
-    private long overslept_;
+    private long overslept;
 
     /**
      * Construct throttler.
@@ -61,7 +61,7 @@ final class Throttler {
         if (null == name) {
             throw new IllegalArgumentException("null name");
         }
-        name_ = name;
+        this.name = name;
         if (maxRatePerSecond <= 0) {
             throw new IllegalArgumentException("0 or negative maxRatePerSecond");
         }
@@ -69,26 +69,26 @@ final class Throttler {
             throw new IllegalArgumentException("0 or negative rateIntervalMilliseconds");
         }
         synchronized (this) {
-            rateIntervalMilliseconds_ = rateIntervalMilliseconds;
+            this.rateIntervalMilliseconds = rateIntervalMilliseconds;
             setMaxRatePerSecond(maxRatePerSecond);
         }
     }
 
     public synchronized void setMaxRatePerSecond(double maxRatePerSecond) {
-        int maxMessagesPerRateInterval = (int) (maxRatePerSecond * rateIntervalMilliseconds_ / 1000);
+        int maxMessagesPerRateInterval = (int) (maxRatePerSecond * rateIntervalMilliseconds / 1000);
         if (maxMessagesPerRateInterval == 0) {
             maxMessagesPerRateInterval = 1;
-            rateInterval_ = (long) (1.0 / maxRatePerSecond * 1000.0);
+            rateInterval = (long) (1.0 / maxRatePerSecond * 1000.0);
         } else {
-            rateInterval_ = rateIntervalMilliseconds_;
+            rateInterval = rateIntervalMilliseconds;
         }
-        if (checkPointTimes_ != null) {
-            int oldSize = checkPointTimes_.size();
-            checkPointTimes_ = checkPointTimes_.copy(index_ - maxMessagesPerRateInterval, maxMessagesPerRateInterval);
-            index_ = Math.min(checkPointTimes_.size(), oldSize);
+        if (checkPointTimes != null) {
+            int oldSize = checkPointTimes.size();
+            checkPointTimes = checkPointTimes.copy(index - maxMessagesPerRateInterval, maxMessagesPerRateInterval);
+            index = Math.min(checkPointTimes.size(), oldSize);
         } else {
-            checkPointTimes_ = new CircularLongBuffer(maxMessagesPerRateInterval);
-            index_ = 0;
+            checkPointTimes = new CircularLongBuffer(maxMessagesPerRateInterval);
+            index = 0;
         }
         log.debug("new rate=" + maxRatePerSecond + " (msg/sec)");
     }
@@ -106,20 +106,20 @@ final class Throttler {
      */
     public synchronized void throttle() throws InterruptedException {
         long now = System.currentTimeMillis();
-        long checkPoint = checkPointTimes_.get(index_);
+        long checkPoint = checkPointTimes.get(index);
         if (checkPoint > 0) {
             long elapsed = now - checkPoint;
 
             // if the time for this window is less than the minimum per window
-            if (elapsed >= 0 && elapsed < rateInterval_) {
-                long sleepInterval = rateInterval_ - elapsed - overslept_;
-                overslept_ = 0;
+            if (elapsed >= 0 && elapsed < rateInterval) {
+                long sleepInterval = rateInterval - elapsed - overslept;
+                overslept = 0;
                 if (sleepInterval > 0) {
                     if (log.isTraceEnabled()) {
                         log.debug("Throttling "
-                                + name_
+                                + name
                                 + ": called "
-                                + checkPointTimes_.size()
+                                + checkPointTimes.size()
                                 + " times in last "
                                 + elapsed
                                 + " milliseconds. Going to sleep for "
@@ -128,11 +128,11 @@ final class Throttler {
                     }
                     long t = System.currentTimeMillis();
                     Thread.sleep(sleepInterval);
-                    overslept_ = System.currentTimeMillis() - t - sleepInterval;
+                    overslept = System.currentTimeMillis() - t - sleepInterval;
                 }
             }
         }
-        checkPointTimes_.set(index_++, System.currentTimeMillis());
+        checkPointTimes.set(index++, System.currentTimeMillis());
     }
 
 }

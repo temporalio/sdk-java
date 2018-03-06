@@ -46,7 +46,7 @@ public final class WorkflowWorker implements SuspendableWorker {
 
     private static final Logger log = LoggerFactory.getLogger(WorkflowWorker.class);
 
-    private static final String POLL_THREAD_NAME_PREFIX = "SWF Activity Poll ";
+    private static final String POLL_THREAD_NAME_PREFIX = "Poller taskList=";
     private static final int MAXIMUM_PAGE_SIZE = 10000;
 
     private Poller poller;
@@ -73,7 +73,8 @@ public final class WorkflowWorker implements SuspendableWorker {
             PollerOptions pollerOptions = options.getPollerOptions();
             if (pollerOptions.getPollThreadNamePrefix() == null) {
                 pollerOptions = new PollerOptions.Builder(pollerOptions)
-                        .setPollThreadNamePrefix(POLL_THREAD_NAME_PREFIX)
+                        .setPollThreadNamePrefix(POLL_THREAD_NAME_PREFIX + "\"" + taskList +
+                                "\", domain=\"" + domain + "\", type=\"workflow\"")
                         .build();
             }
             Poller.ThrowingRunnable pollTask =
