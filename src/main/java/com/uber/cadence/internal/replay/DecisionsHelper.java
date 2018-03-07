@@ -20,6 +20,7 @@ import com.uber.cadence.*;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.worker.WorkflowExecutionException;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -158,6 +159,24 @@ class DecisionsHelper {
         RequestCancelExternalWorkflowExecutionFailedEventAttributes attributes = event.getRequestCancelExternalWorkflowExecutionFailedEventAttributes();
         DecisionStateMachine decision = getDecision(new DecisionId(DecisionTarget.EXTERNAL_WORKFLOW, attributes.getWorkflowExecution().getWorkflowId()));
         decision.handleCancellationFailureEvent(event);
+    }
+
+    void signalExternalWorkflowExecution(SignalExternalWorkflowExecutionDecisionAttributes signal) {
+        DecisionId decisionId = new DecisionId(DecisionTarget.SIGNAL, new String(signal.getControl(), StandardCharsets.UTF_8));
+        addDecision(decisionId, new SignalDecisionStateMachine(decisionId, signal));
+    }
+
+    void cancelSignalExternalWorkflowExecution(String signalId, Runnable immediateCancellationCallback) {
+        DecisionStateMachine decision = getDecision(new DecisionId(DecisionTarget.SIGNAL, signalId));
+        decision.cancel(immediateCancellationCallback);
+    }
+
+    void handleSignalExternalWorkflowExecutionInitiated(HistoryEvent event) {
+        SignalExternalWorkflowExecutionInitiatedEventAttributes attributes = event.getSignalExternalWorkflowExecutionInitiatedEventAttributes();
+        String signalId = new String(attributes.getControl(), StandardCharsets.UTF_8);
+        signalInitiatedEventIdToSignalId.put(event.getEventId(), signalId);
+        DecisionStateMachine decision = getDecision(new DecisionId(DecisionTarget.SIGNAL, signalId));
+        decision.handleInitiatedEvent(event);
     }
 
     public boolean handleSignalExternalWorkflowExecutionFailed(String signalId) {

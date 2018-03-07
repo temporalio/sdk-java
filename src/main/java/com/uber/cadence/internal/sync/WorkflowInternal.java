@@ -108,17 +108,24 @@ public final class WorkflowInternal {
 
 
     @SuppressWarnings("unchecked")
-    public static <T> T newChildWorkflowStub(Class<T> workflowInterface, ChildWorkflowOptions options) {
+    public static <T> T newWorkflowStubWithOptions(Class<T> workflowInterface, ChildWorkflowOptions options) {
         return (T) Proxy.newProxyInstance(WorkflowInternal.class.getClassLoader(),
                 new Class<?>[]{workflowInterface, WorkflowStub.class, AsyncMarker.class},
                 new ChildWorkflowInvocationHandler(options, getDecisionContext()));
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T> T newWorkflowStubFromExecution(Class<T> workflowInterface, WorkflowExecution execution) {
+        return (T) Proxy.newProxyInstance(WorkflowInternal.class.getClassLoader(),
+                new Class<?>[]{workflowInterface, WorkflowStub.class, AsyncMarker.class},
+                new ChildWorkflowInvocationHandler(execution, getDecisionContext()));
     }
 
     public static Promise<WorkflowExecution> getChildWorkflowExecution(Object workflowStub) {
         if (workflowStub instanceof WorkflowStub) {
             return ((WorkflowStub) workflowStub).__getWorkflowExecution();
         }
-        throw new IllegalArgumentException("Not a workflow stub created through Workflow.newChildWorkflowStub: " + workflowStub);
+        throw new IllegalArgumentException("Not a workflow stub created through Workflow.newWorkflowStubWithOptions: " + workflowStub);
     }
 
     /**

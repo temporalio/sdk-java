@@ -51,8 +51,8 @@ public final class Workflow {
      *
      * @param workflowInterface interface type implemented by activities
      */
-    public static <T> T newChildWorkflowStub(Class<T> workflowInterface) {
-        return WorkflowInternal.newChildWorkflowStub(workflowInterface, null);
+    public static <T> T newWorkflowStub(Class<T> workflowInterface) {
+        return WorkflowInternal.newWorkflowStubWithOptions(workflowInterface, null);
     }
 
     /**
@@ -61,12 +61,16 @@ public final class Workflow {
      * @param workflowInterface interface type implemented by activities
      * @param options           options passed to the child workflow.
      */
-    public static <T> T newChildWorkflowStub(Class<T> workflowInterface, ChildWorkflowOptions options) {
-        return WorkflowInternal.newChildWorkflowStub(workflowInterface, options);
+    public static <T> T newWorkflowStub(Class<T> workflowInterface, ChildWorkflowOptions options) {
+        return WorkflowInternal.newWorkflowStubWithOptions(workflowInterface, options);
+    }
+
+    public static <R> R newWorkflowStub(Class<? extends R> workflowInterface, WorkflowExecution execution) {
+        return WorkflowInternal.newWorkflowStubFromExecution(workflowInterface, execution);
     }
 
     /**
-     * Extracts workflow execution from a stub created through {@link #newChildWorkflowStub(Class, ChildWorkflowOptions)}.
+     * Extracts workflow execution from a stub created through {@link #newWorkflowStub(Class, ChildWorkflowOptions)}.
      * Wrapped in a Promise as child workflow start is asynchronous.
      */
     public static Promise<WorkflowExecution> getChildWorkflowExecution(Object childWorkflowStub) {

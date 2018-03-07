@@ -16,6 +16,7 @@
  */
 package com.uber.cadence.workflow;
 
+import com.uber.cadence.SignalExternalWorkflowExecutionFailedCause;
 import com.uber.cadence.WorkflowExecution;
 
 /**
@@ -24,31 +25,21 @@ import com.uber.cadence.WorkflowExecution;
 @SuppressWarnings("serial")
 public final class SignalExternalWorkflowException extends WorkflowOperationException {
 
-//    private SignalExternalWorkflowExecutionFailedCause failureCause;
-
-    private String failureCause;
+    private SignalExternalWorkflowExecutionFailedCause failureCause;
 
     private WorkflowExecution signaledExecution;
 
-    public SignalExternalWorkflowException(long eventId, WorkflowExecution signaledExecution, String cause) {
+    public SignalExternalWorkflowException(long eventId, WorkflowExecution signaledExecution, SignalExternalWorkflowExecutionFailedCause cause) {
         super(cause + " for signaledExecution=\"" + signaledExecution, eventId);
         this.signaledExecution = signaledExecution;
         this.failureCause = cause;
     }
 
-    public WorkflowExecution getSignaledExecution() {
-        return signaledExecution;
-    }
-    
-    public void setFailureCause(String failureCause) {
-        this.failureCause = failureCause;
-    }
-
-    public String getFailureCause() {
+    public SignalExternalWorkflowExecutionFailedCause getFailureCause() {
         return failureCause;
     }
-    
-    public void setSignaledExecution(WorkflowExecution signaledExecution) {
-        this.signaledExecution = signaledExecution;
+
+    public WorkflowExecution getSignaledExecution() {
+        return signaledExecution;
     }
 }

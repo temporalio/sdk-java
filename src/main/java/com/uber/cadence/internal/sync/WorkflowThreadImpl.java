@@ -77,6 +77,9 @@ class WorkflowThreadImpl implements WorkflowThread {
                 }
                 context.setUnhandledException(e);
             } catch (CancellationException e) {
+                if (!isCancelRequested()) {
+                    context.setUnhandledException(e);
+                }
                 log.debug(String.format("Workflow thread \"%s\" run cancelled", name));
             } catch (Throwable e) {
                 if (log.isWarnEnabled() && !root) {

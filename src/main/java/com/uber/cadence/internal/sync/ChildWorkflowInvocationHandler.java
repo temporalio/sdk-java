@@ -26,6 +26,7 @@ import com.uber.cadence.workflow.ChildWorkflowOptions;
 import com.uber.cadence.workflow.CompletablePromise;
 import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.QueryMethod;
+import com.uber.cadence.workflow.SignalExternalWorkflowException;
 import com.uber.cadence.workflow.SignalMethod;
 import com.uber.cadence.workflow.Workflow;
 import com.uber.cadence.workflow.WorkflowMethod;
@@ -48,6 +49,13 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
         this.options = options;
         this.decisionContext = decisionContext;
         dataConverter = decisionContext.getDataConverter();
+    }
+
+    public ChildWorkflowInvocationHandler(WorkflowExecution execution, SyncDecisionContext decisionContext) {
+        this.options = null;
+        this.decisionContext = decisionContext;
+        dataConverter = decisionContext.getDataConverter();
+        this.execution.complete(execution);
     }
 
     @Override
@@ -85,7 +93,23 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
     }
 
     private void signalWorkflow(Method method, SignalMethod signalMethod, Object[] args) {
-        throw new UnsupportedOperationException("not implemented yet");
+        String signalName = signalMethod.name();
+        if (signalName.isEmpty()) {
+            signalName = InternalUtils.getSimpleName(method);
+        }
+        Promise<Void> signalled = decisionContext.signalWorkflow(execution.get(), signalName, args);
+        if (AsyncInternal.isAsync()) {
+            AsyncInternal.setAsyncResult(signalled);
+            return;
+        }
+        try {
+            signalled.get();
+        } catch (SignalExternalWorkflowException e) {
+            // Reset stack to the current one. Otherwise it is very confusing to see a stack of
+            // an event handling method.
+            e.setStackTrace(Thread.currentThread().getStackTrace());
+            throw e;
+        }
     }
 
     private Object queryWorkflow(Method method, QueryMethod queryMethod, Object[] args) {

@@ -18,6 +18,8 @@ package com.uber.cadence.internal.replay;
 
 public final class SignalExternalWorkflowParameters implements Cloneable {
 
+    private String domain;
+
     private byte[] input;
     
     private String runId;
@@ -26,9 +28,15 @@ public final class SignalExternalWorkflowParameters implements Cloneable {
     
     private String workflowId;
     
-    public SignalExternalWorkflowParameters() {
+    public String getDomain() {
+        return domain;
     }
-    
+
+    public SignalExternalWorkflowParameters setDomain(String domain) {
+        this.domain = domain;
+        return this;
+    }
+
     public byte[] getInput() {
         return input;
     }

@@ -125,9 +125,9 @@ class ReplayDecider {
             case DecisionTaskTimedOut:
                 // Handled in the processEvent(event)
                 break;
-//        case ExternalWorkflowExecutionSignaled:
-//            workflowClient.handleExternalWorkflowExecutionSignaled(event);
-//            break;
+            case ExternalWorkflowExecutionSignaled:
+                context.handleExternalWorkflowExecutionSignaled(event);
+                break;
             case StartChildWorkflowExecutionFailed:
                 context.handleStartChildWorkflowExecutionFailed(event);
                 break;
@@ -174,9 +174,12 @@ class ReplayDecider {
             case TimerCanceled:
                 context.handleTimerCanceled(event);
                 break;
-//        case SignalExternalWorkflowExecutionInitiated:
-//            decisionsHelper.handleSignalExternalWorkflowExecutionInitiated(event);
-//            break;
+            case SignalExternalWorkflowExecutionInitiated:
+                decisionsHelper.handleSignalExternalWorkflowExecutionInitiated(event);
+                break;
+            case SignalExternalWorkflowExecutionFailed:
+                context.handleSignalExternalWorkflowExecutionFailed(event);
+                break;
             case RequestCancelExternalWorkflowExecutionInitiated:
                 decisionsHelper.handleRequestCancelExternalWorkflowExecutionInitiated(event);
                 break;
@@ -188,6 +191,9 @@ class ReplayDecider {
                 break;
             case CancelTimerFailed:
                 decisionsHelper.handleCancelTimerFailed(event);
+                break;
+            case DecisionTaskFailed:
+                break;
         }
     }
 

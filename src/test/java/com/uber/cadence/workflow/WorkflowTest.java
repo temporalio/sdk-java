@@ -16,6 +16,7 @@
  */
 package com.uber.cadence.workflow;
 
+import com.uber.cadence.SignalExternalWorkflowExecutionFailedCause;
 import com.uber.cadence.TimeoutType;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowIdReusePolicy;
@@ -643,7 +644,7 @@ public class WorkflowTest {
         public void execute() {
             ChildWorkflowOptions options = new ChildWorkflowOptions.Builder()
                     .setExecutionStartToCloseTimeout(Duration.ofHours(1)).build();
-            TestWorkflow1 child = Workflow.newChildWorkflowStub(TestWorkflow1.class, options);
+            TestWorkflow1 child = Workflow.newWorkflowStub(TestWorkflow1.class, options);
             try {
                 child.execute();
                 fail("unreachable");
@@ -882,13 +883,13 @@ public class WorkflowTest {
 
     public static class TestParentWorkflow implements TestWorkflow1 {
 
-        private final ITestChild child1 = Workflow.newChildWorkflowStub(ITestChild.class);
+        private final ITestChild child1 = Workflow.newWorkflowStub(ITestChild.class);
         private final ITestNamedChild child2;
 
         public TestParentWorkflow() {
             ChildWorkflowOptions.Builder options = new ChildWorkflowOptions.Builder();
             options.setWorkflowId(child2Id);
-            child2 = Workflow.newChildWorkflowStub(ITestNamedChild.class, options.build());
+            child2 = Workflow.newWorkflowStub(ITestNamedChild.class, options.build());
         }
 
         @Override
@@ -942,7 +943,7 @@ public class WorkflowTest {
                             .setMaximumAttempts(3)
                             .build())
                     .build();
-            child = Workflow.newChildWorkflowStub(ITestChild.class, options);
+            child = Workflow.newWorkflowStub(ITestChild.class, options);
         }
 
         @Override
@@ -984,6 +985,113 @@ public class WorkflowTest {
         assertEquals(3, AngryChild.invocationCount);
     }
 
+    public static class TestSignalExternalWorkflow implements TestWorkflowSignaled {
+
+        private final SignalingChild child = Workflow.newWorkflowStub(SignalingChild.class);
+
+        private final CompletablePromise<Object> fromSignal = Workflow.newPromise();
+
+        @Override
+        public String execute() {
+            Promise<String> result = Async.invoke(child::execute, "Hello", Workflow.getWorkflowInfo().getWorkflowId());
+            return result.get() + " " + fromSignal.get() + "!";
+        }
+
+        @Override
+        public void signal1(String arg) {
+            fromSignal.complete(arg);
+        }
+    }
+
+    public interface SignalingChild {
+        @WorkflowMethod
+        String execute(String arg, String parentWorkflowID);
+    }
+
+    public static class SignalingChildImpl implements SignalingChild {
+
+        @Override
+        public String execute(String greeting, String parentWorkflowID) {
+            WorkflowExecution parentExecution = new WorkflowExecution().setWorkflowId(parentWorkflowID);
+            TestWorkflowSignaled parent = Workflow.newWorkflowStub(TestWorkflowSignaled.class, parentExecution);
+            parent.signal1("World");
+            return greeting;
+        }
+    }
+
+    @Test
+    public void testSignalExternalWorkflow() {
+        startWorkerFor(TestSignalExternalWorkflow.class, SignalingChildImpl.class);
+        WorkflowOptions.Builder options = new WorkflowOptions.Builder();
+        options.setExecutionStartToCloseTimeout(Duration.ofSeconds(20));
+        options.setTaskStartToCloseTimeout(Duration.ofSeconds(2));
+        options.setTaskList(taskList);
+        TestWorkflowSignaled client = workflowClient.newWorkflowStub(TestWorkflowSignaled.class, options.build());
+        assertEquals("Hello World!", client.execute());
+    }
+
+    public static class TestSignalExternalWorkflowFailure implements TestWorkflow1 {
+
+        @Override
+        public String execute() {
+            WorkflowExecution parentExecution = new WorkflowExecution().setWorkflowId("invalid id");
+            TestWorkflowSignaled workflow = Workflow.newWorkflowStub(TestWorkflowSignaled.class, parentExecution);
+            workflow.signal1("World");
+            return "ignored";
+        }
+    }
+
+    @Test
+    public void testSignalExternalWorkflowFailure() {
+        startWorkerFor(TestSignalExternalWorkflowFailure.class);
+        WorkflowOptions.Builder options = new WorkflowOptions.Builder();
+        options.setExecutionStartToCloseTimeout(Duration.ofSeconds(20));
+        options.setTaskStartToCloseTimeout(Duration.ofSeconds(2));
+        options.setTaskList(taskList);
+        TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
+        try {
+            client.execute();
+            fail("unreachable");
+        } catch (WorkflowFailureException e) {
+            assertTrue(e.getCause() instanceof SignalExternalWorkflowException);
+            assertEquals("invalid id",
+                    ((SignalExternalWorkflowException) e.getCause()).getSignaledExecution().getWorkflowId());
+            assertEquals(SignalExternalWorkflowExecutionFailedCause.UNKNOWN_EXTERNAL_WORKFLOW_EXECUTION,
+                    ((SignalExternalWorkflowException) e.getCause()).getFailureCause());
+        }
+    }
+
+    public static class TestSignalExternalWorkflowImmediateCancellation implements TestWorkflow1 {
+
+        @Override
+        public String execute() {
+            WorkflowExecution parentExecution = new WorkflowExecution().setWorkflowId("invalid id");
+            TestWorkflowSignaled workflow = Workflow.newWorkflowStub(TestWorkflowSignaled.class, parentExecution);
+            CompletablePromise<Void> signal = Workflow.newPromise();
+            CancellationScope scope = Workflow.newCancellationScope(() -> {
+                signal.completeFrom(Async.invoke(workflow::signal1, "World"));
+            });
+            scope.cancel();
+            try {
+                signal.get();
+            } catch (IllegalArgumentException e) {
+                // expected
+            }
+            return "result";
+        }
+    }
+
+    @Test
+    public void testSignalExternalWorkflowImmediateCancellation() {
+        startWorkerFor(TestSignalExternalWorkflowImmediateCancellation.class);
+        WorkflowOptions.Builder options = new WorkflowOptions.Builder();
+        options.setExecutionStartToCloseTimeout(Duration.ofSeconds(20));
+        options.setTaskStartToCloseTimeout(Duration.ofSeconds(2));
+        options.setTaskList(taskList);
+        TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
+        assertEquals("result", client.execute());
+    }
+
     public static class TestChildWorkflowAsyncRetryWorkflow implements TestWorkflow1 {
 
         private final ITestChild child;
@@ -1000,7 +1108,7 @@ public class WorkflowTest {
                             .setMaximumAttempts(3)
                             .build())
                     .build();
-            child = Workflow.newChildWorkflowStub(ITestChild.class, options);
+            child = Workflow.newWorkflowStub(ITestChild.class, options);
         }
 
         @Override

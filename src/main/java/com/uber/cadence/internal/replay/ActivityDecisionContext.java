@@ -35,19 +35,19 @@ import java.util.function.Consumer;
 
 final class ActivityDecisionContext {
 
-    private final class ActivityCancellationHandler implements Consumer<Throwable> {
+    private final class ActivityCancellationHandler implements Consumer<Exception> {
 
         private final String activityId;
 
-        private final  BiConsumer<byte[], RuntimeException> callback;
+        private final BiConsumer<byte[], Exception> callback;
 
-        private ActivityCancellationHandler(String activityId, BiConsumer<byte[], RuntimeException> callaback) {
+        private ActivityCancellationHandler(String activityId, BiConsumer<byte[], Exception> callaback) {
             this.activityId = activityId;
             this.callback = callaback;
         }
 
         @Override
-        public void accept(Throwable cause) {
+        public void accept(Exception cause) {
             decisions.requestCancelActivityTask(activityId, () -> {
                 OpenRequestInfo<byte[], ActivityType> scheduled = scheduledActivities.remove(activityId);
                 if (scheduled == null) {
@@ -66,7 +66,7 @@ final class ActivityDecisionContext {
         this.decisions = decisions;
     }
 
-    Consumer<Throwable> scheduleActivityTask(ExecuteActivityParameters parameters, BiConsumer<byte[], RuntimeException> callback) {
+    Consumer<Exception> scheduleActivityTask(ExecuteActivityParameters parameters, BiConsumer<byte[], Exception> callback) {
         final OpenRequestInfo<byte[], ActivityType> context = new OpenRequestInfo<>(parameters.getActivityType());
         final ScheduleActivityTaskDecisionAttributes attributes = new ScheduleActivityTaskDecisionAttributes();
         attributes.setActivityType(parameters.getActivityType());
@@ -106,7 +106,7 @@ final class ActivityDecisionContext {
             CancellationException e = new CancellationException();
             OpenRequestInfo<byte[], ActivityType> scheduled = scheduledActivities.remove(activityId);
             if (scheduled != null) {
-                BiConsumer<byte[], RuntimeException> completionHandle = scheduled.getCompletionCallback();
+                BiConsumer<byte[], Exception> completionHandle = scheduled.getCompletionCallback();
                 // It is OK to fail with subclass of CancellationException when cancellation requested.
                 // It allows passing information about cancellation (details in this case) to the surrounding doCatch block
                 completionHandle.accept(null, e);
@@ -121,7 +121,7 @@ final class ActivityDecisionContext {
             OpenRequestInfo<byte[], ActivityType> scheduled = scheduledActivities.remove(activityId);
             if (scheduled != null) {
                 byte[] result = attributes.getResult();
-                BiConsumer<byte[], RuntimeException> completionHandle = scheduled.getCompletionCallback();
+                BiConsumer<byte[], Exception> completionHandle = scheduled.getCompletionCallback();
                 completionHandle.accept(result, null);
             }
         }
@@ -137,7 +137,7 @@ final class ActivityDecisionContext {
                 byte[] details = attributes.getDetails();
                 ActivityTaskFailedException failure = new ActivityTaskFailedException(event.getEventId(),
                         scheduled.getUserContext(), activityId, reason, details);
-                BiConsumer<byte[], RuntimeException> completionHandle = scheduled.getCompletionCallback();
+                BiConsumer<byte[], Exception> completionHandle = scheduled.getCompletionCallback();
                 completionHandle.accept(null, failure);
             }
         }
@@ -153,7 +153,7 @@ final class ActivityDecisionContext {
                 byte[] details = attributes.getDetails();
                 ActivityTaskTimeoutException failure = new ActivityTaskTimeoutException(event.getEventId(),
                         scheduled.getUserContext(), activityId, timeoutType, details);
-                BiConsumer<byte[], RuntimeException> completionHandle = scheduled.getCompletionCallback();
+                BiConsumer<byte[], Exception> completionHandle = scheduled.getCompletionCallback();
                 completionHandle.accept(null, failure);
             }
         }

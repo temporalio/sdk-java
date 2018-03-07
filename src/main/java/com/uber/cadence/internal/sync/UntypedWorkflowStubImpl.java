@@ -67,8 +67,8 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
         p.setInput(dataConverter.toData(input));
         p.setSignalName(signalName);
         p.setWorkflowId(execution.get().getWorkflowId());
-        // TODO: Deal with signalling started workflow only, when requested
-        // Commented out to support signalling workflows that called continue as new.
+        // TODO: Deal with signaling started workflow only, when requested
+        // Commented out to support signaling workflows that called continue as new.
 //        p.setRunId(execution.getRunId());
         genericClient.signalWorkflowExecution(p);
     }

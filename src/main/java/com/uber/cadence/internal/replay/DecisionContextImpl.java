@@ -111,16 +111,22 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
     }
 
     @Override
-    public Consumer<Throwable> scheduleActivityTask(ExecuteActivityParameters parameters,
-                                                    BiConsumer<byte[], RuntimeException> callback) {
+    public Consumer<Exception> scheduleActivityTask(ExecuteActivityParameters parameters,
+                                                    BiConsumer<byte[], Exception> callback) {
         return activityClient.scheduleActivityTask(parameters, callback);
     }
 
     @Override
-    public Consumer<Throwable> startChildWorkflow(StartChildWorkflowExecutionParameters parameters,
+    public Consumer<Exception> startChildWorkflow(StartChildWorkflowExecutionParameters parameters,
                                                   Consumer<WorkflowExecution> executionCallback,
-                                                  BiConsumer<byte[], RuntimeException> callback) {
+                                                  BiConsumer<byte[], Exception> callback) {
         return workflowClient.startChildWorkflow(parameters, executionCallback, callback);
+    }
+
+
+    public Consumer<Exception> signalWorkflowExecution(SignalExternalWorkflowParameters signalParameters,
+                                                       BiConsumer<Void, Exception> callback) {
+        return workflowClient.signalWorkflowExecution(signalParameters, callback);
     }
 
     @Override
@@ -148,7 +154,7 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
     }
 
     @Override
-    public Consumer<Throwable> createTimer(long delaySeconds, Consumer<Throwable> callback) {
+    public Consumer<Exception> createTimer(long delaySeconds, Consumer<Exception> callback) {
         return workflowClock.createTimer(delaySeconds, callback);
     }
 
@@ -239,5 +245,13 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
     @Override
     public void handleTimerCanceled(HistoryEvent event) {
         workflowClock.handleTimerCanceled(event);
+    }
+
+    public void handleSignalExternalWorkflowExecutionFailed(HistoryEvent event) {
+        workflowClient.handleSignalExternalWorkflowExecutionFailed(event);
+    }
+
+    public void handleExternalWorkflowExecutionSignaled(HistoryEvent event) {
+        workflowClient.handleExternalWorkflowExecutionSignaled(event);
     }
 }

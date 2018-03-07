@@ -27,7 +27,7 @@ import com.uber.cadence.WorkflowExecution;
  * <ul>There is successfully closed workflow with the same ID and the  {@link WorkflowOptions#getWorkflowIdReusePolicy()} is
  * {@link com.uber.cadence.WorkflowIdReusePolicy#AllowDuplicateFailedOnly}.</ul>
  * <ul>Method annotated with {@link com.uber.cadence.workflow.WorkflowMethod} is called <i>more than once</i>
- * on a stub created through {@link com.uber.cadence.workflow.Workflow#newChildWorkflowStub(Class)}
+ * on a stub created through {@link com.uber.cadence.workflow.Workflow#newWorkflowStub(Class)}
  * and the  {@link WorkflowOptions#getWorkflowIdReusePolicy()} is
  * {@link com.uber.cadence.WorkflowIdReusePolicy#AllowDuplicate}</ul>
  * </li>
