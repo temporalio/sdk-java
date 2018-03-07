@@ -1,22 +1,26 @@
-# Java framework for Cadence [![Build Status](https://travis-ci.org/uber-java/cadence-client.svg?branch=master)](https://travis-ci.org/uber-java/cadence-client) [![Coverage Status](https://coveralls.io/repos/uber-java/cadence-client/badge.svg?branch=master&service=github)](https://coveralls.io/github/uber-java/cadence-client?branch=master)
+# Java framework for Cadence
 [Cadence](https://github.com/uber/cadence) is a distributed, scalable, durable, and highly available orchestration engine we developed at Uber Engineering to execute asynchronous long-running business logic in a scalable and resilient way.
 
-`cadence-client` is the framework for authoring workflows and activities.
+`cadence-client` is the framework for authoring workflows and activities in Java.
 
+There is also [Go Cadence Client](https://github.com/uber-go/cadence-client).
 
 ## Samples
 
-[Samples for the Java Cadence client](https://github.com/mfateev/uber-java-cadence-samples). 
+[Samples for the Java Cadence client](https://github.com/uber-java/cadence-client). 
 
-## Service Installation
+## Running Cadence Server
 
-For development install a local copy of Cadence service.
-The simplest is to use a [docker version](https://github.com/uber/cadence/blob/master/docker/README.md).
-If for whatever reason docker is not an option follow instructions
-from the [Cadence Getting Started](https://github.com/uber/cadence#getting-started)
+Run Cadence Server using Docker Compose
 
-If you work for Uber install the Cadence CLI. Search 'Cadence CLI' on EngDocs for installation and usage instructions.
-For not so fortunate it will be open sourced very soon.
+    curl -O https://raw.githubusercontent.com/uber/cadence/master/docker/docker-compose.yml
+    docker-compose up
+     
+If it does not work see instructions for running the Cadence Server at https://github.com/uber/cadence/blob/master/README.md
+
+## Get CLI
+
+    TODO
 
 # Build Configuration
 
@@ -38,16 +42,17 @@ activities and workflows.
 
 
 ## Cadence Terminology
+
 - *Activity* is a business level task that implement your application logic like calling a service or transcoding a media file. 
 Usually it is expected that an activity implements a single well defined action. Activity can be both short and long running. 
-              It can be implemented as synchronous method or fully asynchronously involving multiple processes. Activity is executed *at most once*.
-              It means that Cadence service never request activity execution more than once. If for any reason activity is not completed
+              It can be implemented as a synchronous method or fully asynchronously involving multiple processes. Activity is executed *at most once*.
+              It means that the Cadence service never requests activity execution more than once. If for any reason activity is not completed
               within specified timeout an error is reported to the workflow and it decides how to handle it.
               There is no limit on potential activity duration. 
 
-- *Workflow* is a program that orchestrates activities. It has a full control which activities and in what order are executed.
+- *Workflow* is a program that orchestrates activities. It has a full control over which activities and in what order are executed.
              Workflow must not affect external world directly, only through activities. What makes workflow code "a workflow" is that its state
-             is preserved by Cadence. So any failure of a worker process that hosts a workflow code does not affect workflow execution.
+             is preserved by Cadence. So any failure of a worker process that hosts the workflow code does not affect the workflow execution.
              It continues as if these failures do not happen. At the same time activities can fail any moment for any reason.
              But as workflow code is fully fault tolerant it is guaranteed to get notification about activity failure or timeout and
              act accordingly. There is no limit on a potential workflow duration.
@@ -58,8 +63,8 @@ Usually it is expected that an activity implements a single well defined action.
 - *Domain* is a namespace like concept. Any entity stored in Cadence is always stored in a specific domain. For example when
 a workflow is started it is started in a specific domain. Cadence guarantees a workflow id uniqueness within a domain. Domains
 are created and updated though a separate CRUD API or through CLI.
-- *Task List* When a workflow requests an execution of an activity behind the scene Cadence creates an *activity task* and puts it
-into a *Task List* which is essentially a queue persisted inside a Cadence service. Then a client side worker that implement the activity
+- *Task List* is essentially a queue persisted inside a Cadence service. When a workflow requests an activity execution 
+Cadence service creates an *activity task* and puts it into a *Task List*. Then a client side worker that implement the activity
 receives the task from the task list and invokes an activity implementation. For this to work task list name that is used to request an
 activity execution and configure a worker should match.
 - *Workflow ID* is a business level ID of a workflow execution (aka instance). Cadence guarantees uniqueness of an ID within a domain.
@@ -83,25 +88,23 @@ The only requirement is that activity method arguments and return values are ser
 [DataConverter](src/main/java/com/uber/cadence/converter/DataConverter.java) interface. The default implementation uses
 JSON serializer, but an alternative implementation can be easily configured. 
 
+Example of an interface that defines four activities:
 ```Java
 public interface FileProcessingActivities {
  
     void upload(String bucketName, String localName, String targetName);
 
-    /**
-     * @return local name
-     */
     String download(String bucketName, String remoteName);
 
-    /**
-     * @return local name
-     */
+    @ActivityMethod(scheduleToCloseTimeoutSeconds = 2)
     String processFile(String localName);
     
     void deleteLocalFile(String fileName);
 }
 
 ```
+An optional @ActivityMethod annotation can be used to specify activity options like timeouts or task list. Required options
+that are not specified through the annotation must be specified at run time.
 
 ## Activity Implementation
 
@@ -163,10 +166,11 @@ public class FileProcessingActivitiesImpl implements FileProcessingActivities {
      ...
  }
 ```
+
 ### Asynchronous Activity Completion
 
-Sometimes activity lifecycle goes beyond a synchronous method invocation. For example a request can be put in a queue
-and later reply comes and picked up by a different worker process. The whole such request reply interaction can be modeled
+Sometimes an activity lifecycle goes beyond a synchronous method invocation. For example a request can be put in a queue
+and later a reply comes and picked up by a different worker process. The whole such request-reply interaction can be modeled
 as a single Cadence activity. 
 
 To indicate that an activity should not be completed upon its method return annotate it with @DoNotCompleteOnReturn.
@@ -179,7 +183,7 @@ public class FileProcessingActivitiesImpl implements FileProcessingActivities {
      public String download(String bucketName, String remoteName, String localName) {
          byte[] taskToken = Activity.getTaskToken(); // Used to correlate reply
          asyncDownloadFileFromS3(taskToken, bucketName, remoteName, localDirectory + localName);
-         return "ignored"; // This value is ignored when annotated with @DoNotCompleteOnReturn
+         return "ignored"; // Return value is ignored when annotated with @DoNotCompleteOnReturn
      }
      ...
 }
@@ -194,6 +198,7 @@ When download is complete the download service calls back potentially from a dif
         completionClient.completeExceptionally(taskToken, failure);
     }
 ```
+
 ### Activity Heartbeating
 
 Some activities are potentially long running. To be able to react to their crashes quickly heartbeat mechanism is used.
@@ -225,18 +230,22 @@ public class FileProcessingActivitiesImpl implements FileProcessingActivities {
 }
 ```
 # Workflows
+
 Workflow encapsulates orchestration of activities and child workflows. 
 It can also answer to synchronous queries and receive external events (aka signals).
+
 ## Workflow Interface
+
 A workflow must define an interface class. All its methods must have one of the following annotations:
-- @WorkflowMethod indicates an entry point to a workflow
+- @WorkflowMethod indicates an entry point to a workflow. It contains parameters like timeouts and task list. Required
+parameters (like executionStartToCloseTimeoutSeconds) that are not specified through the annotation must be provided at runtime.
 - @Signal indicates a method that reacts to external signals. Must have a `void` return type.
 - @Query indicates a method that reacts to synchronous query requests.
 It is possible to have more than method with the same annotation.
 ```java
 public interface FileProcessingWorkflow {
 
-    @WorkflowMethod
+    @WorkflowMethod(executionStartToCloseTimeoutSeconds = 10, taskList = "file-processing")
     String processFile(Arguments args);
 
     @QueryMethod(name="history")
@@ -255,13 +264,8 @@ Given a workflow interface executing a workflow requires initializing a `Workflo
 a client side stub to the workflow and then calling a method annotated with @WorkflowMethod.
 ```java
 WorkflowClient workflowClient = WorkflowClient.newClient(cadenceServiceHost, cadenceServicePort, domain);
-// At least workflow timeout and task list to use are required.
-WorkflowOptions options = new WorkflowOptions.Builder()
-        .setExecutionStartToCloseTimeoutSeconds(300)
-        .setTaskList(WORKFLOW_TASK_LIST)
-        .build();
 // Create workflow stub
-FileProcessingWorkflow workflow = workflowClient.newWorkflowStub(FileProcessingWorkflow.class, options);
+FileProcessingWorkflow workflow = workflowClient.newWorkflowStub(FileProcessingWorkflow.class);
 ```
 There are two ways to start workflow execution. Synchronously and asynchronously. Synchronous invocation starts a workflow
 and then waits for its completion. If process that started workflow crashes or stops waiting workflow continues execution.
@@ -306,8 +310,8 @@ can communicate with the other parts of the workflow through workflow object fie
 ### Calling Activities
 
 `Workflow.newActivityStub` returns a client side stub that implements an activity interface. 
-It takes activity type and activity options as arguments. Activity options are needed to tell the Cadence service 
-the required timeouts and which task list to use when dispatching a correspondent activity task to a worker.
+It takes activity type and activity options as arguments. Activity options are needed only if some of the required
+ timeouts are not specified through @ActivityMethod annotation.
 
 Calling a method on this interface invokes an activity that implements this method. 
 An activity invocation synchronously blocks until the activity completes (or fails or times out). Even if activity 
@@ -320,11 +324,7 @@ public class FileProcessingWorkflowImpl implements FileProcessingWorkflow {
     private final FileProcessingActivities activities;
     
     public FileProcessingWorkflowImpl() {
-        // Options are required as there are no good defaults for the timeouts.
-        ActivityOptions ao = new ActivityOptions.Builder()
-            .setScheduleToCloseTimeoutSeconds(300)
-            .build();
-        this.store = Workflow.newActivityStub(FileProcessingActivities.class, ao);
+        this.store = Workflow.newActivityStub(FileProcessingActivities.class);
     }
 
     @Override
@@ -347,9 +347,24 @@ public class FileProcessingWorkflowImpl implements FileProcessingWorkflow {
     ...
 }
 ```
-If different activities need different scheduling options just create multiple client side stubs with different options.
+If different activities need different options (like timeouts or task list)  multiple client side stubs could be created 
+with different options.
+
+    public FileProcessingWorkflowImpl() {
+        ActivityOptions options1 = new ActivityOptions.Builder()
+                 .setTaskList("taskList1")
+                 .build();
+        this.store1 = Workflow.newActivityStub(FileProcessingActivities.class, options1);
+        
+        ActivityOptions options2 = new ActivityOptions.Builder()
+                 .setTaskList("taskList2")
+                 .build();
+        this.store2 = Workflow.newActivityStub(FileProcessingActivities.class, options2);
+    }
+
 ### Calling Activities Asynchronously
-Being able to call activity synchronously is great. But sometimes workflows need to perform certain operations in parallel.
+
+Sometimes workflows need to perform certain operations in parallel.
 `Workflow.async` static method allows invoking any activity asynchronously. The call returns a `Promise` result immediately.
 `Promise` is similar to both Java `Future` and `CompletionStage`. The `Promise` `get` blocks until a result is available. 
 Also it exposes `thenApply` and `handle` methods. See `Promise` JavaDoc for technical details on differences with `Future`.
@@ -358,7 +373,7 @@ To convert a synchronous call
 ```java
 String localName = activities.download(surceBucket, sourceFile);
 ```
-to asynchronous style, pass the method reference to the `Workflow.async` followed by activity arguments.
+to asynchronous style, the method reference is passed to the `Workflow.async` followed by activity arguments.
 ```java
 Promise<String> localNamePromise = Workflow.async(activities::download, surceBucket, sourceFile);
 ```
@@ -414,7 +429,7 @@ Besides activities a workflow can also orchestrate other workflows.
  
 `Workflow.newChildWorkflowStub` returns a client side stub that implements a child workflow interface. 
  It takes a child workflow type and an optional child workflow options as arguments. Workflow options may be needed to override 
- the timeouts and task list if they differ from the parent workflow ones.
+ the timeouts and task list if they differ from the defined in @WorkflowMethod annotation or parent workflow ones.
  
  The first call to the child workflow stub must always be to a method annotated with @WorkflowMethod. Similarly to activities a call
  can be synchronous or asynchronous using `Workflow.async`. The synchronous call blocks until a child workflow completion. The asynchronous
@@ -484,10 +499,11 @@ public static class GreetingWorkflowImpl implements GreetingWorkflow {
 Calling methods annotated with @QueryMethod is not allowed from within a workflow code.
 ### Workflow Implementation Constraints
 
-Cadence uses event sourcing to recover a state of the workflow object including its threads and local variables using
-[event sourcing](https://docs.microsoft.com/en-us/azure/architecture/patterns/event-sourcing). In essence every time 
-workflow state has to be restored its code is reexecuted from the beginning ignoring side effects (like activity invocations) 
-which were already recorded in the workflow event history. Don't get confused, when writing workflow logic the replay is not visible,
+Cadence uses [event sourcing](https://docs.microsoft.com/en-us/azure/architecture/patterns/event-sourcing) to recover 
+the state of a workflow object including its threads and local variable values.
+. In essence every time a workflow state has to be restored its code is reexecuted from the beginning ignoring side 
+effects (like activity invocations) which were already recorded in the workflow event history.
+ Don't get confused, when writing workflow logic the replay is not visible,
 so the code should be written as it executes only once. But this design still puts the following constraints on the workflow 
 implementation:
 - Do not use any mutable global variables as multiple instances of workflows are executed in parallel.
@@ -495,9 +511,10 @@ implementation:
 Always do it in activities.
 - Don’t perform any IO or service calls as they are not usually deterministic. Use activities for that.
 - Only use `Workflow.currentTimeMillis()` to get current time inside a workflow.
-- Do not use native Java `Thread` class. Use `Workflow.newThread` to create workflow friendly `WorkflowThread`.
+- Do not use native Java `Thread` or any other multi-threaded classes like `ThreadPoolExecutor`. Use `Async.invoke` 
+to execute code asynchronously.
 - Don't use any synchronization, locks and other standard Java blocking concurrency related classes besides provided 
-by the Workflow class. There is no need in explicit synchronization as even multithreaded code inside a workflow is 
+by the Workflow class. There is no need in explicit synchronization as even multi-threaded code inside a workflow is 
 executed one thread at a time and under a global lock.
   - Call `WorkflowThread.sleep` instead of `Thread.sleep`
   - Use `Promise` and `CompletablePromise` instead of `Future` and `CompletableFuture`.
