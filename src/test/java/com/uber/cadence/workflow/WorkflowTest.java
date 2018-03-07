@@ -791,8 +791,10 @@ public class WorkflowTest {
         WorkflowExecution execution = client.start();
         assertEquals("initial", client.query("QueryableWorkflow::getState", String.class));
         client.signal("testSignal", "Hello ");
+        while(!"Hello ".equals(client.query("QueryableWorkflow::getState", String.class))) {}
         assertEquals("Hello ", client.query("QueryableWorkflow::getState", String.class));
         client.signal("testSignal", "World!");
+        while(!"World!".equals(client.query("QueryableWorkflow::getState", String.class))) {}
         assertEquals("World!", client.query("QueryableWorkflow::getState", String.class));
         assertEquals("Hello World!", workflowClient.newUntypedWorkflowStub(execution).getResult(String.class));
     }
@@ -1090,7 +1092,12 @@ public class WorkflowTest {
         options.setTaskStartToCloseTimeout(Duration.ofSeconds(2));
         options.setTaskList(taskList);
         TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
-        assertEquals("result", client.execute());
+        try {
+            client.execute();
+            fail("unreachable");
+        } catch (WorkflowFailureException e) {
+            assertTrue(e.getCause() instanceof CancellationException);
+        }
     }
 
     public static class TestChildWorkflowAsyncRetryWorkflow implements TestWorkflow1 {
