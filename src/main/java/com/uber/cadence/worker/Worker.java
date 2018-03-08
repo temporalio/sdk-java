@@ -105,7 +105,8 @@ public final class Worker {
         }
         SingleWorkerOptions workflowOptions = toWorkflowOptions(options);
         if (!options.isDisableWorkflowWorker()) {
-            workflowWorker = new SyncWorkflowWorker(service, domain, taskList, workflowOptions);
+            workflowWorker = new SyncWorkflowWorker(service, domain, taskList, workflowOptions,
+                    options.getMaxWorkflowThreads());
         } else {
             workflowWorker = null;
         }
@@ -134,7 +135,7 @@ public final class Worker {
     }
 
     /**
-     * Register workflow implementation classes with a worker.
+     * Register workflow implementation classes with a worker. Overwrites previously registered types.
      * A workflow implementation class must implement at least one interface with a method annotated with
      * {@link com.uber.cadence.workflow.WorkflowMethod}. That method becomes a workflow type
      * that this worker supports.
@@ -151,7 +152,7 @@ public final class Worker {
     }
 
     /**
-     * Register activity implementation objects with a worker.
+     * Register activity implementation objects with a worker. Overwrites previously registered objects.
      * As activities are reentrant and stateless only one instance per activity type
      * is registered.
      * <p>
@@ -164,11 +165,11 @@ public final class Worker {
         if (activityWorker == null) {
             throw new IllegalStateException("disableActivityWorker is set in worker options");
         }
-        checkStarted();
+        checkNotStarted();
         activityWorker.setActivitiesImplementation(activityImplementations);
     }
 
-    private void checkStarted() {
+    private void checkNotStarted() {
         if (started.get()) {
             throw new IllegalStateException("already started");
         }

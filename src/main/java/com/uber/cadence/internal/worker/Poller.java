@@ -21,6 +21,8 @@ import com.uber.cadence.internal.common.BackoffThrottler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -118,9 +120,12 @@ final class Poller implements SuspendableWorker {
                     options.getMaximumPollRateIntervalMilliseconds());
         }
 
+        // It is important to pass blocking queue of at least options.getPollThreadCount() capacity.
+        // As task enqueues next task the buffering is needed to queue task until the previous one
+        // releases a thread.
         pollExecutor = new ThreadPoolExecutor(options.getPollThreadCount(), options.getPollThreadCount(),
                 1, TimeUnit.SECONDS,
-                new LinkedBlockingQueue<>(options.getPollThreadCount()));
+                new ArrayBlockingQueue<>(options.getPollThreadCount()));
         pollExecutor.setThreadFactory(new ExecutorThreadFactory(options.getPollThreadNamePrefix(),
                 options.getUncaughtExceptionHandler()));
 

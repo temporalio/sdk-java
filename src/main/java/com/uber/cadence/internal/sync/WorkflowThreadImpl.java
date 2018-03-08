@@ -27,6 +27,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -188,7 +189,13 @@ class WorkflowThreadImpl implements WorkflowThread {
         }
         log.trace(String.format("Workflow thread \"%s\" started", getName()));
         context.setStatus(Status.RUNNING);
-        taskFuture = threadPool.submit(task);
+        try {
+            taskFuture = threadPool.submit(task);
+        } catch (RejectedExecutionException e) {
+            throw new Error("Not enough threads to execute workflows. " +
+                    "If this message appears consistently either WorkerOptions.maxConcurrentWorklfowExecutionSize " +
+                    "should be decreased or WorkerOptions.maxWorkflowThreads increased.");
+        }
     }
 
     public WorkflowThreadContext getContext() {

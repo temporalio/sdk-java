@@ -20,7 +20,7 @@ package com.uber.cadence.internal.worker;
 import java.time.Duration;
 
 /**
- * TODO: Switch to Duration.
+ * Options for component that polls Cadence task lists for tasks.
  */
 public final class PollerOptions {
 
@@ -59,41 +59,66 @@ public final class PollerOptions {
             this.uncaughtExceptionHandler = o.getUncaughtExceptionHandler();
         }
 
+        /**
+         * Defines interval for measuring poll rate. Larger the interval more spiky can be the load.
+         */
         public Builder setMaximumPollRateIntervalMilliseconds(int maximumPollRateIntervalMilliseconds) {
             this.maximumPollRateIntervalMilliseconds = maximumPollRateIntervalMilliseconds;
             return this;
         }
 
+        /**
+         * Maximum rate of polling. Measured in the interval set through {@link #setMaximumPollRateIntervalMilliseconds(int)}.
+         */
         public Builder setMaximumPollRatePerSecond(double maximumPollRatePerSecond) {
             this.maximumPollRatePerSecond = maximumPollRatePerSecond;
             return this;
         }
 
+        /**
+         * Coefficient to use when calculating exponential delay in case of failures
+         */
         public Builder setPollBackoffCoefficient(double pollBackoffCoefficient) {
             this.pollBackoffCoefficient = pollBackoffCoefficient;
             return this;
         }
 
+        /**
+         * Initial delay in case of failure. If backoff coefficient is 1 then it would be the constant delay
+         * between failing polls.
+         */
         public Builder setPollBackoffInitialInterval(Duration pollBackoffInitialInterval) {
             this.pollBackoffInitialInterval = pollBackoffInitialInterval;
             return this;
         }
 
+        /**
+         * Maximum interval between polls in case of failures.
+         */
         public Builder setPollBackoffMaximumInterval(Duration pollBackoffMaximumInterval) {
             this.pollBackoffMaximumInterval = pollBackoffMaximumInterval;
             return this;
         }
 
+        /**
+         * Number of parallel polling threads.
+         */
         public Builder setPollThreadCount(int pollThreadCount) {
             this.pollThreadCount = pollThreadCount;
             return this;
         }
 
+        /**
+         * Called to report unexpected exceptions in the poller threads.
+         */
         public Builder setUncaughtExceptionHandler(Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
             this.uncaughtExceptionHandler = uncaughtExceptionHandler;
             return this;
         }
 
+        /**
+         * Prefix to use when naming poller threads.
+         */
         public Builder setPollThreadNamePrefix(String pollThreadNamePrefix) {
             this.pollThreadNamePrefix = pollThreadNamePrefix;
             return this;

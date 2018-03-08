@@ -25,6 +25,7 @@ import com.uber.cadence.internal.worker.SingleWorkerOptions;
 import com.uber.cadence.internal.worker.WorkflowWorker;
 
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -38,9 +39,10 @@ public class SyncWorkflowWorker {
     private final POJOWorkflowImplementationFactory factory;
     private final SingleWorkerOptions options;
 
-    public SyncWorkflowWorker(WorkflowService.Iface service, String domain, String taskList, SingleWorkerOptions options) {
-        ThreadPoolExecutor workflowThreadPool = new ThreadPoolExecutor(1000, 1000,
-                10, TimeUnit.SECONDS, new ArrayBlockingQueue<>(10000));
+    public SyncWorkflowWorker(WorkflowService.Iface service, String domain, String taskList, SingleWorkerOptions options,
+                              int workflowThreadPoolSize) {
+        ThreadPoolExecutor workflowThreadPool = new ThreadPoolExecutor(workflowThreadPoolSize, workflowThreadPoolSize,
+                10, TimeUnit.SECONDS, new SynchronousQueue<>());
         factory = new POJOWorkflowImplementationFactory(options.getDataConverter(), workflowThreadPool);
         taskHandler = new ReplayDecisionTaskHandler(domain, factory);
         worker = new WorkflowWorker(service, domain, taskList, options, taskHandler);
