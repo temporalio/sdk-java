@@ -44,4 +44,8 @@ public final class ActivityInternal {
     public static WorkflowService.Iface getService() {
         return getContext().getService();
     }
+
+    public static void doNotCompleteOnReturn() {
+        getContext().doNotCompleteOnReturn();
+    }
 }

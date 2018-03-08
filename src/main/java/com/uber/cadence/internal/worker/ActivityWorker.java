@@ -27,9 +27,9 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.internal.common.SynchronousRetryer;
+import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.thrift.TException;
 
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;

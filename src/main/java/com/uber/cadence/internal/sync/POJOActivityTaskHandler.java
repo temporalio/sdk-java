@@ -25,7 +25,6 @@ import com.uber.cadence.RespondActivityTaskFailedRequest;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.activity.ActivityMethod;
 import com.uber.cadence.activity.ActivityTask;
-import com.uber.cadence.activity.DoNotCompleteOnReturn;
 import com.uber.cadence.activity.MethodRetry;
 import com.uber.cadence.client.ActivityCancelledException;
 import com.uber.cadence.converter.DataConverter;
@@ -129,29 +128,10 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     private class POJOActivityImplementation {
         private final Method method;
         private final Object activity;
-        private boolean doNotCompleteOnReturn;
 
         POJOActivityImplementation(Method interfaceMethod, Object activity) {
             this.method = interfaceMethod;
 
-            // @DoNotCompleteOnReturn is expected to be on implementation method, not the interface.
-            // So lookup method starting from the implementation object class.
-            DoNotCompleteOnReturn annotation;
-            try {
-                Method implementationMethod = activity.getClass().getMethod(interfaceMethod.getName(), interfaceMethod.getParameterTypes());
-                annotation = implementationMethod.getAnnotation(DoNotCompleteOnReturn.class);
-                if (interfaceMethod.getAnnotation(DoNotCompleteOnReturn.class) != null) {
-                    throw new IllegalArgumentException("Found @" + DoNotCompleteOnReturn.class.getSimpleName() +
-                            " annotation on activity interface method \"" + interfaceMethod +
-                            "\". This annotation applies only to activity implementation methods. " +
-                            "Try moving it to \"" + implementationMethod + "\"");
-                }
-            } catch (NoSuchMethodException e) {
-                throw new RuntimeException("No implementation method?", e);
-            }
-            if (annotation != null) {
-                doNotCompleteOnReturn = true;
-            }
             this.activity = activity;
         }
 
@@ -163,7 +143,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
             try {
                 Object result = method.invoke(activity, args);
                 RespondActivityTaskCompletedRequest request = new RespondActivityTaskCompletedRequest();
-                if (doNotCompleteOnReturn) {
+                if (context.isDoNotCompleteOnReturn()) {
                     return new ActivityTaskHandler.Result(null, null, null, null);
                 }
                 if (method.getReturnType() != Void.TYPE) {

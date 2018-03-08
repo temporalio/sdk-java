@@ -241,7 +241,7 @@ A workflow must define an interface class. All its methods must have one of the 
 parameters (like executionStartToCloseTimeoutSeconds) that are not specified through the annotation must be provided at runtime.
 - @Signal indicates a method that reacts to external signals. Must have a `void` return type.
 - @Query indicates a method that reacts to synchronous query requests.
-It is possible to have more than method with the same annotation.
+It is possible to have more than one method with the same annotation.
 ```java
 public interface FileProcessingWorkflow {
 
@@ -267,8 +267,8 @@ WorkflowClient workflowClient = WorkflowClient.newClient(cadenceServiceHost, cad
 // Create workflow stub
 FileProcessingWorkflow workflow = workflowClient.newWorkflowStub(FileProcessingWorkflow.class);
 ```
-There are two ways to start workflow execution. Synchronously and asynchronously. Synchronous invocation starts a workflow
-and then waits for its completion. If process that started workflow crashes or stops waiting workflow continues execution.
+There are two ways to start workflow execution synchronously and asynchronously. Synchronous invocation starts a workflow
+and then waits for its completion. If process that started workflow crashes or stops the waiting workflow continues execution.
 As workflows are potentially long running and crashes of clients happen it is not very commonly found in production use.
 Asynchronous start initiates workflow execution and immediately returns to the caller. This is most common way to start 
 workflows in production code.
@@ -316,7 +316,7 @@ It takes activity type and activity options as arguments. Activity options are n
 Calling a method on this interface invokes an activity that implements this method. 
 An activity invocation synchronously blocks until the activity completes (or fails or times out). Even if activity 
 execution takes a few months the workflow code still see it as a single synchronous invocation.
-Isn't it great? I doesn't matter what happens to the processes that host the worklfow. The business logic code
+Isn't it great? I doesn't matter what happens to the processes that host the workflow. The business logic code
 just sees a single method call.
 ```java
 public class FileProcessingWorkflowImpl implements FileProcessingWorkflow {
@@ -501,8 +501,8 @@ Calling methods annotated with @QueryMethod is not allowed from within a workflo
 
 Cadence uses [event sourcing](https://docs.microsoft.com/en-us/azure/architecture/patterns/event-sourcing) to recover 
 the state of a workflow object including its threads and local variable values.
-. In essence every time a workflow state has to be restored its code is reexecuted from the beginning ignoring side 
-effects (like activity invocations) which were already recorded in the workflow event history.
+. In essence every time a workflow state has to be restored its code is reexecuted from the beginning. When replaying side 
+effects (like activity invocations) are ignored as they are already recorded in the workflow event history.
  Don't get confused, when writing workflow logic the replay is not visible,
 so the code should be written as it executes only once. But this design still puts the following constraints on the workflow 
 implementation:

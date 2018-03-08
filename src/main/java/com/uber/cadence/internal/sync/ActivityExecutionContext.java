@@ -58,6 +58,15 @@ public interface ActivityExecutionContext {
     void recordActivityHeartbeat(Object details) throws ActivityCompletionException;
 
     /**
+     * If this method is called during an activity execution then activity is not going to complete
+     * when its method returns. It is expected to be completed asynchronously using
+     * {@link com.uber.cadence.client.ActivityCompletionClient}.
+     */
+    void doNotCompleteOnReturn();
+
+    boolean isDoNotCompleteOnReturn();
+
+    /**
      * @return an instance of the Simple Workflow Java client that is the same
      * used by the invoked activity worker.
      */

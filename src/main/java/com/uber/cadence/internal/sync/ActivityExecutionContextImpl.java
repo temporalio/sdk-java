@@ -29,9 +29,9 @@ import com.uber.cadence.client.ActivityCompletionException;
 import com.uber.cadence.client.ActivityCompletionFailureException;
 import com.uber.cadence.client.ActivityNotExistsException;
 import com.uber.cadence.converter.DataConverter;
+import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.thrift.TException;
 
 import java.util.concurrent.CancellationException;
 
@@ -51,6 +51,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
 
     private final ActivityTask task;
     private final DataConverter dataConverter;
+    private boolean doNotCompleteOnReturn;
 
     /**
      * Create an ActivityExecutionContextImpl with the given attributes.
@@ -89,6 +90,16 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
                     + " of Workflow=" + task.getWorkflowExecution(), e);
             // Not rethrowing to not fail activity implementation on intermittent connection or Cadence errors.
         }
+    }
+
+    @Override
+    public void doNotCompleteOnReturn() {
+        doNotCompleteOnReturn = true;
+    }
+
+    @Override
+    public boolean isDoNotCompleteOnReturn() {
+        return doNotCompleteOnReturn;
     }
 
     /**

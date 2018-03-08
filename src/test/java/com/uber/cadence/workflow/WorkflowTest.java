@@ -24,7 +24,6 @@ import com.uber.cadence.WorkflowIdReusePolicy;
 import com.uber.cadence.activity.Activity;
 import com.uber.cadence.activity.ActivityMethod;
 import com.uber.cadence.activity.ActivityOptions;
-import com.uber.cadence.activity.DoNotCompleteOnReturn;
 import com.uber.cadence.activity.MethodRetry;
 import com.uber.cadence.client.ActivityCancelledException;
 import com.uber.cadence.client.ActivityCompletionClient;
@@ -40,13 +39,13 @@ import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.converter.JsonDataConverter;
 import com.uber.cadence.internal.sync.DeterministicRunnerTest;
 import com.uber.cadence.worker.Worker;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -1145,26 +1144,6 @@ public class WorkflowTest {
         assertEquals(3, AngryChild.invocationCount);
     }
 
-
-    /**
-     * Used to test that worker rejects activities with DoNotCompleteOnReturn annotation on interface.
-     */
-    public interface ActivitiesWithDoNotCompleteAnnotation {
-        @DoNotCompleteOnReturn
-        void activity();
-    }
-
-    public class ActivitiesWithDoNotCompleteAnnotationImpl implements ActivitiesWithDoNotCompleteAnnotation {
-        @Override
-        public void activity() {
-        }
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testActivitiesWithDoNotCompleteAnnotationInterface() {
-        worker.registerActivitiesImplementations(new ActivitiesWithDoNotCompleteAnnotationImpl());
-    }
-
     public interface TestActivities {
 
         String activityWithDelay(long milliseconds, boolean heartbeatMoreThanOnce);
@@ -1226,7 +1205,6 @@ public class WorkflowTest {
         }
 
         @Override
-        @DoNotCompleteOnReturn
         public String activityWithDelay(long delay, boolean heartbeatMoreThanOnce) {
             byte[] taskToken = Activity.getTaskToken();
             executor.execute(() -> {
@@ -1248,6 +1226,7 @@ public class WorkflowTest {
                     completionClient.reportCancellation(taskToken, null);
                 }
             });
+            Activity.doNotCompleteOnReturn();
             return "ignored";
         }
 
@@ -1275,7 +1254,6 @@ public class WorkflowTest {
             return a1 + a2 + a3;
         }
 
-        @DoNotCompleteOnReturn
         @Override
         public String activity4(String a1, int a2, int a3, int a4) {
             byte[] taskToken = Activity.getTaskToken();
@@ -1283,10 +1261,10 @@ public class WorkflowTest {
                 invocations.add("activity4");
                 completionClient.complete(taskToken, a1 + a2 + a3 + a4);
             });
+            Activity.doNotCompleteOnReturn();
             return "ignored";
         }
 
-        @DoNotCompleteOnReturn
         @Override
         public String activity5(String a1, int a2, int a3, int a4, int a5) {
             WorkflowExecution execution = Activity.getWorkflowExecution();
@@ -1295,6 +1273,7 @@ public class WorkflowTest {
                 invocations.add("activity5");
                 completionClient.complete(execution, id, a1 + a2 + a3 + a4 + a5);
             });
+            Activity.doNotCompleteOnReturn();
             return "ignored";
         }
 

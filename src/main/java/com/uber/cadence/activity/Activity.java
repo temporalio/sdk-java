@@ -32,6 +32,15 @@ import java.util.concurrent.CancellationException;
 public final class Activity {
 
     /**
+     * If this method is called during an activity execution then activity is not going to complete
+     * when its method returns. It is expected to be completed asynchronously using
+     * {@link com.uber.cadence.client.ActivityCompletionClient}.
+     */
+    public static void doNotCompleteOnReturn() {
+        ActivityInternal.doNotCompleteOnReturn();
+    }
+
+    /**
      * @return task token that is required to report task completion when
      * manual activity completion is used.
      */

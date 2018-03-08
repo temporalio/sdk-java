@@ -18,12 +18,12 @@
 package com.uber.cadence.client;
 
 import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.activity.Activity;
 
 import java.util.concurrent.CancellationException;
 
 /**
- * Used to complete asynchronously activities that have their implementation method annotated with
- * {@link com.uber.cadence.activity.DoNotCompleteOnReturn}.
+ * Used to complete asynchronously activities that called {@link Activity#doNotCompleteOnReturn()}.
  * <p>
  * Use {@link WorkflowClient#newActivityCompletionClient()} to create an instance.
  * </p>
