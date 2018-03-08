@@ -173,17 +173,18 @@ Sometimes an activity lifecycle goes beyond a synchronous method invocation. For
 and later a reply comes and picked up by a different worker process. The whole such request-reply interaction can be modeled
 as a single Cadence activity. 
 
-To indicate that an activity should not be completed upon its method return annotate it with @DoNotCompleteOnReturn.
+To indicate that an activity should not be completed upon its method return call Activity.doNotCompleteOnReturn() from the
+original activity thread.
 Then later when replies come complete it using [ActivityCompletionClient](src/main/java/com/uber/cadence/client/ActivityCompletionClient.java).
 To correlate activity invocation with completion use either `TaskToken` or workflow and activity ids.
 ```java
 public class FileProcessingActivitiesImpl implements FileProcessingActivities {
 
-     @DoNotCompleteOnReturn
      public String download(String bucketName, String remoteName, String localName) {
          byte[] taskToken = Activity.getTaskToken(); // Used to correlate reply
          asyncDownloadFileFromS3(taskToken, bucketName, remoteName, localDirectory + localName);
-         return "ignored"; // Return value is ignored when annotated with @DoNotCompleteOnReturn
+         Activity.doNotCompleteOnReturn();
+         return "ignored"; // Return value is ignored when doNotCompleteOnReturn was called.
      }
      ...
 }

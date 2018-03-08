@@ -148,6 +148,10 @@ public final class Worker {
      * </p>
      */
     public void registerWorkflowImplementationTypes(Class<?>... workflowImplementationClasses) {
+        if (workflowWorker == null) {
+            throw new IllegalStateException("disableWorkflowWorker is set in worker options");
+        }
+        checkNotStarted();
         workflowWorker.setWorkflowImplementationTypes(workflowImplementationClasses);
     }
 
