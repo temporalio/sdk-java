@@ -15,17 +15,17 @@
  *  permissions and limitations under the License.
  */
 
-package com.uber.cadence.internal.sync;
+package com.uber.cadence.internal.common;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 
 /**
  * Do not reference directly by the application level code.
- * Use {@link com.uber.cadence.workflow.Workflow#throwWrapped(Throwable)} inside a workflow code and
- * {@link com.uber.cadence.activity.Activity#throwWrapped(Throwable)} inside an activity code instead.
+ * Use {@link com.uber.cadence.workflow.Workflow#wrap(Exception)} inside a workflow code and
+ * {@link com.uber.cadence.activity.Activity#wrap(Exception)} inside an activity code instead.
  */
-final class CheckedExceptionWrapper extends RuntimeException {
+public final class CheckedExceptionWrapper extends RuntimeException {
 
     private final static Field causeField;
 
@@ -39,39 +39,25 @@ final class CheckedExceptionWrapper extends RuntimeException {
     }
 
     /**
-     * Throws CheckedExceptionWrapper if e is checked exception.
+     * Returns CheckedExceptionWrapper if e is checked exception.
      * If there is a need to return a checked exception from an activity or workflow implementation
-     * throwWrapped it using this method. The library code will unwrap it automatically when propagating exception
+     * throw a wrapped exception it using this method. The library code will unwrap it automatically when propagating exception
      * to the caller.
-     * <p>
-     * Throws original exception if e is {@link RuntimeException} or {@link Error}.
-     * Never returns. But return type is not empty to be able to use it as:
      * <pre>
      * try {
      *     return someCall();
      * } catch (Exception e) {
-     *     throw CheckedExceptionWrapper.throwWrapped(e);
+     *     throw CheckedExceptionWrapper.wrap(e);
      * }
      * </pre>
-     * If throwWrapped returned void it wouldn't be possible to write <code>throw CheckedExcptionWrapper.throwWrapped</code>
-     * and compiler would complain about missing return.
-     *
-     * @return never returns as always throws.
      */
-    public static RuntimeException throwWrapped(Throwable e) {
-        throw getWrapped(e);
-    }
-
-    /**
-     * Similar to throwWrapped but just returns wrapped error without throwing it.
-     * Only Error is thrown as it should propagate up the stack without any delay.
-     */
-    public static RuntimeException getWrapped(Throwable e) {
+    public static RuntimeException wrap(Throwable e) {
+        // Errors are expected to propagate without any handling.
         if (e instanceof Error) {
             throw (Error) e;
         }
         if (e instanceof InvocationTargetException) {
-            return getWrapped(e.getCause());
+            return wrap(e.getCause());
         }
         if (e instanceof RuntimeException) {
             return (RuntimeException) e;
@@ -83,7 +69,7 @@ final class CheckedExceptionWrapper extends RuntimeException {
      * Removes CheckedException wrapper from the whole chain of Exceptions.
      * Assumes that wrapper always has a cause which cannot be a wrapper.
      */
-    public static Throwable unwrap(Throwable e) {
+    public static Exception unwrap(Exception e) {
         Throwable head = e;
         if (head instanceof CheckedExceptionWrapper) {
             head = head.getCause();
@@ -98,7 +84,11 @@ final class CheckedExceptionWrapper extends RuntimeException {
             tail = current;
             current = tail.getCause();
         }
-        return head;
+        if (head instanceof Error) {
+            // Error should be propagated without any handling.
+            throw (Error)head;
+        }
+        return (Exception) head;
     }
 
     /**

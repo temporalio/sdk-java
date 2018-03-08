@@ -22,7 +22,6 @@ import com.uber.cadence.WorkflowService.Iface;
 import com.uber.cadence.client.WorkflowTerminatedException;
 import com.uber.cadence.client.WorkflowTimedOutException;
 import com.uber.cadence.common.RetryOptions;
-import com.uber.cadence.workflow.Workflow;
 import org.apache.thrift.TException;
 
 import java.lang.reflect.InvocationTargetException;
@@ -110,8 +109,7 @@ public class WorkflowExecutionUtils {
                 response = SynchronousRetryer.retryWithResult(retryParameters,
                         () -> service.GetWorkflowExecutionHistory(r));
             } catch (TException e) {
-                // TODO: Refactor to avoid this ugly circular dependency.
-                throw Workflow.throwWrapped(e);
+                throw CheckedExceptionWrapper.wrap(e);
             }
             if (timeout != 0 && System.currentTimeMillis() - start > unit.toMillis(timeout)) {
                 throw new TimeoutException("WorkflowId=" + workflowExecution.getWorkflowId() +

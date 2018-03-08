@@ -17,6 +17,7 @@
 
 package com.uber.cadence.internal.sync;
 
+import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.workflow.Workflow;
 import org.junit.Assert;
 import org.junit.Test;
@@ -32,16 +33,16 @@ public class CheckedExceptionWrapperTest {
                         try {
                             throw new Exception("1");
                         } catch (Exception e) {
-                            throw Workflow.throwWrapped(e);
+                            throw Workflow.wrap(e);
                         }
                     } catch (Exception e) {
-                        throw Workflow.throwWrapped(e);
+                        throw Workflow.wrap(e);
                     }
                 } catch (Exception e) {
                     throw new Exception("2", e);
                 }
             } catch (Exception e) {
-                throw Workflow.throwWrapped(e);
+                throw Workflow.wrap(e);
             }
         } catch (Exception e) {
             Throwable result = CheckedExceptionWrapper.unwrap(e);
@@ -49,7 +50,7 @@ public class CheckedExceptionWrapperTest {
             Assert.assertEquals("1", result.getCause().getMessage());
             Assert.assertNull(result.getCause().getCause());
         }
-        Throwable e = new Throwable("5");
+        Exception e = new Exception("5");
         Throwable eu = CheckedExceptionWrapper.unwrap(e);
         Assert.assertEquals(e, eu);
     }

@@ -20,6 +20,7 @@ package com.uber.cadence.internal.sync;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.activity.ActivityOptions;
 import com.uber.cadence.common.RetryOptions;
+import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.replay.ContinueAsNewWorkflowExecutionParameters;
 import com.uber.cadence.workflow.CancellationScope;
@@ -76,7 +77,7 @@ public final class WorkflowInternal {
 
     public static <E> Promise<E> newFailedPromise(Exception failure) {
         CompletablePromise<E> result = new CompletablePromiseImpl<>();
-        result.completeExceptionally(CheckedExceptionWrapper.getWrapped(failure));
+        result.completeExceptionally(CheckedExceptionWrapper.wrap(failure));
         return result;
     }
 
@@ -198,13 +199,12 @@ public final class WorkflowInternal {
         return CancellationScopeImpl.current();
     }
 
-
-    public static RuntimeException throwWrapped(Throwable e) {
-        return CheckedExceptionWrapper.throwWrapped(e);
+    public static RuntimeException wrap(Throwable e) {
+        return CheckedExceptionWrapper.wrap(e);
     }
 
-    public static RuntimeException getWrapped(Throwable e) {
-        return CheckedExceptionWrapper.getWrapped(e);
+    public static Exception unwrap(Exception e) {
+        return CheckedExceptionWrapper.unwrap(e);
     }
 
     /**

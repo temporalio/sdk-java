@@ -247,8 +247,8 @@ public final class AsyncInternal {
             try {
                 func.apply();
                 return getAsyncInvocationResult();
-            } catch (Throwable e) {
-                return Workflow.newFailedPromise(Workflow.getWrapped(e));
+            } catch (Exception e) {
+                return Workflow.newFailedPromise(Workflow.wrap(e));
             } finally {
                 closeAsyncInvocation();
             }
@@ -257,8 +257,8 @@ public final class AsyncInternal {
             WorkflowInternal.newThread(false, () -> {
                 try {
                     result.complete(func.apply());
-                } catch (Throwable e) {
-                    result.completeExceptionally(Workflow.getWrapped(e));
+                } catch (Exception e) {
+                    result.completeExceptionally(Workflow.wrap(e));
                 }
             }).start();
             return result;

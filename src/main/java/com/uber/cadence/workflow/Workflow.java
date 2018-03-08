@@ -190,9 +190,9 @@ public final class Workflow {
 
     /**
      * If there is a need to return a checked exception from a workflow implementation
-     * do not add the exception to a method signature but rethrow it using this method.
-     * The library code will unwrap it automatically when propagating exception to the caller.
-     * There is no need to wrap unchecked exceptions, but it is safe to call this method on them.
+     * do not add the exception to a method signature but wrap it using this method before rethrowing.
+     * The library code will unwrap it automatically using {@link #unwrap(Exception)} when propagating exception
+     * to a remote caller. {@link RuntimeException} are just returned from this method without modification.
      * <p>
      * The reason for such design is that returning originally thrown exception from a remote call
      * (which child workflow and activity invocations are ) would not allow adding context information about
@@ -203,30 +203,26 @@ public final class Workflow {
      * adding checked ones to method signature causes more pain than benefit.
      * </p>
      * <p>
-     * Throws original exception if e is {@link RuntimeException} or {@link Error}.
-     * Never returns. But return type is not empty to be able to use it as:
      * <pre>
      * try {
      *     return someCall();
      * } catch (Exception e) {
-     *     throw CheckedExceptionWrapper.throwWrapped(e);
+     *     throw CheckedExceptionWrapper.wrap(e);
      * }
-     * </pre>
-     * If throwWrapped returned void it wouldn't be possible to write <code>throw CheckedExceptionWrapper.throwWrapped</code>
-     * and compiler would complain about missing return.
-     *
-     * @return never returns as always throws.
+     * </pre>*
+     * @return CheckedExceptionWrapper if e is checked or original exception if e extends RuntimeException.
      */
-    public static RuntimeException throwWrapped(Throwable e) {
-        return WorkflowInternal.throwWrapped(e);
+    public static RuntimeException wrap(Exception e) {
+        return WorkflowInternal.wrap(e);
     }
 
     /**
-     * Similar to throwWrapped, but doesn't throws but returns the wrapped exception.
-     * Useful when completing Promise.
+     * Removes {@link com.uber.cadence.internal.sync.CheckedExceptionWrapper} from causal exception chain.
+     * @param e exception with causality chain that might contain wrapped exceptions.
+     * @return exception causality chain with CheckedExceptionWrapper removed.
      */
-    public static RuntimeException getWrapped(Throwable e) {
-        return WorkflowInternal.getWrapped(e);
+    public static Exception unwrap(Exception e) {
+        return WorkflowInternal.unwrap(e);
     }
 
     /**

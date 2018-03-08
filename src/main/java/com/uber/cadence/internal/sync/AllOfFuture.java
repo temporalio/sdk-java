@@ -126,4 +126,9 @@ class AllOfPromise<G> implements Promise<List<G>> {
     public List<G> get(long timeout, TimeUnit unit, List<G> defaultValue) {
         return impl.get(timeout, unit, defaultValue);
     }
+
+    @Override
+    public RuntimeException getFailure() {
+        return impl.getFailure();
+    }
 }

@@ -72,7 +72,7 @@ final class WorkflowRetryerInternal {
             } catch (Exception e) {
                 long elapsed = Workflow.currentTimeMillis() - startTime;
                 if (shouldRethrow(e, options, attempt, elapsed, nextSleepTime)) {
-                    Workflow.throwWrapped(e);
+                    throw Workflow.wrap(e);
                 }
             }
             attempt++;

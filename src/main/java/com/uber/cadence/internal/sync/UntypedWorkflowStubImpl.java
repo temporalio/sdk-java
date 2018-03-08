@@ -25,6 +25,7 @@ import com.uber.cadence.client.UntypedWorkflowStub;
 import com.uber.cadence.client.WorkflowFailureException;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.converter.DataConverter;
+import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.internal.common.StartWorkflowExecutionParameters;
 import com.uber.cadence.internal.common.WorkflowExecutionFailedException;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
@@ -115,7 +116,7 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
         try {
             return getResult(Long.MAX_VALUE, TimeUnit.MILLISECONDS, returnType);
         } catch (TimeoutException e) {
-            throw CheckedExceptionWrapper.throwWrapped(e);
+            throw CheckedExceptionWrapper.wrap(e);
         }
     }
 

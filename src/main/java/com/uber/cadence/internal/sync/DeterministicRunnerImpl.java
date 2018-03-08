@@ -17,6 +17,7 @@
 
 package com.uber.cadence.internal.sync;
 
+import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.workflow.Promise;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

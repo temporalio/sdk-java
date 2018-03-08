@@ -21,6 +21,7 @@ import com.google.common.reflect.TypeToken;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.converter.DataConverterException;
+import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.replay.ReplayWorkflow;
 import com.uber.cadence.internal.replay.ReplayWorkflowFactory;
@@ -192,7 +193,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
                             + ", RunID=" + context.getRunId()
                             + ", WorkflowType=" + context.getWorkflowType(), targetException);
                 }
-                throw mapToWorkflowExecutionException(targetException, dataConverter);
+                throw mapToWorkflowExecutionException((Exception) targetException, dataConverter);
             }
         }
 
@@ -245,8 +246,8 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
     }
 
-    public static WorkflowExecutionException mapToWorkflowExecutionException(Throwable e, DataConverter dataConverter) {
-        e = CheckedExceptionWrapper.unwrap(e);
-        return new WorkflowExecutionException(e.getClass().getName(), dataConverter.toData(e));
+    public static WorkflowExecutionException mapToWorkflowExecutionException(Exception failure, DataConverter dataConverter) {
+        failure = CheckedExceptionWrapper.unwrap(failure);
+        return new WorkflowExecutionException(failure.getClass().getName(), dataConverter.toData(failure));
     }
 }

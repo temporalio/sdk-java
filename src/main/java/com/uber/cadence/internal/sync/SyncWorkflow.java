@@ -112,7 +112,7 @@ class SyncWorkflow implements ReplayWorkflow {
     }
 
     @Override
-    public WorkflowExecutionException mapUnexpectedException(Throwable failure) {
+    public WorkflowExecutionException mapUnexpectedException(Exception failure) {
         return POJOWorkflowImplementationFactory.mapToWorkflowExecutionException(failure, dataConverter);
     }
 }

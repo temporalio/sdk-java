@@ -632,9 +632,9 @@ public class WorkflowTest {
                     // Errors cause decision to fail. But we want workflow to fail in this case.
                     throw new RuntimeException(ae);
                 }
-                Throwable ee = new NumberFormatException();
+                Exception ee = new NumberFormatException();
                 ee.initCause(e);
-                throw Workflow.throwWrapped(ee);
+                throw Workflow.wrap(ee);
             }
         }
     }
@@ -661,9 +661,9 @@ public class WorkflowTest {
                     // Errors cause decision to fail. But we want workflow to fail in this case.
                     throw new RuntimeException(ae);
                 }
-                Throwable fnf = new FileNotFoundException();
+                Exception fnf = new FileNotFoundException();
                 fnf.initCause(e);
-                throw Workflow.throwWrapped(fnf);
+                throw Workflow.wrap(fnf);
             }
         }
     }
@@ -1324,7 +1324,7 @@ public class WorkflowTest {
             try {
                 throw new IOException("simulated IO problem");
             } catch (IOException e) {
-                throw Activity.throwWrapped(e);
+                throw Activity.wrap(e);
             }
         }
 
@@ -1334,7 +1334,7 @@ public class WorkflowTest {
             try {
                 throw new IOException("simulated IO problem");
             } catch (IOException e) {
-                throw Activity.throwWrapped(e);
+                throw Activity.wrap(e);
             }
         }
     }

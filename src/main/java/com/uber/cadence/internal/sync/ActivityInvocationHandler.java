@@ -48,7 +48,7 @@ class ActivityInvocationHandler implements InvocationHandler {
                 return "ActivityInvocationHandler";
             }
         } catch (NoSuchMethodException e) {
-            throw Workflow.throwWrapped(e);
+            throw Workflow.wrap(e);
         }
         if (!method.getDeclaringClass().isInterface()) {
             throw new IllegalArgumentException("Interface type is expected: " + method.getDeclaringClass());

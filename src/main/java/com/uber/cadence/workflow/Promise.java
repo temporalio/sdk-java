@@ -57,7 +57,7 @@ public interface Promise<V> {
 
     /**
      * Waits if necessary for the computation to complete or fail, and then
-     * retrieves its result.
+     * returns its result.
      *
      * @return the computed result
      * @throws RuntimeException if the computation failed.
@@ -66,16 +66,17 @@ public interface Promise<V> {
 
     /**
      * Waits if necessary for the computation to complete or fail, and then
-     * retrieves its result or defaultValue in case of failure.
+     * returns its result or defaultValue in case of failure.
      *
      * @param defaultValue value to return in case of failure
      * @return the computed result
+     * @throws RuntimeException if the computation failed.
      */
     V get(V defaultValue);
 
     /**
      * Waits if necessary for at most the given time for the computation
-     * to complete, and then retrieves its result, if available.
+     * to complete, and then returns its result, if available.
      *
      * @param timeout the maximum time to wait
      * @param unit    the time unit of the timeout argument
@@ -95,6 +96,12 @@ public interface Promise<V> {
      * @return the computed result or default value in case of any failure including timeout.
      */
     V get(long timeout, TimeUnit unit, V defaultValue);
+
+    /**
+     * Waits if necessary for the computation to complete or fail, and then
+     * returns the failure or null.
+     */
+    RuntimeException getFailure();
 
     /**
      * Returns Promise that contains a result of a function. The function is called with the value of this

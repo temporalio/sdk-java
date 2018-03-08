@@ -128,6 +128,18 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
         return value;
     }
 
+    @Override
+    public RuntimeException getFailure() {
+        if (!completed) {
+            WorkflowThread.yield("Feature.get", () -> completed);
+        }
+        if (failure != null) {
+            unregisterWithRunner();
+            return failure;
+        }
+        return null;
+    }
+
     private void unregisterWithRunner() {
         if (registeredWithRunner) {
             runner.forgetFailedPromise(this);

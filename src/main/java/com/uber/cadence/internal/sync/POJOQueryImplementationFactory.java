@@ -19,6 +19,7 @@ package com.uber.cadence.internal.sync;
 
 import com.google.common.reflect.TypeToken;
 import com.uber.cadence.converter.DataConverter;
+import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.QueryMethod;
@@ -84,7 +85,7 @@ final class POJOQueryImplementationFactory {
                 }
                 return dataConverter.toData(result);
             } catch (Throwable e) {
-                throw CheckedExceptionWrapper.throwWrapped(e);
+                throw CheckedExceptionWrapper.wrap(e);
             }
         }
     }

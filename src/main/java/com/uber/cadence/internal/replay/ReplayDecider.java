@@ -215,7 +215,8 @@ class ReplayDecider {
             }
             completed = true;
         } catch (Throwable e) {
-            failure = workflow.mapUnexpectedException(e);
+            // can cast as Error is caught above.
+            failure = workflow.mapUnexpectedException((Exception) e);
             completed = true;
         }
     }
