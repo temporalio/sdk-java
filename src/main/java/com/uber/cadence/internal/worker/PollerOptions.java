@@ -17,6 +17,9 @@
 
 package com.uber.cadence.internal.worker;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.time.Duration;
 
 /**
@@ -24,7 +27,10 @@ import java.time.Duration;
  */
 public final class PollerOptions {
 
+    private static final Logger log = LoggerFactory.getLogger(PollerOptions.class);
+
     public final static class Builder {
+
 
         private int maximumPollRateIntervalMilliseconds = 1000;
 
@@ -126,7 +132,7 @@ public final class PollerOptions {
 
         public PollerOptions build() {
             if (uncaughtExceptionHandler == null) {
-                uncaughtExceptionHandler = (t, e) -> e.printStackTrace();
+                uncaughtExceptionHandler = (t, e) -> log.error("uncaught exception", e);
             }
             return new PollerOptions(maximumPollRateIntervalMilliseconds, maximumPollRatePerSecond,
                     pollBackoffCoefficient, pollBackoffInitialInterval, pollBackoffMaximumInterval,

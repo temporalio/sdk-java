@@ -790,10 +790,12 @@ public class WorkflowTest {
         WorkflowExecution execution = client.start();
         assertEquals("initial", client.query("QueryableWorkflow::getState", String.class));
         client.signal("testSignal", "Hello ");
-        while(!"Hello ".equals(client.query("QueryableWorkflow::getState", String.class))) {}
+        while (!"Hello ".equals(client.query("QueryableWorkflow::getState", String.class))) {
+        }
         assertEquals("Hello ", client.query("QueryableWorkflow::getState", String.class));
         client.signal("testSignal", "World!");
-        while(!"World!".equals(client.query("QueryableWorkflow::getState", String.class))) {}
+        while (!"World!".equals(client.query("QueryableWorkflow::getState", String.class))) {
+        }
         assertEquals("World!", client.query("QueryableWorkflow::getState", String.class));
         assertEquals("Hello World!", workflowClient.newUntypedWorkflowStub(execution).getResult(String.class));
     }
@@ -1142,6 +1144,35 @@ public class WorkflowTest {
             assertEquals("no way", e.getCause().getCause().getMessage());
         }
         assertEquals(3, AngryChild.invocationCount);
+    }
+
+    private static int testDecisionFailureBackoffReplayCount;
+
+    public static class TestDecisionFailureBackoff implements TestWorkflow1 {
+
+        @Override
+        public String execute() {
+            if (testDecisionFailureBackoffReplayCount++ < 2) {
+                throw new Error("simulated decision failure");
+            }
+            return "result1";
+        }
+    }
+
+    @Test
+    public void testDecisionFailureBackoff() {
+        startWorkerFor(TestDecisionFailureBackoff.class);
+        WorkflowOptions o = new WorkflowOptions.Builder()
+                .setExecutionStartToCloseTimeout(Duration.ofSeconds(10))
+                .setTaskStartToCloseTimeout(Duration.ofSeconds(1))
+                .setTaskList(taskList).build();
+
+        TestWorkflow1 workflowStub = workflowClient.newWorkflowStub(TestWorkflow1.class, o);
+        long start = System.currentTimeMillis();
+        String result = workflowStub.execute();
+        long elapsed = System.currentTimeMillis() - start;
+        assertTrue("spinned on fail decision", elapsed > 1000);
+        assertEquals("result1", result);
     }
 
     public interface TestActivities {

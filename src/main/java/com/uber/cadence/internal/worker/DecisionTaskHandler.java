@@ -85,7 +85,7 @@ public interface DecisionTaskHandler {
      * @return One of the possible decision task replies: RespondDecisionTaskCompletedRequest,
      * RespondQueryTaskCompletedRequest, RespondDecisionTaskFailedRequest
      */
-    Result handleDecisionTask(DecisionTaskWithHistoryIterator decisionTaskIterator);
+    Result handleDecisionTask(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Exception;
 
     /**
      * True if this handler handles at least one workflow type.

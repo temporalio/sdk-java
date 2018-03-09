@@ -48,11 +48,19 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     }
 
     @Override
-    public DecisionTaskHandler.Result handleDecisionTask(DecisionTaskWithHistoryIterator decisionTaskIterator) {
+    public DecisionTaskHandler.Result handleDecisionTask(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Exception {
         try {
             return handleDecisionTaskImpl(decisionTaskIterator);
         } catch (Throwable e) {
             PollForDecisionTaskResponse decisionTask = decisionTaskIterator.getDecisionTask();
+            // Only fail decision on first attempt, subsequent failure on the same decision task will timeout.
+            // This is to avoid spin on the failed decision task.
+            if (decisionTask.getAttempt() > 0) {
+                if (e instanceof Error) {
+                    throw (Error) e;
+                }
+                throw (Exception) e;
+            }
             if (log.isErrorEnabled()) {
                 WorkflowExecution execution = decisionTask.getWorkflowExecution();
                 log.error("Workflow task failure. startedEventId=" + decisionTask.getStartedEventId()

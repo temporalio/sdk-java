@@ -84,7 +84,7 @@ public class SyncWorkflowWorker {
         worker.resumePolling();
     }
 
-    public <R> R queryWorkflowExecution(WorkflowExecution execution, String queryType, Class<R> returnType, Object[] args) {
+    public <R> R queryWorkflowExecution(WorkflowExecution execution, String queryType, Class<R> returnType, Object[] args) throws Exception {
         DataConverter dataConverter = options.getDataConverter();
         byte[] serializedArgs = dataConverter.toData(args);
         byte[] result = worker.queryWorkflowExecution(execution, queryType, serializedArgs);

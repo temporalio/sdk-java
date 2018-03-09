@@ -85,7 +85,7 @@ public final class WorkflowWorker implements SuspendableWorker {
         }
     }
 
-    public byte[] queryWorkflowExecution(WorkflowExecution execution, String queryType, byte[] args) {
+    public byte[] queryWorkflowExecution(WorkflowExecution execution, String queryType, byte[] args) throws Exception {
         Iterator<HistoryEvent> history = WorkflowExecutionUtils.getHistory(service, domain, execution);
         DecisionTaskWithHistoryIterator historyIterator = new ReplayDecisionTaskWithHistoryIterator(execution, history);
         WorkflowQuery query = new WorkflowQuery();

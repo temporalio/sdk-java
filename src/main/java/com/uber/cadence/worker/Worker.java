@@ -231,9 +231,10 @@ public final class Worker {
      * @param args       query arguments
      * @param <R>        type of the query result
      * @return query result
+     * @throws Exception if replay failed for any reason
      */
     public <R> R queryWorkflowExecution(WorkflowExecution execution, String queryType, Class<R> returnType,
-                                        Object... args) {
+                                        Object... args) throws Exception {
         if (workflowWorker == null) {
             throw new IllegalStateException("disableWorkflowWorker is set in worker options");
         }
