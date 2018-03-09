@@ -38,8 +38,8 @@ interface WorkflowThread extends CancellationScope {
      * @throws CancellationException      if thread (or current cancellation scope was cancelled).
      * @throws DestroyWorkflowThreadError if thread was asked to be destroyed.
      */
-    static void yield(String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError {
-        currentThreadInternal().yieldImpl(reason, unblockCondition);
+    static void await(String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError {
+        currentThreadInternal().yield(reason, unblockCondition);
     }
 
     /**
@@ -47,8 +47,8 @@ interface WorkflowThread extends CancellationScope {
      *
      * @return false if timed out.
      */
-    static boolean yield(long timeoutMillis, String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError {
-        return currentThreadInternal().yieldImpl(timeoutMillis, reason, unblockCondition);
+    static boolean await(long timeoutMillis, String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError {
+        return currentThreadInternal().yield(timeoutMillis, reason, unblockCondition);
     }
 
     /**
@@ -91,9 +91,9 @@ interface WorkflowThread extends CancellationScope {
 
     void addStackTrace(StringBuilder result);
 
-    void yieldImpl(String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError;
+    void yield(String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError;
 
-    boolean yieldImpl(long timeoutMillis, String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError;
+    boolean yield(long timeoutMillis, String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError;
 
     /**
      * Stop executing all workflow threads and puts {@link DeterministicRunner} into closed state.

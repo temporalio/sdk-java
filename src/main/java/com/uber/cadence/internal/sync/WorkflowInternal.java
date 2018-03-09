@@ -164,12 +164,12 @@ public final class WorkflowInternal {
         return DeterministicRunnerImpl.currentThreadInternal().getDecisionContext();
     }
 
-    public static void yield(String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError {
-        WorkflowThread.yield(reason, unblockCondition);
+    public static void await(String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError {
+        WorkflowThread.await(reason, unblockCondition);
     }
 
-    public static boolean yield(long timeoutMillis, String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError {
-        return WorkflowThread.yield(timeoutMillis, reason, unblockCondition);
+    public static boolean await(long timeoutMillis, String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError {
+        return WorkflowThread.await(timeoutMillis, reason, unblockCondition);
     }
 
     public static <U> Promise<List<U>> promiseAllOf(Collection<Promise<U>> promises) {

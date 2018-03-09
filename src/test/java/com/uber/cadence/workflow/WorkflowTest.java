@@ -1175,6 +1175,39 @@ public class WorkflowTest {
         assertEquals("result1", result);
     }
 
+    public static class TestAwait implements TestWorkflow1 {
+
+        private int i;
+        private int j;
+
+        @Override
+        public String execute() {
+            StringBuffer result = new StringBuffer();
+            Async.invoke(() -> {
+                while (true) {
+                    Workflow.await(() -> i > j);
+                    result.append(" awoken i=" + i);
+                    j++;
+                }
+            });
+
+            for (i = 1; i < 3; i++) {
+                Workflow.await(() -> j >= i);
+                result.append(" loop i=" + i);
+            }
+            assertFalse(Workflow.await(Duration.ZERO, () -> false));
+            return result.toString();
+        }
+    }
+
+    @Test
+    public void testAwait() {
+        startWorkerFor(TestAwait.class);
+        TestWorkflow1 workflowStub = workflowClient.newWorkflowStub(TestWorkflow1.class, newWorkflowOptionsBuilder().build());
+        String result = workflowStub.execute();
+        assertEquals(" awoken i=1 loop i=1 awoken i=2 loop i=2", result);
+    }
+
     public interface TestActivities {
 
         String activityWithDelay(long milliseconds, boolean heartbeatMoreThanOnce);

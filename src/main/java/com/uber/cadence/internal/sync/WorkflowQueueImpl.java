@@ -39,13 +39,13 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
 
     @Override
     public E take() throws InterruptedException {
-        WorkflowThread.yield("WorkflowQueue.take", () -> !queue.isEmpty());
+        WorkflowThread.await("WorkflowQueue.take", () -> !queue.isEmpty());
         return queue.remove();
     }
 
     @Override
     public E poll(long timeout, TimeUnit unit) throws InterruptedException {
-        WorkflowThread.yield(unit.toMillis(timeout), "WorkflowQueue.poll", () -> !queue.isEmpty());
+        WorkflowThread.await(unit.toMillis(timeout), "WorkflowQueue.poll", () -> !queue.isEmpty());
         if (queue.isEmpty()) {
             return null;
         }
@@ -63,19 +63,19 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
 
     @Override
     public void put(E e) throws InterruptedException {
-        // This condition is excessive as yield already checks it.
-        // But yield can be called only from the sync owned thread.
+        // This condition is excessive as await already checks it.
+        // But await can be called only from the sync owned thread.
         // This condition allows puts outside the sync thread which
         // is used by signal handling logic.
         if (queue.size() >= capacity) {
-            WorkflowThread.yield("WorkflowQueue.put", () -> queue.size() < capacity);
+            WorkflowThread.await("WorkflowQueue.put", () -> queue.size() < capacity);
         }
         queue.add(e);
     }
 
     @Override
     public boolean offer(E e, long timeout, TimeUnit unit) throws InterruptedException {
-        boolean timedOut = WorkflowThread.yield(unit.toMillis(timeout), "WorkflowQueue.offer", () -> queue.size() < capacity);
+        boolean timedOut = WorkflowThread.await(unit.toMillis(timeout), "WorkflowQueue.offer", () -> queue.size() < capacity);
         if (timedOut) {
             return false;
         }

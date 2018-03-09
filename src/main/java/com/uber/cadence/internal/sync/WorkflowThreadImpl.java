@@ -275,7 +275,7 @@ class WorkflowThreadImpl implements WorkflowThread {
     }
 
     /**
-     * Interrupt coroutine by throwing DestroyWorkflowThreadError from a yield method
+     * Interrupt coroutine by throwing DestroyWorkflowThreadError from a await method
      * it is blocked on and wait for coroutine thread to finish execution.
      */
     public void stop() {
@@ -317,26 +317,26 @@ class WorkflowThreadImpl implements WorkflowThread {
         StackTraceElement[] stackTrace = thread.getStackTrace();
         for (int i = omitTop; i < stackTrace.length - omitBottom; i++) {
             StackTraceElement e = stackTrace[i];
-            if (i == omitTop && "yield".equals(e.getMethodName())) continue;
+            if (i == omitTop && "await".equals(e.getMethodName())) continue;
             result.append(e);
             result.append("\n");
         }
     }
 
     @Override
-    public void yieldImpl(String reason, Supplier<Boolean> unblockCondition) {
+    public void yield(String reason, Supplier<Boolean> unblockCondition) {
         context.yield(reason, unblockCondition);
     }
 
     @Override
-    public boolean yieldImpl(long timeoutMillis, String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError {
+    public boolean yield(long timeoutMillis, String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError {
         if (timeoutMillis == 0) {
             return unblockCondition.get();
         }
         long blockedUntil = WorkflowInternal.currentTimeMillis() + timeoutMillis;
         setBlockedUntil(blockedUntil);
         YieldWithTimeoutCondition condition = new YieldWithTimeoutCondition(unblockCondition, blockedUntil);
-        WorkflowThread.yield(reason, condition);
+        WorkflowThread.await(reason, condition);
         return !condition.isTimedOut();
     }
 

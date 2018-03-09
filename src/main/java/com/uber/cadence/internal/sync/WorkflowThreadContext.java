@@ -26,7 +26,7 @@ class WorkflowThreadContext {
 
     // Shared runner lock
     private final Lock lock;
-    // Used to block yield call
+    // Used to block await call
     private final Condition yieldCondition;
     // Used to block runUntilBlocked call
     private final Condition runCondition;
@@ -85,7 +85,7 @@ class WorkflowThreadContext {
      * Execute evaluation function by the thread that owns this context if
      * {@link #evaluateInCoroutineContext(Consumer)} was called.
      *
-     * @param reason human readable reason for current thread blockage passed to yield call.
+     * @param reason human readable reason for current thread blockage passed to await call.
      */
     private void mayBeEvaluate(String reason) {
         if (status == Status.EVALUATING) {
@@ -101,7 +101,7 @@ class WorkflowThreadContext {
     }
 
     /**
-     * Call function by the thread that owns this context and is currently blocked in a yield.
+     * Call function by the thread that owns this context and is currently blocked in a await.
      * Used to get information about current state of the thread like current stack trace.
      *
      * @param function to evaluate. Consumes reason for yielding parameter.
@@ -189,7 +189,7 @@ class WorkflowThreadContext {
     }
 
     /**
-     * @return true if thread made some progress. Which is yield was unblocked and some code after it was executed.
+     * @return true if thread made some progress. Which is await was unblocked and some code after it was executed.
      */
     public boolean runUntilBlocked() {
         lock.lock();

@@ -25,6 +25,8 @@ import com.uber.cadence.internal.sync.WorkflowInternal;
 
 import java.time.Duration;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
+import java.util.function.Supplier;
 
 public final class Workflow {
 
@@ -138,9 +140,35 @@ public final class Workflow {
     }
 
     public static void sleep(long millis) {
-        WorkflowInternal.yield(millis, "sleep", () -> {
+        WorkflowInternal.await(millis, "sleep", () -> {
             CancellationScope.throwCancelled();
             return false;
+        });
+    }
+
+    /**
+     * Block current thread until unblockCondition is evaluated to true.
+     *
+     * @param unblockCondition condition that should return true to indicate that thread should unblock.
+     * @throws CancellationException if thread (or current {@link CancellationScope} was cancelled).
+     */
+    public static void await(Supplier<Boolean> unblockCondition) {
+        WorkflowInternal.await("await", () -> {
+            CancellationScope.throwCancelled();
+            return unblockCondition.get();
+        });
+    }
+
+    /**
+     * Block current workflow thread until unblockCondition is evaluated to true or timeoutMillis passes.
+     *
+     * @return false if timed out.
+     * @throws CancellationException if thread (or current {@link CancellationScope} was cancelled).
+     */
+    public static boolean await(Duration timeout, Supplier<Boolean> unblockCondition) {
+        return WorkflowInternal.await(timeout.toMillis(), "await", () -> {
+            CancellationScope.throwCancelled();
+            return unblockCondition.get();
         });
     }
 
@@ -210,6 +238,7 @@ public final class Workflow {
      *     throw CheckedExceptionWrapper.wrap(e);
      * }
      * </pre>*
+     *
      * @return CheckedExceptionWrapper if e is checked or original exception if e extends RuntimeException.
      */
     public static RuntimeException wrap(Exception e) {
@@ -217,7 +246,8 @@ public final class Workflow {
     }
 
     /**
-     * Removes {@link com.uber.cadence.internal.sync.CheckedExceptionWrapper} from causal exception chain.
+     * Removes {@link com.uber.cadence.internal.common.CheckedExceptionWrapper} from causal exception chain.
+     *
      * @param e exception with causality chain that might contain wrapped exceptions.
      * @return exception causality chain with CheckedExceptionWrapper removed.
      */
