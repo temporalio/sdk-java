@@ -759,9 +759,13 @@ public class WorkflowTest {
     @Test
     public void testSignal() throws Exception {
         startWorkerFor(TestSignalWorkflowImpl.class);
-        QueryableWorkflow client = workflowClient.newWorkflowStub(QueryableWorkflow.class, newWorkflowOptionsBuilder().build());
+        WorkflowOptions.Builder optionsBuilder = newWorkflowOptionsBuilder();
+        String workflowId = UUID.randomUUID().toString();
+        optionsBuilder.setWorkflowId(workflowId);
+        QueryableWorkflow client = workflowClient.newWorkflowStub(QueryableWorkflow.class, optionsBuilder.build());
         // To execute workflow client.execute() would do. But we want to start workflow and immediately return.
         WorkflowExecution execution = WorkflowClient.asyncStart(client::execute);
+        assertEquals(workflowId, execution.getWorkflowId());
         assertEquals("initial", client.getState());
         client.mySignal("Hello ");
         Thread.sleep(200);

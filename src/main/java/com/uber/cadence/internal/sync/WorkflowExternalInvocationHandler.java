@@ -38,7 +38,6 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
     private final AtomicReference<UntypedWorkflowStubImpl> untyped = new AtomicReference<>();
     private final WorkflowOptions options;
     private final DataConverter dataConverter;
-    private final AtomicReference<WorkflowExecution> execution = new AtomicReference<>();
     private final GenericWorkflowClientExternal genericClient;
     private String workflowType;
 
@@ -79,7 +78,6 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
         }
         this.genericClient = genericClient;
         this.untyped.set(new UntypedWorkflowStubImpl(genericClient, dataConverter, execution));
-        this.execution.set(execution);
         this.options = null;
         this.dataConverter = dataConverter;
     }
@@ -104,17 +102,15 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
         if (workflowMethod != null) {
             WorkflowOptions mergedOptions = WorkflowOptions.merge(workflowMethod, options);
             // We do allow duplicated calls if policy is not AllowDuplicate. Semantic is to wait for result.
-            if (execution.get() != null) { // stub is reused
+            UntypedWorkflowStubImpl workflowStub = untyped.get();
+            if (workflowStub != null) { // stub is reused
                 if (mergedOptions.getWorkflowIdReusePolicy() == WorkflowIdReusePolicy.AllowDuplicate) {
                     throw new DuplicateWorkflowException(
-                            execution.get(), workflowType, "Cannot call @WorkflowMethod more than once per stub instance");
+                            workflowStub.getExecution(), workflowType, "Cannot call @WorkflowMethod more than once per stub instance");
                 }
-                return getUntyped().getResult(method.getReturnType());
+                return workflowStub.getResult(method.getReturnType());
             }
             return startWorkflow(method, workflowMethod, mergedOptions, args);
-        }
-        if (execution.get() == null) {
-            throw new IllegalStateException("Workflow not started yet");
         }
         if (queryMethod != null) {
             return queryWorkflow(method, queryMethod, args);
@@ -172,10 +168,10 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
         if (untyped.get() == null) {
             untyped.set(new UntypedWorkflowStubImpl(genericClient, dataConverter, workflowType, mergedOptions));
         }
+        UntypedWorkflowStubImpl workflowStub = getUntyped();
         try {
-            execution.set(getUntyped().startWithOptions(mergedOptions, args));
+            workflowStub.startWithOptions(mergedOptions, args);
         } catch (DuplicateWorkflowException e) {
-            execution.set(e.getExecution());
             // We do allow duplicated calls if policy is not AllowDuplicate. Semantic is to wait for result.
             if (mergedOptions.getWorkflowIdReusePolicy() == WorkflowIdReusePolicy.AllowDuplicate) {
                 throw e;
@@ -183,9 +179,9 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
         }
         AtomicReference<WorkflowExecution> async = asyncResult.get();
         if (async != null) {
-            async.set(execution.get());
+            async.set(workflowStub.getExecution());
             return null;
         }
-        return getUntyped().getResult(method.getReturnType());
+        return workflowStub.getResult(method.getReturnType());
     }
 }

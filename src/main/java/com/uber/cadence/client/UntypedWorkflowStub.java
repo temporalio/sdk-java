@@ -28,6 +28,8 @@ public interface UntypedWorkflowStub {
 
     WorkflowExecution start(Object... args);
 
+    WorkflowExecution getExecution();
+
     /**
      * Returns workflow result potentially waiting for workflow to complete.
      * Behind the scene this call performs long poll on Cadence service waiting for workflow completion notification.

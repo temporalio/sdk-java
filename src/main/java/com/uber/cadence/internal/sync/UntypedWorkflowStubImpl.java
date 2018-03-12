@@ -98,6 +98,7 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
         try {
             execution.set(genericClient.startWorkflow(p));
         } catch (WorkflowExecutionAlreadyStartedError e) {
+            execution.set(new WorkflowExecution().setWorkflowId(p.getWorkflowId()).setRunId(e.getRunId()));
             WorkflowExecution execution = new WorkflowExecution()
                     .setWorkflowId(p.getWorkflowId())
                     .setRunId(e.getRunId());
@@ -109,6 +110,11 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
     @Override
     public WorkflowExecution start(Object... args) {
         return startWithOptions(WorkflowOptions.merge(null, options), args);
+    }
+
+    @Override
+    public WorkflowExecution getExecution() {
+        return execution.get();
     }
 
     @Override
