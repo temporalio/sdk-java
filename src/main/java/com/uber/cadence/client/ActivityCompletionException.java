@@ -20,65 +20,70 @@ package com.uber.cadence.client;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.activity.ActivityTask;
 
-/**
- * Base exception for all failures returned by an activity completion client.
- */
+/** Base exception for all failures returned by an activity completion client. */
 public class ActivityCompletionException extends RuntimeException {
 
-    private final WorkflowExecution execution;
+  private final WorkflowExecution execution;
 
-    private final String activityType;
+  private final String activityType;
 
-    private final String activityId;
+  private final String activityId;
 
-    protected ActivityCompletionException(ActivityTask task) {
-        execution = task.getWorkflowExecution();
-        activityType = task.getActivityType().getName();
-        activityId = task.getActivityId();
+  protected ActivityCompletionException(ActivityTask task) {
+    execution = task.getWorkflowExecution();
+    activityType = task.getActivityType().getName();
+    activityId = task.getActivityId();
+  }
+
+  protected ActivityCompletionException(ActivityTask task, Throwable cause) {
+    super(
+        task != null
+            ? "Execution="
+                + task.getWorkflowExecution()
+                + ", ActivityType="
+                + task.getActivityType().getName()
+                + ", ActivityID="
+                + task.getActivityId()
+            : null,
+        cause);
+    if (task != null) {
+      execution = task.getWorkflowExecution();
+      activityType = task.getActivityType().getName();
+      activityId = task.getActivityId();
+    } else {
+      execution = null;
+      activityType = null;
+      activityId = null;
     }
+  }
 
-    protected ActivityCompletionException(ActivityTask task, Throwable cause) {
-        super(task != null ? "Execution=" + task.getWorkflowExecution()
-                        + ", ActivityType=" + task.getActivityType().getName()
-                        + ", ActivityID=" + task.getActivityId() : null,
-                cause);
-        if (task != null) {
-            execution = task.getWorkflowExecution();
-            activityType = task.getActivityType().getName();
-            activityId = task.getActivityId();
-        } else {
-            execution = null;
-            activityType = null;
-            activityId = null;
-        }
-    }
-    protected ActivityCompletionException(String activityId, Throwable cause) {
-        super("ActivityId" + activityId, cause);
-        this.execution = null;
-        this.activityType = null;
-        this.activityId = activityId;
-    }
+  protected ActivityCompletionException(String activityId, Throwable cause) {
+    super("ActivityId" + activityId, cause);
+    this.execution = null;
+    this.activityType = null;
+    this.activityId = activityId;
+  }
 
-    protected ActivityCompletionException(Throwable cause) {
-        this((ActivityTask) null, cause);
-    }
+  protected ActivityCompletionException(Throwable cause) {
+    this((ActivityTask) null, cause);
+  }
 
-    protected ActivityCompletionException() {
-        super();
-        execution = null;
-        activityType = null;
-        activityId = null;
-    }
+  protected ActivityCompletionException() {
+    super();
+    execution = null;
+    activityType = null;
+    activityId = null;
+  }
 
-    public WorkflowExecution getExecution() {
-        return execution;
-    }
+  public WorkflowExecution getExecution() {
+    return execution;
+  }
 
-    public String getActivityType() {
-        return activityType;
-    }
+  public String getActivityType() {
+    return activityType;
+  }
 
-    public String getActivityId() {
-        return activityId;
-    }
+  public String getActivityId() {
+    return activityId;
+  }
 }

@@ -21,89 +21,90 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 
 /**
- * Do not reference directly by the application level code.
- * Use {@link com.uber.cadence.workflow.Workflow#wrap(Exception)} inside a workflow code and
- * {@link com.uber.cadence.activity.Activity#wrap(Exception)} inside an activity code instead.
+ * Do not reference directly by the application level code. Use {@link
+ * com.uber.cadence.workflow.Workflow#wrap(Exception)} inside a workflow code and {@link
+ * com.uber.cadence.activity.Activity#wrap(Exception)} inside an activity code instead.
  */
 public final class CheckedExceptionWrapper extends RuntimeException {
 
-    private final static Field causeField;
+  private static final Field causeField;
 
-    static {
-        try {
-            causeField = Throwable.class.getDeclaredField("cause");
-            causeField.setAccessible(true);
-        } catch (NoSuchFieldException e) {
-            throw new RuntimeException("unexpected", e);
-        }
+  static {
+    try {
+      causeField = Throwable.class.getDeclaredField("cause");
+      causeField.setAccessible(true);
+    } catch (NoSuchFieldException e) {
+      throw new RuntimeException("unexpected", e);
     }
+  }
 
-    /**
-     * Returns CheckedExceptionWrapper if e is checked exception.
-     * If there is a need to return a checked exception from an activity or workflow implementation
-     * throw a wrapped exception it using this method. The library code will unwrap it automatically when propagating exception
-     * to the caller.
-     * <pre>
-     * try {
-     *     return someCall();
-     * } catch (Exception e) {
-     *     throw CheckedExceptionWrapper.wrap(e);
-     * }
-     * </pre>
-     */
-    public static RuntimeException wrap(Throwable e) {
-        // Errors are expected to propagate without any handling.
-        if (e instanceof Error) {
-            throw (Error) e;
-        }
-        if (e instanceof InvocationTargetException) {
-            return wrap(e.getCause());
-        }
-        if (e instanceof RuntimeException) {
-            return (RuntimeException) e;
-        }
-        return new CheckedExceptionWrapper((Exception) e);
+  /**
+   * Returns CheckedExceptionWrapper if e is checked exception. If there is a need to return a
+   * checked exception from an activity or workflow implementation throw a wrapped exception it
+   * using this method. The library code will unwrap it automatically when propagating exception to
+   * the caller.
+   *
+   * <pre>
+   * try {
+   *     return someCall();
+   * } catch (Exception e) {
+   *     throw CheckedExceptionWrapper.wrap(e);
+   * }
+   * </pre>
+   */
+  public static RuntimeException wrap(Throwable e) {
+    // Errors are expected to propagate without any handling.
+    if (e instanceof Error) {
+      throw (Error) e;
     }
+    if (e instanceof InvocationTargetException) {
+      return wrap(e.getCause());
+    }
+    if (e instanceof RuntimeException) {
+      return (RuntimeException) e;
+    }
+    return new CheckedExceptionWrapper((Exception) e);
+  }
 
-    /**
-     * Removes CheckedException wrapper from the whole chain of Exceptions.
-     * Assumes that wrapper always has a cause which cannot be a wrapper.
-     */
-    public static Exception unwrap(Exception e) {
-        Throwable head = e;
-        if (head instanceof CheckedExceptionWrapper) {
-            head = head.getCause();
-        }
-        Throwable tail = head;
-        Throwable current = tail.getCause();
-        while (current != null) {
-            if (current instanceof CheckedExceptionWrapper) {
-                current = current.getCause();
-                setThrowableCause(tail, current);
-            }
-            tail = current;
-            current = tail.getCause();
-        }
-        if (head instanceof Error) {
-            // Error should be propagated without any handling.
-            throw (Error)head;
-        }
-        return (Exception) head;
+  /**
+   * Removes CheckedException wrapper from the whole chain of Exceptions. Assumes that wrapper
+   * always has a cause which cannot be a wrapper.
+   */
+  public static Exception unwrap(Exception e) {
+    Throwable head = e;
+    if (head instanceof CheckedExceptionWrapper) {
+      head = head.getCause();
     }
+    Throwable tail = head;
+    Throwable current = tail.getCause();
+    while (current != null) {
+      if (current instanceof CheckedExceptionWrapper) {
+        current = current.getCause();
+        setThrowableCause(tail, current);
+      }
+      tail = current;
+      current = tail.getCause();
+    }
+    if (head instanceof Error) {
+      // Error should be propagated without any handling.
+      throw (Error) head;
+    }
+    return (Exception) head;
+  }
 
-    /**
-     *  Throwable.initCause throws IllegalStateException if cause is already set.
-     *  This method uses reflection to set it directly.
-     */
-    private static void setThrowableCause(Throwable throwable, Throwable cause) {
-        try {
-            causeField.set(throwable, cause);
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException("unexpected", e);
-        }
+  /**
+   * Throwable.initCause throws IllegalStateException if cause is already set. This method uses
+   * reflection to set it directly.
+   */
+  private static void setThrowableCause(Throwable throwable, Throwable cause) {
+    try {
+      causeField.set(throwable, cause);
+    } catch (IllegalAccessException e) {
+      throw new RuntimeException("unexpected", e);
     }
+  }
 
-    private CheckedExceptionWrapper(Exception e) {
-        super(e);
-    }
+  private CheckedExceptionWrapper(Exception e) {
+    super(e);
+  }
 }

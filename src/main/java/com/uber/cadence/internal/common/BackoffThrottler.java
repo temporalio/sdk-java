@@ -22,15 +22,19 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Used to throttle code execution in presence of failures using exponential
- * backoff logic. The formula used to calculate the next sleep interval is:
+ * Used to throttle code execution in presence of failures using exponential backoff logic. The
+ * formula used to calculate the next sleep interval is:
+ *
  * <p>
+ *
  * <pre>
  * min(pow(backoffCoefficient, failureCount - 1) * initialSleep, maxSleep);
  * </pre>
+ *
+ * <p>Example usage:
+ *
  * <p>
- * Example usage:
- * <p>
+ *
  * <pre>
  * BackoffThrottler throttler = new BackoffThrottler(1000, 60000, 2);
  * while(!stopped) {
@@ -50,59 +54,55 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public final class BackoffThrottler {
 
-    private final Duration initialSleep;
+  private final Duration initialSleep;
 
-    private final Duration maxSleep;
+  private final Duration maxSleep;
 
-    private final double backoffCoefficient;
+  private final double backoffCoefficient;
 
-    private final AtomicLong failureCount = new AtomicLong();
+  private final AtomicLong failureCount = new AtomicLong();
 
-    /**
-     * Construct an instance of the throttler.
-     *
-     * @param initialSleep       time to sleep on the first failure
-     * @param maxSleep           maximum time to sleep independently of number of failures
-     * @param backoffCoefficient coefficient used to calculate the next time to sleep.
-     */
-    public BackoffThrottler(Duration initialSleep, Duration maxSleep, double backoffCoefficient) {
-        Objects.requireNonNull(initialSleep, "initialSleep");
-        this.initialSleep = initialSleep;
-        this.maxSleep = maxSleep;
-        this.backoffCoefficient = backoffCoefficient;
+  /**
+   * Construct an instance of the throttler.
+   *
+   * @param initialSleep time to sleep on the first failure
+   * @param maxSleep maximum time to sleep independently of number of failures
+   * @param backoffCoefficient coefficient used to calculate the next time to sleep.
+   */
+  public BackoffThrottler(Duration initialSleep, Duration maxSleep, double backoffCoefficient) {
+    Objects.requireNonNull(initialSleep, "initialSleep");
+    this.initialSleep = initialSleep;
+    this.maxSleep = maxSleep;
+    this.backoffCoefficient = backoffCoefficient;
+  }
+
+  private long calculateSleepTime() {
+    double sleepMillis =
+        (Math.pow(backoffCoefficient, failureCount.get() - 1)) * initialSleep.toMillis();
+    if (maxSleep != null) {
+      return Math.min((long) sleepMillis, maxSleep.toMillis());
     }
+    return (long) sleepMillis;
+  }
 
-    private long calculateSleepTime() {
-        double sleepMillis = (Math.pow(backoffCoefficient, failureCount.get() - 1)) * initialSleep.toMillis();
-        if (maxSleep != null) {
-            return Math.min((long) sleepMillis, maxSleep.toMillis());
-        }
-        return (long) sleepMillis;
+  /**
+   * Sleep if there were failures since the last success call.
+   *
+   * @throws InterruptedException
+   */
+  public void throttle() throws InterruptedException {
+    if (failureCount.get() > 0) {
+      Thread.sleep(calculateSleepTime());
     }
+  }
 
-    /**
-     * Sleep if there were failures since the last success call.
-     *
-     * @throws InterruptedException
-     */
-    public void throttle() throws InterruptedException {
-        if (failureCount.get() > 0) {
-            Thread.sleep(calculateSleepTime());
-        }
-    }
+  /** Resent failure count to 0. */
+  public void success() {
+    failureCount.set(0);
+  }
 
-    /**
-     * Resent failure count to 0.
-     */
-    public void success() {
-        failureCount.set(0);
-    }
-
-    /**
-     * Increment failure count.
-     */
-    public void failure() {
-        failureCount.incrementAndGet();
-    }
-
+  /** Increment failure count. */
+  public void failure() {
+    failureCount.incrementAndGet();
+  }
 }

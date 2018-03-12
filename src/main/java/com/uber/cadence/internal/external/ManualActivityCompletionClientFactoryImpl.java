@@ -21,50 +21,52 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.converter.DataConverter;
 
-public class ManualActivityCompletionClientFactoryImpl extends ManualActivityCompletionClientFactory {
+public class ManualActivityCompletionClientFactoryImpl
+    extends ManualActivityCompletionClientFactory {
 
-    private final WorkflowService.Iface service;
+  private final WorkflowService.Iface service;
 
-    private final DataConverter dataConverter;
-    private final String domain;
+  private final DataConverter dataConverter;
+  private final String domain;
 
-    public ManualActivityCompletionClientFactoryImpl(WorkflowService.Iface service, String domain, DataConverter dataConverter) {
-        this.service = service;
-        this.domain = domain;
-        this.dataConverter = dataConverter;
+  public ManualActivityCompletionClientFactoryImpl(
+      WorkflowService.Iface service, String domain, DataConverter dataConverter) {
+    this.service = service;
+    this.domain = domain;
+    this.dataConverter = dataConverter;
+  }
+
+  public WorkflowService.Iface getService() {
+    return service;
+  }
+
+  public DataConverter getDataConverter() {
+    return dataConverter;
+  }
+
+  @Override
+  public ManualActivityCompletionClient getClient(byte[] taskToken) {
+    if (service == null) {
+      throw new IllegalStateException("required property service is null");
     }
-
-    public WorkflowService.Iface getService() {
-        return service;
+    if (dataConverter == null) {
+      throw new IllegalStateException("required property dataConverter is null");
     }
-
-    public DataConverter getDataConverter() {
-        return dataConverter;
+    if (taskToken == null || taskToken.length == 0) {
+      throw new IllegalArgumentException("null or empty task token");
     }
+    return new ManualActivityCompletionClientImpl(service, taskToken, dataConverter);
+  }
 
-    @Override
-    public ManualActivityCompletionClient getClient(byte[] taskToken) {
-        if (service == null) {
-            throw new IllegalStateException("required property service is null");
-        }
-        if (dataConverter == null) {
-            throw new IllegalStateException("required property dataConverter is null");
-        }
-        if (taskToken == null || taskToken.length == 0) {
-            throw new IllegalArgumentException("null or empty task token");
-        }
-        return new ManualActivityCompletionClientImpl(service, taskToken, dataConverter);
+  @Override
+  public ManualActivityCompletionClient getClient(WorkflowExecution execution, String activityId) {
+    if (execution == null) {
+      throw new IllegalArgumentException("null execution");
     }
-
-    @Override
-    public ManualActivityCompletionClient getClient(WorkflowExecution execution, String activityId) {
-        if (execution == null) {
-            throw new IllegalArgumentException("null execution");
-        }
-        if (activityId == null) {
-            throw new IllegalArgumentException("null activityId");
-        }
-        return new ManualActivityCompletionClientImpl(service, domain, execution, activityId, dataConverter);
+    if (activityId == null) {
+      throw new IllegalArgumentException("null activityId");
     }
-
+    return new ManualActivityCompletionClientImpl(
+        service, domain, execution, activityId, dataConverter);
+  }
 }

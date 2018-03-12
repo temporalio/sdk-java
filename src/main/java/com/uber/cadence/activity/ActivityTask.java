@@ -21,23 +21,23 @@ import com.uber.cadence.ActivityType;
 import com.uber.cadence.WorkflowExecution;
 
 public interface ActivityTask {
-    byte[] getTaskToken();
+  byte[] getTaskToken();
 
-    byte[] getInput();
+  byte[] getInput();
 
-    WorkflowExecution getWorkflowExecution();
+  WorkflowExecution getWorkflowExecution();
 
-    String getActivityId();
+  String getActivityId();
 
-    ActivityType getActivityType();
+  ActivityType getActivityType();
 
-    long getScheduledTimestamp();
+  long getScheduledTimestamp();
 
-    int getScheduleToCloseTimeoutSeconds();
+  int getScheduleToCloseTimeoutSeconds();
 
-    void setScheduleToCloseTimeoutSecondsIsSet(boolean value);
+  void setScheduleToCloseTimeoutSecondsIsSet(boolean value);
 
-    int getStartToCloseTimeoutSeconds();
+  int getStartToCloseTimeoutSeconds();
 
-    int getHeartbeatTimeoutSeconds();
+  int getHeartbeatTimeoutSeconds();
 }

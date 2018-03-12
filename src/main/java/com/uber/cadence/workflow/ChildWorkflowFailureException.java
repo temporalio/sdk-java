@@ -17,19 +17,22 @@
 
 package com.uber.cadence.workflow;
 
-
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
 
 /**
- * Indicates that a child workflow failed. An original cause of the child workflow failure can be retrieved
- * through {@link #getCause()}.
+ * Indicates that a child workflow failed. An original cause of the child workflow failure can be
+ * retrieved through {@link #getCause()}.
  */
 @SuppressWarnings("serial")
 public final class ChildWorkflowFailureException extends ChildWorkflowException {
 
-    public ChildWorkflowFailureException(long eventId, WorkflowExecution workflowExecution, WorkflowType workflowType, Throwable cause) {
-        super(cause.getMessage(), eventId, workflowExecution, workflowType);
-        initCause(cause);
-    }
+  public ChildWorkflowFailureException(
+      long eventId,
+      WorkflowExecution workflowExecution,
+      WorkflowType workflowType,
+      Throwable cause) {
+    super(cause.getMessage(), eventId, workflowExecution, workflowType);
+    initCause(cause);
+  }
 }

@@ -18,18 +18,17 @@
 package com.uber.cadence.internal.replay;
 
 import com.uber.cadence.WorkflowExecution;
-
 import java.util.function.Consumer;
 
 class OpenChildWorkflowRequestInfo extends OpenRequestInfo<byte[], String> {
 
-    private final Consumer<WorkflowExecution> executionCallback;
+  private final Consumer<WorkflowExecution> executionCallback;
 
-    public OpenChildWorkflowRequestInfo(Consumer<WorkflowExecution> executionCallback) {
-        this.executionCallback = executionCallback;
-    }
+  public OpenChildWorkflowRequestInfo(Consumer<WorkflowExecution> executionCallback) {
+    this.executionCallback = executionCallback;
+  }
 
-    public Consumer<WorkflowExecution> getExecutionCallback() {
-        return executionCallback;
-    }
+  public Consumer<WorkflowExecution> getExecutionCallback() {
+    return executionCallback;
+  }
 }

@@ -25,16 +25,27 @@ import com.uber.cadence.WorkflowExecution;
  */
 public final class WorkflowFailureException extends WorkflowException {
 
-    private final long decisionTaskCompletedEventId;
+  private final long decisionTaskCompletedEventId;
 
-    public WorkflowFailureException(WorkflowExecution execution, String workflowType, long decisionTaskCompletedEventId, Throwable failure) {
-        super("WorkflowType=\"" + workflowType + "\", WorkflowID=\""
-                + execution.getWorkflowId() + "\", RunID=\"" + execution.getRunId(),
-                execution, workflowType, failure);
-        this.decisionTaskCompletedEventId = decisionTaskCompletedEventId;
-    }
+  public WorkflowFailureException(
+      WorkflowExecution execution,
+      String workflowType,
+      long decisionTaskCompletedEventId,
+      Throwable failure) {
+    super(
+        "WorkflowType=\""
+            + workflowType
+            + "\", WorkflowID=\""
+            + execution.getWorkflowId()
+            + "\", RunID=\""
+            + execution.getRunId(),
+        execution,
+        workflowType,
+        failure);
+    this.decisionTaskCompletedEventId = decisionTaskCompletedEventId;
+  }
 
-    public long getDecisionTaskCompletedEventId() {
-        return decisionTaskCompletedEventId;
-    }
+  public long getDecisionTaskCompletedEventId() {
+    return decisionTaskCompletedEventId;
+  }
 }

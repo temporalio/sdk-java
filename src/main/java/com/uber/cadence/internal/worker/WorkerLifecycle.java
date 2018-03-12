@@ -21,16 +21,15 @@ import java.util.concurrent.TimeUnit;
 
 interface WorkerLifecycle {
 
-    void start();
+  void start();
 
-    boolean isRunning();
+  boolean isRunning();
 
-    void shutdown();
+  void shutdown();
 
-    void shutdownNow();
+  void shutdownNow();
 
-    boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException;
+  boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException;
 
-    boolean shutdownAndAwaitTermination(long timeout, TimeUnit unit) throws InterruptedException;
-
+  boolean shutdownAndAwaitTermination(long timeout, TimeUnit unit) throws InterruptedException;
 }

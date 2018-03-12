@@ -21,7 +21,6 @@ import com.uber.cadence.RespondDecisionTaskCompletedRequest;
 import com.uber.cadence.RespondDecisionTaskFailedRequest;
 import com.uber.cadence.RespondQueryTaskCompletedRequest;
 import com.uber.cadence.common.RetryOptions;
-
 import java.util.Iterator;
 
 /**
@@ -31,64 +30,67 @@ import java.util.Iterator;
  */
 public interface DecisionTaskHandler {
 
-    final class Result {
-        private final RespondDecisionTaskCompletedRequest taskCompleted;
-        private final RespondDecisionTaskFailedRequest taskFailed;
-        private final RespondQueryTaskCompletedRequest queryCompleted;
-        private final RetryOptions requestRetryOptions;
+  final class Result {
+    private final RespondDecisionTaskCompletedRequest taskCompleted;
+    private final RespondDecisionTaskFailedRequest taskFailed;
+    private final RespondQueryTaskCompletedRequest queryCompleted;
+    private final RetryOptions requestRetryOptions;
 
-        public Result(RespondDecisionTaskCompletedRequest taskCompleted, RespondDecisionTaskFailedRequest taskFailed,
-                      RespondQueryTaskCompletedRequest queryCompleted, RetryOptions requestRetryOptions) {
-            this.taskCompleted = taskCompleted;
-            this.taskFailed = taskFailed;
-            this.queryCompleted = queryCompleted;
-            this.requestRetryOptions = requestRetryOptions;
-        }
-
-        public RespondDecisionTaskCompletedRequest getTaskCompleted() {
-            return taskCompleted;
-        }
-
-        public RespondDecisionTaskFailedRequest getTaskFailed() {
-            return taskFailed;
-        }
-
-        public RespondQueryTaskCompletedRequest getQueryCompleted() {
-            return queryCompleted;
-        }
-
-        public RetryOptions getRequestRetryOptions() {
-            return requestRetryOptions;
-        }
-
-        @Override
-        public String toString() {
-            return "Result{" +
-                    "taskCompleted=" + taskCompleted +
-                    ", taskFailed=" + taskFailed +
-                    ", queryCompleted=" + queryCompleted +
-                    ", requestRetryOptions=" + requestRetryOptions +
-                    '}';
-        }
+    public Result(
+        RespondDecisionTaskCompletedRequest taskCompleted,
+        RespondDecisionTaskFailedRequest taskFailed,
+        RespondQueryTaskCompletedRequest queryCompleted,
+        RetryOptions requestRetryOptions) {
+      this.taskCompleted = taskCompleted;
+      this.taskFailed = taskFailed;
+      this.queryCompleted = queryCompleted;
+      this.requestRetryOptions = requestRetryOptions;
     }
 
+    public RespondDecisionTaskCompletedRequest getTaskCompleted() {
+      return taskCompleted;
+    }
 
-    /**
-     * Handles a single workflow task.
-     * Shouldn't throw any exceptions.
-     * A compliant implementation should return any unexpected errors as RespondDecisionTaskFailedRequest.
-     *
-     * @param decisionTaskIterator The decision task to handle. Iterator wraps the task to support
-     *                             pagination of the history. The events are loaded lazily when history iterator next is called.
-     *                             It is expected that the method implementation aborts decision by rethrowing any
-     *                             exception from {@link Iterator#next()}.
-     * @return One of the possible decision task replies: RespondDecisionTaskCompletedRequest,
-     * RespondQueryTaskCompletedRequest, RespondDecisionTaskFailedRequest
-     */
-    Result handleDecisionTask(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Exception;
+    public RespondDecisionTaskFailedRequest getTaskFailed() {
+      return taskFailed;
+    }
 
-    /**
-     * True if this handler handles at least one workflow type.
-     */
-    boolean isAnyTypeSupported();
+    public RespondQueryTaskCompletedRequest getQueryCompleted() {
+      return queryCompleted;
+    }
+
+    public RetryOptions getRequestRetryOptions() {
+      return requestRetryOptions;
+    }
+
+    @Override
+    public String toString() {
+      return "Result{"
+          + "taskCompleted="
+          + taskCompleted
+          + ", taskFailed="
+          + taskFailed
+          + ", queryCompleted="
+          + queryCompleted
+          + ", requestRetryOptions="
+          + requestRetryOptions
+          + '}';
+    }
+  }
+
+  /**
+   * Handles a single workflow task. Shouldn't throw any exceptions. A compliant implementation
+   * should return any unexpected errors as RespondDecisionTaskFailedRequest.
+   *
+   * @param decisionTaskIterator The decision task to handle. Iterator wraps the task to support
+   *     pagination of the history. The events are loaded lazily when history iterator next is
+   *     called. It is expected that the method implementation aborts decision by rethrowing any
+   *     exception from {@link Iterator#next()}.
+   * @return One of the possible decision task replies: RespondDecisionTaskCompletedRequest,
+   *     RespondQueryTaskCompletedRequest, RespondDecisionTaskFailedRequest
+   */
+  Result handleDecisionTask(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Exception;
+
+  /** True if this handler handles at least one workflow type. */
+  boolean isAnyTypeSupported();
 }

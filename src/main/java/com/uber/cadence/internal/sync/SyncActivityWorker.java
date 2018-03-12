@@ -20,55 +20,54 @@ package com.uber.cadence.internal.sync;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.internal.worker.ActivityWorker;
 import com.uber.cadence.internal.worker.SingleWorkerOptions;
-
 import java.util.concurrent.TimeUnit;
 
-/**
- * Activity worker that supports POJO activity implementations.
- */
+/** Activity worker that supports POJO activity implementations. */
 public class SyncActivityWorker {
 
-    private final ActivityWorker worker;
-    private final POJOActivityTaskHandler taskHandler;
+  private final ActivityWorker worker;
+  private final POJOActivityTaskHandler taskHandler;
 
-    public SyncActivityWorker(WorkflowService.Iface service, String domain, String taskList, SingleWorkerOptions options) {
-        taskHandler = new POJOActivityTaskHandler(options.getDataConverter());
-        worker = new ActivityWorker(service, domain, taskList, options, taskHandler);
-    }
+  public SyncActivityWorker(
+      WorkflowService.Iface service, String domain, String taskList, SingleWorkerOptions options) {
+    taskHandler = new POJOActivityTaskHandler(options.getDataConverter());
+    worker = new ActivityWorker(service, domain, taskList, options, taskHandler);
+  }
 
-    public void setActivitiesImplementation(Object... activitiesImplementation) {
-        taskHandler.setActivitiesImplementation(activitiesImplementation);
-    }
+  public void setActivitiesImplementation(Object... activitiesImplementation) {
+    taskHandler.setActivitiesImplementation(activitiesImplementation);
+  }
 
-    public void start() {
-        worker.start();
-    }
+  public void start() {
+    worker.start();
+  }
 
-    public void shutdown() {
-        worker.shutdown();
-    }
+  public void shutdown() {
+    worker.shutdown();
+  }
 
-    public void shutdownNow() {
-        worker.shutdownNow();
-    }
+  public void shutdownNow() {
+    worker.shutdownNow();
+  }
 
-    public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-        return worker.awaitTermination(timeout, unit);
-    }
+  public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+    return worker.awaitTermination(timeout, unit);
+  }
 
-    public boolean shutdownAndAwaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-        return worker.shutdownAndAwaitTermination(timeout, unit);
-    }
+  public boolean shutdownAndAwaitTermination(long timeout, TimeUnit unit)
+      throws InterruptedException {
+    return worker.shutdownAndAwaitTermination(timeout, unit);
+  }
 
-    public boolean isRunning() {
-        return worker.isRunning();
-    }
+  public boolean isRunning() {
+    return worker.isRunning();
+  }
 
-    public void suspendPolling() {
-        worker.suspendPolling();
-    }
+  public void suspendPolling() {
+    worker.suspendPolling();
+  }
 
-    public void resumePolling() {
-        worker.resumePolling();
-    }
+  public void resumePolling() {
+    worker.resumePolling();
+  }
 }

@@ -23,71 +23,80 @@ import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.replay.ReplayDecisionTaskHandler;
 import com.uber.cadence.internal.worker.SingleWorkerOptions;
 import com.uber.cadence.internal.worker.WorkflowWorker;
-
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Activity worker that supports POJO activity implementations.
- */
+/** Activity worker that supports POJO activity implementations. */
 public class SyncWorkflowWorker {
 
-    private final WorkflowWorker worker;
-    private final ReplayDecisionTaskHandler taskHandler;
-    private final POJOWorkflowImplementationFactory factory;
-    private final SingleWorkerOptions options;
+  private final WorkflowWorker worker;
+  private final ReplayDecisionTaskHandler taskHandler;
+  private final POJOWorkflowImplementationFactory factory;
+  private final SingleWorkerOptions options;
 
-    public SyncWorkflowWorker(WorkflowService.Iface service, String domain, String taskList, SingleWorkerOptions options,
-                              int workflowThreadPoolSize) {
-        ThreadPoolExecutor workflowThreadPool = new ThreadPoolExecutor(workflowThreadPoolSize, workflowThreadPoolSize,
-                10, TimeUnit.SECONDS, new SynchronousQueue<>());
-        factory = new POJOWorkflowImplementationFactory(options.getDataConverter(), workflowThreadPool);
-        taskHandler = new ReplayDecisionTaskHandler(domain, factory);
-        worker = new WorkflowWorker(service, domain, taskList, options, taskHandler);
-        this.options = options;
-    }
+  public SyncWorkflowWorker(
+      WorkflowService.Iface service,
+      String domain,
+      String taskList,
+      SingleWorkerOptions options,
+      int workflowThreadPoolSize) {
+    ThreadPoolExecutor workflowThreadPool =
+        new ThreadPoolExecutor(
+            workflowThreadPoolSize,
+            workflowThreadPoolSize,
+            10,
+            TimeUnit.SECONDS,
+            new SynchronousQueue<>());
+    factory = new POJOWorkflowImplementationFactory(options.getDataConverter(), workflowThreadPool);
+    taskHandler = new ReplayDecisionTaskHandler(domain, factory);
+    worker = new WorkflowWorker(service, domain, taskList, options, taskHandler);
+    this.options = options;
+  }
 
-    public void setWorkflowImplementationTypes(Class<?>[] workflowImplementationTypes) {
-        factory.setWorkflowImplementationTypes(workflowImplementationTypes);
-    }
+  public void setWorkflowImplementationTypes(Class<?>[] workflowImplementationTypes) {
+    factory.setWorkflowImplementationTypes(workflowImplementationTypes);
+  }
 
-    public void start() {
-        worker.start();
-    }
+  public void start() {
+    worker.start();
+  }
 
-    public void shutdown() {
-        worker.shutdown();
-    }
+  public void shutdown() {
+    worker.shutdown();
+  }
 
-    public void shutdownNow() {
-        worker.shutdownNow();
-    }
+  public void shutdownNow() {
+    worker.shutdownNow();
+  }
 
-    public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-        return worker.awaitTermination(timeout, unit);
-    }
+  public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+    return worker.awaitTermination(timeout, unit);
+  }
 
-    public boolean shutdownAndAwaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-        return worker.shutdownAndAwaitTermination(timeout, unit);
-    }
+  public boolean shutdownAndAwaitTermination(long timeout, TimeUnit unit)
+      throws InterruptedException {
+    return worker.shutdownAndAwaitTermination(timeout, unit);
+  }
 
-    public boolean isRunning() {
-        return worker.isRunning();
-    }
+  public boolean isRunning() {
+    return worker.isRunning();
+  }
 
-    public void suspendPolling() {
-        worker.suspendPolling();
-    }
+  public void suspendPolling() {
+    worker.suspendPolling();
+  }
 
-    public void resumePolling() {
-        worker.resumePolling();
-    }
+  public void resumePolling() {
+    worker.resumePolling();
+  }
 
-    public <R> R queryWorkflowExecution(WorkflowExecution execution, String queryType, Class<R> returnType, Object[] args) throws Exception {
-        DataConverter dataConverter = options.getDataConverter();
-        byte[] serializedArgs = dataConverter.toData(args);
-        byte[] result = worker.queryWorkflowExecution(execution, queryType, serializedArgs);
-        return dataConverter.fromData(result, returnType);
-    }
+  public <R> R queryWorkflowExecution(
+      WorkflowExecution execution, String queryType, Class<R> returnType, Object[] args)
+      throws Exception {
+    DataConverter dataConverter = options.getDataConverter();
+    byte[] serializedArgs = dataConverter.toData(args);
+    byte[] result = worker.queryWorkflowExecution(execution, queryType, serializedArgs);
+    return dataConverter.fromData(result, returnType);
+  }
 }

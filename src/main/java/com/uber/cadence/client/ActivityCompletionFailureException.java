@@ -19,21 +19,18 @@ package com.uber.cadence.client;
 
 import com.uber.cadence.activity.ActivityTask;
 
-/**
- * Unexpected failure when completing an activity.
- */
+/** Unexpected failure when completing an activity. */
 public final class ActivityCompletionFailureException extends ActivityCompletionException {
 
-    public ActivityCompletionFailureException(Throwable cause) {
-        super(cause);
-    }
+  public ActivityCompletionFailureException(Throwable cause) {
+    super(cause);
+  }
 
-    public ActivityCompletionFailureException(ActivityTask task, Throwable cause) {
-        super(task, cause);
-    }
+  public ActivityCompletionFailureException(ActivityTask task, Throwable cause) {
+    super(task, cause);
+  }
 
-    public ActivityCompletionFailureException(String activityId, Throwable cause) {
-        super(activityId, cause);
-    }
-
+  public ActivityCompletionFailureException(String activityId, Throwable cause) {
+    super(activityId, cause);
+  }
 }

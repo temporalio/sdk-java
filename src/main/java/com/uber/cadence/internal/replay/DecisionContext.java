@@ -19,109 +19,103 @@ package com.uber.cadence.internal.replay;
 
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
-
 import java.time.Duration;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
- * Represents the context for decider. Should only be used within the scope of
- * workflow definition code, meaning any code which is not part of activity
- * implementations.
+ * Represents the context for decider. Should only be used within the scope of workflow definition
+ * code, meaning any code which is not part of activity implementations.
  */
 public interface DecisionContext {
 
-    WorkflowExecution getWorkflowExecution();
+  WorkflowExecution getWorkflowExecution();
 
-    // TODO: Add to Cadence
-//    com.uber.cadence.WorkflowExecution getParentWorkflowExecution();
+  // TODO: Add to Cadence
+  //    com.uber.cadence.WorkflowExecution getParentWorkflowExecution();
 
-    WorkflowType getWorkflowType();
+  WorkflowType getWorkflowType();
 
-    boolean isCancelRequested();
+  boolean isCancelRequested();
 
-    ContinueAsNewWorkflowExecutionParameters getContinueAsNewOnCompletion();
+  ContinueAsNewWorkflowExecutionParameters getContinueAsNewOnCompletion();
 
-    void setContinueAsNewOnCompletion(ContinueAsNewWorkflowExecutionParameters continueParameters);
+  void setContinueAsNewOnCompletion(ContinueAsNewWorkflowExecutionParameters continueParameters);
 
-//    com.uber.cadence.ChildPolicy getChildPolicy();
+  //    com.uber.cadence.ChildPolicy getChildPolicy();
 
-//    String getContinuedExecutionRunId();
+  //    String getContinuedExecutionRunId();
 
-    int getExecutionStartToCloseTimeoutSeconds();
+  int getExecutionStartToCloseTimeoutSeconds();
 
-    String getTaskList();
+  String getTaskList();
 
-    String getDomain();
+  String getDomain();
 
-    String getWorkflowId();
+  String getWorkflowId();
 
-    String getRunId();
+  String getRunId();
 
-    Duration getExecutionStartToCloseTimeout();
+  Duration getExecutionStartToCloseTimeout();
 
-    Duration getDecisionTaskTimeout();
+  Duration getDecisionTaskTimeout();
 
-    /**
-     * Used to dynamically schedule an activity for execution
-     *
-     * @param parameters An object which encapsulates all the information required to
-     *                   schedule an activity for execution
-     * @param callback   Callback that is called upon activity completion or failure.
-     * @return cancellation handle. Invoke {@link Consumer#accept(Object)} to cancel activity task.
-     */
-    Consumer<Exception> scheduleActivityTask(ExecuteActivityParameters parameters,
-                                             BiConsumer<byte[], Exception> callback);
+  /**
+   * Used to dynamically schedule an activity for execution
+   *
+   * @param parameters An object which encapsulates all the information required to schedule an
+   *     activity for execution
+   * @param callback Callback that is called upon activity completion or failure.
+   * @return cancellation handle. Invoke {@link Consumer#accept(Object)} to cancel activity task.
+   */
+  Consumer<Exception> scheduleActivityTask(
+      ExecuteActivityParameters parameters, BiConsumer<byte[], Exception> callback);
 
+  /**
+   * Start child workflow.
+   *
+   * @param parameters An object which encapsulates all the information required to schedule a child
+   *     workflow for execution
+   * @param callback Callback that is called upon child workflow completion or failure.
+   * @return cancellation handle. Invoke {@link Consumer#accept(Object)} to cancel activity task.
+   */
+  Consumer<Exception> startChildWorkflow(
+      StartChildWorkflowExecutionParameters parameters,
+      Consumer<WorkflowExecution> executionCallback,
+      BiConsumer<byte[], Exception> callback);
 
-    /**
-     * Start child workflow.
-     *
-     * @param parameters An object which encapsulates all the information required to
-     *                   schedule a child workflow for execution
-     * @param callback   Callback that is called upon child workflow completion or failure.
-     * @return cancellation handle. Invoke {@link Consumer#accept(Object)} to cancel activity task.
-     */
-    Consumer<Exception> startChildWorkflow(StartChildWorkflowExecutionParameters parameters, Consumer<WorkflowExecution> executionCallback,
-                                           BiConsumer<byte[], Exception> callback);
+  Consumer<Exception> signalWorkflowExecution(
+      SignalExternalWorkflowParameters signalParameters, BiConsumer<Void, Exception> callback);
 
-    Consumer<Exception> signalWorkflowExecution(SignalExternalWorkflowParameters signalParameters, BiConsumer<Void, Exception> callback);
+  void requestCancelWorkflowExecution(WorkflowExecution execution);
 
-    void requestCancelWorkflowExecution(WorkflowExecution execution);
+  void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionParameters parameters);
 
-    void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionParameters parameters);
+  /** Deterministic unique Id generator */
+  String generateUniqueId();
 
-    /**
-     * Deterministic unique Id generator
-     */
-    String generateUniqueId();
+  /**
+   * @return time of the {@link com.uber.cadence.PollForDecisionTaskResponse} start event of the
+   *     decision being processed or replayed.
+   */
+  long currentTimeMillis();
 
+  /**
+   * <code>true</code> indicates if workflow is replaying already processed events to reconstruct it
+   * state. <code>false</code> indicates that code is making forward process for the first time. For
+   * example can be used to avoid duplicating log records due to replay.
+   */
+  boolean isReplaying();
 
-    /**
-     * @return time of the {@link com.uber.cadence.PollForDecisionTaskResponse} start event of the decision
-     * being processed or replayed.
-     */
-    long currentTimeMillis();
+  /**
+   * Create a Value that becomes ready after the specified delay.
+   *
+   * @param delaySeconds time-interval after which the Value becomes ready in seconds.
+   * @param callback Callback that is called with null parameter after the specified delay.
+   *     CancellationException is passed as a parameter in case of a cancellation.
+   * @return cancellation handle. Invoke {@link Consumer#accept(Object)} to cancel timer.
+   */
+  Consumer<Exception> createTimer(long delaySeconds, Consumer<Exception> callback);
 
-    /**
-     * <code>true</code> indicates if workflow is replaying already processed
-     * events to reconstruct it state. <code>false</code> indicates that code is
-     * making forward process for the first time. For example can be used to
-     * avoid duplicating log records due to replay.
-     */
-    boolean isReplaying();
-
-    /**
-     * Create a Value that becomes ready after the specified delay.
-     *
-     * @param delaySeconds time-interval after which the Value becomes ready in seconds.
-     * @param callback     Callback that is called with null parameter after the specified delay.
-     *                     CancellationException is passed as a parameter in case of a cancellation.
-     * @return cancellation handle. Invoke {@link Consumer#accept(Object)} to cancel timer.
-     */
-    Consumer<Exception>  createTimer(long delaySeconds, Consumer<Exception> callback);
-
-    void cancelAllTimers();
-
-
+  void cancelAllTimers();
 }

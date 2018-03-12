@@ -23,14 +23,12 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Indicates that the method is a signal handler method. Signal method is executed when workflow receives signal.
- * This annotation applies only to workflow interface methods.
+ * Indicates that the method is a signal handler method. Signal method is executed when workflow
+ * receives signal. This annotation applies only to workflow interface methods.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface SignalMethod {
-    /**
-     * Name of the signal type. Default is {short class name}::{method name}.
-     */
-    String name() default "";
+  /** Name of the signal type. Default is {short class name}::{method name}. */
+  String name() default "";
 }

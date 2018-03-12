@@ -18,15 +18,14 @@
 package com.uber.cadence.internal.sync;
 
 /**
- * Used to interrupt deterministic thread execution. Assumption is that none of the code
- * that thread executes catches it.
+ * Used to interrupt deterministic thread execution. Assumption is that none of the code that thread
+ * executes catches it.
  */
 final class DestroyWorkflowThreadError extends Error {
 
-    public DestroyWorkflowThreadError() {
-    }
+  public DestroyWorkflowThreadError() {}
 
-    public DestroyWorkflowThreadError(String message) {
-        super(message);
-    }
+  public DestroyWorkflowThreadError(String message) {
+    super(message);
+  }
 }

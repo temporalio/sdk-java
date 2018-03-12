@@ -18,19 +18,20 @@
 package com.uber.cadence.workflow;
 
 /**
- * Base exception used to communicate a failure that can be thrown by operations requested by a workflow code.
+ * Base exception used to communicate a failure that can be thrown by operations requested by a
+ * workflow code.
  */
 @SuppressWarnings("serial")
 public abstract class WorkflowOperationException extends RuntimeException {
 
-    private long eventId;
+  private long eventId;
 
-    protected WorkflowOperationException(String message, long eventId) {
-        super(message);
-        this.eventId = eventId;
-    }
+  protected WorkflowOperationException(String message, long eventId) {
+    super(message);
+    this.eventId = eventId;
+  }
 
-    public long getEventId() {
-        return eventId;
-    }
+  public long getEventId() {
+    return eventId;
+  }
 }

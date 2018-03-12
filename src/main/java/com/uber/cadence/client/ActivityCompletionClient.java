@@ -19,37 +19,39 @@ package com.uber.cadence.client;
 
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.activity.Activity;
-
 import java.util.concurrent.CancellationException;
 
 /**
  * Used to complete asynchronously activities that called {@link Activity#doNotCompleteOnReturn()}.
- * <p>
- * Use {@link WorkflowClient#newActivityCompletionClient()} to create an instance.
- * </p>
- * TODO: Throw relevant exceptions like EntityNotExists, etc.
+ *
+ * <p>Use {@link WorkflowClient#newActivityCompletionClient()} to create an instance. TODO: Throw
+ * relevant exceptions like EntityNotExists, etc.
  */
 public interface ActivityCompletionClient {
 
-    <R> void complete(byte[] taskToken, R result) throws ActivityCompletionException;
+  <R> void complete(byte[] taskToken, R result) throws ActivityCompletionException;
 
-    <R> void complete(WorkflowExecution execution, String activityId, R result) throws ActivityCompletionException;
+  <R> void complete(WorkflowExecution execution, String activityId, R result)
+      throws ActivityCompletionException;
 
-    // TODO: Exception serialization/deserialization or wrapping.
-    void completeExceptionally(byte[] taskToken, Exception result) throws ActivityCompletionException;
+  // TODO: Exception serialization/deserialization or wrapping.
+  void completeExceptionally(byte[] taskToken, Exception result) throws ActivityCompletionException;
 
-    void completeExceptionally(WorkflowExecution execution, String activityId, Exception result) throws ActivityCompletionException;
+  void completeExceptionally(WorkflowExecution execution, String activityId, Exception result)
+      throws ActivityCompletionException;
 
-    <V> void reportCancellation(byte[] taskToken, V details) throws ActivityCompletionException;
+  <V> void reportCancellation(byte[] taskToken, V details) throws ActivityCompletionException;
 
-    <V> void reportCancellation(WorkflowExecution execution, String activityId, V details) throws ActivityCompletionException;
+  <V> void reportCancellation(WorkflowExecution execution, String activityId, V details)
+      throws ActivityCompletionException;
 
-    <V> void heartbeat(byte[] taskToken, V details) throws ActivityCompletionException;
+  <V> void heartbeat(byte[] taskToken, V details) throws ActivityCompletionException;
 
-    /**
-     * Warning: heartbeating by ids is not implemented yet.
-     *
-     * @throws CancellationException if activity is cancelled.
-     */
-    <V> void heartbeat(WorkflowExecution execution, String activityId, V details) throws ActivityCompletionException;
+  /**
+   * Warning: heartbeating by ids is not implemented yet.
+   *
+   * @throws CancellationException if activity is cancelled.
+   */
+  <V> void heartbeat(WorkflowExecution execution, String activityId, V details)
+      throws ActivityCompletionException;
 }

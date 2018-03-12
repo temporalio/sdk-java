@@ -31,59 +31,57 @@ import com.uber.cadence.common.RetryOptions;
  */
 public interface ActivityTaskHandler {
 
-    final class Result {
+  final class Result {
 
-        private final RespondActivityTaskCompletedRequest taskCompleted;
-        private final RespondActivityTaskFailedRequest taskFailed;
-        private final RespondActivityTaskCanceledRequest taskCancelled;
-        private final RetryOptions requestRetryOptions;
+    private final RespondActivityTaskCompletedRequest taskCompleted;
+    private final RespondActivityTaskFailedRequest taskFailed;
+    private final RespondActivityTaskCanceledRequest taskCancelled;
+    private final RetryOptions requestRetryOptions;
 
-
-        /**
-         * Only zero (manual activity completion) or one request is allowed.
-         * Task token and identity fields shouldn't be filled in.
-         * Retry options are the service call. These options override the default ones
-         * set on the activity worker.
-         */
-        public Result(RespondActivityTaskCompletedRequest taskCompleted,
-                      RespondActivityTaskFailedRequest taskFailed,
-                      RespondActivityTaskCanceledRequest taskCancelled,
-                      RetryOptions requestRetryOptions) {
-            this.taskCompleted = taskCompleted;
-            this.taskFailed = taskFailed;
-            this.taskCancelled = taskCancelled;
-            this.requestRetryOptions = requestRetryOptions;
-        }
-
-        public RespondActivityTaskCompletedRequest getTaskCompleted() {
-            return taskCompleted;
-        }
-
-        public RespondActivityTaskFailedRequest getTaskFailed() {
-            return taskFailed;
-        }
-
-        public RespondActivityTaskCanceledRequest getTaskCancelled() {
-            return taskCancelled;
-        }
-
-        public RetryOptions getRequestRetryOptions() {
-            return requestRetryOptions;
-        }
+    /**
+     * Only zero (manual activity completion) or one request is allowed. Task token and identity
+     * fields shouldn't be filled in. Retry options are the service call. These options override the
+     * default ones set on the activity worker.
+     */
+    public Result(
+        RespondActivityTaskCompletedRequest taskCompleted,
+        RespondActivityTaskFailedRequest taskFailed,
+        RespondActivityTaskCanceledRequest taskCancelled,
+        RetryOptions requestRetryOptions) {
+      this.taskCompleted = taskCompleted;
+      this.taskFailed = taskFailed;
+      this.taskCancelled = taskCancelled;
+      this.requestRetryOptions = requestRetryOptions;
     }
 
-    /**
-     * The implementation should be called when a polling activity worker receives a
-     * new activity task. This method shouldn't throw any exception unless there is a need to not
-     * reply to the task.
-     *
-     * @param activityTask activity task which is response to PollForActivityTask call.
-     * @return One of the possible decision task replies.
-     */
-    Result handle(WorkflowService.Iface service, String domain, PollForActivityTaskResponse activityTask);
+    public RespondActivityTaskCompletedRequest getTaskCompleted() {
+      return taskCompleted;
+    }
 
-    /**
-     * True if this handler handles at least one activity type.
-     */
-    boolean isAnyTypeSupported();
+    public RespondActivityTaskFailedRequest getTaskFailed() {
+      return taskFailed;
+    }
+
+    public RespondActivityTaskCanceledRequest getTaskCancelled() {
+      return taskCancelled;
+    }
+
+    public RetryOptions getRequestRetryOptions() {
+      return requestRetryOptions;
+    }
+  }
+
+  /**
+   * The implementation should be called when a polling activity worker receives a new activity
+   * task. This method shouldn't throw any exception unless there is a need to not reply to the
+   * task.
+   *
+   * @param activityTask activity task which is response to PollForActivityTask call.
+   * @return One of the possible decision task replies.
+   */
+  Result handle(
+      WorkflowService.Iface service, String domain, PollForActivityTaskResponse activityTask);
+
+  /** True if this handler handles at least one activity type. */
+  boolean isAnyTypeSupported();
 }

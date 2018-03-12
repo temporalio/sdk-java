@@ -20,48 +20,43 @@ package com.uber.cadence.internal.common;
 import java.lang.reflect.Method;
 import java.time.Duration;
 
-/**
- * Utility functions shared by the implementation code.
- */
+/** Utility functions shared by the implementation code. */
 public final class InternalUtils {
 
-    public static final float SECOND = 1000f;
+  public static final float SECOND = 1000f;
 
-    /**
-     * Used to construct default name of an activity or workflow type from a method it implements.
-     *
-     * @return "Simple class name"::"methodName"
-     */
-    public static String getSimpleName(Method method) {
-        return method.getDeclaringClass().getSimpleName() + "::" + method.getName();
-    }
+  /**
+   * Used to construct default name of an activity or workflow type from a method it implements.
+   *
+   * @return "Simple class name"::"methodName"
+   */
+  public static String getSimpleName(Method method) {
+    return method.getDeclaringClass().getSimpleName() + "::" + method.getName();
+  }
 
-    /**
-     * Convert milliseconds to seconds rounding up. Used by timers to ensure that
-     * they never fire earlier than requested.
-     */
-    public static Duration roundUpToSeconds(Duration duration, Duration defaultValue) {
-        if (duration == null) {
-            return defaultValue;
-        }
-        return roundUpToSeconds(duration);
+  /**
+   * Convert milliseconds to seconds rounding up. Used by timers to ensure that they never fire
+   * earlier than requested.
+   */
+  public static Duration roundUpToSeconds(Duration duration, Duration defaultValue) {
+    if (duration == null) {
+      return defaultValue;
     }
+    return roundUpToSeconds(duration);
+  }
 
-    /**
-     * Round durations to seconds rounding up. As all timeouts and timers resolution is in seconds
-     * ensures that nothing times out or fires before the requested time.
-     */
-    public static Duration roundUpToSeconds(Duration duration) {
-        if (duration == null) {
-            return Duration.ZERO;
-        }
-        Duration result = Duration.ofMillis((long) (Math.ceil(duration.toMillis() / SECOND) * SECOND));
-        return result;
+  /**
+   * Round durations to seconds rounding up. As all timeouts and timers resolution is in seconds
+   * ensures that nothing times out or fires before the requested time.
+   */
+  public static Duration roundUpToSeconds(Duration duration) {
+    if (duration == null) {
+      return Duration.ZERO;
     }
+    Duration result = Duration.ofMillis((long) (Math.ceil(duration.toMillis() / SECOND) * SECOND));
+    return result;
+  }
 
-    /**
-     * Prohibit instantiation
-     */
-    private InternalUtils() {
-    }
+  /** Prohibit instantiation */
+  private InternalUtils() {}
 }

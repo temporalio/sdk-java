@@ -21,11 +21,11 @@ import java.util.concurrent.CancellationException;
 
 public abstract class ManualActivityCompletionClient {
 
-    public abstract void complete(Object result);
+  public abstract void complete(Object result);
 
-    public abstract void fail(Throwable failure);
+  public abstract void fail(Throwable failure);
 
-    public abstract void recordHeartbeat(Object details) throws CancellationException;
+  public abstract void recordHeartbeat(Object details) throws CancellationException;
 
-    public abstract void reportCancellation(Object details);
+  public abstract void reportCancellation(Object details);
 }

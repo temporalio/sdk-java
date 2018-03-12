@@ -23,73 +23,75 @@ import org.slf4j.LoggerFactory;
 
 public final class SynchronousRetryer {
 
-    public interface RetryableProc<E extends Throwable> {
-        void apply() throws E;
-    }
+  public interface RetryableProc<E extends Throwable> {
+    void apply() throws E;
+  }
 
-    public interface RetryableFunc<R, E extends Throwable> {
-        R apply() throws E;
-    }
+  public interface RetryableFunc<R, E extends Throwable> {
+    R apply() throws E;
+  }
 
-    private static final Logger log = LoggerFactory.getLogger(SynchronousRetryer.class);
+  private static final Logger log = LoggerFactory.getLogger(SynchronousRetryer.class);
 
-
-    public static <T extends Throwable> void retry(RetryOptions options, RetryableProc<T> r) throws T {
-        retryWithResult(options, () -> {
-            r.apply();
-            return null;
+  public static <T extends Throwable> void retry(RetryOptions options, RetryableProc<T> r)
+      throws T {
+    retryWithResult(
+        options,
+        () -> {
+          r.apply();
+          return null;
         });
-    }
+  }
 
-    public static <R, T extends Throwable> R retryWithResult(RetryOptions options, RetryableFunc<R, T> r) throws T {
-        int attempt = 0;
-        long startTime = System.currentTimeMillis();
-        BackoffThrottler throttler = new BackoffThrottler(options.getInitialInterval(),
-                options.getMaximumInterval(), options.getBackoffCoefficient());
-        do {
-            try {
-                attempt++;
-                throttler.throttle();
-                R result = r.apply();
-                throttler.success();
-                return result;
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return null;
-            } catch (Exception e) {
-                throttler.failure();
-                if (options.getDoNotRetry() != null) {
-                    for (Class<?> exceptionToNotRetry : options.getDoNotRetry()) {
-                        if (exceptionToNotRetry.isAssignableFrom(e.getClass())) {
-                            rethrow(e);
-                        }
-                    }
-                }
-                long elapsed = System.currentTimeMillis() - startTime;
-                if (attempt >= options.getMaximumAttempts()
-                        || (elapsed >= options.getExpiration().toMillis() && attempt >= options.getMinimumAttempts())) {
-                    rethrow(e);
-                }
-                log.warn("Retrying after failure", e);
+  public static <R, T extends Throwable> R retryWithResult(
+      RetryOptions options, RetryableFunc<R, T> r) throws T {
+    int attempt = 0;
+    long startTime = System.currentTimeMillis();
+    BackoffThrottler throttler =
+        new BackoffThrottler(
+            options.getInitialInterval(),
+            options.getMaximumInterval(),
+            options.getBackoffCoefficient());
+    do {
+      try {
+        attempt++;
+        throttler.throttle();
+        R result = r.apply();
+        throttler.success();
+        return result;
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return null;
+      } catch (Exception e) {
+        throttler.failure();
+        if (options.getDoNotRetry() != null) {
+          for (Class<?> exceptionToNotRetry : options.getDoNotRetry()) {
+            if (exceptionToNotRetry.isAssignableFrom(e.getClass())) {
+              rethrow(e);
             }
+          }
         }
-        while (true);
-    }
-
-    private static <T extends Throwable> void rethrow(Exception e) throws T {
-        if (e instanceof RuntimeException) {
-            throw (RuntimeException) e;
-        } else {
-            @SuppressWarnings("unchecked")
-            T toRethrow = (T) e;
-            throw toRethrow;
+        long elapsed = System.currentTimeMillis() - startTime;
+        if (attempt >= options.getMaximumAttempts()
+            || (elapsed >= options.getExpiration().toMillis()
+                && attempt >= options.getMinimumAttempts())) {
+          rethrow(e);
         }
-    }
+        log.warn("Retrying after failure", e);
+      }
+    } while (true);
+  }
 
-    /**
-     * Prohibits instantiation.
-     */
-    private SynchronousRetryer() {
-
+  private static <T extends Throwable> void rethrow(Exception e) throws T {
+    if (e instanceof RuntimeException) {
+      throw (RuntimeException) e;
+    } else {
+      @SuppressWarnings("unchecked")
+      T toRethrow = (T) e;
+      throw toRethrow;
     }
+  }
+
+  /** Prohibits instantiation. */
+  private SynchronousRetryer() {}
 }

@@ -17,46 +17,51 @@
 
 package com.uber.cadence.internal.replay;
 
-
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
 
-/**
- * Internal. Do not catch or throw by application level code.
- */
+/** Internal. Do not catch or throw by application level code. */
 @SuppressWarnings("serial")
 public class ChildWorkflowTaskFailedException extends RuntimeException {
 
-    private final long eventId;
+  private final long eventId;
 
-    private final WorkflowExecution workflowExecution;
+  private final WorkflowExecution workflowExecution;
 
-    private final WorkflowType workflowType;
+  private final WorkflowType workflowType;
 
-    private final byte[] details;
+  private final byte[] details;
 
-    public ChildWorkflowTaskFailedException(long eventId, WorkflowExecution workflowExecution, WorkflowType workflowType,
-                                            String reason, byte[] details) {
-        super(reason);
-        this.eventId = eventId;
-        this.workflowExecution = workflowExecution;
-        this.workflowType = workflowType;
-        this.details = details;
-    }
+  public ChildWorkflowTaskFailedException(
+      long eventId,
+      WorkflowExecution workflowExecution,
+      WorkflowType workflowType,
+      String reason,
+      byte[] details) {
+    super(reason);
+    this.eventId = eventId;
+    this.workflowExecution = workflowExecution;
+    this.workflowType = workflowType;
+    this.details = details;
+  }
 
-    public long getEventId() {
-        return eventId;
-    }
+  public long getEventId() {
+    return eventId;
+  }
 
-    public WorkflowExecution getWorkflowExecution() {
-        return workflowExecution;
-    }
+  public WorkflowExecution getWorkflowExecution() {
+    return workflowExecution;
+  }
 
-    public WorkflowType getWorkflowType() {
-        return workflowType;
-    }
+  public WorkflowType getWorkflowType() {
+    return workflowType;
+  }
 
-    public byte[] getDetails() { return details; }
+  public byte[] getDetails() {
+    return details;
+  }
 
-    public String getReason() { return getMessage(); }
+  public String getReason() {
+    return getMessage();
+  }
 }

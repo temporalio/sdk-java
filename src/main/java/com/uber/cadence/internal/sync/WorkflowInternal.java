@@ -17,6 +17,8 @@
 
 package com.uber.cadence.internal.sync;
 
+import static com.uber.cadence.internal.sync.AsyncInternal.AsyncMarker;
+
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.activity.ActivityOptions;
 import com.uber.cadence.common.RetryOptions;
@@ -32,196 +34,204 @@ import com.uber.cadence.workflow.QueryMethod;
 import com.uber.cadence.workflow.Workflow;
 import com.uber.cadence.workflow.WorkflowInfo;
 import com.uber.cadence.workflow.WorkflowQueue;
-
 import java.lang.reflect.Proxy;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Supplier;
 
-import static com.uber.cadence.internal.sync.AsyncInternal.AsyncMarker;
-
 /**
  * Never reference directly. It is public only because Java doesn't have internal package support.
  */
 public final class WorkflowInternal {
 
-    public static WorkflowThread newThread(boolean ignoreParentCancellation, Runnable runnable) {
-        return WorkflowThread.newThread(runnable, ignoreParentCancellation);
-    }
+  public static WorkflowThread newThread(boolean ignoreParentCancellation, Runnable runnable) {
+    return WorkflowThread.newThread(runnable, ignoreParentCancellation);
+  }
 
-    public static WorkflowThread newThread(boolean ignoreParentCancellation, String name, Runnable runnable) {
-        if (name == null) {
-            throw new NullPointerException("name cannot be null");
-        }
-        return WorkflowThread.newThread(runnable, ignoreParentCancellation, name);
+  public static WorkflowThread newThread(
+      boolean ignoreParentCancellation, String name, Runnable runnable) {
+    if (name == null) {
+      throw new NullPointerException("name cannot be null");
     }
+    return WorkflowThread.newThread(runnable, ignoreParentCancellation, name);
+  }
 
-    public static Promise<Void> newTimer(Duration duration) {
-        return getDecisionContext().newTimer(InternalUtils.roundUpToSeconds(duration).getSeconds());
+  public static Promise<Void> newTimer(Duration duration) {
+    return getDecisionContext().newTimer(InternalUtils.roundUpToSeconds(duration).getSeconds());
+  }
+
+  public static <E> WorkflowQueue<E> newQueue(int capacity) {
+    return new WorkflowQueueImpl<>(capacity);
+  }
+
+  public static <E> CompletablePromise<E> newCompletablePromise() {
+    return new CompletablePromiseImpl<>();
+  }
+
+  public static <E> Promise<E> newPromise(E value) {
+    CompletablePromise<E> result = Workflow.newPromise();
+    result.complete(value);
+    return result;
+  }
+
+  public static <E> Promise<E> newFailedPromise(Exception failure) {
+    CompletablePromise<E> result = new CompletablePromiseImpl<>();
+    result.completeExceptionally(CheckedExceptionWrapper.wrap(failure));
+    return result;
+  }
+
+  /**
+   * Register query or queries implementation object. There is no need to register top level
+   * workflow implementation object as it is done implicitly. Only methods annotated with @{@link
+   * QueryMethod} are registered.
+   */
+  public static void registerQuery(Object queryImplementation) {
+    getDecisionContext().registerQuery(queryImplementation);
+  }
+
+  /** Should be used to get current time instead of {@link System#currentTimeMillis()} */
+  public static long currentTimeMillis() {
+    return DeterministicRunnerImpl.currentThreadInternal().getRunner().currentTimeMillis();
+  }
+
+  /**
+   * Creates client stub to activities that implement given interface.
+   *
+   * @param activityInterface interface type implemented by activities
+   */
+  @SuppressWarnings("unchecked")
+  public static <T> T newActivityStub(Class<T> activityInterface, ActivityOptions options) {
+    return (T)
+        Proxy.newProxyInstance(
+            WorkflowInternal.class.getClassLoader(),
+            new Class<?>[] {activityInterface, AsyncMarker.class},
+            new ActivityInvocationHandler(options));
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <T> T newWorkflowStubWithOptions(
+      Class<T> workflowInterface, ChildWorkflowOptions options) {
+    return (T)
+        Proxy.newProxyInstance(
+            WorkflowInternal.class.getClassLoader(),
+            new Class<?>[] {workflowInterface, WorkflowStub.class, AsyncMarker.class},
+            new ChildWorkflowInvocationHandler(options, getDecisionContext()));
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <T> T newWorkflowStubFromExecution(
+      Class<T> workflowInterface, WorkflowExecution execution) {
+    return (T)
+        Proxy.newProxyInstance(
+            WorkflowInternal.class.getClassLoader(),
+            new Class<?>[] {workflowInterface, WorkflowStub.class, AsyncMarker.class},
+            new ChildWorkflowInvocationHandler(execution, getDecisionContext()));
+  }
+
+  public static Promise<WorkflowExecution> getChildWorkflowExecution(Object workflowStub) {
+    if (workflowStub instanceof WorkflowStub) {
+      return ((WorkflowStub) workflowStub).__getWorkflowExecution();
     }
+    throw new IllegalArgumentException(
+        "Not a workflow stub created through Workflow.newWorkflowStubWithOptions: " + workflowStub);
+  }
 
-    public static <E> WorkflowQueue<E> newQueue(int capacity) {
-        return new WorkflowQueueImpl<>(capacity);
+  /**
+   * Creates client stub that can be used to continue this workflow as new.
+   *
+   * @param workflowInterface interface type implemented by the next generation of workflow
+   */
+  @SuppressWarnings("unchecked")
+  public static <T> T newContinueAsNewStub(
+      Class<T> workflowInterface, ContinueAsNewWorkflowExecutionParameters parameters) {
+    return (T)
+        Proxy.newProxyInstance(
+            WorkflowInternal.class.getClassLoader(),
+            new Class<?>[] {workflowInterface},
+            new ContinueAsNewWorkflowInvocationHandler(parameters, getDecisionContext()));
+  }
+
+  /**
+   * Execute activity by name.
+   *
+   * @param name name of the activity
+   * @param returnType activity return type
+   * @param args list of activity arguments
+   * @param <R> activity return type
+   * @return activity result
+   */
+  public static <R> R executeActivity(
+      String name, ActivityOptions options, Class<R> returnType, Object... args) {
+    Promise<R> result = getDecisionContext().executeActivity(name, options, args, returnType);
+    if (AsyncInternal.isAsync()) {
+      AsyncInternal.setAsyncResult(result);
+      return null; // ignored
     }
+    return result.get();
+  }
 
-    public static <E> CompletablePromise<E> newCompletablePromise() {
-        return new CompletablePromiseImpl<>();
-    }
+  private static SyncDecisionContext getDecisionContext() {
+    return DeterministicRunnerImpl.currentThreadInternal().getDecisionContext();
+  }
 
-    public static <E> Promise<E> newPromise(E value) {
-        CompletablePromise<E> result = Workflow.newPromise();
-        result.complete(value);
-        return result;
-    }
+  public static void await(String reason, Supplier<Boolean> unblockCondition)
+      throws DestroyWorkflowThreadError {
+    WorkflowThread.await(reason, unblockCondition);
+  }
 
-    public static <E> Promise<E> newFailedPromise(Exception failure) {
-        CompletablePromise<E> result = new CompletablePromiseImpl<>();
-        result.completeExceptionally(CheckedExceptionWrapper.wrap(failure));
-        return result;
-    }
+  public static boolean await(long timeoutMillis, String reason, Supplier<Boolean> unblockCondition)
+      throws DestroyWorkflowThreadError {
+    return WorkflowThread.await(timeoutMillis, reason, unblockCondition);
+  }
 
-    /**
-     * Register query or queries implementation object. There is no need to register top level workflow implementation
-     * object as it is done implicitly. Only methods annotated with @{@link QueryMethod} are registered.
-     */
-    public static void registerQuery(Object queryImplementation) {
-        getDecisionContext().registerQuery(queryImplementation);
-    }
+  public static <U> Promise<List<U>> promiseAllOf(Collection<Promise<U>> promises) {
+    return new AllOfPromise<>(promises);
+  }
 
-    /**
-     * Should be used to get current time instead of {@link System#currentTimeMillis()}
-     */
-    public static long currentTimeMillis() {
-        return DeterministicRunnerImpl.currentThreadInternal().getRunner().currentTimeMillis();
-    }
+  @SuppressWarnings("unchecked")
+  public static Promise<Void> promiseAllOf(Promise<?>... promises) {
+    return new AllOfPromise(promises);
+  }
 
-    /**
-     * Creates client stub to activities that implement given interface.
-     *
-     * @param activityInterface interface type implemented by activities
-     */
-    @SuppressWarnings("unchecked")
-    public static <T> T newActivityStub(Class<T> activityInterface, ActivityOptions options) {
-        return (T) Proxy.newProxyInstance(WorkflowInternal.class.getClassLoader(),
-                new Class<?>[]{activityInterface, AsyncMarker.class},
-                new ActivityInvocationHandler(options));
-    }
+  public static Promise<Object> promiseAnyOf(Iterable<Promise<?>> promises) {
+    return CompletablePromiseImpl.promiseAnyOf(promises);
+  }
 
+  public static Promise<Object> promiseAnyOf(Promise<?>... promises) {
+    return CompletablePromiseImpl.promiseAnyOf(promises);
+  }
 
-    @SuppressWarnings("unchecked")
-    public static <T> T newWorkflowStubWithOptions(Class<T> workflowInterface, ChildWorkflowOptions options) {
-        return (T) Proxy.newProxyInstance(WorkflowInternal.class.getClassLoader(),
-                new Class<?>[]{workflowInterface, WorkflowStub.class, AsyncMarker.class},
-                new ChildWorkflowInvocationHandler(options, getDecisionContext()));
-    }
+  public static CancellationScope newCancellationScope(boolean detached, Runnable runnable) {
+    CancellationScopeImpl result = new CancellationScopeImpl(detached, runnable);
+    result.run();
+    return result;
+  }
 
-    @SuppressWarnings("unchecked")
-    public static <T> T newWorkflowStubFromExecution(Class<T> workflowInterface, WorkflowExecution execution) {
-        return (T) Proxy.newProxyInstance(WorkflowInternal.class.getClassLoader(),
-                new Class<?>[]{workflowInterface, WorkflowStub.class, AsyncMarker.class},
-                new ChildWorkflowInvocationHandler(execution, getDecisionContext()));
-    }
+  public static CancellationScopeImpl currentCancellationScope() {
+    return CancellationScopeImpl.current();
+  }
 
-    public static Promise<WorkflowExecution> getChildWorkflowExecution(Object workflowStub) {
-        if (workflowStub instanceof WorkflowStub) {
-            return ((WorkflowStub) workflowStub).__getWorkflowExecution();
-        }
-        throw new IllegalArgumentException("Not a workflow stub created through Workflow.newWorkflowStubWithOptions: " + workflowStub);
-    }
+  public static RuntimeException wrap(Throwable e) {
+    return CheckedExceptionWrapper.wrap(e);
+  }
 
-    /**
-     * Creates client stub that can be used to continue this workflow as new.
-     *
-     * @param workflowInterface interface type implemented by the next generation of workflow
-     */
-    @SuppressWarnings("unchecked")
-    public static <T> T newContinueAsNewStub(Class<T> workflowInterface, ContinueAsNewWorkflowExecutionParameters parameters) {
-        return (T) Proxy.newProxyInstance(WorkflowInternal.class.getClassLoader(),
-                new Class<?>[]{workflowInterface},
-                new ContinueAsNewWorkflowInvocationHandler(parameters, getDecisionContext()));
-    }
+  public static Exception unwrap(Exception e) {
+    return CheckedExceptionWrapper.unwrap(e);
+  }
 
-    /**
-     * Execute activity by name.
-     *
-     * @param name       name of the activity
-     * @param returnType activity return type
-     * @param args       list of activity arguments
-     * @param <R>        activity return type
-     * @return activity result
-     */
-    public static <R> R executeActivity(String name, ActivityOptions options, Class<R> returnType, Object... args) {
-        Promise<R> result = getDecisionContext().executeActivity(name, options, args, returnType);
-        if (AsyncInternal.isAsync()) {
-            AsyncInternal.setAsyncResult(result);
-            return null; // ignored
-        }
-        return result.get();
-    }
+  /** Prohibit instantiation */
+  private WorkflowInternal() {}
 
-    private static SyncDecisionContext getDecisionContext() {
-        return DeterministicRunnerImpl.currentThreadInternal().getDecisionContext();
-    }
+  public static boolean isReplaying() {
+    return getDecisionContext().isReplaying();
+  }
 
-    public static void await(String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError {
-        WorkflowThread.await(reason, unblockCondition);
-    }
+  public static WorkflowInfo getWorkflowInfo() {
+    return new WorkflowInfoImpl(getDecisionContext().getContext());
+  }
 
-    public static boolean await(long timeoutMillis, String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError {
-        return WorkflowThread.await(timeoutMillis, reason, unblockCondition);
-    }
-
-    public static <U> Promise<List<U>> promiseAllOf(Collection<Promise<U>> promises) {
-        return new AllOfPromise<>(promises);
-    }
-
-    @SuppressWarnings("unchecked")
-    public static Promise<Void> promiseAllOf(Promise<?>... promises) {
-        return new AllOfPromise(promises);
-    }
-
-    public static Promise<Object> promiseAnyOf(Iterable<Promise<?>> promises) {
-        return CompletablePromiseImpl.promiseAnyOf(promises);
-    }
-
-    public static Promise<Object> promiseAnyOf(Promise<?>... promises) {
-        return CompletablePromiseImpl.promiseAnyOf(promises);
-    }
-
-    public static CancellationScope newCancellationScope(boolean detached, Runnable runnable) {
-        CancellationScopeImpl result = new CancellationScopeImpl(detached, runnable);
-        result.run();
-        return result;
-    }
-
-    public static CancellationScopeImpl currentCancellationScope() {
-        return CancellationScopeImpl.current();
-    }
-
-    public static RuntimeException wrap(Throwable e) {
-        return CheckedExceptionWrapper.wrap(e);
-    }
-
-    public static Exception unwrap(Exception e) {
-        return CheckedExceptionWrapper.unwrap(e);
-    }
-
-    /**
-     * Prohibit instantiation
-     */
-    private WorkflowInternal() {
-    }
-
-    public static boolean isReplaying() {
-        return getDecisionContext().isReplaying();
-    }
-
-    public static WorkflowInfo getWorkflowInfo() {
-       return new WorkflowInfoImpl(getDecisionContext().getContext());
-    }
-
-    public static <R> R retry(RetryOptions options, Functions.Func<R> fn) {
-        return WorkflowRetryerInternal.validateOptionsAndRetry(options, fn);
-    }
+  public static <R> R retry(RetryOptions options, Functions.Func<R> fn) {
+    return WorkflowRetryerInternal.validateOptionsAndRetry(options, fn);
+  }
 }

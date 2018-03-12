@@ -17,94 +17,95 @@
 
 package com.uber.cadence.internal.sync;
 
-import com.uber.cadence.workflow.CancellationScope;
+import static com.uber.cadence.internal.sync.DeterministicRunnerImpl.currentThreadInternal;
 
+import com.uber.cadence.workflow.CancellationScope;
 import java.util.concurrent.CancellationException;
 import java.util.function.Supplier;
 
-import static com.uber.cadence.internal.sync.DeterministicRunnerImpl.currentThreadInternal;
-
-/**
- * Thread that is scheduled deterministically by {@link DeterministicRunner}.
- */
+/** Thread that is scheduled deterministically by {@link DeterministicRunner}. */
 interface WorkflowThread extends CancellationScope {
 
-    /**
-     * Block current thread until unblockCondition is evaluated to true.
-     * This method is intended for framework level libraries, never use directly in a workflow implementation.
-     *
-     * @param reason           reason for blocking
-     * @param unblockCondition condition that should return true to indicate that thread should unblock.
-     * @throws CancellationException      if thread (or current cancellation scope was cancelled).
-     * @throws DestroyWorkflowThreadError if thread was asked to be destroyed.
-     */
-    static void await(String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError {
-        currentThreadInternal().yield(reason, unblockCondition);
-    }
+  /**
+   * Block current thread until unblockCondition is evaluated to true. This method is intended for
+   * framework level libraries, never use directly in a workflow implementation.
+   *
+   * @param reason reason for blocking
+   * @param unblockCondition condition that should return true to indicate that thread should
+   *     unblock.
+   * @throws CancellationException if thread (or current cancellation scope was cancelled).
+   * @throws DestroyWorkflowThreadError if thread was asked to be destroyed.
+   */
+  static void await(String reason, Supplier<Boolean> unblockCondition)
+      throws DestroyWorkflowThreadError {
+    currentThreadInternal().yield(reason, unblockCondition);
+  }
 
-    /**
-     * Block current thread until unblockCondition is evaluated to true or timeoutMillis passes.
-     *
-     * @return false if timed out.
-     */
-    static boolean await(long timeoutMillis, String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError {
-        return currentThreadInternal().yield(timeoutMillis, reason, unblockCondition);
-    }
+  /**
+   * Block current thread until unblockCondition is evaluated to true or timeoutMillis passes.
+   *
+   * @return false if timed out.
+   */
+  static boolean await(long timeoutMillis, String reason, Supplier<Boolean> unblockCondition)
+      throws DestroyWorkflowThreadError {
+    return currentThreadInternal().yield(timeoutMillis, reason, unblockCondition);
+  }
 
-    /**
-     * Creates a new thread instance.
-     * @param runnable thread function to run
-     * @param detached If this thread is detached from the parent {@link CancellationScope}
-     * @return
-     */
-    static WorkflowThread newThread(Runnable runnable, boolean detached) {
-        return newThread(runnable, detached, null);
-    }
+  /**
+   * Creates a new thread instance.
+   *
+   * @param runnable thread function to run
+   * @param detached If this thread is detached from the parent {@link CancellationScope}
+   * @return
+   */
+  static WorkflowThread newThread(Runnable runnable, boolean detached) {
+    return newThread(runnable, detached, null);
+  }
 
-    static WorkflowThread newThread(Runnable runnable, boolean detached, String name) {
-        return currentThreadInternal().getRunner().newThread(runnable, detached, name);
-    }
+  static WorkflowThread newThread(Runnable runnable, boolean detached, String name) {
+    return currentThreadInternal().getRunner().newThread(runnable, detached, name);
+  }
 
-    void start();
+  void start();
 
-    void setName(String name);
+  void setName(String name);
 
-    String getName();
+  String getName();
 
-    long getId();
+  long getId();
 
-    String getStackTrace();
+  String getStackTrace();
 
-    DeterministicRunnerImpl getRunner();
+  DeterministicRunnerImpl getRunner();
 
-    SyncDecisionContext getDecisionContext();
+  SyncDecisionContext getDecisionContext();
 
-    long getBlockedUntil();
+  long getBlockedUntil();
 
-    boolean runUntilBlocked();
+  boolean runUntilBlocked();
 
-    Throwable getUnhandledException();
+  Throwable getUnhandledException();
 
-    boolean isDone();
+  boolean isDone();
 
-    void stop();
+  void stop();
 
-    void addStackTrace(StringBuilder result);
+  void addStackTrace(StringBuilder result);
 
-    void yield(String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError;
+  void yield(String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError;
 
-    boolean yield(long timeoutMillis, String reason, Supplier<Boolean> unblockCondition) throws DestroyWorkflowThreadError;
+  boolean yield(long timeoutMillis, String reason, Supplier<Boolean> unblockCondition)
+      throws DestroyWorkflowThreadError;
 
-    /**
-     * Stop executing all workflow threads and puts {@link DeterministicRunner} into closed state.
-     * To be called only from a workflow thread.
-     *
-     * @param value accessible through {@link DeterministicRunner#getExitValue()}.
-     */
-    static <R> void exit(R value) {
-        currentThreadInternal().exitThread(value); // needed to close WorkflowThreadContext
-    }
+  /**
+   * Stop executing all workflow threads and puts {@link DeterministicRunner} into closed state. To
+   * be called only from a workflow thread.
+   *
+   * @param value accessible through {@link DeterministicRunner#getExitValue()}.
+   */
+  static <R> void exit(R value) {
+    currentThreadInternal().exitThread(value); // needed to close WorkflowThreadContext
+  }
 
-    <R> void exitThread(R value);
-
+  <R> void exitThread(R value);
 }

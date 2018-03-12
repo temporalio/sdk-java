@@ -20,137 +20,138 @@ package com.uber.cadence.internal.sync;
 import com.uber.cadence.workflow.CancellationScope;
 import com.uber.cadence.workflow.CompletablePromise;
 import com.uber.cadence.workflow.Workflow;
-
 import java.util.HashSet;
 import java.util.Set;
 import java.util.Stack;
 
 class CancellationScopeImpl implements CancellationScope {
 
-    private static ThreadLocal<Stack<CancellationScopeImpl>> scopeStack = ThreadLocal.withInitial(Stack::new);
-    private boolean detached;
-    private CompletablePromise<String> cancellationPromise;
+  private static ThreadLocal<Stack<CancellationScopeImpl>> scopeStack =
+      ThreadLocal.withInitial(Stack::new);
+  private boolean detached;
+  private CompletablePromise<String> cancellationPromise;
 
-    static CancellationScopeImpl current() {
-        if (scopeStack.get().empty()) {
-            throw new IllegalStateException("Cannot be called by non workflow thread");
-        }
-        return scopeStack.get().peek();
+  static CancellationScopeImpl current() {
+    if (scopeStack.get().empty()) {
+      throw new IllegalStateException("Cannot be called by non workflow thread");
     }
+    return scopeStack.get().peek();
+  }
 
-    private static void pushCurrent(CancellationScopeImpl scope) {
-        scopeStack.get().push(scope);
+  private static void pushCurrent(CancellationScopeImpl scope) {
+    scopeStack.get().push(scope);
+  }
+
+  private static void popCurrent(CancellationScopeImpl expected) {
+    CancellationScopeImpl current = scopeStack.get().pop();
+    if (current != expected) {
+      throw new Error("Unexpected scope");
     }
-
-    private static void popCurrent(CancellationScopeImpl expected) {
-        CancellationScopeImpl current = scopeStack.get().pop();
-        if (current != expected) {
-            throw new Error("Unexpected scope");
-        }
-        if (!current.detached) {
-            current.parent.removeChild(current);
-        }
+    if (!current.detached) {
+      current.parent.removeChild(current);
     }
+  }
 
-    private final Runnable runnable;
-    private CancellationScopeImpl parent;
-    private final Set<CancellationScopeImpl> children = new HashSet<>();
-    /**
-     * When disconnected scope has no parent and thus doesn't receive cancellation requests from it.
-     */
-    private boolean cancelRequested;
-    private String reason;
+  private final Runnable runnable;
+  private CancellationScopeImpl parent;
+  private final Set<CancellationScopeImpl> children = new HashSet<>();
+  /**
+   * When disconnected scope has no parent and thus doesn't receive cancellation requests from it.
+   */
+  private boolean cancelRequested;
 
-    CancellationScopeImpl(boolean ignoreParentCancellation, Runnable runnable) {
-        this(ignoreParentCancellation, runnable, current());
+  private String reason;
+
+  CancellationScopeImpl(boolean ignoreParentCancellation, Runnable runnable) {
+    this(ignoreParentCancellation, runnable, current());
+  }
+
+  CancellationScopeImpl(boolean detached, Runnable runnable, CancellationScopeImpl parent) {
+    this.detached = detached;
+    this.runnable = runnable;
+    setParent(parent);
+  }
+
+  private void setParent(CancellationScopeImpl parent) {
+    if (parent == null) {
+      detached = true;
+      return;
     }
-
-    CancellationScopeImpl(boolean detached, Runnable runnable, CancellationScopeImpl parent) {
-        this.detached = detached;
-        this.runnable = runnable;
-        setParent(parent);
+    if (!detached) {
+      this.parent = parent;
+      parent.addChild(this);
+      if (parent.isCancelRequested()) {
+        cancel(parent.getCancellationReason());
+      }
     }
+  }
 
-    private void setParent(CancellationScopeImpl parent) {
-        if (parent == null) {
-            detached = true;
-            return;
-        }
-        if (!detached) {
-            this.parent = parent;
-            parent.addChild(this);
-            if (parent.isCancelRequested()) {
-                cancel(parent.getCancellationReason());
-            }
-        }
+  void run() {
+    try {
+      pushCurrent(this);
+      runnable.run();
+    } finally {
+      popCurrent(this);
     }
+  }
 
-    void run() {
-        try {
-            pushCurrent(this);
-            runnable.run();
-        } finally {
-            popCurrent(this);
-        }
-    }
+  @Override
+  public boolean isDetached() {
+    return detached;
+  }
 
-    @Override
-    public boolean isDetached() {
-        return detached;
+  @Override
+  public void cancel() {
+    cancelRequested = true;
+    reason = null;
+    for (CancellationScopeImpl child : children) {
+      child.cancel();
     }
+    if (cancellationPromise != null) {
+      cancellationPromise.complete(null);
+    }
+  }
 
-    @Override
-    public void cancel() {
-        cancelRequested = true;
-        reason = null;
-        for (CancellationScopeImpl child : children) {
-            child.cancel();
-        }
-        if (cancellationPromise != null) {
-            cancellationPromise.complete(null);
-        }
+  @Override
+  public void cancel(String reason) {
+    cancelRequested = true;
+    this.reason = reason;
+    for (CancellationScopeImpl child : children) {
+      child.cancel(reason);
     }
+    if (cancellationPromise != null) {
+      cancellationPromise.complete(reason);
+    }
+  }
 
-    @Override
-    public void cancel(String reason) {
-        cancelRequested = true;
-        this.reason = reason;
-        for (CancellationScopeImpl child : children) {
-            child.cancel(reason);
-        }
-        if (cancellationPromise != null) {
-            cancellationPromise.complete(reason);
-        }
-    }
+  @Override
+  public String getCancellationReason() {
+    return reason;
+  }
 
-    @Override
-    public String getCancellationReason() {
-        return reason;
-    }
+  @Override
+  public boolean isCancelRequested() {
+    return cancelRequested;
+  }
 
-    @Override
-    public boolean isCancelRequested() {
-        return cancelRequested;
+  @Override
+  public CompletablePromise<String> getCancellationRequest() {
+    if (cancellationPromise == null) {
+      cancellationPromise = Workflow.newPromise();
+      if (isCancelRequested()) {
+        cancellationPromise.complete(getCancellationReason());
+      }
     }
+    return cancellationPromise;
+  }
 
-    @Override
-    public CompletablePromise<String> getCancellationRequest() {
-        if (cancellationPromise == null) {
-            cancellationPromise = Workflow.newPromise();
-            if (isCancelRequested()) {
-                cancellationPromise.complete(getCancellationReason());
-            }
-        }
-        return cancellationPromise;
-    }
+  private void addChild(CancellationScopeImpl scope) {
+    children.add(scope);
+  }
 
-    private void addChild(CancellationScopeImpl scope) {
-        children.add(scope);
+  private void removeChild(CancellationScopeImpl scope) {
+    if (!children.remove(scope)) {
+      throw new Error("Not a child");
     }
-
-    private void removeChild(CancellationScopeImpl scope) {
-        if (!children.remove(scope)) {
-            throw new Error("Not a child");
-        }
-    }
+  }
 }

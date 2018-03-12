@@ -24,49 +24,52 @@ import com.uber.cadence.internal.external.ManualActivityCompletionClientFactory;
 
 class ActivityCompletionClientImpl implements ActivityCompletionClient {
 
-    private final ManualActivityCompletionClientFactory factory;
+  private final ManualActivityCompletionClientFactory factory;
 
-    public ActivityCompletionClientImpl(ManualActivityCompletionClientFactory manualActivityCompletionClientFactory) {
-        this.factory = manualActivityCompletionClientFactory;
-    }
+  public ActivityCompletionClientImpl(
+      ManualActivityCompletionClientFactory manualActivityCompletionClientFactory) {
+    this.factory = manualActivityCompletionClientFactory;
+  }
 
-    @Override
-    public <R> void complete(byte[] taskToken, R result) {
-        factory.getClient(taskToken).complete(result);
-    }
+  @Override
+  public <R> void complete(byte[] taskToken, R result) {
+    factory.getClient(taskToken).complete(result);
+  }
 
-    @Override
-    public <R> void complete(WorkflowExecution execution, String activityId, R result) {
-        factory.getClient(execution, activityId).complete(result);
-    }
+  @Override
+  public <R> void complete(WorkflowExecution execution, String activityId, R result) {
+    factory.getClient(execution, activityId).complete(result);
+  }
 
-    @Override
-    public void completeExceptionally(byte[] taskToken, Exception result) {
-        factory.getClient(taskToken).fail(result);
-    }
+  @Override
+  public void completeExceptionally(byte[] taskToken, Exception result) {
+    factory.getClient(taskToken).fail(result);
+  }
 
-    @Override
-    public void completeExceptionally(WorkflowExecution execution, String activityId, Exception result) {
-        factory.getClient(execution, activityId).fail(result);
-    }
+  @Override
+  public void completeExceptionally(
+      WorkflowExecution execution, String activityId, Exception result) {
+    factory.getClient(execution, activityId).fail(result);
+  }
 
-    @Override
-    public <V> void reportCancellation(byte[] taskToken, V details) {
-        factory.getClient(taskToken).reportCancellation(details);
-    }
+  @Override
+  public <V> void reportCancellation(byte[] taskToken, V details) {
+    factory.getClient(taskToken).reportCancellation(details);
+  }
 
-    @Override
-    public <V> void reportCancellation(WorkflowExecution execution, String activityId, V details) {
-        factory.getClient(execution, activityId).reportCancellation(details);
-    }
+  @Override
+  public <V> void reportCancellation(WorkflowExecution execution, String activityId, V details) {
+    factory.getClient(execution, activityId).reportCancellation(details);
+  }
 
-    @Override
-    public <V> void heartbeat(byte[] taskToken, V details) throws ActivityCompletionException {
-        factory.getClient(taskToken).recordHeartbeat(details);
-    }
+  @Override
+  public <V> void heartbeat(byte[] taskToken, V details) throws ActivityCompletionException {
+    factory.getClient(taskToken).recordHeartbeat(details);
+  }
 
-    @Override
-    public <V> void heartbeat(WorkflowExecution execution, String activityId, V details) throws ActivityCompletionException {
-        factory.getClient(execution, activityId).recordHeartbeat(details);
-    }
+  @Override
+  public <V> void heartbeat(WorkflowExecution execution, String activityId, V details)
+      throws ActivityCompletionException {
+    factory.getClient(execution, activityId).recordHeartbeat(details);
+  }
 }

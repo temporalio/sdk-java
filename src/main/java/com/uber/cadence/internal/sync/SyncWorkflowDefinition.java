@@ -19,7 +19,7 @@ package com.uber.cadence.internal.sync;
 
 interface SyncWorkflowDefinition {
 
-    byte[] execute(byte[] input);
+  byte[] execute(byte[] input);
 
-    void processSignal(String signalName, byte[] input, long eventId);
+  void processSignal(String signalName, byte[] input, long eventId);
 }

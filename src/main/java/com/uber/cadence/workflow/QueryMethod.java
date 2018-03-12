@@ -22,17 +22,14 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-
 /**
  * Indicates that the method is a query method. Query method can be used to query a workflow state
- * by external process at any time during its execution.
- * This annotation applies only to workflow interface methods.
+ * by external process at any time during its execution. This annotation applies only to workflow
+ * interface methods.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface QueryMethod {
-    /**
-     * Name of the query type. Default is {short class name}::{method name}
-     */
-    String name() default "";
+  /** Name of the query type. Default is {short class name}::{method name} */
+  String name() default "";
 }

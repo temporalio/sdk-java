@@ -22,24 +22,25 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
 
 /**
- * Indicates that child workflow failed to start.
- * Currently the only cause is that there is already workflow running with the same ID.
+ * Indicates that child workflow failed to start. Currently the only cause is that there is already
+ * workflow running with the same ID.
  */
 @SuppressWarnings("serial")
 public final class StartChildWorkflowFailedException extends ChildWorkflowException {
 
-    private ChildWorkflowExecutionFailedCause failureCause;
+  private ChildWorkflowExecutionFailedCause failureCause;
 
-    public StartChildWorkflowFailedException(long eventId, WorkflowExecution workflowExecution, WorkflowType workflowType,
-                                             ChildWorkflowExecutionFailedCause cause) {
-        super(String.valueOf(cause), eventId, workflowExecution, workflowType);
-        this.failureCause = cause;
-    }
+  public StartChildWorkflowFailedException(
+      long eventId,
+      WorkflowExecution workflowExecution,
+      WorkflowType workflowType,
+      ChildWorkflowExecutionFailedCause cause) {
+    super(String.valueOf(cause), eventId, workflowExecution, workflowType);
+    this.failureCause = cause;
+  }
 
-    /**
-     * @return enumeration that contains the cause of the failure
-     */
-    public ChildWorkflowExecutionFailedCause getFailureCause() {
-        return failureCause;
-    }
+  /** @return enumeration that contains the cause of the failure */
+  public ChildWorkflowExecutionFailedCause getFailureCause() {
+    return failureCause;
+  }
 }

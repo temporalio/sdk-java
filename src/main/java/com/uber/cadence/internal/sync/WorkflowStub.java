@@ -21,13 +21,14 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.workflow.Promise;
 
 /**
- * Interface that stub created through {@link com.uber.cadence.workflow.Workflow#newWorkflowStub(Class)} implements.
- * Do not implement or use this interface in any application code.
- * Use {@link com.uber.cadence.workflow.Workflow#getChildWorkflowExecution(Object)} to access {@link WorkflowExecution}
- * out of a child workflow stub.
+ * Interface that stub created through {@link
+ * com.uber.cadence.workflow.Workflow#newWorkflowStub(Class)} implements. Do not implement or use
+ * this interface in any application code. Use {@link
+ * com.uber.cadence.workflow.Workflow#getChildWorkflowExecution(Object)} to access {@link
+ * WorkflowExecution} out of a child workflow stub.
  */
 public interface WorkflowStub {
-    String GET_EXECUTION_METHOD_NAME = "__getWorkflowExecution";
+  String GET_EXECUTION_METHOD_NAME = "__getWorkflowExecution";
 
-    Promise<WorkflowExecution> __getWorkflowExecution();
+  Promise<WorkflowExecution> __getWorkflowExecution();
 }

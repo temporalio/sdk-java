@@ -25,128 +25,130 @@ import com.uber.cadence.StartChildWorkflowExecutionDecisionAttributes;
 
 final class ChildWorkflowDecisionStateMachine extends DecisionStateMachineBase {
 
-    private StartChildWorkflowExecutionDecisionAttributes startAttributes;
+  private StartChildWorkflowExecutionDecisionAttributes startAttributes;
 
-    private String runId;
+  private String runId;
 
-    public ChildWorkflowDecisionStateMachine(DecisionId id, StartChildWorkflowExecutionDecisionAttributes startAttributes) {
-        super(id);
-        this.startAttributes = startAttributes;
+  public ChildWorkflowDecisionStateMachine(
+      DecisionId id, StartChildWorkflowExecutionDecisionAttributes startAttributes) {
+    super(id);
+    this.startAttributes = startAttributes;
+  }
+
+  /** Used for unit testing */
+  ChildWorkflowDecisionStateMachine(
+      DecisionId id,
+      StartChildWorkflowExecutionDecisionAttributes startAttributes,
+      DecisionState state) {
+    super(id, state);
+    this.startAttributes = startAttributes;
+  }
+
+  @Override
+  public Decision getDecision() {
+    switch (state) {
+      case CREATED:
+        return createStartChildWorkflowExecutionDecision();
+      case CANCELED_AFTER_STARTED:
+        return createRequestCancelExternalWorkflowExecutionDecision();
+      default:
+        return null;
     }
-    
-    /**
-     * Used for unit testing
-     */
-    ChildWorkflowDecisionStateMachine(DecisionId id, StartChildWorkflowExecutionDecisionAttributes startAttributes, DecisionState state) {
-        super(id, state);
-        this.startAttributes = startAttributes;
-    }
+  }
 
-    @Override
-    public Decision getDecision() {
-        switch (state) {
-        case CREATED:
-            return createStartChildWorkflowExecutionDecision();
-        case CANCELED_AFTER_STARTED:
-            return createRequestCancelExternalWorkflowExecutionDecision();
-        default:
-            return null;
-        }
+  @Override
+  public void handleDecisionTaskStartedEvent() {
+    switch (state) {
+      case CANCELED_AFTER_STARTED:
+        state = DecisionState.CANCELLATION_DECISION_SENT;
+        break;
+      default:
+        super.handleDecisionTaskStartedEvent();
     }
+  }
 
-    @Override
-    public void handleDecisionTaskStartedEvent() {
-        switch (state) {
-        case CANCELED_AFTER_STARTED:
-            state = DecisionState.CANCELLATION_DECISION_SENT;
-            break;
-        default:
-            super.handleDecisionTaskStartedEvent();
-        }
+  @Override
+  public void handleStartedEvent(HistoryEvent event) {
+    stateHistory.add("handleStartedEvent");
+    switch (state) {
+      case INITIATED:
+        state = DecisionState.STARTED;
+        break;
+      case CANCELED_AFTER_INITIATED:
+        state = DecisionState.CANCELED_AFTER_STARTED;
+        break;
     }
+    stateHistory.add(state.toString());
+  }
 
-    @Override
-    public void handleStartedEvent(HistoryEvent event) {
-        stateHistory.add("handleStartedEvent");
-        switch (state) {
-        case INITIATED:
-            state = DecisionState.STARTED;
-            break;
-        case CANCELED_AFTER_INITIATED:
-            state = DecisionState.CANCELED_AFTER_STARTED;
-            break;
-        }
+  @Override
+  public void handleCancellationFailureEvent(HistoryEvent event) {
+    switch (state) {
+      case CANCELLATION_DECISION_SENT:
+        stateHistory.add("handleCancellationFailureEvent");
+        state = DecisionState.STARTED;
         stateHistory.add(state.toString());
+        break;
+      default:
+        super.handleCancellationFailureEvent(event);
     }
+  }
 
-    @Override
-    public void handleCancellationFailureEvent(HistoryEvent event) {
-        switch (state) {
-        case CANCELLATION_DECISION_SENT:
-            stateHistory.add("handleCancellationFailureEvent");
-            state = DecisionState.STARTED;
-            stateHistory.add(state.toString());
-            break;
-        default:
-            super.handleCancellationFailureEvent(event);
-        }
+  @Override
+  public void cancel(Runnable immediateCancellationCallback) {
+    switch (state) {
+      case STARTED:
+        stateHistory.add("cancel");
+        state = DecisionState.CANCELED_AFTER_STARTED;
+        stateHistory.add(state.toString());
+        break;
+      default:
+        super.cancel(immediateCancellationCallback);
     }
-    
-    @Override
-    public void cancel(Runnable immediateCancellationCallback) {
-        switch (state) {
-        case STARTED:
-            stateHistory.add("cancel");
-            state = DecisionState.CANCELED_AFTER_STARTED;
-            stateHistory.add(state.toString());
-            break;
-        default:
-            super.cancel(immediateCancellationCallback);
-        }        
-    }
+  }
 
-    @Override
-    public void handleCancellationEvent() {
-        switch (state) {
-        case STARTED:
-            stateHistory.add("handleCancellationEvent");
-            state = DecisionState.COMPLETED;
-            stateHistory.add(state.toString());
-            break;
-        default:
-            super.handleCancellationEvent();
-        }
+  @Override
+  public void handleCancellationEvent() {
+    switch (state) {
+      case STARTED:
+        stateHistory.add("handleCancellationEvent");
+        state = DecisionState.COMPLETED;
+        stateHistory.add(state.toString());
+        break;
+      default:
+        super.handleCancellationEvent();
     }
+  }
 
-    @Override
-    public void handleCompletionEvent() {
-        switch (state) {
-        case STARTED:
-        case CANCELED_AFTER_STARTED:
-            stateHistory.add("handleCompletionEvent");
-            state = DecisionState.COMPLETED;
-            stateHistory.add(state.toString());
-            break;
-        default:
-            super.handleCompletionEvent();
-        }
+  @Override
+  public void handleCompletionEvent() {
+    switch (state) {
+      case STARTED:
+      case CANCELED_AFTER_STARTED:
+        stateHistory.add("handleCompletionEvent");
+        state = DecisionState.COMPLETED;
+        stateHistory.add(state.toString());
+        break;
+      default:
+        super.handleCompletionEvent();
     }
-    
-    private Decision createRequestCancelExternalWorkflowExecutionDecision() {
-        RequestCancelExternalWorkflowExecutionDecisionAttributes tryCancel = new RequestCancelExternalWorkflowExecutionDecisionAttributes();
-        tryCancel.setWorkflowId(startAttributes.getWorkflowId());
-        tryCancel.setRunId(runId);
-        Decision decision = new Decision();
-        decision.setRequestCancelExternalWorkflowExecutionDecisionAttributes(tryCancel);
-        decision.setDecisionType(DecisionType.RequestCancelExternalWorkflowExecution);
-        return decision;
-    }
+  }
 
-    private Decision createStartChildWorkflowExecutionDecision() {
-        Decision decision = new Decision();
-        decision.setStartChildWorkflowExecutionDecisionAttributes(startAttributes);
-        decision.setDecisionType(DecisionType.StartChildWorkflowExecution);
-        return decision;
-    }
+  private Decision createRequestCancelExternalWorkflowExecutionDecision() {
+    RequestCancelExternalWorkflowExecutionDecisionAttributes tryCancel =
+        new RequestCancelExternalWorkflowExecutionDecisionAttributes();
+    tryCancel.setWorkflowId(startAttributes.getWorkflowId());
+    tryCancel.setRunId(runId);
+    Decision decision = new Decision();
+    decision.setRequestCancelExternalWorkflowExecutionDecisionAttributes(tryCancel);
+    decision.setDecisionType(DecisionType.RequestCancelExternalWorkflowExecution);
+    return decision;
+  }
 
+  private Decision createStartChildWorkflowExecutionDecision() {
+    Decision decision = new Decision();
+    decision.setStartChildWorkflowExecutionDecisionAttributes(startAttributes);
+    decision.setDecisionType(DecisionType.StartChildWorkflowExecution);
+    return decision;
+  }
 }

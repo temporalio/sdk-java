@@ -21,32 +21,29 @@ import com.uber.cadence.HistoryEvent;
 
 interface DecisionStateMachine {
 
-    com.uber.cadence.Decision getDecision();
+  com.uber.cadence.Decision getDecision();
 
-    void cancel(Runnable immediateCancellationCallback);
+  void cancel(Runnable immediateCancellationCallback);
 
-    void handleStartedEvent(HistoryEvent event);
+  void handleStartedEvent(HistoryEvent event);
 
-    void handleCancellationInitiatedEvent();
+  void handleCancellationInitiatedEvent();
 
-    void handleCancellationEvent();
+  void handleCancellationEvent();
 
-    void handleCancellationFailureEvent(HistoryEvent event);
+  void handleCancellationFailureEvent(HistoryEvent event);
 
-    void handleCompletionEvent();
+  void handleCompletionEvent();
 
-    void handleInitiationFailedEvent(HistoryEvent event);
+  void handleInitiationFailedEvent(HistoryEvent event);
 
-    void handleInitiatedEvent(HistoryEvent event);
+  void handleInitiatedEvent(HistoryEvent event);
 
-    void handleDecisionTaskStartedEvent();
+  void handleDecisionTaskStartedEvent();
 
-    DecisionState getState();
+  DecisionState getState();
 
-    boolean isDone();
-    
-    DecisionId getId();
+  boolean isDone();
 
-
-    
+  DecisionId getId();
 }

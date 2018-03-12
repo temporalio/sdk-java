@@ -23,58 +23,58 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.activity.ActivityTask;
 
 final class ActivityTaskImpl implements ActivityTask {
-    private final PollForActivityTaskResponse response;
+  private final PollForActivityTaskResponse response;
 
-    public ActivityTaskImpl(PollForActivityTaskResponse response) {
-        this.response = response;
-    }
+  public ActivityTaskImpl(PollForActivityTaskResponse response) {
+    this.response = response;
+  }
 
-    @Override
-    public byte[] getTaskToken() {
-        return response.getTaskToken();
-    }
+  @Override
+  public byte[] getTaskToken() {
+    return response.getTaskToken();
+  }
 
-    @Override
-    public WorkflowExecution getWorkflowExecution() {
-        return response.getWorkflowExecution();
-    }
+  @Override
+  public WorkflowExecution getWorkflowExecution() {
+    return response.getWorkflowExecution();
+  }
 
-    @Override
-    public String getActivityId() {
-        return response.getActivityId();
-    }
+  @Override
+  public String getActivityId() {
+    return response.getActivityId();
+  }
 
-    @Override
-    public ActivityType getActivityType() {
-        return response.getActivityType();
-    }
+  @Override
+  public ActivityType getActivityType() {
+    return response.getActivityType();
+  }
 
-    @Override
-    public long getScheduledTimestamp() {
-        return response.getScheduledTimestamp();
-    }
+  @Override
+  public long getScheduledTimestamp() {
+    return response.getScheduledTimestamp();
+  }
 
-    @Override
-    public int getScheduleToCloseTimeoutSeconds() {
-        return response.getScheduleToCloseTimeoutSeconds();
-    }
+  @Override
+  public int getScheduleToCloseTimeoutSeconds() {
+    return response.getScheduleToCloseTimeoutSeconds();
+  }
 
-    @Override
-    public void setScheduleToCloseTimeoutSecondsIsSet(boolean value) {
-        response.setScheduleToCloseTimeoutSecondsIsSet(value);
-    }
+  @Override
+  public void setScheduleToCloseTimeoutSecondsIsSet(boolean value) {
+    response.setScheduleToCloseTimeoutSecondsIsSet(value);
+  }
 
-    @Override
-    public int getStartToCloseTimeoutSeconds() {
-        return response.getStartToCloseTimeoutSeconds();
-    }
+  @Override
+  public int getStartToCloseTimeoutSeconds() {
+    return response.getStartToCloseTimeoutSeconds();
+  }
 
-    @Override
-    public int getHeartbeatTimeoutSeconds() {
-        return response.getHeartbeatTimeoutSeconds();
-    }
+  @Override
+  public int getHeartbeatTimeoutSeconds() {
+    return response.getHeartbeatTimeoutSeconds();
+  }
 
-    public byte[] getInput() {
-        return response.getInput();
-    }
+  public byte[] getInput() {
+    return response.getInput();
+  }
 }

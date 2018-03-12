@@ -21,13 +21,14 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
 
 /**
- * Indicates that a child workflow exceeded its execution timeout and was forcefully terminated by the Cadence
- * service.
+ * Indicates that a child workflow exceeded its execution timeout and was forcefully terminated by
+ * the Cadence service.
  */
 @SuppressWarnings("serial")
 public final class ChildWorkflowTimedOutException extends ChildWorkflowException {
 
-    public ChildWorkflowTimedOutException(long eventId, WorkflowExecution workflowExecution, WorkflowType workflowType) {
-        super("Time Out", eventId, workflowExecution, workflowType);
-    }
+  public ChildWorkflowTimedOutException(
+      long eventId, WorkflowExecution workflowExecution, WorkflowType workflowType) {
+    super("Time Out", eventId, workflowExecution, workflowType);
+  }
 }

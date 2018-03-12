@@ -25,73 +25,75 @@ import com.uber.cadence.ScheduleActivityTaskDecisionAttributes;
 
 final class ActivityDecisionStateMachine extends DecisionStateMachineBase {
 
-    private ScheduleActivityTaskDecisionAttributes scheduleAttributes;
+  private ScheduleActivityTaskDecisionAttributes scheduleAttributes;
 
-    public ActivityDecisionStateMachine(DecisionId id, ScheduleActivityTaskDecisionAttributes scheduleAttributes) {
-        super(id);
-        this.scheduleAttributes = scheduleAttributes;
+  public ActivityDecisionStateMachine(
+      DecisionId id, ScheduleActivityTaskDecisionAttributes scheduleAttributes) {
+    super(id);
+    this.scheduleAttributes = scheduleAttributes;
+  }
+
+  /** Used for unit testing */
+  ActivityDecisionStateMachine(
+      DecisionId id,
+      ScheduleActivityTaskDecisionAttributes scheduleAttributes,
+      DecisionState state) {
+    super(id, state);
+    this.scheduleAttributes = scheduleAttributes;
+  }
+
+  @Override
+  public Decision getDecision() {
+    switch (state) {
+      case CREATED:
+        return createScheduleActivityTaskDecision();
+      case CANCELED_AFTER_INITIATED:
+        return createRequestCancelActivityTaskDecision();
+      default:
+        return null;
     }
+  }
 
-    /**
-     * Used for unit testing
-     */
-    ActivityDecisionStateMachine(DecisionId id, ScheduleActivityTaskDecisionAttributes scheduleAttributes, DecisionState state) {
-        super(id, state);
-        this.scheduleAttributes = scheduleAttributes;
+  @Override
+  public void handleDecisionTaskStartedEvent() {
+    switch (state) {
+      case CANCELED_AFTER_INITIATED:
+        stateHistory.add("handleDecisionTaskStartedEvent");
+        state = DecisionState.CANCELLATION_DECISION_SENT;
+        stateHistory.add(state.toString());
+        break;
+      default:
+        super.handleDecisionTaskStartedEvent();
     }
+  }
 
-    @Override
-    public Decision getDecision() {
-        switch (state) {
-        case CREATED:
-            return createScheduleActivityTaskDecision();
-        case CANCELED_AFTER_INITIATED:
-            return createRequestCancelActivityTaskDecision();
-        default:
-            return null;
-        }
+  @Override
+  public void handleCancellationFailureEvent(HistoryEvent event) {
+    switch (state) {
+      case CANCELLATION_DECISION_SENT:
+        stateHistory.add("handleCancellationFailureEvent");
+        state = DecisionState.INITIATED;
+        stateHistory.add(state.toString());
+        break;
+      default:
+        super.handleCancellationFailureEvent(event);
     }
+  }
 
-    @Override
-    public void handleDecisionTaskStartedEvent() {
-        switch (state) {
-        case CANCELED_AFTER_INITIATED:
-            stateHistory.add("handleDecisionTaskStartedEvent");
-            state = DecisionState.CANCELLATION_DECISION_SENT;
-            stateHistory.add(state.toString());
-            break;
-        default:
-            super.handleDecisionTaskStartedEvent();
-        }
-    }
+  private Decision createRequestCancelActivityTaskDecision() {
+    RequestCancelActivityTaskDecisionAttributes tryCancel =
+        new RequestCancelActivityTaskDecisionAttributes();
+    tryCancel.setActivityId(scheduleAttributes.getActivityId());
+    Decision decision = new Decision();
+    decision.setRequestCancelActivityTaskDecisionAttributes(tryCancel);
+    decision.setDecisionType(DecisionType.RequestCancelActivityTask);
+    return decision;
+  }
 
-    @Override
-    public void handleCancellationFailureEvent(HistoryEvent event) {
-        switch (state) {
-        case CANCELLATION_DECISION_SENT:
-            stateHistory.add("handleCancellationFailureEvent");
-            state = DecisionState.INITIATED;
-            stateHistory.add(state.toString());
-            break;
-        default:
-            super.handleCancellationFailureEvent(event);
-        }
-    }
-
-    private Decision createRequestCancelActivityTaskDecision() {
-        RequestCancelActivityTaskDecisionAttributes tryCancel = new RequestCancelActivityTaskDecisionAttributes();
-        tryCancel.setActivityId(scheduleAttributes.getActivityId());
-        Decision decision = new Decision();
-        decision.setRequestCancelActivityTaskDecisionAttributes(tryCancel);
-        decision.setDecisionType(DecisionType.RequestCancelActivityTask);
-        return decision;
-    }
-
-    private Decision createScheduleActivityTaskDecision() {
-        Decision decision = new Decision();
-        decision.setScheduleActivityTaskDecisionAttributes(scheduleAttributes);
-        decision.setDecisionType(DecisionType.ScheduleActivityTask);
-        return decision;
-    }
-
+  private Decision createScheduleActivityTaskDecision() {
+    Decision decision = new Decision();
+    decision.setScheduleActivityTaskDecisionAttributes(scheduleAttributes);
+    decision.setDecisionType(DecisionType.ScheduleActivityTask);
+    return decision;
+  }
 }

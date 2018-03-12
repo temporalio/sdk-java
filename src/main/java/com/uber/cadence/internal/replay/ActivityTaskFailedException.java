@@ -20,46 +20,45 @@ package com.uber.cadence.internal.replay;
 import com.uber.cadence.ActivityType;
 
 /**
- * Internal. Do not catch or throw in application level code.
- * Exception used to communicate failure of remote activity.
- * TODO: Make package level visibility.
+ * Internal. Do not catch or throw in application level code. Exception used to communicate failure
+ * of remote activity. TODO: Make package level visibility.
  */
 @SuppressWarnings("serial")
 public class ActivityTaskFailedException extends RuntimeException {
 
-    private final long eventId;
-    private final ActivityType activityType;
-    private final String activityId;
-    private final byte[] details;
-    private final String reason;
+  private final long eventId;
+  private final ActivityType activityType;
+  private final String activityId;
+  private final byte[] details;
+  private final String reason;
 
-    public ActivityTaskFailedException(long eventId, ActivityType activityType,
-                                       String activityId, String reason, byte[] details) {
-        super(reason);
-        this.eventId = eventId;
-        this.activityType = activityType;
-        this.activityId = activityId;
-        this.reason = reason;
-        this.details = details;
-    }
+  public ActivityTaskFailedException(
+      long eventId, ActivityType activityType, String activityId, String reason, byte[] details) {
+    super(reason);
+    this.eventId = eventId;
+    this.activityType = activityType;
+    this.activityId = activityId;
+    this.reason = reason;
+    this.details = details;
+  }
 
-    public long getEventId() {
-        return eventId;
-    }
+  public long getEventId() {
+    return eventId;
+  }
 
-    public ActivityType getActivityType() {
-        return activityType;
-    }
+  public ActivityType getActivityType() {
+    return activityType;
+  }
 
-    public String getActivityId() {
-        return activityId;
-    }
+  public String getActivityId() {
+    return activityId;
+  }
 
-    public byte[] getDetails() {
-        return details;
-    }
+  public byte[] getDetails() {
+    return details;
+  }
 
-    public String getReason() {
-        return reason;
-    }
+  public String getReason() {
+    return reason;
+  }
 }

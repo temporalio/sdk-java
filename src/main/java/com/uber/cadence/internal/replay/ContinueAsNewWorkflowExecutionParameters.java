@@ -21,98 +21,100 @@ import com.uber.cadence.ChildPolicy;
 
 public final class ContinueAsNewWorkflowExecutionParameters {
 
-    private int executionStartToCloseTimeoutSeconds;
-    private byte[] input;
-    private String taskList;
-    private int taskStartToCloseTimeoutSeconds;
-    private ChildPolicy childPolicy;
+  private int executionStartToCloseTimeoutSeconds;
+  private byte[] input;
+  private String taskList;
+  private int taskStartToCloseTimeoutSeconds;
+  private ChildPolicy childPolicy;
 
-    public ContinueAsNewWorkflowExecutionParameters() {
-    }
-    
-    public int getExecutionStartToCloseTimeoutSeconds() {
-        return executionStartToCloseTimeoutSeconds;
-    }
-    
-    public void setExecutionStartToCloseTimeoutSeconds(int executionStartToCloseTimeoutSeconds) {
-        this.executionStartToCloseTimeoutSeconds = executionStartToCloseTimeoutSeconds;
-    }
-    
-    public ContinueAsNewWorkflowExecutionParameters withExecutionStartToCloseTimeoutSeconds(int executionStartToCloseTimeoutSeconds) {
-        this.executionStartToCloseTimeoutSeconds = executionStartToCloseTimeoutSeconds;
-        return this;
-    }
+  public ContinueAsNewWorkflowExecutionParameters() {}
 
-    public ContinueAsNewWorkflowExecutionParameters withInput(byte[] input) {
-        this.input = input;
-        return this;
-    }
+  public int getExecutionStartToCloseTimeoutSeconds() {
+    return executionStartToCloseTimeoutSeconds;
+  }
 
-    public byte[] getInput() {
-        return input;
-    }
+  public void setExecutionStartToCloseTimeoutSeconds(int executionStartToCloseTimeoutSeconds) {
+    this.executionStartToCloseTimeoutSeconds = executionStartToCloseTimeoutSeconds;
+  }
 
-    public void setInput(byte[] input) {
-        this.input = input;
-    }
+  public ContinueAsNewWorkflowExecutionParameters withExecutionStartToCloseTimeoutSeconds(
+      int executionStartToCloseTimeoutSeconds) {
+    this.executionStartToCloseTimeoutSeconds = executionStartToCloseTimeoutSeconds;
+    return this;
+  }
 
-    public String getTaskList() {
-        return taskList;
-    }
-    
-    public void setTaskList(String taskList) {
-        this.taskList = taskList;
-    }
-    
-    public ContinueAsNewWorkflowExecutionParameters withTaskList(String taskList) {
-        this.taskList = taskList;
-        return this;
-    }
+  public ContinueAsNewWorkflowExecutionParameters withInput(byte[] input) {
+    this.input = input;
+    return this;
+  }
 
-    public int getTaskStartToCloseTimeoutSeconds() {
-        return taskStartToCloseTimeoutSeconds;
-    }
-    
-    public void setTaskStartToCloseTimeoutSeconds(int taskStartToCloseTimeoutSeconds) {
-        this.taskStartToCloseTimeoutSeconds = taskStartToCloseTimeoutSeconds;
-    }
+  public byte[] getInput() {
+    return input;
+  }
 
-    public ChildPolicy getChildPolicy() {
-        return childPolicy;
-    }
+  public void setInput(byte[] input) {
+    this.input = input;
+  }
 
-    public void setChildPolicy(ChildPolicy childPolicy) {
-        this.childPolicy = childPolicy;
-    }
+  public String getTaskList() {
+    return taskList;
+  }
 
-    public ContinueAsNewWorkflowExecutionParameters withChildPolicy(ChildPolicy childPolicy) {
-        this.childPolicy = childPolicy;
-        return this;
-    }
+  public void setTaskList(String taskList) {
+    this.taskList = taskList;
+  }
 
-    public ContinueAsNewWorkflowExecutionParameters withTaskStartToCloseTimeoutSeconds(int taskStartToCloseTimeoutSeconds) {
-        this.taskStartToCloseTimeoutSeconds = taskStartToCloseTimeoutSeconds;
-        return this;
-    }
+  public ContinueAsNewWorkflowExecutionParameters withTaskList(String taskList) {
+    this.taskList = taskList;
+    return this;
+  }
 
-    @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("{");
-        sb.append("Input: " + input + ", ");
-        sb.append("ExecutionStartToCloseTimeout: " + executionStartToCloseTimeoutSeconds + ", ");
-        sb.append("TaskStartToCloseTimeout: " + taskStartToCloseTimeoutSeconds + ", ");
-        sb.append("TaskList: " + taskList + ", ");
-        sb.append("}");
-        return sb.toString();
-    }
-    
-    public ContinueAsNewWorkflowExecutionParameters clone() {
-        ContinueAsNewWorkflowExecutionParameters result = new ContinueAsNewWorkflowExecutionParameters();
-        result.setExecutionStartToCloseTimeoutSeconds(executionStartToCloseTimeoutSeconds);
-        result.setInput(input);
-        result.setTaskList(taskList);
-        result.setTaskStartToCloseTimeoutSeconds(taskStartToCloseTimeoutSeconds);
-        return result;
-    }
+  public int getTaskStartToCloseTimeoutSeconds() {
+    return taskStartToCloseTimeoutSeconds;
+  }
+
+  public void setTaskStartToCloseTimeoutSeconds(int taskStartToCloseTimeoutSeconds) {
+    this.taskStartToCloseTimeoutSeconds = taskStartToCloseTimeoutSeconds;
+  }
+
+  public ChildPolicy getChildPolicy() {
+    return childPolicy;
+  }
+
+  public void setChildPolicy(ChildPolicy childPolicy) {
+    this.childPolicy = childPolicy;
+  }
+
+  public ContinueAsNewWorkflowExecutionParameters withChildPolicy(ChildPolicy childPolicy) {
+    this.childPolicy = childPolicy;
+    return this;
+  }
+
+  public ContinueAsNewWorkflowExecutionParameters withTaskStartToCloseTimeoutSeconds(
+      int taskStartToCloseTimeoutSeconds) {
+    this.taskStartToCloseTimeoutSeconds = taskStartToCloseTimeoutSeconds;
+    return this;
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append("{");
+    sb.append("Input: " + input + ", ");
+    sb.append("ExecutionStartToCloseTimeout: " + executionStartToCloseTimeoutSeconds + ", ");
+    sb.append("TaskStartToCloseTimeout: " + taskStartToCloseTimeoutSeconds + ", ");
+    sb.append("TaskList: " + taskList + ", ");
+    sb.append("}");
+    return sb.toString();
+  }
+
+  public ContinueAsNewWorkflowExecutionParameters clone() {
+    ContinueAsNewWorkflowExecutionParameters result =
+        new ContinueAsNewWorkflowExecutionParameters();
+    result.setExecutionStartToCloseTimeoutSeconds(executionStartToCloseTimeoutSeconds);
+    result.setInput(input);
+    result.setTaskList(taskList);
+    result.setTaskStartToCloseTimeoutSeconds(taskStartToCloseTimeoutSeconds);
+    return result;
+  }
 }

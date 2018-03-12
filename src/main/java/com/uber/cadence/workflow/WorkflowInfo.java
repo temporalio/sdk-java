@@ -21,15 +21,15 @@ import java.time.Duration;
 
 public interface WorkflowInfo {
 
-    String getDomain();
+  String getDomain();
 
-    String getWorkflowId();
+  String getWorkflowId();
 
-    String getRunId();
+  String getRunId();
 
-    String getWorkflowType();
+  String getWorkflowType();
 
-    String getTaskList();
+  String getTaskList();
 
-    Duration getExecutionStartToCloseTimeout();
+  Duration getExecutionStartToCloseTimeout();
 }

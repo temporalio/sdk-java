@@ -26,93 +26,99 @@ import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.replay.DecisionContext;
 import com.uber.cadence.internal.replay.ReplayWorkflow;
 import com.uber.cadence.internal.worker.WorkflowExecutionException;
-
 import java.util.concurrent.ExecutorService;
 
 /**
- * SyncWorkflow supports workflows that use synchronous blocking code.
- * An instance is created per decision.
+ * SyncWorkflow supports workflows that use synchronous blocking code. An instance is created per
+ * decision.
  */
 class SyncWorkflow implements ReplayWorkflow {
 
-    private final DataConverter dataConverter;
-    private final ExecutorService threadPool;
-    private final SyncWorkflowDefinition workflow;
-    private WorkflowRunnable workflowProc;
-    private DeterministicRunner runner;
+  private final DataConverter dataConverter;
+  private final ExecutorService threadPool;
+  private final SyncWorkflowDefinition workflow;
+  private WorkflowRunnable workflowProc;
+  private DeterministicRunner runner;
 
-    public SyncWorkflow(SyncWorkflowDefinition workflow, DataConverter dataConverter,
-                        ExecutorService threadPool) {
-        this.workflow = workflow;
-        this.dataConverter = dataConverter;
-        this.threadPool = threadPool;
+  public SyncWorkflow(
+      SyncWorkflowDefinition workflow, DataConverter dataConverter, ExecutorService threadPool) {
+    this.workflow = workflow;
+    this.dataConverter = dataConverter;
+    this.threadPool = threadPool;
+  }
+
+  @Override
+  public void start(HistoryEvent event, DecisionContext context) {
+    WorkflowType workflowType =
+        event.getWorkflowExecutionStartedEventAttributes().getWorkflowType();
+    if (workflow == null) {
+      throw new IllegalArgumentException("Unknown workflow type: " + workflowType);
+    }
+    SyncDecisionContext syncContext = new SyncDecisionContext(context, dataConverter);
+    if (event.getEventType() != EventType.WorkflowExecutionStarted) {
+      throw new IllegalArgumentException(
+          "first event is not WorkflowExecutionStarted, but " + event.getEventType());
     }
 
-    @Override
-    public void start(HistoryEvent event, DecisionContext context) {
-        WorkflowType workflowType = event.getWorkflowExecutionStartedEventAttributes().getWorkflowType();
-        if (workflow == null) {
-            throw new IllegalArgumentException("Unknown workflow type: " + workflowType);
-        }
-        SyncDecisionContext syncContext = new SyncDecisionContext(context, dataConverter);
-        if (event.getEventType() != EventType.WorkflowExecutionStarted) {
-            throw new IllegalArgumentException("first event is not WorkflowExecutionStarted, but "
-                    + event.getEventType());
-        }
+    workflowProc =
+        new WorkflowRunnable(
+            syncContext, workflow, event.getWorkflowExecutionStartedEventAttributes());
+    runner =
+        DeterministicRunner.newRunner(
+            threadPool, syncContext, context::currentTimeMillis, workflowProc);
+    syncContext.setRunner(runner);
+  }
 
-        workflowProc = new WorkflowRunnable(syncContext, workflow, event.getWorkflowExecutionStartedEventAttributes());
-        runner = DeterministicRunner.newRunner(threadPool, syncContext, context::currentTimeMillis, workflowProc);
-        syncContext.setRunner(runner);
-    }
+  @Override
+  public void handleSignal(String signalName, byte[] input, long eventId) {
+    String threadName = "\"" + signalName + "\" signal handler";
+    runner.executeInWorkflowThread(
+        threadName, () -> workflowProc.processSignal(signalName, input, eventId));
+  }
 
-    @Override
-    public void handleSignal(String signalName, byte[] input, long eventId) {
-        String threadName = "\"" + signalName + "\" signal handler";
-        runner.executeInWorkflowThread(threadName, () -> workflowProc.processSignal(signalName, input, eventId));
+  @Override
+  public boolean eventLoop() throws Throwable {
+    if (runner == null) {
+      return false;
     }
+    workflowProc.fireTimers();
+    runner.runUntilAllBlocked();
+    return runner.isDone() || workflowProc.isDone(); // Do not wait for all other threads.
+  }
 
-    @Override
-    public boolean eventLoop() throws Throwable {
-        if (runner == null) {
-            return false;
-        }
-        workflowProc.fireTimers();
-        runner.runUntilAllBlocked();
-        return runner.isDone() || workflowProc.isDone(); // Do not wait for all other threads.
-    }
+  @Override
+  public byte[] getOutput() {
+    return workflowProc.getOutput();
+  }
 
-    @Override
-    public byte[] getOutput() {
-        return workflowProc.getOutput();
-    }
+  @Override
+  public void cancel(String reason) {
+    runner.cancel(reason);
+  }
 
-    @Override
-    public void cancel(String reason) {
-        runner.cancel(reason);
+  @Override
+  public void close() {
+    if (runner != null) {
+      runner.close();
     }
+  }
 
-    @Override
-    public void close() {
-        if (runner != null) {
-            runner.close();
-        }
-    }
+  @Override
+  public long getNextWakeUpTime() {
+    return runner.getNextWakeUpTime();
+  }
 
-    @Override
-    public long getNextWakeUpTime() {
-        return runner.getNextWakeUpTime();
+  @Override
+  public byte[] query(WorkflowQuery query) {
+    if (WorkflowClient.QUERY_TYPE_STACK_TRCE.equals(query.getQueryType())) {
+      return dataConverter.toData(runner.stackTrace());
     }
+    return workflowProc.query(query.getQueryType(), query.getQueryArgs());
+  }
 
-    @Override
-    public byte[] query(WorkflowQuery query) {
-        if (WorkflowClient.QUERY_TYPE_STACK_TRCE.equals(query.getQueryType())) {
-            return dataConverter.toData(runner.stackTrace());
-        }
-        return workflowProc.query(query.getQueryType(), query.getQueryArgs());
-    }
-
-    @Override
-    public WorkflowExecutionException mapUnexpectedException(Exception failure) {
-        return POJOWorkflowImplementationFactory.mapToWorkflowExecutionException(failure, dataConverter);
-    }
+  @Override
+  public WorkflowExecutionException mapUnexpectedException(Exception failure) {
+    return POJOWorkflowImplementationFactory.mapToWorkflowExecutionException(
+        failure, dataConverter);
+  }
 }

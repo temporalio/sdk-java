@@ -23,44 +23,41 @@ import com.uber.cadence.internal.worker.WorkflowExecutionException;
 
 public interface ReplayWorkflow {
 
-    void start(HistoryEvent event, DecisionContext context) throws Exception;
+  void start(HistoryEvent event, DecisionContext context) throws Exception;
 
-    /**
-     * Handle an external signal event.
-     */
-    void handleSignal(String signalName, byte[] input, long eventId);
+  /** Handle an external signal event. */
+  void handleSignal(String signalName, byte[] input, long eventId);
 
-    boolean eventLoop() throws Throwable;
+  boolean eventLoop() throws Throwable;
 
-    /**
-     * @return null means no output yet
-     */
-    byte[] getOutput();
+  /** @return null means no output yet */
+  byte[] getOutput();
 
-    void cancel(String reason);
+  void cancel(String reason);
 
-    void close();
+  void close();
 
-    /**
-     * @return time at which workflow can make progress.
-     * For example when {@link com.uber.cadence.workflow.Workflow#sleep(long)} expires.
-     */
-    long getNextWakeUpTime();
+  /**
+   * @return time at which workflow can make progress. For example when {@link
+   *     com.uber.cadence.workflow.Workflow#sleep(long)} expires.
+   */
+  long getNextWakeUpTime();
 
-    /**
-     * Called after all history is replayed and workflow cannot make any progress if decision task is a query.
-     *
-     * @param query
-     */
-    byte[] query(WorkflowQuery query);
+  /**
+   * Called after all history is replayed and workflow cannot make any progress if decision task is
+   * a query.
+   *
+   * @param query
+   */
+  byte[] query(WorkflowQuery query);
 
-    /**
-     * Convert exception that happened in the framework code to the format
-     * that ReplayWorkflow implementation understands. The framework code is not aware of DataConverter so this is
-     * working around this layering.
-     *
-     * @param failure Unexpected failure cause
-     * @return Serialized failure
-     */
-    WorkflowExecutionException mapUnexpectedException(Exception failure);
+  /**
+   * Convert exception that happened in the framework code to the format that ReplayWorkflow
+   * implementation understands. The framework code is not aware of DataConverter so this is working
+   * around this layering.
+   *
+   * @param failure Unexpected failure cause
+   * @return Serialized failure
+   */
+  WorkflowExecutionException mapUnexpectedException(Exception failure);
 }

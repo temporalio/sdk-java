@@ -27,19 +27,20 @@ import com.uber.cadence.internal.replay.SignalExternalWorkflowParameters;
 
 public interface GenericWorkflowClientExternal {
 
-    WorkflowExecution startWorkflow(StartWorkflowExecutionParameters startParameters) throws WorkflowExecutionAlreadyStartedError;
+  WorkflowExecution startWorkflow(StartWorkflowExecutionParameters startParameters)
+      throws WorkflowExecutionAlreadyStartedError;
 
-    void signalWorkflowExecution(SignalExternalWorkflowParameters signalParameters);
+  void signalWorkflowExecution(SignalExternalWorkflowParameters signalParameters);
 
-    void requestCancelWorkflowExecution(WorkflowExecution execution);
+  void requestCancelWorkflowExecution(WorkflowExecution execution);
 
-    byte[] queryWorkflow(QueryWorkflowParameters queryParameters);
+  byte[] queryWorkflow(QueryWorkflowParameters queryParameters);
 
-    void terminateWorkflowExecution(TerminateWorkflowExecutionParameters terminateParameters);
+  void terminateWorkflowExecution(TerminateWorkflowExecutionParameters terminateParameters);
 
-    String generateUniqueId();
+  String generateUniqueId();
 
-    WorkflowService.Iface getService();
+  WorkflowService.Iface getService();
 
-    String getDomain();
+  String getDomain();
 }

@@ -32,163 +32,170 @@ import com.uber.cadence.client.ActivityCancelledException;
 import com.uber.cadence.client.ActivityCompletionFailureException;
 import com.uber.cadence.client.ActivityNotExistsException;
 import com.uber.cadence.converter.DataConverter;
+import java.util.concurrent.CancellationException;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.CancellationException;
-
 // TODO: service call retries
 class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient {
 
-    private static final Logger log = LoggerFactory.getLogger(ManualActivityCompletionClientImpl.class);
+  private static final Logger log =
+      LoggerFactory.getLogger(ManualActivityCompletionClientImpl.class);
 
-    private final WorkflowService.Iface service;
+  private final WorkflowService.Iface service;
 
-    private final byte[] taskToken;
+  private final byte[] taskToken;
 
-    private final DataConverter dataConverter;
-    private final String domain;
-    private final WorkflowExecution execution;
-    private final String activityId;
+  private final DataConverter dataConverter;
+  private final String domain;
+  private final WorkflowExecution execution;
+  private final String activityId;
 
-    public ManualActivityCompletionClientImpl(WorkflowService.Iface service, byte[] taskToken, DataConverter dataConverter) {
-        this.service = service;
-        this.taskToken = taskToken;
-        this.dataConverter = dataConverter;
-        this.domain = null;
-        this.execution = null;
-        this.activityId = null;
+  public ManualActivityCompletionClientImpl(
+      WorkflowService.Iface service, byte[] taskToken, DataConverter dataConverter) {
+    this.service = service;
+    this.taskToken = taskToken;
+    this.dataConverter = dataConverter;
+    this.domain = null;
+    this.execution = null;
+    this.activityId = null;
+  }
 
+  public ManualActivityCompletionClientImpl(
+      WorkflowService.Iface service,
+      String domain,
+      WorkflowExecution execution,
+      String activityId,
+      DataConverter dataConverter) {
+    this.service = service;
+    this.taskToken = null;
+    this.domain = domain;
+    this.execution = execution;
+    this.activityId = activityId;
+    this.dataConverter = dataConverter;
+  }
+
+  @Override
+  public void complete(Object result) {
+    if (taskToken != null) {
+      RespondActivityTaskCompletedRequest request = new RespondActivityTaskCompletedRequest();
+      byte[] convertedResult = dataConverter.toData(result);
+      request.setResult(convertedResult);
+      request.setTaskToken(taskToken);
+      try {
+        service.RespondActivityTaskCompleted(request);
+      } catch (EntityNotExistsError e) {
+        throw new ActivityNotExistsException(e);
+      } catch (TException e) {
+        throw new ActivityCompletionFailureException(e);
+      }
+    } else {
+      if (activityId == null) {
+        throw new IllegalArgumentException("Either activity id or task token are required");
+      }
+      RespondActivityTaskCompletedByIDRequest request =
+          new RespondActivityTaskCompletedByIDRequest();
+      request.setActivityID(activityId);
+      byte[] convertedResult = dataConverter.toData(result);
+      request.setResult(convertedResult);
+      request.setDomain(domain);
+      request.setWorkflowID(execution.getWorkflowId());
+      request.setRunID(execution.getRunId());
+      try {
+        service.RespondActivityTaskCompletedByID(request);
+      } catch (EntityNotExistsError e) {
+        throw new ActivityNotExistsException(e);
+      } catch (TException e) {
+        throw new ActivityCompletionFailureException(activityId, e);
+      }
     }
+  }
 
-    public ManualActivityCompletionClientImpl(WorkflowService.Iface service, String domain, WorkflowExecution execution, String activityId, DataConverter dataConverter) {
-        this.service = service;
-        this.taskToken = null;
-        this.domain = domain;
-        this.execution = execution;
-        this.activityId = activityId;
-        this.dataConverter = dataConverter;
+  @Override
+  public void fail(Throwable failure) {
+    if (failure == null) {
+      throw new IllegalArgumentException("null failure");
     }
+    // When converting failures reason is class name, details are serialized exception.
+    if (taskToken != null) {
+      RespondActivityTaskFailedRequest request = new RespondActivityTaskFailedRequest();
+      request.setReason(failure.getClass().getName());
+      request.setDetails(dataConverter.toData(failure));
+      request.setTaskToken(taskToken);
+      try {
+        service.RespondActivityTaskFailed(request);
+      } catch (EntityNotExistsError e) {
+        throw new ActivityNotExistsException(e);
+      } catch (TException e) {
+        throw new ActivityCompletionFailureException(e);
+      }
+    } else {
+      RespondActivityTaskFailedByIDRequest request = new RespondActivityTaskFailedByIDRequest();
+      request.setReason(failure.getClass().getName());
+      request.setDetails(dataConverter.toData(failure));
+      request.setDomain(domain);
+      request.setWorkflowID(execution.getWorkflowId());
+      request.setRunID(execution.getRunId());
+      try {
+        service.RespondActivityTaskFailedByID(request);
+      } catch (EntityNotExistsError e) {
+        throw new ActivityNotExistsException(e);
+      } catch (TException e) {
+        throw new ActivityCompletionFailureException(activityId, e);
+      }
+    }
+  }
 
-    @Override
-    public void complete(Object result) {
-        if (taskToken != null) {
-            RespondActivityTaskCompletedRequest request = new RespondActivityTaskCompletedRequest();
-            byte[] convertedResult = dataConverter.toData(result);
-            request.setResult(convertedResult);
-            request.setTaskToken(taskToken);
-            try {
-                service.RespondActivityTaskCompleted(request);
-            } catch (EntityNotExistsError e) {
-                throw new ActivityNotExistsException(e);
-            } catch (TException e) {
-                throw new ActivityCompletionFailureException(e);
-            }
-        } else {
-            if (activityId == null) {
-                throw new IllegalArgumentException("Either activity id or task token are required");
-            }
-            RespondActivityTaskCompletedByIDRequest request = new RespondActivityTaskCompletedByIDRequest();
-            request.setActivityID(activityId);
-            byte[] convertedResult = dataConverter.toData(result);
-            request.setResult(convertedResult);
-            request.setDomain(domain);
-            request.setWorkflowID(execution.getWorkflowId());
-            request.setRunID(execution.getRunId());
-            try {
-                service.RespondActivityTaskCompletedByID(request);
-            } catch (EntityNotExistsError e) {
-                throw new ActivityNotExistsException(e);
-            } catch (TException e) {
-                throw new ActivityCompletionFailureException(activityId, e);
-            }
+  @Override
+  public void recordHeartbeat(Object details) throws CancellationException {
+    if (taskToken != null) {
+      RecordActivityTaskHeartbeatRequest request = new RecordActivityTaskHeartbeatRequest();
+      request.setDetails(dataConverter.toData(details));
+      request.setTaskToken(taskToken);
+      RecordActivityTaskHeartbeatResponse status = null;
+      try {
+        status = service.RecordActivityTaskHeartbeat(request);
+        if (status.isCancelRequested()) {
+          throw new ActivityCancelledException();
         }
+      } catch (EntityNotExistsError e) {
+        throw new ActivityNotExistsException(e);
+      } catch (TException e) {
+        throw new ActivityCompletionFailureException(e);
+      }
+    } else {
+      throw new UnsupportedOperationException(
+          "Heartbeating by id is not implemented by Cadence service yet.");
     }
+  }
 
-    @Override
-    public void fail(Throwable failure) {
-        if (failure == null) {
-            throw new IllegalArgumentException("null failure");
-        }
-        // When converting failures reason is class name, details are serialized exception.
-        if (taskToken != null) {
-            RespondActivityTaskFailedRequest request = new RespondActivityTaskFailedRequest();
-            request.setReason(failure.getClass().getName());
-            request.setDetails(dataConverter.toData(failure));
-            request.setTaskToken(taskToken);
-            try {
-                service.RespondActivityTaskFailed(request);
-            } catch (EntityNotExistsError e) {
-                throw new ActivityNotExistsException(e);
-            } catch (TException e) {
-                throw new ActivityCompletionFailureException(e);
-            }
-        } else {
-            RespondActivityTaskFailedByIDRequest request = new RespondActivityTaskFailedByIDRequest();
-            request.setReason(failure.getClass().getName());
-            request.setDetails(dataConverter.toData(failure));
-            request.setDomain(domain);
-            request.setWorkflowID(execution.getWorkflowId());
-            request.setRunID(execution.getRunId());
-            try {
-                service.RespondActivityTaskFailedByID(request);
-            } catch (EntityNotExistsError e) {
-                throw new ActivityNotExistsException(e);
-            } catch (TException e) {
-                throw new ActivityCompletionFailureException(activityId, e);
-            }
-        }
+  @Override
+  public void reportCancellation(Object details) {
+    if (taskToken != null) {
+      RespondActivityTaskCanceledRequest request = new RespondActivityTaskCanceledRequest();
+      request.setDetails(dataConverter.toData(details));
+      request.setTaskToken(taskToken);
+      try {
+        service.RespondActivityTaskCanceled(request);
+      } catch (TException e) {
+        // There is nothing that can be done at this point.
+        // so let's just ignore.
+        log.info("reportCancellation", e);
+      }
+    } else {
+      RespondActivityTaskCanceledByIDRequest request = new RespondActivityTaskCanceledByIDRequest();
+      request.setDetails(dataConverter.toData(details));
+      request.setDomain(domain);
+      request.setWorkflowID(execution.getWorkflowId());
+      request.setRunID(execution.getRunId());
+      try {
+        service.RespondActivityTaskCanceledByID(request);
+      } catch (TException e) {
+        // There is nothing that can be done at this point.
+        // so let's just ignore.
+        log.info("reportCancellation", e);
+      }
     }
-
-    @Override
-    public void recordHeartbeat(Object details) throws CancellationException {
-        if (taskToken != null) {
-            RecordActivityTaskHeartbeatRequest request = new RecordActivityTaskHeartbeatRequest();
-            request.setDetails(dataConverter.toData(details));
-            request.setTaskToken(taskToken);
-            RecordActivityTaskHeartbeatResponse status = null;
-            try {
-                status = service.RecordActivityTaskHeartbeat(request);
-                if (status.isCancelRequested()) {
-                    throw new ActivityCancelledException();
-                }
-            } catch (EntityNotExistsError e) {
-                throw new ActivityNotExistsException(e);
-            } catch (TException e) {
-                throw new ActivityCompletionFailureException(e);
-            }
-        } else {
-            throw new UnsupportedOperationException("Heartbeating by id is not implemented by Cadence service yet.");
-        }
-    }
-
-    @Override
-    public void reportCancellation(Object details) {
-        if (taskToken != null) {
-            RespondActivityTaskCanceledRequest request = new RespondActivityTaskCanceledRequest();
-            request.setDetails(dataConverter.toData(details));
-            request.setTaskToken(taskToken);
-            try {
-                service.RespondActivityTaskCanceled(request);
-            } catch (TException e) {
-                // There is nothing that can be done at this point.
-                // so let's just ignore.
-                log.info("reportCancellation", e);
-            }
-        } else {
-            RespondActivityTaskCanceledByIDRequest request = new RespondActivityTaskCanceledByIDRequest();
-            request.setDetails(dataConverter.toData(details));
-            request.setDomain(domain);
-            request.setWorkflowID(execution.getWorkflowId());
-            request.setRunID(execution.getRunId());
-            try {
-                service.RespondActivityTaskCanceledByID(request);
-            } catch (TException e) {
-                // There is nothing that can be done at this point.
-                // so let's just ignore.
-                log.info("reportCancellation", e);
-            }
-        }
-    }
+  }
 }

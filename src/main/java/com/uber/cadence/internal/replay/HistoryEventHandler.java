@@ -22,33 +22,33 @@ import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.TimerFiredEventAttributes;
 
 interface HistoryEventHandler {
-    void handleActivityTaskStarted(ActivityTaskStartedEventAttributes attributes);
+  void handleActivityTaskStarted(ActivityTaskStartedEventAttributes attributes);
 
-    void handleActivityTaskCanceled(HistoryEvent event);
+  void handleActivityTaskCanceled(HistoryEvent event);
 
-    void handleActivityTaskCompleted(HistoryEvent event);
+  void handleActivityTaskCompleted(HistoryEvent event);
 
-    void handleActivityTaskFailed(HistoryEvent event);
+  void handleActivityTaskFailed(HistoryEvent event);
 
-    void handleActivityTaskTimedOut(HistoryEvent event);
+  void handleActivityTaskTimedOut(HistoryEvent event);
 
-    void handleChildWorkflowExecutionCancelRequested(HistoryEvent event);
+  void handleChildWorkflowExecutionCancelRequested(HistoryEvent event);
 
-    void handleChildWorkflowExecutionCanceled(HistoryEvent event);
+  void handleChildWorkflowExecutionCanceled(HistoryEvent event);
 
-    void handleChildWorkflowExecutionStarted(HistoryEvent event);
+  void handleChildWorkflowExecutionStarted(HistoryEvent event);
 
-    void handleChildWorkflowExecutionTimedOut(HistoryEvent event);
+  void handleChildWorkflowExecutionTimedOut(HistoryEvent event);
 
-    void handleChildWorkflowExecutionTerminated(HistoryEvent event);
+  void handleChildWorkflowExecutionTerminated(HistoryEvent event);
 
-    void handleStartChildWorkflowExecutionFailed(HistoryEvent event);
+  void handleStartChildWorkflowExecutionFailed(HistoryEvent event);
 
-    void handleChildWorkflowExecutionFailed(HistoryEvent event);
+  void handleChildWorkflowExecutionFailed(HistoryEvent event);
 
-    void handleChildWorkflowExecutionCompleted(HistoryEvent event);
+  void handleChildWorkflowExecutionCompleted(HistoryEvent event);
 
-    void handleTimerFired(TimerFiredEventAttributes attributes);
+  void handleTimerFired(TimerFiredEventAttributes attributes);
 
-    void handleTimerCanceled(HistoryEvent event);
+  void handleTimerCanceled(HistoryEvent event);
 }

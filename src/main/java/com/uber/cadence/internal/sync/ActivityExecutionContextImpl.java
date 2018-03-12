@@ -29,11 +29,10 @@ import com.uber.cadence.client.ActivityCompletionException;
 import com.uber.cadence.client.ActivityCompletionFailureException;
 import com.uber.cadence.client.ActivityNotExistsException;
 import com.uber.cadence.converter.DataConverter;
+import java.util.concurrent.CancellationException;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.concurrent.CancellationException;
 
 /**
  * Base implementation of an {@link ActivityExecutionContext}.
@@ -43,94 +42,92 @@ import java.util.concurrent.CancellationException;
  */
 class ActivityExecutionContextImpl implements ActivityExecutionContext {
 
-    private static final Logger log = LoggerFactory.getLogger(ActivityExecutionContextImpl.class);
+  private static final Logger log = LoggerFactory.getLogger(ActivityExecutionContextImpl.class);
 
-    private final Iface service;
+  private final Iface service;
 
-    private final String domain;
+  private final String domain;
 
-    private final ActivityTask task;
-    private final DataConverter dataConverter;
-    private boolean doNotCompleteOnReturn;
+  private final ActivityTask task;
+  private final DataConverter dataConverter;
+  private boolean doNotCompleteOnReturn;
 
-    /**
-     * Create an ActivityExecutionContextImpl with the given attributes.
-     */
-    ActivityExecutionContextImpl(Iface service, String domain, ActivityTask task, DataConverter dataConverter) {
-        this.domain = domain;
-        this.service = service;
-        this.task = task;
-        this.dataConverter = dataConverter;
+  /** Create an ActivityExecutionContextImpl with the given attributes. */
+  ActivityExecutionContextImpl(
+      Iface service, String domain, ActivityTask task, DataConverter dataConverter) {
+    this.domain = domain;
+    this.service = service;
+    this.task = task;
+    this.dataConverter = dataConverter;
+  }
+
+  /**
+   * @throws CancellationException
+   * @see ActivityExecutionContext#recordActivityHeartbeat(Object)
+   */
+  @Override
+  public void recordActivityHeartbeat(Object details) throws ActivityCompletionException {
+    //TODO: call service with the specified minimal interval (through @ActivityExecutionOptions)
+    // allowing more frequent calls of this method.
+    RecordActivityTaskHeartbeatRequest r = new RecordActivityTaskHeartbeatRequest();
+    r.setTaskToken(task.getTaskToken());
+    byte[] serialized = dataConverter.toData(details);
+    r.setDetails(serialized);
+    RecordActivityTaskHeartbeatResponse status;
+    try {
+      status = service.RecordActivityTaskHeartbeat(r);
+      if (status.isCancelRequested()) {
+        throw new ActivityCancelledException(task);
+      }
+    } catch (EntityNotExistsError e) {
+      throw new ActivityNotExistsException(task, e);
+    } catch (BadRequestError e) {
+      throw new ActivityCompletionFailureException(task, e);
+    } catch (TException e) {
+      log.warn(
+          "Failure heartbeating on activityID="
+              + task.getActivityId()
+              + " of Workflow="
+              + task.getWorkflowExecution(),
+          e);
+      // Not rethrowing to not fail activity implementation on intermittent connection or Cadence errors.
     }
+  }
 
-    /**
-     * @throws CancellationException
-     * @see ActivityExecutionContext#recordActivityHeartbeat(Object)
-     */
-    @Override
-    public void recordActivityHeartbeat(Object details) throws ActivityCompletionException {
-        //TODO: call service with the specified minimal interval (through @ActivityExecutionOptions)
-        // allowing more frequent calls of this method.
-        RecordActivityTaskHeartbeatRequest r = new RecordActivityTaskHeartbeatRequest();
-        r.setTaskToken(task.getTaskToken());
-        byte[] serialized = dataConverter.toData(details);
-        r.setDetails(serialized);
-        RecordActivityTaskHeartbeatResponse status;
-        try {
-            status = service.RecordActivityTaskHeartbeat(r);
-            if (status.isCancelRequested()) {
-                throw new ActivityCancelledException(task);
-            }
-        } catch (EntityNotExistsError e) {
-            throw new ActivityNotExistsException(task, e);
-        } catch (BadRequestError e) {
-            throw new ActivityCompletionFailureException(task, e);
-        } catch (TException e) {
-            log.warn("Failure heartbeating on activityID=" + task.getActivityId()
-                    + " of Workflow=" + task.getWorkflowExecution(), e);
-            // Not rethrowing to not fail activity implementation on intermittent connection or Cadence errors.
-        }
-    }
+  @Override
+  public void doNotCompleteOnReturn() {
+    doNotCompleteOnReturn = true;
+  }
 
-    @Override
-    public void doNotCompleteOnReturn() {
-        doNotCompleteOnReturn = true;
-    }
+  @Override
+  public boolean isDoNotCompleteOnReturn() {
+    return doNotCompleteOnReturn;
+  }
 
-    @Override
-    public boolean isDoNotCompleteOnReturn() {
-        return doNotCompleteOnReturn;
-    }
+  /** @see ActivityExecutionContext#getTask() */
+  @Override
+  public ActivityTask getTask() {
+    return task;
+  }
 
-    /**
-     * @see ActivityExecutionContext#getTask()
-     */
-    @Override
-    public ActivityTask getTask() {
-        return task;
-    }
+  /** @see ActivityExecutionContext#getService() */
+  @Override
+  public Iface getService() {
+    return service;
+  }
 
-    /**
-     * @see ActivityExecutionContext#getService()
-     */
-    @Override
-    public Iface getService() {
-        return service;
-    }
+  @Override
+  public byte[] getTaskToken() {
+    return task.getTaskToken();
+  }
 
-    @Override
-    public byte[] getTaskToken() {
-        return task.getTaskToken();
-    }
+  @Override
+  public WorkflowExecution getWorkflowExecution() {
+    return task.getWorkflowExecution();
+  }
 
-    @Override
-    public WorkflowExecution getWorkflowExecution() {
-        return task.getWorkflowExecution();
-    }
-
-    @Override
-    public String getDomain() {
-        return domain;
-    }
-
+  @Override
+  public String getDomain() {
+    return domain;
+  }
 }

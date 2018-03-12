@@ -32,142 +32,179 @@ import com.uber.cadence.internal.external.ManualActivityCompletionClientFactoryI
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.QueryMethod;
 import com.uber.cadence.workflow.WorkflowMethod;
-
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 
 public final class WorkflowClientInternal implements WorkflowClient {
 
-    private final GenericWorkflowClientExternalImpl genericClient;
-    private final ManualActivityCompletionClientFactory manualActivityCompletionClientFactory;
-    private final DataConverter dataConverter;
+  private final GenericWorkflowClientExternalImpl genericClient;
+  private final ManualActivityCompletionClientFactory manualActivityCompletionClientFactory;
+  private final DataConverter dataConverter;
 
-    public WorkflowClientInternal(WorkflowService.Iface service, String domain, WorkflowClientOptions options) {
-        this.genericClient = new GenericWorkflowClientExternalImpl(service, domain);
-        if (options == null) {
-            options = new WorkflowClientOptions.Builder().build();
+  public WorkflowClientInternal(
+      WorkflowService.Iface service, String domain, WorkflowClientOptions options) {
+    this.genericClient = new GenericWorkflowClientExternalImpl(service, domain);
+    if (options == null) {
+      options = new WorkflowClientOptions.Builder().build();
+    }
+    this.dataConverter = options.getDataConverter();
+    this.manualActivityCompletionClientFactory =
+        new ManualActivityCompletionClientFactoryImpl(service, domain, dataConverter);
+  }
+
+  public <T> T newWorkflowStub(Class<T> workflowInterface) {
+    return newWorkflowStub(workflowInterface, (WorkflowOptions) null);
+  }
+
+  @SuppressWarnings("unchecked")
+  public <T> T newWorkflowStub(Class<T> workflowInterface, WorkflowOptions options) {
+    checkAnnotation(workflowInterface, WorkflowMethod.class);
+    return (T)
+        Proxy.newProxyInstance(
+            WorkflowInternal.class.getClassLoader(),
+            new Class<?>[] {workflowInterface},
+            new WorkflowExternalInvocationHandler(genericClient, options, dataConverter));
+  }
+
+  @SafeVarargs
+  private static <T> void checkAnnotation(
+      Class<T> workflowInterface, Class<? extends Annotation>... annotationClasses) {
+    TypeToken<?>.TypeSet interfaces = TypeToken.of(workflowInterface).getTypes().interfaces();
+    if (interfaces.isEmpty()) {
+      throw new IllegalArgumentException("Workflow must implement at least one interface");
+    }
+    for (TypeToken<?> i : interfaces) {
+      for (Method method : i.getRawType().getMethods()) {
+        for (Class<? extends Annotation> annotationClass : annotationClasses) {
+          Object workflowMethod = method.getAnnotation(annotationClass);
+          if (workflowMethod != null) {
+            return;
+          }
         }
-        this.dataConverter = options.getDataConverter();
-        this.manualActivityCompletionClientFactory = new ManualActivityCompletionClientFactoryImpl(service, domain, dataConverter);
+      }
     }
+    throw new IllegalArgumentException(
+        "Workflow interface "
+            + workflowInterface.getName()
+            + " doesn't have method annotated with any of "
+            + annotationClasses);
+  }
 
-    public <T> T newWorkflowStub(Class<T> workflowInterface) {
-        return newWorkflowStub(workflowInterface, (WorkflowOptions)null);
+  @SuppressWarnings("unchecked")
+  public <T> T newWorkflowStub(Class<T> workflowInterface, WorkflowExecution execution) {
+    checkAnnotation(workflowInterface, WorkflowMethod.class, QueryMethod.class);
+    return (T)
+        Proxy.newProxyInstance(
+            WorkflowInternal.class.getClassLoader(),
+            new Class<?>[] {workflowInterface},
+            new WorkflowExternalInvocationHandler(genericClient, execution, dataConverter));
+  }
+
+  @Override
+  public UntypedWorkflowStub newUntypedWorkflowStub(String workflowType, WorkflowOptions options) {
+    return new UntypedWorkflowStubImpl(genericClient, dataConverter, workflowType, options);
+  }
+
+  @Override
+  public UntypedWorkflowStub newUntypedWorkflowStub(WorkflowExecution execution) {
+    return new UntypedWorkflowStubImpl(genericClient, dataConverter, execution);
+  }
+
+  @Override
+  public ActivityCompletionClient newActivityCompletionClient() {
+    return new ActivityCompletionClientImpl(manualActivityCompletionClientFactory);
+  }
+
+  public static WorkflowExecution asyncStart(Functions.Proc workflow) {
+    WorkflowExternalInvocationHandler.initAsyncInvocation();
+    try {
+      workflow.apply();
+      return WorkflowExternalInvocationHandler.getAsyncInvocationResult();
+    } finally {
+      WorkflowExternalInvocationHandler.closeAsyncInvocation();
     }
+  }
 
-        @SuppressWarnings("unchecked")
-    public <T> T newWorkflowStub(Class<T> workflowInterface, WorkflowOptions options) {
-        checkAnnotation(workflowInterface, WorkflowMethod.class);
-        return (T) Proxy.newProxyInstance(WorkflowInternal.class.getClassLoader(),
-                new Class<?>[]{workflowInterface},
-                new WorkflowExternalInvocationHandler(genericClient, options, dataConverter));
-    }
+  public static <A1> WorkflowExecution asyncStart(Functions.Proc1<A1> workflow, A1 arg1) {
+    return asyncStart(() -> workflow.apply(arg1));
+  }
 
-    @SafeVarargs
-    static private <T> void checkAnnotation(Class<T> workflowInterface, Class<? extends Annotation>... annotationClasses) {
-        TypeToken<?>.TypeSet interfaces = TypeToken.of(workflowInterface).getTypes().interfaces();
-        if (interfaces.isEmpty()) {
-            throw new IllegalArgumentException("Workflow must implement at least one interface");
-        }
-        for (TypeToken<?> i : interfaces) {
-            for (Method method : i.getRawType().getMethods()) {
-                for (Class<? extends Annotation> annotationClass : annotationClasses) {
-                    Object workflowMethod = method.getAnnotation(annotationClass);
-                    if (workflowMethod != null) {
-                        return;
-                    }
-                }
-            }
-        }
-        throw new IllegalArgumentException("Workflow interface " + workflowInterface.getName() +
-                " doesn't have method annotated with any of " + annotationClasses);
-    }
+  public static <A1, A2> WorkflowExecution asyncStart(
+      Functions.Proc2<A1, A2> workflow, A1 arg1, A2 arg2) {
+    return asyncStart(() -> workflow.apply(arg1, arg2));
+  }
 
-    @SuppressWarnings("unchecked")
-    public <T> T newWorkflowStub(Class<T> workflowInterface, WorkflowExecution execution) {
-        checkAnnotation(workflowInterface, WorkflowMethod.class, QueryMethod.class);
-        return (T) Proxy.newProxyInstance(WorkflowInternal.class.getClassLoader(),
-                new Class<?>[]{workflowInterface},
-                new WorkflowExternalInvocationHandler(genericClient, execution, dataConverter));
-    }
+  public static <A1, A2, A3> WorkflowExecution asyncStart(
+      Functions.Proc3<A1, A2, A3> workflow, A1 arg1, A2 arg2, A3 arg3) {
+    return asyncStart(() -> workflow.apply(arg1, arg2, arg3));
+  }
 
-    @Override
-    public UntypedWorkflowStub newUntypedWorkflowStub(String workflowType, WorkflowOptions options) {
-        return new UntypedWorkflowStubImpl(genericClient, dataConverter, workflowType, options);
-    }
+  public static <A1, A2, A3, A4> WorkflowExecution asyncStart(
+      Functions.Proc4<A1, A2, A3, A4> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
+    return asyncStart(() -> workflow.apply(arg1, arg2, arg3, arg4));
+  }
 
-    @Override
-    public UntypedWorkflowStub newUntypedWorkflowStub(WorkflowExecution execution) {
-        return new UntypedWorkflowStubImpl(genericClient, dataConverter, execution);
-    }
+  public static <A1, A2, A3, A4, A5> WorkflowExecution asyncStart(
+      Functions.Proc5<A1, A2, A3, A4, A5> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
+    return asyncStart(() -> workflow.apply(arg1, arg2, arg3, arg4, arg5));
+  }
 
-    @Override
-    public ActivityCompletionClient newActivityCompletionClient() {
-        return new ActivityCompletionClientImpl(manualActivityCompletionClientFactory);
-    }
+  public static <A1, A2, A3, A4, A5, A6> WorkflowExecution asyncStart(
+      Functions.Proc6<A1, A2, A3, A4, A5, A6> workflow,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6) {
+    return asyncStart(() -> workflow.apply(arg1, arg2, arg3, arg4, arg5, arg6));
+  }
 
-    public static WorkflowExecution asyncStart(Functions.Proc workflow) {
-        WorkflowExternalInvocationHandler.initAsyncInvocation();
-        try {
-            workflow.apply();
-            return WorkflowExternalInvocationHandler.getAsyncInvocationResult();
-        } finally {
-            WorkflowExternalInvocationHandler.closeAsyncInvocation();
-        }
-    }
-
-    public static <A1> WorkflowExecution asyncStart(Functions.Proc1<A1> workflow, A1 arg1) {
-        return asyncStart(() -> workflow.apply(arg1));
-    }
-
-    public static <A1, A2> WorkflowExecution asyncStart(Functions.Proc2<A1, A2> workflow, A1 arg1, A2 arg2) {
-        return asyncStart(() -> workflow.apply(arg1, arg2));
-    }
-
-    public static <A1, A2, A3> WorkflowExecution asyncStart(Functions.Proc3<A1, A2, A3> workflow, A1 arg1, A2 arg2, A3 arg3) {
-        return asyncStart(() -> workflow.apply(arg1, arg2, arg3));
-    }
-
-    public static <A1, A2, A3, A4> WorkflowExecution asyncStart(Functions.Proc4<A1, A2, A3, A4> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
-        return asyncStart(() -> workflow.apply(arg1, arg2, arg3, arg4));
-    }
-
-    public static <A1, A2, A3, A4, A5> WorkflowExecution asyncStart(Functions.Proc5<A1, A2, A3, A4, A5> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
-        return asyncStart(() -> workflow.apply(arg1, arg2, arg3, arg4, arg5));
-    }
-
-    public static <A1, A2, A3, A4, A5, A6> WorkflowExecution asyncStart(Functions.Proc6<A1, A2, A3, A4, A5, A6> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5, A6 arg6) {
-        return asyncStart(() -> workflow.apply(arg1, arg2, arg3, arg4, arg5, arg6));
-    }
-
-    public static <R> WorkflowExecution asyncStart(Functions.Func<R> workflow) {
-        return asyncStart(() -> { // Need {} to call asyncStart(Proc...)
-            workflow.apply();
+  public static <R> WorkflowExecution asyncStart(Functions.Func<R> workflow) {
+    return asyncStart(
+        () -> { // Need {} to call asyncStart(Proc...)
+          workflow.apply();
         });
-    }
+  }
 
-    public static <A1, R> WorkflowExecution asyncStart(Functions.Func1<A1, R> workflow, A1 arg1) {
-        return asyncStart(() -> workflow.apply(arg1));
-    }
+  public static <A1, R> WorkflowExecution asyncStart(Functions.Func1<A1, R> workflow, A1 arg1) {
+    return asyncStart(() -> workflow.apply(arg1));
+  }
 
-    public static <A1, A2, R> WorkflowExecution asyncStart(Functions.Func2<A1, A2, R> workflow, A1 arg1, A2 arg2) {
-        return asyncStart(() -> workflow.apply(arg1, arg2));
-    }
+  public static <A1, A2, R> WorkflowExecution asyncStart(
+      Functions.Func2<A1, A2, R> workflow, A1 arg1, A2 arg2) {
+    return asyncStart(() -> workflow.apply(arg1, arg2));
+  }
 
-    public static <A1, A2, A3, R> WorkflowExecution asyncStart(Functions.Func3<A1, A2, A3, R> workflow, A1 arg1, A2 arg2, A3 arg3) {
-        return asyncStart(() -> workflow.apply(arg1, arg2, arg3));
-    }
+  public static <A1, A2, A3, R> WorkflowExecution asyncStart(
+      Functions.Func3<A1, A2, A3, R> workflow, A1 arg1, A2 arg2, A3 arg3) {
+    return asyncStart(() -> workflow.apply(arg1, arg2, arg3));
+  }
 
-    public static <A1, A2, A3, A4, R> WorkflowExecution asyncStart(Functions.Func4<A1, A2, A3, A4, R> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
-        return asyncStart(() -> workflow.apply(arg1, arg2, arg3, arg4));
-    }
+  public static <A1, A2, A3, A4, R> WorkflowExecution asyncStart(
+      Functions.Func4<A1, A2, A3, A4, R> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
+    return asyncStart(() -> workflow.apply(arg1, arg2, arg3, arg4));
+  }
 
-    public static <A1, A2, A3, A4, A5, R> WorkflowExecution asyncStart(Functions.Func5<A1, A2, A3, A4, A5, R> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
-        return asyncStart(() -> workflow.apply(arg1, arg2, arg3, arg4, arg5));
-    }
+  public static <A1, A2, A3, A4, A5, R> WorkflowExecution asyncStart(
+      Functions.Func5<A1, A2, A3, A4, A5, R> workflow,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5) {
+    return asyncStart(() -> workflow.apply(arg1, arg2, arg3, arg4, arg5));
+  }
 
-    public static <A1, A2, A3, A4, A5, A6, R> WorkflowExecution asyncStart(Functions.Func6<A1, A2, A3, A4, A5, A6, R> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5, A6 arg6) {
-        return asyncStart(() -> workflow.apply(arg1, arg2, arg3, arg4, arg5, arg6));
-    }
+  public static <A1, A2, A3, A4, A5, A6, R> WorkflowExecution asyncStart(
+      Functions.Func6<A1, A2, A3, A4, A5, A6, R> workflow,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6) {
+    return asyncStart(() -> workflow.apply(arg1, arg2, arg3, arg4, arg5, arg6));
+  }
 }

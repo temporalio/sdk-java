@@ -17,5 +17,4 @@
 
 package com.uber.cadence.workflow;
 
-public interface WorkflowQueue<E> extends QueueConsumer<E>, QueueProducer<E> {
-}
+public interface WorkflowQueue<E> extends QueueConsumer<E>, QueueProducer<E> {}

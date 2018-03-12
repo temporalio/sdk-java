@@ -22,21 +22,35 @@ import com.uber.cadence.WorkflowExecution;
 /**
  * This exception is thrown in the following cases:
  * <li>
- * <ul>Workflow with the same WorkflowID is currently running.</ul>
- * <ul>There is a closed workflow with the same ID and the {@link WorkflowOptions#getWorkflowIdReusePolicy()} is
- * {@link com.uber.cadence.WorkflowIdReusePolicy#RejectDuplicate}.</ul>
- * <ul>There is successfully closed workflow with the same ID and the  {@link WorkflowOptions#getWorkflowIdReusePolicy()} is
- * {@link com.uber.cadence.WorkflowIdReusePolicy#AllowDuplicateFailedOnly}.</ul>
- * <ul>Method annotated with {@link com.uber.cadence.workflow.WorkflowMethod} is called <i>more than once</i>
- * on a stub created through {@link com.uber.cadence.workflow.Workflow#newWorkflowStub(Class)}
- * and the  {@link WorkflowOptions#getWorkflowIdReusePolicy()} is
- * {@link com.uber.cadence.WorkflowIdReusePolicy#AllowDuplicate}</ul>
- * </li>
- * </p>
+ *
+ *     <ul>
+ *       Workflow with the same WorkflowID is currently running.
+ * </ul>
+ *
+ * <ul>
+ *   There is a closed workflow with the same ID and the {@link
+ *   WorkflowOptions#getWorkflowIdReusePolicy()} is {@link
+ *   com.uber.cadence.WorkflowIdReusePolicy#RejectDuplicate}.
+ * </ul>
+ *
+ * <ul>
+ *   There is successfully closed workflow with the same ID and the {@link
+ *   WorkflowOptions#getWorkflowIdReusePolicy()} is {@link
+ *   com.uber.cadence.WorkflowIdReusePolicy#AllowDuplicateFailedOnly}.
+ * </ul>
+ *
+ * <ul>
+ *   Method annotated with {@link com.uber.cadence.workflow.WorkflowMethod} is called <i>more than
+ *   once</i> on a stub created through {@link
+ *   com.uber.cadence.workflow.Workflow#newWorkflowStub(Class)} and the {@link
+ *   WorkflowOptions#getWorkflowIdReusePolicy()} is {@link
+ *   com.uber.cadence.WorkflowIdReusePolicy#AllowDuplicate}
+ * </ul>
  */
 public final class DuplicateWorkflowException extends WorkflowException {
 
-    public DuplicateWorkflowException(WorkflowExecution execution, String workflowType, String message) {
-        super(message, execution, workflowType, null);
-    }
+  public DuplicateWorkflowException(
+      WorkflowExecution execution, String workflowType, String message) {
+    super(message, execution, workflowType, null);
+  }
 }

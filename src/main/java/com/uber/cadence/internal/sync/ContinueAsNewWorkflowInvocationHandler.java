@@ -22,38 +22,45 @@ import com.uber.cadence.internal.replay.ContinueAsNewWorkflowExecutionParameters
 import com.uber.cadence.workflow.QueryMethod;
 import com.uber.cadence.workflow.SignalMethod;
 import com.uber.cadence.workflow.WorkflowMethod;
-
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 
 class ContinueAsNewWorkflowInvocationHandler implements InvocationHandler {
 
-    private final ContinueAsNewWorkflowExecutionParameters parameters;
-    private final SyncDecisionContext decisionContext;
-    private final DataConverter dataConverter;
+  private final ContinueAsNewWorkflowExecutionParameters parameters;
+  private final SyncDecisionContext decisionContext;
+  private final DataConverter dataConverter;
 
-    public ContinueAsNewWorkflowInvocationHandler(ContinueAsNewWorkflowExecutionParameters parameters, SyncDecisionContext decisionContext) {
-        this.parameters = parameters == null ? new ContinueAsNewWorkflowExecutionParameters() : parameters;
-        this.decisionContext = decisionContext;
-        this.dataConverter = decisionContext.getDataConverter();
-    }
+  public ContinueAsNewWorkflowInvocationHandler(
+      ContinueAsNewWorkflowExecutionParameters parameters, SyncDecisionContext decisionContext) {
+    this.parameters =
+        parameters == null ? new ContinueAsNewWorkflowExecutionParameters() : parameters;
+    this.decisionContext = decisionContext;
+    this.dataConverter = decisionContext.getDataConverter();
+  }
 
-    @Override
-    public Object invoke(Object proxy, Method method, Object[] args) {
-        WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
-        QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);
-        SignalMethod signalMethod = method.getAnnotation(SignalMethod.class);
-        int count = (workflowMethod == null ? 0 : 1) + (queryMethod == null ? 0 : 1) + (signalMethod == null ? 0 : 1);
-        if (count > 1) {
-            throw new IllegalArgumentException(method + " must contain at most one annotation " +
-                    "from @WorkflowMethod, @QueryMethod or @SignalMethod");
-        }
-        if (workflowMethod == null) {
-                throw new IllegalStateException("ContinueAsNew Stub supports only calls to methods annotated with @WorkflowMethod");
-        }
-        parameters.setInput(dataConverter.toData(args));
-        decisionContext.continueAsNewOnCompletion(parameters);
-        WorkflowThread.exit(null);
-        return null;
+  @Override
+  public Object invoke(Object proxy, Method method, Object[] args) {
+    WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
+    QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);
+    SignalMethod signalMethod = method.getAnnotation(SignalMethod.class);
+    int count =
+        (workflowMethod == null ? 0 : 1)
+            + (queryMethod == null ? 0 : 1)
+            + (signalMethod == null ? 0 : 1);
+    if (count > 1) {
+      throw new IllegalArgumentException(
+          method
+              + " must contain at most one annotation "
+              + "from @WorkflowMethod, @QueryMethod or @SignalMethod");
     }
+    if (workflowMethod == null) {
+      throw new IllegalStateException(
+          "ContinueAsNew Stub supports only calls to methods annotated with @WorkflowMethod");
+    }
+    parameters.setInput(dataConverter.toData(args));
+    decisionContext.continueAsNewOnCompletion(parameters);
+    WorkflowThread.exit(null);
+    return null;
+  }
 }

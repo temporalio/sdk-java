@@ -20,27 +20,28 @@ package com.uber.cadence.workflow;
 import com.uber.cadence.SignalExternalWorkflowExecutionFailedCause;
 import com.uber.cadence.WorkflowExecution;
 
-/**
- * Exception used to communicate failure of a request to signal an external workflow.
- */
+/** Exception used to communicate failure of a request to signal an external workflow. */
 @SuppressWarnings("serial")
 public final class SignalExternalWorkflowException extends WorkflowOperationException {
 
-    private SignalExternalWorkflowExecutionFailedCause failureCause;
+  private SignalExternalWorkflowExecutionFailedCause failureCause;
 
-    private WorkflowExecution signaledExecution;
+  private WorkflowExecution signaledExecution;
 
-    public SignalExternalWorkflowException(long eventId, WorkflowExecution signaledExecution, SignalExternalWorkflowExecutionFailedCause cause) {
-        super(cause + " for signaledExecution=\"" + signaledExecution, eventId);
-        this.signaledExecution = signaledExecution;
-        this.failureCause = cause;
-    }
+  public SignalExternalWorkflowException(
+      long eventId,
+      WorkflowExecution signaledExecution,
+      SignalExternalWorkflowExecutionFailedCause cause) {
+    super(cause + " for signaledExecution=\"" + signaledExecution, eventId);
+    this.signaledExecution = signaledExecution;
+    this.failureCause = cause;
+  }
 
-    public SignalExternalWorkflowExecutionFailedCause getFailureCause() {
-        return failureCause;
-    }
+  public SignalExternalWorkflowExecutionFailedCause getFailureCause() {
+    return failureCause;
+  }
 
-    public WorkflowExecution getSignaledExecution() {
-        return signaledExecution;
-    }
+  public WorkflowExecution getSignaledExecution() {
+    return signaledExecution;
+  }
 }

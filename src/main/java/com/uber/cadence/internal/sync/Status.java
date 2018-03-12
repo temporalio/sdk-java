@@ -18,9 +18,9 @@
 package com.uber.cadence.internal.sync;
 
 enum Status {
-    CREATED,
-    RUNNING,
-    YIELDED,
-    EVALUATING,
-    DONE
+  CREATED,
+  RUNNING,
+  YIELDED,
+  EVALUATING,
+  DONE
 }

@@ -18,63 +18,60 @@
 package com.uber.cadence.internal.sync;
 
 import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
-
 import java.util.Objects;
 
 class WorkflowRunnable implements Runnable {
-    private final SyncDecisionContext context;
-    private final SyncWorkflowDefinition workflow;
-    private final WorkflowExecutionStartedEventAttributes attributes;
+  private final SyncDecisionContext context;
+  private final SyncWorkflowDefinition workflow;
+  private final WorkflowExecutionStartedEventAttributes attributes;
 
-    private byte[] output;
-    private boolean done;
+  private byte[] output;
+  private boolean done;
 
-    public WorkflowRunnable(SyncDecisionContext context,
-                            SyncWorkflowDefinition workflow,
-                            WorkflowExecutionStartedEventAttributes attributes) {
-        Objects.requireNonNull(context);
-        Objects.requireNonNull(workflow);
-        Objects.requireNonNull(attributes);
-        this.context = context;
-        this.workflow = workflow;
-        this.attributes = attributes;
+  public WorkflowRunnable(
+      SyncDecisionContext context,
+      SyncWorkflowDefinition workflow,
+      WorkflowExecutionStartedEventAttributes attributes) {
+    Objects.requireNonNull(context);
+    Objects.requireNonNull(workflow);
+    Objects.requireNonNull(attributes);
+    this.context = context;
+    this.workflow = workflow;
+    this.attributes = attributes;
+  }
+
+  @Override
+  public void run() {
+    try {
+      output = workflow.execute(attributes.getInput());
+    } finally {
+      done = true;
     }
+  }
 
-    @Override
-    public void run() {
-        try {
-            output = workflow.execute(attributes.getInput());
-        } finally {
-            done = true;
-        }
+  public void cancel(String reason) {}
+
+  public boolean isDone() {
+    return done;
+  }
+
+  public byte[] getOutput() {
+    return output;
+  }
+
+  public void close() {}
+
+  public void processSignal(String signalName, byte[] input, long eventId) {
+    workflow.processSignal(signalName, input, eventId);
+  }
+
+  public byte[] query(String type, byte[] args) {
+    return context.query(type, args);
+  }
+
+  public void fireTimers() {
+    if (context.hasTimersToFire()) {
+      context.getRunner().executeInWorkflowThread("timers callback", () -> context.fireTimers());
     }
-
-    public void cancel(String reason) {
-
-    }
-
-    public boolean isDone() {
-        return done;
-    }
-
-    public byte[] getOutput() {
-        return output;
-    }
-
-    public void close() {
-    }
-
-    public void processSignal(String signalName, byte[] input, long eventId) {
-        workflow.processSignal(signalName, input, eventId);
-    }
-
-    public byte[] query(String type, byte[] args) {
-        return context.query(type, args);
-    }
-
-    public void fireTimers() {
-        if (context.hasTimersToFire()) {
-            context.getRunner().executeInWorkflowThread("timers callback", () -> context.fireTimers());
-        }
-    }
+  }
 }

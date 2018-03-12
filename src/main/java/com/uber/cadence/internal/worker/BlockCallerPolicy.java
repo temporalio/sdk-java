@@ -21,17 +21,15 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
 
-
 class BlockCallerPolicy implements RejectedExecutionHandler {
 
-    @Override
-    public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
-        try {
-            // block until there's room
-            executor.getQueue().put(r);
-        }
-        catch (InterruptedException e) {
-            throw new RejectedExecutionException("Unexpected InterruptedException", e);
-        }
+  @Override
+  public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
+    try {
+      // block until there's room
+      executor.getQueue().put(r);
+    } catch (InterruptedException e) {
+      throw new RejectedExecutionException("Unexpected InterruptedException", e);
     }
+  }
 }

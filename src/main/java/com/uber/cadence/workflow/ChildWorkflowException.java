@@ -20,30 +20,39 @@ package com.uber.cadence.workflow;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
 
-/**
- * Base exception for failures of a child workflow.
- */
+/** Base exception for failures of a child workflow. */
 @SuppressWarnings("serial")
 public abstract class ChildWorkflowException extends WorkflowOperationException {
 
-    private final WorkflowExecution workflowExecution;
+  private final WorkflowExecution workflowExecution;
 
-    private final WorkflowType workflowType;
+  private final WorkflowType workflowType;
 
-    protected ChildWorkflowException(String message, long eventId, WorkflowExecution workflowExecution, WorkflowType workflowType) {
-        super("WorkflowType=\"" + workflowType.getName() + "\", ID=\""
-                + workflowExecution.getWorkflowId() + "\", RunID=\"" + workflowExecution.getRunId()
-                + ", EventID=" + eventId, eventId);
+  protected ChildWorkflowException(
+      String message,
+      long eventId,
+      WorkflowExecution workflowExecution,
+      WorkflowType workflowType) {
+    super(
+        "WorkflowType=\""
+            + workflowType.getName()
+            + "\", ID=\""
+            + workflowExecution.getWorkflowId()
+            + "\", RunID=\""
+            + workflowExecution.getRunId()
+            + ", EventID="
+            + eventId,
+        eventId);
 
-        this.workflowExecution = workflowExecution;
-        this.workflowType = workflowType;
-    }
+    this.workflowExecution = workflowExecution;
+    this.workflowType = workflowType;
+  }
 
-    public WorkflowExecution getWorkflowExecution() {
-        return workflowExecution;
-    }
+  public WorkflowExecution getWorkflowExecution() {
+    return workflowExecution;
+  }
 
-    public WorkflowType getWorkflowType() {
-        return workflowType;
-    }
+  public WorkflowType getWorkflowType() {
+    return workflowType;
+  }
 }

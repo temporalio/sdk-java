@@ -17,202 +17,205 @@
 
 package com.uber.cadence.internal.worker;
 
+import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Duration;
-
-/**
- * Options for component that polls Cadence task lists for tasks.
- */
+/** Options for component that polls Cadence task lists for tasks. */
 public final class PollerOptions {
 
-    private static final Logger log = LoggerFactory.getLogger(PollerOptions.class);
+  private static final Logger log = LoggerFactory.getLogger(PollerOptions.class);
 
-    public final static class Builder {
+  public static final class Builder {
 
+    private int maximumPollRateIntervalMilliseconds = 1000;
 
-        private int maximumPollRateIntervalMilliseconds = 1000;
+    private double maximumPollRatePerSecond;
 
-        private double maximumPollRatePerSecond;
+    private double pollBackoffCoefficient = 2;
 
-        private double pollBackoffCoefficient = 2;
+    private Duration pollBackoffInitialInterval = Duration.ofMillis(100);
 
-        private Duration pollBackoffInitialInterval = Duration.ofMillis(100);
+    private Duration pollBackoffMaximumInterval = Duration.ofMinutes(1);
 
-        private Duration pollBackoffMaximumInterval = Duration.ofMinutes(1);
+    private int pollThreadCount = 1;
 
-        private int pollThreadCount = 1;
+    private String pollThreadNamePrefix;
 
-        private String pollThreadNamePrefix;
+    private Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
 
-        private Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
+    public Builder() {}
 
-        public Builder() {
-        }
-
-        public Builder(PollerOptions o) {
-            if (o == null) {
-                return;
-            }
-            this.maximumPollRateIntervalMilliseconds = o.getMaximumPollRateIntervalMilliseconds();
-            this.maximumPollRatePerSecond = o.getMaximumPollRatePerSecond();
-            this.pollBackoffCoefficient = o.getPollBackoffCoefficient();
-            this.pollBackoffInitialInterval = o.getPollBackoffInitialInterval();
-            this.pollBackoffMaximumInterval = o.getPollBackoffMaximumInterval();
-            this.pollThreadCount = o.getPollThreadCount();
-            this.pollThreadNamePrefix = o.getPollThreadNamePrefix();
-            this.uncaughtExceptionHandler = o.getUncaughtExceptionHandler();
-        }
-
-        /**
-         * Defines interval for measuring poll rate. Larger the interval more spiky can be the load.
-         */
-        public Builder setMaximumPollRateIntervalMilliseconds(int maximumPollRateIntervalMilliseconds) {
-            this.maximumPollRateIntervalMilliseconds = maximumPollRateIntervalMilliseconds;
-            return this;
-        }
-
-        /**
-         * Maximum rate of polling. Measured in the interval set through {@link #setMaximumPollRateIntervalMilliseconds(int)}.
-         */
-        public Builder setMaximumPollRatePerSecond(double maximumPollRatePerSecond) {
-            this.maximumPollRatePerSecond = maximumPollRatePerSecond;
-            return this;
-        }
-
-        /**
-         * Coefficient to use when calculating exponential delay in case of failures
-         */
-        public Builder setPollBackoffCoefficient(double pollBackoffCoefficient) {
-            this.pollBackoffCoefficient = pollBackoffCoefficient;
-            return this;
-        }
-
-        /**
-         * Initial delay in case of failure. If backoff coefficient is 1 then it would be the constant delay
-         * between failing polls.
-         */
-        public Builder setPollBackoffInitialInterval(Duration pollBackoffInitialInterval) {
-            this.pollBackoffInitialInterval = pollBackoffInitialInterval;
-            return this;
-        }
-
-        /**
-         * Maximum interval between polls in case of failures.
-         */
-        public Builder setPollBackoffMaximumInterval(Duration pollBackoffMaximumInterval) {
-            this.pollBackoffMaximumInterval = pollBackoffMaximumInterval;
-            return this;
-        }
-
-        /**
-         * Number of parallel polling threads.
-         */
-        public Builder setPollThreadCount(int pollThreadCount) {
-            this.pollThreadCount = pollThreadCount;
-            return this;
-        }
-
-        /**
-         * Called to report unexpected exceptions in the poller threads.
-         */
-        public Builder setUncaughtExceptionHandler(Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
-            this.uncaughtExceptionHandler = uncaughtExceptionHandler;
-            return this;
-        }
-
-        /**
-         * Prefix to use when naming poller threads.
-         */
-        public Builder setPollThreadNamePrefix(String pollThreadNamePrefix) {
-            this.pollThreadNamePrefix = pollThreadNamePrefix;
-            return this;
-        }
-
-        public PollerOptions build() {
-            if (uncaughtExceptionHandler == null) {
-                uncaughtExceptionHandler = (t, e) -> log.error("uncaught exception", e);
-            }
-            return new PollerOptions(maximumPollRateIntervalMilliseconds, maximumPollRatePerSecond,
-                    pollBackoffCoefficient, pollBackoffInitialInterval, pollBackoffMaximumInterval,
-                    pollThreadCount, uncaughtExceptionHandler, pollThreadNamePrefix);
-        }
+    public Builder(PollerOptions o) {
+      if (o == null) {
+        return;
+      }
+      this.maximumPollRateIntervalMilliseconds = o.getMaximumPollRateIntervalMilliseconds();
+      this.maximumPollRatePerSecond = o.getMaximumPollRatePerSecond();
+      this.pollBackoffCoefficient = o.getPollBackoffCoefficient();
+      this.pollBackoffInitialInterval = o.getPollBackoffInitialInterval();
+      this.pollBackoffMaximumInterval = o.getPollBackoffMaximumInterval();
+      this.pollThreadCount = o.getPollThreadCount();
+      this.pollThreadNamePrefix = o.getPollThreadNamePrefix();
+      this.uncaughtExceptionHandler = o.getUncaughtExceptionHandler();
     }
 
-    private final int maximumPollRateIntervalMilliseconds;
-
-    private final double maximumPollRatePerSecond;
-
-    private final double pollBackoffCoefficient;
-
-    private final Duration pollBackoffInitialInterval;
-
-    private final Duration pollBackoffMaximumInterval;
-
-    private final int pollThreadCount;
-
-    private final Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
-
-    private final String pollThreadNamePrefix;
-
-    private PollerOptions(int maximumPollRateIntervalMilliseconds, double maximumPollRatePerSecond,
-                          double pollBackoffCoefficient, Duration pollBackoffInitialInterval,
-                          Duration pollBackoffMaximumInterval, int pollThreadCount,
-                          Thread.UncaughtExceptionHandler uncaughtExceptionHandler,
-                          String pollThreadNamePrefix) {
-        this.maximumPollRateIntervalMilliseconds = maximumPollRateIntervalMilliseconds;
-        this.maximumPollRatePerSecond = maximumPollRatePerSecond;
-        this.pollBackoffCoefficient = pollBackoffCoefficient;
-        this.pollBackoffInitialInterval = pollBackoffInitialInterval;
-        this.pollBackoffMaximumInterval = pollBackoffMaximumInterval;
-        this.pollThreadCount = pollThreadCount;
-        this.uncaughtExceptionHandler = uncaughtExceptionHandler;
-        this.pollThreadNamePrefix = pollThreadNamePrefix;
+    /** Defines interval for measuring poll rate. Larger the interval more spiky can be the load. */
+    public Builder setMaximumPollRateIntervalMilliseconds(int maximumPollRateIntervalMilliseconds) {
+      this.maximumPollRateIntervalMilliseconds = maximumPollRateIntervalMilliseconds;
+      return this;
     }
 
-    public int getMaximumPollRateIntervalMilliseconds() {
-        return maximumPollRateIntervalMilliseconds;
+    /**
+     * Maximum rate of polling. Measured in the interval set through {@link
+     * #setMaximumPollRateIntervalMilliseconds(int)}.
+     */
+    public Builder setMaximumPollRatePerSecond(double maximumPollRatePerSecond) {
+      this.maximumPollRatePerSecond = maximumPollRatePerSecond;
+      return this;
     }
 
-    public double getMaximumPollRatePerSecond() {
-        return maximumPollRatePerSecond;
+    /** Coefficient to use when calculating exponential delay in case of failures */
+    public Builder setPollBackoffCoefficient(double pollBackoffCoefficient) {
+      this.pollBackoffCoefficient = pollBackoffCoefficient;
+      return this;
     }
 
-    public double getPollBackoffCoefficient() {
-        return pollBackoffCoefficient;
+    /**
+     * Initial delay in case of failure. If backoff coefficient is 1 then it would be the constant
+     * delay between failing polls.
+     */
+    public Builder setPollBackoffInitialInterval(Duration pollBackoffInitialInterval) {
+      this.pollBackoffInitialInterval = pollBackoffInitialInterval;
+      return this;
     }
 
-    public Duration getPollBackoffInitialInterval() {
-        return pollBackoffInitialInterval;
+    /** Maximum interval between polls in case of failures. */
+    public Builder setPollBackoffMaximumInterval(Duration pollBackoffMaximumInterval) {
+      this.pollBackoffMaximumInterval = pollBackoffMaximumInterval;
+      return this;
     }
 
-    public Duration getPollBackoffMaximumInterval() {
-        return pollBackoffMaximumInterval;
+    /** Number of parallel polling threads. */
+    public Builder setPollThreadCount(int pollThreadCount) {
+      this.pollThreadCount = pollThreadCount;
+      return this;
     }
 
-    public int getPollThreadCount() {
-        return pollThreadCount;
+    /** Called to report unexpected exceptions in the poller threads. */
+    public Builder setUncaughtExceptionHandler(
+        Thread.UncaughtExceptionHandler uncaughtExceptionHandler) {
+      this.uncaughtExceptionHandler = uncaughtExceptionHandler;
+      return this;
     }
 
-    public Thread.UncaughtExceptionHandler getUncaughtExceptionHandler() {
-        return uncaughtExceptionHandler;
+    /** Prefix to use when naming poller threads. */
+    public Builder setPollThreadNamePrefix(String pollThreadNamePrefix) {
+      this.pollThreadNamePrefix = pollThreadNamePrefix;
+      return this;
     }
 
-    public String getPollThreadNamePrefix() {
-        return pollThreadNamePrefix;
+    public PollerOptions build() {
+      if (uncaughtExceptionHandler == null) {
+        uncaughtExceptionHandler = (t, e) -> log.error("uncaught exception", e);
+      }
+      return new PollerOptions(
+          maximumPollRateIntervalMilliseconds,
+          maximumPollRatePerSecond,
+          pollBackoffCoefficient,
+          pollBackoffInitialInterval,
+          pollBackoffMaximumInterval,
+          pollThreadCount,
+          uncaughtExceptionHandler,
+          pollThreadNamePrefix);
     }
+  }
 
-    @Override
-    public String toString() {
-        return "PollerOptions{" +
-                "maximumPollRateIntervalMilliseconds=" + maximumPollRateIntervalMilliseconds +
-                ", maximumPollRatePerSecond=" + maximumPollRatePerSecond +
-                ", pollBackoffCoefficient=" + pollBackoffCoefficient +
-                ", pollBackoffInitialInterval=" + pollBackoffInitialInterval +
-                ", pollBackoffMaximumInterval=" + pollBackoffMaximumInterval +
-                ", pollThreadCount=" + pollThreadCount +
-                ", pollThreadNamePrefix='" + pollThreadNamePrefix + '\'' +
-                '}';
-    }
+  private final int maximumPollRateIntervalMilliseconds;
+
+  private final double maximumPollRatePerSecond;
+
+  private final double pollBackoffCoefficient;
+
+  private final Duration pollBackoffInitialInterval;
+
+  private final Duration pollBackoffMaximumInterval;
+
+  private final int pollThreadCount;
+
+  private final Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
+
+  private final String pollThreadNamePrefix;
+
+  private PollerOptions(
+      int maximumPollRateIntervalMilliseconds,
+      double maximumPollRatePerSecond,
+      double pollBackoffCoefficient,
+      Duration pollBackoffInitialInterval,
+      Duration pollBackoffMaximumInterval,
+      int pollThreadCount,
+      Thread.UncaughtExceptionHandler uncaughtExceptionHandler,
+      String pollThreadNamePrefix) {
+    this.maximumPollRateIntervalMilliseconds = maximumPollRateIntervalMilliseconds;
+    this.maximumPollRatePerSecond = maximumPollRatePerSecond;
+    this.pollBackoffCoefficient = pollBackoffCoefficient;
+    this.pollBackoffInitialInterval = pollBackoffInitialInterval;
+    this.pollBackoffMaximumInterval = pollBackoffMaximumInterval;
+    this.pollThreadCount = pollThreadCount;
+    this.uncaughtExceptionHandler = uncaughtExceptionHandler;
+    this.pollThreadNamePrefix = pollThreadNamePrefix;
+  }
+
+  public int getMaximumPollRateIntervalMilliseconds() {
+    return maximumPollRateIntervalMilliseconds;
+  }
+
+  public double getMaximumPollRatePerSecond() {
+    return maximumPollRatePerSecond;
+  }
+
+  public double getPollBackoffCoefficient() {
+    return pollBackoffCoefficient;
+  }
+
+  public Duration getPollBackoffInitialInterval() {
+    return pollBackoffInitialInterval;
+  }
+
+  public Duration getPollBackoffMaximumInterval() {
+    return pollBackoffMaximumInterval;
+  }
+
+  public int getPollThreadCount() {
+    return pollThreadCount;
+  }
+
+  public Thread.UncaughtExceptionHandler getUncaughtExceptionHandler() {
+    return uncaughtExceptionHandler;
+  }
+
+  public String getPollThreadNamePrefix() {
+    return pollThreadNamePrefix;
+  }
+
+  @Override
+  public String toString() {
+    return "PollerOptions{"
+        + "maximumPollRateIntervalMilliseconds="
+        + maximumPollRateIntervalMilliseconds
+        + ", maximumPollRatePerSecond="
+        + maximumPollRatePerSecond
+        + ", pollBackoffCoefficient="
+        + pollBackoffCoefficient
+        + ", pollBackoffInitialInterval="
+        + pollBackoffInitialInterval
+        + ", pollBackoffMaximumInterval="
+        + pollBackoffMaximumInterval
+        + ", pollThreadCount="
+        + pollThreadCount
+        + ", pollThreadNamePrefix='"
+        + pollThreadNamePrefix
+        + '\''
+        + '}';
+  }
 }

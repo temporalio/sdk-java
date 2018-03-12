@@ -20,52 +20,52 @@ package com.uber.cadence.internal.replay;
 import com.uber.cadence.ActivityType;
 import com.uber.cadence.TimeoutType;
 
-/**
- * Exception that indicates Activity time out.
- */
+/** Exception that indicates Activity time out. */
 @SuppressWarnings("serial")
 public final class ActivityTaskTimeoutException extends RuntimeException {
 
-    private final long eventId;
+  private final long eventId;
 
-    private final TimeoutType timeoutType;
+  private final TimeoutType timeoutType;
 
-    private final byte[] details;
+  private final byte[] details;
 
-    private final ActivityType activityType;
+  private final ActivityType activityType;
 
-    private final String activityId;
+  private final String activityId;
 
-    ActivityTaskTimeoutException(long eventId, ActivityType activityType, String activityId, TimeoutType timeoutType,
-                                 byte[] details) {
-        super(String.valueOf(timeoutType));
-        this.eventId = eventId;
-        this.activityType = activityType;
-        this.activityId = activityId;
-        this.timeoutType = timeoutType;
-        this.details = details;
-    }
+  ActivityTaskTimeoutException(
+      long eventId,
+      ActivityType activityType,
+      String activityId,
+      TimeoutType timeoutType,
+      byte[] details) {
+    super(String.valueOf(timeoutType));
+    this.eventId = eventId;
+    this.activityType = activityType;
+    this.activityId = activityId;
+    this.timeoutType = timeoutType;
+    this.details = details;
+  }
 
-    /**
-     * @return The value from the last activity heartbeat details field.
-     */
-    public byte[] getDetails() {
-        return details;
-    }
+  /** @return The value from the last activity heartbeat details field. */
+  public byte[] getDetails() {
+    return details;
+  }
 
-    public long getEventId() {
-        return eventId;
-    }
+  public long getEventId() {
+    return eventId;
+  }
 
-    public TimeoutType getTimeoutType() {
-        return timeoutType;
-    }
+  public TimeoutType getTimeoutType() {
+    return timeoutType;
+  }
 
-    public ActivityType getActivityType() {
-        return activityType;
-    }
+  public ActivityType getActivityType() {
+    return activityType;
+  }
 
-    public String getActivityId() {
-        return activityId;
-    }
+  public String getActivityId() {
+    return activityId;
+  }
 }

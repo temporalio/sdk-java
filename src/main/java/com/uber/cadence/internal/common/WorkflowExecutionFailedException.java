@@ -17,29 +17,28 @@
 
 package com.uber.cadence.internal.common;
 
-/**
- * Framework level exception. Do not throw or catch in the application level code.
- */
+/** Framework level exception. Do not throw or catch in the application level code. */
 public final class WorkflowExecutionFailedException extends RuntimeException {
 
-    private final byte[] details;
-    private final long decisionTaskCompletedEventId;
+  private final byte[] details;
+  private final long decisionTaskCompletedEventId;
 
-    WorkflowExecutionFailedException(String reason, byte[] details, long decisionTaskCompletedEventId) {
-        super(reason);
-        this.details = details;
-        this.decisionTaskCompletedEventId = decisionTaskCompletedEventId;
-    }
+  WorkflowExecutionFailedException(
+      String reason, byte[] details, long decisionTaskCompletedEventId) {
+    super(reason);
+    this.details = details;
+    this.decisionTaskCompletedEventId = decisionTaskCompletedEventId;
+  }
 
-    public String getReason() {
-        return getMessage();
-    }
+  public String getReason() {
+    return getMessage();
+  }
 
-    public byte[] getDetails() {
-        return details;
-    }
+  public byte[] getDetails() {
+    return details;
+  }
 
-    public long getDecisionTaskCompletedEventId() {
-        return decisionTaskCompletedEventId;
-    }
+  public long getDecisionTaskCompletedEventId() {
+    return decisionTaskCompletedEventId;
+  }
 }

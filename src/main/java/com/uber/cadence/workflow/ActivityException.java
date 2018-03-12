@@ -19,27 +19,33 @@ package com.uber.cadence.workflow;
 
 import com.uber.cadence.ActivityType;
 
-/**
- * Exception used to communicate failure of a remote activity.
- */
+/** Exception used to communicate failure of a remote activity. */
 @SuppressWarnings("serial")
 public abstract class ActivityException extends WorkflowOperationException {
-    
-    private final ActivityType activityType;
 
-    private final String activityId;
+  private final ActivityType activityType;
 
-    protected ActivityException(String message, long eventId, ActivityType activityType, String activityId) {
-        super("ActivityType=\"" + activityType.getName() + "\" ActivityID=\"" + activityId + "\", EventID=" +  eventId, eventId);
-        this.activityType = activityType;
-        this.activityId = activityId;
-    }
-    
-    public ActivityType getActivityType() {
-        return activityType;
-    }
-    
-    public String getActivityId() {
-        return activityId;
-    }
+  private final String activityId;
+
+  protected ActivityException(
+      String message, long eventId, ActivityType activityType, String activityId) {
+    super(
+        "ActivityType=\""
+            + activityType.getName()
+            + "\" ActivityID=\""
+            + activityId
+            + "\", EventID="
+            + eventId,
+        eventId);
+    this.activityType = activityType;
+    this.activityId = activityId;
+  }
+
+  public ActivityType getActivityType() {
+    return activityType;
+  }
+
+  public String getActivityId() {
+    return activityId;
+  }
 }

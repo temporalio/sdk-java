@@ -24,21 +24,25 @@ import com.uber.cadence.WorkflowExecution;
  */
 public final class WorkflowTerminatedException extends WorkflowException {
 
-    private final byte[] details;
-    private final String identity;
+  private final byte[] details;
+  private final String identity;
 
-    public WorkflowTerminatedException(WorkflowExecution execution, String workflowType, String reason,
-                                       String identity, byte[] details) {
-        super("Terminated by " + identity + " for \"" + reason + "\"", execution, workflowType, null);
-        this.identity = identity;
-        this.details = details;
-    }
+  public WorkflowTerminatedException(
+      WorkflowExecution execution,
+      String workflowType,
+      String reason,
+      String identity,
+      byte[] details) {
+    super("Terminated by " + identity + " for \"" + reason + "\"", execution, workflowType, null);
+    this.identity = identity;
+    this.details = details;
+  }
 
-    public String getIdentity() {
-        return identity;
-    }
+  public String getIdentity() {
+    return identity;
+  }
 
-    public byte[] getDetails() {
-        return details;
-    }
+  public byte[] getDetails() {
+    return details;
+  }
 }

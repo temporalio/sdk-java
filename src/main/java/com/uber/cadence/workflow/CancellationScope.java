@@ -18,7 +18,6 @@
 package com.uber.cadence.workflow;
 
 import com.uber.cadence.internal.sync.WorkflowInternal;
-
 import java.util.concurrent.CancellationException;
 
 /**
@@ -28,48 +27,51 @@ import java.util.concurrent.CancellationException;
  */
 public interface CancellationScope {
 
-    /**
-     * When set to false parent thread cancellation causes this one to get cancelled automatically.
-     * When set to true only call to {@link #cancel()} leads to this scope cancellation.
-     */
-    boolean isDetached();
+  /**
+   * When set to false parent thread cancellation causes this one to get cancelled automatically.
+   * When set to true only call to {@link #cancel()} leads to this scope cancellation.
+   */
+  boolean isDetached();
 
-    /**
-     * Cancels the scope as well as all its children
-     */
-    void cancel();
+  /** Cancels the scope as well as all its children */
+  void cancel();
 
-    /**
-     * Cancels the scope as well as all its children.
-     * @param reason human readable reason for the cancellation. Becomes message of the CancellationException thrown.
-     */
-    void cancel(String reason);
+  /**
+   * Cancels the scope as well as all its children.
+   *
+   * @param reason human readable reason for the cancellation. Becomes message of the
+   *     CancellationException thrown.
+   */
+  void cancel(String reason);
 
-    String getCancellationReason();
+  String getCancellationReason();
 
-    /**
-     * Is scope was asked to cancel through {@link #cancel()} or by a parent scope.
-     * @return
-     */
-    boolean isCancelRequested();
+  /**
+   * Is scope was asked to cancel through {@link #cancel()} or by a parent scope.
+   *
+   * @return
+   */
+  boolean isCancelRequested();
 
-    /**
-     * Use this promise to perform cancellation of async operations.
-     * @return promise that becomes ready when scope is cancelled. It contains reason value or null if none was provided.
-     */
-    Promise<String> getCancellationRequest();
+  /**
+   * Use this promise to perform cancellation of async operations.
+   *
+   * @return promise that becomes ready when scope is cancelled. It contains reason value or null if
+   *     none was provided.
+   */
+  Promise<String> getCancellationRequest();
 
-    static CancellationScope current() {
-        return WorkflowInternal.currentCancellationScope();
+  static CancellationScope current() {
+    return WorkflowInternal.currentCancellationScope();
+  }
+
+  /**
+   * Throws {@link java.util.concurrent.CancellationException} if scope is cancelled. Noop if not
+   * cancelled.
+   */
+  static void throwCancelled() throws CancellationException {
+    if (current().isCancelRequested()) {
+      throw new CancellationException();
     }
-
-    /**
-     * Throws {@link java.util.concurrent.CancellationException} if scope is cancelled.
-     * Noop if not cancelled.
-     */
-    static void throwCancelled() throws CancellationException {
-        if (current().isCancelRequested()) {
-            throw new CancellationException();
-        }
-    }
+  }
 }

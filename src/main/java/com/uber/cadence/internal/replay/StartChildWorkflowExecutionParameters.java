@@ -20,178 +20,208 @@ package com.uber.cadence.internal.replay;
 import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.WorkflowIdReusePolicy;
 import com.uber.cadence.WorkflowType;
-
 import java.util.Arrays;
 
 public final class StartChildWorkflowExecutionParameters {
 
-    public final static class Builder {
+  public static final class Builder {
 
-        private String domain;
+    private String domain;
 
-        private String control;
+    private String control;
 
-        private long executionStartToCloseTimeoutSeconds;
+    private long executionStartToCloseTimeoutSeconds;
 
-        private byte[] input;
+    private byte[] input;
 
-        private String taskList;
+    private String taskList;
 
-        private long taskStartToCloseTimeoutSeconds;
+    private long taskStartToCloseTimeoutSeconds;
 
-        private String workflowId;
+    private String workflowId;
 
-        private WorkflowType workflowType;
+    private WorkflowType workflowType;
 
-        private ChildPolicy childPolicy;
+    private ChildPolicy childPolicy;
 
-        private WorkflowIdReusePolicy workflowIdReusePolicy;
+    private WorkflowIdReusePolicy workflowIdReusePolicy;
 
-        public Builder setDomain(String domain) {
-            this.domain = domain;
-            return this;
-        }
-
-        public Builder setControl(String control) {
-            this.control = control;
-            return this;
-        }
-
-        public Builder setExecutionStartToCloseTimeoutSeconds(long executionStartToCloseTimeoutSeconds) {
-            this.executionStartToCloseTimeoutSeconds = executionStartToCloseTimeoutSeconds;
-            return this;
-        }
-
-        public Builder setInput(byte[] input) {
-            this.input = input;
-            return this;
-        }
-
-        public Builder setTaskList(String taskList) {
-            this.taskList = taskList;
-            return this;
-        }
-
-        public Builder setTaskStartToCloseTimeoutSeconds(long taskStartToCloseTimeoutSeconds) {
-            this.taskStartToCloseTimeoutSeconds = taskStartToCloseTimeoutSeconds;
-            return this;
-        }
-
-        public Builder setWorkflowId(String workflowId) {
-            this.workflowId = workflowId;
-            return this;
-        }
-
-        public Builder setWorkflowType(WorkflowType workflowType) {
-            this.workflowType = workflowType;
-            return this;
-        }
-
-        public Builder setChildPolicy(ChildPolicy childPolicy) {
-            this.childPolicy = childPolicy;
-            return this;
-        }
-
-        public Builder setWorkflowIdReusePolicy(WorkflowIdReusePolicy workflowIdReusePolicy) {
-            this.workflowIdReusePolicy = workflowIdReusePolicy;
-            return this;
-        }
-
-        public StartChildWorkflowExecutionParameters build() {
-            return new StartChildWorkflowExecutionParameters(domain, input, control, executionStartToCloseTimeoutSeconds,
-                    taskList, taskStartToCloseTimeoutSeconds, workflowId, workflowType, childPolicy, workflowIdReusePolicy);
-        }
+    public Builder setDomain(String domain) {
+      this.domain = domain;
+      return this;
     }
 
-    private final String domain;
-
-    private final String control;
-
-    private final long executionStartToCloseTimeoutSeconds;
-
-    private final byte[] input;
-
-    private final String taskList;
-
-    private final long taskStartToCloseTimeoutSeconds;
-
-    private final String workflowId;
-
-    private final WorkflowType workflowType;
-
-    private final ChildPolicy childPolicy;
-
-    private final WorkflowIdReusePolicy workflowIdReusePolicy;
-
-    private StartChildWorkflowExecutionParameters(String domain, byte[] input, String control, long executionStartToCloseTimeoutSeconds,
-                                                 String taskList, long taskStartToCloseTimeoutSeconds,
-                                                 String workflowId, WorkflowType workflowType, ChildPolicy childPolicy,
-                                                 WorkflowIdReusePolicy workflowIdReusePolicy) {
-        this.domain = domain;
-        this.input = input;
-        this.control = control;
-        this.executionStartToCloseTimeoutSeconds = executionStartToCloseTimeoutSeconds;
-        this.taskList = taskList;
-        this.taskStartToCloseTimeoutSeconds = taskStartToCloseTimeoutSeconds;
-        this.workflowId = workflowId;
-        this.workflowType = workflowType;
-        this.childPolicy = childPolicy;
-        this.workflowIdReusePolicy = workflowIdReusePolicy;
+    public Builder setControl(String control) {
+      this.control = control;
+      return this;
     }
 
-    public String getDomain() {
-        return domain;
+    public Builder setExecutionStartToCloseTimeoutSeconds(
+        long executionStartToCloseTimeoutSeconds) {
+      this.executionStartToCloseTimeoutSeconds = executionStartToCloseTimeoutSeconds;
+      return this;
     }
 
-    public String getControl() {
-        return control;
+    public Builder setInput(byte[] input) {
+      this.input = input;
+      return this;
     }
 
-    public long getExecutionStartToCloseTimeoutSeconds() {
-        return executionStartToCloseTimeoutSeconds;
+    public Builder setTaskList(String taskList) {
+      this.taskList = taskList;
+      return this;
     }
 
-    public byte[] getInput() {
-        return input;
+    public Builder setTaskStartToCloseTimeoutSeconds(long taskStartToCloseTimeoutSeconds) {
+      this.taskStartToCloseTimeoutSeconds = taskStartToCloseTimeoutSeconds;
+      return this;
     }
 
-    public String getTaskList() {
-        return taskList;
+    public Builder setWorkflowId(String workflowId) {
+      this.workflowId = workflowId;
+      return this;
     }
 
-    public long getTaskStartToCloseTimeoutSeconds() {
-        return taskStartToCloseTimeoutSeconds;
+    public Builder setWorkflowType(WorkflowType workflowType) {
+      this.workflowType = workflowType;
+      return this;
     }
 
-    public String getWorkflowId() {
-        return workflowId;
+    public Builder setChildPolicy(ChildPolicy childPolicy) {
+      this.childPolicy = childPolicy;
+      return this;
     }
 
-    public WorkflowType getWorkflowType() {
-        return workflowType;
+    public Builder setWorkflowIdReusePolicy(WorkflowIdReusePolicy workflowIdReusePolicy) {
+      this.workflowIdReusePolicy = workflowIdReusePolicy;
+      return this;
     }
 
-    public ChildPolicy getChildPolicy() {
-        return childPolicy;
+    public StartChildWorkflowExecutionParameters build() {
+      return new StartChildWorkflowExecutionParameters(
+          domain,
+          input,
+          control,
+          executionStartToCloseTimeoutSeconds,
+          taskList,
+          taskStartToCloseTimeoutSeconds,
+          workflowId,
+          workflowType,
+          childPolicy,
+          workflowIdReusePolicy);
     }
+  }
 
-    public WorkflowIdReusePolicy getWorkflowIdReusePolicy() {
-        return workflowIdReusePolicy;
-    }
+  private final String domain;
 
-    @Override
-    public String toString() {
-        return "StartChildWorkflowExecutionParameters{" +
-                "domain='" + domain + '\'' +
-                ", control='" + control + '\'' +
-                ", executionStartToCloseTimeoutSeconds=" + executionStartToCloseTimeoutSeconds +
-                ", input=" + Arrays.toString(input) +
-                ", taskList='" + taskList + '\'' +
-                ", taskStartToCloseTimeoutSeconds=" + taskStartToCloseTimeoutSeconds +
-                ", workflowId='" + workflowId + '\'' +
-                ", workflowType=" + workflowType +
-                ", childPolicy=" + childPolicy +
-                ", workflowIdReusePolicy=" + workflowIdReusePolicy +
-                '}';
-    }
+  private final String control;
+
+  private final long executionStartToCloseTimeoutSeconds;
+
+  private final byte[] input;
+
+  private final String taskList;
+
+  private final long taskStartToCloseTimeoutSeconds;
+
+  private final String workflowId;
+
+  private final WorkflowType workflowType;
+
+  private final ChildPolicy childPolicy;
+
+  private final WorkflowIdReusePolicy workflowIdReusePolicy;
+
+  private StartChildWorkflowExecutionParameters(
+      String domain,
+      byte[] input,
+      String control,
+      long executionStartToCloseTimeoutSeconds,
+      String taskList,
+      long taskStartToCloseTimeoutSeconds,
+      String workflowId,
+      WorkflowType workflowType,
+      ChildPolicy childPolicy,
+      WorkflowIdReusePolicy workflowIdReusePolicy) {
+    this.domain = domain;
+    this.input = input;
+    this.control = control;
+    this.executionStartToCloseTimeoutSeconds = executionStartToCloseTimeoutSeconds;
+    this.taskList = taskList;
+    this.taskStartToCloseTimeoutSeconds = taskStartToCloseTimeoutSeconds;
+    this.workflowId = workflowId;
+    this.workflowType = workflowType;
+    this.childPolicy = childPolicy;
+    this.workflowIdReusePolicy = workflowIdReusePolicy;
+  }
+
+  public String getDomain() {
+    return domain;
+  }
+
+  public String getControl() {
+    return control;
+  }
+
+  public long getExecutionStartToCloseTimeoutSeconds() {
+    return executionStartToCloseTimeoutSeconds;
+  }
+
+  public byte[] getInput() {
+    return input;
+  }
+
+  public String getTaskList() {
+    return taskList;
+  }
+
+  public long getTaskStartToCloseTimeoutSeconds() {
+    return taskStartToCloseTimeoutSeconds;
+  }
+
+  public String getWorkflowId() {
+    return workflowId;
+  }
+
+  public WorkflowType getWorkflowType() {
+    return workflowType;
+  }
+
+  public ChildPolicy getChildPolicy() {
+    return childPolicy;
+  }
+
+  public WorkflowIdReusePolicy getWorkflowIdReusePolicy() {
+    return workflowIdReusePolicy;
+  }
+
+  @Override
+  public String toString() {
+    return "StartChildWorkflowExecutionParameters{"
+        + "domain='"
+        + domain
+        + '\''
+        + ", control='"
+        + control
+        + '\''
+        + ", executionStartToCloseTimeoutSeconds="
+        + executionStartToCloseTimeoutSeconds
+        + ", input="
+        + Arrays.toString(input)
+        + ", taskList='"
+        + taskList
+        + '\''
+        + ", taskStartToCloseTimeoutSeconds="
+        + taskStartToCloseTimeoutSeconds
+        + ", workflowId='"
+        + workflowId
+        + '\''
+        + ", workflowType="
+        + workflowType
+        + ", childPolicy="
+        + childPolicy
+        + ", workflowIdReusePolicy="
+        + workflowIdReusePolicy
+        + '}';
+  }
 }

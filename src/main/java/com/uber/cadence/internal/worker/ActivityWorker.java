@@ -27,174 +27,194 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.internal.common.SynchronousRetryer;
+import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Objects;
-import java.util.concurrent.TimeUnit;
-
 public final class ActivityWorker implements SuspendableWorker {
 
-    private static final Logger log = LoggerFactory.getLogger(ActivityWorker.class);
+  private static final Logger log = LoggerFactory.getLogger(ActivityWorker.class);
 
-    private static final String POLL_THREAD_NAME_PREFIX = "Activity Poller ";
+  private static final String POLL_THREAD_NAME_PREFIX = "Activity Poller ";
 
-    private Poller poller;
-    private final ActivityTaskHandler handler;
-    private final WorkflowService.Iface service;
-    private final String domain;
-    private final String taskList;
-    private final SingleWorkerOptions options;
+  private Poller poller;
+  private final ActivityTaskHandler handler;
+  private final WorkflowService.Iface service;
+  private final String domain;
+  private final String taskList;
+  private final SingleWorkerOptions options;
 
-    public ActivityWorker(WorkflowService.Iface service, String domain, String taskList,
-                          SingleWorkerOptions options, ActivityTaskHandler handler) {
-        Objects.requireNonNull(service);
-        Objects.requireNonNull(domain);
-        Objects.requireNonNull(taskList);
-        this.service = service;
-        this.domain = domain;
-        this.taskList = taskList;
-        this.options = options;
-        this.handler = handler;
+  public ActivityWorker(
+      WorkflowService.Iface service,
+      String domain,
+      String taskList,
+      SingleWorkerOptions options,
+      ActivityTaskHandler handler) {
+    Objects.requireNonNull(service);
+    Objects.requireNonNull(domain);
+    Objects.requireNonNull(taskList);
+    this.service = service;
+    this.domain = domain;
+    this.taskList = taskList;
+    this.options = options;
+    this.handler = handler;
+  }
+
+  public void start() {
+    if (handler.isAnyTypeSupported()) {
+      PollerOptions pollerOptions = options.getPollerOptions();
+      if (pollerOptions.getPollThreadNamePrefix() == null) {
+        pollerOptions =
+            new PollerOptions.Builder(pollerOptions)
+                .setPollThreadNamePrefix(
+                    POLL_THREAD_NAME_PREFIX
+                        + "\""
+                        + taskList
+                        + "\", domain=\""
+                        + domain
+                        + "\", type=\"activity\"")
+                .build();
+      }
+      Poller.ThrowingRunnable pollTask =
+          new PollTask<>(service, domain, taskList, options, new TaskHandlerImpl(handler));
+      new PollTask<>(service, domain, taskList, options, new TaskHandlerImpl(handler));
+      poller = new Poller(pollerOptions, pollTask);
+      poller.start();
+    }
+  }
+
+  public void shutdown() {
+    if (poller != null) {
+      poller.shutdown();
+    }
+  }
+
+  public void shutdownNow() {
+    if (poller != null) {
+      poller.shutdownNow();
+    }
+  }
+
+  public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+    if (poller == null) {
+      return true;
+    }
+    return poller.awaitTermination(timeout, unit);
+  }
+
+  public boolean shutdownAndAwaitTermination(long timeout, TimeUnit unit)
+      throws InterruptedException {
+    if (poller == null) {
+      return true;
+    }
+    return poller.shutdownAndAwaitTermination(timeout, unit);
+  }
+
+  public boolean isRunning() {
+    if (poller == null) {
+      return false;
+    }
+    return poller.isRunning();
+  }
+
+  public void suspendPolling() {
+    if (poller != null) {
+      poller.suspendPolling();
+    }
+  }
+
+  public void resumePolling() {
+    if (poller != null) {
+      poller.resumePolling();
+    }
+  }
+
+  private class TaskHandlerImpl implements PollTask.TaskHandler<PollForActivityTaskResponse> {
+
+    final ActivityTaskHandler handler;
+
+    private TaskHandlerImpl(ActivityTaskHandler handler) {
+      this.handler = handler;
     }
 
-    public void start() {
-        if (handler.isAnyTypeSupported()) {
-            PollerOptions pollerOptions = options.getPollerOptions();
-            if (pollerOptions.getPollThreadNamePrefix() == null) {
-                pollerOptions = new PollerOptions.Builder(pollerOptions)
-                        .setPollThreadNamePrefix(POLL_THREAD_NAME_PREFIX + "\"" + taskList +
-                                "\", domain=\"" + domain + "\", type=\"activity\"")
-                        .build();
-            }
-            Poller.ThrowingRunnable pollTask =
-                    new PollTask<>(service, domain, taskList, options, new TaskHandlerImpl(handler));
-            new PollTask<>(service, domain, taskList, options, new TaskHandlerImpl(handler));
-            poller = new Poller(pollerOptions, pollTask);
-            poller.start();
-        }
+    @Override
+    public void handle(
+        WorkflowService.Iface service,
+        String domain,
+        String taskList,
+        PollForActivityTaskResponse task)
+        throws Exception {
+      ActivityTaskHandler.Result response = handler.handle(service, domain, task);
+      sendReply(task, response);
     }
 
-    public void shutdown() {
-        if (poller != null) {
-            poller.shutdown();
+    @Override
+    public PollForActivityTaskResponse poll(
+        WorkflowService.Iface service, String domain, String taskList) throws TException {
+      PollForActivityTaskRequest pollRequest = new PollForActivityTaskRequest();
+      pollRequest.setDomain(domain);
+      pollRequest.setIdentity(options.getIdentity());
+      pollRequest.setTaskList(new TaskList().setName(taskList));
+      if (log.isDebugEnabled()) {
+        log.debug("poll request begin: " + pollRequest);
+      }
+      PollForActivityTaskResponse result = service.PollForActivityTask(pollRequest);
+      if (result == null || result.getTaskToken() == null) {
+        if (log.isDebugEnabled()) {
+          log.debug("poll request returned no task");
         }
+        return null;
+      }
+      if (log.isTraceEnabled()) {
+        log.trace("poll request returned " + result);
+      }
+      return result;
     }
 
-    public void shutdownNow() {
-        if (poller != null) {
-            poller.shutdownNow();
-        }
+    @Override
+    public Throwable wrapFailure(PollForActivityTaskResponse task, Throwable failure) {
+      WorkflowExecution execution = task.getWorkflowExecution();
+      return new RuntimeException(
+          "Failure processing activity task. WorkflowID="
+              + execution.getWorkflowId()
+              + ", RunID="
+              + execution.getRunId()
+              + ", ActivityType="
+              + task.getActivityType().getName()
+              + ", ActivityID="
+              + task.getActivityId(),
+          failure);
     }
 
-    public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-        if (poller == null) {
-            return true;
+    private void sendReply(PollForActivityTaskResponse task, ActivityTaskHandler.Result response)
+        throws TException {
+      RetryOptions ro = response.getRequestRetryOptions();
+      RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
+      if (taskCompleted != null) {
+        ro = options.getReportCompletionRetryOptions().merge(ro);
+        taskCompleted.setTaskToken(task.getTaskToken());
+        taskCompleted.setIdentity(options.getIdentity());
+        SynchronousRetryer.retry(ro, () -> service.RespondActivityTaskCompleted(taskCompleted));
+      } else {
+        RespondActivityTaskFailedRequest taskFailed = response.getTaskFailed();
+        if (taskFailed != null) {
+          ro = options.getReportFailureRetryOptions().merge(ro);
+          taskFailed.setTaskToken(task.getTaskToken());
+          taskFailed.setIdentity(options.getIdentity());
+          SynchronousRetryer.retry(ro, () -> service.RespondActivityTaskFailed(taskFailed));
+        } else {
+          RespondActivityTaskCanceledRequest taskCancelled = response.getTaskCancelled();
+          if (taskCancelled != null) {
+            taskCancelled.setTaskToken(task.getTaskToken());
+            taskCancelled.setIdentity(options.getIdentity());
+            ro = options.getReportFailureRetryOptions().merge(ro);
+            SynchronousRetryer.retry(ro, () -> service.RespondActivityTaskCanceled(taskCancelled));
+          }
         }
-        return poller.awaitTermination(timeout, unit);
+      }
+      // Manual activity completion
     }
-
-    public boolean shutdownAndAwaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-        if (poller == null) {
-            return true;
-        }
-        return poller.shutdownAndAwaitTermination(timeout, unit);
-    }
-
-    public boolean isRunning() {
-        if (poller == null) {
-            return false;
-        }
-        return poller.isRunning();
-    }
-
-    public void suspendPolling() {
-        if (poller != null) {
-            poller.suspendPolling();
-        }
-    }
-
-    public void resumePolling() {
-        if (poller != null) {
-            poller.resumePolling();
-        }
-    }
-
-    private class TaskHandlerImpl implements PollTask.TaskHandler<PollForActivityTaskResponse> {
-
-        final ActivityTaskHandler handler;
-
-        private TaskHandlerImpl(ActivityTaskHandler handler) {
-            this.handler = handler;
-        }
-
-        @Override
-        public void handle(WorkflowService.Iface service, String domain, String taskList, PollForActivityTaskResponse task) throws Exception {
-            ActivityTaskHandler.Result response = handler.handle(service, domain, task);
-            sendReply(task, response);
-        }
-
-        @Override
-        public PollForActivityTaskResponse poll(WorkflowService.Iface service, String domain, String taskList) throws TException {
-            PollForActivityTaskRequest pollRequest = new PollForActivityTaskRequest();
-            pollRequest.setDomain(domain);
-            pollRequest.setIdentity(options.getIdentity());
-            pollRequest.setTaskList(new TaskList().setName(taskList));
-            if (log.isDebugEnabled()) {
-                log.debug("poll request begin: " + pollRequest);
-            }
-            PollForActivityTaskResponse result = service.PollForActivityTask(pollRequest);
-            if (result == null || result.getTaskToken() == null) {
-                if (log.isDebugEnabled()) {
-                    log.debug("poll request returned no task");
-                }
-                return null;
-            }
-            if (log.isTraceEnabled()) {
-                log.trace("poll request returned " + result);
-            }
-            return result;
-        }
-
-        @Override
-        public Throwable wrapFailure(PollForActivityTaskResponse task, Throwable failure) {
-            WorkflowExecution execution = task.getWorkflowExecution();
-            return new RuntimeException("Failure processing activity task. WorkflowID="
-                    + execution.getWorkflowId() + ", RunID=" + execution.getRunId()
-                    + ", ActivityType=" + task.getActivityType().getName()
-                    + ", ActivityID=" + task.getActivityId(), failure);
-        }
-
-        private void sendReply(PollForActivityTaskResponse task, ActivityTaskHandler.Result response) throws TException {
-            RetryOptions ro = response.getRequestRetryOptions();
-            RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
-            if (taskCompleted != null) {
-                ro = options.getReportCompletionRetryOptions().merge(ro);
-                taskCompleted.setTaskToken(task.getTaskToken());
-                taskCompleted.setIdentity(options.getIdentity());
-                SynchronousRetryer.retry(ro,
-                        () -> service.RespondActivityTaskCompleted(taskCompleted));
-            } else {
-                RespondActivityTaskFailedRequest taskFailed = response.getTaskFailed();
-                if (taskFailed != null) {
-                    ro = options.getReportFailureRetryOptions().merge(ro);
-                    taskFailed.setTaskToken(task.getTaskToken());
-                    taskFailed.setIdentity(options.getIdentity());
-                    SynchronousRetryer.retry(ro,
-                            () -> service.RespondActivityTaskFailed(taskFailed));
-                } else {
-                    RespondActivityTaskCanceledRequest taskCancelled = response.getTaskCancelled();
-                    if (taskCancelled != null) {
-                        taskCancelled.setTaskToken(task.getTaskToken());
-                        taskCancelled.setIdentity(options.getIdentity());
-                        ro = options.getReportFailureRetryOptions().merge(ro);
-                        SynchronousRetryer.retry(ro,
-                                () -> service.RespondActivityTaskCanceled(taskCancelled));
-                    }
-                }
-            }
-            // Manual activity completion
-        }
-    }
+  }
 }

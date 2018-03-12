@@ -20,7 +20,7 @@ package com.uber.cadence.internal.replay;
 import com.uber.cadence.WorkflowType;
 
 public interface ReplayWorkflowFactory {
-    ReplayWorkflow getWorkflow(WorkflowType workflowType) throws Exception;
+  ReplayWorkflow getWorkflow(WorkflowType workflowType) throws Exception;
 
-    boolean isAnyTypeSupported();
+  boolean isAnyTypeSupported();
 }

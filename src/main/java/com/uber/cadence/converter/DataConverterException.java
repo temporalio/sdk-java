@@ -17,7 +17,6 @@
 
 package com.uber.cadence.converter;
 
-
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
@@ -28,39 +27,42 @@ import java.util.Arrays;
 @SuppressWarnings("serial")
 public class DataConverterException extends RuntimeException {
 
-    private Class<?>[] valueTypes;
+  private Class<?>[] valueTypes;
 
-    private String content;
+  private String content;
 
-    public DataConverterException(byte[] content, Class<?>[] valueTypes, Throwable cause) {
-        super(cause);
-        this.valueTypes = valueTypes;
-        setContent(content);
+  public DataConverterException(byte[] content, Class<?>[] valueTypes, Throwable cause) {
+    super(cause);
+    this.valueTypes = valueTypes;
+    setContent(content);
+  }
+
+  public DataConverterException(byte[] content, Throwable cause) {
+    super(cause);
+    setContent(content);
+  }
+
+  public DataConverterException(Exception e) {
+    super(e);
+  }
+
+  private void setContent(byte[] content) {
+    if (content != null) {
+      // Limit size of the string.
+      int maxIndex = Math.min(content.length, 255);
+      this.content = new String(content, 0, maxIndex, StandardCharsets.UTF_8);
     }
+  }
 
-    public DataConverterException(byte[] content, Throwable cause) {
-        super(cause);
-        setContent(content);
+  @Override
+  public String getMessage() {
+    if (content == null && valueTypes == null) {
+      return super.getMessage();
     }
-
-    public DataConverterException(Exception e) {
-        super(e);
-    }
-
-    private void setContent(byte[] content) {
-        if (content != null) {
-            // Limit size of the string.
-            int maxIndex = Math.min(content.length, 255);
-            this.content = new String(content, 0, maxIndex, StandardCharsets.UTF_8);
-        }
-    }
-
-    @Override
-    public String getMessage() {
-        if (content == null && valueTypes == null) {
-            return super.getMessage();
-        }
-        return super.getMessage() + " when parsing:\"" + content + "\" into following types: "
-                + Arrays.toString(valueTypes);
-    }
+    return super.getMessage()
+        + " when parsing:\""
+        + content
+        + "\" into following types: "
+        + Arrays.toString(valueTypes);
+  }
 }

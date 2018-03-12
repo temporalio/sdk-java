@@ -23,103 +23,104 @@ import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.worker.DecisionTaskWithHistoryIterator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Queue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class HistoryHelper {
 
-    private static final Logger historyLog = LoggerFactory.getLogger(HistoryHelper.class.getName() + ".history");
+  private static final Logger historyLog =
+      LoggerFactory.getLogger(HistoryHelper.class.getName() + ".history");
 
-    class EventsIterator implements Iterator<HistoryEvent> {
+  class EventsIterator implements Iterator<HistoryEvent> {
 
-        private final DecisionTaskWithHistoryIterator decisionTaskWithHistoryIterator;
+    private final DecisionTaskWithHistoryIterator decisionTaskWithHistoryIterator;
 
-        private Iterator<HistoryEvent> events;
+    private Iterator<HistoryEvent> events;
 
-        private Queue<HistoryEvent> bufferedEvents = new LinkedList<>();
-        private WorkflowExecutionStartedEventAttributes workflowExecutionStartedEventAttributes;
+    private Queue<HistoryEvent> bufferedEvents = new LinkedList<>();
+    private WorkflowExecutionStartedEventAttributes workflowExecutionStartedEventAttributes;
 
-        public EventsIterator(DecisionTaskWithHistoryIterator decisionTaskWithHistoryIterator) {
-            this.workflowExecutionStartedEventAttributes = decisionTaskWithHistoryIterator.getStartedEvent();
-            this.decisionTaskWithHistoryIterator = decisionTaskWithHistoryIterator;
-            this.events = decisionTaskWithHistoryIterator.getHistory();
-        }
-
-        @Override
-        public boolean hasNext() {
-            return !bufferedEvents.isEmpty() || events.hasNext();
-        }
-
-        @Override
-        public HistoryEvent next() {
-            if (bufferedEvents.isEmpty()) {
-                return events.next();
-            }
-            return bufferedEvents.poll();
-        }
-
-        public PollForDecisionTaskResponse getDecisionTask() {
-            return decisionTaskWithHistoryIterator.getDecisionTask();
-        }
-
-        public boolean isNextDecisionFailed() {
-            while (events.hasNext()) {
-                HistoryEvent event = events.next();
-                bufferedEvents.add(event);
-                EventType eventType = event.getEventType();
-                if (eventType.equals(EventType.DecisionTaskTimedOut)) {
-                    return true;
-                } else if (eventType.equals(EventType.DecisionTaskFailed)) {
-                    return true;
-                }
-                else if (eventType.equals(EventType.DecisionTaskCompleted)) {
-                    return false;
-                }
-            }
-            return false;
-        }
-
-        @Override
-        public void remove() {
-            throw new UnsupportedOperationException();
-        }
-
-        public WorkflowExecutionStartedEventAttributes getWorkflowExecutionStartedEventAttributes() {
-            return workflowExecutionStartedEventAttributes;
-        }
+    public EventsIterator(DecisionTaskWithHistoryIterator decisionTaskWithHistoryIterator) {
+      this.workflowExecutionStartedEventAttributes =
+          decisionTaskWithHistoryIterator.getStartedEvent();
+      this.decisionTaskWithHistoryIterator = decisionTaskWithHistoryIterator;
+      this.events = decisionTaskWithHistoryIterator.getHistory();
     }
 
-    private final EventsIterator events;
-
-    public HistoryHelper(DecisionTaskWithHistoryIterator decisionTasks) {
-        this.events = new EventsIterator(decisionTasks);
+    @Override
+    public boolean hasNext() {
+      return !bufferedEvents.isEmpty() || events.hasNext();
     }
 
-    public WorkflowExecutionStartedEventAttributes getWorkflowExecutionStartedEventAttributes() {
-        return events.getWorkflowExecutionStartedEventAttributes();
-    }
-
-    public EventsIterator getEvents() {
-        return events;
-    }
-
-    public String toString() {
-        return WorkflowExecutionUtils.prettyPrintHistory(events.getDecisionTask().getHistory().getEvents().iterator(), true);
+    @Override
+    public HistoryEvent next() {
+      if (bufferedEvents.isEmpty()) {
+        return events.next();
+      }
+      return bufferedEvents.poll();
     }
 
     public PollForDecisionTaskResponse getDecisionTask() {
-        return events.getDecisionTask();
+      return decisionTaskWithHistoryIterator.getDecisionTask();
     }
 
-    public long getLastNonReplayEventId() {
-        Long result = getDecisionTask().getPreviousStartedEventId();
-        if (result == null) {
-            return 0;
+    public boolean isNextDecisionFailed() {
+      while (events.hasNext()) {
+        HistoryEvent event = events.next();
+        bufferedEvents.add(event);
+        EventType eventType = event.getEventType();
+        if (eventType.equals(EventType.DecisionTaskTimedOut)) {
+          return true;
+        } else if (eventType.equals(EventType.DecisionTaskFailed)) {
+          return true;
+        } else if (eventType.equals(EventType.DecisionTaskCompleted)) {
+          return false;
         }
-        return result;
+      }
+      return false;
     }
+
+    @Override
+    public void remove() {
+      throw new UnsupportedOperationException();
+    }
+
+    public WorkflowExecutionStartedEventAttributes getWorkflowExecutionStartedEventAttributes() {
+      return workflowExecutionStartedEventAttributes;
+    }
+  }
+
+  private final EventsIterator events;
+
+  public HistoryHelper(DecisionTaskWithHistoryIterator decisionTasks) {
+    this.events = new EventsIterator(decisionTasks);
+  }
+
+  public WorkflowExecutionStartedEventAttributes getWorkflowExecutionStartedEventAttributes() {
+    return events.getWorkflowExecutionStartedEventAttributes();
+  }
+
+  public EventsIterator getEvents() {
+    return events;
+  }
+
+  public String toString() {
+    return WorkflowExecutionUtils.prettyPrintHistory(
+        events.getDecisionTask().getHistory().getEvents().iterator(), true);
+  }
+
+  public PollForDecisionTaskResponse getDecisionTask() {
+    return events.getDecisionTask();
+  }
+
+  public long getLastNonReplayEventId() {
+    Long result = getDecisionTask().getPreviousStartedEventId();
+    if (result == null) {
+      return 0;
+    }
+    return result;
+  }
 }

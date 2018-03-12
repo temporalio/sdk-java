@@ -22,84 +22,78 @@ import com.uber.cadence.HistoryEvent;
 
 final class CompleteWorkflowStateMachine implements DecisionStateMachine {
 
-    private Decision decision;
-    private final DecisionId id;
-    
-    public CompleteWorkflowStateMachine(DecisionId id, Decision decision) {
-        this.id = id;
-        this.decision = decision;
-    }
+  private Decision decision;
+  private final DecisionId id;
 
-    
-    
-    public DecisionId getId() {
-        return id;
-    }
+  public CompleteWorkflowStateMachine(DecisionId id, Decision decision) {
+    this.id = id;
+    this.decision = decision;
+  }
 
+  public DecisionId getId() {
+    return id;
+  }
 
-    @Override
-    public com.uber.cadence.Decision getDecision() {
-        return decision;
-    }
+  @Override
+  public com.uber.cadence.Decision getDecision() {
+    return decision;
+  }
 
-    @Override
-    public void handleInitiationFailedEvent(HistoryEvent event) {
-        decision = null;
-    }
+  @Override
+  public void handleInitiationFailedEvent(HistoryEvent event) {
+    decision = null;
+  }
 
-    @Override
-    public void cancel(Runnable immediateCancellationCallback) {
-        throw new UnsupportedOperationException();
-    }
+  @Override
+  public void cancel(Runnable immediateCancellationCallback) {
+    throw new UnsupportedOperationException();
+  }
 
-    @Override
-    public void handleStartedEvent(HistoryEvent event) {
-        throw new UnsupportedOperationException();
-    }
+  @Override
+  public void handleStartedEvent(HistoryEvent event) {
+    throw new UnsupportedOperationException();
+  }
 
-    @Override
-    public void handleCancellationEvent() {
-        throw new UnsupportedOperationException();
-    }
+  @Override
+  public void handleCancellationEvent() {
+    throw new UnsupportedOperationException();
+  }
 
-    @Override
-    public void handleCancellationFailureEvent(HistoryEvent event) {
-        throw new UnsupportedOperationException();
-    }
+  @Override
+  public void handleCancellationFailureEvent(HistoryEvent event) {
+    throw new UnsupportedOperationException();
+  }
 
-    @Override
-    public void handleCompletionEvent() {
-        throw new UnsupportedOperationException();
-    }
+  @Override
+  public void handleCompletionEvent() {
+    throw new UnsupportedOperationException();
+  }
 
-    @Override
-    public void handleInitiatedEvent(HistoryEvent event) {
-        throw new UnsupportedOperationException();
-    }
+  @Override
+  public void handleInitiatedEvent(HistoryEvent event) {
+    throw new UnsupportedOperationException();
+  }
 
-    @Override
-    public DecisionState getState() {
-        return DecisionState.CREATED;
-    }
+  @Override
+  public DecisionState getState() {
+    return DecisionState.CREATED;
+  }
 
-    @Override
-    public void handleCancellationInitiatedEvent() {
-        throw new UnsupportedOperationException();
-    }
+  @Override
+  public void handleCancellationInitiatedEvent() {
+    throw new UnsupportedOperationException();
+  }
 
-    @Override
-    public boolean isDone() {
-        return decision != null;
-    }
+  @Override
+  public boolean isDone() {
+    return decision != null;
+  }
 
-    @Override
-    public void handleDecisionTaskStartedEvent() {
-        
-    }
+  @Override
+  public void handleDecisionTaskStartedEvent() {}
 
-    @Override
-    public String toString() {
-        return "CompleteWorkflowStateMachine [decision=" + decision + ", id=" + id + "]";
-    }
-    
+  @Override
+  public String toString() {
+    return "CompleteWorkflowStateMachine [decision=" + decision + ", id=" + id + "]";
+  }
 }

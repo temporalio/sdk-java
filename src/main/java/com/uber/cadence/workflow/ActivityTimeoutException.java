@@ -22,34 +22,37 @@ import com.uber.cadence.TimeoutType;
 import com.uber.cadence.converter.DataConverter;
 
 /**
- * Exception that indicates Activity that activity timed out.
- * If timeout type is {@link TimeoutType#HEARTBEAT} then {@link #getDetails(Class)} returns the value
- * passed to the latest successful {@link com.uber.cadence.activity.Activity#heartbeat(Object)} call.
+ * Exception that indicates Activity that activity timed out. If timeout type is {@link
+ * TimeoutType#HEARTBEAT} then {@link #getDetails(Class)} returns the value passed to the latest
+ * successful {@link com.uber.cadence.activity.Activity#heartbeat(Object)} call.
  */
 @SuppressWarnings("serial")
 public final class ActivityTimeoutException extends ActivityException {
 
-    private final TimeoutType timeoutType;
+  private final TimeoutType timeoutType;
 
-    private final byte[] details;
-    private final DataConverter dataConverter;
+  private final byte[] details;
+  private final DataConverter dataConverter;
 
-    public ActivityTimeoutException(long eventId, ActivityType activityType, String activityId, TimeoutType timeoutType,
-                                    byte[] details, DataConverter dataConverter) {
-        super(String.valueOf(timeoutType) + " timeout", eventId, activityType, activityId);
-        this.timeoutType = timeoutType;
-        this.details = details;
-        this.dataConverter = dataConverter;
-    }
+  public ActivityTimeoutException(
+      long eventId,
+      ActivityType activityType,
+      String activityId,
+      TimeoutType timeoutType,
+      byte[] details,
+      DataConverter dataConverter) {
+    super(String.valueOf(timeoutType) + " timeout", eventId, activityType, activityId);
+    this.timeoutType = timeoutType;
+    this.details = details;
+    this.dataConverter = dataConverter;
+  }
 
-    public TimeoutType getTimeoutType() {
-        return timeoutType;
-    }
+  public TimeoutType getTimeoutType() {
+    return timeoutType;
+  }
 
-    /**
-     * @return The value from the last activity heartbeat details field.
-     */
-    public <V> V getDetails(Class<V> detailsClass) {
-        return dataConverter.fromData(details, detailsClass);
-    }
+  /** @return The value from the last activity heartbeat details field. */
+  public <V> V getDetails(Class<V> detailsClass) {
+    return dataConverter.fromData(details, detailsClass);
+  }
 }

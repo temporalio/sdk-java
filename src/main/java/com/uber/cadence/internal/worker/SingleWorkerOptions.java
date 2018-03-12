@@ -20,135 +20,144 @@ package com.uber.cadence.internal.worker;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.converter.JsonDataConverter;
-
 import java.time.Duration;
 
 public final class SingleWorkerOptions {
 
-    public static final class Builder {
+  public static final class Builder {
 
-        private String identity;
+    private String identity;
 
-        private DataConverter dataConverter;
+    private DataConverter dataConverter;
 
-        private int taskExecutorThreadPoolSize = 100;
+    private int taskExecutorThreadPoolSize = 100;
 
-        private PollerOptions pollerOptions;
+    private PollerOptions pollerOptions;
 
-        /**
-         * TODO: Dynamic expiration based on activity timeout
-         */
-        private RetryOptions reportCompletionRetryOptions;
+    /** TODO: Dynamic expiration based on activity timeout */
+    private RetryOptions reportCompletionRetryOptions;
 
-        private RetryOptions reportFailureRetryOptions;
+    private RetryOptions reportFailureRetryOptions;
 
-        public Builder setIdentity(String identity) {
-            this.identity = identity;
-            return this;
-        }
-
-        public Builder setDataConverter(DataConverter dataConverter) {
-            this.dataConverter = dataConverter;
-            return this;
-        }
-
-        public Builder setTaskExecutorThreadPoolSize(int taskExecutorThreadPoolSize) {
-            this.taskExecutorThreadPoolSize = taskExecutorThreadPoolSize;
-            return this;
-        }
-
-        public Builder setPollerOptions(PollerOptions pollerOptions) {
-            this.pollerOptions = pollerOptions;
-            return this;
-        }
-
-        public SingleWorkerOptions build() {
-            if (reportCompletionRetryOptions == null) {
-                reportCompletionRetryOptions = new RetryOptions.Builder()
-                        .setInitialInterval(Duration.ofMillis(50))
-                        .setMaximumInterval(Duration.ofSeconds(10))
-                        .setExpiration(Duration.ofMinutes(1))
-                        .build();
-            }
-
-            if (reportFailureRetryOptions == null) {
-                reportFailureRetryOptions = new RetryOptions.Builder()
-                        .setInitialInterval(Duration.ofMillis(50))
-                        .setMaximumInterval(Duration.ofSeconds(10))
-                        .setExpiration(Duration.ofMinutes(1))
-                        .build();
-            }
-
-            if (pollerOptions == null) {
-                pollerOptions = new PollerOptions.Builder()
-                        .setPollBackoffInitialInterval(Duration.ofMillis(200))
-                        .setPollBackoffMaximumInterval(Duration.ofSeconds(20))
-                        .setPollThreadCount(1)
-                        .build();
-            }
-            DataConverter dc = dataConverter;
-            if (dc == null) {
-                dc = JsonDataConverter.getInstance();
-            }
-            return new SingleWorkerOptions(identity, dc, taskExecutorThreadPoolSize, pollerOptions,
-                    reportCompletionRetryOptions, reportFailureRetryOptions);
-        }
-
-        public Builder setReportCompletionRetryOptions(RetryOptions reportCompletionRetryOptions) {
-            this.reportCompletionRetryOptions = reportCompletionRetryOptions;
-            return this;
-        }
-
-        public Builder setReportFailureRetryOptions(RetryOptions reportFailureRetryOptions) {
-            this.reportFailureRetryOptions = reportFailureRetryOptions;
-            return this;
-        }
+    public Builder setIdentity(String identity) {
+      this.identity = identity;
+      return this;
     }
 
-    private final String identity;
-
-    private final DataConverter dataConverter;
-
-    private final int taskExecutorThreadPoolSize;
-
-    private final PollerOptions pollerOptions;
-
-    private final RetryOptions reportCompletionRetryOptions;
-
-    private final RetryOptions reportFailureRetryOptions;
-
-    private SingleWorkerOptions(String identity, DataConverter dataConverter, int taskExecutorThreadPoolSize,
-                                PollerOptions pollerOptions, RetryOptions reportCompletionRetryOptions,
-                                RetryOptions reportFailureRetryOptions) {
-        this.identity = identity;
-        this.dataConverter = dataConverter;
-        this.taskExecutorThreadPoolSize = taskExecutorThreadPoolSize;
-        this.pollerOptions = pollerOptions;
-        this.reportCompletionRetryOptions = reportCompletionRetryOptions;
-        this.reportFailureRetryOptions = reportFailureRetryOptions;
+    public Builder setDataConverter(DataConverter dataConverter) {
+      this.dataConverter = dataConverter;
+      return this;
     }
 
-    public String getIdentity() {
-        return identity;
+    public Builder setTaskExecutorThreadPoolSize(int taskExecutorThreadPoolSize) {
+      this.taskExecutorThreadPoolSize = taskExecutorThreadPoolSize;
+      return this;
     }
 
-    public DataConverter getDataConverter() {
-        return dataConverter;
+    public Builder setPollerOptions(PollerOptions pollerOptions) {
+      this.pollerOptions = pollerOptions;
+      return this;
     }
 
-    public int getTaskExecutorThreadPoolSize() {
-        return taskExecutorThreadPoolSize;
+    public SingleWorkerOptions build() {
+      if (reportCompletionRetryOptions == null) {
+        reportCompletionRetryOptions =
+            new RetryOptions.Builder()
+                .setInitialInterval(Duration.ofMillis(50))
+                .setMaximumInterval(Duration.ofSeconds(10))
+                .setExpiration(Duration.ofMinutes(1))
+                .build();
+      }
+
+      if (reportFailureRetryOptions == null) {
+        reportFailureRetryOptions =
+            new RetryOptions.Builder()
+                .setInitialInterval(Duration.ofMillis(50))
+                .setMaximumInterval(Duration.ofSeconds(10))
+                .setExpiration(Duration.ofMinutes(1))
+                .build();
+      }
+
+      if (pollerOptions == null) {
+        pollerOptions =
+            new PollerOptions.Builder()
+                .setPollBackoffInitialInterval(Duration.ofMillis(200))
+                .setPollBackoffMaximumInterval(Duration.ofSeconds(20))
+                .setPollThreadCount(1)
+                .build();
+      }
+      DataConverter dc = dataConverter;
+      if (dc == null) {
+        dc = JsonDataConverter.getInstance();
+      }
+      return new SingleWorkerOptions(
+          identity,
+          dc,
+          taskExecutorThreadPoolSize,
+          pollerOptions,
+          reportCompletionRetryOptions,
+          reportFailureRetryOptions);
     }
 
-    public PollerOptions getPollerOptions() {
-        return pollerOptions;
+    public Builder setReportCompletionRetryOptions(RetryOptions reportCompletionRetryOptions) {
+      this.reportCompletionRetryOptions = reportCompletionRetryOptions;
+      return this;
     }
 
-    public RetryOptions getReportCompletionRetryOptions() {
-        return reportCompletionRetryOptions;
+    public Builder setReportFailureRetryOptions(RetryOptions reportFailureRetryOptions) {
+      this.reportFailureRetryOptions = reportFailureRetryOptions;
+      return this;
     }
+  }
 
-    public RetryOptions getReportFailureRetryOptions() {
-        return reportFailureRetryOptions;
-    }
+  private final String identity;
+
+  private final DataConverter dataConverter;
+
+  private final int taskExecutorThreadPoolSize;
+
+  private final PollerOptions pollerOptions;
+
+  private final RetryOptions reportCompletionRetryOptions;
+
+  private final RetryOptions reportFailureRetryOptions;
+
+  private SingleWorkerOptions(
+      String identity,
+      DataConverter dataConverter,
+      int taskExecutorThreadPoolSize,
+      PollerOptions pollerOptions,
+      RetryOptions reportCompletionRetryOptions,
+      RetryOptions reportFailureRetryOptions) {
+    this.identity = identity;
+    this.dataConverter = dataConverter;
+    this.taskExecutorThreadPoolSize = taskExecutorThreadPoolSize;
+    this.pollerOptions = pollerOptions;
+    this.reportCompletionRetryOptions = reportCompletionRetryOptions;
+    this.reportFailureRetryOptions = reportFailureRetryOptions;
+  }
+
+  public String getIdentity() {
+    return identity;
+  }
+
+  public DataConverter getDataConverter() {
+    return dataConverter;
+  }
+
+  public int getTaskExecutorThreadPoolSize() {
+    return taskExecutorThreadPoolSize;
+  }
+
+  public PollerOptions getPollerOptions() {
+    return pollerOptions;
+  }
+
+  public RetryOptions getReportCompletionRetryOptions() {
+    return reportCompletionRetryOptions;
+  }
+
+  public RetryOptions getReportFailureRetryOptions() {
+    return reportFailureRetryOptions;
+  }
 }

@@ -33,139 +33,141 @@ import com.uber.cadence.internal.common.StartWorkflowExecutionParameters;
 import com.uber.cadence.internal.common.TerminateWorkflowExecutionParameters;
 import com.uber.cadence.internal.replay.QueryWorkflowParameters;
 import com.uber.cadence.internal.replay.SignalExternalWorkflowParameters;
-import org.apache.thrift.TException;
-
 import java.util.UUID;
+import org.apache.thrift.TException;
 
 public final class GenericWorkflowClientExternalImpl implements GenericWorkflowClientExternal {
 
-    private final String domain;
+  private final String domain;
 
-    private final WorkflowService.Iface service;
+  private final WorkflowService.Iface service;
 
-    public GenericWorkflowClientExternalImpl(WorkflowService.Iface service, String domain) {
-        this.service = service;
-        this.domain = domain;
+  public GenericWorkflowClientExternalImpl(WorkflowService.Iface service, String domain) {
+    this.service = service;
+    this.domain = domain;
+  }
+
+  public String getDomain() {
+    return domain;
+  }
+
+  @Override
+  public WorkflowService.Iface getService() {
+    return service;
+  }
+
+  @Override
+  public WorkflowExecution startWorkflow(StartWorkflowExecutionParameters startParameters)
+      throws WorkflowExecutionAlreadyStartedError {
+    StartWorkflowExecutionRequest request = new StartWorkflowExecutionRequest();
+    request.setDomain(domain);
+
+    request.setInput(startParameters.getInput());
+    request.setExecutionStartToCloseTimeoutSeconds(
+        (int) startParameters.getExecutionStartToCloseTimeoutSeconds());
+    request.setTaskStartToCloseTimeoutSeconds(
+        (int) startParameters.getTaskStartToCloseTimeoutSeconds());
+    request.setWorkflowIdReusePolicy(startParameters.getWorkflowIdReusePolicy());
+    String taskList = startParameters.getTaskList();
+    if (taskList != null && !taskList.isEmpty()) {
+      TaskList tl = new TaskList();
+      tl.setName(taskList);
+      request.setTaskList(tl);
     }
-
-    public String getDomain() {
-        return domain;
+    String workflowId = startParameters.getWorkflowId();
+    if (workflowId == null) {
+      workflowId = UUID.randomUUID().toString();
     }
+    request.setWorkflowId(workflowId);
+    request.setWorkflowType(startParameters.getWorkflowType());
 
-    @Override
-    public WorkflowService.Iface getService() {
-        return service;
+    //        if(startParameters.getChildPolicy() != null) {
+    //            request.setChildPolicy(startParameters.getChildPolicy());
+    //        }
+
+    StartWorkflowExecutionResponse result;
+    try {
+      result = service.StartWorkflowExecution(request);
+    } catch (WorkflowExecutionAlreadyStartedError e) {
+      throw e;
+    } catch (TException e) {
+      throw new RuntimeException(e);
     }
+    WorkflowExecution execution = new WorkflowExecution();
+    execution.setRunId(result.getRunId());
+    execution.setWorkflowId(request.getWorkflowId());
 
-    @Override
-    public WorkflowExecution startWorkflow(StartWorkflowExecutionParameters startParameters) throws WorkflowExecutionAlreadyStartedError {
-        StartWorkflowExecutionRequest request = new StartWorkflowExecutionRequest();
-        request.setDomain(domain);
+    return execution;
+  }
 
-        request.setInput(startParameters.getInput());
-        request.setExecutionStartToCloseTimeoutSeconds((int) startParameters.getExecutionStartToCloseTimeoutSeconds());
-        request.setTaskStartToCloseTimeoutSeconds((int) startParameters.getTaskStartToCloseTimeoutSeconds());
-        request.setWorkflowIdReusePolicy(startParameters.getWorkflowIdReusePolicy());
-        String taskList = startParameters.getTaskList();
-        if (taskList != null && !taskList.isEmpty()) {
-            TaskList tl = new TaskList();
-            tl.setName(taskList);
-            request.setTaskList(tl);
-        }
-        String workflowId = startParameters.getWorkflowId();
-        if (workflowId == null) {
-            workflowId = UUID.randomUUID().toString();
-        }
-        request.setWorkflowId(workflowId);
-        request.setWorkflowType(startParameters.getWorkflowType());
+  @Override
+  public void signalWorkflowExecution(SignalExternalWorkflowParameters signalParameters) {
+    SignalWorkflowExecutionRequest request = new SignalWorkflowExecutionRequest();
+    request.setDomain(domain);
 
-//        if(startParameters.getChildPolicy() != null) {
-//            request.setChildPolicy(startParameters.getChildPolicy());
-//        }
-
-        StartWorkflowExecutionResponse result;
-        try {
-            result = service.StartWorkflowExecution(request);
-        } catch (WorkflowExecutionAlreadyStartedError e) {
-            throw e;
-        } catch (TException e) {
-            throw new RuntimeException(e);
-        }
-        WorkflowExecution execution = new WorkflowExecution();
-        execution.setRunId(result.getRunId());
-        execution.setWorkflowId(request.getWorkflowId());
-
-        return execution;
+    request.setInput(signalParameters.getInput());
+    request.setSignalName(signalParameters.getSignalName());
+    WorkflowExecution execution = new WorkflowExecution();
+    execution.setRunId(signalParameters.getRunId());
+    execution.setWorkflowId(signalParameters.getWorkflowId());
+    request.setWorkflowExecution(execution);
+    try {
+      service.SignalWorkflowExecution(request);
+    } catch (TException e) {
+      throw new RuntimeException(e);
     }
+  }
 
-    @Override
-    public void signalWorkflowExecution(SignalExternalWorkflowParameters signalParameters) {
-        SignalWorkflowExecutionRequest request = new SignalWorkflowExecutionRequest();
-        request.setDomain(domain);
-
-        request.setInput(signalParameters.getInput());
-        request.setSignalName(signalParameters.getSignalName());
-        WorkflowExecution execution = new WorkflowExecution();
-        execution.setRunId(signalParameters.getRunId());
-        execution.setWorkflowId(signalParameters.getWorkflowId());
-        request.setWorkflowExecution(execution);
-        try {
-            service.SignalWorkflowExecution(request);
-        } catch (TException e) {
-            throw new RuntimeException(e);
-        }
+  @Override
+  public void requestCancelWorkflowExecution(WorkflowExecution execution) {
+    RequestCancelWorkflowExecutionRequest request = new RequestCancelWorkflowExecutionRequest();
+    request.setDomain(domain);
+    request.setWorkflowExecution(execution);
+    try {
+      service.RequestCancelWorkflowExecution(request);
+    } catch (TException e) {
+      throw new RuntimeException(e);
     }
+  }
 
-    @Override
-    public void requestCancelWorkflowExecution(WorkflowExecution execution) {
-        RequestCancelWorkflowExecutionRequest request = new RequestCancelWorkflowExecutionRequest();
-        request.setDomain(domain);
-        request.setWorkflowExecution(execution);
-        try {
-            service.RequestCancelWorkflowExecution(request);
-        } catch (TException e) {
-            throw new RuntimeException(e);
-        }
+  @Override
+  public byte[] queryWorkflow(QueryWorkflowParameters queryParameters) {
+    QueryWorkflowRequest request = new QueryWorkflowRequest();
+    request.setDomain(domain);
+    WorkflowExecution execution = new WorkflowExecution();
+    execution.setWorkflowId(queryParameters.getWorkflowId()).setRunId(queryParameters.getRunId());
+    request.setExecution(execution);
+    WorkflowQuery query = new WorkflowQuery();
+    query.setQueryArgs(queryParameters.getInput());
+    query.setQueryType(queryParameters.getQueryType());
+    request.setQuery(query);
+    try {
+      QueryWorkflowResponse response = service.QueryWorkflow(request);
+      return response.getQueryResult();
+    } catch (TException e) {
+      throw new RuntimeException(e);
     }
+  }
 
-    @Override
-    public byte[] queryWorkflow(QueryWorkflowParameters queryParameters) {
-        QueryWorkflowRequest request = new QueryWorkflowRequest();
-        request.setDomain(domain);
-        WorkflowExecution execution = new WorkflowExecution();
-        execution.setWorkflowId(queryParameters.getWorkflowId()).setRunId(queryParameters.getRunId());
-        request.setExecution(execution);
-        WorkflowQuery query = new WorkflowQuery();
-        query.setQueryArgs(queryParameters.getInput());
-        query.setQueryType(queryParameters.getQueryType());
-        request.setQuery(query);
-        try {
-            QueryWorkflowResponse response = service.QueryWorkflow(request);
-            return response.getQueryResult();
-        } catch (TException e) {
-            throw new RuntimeException(e);
-        }
-    }
+  @Override
+  public String generateUniqueId() {
+    String workflowId = UUID.randomUUID().toString();
+    return workflowId;
+  }
 
-    @Override
-    public String generateUniqueId() {
-        String workflowId = UUID.randomUUID().toString();
-        return workflowId;
+  @Override
+  public void terminateWorkflowExecution(TerminateWorkflowExecutionParameters terminateParameters) {
+    TerminateWorkflowExecutionRequest request = new TerminateWorkflowExecutionRequest();
+    WorkflowExecution workflowExecution = terminateParameters.getWorkflowExecution();
+    request.setWorkflowExecution(terminateParameters.getWorkflowExecution());
+    request.setDomain(domain);
+    request.setDetails(terminateParameters.getDetails());
+    request.setReason(terminateParameters.getReason());
+    //        request.setChildPolicy(terminateParameters.getChildPolicy());
+    try {
+      service.TerminateWorkflowExecution(request);
+    } catch (TException e) {
+      throw new RuntimeException(e);
     }
-
-    @Override
-    public void terminateWorkflowExecution(TerminateWorkflowExecutionParameters terminateParameters) {
-        TerminateWorkflowExecutionRequest request = new TerminateWorkflowExecutionRequest();
-        WorkflowExecution workflowExecution = terminateParameters.getWorkflowExecution();
-        request.setWorkflowExecution(terminateParameters.getWorkflowExecution());
-        request.setDomain(domain);
-        request.setDetails(terminateParameters.getDetails());
-        request.setReason(terminateParameters.getReason());
-//        request.setChildPolicy(terminateParameters.getChildPolicy());
-        try {
-            service.TerminateWorkflowExecution(request);
-        } catch (TException e) {
-            throw new RuntimeException(e);
-        }
-    }
+  }
 }

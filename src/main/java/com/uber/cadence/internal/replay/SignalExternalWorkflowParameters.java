@@ -19,97 +19,95 @@ package com.uber.cadence.internal.replay;
 
 public final class SignalExternalWorkflowParameters implements Cloneable {
 
-    private String domain;
+  private String domain;
 
-    private byte[] input;
-    
-    private String runId;
-    
-    private String signalName;
-    
-    private String workflowId;
-    
-    public String getDomain() {
-        return domain;
-    }
+  private byte[] input;
 
-    public SignalExternalWorkflowParameters setDomain(String domain) {
-        this.domain = domain;
-        return this;
-    }
+  private String runId;
 
-    public byte[] getInput() {
-        return input;
-    }
-    
-    public void setInput(byte[] input) {
-        this.input = input;
-    }
-    
-    public SignalExternalWorkflowParameters withInput(byte[] input) {
-        this.input = input;
-        return this;
-    }
-    
-    public String getRunId() {
-        return runId;
-    }
-    
-    public void setRunId(String runId) {
-        this.runId = runId;
-    }
-    
-    public SignalExternalWorkflowParameters withRunId(String runId) {
-        this.runId = runId;
-        return this;
-    }
+  private String signalName;
 
-    public String getSignalName() {
-        return signalName;
-    }
-    
-    public void setSignalName(String signalName) {
-        this.signalName = signalName;
-    }
-    
-    public SignalExternalWorkflowParameters withSignalName(String signalName) {
-        this.signalName = signalName;
-        return this;
-    }
-    
-    public String getWorkflowId() {
-        return workflowId;
-    }
-    
-    public void setWorkflowId(String workflowId) {
-        this.workflowId = workflowId;
-    }
-    
-    public SignalExternalWorkflowParameters withWorkflowId(String workflowId) {
-        this.workflowId = workflowId;
-        return this;
-    }
-    
-    @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("{");
-        sb.append("SignalName: " + signalName + ", ");
-        sb.append("Input: " + input + ", ");
-        sb.append("WorkflowId: " + workflowId + ", ");
-        sb.append("RunId: " + runId + ", ");
-        sb.append("}");
-        return sb.toString();
-    }
+  private String workflowId;
 
-    public SignalExternalWorkflowParameters clone() {
-        SignalExternalWorkflowParameters result = new SignalExternalWorkflowParameters();
-        result.setInput(input);
-        result.setRunId(runId);
-        result.setSignalName(signalName);
-        result.setWorkflowId(workflowId);
-        return result;
-    }
-    
-    
+  public String getDomain() {
+    return domain;
+  }
+
+  public SignalExternalWorkflowParameters setDomain(String domain) {
+    this.domain = domain;
+    return this;
+  }
+
+  public byte[] getInput() {
+    return input;
+  }
+
+  public void setInput(byte[] input) {
+    this.input = input;
+  }
+
+  public SignalExternalWorkflowParameters withInput(byte[] input) {
+    this.input = input;
+    return this;
+  }
+
+  public String getRunId() {
+    return runId;
+  }
+
+  public void setRunId(String runId) {
+    this.runId = runId;
+  }
+
+  public SignalExternalWorkflowParameters withRunId(String runId) {
+    this.runId = runId;
+    return this;
+  }
+
+  public String getSignalName() {
+    return signalName;
+  }
+
+  public void setSignalName(String signalName) {
+    this.signalName = signalName;
+  }
+
+  public SignalExternalWorkflowParameters withSignalName(String signalName) {
+    this.signalName = signalName;
+    return this;
+  }
+
+  public String getWorkflowId() {
+    return workflowId;
+  }
+
+  public void setWorkflowId(String workflowId) {
+    this.workflowId = workflowId;
+  }
+
+  public SignalExternalWorkflowParameters withWorkflowId(String workflowId) {
+    this.workflowId = workflowId;
+    return this;
+  }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append("{");
+    sb.append("SignalName: " + signalName + ", ");
+    sb.append("Input: " + input + ", ");
+    sb.append("WorkflowId: " + workflowId + ", ");
+    sb.append("RunId: " + runId + ", ");
+    sb.append("}");
+    return sb.toString();
+  }
+
+  public SignalExternalWorkflowParameters clone() {
+    SignalExternalWorkflowParameters result = new SignalExternalWorkflowParameters();
+    result.setInput(input);
+    result.setRunId(runId);
+    result.setSignalName(signalName);
+    result.setWorkflowId(workflowId);
+    return result;
+  }
 }

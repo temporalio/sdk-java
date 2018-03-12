@@ -20,41 +20,38 @@ package com.uber.cadence.client;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.converter.JsonDataConverter;
 
-/**
- * Options for WorkflowClient configuration.
- */
+/** Options for WorkflowClient configuration. */
 public final class WorkflowClientOptions {
 
-    public static final class Builder {
+  public static final class Builder {
 
-        private DataConverter dataConverter = JsonDataConverter.getInstance();
+    private DataConverter dataConverter = JsonDataConverter.getInstance();
 
-        /**
-         * Used to override default (JSON) data converter implementation.
-         *
-         * @param dataConverter data converter to serialize and deserialize arguments and return values.
-         */
-        public Builder setDataConverter(DataConverter dataConverter) {
-            if (dataConverter == null) {
-                throw new IllegalArgumentException("null");
-            }
-            this.dataConverter = dataConverter;
-            return this;
-        }
-
-        public WorkflowClientOptions build() {
-            return new WorkflowClientOptions(dataConverter);
-        }
+    /**
+     * Used to override default (JSON) data converter implementation.
+     *
+     * @param dataConverter data converter to serialize and deserialize arguments and return values.
+     */
+    public Builder setDataConverter(DataConverter dataConverter) {
+      if (dataConverter == null) {
+        throw new IllegalArgumentException("null");
+      }
+      this.dataConverter = dataConverter;
+      return this;
     }
 
-
-    private final DataConverter dataConverter;
-
-    private WorkflowClientOptions(DataConverter dataConverter) {
-        this.dataConverter = dataConverter;
+    public WorkflowClientOptions build() {
+      return new WorkflowClientOptions(dataConverter);
     }
+  }
 
-    public DataConverter getDataConverter() {
-        return dataConverter;
-    }
+  private final DataConverter dataConverter;
+
+  private WorkflowClientOptions(DataConverter dataConverter) {
+    this.dataConverter = dataConverter;
+  }
+
+  public DataConverter getDataConverter() {
+    return dataConverter;
+  }
 }

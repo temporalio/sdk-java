@@ -23,93 +23,98 @@ import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
 
 final class WorkflowContext {
 
-    private final PollForDecisionTaskResponse decisionTask;
-    private boolean cancelRequested;
-    private ContinueAsNewWorkflowExecutionParameters continueAsNewOnCompletion;
-    private WorkflowExecutionStartedEventAttributes startedAttributes;
-    private final String domain;
+  private final PollForDecisionTaskResponse decisionTask;
+  private boolean cancelRequested;
+  private ContinueAsNewWorkflowExecutionParameters continueAsNewOnCompletion;
+  private WorkflowExecutionStartedEventAttributes startedAttributes;
+  private final String domain;
 
-    WorkflowContext(String domain, PollForDecisionTaskResponse decisionTask,
-                           WorkflowExecutionStartedEventAttributes startedAttributes) {
-        this.domain = domain;
-        this.decisionTask = decisionTask;
-        this.startedAttributes = startedAttributes;
+  WorkflowContext(
+      String domain,
+      PollForDecisionTaskResponse decisionTask,
+      WorkflowExecutionStartedEventAttributes startedAttributes) {
+    this.domain = domain;
+    this.decisionTask = decisionTask;
+    this.startedAttributes = startedAttributes;
+  }
+
+  com.uber.cadence.WorkflowExecution getWorkflowExecution() {
+    return decisionTask.getWorkflowExecution();
+  }
+
+  com.uber.cadence.WorkflowType getWorkflowType() {
+    return decisionTask.getWorkflowType();
+  }
+
+  boolean isCancelRequested() {
+    return cancelRequested;
+  }
+
+  void setCancelRequested(boolean flag) {
+    cancelRequested = flag;
+  }
+
+  ContinueAsNewWorkflowExecutionParameters getContinueAsNewOnCompletion() {
+    return continueAsNewOnCompletion;
+  }
+
+  void setContinueAsNewOnCompletion(ContinueAsNewWorkflowExecutionParameters continueParameters) {
+    if (continueParameters == null) {
+      continueParameters = new ContinueAsNewWorkflowExecutionParameters();
     }
-
-    com.uber.cadence.WorkflowExecution getWorkflowExecution() {
-        return decisionTask.getWorkflowExecution();
+    //            continueParameters.setChildPolicy(startedAttributes);
+    if (continueParameters.getExecutionStartToCloseTimeoutSeconds() == 0) {
+      continueParameters.setExecutionStartToCloseTimeoutSeconds(
+          startedAttributes.getExecutionStartToCloseTimeoutSeconds());
     }
-
-    com.uber.cadence.WorkflowType getWorkflowType() {
-        return decisionTask.getWorkflowType();
+    if (continueParameters.getTaskList() == null) {
+      continueParameters.setTaskList(startedAttributes.getTaskList().getName());
     }
-
-    boolean isCancelRequested() {
-        return cancelRequested;
+    if (continueParameters.getTaskStartToCloseTimeoutSeconds() == 0) {
+      continueParameters.setTaskStartToCloseTimeoutSeconds(
+          startedAttributes.getTaskStartToCloseTimeoutSeconds());
     }
+    this.continueAsNewOnCompletion = continueParameters;
+  }
 
-    void setCancelRequested(boolean flag) {
-        cancelRequested = flag;
-    }
+  // TODO: Implement as soon as WorkflowExecutionStartedEventAttributes have these fields added.
+  ////    WorkflowExecution getParentWorkflowExecution() {
+  //        WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
+  //        return attributes.getParentWorkflowExecution();
+  //    }
 
-    ContinueAsNewWorkflowExecutionParameters getContinueAsNewOnCompletion() {
-        return continueAsNewOnCompletion;
-    }
+  ////    com.uber.cadence.ChildPolicy getChildPolicy() {
+  //        WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
+  //        return ChildPolicy.fromValue(attributes.getChildPolicy());
+  //    }
 
-    void setContinueAsNewOnCompletion(ContinueAsNewWorkflowExecutionParameters continueParameters) {
-        if (continueParameters == null) {
-            continueParameters = new ContinueAsNewWorkflowExecutionParameters();
-        }
-//            continueParameters.setChildPolicy(startedAttributes);
-        if (continueParameters.getExecutionStartToCloseTimeoutSeconds() == 0) {
-            continueParameters.setExecutionStartToCloseTimeoutSeconds(startedAttributes.getExecutionStartToCloseTimeoutSeconds());
-        }
-        if (continueParameters.getTaskList() == null) {
-            continueParameters.setTaskList(startedAttributes.getTaskList().getName());
-        }
-        if (continueParameters.getTaskStartToCloseTimeoutSeconds() == 0) {
-            continueParameters.setTaskStartToCloseTimeoutSeconds(startedAttributes.getTaskStartToCloseTimeoutSeconds());
-        }
-        this.continueAsNewOnCompletion = continueParameters;
-    }
+  ////    String getContinuedExecutionRunId() {
+  //        WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
+  //        return attributes.getContinuedExecutionRunId();
+  //    }
 
-    // TODO: Implement as soon as WorkflowExecutionStartedEventAttributes have these fields added.
-////    WorkflowExecution getParentWorkflowExecution() {
-//        WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-//        return attributes.getParentWorkflowExecution();
-//    }
+  int getExecutionStartToCloseTimeoutSeconds() {
+    WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
+    return attributes.getExecutionStartToCloseTimeoutSeconds();
+  }
 
-////    com.uber.cadence.ChildPolicy getChildPolicy() {
-//        WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-//        return ChildPolicy.fromValue(attributes.getChildPolicy());
-//    }
+  int getDecisionTaskTimeoutSeconds() {
+    return startedAttributes.getTaskStartToCloseTimeoutSeconds();
+  }
 
-////    String getContinuedExecutionRunId() {
-//        WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-//        return attributes.getContinuedExecutionRunId();
-//    }
+  String getTaskList() {
+    WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
+    return attributes.getTaskList().getName();
+  }
 
-    int getExecutionStartToCloseTimeoutSeconds() {
-        WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-        return attributes.getExecutionStartToCloseTimeoutSeconds();
-    }
+  String getDomain() {
+    return domain;
+  }
 
-    int getDecisionTaskTimeoutSeconds() {
-        return startedAttributes.getTaskStartToCloseTimeoutSeconds();
-    }
-
-    String getTaskList() {
-        WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-        return attributes.getTaskList().getName();
-    }
-
-    String getDomain() {
-        return domain;
-    }
-
-    private WorkflowExecutionStartedEventAttributes getWorkflowStartedEventAttributes() {
-        HistoryEvent firstHistoryEvent = decisionTask.getHistory().getEvents().get(0);
-        WorkflowExecutionStartedEventAttributes attributes = firstHistoryEvent.getWorkflowExecutionStartedEventAttributes();
-        return attributes;
-    }
+  private WorkflowExecutionStartedEventAttributes getWorkflowStartedEventAttributes() {
+    HistoryEvent firstHistoryEvent = decisionTask.getHistory().getEvents().get(0);
+    WorkflowExecutionStartedEventAttributes attributes =
+        firstHistoryEvent.getWorkflowExecutionStartedEventAttributes();
+    return attributes;
+  }
 }

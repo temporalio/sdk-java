@@ -24,138 +24,138 @@ import com.uber.cadence.SignalExternalWorkflowExecutionDecisionAttributes;
 
 class SignalDecisionStateMachine extends DecisionStateMachineBase {
 
-    private SignalExternalWorkflowExecutionDecisionAttributes attributes;
+  private SignalExternalWorkflowExecutionDecisionAttributes attributes;
 
-    private boolean canceled;
+  private boolean canceled;
 
-    public SignalDecisionStateMachine(DecisionId id, SignalExternalWorkflowExecutionDecisionAttributes attributes) {
-        super(id);
-        this.attributes = attributes;
+  public SignalDecisionStateMachine(
+      DecisionId id, SignalExternalWorkflowExecutionDecisionAttributes attributes) {
+    super(id);
+    this.attributes = attributes;
+  }
+
+  /** Used for unit testing */
+  SignalDecisionStateMachine(
+      DecisionId id,
+      SignalExternalWorkflowExecutionDecisionAttributes attributes,
+      DecisionState state) {
+    super(id, state);
+    this.attributes = attributes;
+  }
+
+  @Override
+  public Decision getDecision() {
+    switch (state) {
+      case CREATED:
+        return createSignalExternalWorkflowExecutionDecision();
+      default:
+        return null;
     }
+  }
 
-    /**
-     * Used for unit testing
-     */
-    SignalDecisionStateMachine(DecisionId id, SignalExternalWorkflowExecutionDecisionAttributes attributes, DecisionState state) {
-        super(id, state);
-        this.attributes = attributes;
-    }
+  @Override
+  public boolean isDone() {
+    return state == DecisionState.COMPLETED || canceled;
+  }
 
-    @Override
-    public Decision getDecision() {
-        switch (state) {
-            case CREATED:
-                return createSignalExternalWorkflowExecutionDecision();
-            default:
-                return null;
-        }
-    }
-
-    @Override
-    public boolean isDone() {
-        return state == DecisionState.COMPLETED || canceled;
-    }
-
-    @Override
-    public void handleDecisionTaskStartedEvent() {
-        switch (state) {
-            case CREATED:
-                stateHistory.add("handleDecisionTaskStartedEvent");
-                state = DecisionState.DECISION_SENT;
-                stateHistory.add(state.toString());
-                break;
-        }
-    }
-
-    @Override
-    public void cancel(Runnable immediateCancellationCallback) {
-        stateHistory.add("cancel");
-        switch (state) {
-            case CREATED:
-            case INITIATED:
-                state = DecisionState.COMPLETED;
-                if (immediateCancellationCallback != null) {
-                    immediateCancellationCallback.run();
-                }
-                break;
-            case DECISION_SENT:
-                state = DecisionState.CANCELED_BEFORE_INITIATED;
-                if (immediateCancellationCallback != null) {
-                    immediateCancellationCallback.run();
-                }
-                break;
-            default:
-                failStateTransition();
-        }
-        canceled = true;
+  @Override
+  public void handleDecisionTaskStartedEvent() {
+    switch (state) {
+      case CREATED:
+        stateHistory.add("handleDecisionTaskStartedEvent");
+        state = DecisionState.DECISION_SENT;
         stateHistory.add(state.toString());
+        break;
     }
+  }
 
-    @Override
-    public void handleInitiatedEvent(HistoryEvent event) {
-        stateHistory.add("handleInitiatedEvent");
-        switch (state) {
-            case DECISION_SENT:
-                state = DecisionState.INITIATED;
-                break;
-            case CANCELED_BEFORE_INITIATED:
-                // No state change
-                break;
-            default:
-                failStateTransition();
+  @Override
+  public void cancel(Runnable immediateCancellationCallback) {
+    stateHistory.add("cancel");
+    switch (state) {
+      case CREATED:
+      case INITIATED:
+        state = DecisionState.COMPLETED;
+        if (immediateCancellationCallback != null) {
+          immediateCancellationCallback.run();
         }
-        stateHistory.add(state.toString());
-
-    }
-
-    @Override
-    public void handleInitiationFailedEvent(HistoryEvent event) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void handleStartedEvent(HistoryEvent event) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void handleCompletionEvent() {
-        stateHistory.add("handleCompletionEvent");
-        switch (state) {
-            case DECISION_SENT:
-            case INITIATED:
-            case CANCELED_BEFORE_INITIATED:
-                state = DecisionState.COMPLETED;
-                break;
-            case COMPLETED:
-                // No state change
-                break;
-            default:
-                failStateTransition();
+        break;
+      case DECISION_SENT:
+        state = DecisionState.CANCELED_BEFORE_INITIATED;
+        if (immediateCancellationCallback != null) {
+          immediateCancellationCallback.run();
         }
-        stateHistory.add(state.toString());
+        break;
+      default:
+        failStateTransition();
     }
+    canceled = true;
+    stateHistory.add(state.toString());
+  }
 
-    @Override
-    public void handleCancellationInitiatedEvent() {
-        throw new UnsupportedOperationException();
+  @Override
+  public void handleInitiatedEvent(HistoryEvent event) {
+    stateHistory.add("handleInitiatedEvent");
+    switch (state) {
+      case DECISION_SENT:
+        state = DecisionState.INITIATED;
+        break;
+      case CANCELED_BEFORE_INITIATED:
+        // No state change
+        break;
+      default:
+        failStateTransition();
     }
+    stateHistory.add(state.toString());
+  }
 
-    @Override
-    public void handleCancellationFailureEvent(HistoryEvent event) {
-        throw new UnsupportedOperationException();
+  @Override
+  public void handleInitiationFailedEvent(HistoryEvent event) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void handleStartedEvent(HistoryEvent event) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void handleCompletionEvent() {
+    stateHistory.add("handleCompletionEvent");
+    switch (state) {
+      case DECISION_SENT:
+      case INITIATED:
+      case CANCELED_BEFORE_INITIATED:
+        state = DecisionState.COMPLETED;
+        break;
+      case COMPLETED:
+        // No state change
+        break;
+      default:
+        failStateTransition();
     }
+    stateHistory.add(state.toString());
+  }
 
-    @Override
-    public void handleCancellationEvent() {
-        throw new UnsupportedOperationException();
-    }
+  @Override
+  public void handleCancellationInitiatedEvent() {
+    throw new UnsupportedOperationException();
+  }
 
-    private Decision createSignalExternalWorkflowExecutionDecision() {
-        Decision decision = new Decision();
-        decision.setSignalExternalWorkflowExecutionDecisionAttributes(attributes);
-        decision.setDecisionType(DecisionType.SignalExternalWorkflowExecution);
-        return decision;
-    }
+  @Override
+  public void handleCancellationFailureEvent(HistoryEvent event) {
+    throw new UnsupportedOperationException();
+  }
 
+  @Override
+  public void handleCancellationEvent() {
+    throw new UnsupportedOperationException();
+  }
+
+  private Decision createSignalExternalWorkflowExecutionDecision() {
+    Decision decision = new Decision();
+    decision.setSignalExternalWorkflowExecutionDecisionAttributes(attributes);
+    decision.setDecisionType(DecisionType.SignalExternalWorkflowExecution);
+    return decision;
+  }
 }
