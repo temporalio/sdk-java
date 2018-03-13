@@ -17,6 +17,8 @@
 
 package com.uber.cadence.internal.replay;
 
+import java.nio.charset.StandardCharsets;
+
 public final class SignalExternalWorkflowParameters implements Cloneable {
 
   private String domain;
@@ -95,14 +97,14 @@ public final class SignalExternalWorkflowParameters implements Cloneable {
     StringBuilder sb = new StringBuilder();
     sb.append("{");
     sb.append("SignalName: " + signalName + ", ");
-    sb.append("Input: " + input + ", ");
+    sb.append("Input: " + new String(input, 0, 512, StandardCharsets.UTF_8) + ", ");
     sb.append("WorkflowId: " + workflowId + ", ");
     sb.append("RunId: " + runId + ", ");
     sb.append("}");
     return sb.toString();
   }
 
-  public SignalExternalWorkflowParameters clone() {
+  public SignalExternalWorkflowParameters copy() {
     SignalExternalWorkflowParameters result = new SignalExternalWorkflowParameters();
     result.setInput(input);
     result.setRunId(runId);

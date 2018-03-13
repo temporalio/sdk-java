@@ -21,6 +21,7 @@ import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.WorkflowIdReusePolicy;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.client.WorkflowOptions;
+import java.nio.charset.StandardCharsets;
 
 public class StartWorkflowExecutionParameters {
 
@@ -291,14 +292,14 @@ public class StartWorkflowExecutionParameters {
     sb.append("WorkflowId: " + workflowId + ", ");
     sb.append("WorkflowType: " + workflowType + ", ");
     sb.append("TaskList: " + taskList + ", ");
-    sb.append("Input: " + input + ", ");
+    sb.append("Input: " + new String(input, 0, 512, StandardCharsets.UTF_8) + ", ");
     sb.append("StartToCloseTimeout: " + executionStartToCloseTimeoutSeconds + ", ");
     sb.append("ChildPolicy: " + childPolicy + ", ");
     sb.append("}");
     return sb.toString();
   }
 
-  public StartWorkflowExecutionParameters clone() {
+  public StartWorkflowExecutionParameters copy() {
     StartWorkflowExecutionParameters result = new StartWorkflowExecutionParameters();
     result.setInput(input);
     result.setExecutionStartToCloseTimeoutSeconds(executionStartToCloseTimeoutSeconds);

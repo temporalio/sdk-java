@@ -20,13 +20,13 @@ package com.uber.cadence.internal.sync;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.QueueConsumer;
 import com.uber.cadence.workflow.WorkflowQueue;
-import java.util.LinkedList;
-import java.util.Queue;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.concurrent.TimeUnit;
 
 final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
 
-  private final Queue<E> queue = new LinkedList<>();
+  private final Deque<E> queue = new ArrayDeque<>();
   private final int capacity;
 
   public WorkflowQueueImpl(int capacity) {
@@ -39,7 +39,7 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
   @Override
   public E take() throws InterruptedException {
     WorkflowThread.await("WorkflowQueue.take", () -> !queue.isEmpty());
-    return queue.remove();
+    return queue.pollLast();
   }
 
   @Override
@@ -56,7 +56,7 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
     if (queue.size() == capacity) {
       return false;
     }
-    queue.add(e);
+    queue.addLast(e);
     return true;
   }
 
@@ -69,7 +69,7 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
     if (queue.size() >= capacity) {
       WorkflowThread.await("WorkflowQueue.put", () -> queue.size() < capacity);
     }
-    queue.add(e);
+    queue.addLast(e);
   }
 
   @Override
@@ -80,7 +80,7 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
     if (timedOut) {
       return false;
     }
-    queue.add(e);
+    queue.addLast(e);
     return true;
   }
 

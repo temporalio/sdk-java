@@ -237,6 +237,7 @@ public final class JsonDataConverter implements DataConverter {
         return new StackTraceElement[0];
       }
       try {
+        @SuppressWarnings("StringSplitter")
         String[] lines = stackTrace.split("\n");
         StackTraceElement[] result = new StackTraceElement[lines.length];
         for (int i = 0; i < lines.length; i++) {

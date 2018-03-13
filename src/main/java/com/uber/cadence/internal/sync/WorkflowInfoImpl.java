@@ -22,6 +22,7 @@ import com.uber.cadence.workflow.WorkflowInfo;
 import java.time.Duration;
 
 final class WorkflowInfoImpl implements WorkflowInfo {
+
   private final DecisionContext context;
 
   WorkflowInfoImpl(DecisionContext context) {
@@ -50,7 +51,7 @@ final class WorkflowInfoImpl implements WorkflowInfo {
 
   @Override
   public String getTaskList() {
-    return getTaskList();
+    return context.getTaskList();
   }
 
   @Override

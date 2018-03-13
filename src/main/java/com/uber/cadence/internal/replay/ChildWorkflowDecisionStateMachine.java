@@ -77,6 +77,7 @@ final class ChildWorkflowDecisionStateMachine extends DecisionStateMachineBase {
       case CANCELED_AFTER_INITIATED:
         state = DecisionState.CANCELED_AFTER_STARTED;
         break;
+      default:
     }
     stateHistory.add(state.toString());
   }

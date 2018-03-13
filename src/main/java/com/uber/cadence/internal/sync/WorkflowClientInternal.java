@@ -35,6 +35,7 @@ import com.uber.cadence.workflow.WorkflowMethod;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.Arrays;
 
 public final class WorkflowClientInternal implements WorkflowClient {
 
@@ -53,10 +54,12 @@ public final class WorkflowClientInternal implements WorkflowClient {
         new ManualActivityCompletionClientFactoryImpl(service, domain, dataConverter);
   }
 
+  @Override
   public <T> T newWorkflowStub(Class<T> workflowInterface) {
     return newWorkflowStub(workflowInterface, (WorkflowOptions) null);
   }
 
+  @Override
   @SuppressWarnings("unchecked")
   public <T> T newWorkflowStub(Class<T> workflowInterface, WorkflowOptions options) {
     checkAnnotation(workflowInterface, WorkflowMethod.class);
@@ -88,9 +91,10 @@ public final class WorkflowClientInternal implements WorkflowClient {
         "Workflow interface "
             + workflowInterface.getName()
             + " doesn't have method annotated with any of "
-            + annotationClasses);
+            + Arrays.toString(annotationClasses));
   }
 
+  @Override
   @SuppressWarnings("unchecked")
   public <T> T newWorkflowStub(Class<T> workflowInterface, WorkflowExecution execution) {
     checkAnnotation(workflowInterface, WorkflowMethod.class, QueryMethod.class);

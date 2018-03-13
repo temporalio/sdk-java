@@ -62,6 +62,7 @@ public final class ActivityWorker implements SuspendableWorker {
     this.handler = handler;
   }
 
+  @Override
   public void start() {
     if (handler.isAnyTypeSupported()) {
       PollerOptions pollerOptions = options.getPollerOptions();
@@ -85,18 +86,21 @@ public final class ActivityWorker implements SuspendableWorker {
     }
   }
 
+  @Override
   public void shutdown() {
     if (poller != null) {
       poller.shutdown();
     }
   }
 
+  @Override
   public void shutdownNow() {
     if (poller != null) {
       poller.shutdownNow();
     }
   }
 
+  @Override
   public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
     if (poller == null) {
       return true;
@@ -104,6 +108,7 @@ public final class ActivityWorker implements SuspendableWorker {
     return poller.awaitTermination(timeout, unit);
   }
 
+  @Override
   public boolean shutdownAndAwaitTermination(long timeout, TimeUnit unit)
       throws InterruptedException {
     if (poller == null) {
@@ -112,6 +117,7 @@ public final class ActivityWorker implements SuspendableWorker {
     return poller.shutdownAndAwaitTermination(timeout, unit);
   }
 
+  @Override
   public boolean isRunning() {
     if (poller == null) {
       return false;
@@ -119,12 +125,14 @@ public final class ActivityWorker implements SuspendableWorker {
     return poller.isRunning();
   }
 
+  @Override
   public void suspendPolling() {
     if (poller != null) {
       poller.suspendPolling();
     }
   }
 
+  @Override
   public void resumePolling() {
     if (poller != null) {
       poller.resumePolling();

@@ -18,6 +18,7 @@
 package com.uber.cadence.internal.replay;
 
 import com.uber.cadence.ChildPolicy;
+import java.nio.charset.StandardCharsets;
 
 public final class ContinueAsNewWorkflowExecutionParameters {
 
@@ -100,7 +101,7 @@ public final class ContinueAsNewWorkflowExecutionParameters {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("{");
-    sb.append("Input: " + input + ", ");
+    sb.append("Input: " + new String(input, 0, 512, StandardCharsets.UTF_8) + ", ");
     sb.append("ExecutionStartToCloseTimeout: " + executionStartToCloseTimeoutSeconds + ", ");
     sb.append("TaskStartToCloseTimeout: " + taskStartToCloseTimeoutSeconds + ", ");
     sb.append("TaskList: " + taskList + ", ");
@@ -108,7 +109,7 @@ public final class ContinueAsNewWorkflowExecutionParameters {
     return sb.toString();
   }
 
-  public ContinueAsNewWorkflowExecutionParameters clone() {
+  public ContinueAsNewWorkflowExecutionParameters copy() {
     ContinueAsNewWorkflowExecutionParameters result =
         new ContinueAsNewWorkflowExecutionParameters();
     result.setExecutionStartToCloseTimeoutSeconds(executionStartToCloseTimeoutSeconds);

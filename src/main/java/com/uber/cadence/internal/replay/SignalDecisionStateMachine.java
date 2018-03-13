@@ -66,6 +66,7 @@ class SignalDecisionStateMachine extends DecisionStateMachineBase {
         state = DecisionState.DECISION_SENT;
         stateHistory.add(state.toString());
         break;
+      default:
     }
   }
 

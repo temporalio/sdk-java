@@ -98,12 +98,12 @@ public class WorkflowServiceTChannel implements WorkflowService.Iface {
     //         * @return client options
     //         */
     //        public ClientOptions copyWithMetricsClient(MetricsClient metricsClient) {
-    //            ClientOptions clone = new ClientOptions();
-    //            clone.rpcTimeoutMillis = this.rpcTimeoutMillis;
-    //            clone.deploymentStr = this.deploymentStr;
-    //            clone.clientAppName = this.clientAppName;
-    //            clone.metricsClient = metricsClient;
-    //            return clone;
+    //            ClientOptions copy = new ClientOptions();
+    //            copy.rpcTimeoutMillis = this.rpcTimeoutMillis;
+    //            copy.deploymentStr = this.deploymentStr;
+    //            copy.clientAppName = this.clientAppName;
+    //            copy.metricsClient = metricsClient;
+    //            return copy;
     //        }
 
     /** @return Returns the rpc timeout value in millis. */

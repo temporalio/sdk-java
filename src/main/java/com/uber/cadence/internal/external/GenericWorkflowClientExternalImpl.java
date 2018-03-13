@@ -47,6 +47,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     this.domain = domain;
   }
 
+  @Override
   public String getDomain() {
     return domain;
   }

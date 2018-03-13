@@ -23,24 +23,19 @@ import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.worker.DecisionTaskWithHistoryIterator;
+import java.util.ArrayDeque;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.Queue;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 class HistoryHelper {
 
-  private static final Logger historyLog =
-      LoggerFactory.getLogger(HistoryHelper.class.getName() + ".history");
-
-  class EventsIterator implements Iterator<HistoryEvent> {
+  static class EventsIterator implements Iterator<HistoryEvent> {
 
     private final DecisionTaskWithHistoryIterator decisionTaskWithHistoryIterator;
 
     private Iterator<HistoryEvent> events;
 
-    private Queue<HistoryEvent> bufferedEvents = new LinkedList<>();
+    private Queue<HistoryEvent> bufferedEvents = new ArrayDeque<>();
     private WorkflowExecutionStartedEventAttributes workflowExecutionStartedEventAttributes;
 
     public EventsIterator(DecisionTaskWithHistoryIterator decisionTaskWithHistoryIterator) {
@@ -107,6 +102,7 @@ class HistoryHelper {
     return events;
   }
 
+  @Override
   public String toString() {
     return WorkflowExecutionUtils.prettyPrintHistory(
         events.getDecisionTask().getHistory().getEvents().iterator(), true);
@@ -117,10 +113,6 @@ class HistoryHelper {
   }
 
   public long getLastNonReplayEventId() {
-    Long result = getDecisionTask().getPreviousStartedEventId();
-    if (result == null) {
-      return 0;
-    }
-    return result;
+    return getDecisionTask().getPreviousStartedEventId();
   }
 }

@@ -50,7 +50,7 @@ public final class AsyncInternal {
    * @param function Function to execute asynchronously
    * @return promise that contains function result or failure
    */
-  public static <R> Promise<R> invoke(Functions.Func<R> function) {
+  public static <R> Promise<R> function(Functions.Func<R> function) {
     return execute(isAsync(function), () -> function.apply());
   }
 
@@ -61,7 +61,7 @@ public final class AsyncInternal {
    * @param arg1 first function argument
    * @return promise that contains function result or failure
    */
-  public static <A1, R> Promise<R> invoke(Functions.Func1<A1, R> function, A1 arg1) {
+  public static <A1, R> Promise<R> function(Functions.Func1<A1, R> function, A1 arg1) {
     return execute(isAsync(function), () -> function.apply(arg1));
   }
 
@@ -73,7 +73,7 @@ public final class AsyncInternal {
    * @param arg2 second function argument
    * @return promise that contains function result or failure
    */
-  public static <A1, A2, R> Promise<R> invoke(
+  public static <A1, A2, R> Promise<R> function(
       Functions.Func2<A1, A2, R> function, A1 arg1, A2 arg2) {
     return execute(isAsync(function), () -> function.apply(arg1, arg2));
   }
@@ -87,7 +87,7 @@ public final class AsyncInternal {
    * @param arg3 third function argument
    * @return promise that contains function result or failure
    */
-  public static <A1, A2, A3, R> Promise<R> invoke(
+  public static <A1, A2, A3, R> Promise<R> function(
       Functions.Func3<A1, A2, A3, R> function, A1 arg1, A2 arg2, A3 arg3) {
     return execute(isAsync(function), () -> function.apply(arg1, arg2, arg3));
   }
@@ -102,7 +102,7 @@ public final class AsyncInternal {
    * @param arg4 forth function argument
    * @return promise that contains function result or failure
    */
-  public static <A1, A2, A3, A4, R> Promise<R> invoke(
+  public static <A1, A2, A3, A4, R> Promise<R> function(
       Functions.Func4<A1, A2, A3, A4, R> function, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
     return execute(isAsync(function), () -> function.apply(arg1, arg2, arg3, arg4));
   }
@@ -118,7 +118,7 @@ public final class AsyncInternal {
    * @param arg5 fifth function argument
    * @return promise that contains function result or failure
    */
-  public static <A1, A2, A3, A4, A5, R> Promise<R> invoke(
+  public static <A1, A2, A3, A4, A5, R> Promise<R> function(
       Functions.Func5<A1, A2, A3, A4, A5, R> function,
       A1 arg1,
       A2 arg2,
@@ -140,7 +140,7 @@ public final class AsyncInternal {
    * @param arg6 sixth function argument
    * @return promise that contains function result or failure
    */
-  public static <A1, A2, A3, A4, A5, A6, R> Promise<R> invoke(
+  public static <A1, A2, A3, A4, A5, A6, R> Promise<R> function(
       Functions.Func6<A1, A2, A3, A4, A5, A6, R> function,
       A1 arg1,
       A2 arg2,
@@ -157,7 +157,7 @@ public final class AsyncInternal {
    * @param procedure Procedure to execute asynchronously
    * @return promise that contains procedure result or failure
    */
-  public static Promise<Void> invoke(Functions.Proc procedure) {
+  public static Promise<Void> procedure(Functions.Proc procedure) {
     return execute(
         isAsync(procedure),
         () -> {
@@ -166,7 +166,7 @@ public final class AsyncInternal {
         });
   }
 
-  private static Promise<Void> invoke(boolean async, Functions.Proc procedure) {
+  private static Promise<Void> procedure(boolean async, Functions.Proc procedure) {
     return execute(
         async,
         () -> {
@@ -182,8 +182,8 @@ public final class AsyncInternal {
    * @param arg1 first procedure argument
    * @return promise that contains procedure result or failure
    */
-  public static <A1> Promise<Void> invoke(Functions.Proc1<A1> procedure, A1 arg1) {
-    return invoke(isAsync(procedure), () -> procedure.apply(arg1));
+  public static <A1> Promise<Void> procedure(Functions.Proc1<A1> procedure, A1 arg1) {
+    return procedure(isAsync(procedure), () -> procedure.apply(arg1));
   }
 
   /**
@@ -194,8 +194,9 @@ public final class AsyncInternal {
    * @param arg2 second procedure argument
    * @return promise that contains procedure result or failure
    */
-  public static <A1, A2> Promise<Void> invoke(Functions.Proc2<A1, A2> procedure, A1 arg1, A2 arg2) {
-    return invoke(isAsync(procedure), () -> procedure.apply(arg1, arg2));
+  public static <A1, A2> Promise<Void> procedure(
+      Functions.Proc2<A1, A2> procedure, A1 arg1, A2 arg2) {
+    return procedure(isAsync(procedure), () -> procedure.apply(arg1, arg2));
   }
 
   /**
@@ -207,9 +208,9 @@ public final class AsyncInternal {
    * @param arg3 third procedure argument
    * @return promise that contains procedure result or failure
    */
-  public static <A1, A2, A3> Promise<Void> invoke(
+  public static <A1, A2, A3> Promise<Void> procedure(
       Functions.Proc3<A1, A2, A3> procedure, A1 arg1, A2 arg2, A3 arg3) {
-    return invoke(isAsync(procedure), () -> procedure.apply(arg1, arg2, arg3));
+    return procedure(isAsync(procedure), () -> procedure.apply(arg1, arg2, arg3));
   }
 
   /**
@@ -222,9 +223,9 @@ public final class AsyncInternal {
    * @param arg4 forth procedure argument
    * @return promise that contains procedure result or failure
    */
-  public static <A1, A2, A3, A4> Promise<Void> invoke(
+  public static <A1, A2, A3, A4> Promise<Void> procedure(
       Functions.Proc4<A1, A2, A3, A4> procedure, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
-    return invoke(isAsync(procedure), () -> procedure.apply(arg1, arg2, arg3, arg4));
+    return procedure(isAsync(procedure), () -> procedure.apply(arg1, arg2, arg3, arg4));
   }
 
   /**
@@ -238,9 +239,9 @@ public final class AsyncInternal {
    * @param arg5 fifth procedure argument
    * @return promise that contains procedure result or failure
    */
-  public static <A1, A2, A3, A4, A5> Promise<Void> invoke(
+  public static <A1, A2, A3, A4, A5> Promise<Void> procedure(
       Functions.Proc5<A1, A2, A3, A4, A5> procedure, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
-    return invoke(isAsync(procedure), () -> procedure.apply(arg1, arg2, arg3, arg4, arg5));
+    return procedure(isAsync(procedure), () -> procedure.apply(arg1, arg2, arg3, arg4, arg5));
   }
 
   /**
@@ -255,7 +256,7 @@ public final class AsyncInternal {
    * @param arg6 sixth procedure argument
    * @return promise that contains procedure result or failure
    */
-  public static <A1, A2, A3, A4, A5, A6> Promise<Void> invoke(
+  public static <A1, A2, A3, A4, A5, A6> Promise<Void> procedure(
       Functions.Proc6<A1, A2, A3, A4, A5, A6> procedure,
       A1 arg1,
       A2 arg2,
@@ -263,7 +264,7 @@ public final class AsyncInternal {
       A4 arg4,
       A5 arg5,
       A6 arg6) {
-    return invoke(isAsync(procedure), () -> procedure.apply(arg1, arg2, arg3, arg4, arg5, arg6));
+    return procedure(isAsync(procedure), () -> procedure.apply(arg1, arg2, arg3, arg4, arg5, arg6));
   }
 
   public static <R> Promise<R> retry(RetryOptions options, Functions.Func<Promise<R>> fn) {

@@ -17,11 +17,43 @@
 
 package com.uber.cadence.internal.replay;
 
-import com.uber.cadence.*;
+import com.uber.cadence.ActivityTaskCancelRequestedEventAttributes;
+import com.uber.cadence.ActivityTaskCanceledEventAttributes;
+import com.uber.cadence.ActivityTaskCompletedEventAttributes;
+import com.uber.cadence.ActivityTaskFailedEventAttributes;
+import com.uber.cadence.ActivityTaskScheduledEventAttributes;
+import com.uber.cadence.ActivityTaskTimedOutEventAttributes;
+import com.uber.cadence.CancelTimerFailedEventAttributes;
+import com.uber.cadence.CancelWorkflowExecutionDecisionAttributes;
+import com.uber.cadence.ChildWorkflowExecutionStartedEventAttributes;
+import com.uber.cadence.CompleteWorkflowExecutionDecisionAttributes;
+import com.uber.cadence.ContinueAsNewWorkflowExecutionDecisionAttributes;
+import com.uber.cadence.Decision;
+import com.uber.cadence.DecisionTaskCompletedEventAttributes;
+import com.uber.cadence.DecisionType;
+import com.uber.cadence.FailWorkflowExecutionDecisionAttributes;
+import com.uber.cadence.HistoryEvent;
+import com.uber.cadence.PollForDecisionTaskResponse;
+import com.uber.cadence.RequestCancelActivityTaskFailedEventAttributes;
+import com.uber.cadence.RequestCancelExternalWorkflowExecutionDecisionAttributes;
+import com.uber.cadence.RequestCancelExternalWorkflowExecutionFailedEventAttributes;
+import com.uber.cadence.RequestCancelExternalWorkflowExecutionInitiatedEventAttributes;
+import com.uber.cadence.ScheduleActivityTaskDecisionAttributes;
+import com.uber.cadence.SignalExternalWorkflowExecutionDecisionAttributes;
+import com.uber.cadence.SignalExternalWorkflowExecutionInitiatedEventAttributes;
+import com.uber.cadence.StartChildWorkflowExecutionDecisionAttributes;
+import com.uber.cadence.StartChildWorkflowExecutionFailedEventAttributes;
+import com.uber.cadence.StartChildWorkflowExecutionInitiatedEventAttributes;
+import com.uber.cadence.StartTimerDecisionAttributes;
+import com.uber.cadence.TaskList;
+import com.uber.cadence.TimerCanceledEventAttributes;
+import com.uber.cadence.TimerStartedEventAttributes;
+import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.worker.WorkflowExecutionException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -423,6 +455,7 @@ class DecisionsHelper {
     return result;
   }
 
+  @Override
   public String toString() {
     return WorkflowExecutionUtils.prettyPrintDecisions(getDecisions());
   }
@@ -434,7 +467,7 @@ class DecisionsHelper {
   /** @return new workflow state or null if it didn't change since the last decision completion */
   byte[] getWorkflowContextDataToReturn() {
     if (workfowContextFromLastDecisionCompletion == null
-        || !workfowContextFromLastDecisionCompletion.equals(workflowContextData)) {
+        || !Arrays.equals(workfowContextFromLastDecisionCompletion, workflowContextData)) {
       return workflowContextData;
     }
     return null;

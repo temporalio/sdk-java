@@ -19,12 +19,13 @@ package com.uber.cadence.internal.sync;
 
 import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.workflow.Promise;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashSet;
-import java.util.LinkedList;
+import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
@@ -56,7 +57,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   private final Lock lock = new ReentrantLock();
   private final ExecutorService threadPool;
   private final SyncDecisionContext decisionContext;
-  private final LinkedList<WorkflowThread> threads = new LinkedList<>(); // protected by lock
+  private final Deque<WorkflowThread> threads = new ArrayDeque<>(); // protected by lock
   private final List<WorkflowThread> threadsToAdd = Collections.synchronizedList(new ArrayList<>());
   private final List<NamedRunnable> toExecuteInWorkflowThread = new ArrayList<>();
   private final Supplier<Long> clock;
@@ -123,7 +124,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
             false,
             runnerCancellationScope,
             root);
-    threads.add(rootWorkflowThread);
+    threads.addLast(rootWorkflowThread);
     rootWorkflowThread.start();
   }
 
@@ -157,7 +158,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         }
         toExecuteInWorkflowThread.clear();
         progress = false;
-        ListIterator<WorkflowThread> ci = threads.listIterator();
+        Iterator<WorkflowThread> ci = threads.iterator();
         nextWakeUpTime = 0;
         while (ci.hasNext()) {
           WorkflowThread c = ci.next();
@@ -184,7 +185,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
           throw unhandledException;
         }
         for (WorkflowThread c : threadsToAdd) {
-          threads.add(c);
+          threads.addLast(c);
         }
       } while (progress && !threads.isEmpty());
       if (nextWakeUpTime < currentTimeMillis()) {
@@ -212,7 +213,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
   @Override
   @SuppressWarnings("unchecked")
-  public <R> R getExitValue() {
+  public Object getExitValue() {
     lock.lock();
     try {
       if (!closed) {
@@ -221,8 +222,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     } finally {
       lock.unlock();
     }
-
-    return (R) exitValue;
+    return exitValue;
   }
 
   @Override

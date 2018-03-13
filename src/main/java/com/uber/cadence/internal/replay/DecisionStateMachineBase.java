@@ -41,10 +41,12 @@ abstract class DecisionStateMachineBase implements DecisionStateMachine {
     stateHistory.add(state.toString());
   }
 
+  @Override
   public DecisionState getState() {
     return state;
   }
 
+  @Override
   public DecisionId getId() {
     return id;
   }
@@ -63,6 +65,7 @@ abstract class DecisionStateMachineBase implements DecisionStateMachine {
         state = DecisionState.DECISION_SENT;
         stateHistory.add(state.toString());
         break;
+      default:
     }
   }
 

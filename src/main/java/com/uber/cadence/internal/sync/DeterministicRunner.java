@@ -65,7 +65,7 @@ interface DeterministicRunner {
   boolean isDone();
 
   /** @return exit value passed to {@link WorkflowThread#exit(Object)} */
-  <R> R getExitValue();
+  Object getExitValue();
 
   /**
    * Request cancellation of the computation. Calls {@link CancellationScope#cancel(String)} on the

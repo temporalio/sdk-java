@@ -7,6 +7,7 @@ buildscript {
 plugins {
     id 'net.minecrell.licenser' version '0.3'
     id "com.github.sherter.google-java-format" version "0.6"
+    id "net.ltgt.errorprone" version "0.0.13"
 }
 
 repositories {
@@ -52,7 +53,8 @@ license {
 
 compileJava {
     options.encoding = 'UTF-8'
-    options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
+    options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation" << "-XepExcludedPaths:" +
+            ".*/generated-sources/.*"
 }
 
 license {
@@ -63,7 +65,8 @@ license {
 
 compileTestJava {
     options.encoding = 'UTF-8'
-    options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
+    options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation" << "-XepExcludedPaths:" +
+            ".*/generated-sources/.*"
 }
 
 if (JavaVersion.current().isJava8Compatible()) {

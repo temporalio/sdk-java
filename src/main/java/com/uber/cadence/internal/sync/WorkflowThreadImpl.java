@@ -198,6 +198,7 @@ class WorkflowThreadImpl implements WorkflowThread {
     return task.cancellationScope.getCancellationRequest();
   }
 
+  @Override
   public void start() {
     if (context.getStatus() != Status.CREATED) {
       throw new IllegalThreadStateException("already started");
@@ -228,14 +229,17 @@ class WorkflowThreadImpl implements WorkflowThread {
     return runner.getDecisionContext();
   }
 
+  @Override
   public void setName(String name) {
     task.setName(name);
   }
 
+  @Override
   public String getName() {
     return task.getName();
   }
 
+  @Override
   public long getId() {
     return hashCode();
   }
@@ -259,6 +263,7 @@ class WorkflowThreadImpl implements WorkflowThread {
     return context.runUntilBlocked();
   }
 
+  @Override
   public boolean isDone() {
     return context.isDone();
   }
@@ -292,6 +297,7 @@ class WorkflowThreadImpl implements WorkflowThread {
    * Interrupt coroutine by throwing DestroyWorkflowThreadError from a await method it is blocked on
    * and wait for coroutine thread to finish execution.
    */
+  @Override
   public void stop() {
     // Cannot call destroy() on itself
     if (thread == Thread.currentThread()) {

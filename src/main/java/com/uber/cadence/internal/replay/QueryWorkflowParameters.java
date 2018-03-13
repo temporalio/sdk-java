@@ -17,6 +17,8 @@
 
 package com.uber.cadence.internal.replay;
 
+import java.nio.charset.StandardCharsets;
+
 public class QueryWorkflowParameters implements Cloneable {
 
   private byte[] input;
@@ -86,14 +88,14 @@ public class QueryWorkflowParameters implements Cloneable {
     StringBuilder sb = new StringBuilder();
     sb.append("{");
     sb.append("QueryName: " + queryType + ", ");
-    sb.append("Input: " + input + ", ");
+    sb.append("Input: " + new String(input, 0, 512, StandardCharsets.UTF_8) + ", ");
     sb.append("WorkflowId: " + workflowId + ", ");
     sb.append("RunId: " + runId + ", ");
     sb.append("}");
     return sb.toString();
   }
 
-  public QueryWorkflowParameters clone() {
+  public QueryWorkflowParameters copy() {
     QueryWorkflowParameters result = new QueryWorkflowParameters();
     result.setInput(input);
     result.setRunId(runId);

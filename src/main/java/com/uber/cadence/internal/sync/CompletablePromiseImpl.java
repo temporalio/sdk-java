@@ -146,6 +146,7 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
     }
   }
 
+  @Override
   public boolean complete(V value) {
     if (completed) {
       return false;
@@ -156,6 +157,7 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
     return true;
   }
 
+  @Override
   public boolean completeExceptionally(RuntimeException value) {
     if (completed) {
       return false;
@@ -187,6 +189,7 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
     return true;
   }
 
+  @Override
   public <U> Promise<U> thenApply(Functions.Func1<? super V, ? extends U> fn) {
     return handle(
         (r, e) -> {
@@ -197,6 +200,7 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
         });
   }
 
+  @Override
   public <U> Promise<U> handle(Functions.Func2<? super V, RuntimeException, ? extends U> fn) {
     return then(
         (result) -> {

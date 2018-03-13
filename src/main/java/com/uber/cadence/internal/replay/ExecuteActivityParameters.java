@@ -18,8 +18,10 @@
 package com.uber.cadence.internal.replay;
 
 import com.uber.cadence.ActivityType;
+import java.nio.charset.StandardCharsets;
 
 public class ExecuteActivityParameters implements Cloneable {
+
   private String activityId;
   private ActivityType activityType;
   //    private String control;
@@ -341,7 +343,7 @@ public class ExecuteActivityParameters implements Cloneable {
     sb.append("{");
     sb.append("ActivityType: " + activityType + ", ");
     sb.append("ActivityId: " + activityId + ", ");
-    sb.append("Input: " + input + ", ");
+    sb.append("Input: " + new String(input, 0, 512, StandardCharsets.UTF_8) + ", ");
     //        sb.append("Control: " + control + ", ");
     sb.append("HeartbeatTimeout: " + heartbeatTimeoutSeconds + ", ");
     sb.append("ScheduleToStartTimeout: " + scheduleToStartTimeoutSeconds + ", ");
@@ -353,7 +355,7 @@ public class ExecuteActivityParameters implements Cloneable {
     return sb.toString();
   }
 
-  public ExecuteActivityParameters clone() {
+  public ExecuteActivityParameters copy() {
     ExecuteActivityParameters result = new ExecuteActivityParameters();
     result.setActivityType(activityType);
     result.setActivityId(activityId);

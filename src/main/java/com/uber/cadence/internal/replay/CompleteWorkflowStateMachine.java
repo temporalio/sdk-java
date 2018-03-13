@@ -30,6 +30,7 @@ final class CompleteWorkflowStateMachine implements DecisionStateMachine {
     this.decision = decision;
   }
 
+  @Override
   public DecisionId getId() {
     return id;
   }

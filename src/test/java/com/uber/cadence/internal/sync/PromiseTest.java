@@ -149,13 +149,8 @@ public class PromiseTest {
                       false,
                       () -> {
                         trace.add("thread1 begin");
-                        try {
-                          assertEquals("default", f.get(10, TimeUnit.SECONDS, "default"));
-                          trace.add("thread1 get success");
-                        } catch (Exception e) {
-                          assertEquals(IllegalArgumentException.class, e.getCause().getClass());
-                          trace.add("thread1 get failure");
-                        }
+                        assertEquals("default", f.get(10, TimeUnit.SECONDS, "default"));
+                        trace.add("thread1 get success");
                       })
                   .start();
               trace.add("root done");
@@ -196,13 +191,8 @@ public class PromiseTest {
                       false,
                       () -> {
                         trace.add("thread1 begin");
-                        try {
-                          assertEquals("default", f.get(10, TimeUnit.SECONDS, "default"));
-                          trace.add("thread1 get success");
-                        } catch (Exception e) {
-                          assertEquals(IllegalArgumentException.class, e.getCause().getClass());
-                          trace.add("thread1 get failure");
-                        }
+                        assertEquals("default", f.get(10, TimeUnit.SECONDS, "default"));
+                        trace.add("thread1 get success");
                       })
                   .start();
               f.completeExceptionally(new RuntimeException("boo"));
@@ -236,13 +226,8 @@ public class PromiseTest {
                       false,
                       () -> {
                         trace.add("thread1 begin");
-                        try {
-                          assertEquals("default", f.get("default"));
-                          trace.add("thread1 get success");
-                        } catch (Exception e) {
-                          assertEquals(IllegalArgumentException.class, e.getCause().getClass());
-                          trace.add("thread1 get failure");
-                        }
+                        assertEquals("default", f.get("default"));
+                        trace.add("thread1 get success");
                       })
                   .start();
               f.completeExceptionally(new RuntimeException("boo"));

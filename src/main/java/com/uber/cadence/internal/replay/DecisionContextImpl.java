@@ -128,6 +128,7 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
     return workflowClient.startChildWorkflow(parameters, executionCallback, callback);
   }
 
+  @Override
   public Consumer<Exception> signalWorkflowExecution(
       SignalExternalWorkflowParameters signalParameters, BiConsumer<Void, Exception> callback) {
     return workflowClient.signalWorkflowExecution(signalParameters, callback);

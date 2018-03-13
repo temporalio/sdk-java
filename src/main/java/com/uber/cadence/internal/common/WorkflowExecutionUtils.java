@@ -174,12 +174,13 @@ public class WorkflowExecutionUtils {
   }
 
   public static boolean isWorkflowExecutionCompletedEvent(HistoryEvent event) {
-    return ((event != null) && event.getEventType() == EventType.WorkflowExecutionCompleted
-        || event.getEventType() == EventType.WorkflowExecutionCanceled
-        || event.getEventType() == EventType.WorkflowExecutionFailed
-        || event.getEventType() == EventType.WorkflowExecutionTimedOut
-        || event.getEventType() == EventType.WorkflowExecutionContinuedAsNew
-        || event.getEventType() == EventType.WorkflowExecutionTerminated);
+    return ((event != null)
+        && (event.getEventType() == EventType.WorkflowExecutionCompleted
+            || event.getEventType() == EventType.WorkflowExecutionCanceled
+            || event.getEventType() == EventType.WorkflowExecutionFailed
+            || event.getEventType() == EventType.WorkflowExecutionTimedOut
+            || event.getEventType() == EventType.WorkflowExecutionContinuedAsNew
+            || event.getEventType() == EventType.WorkflowExecutionTerminated));
   }
 
   public static boolean isActivityTaskClosedEvent(HistoryEvent event) {
@@ -479,7 +480,7 @@ public class WorkflowExecutionUtils {
 
   public static String prettyPrintHistory(
       Iterator<HistoryEvent> events, boolean showWorkflowTasks) {
-    StringBuffer result = new StringBuffer();
+    StringBuilder result = new StringBuilder();
     result.append("{");
     boolean first = true;
     while (events.hasNext()) {
@@ -500,7 +501,7 @@ public class WorkflowExecutionUtils {
   }
 
   public static String prettyPrintDecisions(Iterable<Decision> decisions) {
-    StringBuffer result = new StringBuffer();
+    StringBuilder result = new StringBuilder();
     result.append("{");
     boolean first = true;
     for (Decision decision : decisions) {
@@ -523,7 +524,7 @@ public class WorkflowExecutionUtils {
    */
   public static String prettyPrintHistoryEvent(HistoryEvent event) {
     String eventType = event.getEventType().toString();
-    StringBuffer result = new StringBuffer();
+    StringBuilder result = new StringBuilder();
     result.append(event.getEventId());
     result.append(": ");
     result.append(eventType);
@@ -562,7 +563,7 @@ public class WorkflowExecutionUtils {
       String indentation,
       boolean skipLevel,
       boolean printTypeName) {
-    StringBuffer result = new StringBuffer();
+    StringBuilder result = new StringBuilder();
     if (object == null) {
       return "null";
     }

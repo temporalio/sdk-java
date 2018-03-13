@@ -20,30 +20,31 @@ package com.uber.cadence.internal.sync;
 import com.uber.cadence.workflow.CancellationScope;
 import com.uber.cadence.workflow.CompletablePromise;
 import com.uber.cadence.workflow.Workflow;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.Stack;
 
 class CancellationScopeImpl implements CancellationScope {
 
-  private static ThreadLocal<Stack<CancellationScopeImpl>> scopeStack =
-      ThreadLocal.withInitial(Stack::new);
+  private static ThreadLocal<Deque<CancellationScopeImpl>> scopeStack =
+      ThreadLocal.withInitial(ArrayDeque::new);
   private boolean detached;
   private CompletablePromise<String> cancellationPromise;
 
   static CancellationScopeImpl current() {
-    if (scopeStack.get().empty()) {
+    if (scopeStack.get().isEmpty()) {
       throw new IllegalStateException("Cannot be called by non workflow thread");
     }
-    return scopeStack.get().peek();
+    return scopeStack.get().peekFirst();
   }
 
   private static void pushCurrent(CancellationScopeImpl scope) {
-    scopeStack.get().push(scope);
+    scopeStack.get().addFirst(scope);
   }
 
   private static void popCurrent(CancellationScopeImpl expected) {
-    CancellationScopeImpl current = scopeStack.get().pop();
+    CancellationScopeImpl current = scopeStack.get().pollFirst();
     if (current != expected) {
       throw new Error("Unexpected scope");
     }
