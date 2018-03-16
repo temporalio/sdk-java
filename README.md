@@ -7,7 +7,7 @@ If you are authoring in Go, see [Go Cadence Client](https://github.com/uber-go/c
 
 ## Samples
 
-For samples, see [Samples for the Java Cadence client](https://github.com/uber-java/cadence-client).
+For samples, see [Samples for the Java Cadence client](https://github.com/mfateev/uber-java-cadence-samples).
 
 ## Run Cadence Server
 
