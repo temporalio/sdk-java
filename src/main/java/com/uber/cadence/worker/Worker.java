@@ -18,11 +18,11 @@
 package com.uber.cadence.worker;
 
 import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.WorkflowService;
 import com.uber.cadence.client.WorkflowClient;
 import com.uber.cadence.internal.sync.SyncActivityWorker;
 import com.uber.cadence.internal.sync.SyncWorkflowWorker;
 import com.uber.cadence.internal.worker.SingleWorkerOptions;
+import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
 import java.time.Duration;
 import java.util.Objects;
@@ -90,8 +90,7 @@ public final class Worker {
    * @param options Options (like {@link com.uber.cadence.converter.DataConverter}er override) for
    *     configuring worker.
    */
-  public Worker(
-      WorkflowService.Iface service, String domain, String taskList, WorkerOptions options) {
+  public Worker(IWorkflowService service, String domain, String taskList, WorkerOptions options) {
     Objects.requireNonNull(service, "service");
     Objects.requireNonNull(domain, "domain");
     Objects.requireNonNull(taskList, "taskList");

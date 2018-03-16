@@ -17,11 +17,32 @@
 
 package com.uber.cadence.internal.common;
 
-import com.uber.cadence.*;
-import com.uber.cadence.WorkflowService.Iface;
+import com.uber.cadence.ActivityType;
+import com.uber.cadence.BadRequestError;
+import com.uber.cadence.Decision;
+import com.uber.cadence.DescribeWorkflowExecutionRequest;
+import com.uber.cadence.DescribeWorkflowExecutionResponse;
+import com.uber.cadence.EntityNotExistsError;
+import com.uber.cadence.EventType;
+import com.uber.cadence.GetWorkflowExecutionHistoryRequest;
+import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
+import com.uber.cadence.History;
+import com.uber.cadence.HistoryEvent;
+import com.uber.cadence.HistoryEventFilterType;
+import com.uber.cadence.StartWorkflowExecutionRequest;
+import com.uber.cadence.TaskList;
+import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowExecutionCloseStatus;
+import com.uber.cadence.WorkflowExecutionContinuedAsNewEventAttributes;
+import com.uber.cadence.WorkflowExecutionFailedEventAttributes;
+import com.uber.cadence.WorkflowExecutionInfo;
+import com.uber.cadence.WorkflowExecutionTerminatedEventAttributes;
+import com.uber.cadence.WorkflowExecutionTimedOutEventAttributes;
+import com.uber.cadence.WorkflowType;
 import com.uber.cadence.client.WorkflowTerminatedException;
 import com.uber.cadence.client.WorkflowTimedOutException;
 import com.uber.cadence.common.RetryOptions;
+import com.uber.cadence.serviceclient.IWorkflowService;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -32,9 +53,11 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.thrift.TException;
+import org.apache.thrift.async.AsyncMethodCallback;
 
 /**
  * Convenience methods to be used by unit tests and during development.
@@ -65,7 +88,7 @@ public class WorkflowExecutionUtils {
    *     terminate command.
    */
   public static byte[] getWorkflowExecutionResult(
-      Iface service,
+      IWorkflowService service,
       String domain,
       WorkflowExecution workflowExecution,
       String workflowType,
@@ -76,6 +99,23 @@ public class WorkflowExecutionUtils {
     // getIntanceCloseEvent waits for workflow completion including new runs.
     HistoryEvent closeEvent =
         getInstanceCloseEvent(service, domain, workflowExecution, timeout, unit);
+    return getResultFromCloseEvent(workflowExecution, workflowType, closeEvent);
+  }
+
+  public static CompletableFuture<byte[]> getWorkflowExecutionResultAsync(
+      IWorkflowService service,
+      String domain,
+      WorkflowExecution workflowExecution,
+      String workflowType,
+      long timeout,
+      TimeUnit unit) {
+    return getInstanceCloseEventAsync(service, domain, workflowExecution, timeout, unit)
+        .thenApply(
+            (closeEvent) -> getResultFromCloseEvent(workflowExecution, workflowType, closeEvent));
+  }
+
+  private static byte[] getResultFromCloseEvent(
+      WorkflowExecution workflowExecution, String workflowType, HistoryEvent closeEvent) {
     if (closeEvent == null) {
       throw new IllegalStateException("Workflow is still running");
     }
@@ -113,7 +153,7 @@ public class WorkflowExecutionUtils {
 
   /** Returns an instance closing event, potentially waiting for workflow to complete. */
   public static HistoryEvent getInstanceCloseEvent(
-      Iface service,
+      IWorkflowService service,
       String domain,
       WorkflowExecution workflowExecution,
       long timeout,
@@ -132,8 +172,7 @@ public class WorkflowExecutionUtils {
       r.setNextPageToken(pageToken);
       try {
         response =
-            SynchronousRetryer.retryWithResult(
-                retryParameters, () -> service.GetWorkflowExecutionHistory(r));
+            Retryer.retryWithResult(retryParameters, () -> service.GetWorkflowExecutionHistory(r));
       } catch (TException e) {
         throw CheckedExceptionWrapper.wrap(e);
       }
@@ -171,6 +210,101 @@ public class WorkflowExecutionUtils {
       }
     } while (true);
     return event;
+  }
+
+  /** Returns an instance closing event, potentially waiting for workflow to complete. */
+  private static CompletableFuture<HistoryEvent> getInstanceCloseEventAsync(
+      IWorkflowService service,
+      String domain,
+      final WorkflowExecution workflowExecution,
+      long timeout,
+      TimeUnit unit) {
+    return getInstanceCloseEventAsync(service, domain, workflowExecution, null, timeout, unit);
+  }
+
+  private static CompletableFuture<HistoryEvent> getInstanceCloseEventAsync(
+      IWorkflowService service,
+      String domain,
+      final WorkflowExecution workflowExecution,
+      byte[] pageToken,
+      long timeout,
+      TimeUnit unit) {
+    // TODO: Interrupt service long poll call on timeout and on interrupt
+    long start = System.currentTimeMillis();
+    CompletableFuture<HistoryEvent> result = new CompletableFuture<>();
+    GetWorkflowExecutionHistoryRequest request = new GetWorkflowExecutionHistoryRequest();
+    request.setDomain(domain);
+    request.setExecution(workflowExecution);
+    request.setHistoryEventFilterType(HistoryEventFilterType.CLOSE_EVENT);
+    request.setNextPageToken(pageToken);
+    CompletableFuture<GetWorkflowExecutionHistoryResponse> response =
+        getWorkflowExecutionHistoryAsync(service, request);
+    return response.thenComposeAsync(
+        (r) -> {
+          if (timeout != 0 && System.currentTimeMillis() - start > unit.toMillis(timeout)) {
+            throw CheckedExceptionWrapper.wrap(
+                new TimeoutException(
+                    "WorkflowId="
+                        + workflowExecution.getWorkflowId()
+                        + ", runId="
+                        + workflowExecution.getRunId()
+                        + ", timeout="
+                        + timeout
+                        + ", unit="
+                        + unit));
+          }
+          History history = r.getHistory();
+          if (history == null || history.getEvents().size() == 0) {
+            // Empty poll returned
+            return getInstanceCloseEventAsync(
+                service, domain, workflowExecution, pageToken, timeout, unit);
+          }
+          HistoryEvent event = history.getEvents().get(0);
+          if (!isWorkflowExecutionCompletedEvent(event)) {
+            throw new RuntimeException("Last history event is not completion event: " + event);
+          }
+          // Workflow called continueAsNew. Start polling the new generation with new runId.
+          if (event.getEventType() == EventType.WorkflowExecutionContinuedAsNew) {
+            WorkflowExecution nextWorkflowExecution =
+                new WorkflowExecution()
+                    .setWorkflowId(workflowExecution.getWorkflowId())
+                    .setRunId(
+                        event
+                            .getWorkflowExecutionContinuedAsNewEventAttributes()
+                            .getNewExecutionRunId());
+            return getInstanceCloseEventAsync(
+                service, domain, nextWorkflowExecution, r.getNextPageToken(), timeout, unit);
+          }
+          return CompletableFuture.completedFuture(event);
+        });
+  }
+
+  private static CompletableFuture<GetWorkflowExecutionHistoryResponse>
+      getWorkflowExecutionHistoryAsync(
+          IWorkflowService service, GetWorkflowExecutionHistoryRequest r) {
+    return Retryer.retryWithResultAsync(
+        retryParameters,
+        () -> {
+          CompletableFuture<GetWorkflowExecutionHistoryResponse> result = new CompletableFuture<>();
+          try {
+            service.GetWorkflowExecutionHistory(
+                r,
+                new AsyncMethodCallback<GetWorkflowExecutionHistoryResponse>() {
+                  @Override
+                  public void onComplete(GetWorkflowExecutionHistoryResponse response) {
+                    result.complete(response);
+                  }
+
+                  @Override
+                  public void onError(Exception exception) {
+                    result.completeExceptionally(exception);
+                  }
+                });
+          } catch (TException e) {
+            result.completeExceptionally(e);
+          }
+          return result;
+        });
   }
 
   public static boolean isWorkflowExecutionCompletedEvent(HistoryEvent event) {
@@ -254,11 +388,11 @@ public class WorkflowExecutionUtils {
    * polling for worklow instance status is an expensive operation.
    *
    * @param workflowExecution result of {@link
-   *     Iface#StartWorkflowExecution(StartWorkflowExecutionRequest)}
+   *     IWorkflowService#StartWorkflowExecution(StartWorkflowExecutionRequest)}
    * @return instance close status
    */
   public static WorkflowExecutionCloseStatus waitForWorkflowInstanceCompletion(
-      Iface service, String domain, WorkflowExecution workflowExecution) {
+      IWorkflowService service, String domain, WorkflowExecution workflowExecution) {
     try {
       return waitForWorkflowInstanceCompletion(
           service, domain, workflowExecution, 0, TimeUnit.MILLISECONDS);
@@ -272,13 +406,12 @@ public class WorkflowExecutionUtils {
    * production setting as polling for worklow instance status is an expensive operation.
    *
    * @param workflowExecution result of {@link
-   *     Iface#StartWorkflowExecution(StartWorkflowExecutionRequest)}
+   *     IWorkflowService#StartWorkflowExecution(StartWorkflowExecutionRequest)}
    * @param timeout maximum time to wait for completion. 0 means wait forever.
    * @return instance close status
-   * @throws TimeoutException
    */
   public static WorkflowExecutionCloseStatus waitForWorkflowInstanceCompletion(
-      Iface service,
+      IWorkflowService service,
       String domain,
       WorkflowExecution workflowExecution,
       long timeout,
@@ -309,13 +442,15 @@ public class WorkflowExecutionUtils {
   }
 
   /**
-   * Like {@link #waitForWorkflowInstanceCompletion(Iface, String, WorkflowExecution, long,
-   * TimeUnit)} , except will wait for continued generations of the original workflow execution too.
+   * Like {@link #waitForWorkflowInstanceCompletion(IWorkflowService, String, WorkflowExecution,
+   * long, TimeUnit)} , except will wait for continued generations of the original workflow
+   * execution too.
    *
-   * @see #waitForWorkflowInstanceCompletion(Iface, String, WorkflowExecution, long, TimeUnit)
+   * @see #waitForWorkflowInstanceCompletion(IWorkflowService, String, WorkflowExecution, long,
+   *     TimeUnit)
    */
   public static WorkflowExecutionCloseStatus waitForWorkflowInstanceCompletionAcrossGenerations(
-      Iface service,
+      IWorkflowService service,
       String domain,
       WorkflowExecution workflowExecution,
       long timeout,
@@ -359,11 +494,11 @@ public class WorkflowExecutionUtils {
   }
 
   /**
-   * Like {@link #waitForWorkflowInstanceCompletion(Iface, String, WorkflowExecution, long,
-   * TimeUnit)} , but with no timeout.*
+   * Like {@link #waitForWorkflowInstanceCompletion(IWorkflowService, String, WorkflowExecution,
+   * long, TimeUnit)} , but with no timeout.*
    */
   public static WorkflowExecutionCloseStatus waitForWorkflowInstanceCompletionAcrossGenerations(
-      Iface service, String domain, WorkflowExecution workflowExecution)
+      IWorkflowService service, String domain, WorkflowExecution workflowExecution)
       throws InterruptedException {
     try {
       return waitForWorkflowInstanceCompletionAcrossGenerations(
@@ -374,7 +509,7 @@ public class WorkflowExecutionUtils {
   }
 
   public static WorkflowExecutionInfo describeWorkflowInstance(
-      Iface service, String domain, WorkflowExecution workflowExecution) {
+      IWorkflowService service, String domain, WorkflowExecution workflowExecution) {
     DescribeWorkflowExecutionRequest describeRequest = new DescribeWorkflowExecutionRequest();
     describeRequest.setDomain(domain);
     describeRequest.setExecution(workflowExecution);
@@ -388,25 +523,20 @@ public class WorkflowExecutionUtils {
     return instanceMetadata;
   }
 
-  /**
-   * Returns workflow instance history in a human readable format.
-   *
-   * @param workflowExecution
-   */
+  /** Returns workflow instance history in a human readable format. */
   public static String prettyPrintHistory(
-      Iface service, String domain, WorkflowExecution workflowExecution) {
+      IWorkflowService service, String domain, WorkflowExecution workflowExecution) {
     return prettyPrintHistory(service, domain, workflowExecution, true);
   }
 
   /**
    * Returns workflow instance history in a human readable format.
    *
-   * @param workflowExecution
    * @param showWorkflowTasks when set to false workflow task events (decider events) are not
    *     included
    */
   public static String prettyPrintHistory(
-      Iface service,
+      IWorkflowService service,
       String domain,
       WorkflowExecution workflowExecution,
       boolean showWorkflowTasks) {
@@ -415,7 +545,7 @@ public class WorkflowExecutionUtils {
   }
 
   public static Iterator<HistoryEvent> getHistory(
-      Iface service, String domain, WorkflowExecution workflowExecution) {
+      IWorkflowService service, String domain, WorkflowExecution workflowExecution) {
     return new Iterator<HistoryEvent>() {
       byte[] nextPageToken;
       Iterator<HistoryEvent> current;
@@ -448,7 +578,10 @@ public class WorkflowExecutionUtils {
   }
 
   public static GetWorkflowExecutionHistoryResponse getHistoryPage(
-      byte[] nextPageToken, Iface service, String domain, WorkflowExecution workflowExecution) {
+      byte[] nextPageToken,
+      IWorkflowService service,
+      String domain,
+      WorkflowExecution workflowExecution) {
 
     GetWorkflowExecutionHistoryRequest getHistoryRequest = new GetWorkflowExecutionHistoryRequest();
     getHistoryRequest.setDomain(domain);

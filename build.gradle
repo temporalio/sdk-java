@@ -52,6 +52,7 @@ license {
 }
 
 compileJava {
+    dependsOn 'googleJavaFormat'
     options.encoding = 'UTF-8'
     options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation" << "-XepExcludedPaths:" +
             ".*/generated-sources/.*"
@@ -61,7 +62,6 @@ license {
     header = project.file('license-header.txt')
     exclude '**/com/uber/cadence/*.java'
 }
-
 
 compileTestJava {
     options.encoding = 'UTF-8'

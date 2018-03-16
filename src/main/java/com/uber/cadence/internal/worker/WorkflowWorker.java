@@ -30,10 +30,10 @@ import com.uber.cadence.TaskList;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
 import com.uber.cadence.WorkflowQuery;
-import com.uber.cadence.WorkflowService;
 import com.uber.cadence.common.RetryOptions;
-import com.uber.cadence.internal.common.SynchronousRetryer;
+import com.uber.cadence.internal.common.Retryer;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
+import com.uber.cadence.serviceclient.IWorkflowService;
 import java.time.Duration;
 import java.util.Iterator;
 import java.util.Objects;
@@ -51,13 +51,13 @@ public final class WorkflowWorker implements SuspendableWorker {
 
   private Poller poller;
   private final DecisionTaskHandler handler;
-  private final WorkflowService.Iface service;
+  private final IWorkflowService service;
   private final String domain;
   private final String taskList;
   private final SingleWorkerOptions options;
 
   public WorkflowWorker(
-      WorkflowService.Iface service,
+      IWorkflowService service,
       String domain,
       String taskList,
       SingleWorkerOptions options,
@@ -174,10 +174,7 @@ public final class WorkflowWorker implements SuspendableWorker {
 
     @Override
     public void handle(
-        WorkflowService.Iface service,
-        String domain,
-        String taskList,
-        PollForDecisionTaskResponse task)
+        IWorkflowService service, String domain, String taskList, PollForDecisionTaskResponse task)
         throws Exception {
       DecisionTaskHandler.Result response =
           handler.handleDecisionTask(new DecisionTaskWithHistoryIteratorImpl(task));
@@ -186,7 +183,7 @@ public final class WorkflowWorker implements SuspendableWorker {
 
     @Override
     public PollForDecisionTaskResponse poll(
-        WorkflowService.Iface service, String domain, String taskList) throws TException {
+        IWorkflowService service, String domain, String taskList) throws TException {
       PollForDecisionTaskRequest pollRequest = new PollForDecisionTaskRequest();
 
       pollRequest.setDomain(domain);
@@ -233,7 +230,7 @@ public final class WorkflowWorker implements SuspendableWorker {
     }
 
     private void sendReply(
-        WorkflowService.Iface service, byte[] taskToken, DecisionTaskHandler.Result response)
+        IWorkflowService service, byte[] taskToken, DecisionTaskHandler.Result response)
         throws TException {
       RetryOptions ro = response.getRequestRetryOptions();
       RespondDecisionTaskCompletedRequest taskCompleted = response.getTaskCompleted();
@@ -241,14 +238,14 @@ public final class WorkflowWorker implements SuspendableWorker {
         ro = options.getReportCompletionRetryOptions().merge(ro);
         taskCompleted.setIdentity(options.getIdentity());
         taskCompleted.setTaskToken(taskToken);
-        SynchronousRetryer.retry(ro, () -> service.RespondDecisionTaskCompleted(taskCompleted));
+        Retryer.retry(ro, () -> service.RespondDecisionTaskCompleted(taskCompleted));
       } else {
         RespondDecisionTaskFailedRequest taskFailed = response.getTaskFailed();
         if (taskFailed != null) {
           ro = options.getReportFailureRetryOptions().merge(ro);
           taskFailed.setIdentity(options.getIdentity());
           taskFailed.setTaskToken(taskToken);
-          SynchronousRetryer.retry(ro, () -> service.RespondDecisionTaskFailed(taskFailed));
+          Retryer.retry(ro, () -> service.RespondDecisionTaskFailed(taskFailed));
         } else {
           RespondQueryTaskCompletedRequest queryCompleted = response.getQueryCompleted();
           if (queryCompleted != null) {
@@ -320,7 +317,7 @@ public final class WorkflowWorker implements SuspendableWorker {
           request.setMaximumPageSize(MAXIMUM_PAGE_SIZE);
           try {
             GetWorkflowExecutionHistoryResponse r =
-                SynchronousRetryer.retryWithResult(
+                Retryer.retryWithResult(
                     retryOptions, () -> service.GetWorkflowExecutionHistory(request));
             current = r.getHistory().getEventsIterator();
             nextPageToken = r.getNextPageToken();

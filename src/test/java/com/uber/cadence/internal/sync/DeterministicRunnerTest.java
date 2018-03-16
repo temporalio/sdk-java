@@ -17,7 +17,11 @@
 
 package com.uber.cadence.internal.sync;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.workflow.Async;

@@ -17,9 +17,9 @@
 
 package com.uber.cadence.internal.sync;
 
-import com.uber.cadence.WorkflowService;
 import com.uber.cadence.internal.worker.ActivityWorker;
 import com.uber.cadence.internal.worker.SingleWorkerOptions;
+import com.uber.cadence.serviceclient.IWorkflowService;
 import java.util.concurrent.TimeUnit;
 
 /** Activity worker that supports POJO activity implementations. */
@@ -29,7 +29,7 @@ public class SyncActivityWorker {
   private final POJOActivityTaskHandler taskHandler;
 
   public SyncActivityWorker(
-      WorkflowService.Iface service, String domain, String taskList, SingleWorkerOptions options) {
+      IWorkflowService service, String domain, String taskList, SingleWorkerOptions options) {
     taskHandler = new POJOActivityTaskHandler(options.getDataConverter());
     worker = new ActivityWorker(service, domain, taskList, options, taskHandler);
   }

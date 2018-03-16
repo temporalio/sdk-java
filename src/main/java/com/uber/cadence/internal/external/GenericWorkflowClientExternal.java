@@ -19,11 +19,11 @@ package com.uber.cadence.internal.external;
 
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
-import com.uber.cadence.WorkflowService;
 import com.uber.cadence.internal.common.StartWorkflowExecutionParameters;
 import com.uber.cadence.internal.common.TerminateWorkflowExecutionParameters;
 import com.uber.cadence.internal.replay.QueryWorkflowParameters;
 import com.uber.cadence.internal.replay.SignalExternalWorkflowParameters;
+import com.uber.cadence.serviceclient.IWorkflowService;
 
 public interface GenericWorkflowClientExternal {
 
@@ -40,7 +40,7 @@ public interface GenericWorkflowClientExternal {
 
   String generateUniqueId();
 
-  WorkflowService.Iface getService();
+  IWorkflowService getService();
 
   String getDomain();
 }

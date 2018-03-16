@@ -18,25 +18,25 @@
 package com.uber.cadence.internal.external;
 
 import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.WorkflowService;
 import com.uber.cadence.converter.DataConverter;
+import com.uber.cadence.serviceclient.IWorkflowService;
 
 public class ManualActivityCompletionClientFactoryImpl
     extends ManualActivityCompletionClientFactory {
 
-  private final WorkflowService.Iface service;
+  private final IWorkflowService service;
 
   private final DataConverter dataConverter;
   private final String domain;
 
   public ManualActivityCompletionClientFactoryImpl(
-      WorkflowService.Iface service, String domain, DataConverter dataConverter) {
+      IWorkflowService service, String domain, DataConverter dataConverter) {
     this.service = service;
     this.domain = domain;
     this.dataConverter = dataConverter;
   }
 
-  public WorkflowService.Iface getService() {
+  public IWorkflowService getService() {
     return service;
   }
 

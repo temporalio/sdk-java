@@ -17,9 +17,9 @@
 
 package com.uber.cadence.activity;
 
-import com.uber.cadence.WorkflowService;
 import com.uber.cadence.internal.sync.ActivityInternal;
 import com.uber.cadence.internal.sync.WorkflowInternal;
+import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.cadence.workflow.ActivityException;
 import com.uber.cadence.workflow.ActivityTimeoutException;
 import java.util.concurrent.CancellationException;
@@ -76,7 +76,7 @@ public final class Activity {
    *     operations like sending signal to its parent workflow. @TODO getWorkflowClient method to
    *     hide the service.
    */
-  public static WorkflowService.Iface getService() {
+  public static IWorkflowService getService() {
     return ActivityInternal.getService();
   }
 

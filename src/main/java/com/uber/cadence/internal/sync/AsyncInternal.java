@@ -354,7 +354,7 @@ public final class AsyncInternal {
    */
   private static void initAsyncInvocation() {
     if (asyncResult.get() != null) {
-      throw new IllegalStateException("already in asyncStart invocation");
+      throw new IllegalStateException("already in start invocation");
     }
     asyncResult.set(new AtomicReference<>());
   }
@@ -368,7 +368,7 @@ public final class AsyncInternal {
     @SuppressWarnings("unchecked")
     Promise<R> result = (Promise<R>) reference.get();
     if (result == null) {
-      throw new IllegalStateException("asyncStart result wasn't set");
+      throw new IllegalStateException("start result wasn't set");
     }
     return result;
   }

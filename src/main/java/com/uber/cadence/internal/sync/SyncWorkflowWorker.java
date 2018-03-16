@@ -18,11 +18,11 @@
 package com.uber.cadence.internal.sync;
 
 import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.WorkflowService;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.replay.ReplayDecisionTaskHandler;
 import com.uber.cadence.internal.worker.SingleWorkerOptions;
 import com.uber.cadence.internal.worker.WorkflowWorker;
+import com.uber.cadence.serviceclient.IWorkflowService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -36,7 +36,7 @@ public class SyncWorkflowWorker {
   private final SingleWorkerOptions options;
 
   public SyncWorkflowWorker(
-      WorkflowService.Iface service,
+      IWorkflowService service,
       String domain,
       String taskList,
       SingleWorkerOptions options,

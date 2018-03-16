@@ -70,7 +70,7 @@ public final class CheckedExceptionWrapper extends RuntimeException {
    * Removes CheckedException wrapper from the whole chain of Exceptions. Assumes that wrapper
    * always has a cause which cannot be a wrapper.
    */
-  public static Exception unwrap(Exception e) {
+  public static Exception unwrap(Throwable e) {
     Throwable head = e;
     if (head instanceof CheckedExceptionWrapper) {
       head = head.getCause();

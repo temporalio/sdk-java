@@ -33,11 +33,14 @@ import com.uber.cadence.internal.external.GenericWorkflowClientExternal;
 import com.uber.cadence.internal.replay.QueryWorkflowParameters;
 import com.uber.cadence.internal.replay.SignalExternalWorkflowParameters;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
+
   private final GenericWorkflowClientExternal genericClient;
   private final DataConverter dataConverter;
   private final String workflowType;
@@ -118,6 +121,11 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
   }
 
   @Override
+  public String getWorkflowType() {
+    return workflowType;
+  }
+
+  @Override
   public WorkflowExecution getExecution() {
     return execution.get();
   }
@@ -148,24 +156,63 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
       }
       return dataConverter.fromData(resultValue, returnType);
     } catch (WorkflowExecutionFailedException e) {
-      Class<Throwable> detailsClass;
-      try {
-        @SuppressWarnings("unchecked")
-        Class<Throwable> dc = (Class<Throwable>) Class.forName(e.getReason());
-        detailsClass = dc;
-      } catch (Exception ee) {
-        RuntimeException failure =
-            new RuntimeException(
-                "Couldn't deserialize failure cause "
-                    + "as the reason field is expected to contain an exception class name",
-                e);
-        throw new WorkflowFailureException(
-            execution.get(), workflowType, e.getDecisionTaskCompletedEventId(), failure);
-      }
-      Throwable cause = dataConverter.fromData(e.getDetails(), detailsClass);
-      throw new WorkflowFailureException(
-          execution.get(), workflowType, e.getDecisionTaskCompletedEventId(), cause);
+      return mapToWorkflowFailureException(e, returnType);
     }
+  }
+
+  @Override
+  public <R> CompletableFuture<R> getResultAsync(Class<R> returnType) {
+    return getResultAsync(Long.MAX_VALUE, TimeUnit.MILLISECONDS, returnType);
+  }
+
+  @Override
+  public <R> CompletableFuture<R> getResultAsync(long timeout, TimeUnit unit, Class<R> returnType) {
+    checkStarted();
+    return WorkflowExecutionUtils.getWorkflowExecutionResultAsync(
+            genericClient.getService(),
+            genericClient.getDomain(),
+            execution.get(),
+            workflowType,
+            timeout,
+            unit)
+        .handle(
+            (r, e) -> {
+              if (e instanceof CompletionException) {
+                e = e.getCause();
+              }
+              if (e instanceof WorkflowExecutionFailedException) {
+                return mapToWorkflowFailureException(
+                    (WorkflowExecutionFailedException) e, returnType);
+              }
+              if (e != null) {
+                throw CheckedExceptionWrapper.wrap(e);
+              }
+              if (r == null) {
+                return null;
+              }
+              return dataConverter.fromData(r, returnType);
+            });
+  }
+
+  private <R> R mapToWorkflowFailureException(
+      WorkflowExecutionFailedException e, Class<R> returnType) {
+    Class<Throwable> detailsClass;
+    try {
+      @SuppressWarnings("unchecked")
+      Class<Throwable> dc = (Class<Throwable>) Class.forName(e.getReason());
+      detailsClass = dc;
+    } catch (Exception ee) {
+      RuntimeException failure =
+          new RuntimeException(
+              "Couldn't deserialize failure cause "
+                  + "as the reason field is expected to contain an exception class name",
+              e);
+      throw new WorkflowFailureException(
+          execution.get(), workflowType, e.getDecisionTaskCompletedEventId(), failure);
+    }
+    Throwable cause = dataConverter.fromData(e.getDetails(), detailsClass);
+    throw new WorkflowFailureException(
+        execution.get(), workflowType, e.getDecisionTaskCompletedEventId(), cause);
   }
 
   @Override

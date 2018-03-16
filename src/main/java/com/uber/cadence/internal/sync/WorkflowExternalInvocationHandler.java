@@ -29,12 +29,33 @@ import com.uber.cadence.workflow.SignalMethod;
 import com.uber.cadence.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class WorkflowExternalInvocationHandler implements InvocationHandler {
 
-  private static final ThreadLocal<AtomicReference<WorkflowExecution>> asyncResult =
-      new ThreadLocal<>();
+  private static final Logger log =
+      LoggerFactory.getLogger(WorkflowExternalInvocationHandler.class);
+
+  public enum InvocationType {
+    START,
+    EXECUTE
+  }
+
+  private static class AsyncInvocation {
+
+    private final InvocationType type;
+    // Holds either WorkflowExecution or CompletableFuture to workflow result.
+    private final AtomicReference<Object> result = new AtomicReference<>();
+
+    public AsyncInvocation(InvocationType type) {
+      this.type = type;
+    }
+  }
+
+  private static final ThreadLocal<AsyncInvocation> asyncInvocation = new ThreadLocal<>();
   private final AtomicReference<UntypedWorkflowStubImpl> untyped = new AtomicReference<>();
   private final WorkflowOptions options;
   private final DataConverter dataConverter;
@@ -42,30 +63,50 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
   private String workflowType;
 
   /** Must call {@link #closeAsyncInvocation()} if this one was called. */
-  public static void initAsyncInvocation() {
-    if (asyncResult.get() != null) {
-      throw new IllegalStateException("already in asyncStart invocation");
+  public static void initAsyncInvocation(InvocationType type) {
+    if (asyncInvocation.get() != null) {
+      throw new IllegalStateException("already in start invocation");
     }
-    asyncResult.set(new AtomicReference<>());
+    asyncInvocation.set(new AsyncInvocation(type));
   }
 
-  public static WorkflowExecution getAsyncInvocationResult() {
-    AtomicReference<WorkflowExecution> reference = asyncResult.get();
+  @SuppressWarnings("unchecked")
+  public static <R> R getAsyncInvocationResult(Class<R> resultClass) {
+    AsyncInvocation reference = asyncInvocation.get();
     if (reference == null) {
       throw new IllegalStateException("initAsyncInvocation wasn't called");
     }
-    WorkflowExecution result = reference.get();
+    Object result = reference.result.get();
     if (result == null) {
       throw new IllegalStateException(
           "Only methods of a stub created through WorkflowClient.newWorkflowStub "
-              + "can be used as a parameter to the asyncStart.");
+              + "can be used as a parameter to the start.");
     }
-    return result;
+    if (reference.type == InvocationType.START) {
+      if (!resultClass.equals(WorkflowExecution.class)) {
+        throw new IllegalArgumentException(
+            "Only WorkflowExecution type is allowed with START " + "InvocationThype");
+      }
+      return (R) result;
+    }
+    if (reference.type == InvocationType.EXECUTE) {
+      if (!resultClass.isAssignableFrom(result.getClass())) {
+        throw new IllegalArgumentException(
+            "Result type \""
+                + result.getClass().getName()
+                + "\" "
+                + "doesn't match expected type \""
+                + resultClass.getName()
+                + "\"");
+      }
+      return (R) result;
+    }
+    throw new Error("Unknown invocation type: " + reference.type);
   }
 
-  /** Closes async invocation created through {@link #initAsyncInvocation()} */
+  /** Closes async invocation created through {@link #initAsyncInvocation(InvocationType)} */
   public static void closeAsyncInvocation() {
-    asyncResult.remove();
+    asyncInvocation.remove();
   }
 
   WorkflowExternalInvocationHandler(
@@ -112,7 +153,9 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
       // We do allow duplicated calls if policy is not AllowDuplicate. Semantic is to wait for result.
       UntypedWorkflowStubImpl workflowStub = untyped.get();
       if (workflowStub != null) { // stub is reused
-        if (mergedOptions.getWorkflowIdReusePolicy() == WorkflowIdReusePolicy.AllowDuplicate) {
+        if (mergedOptions.getWorkflowIdReusePolicy() == WorkflowIdReusePolicy.AllowDuplicate
+            || (workflowType != null
+                && !workflowType.equals(getWorkflowType(method, workflowMethod)))) {
           throw new DuplicateWorkflowException(
               workflowStub.getExecution(),
               workflowType,
@@ -167,11 +210,15 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
 
   private Object startWorkflow(
       Method method, WorkflowMethod workflowMethod, WorkflowOptions mergedOptions, Object[] args) {
-    String workflowName = workflowMethod.name();
-    if (workflowName.isEmpty()) {
-      workflowType = InternalUtils.getSimpleName(method);
-    } else {
-      workflowType = workflowName;
+    workflowType = getWorkflowType(method, workflowMethod);
+    if (log.isTraceEnabled()) {
+      log.trace(
+          "startWorkflow type="
+              + workflowType
+              + ", options="
+              + mergedOptions
+              + ", args="
+              + Arrays.toString(args));
     }
     // There is no race condition here.
     // If it is not set then it means the invocation handler was created passing workflow type rather than execution.
@@ -189,11 +236,24 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
         throw e;
       }
     }
-    AtomicReference<WorkflowExecution> async = asyncResult.get();
+    AsyncInvocation async = asyncInvocation.get();
     if (async != null) {
-      async.set(workflowStub.getExecution());
+      if (async.type == InvocationType.START) {
+        async.result.set(workflowStub.getExecution());
+      } else {
+        async.result.set(untyped.get().getResultAsync(method.getReturnType()));
+      }
       return null;
     }
     return workflowStub.getResult(method.getReturnType());
+  }
+
+  private static String getWorkflowType(Method method, WorkflowMethod workflowMethod) {
+    String workflowName = workflowMethod.name();
+    if (workflowName.isEmpty()) {
+      return InternalUtils.getSimpleName(method);
+    } else {
+      return workflowName;
+    }
   }
 }

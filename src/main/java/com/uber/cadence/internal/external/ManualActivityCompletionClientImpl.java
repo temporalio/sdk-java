@@ -27,11 +27,11 @@ import com.uber.cadence.RespondActivityTaskCompletedRequest;
 import com.uber.cadence.RespondActivityTaskFailedByIDRequest;
 import com.uber.cadence.RespondActivityTaskFailedRequest;
 import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.WorkflowService;
 import com.uber.cadence.client.ActivityCancelledException;
 import com.uber.cadence.client.ActivityCompletionFailureException;
 import com.uber.cadence.client.ActivityNotExistsException;
 import com.uber.cadence.converter.DataConverter;
+import com.uber.cadence.serviceclient.IWorkflowService;
 import java.util.concurrent.CancellationException;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
@@ -43,7 +43,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
   private static final Logger log =
       LoggerFactory.getLogger(ManualActivityCompletionClientImpl.class);
 
-  private final WorkflowService.Iface service;
+  private final IWorkflowService service;
 
   private final byte[] taskToken;
 
@@ -53,7 +53,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
   private final String activityId;
 
   public ManualActivityCompletionClientImpl(
-      WorkflowService.Iface service, byte[] taskToken, DataConverter dataConverter) {
+      IWorkflowService service, byte[] taskToken, DataConverter dataConverter) {
     this.service = service;
     this.taskToken = taskToken;
     this.dataConverter = dataConverter;
@@ -63,7 +63,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
   }
 
   public ManualActivityCompletionClientImpl(
-      WorkflowService.Iface service,
+      IWorkflowService service,
       String domain,
       WorkflowExecution execution,
       String activityId,

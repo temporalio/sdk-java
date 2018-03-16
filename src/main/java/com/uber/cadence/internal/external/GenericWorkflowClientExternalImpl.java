@@ -28,11 +28,11 @@ import com.uber.cadence.TerminateWorkflowExecutionRequest;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
 import com.uber.cadence.WorkflowQuery;
-import com.uber.cadence.WorkflowService;
 import com.uber.cadence.internal.common.StartWorkflowExecutionParameters;
 import com.uber.cadence.internal.common.TerminateWorkflowExecutionParameters;
 import com.uber.cadence.internal.replay.QueryWorkflowParameters;
 import com.uber.cadence.internal.replay.SignalExternalWorkflowParameters;
+import com.uber.cadence.serviceclient.IWorkflowService;
 import java.util.UUID;
 import org.apache.thrift.TException;
 
@@ -40,9 +40,9 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
 
   private final String domain;
 
-  private final WorkflowService.Iface service;
+  private final IWorkflowService service;
 
-  public GenericWorkflowClientExternalImpl(WorkflowService.Iface service, String domain) {
+  public GenericWorkflowClientExternalImpl(IWorkflowService service, String domain) {
     this.service = service;
     this.domain = domain;
   }
@@ -53,7 +53,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   }
 
   @Override
-  public WorkflowService.Iface getService() {
+  public IWorkflowService getService() {
     return service;
   }
 

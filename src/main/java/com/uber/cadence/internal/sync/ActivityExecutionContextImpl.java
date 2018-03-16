@@ -22,13 +22,13 @@ import com.uber.cadence.EntityNotExistsError;
 import com.uber.cadence.RecordActivityTaskHeartbeatRequest;
 import com.uber.cadence.RecordActivityTaskHeartbeatResponse;
 import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.WorkflowService.Iface;
 import com.uber.cadence.activity.ActivityTask;
 import com.uber.cadence.client.ActivityCancelledException;
 import com.uber.cadence.client.ActivityCompletionException;
 import com.uber.cadence.client.ActivityCompletionFailureException;
 import com.uber.cadence.client.ActivityNotExistsException;
 import com.uber.cadence.converter.DataConverter;
+import com.uber.cadence.serviceclient.IWorkflowService;
 import java.util.concurrent.CancellationException;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
@@ -44,7 +44,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
 
   private static final Logger log = LoggerFactory.getLogger(ActivityExecutionContextImpl.class);
 
-  private final Iface service;
+  private final IWorkflowService service;
 
   private final String domain;
 
@@ -54,7 +54,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
 
   /** Create an ActivityExecutionContextImpl with the given attributes. */
   ActivityExecutionContextImpl(
-      Iface service, String domain, ActivityTask task, DataConverter dataConverter) {
+      IWorkflowService service, String domain, ActivityTask task, DataConverter dataConverter) {
     this.domain = domain;
     this.service = service;
     this.task = task;
@@ -112,7 +112,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
 
   /** @see ActivityExecutionContext#getService() */
   @Override
-  public Iface getService() {
+  public IWorkflowService getService() {
     return service;
   }
 

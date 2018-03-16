@@ -22,7 +22,6 @@ import com.google.common.reflect.TypeToken;
 import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.RespondActivityTaskCompletedRequest;
 import com.uber.cadence.RespondActivityTaskFailedRequest;
-import com.uber.cadence.WorkflowService;
 import com.uber.cadence.activity.ActivityMethod;
 import com.uber.cadence.activity.ActivityTask;
 import com.uber.cadence.activity.MethodRetry;
@@ -31,6 +30,7 @@ import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.worker.ActivityTaskHandler;
+import com.uber.cadence.serviceclient.IWorkflowService;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -124,7 +124,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
 
   @Override
   public Result handle(
-      WorkflowService.Iface service, String domain, PollForActivityTaskResponse pollResponse) {
+      IWorkflowService service, String domain, PollForActivityTaskResponse pollResponse) {
     String activityType = pollResponse.getActivityType().getName();
     ActivityTaskImpl activityTask = new ActivityTaskImpl(pollResponse);
     POJOActivityImplementation activity = activities.get(activityType);
@@ -152,7 +152,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
 
     public ActivityTaskHandler.Result execute(
-        WorkflowService.Iface service, String domain, ActivityTask task) {
+        IWorkflowService service, String domain, ActivityTask task) {
       ActivityExecutionContext context =
           new ActivityExecutionContextImpl(service, domain, task, dataConverter);
       byte[] input = task.getInput();

@@ -18,7 +18,55 @@
 package com.uber.cadence.serviceclient;
 
 import com.google.common.collect.ImmutableMap;
-import com.uber.cadence.*;
+import com.uber.cadence.BadRequestError;
+import com.uber.cadence.CancellationAlreadyRequestedError;
+import com.uber.cadence.DeprecateDomainRequest;
+import com.uber.cadence.DescribeDomainRequest;
+import com.uber.cadence.DescribeDomainResponse;
+import com.uber.cadence.DescribeTaskListRequest;
+import com.uber.cadence.DescribeTaskListResponse;
+import com.uber.cadence.DescribeWorkflowExecutionRequest;
+import com.uber.cadence.DescribeWorkflowExecutionResponse;
+import com.uber.cadence.DomainAlreadyExistsError;
+import com.uber.cadence.EntityNotExistsError;
+import com.uber.cadence.GetWorkflowExecutionHistoryRequest;
+import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
+import com.uber.cadence.InternalServiceError;
+import com.uber.cadence.ListClosedWorkflowExecutionsRequest;
+import com.uber.cadence.ListClosedWorkflowExecutionsResponse;
+import com.uber.cadence.ListOpenWorkflowExecutionsRequest;
+import com.uber.cadence.ListOpenWorkflowExecutionsResponse;
+import com.uber.cadence.PollForActivityTaskRequest;
+import com.uber.cadence.PollForActivityTaskResponse;
+import com.uber.cadence.PollForDecisionTaskRequest;
+import com.uber.cadence.PollForDecisionTaskResponse;
+import com.uber.cadence.QueryFailedError;
+import com.uber.cadence.QueryWorkflowRequest;
+import com.uber.cadence.QueryWorkflowResponse;
+import com.uber.cadence.RecordActivityTaskHeartbeatRequest;
+import com.uber.cadence.RecordActivityTaskHeartbeatResponse;
+import com.uber.cadence.RegisterDomainRequest;
+import com.uber.cadence.RequestCancelWorkflowExecutionRequest;
+import com.uber.cadence.RespondActivityTaskCanceledByIDRequest;
+import com.uber.cadence.RespondActivityTaskCanceledRequest;
+import com.uber.cadence.RespondActivityTaskCompletedByIDRequest;
+import com.uber.cadence.RespondActivityTaskCompletedRequest;
+import com.uber.cadence.RespondActivityTaskFailedByIDRequest;
+import com.uber.cadence.RespondActivityTaskFailedRequest;
+import com.uber.cadence.RespondDecisionTaskCompletedRequest;
+import com.uber.cadence.RespondDecisionTaskFailedRequest;
+import com.uber.cadence.RespondQueryTaskCompletedRequest;
+import com.uber.cadence.ServiceBusyError;
+import com.uber.cadence.SignalWorkflowExecutionRequest;
+import com.uber.cadence.StartWorkflowExecutionRequest;
+import com.uber.cadence.StartWorkflowExecutionResponse;
+import com.uber.cadence.TerminateWorkflowExecutionRequest;
+import com.uber.cadence.UpdateDomainRequest;
+import com.uber.cadence.UpdateDomainResponse;
+import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
+import com.uber.cadence.WorkflowService;
+import com.uber.cadence.WorkflowService.GetWorkflowExecutionHistory_result;
+import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.tchannel.api.ResponseCode;
 import com.uber.tchannel.api.SubChannel;
 import com.uber.tchannel.api.TChannel;
@@ -32,12 +80,14 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.apache.thrift.TException;
+import org.apache.thrift.async.AsyncMethodCallback;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class WorkflowServiceTChannel implements WorkflowService.Iface {
+public class WorkflowServiceTChannel implements IWorkflowService {
 
   public static final int DEFAULT_LOCAL_CADENCE_SERVER_PORT = 7933;
 
@@ -55,6 +105,8 @@ public class WorkflowServiceTChannel implements WorkflowService.Iface {
 
   /** Name of the Cadence service front end as required by TChannel. */
   public static final String DEFAULT_SERVICE_NAME = "cadence-frontend";
+
+  private static final Logger log = LoggerFactory.getLogger(WorkflowServiceTChannel.class);
 
   public static class ClientOptions {
 
@@ -341,6 +393,25 @@ public class WorkflowServiceTChannel implements WorkflowService.Iface {
     }
     this.throwOnRpcError(response);
     return response;
+  }
+
+  private <T> CompletableFuture<ThriftResponse<T>> doRemoteCallAsync(ThriftRequest<?> request) {
+    final CompletableFuture<ThriftResponse<T>> result = new CompletableFuture<>();
+    TFuture<ThriftResponse<T>> future = null;
+    try {
+      future = subChannel.send(request);
+    } catch (TChannelError tChannelError) {
+      result.completeExceptionally(new TException(tChannelError));
+    }
+    future.addCallback(
+        response -> {
+          if (response.isError()) {
+            result.completeExceptionally(new TException("Rpc error:" + response.getError()));
+          } else {
+            result.complete(response);
+          }
+        });
+    return result;
   }
 
   private void throwOnRpcError(ThriftResponse<?> response) throws TException {
@@ -1229,5 +1300,233 @@ public class WorkflowServiceTChannel implements WorkflowService.Iface {
         response.release();
       }
     }
+  }
+
+  @Override
+  public void RegisterDomain(
+      RegisterDomainRequest registerRequest, AsyncMethodCallback resultHandler) throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void DescribeDomain(
+      DescribeDomainRequest describeRequest, AsyncMethodCallback resultHandler) throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void UpdateDomain(UpdateDomainRequest updateRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void DeprecateDomain(
+      DeprecateDomainRequest deprecateRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void StartWorkflowExecution(
+      StartWorkflowExecutionRequest startRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @SuppressWarnings({"unchecked", "FutureReturnValueIgnored"})
+  @Override
+  public void GetWorkflowExecutionHistory(
+      GetWorkflowExecutionHistoryRequest getRequest, AsyncMethodCallback resultHandler) {
+    CompletableFuture<ThriftResponse<GetWorkflowExecutionHistory_result>> response = null;
+    try {
+      ThriftRequest<WorkflowService.GetWorkflowExecutionHistory_args> request =
+          buildThriftRequest(
+              "GetWorkflowExecutionHistory",
+              new WorkflowService.GetWorkflowExecutionHistory_args(getRequest),
+              options.getRpcLongPollTimeoutMillis());
+      response = doRemoteCallAsync(request);
+
+      response
+          .whenComplete(
+              (r, e) -> {
+                if (e != null) {
+                  resultHandler.onError(CheckedExceptionWrapper.wrap(e));
+                  return;
+                }
+                WorkflowService.GetWorkflowExecutionHistory_result result =
+                    r.getBody(WorkflowService.GetWorkflowExecutionHistory_result.class);
+
+                if (r.getResponseCode() == ResponseCode.OK) {
+                  resultHandler.onComplete(result.getSuccess());
+                  return;
+                }
+                if (result.isSetBadRequestError()) {
+                  resultHandler.onError(result.getBadRequestError());
+                  return;
+                }
+                if (result.isSetInternalServiceError()) {
+                  resultHandler.onError(result.getInternalServiceError());
+                  return;
+                }
+                if (result.isSetEntityNotExistError()) {
+                  resultHandler.onError(result.getEntityNotExistError());
+                  return;
+                }
+                if (result.isSetServiceBusyError()) {
+                  resultHandler.onError(result.getServiceBusyError());
+                  return;
+                }
+                resultHandler.onError(
+                    new TException(
+                        "GetWorkflowExecutionHistory failed with unknown " + "error:" + result));
+                return;
+              })
+          .exceptionally(
+              (e) -> {
+                log.error("Unexpected error in GetWorkflowExecutionHistory", e);
+                return null;
+              });
+    } finally {
+      if (response != null && response.isDone()) {
+        response.join().release();
+      }
+    }
+  }
+
+  @Override
+  public void PollForDecisionTask(
+      PollForDecisionTaskRequest pollRequest, AsyncMethodCallback resultHandler) throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void RespondDecisionTaskCompleted(
+      RespondDecisionTaskCompletedRequest completeRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void RespondDecisionTaskFailed(
+      RespondDecisionTaskFailedRequest failedRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void PollForActivityTask(
+      PollForActivityTaskRequest pollRequest, AsyncMethodCallback resultHandler) throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void RecordActivityTaskHeartbeat(
+      RecordActivityTaskHeartbeatRequest heartbeatRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void RespondActivityTaskCompleted(
+      RespondActivityTaskCompletedRequest completeRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void RespondActivityTaskCompletedByID(
+      RespondActivityTaskCompletedByIDRequest completeRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void RespondActivityTaskFailed(
+      RespondActivityTaskFailedRequest failRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void RespondActivityTaskFailedByID(
+      RespondActivityTaskFailedByIDRequest failRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void RespondActivityTaskCanceled(
+      RespondActivityTaskCanceledRequest canceledRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void RespondActivityTaskCanceledByID(
+      RespondActivityTaskCanceledByIDRequest canceledRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void RequestCancelWorkflowExecution(
+      RequestCancelWorkflowExecutionRequest cancelRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void SignalWorkflowExecution(
+      SignalWorkflowExecutionRequest signalRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void TerminateWorkflowExecution(
+      TerminateWorkflowExecutionRequest terminateRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void ListOpenWorkflowExecutions(
+      ListOpenWorkflowExecutionsRequest listRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void ListClosedWorkflowExecutions(
+      ListClosedWorkflowExecutionsRequest listRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void RespondQueryTaskCompleted(
+      RespondQueryTaskCompletedRequest completeRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void QueryWorkflow(QueryWorkflowRequest queryRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void DescribeWorkflowExecution(
+      DescribeWorkflowExecutionRequest describeRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void DescribeTaskList(DescribeTaskListRequest request, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
   }
 }

@@ -17,7 +17,7 @@
 
 package com.uber.cadence.internal.worker;
 
-import com.uber.cadence.WorkflowService;
+import com.uber.cadence.serviceclient.IWorkflowService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -30,10 +30,9 @@ import java.util.concurrent.TimeUnit;
 final class PollTask<T> implements Poller.ThrowingRunnable {
 
   public interface TaskHandler<TT> {
-    void handle(WorkflowService.Iface service, String domain, String taskList, TT task)
-        throws Exception;
+    void handle(IWorkflowService service, String domain, String taskList, TT task) throws Exception;
 
-    TT poll(WorkflowService.Iface service, String domain, String taskList) throws Exception;
+    TT poll(IWorkflowService service, String domain, String taskList) throws Exception;
 
     Throwable wrapFailure(TT task, Throwable failure);
   }
@@ -45,7 +44,7 @@ final class PollTask<T> implements Poller.ThrowingRunnable {
 
   private static final String ACTIVITY_THREAD_NAME_PREFIX = "SWF Activity ";
 
-  private final WorkflowService.Iface service;
+  private final IWorkflowService service;
   private final String domain;
   private final String taskList;
   private final TaskHandler<T> handler;
@@ -54,7 +53,7 @@ final class PollTask<T> implements Poller.ThrowingRunnable {
   private final SingleWorkerOptions options;
 
   PollTask(
-      WorkflowService.Iface service,
+      IWorkflowService service,
       String domain,
       String taskList,
       SingleWorkerOptions options,

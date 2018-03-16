@@ -27,6 +27,8 @@ import java.util.Objects;
 
 public final class RetryOptions {
 
+  private static final double DEFAULT_BACKOFF_COEFFICIENT = 2.0;
+
   /**
    * Merges annotation with explicitly provided RetryOptions. If there is conflict RetryOptions
    * takes precedence.
@@ -36,21 +38,33 @@ public final class RetryOptions {
       if (o == null) {
         return null;
       }
-      return new RetryOptions.Builder(o).validateAndBuild();
+      return new RetryOptions.Builder(o).validateBuildWithDefaults();
     }
     if (o == null) {
       o = new RetryOptions.Builder().build();
     }
-    return new RetryOptions.Builder()
-        .setInitialInterval(merge(r.initialIntervalSeconds(), o.getInitialInterval()))
-        .setExpiration(merge(r.expirationSeconds(), o.getExpiration()))
-        .setMaximumInterval(merge(r.maximumIntervalSeconds(), o.getMaximumInterval()))
-        .setBackoffCoefficient(
-            merge(r.backoffCoefficient(), o.getBackoffCoefficient(), double.class))
+    Duration initial = merge(r.initialIntervalSeconds(), o.getInitialInterval());
+    RetryOptions.Builder builder = new RetryOptions.Builder();
+    if (initial != null) {
+      builder.setInitialInterval(initial);
+    }
+    Duration expiration = merge(r.expirationSeconds(), o.getExpiration());
+    if (expiration != null) {
+      builder.setExpiration(expiration);
+    }
+    Duration maximum = merge(r.maximumIntervalSeconds(), o.getMaximumInterval());
+    if (maximum != null) {
+      builder.setMaximumInterval(maximum);
+    }
+    double coefficient = merge(r.backoffCoefficient(), o.getBackoffCoefficient(), double.class);
+    if (coefficient != 0d) {
+      builder.setBackoffCoefficient(coefficient);
+    }
+    return builder
         .setMaximumAttempts(merge(r.maximumAttempts(), o.getMaximumAttempts(), int.class))
         .setMinimumAttempts(merge(r.minimumAttempts(), o.getMinimumAttempts(), int.class))
         .setDoNotRetry(merge(r.doNotRetry(), o.getDoNotRetry()))
-        .validateAndBuild();
+        .validateBuildWithDefaults();
   }
 
   /** The parameter options takes precedence. */
@@ -67,7 +81,7 @@ public final class RetryOptions {
         .setMaximumAttempts(merge(getMaximumAttempts(), o.getMaximumAttempts(), int.class))
         .setMinimumAttempts(merge(getMinimumAttempts(), o.getMinimumAttempts(), int.class))
         .setDoNotRetry(merge(getDoNotRetry(), o.getDoNotRetry()))
-        .validateAndBuild();
+        .validateBuildWithDefaults();
   }
 
   public static final class Builder {
@@ -119,7 +133,8 @@ public final class RetryOptions {
      * retries is not reached yet.
      */
     public Builder setExpiration(Duration expiration) {
-      if (expiration != null && (expiration.isNegative() || expiration.isZero())) {
+      Objects.requireNonNull(expiration);
+      if (expiration.isNegative() || expiration.isZero()) {
         throw new IllegalArgumentException("Invalid interval: " + expiration);
       }
       this.expiration = expiration;
@@ -131,6 +146,9 @@ public final class RetryOptions {
      * interval multiplied by this coefficient. Must be 1 or larger. Default is 2.0.
      */
     public Builder setBackoffCoefficient(double backoffCoefficient) {
+      if (backoffCoefficient < 1d) {
+        throw new IllegalArgumentException("coefficient less than 1.0: " + backoffCoefficient);
+      }
       this.backoffCoefficient = backoffCoefficient;
       return this;
     }
@@ -140,6 +158,9 @@ public final class RetryOptions {
      * or bigger. Default is unlimited.
      */
     public Builder setMaximumAttempts(int maximumAttempts) {
+      if (maximumAttempts < 1) {
+        throw new IllegalArgumentException("Invalid maximumAttempts: " + maximumAttempts);
+      }
       this.maximumAttempts = maximumAttempts;
       return this;
     }
@@ -149,6 +170,9 @@ public final class RetryOptions {
      * or bigger. Default is 0.
      */
     public Builder setMinimumAttempts(int minimumAttempts) {
+      if (maximumAttempts < 0) {
+        throw new IllegalArgumentException("Invalid maximumAttempts: " + maximumAttempts);
+      }
       this.minimumAttempts = minimumAttempts;
       return this;
     }
@@ -186,7 +210,7 @@ public final class RetryOptions {
     }
 
     /**
-     * Build RetryOptions without performing validation as validation should be done after mergin
+     * Build RetryOptions without performing validation as validation should be done after merging
      * with {@link MethodRetry}.
      */
     public RetryOptions build() {
@@ -200,12 +224,16 @@ public final class RetryOptions {
           doNotRetry);
     }
 
-    /** Builds validating merged options. */
-    private RetryOptions validateAndBuild() {
+    /** Validates property values and builds RetryOptions with default values. */
+    public RetryOptions validateBuildWithDefaults() {
       validate();
+      double backoff = backoffCoefficient;
+      if (backoff == 0d) {
+        backoff = DEFAULT_BACKOFF_COEFFICIENT;
+      }
       return new RetryOptions(
           initialInterval,
-          backoffCoefficient,
+          backoff,
           expiration,
           maximumAttempts,
           minimumAttempts,
@@ -231,8 +259,8 @@ public final class RetryOptions {
                 + ") cannot be smaller than minimumAttempts("
                 + minimumAttempts);
       }
-      if (backoffCoefficient != 0d && backoffCoefficient < 1.0) {
-        throw new IllegalArgumentException("coefficient less than 1");
+      if (backoffCoefficient != 0d && backoffCoefficient < 1d) {
+        throw new IllegalArgumentException("coefficient less than 1: " + backoffCoefficient);
       }
       if (maximumAttempts != 0 && maximumAttempts < 0) {
         throw new IllegalArgumentException("negative maximum attempts");
@@ -351,22 +379,37 @@ public final class RetryOptions {
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
 
     RetryOptions that = (RetryOptions) o;
 
-    if (Double.compare(that.backoffCoefficient, backoffCoefficient) != 0) return false;
-    if (maximumAttempts != that.maximumAttempts) return false;
-    if (minimumAttempts != that.minimumAttempts) return false;
+    if (Double.compare(that.backoffCoefficient, backoffCoefficient) != 0) {
+      return false;
+    }
+    if (maximumAttempts != that.maximumAttempts) {
+      return false;
+    }
+    if (minimumAttempts != that.minimumAttempts) {
+      return false;
+    }
     if (initialInterval != null
         ? !initialInterval.equals(that.initialInterval)
-        : that.initialInterval != null) return false;
-    if (expiration != null ? !expiration.equals(that.expiration) : that.expiration != null)
+        : that.initialInterval != null) {
       return false;
+    }
+    if (expiration != null ? !expiration.equals(that.expiration) : that.expiration != null) {
+      return false;
+    }
     if (maximumInterval != null
         ? !maximumInterval.equals(that.maximumInterval)
-        : that.maximumInterval != null) return false;
+        : that.maximumInterval != null) {
+      return false;
+    }
     return doNotRetry != null ? doNotRetry.equals(that.doNotRetry) : that.doNotRetry == null;
   }
 
