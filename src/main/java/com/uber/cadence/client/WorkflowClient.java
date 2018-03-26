@@ -21,7 +21,6 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.activity.Activity;
 import com.uber.cadence.internal.sync.WorkflowClientInternal;
 import com.uber.cadence.serviceclient.IWorkflowService;
-import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.Functions.Func1;
@@ -81,8 +80,7 @@ public interface WorkflowClient {
    * @param domain domain that worker uses to poll.
    */
   static WorkflowClient newInstance(String domain) {
-    return new WorkflowClientInternal(
-        new WorkflowServiceTChannel(), domain, new WorkflowClientOptions.Builder().build());
+    return WorkflowClientInternal.newInstance(domain);
   }
 
   /**
@@ -94,7 +92,7 @@ public interface WorkflowClient {
    *     configuring client.
    */
   static WorkflowClient newInstance(String domain, WorkflowClientOptions options) {
-    return new WorkflowClientInternal(new WorkflowServiceTChannel(), domain, options);
+    return WorkflowClientInternal.newInstance(domain, options);
   }
 
   /**
@@ -105,10 +103,7 @@ public interface WorkflowClient {
    * @param domain domain that worker uses to poll.
    */
   static WorkflowClient newInstance(String host, int port, String domain) {
-    return new WorkflowClientInternal(
-        new WorkflowServiceTChannel(host, port),
-        domain,
-        new WorkflowClientOptions.Builder().build());
+    return WorkflowClientInternal.newInstance(host, port, domain);
   }
 
   /**
@@ -122,7 +117,7 @@ public interface WorkflowClient {
    */
   static WorkflowClient newInstance(
       String host, int port, String domain, WorkflowClientOptions options) {
-    return new WorkflowClientInternal(new WorkflowServiceTChannel(host, port), domain, options);
+    return WorkflowClientInternal.newInstance(host, port, domain, options);
   }
 
   /**
@@ -132,7 +127,7 @@ public interface WorkflowClient {
    * @param domain domain that worker uses to poll.
    */
   static WorkflowClient newInstance(IWorkflowService service, String domain) {
-    return new WorkflowClientInternal(service, domain, null);
+    return WorkflowClientInternal.newInstance(service, domain);
   }
 
   /**
@@ -145,8 +140,10 @@ public interface WorkflowClient {
    */
   static WorkflowClient newInstance(
       IWorkflowService service, String domain, WorkflowClientOptions options) {
-    return new WorkflowClientInternal(service, domain, options);
+    return WorkflowClientInternal.newInstance(service, domain, options);
   }
+
+  String getDomain();
 
   /**
    * Creates workflow client stub that can be used to start a single workflow execution. The first

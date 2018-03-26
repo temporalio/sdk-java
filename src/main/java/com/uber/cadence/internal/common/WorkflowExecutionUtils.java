@@ -20,6 +20,7 @@ package com.uber.cadence.internal.common;
 import com.uber.cadence.ActivityType;
 import com.uber.cadence.BadRequestError;
 import com.uber.cadence.Decision;
+import com.uber.cadence.DecisionType;
 import com.uber.cadence.DescribeWorkflowExecutionRequest;
 import com.uber.cadence.DescribeWorkflowExecutionResponse;
 import com.uber.cadence.EntityNotExistsError;
@@ -51,6 +52,7 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -95,7 +97,7 @@ public class WorkflowExecutionUtils {
       long timeout,
       TimeUnit unit)
       throws TimeoutException, CancellationException, WorkflowExecutionFailedException,
-          WorkflowTerminatedException, WorkflowTimedOutException {
+          WorkflowTerminatedException, WorkflowTimedOutException, EntityNotExistsError {
     // getIntanceCloseEvent waits for workflow completion including new runs.
     HistoryEvent closeEvent =
         getInstanceCloseEvent(service, domain, workflowExecution, timeout, unit);
@@ -158,7 +160,7 @@ public class WorkflowExecutionUtils {
       WorkflowExecution workflowExecution,
       long timeout,
       TimeUnit unit)
-      throws TimeoutException {
+      throws TimeoutException, EntityNotExistsError {
     byte[] pageToken = null;
     GetWorkflowExecutionHistoryResponse response;
     // TODO: Interrupt service long poll call on timeout and on interrupt
@@ -173,6 +175,8 @@ public class WorkflowExecutionUtils {
       try {
         response =
             Retryer.retryWithResult(retryParameters, () -> service.GetWorkflowExecutionHistory(r));
+      } catch (EntityNotExistsError e) {
+        throw e;
       } catch (TException e) {
         throw CheckedExceptionWrapper.wrap(e);
       }
@@ -317,6 +321,14 @@ public class WorkflowExecutionUtils {
             || event.getEventType() == EventType.WorkflowExecutionTerminated));
   }
 
+  public static boolean isWorkflowExecutionCompleteDecision(Decision decision) {
+    return ((decision != null)
+        && (decision.getDecisionType() == DecisionType.CompleteWorkflowExecution
+            || decision.getDecisionType() == DecisionType.CancelWorkflowExecution
+            || decision.getDecisionType() == DecisionType.FailWorkflowExecution
+            || decision.getDecisionType() == DecisionType.ContinueAsNewWorkflowExecution));
+  }
+
   public static boolean isActivityTaskClosedEvent(HistoryEvent event) {
     return ((event != null)
         && (event.getEventType() == EventType.ActivityTaskCompleted
@@ -392,7 +404,8 @@ public class WorkflowExecutionUtils {
    * @return instance close status
    */
   public static WorkflowExecutionCloseStatus waitForWorkflowInstanceCompletion(
-      IWorkflowService service, String domain, WorkflowExecution workflowExecution) {
+      IWorkflowService service, String domain, WorkflowExecution workflowExecution)
+      throws EntityNotExistsError {
     try {
       return waitForWorkflowInstanceCompletion(
           service, domain, workflowExecution, 0, TimeUnit.MILLISECONDS);
@@ -416,7 +429,7 @@ public class WorkflowExecutionUtils {
       WorkflowExecution workflowExecution,
       long timeout,
       TimeUnit unit)
-      throws TimeoutException {
+      throws TimeoutException, EntityNotExistsError {
     HistoryEvent closeEvent =
         getInstanceCloseEvent(service, domain, workflowExecution, timeout, unit);
     return getCloseStatus(closeEvent);
@@ -455,7 +468,7 @@ public class WorkflowExecutionUtils {
       WorkflowExecution workflowExecution,
       long timeout,
       TimeUnit unit)
-      throws InterruptedException, TimeoutException {
+      throws InterruptedException, TimeoutException, EntityNotExistsError {
 
     WorkflowExecution lastExecutionToRun = workflowExecution;
     long millisecondsAtFirstWait = System.currentTimeMillis();
@@ -499,7 +512,7 @@ public class WorkflowExecutionUtils {
    */
   public static WorkflowExecutionCloseStatus waitForWorkflowInstanceCompletionAcrossGenerations(
       IWorkflowService service, String domain, WorkflowExecution workflowExecution)
-      throws InterruptedException {
+      throws InterruptedException, EntityNotExistsError {
     try {
       return waitForWorkflowInstanceCompletionAcrossGenerations(
           service, domain, workflowExecution, 0L, TimeUnit.MILLISECONDS);
@@ -616,6 +629,7 @@ public class WorkflowExecutionUtils {
     StringBuilder result = new StringBuilder();
     result.append("{");
     boolean first = true;
+    long firstTimestamp = 0;
     while (events.hasNext()) {
       HistoryEvent event = events.next();
       if (!showWorkflowTasks && event.getEventType().toString().startsWith("WorkflowTask")) {
@@ -623,11 +637,12 @@ public class WorkflowExecutionUtils {
       }
       if (first) {
         first = false;
+        firstTimestamp = event.getTimestamp();
       } else {
         result.append(",");
       }
       result.append("\n    ");
-      result.append(prettyPrintHistoryEvent(event));
+      result.append(prettyPrintHistoryEvent(event, firstTimestamp));
     }
     result.append("\n}");
     return result.toString();
@@ -656,11 +671,20 @@ public class WorkflowExecutionUtils {
    * @param event event to pretty print
    */
   public static String prettyPrintHistoryEvent(HistoryEvent event) {
+    return prettyPrintHistoryEvent(event, -1);
+  }
+
+  private static String prettyPrintHistoryEvent(HistoryEvent event, long firstTimestamp) {
     String eventType = event.getEventType().toString();
     StringBuilder result = new StringBuilder();
     result.append(event.getEventId());
     result.append(": ");
     result.append(eventType);
+    if (firstTimestamp > 0) {
+      // timestamp is in nanos
+      long timestamp = (event.getTimestamp() - firstTimestamp) / 1_000_000;
+      result.append(String.format(" [%s ms]", timestamp));
+    }
     result.append(" ");
     result.append(
         prettyPrintObject(getEventAttributes(event), "getFieldValue", true, "    ", false, false));
@@ -813,5 +837,14 @@ public class WorkflowExecutionUtils {
       result.append("}");
     }
     return result.toString();
+  }
+
+  public static boolean containsEvent(List<HistoryEvent> history, EventType eventType) {
+    for (HistoryEvent event : history) {
+      if (event.getEventType() == eventType) {
+        return true;
+      }
+    }
+    return false;
   }
 }

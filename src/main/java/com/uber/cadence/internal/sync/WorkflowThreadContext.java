@@ -64,6 +64,9 @@ class WorkflowThreadContext {
     try {
       // TODO: Verify that calling unblockFunction under the lock is a sane thing to do.
       while (!inRunUntilBlocked || !unblockFunction.get()) {
+        if (destroyRequested) {
+          throw new DestroyWorkflowThreadError();
+        }
         status = Status.YIELDED;
         runCondition.signal();
         yieldCondition.await();

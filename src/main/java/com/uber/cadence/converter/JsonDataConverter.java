@@ -81,7 +81,7 @@ public final class JsonDataConverter implements DataConverter {
     return INSTANCE;
   }
 
-  public JsonDataConverter() {
+  private JsonDataConverter() {
     this((b) -> b);
   }
 

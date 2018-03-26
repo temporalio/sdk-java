@@ -28,6 +28,7 @@ import com.uber.cadence.TerminateWorkflowExecutionRequest;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
 import com.uber.cadence.WorkflowQuery;
+import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.internal.common.StartWorkflowExecutionParameters;
 import com.uber.cadence.internal.common.TerminateWorkflowExecutionParameters;
 import com.uber.cadence.internal.replay.QueryWorkflowParameters;
@@ -146,7 +147,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
       QueryWorkflowResponse response = service.QueryWorkflow(request);
       return response.getQueryResult();
     } catch (TException e) {
-      throw new RuntimeException(e);
+      throw CheckedExceptionWrapper.wrap(e);
     }
   }
 

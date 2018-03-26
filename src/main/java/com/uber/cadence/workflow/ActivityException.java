@@ -27,10 +27,10 @@ public abstract class ActivityException extends WorkflowOperationException {
 
   private final String activityId;
 
-  protected ActivityException(
-      String message, long eventId, ActivityType activityType, String activityId) {
+  ActivityException(String message, long eventId, ActivityType activityType, String activityId) {
     super(
-        "ActivityType=\""
+        message
+            + ", ActivityType=\""
             + activityType.getName()
             + "\" ActivityID=\""
             + activityId

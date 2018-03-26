@@ -73,6 +73,9 @@ public final class ActivityOptions {
 
     /** Copy Builder fields from the options. */
     public Builder(ActivityOptions options) {
+      if (options == null) {
+        return;
+      }
       this.scheduleToStartTimeout = options.getScheduleToStartTimeout();
       this.scheduleToCloseTimeout = options.getScheduleToCloseTimeout();
       this.heartbeatTimeout = options.getHeartbeatTimeout();

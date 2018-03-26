@@ -22,19 +22,36 @@ import com.uber.cadence.activity.ActivityMethod;
 import com.uber.cadence.activity.ActivityOptions;
 import com.uber.cadence.activity.MethodRetry;
 import com.uber.cadence.internal.common.InternalUtils;
+import com.uber.cadence.internal.sync.AsyncInternal.AsyncMarker;
 import com.uber.cadence.workflow.ActivityException;
 import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.Workflow;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 
 /** Dynamic implementation of a strongly typed child workflow interface. */
 class ActivityInvocationHandler implements InvocationHandler {
 
   private final ActivityOptions options;
+  private final ActivityExecutor activityExecutor;
 
-  ActivityInvocationHandler(ActivityOptions options) {
+  static InvocationHandler newInstance(ActivityOptions options, ActivityExecutor activityExecutor) {
+    return new ActivityInvocationHandler(options, activityExecutor);
+  }
+
+  @SuppressWarnings("unchecked")
+  static <T> T newProxy(Class<T> activityInterface, InvocationHandler invocationHandler) {
+    return (T)
+        Proxy.newProxyInstance(
+            WorkflowInternal.class.getClassLoader(),
+            new Class<?>[] {activityInterface, AsyncMarker.class},
+            invocationHandler);
+  }
+
+  private ActivityInvocationHandler(ActivityOptions options, ActivityExecutor activityExecutor) {
     this.options = options;
+    this.activityExecutor = activityExecutor;
   }
 
   @Override
@@ -60,10 +77,8 @@ class ActivityInvocationHandler implements InvocationHandler {
     }
     MethodRetry methodRetry = method.getAnnotation(MethodRetry.class);
     ActivityOptions mergedOptions = ActivityOptions.merge(activityMethod, methodRetry, options);
-    SyncDecisionContext decisionContext =
-        DeterministicRunnerImpl.currentThreadInternal().getDecisionContext();
     Promise<?> result =
-        decisionContext.executeActivity(activityName, mergedOptions, args, method.getReturnType());
+        activityExecutor.executeActivity(activityName, mergedOptions, args, method.getReturnType());
     if (AsyncInternal.isAsync()) {
       AsyncInternal.setAsyncResult(result);
       return Defaults.defaultValue(method.getReturnType());

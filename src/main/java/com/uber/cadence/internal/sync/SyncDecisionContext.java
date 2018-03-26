@@ -49,7 +49,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-class SyncDecisionContext {
+class SyncDecisionContext implements ActivityExecutor {
   private final DecisionContext context;
   private DeterministicRunner runner;
   private final DataConverter converter;
@@ -73,6 +73,7 @@ class SyncDecisionContext {
     return runner;
   }
 
+  @Override
   public <T> Promise<T> executeActivity(
       String name, ActivityOptions options, Object[] args, Class<T> returnType) {
     RetryOptions retryOptions = options.getRetryOptions();

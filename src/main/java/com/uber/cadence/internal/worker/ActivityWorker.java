@@ -26,8 +26,11 @@ import com.uber.cadence.TaskList;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.internal.common.Retryer;
+import com.uber.cadence.internal.worker.ActivityTaskHandler.Result;
 import com.uber.cadence.serviceclient.IWorkflowService;
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
@@ -151,8 +154,16 @@ public final class ActivityWorker implements SuspendableWorker {
     public void handle(
         IWorkflowService service, String domain, String taskList, PollForActivityTaskResponse task)
         throws Exception {
-      ActivityTaskHandler.Result response = handler.handle(service, domain, task);
-      sendReply(task, response);
+      try {
+        ActivityTaskHandler.Result response = handler.handle(service, domain, task);
+        sendReply(task, response);
+      } catch (CancellationException e) {
+        RespondActivityTaskCanceledRequest cancelledRequest =
+            new RespondActivityTaskCanceledRequest();
+        cancelledRequest.setDetails(
+            String.valueOf(e.getMessage()).getBytes(StandardCharsets.UTF_8));
+        sendReply(task, new Result(null, null, cancelledRequest, null));
+      }
     }
 
     @Override

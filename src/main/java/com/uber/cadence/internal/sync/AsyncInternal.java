@@ -17,15 +17,16 @@
 
 package com.uber.cadence.internal.sync;
 
+import static com.uber.cadence.internal.common.LambdaUtils.getTarget;
+
 import com.uber.cadence.common.RetryOptions;
+import com.uber.cadence.internal.common.LambdaUtils;
 import com.uber.cadence.workflow.CompletablePromise;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.Workflow;
 import java.lang.invoke.MethodHandleInfo;
 import java.lang.invoke.SerializedLambda;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -299,36 +300,10 @@ public final class AsyncInternal {
   }
 
   public static boolean isAsync(Object func) {
-    SerializedLambda lambda = getLambda(func);
+    SerializedLambda lambda = LambdaUtils.toSerializedLambda(func);
     Object target = getTarget(lambda);
     return target instanceof AsyncMarker
         && lambda.getImplMethodKind() == MethodHandleInfo.REF_invokeInterface;
-  }
-
-  private static Object getTarget(SerializedLambda l) {
-    if (l == null) {
-      return null;
-    }
-    if (l.getCapturedArgCount() > 0) {
-      return l.getCapturedArg(0);
-    }
-    return "0 arguments function";
-  }
-
-  private static <R> SerializedLambda getLambda(Object setter) {
-    for (Class<?> cl = setter.getClass(); cl != null; cl = cl.getSuperclass()) {
-      try {
-        Method m = cl.getDeclaredMethod("writeReplace");
-        m.setAccessible(true);
-        Object replacement = m.invoke(setter);
-        if (!(replacement instanceof SerializedLambda)) break; // custom interface implementation
-        return (SerializedLambda) replacement;
-      } catch (NoSuchMethodException e) {
-      } catch (IllegalAccessException | InvocationTargetException e) {
-        break;
-      }
-    }
-    return null;
   }
 
   private static boolean hasAsyncResult() {

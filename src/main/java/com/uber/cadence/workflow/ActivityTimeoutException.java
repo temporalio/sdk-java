@@ -32,7 +32,7 @@ public final class ActivityTimeoutException extends ActivityException {
   private final TimeoutType timeoutType;
 
   private final byte[] details;
-  private final DataConverter dataConverter;
+  private final transient DataConverter dataConverter;
 
   public ActivityTimeoutException(
       long eventId,
@@ -41,7 +41,7 @@ public final class ActivityTimeoutException extends ActivityException {
       TimeoutType timeoutType,
       byte[] details,
       DataConverter dataConverter) {
-    super(String.valueOf(timeoutType) + " timeout", eventId, activityType, activityId);
+    super("TimeoutType=" + String.valueOf(timeoutType), eventId, activityType, activityId);
     this.timeoutType = timeoutType;
     this.details = details;
     this.dataConverter = dataConverter;

@@ -129,15 +129,20 @@ public final class Workflow {
     WorkflowInternal.registerQuery(queryImplementation);
   }
 
-  /** Should be used to get current time instead of {@link System#currentTimeMillis()} */
+  /**
+   * Must be used to get current time instead of {@link System#currentTimeMillis()} to guarantee
+   * determinism.
+   */
   public static long currentTimeMillis() {
     return WorkflowInternal.currentTimeMillis();
   }
 
+  /** Must be called instead of {@link Thread#sleep(long)} to guarantee determinism. */
   public static void sleep(Duration duration) {
     sleep(duration.toMillis());
   }
 
+  /** Must be called instead of {@link Thread#sleep(long)} to guarantee determinism. */
   public static void sleep(long millis) {
     WorkflowInternal.await(
         millis,

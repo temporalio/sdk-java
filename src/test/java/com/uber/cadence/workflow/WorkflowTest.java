@@ -44,6 +44,9 @@ import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.converter.JsonDataConverter;
 import com.uber.cadence.internal.sync.DeterministicRunnerTest;
+import com.uber.cadence.testing.TestEnvironment;
+import com.uber.cadence.testing.TestEnvironmentOptions;
+import com.uber.cadence.testing.TestWorkflowEnvironment;
 import com.uber.cadence.worker.Worker;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -66,12 +69,27 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
+import org.junit.rules.TestWatcher;
+import org.junit.rules.Timeout;
+import org.junit.runner.Description;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class WorkflowTest {
 
   @Rule public TestName testName = new TestName();
+  @Rule public Timeout globalTimeout = Timeout.seconds(5);
+
+  @Rule
+  public TestWatcher watchman =
+      new TestWatcher() {
+        @Override
+        protected void failed(Throwable e, Description description) {
+          System.err.println(testEnvironment.getDiagnostics());
+        }
+      };
+
+  private static final boolean USE_EXTERNAL_SERVICE = false;
 
   private static final String domain = "UnitTest";
   private static final Logger log = LoggerFactory.getLogger(WorkflowTest.class);
@@ -84,6 +102,8 @@ public class WorkflowTest {
   private TestActivitiesImpl activitiesImpl;
   private WorkflowClient workflowClient;
   private WorkflowClient workflowClientWithOptions;
+  private TestEnvironment testEnvironment;
+  private TestWorkflowEnvironment workflowEnvironment;
 
   private static WorkflowOptions.Builder newWorkflowOptionsBuilder() {
     return new WorkflowOptions.Builder()
@@ -108,17 +128,26 @@ public class WorkflowTest {
   @Before
   public void setUp() {
     taskList = "WorkflowTest-" + testName.getMethodName();
-    // TODO: Make this configuratble instead of always using local instance.
-    worker = new Worker(domain, taskList);
-    workflowClient = WorkflowClient.newInstance(domain);
+    if (USE_EXTERNAL_SERVICE) {
+      worker = new Worker(domain, taskList);
+      workflowClient = WorkflowClient.newInstance(domain);
+      WorkflowClientOptions clientOptions =
+          new WorkflowClientOptions.Builder()
+              .setDataConverter(JsonDataConverter.getInstance())
+              .build();
+      workflowClientWithOptions = WorkflowClient.newInstance(domain, clientOptions);
+    } else {
+      testEnvironment =
+          TestEnvironment.newInstance(
+              new TestEnvironmentOptions.Builder().setDomain(domain).build());
+      workflowEnvironment = testEnvironment.workflowEnvironment();
+      worker = workflowEnvironment.newWorker(taskList);
+      workflowClient = workflowEnvironment.newWorkflowClient();
+      workflowClientWithOptions = workflowEnvironment.newWorkflowClient();
+    }
     ActivityCompletionClient completionClient = workflowClient.newActivityCompletionClient();
     activitiesImpl = new TestActivitiesImpl(completionClient);
     worker.registerActivitiesImplementations(activitiesImpl);
-    WorkflowClientOptions clientOptions =
-        new WorkflowClientOptions.Builder()
-            .setDataConverter(JsonDataConverter.getInstance())
-            .build();
-    workflowClientWithOptions = WorkflowClient.newInstance(domain, clientOptions);
     newWorkflowOptionsBuilder();
     newActivityOptions1();
     activitiesImpl.invocations.clear();
@@ -129,6 +158,9 @@ public class WorkflowTest {
   public void tearDown() {
     worker.shutdown(Duration.ofMillis(1));
     activitiesImpl.close();
+    if (testEnvironment != null) {
+      testEnvironment.close();
+    }
   }
 
   private void startWorkerFor(Class<?>... workflowTypes) {
@@ -873,7 +905,12 @@ public class WorkflowTest {
     assertEquals("Hello ", client.getState());
 
     // Test query through replay by a local worker.
-    Worker queryWorker = new Worker(domain, taskList);
+    Worker queryWorker;
+    if (USE_EXTERNAL_SERVICE) {
+      queryWorker = new Worker(domain, taskList);
+    } else {
+      queryWorker = workflowEnvironment.newWorker(taskList);
+    }
     queryWorker.registerWorkflowImplementationTypes(TestSignalWorkflowImpl.class);
     String queryResult =
         queryWorker.queryWorkflowExecution(execution, "QueryableWorkflow::getState", String.class);
@@ -1049,7 +1086,7 @@ public class WorkflowTest {
     public TestChildWorkflowRetryWorkflow() {
       ChildWorkflowOptions options =
           new ChildWorkflowOptions.Builder()
-              .setExecutionStartToCloseTimeout(Duration.ofSeconds(5))
+              .setExecutionStartToCloseTimeout(Duration.ofSeconds(500))
               .setTaskStartToCloseTimeout(Duration.ofSeconds(2))
               .setTaskList(taskList)
               .setRetryOptions(

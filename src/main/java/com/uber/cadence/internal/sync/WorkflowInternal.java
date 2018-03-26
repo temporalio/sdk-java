@@ -34,6 +34,7 @@ import com.uber.cadence.workflow.QueryMethod;
 import com.uber.cadence.workflow.Workflow;
 import com.uber.cadence.workflow.WorkflowInfo;
 import com.uber.cadence.workflow.WorkflowQueue;
+import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.time.Duration;
 import java.util.Collection;
@@ -100,13 +101,12 @@ public final class WorkflowInternal {
    *
    * @param activityInterface interface type implemented by activities
    */
-  @SuppressWarnings("unchecked")
   public static <T> T newActivityStub(Class<T> activityInterface, ActivityOptions options) {
-    return (T)
-        Proxy.newProxyInstance(
-            WorkflowInternal.class.getClassLoader(),
-            new Class<?>[] {activityInterface, AsyncMarker.class},
-            new ActivityInvocationHandler(options));
+    SyncDecisionContext decisionContext =
+        DeterministicRunnerImpl.currentThreadInternal().getDecisionContext();
+    InvocationHandler invocationHandler =
+        ActivityInvocationHandler.newInstance(options, decisionContext);
+    return ActivityInvocationHandler.newProxy(activityInterface, invocationHandler);
   }
 
   @SuppressWarnings("unchecked")

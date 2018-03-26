@@ -261,7 +261,8 @@ class ReplayDecider {
             (t) -> {
               // Intentionally left empty.
               // Timer ensures that decision is scheduled at the time workflow can make progress.
-              // But no specific timer related action is necessary.
+              // But no specific timer related action is necessary as Workflow.sleep is just a
+              // Workflow.await with a time based condition.
             });
       }
     }

@@ -214,7 +214,7 @@ public final class Retryer {
     }
     int maxAttempts = options.getMaximumAttempts();
     if ((maxAttempts > 0 && attempt >= maxAttempts)
-        || (elapsed >= options.getExpiration().toMillis()
+        || ((options.getExpiration() != null && elapsed >= options.getExpiration().toMillis())
             && attempt >= options.getMinimumAttempts())) {
       return new ValueExceptionPair<>(null, e);
     }
