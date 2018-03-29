@@ -88,6 +88,8 @@ final class Poller implements SuspendableWorker {
 
   private final PollerOptions options;
 
+  private final String identity;
+
   private final ThrowingRunnable task;
 
   private ThreadPoolExecutor pollExecutor;
@@ -101,8 +103,9 @@ final class Poller implements SuspendableWorker {
   private Thread.UncaughtExceptionHandler uncaughtExceptionHandler =
       (t, e) -> log.error("Failure in thread " + t.getName(), e);
 
-  Poller(PollerOptions options, ThrowingRunnable task) {
+  Poller(PollerOptions options, String identity, ThrowingRunnable task) {
     this.options = options;
+    this.identity = identity;
     this.task = task;
   }
 
@@ -211,6 +214,6 @@ final class Poller implements SuspendableWorker {
 
   @Override
   public String toString() {
-    return "Poller{" + "options=" + options + '}';
+    return "Poller{" + "options=" + options + ", identity=" + identity + '}';
   }
 }

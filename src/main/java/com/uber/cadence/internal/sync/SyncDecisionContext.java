@@ -35,6 +35,7 @@ import com.uber.cadence.workflow.ActivityException;
 import com.uber.cadence.workflow.ActivityFailureException;
 import com.uber.cadence.workflow.ActivityTimeoutException;
 import com.uber.cadence.workflow.CancellationScope;
+import com.uber.cadence.workflow.ChildWorkflowException;
 import com.uber.cadence.workflow.ChildWorkflowFailureException;
 import com.uber.cadence.workflow.ChildWorkflowOptions;
 import com.uber.cadence.workflow.CompletablePromise;
@@ -49,7 +50,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-class SyncDecisionContext implements ActivityExecutor {
+final class SyncDecisionContext implements ActivityExecutor {
   private final DecisionContext context;
   private DeterministicRunner runner;
   private final DataConverter converter;
@@ -237,7 +238,9 @@ class SyncDecisionContext implements ActivityExecutor {
     if (failure instanceof CancellationException) {
       return (CancellationException) failure;
     }
-
+    if (failure instanceof ChildWorkflowException) {
+      throw (ChildWorkflowException) failure;
+    }
     if (!(failure instanceof ChildWorkflowTaskFailedException)) {
       throw new IllegalArgumentException("Unexpected exception type: ", failure);
     }

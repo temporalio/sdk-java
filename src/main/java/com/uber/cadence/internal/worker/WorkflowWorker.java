@@ -90,7 +90,7 @@ public final class WorkflowWorker implements SuspendableWorker {
       }
       Poller.ThrowingRunnable pollTask =
           new PollTask<>(service, domain, taskList, options, new TaskHandlerImpl(handler));
-      poller = new Poller(pollerOptions, pollTask);
+      poller = new Poller(pollerOptions, options.getIdentity(), pollTask);
       poller.start();
     }
   }

@@ -73,6 +73,9 @@ final class RequestContext {
   private final List<Timer> timers = new ArrayList<>();
   private long workflowCompletedAtEventId = -1;
   private boolean needDecision;
+  // How many times call SelfAdvancedTimer#lockTimeSkipping.
+  // Negative means how many times to call SelfAdvancedTimer#unlockTimeSkipping.
+  private int timerLocks;
 
   /**
    * Creates an instance of the RequestContext
@@ -93,6 +96,18 @@ final class RequestContext {
     this.activityTasks.addAll(ctx.getActivityTasks());
     this.timers.addAll(ctx.getTimers());
     this.events.addAll(ctx.getEvents());
+  }
+
+  void lockTimer() {
+    timerLocks++;
+  }
+
+  void unlockTimer() {
+    timerLocks--;
+  }
+
+  public int getTimerLocks() {
+    return timerLocks;
   }
 
   long currentTimeInNanoseconds() {
@@ -192,5 +207,9 @@ final class RequestContext {
 
   ExecutionId getExecutionId() {
     return executionId;
+  }
+
+  public boolean isEmpty() {
+    return events.isEmpty() && activityTasks.isEmpty() && decisionTask == null && timers.isEmpty();
   }
 }

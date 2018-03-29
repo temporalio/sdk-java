@@ -32,6 +32,7 @@ import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.testservice.RequestContext.Timer;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -39,10 +40,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -141,13 +138,23 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   private final Map<TaskListId, BlockingQueue<PollForDecisionTaskResponse>> decisionTaskLists =
       new HashMap<>();
 
-  private final ScheduledExecutorService timerService =
-      new ScheduledThreadPoolExecutor(1, r -> new Thread(r, "TestWorkflowStoreImpl timers"));
+  private final SelfAdvancingTimer timerService =
+      new SelfAdvancingTimerImpl(System.currentTimeMillis());
+
+  public TestWorkflowStoreImpl() {
+    timerService.lockTimeSkipping(); // locked until the first save
+  }
+
+  @Override
+  public SelfAdvancingTimer getTimer() {
+    return timerService;
+  }
 
   @Override
   public long save(RequestContext ctx) throws InternalServiceError, EntityNotExistsError {
     long result;
     lock.lock();
+    boolean historiesEmpty = histories.isEmpty();
     try {
       ExecutionId executionId = ctx.getExecutionId();
       HistoryStore history = histories.get(executionId);
@@ -163,8 +170,12 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       history.checkNextEventId(ctx.getInitialEventId());
       history.addAllLocked(events, ctx.currentTimeInNanoseconds());
       result = history.getNextEventIdLocked();
+      timerService.updateLocks(ctx.getTimerLocks());
       ctx.fireCallbacks();
     } finally {
+      if (historiesEmpty && !histories.isEmpty()) {
+        timerService.unlockTimeSkipping(); // Initially locked in the constructor
+      }
       lock.unlock();
     }
     // Push tasks to the queues out of locks
@@ -187,12 +198,15 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     List<Timer> timers = ctx.getTimers();
     if (timers != null) {
       for (Timer t : timers) {
-        @SuppressWarnings("FutureReturnValueIgnored")
-        ScheduledFuture<?> ignored =
-            timerService.schedule(t.getCallback(), t.getDelaySeconds(), TimeUnit.SECONDS);
+        timerService.schedule(Duration.ofSeconds(t.getDelaySeconds()), t.getCallback());
       }
     }
     return result;
+  }
+
+  @Override
+  public void registerDelayedCallback(Duration delay, Runnable r) {
+    timerService.schedule(delay, r);
   }
 
   private BlockingQueue<PollForActivityTaskResponse> getActivityTaskListQueue(
@@ -266,10 +280,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
 
   @Override
   public GetWorkflowExecutionHistoryResponse getWorkflowExecutionHistory(
-      GetWorkflowExecutionHistoryRequest getRequest) throws EntityNotExistsError {
-    WorkflowExecution execution = getRequest.getExecution();
-    ExecutionId executionId =
-        new ExecutionId(getRequest.getDomain(), execution.getWorkflowId(), execution.getRunId());
+      ExecutionId executionId, GetWorkflowExecutionHistoryRequest getRequest)
+      throws EntityNotExistsError {
     HistoryStore history;
     // Used to eliminate the race condition on waitForNewEvents
     long expectedNextEventId;
@@ -331,6 +343,6 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
 
   @Override
   public void close() {
-    timerService.shutdownNow();
+    timerService.shutdown();
   }
 }

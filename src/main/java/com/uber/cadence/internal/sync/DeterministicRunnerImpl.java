@@ -150,7 +150,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
               new WorkflowThreadImpl(
                   false, threadPool, this, nr.name, false, runnerCancellationScope, nr.runnable);
           // It is important to prepend threads as there are callbacks
-          // like signals that have to apply before any other threads.
+          // like signals that have to run before any other threads.
           // Otherwise signal might be never processed if it was received
           // after workflow decided to close.
           threads.addFirst(thread);

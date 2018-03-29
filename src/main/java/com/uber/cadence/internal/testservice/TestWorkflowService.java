@@ -69,13 +69,13 @@ import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
 import com.uber.cadence.WorkflowExecutionContinuedAsNewEventAttributes;
 import com.uber.cadence.internal.testservice.TestWorkflowMutableStateImpl.QueryId;
 import com.uber.cadence.serviceclient.IWorkflowService;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.LongSupplier;
 import org.apache.thrift.TException;
 import org.apache.thrift.async.AsyncMethodCallback;
 import org.slf4j.Logger;
@@ -88,8 +88,6 @@ public final class TestWorkflowService implements IWorkflowService {
   private final Lock lock = new ReentrantLock();
 
   private final TestWorkflowStore store = new TestWorkflowStoreImpl();
-
-  private final LongSupplier clock = System::currentTimeMillis;
 
   private final Map<ExecutionId, TestWorkflowMutableState> executions = new HashMap<>();
 
@@ -197,7 +195,7 @@ public final class TestWorkflowService implements IWorkflowService {
       throws InternalServiceError {
     String domain = startRequest.getDomain();
     TestWorkflowMutableState result =
-        new TestWorkflowMutableStateImpl(startRequest, parent, this, store, clock);
+        new TestWorkflowMutableStateImpl(startRequest, parent, this, store);
     WorkflowExecution execution = result.getExecutionId().getExecution();
     ExecutionId executionId = new ExecutionId(domain, execution);
     lock.lock();
@@ -216,7 +214,10 @@ public final class TestWorkflowService implements IWorkflowService {
       GetWorkflowExecutionHistoryRequest getRequest)
       throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
           TException {
-    return store.getWorkflowExecutionHistory(getRequest);
+    ExecutionId executionId = new ExecutionId(getRequest.getDomain(), getRequest.getExecution());
+    TestWorkflowMutableState mutableState = getMutableState(executionId);
+
+    return store.getWorkflowExecutionHistory(mutableState.getExecutionId(), getRequest);
   }
 
   @Override
@@ -671,5 +672,13 @@ public final class TestWorkflowService implements IWorkflowService {
 
   public void getDiagnostics(StringBuilder result) {
     store.getDiagnostics(result);
+  }
+
+  public long currentTimeMillis() {
+    return store.getTimer().getClock().getAsLong();
+  }
+
+  public void registerDelayedCallback(Duration delay, Runnable r) {
+    store.registerDelayedCallback(delay, r);
   }
 }

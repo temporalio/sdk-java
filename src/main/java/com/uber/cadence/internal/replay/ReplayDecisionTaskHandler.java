@@ -25,6 +25,7 @@ import com.uber.cadence.RespondDecisionTaskFailedRequest;
 import com.uber.cadence.RespondQueryTaskCompletedRequest;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
+import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.worker.DecisionTaskHandler;
 import com.uber.cadence.internal.worker.DecisionTaskWithHistoryIterator;
 import java.io.PrintWriter;
@@ -111,7 +112,18 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
       DecisionsHelper decisionsHelper = decider.getDecisionsHelper();
       List<Decision> decisions = decisionsHelper.getDecisions();
       byte[] context = decisionsHelper.getWorkflowContextDataToReturn();
-      if (log.isDebugEnabled()) {
+      if (log.isTraceEnabled()) {
+        WorkflowExecution execution = decisionTask.getWorkflowExecution();
+        log.trace(
+            "WorkflowTask startedEventId="
+                + decisionTask.getStartedEventId()
+                + ", WorkflowID="
+                + execution.getWorkflowId()
+                + ", RunID="
+                + execution.getRunId()
+                + " completed with "
+                + WorkflowExecutionUtils.prettyPrintDecisions(decisions));
+      } else if (log.isDebugEnabled()) {
         WorkflowExecution execution = decisionTask.getWorkflowExecution();
         log.debug(
             "WorkflowTask startedEventId="

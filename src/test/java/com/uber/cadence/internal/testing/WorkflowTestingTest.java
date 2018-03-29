@@ -61,7 +61,7 @@ import org.junit.runner.Description;
 
 public class WorkflowTestingTest {
 
-  @Rule public Timeout globalTimeout = Timeout.seconds(5);
+  @Rule public Timeout globalTimeout = Timeout.seconds(500);
 
   @Rule
   public TestWatcher watchman =
@@ -203,7 +203,7 @@ public class WorkflowTestingTest {
 
   public interface TestActivityTimeoutWorkflow {
 
-    @WorkflowMethod(executionStartToCloseTimeoutSeconds = 10, taskList = TASK_LIST)
+    @WorkflowMethod(executionStartToCloseTimeoutSeconds = 1000, taskList = TASK_LIST)
     void workflow(
         long scheduleToCloseTimeoutSeconds,
         long scheduleToStartTimeoutSeconds,
@@ -350,7 +350,7 @@ public class WorkflowTestingTest {
     long start = System.currentTimeMillis();
     String result = workflow.workflow1("input1");
     assertEquals("TestWorkflow::workflow1-input1", result);
-    assertTrue(System.currentTimeMillis() - start > 1000);
+    assertTrue(env.currentTimeMillis() - start > 1000);
   }
 
   public interface SignaledWorkflow {

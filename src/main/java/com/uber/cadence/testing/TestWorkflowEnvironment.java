@@ -19,10 +19,15 @@ package com.uber.cadence.testing;
 
 import com.uber.cadence.client.WorkflowClient;
 import com.uber.cadence.worker.Worker;
+import java.time.Duration;
 
 public interface TestWorkflowEnvironment {
 
   Worker newWorker(String taskList);
 
   WorkflowClient newWorkflowClient();
+
+  long currentTimeMillis();
+
+  void registerDelayedCallback(Duration delay, Runnable r);
 }

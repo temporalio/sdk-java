@@ -31,9 +31,23 @@ public class WorkflowException extends RuntimeException {
 
   protected WorkflowException(
       String message, WorkflowExecution execution, String workflowType, Throwable cause) {
-    super(message, cause);
+    super(getMessage(message, execution, workflowType), cause);
     this.execution = execution;
     this.workflowType = workflowType;
+  }
+
+  private static String getMessage(
+      String message, WorkflowExecution execution, String workflowType) {
+    StringBuilder result = new StringBuilder();
+    result.append(message);
+    if (workflowType != null) {
+      result.append(", WorkflowType=\"");
+      result.append(workflowType);
+      result.append("\"");
+    }
+    result.append(", WorkflowExecution=\"");
+    result.append(execution);
+    return result.toString();
   }
 
   public WorkflowExecution getExecution() {

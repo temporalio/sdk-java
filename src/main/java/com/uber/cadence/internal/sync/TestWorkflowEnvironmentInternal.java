@@ -117,6 +117,16 @@ class TestWorkflowEnvironmentInternal implements TestWorkflowEnvironment {
     return WorkflowClientInternal.newInstance(service, testEnvironmentOptions.getDomain(), options);
   }
 
+  @Override
+  public long currentTimeMillis() {
+    return service.currentTimeMillis();
+  }
+
+  @Override
+  public void registerDelayedCallback(Duration delay, Runnable r) {
+    service.registerDelayedCallback(delay, r);
+  }
+
   public IWorkflowService getWorkflowService() {
     return service;
   }
@@ -140,6 +150,10 @@ class TestWorkflowEnvironmentInternal implements TestWorkflowEnvironment {
 
     private WorkflowServiceWrapper() {
       impl = new TestWorkflowService();
+    }
+
+    public long currentTimeMillis() {
+      return impl.currentTimeMillis();
     }
 
     @Override
@@ -499,6 +513,10 @@ class TestWorkflowEnvironmentInternal implements TestWorkflowEnvironment {
 
     public void close() {
       impl.close();
+    }
+
+    public void registerDelayedCallback(Duration delay, Runnable r) {
+      impl.registerDelayedCallback(delay, r);
     }
   }
 }

@@ -103,8 +103,6 @@ import org.slf4j.LoggerFactory;
 
 class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
-  private static final int MILLISECONDS_IN_SECOND = 1000;
-
   @FunctionalInterface
   private interface UpdateProcedure {
 
@@ -114,7 +112,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   private static final Logger log = LoggerFactory.getLogger(TestWorkflowMutableStateImpl.class);
 
+  private static final int MILLISECONDS_IN_SECOND = 1000;
   private final Lock lock = new ReentrantLock();
+  private final SelfAdvancingTimer selfAdvancingTimer;
   private final LongSupplier clock;
   private final ExecutionId executionId;
   private final Optional<TestWorkflowMutableState> parent;
@@ -136,9 +136,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       StartWorkflowExecutionRequest startRequest,
       Optional<TestWorkflowMutableState> parent,
       TestWorkflowService service,
-      TestWorkflowStore store,
-      LongSupplier clock)
-      throws InternalServiceError {
+      TestWorkflowStore store) {
     this.startRequest = startRequest;
     this.parent = parent;
     this.service = service;
@@ -146,7 +144,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     this.executionId =
         new ExecutionId(startRequest.getDomain(), startRequest.getWorkflowId(), runId);
     this.store = store;
-    this.clock = clock;
+    selfAdvancingTimer = store.getTimer();
+    this.clock = selfAdvancingTimer.getClock();
     this.workflow = StateMachines.newWorkflowStateMachine();
   }
 
@@ -162,6 +161,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private void update(boolean completeDecisionUpdate, UpdateProcedure updater)
       throws InternalServiceError, EntityNotExistsError {
     lock.lock();
+    selfAdvancingTimer.lockTimeSkipping();
     try {
       checkCompleted();
       boolean concurrentDecision =
@@ -169,7 +169,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               && (decision != null && decision.getState() == StateMachines.State.STARTED);
       RequestContext ctx = new RequestContext(clock, this, nextEventId);
       updater.apply(ctx);
-      if (concurrentDecision) {
+      if (concurrentDecision && workflow.getState() != State.TIMED_OUT) {
         concurrentToDecision.add(ctx);
         ctx.fireCallbacks();
       } else {
@@ -180,6 +180,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     } catch (Exception e) {
       throw new InternalServiceError(Throwables.getStackTraceAsString(e));
     } finally {
+      selfAdvancingTimer.unlockTimeSkipping();
       lock.unlock();
     }
   }
@@ -203,11 +204,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           ctx -> {
             long scheduledEventId = decision.getData().scheduledEventId;
             decision.action(StateMachines.Action.START, ctx, pollRequest, 0);
-            log.trace(
-                "startDecisionTask.addTimer scheduledEventId="
-                    + scheduledEventId
-                    + " , state="
-                    + decision.getState());
             ctx.addTimer(
                 startRequest.getTaskStartToCloseTimeoutSeconds(),
                 () -> timeoutDecisionTask(scheduledEventId));
@@ -219,7 +215,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   public void completeDecisionTask(RespondDecisionTaskCompletedRequest request)
       throws InternalServiceError, EntityNotExistsError {
     List<Decision> decisions = request.getDecisions();
-    log.info("Decisions: " + decisions);
     completeDecisionUpdate(
         ctx -> {
           long decisionTaskCompletedId = ctx.getNextEventId() - 1;
@@ -254,6 +249,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             scheduleDecision(ctx);
           }
           this.concurrentToDecision.clear();
+          ctx.unlockTimer();
         });
     lock.lock();
     try {
@@ -398,6 +394,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     ctx.addTimer(
         a.getScheduleToStartTimeoutSeconds(),
         () -> timeoutActivity(activityId, TimeoutType.SCHEDULE_TO_START));
+    ctx.lockTimer();
   }
 
   private void validateScheduleActivityTask(ScheduleActivityTaskDecisionAttributes a)
@@ -445,6 +442,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     child = StateMachines.newChildWorkflowStateMachine(service);
     childWorkflows.put(childId, child);
     child.action(StateMachines.Action.INITIATE, ctx, a, decisionTaskCompletedId);
+    ctx.lockTimer();
   }
 
   // TODO
@@ -469,6 +467,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 log.error("Failure signalling an external workflow execution", e);
               }
             });
+    ctx.lockTimer();
   }
 
   @Override
@@ -479,6 +478,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           StateMachine<SignalExternalData> signal = getSignal(signalId);
           signal.action(Action.COMPLETE, ctx, runId, 0);
           scheduleDecision(ctx);
+          ctx.unlockTimer();
         });
   }
 
@@ -491,6 +491,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           StateMachine<SignalExternalData> signal = getSignal(signalId);
           signal.action(Action.FAIL, ctx, cause, 0);
           scheduleDecision(ctx);
+          ctx.unlockTimer();
         });
   }
 
@@ -519,15 +520,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       completeDecisionUpdate(
           ctx -> {
             if (decision == null || decision.getData().scheduledEventId != scheduledEventId) {
-              log.trace("Old timeout for scheduledEventId=" + scheduledEventId);
               // timeout for a previous decision
               return;
             }
-            log.trace(
-                "Timed out decision for scheduledEventId="
-                    + scheduledEventId
-                    + ", state="
-                    + decision.getState());
             decision.action(StateMachines.Action.TIME_OUT, ctx, TimeoutType.START_TO_CLOSE, 0);
             scheduleDecision(ctx);
           });
@@ -547,6 +542,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           String childId = a.getWorkflowExecution().getWorkflowId();
           StateMachine<ChildWorkflowData> child = getChildWorkflow(childId);
           child.action(StateMachines.Action.START, ctx, a, 0);
+          // No need to lock until completion as child workflow might skip
+          // time as well
+          ctx.unlockTimer();
         });
   }
 
@@ -560,6 +558,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           child.action(StateMachines.Action.FAIL, ctx, a, 0);
           childWorkflows.remove(childId);
           scheduleDecision(ctx);
+          ctx.unlockTimer(); // was locked before delivering the notification
         });
   }
 
@@ -571,9 +570,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         ctx -> {
           String childId = a.getWorkflowExecution().getWorkflowId();
           StateMachine<ChildWorkflowData> child = getChildWorkflow(childId);
-          child.action(Action.TIME_OUT, ctx, a, 0);
+          child.action(Action.TIME_OUT, ctx, a.getTimeoutType(), 0);
           childWorkflows.remove(childId);
           scheduleDecision(ctx);
+          ctx.unlockTimer(); // was locked before delivering the notification
         });
   }
 
@@ -602,6 +602,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           child.action(StateMachines.Action.COMPLETE, ctx, a, 0);
           childWorkflows.remove(childId);
           scheduleDecision(ctx);
+          ctx.unlockTimer(); // was locked before delivering the notification
         });
   }
 
@@ -616,6 +617,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           child.action(StateMachines.Action.CANCEL, ctx, a, 0);
           childWorkflows.remove(childId);
           scheduleDecision(ctx);
+          ctx.unlockTimer(); // was locked before delivering the notification
         });
   }
 
@@ -659,6 +661,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       throws InternalServiceError {
     workflow.action(StateMachines.Action.FAIL, ctx, d, decisionTaskCompletedId);
     if (parent.isPresent()) {
+      ctx.lockTimer(); // unlocked by the parent
       ChildWorkflowExecutionFailedEventAttributes a =
           new ChildWorkflowExecutionFailedEventAttributes()
               .setDetails(d.getDetails())
@@ -689,6 +692,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       throws InternalServiceError {
     workflow.action(StateMachines.Action.COMPLETE, ctx, d, decisionTaskCompletedId);
     if (parent.isPresent()) {
+      ctx.lockTimer(); // unlocked by the parent
       ChildWorkflowExecutionCompletedEventAttributes a =
           new ChildWorkflowExecutionCompletedEventAttributes()
               .setResult(d.getResult())
@@ -717,6 +721,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       throws InternalServiceError {
     workflow.action(StateMachines.Action.CANCEL, ctx, d, decisionTaskCompletedId);
     if (parent.isPresent()) {
+      ctx.lockTimer(); // unlocked by the parent
       ChildWorkflowExecutionCanceledEventAttributes a =
           new ChildWorkflowExecutionCanceledEventAttributes()
               .setDetails(d.getDetails())
@@ -804,12 +809,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           || decision.getState() == StateMachines.State.COMPLETED
           || decision.getState() == State.TIMED_OUT) {
         decision.action(StateMachines.Action.INITIATE, ctx, startRequest, 0);
+        ctx.lockTimer();
         return;
       }
       throw new InternalServiceError("unexpected decision state: " + decision.getState());
     }
     this.decision = StateMachines.newDecisionStateMachine(store);
     decision.action(StateMachines.Action.INITIATE, ctx, startRequest, 0);
+    ctx.lockTimer();
   }
 
   @Override
@@ -835,7 +842,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private void checkCompleted() throws EntityNotExistsError {
     State workflowState = workflow.getState();
     if (isTerminalState(workflowState)) {
-      throw new EntityNotExistsError("Workflow is already completed");
+      throw new EntityNotExistsError("Workflow is already completed: " + workflowState);
     }
   }
 
@@ -867,6 +874,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           activity.action(StateMachines.Action.COMPLETE, ctx, request, 0);
           activities.remove(activityId);
           scheduleDecision(ctx);
+          ctx.unlockTimer();
         });
   }
 
@@ -880,6 +888,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           activity.action(StateMachines.Action.COMPLETE, ctx, request, 0);
           activities.remove(activityId);
           scheduleDecision(ctx);
+          ctx.unlockTimer();
         });
   }
 
@@ -891,6 +900,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           StateMachine<?> activity = getActivity(activityId);
           activity.action(StateMachines.Action.FAIL, ctx, request, 0);
           activities.remove(activityId);
+          ctx.unlockTimer();
           scheduleDecision(ctx);
         });
   }
@@ -904,6 +914,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           activity.action(StateMachines.Action.FAIL, ctx, request, 0);
           activities.remove(activityId);
           scheduleDecision(ctx);
+          ctx.unlockTimer();
         });
   }
 
@@ -916,6 +927,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           activity.action(StateMachines.Action.CANCEL, ctx, request, 0);
           activities.remove(activityId);
           scheduleDecision(ctx);
+          ctx.unlockTimer();
         });
   }
 
@@ -929,6 +941,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           activity.action(StateMachines.Action.CANCEL, ctx, request, 0);
           activities.remove(activityId);
           scheduleDecision(ctx);
+          ctx.unlockTimer();
         });
   }
 
@@ -990,17 +1003,35 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   private void timeoutWorkflow() {
+    lock.lock();
+    try {
+      {
+        if (isTerminalState(workflow.getState())) {
+          return;
+        }
+      }
+    } finally {
+      lock.unlock();
+    }
     try {
       update(
           ctx -> {
+            if (isTerminalState(workflow.getState())) {
+              return;
+            }
+            log.info("Workflow timed out before action");
             workflow.action(StateMachines.Action.TIME_OUT, ctx, TimeoutType.START_TO_CLOSE, 0);
+            log.info("Workflow timed out after action");
+            if (parent != null) {
+              ctx.lockTimer(); // unlocked by the parent
+            }
             ForkJoinPool.commonPool().execute(() -> reportWorkflowTimeoutToParent(ctx));
           });
-
     } catch (InternalServiceError | EntityNotExistsError e) {
       // Cannot fail to timer threads
       log.error("Failure trying to timeout a workflow", e);
     }
+    log.info("Workflow timed out done");
   }
 
   private void reportWorkflowTimeoutToParent(RequestContext ctx) {

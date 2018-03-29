@@ -170,6 +170,7 @@ class StateMachines {
   }
 
   static final class SignalExternalData {
+
     long initiatedEventId = -1;
     public SignalExternalWorkflowExecutionInitiatedEventAttributes initiatedEvent;
   }
@@ -683,7 +684,11 @@ class StateMachines {
                   .setExecution(ctx.getExecution());
           List<HistoryEvent> events = null;
           try {
-            events = data.store.getWorkflowExecutionHistory(getRequest).getHistory().getEvents();
+            events =
+                data.store
+                    .getWorkflowExecutionHistory(ctx.getExecutionId(), getRequest)
+                    .getHistory()
+                    .getEvents();
           } catch (EntityNotExistsError entityNotExistsError) {
             throw new InternalServiceError(entityNotExistsError.toString());
           }

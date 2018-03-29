@@ -165,7 +165,7 @@ class TestActivityEnvironmentInternal implements TestActivityEnvironment {
               .setWorkflowId("test-workflow-id")
               .setRunId(UUID.randomUUID().toString()));
       task.setActivityType(new ActivityType().setName(activityType));
-      IWorkflowService service = new WorkflowServiceWrapper(testEnvironmentOptions.getService());
+      IWorkflowService service = new WorkflowServiceWrapper(null);
       Result taskResult =
           activityTaskHandler.handle(service, testEnvironmentOptions.getDomain(), task);
       return Workflow.newPromise(getReply(task, taskResult, returnType));

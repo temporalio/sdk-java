@@ -25,6 +25,7 @@ import com.uber.cadence.PollForActivityTaskRequest;
 import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.PollForDecisionTaskRequest;
 import com.uber.cadence.PollForDecisionTaskResponse;
+import java.time.Duration;
 import java.util.Objects;
 
 interface TestWorkflowStore {
@@ -122,7 +123,11 @@ interface TestWorkflowStore {
     }
   }
 
+  SelfAdvancingTimer getTimer();
+
   long save(RequestContext requestContext) throws InternalServiceError, EntityNotExistsError;
+
+  void registerDelayedCallback(Duration delay, Runnable r);
 
   PollForDecisionTaskResponse pollForDecisionTask(PollForDecisionTaskRequest pollRequest)
       throws InterruptedException;
@@ -130,15 +135,13 @@ interface TestWorkflowStore {
   PollForActivityTaskResponse pollForActivityTask(PollForActivityTaskRequest pollRequest)
       throws InterruptedException;
 
-  /**
-   * @return queryId
-   * @throws EntityNotExistsError
-   */
+  /** @return queryId */
   void sendQueryTask(ExecutionId executionId, TaskListId taskList, PollForDecisionTaskResponse task)
       throws EntityNotExistsError;
 
   GetWorkflowExecutionHistoryResponse getWorkflowExecutionHistory(
-      GetWorkflowExecutionHistoryRequest getRequest) throws EntityNotExistsError;
+      ExecutionId executionId, GetWorkflowExecutionHistoryRequest getRequest)
+      throws EntityNotExistsError;
 
   void getDiagnostics(StringBuilder result);
 

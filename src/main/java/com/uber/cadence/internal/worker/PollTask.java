@@ -42,7 +42,7 @@ final class PollTask<T> implements Poller.ThrowingRunnable {
     T poll() throws Exception;
   }
 
-  private static final String ACTIVITY_THREAD_NAME_PREFIX = "SWF Activity ";
+  private static final String ACTIVITY_THREAD_NAME_PREFIX = "Cadence Activity ";
 
   private final IWorkflowService service;
   private final String domain;

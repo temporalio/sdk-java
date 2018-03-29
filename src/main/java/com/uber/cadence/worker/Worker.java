@@ -49,7 +49,21 @@ public final class Worker {
    *     activity task list polls.
    */
   public Worker(String domain, String taskList) {
-    this(new WorkflowServiceTChannel(), domain, taskList, null);
+    this(domain, taskList, null);
+  }
+
+  /**
+   * Creates worker that connects to the local instance of the Cadence Service that listens on a
+   * default port (7933).
+   *
+   * @param domain domain that worker uses to poll.
+   * @param taskList task list name worker uses to poll. It uses this name for both decision and
+   *     activity task list polls.
+   * @param options Options (like {@link com.uber.cadence.converter.DataConverter} override) for
+   *     configuring worker.
+   */
+  public Worker(String domain, String taskList, WorkerOptions options) {
+    this(new WorkflowServiceTChannel(), domain, taskList, options);
   }
 
   /**
@@ -73,7 +87,7 @@ public final class Worker {
    * @param domain domain that worker uses to poll.
    * @param taskList task list name worker uses to poll. It uses this name for both decision and
    *     activity task list polls.
-   * @param options Options (like {@link com.uber.cadence.converter.DataConverter}er override) for
+   * @param options Options (like {@link com.uber.cadence.converter.DataConverter} override) for
    *     configuring worker.
    */
   public Worker(String host, int port, String domain, String taskList, WorkerOptions options) {
@@ -87,7 +101,7 @@ public final class Worker {
    * @param domain domain that worker uses to poll.
    * @param taskList task list name worker uses to poll. It uses this name for both decision and
    *     activity task list polls.
-   * @param options Options (like {@link com.uber.cadence.converter.DataConverter}er override) for
+   * @param options Options (like {@link com.uber.cadence.converter.DataConverter} override) for
    *     configuring worker.
    */
   public Worker(IWorkflowService service, String domain, String taskList, WorkerOptions options) {
