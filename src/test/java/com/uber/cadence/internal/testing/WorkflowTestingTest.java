@@ -47,6 +47,7 @@ import com.uber.cadence.workflow.Workflow;
 import com.uber.cadence.workflow.WorkflowMethod;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -467,7 +468,7 @@ public class WorkflowTestingTest {
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class);
     try {
       WorkflowExecution execution = WorkflowClient.start(workflow::workflow1, "input1");
-      UntypedWorkflowStub untyped = client.newUntypedWorkflowStub(execution);
+      UntypedWorkflowStub untyped = client.newUntypedWorkflowStub(execution, Optional.empty());
       untyped.cancel();
       untyped.getResult(String.class);
       fail("unreacheable");
@@ -500,7 +501,7 @@ public class WorkflowTestingTest {
     WorkflowClient client = env.newWorkflowClient();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class);
     WorkflowExecution execution = WorkflowClient.start(workflow::workflow1, "input1");
-    UntypedWorkflowStub untyped = client.newUntypedWorkflowStub(execution);
+    UntypedWorkflowStub untyped = client.newUntypedWorkflowStub(execution, Optional.empty());
     untyped.cancel();
     try {
       untyped.getResult(String.class);

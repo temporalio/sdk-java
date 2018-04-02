@@ -18,6 +18,7 @@
 package com.uber.cadence.client;
 
 import com.uber.cadence.WorkflowExecution;
+import java.util.Optional;
 
 /**
  * Indicates that a workflow was forcefully terminated by an external command to Cadence service.
@@ -29,7 +30,7 @@ public final class WorkflowTerminatedException extends WorkflowException {
 
   public WorkflowTerminatedException(
       WorkflowExecution execution,
-      String workflowType,
+      Optional<String> workflowType,
       String reason,
       String identity,
       byte[] details) {

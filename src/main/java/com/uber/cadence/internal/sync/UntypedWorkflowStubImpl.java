@@ -39,6 +39,7 @@ import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.external.GenericWorkflowClientExternal;
 import com.uber.cadence.internal.replay.QueryWorkflowParameters;
 import com.uber.cadence.internal.replay.SignalExternalWorkflowParameters;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -51,19 +52,20 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
 
   private final GenericWorkflowClientExternal genericClient;
   private final DataConverter dataConverter;
-  private final String workflowType;
+  private final Optional<String> workflowType;
   private AtomicReference<WorkflowExecution> execution = new AtomicReference<>();
-  private final WorkflowOptions options;
+  private final Optional<WorkflowOptions> options;
 
   UntypedWorkflowStubImpl(
       GenericWorkflowClientExternal genericClient,
       DataConverter dataConverter,
+      Optional<String> workflowType,
       WorkflowExecution execution) {
     this.genericClient = genericClient;
     this.dataConverter = dataConverter;
-    this.workflowType = null;
+    this.workflowType = workflowType;
     this.execution.set(execution);
-    this.options = null;
+    this.options = Optional.empty();
   }
 
   UntypedWorkflowStubImpl(
@@ -73,8 +75,8 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
       WorkflowOptions options) {
     this.genericClient = genericClient;
     this.dataConverter = dataConverter;
-    this.workflowType = workflowType;
-    this.options = options;
+    this.workflowType = Optional.of(workflowType);
+    this.options = Optional.of(options);
   }
 
   @Override
@@ -90,14 +92,13 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
     genericClient.signalWorkflowExecution(p);
   }
 
-  WorkflowExecution startWithOptions(WorkflowOptions o, Object... args) {
-    if (o == null) {
-      throw new IllegalStateException(
-          "UntypedWorkflowStub wasn't created through "
-              + "WorkflowClient::newUntypedWorkflowStub(String workflowType, WorkflowOptions options)");
-    }
+  private WorkflowExecution startWithOptions(WorkflowOptions o, Object... args) {
     if (execution.get() != null) {
-      throw new IllegalStateException("already started for execution=" + execution.get());
+      throw new DuplicateWorkflowException(
+          execution.get(),
+          workflowType.get(),
+          "Cannot reuse a stub instance to start more than one workflow execution. The stub "
+              + "points to already started execution.");
     }
     StartWorkflowExecutionParameters p = new StartWorkflowExecutionParameters();
     p.setTaskStartToCloseTimeoutSeconds(o.getTaskStartToCloseTimeout().getSeconds());
@@ -108,7 +109,7 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
     }
     p.setExecutionStartToCloseTimeoutSeconds(o.getExecutionStartToCloseTimeout().getSeconds());
     p.setInput(dataConverter.toData(args));
-    p.setWorkflowType(new WorkflowType().setName(workflowType));
+    p.setWorkflowType(new WorkflowType().setName(workflowType.get()));
     p.setTaskList(o.getTaskList());
     p.setChildPolicy(o.getChildPolicy());
     try {
@@ -118,18 +119,21 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
           new WorkflowExecution().setWorkflowId(p.getWorkflowId()).setRunId(e.getRunId()));
       WorkflowExecution execution =
           new WorkflowExecution().setWorkflowId(p.getWorkflowId()).setRunId(e.getRunId());
-      throw new DuplicateWorkflowException(execution, workflowType, e.getMessage());
+      throw new DuplicateWorkflowException(execution, workflowType.get(), e.getMessage());
     }
     return execution.get();
   }
 
   @Override
   public WorkflowExecution start(Object... args) {
-    return startWithOptions(WorkflowOptions.merge(null, options), args);
+    if (!options.isPresent()) {
+      throw new IllegalStateException("Required parameter WorkflowOptions is missing");
+    }
+    return startWithOptions(WorkflowOptions.merge(null, options.get()), args);
   }
 
   @Override
-  public String getWorkflowType() {
+  public Optional<String> getWorkflowType() {
     return workflowType;
   }
 
@@ -264,6 +268,11 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
       return;
     }
     genericClient.requestCancelWorkflowExecution(execution.get());
+  }
+
+  @Override
+  public Optional<WorkflowOptions> getOptions() {
+    return options;
   }
 
   private void checkStarted() {

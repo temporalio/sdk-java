@@ -18,6 +18,7 @@
 package com.uber.cadence.client;
 
 import com.uber.cadence.WorkflowExecution;
+import java.util.Optional;
 
 /**
  * This exception is thrown in the following cases:
@@ -51,6 +52,6 @@ public final class DuplicateWorkflowException extends WorkflowException {
 
   public DuplicateWorkflowException(
       WorkflowExecution execution, String workflowType, String message) {
-    super(message, execution, workflowType, null);
+    super(message, execution, Optional.of(workflowType), null);
   }
 }

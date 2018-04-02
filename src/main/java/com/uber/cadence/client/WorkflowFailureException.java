@@ -18,6 +18,7 @@
 package com.uber.cadence.client;
 
 import com.uber.cadence.WorkflowExecution;
+import java.util.Optional;
 
 /**
  * Indicates that a workflow failed. An original cause of the workflow failure can be retrieved
@@ -29,7 +30,7 @@ public final class WorkflowFailureException extends WorkflowException {
 
   public WorkflowFailureException(
       WorkflowExecution execution,
-      String workflowType,
+      Optional<String> workflowType,
       long decisionTaskCompletedEventId,
       Throwable failure) {
     super(

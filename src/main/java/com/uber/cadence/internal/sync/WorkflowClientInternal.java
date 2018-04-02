@@ -17,6 +17,7 @@
 
 package com.uber.cadence.internal.sync;
 
+import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.client.ActivityCompletionClient;
@@ -38,6 +39,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 public final class WorkflowClientInternal implements WorkflowClient {
@@ -149,7 +151,8 @@ public final class WorkflowClientInternal implements WorkflowClient {
         Proxy.newProxyInstance(
             WorkflowInternal.class.getClassLoader(),
             new Class<?>[] {workflowInterface},
-            new WorkflowExternalInvocationHandler(genericClient, options, dataConverter));
+            new WorkflowExternalInvocationHandler(
+                workflowInterface, genericClient, options, dataConverter));
   }
 
   @SafeVarargs
@@ -177,14 +180,31 @@ public final class WorkflowClientInternal implements WorkflowClient {
   }
 
   @Override
-  @SuppressWarnings("unchecked")
-  public <T> T newWorkflowStub(Class<T> workflowInterface, WorkflowExecution execution) {
+  public <T> T newWorkflowStub(Class<T> workflowInterface, String workflowId) {
+    return newWorkflowStub(workflowInterface, workflowId, Optional.empty());
+  }
+
+  @Override
+  public <T> T newWorkflowStub(
+      Class<T> workflowInterface, String workflowId, Optional<String> runId) {
     checkAnnotation(workflowInterface, WorkflowMethod.class, QueryMethod.class);
-    return (T)
-        Proxy.newProxyInstance(
-            WorkflowInternal.class.getClassLoader(),
-            new Class<?>[] {workflowInterface},
-            new WorkflowExternalInvocationHandler(genericClient, execution, dataConverter));
+    if (Strings.isNullOrEmpty(workflowId)) {
+      throw new IllegalArgumentException("workflowId is null or empty");
+    }
+    WorkflowExecution execution = new WorkflowExecution();
+    execution.setWorkflowId(workflowId);
+    if (runId.isPresent()) {
+      execution.setRunId(runId.get());
+    }
+    @SuppressWarnings("unchecked")
+    T result =
+        (T)
+            Proxy.newProxyInstance(
+                WorkflowInternal.class.getClassLoader(),
+                new Class<?>[] {workflowInterface},
+                new WorkflowExternalInvocationHandler(
+                    workflowInterface, genericClient, execution, dataConverter));
+    return result;
   }
 
   @Override
@@ -193,8 +213,19 @@ public final class WorkflowClientInternal implements WorkflowClient {
   }
 
   @Override
-  public UntypedWorkflowStub newUntypedWorkflowStub(WorkflowExecution execution) {
-    return new UntypedWorkflowStubImpl(genericClient, dataConverter, execution);
+  public UntypedWorkflowStub newUntypedWorkflowStub(
+      String workflowId, Optional<String> runId, Optional<String> workflowType) {
+    WorkflowExecution execution = new WorkflowExecution().setWorkflowId(workflowId);
+    if (runId.isPresent()) {
+      execution.setRunId(runId.get());
+    }
+    return newUntypedWorkflowStub(execution, workflowType);
+  }
+
+  @Override
+  public UntypedWorkflowStub newUntypedWorkflowStub(
+      WorkflowExecution execution, Optional<String> workflowType) {
+    return new UntypedWorkflowStubImpl(genericClient, dataConverter, workflowType, execution);
   }
 
   @Override

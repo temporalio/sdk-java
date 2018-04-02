@@ -54,6 +54,7 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -93,7 +94,7 @@ public class WorkflowExecutionUtils {
       IWorkflowService service,
       String domain,
       WorkflowExecution workflowExecution,
-      String workflowType,
+      Optional<String> workflowType,
       long timeout,
       TimeUnit unit)
       throws TimeoutException, CancellationException, WorkflowExecutionFailedException,
@@ -108,7 +109,7 @@ public class WorkflowExecutionUtils {
       IWorkflowService service,
       String domain,
       WorkflowExecution workflowExecution,
-      String workflowType,
+      Optional<String> workflowType,
       long timeout,
       TimeUnit unit) {
     return getInstanceCloseEventAsync(service, domain, workflowExecution, timeout, unit)
@@ -117,7 +118,7 @@ public class WorkflowExecutionUtils {
   }
 
   private static byte[] getResultFromCloseEvent(
-      WorkflowExecution workflowExecution, String workflowType, HistoryEvent closeEvent) {
+      WorkflowExecution workflowExecution, Optional<String> workflowType, HistoryEvent closeEvent) {
     if (closeEvent == null) {
       throw new IllegalStateException("Workflow is still running");
     }

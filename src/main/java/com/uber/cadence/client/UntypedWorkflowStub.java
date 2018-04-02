@@ -18,6 +18,7 @@
 package com.uber.cadence.client;
 
 import com.uber.cadence.WorkflowExecution;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -28,7 +29,7 @@ public interface UntypedWorkflowStub {
 
   WorkflowExecution start(Object... args);
 
-  String getWorkflowType();
+  Optional<String> getWorkflowType();
 
   WorkflowExecution getExecution();
 
@@ -63,4 +64,6 @@ public interface UntypedWorkflowStub {
 
   /** Request cancellation. */
   void cancel();
+
+  Optional<WorkflowOptions> getOptions();
 }

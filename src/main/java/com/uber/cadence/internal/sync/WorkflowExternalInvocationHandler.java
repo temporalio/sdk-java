@@ -20,6 +20,7 @@ package com.uber.cadence.internal.sync;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowIdReusePolicy;
 import com.uber.cadence.client.DuplicateWorkflowException;
+import com.uber.cadence.client.UntypedWorkflowStub;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.common.InternalUtils;
@@ -29,7 +30,7 @@ import com.uber.cadence.workflow.SignalMethod;
 import com.uber.cadence.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
-import java.util.Arrays;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,20 +51,17 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
     // Holds either WorkflowExecution or CompletableFuture to workflow result.
     private final AtomicReference<Object> result = new AtomicReference<>();
 
-    public AsyncInvocation(InvocationType type) {
+    AsyncInvocation(InvocationType type) {
       this.type = type;
     }
   }
 
   private static final ThreadLocal<AsyncInvocation> asyncInvocation = new ThreadLocal<>();
-  private final AtomicReference<UntypedWorkflowStubImpl> untyped = new AtomicReference<>();
-  private final WorkflowOptions options;
-  private final DataConverter dataConverter;
-  private final GenericWorkflowClientExternal genericClient;
-  private String workflowType;
+
+  private final UntypedWorkflowStub untyped;
 
   /** Must call {@link #closeAsyncInvocation()} if this one was called. */
-  public static void initAsyncInvocation(InvocationType type) {
+  static void initAsyncInvocation(InvocationType type) {
     if (asyncInvocation.get() != null) {
       throw new IllegalStateException("already in start invocation");
     }
@@ -71,7 +69,7 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
   }
 
   @SuppressWarnings("unchecked")
-  public static <R> R getAsyncInvocationResult(Class<R> resultClass) {
+  static <R> R getAsyncInvocationResult(Class<R> resultClass) {
     AsyncInvocation reference = asyncInvocation.get();
     if (reference == null) {
       throw new IllegalStateException("initAsyncInvocation wasn't called");
@@ -105,11 +103,12 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
   }
 
   /** Closes async invocation created through {@link #initAsyncInvocation(InvocationType)} */
-  public static void closeAsyncInvocation() {
+  static void closeAsyncInvocation() {
     asyncInvocation.remove();
   }
 
   WorkflowExternalInvocationHandler(
+      Class<?> workflowInterface,
       GenericWorkflowClientExternal genericClient,
       WorkflowExecution execution,
       DataConverter dataConverter) {
@@ -118,19 +117,26 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
         || execution.getWorkflowId().isEmpty()) {
       throw new IllegalArgumentException("null or empty workflowId");
     }
-    this.genericClient = genericClient;
-    this.untyped.set(new UntypedWorkflowStubImpl(genericClient, dataConverter, execution));
-    this.options = null;
-    this.dataConverter = dataConverter;
+    Method workflowMethod = getWorkflowMethod(workflowInterface);
+    WorkflowMethod annotation = workflowMethod.getAnnotation(WorkflowMethod.class);
+    String workflowType = getWorkflowType(workflowMethod, annotation);
+
+    this.untyped =
+        new UntypedWorkflowStubImpl(
+            genericClient, dataConverter, Optional.of(workflowType), execution);
   }
 
   WorkflowExternalInvocationHandler(
+      Class<?> workflowInterface,
       GenericWorkflowClientExternal genericClient,
       WorkflowOptions options,
       DataConverter dataConverter) {
-    this.genericClient = genericClient;
-    this.options = options;
-    this.dataConverter = dataConverter;
+    Method workflowMethod = getWorkflowMethod(workflowInterface);
+    WorkflowMethod annotation = workflowMethod.getAnnotation(WorkflowMethod.class);
+    String workflowType = getWorkflowType(workflowMethod, annotation);
+    WorkflowOptions mergedOptions = WorkflowOptions.merge(annotation, options);
+    this.untyped =
+        new UntypedWorkflowStubImpl(genericClient, dataConverter, workflowType, mergedOptions);
   }
 
   @Override
@@ -149,21 +155,7 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
               + "from @WorkflowMethod, @QueryMethod or @SignalMethod");
     }
     if (workflowMethod != null) {
-      WorkflowOptions mergedOptions = WorkflowOptions.merge(workflowMethod, options);
-      // We do allow duplicated calls if policy is not AllowDuplicate. Semantic is to wait for result.
-      UntypedWorkflowStubImpl workflowStub = untyped.get();
-      if (workflowStub != null) { // stub is reused
-        if (mergedOptions.getWorkflowIdReusePolicy() == WorkflowIdReusePolicy.AllowDuplicate
-            || (workflowType != null
-                && !workflowType.equals(getWorkflowType(method, workflowMethod)))) {
-          throw new DuplicateWorkflowException(
-              workflowStub.getExecution(),
-              workflowType,
-              "Cannot call @WorkflowMethod more than once per stub instance");
-        }
-        return workflowStub.getResult(method.getReturnType());
-      }
-      return startWorkflow(method, workflowMethod, mergedOptions, args);
+      return startWorkflow(method, args);
     }
     if (queryMethod != null) {
       return queryWorkflow(method, queryMethod, args);
@@ -185,15 +177,7 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
     if (signalName.isEmpty()) {
       signalName = InternalUtils.getSimpleName(method);
     }
-    getUntyped().signal(signalName, args);
-  }
-
-  private UntypedWorkflowStubImpl getUntyped() {
-    UntypedWorkflowStubImpl result = untyped.get();
-    if (result == null) {
-      throw new IllegalStateException("Not started yet");
-    }
-    return result;
+    untyped.signal(signalName, args);
   }
 
   private Object queryWorkflow(Method method, QueryMethod queryMethod, Object[] args) {
@@ -205,47 +189,55 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
       queryType = InternalUtils.getSimpleName(method);
     }
 
-    return getUntyped().query(queryType, method.getReturnType(), args);
+    return untyped.query(queryType, method.getReturnType(), args);
   }
 
-  private Object startWorkflow(
-      Method method, WorkflowMethod workflowMethod, WorkflowOptions mergedOptions, Object[] args) {
-    workflowType = getWorkflowType(method, workflowMethod);
-    if (log.isTraceEnabled()) {
-      log.trace(
-          "startWorkflow type="
-              + workflowType
-              + ", options="
-              + mergedOptions
-              + ", args="
-              + Arrays.toString(args));
-    }
-    // There is no race condition here.
-    // If it is not set then it means the invocation handler was created passing workflow type rather than execution.
-    // So in worst case scenario set will be called twice with the same object.
-    if (untyped.get() == null) {
-      untyped.set(
-          new UntypedWorkflowStubImpl(genericClient, dataConverter, workflowType, mergedOptions));
-    }
-    UntypedWorkflowStubImpl workflowStub = getUntyped();
-    try {
-      workflowStub.startWithOptions(mergedOptions, args);
-    } catch (DuplicateWorkflowException e) {
-      // We do allow duplicated calls if policy is not AllowDuplicate. Semantic is to wait for result.
-      if (mergedOptions.getWorkflowIdReusePolicy() == WorkflowIdReusePolicy.AllowDuplicate) {
-        throw e;
+  private Object startWorkflow(Method method, Object[] args) {
+    Optional<WorkflowOptions> options = untyped.getOptions();
+    if (untyped.getExecution() == null
+        || options.get().getWorkflowIdReusePolicy() == WorkflowIdReusePolicy.AllowDuplicate) {
+      try {
+        untyped.start(args);
+      } catch (DuplicateWorkflowException e) {
+        // We do allow duplicated calls if policy is not AllowDuplicate. Semantic is to wait for result.
+        if (options.get().getWorkflowIdReusePolicy() == WorkflowIdReusePolicy.AllowDuplicate) {
+          throw e;
+        }
       }
     }
     AsyncInvocation async = asyncInvocation.get();
     if (async != null) {
       if (async.type == InvocationType.START) {
-        async.result.set(workflowStub.getExecution());
+        async.result.set(untyped.getExecution());
       } else {
-        async.result.set(untyped.get().getResultAsync(method.getReturnType()));
+        async.result.set(untyped.getResultAsync(method.getReturnType()));
       }
       return null;
     }
-    return workflowStub.getResult(method.getReturnType());
+    return untyped.getResult(method.getReturnType());
+  }
+
+  private static Method getWorkflowMethod(Class<?> workflowInterface) {
+    Method result = null;
+    for (Method m : workflowInterface.getMethods()) {
+      if (m.getAnnotation(WorkflowMethod.class) != null) {
+        if (result != null) {
+          throw new IllegalArgumentException(
+              "Workflow interface must have exactly one method "
+                  + "annotated with @WorkflowMethod. Found \""
+                  + result
+                  + "\" and \""
+                  + m
+                  + "\"");
+        }
+        result = m;
+      }
+    }
+    if (result == null) {
+      throw new IllegalArgumentException(
+          "Method annotated with @WorkflowMethod is not " + "found at " + workflowInterface);
+    }
+    return result;
   }
 
   private static String getWorkflowType(Method method, WorkflowMethod workflowMethod) {

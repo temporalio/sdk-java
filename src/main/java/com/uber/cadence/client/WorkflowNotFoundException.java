@@ -18,6 +18,7 @@
 package com.uber.cadence.client;
 
 import com.uber.cadence.WorkflowExecution;
+import java.util.Optional;
 
 /**
  * Thrown when workflow with the given id is not known to the cadence service. It could be because
@@ -26,7 +27,7 @@ import com.uber.cadence.WorkflowExecution;
 public final class WorkflowNotFoundException extends WorkflowException {
 
   public WorkflowNotFoundException(
-      WorkflowExecution execution, String workflowType, String message) {
+      WorkflowExecution execution, Optional<String> workflowType, String message) {
     super(message, execution, workflowType, null);
   }
 }

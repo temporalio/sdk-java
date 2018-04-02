@@ -19,6 +19,7 @@ package com.uber.cadence.client;
 
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.workflow.ChildWorkflowException;
+import java.util.Optional;
 
 /**
  * Base exception for all workflow failures returned by an external client. Note that inside a
@@ -27,22 +28,22 @@ import com.uber.cadence.workflow.ChildWorkflowException;
 public class WorkflowException extends RuntimeException {
 
   private final WorkflowExecution execution;
-  private final String workflowType;
+  private final Optional<String> workflowType;
 
   protected WorkflowException(
-      String message, WorkflowExecution execution, String workflowType, Throwable cause) {
+      String message, WorkflowExecution execution, Optional<String> workflowType, Throwable cause) {
     super(getMessage(message, execution, workflowType), cause);
     this.execution = execution;
     this.workflowType = workflowType;
   }
 
   private static String getMessage(
-      String message, WorkflowExecution execution, String workflowType) {
+      String message, WorkflowExecution execution, Optional<String> workflowType) {
     StringBuilder result = new StringBuilder();
     result.append(message);
-    if (workflowType != null) {
+    if (workflowType.isPresent()) {
       result.append(", WorkflowType=\"");
-      result.append(workflowType);
+      result.append(workflowType.get());
       result.append("\"");
     }
     result.append(", WorkflowExecution=\"");
@@ -54,7 +55,7 @@ public class WorkflowException extends RuntimeException {
     return execution;
   }
 
-  public String getWorkflowType() {
+  public Optional<String> getWorkflowType() {
     return workflowType;
   }
 }

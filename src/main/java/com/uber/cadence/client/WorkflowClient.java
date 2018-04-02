@@ -31,6 +31,7 @@ import com.uber.cadence.workflow.Functions.Proc3;
 import com.uber.cadence.workflow.Functions.Proc4;
 import com.uber.cadence.workflow.Functions.Proc5;
 import com.uber.cadence.workflow.Functions.Proc6;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -174,11 +175,22 @@ public interface WorkflowClient {
    * Creates workflow client stub for a known execution. Use it to send signals or queries to a
    * running workflow. Do not call methods annotated with @WorkflowMethod.
    *
-   * @param workflowInterface interface that given workflow implements
-   * @param execution workflow id and optional run id for execution
+   * @param workflowInterface interface that given workflow implements.
+   * @param workflowId Workflow id.
    * @return Stub that implements workflowInterface and can be used to signal or query it.
    */
-  <T> T newWorkflowStub(Class<T> workflowInterface, WorkflowExecution execution);
+  <T> T newWorkflowStub(Class<T> workflowInterface, String workflowId);
+
+  /**
+   * Creates workflow client stub for a known execution. Use it to send signals or queries to a
+   * running workflow. Do not call methods annotated with @WorkflowMethod.
+   *
+   * @param workflowInterface interface that given workflow implements.
+   * @param workflowId Workflow id.
+   * @param runId Run id of the workflow execution.
+   * @return Stub that implements workflowInterface and can be used to signal or query it.
+   */
+  <T> T newWorkflowStub(Class<T> workflowInterface, String workflowId, Optional<String> runId);
 
   /**
    * Creates workflow untyped client stub that can be used to start a single workflow execution.
@@ -195,10 +207,25 @@ public interface WorkflowClient {
    * Creates workflow untyped client stub for a known execution. Use it to send signals or queries
    * to a running workflow. Do not call methods annotated with @WorkflowMethod.
    *
-   * @param execution workflow id and optional run id for execution
+   * @param workflowId workflow id and optional run id for execution
+   * @param runId runId of the workflow execution. If not provided the last workflow with the given
+   *     workflowId is assumed.
+   * @param workflowType type of the workflow. Optional as it is used for error reporting only.
    * @return Stub that can be used to start workflow and later to signal or query it.
    */
-  UntypedWorkflowStub newUntypedWorkflowStub(WorkflowExecution execution);
+  UntypedWorkflowStub newUntypedWorkflowStub(
+      String workflowId, Optional<String> runId, Optional<String> workflowType);
+
+  /**
+   * Creates workflow untyped client stub for a known execution. Use it to send signals or queries
+   * to a running workflow. Do not call methods annotated with @WorkflowMethod.
+   *
+   * @param execution workflow id and optional run id for execution
+   * @param workflowType type of the workflow. Optional as it is used for error reporting only.
+   * @return Stub that can be used to start workflow and later to signal or query it.
+   */
+  UntypedWorkflowStub newUntypedWorkflowStub(
+      WorkflowExecution execution, Optional<String> workflowType);
 
   /**
    * Creates new {@link ActivityCompletionClient} that can be used to complete activities

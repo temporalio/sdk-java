@@ -18,10 +18,11 @@
 package com.uber.cadence.client;
 
 import com.uber.cadence.WorkflowExecution;
+import java.util.Optional;
 
 public final class WorkflowServiceException extends WorkflowException {
 
   public WorkflowServiceException(WorkflowExecution execution, String message) {
-    super(message, execution, null, null);
+    super(message, execution, Optional.empty(), null);
   }
 }
