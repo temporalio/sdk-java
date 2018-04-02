@@ -19,6 +19,7 @@ package com.uber.cadence.client;
 
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.converter.JsonDataConverter;
+import java.util.Objects;
 
 /** Options for WorkflowClient configuration. */
 public final class WorkflowClientOptions {
@@ -27,31 +28,51 @@ public final class WorkflowClientOptions {
 
     private DataConverter dataConverter = JsonDataConverter.getInstance();
 
+    private WorkflowClientInterceptor[] interceptors = EMPTY_INTERCEPTOR_ARRAY;
+
     /**
      * Used to override default (JSON) data converter implementation.
      *
      * @param dataConverter data converter to serialize and deserialize arguments and return values.
+     *     Not null.
      */
     public Builder setDataConverter(DataConverter dataConverter) {
-      if (dataConverter == null) {
-        throw new IllegalArgumentException("null");
-      }
-      this.dataConverter = dataConverter;
+      this.dataConverter = Objects.requireNonNull(dataConverter);
+      return this;
+    }
+
+    /**
+     * Interceptor used to intercept workflow client calls.
+     *
+     * @param interceptors not null
+     */
+    public Builder setInterceptors(WorkflowClientInterceptor... interceptors) {
+      this.interceptors = Objects.requireNonNull(interceptors);
       return this;
     }
 
     public WorkflowClientOptions build() {
-      return new WorkflowClientOptions(dataConverter);
+      return new WorkflowClientOptions(dataConverter, interceptors);
     }
   }
 
+  private static final WorkflowClientInterceptor[] EMPTY_INTERCEPTOR_ARRAY =
+      new WorkflowClientInterceptor[0];
   private final DataConverter dataConverter;
 
-  private WorkflowClientOptions(DataConverter dataConverter) {
+  private final WorkflowClientInterceptor[] interceptors;
+
+  private WorkflowClientOptions(
+      DataConverter dataConverter, WorkflowClientInterceptor[] interceptors) {
     this.dataConverter = dataConverter;
+    this.interceptors = interceptors;
   }
 
   public DataConverter getDataConverter() {
     return dataConverter;
+  }
+
+  public WorkflowClientInterceptor[] getInterceptors() {
+    return interceptors;
   }
 }

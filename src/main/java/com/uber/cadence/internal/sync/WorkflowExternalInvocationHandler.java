@@ -21,6 +21,7 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowIdReusePolicy;
 import com.uber.cadence.client.DuplicateWorkflowException;
 import com.uber.cadence.client.UntypedWorkflowStub;
+import com.uber.cadence.client.WorkflowClientInterceptor;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.common.InternalUtils;
@@ -111,32 +112,37 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
       Class<?> workflowInterface,
       GenericWorkflowClientExternal genericClient,
       WorkflowExecution execution,
-      DataConverter dataConverter) {
-    if (execution == null
-        || execution.getWorkflowId() == null
-        || execution.getWorkflowId().isEmpty()) {
-      throw new IllegalArgumentException("null or empty workflowId");
-    }
+      DataConverter dataConverter,
+      WorkflowClientInterceptor[] interceptors) {
     Method workflowMethod = getWorkflowMethod(workflowInterface);
     WorkflowMethod annotation = workflowMethod.getAnnotation(WorkflowMethod.class);
     String workflowType = getWorkflowType(workflowMethod, annotation);
 
-    this.untyped =
+    UntypedWorkflowStub stub =
         new UntypedWorkflowStubImpl(
             genericClient, dataConverter, Optional.of(workflowType), execution);
+    for (WorkflowClientInterceptor i : interceptors) {
+      stub = i.newUntypedWorkflowStub(execution, Optional.of(workflowType), stub);
+    }
+    this.untyped = stub;
   }
 
   WorkflowExternalInvocationHandler(
       Class<?> workflowInterface,
       GenericWorkflowClientExternal genericClient,
       WorkflowOptions options,
-      DataConverter dataConverter) {
+      DataConverter dataConverter,
+      WorkflowClientInterceptor[] interceptors) {
     Method workflowMethod = getWorkflowMethod(workflowInterface);
     WorkflowMethod annotation = workflowMethod.getAnnotation(WorkflowMethod.class);
     String workflowType = getWorkflowType(workflowMethod, annotation);
     WorkflowOptions mergedOptions = WorkflowOptions.merge(annotation, options);
-    this.untyped =
+    UntypedWorkflowStub stub =
         new UntypedWorkflowStubImpl(genericClient, dataConverter, workflowType, mergedOptions);
+    for (WorkflowClientInterceptor i : interceptors) {
+      stub = i.newUntypedWorkflowStub(workflowType, mergedOptions, stub);
+    }
+    this.untyped = stub;
   }
 
   @Override

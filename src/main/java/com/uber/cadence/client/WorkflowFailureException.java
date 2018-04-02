@@ -33,17 +33,22 @@ public final class WorkflowFailureException extends WorkflowException {
       Optional<String> workflowType,
       long decisionTaskCompletedEventId,
       Throwable failure) {
-    super(
-        "WorkflowType=\""
-            + workflowType
-            + "\", WorkflowID=\""
-            + execution.getWorkflowId()
-            + "\", RunID=\""
-            + execution.getRunId(),
-        execution,
-        workflowType,
-        failure);
+    super(getMessage(execution, workflowType), execution, workflowType, failure);
     this.decisionTaskCompletedEventId = decisionTaskCompletedEventId;
+  }
+
+  private static String getMessage(WorkflowExecution execution, Optional<String> workflowType) {
+    StringBuilder result = new StringBuilder();
+    if (workflowType.isPresent()) {
+      result.append("WorkflowType=\"");
+      result.append(workflowType.get());
+      result.append("\", ");
+    }
+    result.append("WorkflowID=\"");
+    result.append(execution.getWorkflowId());
+    result.append("\", RunID=\"");
+    result.append(execution.getRunId());
+    return result.toString();
   }
 
   public long getDecisionTaskCompletedEventId() {

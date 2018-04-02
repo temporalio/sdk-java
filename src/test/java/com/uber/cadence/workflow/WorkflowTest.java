@@ -38,6 +38,7 @@ import com.uber.cadence.client.ActivityNotExistsException;
 import com.uber.cadence.client.DuplicateWorkflowException;
 import com.uber.cadence.client.UntypedWorkflowStub;
 import com.uber.cadence.client.WorkflowClient;
+import com.uber.cadence.client.WorkflowClientInterceptorBase;
 import com.uber.cadence.client.WorkflowClientOptions;
 import com.uber.cadence.client.WorkflowException;
 import com.uber.cadence.client.WorkflowFailureException;
@@ -95,7 +96,7 @@ public class WorkflowTest {
   }
 
   @Rule public TestName testName = new TestName();
-  @Rule public Timeout globalTimeout = Timeout.seconds(500);
+  @Rule public Timeout globalTimeout = Timeout.seconds(5);
 
   @Rule
   public TestWatcher watchman =
@@ -1336,7 +1337,27 @@ public class WorkflowTest {
     options.setExecutionStartToCloseTimeout(Duration.ofSeconds(20));
     options.setTaskStartToCloseTimeout(Duration.ofSeconds(2));
     options.setTaskList(taskList);
-    TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
+    AtomicReference<String> capturedWorkflowType = new AtomicReference<>();
+    WorkflowClientOptions clientOptions =
+        new WorkflowClientOptions.Builder()
+            .setInterceptors(
+                new WorkflowClientInterceptorBase() {
+                  @Override
+                  public UntypedWorkflowStub newUntypedWorkflowStub(
+                      String workflowType, WorkflowOptions options, UntypedWorkflowStub next) {
+                    capturedWorkflowType.set(workflowType);
+                    return next;
+                  }
+                })
+            .build();
+    WorkflowClient wc;
+    if (useExternalService) {
+      wc = WorkflowClient.newInstance(domain, clientOptions);
+    } else {
+      wc = workflowEnvironment.newWorkflowClient(clientOptions);
+    }
+
+    TestWorkflow1 client = wc.newWorkflowStub(TestWorkflow1.class, options.build());
     try {
       client.execute(taskList);
       fail("unreachable");
@@ -1345,6 +1366,7 @@ public class WorkflowTest {
       assertTrue(e.getCause().getCause() instanceof UnsupportedOperationException);
       assertEquals("simulated failure", e.getCause().getCause().getMessage());
     }
+    assertEquals("TestWorkflow1::execute", capturedWorkflowType.get());
     assertEquals(3, angryChildActivity.getInvocationCount());
   }
 

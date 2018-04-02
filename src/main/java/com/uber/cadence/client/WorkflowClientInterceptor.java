@@ -15,22 +15,18 @@
  *  permissions and limitations under the License.
  */
 
-package com.uber.cadence.testing;
+package com.uber.cadence.client;
 
-import com.uber.cadence.client.WorkflowClient;
-import com.uber.cadence.client.WorkflowClientOptions;
-import com.uber.cadence.worker.Worker;
-import java.time.Duration;
+import com.uber.cadence.WorkflowExecution;
+import java.util.Optional;
 
-public interface TestWorkflowEnvironment {
+public interface WorkflowClientInterceptor {
 
-  Worker newWorker(String taskList);
+  UntypedWorkflowStub newUntypedWorkflowStub(
+      String workflowType, WorkflowOptions options, UntypedWorkflowStub next);
 
-  WorkflowClient newWorkflowClient();
+  UntypedWorkflowStub newUntypedWorkflowStub(
+      WorkflowExecution execution, Optional<String> workflowType, UntypedWorkflowStub result);
 
-  WorkflowClient newWorkflowClient(WorkflowClientOptions clientOptions);
-
-  long currentTimeMillis();
-
-  void registerDelayedCallback(Duration delay, Runnable r);
+  ActivityCompletionClient newActivityCompletionClient(ActivityCompletionClient next);
 }

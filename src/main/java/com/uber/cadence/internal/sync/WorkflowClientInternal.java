@@ -23,6 +23,7 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.client.ActivityCompletionClient;
 import com.uber.cadence.client.UntypedWorkflowStub;
 import com.uber.cadence.client.WorkflowClient;
+import com.uber.cadence.client.WorkflowClientInterceptor;
 import com.uber.cadence.client.WorkflowClientOptions;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.converter.DataConverter;
@@ -47,6 +48,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
   private final GenericWorkflowClientExternalImpl genericClient;
   private final ManualActivityCompletionClientFactory manualActivityCompletionClientFactory;
   private final DataConverter dataConverter;
+  private final WorkflowClientInterceptor[] interceptors;
 
   /**
    * Creates worker that connects to the local instance of the Cadence Service that listens on a
@@ -129,6 +131,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
       options = new WorkflowClientOptions.Builder().build();
     }
     this.dataConverter = options.getDataConverter();
+    this.interceptors = options.getInterceptors();
     this.manualActivityCompletionClientFactory =
         new ManualActivityCompletionClientFactoryImpl(service, domain, dataConverter);
   }
@@ -147,12 +150,14 @@ public final class WorkflowClientInternal implements WorkflowClient {
   @SuppressWarnings("unchecked")
   public <T> T newWorkflowStub(Class<T> workflowInterface, WorkflowOptions options) {
     checkAnnotation(workflowInterface, WorkflowMethod.class);
+    WorkflowExternalInvocationHandler invocationHandler =
+        new WorkflowExternalInvocationHandler(
+            workflowInterface, genericClient, options, dataConverter, interceptors);
     return (T)
         Proxy.newProxyInstance(
             WorkflowInternal.class.getClassLoader(),
             new Class<?>[] {workflowInterface},
-            new WorkflowExternalInvocationHandler(
-                workflowInterface, genericClient, options, dataConverter));
+            invocationHandler);
   }
 
   @SafeVarargs
@@ -196,20 +201,27 @@ public final class WorkflowClientInternal implements WorkflowClient {
     if (runId.isPresent()) {
       execution.setRunId(runId.get());
     }
+    WorkflowExternalInvocationHandler invocationHandler =
+        new WorkflowExternalInvocationHandler(
+            workflowInterface, genericClient, execution, dataConverter, interceptors);
     @SuppressWarnings("unchecked")
     T result =
         (T)
             Proxy.newProxyInstance(
                 WorkflowInternal.class.getClassLoader(),
                 new Class<?>[] {workflowInterface},
-                new WorkflowExternalInvocationHandler(
-                    workflowInterface, genericClient, execution, dataConverter));
+                invocationHandler);
     return result;
   }
 
   @Override
   public UntypedWorkflowStub newUntypedWorkflowStub(String workflowType, WorkflowOptions options) {
-    return new UntypedWorkflowStubImpl(genericClient, dataConverter, workflowType, options);
+    UntypedWorkflowStub result =
+        new UntypedWorkflowStubImpl(genericClient, dataConverter, workflowType, options);
+    for (WorkflowClientInterceptor i : interceptors) {
+      result = i.newUntypedWorkflowStub(workflowType, options, result);
+    }
+    return result;
   }
 
   @Override
@@ -230,7 +242,12 @@ public final class WorkflowClientInternal implements WorkflowClient {
 
   @Override
   public ActivityCompletionClient newActivityCompletionClient() {
-    return new ActivityCompletionClientImpl(manualActivityCompletionClientFactory);
+    ActivityCompletionClient result =
+        new ActivityCompletionClientImpl(manualActivityCompletionClientFactory);
+    for (WorkflowClientInterceptor i : interceptors) {
+      result = i.newActivityCompletionClient(result);
+    }
+    return result;
   }
 
   public static WorkflowExecution start(Functions.Proc workflow) {

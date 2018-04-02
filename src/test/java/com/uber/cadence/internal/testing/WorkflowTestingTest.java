@@ -502,6 +502,7 @@ public class WorkflowTestingTest {
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class);
     WorkflowExecution execution = WorkflowClient.start(workflow::workflow1, "input1");
     UntypedWorkflowStub untyped = client.newUntypedWorkflowStub(execution, Optional.empty());
+    //TODO: env.sleep(Duration.ofMinutes(1))
     untyped.cancel();
     try {
       untyped.getResult(String.class);

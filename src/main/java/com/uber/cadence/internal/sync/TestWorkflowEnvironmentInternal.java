@@ -118,6 +118,11 @@ class TestWorkflowEnvironmentInternal implements TestWorkflowEnvironment {
   }
 
   @Override
+  public WorkflowClient newWorkflowClient(WorkflowClientOptions options) {
+    return WorkflowClientInternal.newInstance(service, testEnvironmentOptions.getDomain(), options);
+  }
+
+  @Override
   public long currentTimeMillis() {
     return service.currentTimeMillis();
   }

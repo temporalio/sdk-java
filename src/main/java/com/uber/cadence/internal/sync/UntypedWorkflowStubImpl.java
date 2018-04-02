@@ -64,6 +64,11 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
     this.genericClient = genericClient;
     this.dataConverter = dataConverter;
     this.workflowType = workflowType;
+    if (execution == null
+        || execution.getWorkflowId() == null
+        || execution.getWorkflowId().isEmpty()) {
+      throw new IllegalArgumentException("null or empty workflowId");
+    }
     this.execution.set(execution);
     this.options = Optional.empty();
   }
@@ -167,6 +172,8 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
         return null;
       }
       return dataConverter.fromData(resultValue, returnType);
+    } catch (TimeoutException e) {
+      throw e;
     } catch (Exception e) {
       return mapToWorkflowFailureException(e, returnType);
     }
@@ -207,6 +214,7 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
   }
 
   private <R> R mapToWorkflowFailureException(Exception failure, Class<R> returnType) {
+    failure = CheckedExceptionWrapper.unwrap(failure);
     Class<Throwable> detailsClass;
     if (failure instanceof WorkflowExecutionFailedException) {
       WorkflowExecutionFailedException executionFailed = (WorkflowExecutionFailedException) failure;
@@ -233,7 +241,7 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
     } else if (failure instanceof WorkflowException) {
       throw (WorkflowException) failure;
     } else {
-      throw new WorkflowFailureException(execution.get(), workflowType, 0, failure);
+      throw new WorkflowServiceException(execution.get(), workflowType, failure);
     }
   }
 
@@ -256,7 +264,7 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
         throw new WorkflowQueryException(execution.get(), unwrapped.getMessage());
       }
       if (unwrapped instanceof InternalServiceError) {
-        throw new WorkflowServiceException(execution.get(), unwrapped.getMessage());
+        throw new WorkflowServiceException(execution.get(), workflowType, unwrapped);
       }
       throw e;
     }

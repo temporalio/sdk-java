@@ -20,24 +20,22 @@ package com.uber.cadence.client;
 import com.uber.cadence.WorkflowExecution;
 import java.util.Optional;
 
-public final class WorkflowServiceException extends WorkflowException {
+public class WorkflowClientInterceptorBase implements WorkflowClientInterceptor {
 
-  public WorkflowServiceException(
-      WorkflowExecution execution, Optional<String> workflowType, Throwable failure) {
-    super(getMessage(execution, workflowType), execution, workflowType, failure);
+  @Override
+  public UntypedWorkflowStub newUntypedWorkflowStub(
+      String workflowType, WorkflowOptions options, UntypedWorkflowStub next) {
+    return next;
   }
 
-  private static String getMessage(WorkflowExecution execution, Optional<String> workflowType) {
-    StringBuilder result = new StringBuilder();
-    if (workflowType.isPresent()) {
-      result.append("WorkflowType=\"");
-      result.append(workflowType.get());
-      result.append("\", ");
-    }
-    result.append("WorkflowID=\"");
-    result.append(execution.getWorkflowId());
-    result.append("\", RunID=\"");
-    result.append(execution.getRunId());
-    return result.toString();
+  @Override
+  public UntypedWorkflowStub newUntypedWorkflowStub(
+      WorkflowExecution execution, Optional<String> workflowType, UntypedWorkflowStub next) {
+    return next;
+  }
+
+  @Override
+  public ActivityCompletionClient newActivityCompletionClient(ActivityCompletionClient next) {
+    return next;
   }
 }
