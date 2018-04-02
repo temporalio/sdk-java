@@ -445,6 +445,31 @@ public class WorkflowTest {
     }
   }
 
+  public static class TestCancellationScopePromise implements TestWorkflow1 {
+
+    @Override
+    public String execute(String taskList) {
+      Promise<String> cancellationRequest = CancellationScope.current().getCancellationRequest();
+      cancellationRequest.get();
+      return "done";
+    }
+  }
+
+  @Test
+  public void testWorkflowCancellationScopePromise() {
+    startWorkerFor(TestCancellationScopePromise.class);
+    UntypedWorkflowStub client =
+        workflowClient.newUntypedWorkflowStub(
+            "TestWorkflow1::execute", newWorkflowOptionsBuilder(taskList).build());
+    client.start(taskList);
+    client.cancel();
+    try {
+      client.getResult(String.class);
+      fail("unreachable");
+    } catch (CancellationException ignored) {
+    }
+  }
+
   public static class TestDetachedCancellationScope implements TestWorkflow1 {
 
     @Override
