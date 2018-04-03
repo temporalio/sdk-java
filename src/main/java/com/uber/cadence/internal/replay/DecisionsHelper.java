@@ -256,6 +256,10 @@ class DecisionsHelper {
 
   boolean cancelTimer(String timerId, Runnable immediateCancellationCallback) {
     DecisionStateMachine decision = getDecision(new DecisionId(DecisionTarget.TIMER, timerId));
+    if (decision.isDone()) {
+      // Cancellation callbacks are not deregistered and might be invoked after timer firing
+      return true;
+    }
     decision.cancel(immediateCancellationCallback);
     return decision.isDone();
   }

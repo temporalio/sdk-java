@@ -485,6 +485,8 @@ public class WorkflowTestingTest {
       try {
         activity.activity1("input");
         Workflow.sleep(Duration.ofDays(3));
+      } catch (CancellationException e) {
+        return "cancelled";
       } finally {
         s.get();
       }

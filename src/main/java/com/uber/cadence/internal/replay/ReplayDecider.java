@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,6 +59,9 @@ class ReplayDecider {
   private boolean completed;
 
   private WorkflowExecutionException failure;
+
+  private long wakeUpTime;
+  private Consumer<Exception> timerCancellationHandler;
 
   ReplayDecider(
       String domain,
@@ -229,33 +233,58 @@ class ReplayDecider {
     }
   }
 
-  private void completeWorkflow() {
+  private void mayBeCompleteWorkflow() {
     if (completed) {
-      if (failure != null) {
-        decisionsHelper.failWorkflowExecution(failure);
-      } else if (cancelRequested) {
-        decisionsHelper.cancelWorkflowExecution();
-      } else {
-        ContinueAsNewWorkflowExecutionParameters continueAsNewOnCompletion =
-            context.getContinueAsNewOnCompletion();
-        if (continueAsNewOnCompletion != null) {
-          decisionsHelper.continueAsNewWorkflowExecution(continueAsNewOnCompletion);
-        } else {
-          byte[] workflowOutput = workflow.getOutput();
-          decisionsHelper.completeWorkflowExecution(workflowOutput);
-        }
-      }
+      completeWorkflow();
     } else {
-      long nextWakeUpTime = workflow.getNextWakeUpTime();
-      if (nextWakeUpTime == 0) { // No time based waiting
-        context.cancelAllTimers();
+      updateTimers();
+    }
+  }
+
+  private void completeWorkflow() {
+    if (failure != null) {
+      decisionsHelper.failWorkflowExecution(failure);
+    } else if (cancelRequested) {
+      decisionsHelper.cancelWorkflowExecution();
+    } else {
+      ContinueAsNewWorkflowExecutionParameters continueAsNewOnCompletion =
+          context.getContinueAsNewOnCompletion();
+      if (continueAsNewOnCompletion != null) {
+        decisionsHelper.continueAsNewWorkflowExecution(continueAsNewOnCompletion);
+      } else {
+        byte[] workflowOutput = workflow.getOutput();
+        decisionsHelper.completeWorkflowExecution(workflowOutput);
       }
-      long delayMilliseconds = nextWakeUpTime - context.currentTimeMillis();
-      if (nextWakeUpTime > context.currentTimeMillis()) {
-        // Round up to the nearest second as we don't want to deliver a timer
-        // earlier than requested.
-        long delaySeconds =
-            InternalUtils.roundUpToSeconds(Duration.ofMillis(delayMilliseconds)).getSeconds();
+    }
+  }
+
+  private void updateTimers() {
+    long nextWakeUpTime = workflow.getNextWakeUpTime();
+    if (nextWakeUpTime == 0) {
+      if (timerCancellationHandler != null) {
+        timerCancellationHandler.accept(null);
+        timerCancellationHandler = null;
+      }
+      wakeUpTime = nextWakeUpTime;
+      return;
+    }
+    if (wakeUpTime == nextWakeUpTime && timerCancellationHandler != null) {
+      return; // existing timer
+    }
+    long delayMilliseconds = nextWakeUpTime - context.currentTimeMillis();
+    if (delayMilliseconds < 0) {
+      throw new IllegalStateException("Negative delayMilliseconds=" + delayMilliseconds);
+    }
+    // Round up to the nearest second as we don't want to deliver a timer
+    // earlier than requested.
+    long delaySeconds =
+        InternalUtils.roundUpToSeconds(Duration.ofMillis(delayMilliseconds)).getSeconds();
+    if (timerCancellationHandler != null) {
+      timerCancellationHandler.accept(null);
+      timerCancellationHandler = null;
+    }
+    wakeUpTime = nextWakeUpTime;
+    timerCancellationHandler =
         context.createTimer(
             delaySeconds,
             (t) -> {
@@ -264,8 +293,6 @@ class ReplayDecider {
               // But no specific timer related action is necessary as Workflow.sleep is just a
               // Workflow.await with a time based condition.
             });
-      }
-    }
   }
 
   private void handleDecisionTaskStarted(HistoryEvent event) {}
@@ -359,7 +386,7 @@ class ReplayDecider {
           processEvent(event, eventType);
         }
         eventLoop();
-        completeWorkflow();
+        mayBeCompleteWorkflow();
       } while (eventsIterator.hasNext());
     } finally {
       if (query != null) {

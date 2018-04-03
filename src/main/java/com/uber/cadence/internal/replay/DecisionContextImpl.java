@@ -164,11 +164,6 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   }
 
   @Override
-  public void cancelAllTimers() {
-    workflowClock.cancelAllTimers();
-  }
-
-  @Override
   public long currentTimeMillis() {
     return workflowClock.currentTimeMillis();
   }

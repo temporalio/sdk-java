@@ -116,6 +116,4 @@ public interface DecisionContext {
    * @return cancellation handle. Invoke {@link Consumer#accept(Object)} to cancel timer.
    */
   Consumer<Exception> createTimer(long delaySeconds, Consumer<Exception> callback);
-
-  void cancelAllTimers();
 }

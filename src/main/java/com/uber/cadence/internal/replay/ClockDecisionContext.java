@@ -23,17 +23,12 @@ import com.uber.cadence.TimerCanceledEventAttributes;
 import com.uber.cadence.TimerFiredEventAttributes;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.SortedMap;
-import java.util.TreeMap;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-/**
- * Clock that must be used inside workflow definition code to ensure replay determinism. TODO:
- * Refactor to become a helper for managing timers instead of the generic clock class.
- */
+/** Clock that must be used inside workflow definition code to ensure replay determinism. */
 final class ClockDecisionContext {
 
   private final class TimerCancellationHandler implements Consumer<Exception> {
@@ -46,23 +41,13 @@ final class ClockDecisionContext {
 
     @Override
     public void accept(Exception reason) {
-      decisions.cancelTimer(
-          timerId,
-          () -> {
-            OpenRequestInfo<?, ?> scheduled = scheduledTimers.remove(timerId);
-            BiConsumer<?, Exception> context = scheduled.getCompletionCallback();
-            CancellationException exception = new CancellationException("Cancelled by request");
-            exception.initCause(reason);
-            context.accept(null, exception);
-          });
+      decisions.cancelTimer(timerId, () -> timerCancelled(timerId, reason));
     }
   }
 
   private final DecisionsHelper decisions;
 
   private final Map<String, OpenRequestInfo<?, Long>> scheduledTimers = new HashMap<>();
-
-  private final SortedMap<Long, String> timersByFiringTime = new TreeMap<>();
 
   private long replayCurrentTimeMilliseconds;
 
@@ -90,60 +75,18 @@ final class ClockDecisionContext {
     }
     if (delaySeconds == 0) {
       callback.accept(null);
-      return Exception -> {};
+      return null;
     }
     long firingTime = currentTimeMillis() + TimeUnit.SECONDS.toMillis(delaySeconds);
-    // As the timer resolution is 1 second it doesn't really make sense to update a timer
-    // that is less than one second before the already existing.
-    if (timersByFiringTime.size() > 0) {
-      long nextTimerFiringTime = timersByFiringTime.firstKey();
-      if (firingTime > nextTimerFiringTime
-          || nextTimerFiringTime - firingTime < TimeUnit.SECONDS.toMillis(1)) {
-        return null;
-      }
-    }
-    Consumer<Exception> result = null;
-    if (!timersByFiringTime.containsKey(firingTime)) {
-      final OpenRequestInfo<?, Long> context = new OpenRequestInfo<>(firingTime);
-      final StartTimerDecisionAttributes timer = new StartTimerDecisionAttributes();
-      timer.setStartToFireTimeoutSeconds(delaySeconds);
-      final String timerId = decisions.getNextId();
-      timer.setTimerId(timerId);
-      decisions.startTimer(timer, null);
-      context.setCompletionHandle((ctx, Exception) -> callback.accept(null));
-      scheduledTimers.put(timerId, context);
-      timersByFiringTime.put(firingTime, timerId);
-      result = new ClockDecisionContext.TimerCancellationHandler(timerId);
-    }
-    SortedMap<Long, String> toCancel = timersByFiringTime.subMap(0L, firingTime);
-    for (String timerId : toCancel.values()) {
-      decisions.cancelTimer(
-          timerId,
-          () -> {
-            OpenRequestInfo<?, ?> scheduled = scheduledTimers.remove(timerId);
-            BiConsumer<?, Exception> context = scheduled.getCompletionCallback();
-            CancellationException exception =
-                new CancellationException("Cancelled as next unblock time changed");
-            context.accept(null, exception);
-          });
-    }
-    toCancel.clear();
-    return result;
-  }
-
-  void cancelAllTimers() {
-    for (String timerId : timersByFiringTime.values()) {
-      decisions.cancelTimer(
-          timerId,
-          () -> {
-            OpenRequestInfo<?, ?> scheduled = scheduledTimers.remove(timerId);
-            BiConsumer<?, Exception> context = scheduled.getCompletionCallback();
-            CancellationException exception =
-                new CancellationException("Cancelled as next unblock time changed");
-            context.accept(null, exception);
-          });
-    }
-    timersByFiringTime.clear();
+    final OpenRequestInfo<?, Long> context = new OpenRequestInfo<>(firingTime);
+    final StartTimerDecisionAttributes timer = new StartTimerDecisionAttributes();
+    timer.setStartToFireTimeoutSeconds(delaySeconds);
+    final String timerId = decisions.getNextId();
+    timer.setTimerId(timerId);
+    decisions.startTimer(timer, null);
+    context.setCompletionHandle((ctx, e) -> callback.accept(e));
+    scheduledTimers.put(timerId, context);
+    return new ClockDecisionContext.TimerCancellationHandler(timerId);
   }
 
   void setReplaying(boolean replaying) {
@@ -157,8 +100,6 @@ final class ClockDecisionContext {
       if (scheduled != null) {
         BiConsumer<?, Exception> completionCallback = scheduled.getCompletionCallback();
         completionCallback.accept(null, null);
-        long firingTime = scheduled.getUserContext();
-        timersByFiringTime.remove(firingTime);
       }
     }
   }
@@ -167,12 +108,18 @@ final class ClockDecisionContext {
     TimerCanceledEventAttributes attributes = event.getTimerCanceledEventAttributes();
     String timerId = attributes.getTimerId();
     if (decisions.handleTimerCanceled(event)) {
-      OpenRequestInfo<?, ?> scheduled = scheduledTimers.remove(timerId);
-      if (scheduled != null) {
-        BiConsumer<?, Exception> completionCallback = scheduled.getCompletionCallback();
-        CancellationException exception = new CancellationException("Cancelled by request");
-        completionCallback.accept(null, exception);
-      }
+      timerCancelled(timerId, null);
     }
+  }
+
+  private void timerCancelled(String timerId, Exception reason) {
+    OpenRequestInfo<?, ?> scheduled = scheduledTimers.remove(timerId);
+    if (scheduled == null) {
+      return;
+    }
+    BiConsumer<?, Exception> context = scheduled.getCompletionCallback();
+    CancellationException exception = new CancellationException("Cancelled by request");
+    exception.initCause(reason);
+    context.accept(null, exception);
   }
 }
