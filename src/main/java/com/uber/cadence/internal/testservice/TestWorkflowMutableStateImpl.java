@@ -974,6 +974,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   private void timeoutActivity(String activityId, TimeoutType timeoutType) {
+    boolean unlockTimer = true;
     try {
       update(
           ctx -> {
@@ -996,9 +997,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           });
     } catch (EntityNotExistsError e) {
       // Expected as timers are not removed
+      unlockTimer = false;
     } catch (Exception e) {
       // Cannot fail to timer threads
       log.error("Failure trying to timeout an activity", e);
+    } finally {
+      if (unlockTimer) {
+        selfAdvancingTimer.unlockTimeSkipping();
+      }
     }
   }
 

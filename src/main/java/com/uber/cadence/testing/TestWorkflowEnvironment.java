@@ -32,5 +32,7 @@ public interface TestWorkflowEnvironment {
 
   long currentTimeMillis();
 
+  void sleep(Duration duration);
+
   void registerDelayedCallback(Duration delay, Runnable r);
 }

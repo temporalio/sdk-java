@@ -121,7 +121,7 @@ final class SyncDecisionContext implements ActivityExecutor {
                     () -> result.completeExceptionally(mapActivityException(failure)));
               } else {
                 runner.executeInWorkflowThread(
-                    "activity failure callback", () -> result.complete(output));
+                    "activity completion callback", () -> result.complete(output));
               }
             });
     CancellationScope.current()

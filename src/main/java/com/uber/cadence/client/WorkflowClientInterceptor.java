@@ -26,7 +26,7 @@ public interface WorkflowClientInterceptor {
       String workflowType, WorkflowOptions options, UntypedWorkflowStub next);
 
   UntypedWorkflowStub newUntypedWorkflowStub(
-      WorkflowExecution execution, Optional<String> workflowType, UntypedWorkflowStub result);
+      WorkflowExecution execution, Optional<String> workflowType, UntypedWorkflowStub next);
 
   ActivityCompletionClient newActivityCompletionClient(ActivityCompletionClient next);
 }

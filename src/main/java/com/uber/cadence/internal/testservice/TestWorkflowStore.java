@@ -125,6 +125,8 @@ interface TestWorkflowStore {
 
   SelfAdvancingTimer getTimer();
 
+  long currentTimeMillis();
+
   long save(RequestContext requestContext) throws InternalServiceError, EntityNotExistsError;
 
   void registerDelayedCallback(Duration delay, Runnable r);

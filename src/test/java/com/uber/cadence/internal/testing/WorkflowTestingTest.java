@@ -89,7 +89,7 @@ public class WorkflowTestingTest {
 
   public interface TestWorkflow {
 
-    @WorkflowMethod(executionStartToCloseTimeoutSeconds = 10, taskList = TASK_LIST)
+    @WorkflowMethod(executionStartToCloseTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
     String workflow1(String input);
   }
 
@@ -141,7 +141,7 @@ public class WorkflowTestingTest {
 
   public interface TestActivity {
 
-    @ActivityMethod(scheduleToCloseTimeoutSeconds = 1)
+    @ActivityMethod(scheduleToCloseTimeoutSeconds = 3600)
     String activity1(String input);
   }
 
@@ -497,12 +497,13 @@ public class WorkflowTestingTest {
     TestWorkflowEnvironment env = testEnvironment.workflowEnvironment();
     Worker worker = env.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(TestTimerCancellationWorkflow.class);
+    worker.registerActivitiesImplementations(new ActivityImpl());
     worker.start();
     WorkflowClient client = env.newWorkflowClient();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class);
     WorkflowExecution execution = WorkflowClient.start(workflow::workflow1, "input1");
     UntypedWorkflowStub untyped = client.newUntypedWorkflowStub(execution, Optional.empty());
-    //TODO: env.sleep(Duration.ofMinutes(1))
+    env.sleep(Duration.ofMinutes(1));
     untyped.cancel();
     try {
       untyped.getResult(String.class);

@@ -49,6 +49,10 @@ final class ActivityDecisionContext {
 
     @Override
     public void accept(Exception cause) {
+      if (!scheduledActivities.containsKey(activityId)) {
+        // Cancellation handlers are not deregistered. So they fire after an activity completion.
+        return;
+      }
       decisions.requestCancelActivityTask(
           activityId,
           () -> {

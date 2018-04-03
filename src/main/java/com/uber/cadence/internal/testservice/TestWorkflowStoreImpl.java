@@ -151,6 +151,11 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   }
 
   @Override
+  public long currentTimeMillis() {
+    return timerService.getClock().getAsLong();
+  }
+
+  @Override
   public long save(RequestContext ctx) throws InternalServiceError, EntityNotExistsError {
     long result;
     lock.lock();

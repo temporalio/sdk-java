@@ -73,6 +73,8 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -680,5 +682,34 @@ public final class TestWorkflowService implements IWorkflowService {
 
   public void registerDelayedCallback(Duration delay, Runnable r) {
     store.registerDelayedCallback(delay, r);
+  }
+
+  public void lockTimeSkipping() {
+    store.getTimer().lockTimeSkipping();
+  }
+
+  public void unlockTimeSkipping() {
+    store.getTimer().unlockTimeSkipping();
+  }
+
+  public void sleep(Duration duration) {
+    long start = store.currentTimeMillis();
+    CompletableFuture<Void> result = new CompletableFuture<>();
+    store
+        .getTimer()
+        .schedule(
+            duration,
+            () -> {
+              store.getTimer().lockTimeSkipping();
+              result.complete(null);
+            });
+    store.getTimer().unlockTimeSkipping();
+    try {
+      result.get();
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    } catch (ExecutionException e) {
+      throw new RuntimeException(e);
+    }
   }
 }

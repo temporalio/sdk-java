@@ -62,10 +62,14 @@ import com.uber.cadence.StartWorkflowExecutionResponse;
 import com.uber.cadence.TerminateWorkflowExecutionRequest;
 import com.uber.cadence.UpdateDomainRequest;
 import com.uber.cadence.UpdateDomainResponse;
+import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
+import com.uber.cadence.client.ActivityCompletionClient;
+import com.uber.cadence.client.UntypedWorkflowStub;
 import com.uber.cadence.client.WorkflowClient;
+import com.uber.cadence.client.WorkflowClientInterceptor;
 import com.uber.cadence.client.WorkflowClientOptions;
-import com.uber.cadence.client.WorkflowClientOptions.Builder;
+import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.internal.testservice.TestWorkflowService;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.cadence.testing.TestEnvironmentOptions;
@@ -76,6 +80,10 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.thrift.TException;
 import org.apache.thrift.async.AsyncMethodCallback;
 import org.slf4j.Logger;
@@ -96,6 +104,7 @@ class TestWorkflowEnvironmentInternal implements TestWorkflowEnvironment {
       this.testEnvironmentOptions = options;
     }
     service = new WorkflowServiceWrapper();
+    service.lockTimeSkipping();
   }
 
   @Override
@@ -113,7 +122,10 @@ class TestWorkflowEnvironmentInternal implements TestWorkflowEnvironment {
   @Override
   public WorkflowClient newWorkflowClient() {
     WorkflowClientOptions options =
-        new Builder().setDataConverter(testEnvironmentOptions.getDataConverter()).build();
+        new WorkflowClientOptions.Builder()
+            .setDataConverter(testEnvironmentOptions.getDataConverter())
+            .setInterceptors(new TimeLockingInterceptor(service))
+            .build();
     return WorkflowClientInternal.newInstance(service, testEnvironmentOptions.getDomain(), options);
   }
 
@@ -125,6 +137,11 @@ class TestWorkflowEnvironmentInternal implements TestWorkflowEnvironment {
   @Override
   public long currentTimeMillis() {
     return service.currentTimeMillis();
+  }
+
+  @Override
+  public void sleep(Duration duration) {
+    service.sleep(duration);
   }
 
   @Override
@@ -522,6 +539,125 @@ class TestWorkflowEnvironmentInternal implements TestWorkflowEnvironment {
 
     public void registerDelayedCallback(Duration delay, Runnable r) {
       impl.registerDelayedCallback(delay, r);
+    }
+
+    public void lockTimeSkipping() {
+      impl.lockTimeSkipping();
+    }
+
+    public void unlockTimeSkipping() {
+      impl.unlockTimeSkipping();
+    }
+
+    public void sleep(Duration duration) {
+      impl.sleep(duration);
+    }
+  }
+
+  private static class TimeLockingInterceptor implements WorkflowClientInterceptor {
+
+    private final WorkflowServiceWrapper service;
+
+    TimeLockingInterceptor(WorkflowServiceWrapper service) {
+      this.service = service;
+    }
+
+    @Override
+    public UntypedWorkflowStub newUntypedWorkflowStub(
+        String workflowType, WorkflowOptions options, UntypedWorkflowStub next) {
+      return new TimeLockingWorkflowStub(service, next);
+    }
+
+    @Override
+    public UntypedWorkflowStub newUntypedWorkflowStub(
+        WorkflowExecution execution, Optional<String> workflowType, UntypedWorkflowStub next) {
+      return new TimeLockingWorkflowStub(service, next);
+    }
+
+    @Override
+    public ActivityCompletionClient newActivityCompletionClient(ActivityCompletionClient next) {
+      return next;
+    }
+
+    private class TimeLockingWorkflowStub implements UntypedWorkflowStub {
+
+      private final WorkflowServiceWrapper service;
+      private final UntypedWorkflowStub next;
+
+      TimeLockingWorkflowStub(WorkflowServiceWrapper service, UntypedWorkflowStub next) {
+        this.service = service;
+        this.next = next;
+      }
+
+      @Override
+      public void signal(String signalName, Object... args) {
+        next.signal(signalName, args);
+      }
+
+      @Override
+      public WorkflowExecution start(Object... args) {
+        return next.start(args);
+      }
+
+      @Override
+      public Optional<String> getWorkflowType() {
+        return next.getWorkflowType();
+      }
+
+      @Override
+      public WorkflowExecution getExecution() {
+        return next.getExecution();
+      }
+
+      @Override
+      public <R> R getResult(Class<R> returnType) {
+        service.unlockTimeSkipping();
+        try {
+          return next.getResult(returnType);
+        } finally {
+          service.lockTimeSkipping();
+        }
+      }
+
+      @Override
+      public <R> CompletableFuture<R> getResultAsync(Class<R> returnType) {
+        service.unlockTimeSkipping();
+        return next.getResultAsync(returnType).whenComplete((r, e) -> service.lockTimeSkipping());
+      }
+
+      @Override
+      public <R> R getResult(long timeout, TimeUnit unit, Class<R> returnType)
+          throws TimeoutException {
+        service.unlockTimeSkipping();
+        try {
+          return next.getResult(timeout, unit, returnType);
+        } finally {
+          service.lockTimeSkipping();
+        }
+      }
+
+      @Override
+      public <R> CompletableFuture<R> getResultAsync(
+          long timeout, TimeUnit unit, Class<R> returnType) {
+        service.unlockTimeSkipping();
+        return next.getResultAsync(timeout, unit, returnType)
+            .whenComplete((r, e) -> service.lockTimeSkipping());
+      }
+
+      @Override
+      public <R> R query(String queryType, Class<R> returnType, Object... args) {
+        return next.query(queryType, returnType, args);
+      }
+
+      @Override
+      public void cancel() {
+        next.cancel();
+      }
+
+      @Override
+      public Optional<WorkflowOptions> getOptions() {
+        return next.getOptions();
+      }
     }
   }
 }

@@ -62,6 +62,10 @@ final class WorkflowDecisionContext {
 
     @Override
     public void accept(Exception cause) {
+      if (!scheduledExternalWorkflows.containsKey(workflowId)) {
+        // Cancellation handlers are not deregistered. So they fire after a child completion.
+        return;
+      }
       RequestCancelExternalWorkflowExecutionDecisionAttributes cancelAttributes =
           new RequestCancelExternalWorkflowExecutionDecisionAttributes();
       cancelAttributes.setWorkflowId(workflowId);
@@ -175,6 +179,10 @@ final class WorkflowDecisionContext {
     final String finalSignalId = new String(attributes.getControl(), StandardCharsets.UTF_8);
     scheduledSignals.put(finalSignalId, context);
     return (e) -> {
+      if (!scheduledSignals.containsKey(finalSignalId)) {
+        // Cancellation handlers are not deregistered. So they fire after a signal completion.
+        return;
+      }
       decisions.cancelSignalExternalWorkflowExecution(finalSignalId, null);
       OpenRequestInfo<Void, Void> scheduled = scheduledSignals.remove(finalSignalId);
       if (scheduled == null) {
