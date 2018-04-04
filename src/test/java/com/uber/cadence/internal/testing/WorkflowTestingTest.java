@@ -36,7 +36,6 @@ import com.uber.cadence.client.WorkflowException;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.client.WorkflowTimedOutException;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
-import com.uber.cadence.testing.TestEnvironment;
 import com.uber.cadence.testing.TestWorkflowEnvironment;
 import com.uber.cadence.worker.Worker;
 import com.uber.cadence.workflow.ActivityTimeoutException;
@@ -61,7 +60,6 @@ import org.junit.rules.Timeout;
 import org.junit.runner.Description;
 
 public class WorkflowTestingTest {
-
   @Rule public Timeout globalTimeout = Timeout.seconds(500);
 
   @Rule
@@ -75,11 +73,11 @@ public class WorkflowTestingTest {
 
   private static final String TASK_LIST = "test-workflow";
 
-  private static TestEnvironment testEnvironment;
+  private static TestWorkflowEnvironment testEnvironment;
 
   @Before
   public void setUp() {
-    testEnvironment = TestEnvironment.newInstance();
+    testEnvironment = TestWorkflowEnvironment.newInstance();
   }
 
   @After
@@ -88,35 +86,33 @@ public class WorkflowTestingTest {
   }
 
   public interface TestWorkflow {
-
     @WorkflowMethod(executionStartToCloseTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
     String workflow1(String input);
   }
 
   public static class EmptyWorkflowImpl implements TestWorkflow {
-
     @Override
     public String workflow1(String input) {
+      Workflow.sleep(Duration.ofHours(1)); // test time skipping
       return Workflow.getWorkflowInfo().getWorkflowType() + "-" + input;
     }
   }
 
   @Test
   public void testEmptyWorkflow() {
-    TestWorkflowEnvironment env = testEnvironment.workflowEnvironment();
-    Worker worker = env.newWorker(TASK_LIST);
+    Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(EmptyWorkflowImpl.class);
     worker.start();
-    WorkflowClient client = env.newWorkflowClient();
+    WorkflowClient client = testEnvironment.newWorkflowClient();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class);
     String result = workflow.workflow1("input1");
     assertEquals("TestWorkflow::workflow1-input1", result);
   }
 
   public static class FailingWorkflowImpl implements TestWorkflow {
-
     @Override
     public String workflow1(String input) {
+      Workflow.sleep(Duration.ofHours(1)); // test time skipping
       throw new IllegalThreadStateException(
           Workflow.getWorkflowInfo().getWorkflowType() + "-" + input);
     }
@@ -124,11 +120,10 @@ public class WorkflowTestingTest {
 
   @Test
   public void testFailure() {
-    TestWorkflowEnvironment env = testEnvironment.workflowEnvironment();
-    Worker worker = env.newWorker(TASK_LIST);
+    Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(FailingWorkflowImpl.class);
     worker.start();
-    WorkflowClient client = env.newWorkflowClient();
+    WorkflowClient client = testEnvironment.newWorkflowClient();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class);
 
     try {
@@ -140,13 +135,11 @@ public class WorkflowTestingTest {
   }
 
   public interface TestActivity {
-
     @ActivityMethod(scheduleToCloseTimeoutSeconds = 3600)
     String activity1(String input);
   }
 
   private static class ActivityImpl implements TestActivity {
-
     @Override
     public String activity1(String input) {
       return Activity.getTask().getActivityType().getName() + "-" + input;
@@ -154,30 +147,28 @@ public class WorkflowTestingTest {
   }
 
   public static class ActivityWorkflow implements TestWorkflow {
-
     private final TestActivity activity = Workflow.newActivityStub(TestActivity.class);
 
     @Override
     public String workflow1(String input) {
+      Workflow.sleep(Duration.ofHours(1)); // test time skipping
       return activity.activity1(input);
     }
   }
 
   @Test
   public void testActivity() {
-    TestWorkflowEnvironment env = testEnvironment.workflowEnvironment();
-    Worker worker = env.newWorker(TASK_LIST);
+    Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(ActivityWorkflow.class);
     worker.registerActivitiesImplementations(new ActivityImpl());
     worker.start();
-    WorkflowClient client = env.newWorkflowClient();
+    WorkflowClient client = testEnvironment.newWorkflowClient();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class);
     String result = workflow.workflow1("input1");
     assertEquals("TestActivity::activity1-input1", result);
   }
 
   private static class FailingActivityImpl implements TestActivity {
-
     @Override
     public String activity1(String input) {
       throw new IllegalThreadStateException(
@@ -187,12 +178,11 @@ public class WorkflowTestingTest {
 
   @Test
   public void testActivityFailure() {
-    TestWorkflowEnvironment env = testEnvironment.workflowEnvironment();
-    Worker worker = env.newWorker(TASK_LIST);
+    Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(ActivityWorkflow.class);
     worker.registerActivitiesImplementations(new FailingActivityImpl());
     worker.start();
-    WorkflowClient client = env.newWorkflowClient();
+    WorkflowClient client = testEnvironment.newWorkflowClient();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class);
     try {
       workflow.workflow1("input1");
@@ -203,8 +193,7 @@ public class WorkflowTestingTest {
   }
 
   public interface TestActivityTimeoutWorkflow {
-
-    @WorkflowMethod(executionStartToCloseTimeoutSeconds = 1000, taskList = TASK_LIST)
+    @WorkflowMethod(executionStartToCloseTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
     void workflow(
         long scheduleToCloseTimeoutSeconds,
         long scheduleToStartTimeoutSeconds,
@@ -212,7 +201,6 @@ public class WorkflowTestingTest {
   }
 
   public static class TestActivityTimeoutWorkflowImpl implements TestActivityTimeoutWorkflow {
-
     @Override
     public void workflow(
         long scheduleToCloseTimeoutSeconds,
@@ -225,12 +213,12 @@ public class WorkflowTestingTest {
               .setScheduleToStartTimeout(Duration.ofSeconds(scheduleToStartTimeoutSeconds))
               .build();
       TestActivity activity = Workflow.newActivityStub(TestActivity.class, options);
+      Workflow.sleep(Duration.ofHours(1)); // test time skipping
       activity.activity1("foo");
     }
   }
 
   public static class TimingOutActivityImpl implements TestActivity {
-
     @Override
     public String activity1(String input) {
       long start = System.currentTimeMillis();
@@ -242,12 +230,11 @@ public class WorkflowTestingTest {
 
   @Test
   public void testActivityStartToCloseTimeout() {
-    TestWorkflowEnvironment env = testEnvironment.workflowEnvironment();
-    Worker worker = env.newWorker(TASK_LIST);
+    Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(TestActivityTimeoutWorkflowImpl.class);
     worker.registerActivitiesImplementations(new TimingOutActivityImpl());
     worker.start();
-    WorkflowClient client = env.newWorkflowClient();
+    WorkflowClient client = testEnvironment.newWorkflowClient();
     TestActivityTimeoutWorkflow workflow =
         client.newWorkflowStub(TestActivityTimeoutWorkflow.class);
     try {
@@ -262,11 +249,10 @@ public class WorkflowTestingTest {
 
   @Test
   public void testActivityScheduleToStartTimeout() {
-    TestWorkflowEnvironment env = testEnvironment.workflowEnvironment();
-    Worker worker = env.newWorker(TASK_LIST);
+    Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(TestActivityTimeoutWorkflowImpl.class);
     worker.start();
-    WorkflowClient client = env.newWorkflowClient();
+    WorkflowClient client = testEnvironment.newWorkflowClient();
     TestActivityTimeoutWorkflow workflow =
         client.newWorkflowStub(TestActivityTimeoutWorkflow.class);
     try {
@@ -282,12 +268,11 @@ public class WorkflowTestingTest {
 
   @Test
   public void testActivityScheduleToCloseTimeout() {
-    TestWorkflowEnvironment env = testEnvironment.workflowEnvironment();
-    Worker worker = env.newWorker(TASK_LIST);
+    Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(TestActivityTimeoutWorkflowImpl.class);
     worker.registerActivitiesImplementations(new TimingOutActivityImpl());
     worker.start();
-    WorkflowClient client = env.newWorkflowClient();
+    WorkflowClient client = testEnvironment.newWorkflowClient();
     TestActivityTimeoutWorkflow workflow =
         client.newWorkflowStub(TestActivityTimeoutWorkflow.class);
     try {
@@ -302,7 +287,6 @@ public class WorkflowTestingTest {
   }
 
   public static class TimeoutWorkflow implements TestWorkflow {
-
     @Override
     public String workflow1(String input) {
       Workflow.await(() -> false); // forever
@@ -312,11 +296,10 @@ public class WorkflowTestingTest {
 
   @Test
   public void testWorkflowTimeout() {
-    TestWorkflowEnvironment env = testEnvironment.workflowEnvironment();
-    Worker worker = env.newWorker(TASK_LIST);
+    Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(TimeoutWorkflow.class);
     worker.start();
-    WorkflowClient client = env.newWorkflowClient();
+    WorkflowClient client = testEnvironment.newWorkflowClient();
     WorkflowOptions options =
         new WorkflowOptions.Builder()
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(1))
@@ -332,31 +315,28 @@ public class WorkflowTestingTest {
   }
 
   public static class TimerWorkflow implements TestWorkflow {
-
     @Override
     public String workflow1(String input) {
-      Workflow.newTimer(Duration.ofSeconds(1)).get();
+      Workflow.newTimer(Duration.ofHours(2)).get();
       return Workflow.getWorkflowInfo().getWorkflowType() + "-" + input;
     }
   }
 
   @Test
   public void testTimer() {
-    TestWorkflowEnvironment env = testEnvironment.workflowEnvironment();
-    Worker worker = env.newWorker(TASK_LIST);
+    Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(TimerWorkflow.class);
     worker.start();
-    WorkflowClient client = env.newWorkflowClient();
+    WorkflowClient client = testEnvironment.newWorkflowClient();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class);
-    long start = System.currentTimeMillis();
+    long start = testEnvironment.currentTimeMillis();
     String result = workflow.workflow1("input1");
     assertEquals("TestWorkflow::workflow1-input1", result);
-    assertTrue(env.currentTimeMillis() - start > 1000);
+    assertTrue(testEnvironment.currentTimeMillis() - start >= Duration.ofHours(2).toMillis());
   }
 
   public interface SignaledWorkflow {
-
-    @WorkflowMethod(executionStartToCloseTimeoutSeconds = 10, taskList = TASK_LIST)
+    @WorkflowMethod(executionStartToCloseTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
     String workflow1(String input);
 
     @SignalMethod
@@ -364,11 +344,11 @@ public class WorkflowTestingTest {
   }
 
   public static class SignaledWorkflowImpl implements SignaledWorkflow {
-
     private String signalInput;
 
     @Override
     public String workflow1(String input) {
+      Workflow.sleep(Duration.ofHours(1)); // test time skipping
       Workflow.await(() -> signalInput != null);
       return signalInput + "-" + input;
     }
@@ -381,19 +361,30 @@ public class WorkflowTestingTest {
 
   @Test
   public void testSignal() throws ExecutionException, InterruptedException {
-    TestWorkflowEnvironment env = testEnvironment.workflowEnvironment();
-    Worker worker = env.newWorker(TASK_LIST);
+    Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(SignaledWorkflowImpl.class);
     worker.start();
-    WorkflowClient client = env.newWorkflowClient();
+    WorkflowClient client = testEnvironment.newWorkflowClient();
     SignaledWorkflow workflow = client.newWorkflowStub(SignaledWorkflow.class);
     CompletableFuture<String> result = WorkflowClient.execute(workflow::workflow1, "input1");
+    testEnvironment.sleep(Duration.ofMinutes(65)); // after 1 hour sleep in the workflow
     workflow.ProcessSignal("signalInput");
     assertEquals("signalInput-input1", result.get());
   }
 
-  public static class ConcurrentDecisionWorkflowImpl implements SignaledWorkflow {
+  @Test
+  public void testSignalWithDelayedCallback() {
+    Worker worker = testEnvironment.newWorker(TASK_LIST);
+    worker.registerWorkflowImplementationTypes(SignaledWorkflowImpl.class);
+    worker.start();
+    WorkflowClient client = testEnvironment.newWorkflowClient();
+    SignaledWorkflow workflow = client.newWorkflowStub(SignaledWorkflow.class);
+    testEnvironment.registerDelayedCallback(
+        Duration.ofMinutes(65), () -> workflow.ProcessSignal("signalInput"));
+    assertEquals("signalInput-input1", workflow.workflow1("input1"));
+  }
 
+  public static class ConcurrentDecisionWorkflowImpl implements SignaledWorkflow {
     private String signalInput;
 
     @Override
@@ -418,25 +409,23 @@ public class WorkflowTestingTest {
 
   @Test
   public void testConcurrentDecision() throws ExecutionException, InterruptedException {
-    TestWorkflowEnvironment env = testEnvironment.workflowEnvironment();
-    Worker worker = env.newWorker(TASK_LIST);
+    Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(ConcurrentDecisionWorkflowImpl.class);
     worker.start();
-    WorkflowClient client = env.newWorkflowClient();
+    WorkflowClient client = testEnvironment.newWorkflowClient();
     SignaledWorkflow workflow = client.newWorkflowStub(SignaledWorkflow.class);
     CompletableFuture<String> result = WorkflowClient.execute(workflow::workflow1, "input1");
     workflow.ProcessSignal("signalInput");
     assertEquals("signalInput-input1", result.get());
+    System.out.println(testEnvironment.getDiagnostics());
   }
 
   public interface TestCancellationActivity {
-
     @ActivityMethod(scheduleToCloseTimeoutSeconds = 1000)
     String activity1(String input);
   }
 
   private static class TestCancellationActivityImpl implements TestCancellationActivity {
-
     @Override
     public String activity1(String input) {
       long start = System.currentTimeMillis();
@@ -447,28 +436,30 @@ public class WorkflowTestingTest {
   }
 
   public static class TestCancellationWorkflow implements TestWorkflow {
-
     private final TestCancellationActivity activity =
         Workflow.newActivityStub(TestCancellationActivity.class);
 
     @Override
     public String workflow1(String input) {
+      Workflow.sleep(Duration.ofHours(1)); // test time skipping
       return activity.activity1(input);
     }
   }
 
   @Test
-  public void testActivityCancellation() throws InterruptedException {
-    TestWorkflowEnvironment env = testEnvironment.workflowEnvironment();
-    Worker worker = env.newWorker(TASK_LIST);
+  public void testActivityCancellation() {
+    Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(TestCancellationWorkflow.class);
     worker.registerActivitiesImplementations(new TestCancellationActivityImpl());
     worker.start();
-    WorkflowClient client = env.newWorkflowClient();
+    WorkflowClient client = testEnvironment.newWorkflowClient();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class);
     try {
       WorkflowExecution execution = WorkflowClient.start(workflow::workflow1, "input1");
       UntypedWorkflowStub untyped = client.newUntypedWorkflowStub(execution, Optional.empty());
+      // While activity is running time skipping is disabled.
+      // So sleep for 1 second after it is scheduled.
+      testEnvironment.sleep(Duration.ofSeconds(3601));
       untyped.cancel();
       untyped.getResult(String.class);
       fail("unreacheable");
@@ -477,7 +468,6 @@ public class WorkflowTestingTest {
   }
 
   public static class TestTimerCancellationWorkflow implements TestWorkflow {
-
     @Override
     public String workflow1(String input) {
       Promise<Void> s = Async.procedure(() -> Workflow.sleep(Duration.ofDays(1)));
@@ -496,16 +486,15 @@ public class WorkflowTestingTest {
 
   @Test
   public void testTimerCancellation() throws TException {
-    TestWorkflowEnvironment env = testEnvironment.workflowEnvironment();
-    Worker worker = env.newWorker(TASK_LIST);
+    Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(TestTimerCancellationWorkflow.class);
     worker.registerActivitiesImplementations(new ActivityImpl());
     worker.start();
-    WorkflowClient client = env.newWorkflowClient();
+    WorkflowClient client = testEnvironment.newWorkflowClient();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class);
     WorkflowExecution execution = WorkflowClient.start(workflow::workflow1, "input1");
     UntypedWorkflowStub untyped = client.newUntypedWorkflowStub(execution, Optional.empty());
-    env.sleep(Duration.ofMinutes(1));
+    testEnvironment.sleep(Duration.ofHours(1));
     untyped.cancel();
     try {
       untyped.getResult(String.class);
@@ -536,9 +525,9 @@ public class WorkflowTestingTest {
   //
   //  @Test
   //  public void testFailure() {
-  //    TestActivityEnvironment env = testEnvironment.activityEnvironment();
-  //    env.registerActivitiesImplementations(new AngryWorkflowImpl());
-  //    TestWorkflow activity = env.newActivityStub(TestWorkflow.class);
+  //    TestActivityEnvironment testEnvironment = testEnvironment.activityEnvironment();
+  //    testEnvironment.registerActivitiesImplementations(new AngryWorkflowImpl());
+  //    TestWorkflow activity = testEnvironment.newActivityStub(TestWorkflow.class);
   //    try {
   //      activity.workflow1("input1");
   //      fail("unreachable");
@@ -560,15 +549,15 @@ public class WorkflowTestingTest {
   //
   //  @Test
   //  public void testHeartbeat() {
-  //    TestActivityEnvironment env = testEnvironment.activityEnvironment();
-  //    env.registerActivitiesImplementations(new HeartbeatWorkflowImpl());
+  //    TestActivityEnvironment testEnvironment = testEnvironment.activityEnvironment();
+  //    testEnvironment.registerActivitiesImplementations(new HeartbeatWorkflowImpl());
   //    AtomicReference<String> details = new AtomicReference<>();
-  //    env.setActivityHeartbeatListener(
+  //    testEnvironment.setActivityHeartbeatListener(
   //        String.class,
   //        (d) -> {
   //          details.set(d);
   //        });
-  //    TestWorkflow activity = env.newActivityStub(TestWorkflow.class);
+  //    TestWorkflow activity = testEnvironment.newActivityStub(TestWorkflow.class);
   //    String result = activity.workflow1("input1");
   //    assertEquals("input1", result);
   //    assertEquals("details1", details.get());

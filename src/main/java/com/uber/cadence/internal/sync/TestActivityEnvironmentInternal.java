@@ -87,14 +87,14 @@ import java.util.function.Consumer;
 import org.apache.thrift.TException;
 import org.apache.thrift.async.AsyncMethodCallback;
 
-class TestActivityEnvironmentInternal implements TestActivityEnvironment {
+public final class TestActivityEnvironmentInternal implements TestActivityEnvironment {
 
   private final POJOActivityTaskHandler activityTaskHandler;
   private final TestEnvironmentOptions testEnvironmentOptions;
   private final AtomicInteger idSequencer = new AtomicInteger();
   private ClassConsumerPair<Object> activityHeartbetListener;
 
-  TestActivityEnvironmentInternal(TestEnvironmentOptions options) {
+  public TestActivityEnvironmentInternal(TestEnvironmentOptions options) {
     if (options == null) {
       this.testEnvironmentOptions = new TestEnvironmentOptions.Builder().build();
     } else {

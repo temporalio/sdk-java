@@ -17,6 +17,7 @@
 
 package com.uber.cadence.internal.testservice;
 
+import com.uber.cadence.BadRequestError;
 import com.uber.cadence.ChildWorkflowExecutionCanceledEventAttributes;
 import com.uber.cadence.ChildWorkflowExecutionCompletedEventAttributes;
 import com.uber.cadence.ChildWorkflowExecutionFailedEventAttributes;
@@ -57,74 +58,74 @@ interface TestWorkflowMutableState {
   StartWorkflowExecutionRequest getStartRequest();
 
   void startDecisionTask(PollForDecisionTaskResponse task, PollForDecisionTaskRequest pollRequest)
-      throws InternalServiceError, EntityNotExistsError;
+      throws InternalServiceError, EntityNotExistsError, BadRequestError;
 
-  void completeDecisionTask(RespondDecisionTaskCompletedRequest request)
-      throws InternalServiceError, EntityNotExistsError;
+  void completeDecisionTask(int historySize, RespondDecisionTaskCompletedRequest request)
+      throws InternalServiceError, EntityNotExistsError, BadRequestError;
 
   void completeSignalExternalWorkflowExecution(String signalId, String runId)
-      throws EntityNotExistsError, InternalServiceError;
+      throws EntityNotExistsError, InternalServiceError, BadRequestError;
 
   void failSignalExternalWorkflowExecution(
       String signalId, SignalExternalWorkflowExecutionFailedCause cause)
-      throws EntityNotExistsError, InternalServiceError;
+      throws EntityNotExistsError, InternalServiceError, BadRequestError;
 
   void failDecisionTask(RespondDecisionTaskFailedRequest request)
-      throws InternalServiceError, EntityNotExistsError;
+      throws InternalServiceError, EntityNotExistsError, BadRequestError;
 
   void childWorkflowStarted(ChildWorkflowExecutionStartedEventAttributes a)
-      throws InternalServiceError, EntityNotExistsError;
+      throws InternalServiceError, EntityNotExistsError, BadRequestError;
 
   void childWorklfowFailed(String workflowId, ChildWorkflowExecutionFailedEventAttributes a)
-      throws InternalServiceError, EntityNotExistsError;
+      throws InternalServiceError, EntityNotExistsError, BadRequestError;
 
   void childWorklfowTimedOut(String activityId, ChildWorkflowExecutionTimedOutEventAttributes a)
-      throws InternalServiceError, EntityNotExistsError;
+      throws InternalServiceError, EntityNotExistsError, BadRequestError;
 
   void failStartChildWorkflow(String workflowId, StartChildWorkflowExecutionFailedEventAttributes a)
-      throws InternalServiceError, EntityNotExistsError;
+      throws InternalServiceError, EntityNotExistsError, BadRequestError;
 
   void childWorkflowCompleted(String workflowId, ChildWorkflowExecutionCompletedEventAttributes a)
-      throws InternalServiceError, EntityNotExistsError;
+      throws InternalServiceError, EntityNotExistsError, BadRequestError;
 
   void childWorkflowCanceled(String workflowId, ChildWorkflowExecutionCanceledEventAttributes a)
-      throws InternalServiceError, EntityNotExistsError;
+      throws InternalServiceError, EntityNotExistsError, BadRequestError;
 
-  void startWorkflow() throws InternalServiceError;
+  void startWorkflow() throws InternalServiceError, BadRequestError;
 
   void startActivityTask(PollForActivityTaskResponse task, PollForActivityTaskRequest pollRequest)
-      throws InternalServiceError, EntityNotExistsError;
+      throws InternalServiceError, EntityNotExistsError, BadRequestError;
 
   void completeActivityTask(String activityId, RespondActivityTaskCompletedRequest request)
-      throws InternalServiceError, EntityNotExistsError;
+      throws InternalServiceError, EntityNotExistsError, BadRequestError;
 
   void completeActivityTaskById(String activityId, RespondActivityTaskCompletedByIDRequest request)
-      throws InternalServiceError, EntityNotExistsError;
+      throws InternalServiceError, EntityNotExistsError, BadRequestError;
 
   void failActivityTask(String activityId, RespondActivityTaskFailedRequest request)
-      throws InternalServiceError, EntityNotExistsError;
+      throws InternalServiceError, EntityNotExistsError, BadRequestError;
 
   void failActivityTaskById(String id, RespondActivityTaskFailedByIDRequest failRequest)
-      throws EntityNotExistsError, InternalServiceError;
+      throws EntityNotExistsError, InternalServiceError, BadRequestError;
 
   RecordActivityTaskHeartbeatResponse heartbeatActivityTask(
       String activityId, RecordActivityTaskHeartbeatRequest request)
-      throws InternalServiceError, EntityNotExistsError;
+      throws InternalServiceError, EntityNotExistsError, BadRequestError;
 
   void signal(SignalWorkflowExecutionRequest signalRequest)
-      throws EntityNotExistsError, InternalServiceError;
+      throws EntityNotExistsError, InternalServiceError, BadRequestError;
 
   void signalFromWorkflow(SignalExternalWorkflowExecutionDecisionAttributes a)
-      throws EntityNotExistsError, InternalServiceError;
+      throws EntityNotExistsError, InternalServiceError, BadRequestError;
 
   void requestCancelWorkflowExecution(RequestCancelWorkflowExecutionRequest cancelRequest)
-      throws EntityNotExistsError, InternalServiceError;
+      throws EntityNotExistsError, InternalServiceError, BadRequestError;
 
   void cancelActivityTask(String id, RespondActivityTaskCanceledRequest canceledRequest)
-      throws EntityNotExistsError, InternalServiceError;
+      throws EntityNotExistsError, InternalServiceError, BadRequestError;
 
   void cancelActivityTaskById(String id, RespondActivityTaskCanceledByIDRequest canceledRequest)
-      throws EntityNotExistsError, InternalServiceError;
+      throws EntityNotExistsError, InternalServiceError, BadRequestError;
 
   QueryWorkflowResponse query(QueryWorkflowRequest queryRequest) throws TException;
 

@@ -323,7 +323,7 @@ class StateMachines {
             .setChildWorkflowExecutionStartedEventAttributes(a);
     long startedEventId = ctx.addEvent(event);
     ctx.onCommit(
-        () -> {
+        (historySize) -> {
           data.startedEventId = startedEventId;
           data.execution = a.getWorkflowExecution();
         });
@@ -394,7 +394,7 @@ class StateMachines {
             .setStartChildWorkflowExecutionInitiatedEventAttributes(a);
     long initiatedEventId = ctx.addEvent(event);
     ctx.onCommit(
-        () -> {
+        (historySize) -> {
           data.initiatedEventId = initiatedEventId;
           data.initiatedEvent = a;
           StartWorkflowExecutionRequest startChild =
@@ -608,7 +608,7 @@ class StateMachines {
     ActivityTask activityTask = new ActivityTask(taskListId, taskResponse);
     ctx.addActivityTask(activityTask);
     ctx.onCommit(
-        () -> {
+        (historySize) -> {
           data.scheduledEvent = a;
           data.scheduledEventId = scheduledEventId;
           data.activityTask = taskResponse;
@@ -657,7 +657,7 @@ class StateMachines {
     DecisionTask decisionTask = new DecisionTask(taskListId, decisionTaskResponse);
     ctx.setDecisionTask(decisionTask);
     ctx.onCommit(
-        () -> {
+        (historySize) -> {
           data.scheduledEventId = scheduledEventId;
           data.decisionTask = decisionTaskResponse;
         });
@@ -675,14 +675,15 @@ class StateMachines {
             .setDecisionTaskStartedEventAttributes(a);
     long startedEventId = ctx.addEvent(event);
     ctx.onCommit(
-        () -> {
+        (historySize) -> {
           data.decisionTask.setStartedEventId(startedEventId);
-          data.decisionTask.setTaskToken(ctx.getExecutionId().toBytes());
+          DecisionTaskToken taskToken = new DecisionTaskToken(ctx.getExecutionId(), historySize);
+          data.decisionTask.setTaskToken(taskToken.toBytes());
           GetWorkflowExecutionHistoryRequest getRequest =
               new GetWorkflowExecutionHistoryRequest()
                   .setDomain(request.getDomain())
                   .setExecution(ctx.getExecution());
-          List<HistoryEvent> events = null;
+          List<HistoryEvent> events;
           try {
             events =
                 data.store
@@ -710,7 +711,7 @@ class StateMachines {
             .setActivityTaskStartedEventAttributes(a);
     long startedEventId = ctx.addEvent(event);
     ctx.onCommit(
-        () -> {
+        (historySize) -> {
           data.startedEventId = startedEventId;
           data.activityTask.setTaskToken(
               new ActivityId(ctx.getExecutionId(), data.activityTask.getActivityId()).toBytes());
@@ -732,7 +733,7 @@ class StateMachines {
             .setEventType(EventType.DecisionTaskCompleted)
             .setDecisionTaskCompletedEventAttributes(a);
     ctx.addEvent(event);
-    ctx.onCommit(() -> data.attempt = 0);
+    ctx.onCommit((historySize) -> data.attempt = 0);
   }
 
   private static void failDecisionTask(
@@ -911,7 +912,7 @@ class StateMachines {
         new HistoryEvent().setEventType(EventType.TimerStarted).setTimerStartedEventAttributes(a);
     long startedEventId = ctx.addEvent(event);
     ctx.onCommit(
-        () -> {
+        (historySize) -> {
           data.startedEvent = a;
           data.startedEventId = startedEventId;
         });
@@ -970,7 +971,7 @@ class StateMachines {
             .setSignalExternalWorkflowExecutionInitiatedEventAttributes(a);
     long initiatedEventId = ctx.addEvent(event);
     ctx.onCommit(
-        () -> {
+        (historySize) -> {
           data.initiatedEventId = initiatedEventId;
           data.initiatedEvent = a;
         });

@@ -23,7 +23,6 @@ import static org.junit.Assert.fail;
 
 import com.uber.cadence.activity.Activity;
 import com.uber.cadence.testing.TestActivityEnvironment;
-import com.uber.cadence.testing.TestEnvironment;
 import com.uber.cadence.workflow.ActivityFailureException;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -32,11 +31,11 @@ import org.junit.Test;
 
 public class ActivityTestingTest {
 
-  private static TestEnvironment testEnvironment;
+  private static TestActivityEnvironment testEnvironment;
 
   @BeforeClass
   public static void setUp() {
-    testEnvironment = TestEnvironment.newInstance();
+    testEnvironment = TestActivityEnvironment.newInstance();
   }
 
   public interface TestActivity {
@@ -54,9 +53,8 @@ public class ActivityTestingTest {
 
   @Test
   public void testSuccess() {
-    TestActivityEnvironment env = testEnvironment.activityEnvironment();
-    env.registerActivitiesImplementations(new ActivityImpl());
-    TestActivity activity = env.newActivityStub(TestActivity.class);
+    testEnvironment.registerActivitiesImplementations(new ActivityImpl());
+    TestActivity activity = testEnvironment.newActivityStub(TestActivity.class);
     String result = activity.activity1("input1");
     assertEquals("TestActivity::activity1-input1", result);
   }
@@ -71,9 +69,8 @@ public class ActivityTestingTest {
 
   @Test
   public void testFailure() {
-    TestActivityEnvironment env = testEnvironment.activityEnvironment();
-    env.registerActivitiesImplementations(new AngryActivityImpl());
-    TestActivity activity = env.newActivityStub(TestActivity.class);
+    testEnvironment.registerActivitiesImplementations(new AngryActivityImpl());
+    TestActivity activity = testEnvironment.newActivityStub(TestActivity.class);
     try {
       activity.activity1("input1");
       fail("unreachable");
@@ -95,15 +92,14 @@ public class ActivityTestingTest {
 
   @Test
   public void testHeartbeat() {
-    TestActivityEnvironment env = testEnvironment.activityEnvironment();
-    env.registerActivitiesImplementations(new HeartbeatActivityImpl());
+    testEnvironment.registerActivitiesImplementations(new HeartbeatActivityImpl());
     AtomicReference<String> details = new AtomicReference<>();
-    env.setActivityHeartbeatListener(
+    testEnvironment.setActivityHeartbeatListener(
         String.class,
         (d) -> {
           details.set(d);
         });
-    TestActivity activity = env.newActivityStub(TestActivity.class);
+    TestActivity activity = testEnvironment.newActivityStub(TestActivity.class);
     String result = activity.activity1("input1");
     assertEquals("input1", result);
     assertEquals("details1", details.get());

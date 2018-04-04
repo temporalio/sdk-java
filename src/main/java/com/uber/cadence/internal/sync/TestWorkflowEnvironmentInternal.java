@@ -82,6 +82,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.thrift.TException;
@@ -89,7 +90,7 @@ import org.apache.thrift.async.AsyncMethodCallback;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class TestWorkflowEnvironmentInternal implements TestWorkflowEnvironment {
+public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnvironment {
 
   private static final Logger log = LoggerFactory.getLogger(TestWorkflowEnvironmentInternal.class);
 
@@ -97,7 +98,7 @@ class TestWorkflowEnvironmentInternal implements TestWorkflowEnvironment {
   private final WorkflowServiceWrapper service;
   private final List<Worker> workers = Collections.synchronizedList(new ArrayList<>());
 
-  TestWorkflowEnvironmentInternal(TestEnvironmentOptions options) {
+  public TestWorkflowEnvironmentInternal(TestEnvironmentOptions options) {
     if (options == null) {
       this.testEnvironmentOptions = new TestEnvironmentOptions.Builder().build();
     } else {
@@ -149,19 +150,22 @@ class TestWorkflowEnvironmentInternal implements TestWorkflowEnvironment {
     service.registerDelayedCallback(delay, r);
   }
 
+  @Override
   public IWorkflowService getWorkflowService() {
     return service;
   }
 
+  @Override
   public String getDiagnostics() {
     StringBuilder result = new StringBuilder();
     service.getDiagnostics(result);
     return result.toString();
   }
 
-  public void shutdown() {
+  @Override
+  public void close() {
     for (Worker w : workers) {
-      w.shutdown(Duration.ofMillis(1));
+      w.shutdown(Duration.ofMillis(10));
     }
     service.close();
   }
@@ -621,8 +625,7 @@ class TestWorkflowEnvironmentInternal implements TestWorkflowEnvironment {
 
       @Override
       public <R> CompletableFuture<R> getResultAsync(Class<R> returnType) {
-        service.unlockTimeSkipping();
-        return next.getResultAsync(returnType).whenComplete((r, e) -> service.lockTimeSkipping());
+        return new TimeLockingFuture<>(next.getResultAsync(returnType));
       }
 
       @Override
@@ -639,9 +642,7 @@ class TestWorkflowEnvironmentInternal implements TestWorkflowEnvironment {
       @Override
       public <R> CompletableFuture<R> getResultAsync(
           long timeout, TimeUnit unit, Class<R> returnType) {
-        service.unlockTimeSkipping();
-        return next.getResultAsync(timeout, unit, returnType)
-            .whenComplete((r, e) -> service.lockTimeSkipping());
+        return new TimeLockingFuture<>(next.getResultAsync(timeout, unit, returnType));
       }
 
       @Override
@@ -657,6 +658,47 @@ class TestWorkflowEnvironmentInternal implements TestWorkflowEnvironment {
       @Override
       public Optional<WorkflowOptions> getOptions() {
         return next.getOptions();
+      }
+
+      /** Unlocks time skipping before blocking calls and locks back after completion. */
+      private class TimeLockingFuture<R> extends CompletableFuture<R> {
+
+        public TimeLockingFuture(CompletableFuture<R> resultAsync) {
+          CompletableFuture<R> ignored =
+              resultAsync.whenComplete(
+                  (r, e) -> {
+                    service.lockTimeSkipping();
+                    if (e == null) {
+                      this.complete(r);
+                    } else {
+                      this.completeExceptionally(e);
+                    }
+                  });
+        }
+
+        @Override
+        public R get() throws InterruptedException, ExecutionException {
+          service.unlockTimeSkipping();
+          return super.get();
+        }
+
+        @Override
+        public R get(long timeout, TimeUnit unit)
+            throws InterruptedException, ExecutionException, TimeoutException {
+          service.unlockTimeSkipping();
+          try {
+            return super.get(timeout, unit);
+          } catch (TimeoutException | InterruptedException e) {
+            service.lockTimeSkipping();
+            throw e;
+          }
+        }
+
+        @Override
+        public R join() {
+          service.unlockTimeSkipping();
+          return super.join();
+        }
       }
     }
   }

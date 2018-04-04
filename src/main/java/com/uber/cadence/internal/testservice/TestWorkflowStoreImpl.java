@@ -176,7 +176,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       history.addAllLocked(events, ctx.currentTimeInNanoseconds());
       result = history.getNextEventIdLocked();
       timerService.updateLocks(ctx.getTimerLocks());
-      ctx.fireCallbacks();
+      ctx.fireCallbacks(history.getEventsLocked().size());
     } finally {
       if (historiesEmpty && !histories.isEmpty()) {
         timerService.unlockTimeSkipping(); // Initially locked in the constructor

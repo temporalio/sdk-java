@@ -83,6 +83,10 @@ import org.apache.thrift.async.AsyncMethodCallback;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * In memory implementation of the Cadence service. To be used for testing purposes only. Do not use
+ * directly. Instead use {@link com.uber.cadence.testing.TestWorkflowEnvironment}.
+ */
 public final class TestWorkflowService implements IWorkflowService {
 
   private static final Logger log = LoggerFactory.getLogger(TestWorkflowService.class);
@@ -194,7 +198,7 @@ public final class TestWorkflowService implements IWorkflowService {
       StartWorkflowExecutionRequest startRequest,
       Optional<TestWorkflowMutableState> parent,
       WorkflowId workflowId)
-      throws InternalServiceError {
+      throws InternalServiceError, BadRequestError {
     String domain = startRequest.getDomain();
     TestWorkflowMutableState result =
         new TestWorkflowMutableStateImpl(startRequest, parent, this, store);
@@ -248,16 +252,16 @@ public final class TestWorkflowService implements IWorkflowService {
   @Override
   public void RespondDecisionTaskCompleted(RespondDecisionTaskCompletedRequest request)
       throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
-    TestWorkflowMutableState mutableState =
-        getMutableState(ExecutionId.fromBytes(request.getTaskToken()));
-    mutableState.completeDecisionTask(request);
+    DecisionTaskToken taskToken = DecisionTaskToken.fromBytes(request.getTaskToken());
+    TestWorkflowMutableState mutableState = getMutableState(taskToken.getExecutionId());
+    mutableState.completeDecisionTask(taskToken.getHistorySize(), request);
   }
 
   @Override
   public void RespondDecisionTaskFailed(RespondDecisionTaskFailedRequest failedRequest)
       throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
-    TestWorkflowMutableState mutableState =
-        getMutableState(ExecutionId.fromBytes(failedRequest.getTaskToken()));
+    DecisionTaskToken taskToken = DecisionTaskToken.fromBytes(failedRequest.getTaskToken());
+    TestWorkflowMutableState mutableState = getMutableState(taskToken.getExecutionId());
     mutableState.failDecisionTask(failedRequest);
   }
 
@@ -383,7 +387,7 @@ public final class TestWorkflowService implements IWorkflowService {
       String signalId,
       SignalExternalWorkflowExecutionDecisionAttributes a,
       TestWorkflowMutableState source)
-      throws InternalServiceError, EntityNotExistsError {
+      throws InternalServiceError, EntityNotExistsError, BadRequestError {
     ExecutionId executionId = new ExecutionId(a.getDomain(), a.getExecution());
     TestWorkflowMutableState mutableState = null;
     try {
@@ -415,7 +419,7 @@ public final class TestWorkflowService implements IWorkflowService {
       String identity,
       ExecutionId executionId,
       Optional<TestWorkflowMutableState> parent)
-      throws InternalServiceError {
+      throws InternalServiceError, BadRequestError {
     StartWorkflowExecutionRequest startRequest =
         new StartWorkflowExecutionRequest()
             .setInput(a.getInput())
@@ -672,6 +676,10 @@ public final class TestWorkflowService implements IWorkflowService {
     return value;
   }
 
+  /**
+   * Adds diagnostic data about internal service state to the provided {@link StringBuilder}.
+   * Currently includes histories of all workflow instances stored in the service.
+   */
   public void getDiagnostics(StringBuilder result) {
     store.getDiagnostics(result);
   }
@@ -680,10 +688,16 @@ public final class TestWorkflowService implements IWorkflowService {
     return store.getTimer().getClock().getAsLong();
   }
 
+  /** Invokes callback after the specified delay according to internal service clock. */
   public void registerDelayedCallback(Duration delay, Runnable r) {
     store.registerDelayedCallback(delay, r);
   }
 
+  /**
+   * Disables time skipping. To enable back call {@link #unlockTimeSkipping()}. These calls are
+   * counted, so calling unlock does not guarantee that time is going to be skipped immediately as
+   * another lock can be holding it.
+   */
   public void lockTimeSkipping() {
     store.getTimer().lockTimeSkipping();
   }
@@ -692,6 +706,10 @@ public final class TestWorkflowService implements IWorkflowService {
     store.getTimer().unlockTimeSkipping();
   }
 
+  /**
+   * Blocks calling thread until internal clock doesn't pass the current + duration time. Might not
+   * block at all due to time skipping.
+   */
   public void sleep(Duration duration) {
     long start = store.currentTimeMillis();
     CompletableFuture<Void> result = new CompletableFuture<>();

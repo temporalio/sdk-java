@@ -34,7 +34,7 @@ final class RequestContext {
   @FunctionalInterface
   interface CommitCallback {
 
-    void apply() throws InternalServiceError;
+    void apply(int historySize) throws InternalServiceError;
   }
 
   static final class Timer {
@@ -199,9 +199,9 @@ final class RequestContext {
   }
 
   /** Called by {@link TestWorkflowStore#save(RequestContext)} */
-  void fireCallbacks() throws InternalServiceError {
+  void fireCallbacks(int historySize) throws InternalServiceError {
     for (CommitCallback callback : commitCallbacks) {
-      callback.apply();
+      callback.apply(historySize);
     }
   }
 

@@ -46,8 +46,8 @@ import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.converter.JsonDataConverter;
 import com.uber.cadence.internal.sync.DeterministicRunnerTest;
-import com.uber.cadence.testing.TestEnvironment;
 import com.uber.cadence.testing.TestEnvironmentOptions;
+import com.uber.cadence.testing.TestEnvironmentOptions.Builder;
 import com.uber.cadence.testing.TestWorkflowEnvironment;
 import com.uber.cadence.worker.Worker;
 import java.io.FileNotFoundException;
@@ -124,8 +124,7 @@ public class WorkflowTest {
   private TestActivitiesImpl activitiesImpl;
   private WorkflowClient workflowClient;
   private WorkflowClient workflowClientWithOptions;
-  private TestEnvironment testEnvironment;
-  private TestWorkflowEnvironment workflowEnvironment;
+  private TestWorkflowEnvironment testEnvironment;
   private ScheduledExecutorService scheduledExecutor;
   private List<ScheduledFuture<?>> delayedCallbacks = new ArrayList<>();
 
@@ -167,13 +166,11 @@ public class WorkflowTest {
       workflowClientWithOptions = WorkflowClient.newInstance(domain, clientOptions);
       scheduledExecutor = new ScheduledThreadPoolExecutor(1);
     } else {
-      testEnvironment =
-          TestEnvironment.newInstance(
-              new TestEnvironmentOptions.Builder().setDomain(domain).build());
-      workflowEnvironment = testEnvironment.workflowEnvironment();
-      worker = workflowEnvironment.newWorker(taskList);
-      workflowClient = workflowEnvironment.newWorkflowClient();
-      workflowClientWithOptions = workflowEnvironment.newWorkflowClient();
+      TestEnvironmentOptions testOptions = new Builder().setDomain(domain).build();
+      testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
+      worker = testEnvironment.newWorker(taskList);
+      workflowClient = testEnvironment.newWorkflowClient();
+      workflowClientWithOptions = testEnvironment.newWorkflowClient();
     }
 
     ActivityCompletionClient completionClient = workflowClient.newActivityCompletionClient();
@@ -217,7 +214,7 @@ public class WorkflowTest {
           scheduledExecutor.schedule(r, delay.toMillis(), TimeUnit.MILLISECONDS);
       delayedCallbacks.add(result);
     } else {
-      workflowEnvironment.registerDelayedCallback(delay, r);
+      testEnvironment.registerDelayedCallback(delay, r);
     }
   }
 
@@ -1059,7 +1056,7 @@ public class WorkflowTest {
           if (useExternalService) {
             queryWorker = new Worker(domain, taskList);
           } else {
-            queryWorker = workflowEnvironment.newWorker(taskList);
+            queryWorker = testEnvironment.newWorker(taskList);
           }
           queryWorker.registerWorkflowImplementationTypes(TestSignalWorkflowImpl.class);
           String queryResult = null;
@@ -1354,7 +1351,7 @@ public class WorkflowTest {
     if (useExternalService) {
       wc = WorkflowClient.newInstance(domain, clientOptions);
     } else {
-      wc = workflowEnvironment.newWorkflowClient(clientOptions);
+      wc = testEnvironment.newWorkflowClient(clientOptions);
     }
 
     TestWorkflow1 client = wc.newWorkflowStub(TestWorkflow1.class, options.build());

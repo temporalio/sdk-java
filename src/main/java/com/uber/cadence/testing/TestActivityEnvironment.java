@@ -17,9 +17,18 @@
 
 package com.uber.cadence.testing;
 
+import com.uber.cadence.internal.sync.TestActivityEnvironmentInternal;
 import java.util.function.Consumer;
 
 public interface TestActivityEnvironment {
+
+  static TestActivityEnvironment newInstance() {
+    return newInstance(new TestEnvironmentOptions.Builder().build());
+  }
+
+  static TestActivityEnvironment newInstance(TestEnvironmentOptions options) {
+    return new TestActivityEnvironmentInternal(options);
+  }
 
   void registerActivitiesImplementations(Object... activityImplementations);
 

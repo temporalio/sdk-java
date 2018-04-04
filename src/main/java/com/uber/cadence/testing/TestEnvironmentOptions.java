@@ -19,7 +19,6 @@ package com.uber.cadence.testing;
 
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.converter.JsonDataConverter;
-import com.uber.cadence.serviceclient.IWorkflowService;
 import java.util.Objects;
 
 public class TestEnvironmentOptions {
@@ -30,19 +29,17 @@ public class TestEnvironmentOptions {
 
     private String domain = "unit-test";
 
+    /** Sets data converter to use for unit-tests. Default is {@link JsonDataConverter}. */
     public Builder setDataConverter(DataConverter dataConverter) {
       Objects.requireNonNull(dataConverter);
       this.dataConverter = dataConverter;
       return this;
     }
 
+    /** Set domain to use for test workflows. Optional. Default is "unit-test" */
     public Builder setDomain(String domain) {
       Objects.requireNonNull(domain);
       this.domain = domain;
-      return this;
-    }
-
-    public Builder setService(IWorkflowService service) {
       return this;
     }
 
