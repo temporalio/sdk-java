@@ -26,6 +26,7 @@ import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.replay.DecisionContext;
 import com.uber.cadence.internal.replay.ReplayWorkflow;
 import com.uber.cadence.internal.worker.WorkflowExecutionException;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -42,9 +43,9 @@ class SyncWorkflow implements ReplayWorkflow {
 
   public SyncWorkflow(
       SyncWorkflowDefinition workflow, DataConverter dataConverter, ExecutorService threadPool) {
-    this.workflow = workflow;
-    this.dataConverter = dataConverter;
-    this.threadPool = threadPool;
+    this.workflow = Objects.requireNonNull(workflow);
+    this.dataConverter = Objects.requireNonNull(dataConverter);
+    this.threadPool = Objects.requireNonNull(threadPool);
   }
 
   @Override

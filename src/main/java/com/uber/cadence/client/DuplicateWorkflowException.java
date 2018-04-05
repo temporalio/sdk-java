@@ -43,7 +43,7 @@ import java.util.Optional;
  * <ul>
  *   Method annotated with {@link com.uber.cadence.workflow.WorkflowMethod} is called <i>more than
  *   once</i> on a stub created through {@link
- *   com.uber.cadence.workflow.Workflow#newWorkflowStub(Class)} and the {@link
+ *   com.uber.cadence.workflow.Workflow#newChildWorkflowStub(Class)} and the {@link
  *   WorkflowOptions#getWorkflowIdReusePolicy()} is {@link
  *   com.uber.cadence.WorkflowIdReusePolicy#AllowDuplicate}
  * </ul>

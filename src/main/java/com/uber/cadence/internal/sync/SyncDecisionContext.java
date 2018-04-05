@@ -174,7 +174,7 @@ final class SyncDecisionContext implements ActivityExecutor {
         "Unexpected exception type: " + failure.getClass().getName(), failure);
   }
 
-  public Promise<byte[]> executeChildWorkflow(
+  Promise<byte[]> executeChildWorkflow(
       String name,
       ChildWorkflowOptions options,
       byte[] input,
@@ -262,7 +262,7 @@ final class SyncDecisionContext implements ActivityExecutor {
         cause);
   }
 
-  public Promise<Void> newTimer(long delaySeconds) {
+  Promise<Void> newTimer(long delaySeconds) {
     if (delaySeconds < 0) {
       throw new IllegalArgumentException("negative delay");
     }
@@ -283,15 +283,15 @@ final class SyncDecisionContext implements ActivityExecutor {
     return timer;
   }
 
-  public void fireTimers() {
+  void fireTimers() {
     timers.fireTimers(context.currentTimeMillis());
   }
 
-  public boolean hasTimersToFire() {
+  boolean hasTimersToFire() {
     return timers.hasTimersToFire(context.currentTimeMillis());
   }
 
-  public long getNextFireTime() {
+  long getNextFireTime() {
     return timers.getNextFireTime();
   }
 
@@ -311,7 +311,7 @@ final class SyncDecisionContext implements ActivityExecutor {
     }
   }
 
-  public void registerQuery(Object queryImplementation) {
+  void registerQuery(Object queryImplementation) {
     POJOQueryImplementationFactory queryFactory =
         new POJOQueryImplementationFactory(converter, queryImplementation);
     Set<String> queries = queryFactory.getQueryFunctionNames();
@@ -320,7 +320,7 @@ final class SyncDecisionContext implements ActivityExecutor {
     }
   }
 
-  public void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionParameters parameters) {
+  void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionParameters parameters) {
     context.continueAsNewOnCompletion(parameters);
   }
 
@@ -328,7 +328,7 @@ final class SyncDecisionContext implements ActivityExecutor {
     return converter;
   }
 
-  public boolean isReplaying() {
+  boolean isReplaying() {
     return context.isReplaying();
   }
 
@@ -336,8 +336,7 @@ final class SyncDecisionContext implements ActivityExecutor {
     return context;
   }
 
-  public Promise<Void> signalWorkflow(
-      WorkflowExecution execution, String signalName, Object... args) {
+  Promise<Void> signalWorkflow(WorkflowExecution execution, String signalName, Object... args) {
     SignalExternalWorkflowParameters parameters = new SignalExternalWorkflowParameters();
     parameters.setSignalName(signalName);
     parameters.setWorkflowId(execution.getWorkflowId());
@@ -367,6 +366,10 @@ final class SyncDecisionContext implements ActivityExecutor {
               return null;
             });
     return result;
+  }
+
+  void requestCancelWorkflowExecution(WorkflowExecution execution) {
+    context.requestCancelWorkflowExecution(execution);
   }
 
   private RuntimeException mapSignalWorkflowException(Exception failure) {

@@ -17,24 +17,26 @@
 
 package com.uber.cadence.internal.sync;
 
-import com.google.common.base.Defaults;
 import com.uber.cadence.activity.ActivityMethod;
 import com.uber.cadence.activity.ActivityOptions;
 import com.uber.cadence.activity.MethodRetry;
 import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.sync.AsyncInternal.AsyncMarker;
-import com.uber.cadence.workflow.ActivityException;
-import com.uber.cadence.workflow.Promise;
+import com.uber.cadence.workflow.UntypedActivityStub;
 import com.uber.cadence.workflow.Workflow;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Function;
 
 /** Dynamic implementation of a strongly typed child workflow interface. */
 class ActivityInvocationHandler implements InvocationHandler {
 
   private final ActivityOptions options;
   private final ActivityExecutor activityExecutor;
+  private final Map<Method, Function<Object[], Object>> methodFunctions = new HashMap<>();
 
   static InvocationHandler newInstance(ActivityOptions options, ActivityExecutor activityExecutor) {
     return new ActivityInvocationHandler(options, activityExecutor);
@@ -56,41 +58,35 @@ class ActivityInvocationHandler implements InvocationHandler {
 
   @Override
   public Object invoke(Object proxy, Method method, Object[] args) {
-    try {
-      if (method.equals(Object.class.getMethod("toString"))) {
-        // TODO: activity info
-        return "ActivityInvocationHandler";
+    Function<Object[], Object> function = methodFunctions.get(method);
+    if (function == null) {
+      try {
+        if (method.equals(Object.class.getMethod("toString"))) {
+          // TODO: activity info
+          return "ActivityInvocationHandler";
+        }
+        if (!method.getDeclaringClass().isInterface()) {
+          throw new IllegalArgumentException(
+              "Interface type is expected: " + method.getDeclaringClass());
+        }
+        MethodRetry methodRetry = method.getAnnotation(MethodRetry.class);
+        ActivityMethod activityMethod = method.getAnnotation(ActivityMethod.class);
+        String activityName;
+        if (activityMethod == null || activityMethod.name().isEmpty()) {
+          activityName = InternalUtils.getSimpleName(method);
+        } else {
+          activityName = activityMethod.name();
+        }
+
+        ActivityOptions mergedOptions = ActivityOptions.merge(activityMethod, methodRetry, options);
+        UntypedActivityStub stub =
+            UntypedActivityStubImpl.newInstance(mergedOptions, activityExecutor);
+        function = (a) -> stub.execute(activityName, method.getReturnType(), a);
+        methodFunctions.put(method, function);
+      } catch (NoSuchMethodException e) {
+        throw Workflow.wrap(e);
       }
-    } catch (NoSuchMethodException e) {
-      throw Workflow.wrap(e);
     }
-    if (!method.getDeclaringClass().isInterface()) {
-      throw new IllegalArgumentException(
-          "Interface type is expected: " + method.getDeclaringClass());
-    }
-    ActivityMethod activityMethod = method.getAnnotation(ActivityMethod.class);
-    String activityName;
-    if (activityMethod == null || activityMethod.name().isEmpty()) {
-      activityName = InternalUtils.getSimpleName(method);
-    } else {
-      activityName = activityMethod.name();
-    }
-    MethodRetry methodRetry = method.getAnnotation(MethodRetry.class);
-    ActivityOptions mergedOptions = ActivityOptions.merge(activityMethod, methodRetry, options);
-    Promise<?> result =
-        activityExecutor.executeActivity(activityName, mergedOptions, args, method.getReturnType());
-    if (AsyncInternal.isAsync()) {
-      AsyncInternal.setAsyncResult(result);
-      return Defaults.defaultValue(method.getReturnType());
-    }
-    try {
-      return result.get();
-    } catch (ActivityException e) {
-      // Reset stack to the current one. Otherwise it is very confusing to see a stack of
-      // an event handling method.
-      StackTraceElement[] currentStackTrace = Thread.currentThread().getStackTrace();
-      e.setStackTrace(currentStackTrace);
-      throw e;
-    }
+    return function.apply(args);
   }
 }

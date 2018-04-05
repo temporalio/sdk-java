@@ -72,6 +72,9 @@ public final class ChildWorkflowOptions {
     public Builder() {}
 
     public Builder(ChildWorkflowOptions source) {
+      if (source == null) {
+        return;
+      }
       this.domain = source.getDomain();
       this.workflowId = source.getWorkflowId();
       this.workflowIdReusePolicy = source.getWorkflowIdReusePolicy();
@@ -185,7 +188,7 @@ public final class ChildWorkflowOptions {
           childPolicy);
     }
 
-    private ChildWorkflowOptions validateAndBuildWithDefaults() {
+    public ChildWorkflowOptions validateAndBuildWithDefaults() {
       return new ChildWorkflowOptions(
           domain,
           workflowId,

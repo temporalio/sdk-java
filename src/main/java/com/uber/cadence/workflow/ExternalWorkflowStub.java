@@ -15,20 +15,22 @@
  *  permissions and limitations under the License.
  */
 
-package com.uber.cadence.internal.sync;
+package com.uber.cadence.workflow;
 
 import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.workflow.Promise;
 
 /**
- * Interface that stub created through {@link
- * com.uber.cadence.workflow.Workflow#newChildWorkflowStub(Class)} implements. Do not implement or
- * use this interface in any application code. Use {@link
- * com.uber.cadence.workflow.Workflow#getWorkflowExecution(Object)} to access {@link
- * WorkflowExecution} out of a workflow stub.
+ * Supports signalling and cancelling any workflows by the workflow type and their id. This is
+ * useful when an external workflow type is not known at the compile time and to call workflows in
+ * other languages.
+ *
+ * @see Workflow#newUntypedExternalWorkflowStub(String)
  */
-public interface WorkflowStub {
-  String GET_EXECUTION_METHOD_NAME = "__getWorkflowExecution";
+public interface ExternalWorkflowStub {
 
-  Promise<WorkflowExecution> __getWorkflowExecution();
+  WorkflowExecution getExecution();
+
+  void signal(String signalName, Object... args);
+
+  void cancel();
 }

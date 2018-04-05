@@ -150,7 +150,7 @@ public final class ActivityOptions {
           retryOptions);
     }
 
-    private ActivityOptions validateAndBuildWithDefaults() {
+    public ActivityOptions validateAndBuildWithDefaults() {
       if (scheduleToCloseTimeout == null
           && (scheduleToStartTimeout == null || startToCloseTimeout == null)) {
         throw new IllegalStateException(

@@ -125,15 +125,15 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
   }
 
   private Object executeChildWorkflow(Method method, WorkflowMethod workflowMethod, Object[] args) {
-    String workflowName = workflowMethod.name();
-    if (workflowName.isEmpty()) {
-      workflowName = InternalUtils.getSimpleName(method);
+    String workflowType = workflowMethod.name();
+    if (workflowType.isEmpty()) {
+      workflowType = InternalUtils.getSimpleName(method);
     }
     byte[] input = dataConverter.toData(args);
     MethodRetry retry = method.getAnnotation(MethodRetry.class);
     ChildWorkflowOptions merged = ChildWorkflowOptions.merge(workflowMethod, retry, options);
     Promise<byte[]> encodedResult =
-        decisionContext.executeChildWorkflow(workflowName, merged, input, execution);
+        decisionContext.executeChildWorkflow(workflowType, merged, input, execution);
     Promise<?> result =
         encodedResult.thenApply(
             (encoded) -> dataConverter.fromData(encoded, method.getReturnType()));
