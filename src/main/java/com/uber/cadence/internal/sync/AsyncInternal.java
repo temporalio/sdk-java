@@ -21,10 +21,12 @@ import static com.uber.cadence.internal.common.LambdaUtils.getTarget;
 
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.internal.common.LambdaUtils;
+import com.uber.cadence.workflow.ActivityStub;
+import com.uber.cadence.workflow.ChildWorkflowStub;
 import com.uber.cadence.workflow.CompletablePromise;
+import com.uber.cadence.workflow.ExternalWorkflowStub;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.Promise;
-import com.uber.cadence.workflow.UntypedActivityStub;
 import com.uber.cadence.workflow.Workflow;
 import java.lang.invoke.MethodHandleInfo;
 import java.lang.invoke.SerializedLambda;
@@ -303,7 +305,9 @@ public final class AsyncInternal {
   public static boolean isAsync(Object func) {
     SerializedLambda lambda = LambdaUtils.toSerializedLambda(func);
     Object target = getTarget(lambda);
-    return target instanceof UntypedActivityStub
+    return target instanceof ActivityStub
+        || target instanceof ChildWorkflowStub
+        || target instanceof ExternalWorkflowStub
         || (target instanceof AsyncMarker
             && lambda.getImplMethodKind() == MethodHandleInfo.REF_invokeInterface);
   }

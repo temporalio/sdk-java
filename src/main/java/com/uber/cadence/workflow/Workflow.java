@@ -54,7 +54,7 @@ public final class Workflow {
    *
    * @param options specify the activity invocation parameters.
    */
-  public static UntypedActivityStub newUntypedActivityStub(ActivityOptions options) {
+  public static ActivityStub newUntypedActivityStub(ActivityOptions options) {
     return WorkflowInternal.newUntypedActivityStub(options);
   }
 

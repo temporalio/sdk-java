@@ -23,14 +23,14 @@ import java.util.Optional;
 public class WorkflowClientInterceptorBase implements WorkflowClientInterceptor {
 
   @Override
-  public UntypedWorkflowStub newUntypedWorkflowStub(
-      String workflowType, WorkflowOptions options, UntypedWorkflowStub next) {
+  public WorkflowStub newUntypedWorkflowStub(
+      String workflowType, WorkflowOptions options, WorkflowStub next) {
     return next;
   }
 
   @Override
-  public UntypedWorkflowStub newUntypedWorkflowStub(
-      WorkflowExecution execution, Optional<String> workflowType, UntypedWorkflowStub next) {
+  public WorkflowStub newUntypedWorkflowStub(
+      WorkflowExecution execution, Optional<String> workflowType, WorkflowStub next) {
     return next;
   }
 

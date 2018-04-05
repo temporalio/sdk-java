@@ -17,13 +17,9 @@
 
 package com.uber.cadence.internal.sync;
 
-import static com.uber.cadence.internal.common.InternalUtils.getWorkflowMethod;
-import static com.uber.cadence.internal.common.InternalUtils.getWorkflowType;
-
-import com.uber.cadence.activity.MethodRetry;
+import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.internal.common.InternalUtils;
-import com.uber.cadence.workflow.ChildWorkflowOptions;
-import com.uber.cadence.workflow.ChildWorkflowStub;
+import com.uber.cadence.workflow.ExternalWorkflowStub;
 import com.uber.cadence.workflow.QueryMethod;
 import com.uber.cadence.workflow.SignalMethod;
 import com.uber.cadence.workflow.WorkflowMethod;
@@ -31,22 +27,13 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 
 /** Dynamic implementation of a strongly typed child workflow interface. */
-class ChildWorkflowInvocationHandler implements InvocationHandler {
+class ExternalWorkflowInvocationHandler implements InvocationHandler {
 
-  private final ChildWorkflowStub stub;
+  private final ExternalWorkflowStub stub;
 
-  ChildWorkflowInvocationHandler(
-      Class<?> workflowInterface,
-      ChildWorkflowOptions options,
-      SyncDecisionContext decisionContext) {
-    Method workflowMethod = getWorkflowMethod(workflowInterface);
-    WorkflowMethod workflowAnnotation = workflowMethod.getAnnotation(WorkflowMethod.class);
-    String workflowType = getWorkflowType(workflowMethod, workflowAnnotation);
-    MethodRetry retryAnnotation = workflowMethod.getAnnotation(MethodRetry.class);
-
-    ChildWorkflowOptions merged =
-        ChildWorkflowOptions.merge(workflowAnnotation, retryAnnotation, options);
-    this.stub = new ChildWorkflowStubImpl(workflowType, merged, decisionContext);
+  public ExternalWorkflowInvocationHandler(
+      WorkflowExecution execution, SyncDecisionContext decisionContext) {
+    stub = new ExternalWorkflowStubImpl(execution, decisionContext);
   }
 
   @Override
@@ -69,19 +56,19 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
               + "from @WorkflowMethod, @QueryMethod or @SignalMethod");
     }
     if (workflowMethod != null) {
-      return stub.execute(method.getReturnType(), args);
+      throw new IllegalStateException(
+          "Cannot start a workflow with an external workflow stub "
+              + "created through Workflow.newExternalWorkflowStub");
     }
     if (queryMethod != null) {
-      throw new UnsupportedOperationException(
-          "Query is not supported from workflow to workflow. "
-              + "Use activity that perform the query instead.");
+      return queryWorkflow(method, queryMethod, args);
     }
     if (signalMethod != null) {
       signalWorkflow(method, signalMethod, args);
       return null;
     }
     throw new IllegalArgumentException(
-        method + " is not annotated with @WorkflowMethod or @QueryMethod");
+        method + " is not annotated with @SignalMethod or @QueryMethod");
   }
 
   private void signalWorkflow(Method method, SignalMethod signalMethod, Object[] args) {
@@ -90,5 +77,11 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
       signalName = InternalUtils.getSimpleName(method);
     }
     stub.signal(signalName, args);
+  }
+
+  private Object queryWorkflow(Method method, QueryMethod queryMethod, Object[] args) {
+    throw new UnsupportedOperationException(
+        "Query is not supported from workflow to workflow. "
+            + "Use activity that perform the query instead.");
   }
 }

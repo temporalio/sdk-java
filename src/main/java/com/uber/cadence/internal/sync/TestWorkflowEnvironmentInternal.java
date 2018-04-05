@@ -65,11 +65,11 @@ import com.uber.cadence.UpdateDomainResponse;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
 import com.uber.cadence.client.ActivityCompletionClient;
-import com.uber.cadence.client.UntypedWorkflowStub;
 import com.uber.cadence.client.WorkflowClient;
 import com.uber.cadence.client.WorkflowClientInterceptor;
 import com.uber.cadence.client.WorkflowClientOptions;
 import com.uber.cadence.client.WorkflowOptions;
+import com.uber.cadence.client.WorkflowStub;
 import com.uber.cadence.internal.testservice.TestWorkflowService;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.cadence.testing.TestEnvironmentOptions;
@@ -567,14 +567,14 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     }
 
     @Override
-    public UntypedWorkflowStub newUntypedWorkflowStub(
-        String workflowType, WorkflowOptions options, UntypedWorkflowStub next) {
+    public WorkflowStub newUntypedWorkflowStub(
+        String workflowType, WorkflowOptions options, WorkflowStub next) {
       return new TimeLockingWorkflowStub(service, next);
     }
 
     @Override
-    public UntypedWorkflowStub newUntypedWorkflowStub(
-        WorkflowExecution execution, Optional<String> workflowType, UntypedWorkflowStub next) {
+    public WorkflowStub newUntypedWorkflowStub(
+        WorkflowExecution execution, Optional<String> workflowType, WorkflowStub next) {
       return new TimeLockingWorkflowStub(service, next);
     }
 
@@ -583,12 +583,12 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
       return next;
     }
 
-    private class TimeLockingWorkflowStub implements UntypedWorkflowStub {
+    private class TimeLockingWorkflowStub implements WorkflowStub {
 
       private final WorkflowServiceWrapper service;
-      private final UntypedWorkflowStub next;
+      private final WorkflowStub next;
 
-      TimeLockingWorkflowStub(WorkflowServiceWrapper service, UntypedWorkflowStub next) {
+      TimeLockingWorkflowStub(WorkflowServiceWrapper service, WorkflowStub next) {
         this.service = service;
         this.next = next;
       }

@@ -22,11 +22,11 @@ import java.util.Optional;
 
 public interface WorkflowClientInterceptor {
 
-  UntypedWorkflowStub newUntypedWorkflowStub(
-      String workflowType, WorkflowOptions options, UntypedWorkflowStub next);
+  WorkflowStub newUntypedWorkflowStub(
+      String workflowType, WorkflowOptions options, WorkflowStub next);
 
-  UntypedWorkflowStub newUntypedWorkflowStub(
-      WorkflowExecution execution, Optional<String> workflowType, UntypedWorkflowStub next);
+  WorkflowStub newUntypedWorkflowStub(
+      WorkflowExecution execution, Optional<String> workflowType, WorkflowStub next);
 
   ActivityCompletionClient newActivityCompletionClient(ActivityCompletionClient next);
 }

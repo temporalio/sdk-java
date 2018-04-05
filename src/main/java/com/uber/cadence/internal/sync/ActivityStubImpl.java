@@ -20,23 +20,22 @@ package com.uber.cadence.internal.sync;
 import com.google.common.base.Defaults;
 import com.uber.cadence.activity.ActivityOptions;
 import com.uber.cadence.workflow.ActivityException;
+import com.uber.cadence.workflow.ActivityStub;
 import com.uber.cadence.workflow.Promise;
-import com.uber.cadence.workflow.UntypedActivityStub;
 
 /** Supports calling activity by name and arguments without its strongly typed interface. */
-class UntypedActivityStubImpl implements UntypedActivityStub {
+class ActivityStubImpl implements ActivityStub {
 
   private final ActivityOptions options;
   private final ActivityExecutor activityExecutor;
 
-  static UntypedActivityStub newInstance(
-      ActivityOptions options, ActivityExecutor activityExecutor) {
+  static ActivityStub newInstance(ActivityOptions options, ActivityExecutor activityExecutor) {
     ActivityOptions validatedOptions =
         new ActivityOptions.Builder(options).validateAndBuildWithDefaults();
-    return new UntypedActivityStubImpl(validatedOptions, activityExecutor);
+    return new ActivityStubImpl(validatedOptions, activityExecutor);
   }
 
-  private UntypedActivityStubImpl(ActivityOptions options, ActivityExecutor activityExecutor) {
+  private ActivityStubImpl(ActivityOptions options, ActivityExecutor activityExecutor) {
     this.options = options;
     this.activityExecutor = activityExecutor;
   }

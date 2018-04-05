@@ -30,10 +30,10 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.activity.Activity;
 import com.uber.cadence.activity.ActivityMethod;
 import com.uber.cadence.activity.ActivityOptions;
-import com.uber.cadence.client.UntypedWorkflowStub;
 import com.uber.cadence.client.WorkflowClient;
 import com.uber.cadence.client.WorkflowException;
 import com.uber.cadence.client.WorkflowOptions;
+import com.uber.cadence.client.WorkflowStub;
 import com.uber.cadence.client.WorkflowTimedOutException;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.testing.TestWorkflowEnvironment;
@@ -475,7 +475,7 @@ public class WorkflowTestingTest {
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class);
     try {
       WorkflowExecution execution = WorkflowClient.start(workflow::workflow1, "input1");
-      UntypedWorkflowStub untyped = client.newUntypedWorkflowStub(execution, Optional.empty());
+      WorkflowStub untyped = client.newUntypedWorkflowStub(execution, Optional.empty());
       // While activity is running time skipping is disabled.
       // So sleep for 1 second after it is scheduled.
       testEnvironment.sleep(Duration.ofSeconds(3601));
@@ -513,7 +513,7 @@ public class WorkflowTestingTest {
     WorkflowClient client = testEnvironment.newWorkflowClient();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class);
     WorkflowExecution execution = WorkflowClient.start(workflow::workflow1, "input1");
-    UntypedWorkflowStub untyped = client.newUntypedWorkflowStub(execution, Optional.empty());
+    WorkflowStub untyped = client.newUntypedWorkflowStub(execution, Optional.empty());
     testEnvironment.sleep(Duration.ofHours(1));
     untyped.cancel();
     try {

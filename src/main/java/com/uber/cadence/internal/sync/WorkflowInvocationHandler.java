@@ -17,12 +17,15 @@
 
 package com.uber.cadence.internal.sync;
 
+import static com.uber.cadence.internal.common.InternalUtils.getWorkflowMethod;
+import static com.uber.cadence.internal.common.InternalUtils.getWorkflowType;
+
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowIdReusePolicy;
 import com.uber.cadence.client.DuplicateWorkflowException;
-import com.uber.cadence.client.UntypedWorkflowStub;
 import com.uber.cadence.client.WorkflowClientInterceptor;
 import com.uber.cadence.client.WorkflowOptions;
+import com.uber.cadence.client.WorkflowStub;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.external.GenericWorkflowClientExternal;
@@ -36,10 +39,13 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class WorkflowExternalInvocationHandler implements InvocationHandler {
+/**
+ * Dynamic implementation of a strongly typed workflow interface that can be used to start, signal
+ * and query workflows from external processes.
+ */
+class WorkflowInvocationHandler implements InvocationHandler {
 
-  private static final Logger log =
-      LoggerFactory.getLogger(WorkflowExternalInvocationHandler.class);
+  private static final Logger log = LoggerFactory.getLogger(WorkflowInvocationHandler.class);
 
   public enum InvocationType {
     START,
@@ -59,7 +65,7 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
 
   private static final ThreadLocal<AsyncInvocation> asyncInvocation = new ThreadLocal<>();
 
-  private final UntypedWorkflowStub untyped;
+  private final WorkflowStub untyped;
 
   /** Must call {@link #closeAsyncInvocation()} if this one was called. */
   static void initAsyncInvocation(InvocationType type) {
@@ -108,7 +114,7 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
     asyncInvocation.remove();
   }
 
-  WorkflowExternalInvocationHandler(
+  WorkflowInvocationHandler(
       Class<?> workflowInterface,
       GenericWorkflowClientExternal genericClient,
       WorkflowExecution execution,
@@ -118,16 +124,15 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
     WorkflowMethod annotation = workflowMethod.getAnnotation(WorkflowMethod.class);
     String workflowType = getWorkflowType(workflowMethod, annotation);
 
-    UntypedWorkflowStub stub =
-        new UntypedWorkflowStubImpl(
-            genericClient, dataConverter, Optional.of(workflowType), execution);
+    WorkflowStub stub =
+        new WorkflowStubImpl(genericClient, dataConverter, Optional.of(workflowType), execution);
     for (WorkflowClientInterceptor i : interceptors) {
       stub = i.newUntypedWorkflowStub(execution, Optional.of(workflowType), stub);
     }
     this.untyped = stub;
   }
 
-  WorkflowExternalInvocationHandler(
+  WorkflowInvocationHandler(
       Class<?> workflowInterface,
       GenericWorkflowClientExternal genericClient,
       WorkflowOptions options,
@@ -137,8 +142,8 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
     WorkflowMethod annotation = workflowMethod.getAnnotation(WorkflowMethod.class);
     String workflowType = getWorkflowType(workflowMethod, annotation);
     WorkflowOptions mergedOptions = WorkflowOptions.merge(annotation, options);
-    UntypedWorkflowStub stub =
-        new UntypedWorkflowStubImpl(genericClient, dataConverter, workflowType, mergedOptions);
+    WorkflowStub stub =
+        new WorkflowStubImpl(genericClient, dataConverter, workflowType, mergedOptions);
     for (WorkflowClientInterceptor i : interceptors) {
       stub = i.newUntypedWorkflowStub(workflowType, mergedOptions, stub);
     }
@@ -221,37 +226,5 @@ class WorkflowExternalInvocationHandler implements InvocationHandler {
       return null;
     }
     return untyped.getResult(method.getReturnType());
-  }
-
-  private static Method getWorkflowMethod(Class<?> workflowInterface) {
-    Method result = null;
-    for (Method m : workflowInterface.getMethods()) {
-      if (m.getAnnotation(WorkflowMethod.class) != null) {
-        if (result != null) {
-          throw new IllegalArgumentException(
-              "Workflow interface must have exactly one method "
-                  + "annotated with @WorkflowMethod. Found \""
-                  + result
-                  + "\" and \""
-                  + m
-                  + "\"");
-        }
-        result = m;
-      }
-    }
-    if (result == null) {
-      throw new IllegalArgumentException(
-          "Method annotated with @WorkflowMethod is not " + "found at " + workflowInterface);
-    }
-    return result;
-  }
-
-  private static String getWorkflowType(Method method, WorkflowMethod workflowMethod) {
-    String workflowName = workflowMethod.name();
-    if (workflowName.isEmpty()) {
-      return InternalUtils.getSimpleName(method);
-    } else {
-      return workflowName;
-    }
   }
 }

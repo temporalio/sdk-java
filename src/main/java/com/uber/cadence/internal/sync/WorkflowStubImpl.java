@@ -24,13 +24,13 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.client.DuplicateWorkflowException;
-import com.uber.cadence.client.UntypedWorkflowStub;
 import com.uber.cadence.client.WorkflowException;
 import com.uber.cadence.client.WorkflowFailureException;
 import com.uber.cadence.client.WorkflowNotFoundException;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.client.WorkflowQueryException;
 import com.uber.cadence.client.WorkflowServiceException;
+import com.uber.cadence.client.WorkflowStub;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.internal.common.StartWorkflowExecutionParameters;
@@ -48,7 +48,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
-class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
+class WorkflowStubImpl implements WorkflowStub {
 
   private final GenericWorkflowClientExternal genericClient;
   private final DataConverter dataConverter;
@@ -56,7 +56,7 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
   private AtomicReference<WorkflowExecution> execution = new AtomicReference<>();
   private final Optional<WorkflowOptions> options;
 
-  UntypedWorkflowStubImpl(
+  WorkflowStubImpl(
       GenericWorkflowClientExternal genericClient,
       DataConverter dataConverter,
       Optional<String> workflowType,
@@ -73,7 +73,7 @@ class UntypedWorkflowStubImpl implements UntypedWorkflowStub {
     this.options = Optional.empty();
   }
 
-  UntypedWorkflowStubImpl(
+  WorkflowStubImpl(
       GenericWorkflowClientExternal genericClient,
       DataConverter dataConverter,
       String workflowType,

@@ -22,7 +22,7 @@ import com.uber.cadence.activity.ActivityOptions;
 import com.uber.cadence.activity.MethodRetry;
 import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.sync.AsyncInternal.AsyncMarker;
-import com.uber.cadence.workflow.UntypedActivityStub;
+import com.uber.cadence.workflow.ActivityStub;
 import com.uber.cadence.workflow.Workflow;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -79,8 +79,7 @@ class ActivityInvocationHandler implements InvocationHandler {
         }
 
         ActivityOptions mergedOptions = ActivityOptions.merge(activityMethod, methodRetry, options);
-        UntypedActivityStub stub =
-            UntypedActivityStubImpl.newInstance(mergedOptions, activityExecutor);
+        ActivityStub stub = ActivityStubImpl.newInstance(mergedOptions, activityExecutor);
         function = (a) -> stub.execute(activityName, method.getReturnType(), a);
         methodFunctions.put(method, function);
       } catch (NoSuchMethodException e) {

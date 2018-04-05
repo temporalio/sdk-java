@@ -36,13 +36,13 @@ import com.uber.cadence.client.ActivityCancelledException;
 import com.uber.cadence.client.ActivityCompletionClient;
 import com.uber.cadence.client.ActivityNotExistsException;
 import com.uber.cadence.client.DuplicateWorkflowException;
-import com.uber.cadence.client.UntypedWorkflowStub;
 import com.uber.cadence.client.WorkflowClient;
 import com.uber.cadence.client.WorkflowClientInterceptorBase;
 import com.uber.cadence.client.WorkflowClientOptions;
 import com.uber.cadence.client.WorkflowException;
 import com.uber.cadence.client.WorkflowFailureException;
 import com.uber.cadence.client.WorkflowOptions;
+import com.uber.cadence.client.WorkflowStub;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.converter.JsonDataConverter;
 import com.uber.cadence.internal.sync.DeterministicRunnerTest;
@@ -325,7 +325,7 @@ public class WorkflowTest {
                       .setMaximumAttempts(3)
                       .build())
               .build();
-      UntypedActivityStub activities = Workflow.newUntypedActivityStub(options);
+      ActivityStub activities = Workflow.newUntypedActivityStub(options);
       activities.execute("TestActivities::throwIO", Void.class);
       return "ignored";
     }
@@ -454,7 +454,7 @@ public class WorkflowTest {
   @Test
   public void testSyncUntypedAndStackTrace() throws InterruptedException {
     startWorkerFor(TestSyncWorkflowImpl.class);
-    UntypedWorkflowStub workflowStub =
+    WorkflowStub workflowStub =
         workflowClient.newUntypedWorkflowStub(
             "TestWorkflow1::execute", newWorkflowOptionsBuilder(taskList).build());
     WorkflowExecution execution = workflowStub.start();
@@ -474,7 +474,7 @@ public class WorkflowTest {
   @Test
   public void testWorkflowCancellation() {
     startWorkerFor(TestSyncWorkflowImpl.class);
-    UntypedWorkflowStub client =
+    WorkflowStub client =
         workflowClient.newUntypedWorkflowStub(
             "TestWorkflow1::execute", newWorkflowOptionsBuilder(taskList).build());
     client.start();
@@ -499,7 +499,7 @@ public class WorkflowTest {
   @Test
   public void testWorkflowCancellationScopePromise() {
     startWorkerFor(TestCancellationScopePromise.class);
-    UntypedWorkflowStub client =
+    WorkflowStub client =
         workflowClient.newUntypedWorkflowStub(
             "TestWorkflow1::execute", newWorkflowOptionsBuilder(taskList).build());
     client.start(taskList);
@@ -545,7 +545,7 @@ public class WorkflowTest {
   @Test
   public void testDetachedScope() throws InterruptedException {
     startWorkerFor(TestDetachedCancellationScope.class);
-    UntypedWorkflowStub client =
+    WorkflowStub client =
         workflowClient.newUntypedWorkflowStub(
             "TestWorkflow1::execute", newWorkflowOptionsBuilder(taskList).build());
     client.start();
@@ -641,7 +641,7 @@ public class WorkflowTest {
 
     @Override
     public String execute(String taskList) {
-      UntypedActivityStub testActivities = Workflow.newUntypedActivityStub(newActivityOptions2());
+      ActivityStub testActivities = Workflow.newUntypedActivityStub(newActivityOptions2());
       Promise<String> a =
           Async.function(testActivities::<String>execute, "TestActivities::activity", String.class);
       Promise<String> a1 =
@@ -709,7 +709,7 @@ public class WorkflowTest {
 
     @Override
     public String execute(String taskList) {
-      UntypedActivityStub testActivities = Workflow.newUntypedActivityStub(newActivityOptions2());
+      ActivityStub testActivities = Workflow.newUntypedActivityStub(newActivityOptions2());
       Promise<String> a = testActivities.executeAsync("TestActivities::activity", String.class);
       Promise<String> a1 =
           testActivities.executeAsync(
@@ -1553,7 +1553,7 @@ public class WorkflowTest {
     startWorkerFor(TestSignalWorkflowImpl.class);
     String workflowType = QueryableWorkflow.class.getSimpleName() + "::execute";
     AtomicReference<WorkflowExecution> execution = new AtomicReference<>();
-    UntypedWorkflowStub client =
+    WorkflowStub client =
         workflowClient.newUntypedWorkflowStub(
             workflowType, newWorkflowOptionsBuilder(taskList).build());
     // To execute workflow client.execute() would do. But we want to start workflow and immediately return.
@@ -1802,8 +1802,8 @@ public class WorkflowTest {
             .setInterceptors(
                 new WorkflowClientInterceptorBase() {
                   @Override
-                  public UntypedWorkflowStub newUntypedWorkflowStub(
-                      String workflowType, WorkflowOptions options, UntypedWorkflowStub next) {
+                  public WorkflowStub newUntypedWorkflowStub(
+                      String workflowType, WorkflowOptions options, WorkflowStub next) {
                     capturedWorkflowType.set(workflowType);
                     return next;
                   }

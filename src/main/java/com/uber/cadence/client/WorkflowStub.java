@@ -23,7 +23,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-public interface UntypedWorkflowStub {
+/**
+ * WorkflowStub is a client side stub to a single workflow instance. It can be used to start,
+ * signal, query, wait for completion and cancel a workflow execution. Created through {@link
+ * WorkflowClient#newUntypedWorkflowStub(String, WorkflowOptions)} or {@link
+ * WorkflowClient#newUntypedWorkflowStub(WorkflowExecution, Optional)}.
+ */
+public interface WorkflowStub {
 
   void signal(String signalName, Object... args);
 

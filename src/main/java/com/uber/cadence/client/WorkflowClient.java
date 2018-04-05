@@ -201,7 +201,7 @@ public interface WorkflowClient {
    * @param options options used to start a workflow through returned stub
    * @return Stub that can be used to start workflow and later to signal or query it.
    */
-  UntypedWorkflowStub newUntypedWorkflowStub(String workflowType, WorkflowOptions options);
+  WorkflowStub newUntypedWorkflowStub(String workflowType, WorkflowOptions options);
 
   /**
    * Creates workflow untyped client stub for a known execution. Use it to send signals or queries
@@ -213,7 +213,7 @@ public interface WorkflowClient {
    * @param workflowType type of the workflow. Optional as it is used for error reporting only.
    * @return Stub that can be used to start workflow and later to signal or query it.
    */
-  UntypedWorkflowStub newUntypedWorkflowStub(
+  WorkflowStub newUntypedWorkflowStub(
       String workflowId, Optional<String> runId, Optional<String> workflowType);
 
   /**
@@ -224,8 +224,7 @@ public interface WorkflowClient {
    * @param workflowType type of the workflow. Optional as it is used for error reporting only.
    * @return Stub that can be used to start workflow and later to signal or query it.
    */
-  UntypedWorkflowStub newUntypedWorkflowStub(
-      WorkflowExecution execution, Optional<String> workflowType);
+  WorkflowStub newUntypedWorkflowStub(WorkflowExecution execution, Optional<String> workflowType);
 
   /**
    * Creates new {@link ActivityCompletionClient} that can be used to complete activities

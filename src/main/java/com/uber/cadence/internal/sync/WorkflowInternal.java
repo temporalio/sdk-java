@@ -25,6 +25,7 @@ import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.replay.ContinueAsNewWorkflowExecutionParameters;
+import com.uber.cadence.workflow.ActivityStub;
 import com.uber.cadence.workflow.CancellationScope;
 import com.uber.cadence.workflow.ChildWorkflowOptions;
 import com.uber.cadence.workflow.ChildWorkflowStub;
@@ -33,7 +34,6 @@ import com.uber.cadence.workflow.ExternalWorkflowStub;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.QueryMethod;
-import com.uber.cadence.workflow.UntypedActivityStub;
 import com.uber.cadence.workflow.Workflow;
 import com.uber.cadence.workflow.WorkflowInfo;
 import com.uber.cadence.workflow.WorkflowQueue;
@@ -112,8 +112,8 @@ public final class WorkflowInternal {
     return ActivityInvocationHandler.newProxy(activityInterface, invocationHandler);
   }
 
-  public static UntypedActivityStub newUntypedActivityStub(ActivityOptions options) {
-    return UntypedActivityStubImpl.newInstance(options, getDecisionContext());
+  public static ActivityStub newUntypedActivityStub(ActivityOptions options) {
+    return ActivityStubImpl.newInstance(options, getDecisionContext());
   }
 
   @SuppressWarnings("unchecked")
@@ -123,7 +123,7 @@ public final class WorkflowInternal {
         Proxy.newProxyInstance(
             WorkflowInternal.class.getClassLoader(),
             new Class<?>[] {workflowInterface, WorkflowStub.class, AsyncMarker.class},
-            new ChildWorkflowInvocationHandler(options, getDecisionContext()));
+            new ChildWorkflowInvocationHandler(workflowInterface, options, getDecisionContext()));
   }
 
   @SuppressWarnings("unchecked")
@@ -133,7 +133,7 @@ public final class WorkflowInternal {
         Proxy.newProxyInstance(
             WorkflowInternal.class.getClassLoader(),
             new Class<?>[] {workflowInterface, WorkflowStub.class, AsyncMarker.class},
-            new ChildWorkflowInvocationHandler(execution, getDecisionContext()));
+            new ExternalWorkflowInvocationHandler(execution, getDecisionContext()));
   }
 
   public static Promise<WorkflowExecution> getChildWorkflowExecution(Object workflowStub) {
