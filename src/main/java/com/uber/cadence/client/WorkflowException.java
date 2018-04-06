@@ -40,14 +40,22 @@ public class WorkflowException extends RuntimeException {
   private static String getMessage(
       String message, WorkflowExecution execution, Optional<String> workflowType) {
     StringBuilder result = new StringBuilder();
-    result.append(message);
+    if (message != null) {
+      result.append(message);
+      result.append(", ");
+    }
     if (workflowType.isPresent()) {
-      result.append(", WorkflowType=\"");
+      result.append("WorkflowType=\"");
       result.append(workflowType.get());
+    }
+    if (execution != null) {
+      if (result.length() > 0) {
+        result.append("\", ");
+      }
+      result.append("WorkflowExecution=\"");
+      result.append(execution);
       result.append("\"");
     }
-    result.append(", WorkflowExecution=\"");
-    result.append(execution);
     return result.toString();
   }
 

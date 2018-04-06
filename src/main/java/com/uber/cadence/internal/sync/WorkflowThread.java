@@ -20,6 +20,7 @@ package com.uber.cadence.internal.sync;
 import static com.uber.cadence.internal.sync.DeterministicRunnerImpl.currentThreadInternal;
 
 import com.uber.cadence.workflow.CancellationScope;
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.function.Supplier;
 
@@ -108,4 +109,8 @@ interface WorkflowThread extends CancellationScope {
   }
 
   <R> void exitThread(R value);
+
+  <T> void setThreadLocal(WorkflowThreadLocalInternal<T> key, T value);
+
+  <T> Optional<T> getThreadLocal(WorkflowThreadLocalInternal<T> key);
 }

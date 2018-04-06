@@ -23,9 +23,12 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
@@ -51,13 +54,16 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   }
 
   private static final Logger log = LoggerFactory.getLogger(DeterministicRunnerImpl.class);
-  public static final String WORKFLOW_ROOT_THREAD_NAME = "workflow-root";
+  static final String WORKFLOW_ROOT_THREAD_NAME = "workflow-root";
   private static final ThreadLocal<WorkflowThread> currentThreadThreadLocal = new ThreadLocal<>();
 
   private final Lock lock = new ReentrantLock();
   private final ExecutorService threadPool;
   private final SyncDecisionContext decisionContext;
   private final Deque<WorkflowThread> threads = new ArrayDeque<>(); // protected by lock
+  // Values from RunnerLocalInternal
+  private final Map<RunnerLocalInternal<?>, Object> runnerLocalMap = new HashMap<>();
+
   private final List<WorkflowThread> threadsToAdd = Collections.synchronizedList(new ArrayList<>());
   private final List<NamedRunnable> toExecuteInWorkflowThread = new ArrayList<>();
   private final Supplier<Long> clock;
@@ -128,7 +134,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     rootWorkflowThread.start();
   }
 
-  public SyncDecisionContext getDecisionContext() {
+  SyncDecisionContext getDecisionContext() {
     return decisionContext;
   }
 
@@ -347,12 +353,12 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   }
 
   /** Register a promise that had failed but wasn't accessed yet. */
-  public void registerFailedPromise(Promise promise) {
+  void registerFailedPromise(Promise promise) {
     failedPromises.add(promise);
   }
 
   /** Forget a failed promise as it was accessed. */
-  public void forgetFailedPromise(Promise promise) {
+  void forgetFailedPromise(Promise promise) {
     failedPromises.remove(promise);
   }
 
@@ -367,5 +373,17 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     if (!inRunUntilAllBlocked) {
       throw new Error("called from non workflow thread");
     }
+  }
+
+  @SuppressWarnings("unchecked")
+  <T> Optional<T> getRunnerLocal(RunnerLocalInternal<T> key) {
+    if (!runnerLocalMap.containsKey(key)) {
+      return Optional.empty();
+    }
+    return Optional.of((T) runnerLocalMap.get(key));
+  }
+
+  <T> void setRunnerLocal(RunnerLocalInternal<T> key, T value) {
+    runnerLocalMap.put(key, value);
   }
 }

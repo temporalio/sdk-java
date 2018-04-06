@@ -15,16 +15,19 @@
  *  permissions and limitations under the License.
  */
 
-package com.uber.cadence.client;
+package com.uber.cadence.internal.sync;
 
-import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import java.util.Optional;
+import java.util.function.Supplier;
 
-public final class WorkflowServiceException extends WorkflowException {
+public final class WorkflowThreadLocalInternal<T> {
 
-  public WorkflowServiceException(
-      WorkflowExecution execution, Optional<String> workflowType, Throwable failure) {
-    super(null, execution, workflowType, CheckedExceptionWrapper.unwrap(failure));
+  public T get(Supplier<? extends T> supplier) {
+    Optional<T> result = DeterministicRunnerImpl.currentThreadInternal().getThreadLocal(this);
+    return result.orElse(supplier.get());
+  }
+
+  public void set(T value) {
+    DeterministicRunnerImpl.currentThreadInternal().setThreadLocal(this, value);
   }
 }

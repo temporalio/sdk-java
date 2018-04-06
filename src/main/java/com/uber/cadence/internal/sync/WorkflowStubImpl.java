@@ -94,7 +94,11 @@ class WorkflowStubImpl implements WorkflowStub {
     // TODO: Deal with signaling started workflow only, when requested
     // Commented out to support signaling workflows that called continue as new.
     //        p.setRunId(execution.getRunId());
-    genericClient.signalWorkflowExecution(p);
+    try {
+      genericClient.signalWorkflowExecution(p);
+    } catch (Exception e) {
+      throw new WorkflowServiceException(execution.get(), workflowType, e);
+    }
   }
 
   private WorkflowExecution startWithOptions(WorkflowOptions o, Object... args) {
@@ -125,6 +129,8 @@ class WorkflowStubImpl implements WorkflowStub {
       WorkflowExecution execution =
           new WorkflowExecution().setWorkflowId(p.getWorkflowId()).setRunId(e.getRunId());
       throw new DuplicateWorkflowException(execution, workflowType.get(), e.getMessage());
+    } catch (Exception e) {
+      throw new WorkflowServiceException(execution.get(), workflowType, e);
     }
     return execution.get();
   }

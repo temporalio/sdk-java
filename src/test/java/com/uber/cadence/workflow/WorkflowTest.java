@@ -2510,4 +2510,48 @@ public class WorkflowTest {
       return procResult;
     }
   }
+
+  public static class TestWorkflowLocals implements TestWorkflow1 {
+
+    private final WorkflowThreadLocal<Integer> threadLocal =
+        WorkflowThreadLocal.withInitial(() -> 2);
+
+    private final WorkflowLocal<Integer> workflowLocal = WorkflowLocal.withInitial(() -> 5);
+
+    @Override
+    public String execute(String taskList) {
+      assertEquals(2, (int) threadLocal.get());
+      assertEquals(5, (int) workflowLocal.get());
+      Promise<Void> p1 =
+          Async.procedure(
+              () -> {
+                assertEquals(2, (int) threadLocal.get());
+                threadLocal.set(10);
+                Workflow.sleep(Duration.ofSeconds(1));
+                assertEquals(10, (int) threadLocal.get());
+                assertEquals(100, (int) workflowLocal.get());
+              });
+      Promise<Void> p2 =
+          Async.procedure(
+              () -> {
+                assertEquals(2, (int) threadLocal.get());
+                threadLocal.set(22);
+                workflowLocal.set(100);
+                assertEquals(22, (int) threadLocal.get());
+              });
+      p1.get();
+      p2.get();
+      return "result=" + threadLocal.get() + ", " + workflowLocal.get();
+    }
+  }
+
+  @Test
+  public void testWorkflowLocals() {
+    startWorkerFor(TestWorkflowLocals.class);
+    TestWorkflow1 workflowStub =
+        workflowClient.newWorkflowStub(
+            TestWorkflow1.class, newWorkflowOptionsBuilder(taskList).build());
+    String result = workflowStub.execute(taskList);
+    assertEquals("result=2, 100", result);
+  }
 }

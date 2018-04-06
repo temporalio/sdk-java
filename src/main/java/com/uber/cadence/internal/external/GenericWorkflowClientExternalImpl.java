@@ -93,7 +93,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     } catch (WorkflowExecutionAlreadyStartedError e) {
       throw e;
     } catch (TException e) {
-      throw new RuntimeException(e);
+      throw CheckedExceptionWrapper.wrap(e);
     }
     WorkflowExecution execution = new WorkflowExecution();
     execution.setRunId(result.getRunId());
@@ -116,7 +116,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     try {
       service.SignalWorkflowExecution(request);
     } catch (TException e) {
-      throw new RuntimeException(e);
+      throw CheckedExceptionWrapper.wrap(e);
     }
   }
 
@@ -128,7 +128,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     try {
       service.RequestCancelWorkflowExecution(request);
     } catch (TException e) {
-      throw new RuntimeException(e);
+      throw CheckedExceptionWrapper.wrap(e);
     }
   }
 
@@ -169,7 +169,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     try {
       service.TerminateWorkflowExecution(request);
     } catch (TException e) {
-      throw new RuntimeException(e);
+      throw CheckedExceptionWrapper.wrap(e);
     }
   }
 }

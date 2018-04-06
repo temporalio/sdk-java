@@ -20,6 +20,9 @@ package com.uber.cadence.internal.sync;
 import com.uber.cadence.workflow.Promise;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -136,6 +139,7 @@ class WorkflowThreadImpl implements WorkflowThread {
   private final RunnableWrapper task;
   private Thread thread;
   private Future<?> taskFuture;
+  private final Map<WorkflowThreadLocalInternal<?>, Object> threadLocalMap = new HashMap<>();
 
   /**
    * If not 0 then thread is blocked on a sleep (or on an operation with a timeout). The value is
@@ -361,6 +365,20 @@ class WorkflowThreadImpl implements WorkflowThread {
   public <R> void exitThread(R value) {
     runner.exit(value);
     throw new DestroyWorkflowThreadError("exit");
+  }
+
+  @Override
+  public <T> void setThreadLocal(WorkflowThreadLocalInternal<T> key, T value) {
+    threadLocalMap.put(key, value);
+  }
+
+  @SuppressWarnings("unchecked")
+  @Override
+  public <T> Optional<T> getThreadLocal(WorkflowThreadLocalInternal<T> key) {
+    if (!threadLocalMap.containsKey(key)) {
+      return Optional.empty();
+    }
+    return Optional.of((T) threadLocalMap.get(key));
   }
 
   /** @return stack trace of the coroutine thread */
