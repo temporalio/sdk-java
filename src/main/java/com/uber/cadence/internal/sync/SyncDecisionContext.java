@@ -180,6 +180,18 @@ final class SyncDecisionContext implements WorkflowInterceptor {
       } catch (Exception e) {
         cause = e;
       }
+      if (cause instanceof TestActivityTimeoutExceptionInternal) {
+        // This exception is thrown only in unit tests to mock the activity timeouts
+        TestActivityTimeoutExceptionInternal testTimeout =
+            (TestActivityTimeoutExceptionInternal) cause;
+        return new ActivityTimeoutException(
+            taskFailed.getEventId(),
+            taskFailed.getActivityType(),
+            taskFailed.getActivityId(),
+            testTimeout.getTimeoutType(),
+            testTimeout.getDetails(),
+            getDataConverter());
+      }
       return new ActivityFailureException(
           taskFailed.getEventId(), taskFailed.getActivityType(), taskFailed.getActivityId(), cause);
     }

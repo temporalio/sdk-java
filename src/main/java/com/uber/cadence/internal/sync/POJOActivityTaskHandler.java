@@ -31,6 +31,7 @@ import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.worker.ActivityTaskHandler;
 import com.uber.cadence.serviceclient.IWorkflowService;
+import com.uber.cadence.testing.TestActivityTimeoutException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -103,8 +104,16 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     if (failure instanceof ActivityCancelledException) {
       throw new CancellationException(failure.getMessage());
     }
+    // Only expected during unit tests.
+    if (failure instanceof TestActivityTimeoutException) {
+      TestActivityTimeoutException timeoutException = (TestActivityTimeoutException) failure;
+      failure =
+          new TestActivityTimeoutExceptionInternal(
+              timeoutException.getTimeoutType(),
+              dataConverter.toData(timeoutException.getDetails()));
+    }
     RespondActivityTaskFailedRequest result = new RespondActivityTaskFailedRequest();
-    failure = CheckedExceptionWrapper.unwrap((Exception) failure);
+    failure = CheckedExceptionWrapper.unwrap(failure);
     result.setReason(failure.getClass().getName());
     result.setDetails(dataConverter.toData(failure));
     return new ActivityTaskHandler.Result(null, result, null, null);

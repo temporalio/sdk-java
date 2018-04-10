@@ -36,6 +36,7 @@ import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.client.WorkflowStub;
 import com.uber.cadence.client.WorkflowTimedOutException;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
+import com.uber.cadence.testing.TestActivityTimeoutException;
 import com.uber.cadence.testing.TestWorkflowEnvironment;
 import com.uber.cadence.worker.Worker;
 import com.uber.cadence.workflow.ActivityTimeoutException;
@@ -197,6 +198,33 @@ public class WorkflowTestingTest {
       fail("unreacheable");
     } catch (WorkflowException e) {
       assertEquals("TestActivity::activity1-input1", e.getCause().getCause().getMessage());
+    }
+  }
+
+  private static class SimulatedTimeoutActivityImpl implements TestActivity {
+
+    @Override
+    public String activity1(String input) {
+      throw new TestActivityTimeoutException(TimeoutType.HEARTBEAT, "progress1");
+    }
+  }
+
+  @Test
+  public void testActivitySimulatedTimeout() {
+    Worker worker = testEnvironment.newWorker(TASK_LIST);
+    worker.registerWorkflowImplementationTypes(ActivityWorkflow.class);
+    worker.registerActivitiesImplementations(new SimulatedTimeoutActivityImpl());
+    worker.start();
+    WorkflowClient client = testEnvironment.newWorkflowClient();
+    TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class);
+    try {
+      workflow.workflow1("input1");
+      fail("unreacheable");
+    } catch (WorkflowException e) {
+      assertTrue(e.getCause() instanceof ActivityTimeoutException);
+      ActivityTimeoutException te = (ActivityTimeoutException) e.getCause();
+      assertEquals(TimeoutType.HEARTBEAT, te.getTimeoutType());
+      assertEquals("progress1", te.getDetails(String.class));
     }
   }
 

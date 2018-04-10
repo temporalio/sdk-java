@@ -527,8 +527,8 @@ class DecisionsHelper {
       throw new IllegalArgumentException(
           "Unknown "
               + decisionId
-              + ". The possible causes are "
-              + "nondeterministic workflow definition code or incompatible change in the workflow definition.");
+              + ". The possible causes are a nondeterministic workflow definition code or an incompatible change in the workflow definition."
+              + "See the \"Workflow Implementation Constraints\" section from the github.com/uber-java/cadence-client README");
     }
     return result;
   }

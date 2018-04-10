@@ -74,6 +74,8 @@ public final class JsonDataConverter implements DataConverter {
   private static final DataConverter INSTANCE = new JsonDataConverter();
   private static final byte[] EMPTY_BLOB = new byte[0];
   private static final Object[] EMPTY_OBJECT_ARRAY = new Object[0];
+  public static final String TYPE_FIELD_NAME = "type";
+  public static final String JSON_CONVERTER_TYPE = "JSON";
   private final Gson gson;
   private final JsonParser parser = new JsonParser();
 
@@ -165,6 +167,34 @@ public final class JsonDataConverter implements DataConverter {
   private static class ThrowableTypeAdapterFactory implements TypeAdapterFactory {
     @Override
     public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> typeToken) {
+      // Special handling of fields of DataConverter type.
+      // Needed to serialize exceptions like ActivityTimeoutException.
+      if (DataConverter.class.isAssignableFrom(typeToken.getRawType())) {
+        return new TypeAdapter<T>() {
+          @Override
+          public void write(JsonWriter out, T value) throws IOException {
+            out.beginObject();
+            out.name(TYPE_FIELD_NAME).value(JSON_CONVERTER_TYPE);
+            out.endObject();
+          }
+
+          @Override
+          @SuppressWarnings("unchecked")
+          public T read(JsonReader in) throws IOException {
+            in.beginObject();
+            if (!in.nextName().equals("type")) {
+              throw new IOException("Cannot deserialize DataConverter. Missing type field");
+            }
+            String value = in.nextString();
+            if (!"JSON".equals(value)) {
+              throw new IOException(
+                  "Cannot deserialize DataConverter. Expected type is JSON. " + "Found " + value);
+            }
+            in.endObject();
+            return (T) JsonDataConverter.getInstance();
+          }
+        };
+      }
       if (!Throwable.class.isAssignableFrom(typeToken.getRawType())) {
         return null; // this class only serializes 'Throwable' and its subtypes
       }

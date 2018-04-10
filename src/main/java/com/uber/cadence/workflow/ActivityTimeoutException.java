@@ -20,11 +20,12 @@ package com.uber.cadence.workflow;
 import com.uber.cadence.ActivityType;
 import com.uber.cadence.TimeoutType;
 import com.uber.cadence.converter.DataConverter;
+import java.util.Objects;
 
 /**
- * Exception that indicates Activity that activity timed out. If timeout type is {@link
- * TimeoutType#HEARTBEAT} then {@link #getDetails(Class)} returns the value passed to the latest
- * successful {@link com.uber.cadence.activity.Activity#heartbeat(Object)} call.
+ * ActivityTimeoutException indicates that an activity has timed out. If the timeout type is a
+ * {@link TimeoutType#HEARTBEAT} then the {@link #getDetails(Class)} returns a value passed to the
+ * latest successful {@link com.uber.cadence.activity.Activity#heartbeat(Object)} call.
  */
 @SuppressWarnings("serial")
 public final class ActivityTimeoutException extends ActivityException {
@@ -32,7 +33,7 @@ public final class ActivityTimeoutException extends ActivityException {
   private final TimeoutType timeoutType;
 
   private final byte[] details;
-  private final transient DataConverter dataConverter;
+  private final DataConverter dataConverter;
 
   public ActivityTimeoutException(
       long eventId,
@@ -42,9 +43,9 @@ public final class ActivityTimeoutException extends ActivityException {
       byte[] details,
       DataConverter dataConverter) {
     super("TimeoutType=" + String.valueOf(timeoutType), eventId, activityType, activityId);
-    this.timeoutType = timeoutType;
+    this.timeoutType = Objects.requireNonNull(timeoutType);
     this.details = details;
-    this.dataConverter = dataConverter;
+    this.dataConverter = Objects.requireNonNull(dataConverter);
   }
 
   public TimeoutType getTimeoutType() {
