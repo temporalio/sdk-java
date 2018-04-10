@@ -115,7 +115,9 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
             service,
             testEnvironmentOptions.getDomain(),
             taskList,
-            new WorkerOptions.Builder().build());
+            new WorkerOptions.Builder()
+                .setInterceptorFactory(testEnvironmentOptions.getInterceptorFactory())
+                .build());
     workers.add(result);
     return result;
   }

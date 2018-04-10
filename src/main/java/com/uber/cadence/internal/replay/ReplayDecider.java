@@ -24,7 +24,7 @@ import com.uber.cadence.TimerFiredEventAttributes;
 import com.uber.cadence.TimerStartedEventAttributes;
 import com.uber.cadence.WorkflowExecutionSignaledEventAttributes;
 import com.uber.cadence.WorkflowQuery;
-import com.uber.cadence.internal.common.InternalUtils;
+import com.uber.cadence.internal.common.OptionsUtils;
 import com.uber.cadence.internal.worker.WorkflowExecutionException;
 import com.uber.cadence.workflow.Functions;
 import java.time.Duration;
@@ -278,7 +278,7 @@ class ReplayDecider {
     // Round up to the nearest second as we don't want to deliver a timer
     // earlier than requested.
     long delaySeconds =
-        InternalUtils.roundUpToSeconds(Duration.ofMillis(delayMilliseconds)).getSeconds();
+        OptionsUtils.roundUpToSeconds(Duration.ofMillis(delayMilliseconds)).getSeconds();
     if (timerCancellationHandler != null) {
       timerCancellationHandler.accept(null);
       timerCancellationHandler = null;

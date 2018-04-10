@@ -23,6 +23,7 @@ import com.uber.cadence.WorkflowType;
 import com.uber.cadence.activity.ActivityOptions;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.converter.DataConverter;
+import com.uber.cadence.internal.common.OptionsUtils;
 import com.uber.cadence.internal.replay.ActivityTaskFailedException;
 import com.uber.cadence.internal.replay.ActivityTaskTimeoutException;
 import com.uber.cadence.internal.replay.ChildWorkflowTaskFailedException;
@@ -39,27 +40,48 @@ import com.uber.cadence.workflow.ChildWorkflowException;
 import com.uber.cadence.workflow.ChildWorkflowFailureException;
 import com.uber.cadence.workflow.ChildWorkflowOptions;
 import com.uber.cadence.workflow.CompletablePromise;
+import com.uber.cadence.workflow.ContinueAsNewOptions;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.SignalExternalWorkflowException;
 import com.uber.cadence.workflow.Workflow;
+import com.uber.cadence.workflow.WorkflowInterceptor;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-final class SyncDecisionContext implements ActivityExecutor {
+final class SyncDecisionContext implements WorkflowInterceptor {
+
+  private static final Logger log = LoggerFactory.getLogger(SyncDecisionContext.class);
+
   private final DecisionContext context;
   private DeterministicRunner runner;
   private final DataConverter converter;
+  private final WorkflowInterceptor headInterceptor;
   private final WorkflowTimers timers = new WorkflowTimers();
-  private Map<String, Functions.Func1<byte[], byte[]>> queryCallbacks = new HashMap<>();
+  private final Map<String, Functions.Func1<byte[], byte[]>> queryCallbacks = new HashMap<>();
 
-  public SyncDecisionContext(DecisionContext context, DataConverter converter) {
+  public SyncDecisionContext(
+      DecisionContext context,
+      DataConverter converter,
+      Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory) {
     this.context = context;
     this.converter = converter;
+    WorkflowInterceptor interceptor = interceptorFactory.apply(this);
+    if (interceptor == null) {
+      log.warn("WorkflowInterceptor factory returned null interceptor");
+      interceptor = this;
+    }
+    this.headInterceptor = interceptor;
   }
 
   /**
@@ -74,15 +96,19 @@ final class SyncDecisionContext implements ActivityExecutor {
     return runner;
   }
 
+  public WorkflowInterceptor getWorkflowInterceptor() {
+    return headInterceptor;
+  }
+
   @Override
   public <T> Promise<T> executeActivity(
-      String name, ActivityOptions options, Object[] args, Class<T> returnType) {
+      String activityName, Class<T> returnType, Object[] args, ActivityOptions options) {
     RetryOptions retryOptions = options.getRetryOptions();
     if (retryOptions != null) {
       return WorkflowRetryerInternal.retryAsync(
-          retryOptions, () -> executeActivityOnce(name, options, args, returnType));
+          retryOptions, () -> executeActivityOnce(activityName, options, args, returnType));
     }
-    return executeActivityOnce(name, options, args, returnType);
+    return executeActivityOnce(activityName, options, args, returnType);
   }
 
   private <T> Promise<T> executeActivityOnce(
@@ -174,7 +200,17 @@ final class SyncDecisionContext implements ActivityExecutor {
         "Unexpected exception type: " + failure.getClass().getName(), failure);
   }
 
-  Promise<byte[]> executeChildWorkflow(
+  @Override
+  public <R> WorkflowResult<R> executeChildWorkflow(
+      String workflowType, Class<R> returnType, Object[] args, ChildWorkflowOptions options) {
+    byte[] input = converter.toData(args);
+    CompletablePromise<WorkflowExecution> execution = Workflow.newPromise();
+    Promise<byte[]> output = executeChildWorkflow(workflowType, options, input, execution);
+    Promise<R> result = output.thenApply((b) -> converter.fromData(b, returnType));
+    return new WorkflowResult<>(result, execution);
+  }
+
+  private Promise<byte[]> executeChildWorkflow(
       String name,
       ChildWorkflowOptions options,
       byte[] input,
@@ -262,7 +298,10 @@ final class SyncDecisionContext implements ActivityExecutor {
         cause);
   }
 
-  Promise<Void> newTimer(long delaySeconds) {
+  @Override
+  public Promise<Void> newTimer(Duration delay) {
+    Objects.requireNonNull(delay);
+    long delaySeconds = OptionsUtils.roundUpToSeconds(delay).getSeconds();
     if (delaySeconds < 0) {
       throw new IllegalArgumentException("negative delay");
     }
@@ -304,24 +343,19 @@ final class SyncDecisionContext implements ActivityExecutor {
     return callback.apply(args);
   }
 
-  private void registerQuery(String queryType, Functions.Func1<byte[], byte[]> callback) {
-    Functions.Func1<byte[], byte[]> previous = queryCallbacks.put(queryType, callback);
-    if (previous != null) {
-      throw new IllegalStateException("Query " + queryType + " is already registered");
-    }
-  }
-
-  void registerQuery(Object queryImplementation) {
-    POJOQueryImplementationFactory queryFactory =
-        new POJOQueryImplementationFactory(converter, queryImplementation);
-    Set<String> queries = queryFactory.getQueryFunctionNames();
-    for (String query : queries) {
-      registerQuery(query, queryFactory.getQueryFunction(query));
-    }
-  }
-
-  void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionParameters parameters) {
-    context.continueAsNewOnCompletion(parameters);
+  @Override
+  public void registerQuery(
+      String queryType, Class<?>[] argTypes, Functions.Func1<Object[], Object> callback) {
+    //    if (queryCallbacks.containsKey(queryType)) {
+    //      throw new IllegalStateException("Query \"" + queryType + "\" is already registered");
+    //    }
+    queryCallbacks.put(
+        queryType,
+        (input) -> {
+          Object[] args = converter.fromDataArray(input, argTypes);
+          Object result = callback.apply(args);
+          return converter.toData(result);
+        });
   }
 
   public DataConverter getDataConverter() {
@@ -336,7 +370,9 @@ final class SyncDecisionContext implements ActivityExecutor {
     return context;
   }
 
-  Promise<Void> signalWorkflow(WorkflowExecution execution, String signalName, Object... args) {
+  @Override
+  public Promise<Void> signalExternalWorkflow(
+      WorkflowExecution execution, String signalName, Object[] args) {
     SignalExternalWorkflowParameters parameters = new SignalExternalWorkflowParameters();
     parameters.setSignalName(signalName);
     parameters.setWorkflowId(execution.getWorkflowId());
@@ -368,8 +404,49 @@ final class SyncDecisionContext implements ActivityExecutor {
     return result;
   }
 
-  void requestCancelWorkflowExecution(WorkflowExecution execution) {
-    context.requestCancelWorkflowExecution(execution);
+  @Override
+  public void sleep(Duration duration) {
+    WorkflowThread.await(
+        duration.toMillis(),
+        "sleep",
+        () -> {
+          CancellationScope.throwCancelled();
+          return false;
+        });
+  }
+
+  @Override
+  public boolean await(Duration timeout, String reason, Supplier<Boolean> unblockCondition) {
+    return WorkflowThread.await(timeout.toMillis(), reason, unblockCondition);
+  }
+
+  @Override
+  public void await(String reason, Supplier<Boolean> unblockCondition) {
+    WorkflowThread.await(reason, unblockCondition);
+  }
+
+  @Override
+  public void continueAsNew(
+      Optional<String> workflowType, Optional<ContinueAsNewOptions> options, Object[] args) {
+    ContinueAsNewWorkflowExecutionParameters parameters =
+        new ContinueAsNewWorkflowExecutionParameters();
+    if (workflowType.isPresent()) {
+      parameters.setWorkflowType(workflowType.get());
+    }
+    if (options.isPresent()) {
+      parameters.setExecutionStartToCloseTimeoutSeconds(
+          (int) options.get().getExecutionStartToCloseTimeout().getSeconds());
+      parameters.setTaskStartToCloseTimeoutSeconds(
+          (int) options.get().getTaskStartToCloseTimeout().getSeconds());
+    }
+    parameters.setInput(getDataConverter().toData(args));
+    context.continueAsNewOnCompletion(parameters);
+    WorkflowThread.exit(null);
+  }
+
+  @Override
+  public Promise<Void> cancelWorkflow(WorkflowExecution execution) {
+    return context.requestCancelWorkflowExecution(execution);
   }
 
   private RuntimeException mapSignalWorkflowException(Exception failure) {

@@ -17,7 +17,7 @@
 
 package com.uber.cadence.client;
 
-import static com.uber.cadence.internal.common.InternalUtils.roundUpToSeconds;
+import static com.uber.cadence.internal.common.OptionsUtils.roundUpToSeconds;
 
 import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.WorkflowIdReusePolicy;

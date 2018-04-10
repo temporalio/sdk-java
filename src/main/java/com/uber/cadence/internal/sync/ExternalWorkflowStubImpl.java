@@ -18,23 +18,22 @@
 package com.uber.cadence.internal.sync;
 
 import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.converter.DataConverter;
+import com.uber.cadence.workflow.CancelExternalWorkflowException;
 import com.uber.cadence.workflow.ExternalWorkflowStub;
 import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.SignalExternalWorkflowException;
+import com.uber.cadence.workflow.WorkflowInterceptor;
 import java.util.Objects;
 
 /** Dynamic implementation of a strongly typed child workflow interface. */
 class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
 
-  private final SyncDecisionContext decisionContext;
-  private final DataConverter dataConverter;
+  private final WorkflowInterceptor decisionContext;
   private final WorkflowExecution execution;
 
   public ExternalWorkflowStubImpl(
-      WorkflowExecution execution, SyncDecisionContext decisionContext) {
+      WorkflowExecution execution, WorkflowInterceptor decisionContext) {
     this.decisionContext = Objects.requireNonNull(decisionContext);
-    dataConverter = Objects.requireNonNull(decisionContext).getDataConverter();
     this.execution = Objects.requireNonNull(execution);
   }
 
@@ -45,7 +44,7 @@ class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
 
   @Override
   public void signal(String signalName, Object... args) {
-    Promise<Void> signalled = decisionContext.signalWorkflow(execution, signalName, args);
+    Promise<Void> signalled = decisionContext.signalExternalWorkflow(execution, signalName, args);
     if (AsyncInternal.isAsync()) {
       AsyncInternal.setAsyncResult(signalled);
       return;
@@ -62,6 +61,18 @@ class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
 
   @Override
   public void cancel() {
-    decisionContext.requestCancelWorkflowExecution(execution);
+    Promise<Void> cancelRequested = decisionContext.cancelWorkflow(execution);
+    if (AsyncInternal.isAsync()) {
+      AsyncInternal.setAsyncResult(cancelRequested);
+      return;
+    }
+    try {
+      cancelRequested.get();
+    } catch (CancelExternalWorkflowException e) {
+      // Reset stack to the current one. Otherwise it is very confusing to see a stack of
+      // an event handling method.
+      e.setStackTrace(Thread.currentThread().getStackTrace());
+      throw e;
+    }
   }
 }

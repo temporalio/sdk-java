@@ -49,6 +49,7 @@ import com.uber.cadence.TaskList;
 import com.uber.cadence.TimerCanceledEventAttributes;
 import com.uber.cadence.TimerStartedEventAttributes;
 import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
+import com.uber.cadence.WorkflowType;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.worker.WorkflowExecutionException;
 import java.nio.charset.StandardCharsets;
@@ -335,8 +336,13 @@ class DecisionsHelper {
         task.getHistory().getEvents().get(0).getWorkflowExecutionStartedEventAttributes();
     ContinueAsNewWorkflowExecutionDecisionAttributes attributes =
         new ContinueAsNewWorkflowExecutionDecisionAttributes();
-    attributes.setWorkflowType(task.getWorkflowType());
     attributes.setInput(continueParameters.getInput());
+    String workflowType = continueParameters.getWorkflowType();
+    if (workflowType != null && !workflowType.isEmpty()) {
+      attributes.setWorkflowType(new WorkflowType().setName(workflowType));
+    } else {
+      attributes.setWorkflowType(task.getWorkflowType());
+    }
     int executionStartToClose = continueParameters.getExecutionStartToCloseTimeoutSeconds();
     if (executionStartToClose == 0) {
       executionStartToClose = startedEvent.getExecutionStartToCloseTimeoutSeconds();

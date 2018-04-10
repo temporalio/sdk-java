@@ -17,26 +17,25 @@
 
 package com.uber.cadence.internal.sync;
 
-import com.uber.cadence.converter.DataConverter;
-import com.uber.cadence.internal.replay.ContinueAsNewWorkflowExecutionParameters;
+import com.uber.cadence.internal.common.InternalUtils;
+import com.uber.cadence.workflow.ContinueAsNewOptions;
 import com.uber.cadence.workflow.QueryMethod;
 import com.uber.cadence.workflow.SignalMethod;
+import com.uber.cadence.workflow.WorkflowInterceptor;
 import com.uber.cadence.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.util.Optional;
 
 class ContinueAsNewWorkflowInvocationHandler implements InvocationHandler {
 
-  private final ContinueAsNewWorkflowExecutionParameters parameters;
-  private final SyncDecisionContext decisionContext;
-  private final DataConverter dataConverter;
+  private final ContinueAsNewOptions options;
+  private final WorkflowInterceptor decisionContext;
 
-  public ContinueAsNewWorkflowInvocationHandler(
-      ContinueAsNewWorkflowExecutionParameters parameters, SyncDecisionContext decisionContext) {
-    this.parameters =
-        parameters == null ? new ContinueAsNewWorkflowExecutionParameters() : parameters;
+  ContinueAsNewWorkflowInvocationHandler(
+      ContinueAsNewOptions options, WorkflowInterceptor decisionContext) {
+    this.options = options == null ? new ContinueAsNewOptions.Builder().build() : options;
     this.decisionContext = decisionContext;
-    this.dataConverter = decisionContext.getDataConverter();
   }
 
   @Override
@@ -58,9 +57,9 @@ class ContinueAsNewWorkflowInvocationHandler implements InvocationHandler {
       throw new IllegalStateException(
           "ContinueAsNew Stub supports only calls to methods annotated with @WorkflowMethod");
     }
-    parameters.setInput(dataConverter.toData(args));
-    decisionContext.continueAsNewOnCompletion(parameters);
-    WorkflowThread.exit(null);
+    String workflowType = InternalUtils.getWorkflowType(method, workflowMethod);
+    WorkflowInternal.continueAsNew(
+        Optional.of(workflowType), Optional.of(options), args, decisionContext);
     return null;
   }
 }

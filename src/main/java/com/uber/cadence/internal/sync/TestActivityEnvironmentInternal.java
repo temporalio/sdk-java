@@ -74,16 +74,22 @@ import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.cadence.testing.TestActivityEnvironment;
 import com.uber.cadence.testing.TestEnvironmentOptions;
 import com.uber.cadence.workflow.ActivityFailureException;
+import com.uber.cadence.workflow.ChildWorkflowOptions;
+import com.uber.cadence.workflow.ContinueAsNewOptions;
+import com.uber.cadence.workflow.Functions.Func1;
 import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.Workflow;
+import com.uber.cadence.workflow.WorkflowInterceptor;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import org.apache.thrift.TException;
 import org.apache.thrift.async.AsyncMethodCallback;
 
@@ -140,7 +146,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     activityHeartbetListener = new ClassConsumerPair(detailsClass, listener);
   }
 
-  private class TestActivityExecutor implements ActivityExecutor {
+  private class TestActivityExecutor implements WorkflowInterceptor {
 
     private final POJOActivityTaskHandler taskHandler;
 
@@ -150,7 +156,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
 
     @Override
     public <T> Promise<T> executeActivity(
-        String activityType, ActivityOptions options, Object[] args, Class<T> returnType) {
+        String activityType, Class<T> returnType, Object[] args, ActivityOptions options) {
       PollForActivityTaskResponse task = new PollForActivityTaskResponse();
       task.setScheduleToCloseTimeoutSeconds((int) options.getScheduleToCloseTimeout().getSeconds());
       task.setHeartbeatTimeoutSeconds((int) options.getHeartbeatTimeout().getSeconds());
@@ -169,6 +175,55 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
       Result taskResult =
           activityTaskHandler.handle(service, testEnvironmentOptions.getDomain(), task);
       return Workflow.newPromise(getReply(task, taskResult, returnType));
+    }
+
+    @Override
+    public <R> WorkflowResult<R> executeChildWorkflow(
+        String workflowType, Class<R> returnType, Object[] args, ChildWorkflowOptions options) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public Promise<Void> signalExternalWorkflow(
+        WorkflowExecution execution, String signalName, Object[] args) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public Promise<Void> cancelWorkflow(WorkflowExecution execution) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public void sleep(Duration duration) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public boolean await(Duration timeout, String reason, Supplier<Boolean> unblockCondition) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public void await(String reason, Supplier<Boolean> unblockCondition) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public Promise<Void> newTimer(Duration duration) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public void continueAsNew(
+        Optional<String> workflowType, Optional<ContinueAsNewOptions> options, Object[] args) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public void registerQuery(
+        String queryType, Class<?>[] argTypes, Func1<Object[], Object> callback) {
+      throw new UnsupportedOperationException("not implemented");
     }
 
     private <T> T getReply(

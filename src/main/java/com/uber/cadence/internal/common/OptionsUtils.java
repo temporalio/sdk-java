@@ -23,6 +23,7 @@ import java.time.Duration;
 public final class OptionsUtils {
 
   public static final Duration DEFAULT_TASK_START_TO_CLOSE_TIMEOUT = Duration.ofSeconds(10);
+  public static final float SECOND = 1000f;
 
   /** Merges value from annotation and option. Option value takes precedence. */
   public static <G> G merge(G annotation, G options, Class<G> type) {
@@ -49,6 +50,29 @@ public final class OptionsUtils {
       return o;
     }
     return aSeconds == 0 ? null : Duration.ofSeconds(aSeconds);
+  }
+
+  /**
+   * Convert milliseconds to seconds rounding up. Used by timers to ensure that they never fire
+   * earlier than requested.
+   */
+  public static Duration roundUpToSeconds(Duration duration, Duration defaultValue) {
+    if (duration == null) {
+      return defaultValue;
+    }
+    return roundUpToSeconds(duration);
+  }
+
+  /**
+   * Round durations to seconds rounding up. As all timeouts and timers resolution is in seconds
+   * ensures that nothing times out or fires before the requested time.
+   */
+  public static Duration roundUpToSeconds(Duration duration) {
+    if (duration == null) {
+      return Duration.ZERO;
+    }
+    Duration result = Duration.ofMillis((long) (Math.ceil(duration.toMillis() / SECOND) * SECOND));
+    return result;
   }
 
   /** Prohibits instantiation. */

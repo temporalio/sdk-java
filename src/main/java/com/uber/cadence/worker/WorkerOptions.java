@@ -21,7 +21,10 @@ import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.converter.JsonDataConverter;
 import com.uber.cadence.internal.worker.PollerOptions;
+import com.uber.cadence.workflow.WorkflowInterceptor;
 import java.lang.management.ManagementFactory;
+import java.util.Objects;
+import java.util.function.Function;
 
 public final class WorkerOptions {
 
@@ -41,6 +44,7 @@ public final class WorkerOptions {
     private RetryOptions reportActivityFailureRetryOptions;
     private RetryOptions reportWorkflowCompletionRetryOptions;
     private RetryOptions reportWorkflowFailureRetryOptions;
+    private Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory = (n) -> n;
 
     /**
      * When set to true doesn't poll on workflow task list even if there are registered workflows
@@ -71,7 +75,7 @@ public final class WorkerOptions {
      * whatever <code>(ManagementFactory.getRuntimeMXBean().getName()</code> returns.
      */
     public Builder setIdentity(String identity) {
-      this.identity = identity;
+      this.identity = Objects.requireNonNull(identity);
       return this;
     }
 
@@ -80,68 +84,89 @@ public final class WorkerOptions {
      * worker. Default is {@link com.uber.cadence.converter.JsonDataConverter} data converter.
      */
     public Builder setDataConverter(DataConverter dataConverter) {
-      if (dataConverter == null) {
-        throw new IllegalArgumentException("null");
-      }
-      this.dataConverter = dataConverter;
+      this.dataConverter = Objects.requireNonNull(dataConverter);
       return this;
     }
 
     /** Maximum number of activities started per second. Default is 0 which means unlimited. */
     public Builder setWorkerActivitiesPerSecond(double workerActivitiesPerSecond) {
+      if (workerActivitiesPerSecond <= 0) {
+        throw new IllegalArgumentException("Negative or zero: " + workerActivitiesPerSecond);
+      }
       this.workerActivitiesPerSecond = workerActivitiesPerSecond;
       return this;
     }
 
     /** Maximum number of parallely executed activities. */
     public Builder setMaxConcurrentActivityExecutionSize(int maxConcurrentActivityExecutionSize) {
+      if (maxConcurrentActivityExecutionSize <= 0) {
+        throw new IllegalArgumentException(
+            "Negative or zero: " + maxConcurrentActivityExecutionSize);
+      }
       this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
       return this;
     }
 
     /** Maximum number of parallely executed decision tasks. */
     public Builder setMaxConcurrentWorklfowExecutionSize(int maxConcurrentWorklfowExecutionSize) {
+      if (maxConcurrentWorklfowExecutionSize <= 0) {
+        throw new IllegalArgumentException(
+            "Negative or zero: " + maxConcurrentWorklfowExecutionSize);
+      }
       this.maxConcurrentWorklfowExecutionSize = maxConcurrentWorklfowExecutionSize;
       return this;
     }
 
     /** Maximum size of a thread pool used by workflow threads. */
     public Builder setMaxWorkflowThreads(int maxWorkflowThreads) {
+      if (maxWorkflowThreads <= 0) {
+        throw new IllegalArgumentException("Negative or zero: " + maxWorkflowThreads);
+      }
       this.maxWorkflowThreads = maxWorkflowThreads;
       return this;
     }
 
     public Builder setActivityPollerOptions(PollerOptions activityPollerOptions) {
-      this.activityPollerOptions = activityPollerOptions;
+      this.activityPollerOptions = Objects.requireNonNull(activityPollerOptions);
       return this;
     }
 
     public Builder setWorkflowPollerOptions(PollerOptions workflowPollerOptions) {
-      this.workflowPollerOptions = workflowPollerOptions;
+      this.workflowPollerOptions = Objects.requireNonNull(workflowPollerOptions);
       return this;
     }
 
     public Builder setReportActivityCompletionRetryOptions(
         RetryOptions reportActivityCompletionRetryOptions) {
-      this.reportActivityCompletionRetryOptions = reportActivityCompletionRetryOptions;
+      this.reportActivityCompletionRetryOptions =
+          Objects.requireNonNull(reportActivityCompletionRetryOptions);
       return this;
     }
 
     public Builder setReportActivityFailureRetryOptions(
         RetryOptions reportActivityFailureRetryOptions) {
-      this.reportActivityFailureRetryOptions = reportActivityFailureRetryOptions;
+      this.reportActivityFailureRetryOptions =
+          Objects.requireNonNull(reportActivityFailureRetryOptions);
       return this;
     }
 
     public Builder setReportWorkflowCompletionRetryOptions(
         RetryOptions reportWorkflowCompletionRetryOptions) {
-      this.reportWorkflowCompletionRetryOptions = reportWorkflowCompletionRetryOptions;
+      this.reportWorkflowCompletionRetryOptions =
+          Objects.requireNonNull(reportWorkflowCompletionRetryOptions);
       return this;
     }
 
     public Builder setReportWorkflowFailureRetryOptions(
         RetryOptions reportWorkflowFailureRetryOptions) {
-      this.reportWorkflowFailureRetryOptions = reportWorkflowFailureRetryOptions;
+      this.reportWorkflowFailureRetryOptions =
+          Objects.requireNonNull(reportWorkflowFailureRetryOptions);
+      return this;
+    }
+
+    public Builder setInterceptorFactory(
+        Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory) {
+      this.interceptorFactory = Objects.requireNonNull(interceptorFactory);
       return this;
     }
 
@@ -163,7 +188,8 @@ public final class WorkerOptions {
           reportActivityCompletionRetryOptions,
           reportActivityFailureRetryOptions,
           reportWorkflowCompletionRetryOptions,
-          reportWorkflowFailureRetryOptions);
+          reportWorkflowFailureRetryOptions,
+          interceptorFactory);
     }
   }
 
@@ -181,6 +207,7 @@ public final class WorkerOptions {
   private final RetryOptions reportActivityFailureRetryOptions;
   private final RetryOptions reportWorkflowCompletionRetryOptions;
   private final RetryOptions reportWorkflowFailureRetryOptions;
+  private final Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory;
 
   private WorkerOptions(
       boolean disableWorkflowWorker,
@@ -196,7 +223,8 @@ public final class WorkerOptions {
       RetryOptions reportActivityCompletionRetryOptions,
       RetryOptions reportActivityFailureRetryOptions,
       RetryOptions reportWorkflowCompletionRetryOptions,
-      RetryOptions reportWorkflowFailureRetryOptions) {
+      RetryOptions reportWorkflowFailureRetryOptions,
+      Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory) {
     this.disableWorkflowWorker = disableWorkflowWorker;
     this.disableActivityWorker = disableActivityWorker;
     this.workerActivitiesPerSecond = workerActivitiesPerSecond;
@@ -211,6 +239,7 @@ public final class WorkerOptions {
     this.reportActivityFailureRetryOptions = reportActivityFailureRetryOptions;
     this.reportWorkflowCompletionRetryOptions = reportWorkflowCompletionRetryOptions;
     this.reportWorkflowFailureRetryOptions = reportWorkflowFailureRetryOptions;
+    this.interceptorFactory = interceptorFactory;
   }
 
   public boolean isDisableWorkflowWorker() {
@@ -267,6 +296,10 @@ public final class WorkerOptions {
 
   public RetryOptions getReportWorkflowFailureRetryOptions() {
     return reportWorkflowFailureRetryOptions;
+  }
+
+  public Function<WorkflowInterceptor, WorkflowInterceptor> getInterceptorFactory() {
+    return interceptorFactory;
   }
 
   @Override

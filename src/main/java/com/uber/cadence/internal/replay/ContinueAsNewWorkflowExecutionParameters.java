@@ -27,8 +27,15 @@ public final class ContinueAsNewWorkflowExecutionParameters {
   private String taskList;
   private int taskStartToCloseTimeoutSeconds;
   private ChildPolicy childPolicy;
+  private String workflowType;
 
-  public ContinueAsNewWorkflowExecutionParameters() {}
+  public void setWorkflowType(String workflowType) {
+    this.workflowType = workflowType;
+  }
+
+  public String getWorkflowType() {
+    return workflowType;
+  }
 
   public int getExecutionStartToCloseTimeoutSeconds() {
     return executionStartToCloseTimeoutSeconds;

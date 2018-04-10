@@ -19,7 +19,9 @@ package com.uber.cadence.testing;
 
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.converter.JsonDataConverter;
+import com.uber.cadence.workflow.WorkflowInterceptor;
 import java.util.Objects;
+import java.util.function.Function;
 
 public class TestEnvironmentOptions {
 
@@ -29,22 +31,28 @@ public class TestEnvironmentOptions {
 
     private String domain = "unit-test";
 
+    private Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory = (n) -> n;
+
     /** Sets data converter to use for unit-tests. Default is {@link JsonDataConverter}. */
     public Builder setDataConverter(DataConverter dataConverter) {
-      Objects.requireNonNull(dataConverter);
-      this.dataConverter = dataConverter;
+      this.dataConverter = Objects.requireNonNull(dataConverter);
       return this;
     }
 
     /** Set domain to use for test workflows. Optional. Default is "unit-test" */
     public Builder setDomain(String domain) {
-      Objects.requireNonNull(domain);
-      this.domain = domain;
+      this.domain = Objects.requireNonNull(domain);
+      return this;
+    }
+
+    public Builder setInterceptorFactory(
+        Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory) {
+      this.interceptorFactory = Objects.requireNonNull(interceptorFactory);
       return this;
     }
 
     public TestEnvironmentOptions build() {
-      return new TestEnvironmentOptions(dataConverter, domain);
+      return new TestEnvironmentOptions(dataConverter, domain, interceptorFactory);
     }
   }
 
@@ -52,9 +60,15 @@ public class TestEnvironmentOptions {
 
   private final String domain;
 
-  private TestEnvironmentOptions(DataConverter dataConverter, String domain) {
+  private final Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory;
+
+  private TestEnvironmentOptions(
+      DataConverter dataConverter,
+      String domain,
+      Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory) {
     this.dataConverter = dataConverter;
     this.domain = domain;
+    this.interceptorFactory = interceptorFactory;
   }
 
   public DataConverter getDataConverter() {
@@ -63,6 +77,10 @@ public class TestEnvironmentOptions {
 
   public String getDomain() {
     return domain;
+  }
+
+  public Function<WorkflowInterceptor, WorkflowInterceptor> getInterceptorFactory() {
+    return interceptorFactory;
   }
 
   @Override

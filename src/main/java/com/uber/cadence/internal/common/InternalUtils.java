@@ -19,12 +19,9 @@ package com.uber.cadence.internal.common;
 
 import com.uber.cadence.workflow.WorkflowMethod;
 import java.lang.reflect.Method;
-import java.time.Duration;
 
 /** Utility functions shared by the implementation code. */
 public final class InternalUtils {
-
-  public static final float SECOND = 1000f;
 
   /**
    * Used to construct default name of an activity or workflow type from a method it implements.
@@ -64,29 +61,6 @@ public final class InternalUtils {
       throw new IllegalArgumentException(
           "Method annotated with @WorkflowMethod is not " + "found at " + workflowInterface);
     }
-    return result;
-  }
-
-  /**
-   * Convert milliseconds to seconds rounding up. Used by timers to ensure that they never fire
-   * earlier than requested.
-   */
-  public static Duration roundUpToSeconds(Duration duration, Duration defaultValue) {
-    if (duration == null) {
-      return defaultValue;
-    }
-    return roundUpToSeconds(duration);
-  }
-
-  /**
-   * Round durations to seconds rounding up. As all timeouts and timers resolution is in seconds
-   * ensures that nothing times out or fires before the requested time.
-   */
-  public static Duration roundUpToSeconds(Duration duration) {
-    if (duration == null) {
-      return Duration.ZERO;
-    }
-    Duration result = Duration.ofMillis((long) (Math.ceil(duration.toMillis() / SECOND) * SECOND));
     return result;
   }
 

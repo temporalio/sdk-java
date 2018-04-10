@@ -78,9 +78,9 @@ public class DeterministicRunnerTest {
         new DeterministicRunnerImpl(
             () -> {
               status = "started";
-              WorkflowInternal.await("reason1", () -> unblock1);
+              WorkflowThread.await("reason1", () -> unblock1);
               status = "after1";
-              WorkflowInternal.await("reason2", () -> unblock2);
+              WorkflowThread.await("reason2", () -> unblock2);
               status = "done";
             });
     assertEquals("initial", status);
@@ -200,7 +200,7 @@ public class DeterministicRunnerTest {
         new DeterministicRunnerImpl(
             () -> {
               status = "started";
-              WorkflowInternal.await("reason1", () -> unblock1);
+              WorkflowThread.await("reason1", () -> unblock1);
               throw new RuntimeException("simulated");
             });
     assertEquals("initial", status);
@@ -222,10 +222,10 @@ public class DeterministicRunnerTest {
         new DeterministicRunnerImpl(
             () -> {
               status = "started";
-              WorkflowInternal.await("reason1", () -> unblock1);
+              WorkflowThread.await("reason1", () -> unblock1);
               status = "after1";
               try {
-                WorkflowInternal.await("reason2", () -> unblock2);
+                WorkflowThread.await("reason2", () -> unblock2);
               } catch (DestroyWorkflowThreadError e) {
                 failure = e;
                 throw e;
@@ -254,14 +254,14 @@ public class DeterministicRunnerTest {
                   Async.procedure(
                       () -> {
                         trace.add("child1 started");
-                        WorkflowInternal.await("reason1", () -> unblock1);
+                        WorkflowThread.await("reason1", () -> unblock1);
                         trace.add("child1 done");
                       });
               Promise<Void> thread2 =
                   Async.procedure(
                       () -> {
                         trace.add("child2 started");
-                        WorkflowInternal.await("reason2", () -> unblock2);
+                        WorkflowThread.await("reason2", () -> unblock2);
                         trace.add("child2 exiting");
                         WorkflowThread.exit("exitValue");
                         trace.add("child2 done");
@@ -290,10 +290,10 @@ public class DeterministicRunnerTest {
         new DeterministicRunnerImpl(
             () -> {
               trace.add("root started");
-              WorkflowInternal.await(
+              WorkflowThread.await(
                   "reason1", () -> CancellationScope.current().isCancelRequested());
               trace.add("second await: " + CancellationScope.current().getCancellationReason());
-              WorkflowInternal.await(
+              WorkflowThread.await(
                   "reason1", () -> CancellationScope.current().isCancelRequested());
               trace.add("root done");
             });
@@ -420,7 +420,7 @@ public class DeterministicRunnerTest {
                               trace.add("thread started");
                               Promise<String> cancellation =
                                   CancellationScope.current().getCancellationRequest();
-                              WorkflowInternal.await(
+                              WorkflowThread.await(
                                   "reason1", () -> CancellationScope.current().isCancelRequested());
                               threadDone.completeFrom(cancellation);
                               trace.add("thread done: " + cancellation.get());
@@ -459,7 +459,7 @@ public class DeterministicRunnerTest {
                     Async.procedure(
                         () -> {
                           trace.add("thread started");
-                          WorkflowInternal.await(
+                          WorkflowThread.await(
                               "reason1",
                               () -> unblock1 || CancellationScope.current().isCancelRequested());
                           if (CancellationScope.current().isCancelRequested()) {
@@ -507,9 +507,9 @@ public class DeterministicRunnerTest {
                   Async.procedure(
                       () -> {
                         status = "started";
-                        WorkflowInternal.await("reason1", () -> unblock1);
+                        WorkflowThread.await("reason1", () -> unblock1);
                         status = "after1";
-                        WorkflowInternal.await("reason2", () -> unblock2);
+                        WorkflowThread.await("reason2", () -> unblock2);
                         status = "done";
                       });
               async.get();
@@ -544,7 +544,7 @@ public class DeterministicRunnerTest {
                   Async.procedure(
                       () -> {
                         trace.add("child started");
-                        WorkflowInternal.await("blockForever", () -> false);
+                        WorkflowThread.await("blockForever", () -> false);
                         trace.add("child done");
                       });
               try {
@@ -593,7 +593,7 @@ public class DeterministicRunnerTest {
         return;
       }
       Promise<Void> thread = Async.procedure(new TestChildTreeRunnable(depth + 1));
-      WorkflowInternal.await("reason1", () -> unblock1);
+      WorkflowThread.await("reason1", () -> unblock1);
       thread.get();
       trace.add("child " + depth + " done");
     }

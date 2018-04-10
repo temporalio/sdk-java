@@ -26,8 +26,10 @@ import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.replay.DecisionContext;
 import com.uber.cadence.internal.replay.ReplayWorkflow;
 import com.uber.cadence.internal.worker.WorkflowExecutionException;
+import com.uber.cadence.workflow.WorkflowInterceptor;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Function;
 
 /**
  * SyncWorkflow supports workflows that use synchronous blocking code. An instance is created per
@@ -38,14 +40,19 @@ class SyncWorkflow implements ReplayWorkflow {
   private final DataConverter dataConverter;
   private final ExecutorService threadPool;
   private final SyncWorkflowDefinition workflow;
+  private final Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory;
   private WorkflowRunnable workflowProc;
   private DeterministicRunner runner;
 
   public SyncWorkflow(
-      SyncWorkflowDefinition workflow, DataConverter dataConverter, ExecutorService threadPool) {
+      SyncWorkflowDefinition workflow,
+      DataConverter dataConverter,
+      ExecutorService threadPool,
+      Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory) {
     this.workflow = Objects.requireNonNull(workflow);
     this.dataConverter = Objects.requireNonNull(dataConverter);
     this.threadPool = Objects.requireNonNull(threadPool);
+    this.interceptorFactory = Objects.requireNonNull(interceptorFactory);
   }
 
   @Override
@@ -55,7 +62,8 @@ class SyncWorkflow implements ReplayWorkflow {
     if (workflow == null) {
       throw new IllegalArgumentException("Unknown workflow type: " + workflowType);
     }
-    SyncDecisionContext syncContext = new SyncDecisionContext(context, dataConverter);
+    SyncDecisionContext syncContext =
+        new SyncDecisionContext(context, dataConverter, interceptorFactory);
     if (event.getEventType() != EventType.WorkflowExecutionStarted) {
       throw new IllegalArgumentException(
           "first event is not WorkflowExecutionStarted, but " + event.getEventType());

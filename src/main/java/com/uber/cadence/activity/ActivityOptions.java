@@ -17,7 +17,7 @@
 
 package com.uber.cadence.activity;
 
-import static com.uber.cadence.internal.common.InternalUtils.roundUpToSeconds;
+import static com.uber.cadence.internal.common.OptionsUtils.roundUpToSeconds;
 
 import com.uber.cadence.common.RetryOptions;
 import java.time.Duration;

@@ -17,8 +17,17 @@
 
 package com.uber.cadence.internal.sync;
 
+import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowType;
+import com.uber.cadence.converter.JsonDataConverter;
 import com.uber.cadence.internal.common.CheckedExceptionWrapper;
+import com.uber.cadence.internal.replay.ContinueAsNewWorkflowExecutionParameters;
+import com.uber.cadence.internal.replay.DecisionContext;
+import com.uber.cadence.internal.replay.ExecuteActivityParameters;
+import com.uber.cadence.internal.replay.SignalExternalWorkflowParameters;
+import com.uber.cadence.internal.replay.StartChildWorkflowExecutionParameters;
 import com.uber.cadence.workflow.Promise;
+import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,6 +45,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -106,7 +117,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   DeterministicRunnerImpl(Supplier<Long> clock, Runnable root) {
     this(
         new ThreadPoolExecutor(0, 1000, 1, TimeUnit.MINUTES, new SynchronousQueue<>()),
-        null,
+        newDummySyncDecisionContext(),
         clock,
         root);
   }
@@ -117,7 +128,8 @@ class DeterministicRunnerImpl implements DeterministicRunner {
       Supplier<Long> clock,
       Runnable root) {
     this.threadPool = threadPool;
-    this.decisionContext = decisionContext;
+    this.decisionContext =
+        decisionContext != null ? decisionContext : newDummySyncDecisionContext();
     this.clock = clock;
     runnerCancellationScope = new CancellationScopeImpl(true, null, null);
     // TODO: workflow instance specific thread name
@@ -132,6 +144,11 @@ class DeterministicRunnerImpl implements DeterministicRunner {
             root);
     threads.addLast(rootWorkflowThread);
     rootWorkflowThread.start();
+  }
+
+  private static SyncDecisionContext newDummySyncDecisionContext() {
+    return new SyncDecisionContext(
+        new DummyDecisionContext(), JsonDataConverter.getInstance(), (next) -> next);
   }
 
   SyncDecisionContext getDecisionContext() {
@@ -385,5 +402,119 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
   <T> void setRunnerLocal(RunnerLocalInternal<T> key, T value) {
     runnerLocalMap.put(key, value);
+  }
+
+  private static final class DummyDecisionContext implements DecisionContext {
+
+    @Override
+    public WorkflowExecution getWorkflowExecution() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public WorkflowType getWorkflowType() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public boolean isCancelRequested() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public ContinueAsNewWorkflowExecutionParameters getContinueAsNewOnCompletion() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public void setContinueAsNewOnCompletion(
+        ContinueAsNewWorkflowExecutionParameters continueParameters) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public int getExecutionStartToCloseTimeoutSeconds() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public String getTaskList() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public String getDomain() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public String getWorkflowId() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public String getRunId() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public Duration getExecutionStartToCloseTimeout() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public Duration getDecisionTaskTimeout() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public Consumer<Exception> scheduleActivityTask(
+        ExecuteActivityParameters parameters, BiConsumer<byte[], Exception> callback) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public Consumer<Exception> startChildWorkflow(
+        StartChildWorkflowExecutionParameters parameters,
+        Consumer<WorkflowExecution> executionCallback,
+        BiConsumer<byte[], Exception> callback) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public Consumer<Exception> signalWorkflowExecution(
+        SignalExternalWorkflowParameters signalParameters, BiConsumer<Void, Exception> callback) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public Promise<Void> requestCancelWorkflowExecution(WorkflowExecution execution) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionParameters parameters) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public String generateUniqueId() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public long currentTimeMillis() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public boolean isReplaying() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public Consumer<Exception> createTimer(long delaySeconds, Consumer<Exception> callback) {
+      throw new UnsupportedOperationException("not implemented");
+    }
   }
 }

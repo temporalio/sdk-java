@@ -122,7 +122,12 @@ public final class Worker {
     if (!options.isDisableWorkflowWorker()) {
       workflowWorker =
           new SyncWorkflowWorker(
-              service, domain, taskList, workflowOptions, options.getMaxWorkflowThreads());
+              service,
+              domain,
+              taskList,
+              options.getInterceptorFactory(),
+              workflowOptions,
+              options.getMaxWorkflowThreads());
     } else {
       workflowWorker = null;
     }

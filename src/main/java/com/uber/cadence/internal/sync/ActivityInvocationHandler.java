@@ -24,6 +24,7 @@ import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.sync.AsyncInternal.AsyncMarker;
 import com.uber.cadence.workflow.ActivityStub;
 import com.uber.cadence.workflow.Workflow;
+import com.uber.cadence.workflow.WorkflowInterceptor;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -35,10 +36,11 @@ import java.util.function.Function;
 class ActivityInvocationHandler implements InvocationHandler {
 
   private final ActivityOptions options;
-  private final ActivityExecutor activityExecutor;
+  private final WorkflowInterceptor activityExecutor;
   private final Map<Method, Function<Object[], Object>> methodFunctions = new HashMap<>();
 
-  static InvocationHandler newInstance(ActivityOptions options, ActivityExecutor activityExecutor) {
+  static InvocationHandler newInstance(
+      ActivityOptions options, WorkflowInterceptor activityExecutor) {
     return new ActivityInvocationHandler(options, activityExecutor);
   }
 
@@ -51,7 +53,7 @@ class ActivityInvocationHandler implements InvocationHandler {
             invocationHandler);
   }
 
-  private ActivityInvocationHandler(ActivityOptions options, ActivityExecutor activityExecutor) {
+  private ActivityInvocationHandler(ActivityOptions options, WorkflowInterceptor activityExecutor) {
     this.options = options;
     this.activityExecutor = activityExecutor;
   }

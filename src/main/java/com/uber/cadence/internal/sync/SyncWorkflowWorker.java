@@ -23,9 +23,11 @@ import com.uber.cadence.internal.replay.ReplayDecisionTaskHandler;
 import com.uber.cadence.internal.worker.SingleWorkerOptions;
 import com.uber.cadence.internal.worker.WorkflowWorker;
 import com.uber.cadence.serviceclient.IWorkflowService;
+import com.uber.cadence.workflow.WorkflowInterceptor;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 /** Activity worker that supports POJO activity implementations. */
 public class SyncWorkflowWorker {
@@ -39,6 +41,7 @@ public class SyncWorkflowWorker {
       IWorkflowService service,
       String domain,
       String taskList,
+      Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
       SingleWorkerOptions options,
       int workflowThreadPoolSize) {
     ThreadPoolExecutor workflowThreadPool =
@@ -48,7 +51,9 @@ public class SyncWorkflowWorker {
             10,
             TimeUnit.SECONDS,
             new SynchronousQueue<>());
-    factory = new POJOWorkflowImplementationFactory(options.getDataConverter(), workflowThreadPool);
+    factory =
+        new POJOWorkflowImplementationFactory(
+            options.getDataConverter(), workflowThreadPool, interceptorFactory);
     taskHandler = new ReplayDecisionTaskHandler(domain, factory);
     worker = new WorkflowWorker(service, domain, taskList, options, taskHandler);
     this.options = options;

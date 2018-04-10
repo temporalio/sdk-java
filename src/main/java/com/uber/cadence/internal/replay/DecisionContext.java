@@ -19,6 +19,7 @@ package com.uber.cadence.internal.replay;
 
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
+import com.uber.cadence.workflow.Promise;
 import java.time.Duration;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -87,7 +88,7 @@ public interface DecisionContext {
   Consumer<Exception> signalWorkflowExecution(
       SignalExternalWorkflowParameters signalParameters, BiConsumer<Void, Exception> callback);
 
-  void requestCancelWorkflowExecution(WorkflowExecution execution);
+  Promise<Void> requestCancelWorkflowExecution(WorkflowExecution execution);
 
   void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionParameters parameters);
 

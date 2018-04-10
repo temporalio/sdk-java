@@ -24,11 +24,13 @@ import com.uber.cadence.TimerFiredEventAttributes;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
 import com.uber.cadence.WorkflowType;
+import com.uber.cadence.workflow.Promise;
+import com.uber.cadence.workflow.Workflow;
 import java.time.Duration;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-final class DecisionContextImpl implements DecisionContext, HistoryEventHandler {
+public final class DecisionContextImpl implements DecisionContext, HistoryEventHandler {
 
   private final ActivityDecisionContext activityClient;
 
@@ -135,8 +137,10 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   }
 
   @Override
-  public void requestCancelWorkflowExecution(WorkflowExecution execution) {
+  public Promise<Void> requestCancelWorkflowExecution(WorkflowExecution execution) {
     workflowClient.requestCancelWorkflowExecution(execution);
+    // TODO: Make promise return success or failure of the cancellation request.
+    return Workflow.newPromise(null);
   }
 
   @Override

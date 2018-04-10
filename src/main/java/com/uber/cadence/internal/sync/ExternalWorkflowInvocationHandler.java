@@ -22,6 +22,7 @@ import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.workflow.ExternalWorkflowStub;
 import com.uber.cadence.workflow.QueryMethod;
 import com.uber.cadence.workflow.SignalMethod;
+import com.uber.cadence.workflow.WorkflowInterceptor;
 import com.uber.cadence.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -32,7 +33,7 @@ class ExternalWorkflowInvocationHandler implements InvocationHandler {
   private final ExternalWorkflowStub stub;
 
   public ExternalWorkflowInvocationHandler(
-      WorkflowExecution execution, SyncDecisionContext decisionContext) {
+      WorkflowExecution execution, WorkflowInterceptor decisionContext) {
     stub = new ExternalWorkflowStubImpl(execution, decisionContext);
   }
 

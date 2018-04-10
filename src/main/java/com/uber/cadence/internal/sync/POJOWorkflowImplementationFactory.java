@@ -31,14 +31,17 @@ import com.uber.cadence.workflow.QueryMethod;
 import com.uber.cadence.workflow.SignalMethod;
 import com.uber.cadence.workflow.Workflow;
 import com.uber.cadence.workflow.WorkflowInfo;
+import com.uber.cadence.workflow.WorkflowInterceptor;
 import com.uber.cadence.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +50,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   private static final Logger log =
       LoggerFactory.getLogger(POJOWorkflowImplementationFactory.class);
   private static final byte[] EMPTY_BLOB = {};
+  private final Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory;
 
   private DataConverter dataConverter;
 
@@ -57,9 +61,12 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   private final ExecutorService threadPool;
 
   public POJOWorkflowImplementationFactory(
-      DataConverter dataConverter, ExecutorService threadPool) {
-    this.dataConverter = dataConverter;
-    this.threadPool = threadPool;
+      DataConverter dataConverter,
+      ExecutorService threadPool,
+      Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory) {
+    this.dataConverter = Objects.requireNonNull(dataConverter);
+    this.threadPool = Objects.requireNonNull(threadPool);
+    this.interceptorFactory = Objects.requireNonNull(interceptorFactory);
   }
 
   public void setWorkflowImplementationTypes(Class<?>[] workflowImplementationTypes) {
@@ -161,7 +168,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   @Override
   public ReplayWorkflow getWorkflow(WorkflowType workflowType) throws Exception {
     SyncWorkflowDefinition workflow = getWorkflowDefinition(workflowType);
-    return new SyncWorkflow(workflow, dataConverter, threadPool);
+    return new SyncWorkflow(workflow, dataConverter, threadPool, interceptorFactory);
   }
 
   @Override
