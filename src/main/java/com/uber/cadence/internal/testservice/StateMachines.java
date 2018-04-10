@@ -143,9 +143,11 @@ class StateMachines {
 
   static final class DecisionTaskData {
 
+    final long previousStartedEventId;
+
     final TestWorkflowStore store;
 
-    long previousStartedEventId = -1;
+    long startedEventId = -1;
 
     PollForDecisionTaskResponse decisionTask;
 
@@ -153,7 +155,8 @@ class StateMachines {
 
     int attempt;
 
-    DecisionTaskData(TestWorkflowStore store) {
+    DecisionTaskData(long previousStartedEventId, TestWorkflowStore store) {
+      this.previousStartedEventId = previousStartedEventId;
       this.store = store;
     }
   }
@@ -212,8 +215,9 @@ class StateMachines {
         .add(CANCELLATION_REQUESTED, TIME_OUT, TIMED_OUT, StateMachines::timeoutWorkflow);
   }
 
-  static StateMachine<DecisionTaskData> newDecisionStateMachine(TestWorkflowStore store) {
-    return new StateMachine<>(new DecisionTaskData(store))
+  static StateMachine<DecisionTaskData> newDecisionStateMachine(
+      long previousStartedEventId, TestWorkflowStore store) {
+    return new StateMachine<>(new DecisionTaskData(previousStartedEventId, store))
         .add(NONE, INITIATE, INITIATED, StateMachines::scheduleDecisionTask)
         .add(INITIATED, START, STARTED, StateMachines::startDecisionTask)
         .add(STARTED, COMPLETE, COMPLETED, StateMachines::completeDecisionTask)
@@ -694,7 +698,7 @@ class StateMachines {
             throw new InternalServiceError(entityNotExistsError.toString());
           }
           data.decisionTask.setHistory(new History().setEvents(events));
-          data.previousStartedEventId = startedEventId;
+          data.startedEventId = startedEventId;
           data.attempt++;
         });
   }
@@ -746,7 +750,7 @@ class StateMachines {
             .setIdentity(request.getIdentity())
             .setCause(request.getCause())
             .setDetails(request.getDetails())
-            .setStartedEventId(data.previousStartedEventId)
+            .setStartedEventId(data.startedEventId)
             .setScheduledEventId(data.scheduledEventId);
     HistoryEvent event =
         new HistoryEvent()
@@ -759,7 +763,7 @@ class StateMachines {
       RequestContext ctx, DecisionTaskData data, Object ignored, long notUsed) {
     DecisionTaskTimedOutEventAttributes a =
         new DecisionTaskTimedOutEventAttributes()
-            .setStartedEventId(data.previousStartedEventId)
+            .setStartedEventId(data.startedEventId)
             .setTimeoutType(TimeoutType.START_TO_CLOSE)
             .setScheduledEventId(data.scheduledEventId);
     HistoryEvent event =

@@ -343,7 +343,8 @@ class ReplayDecider {
 
   private void decideImpl(Functions.Proc query) throws Throwable {
     try {
-      long lastNonReplayedEventId = historyHelper.getLastNonReplayEventId();
+      long previousDecisionStartedEventId = historyHelper.getPreviousStartedEventId();
+      long lastNonFailedStartEventId = -1;
       // Buffer events until the next DecisionTaskStarted and then process them
       // setting current time to the time of DecisionTaskStarted event
       HistoryHelper.EventsIterator eventsIterator = historyHelper.getEvents();
@@ -367,6 +368,12 @@ class ReplayDecider {
 
             decisionsHelper.handleDecisionTaskStartedEvent();
             if (!eventsIterator.isNextDecisionFailed()) {
+              if (query == null
+                  && lastNonFailedStartEventId > 0
+                  && previousDecisionStartedEventId == 0) {
+                throw new Error("Unexpected 0 previousDecisionStartedEventId: ");
+              }
+              lastNonFailedStartEventId = event.getEventId();
               // Cadence timestamp is in nanoseconds
               long replayCurrentTimeMilliseconds = event.getTimestamp() / MILLION;
               context.setReplayCurrentTimeMilliseconds(replayCurrentTimeMilliseconds);
@@ -379,7 +386,7 @@ class ReplayDecider {
           }
         }
         for (HistoryEvent event : decisionCompletionToStartEvents) {
-          if (event.getEventId() >= lastNonReplayedEventId) {
+          if (event.getEventId() >= previousDecisionStartedEventId) {
             context.setReplaying(false);
           }
           EventType eventType = event.getEventType();

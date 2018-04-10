@@ -129,6 +129,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private final Map<String, StateMachine<SignalExternalData>> externalSignals = new HashMap<>();
   private StateMachine<WorkflowData> workflow;
   private StateMachine<DecisionTaskData> decision;
+  private long lastNonFailedDecisionStartEventId;
   private final Map<String, CompletableFuture<QueryWorkflowResponse>> queries =
       new ConcurrentHashMap<>();
 
@@ -252,6 +253,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           for (RequestContext deferredCtx : this.concurrentToDecision) {
             ctx.add(deferredCtx);
           }
+          lastNonFailedDecisionStartEventId = this.decision.getData().startedEventId;
           this.decision = null;
           boolean completed =
               workflow.getState() == StateMachines.State.COMPLETED
@@ -823,7 +825,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       }
       throw new InternalServiceError("unexpected decision state: " + decision.getState());
     }
-    this.decision = StateMachines.newDecisionStateMachine(store);
+    this.decision = StateMachines.newDecisionStateMachine(lastNonFailedDecisionStartEventId, store);
     decision.action(StateMachines.Action.INITIATE, ctx, startRequest, 0);
     ctx.lockTimer();
   }

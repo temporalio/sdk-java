@@ -112,7 +112,7 @@ class HistoryHelper {
     return events.getDecisionTask();
   }
 
-  public long getLastNonReplayEventId() {
+  public long getPreviousStartedEventId() {
     return getDecisionTask().getPreviousStartedEventId();
   }
 }
