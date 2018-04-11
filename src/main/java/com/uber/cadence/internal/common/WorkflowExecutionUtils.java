@@ -17,6 +17,12 @@
 
 package com.uber.cadence.internal.common;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 import com.uber.cadence.ActivityType;
 import com.uber.cadence.BadRequestError;
 import com.uber.cadence.Decision;
@@ -54,6 +60,7 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -69,6 +76,13 @@ import org.apache.thrift.async.AsyncMethodCallback;
  */
 public class WorkflowExecutionUtils {
 
+
+  /**
+   * Indentation for history and decisions pretty printing.
+   * Do not change it from 2 spaces. The gson pretty printer has it hardcoded and changing it
+   * breaks the indentation of exception stack traces.
+   */
+  private static final String INDENTATION = "  ";
   private static RetryOptions retryParameters =
       new RetryOptions.Builder()
           .setBackoffCoefficient(2)
@@ -642,7 +656,8 @@ public class WorkflowExecutionUtils {
       } else {
         result.append(",");
       }
-      result.append("\n    ");
+      result.append("\n");
+      result.append(INDENTATION);
       result.append(prettyPrintHistoryEvent(event, firstTimestamp));
     }
     result.append("\n}");
@@ -659,7 +674,8 @@ public class WorkflowExecutionUtils {
       } else {
         result.append(",");
       }
-      result.append("\n    ");
+      result.append("\n");
+      result.append(INDENTATION);
       result.append(prettyPrintDecision(decision));
     }
     result.append("\n}");
@@ -688,7 +704,8 @@ public class WorkflowExecutionUtils {
     }
     result.append(" ");
     result.append(
-        prettyPrintObject(getEventAttributes(event), "getFieldValue", true, "    ", false, false));
+        prettyPrintObject(
+            getEventAttributes(event), "getFieldValue", true, INDENTATION, false, false));
     return result.toString();
   }
 
@@ -707,7 +724,7 @@ public class WorkflowExecutionUtils {
    * @param decision decision to pretty print
    */
   public static String prettyPrintDecision(Decision decision) {
-    return prettyPrintObject(decision, "getFieldValue", true, "    ", true, true);
+    return prettyPrintObject(decision, "getFieldValue", true, INDENTATION, true, true);
   }
 
   /**
@@ -810,15 +827,26 @@ public class WorkflowExecutionUtils {
         }
         result.append("\n");
         result.append(indentation);
-        result.append("    ");
+        result.append(INDENTATION);
         result.append(name.substring(3));
         result.append(" = ");
+        // Pretty print JSON serialized exceptions.
+        if (name.equals("getDetails") && value instanceof byte[]) {
+          String details = new String((byte[]) value, StandardCharsets.UTF_8);
+          details = prettyPrintJson(details, INDENTATION + INDENTATION);
+          // GSON pretty prints, but doesn't let to set an initial indentation.
+          // Thus indenting the pretty printed JSON through regexp :(.
+          String replacement = "\n" + indentation + INDENTATION;
+          details = details.replaceAll("\\n|\\\\n", replacement);
+          result.append(details);
+          continue;
+        }
         result.append(
             prettyPrintObject(
                 value,
                 methodToSkip,
                 skipNullsAndEmptyCollections,
-                indentation + "    ",
+                indentation + INDENTATION,
                 false,
                 false));
       } else {
@@ -847,5 +875,37 @@ public class WorkflowExecutionUtils {
       }
     }
     return false;
+  }
+
+  /**
+   * Pretty prints JSON. Not a generic utility. Used to prettify Details fields that contain
+   * serialized exceptions.
+   */
+  private static String prettyPrintJson(String jsonValue, String stackIndentation) {
+    JsonParser parser = new JsonParser();
+    try {
+      JsonObject json = parser.parse(jsonValue).getAsJsonObject();
+      fixStackTrace(json, stackIndentation);
+      Gson gson = new GsonBuilder().setPrettyPrinting().create();
+      return gson.toJson(json);
+    } catch (Exception e) {
+      return jsonValue;
+    }
+  }
+
+  private static void fixStackTrace(JsonElement json, String stackIndentation) {
+    if (!json.isJsonObject()) {
+      return;
+    }
+    for (Entry<String, JsonElement> entry : json.getAsJsonObject().entrySet()) {
+      if ("stackTrace".equals(entry.getKey())) {
+        String value = entry.getValue().getAsString();
+        String replacement = "\n" + stackIndentation;
+        String fixed = value.replaceAll("\\n", replacement);
+        entry.setValue(new JsonPrimitive(fixed));
+        continue;
+      }
+      fixStackTrace(entry.getValue(), stackIndentation + INDENTATION);
+    }
   }
 }
