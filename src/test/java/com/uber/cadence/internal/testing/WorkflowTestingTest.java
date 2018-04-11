@@ -20,6 +20,9 @@ package com.uber.cadence.internal.testing;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.uber.cadence.EventType;
 import com.uber.cadence.GetWorkflowExecutionHistoryRequest;
@@ -649,6 +652,29 @@ public class WorkflowTestingTest {
     Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(
         SimulatedTimeoutParentWorkflow.class, SimulatedTimeoutChildWorklfow.class);
+    worker.start();
+    WorkflowClient client = testEnvironment.newWorkflowClient();
+    WorkflowOptions options = new WorkflowOptions.Builder().setWorkflowId("parent1").build();
+    ParentWorkflow workflow = client.newWorkflowStub(ParentWorkflow.class, options);
+    try {
+      workflow.workflow("input1");
+      fail("unreacheable");
+    } catch (WorkflowException e) {
+      assertTrue(e.getCause() instanceof ChildWorkflowTimedOutException);
+    }
+  }
+
+  @Test
+  public void testMockedChildSimulatedTimeout() {
+    Worker worker = testEnvironment.newWorker(TASK_LIST);
+    worker.registerWorkflowImplementationTypes(SimulatedTimeoutParentWorkflow.class);
+    worker.addWorkflowImplementationFactory(
+        ChildWorkflow.class,
+        () -> {
+          ChildWorkflow child = mock(ChildWorkflow.class);
+          when(child.workflow(anyString(), anyString())).thenThrow(new SimulatedTimeoutException());
+          return child;
+        });
     worker.start();
     WorkflowClient client = testEnvironment.newWorkflowClient();
     WorkflowOptions options = new WorkflowOptions.Builder().setWorkflowId("parent1").build();

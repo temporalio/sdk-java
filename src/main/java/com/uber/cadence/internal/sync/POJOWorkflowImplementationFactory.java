@@ -28,6 +28,7 @@ import com.uber.cadence.internal.replay.ReplayWorkflowFactory;
 import com.uber.cadence.internal.worker.WorkflowExecutionException;
 import com.uber.cadence.testing.SimulatedTimeoutException;
 import com.uber.cadence.workflow.Functions;
+import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.QueryMethod;
 import com.uber.cadence.workflow.SignalMethod;
 import com.uber.cadence.workflow.Workflow;
@@ -59,9 +60,12 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   private final Map<String, Functions.Func<SyncWorkflowDefinition>> workflowDefinitions =
       Collections.synchronizedMap(new HashMap<>());
 
+  private final Map<Class<?>, Functions.Func<?>> workflowImplementationFactories =
+      Collections.synchronizedMap(new HashMap<>());
+
   private final ExecutorService threadPool;
 
-  public POJOWorkflowImplementationFactory(
+  POJOWorkflowImplementationFactory(
       DataConverter dataConverter,
       ExecutorService threadPool,
       Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory) {
@@ -70,14 +74,19 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     this.interceptorFactory = Objects.requireNonNull(interceptorFactory);
   }
 
-  public void setWorkflowImplementationTypes(Class<?>[] workflowImplementationTypes) {
+  void setWorkflowImplementationTypes(Class<?>[] workflowImplementationTypes) {
     workflowDefinitions.clear();
     for (Class<?> type : workflowImplementationTypes) {
       addWorkflowImplementationType(type);
     }
   }
 
-  public void addWorkflowImplementationType(Class<?> workflowImplementationClass) {
+  <R> void addWorkflowImplementationFactory(Class<R> clazz, Functions.Func<R> factory) {
+    workflowImplementationFactories.put(clazz, factory);
+    addWorkflowImplementationType(clazz);
+  }
+
+  private void addWorkflowImplementationType(Class<?> workflowImplementationClass) {
     TypeToken<?>.TypeSet interfaces =
         TypeToken.of(workflowImplementationClass).getTypes().interfaces();
     if (interfaces.isEmpty()) {
@@ -230,17 +239,22 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
     private void newInstance() {
       if (workflow == null) {
-        try {
-          workflow = workflowImplementationClass.getDeclaredConstructor().newInstance();
-        } catch (NoSuchMethodException
-            | InstantiationException
-            | IllegalAccessException
-            | InvocationTargetException e) {
-          // Error to fail decision as this can be fixed by a new deployment.
-          throw new Error(
-              "Failure instantiating workflow implementation class "
-                  + workflowImplementationClass.getName(),
-              e);
+        Func<?> factory = workflowImplementationFactories.get(workflowImplementationClass);
+        if (factory != null) {
+          workflow = factory.apply();
+        } else {
+          try {
+            workflow = workflowImplementationClass.getDeclaredConstructor().newInstance();
+          } catch (NoSuchMethodException
+              | InstantiationException
+              | IllegalAccessException
+              | InvocationTargetException e) {
+            // Error to fail decision as this can be fixed by a new deployment.
+            throw new Error(
+                "Failure instantiating workflow implementation class "
+                    + workflowImplementationClass.getName(),
+                e);
+          }
         }
         WorkflowInternal.registerQuery(workflow);
       }
@@ -289,7 +303,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     }
   }
 
-  public static WorkflowExecutionException mapToWorkflowExecutionException(
+  static WorkflowExecutionException mapToWorkflowExecutionException(
       Exception failure, DataConverter dataConverter) {
     failure = CheckedExceptionWrapper.unwrap(failure);
     // Only expected during unit tests.

@@ -17,6 +17,7 @@
 
 package com.uber.cadence.worker;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.client.WorkflowClient;
 import com.uber.cadence.internal.sync.SyncActivityWorker;
@@ -24,6 +25,7 @@ import com.uber.cadence.internal.sync.SyncWorkflowWorker;
 import com.uber.cadence.internal.worker.SingleWorkerOptions;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
+import com.uber.cadence.workflow.Functions.Func;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -173,6 +175,32 @@ public final class Worker {
     }
     checkNotStarted();
     workflowWorker.setWorkflowImplementationTypes(workflowImplementationClasses);
+  }
+
+  /**
+   * Configures a factory to use when an instance of a workflow implementation is created. The only
+   * valid use for this method is unit testing, specifically to instantiate mocks that implement
+   * child workflows. An example of mocking a child workflow:
+   *
+   * <pre><code>
+   *   worker.addWorkflowImplementationFactory(ChildWorkflow.class, () -> {
+   *     ChildWorkflow child = mock(ChildWorkflow.class);
+   *     when(child.workflow(anyString(), anyString())).thenReturn("result1");
+   *     return child;
+   *   });
+   * </code></pre>
+   *
+   * <p>Unless mocking a workflow execution use {@link
+   * #registerWorkflowImplementationTypes(Class[])}.
+   *
+   * @param workflowInterface Workflow interface that this factory implements
+   * @param factory factory that when called creates a new instance of the workflow implementation
+   *     object.
+   * @param <R> type of the workflow object to create.
+   */
+  @VisibleForTesting
+  public <R> void addWorkflowImplementationFactory(Class<R> workflowInterface, Func<R> factory) {
+    workflowWorker.addWorkflowImplementationFactory(workflowInterface, factory);
   }
 
   /**

@@ -23,6 +23,7 @@ import com.uber.cadence.internal.replay.ReplayDecisionTaskHandler;
 import com.uber.cadence.internal.worker.SingleWorkerOptions;
 import com.uber.cadence.internal.worker.WorkflowWorker;
 import com.uber.cadence.serviceclient.IWorkflowService;
+import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.WorkflowInterceptor;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -61,6 +62,10 @@ public class SyncWorkflowWorker {
 
   public void setWorkflowImplementationTypes(Class<?>[] workflowImplementationTypes) {
     factory.setWorkflowImplementationTypes(workflowImplementationTypes);
+  }
+
+  public <R> void addWorkflowImplementationFactory(Class<R> clazz, Func<R> factory) {
+    this.factory.addWorkflowImplementationFactory(clazz, factory);
   }
 
   public void start() {
