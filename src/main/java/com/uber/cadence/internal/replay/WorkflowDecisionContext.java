@@ -132,7 +132,8 @@ final class WorkflowDecisionContext {
           (int) parameters.getTaskStartToCloseTimeoutSeconds());
     }
     if (parameters.getChildPolicy() == null) {
-      // TODO: Child policy from a parent as soon as it is available in the WorkflowExecutionStarted event
+      // TODO: Child policy from a parent as soon as it is available in the WorkflowExecutionStarted
+      // event
       // Or when server accepts null
       //            attributes.setChildPolicy(workflowContext.getChildPolicy());
       attributes.setChildPolicy(ChildPolicy.TERMINATE);

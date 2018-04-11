@@ -125,7 +125,7 @@ final class SyncDecisionContext implements WorkflowInterceptor {
   private Promise<byte[]> executeActivityOnce(String name, ActivityOptions options, byte[] input) {
     CompletablePromise<byte[]> result = Workflow.newPromise();
     ExecuteActivityParameters parameters = new ExecuteActivityParameters();
-    //TODO: Real task list
+    // TODO: Real task list
     String taskList = options.getTaskList();
     if (taskList == null) {
       taskList = context.getTaskList();

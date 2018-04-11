@@ -1577,7 +1577,8 @@ public class WorkflowTest {
                   .getResult(String.class));
         });
     client.set(workflowClient.newWorkflowStub(QueryableWorkflow.class, optionsBuilder.build()));
-    // To execute workflow client.execute() would do. But we want to start workflow and immediately return.
+    // To execute workflow client.execute() would do. But we want to start workflow and immediately
+    // return.
     execution.set(WorkflowClient.start(client.get()::execute));
   }
 
@@ -1589,7 +1590,8 @@ public class WorkflowTest {
     WorkflowStub client =
         workflowClient.newUntypedWorkflowStub(
             workflowType, newWorkflowOptionsBuilder(taskList).build());
-    // To execute workflow client.execute() would do. But we want to start workflow and immediately return.
+    // To execute workflow client.execute() would do. But we want to start workflow and immediately
+    // return.
     registerDelayedCallback(
         Duration.ofSeconds(1),
         () -> {

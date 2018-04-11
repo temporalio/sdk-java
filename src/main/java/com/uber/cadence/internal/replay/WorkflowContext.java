@@ -79,17 +79,20 @@ final class WorkflowContext {
 
   // TODO: Implement as soon as WorkflowExecutionStartedEventAttributes have these fields added.
   ////    WorkflowExecution getParentWorkflowExecution() {
-  //        WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
+  //        WorkflowExecutionStartedEventAttributes attributes =
+  // getWorkflowStartedEventAttributes();
   //        return attributes.getParentWorkflowExecution();
   //    }
 
   ////    com.uber.cadence.ChildPolicy getChildPolicy() {
-  //        WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
+  //        WorkflowExecutionStartedEventAttributes attributes =
+  // getWorkflowStartedEventAttributes();
   //        return ChildPolicy.fromValue(attributes.getChildPolicy());
   //    }
 
   ////    String getContinuedExecutionRunId() {
-  //        WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
+  //        WorkflowExecutionStartedEventAttributes attributes =
+  // getWorkflowStartedEventAttributes();
   //        return attributes.getContinuedExecutionRunId();
   //    }
 

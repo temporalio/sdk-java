@@ -210,7 +210,8 @@ class WorkflowInvocationHandler implements InvocationHandler {
       try {
         untyped.start(args);
       } catch (DuplicateWorkflowException e) {
-        // We do allow duplicated calls if policy is not AllowDuplicate. Semantic is to wait for result.
+        // We do allow duplicated calls if policy is not AllowDuplicate. Semantic is to wait for
+        // result.
         if (options.get().getWorkflowIdReusePolicy() == WorkflowIdReusePolicy.AllowDuplicate) {
           throw e;
         }

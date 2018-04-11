@@ -112,7 +112,8 @@ final class WorkflowRetryerInternal {
               if (shouldRethrow(e, options, attempt, elapsed, sleepTime)) {
                 throw e;
               }
-              // newTimer runs in a separate thread, so it performs trampolining eliminating tail recursion.
+              // newTimer runs in a separate thread, so it performs trampolining eliminating tail
+              // recursion.
               return Workflow.newTimer(Duration.ofMillis(sleepTime))
                   .thenCompose((nil) -> retryAsync(options, func, startTime, attempt + 1));
             })

@@ -76,13 +76,13 @@ import org.apache.thrift.async.AsyncMethodCallback;
  */
 public class WorkflowExecutionUtils {
 
-
   /**
-   * Indentation for history and decisions pretty printing.
-   * Do not change it from 2 spaces. The gson pretty printer has it hardcoded and changing it
-   * breaks the indentation of exception stack traces.
+   * Indentation for history and decisions pretty printing. Do not change it from 2 spaces. The gson
+   * pretty printer has it hardcoded and changing it breaks the indentation of exception stack
+   * traces.
    */
   private static final String INDENTATION = "  ";
+
   private static RetryOptions retryParameters =
       new RetryOptions.Builder()
           .setBackoffCoefficient(2)
@@ -400,8 +400,10 @@ public class WorkflowExecutionUtils {
                 .getStartChildWorkflowExecutionFailedEventAttributes()
                 .getCause()
                 .toString();
-        //            } else if (historyEvent.getEventType() == EventType.SignalExternalWorkflowExecutionFailed) {
-        //                failureCause = historyEvent.getSignalExternalWorkflowExecutionFailedEventAttributes().getCause();
+        //            } else if (historyEvent.getEventType() ==
+        // EventType.SignalExternalWorkflowExecutionFailed) {
+        //                failureCause =
+        // historyEvent.getSignalExternalWorkflowExecutionFailedEventAttributes().getCause();
       } else {
         failureCause = "Cannot extract failure cause from " + historyEvent.getEventType();
       }

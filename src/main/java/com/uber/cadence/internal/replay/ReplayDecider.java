@@ -348,12 +348,13 @@ class ReplayDecider {
       // Buffer events until the next DecisionTaskStarted and then process them
       // setting current time to the time of DecisionTaskStarted event
       HistoryHelper.EventsIterator eventsIterator = historyHelper.getEvents();
-      // Processes history in batches. One batch per decision. The idea is to push all events to a workflow
-      // before running event loop. This way it can make decisions based on the complete information
-      // instead of a partial one. For example if workflow waits on two activities to proceed and takes
-      // different action if one of them is not ready it would behave differently if both activities
-      // are completed before the event loop or if the event loop runs after every activity event.
-      // Looks ahead to the DecisionTaskStarted event to get current time before calling eventLoop.
+      // Processes history in batches. One batch per decision. The idea is to push all events to a
+      // workflow before running event loop. This way it can make decisions based on the complete
+      // information instead of a partial one. For example if workflow waits on two activities to
+      // proceed and takes different action if one of them is not ready it would behave
+      // differently if both activities are completed before the event loop or if the event loop
+      // runs after every activity event. Looks ahead to the DecisionTaskStarted event to get
+      // current time before calling eventLoop.
       do {
         List<HistoryEvent> decisionCompletionToStartEvents = new ArrayList<>();
         while (eventsIterator.hasNext()) {

@@ -92,7 +92,8 @@ final class ActivityDecisionContext {
     attributes.setScheduleToStartTimeoutSeconds(
         (int) parameters.getScheduleToStartTimeoutSeconds());
     attributes.setStartToCloseTimeoutSeconds((int) parameters.getStartToCloseTimeoutSeconds());
-    //        attributes.setTaskPriority(InternalUtils.taskPriorityToString(parameters.getTaskPriority()));
+    //
+    // attributes.setTaskPriority(InternalUtils.taskPriorityToString(parameters.getTaskPriority()));
     String activityId = parameters.getActivityId();
     if (activityId == null) {
       activityId = String.valueOf(decisions.getNextId());
@@ -123,7 +124,8 @@ final class ActivityDecisionContext {
       if (scheduled != null) {
         BiConsumer<byte[], Exception> completionHandle = scheduled.getCompletionCallback();
         // It is OK to fail with subclass of CancellationException when cancellation requested.
-        // It allows passing information about cancellation (details in this case) to the surrounding doCatch block
+        // It allows passing information about cancellation (details in this case) to the
+        // surrounding doCatch block
         completionHandle.accept(null, e);
       }
     }

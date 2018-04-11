@@ -242,8 +242,10 @@ public final class JsonDataConverter implements DataConverter {
                     gson.getDelegateAdapter(
                         ThrowableTypeAdapterFactory.this, TypeToken.get(classType));
                 StackTraceElement[] stackTrace = parseStackTrace(object);
-                // This is important. Initially I tried configuring ExclusionStrategy to not deserialize the stackTrace field.
-                // But it left it null, which caused Thread.setStackTrace implementation to become silent noop.
+                // This is important. Initially I tried configuring ExclusionStrategy to not
+                // deserialize the stackTrace field.
+                // But it left it null, which caused Thread.setStackTrace implementation to become
+                // silent noop.
                 object.add("stackTrace", new JsonArray());
                 Throwable result = (Throwable) adapter.fromJsonTree(object);
                 result.setStackTrace(stackTrace);

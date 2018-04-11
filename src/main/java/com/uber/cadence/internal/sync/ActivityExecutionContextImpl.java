@@ -67,7 +67,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
    */
   @Override
   public void recordActivityHeartbeat(Object details) throws ActivityCompletionException {
-    //TODO: call service with the specified minimal interval (through @ActivityExecutionOptions)
+    // TODO: call service with the specified minimal interval (through @ActivityExecutionOptions)
     // allowing more frequent calls of this method.
     RecordActivityTaskHeartbeatRequest r = new RecordActivityTaskHeartbeatRequest();
     r.setTaskToken(task.getTaskToken());
@@ -90,7 +90,8 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
               + " of Workflow="
               + task.getWorkflowExecution(),
           e);
-      // Not rethrowing to not fail activity implementation on intermittent connection or Cadence errors.
+      // Not rethrowing to not fail activity implementation on intermittent connection or Cadence
+      // errors.
     }
   }
 
