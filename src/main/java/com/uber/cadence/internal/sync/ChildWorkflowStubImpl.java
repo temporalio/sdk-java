@@ -35,7 +35,7 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
   private final String workflowType;
   private final ChildWorkflowOptions options;
   private final WorkflowInterceptor decisionContext;
-  private CompletablePromise<WorkflowExecution> execution = Workflow.newPromise();
+  private CompletablePromise<WorkflowExecution> execution;
 
   ChildWorkflowStubImpl(
       String workflowType, ChildWorkflowOptions options, WorkflowInterceptor decisionContext) {
@@ -80,20 +80,28 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
   public <R> Promise<R> executeAsync(Class<R> returnType, Object... args) {
     WorkflowResult<R> result =
         decisionContext.executeChildWorkflow(workflowType, returnType, args, options);
+    execution = Workflow.newPromise();
     execution.completeFrom(result.getWorkflowExecution());
     return result.getResult();
   }
 
   @Override
   public void signal(String signalName, Object... args) {
-    Promise<Void> signalled =
+    if (execution == null) {
+      throw new IllegalStateException(
+          "This stub cannot be used to signal a workflow"
+              + " without starting it first. "
+              + "To signal a workflow execution that was started elsewhere "
+              + "use a stub created through Workflow.newExternalWorkflowStub");
+    }
+    Promise<Void> signaled =
         decisionContext.signalExternalWorkflow(execution.get(), signalName, args);
     if (AsyncInternal.isAsync()) {
-      AsyncInternal.setAsyncResult(signalled);
+      AsyncInternal.setAsyncResult(signaled);
       return;
     }
     try {
-      signalled.get();
+      signaled.get();
     } catch (SignalExternalWorkflowException e) {
       // Reset stack to the current one. Otherwise it is very confusing to see a stack of
       // an event handling method.

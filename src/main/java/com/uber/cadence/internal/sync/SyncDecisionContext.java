@@ -39,6 +39,7 @@ import com.uber.cadence.workflow.CancellationScope;
 import com.uber.cadence.workflow.ChildWorkflowException;
 import com.uber.cadence.workflow.ChildWorkflowFailureException;
 import com.uber.cadence.workflow.ChildWorkflowOptions;
+import com.uber.cadence.workflow.ChildWorkflowTimedOutException;
 import com.uber.cadence.workflow.CompletablePromise;
 import com.uber.cadence.workflow.ContinueAsNewOptions;
 import com.uber.cadence.workflow.Functions;
@@ -180,10 +181,9 @@ final class SyncDecisionContext implements WorkflowInterceptor {
       } catch (Exception e) {
         cause = e;
       }
-      if (cause instanceof TestActivityTimeoutExceptionInternal) {
+      if (cause instanceof SimulatedTimeoutExceptionInternal) {
         // This exception is thrown only in unit tests to mock the activity timeouts
-        TestActivityTimeoutExceptionInternal testTimeout =
-            (TestActivityTimeoutExceptionInternal) cause;
+        SimulatedTimeoutExceptionInternal testTimeout = (SimulatedTimeoutExceptionInternal) cause;
         return new ActivityTimeoutException(
             taskFailed.getEventId(),
             taskFailed.getActivityType(),
@@ -302,6 +302,11 @@ final class SyncDecisionContext implements WorkflowInterceptor {
       cause = getDataConverter().fromData(taskFailed.getDetails(), causeClass);
     } catch (Exception e) {
       cause = e;
+    }
+    if (cause instanceof SimulatedTimeoutExceptionInternal) {
+      // This exception is thrown only in unit tests to mock the child workflow timeouts
+      return new ChildWorkflowTimedOutException(
+          taskFailed.getEventId(), taskFailed.getWorkflowExecution(), taskFailed.getWorkflowType());
     }
     return new ChildWorkflowFailureException(
         taskFailed.getEventId(),

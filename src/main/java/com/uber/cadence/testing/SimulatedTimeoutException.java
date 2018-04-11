@@ -15,35 +15,43 @@
  *  permissions and limitations under the License.
  */
 
-package com.uber.cadence.internal.sync;
+package com.uber.cadence.testing;
 
 import com.uber.cadence.TimeoutType;
 
 /**
- * TestActivityTimeoutException is created from an TestActivityTimeoutException. The main difference
- * is that details are in a serialized form.
+ * SimulatedTimeoutException can be thrown from an activity or child workflow implementation to
+ * simulate a timeout. To be used only in unit tests. If thrown from an activity the workflow code
+ * is going to receive it as {@link com.uber.cadence.workflow.ActivityTimeoutException}. If thrown
+ * from a child workflow the workflow code is going to receive it as {@link
+ * com.uber.cadence.workflow.ChildWorkflowTimedOutException}.
  */
-final class TestActivityTimeoutExceptionInternal extends RuntimeException {
+public final class SimulatedTimeoutException extends RuntimeException {
 
   private final TimeoutType timeoutType;
 
-  private final byte[] details;
+  private final Object details;
 
-  TestActivityTimeoutExceptionInternal(TimeoutType timeoutType, byte[] details) {
+  public SimulatedTimeoutException(TimeoutType timeoutType, Object details) {
     this.timeoutType = timeoutType;
     this.details = details;
   }
 
-  TestActivityTimeoutExceptionInternal(TimeoutType timeoutType) {
+  public SimulatedTimeoutException() {
+    this.timeoutType = TimeoutType.START_TO_CLOSE;
+    this.details = null;
+  }
+
+  public SimulatedTimeoutException(TimeoutType timeoutType) {
     this.timeoutType = timeoutType;
     this.details = null;
   }
 
-  TimeoutType getTimeoutType() {
+  public TimeoutType getTimeoutType() {
     return timeoutType;
   }
 
-  byte[] getDetails() {
+  public Object getDetails() {
     return details;
   }
 }

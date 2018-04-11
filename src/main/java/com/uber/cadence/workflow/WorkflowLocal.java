@@ -23,7 +23,7 @@ import java.util.function.Supplier;
 
 /**
  * A value that is local to a single workflow execution. So it can act as a <i>global</i> variable
- * for the workflow code. For example the {@code Workflow.isSignalled()} static method returns the
+ * for the workflow code. For example the {@code Workflow.isSignaled()} static method returns the
  * correct value even if there are multiple workflows executing on the same machine simultaneously.
  * It would be invalid if the {@code signaled} was a {@code static boolean} variable.
  *
@@ -32,7 +32,7 @@ import java.util.function.Supplier;
  *
  *   private static final WorkflowLocal<Boolean> signaled = WorkflowLocal.withInitial(() -> false);
  *
- *   public static boolean isSignalled() {
+ *   public static boolean isSignaled() {
  *     return signaled.get();
  *   }
  *

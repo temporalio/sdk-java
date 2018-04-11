@@ -36,11 +36,12 @@ import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.client.WorkflowStub;
 import com.uber.cadence.client.WorkflowTimedOutException;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
-import com.uber.cadence.testing.TestActivityTimeoutException;
+import com.uber.cadence.testing.SimulatedTimeoutException;
 import com.uber.cadence.testing.TestWorkflowEnvironment;
 import com.uber.cadence.worker.Worker;
 import com.uber.cadence.workflow.ActivityTimeoutException;
 import com.uber.cadence.workflow.Async;
+import com.uber.cadence.workflow.ChildWorkflowTimedOutException;
 import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.SignalMethod;
 import com.uber.cadence.workflow.Workflow;
@@ -205,7 +206,7 @@ public class WorkflowTestingTest {
 
     @Override
     public String activity1(String input) {
-      throw new TestActivityTimeoutException(TimeoutType.HEARTBEAT, "progress1");
+      throw new SimulatedTimeoutException(TimeoutType.HEARTBEAT, "progress1");
     }
   }
 
@@ -618,5 +619,45 @@ public class WorkflowTestingTest {
     ParentWorkflow workflow = client.newWorkflowStub(ParentWorkflow.class, options);
     String result = workflow.workflow("input1");
     assertEquals("child input1", result);
+  }
+
+  public static class SimulatedTimeoutParentWorkflow implements ParentWorkflow {
+
+    @Override
+    public String workflow(String input) {
+      ChildWorkflow child = Workflow.newChildWorkflowStub(ChildWorkflow.class);
+      Promise<String> result =
+          Async.function(child::workflow, input, Workflow.getWorkflowInfo().getWorkflowId());
+      return result.get();
+    }
+
+    @Override
+    public void signal(String value) {}
+  }
+
+  public static class SimulatedTimeoutChildWorklfow implements ChildWorkflow {
+
+    @Override
+    public String workflow(String input, String parentId) {
+      Workflow.sleep(Duration.ofHours(2));
+      throw new SimulatedTimeoutException();
+    }
+  }
+
+  @Test
+  public void testChildSimulatedTimeout() {
+    Worker worker = testEnvironment.newWorker(TASK_LIST);
+    worker.registerWorkflowImplementationTypes(
+        SimulatedTimeoutParentWorkflow.class, SimulatedTimeoutChildWorklfow.class);
+    worker.start();
+    WorkflowClient client = testEnvironment.newWorkflowClient();
+    WorkflowOptions options = new WorkflowOptions.Builder().setWorkflowId("parent1").build();
+    ParentWorkflow workflow = client.newWorkflowStub(ParentWorkflow.class, options);
+    try {
+      workflow.workflow("input1");
+      fail("unreacheable");
+    } catch (WorkflowException e) {
+      assertTrue(e.getCause() instanceof ChildWorkflowTimedOutException);
+    }
   }
 }

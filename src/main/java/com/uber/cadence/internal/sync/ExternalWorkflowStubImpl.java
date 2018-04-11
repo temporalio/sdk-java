@@ -44,13 +44,13 @@ class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
 
   @Override
   public void signal(String signalName, Object... args) {
-    Promise<Void> signalled = decisionContext.signalExternalWorkflow(execution, signalName, args);
+    Promise<Void> signaled = decisionContext.signalExternalWorkflow(execution, signalName, args);
     if (AsyncInternal.isAsync()) {
-      AsyncInternal.setAsyncResult(signalled);
+      AsyncInternal.setAsyncResult(signaled);
       return;
     }
     try {
-      signalled.get();
+      signaled.get();
     } catch (SignalExternalWorkflowException e) {
       // Reset stack to the current one. Otherwise it is very confusing to see a stack of
       // an event handling method.
