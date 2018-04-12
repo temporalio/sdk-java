@@ -327,19 +327,8 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       throw new IllegalArgumentException("0 or negative port");
     }
     this.options = options;
-    String envUserName = System.getenv("USER");
-    String envHostname;
-    try {
-      envHostname = InetAddress.getLocalHost().getHostName();
-    } catch (UnknownHostException e) {
-      envHostname = "localhost";
-    }
-    this.thriftHeaders =
-        ImmutableMap.<String, String>builder()
-            .put("user-name", envUserName)
-            .put("host-name", envHostname)
-            .build();
-    //        this.metricsReporter = new MetricsReporter(options.getMetricsClient());
+    this.thriftHeaders = getThriftHeaders();
+    // this.metricsReporter = new MetricsReporter(options.getMetricsClient());
     // Need to create tChannel last in order to prevent leaking when an exception is thrown
     this.tChannel = new TChannel.Builder(options.getClientAppName()).build();
 
@@ -353,6 +342,35 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       tChannel.shutdown();
       throw new RuntimeException("Unable to get name of host " + host, e);
     }
+  }
+
+  /**
+   * Creates Cadence client with specified sub channel and options.
+   *
+   * @param subChannel sub channel for communicating with cadence frontend service.
+   * @param options configuration options like rpc timeouts.
+   */
+  public WorkflowServiceTChannel(SubChannel subChannel, ClientOptions options) {
+    this.options = options;
+    this.thriftHeaders = getThriftHeaders();
+    // this.metricsReporter = new MetricsReporter(options.getMetricsClient());
+    this.tChannel = null;
+    this.subChannel = subChannel;
+  }
+
+  private static Map<String, String> getThriftHeaders() {
+    String envUserName = System.getenv("USER");
+    String envHostname;
+    try {
+      envHostname = InetAddress.getLocalHost().getHostName();
+    } catch (UnknownHostException e) {
+      envHostname = "localhost";
+    }
+
+    return ImmutableMap.<String, String>builder()
+        .put("user-name", envUserName)
+        .put("host-name", envHostname)
+        .build();
   }
 
   /** Returns the endpoint in the format service::method" */
