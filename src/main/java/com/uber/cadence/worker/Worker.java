@@ -20,12 +20,15 @@ package com.uber.cadence.worker;
 import com.google.common.annotations.VisibleForTesting;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.client.WorkflowClient;
+import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.sync.SyncActivityWorker;
 import com.uber.cadence.internal.sync.SyncWorkflowWorker;
 import com.uber.cadence.internal.worker.SingleWorkerOptions;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
+import com.uber.cadence.worker.WorkerOptions.Builder;
 import com.uber.cadence.workflow.Functions.Func;
+import com.uber.cadence.workflow.WorkflowMethod;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -37,10 +40,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public final class Worker {
 
-  private final AtomicBoolean started = new AtomicBoolean();
   private final WorkerOptions options;
+  private final String taskList;
   private final SyncWorkflowWorker workflowWorker;
   private final SyncActivityWorker activityWorker;
+  private final AtomicBoolean started = new AtomicBoolean();
 
   /**
    * Creates worker that connects to the local instance of the Cadence Service that listens on a
@@ -61,8 +65,7 @@ public final class Worker {
    * @param domain domain that worker uses to poll.
    * @param taskList task list name worker uses to poll. It uses this name for both decision and
    *     activity task list polls.
-   * @param options Options (like {@link com.uber.cadence.converter.DataConverter} override) for
-   *     configuring worker.
+   * @param options Options (like {@link DataConverter} override) for configuring worker.
    */
   public Worker(String domain, String taskList, WorkerOptions options) {
     this(new WorkflowServiceTChannel(), domain, taskList, options);
@@ -89,8 +92,7 @@ public final class Worker {
    * @param domain domain that worker uses to poll.
    * @param taskList task list name worker uses to poll. It uses this name for both decision and
    *     activity task list polls.
-   * @param options Options (like {@link com.uber.cadence.converter.DataConverter} override) for
-   *     configuring worker.
+   * @param options Options (like {@link DataConverter} override) for configuring worker.
    */
   public Worker(String host, int port, String domain, String taskList, WorkerOptions options) {
     this(new WorkflowServiceTChannel(host, port), domain, taskList, options);
@@ -103,15 +105,14 @@ public final class Worker {
    * @param domain domain that worker uses to poll.
    * @param taskList task list name worker uses to poll. It uses this name for both decision and
    *     activity task list polls.
-   * @param options Options (like {@link com.uber.cadence.converter.DataConverter} override) for
-   *     configuring worker.
+   * @param options Options (like {@link DataConverter} override) for configuring worker.
    */
   public Worker(IWorkflowService service, String domain, String taskList, WorkerOptions options) {
     Objects.requireNonNull(service, "service");
     Objects.requireNonNull(domain, "domain");
-    Objects.requireNonNull(taskList, "taskList");
+    this.taskList = Objects.requireNonNull(taskList, "taskList");
     if (options == null) {
-      options = new WorkerOptions.Builder().build();
+      options = new Builder().build();
     }
     this.options = options;
     SingleWorkerOptions activityOptions = toActivityOptions(options);
@@ -160,8 +161,7 @@ public final class Worker {
   /**
    * Register workflow implementation classes with a worker. Overwrites previously registered types.
    * A workflow implementation class must implement at least one interface with a method annotated
-   * with {@link com.uber.cadence.workflow.WorkflowMethod}. That method becomes a workflow type that
-   * this worker supports.
+   * with {@link WorkflowMethod}. That method becomes a workflow type that this worker supports.
    *
    * <p>Implementations that share a worker must implement different interfaces as a workflow type
    * is identified by the workflow interface, not by the implementation.
@@ -239,6 +239,10 @@ public final class Worker {
     }
   }
 
+  public boolean isStarted() {
+    return started.get();
+  }
+
   /**
    * Shutdown a worker, waiting for activities to complete execution up to the specified timeout.
    */
@@ -286,5 +290,9 @@ public final class Worker {
       throw new IllegalStateException("disableWorkflowWorker is set in worker options");
     }
     return workflowWorker.queryWorkflowExecution(execution, queryType, returnType, args);
+  }
+
+  public String getTaskList() {
+    return taskList;
   }
 }

@@ -67,10 +67,14 @@ import com.uber.cadence.UpdateDomainResponse;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
 import com.uber.cadence.WorkflowExecutionContinuedAsNewEventAttributes;
+import com.uber.cadence.WorkflowExecutionFilter;
+import com.uber.cadence.WorkflowExecutionInfo;
 import com.uber.cadence.internal.testservice.TestWorkflowMutableStateImpl.QueryId;
+import com.uber.cadence.internal.testservice.TestWorkflowStore.WorkflowState;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -441,7 +445,17 @@ public final class TestWorkflowService implements IWorkflowService {
       ListOpenWorkflowExecutionsRequest listRequest)
       throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
           TException {
-    throw new UnsupportedOperationException("not implemented");
+    Optional<String> workflowIdFilter;
+    WorkflowExecutionFilter executionFilter = listRequest.getExecutionFilter();
+    if (executionFilter != null
+        && executionFilter.isSetWorkflowId()
+        && !executionFilter.getWorkflowId().isEmpty()) {
+      workflowIdFilter = Optional.of(executionFilter.getWorkflowId());
+    } else {
+      workflowIdFilter = Optional.empty();
+    }
+    List<WorkflowExecutionInfo> result = store.listWorkflows(WorkflowState.OPEN, workflowIdFilter);
+    return new ListOpenWorkflowExecutionsResponse().setExecutions(result);
   }
 
   @Override
@@ -449,7 +463,18 @@ public final class TestWorkflowService implements IWorkflowService {
       ListClosedWorkflowExecutionsRequest listRequest)
       throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
           TException {
-    throw new UnsupportedOperationException("not implemented");
+    Optional<String> workflowIdFilter;
+    WorkflowExecutionFilter executionFilter = listRequest.getExecutionFilter();
+    if (executionFilter != null
+        && executionFilter.isSetWorkflowId()
+        && !executionFilter.getWorkflowId().isEmpty()) {
+      workflowIdFilter = Optional.of(executionFilter.getWorkflowId());
+    } else {
+      workflowIdFilter = Optional.empty();
+    }
+    List<WorkflowExecutionInfo> result =
+        store.listWorkflows(WorkflowState.CLOSED, workflowIdFilter);
+    return new ListClosedWorkflowExecutionsResponse().setExecutions(result);
   }
 
   @Override

@@ -30,6 +30,7 @@ import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.PollForDecisionTaskRequest;
 import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowExecutionInfo;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.testservice.RequestContext.Timer;
 import java.time.Duration;
@@ -38,6 +39,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Condition;
@@ -62,6 +64,14 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       this.id = id;
       this.lock = lock;
       this.newEventsCondition = lock.newCondition();
+    }
+
+    public boolean isCompleted() {
+      return completed;
+    }
+
+    public List<HistoryEvent> getHistory() {
+      return history;
     }
 
     private void checkNextEventId(long nextEventId) {
@@ -344,6 +354,54 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     } finally {
       lock.unlock();
     }
+  }
+
+  @Override
+  public List<WorkflowExecutionInfo> listWorkflows(
+      WorkflowState state, Optional<String> filterWorkflowId) {
+    List<WorkflowExecutionInfo> result = new ArrayList<>();
+    for (Entry<ExecutionId, HistoryStore> entry : this.histories.entrySet()) {
+      if (state == WorkflowState.OPEN) {
+        if (entry.getValue().isCompleted()) {
+          continue;
+        }
+        ExecutionId executionId = entry.getKey();
+        String workflowId = executionId.getWorkflowId().getWorkflowId();
+        if (filterWorkflowId.isPresent() && !workflowId.equals(filterWorkflowId.get())) {
+          continue;
+        }
+        List<HistoryEvent> history = entry.getValue().getHistory();
+        WorkflowExecutionInfo info =
+            new WorkflowExecutionInfo()
+                .setExecution(executionId.getExecution())
+                .setHistoryLength(history.size())
+                .setStartTime(history.get(0).getTimestamp())
+                .setType(
+                    history.get(0).getWorkflowExecutionStartedEventAttributes().getWorkflowType());
+        result.add(info);
+      } else {
+        if (!entry.getValue().isCompleted()) {
+          continue;
+        }
+        ExecutionId executionId = entry.getKey();
+        String workflowId = executionId.getWorkflowId().getWorkflowId();
+        if (filterWorkflowId.isPresent() && !workflowId.equals(filterWorkflowId.get())) {
+          continue;
+        }
+        List<HistoryEvent> history = entry.getValue().getHistory();
+        WorkflowExecutionInfo info =
+            new WorkflowExecutionInfo()
+                .setExecution(executionId.getExecution())
+                .setHistoryLength(history.size())
+                .setStartTime(history.get(0).getTimestamp())
+                .setType(
+                    history.get(0).getWorkflowExecutionStartedEventAttributes().getWorkflowType())
+                .setCloseStatus(
+                    WorkflowExecutionUtils.getCloseStatus(history.get(history.size() - 1)));
+        result.add(info);
+      }
+    }
+    return result;
   }
 
   @Override

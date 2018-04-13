@@ -308,6 +308,22 @@ public final class Workflow {
   }
 
   /**
+   * Invokes function retrying in case of failures according to retry options. Synchronous variant.
+   * Use {@link Async#retry(RetryOptions, Functions.Func)} for asynchronous functions.
+   *
+   * @param options retry options that specify retry policy
+   * @param proc procedure to invoke and retry
+   */
+  public static void retry(RetryOptions options, Functions.Proc proc) {
+    WorkflowInternal.retry(
+        options,
+        () -> {
+          proc.apply();
+          return null;
+        });
+  }
+
+  /**
    * If there is a need to return a checked exception from a workflow implementation do not add the
    * exception to a method signature but wrap it using this method before rethrowing. The library
    * code will unwrap it automatically using {@link #unwrap(Exception)} when propagating exception

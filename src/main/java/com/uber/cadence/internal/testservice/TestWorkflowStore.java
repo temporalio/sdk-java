@@ -25,10 +25,18 @@ import com.uber.cadence.PollForActivityTaskRequest;
 import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.PollForDecisionTaskRequest;
 import com.uber.cadence.PollForDecisionTaskResponse;
+import com.uber.cadence.WorkflowExecutionInfo;
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 interface TestWorkflowStore {
+
+  enum WorkflowState {
+    OPEN,
+    CLOSED
+  }
 
   class TaskListId {
 
@@ -146,6 +154,8 @@ interface TestWorkflowStore {
       throws EntityNotExistsError;
 
   void getDiagnostics(StringBuilder result);
+
+  List<WorkflowExecutionInfo> listWorkflows(WorkflowState state, Optional<String> workflowId);
 
   void close();
 }

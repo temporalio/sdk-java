@@ -134,6 +134,8 @@ public interface TestWorkflowEnvironment {
   /** Returns the in-memory test Cadence service that is owned by this. */
   IWorkflowService getWorkflowService();
 
+  String getDomain();
+
   /**
    * Returns diagnostic data about the internal service state to the provided {@link StringBuilder}.
    * Currently prints histories of all workflow instances stored in the service. This is useful to

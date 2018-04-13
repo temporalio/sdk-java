@@ -28,8 +28,13 @@ import com.uber.cadence.EventType;
 import com.uber.cadence.GetWorkflowExecutionHistoryRequest;
 import com.uber.cadence.History;
 import com.uber.cadence.HistoryEvent;
+import com.uber.cadence.ListClosedWorkflowExecutionsRequest;
+import com.uber.cadence.ListClosedWorkflowExecutionsResponse;
+import com.uber.cadence.ListOpenWorkflowExecutionsRequest;
+import com.uber.cadence.ListOpenWorkflowExecutionsResponse;
 import com.uber.cadence.TimeoutType;
 import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowExecutionInfo;
 import com.uber.cadence.activity.Activity;
 import com.uber.cadence.activity.ActivityMethod;
 import com.uber.cadence.activity.ActivityOptions;
@@ -648,7 +653,7 @@ public class WorkflowTestingTest {
   }
 
   @Test
-  public void testChildSimulatedTimeout() {
+  public void testChildSimulatedTimeout() throws Throwable {
     Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(
         SimulatedTimeoutParentWorkflow.class, SimulatedTimeoutChildWorklfow.class);
@@ -657,11 +662,47 @@ public class WorkflowTestingTest {
     WorkflowOptions options = new WorkflowOptions.Builder().setWorkflowId("parent1").build();
     ParentWorkflow workflow = client.newWorkflowStub(ParentWorkflow.class, options);
     try {
-      workflow.workflow("input1");
+      CompletableFuture<String> result = WorkflowClient.execute(workflow::workflow, "input1");
+      testEnvironment.sleep(Duration.ofHours(1));
+
+      // List open workflows and validate their types
+      ListOpenWorkflowExecutionsRequest listRequest =
+          new ListOpenWorkflowExecutionsRequest().setDomain(testEnvironment.getDomain());
+      ListOpenWorkflowExecutionsResponse listResponse =
+          testEnvironment.getWorkflowService().ListOpenWorkflowExecutions(listRequest);
+      List<WorkflowExecutionInfo> executions = listResponse.getExecutions();
+      assertEquals(2, executions.size());
+      String name0 = executions.get(0).getType().getName();
+      assertTrue(
+          name0,
+          name0.equals("ParentWorkflow::workflow") || name0.equals("ChildWorkflow::workflow"));
+      String name1 = executions.get(0).getType().getName();
+      assertTrue(
+          name1,
+          name1.equals("ParentWorkflow::workflow") || name1.equals("ChildWorkflow::workflow"));
+
+      try {
+        result.get();
+      } catch (ExecutionException e) {
+        throw e.getCause();
+      }
       fail("unreacheable");
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ChildWorkflowTimedOutException);
     }
+    // List closed workflows and validate their types
+    ListClosedWorkflowExecutionsRequest listRequest =
+        new ListClosedWorkflowExecutionsRequest().setDomain(testEnvironment.getDomain());
+    ListClosedWorkflowExecutionsResponse listResponse =
+        testEnvironment.getWorkflowService().ListClosedWorkflowExecutions(listRequest);
+    List<WorkflowExecutionInfo> executions = listResponse.getExecutions();
+    assertEquals(2, executions.size());
+    String name0 = executions.get(0).getType().getName();
+    assertTrue(
+        name0, name0.equals("ParentWorkflow::workflow") || name0.equals("ChildWorkflow::workflow"));
+    String name1 = executions.get(0).getType().getName();
+    assertTrue(
+        name1, name1.equals("ParentWorkflow::workflow") || name1.equals("ChildWorkflow::workflow"));
   }
 
   @Test

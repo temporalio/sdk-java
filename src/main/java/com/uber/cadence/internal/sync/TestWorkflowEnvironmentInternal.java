@@ -158,6 +158,11 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   }
 
   @Override
+  public String getDomain() {
+    return testEnvironmentOptions.getDomain();
+  }
+
+  @Override
   public String getDiagnostics() {
     StringBuilder result = new StringBuilder();
     service.getDiagnostics(result);
@@ -167,7 +172,11 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   @Override
   public void close() {
     for (Worker w : workers) {
-      w.shutdown(Duration.ofMillis(10));
+      if (w.isStarted()) {
+        w.shutdown(Duration.ofMillis(10));
+      } else {
+        log.warn("Worker was created, but never started for taskList: " + w.getTaskList());
+      }
     }
     service.close();
   }

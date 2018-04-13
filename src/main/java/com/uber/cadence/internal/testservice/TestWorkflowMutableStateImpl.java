@@ -265,17 +265,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           this.concurrentToDecision.clear();
           ctx.unlockTimer();
         });
-    lock.lock();
-    try {
-      {
-        if (decision != null && decision.getState() != StateMachines.State.INITIATED) {
-          throw new InternalServiceError(
-              "non null decision after the completion: " + decision.getState());
-        }
-      }
-    } finally {
-      lock.unlock();
-    }
   }
 
   private boolean hasCompleteDecision(List<Decision> decisions) {
@@ -650,9 +639,17 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   private void fireTimer(String timerId) {
-    StateMachine<TimerData> timer = timers.get(timerId);
-    if (timer == null) {
-      return; // cancelled already
+    StateMachine<TimerData> timer;
+    lock.lock();
+    try {
+      {
+        timer = timers.get(timerId);
+        if (timer == null || workflow.getState() != State.STARTED) {
+          return; // cancelled already
+        }
+      }
+    } finally {
+      lock.unlock();
     }
     try {
       update(

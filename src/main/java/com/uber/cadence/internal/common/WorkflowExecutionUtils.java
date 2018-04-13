@@ -452,7 +452,7 @@ public class WorkflowExecutionUtils {
     return getCloseStatus(closeEvent);
   }
 
-  private static WorkflowExecutionCloseStatus getCloseStatus(HistoryEvent event) {
+  public static WorkflowExecutionCloseStatus getCloseStatus(HistoryEvent event) {
     switch (event.getEventType()) {
       case WorkflowExecutionCanceled:
         return WorkflowExecutionCloseStatus.CANCELED;
@@ -485,7 +485,7 @@ public class WorkflowExecutionUtils {
       WorkflowExecution workflowExecution,
       long timeout,
       TimeUnit unit)
-      throws InterruptedException, TimeoutException, EntityNotExistsError {
+      throws TimeoutException, EntityNotExistsError {
 
     WorkflowExecution lastExecutionToRun = workflowExecution;
     long millisecondsAtFirstWait = System.currentTimeMillis();
