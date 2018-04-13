@@ -38,12 +38,17 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.thrift.TBase;
+import org.apache.thrift.TDeserializer;
+import org.apache.thrift.TSerializer;
+import org.apache.thrift.protocol.TJSONProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Implements conversion through GSON JSON processor. To extend use {@link
- * JsonDataConverter(Function)} constructor.
+ * JsonDataConverter(Function)} constructor. Thrift structures are converted using {@link
+ * TJSONProtocol}. When using thrift only one argument of a method is expected.
  *
  * @author fateev
  */
@@ -113,7 +118,12 @@ public final class JsonDataConverter implements DataConverter {
     }
     try {
       if (values.length == 1) {
-        String json = gson.toJson(values[0]);
+        Object value = values[0];
+        // Serialize thrift objects using Thrift serializer
+        if (value instanceof TBase) {
+          return newThriftSerializer().toString((TBase) value).getBytes(StandardCharsets.UTF_8);
+        }
+        String json = gson.toJson(value);
         return json.getBytes(StandardCharsets.UTF_8);
       }
       String json = gson.toJson(values);
@@ -129,6 +139,12 @@ public final class JsonDataConverter implements DataConverter {
       return null;
     }
     try {
+      // Deserialize thrift values.
+      if (TBase.class.isAssignableFrom(valueType)) {
+        T instance = valueType.getConstructor().newInstance();
+        newThriftDeserializer().deserialize((TBase) instance, content);
+        return instance;
+      }
       return gson.fromJson(new String(content, StandardCharsets.UTF_8), valueType);
     } catch (Exception e) {
       throw new DataConverterException(content, e);
@@ -165,6 +181,7 @@ public final class JsonDataConverter implements DataConverter {
    * <p>Implementation idea is based on https://github.com/google/gson/issues/43
    */
   private static class ThrowableTypeAdapterFactory implements TypeAdapterFactory {
+
     @Override
     public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> typeToken) {
       // Special handling of fields of DataConverter type.
@@ -306,5 +323,13 @@ public final class JsonDataConverter implements DataConverter {
       }
     }
     return new StackTraceElement(declaringClass, methodName, fileName, lineNumber);
+  }
+
+  private static TSerializer newThriftSerializer() {
+    return new TSerializer(new TJSONProtocol.Factory());
+  }
+
+  private static TDeserializer newThriftDeserializer() {
+    return new TDeserializer(new TJSONProtocol.Factory());
   }
 }
