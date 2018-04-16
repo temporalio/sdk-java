@@ -20,6 +20,8 @@ package com.uber.cadence.internal.worker;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.converter.JsonDataConverter;
+import com.uber.cadence.internal.metrics.NoopScope;
+import com.uber.m3.tally.Scope;
 import java.time.Duration;
 
 public final class SingleWorkerOptions {
@@ -39,6 +41,8 @@ public final class SingleWorkerOptions {
 
     private RetryOptions reportFailureRetryOptions;
 
+    private Scope metricsScope;
+
     public Builder setIdentity(String identity) {
       this.identity = identity;
       return this;
@@ -56,6 +60,11 @@ public final class SingleWorkerOptions {
 
     public Builder setPollerOptions(PollerOptions pollerOptions) {
       this.pollerOptions = pollerOptions;
+      return this;
+    }
+
+    public Builder setMetricsScope(Scope metricsScope) {
+      this.metricsScope = metricsScope;
       return this;
     }
 
@@ -86,17 +95,23 @@ public final class SingleWorkerOptions {
                 .setPollThreadCount(1)
                 .build();
       }
-      DataConverter dc = dataConverter;
-      if (dc == null) {
-        dc = JsonDataConverter.getInstance();
+
+      if (dataConverter == null) {
+        dataConverter = JsonDataConverter.getInstance();
       }
+
+      if (metricsScope == null) {
+        metricsScope = NoopScope.getInstance();
+      }
+
       return new SingleWorkerOptions(
           identity,
-          dc,
+          dataConverter,
           taskExecutorThreadPoolSize,
           pollerOptions,
           reportCompletionRetryOptions,
-          reportFailureRetryOptions);
+          reportFailureRetryOptions,
+          metricsScope);
     }
 
     public Builder setReportCompletionRetryOptions(RetryOptions reportCompletionRetryOptions) {
@@ -122,19 +137,23 @@ public final class SingleWorkerOptions {
 
   private final RetryOptions reportFailureRetryOptions;
 
+  private final Scope metricsScope;
+
   private SingleWorkerOptions(
       String identity,
       DataConverter dataConverter,
       int taskExecutorThreadPoolSize,
       PollerOptions pollerOptions,
       RetryOptions reportCompletionRetryOptions,
-      RetryOptions reportFailureRetryOptions) {
+      RetryOptions reportFailureRetryOptions,
+      Scope metricsScope) {
     this.identity = identity;
     this.dataConverter = dataConverter;
     this.taskExecutorThreadPoolSize = taskExecutorThreadPoolSize;
     this.pollerOptions = pollerOptions;
     this.reportCompletionRetryOptions = reportCompletionRetryOptions;
     this.reportFailureRetryOptions = reportFailureRetryOptions;
+    this.metricsScope = metricsScope;
   }
 
   public String getIdentity() {
@@ -159,5 +178,9 @@ public final class SingleWorkerOptions {
 
   public RetryOptions getReportFailureRetryOptions() {
     return reportFailureRetryOptions;
+  }
+
+  public Scope getMetricsScope() {
+    return metricsScope;
   }
 }

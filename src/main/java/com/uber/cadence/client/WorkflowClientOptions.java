@@ -19,6 +19,8 @@ package com.uber.cadence.client;
 
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.converter.JsonDataConverter;
+import com.uber.cadence.internal.metrics.NoopScope;
+import com.uber.m3.tally.Scope;
 import java.util.Objects;
 
 /** Options for WorkflowClient configuration. */
@@ -29,6 +31,8 @@ public final class WorkflowClientOptions {
     private DataConverter dataConverter = JsonDataConverter.getInstance();
 
     private WorkflowClientInterceptor[] interceptors = EMPTY_INTERCEPTOR_ARRAY;
+
+    private Scope metricsScope;
 
     /**
      * Used to override default (JSON) data converter implementation.
@@ -51,8 +55,21 @@ public final class WorkflowClientOptions {
       return this;
     }
 
+    /**
+     * Sets the scope to be used for the workflow client for metrics reporting.
+     *
+     * @param metricsScope the scope to be used. Not null.
+     */
+    public Builder setMetricsScope(Scope metricsScope) {
+      this.metricsScope = Objects.requireNonNull(metricsScope);
+      return this;
+    }
+
     public WorkflowClientOptions build() {
-      return new WorkflowClientOptions(dataConverter, interceptors);
+      if (metricsScope == null) {
+        metricsScope = NoopScope.getInstance();
+      }
+      return new WorkflowClientOptions(dataConverter, interceptors, metricsScope);
     }
   }
 
@@ -62,10 +79,13 @@ public final class WorkflowClientOptions {
 
   private final WorkflowClientInterceptor[] interceptors;
 
+  private final Scope metricsScope;
+
   private WorkflowClientOptions(
-      DataConverter dataConverter, WorkflowClientInterceptor[] interceptors) {
+      DataConverter dataConverter, WorkflowClientInterceptor[] interceptors, Scope metricsScope) {
     this.dataConverter = dataConverter;
     this.interceptors = interceptors;
+    this.metricsScope = metricsScope;
   }
 
   public DataConverter getDataConverter() {
@@ -74,5 +94,9 @@ public final class WorkflowClientOptions {
 
   public WorkflowClientInterceptor[] getInterceptors() {
     return interceptors;
+  }
+
+  public Scope getMetricsScope() {
+    return metricsScope;
   }
 }

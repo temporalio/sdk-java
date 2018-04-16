@@ -18,6 +18,8 @@
 package com.uber.cadence.internal.worker;
 
 import com.uber.cadence.internal.common.BackoffThrottler;
+import com.uber.cadence.internal.metrics.MetricsType;
+import com.uber.m3.tally.Scope;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -100,13 +102,16 @@ final class Poller implements SuspendableWorker {
 
   private Throttler pollRateThrottler;
 
+  private final Scope metricsScope;
+
   private Thread.UncaughtExceptionHandler uncaughtExceptionHandler =
       (t, e) -> log.error("Failure in thread " + t.getName(), e);
 
-  Poller(PollerOptions options, String identity, ThrowingRunnable task) {
+  Poller(PollerOptions options, String identity, ThrowingRunnable task, Scope metricsScope) {
     this.options = options;
     this.identity = identity;
     this.task = task;
+    this.metricsScope = metricsScope;
   }
 
   @Override
@@ -143,6 +148,7 @@ final class Poller implements SuspendableWorker {
             options.getPollBackoffCoefficient());
     for (int i = 0; i < options.getPollThreadCount(); i++) {
       pollExecutor.execute(new PollServiceTask(task));
+      metricsScope.counter(MetricsType.POLLER_START_COUNTER).inc(1);
     }
   }
 

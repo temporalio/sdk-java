@@ -31,9 +31,14 @@ import com.uber.cadence.WorkflowQuery;
 import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.internal.common.StartWorkflowExecutionParameters;
 import com.uber.cadence.internal.common.TerminateWorkflowExecutionParameters;
+import com.uber.cadence.internal.metrics.MetricsTag;
+import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.internal.replay.QueryWorkflowParameters;
 import com.uber.cadence.internal.replay.SignalExternalWorkflowParameters;
 import com.uber.cadence.serviceclient.IWorkflowService;
+import com.uber.m3.tally.Scope;
+import com.uber.m3.util.ImmutableMap;
+import java.util.Map;
 import java.util.UUID;
 import org.apache.thrift.TException;
 
@@ -43,9 +48,13 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
 
   private final IWorkflowService service;
 
-  public GenericWorkflowClientExternalImpl(IWorkflowService service, String domain) {
+  private final Scope metricsScope;
+
+  public GenericWorkflowClientExternalImpl(
+      IWorkflowService service, String domain, Scope metricsScope) {
     this.service = service;
     this.domain = domain;
+    this.metricsScope = metricsScope;
   }
 
   @Override
@@ -61,45 +70,54 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   @Override
   public WorkflowExecution startWorkflow(StartWorkflowExecutionParameters startParameters)
       throws WorkflowExecutionAlreadyStartedError {
-    StartWorkflowExecutionRequest request = new StartWorkflowExecutionRequest();
-    request.setDomain(domain);
-
-    request.setInput(startParameters.getInput());
-    request.setExecutionStartToCloseTimeoutSeconds(
-        (int) startParameters.getExecutionStartToCloseTimeoutSeconds());
-    request.setTaskStartToCloseTimeoutSeconds(
-        (int) startParameters.getTaskStartToCloseTimeoutSeconds());
-    request.setWorkflowIdReusePolicy(startParameters.getWorkflowIdReusePolicy());
-    String taskList = startParameters.getTaskList();
-    if (taskList != null && !taskList.isEmpty()) {
-      TaskList tl = new TaskList();
-      tl.setName(taskList);
-      request.setTaskList(tl);
-    }
-    String workflowId = startParameters.getWorkflowId();
-    if (workflowId == null) {
-      workflowId = UUID.randomUUID().toString();
-    }
-    request.setWorkflowId(workflowId);
-    request.setWorkflowType(startParameters.getWorkflowType());
-
-    //        if(startParameters.getChildPolicy() != null) {
-    //            request.setChildPolicy(startParameters.getChildPolicy());
-    //        }
-
-    StartWorkflowExecutionResponse result;
     try {
-      result = service.StartWorkflowExecution(request);
-    } catch (WorkflowExecutionAlreadyStartedError e) {
-      throw e;
-    } catch (TException e) {
-      throw CheckedExceptionWrapper.wrap(e);
-    }
-    WorkflowExecution execution = new WorkflowExecution();
-    execution.setRunId(result.getRunId());
-    execution.setWorkflowId(request.getWorkflowId());
+      StartWorkflowExecutionRequest request = new StartWorkflowExecutionRequest();
+      request.setDomain(domain);
 
-    return execution;
+      request.setInput(startParameters.getInput());
+      request.setExecutionStartToCloseTimeoutSeconds(
+          (int) startParameters.getExecutionStartToCloseTimeoutSeconds());
+      request.setTaskStartToCloseTimeoutSeconds(
+          (int) startParameters.getTaskStartToCloseTimeoutSeconds());
+      request.setWorkflowIdReusePolicy(startParameters.getWorkflowIdReusePolicy());
+      String taskList = startParameters.getTaskList();
+      if (taskList != null && !taskList.isEmpty()) {
+        TaskList tl = new TaskList();
+        tl.setName(taskList);
+        request.setTaskList(tl);
+      }
+      String workflowId = startParameters.getWorkflowId();
+      if (workflowId == null) {
+        workflowId = UUID.randomUUID().toString();
+      }
+      request.setWorkflowId(workflowId);
+      request.setWorkflowType(startParameters.getWorkflowType());
+
+      //        if(startParameters.getChildPolicy() != null) {
+      //            request.setChildPolicy(startParameters.getChildPolicy());
+      //        }
+
+      StartWorkflowExecutionResponse result;
+      try {
+        result = service.StartWorkflowExecution(request);
+      } catch (WorkflowExecutionAlreadyStartedError e) {
+        throw e;
+      } catch (TException e) {
+        throw CheckedExceptionWrapper.wrap(e);
+      }
+      WorkflowExecution execution = new WorkflowExecution();
+      execution.setRunId(result.getRunId());
+      execution.setWorkflowId(request.getWorkflowId());
+
+      return execution;
+    } finally {
+      // TODO: can probably cache this
+      Map<String, String> tags =
+          new ImmutableMap.Builder<String, String>(1)
+              .put(MetricsTag.WORKFLOW_TYPE, startParameters.getWorkflowType().getName())
+              .build();
+      metricsScope.tagged(tags).counter(MetricsType.WORKFLOW_START_COUNTER).inc(1);
+    }
   }
 
   @Override

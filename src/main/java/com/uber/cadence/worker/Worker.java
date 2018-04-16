@@ -144,6 +144,7 @@ public final class Worker {
         .setReportCompletionRetryOptions(options.getReportActivityCompletionRetryOptions())
         .setReportFailureRetryOptions(options.getReportActivityFailureRetryOptions())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentActivityExecutionSize())
+        .setMetricsScope(options.getMetricsScope())
         .build();
   }
 
@@ -155,6 +156,7 @@ public final class Worker {
         .setReportCompletionRetryOptions(options.getReportWorkflowCompletionRetryOptions())
         .setReportFailureRetryOptions(options.getReportWorkflowFailureRetryOptions())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentWorklfowExecutionSize())
+        .setMetricsScope(options.getMetricsScope())
         .build();
   }
 

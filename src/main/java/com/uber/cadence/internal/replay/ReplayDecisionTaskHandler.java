@@ -26,8 +26,10 @@ import com.uber.cadence.RespondQueryTaskCompletedRequest;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
+import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.internal.worker.DecisionTaskHandler;
 import com.uber.cadence.internal.worker.DecisionTaskWithHistoryIterator;
+import com.uber.m3.tally.Scope;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
@@ -41,10 +43,13 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
 
   private final ReplayWorkflowFactory workflowFactory;
   private final String domain;
+  private final Scope metricsScope;
 
-  public ReplayDecisionTaskHandler(String domain, ReplayWorkflowFactory asyncWorkflowFactory) {
+  public ReplayDecisionTaskHandler(
+      String domain, ReplayWorkflowFactory asyncWorkflowFactory, Scope metricsScope) {
     this.domain = domain;
     this.workflowFactory = asyncWorkflowFactory;
+    this.metricsScope = metricsScope;
   }
 
   @Override
@@ -53,6 +58,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     try {
       return handleDecisionTaskImpl(decisionTaskIterator);
     } catch (Throwable e) {
+      metricsScope.counter(MetricsType.DECISION_EXECUTION_FAILED_COUNTER).inc(1);
       PollForDecisionTaskResponse decisionTask = decisionTaskIterator.getDecisionTask();
       // Only fail decision on first attempt, subsequent failure on the same decision task will
       // timeout. This is to avoid spin on the failed decision task.
@@ -155,6 +161,6 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     WorkflowType workflowType = decisionTask.getWorkflowType();
     DecisionsHelper decisionsHelper = new DecisionsHelper(decisionTask);
     ReplayWorkflow workflow = workflowFactory.getWorkflow(workflowType);
-    return new ReplayDecider(domain, workflow, historyHelper, decisionsHelper);
+    return new ReplayDecider(domain, workflow, historyHelper, decisionsHelper, metricsScope);
   }
 }

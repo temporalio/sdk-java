@@ -21,11 +21,13 @@ import com.uber.cadence.GetWorkflowExecutionHistoryRequest;
 import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
 import com.uber.cadence.History;
 import com.uber.cadence.HistoryEvent;
+import com.uber.cadence.InternalServiceError;
 import com.uber.cadence.PollForDecisionTaskRequest;
 import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.RespondDecisionTaskCompletedRequest;
 import com.uber.cadence.RespondDecisionTaskFailedRequest;
 import com.uber.cadence.RespondQueryTaskCompletedRequest;
+import com.uber.cadence.ServiceBusyError;
 import com.uber.cadence.TaskList;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
@@ -33,7 +35,9 @@ import com.uber.cadence.WorkflowQuery;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.internal.common.Retryer;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
+import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.serviceclient.IWorkflowService;
+import com.uber.m3.tally.Stopwatch;
 import java.time.Duration;
 import java.util.Iterator;
 import java.util.Objects;
@@ -90,8 +94,10 @@ public final class WorkflowWorker implements SuspendableWorker {
       }
       Poller.ThrowingRunnable pollTask =
           new PollTask<>(service, domain, taskList, options, new TaskHandlerImpl(handler));
-      poller = new Poller(pollerOptions, options.getIdentity(), pollTask);
+      poller =
+          new Poller(pollerOptions, options.getIdentity(), pollTask, options.getMetricsScope());
       poller.start();
+      options.getMetricsScope().counter(MetricsType.WORKER_START_COUNTER).inc(1);
     }
   }
 
@@ -176,16 +182,26 @@ public final class WorkflowWorker implements SuspendableWorker {
     public void handle(
         IWorkflowService service, String domain, String taskList, PollForDecisionTaskResponse task)
         throws Exception {
+      Stopwatch sw =
+          options.getMetricsScope().timer(MetricsType.DECISION_EXECUTION_LATENCY).start();
       DecisionTaskHandler.Result response =
           handler.handleDecisionTask(new DecisionTaskWithHistoryIteratorImpl(task));
+      sw.stop();
+
+      sw = options.getMetricsScope().timer(MetricsType.DECISION_RESPONSE_LATENCY).start();
       sendReply(service, task.getTaskToken(), response);
+      sw.stop();
+
+      options.getMetricsScope().counter(MetricsType.DECISION_TASK_COMPLETED_COUNTER).inc(1);
     }
 
     @Override
     public PollForDecisionTaskResponse poll(
         IWorkflowService service, String domain, String taskList) throws TException {
-      PollForDecisionTaskRequest pollRequest = new PollForDecisionTaskRequest();
+      options.getMetricsScope().counter(MetricsType.DECISION_POLL_COUNTER).inc(1);
+      Stopwatch sw = options.getMetricsScope().timer(MetricsType.DECISION_POLL_LATENCY).start();
 
+      PollForDecisionTaskRequest pollRequest = new PollForDecisionTaskRequest();
       pollRequest.setDomain(domain);
       pollRequest.setIdentity(options.getIdentity());
 
@@ -196,7 +212,20 @@ public final class WorkflowWorker implements SuspendableWorker {
       if (log.isDebugEnabled()) {
         log.debug("poll request begin: " + pollRequest);
       }
-      PollForDecisionTaskResponse result = service.PollForDecisionTask(pollRequest);
+      PollForDecisionTaskResponse result;
+      try {
+        result = service.PollForDecisionTask(pollRequest);
+      } catch (InternalServiceError | ServiceBusyError e) {
+        options
+            .getMetricsScope()
+            .counter(MetricsType.DECISION_POLL_TRANSIENT_FAILED_COUNTER)
+            .inc(1);
+        throw e;
+      } catch (TException e) {
+        options.getMetricsScope().counter(MetricsType.DECISION_POLL_FAILED_COUNTER).inc(1);
+        throw e;
+      }
+
       if (log.isDebugEnabled()) {
         log.debug(
             "poll request returned decision task: workflowType="
@@ -213,8 +242,12 @@ public final class WorkflowWorker implements SuspendableWorker {
       }
 
       if (result == null || result.getTaskToken() == null) {
+        options.getMetricsScope().counter(MetricsType.DECISION_POLL_NO_TASK_COUNTER).inc(1);
         return null;
       }
+
+      options.getMetricsScope().counter(MetricsType.DECISION_POLL_SUCCEED_COUNTER).inc(1);
+      sw.stop();
       return result;
     }
 
@@ -304,6 +337,10 @@ public final class WorkflowWorker implements SuspendableWorker {
           if (expiration.isZero() || expiration.isNegative()) {
             throw new Error("History pagination time exceeded TaskStartToCloseTimeout");
           }
+
+          options.getMetricsScope().counter(MetricsType.WORKFLOW_GET_HISTORY_COUNTER).inc(1);
+          Stopwatch sw =
+              options.getMetricsScope().timer(MetricsType.WORKFLOW_GET_HISTORY_LATENCY).start();
           RetryOptions retryOptions =
               new RetryOptions.Builder()
                   .setExpiration(expiration)
@@ -321,7 +358,16 @@ public final class WorkflowWorker implements SuspendableWorker {
                     retryOptions, () -> service.GetWorkflowExecutionHistory(request));
             current = r.getHistory().getEventsIterator();
             nextPageToken = r.getNextPageToken();
+            options
+                .getMetricsScope()
+                .counter(MetricsType.WORKFLOW_GET_HISTORY_SUCCEED_COUNTER)
+                .inc(1);
+            sw.stop();
           } catch (TException e) {
+            options
+                .getMetricsScope()
+                .counter(MetricsType.WORKFLOW_GET_HISTORY_FAILED_COUNTER)
+                .inc(1);
             throw new Error(e);
           }
           return current.next();
