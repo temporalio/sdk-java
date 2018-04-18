@@ -17,27 +17,43 @@
 
 package com.uber.cadence.activity;
 
-import com.uber.cadence.ActivityType;
 import com.uber.cadence.WorkflowExecution;
+import java.time.Duration;
 
+/**
+ * The information about the activity task that the current activity is handling. Use {@link
+ * Activity#getTask()} to access.
+ */
 public interface ActivityTask {
+
+  /**
+   * A correlation token that can be used to complete the activity asynchronously through {@link
+   * com.uber.cadence.client.ActivityCompletionClient#complete(byte[], Object)}.
+   */
   byte[] getTaskToken();
 
-  byte[] getInput();
-
+  /** ID and RunID of the workflow that scheduled the activity. */
   WorkflowExecution getWorkflowExecution();
 
+  /**
+   * ID of the activity. This ID can be used to complete the activity asynchronously through {@link
+   * com.uber.cadence.client.ActivityCompletionClient#complete(WorkflowExecution, String, Object)}.
+   */
   String getActivityId();
 
-  ActivityType getActivityType();
+  /** Type of the activity. */
+  String getActivityType();
 
+  /**
+   * Time when the activity was initially scheduled by the workflow.
+   *
+   * @return timestamp in milliseconds
+   */
   long getScheduledTimestamp();
 
-  int getScheduleToCloseTimeoutSeconds();
+  Duration getScheduleToCloseTimeout();
 
-  void setScheduleToCloseTimeoutSecondsIsSet(boolean value);
+  Duration getStartToCloseTimeout();
 
-  int getStartToCloseTimeoutSeconds();
-
-  int getHeartbeatTimeoutSeconds();
+  Duration getHeartbeatTimeout();
 }

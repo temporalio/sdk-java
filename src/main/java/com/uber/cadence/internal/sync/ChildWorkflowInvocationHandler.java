@@ -20,7 +20,7 @@ package com.uber.cadence.internal.sync;
 import static com.uber.cadence.internal.common.InternalUtils.getWorkflowMethod;
 import static com.uber.cadence.internal.common.InternalUtils.getWorkflowType;
 
-import com.uber.cadence.activity.MethodRetry;
+import com.uber.cadence.common.MethodRetry;
 import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.workflow.ChildWorkflowOptions;
 import com.uber.cadence.workflow.ChildWorkflowStub;

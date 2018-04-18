@@ -19,7 +19,7 @@ package com.uber.cadence.internal.sync;
 
 import com.uber.cadence.activity.ActivityMethod;
 import com.uber.cadence.activity.ActivityOptions;
-import com.uber.cadence.activity.MethodRetry;
+import com.uber.cadence.common.MethodRetry;
 import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.sync.AsyncInternal.AsyncMarker;
 import com.uber.cadence.workflow.ActivityStub;

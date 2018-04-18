@@ -17,6 +17,7 @@
 
 package com.uber.cadence.activity;
 
+import com.uber.cadence.common.MethodRetry;
 import com.uber.cadence.common.RetryOptions;
 import java.lang.reflect.Method;
 import java.time.Duration;

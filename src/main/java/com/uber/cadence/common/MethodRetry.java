@@ -15,9 +15,9 @@
  *  permissions and limitations under the License.
  */
 
-package com.uber.cadence.activity;
+package com.uber.cadence.common;
 
-import com.uber.cadence.common.RetryOptions;
+import com.uber.cadence.activity.ActivityOptions;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -25,12 +25,12 @@ import java.lang.annotation.Target;
 import java.time.Duration;
 
 /**
- * Indicates retry policy for a workflow or activity method. This annotation applies only to
+ * Specifies a retry policy for a workflow or activity method. This annotation applies only to
  * activity or workflow interface methods. For workflows currently used only for child workflow
  * retries. Not required. When not used either retries don't happen or they are configured through
- * correspondent options. If {@link RetryOptions} are present on {@link ActivityOptions} or {@link
- * com.uber.cadence.workflow.ChildWorkflowOptions} the fields that are not default take precedence
- * over parameters of this annotation.
+ * correspondent options. If {@link com.uber.cadence.common.RetryOptions} are present on {@link
+ * ActivityOptions} or {@link com.uber.cadence.workflow.ChildWorkflowOptions} the fields that are
+ * not default take precedence over parameters of this annotation.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
@@ -38,7 +38,8 @@ public @interface MethodRetry {
 
   /**
    * Interval of the first retry. If coefficient is 1.0 then it is used for all retries. Required.
-   * Can be overridden through {@link RetryOptions.Builder#setInitialInterval(Duration)}.
+   * Can be overridden through {@link
+   * com.uber.cadence.common.RetryOptions.Builder#setInitialInterval(Duration)}.
    */
   long initialIntervalSeconds();
 

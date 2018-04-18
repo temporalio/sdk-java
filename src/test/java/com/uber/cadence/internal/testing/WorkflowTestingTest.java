@@ -158,7 +158,7 @@ public class WorkflowTestingTest {
 
     @Override
     public String activity1(String input) {
-      return Activity.getTask().getActivityType().getName() + "-" + input;
+      return Activity.getTask().getActivityType() + "-" + input;
     }
   }
 
@@ -189,8 +189,7 @@ public class WorkflowTestingTest {
 
     @Override
     public String activity1(String input) {
-      throw new IllegalThreadStateException(
-          Activity.getTask().getActivityType().getName() + "-" + input);
+      throw new IllegalThreadStateException(Activity.getTask().getActivityType() + "-" + input);
     }
   }
 

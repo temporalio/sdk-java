@@ -29,7 +29,7 @@ Add *cadence-client* as a dependency to your *pom.xml*:
     <dependency>
       <groupId>com.uber</groupId>
       <artifactId>cadence-client</artifactId>
-      <version>0.2.0-SPANPSHOT</version>
+      <version>0.2.0-SNAPSHOT</version>
     </dependency>
 
 # Overview
@@ -246,8 +246,9 @@ It can also answer to synchronous queries and receive external events (also know
 A workflow must define an interface class. All of its methods must have one of the following annotations:
 - @WorkflowMethod indicates an entry point to a workflow. It contains parameters such as timeouts and a task list. Required
 parameters (like executionStartToCloseTimeoutSeconds) that are not specified through the annotation must be provided at runtime.
-- @Signal indicates a method that reacts to external signals. It must have a `void` return type.
-- @Query indicates a method that reacts to synchronous query requests.
+- @SignalMethod indicates a method that reacts to external signals. It must have a `void` return 
+type.
+- @QueryMethod indicates a method that reacts to synchronous query requests.
 You can have more than one method with the same annotation.
 ```java
 public interface FileProcessingWorkflow {
@@ -372,7 +373,7 @@ with different options.
 ### Calling Activities Asynchronously
 
 Sometimes workflows need to perform certain operations in parallel.
-The `Workflow.async` static method allows you to invoke any activity asynchronously. The call returns a `Promise` result immediately.
+The `Async` class static methods allow you to invoke any activity asynchronously. The calls return a `Promise` result immediately.
 `Promise` is similar to both Java `Future` and `CompletionStage`. The `Promise` `get` blocks until a result is available.
 It also exposes the `thenApply` and `handle` methods. See the `Promise` JavaDoc for technical details about differences with `Future`.
 
@@ -380,9 +381,10 @@ To convert a synchronous call
 ```java
 String localName = activities.download(surceBucket, sourceFile);
 ```
-to asynchronous style, the method reference is passed to `Workflow.async` followed by activity arguments:
+to asynchronous style, the method reference is passed to `Async.function` or `Async.procedure` 
+followed by activity arguments:
 ```java
-Promise<String> localNamePromise = Workflow.async(activities::download, surceBucket, sourceFile);
+Promise<String> localNamePromise = Async.function(activities::download, surceBucket, sourceFile);
 ```
 Then to wait synchronously for the result:
 ```java
@@ -396,7 +398,7 @@ public void processFile(Arguments args) {
     try {
         // Download all files in parallel.
         for (String sourceFilename : args.getSourceFilenames()) {
-            Promise<String> localName = Workflow.async(activities::download, args.getSourceBucketName(), sourceFilename);
+            Promise<String> localName = Async.function(activities::download, args.getSourceBucketName(), sourceFilename);
             localNamePromises.add(localName);
         }
         // allOf converts a list of promises to a single promise that contains a list of each promise value.
@@ -410,7 +412,7 @@ public void processFile(Arguments args) {
         // Upload all results in parallel.
         List<Promise<Void>> uploadedList = new ArrayList<>();
         for (String processedName : processedNames) {
-            Promise<Void> uploaded = Workflow.async(activities::upload, args.getTargetBucketName(), args.getTargetFilename(), processedName);
+            Promise<Void> uploaded = Async.procedure(activities::upload, args.getTargetBucketName(), args.getTargetFilename(), processedName);
             uploadedList.add(uploaded);
         }
         // Wait for all uploads to complete.
@@ -439,7 +441,7 @@ Besides activities, a workflow can also orchestrate other workflows.
  the timeouts and task list if they differ from the ones defined in the @WorkflowMethod annotation or parent workflow.
 
  The first call to the child workflow stub must always be to a method annotated with @WorkflowMethod. Similarly to activities, a call
- can be synchronous or asynchronous using `Workflow.async`. The synchronous call blocks until a child workflow completes. The asynchronous call
+ can be made synchronous or asynchronous by using `Async#function` or `Async#procedure`. The synchronous call blocks until a child workflow completes. The asynchronous call
  returns a `Promise` that can be used to wait for the completion. After an async call returns the stub, it can be used to send signals to the child
  by calling methods annotated with `@SignalMethod`. Querying a child workflow by calling methods annotated with @QueryMethod
  from within workflow code is not supported. However, queries can be done from activities
@@ -470,11 +472,11 @@ public static class GreetingWorkflowImpl implements GreetingWorkflow {
 
         // Workflows are stateful, so a new stub must be created for each new child.
         GreetingChild child1 = Workflow.newChildWorkflowStub(GreetingChild.class);
-        Promise<String> greeting1 = Workflow.async(child1::composeGreeting, "Hello", name);
+        Promise<String> greeting1 = Async.function(child1::composeGreeting, "Hello", name);
 
         // Both children will run concurrently.
         GreetingChild child2 = Workflow.newChildWorkflowStub(GreetingChild.class);
-        Promise<String> greeting2 = Workflow.async(child2::composeGreeting, "Bye", name);
+        Promise<String> greeting2 = Async.function(child2::composeGreeting, "Bye", name);
 
         // Do something else here.
         ...
@@ -497,7 +499,7 @@ public static class GreetingWorkflowImpl implements GreetingWorkflow {
     @Override
     public String getGreeting(String name) {
         GreetingChild child = Workflow.newChildWorkflowStub(GreetingChild.class);
-        Promise<String> greeting = Workflow.async(child::composeGreeting, "Hello", name);
+        Promise<String> greeting = Async.function(child::composeGreeting, "Hello", name);
         child.updateName("Cadence");
         return greeting.get();
     }
@@ -518,7 +520,7 @@ This design puts the following constraints on the workflow implementation:
 Always do this in activities.
 - Don’t perform any IO or service calls as they are not usually deterministic. Use activities for this.
 - Only use `Workflow.currentTimeMillis()` to get the current time inside a workflow.
-- Do not use native Java `Thread` or any other multi-threaded classes like `ThreadPoolExecutor`. Use `Async.invoke`
+- Do not use native Java `Thread` or any other multi-threaded classes like `ThreadPoolExecutor`. Use `Async.function` or `Async.procedure`
 to execute code asynchronously.
 - Don't use any synchronization, locks, and other standard Java blocking concurrency-related classes besides those provided
 by the Workflow class. There is no need in explicit synchronization because multi-threaded code inside a workflow is

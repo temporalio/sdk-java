@@ -17,9 +17,38 @@
 
 package com.uber.cadence.testing;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.uber.cadence.internal.sync.TestActivityEnvironmentInternal;
 import java.util.function.Consumer;
 
+/**
+ * The helper class for unit testing activity implementations. Supports calls to {@link
+ * com.uber.cadence.activity.Activity} methods from the tested activities. An example test:
+ *
+ * <pre><code>
+ *   public interface TestActivity {
+ *     String activity1(String input);
+ *   }
+ *
+ *   private static class ActivityImpl implements TestActivity {
+ *    {@literal @}Override
+ *     public String activity1(String input) {
+ *       return Activity.getTask().getActivityType().getName() + "-" + input;
+ *     }
+ *   }
+ *
+ *  {@literal @}Test
+ *   public void testSuccess() {
+ *     testEnvironment.registerActivitiesImplementations(new ActivityImpl());
+ *     TestActivity activity = testEnvironment.newActivityStub(TestActivity.class);
+ *     String result = activity.activity1("input1");
+ *     assertEquals("TestActivity::activity1-input1", result);
+ *   }
+ * </code></pre>
+ *
+ * Use {@link TestWorkflowEnvironment} to test a workflow code.
+ */
+@VisibleForTesting
 public interface TestActivityEnvironment {
 
   static TestActivityEnvironment newInstance() {
@@ -30,10 +59,30 @@ public interface TestActivityEnvironment {
     return new TestActivityEnvironmentInternal(options);
   }
 
+  /**
+   * Registers activity implementations to test. Use {@link #newActivityStub(Class)} to create stubs
+   * that can be used to invoke them.
+   */
   void registerActivitiesImplementations(Object... activityImplementations);
 
+  /**
+   * Creates a stub that can be used to invoke activities registered through {@link
+   * #registerActivitiesImplementations(Object...)}.
+   *
+   * @param activityInterface activity interface class that the object under test implements.
+   * @param <T> Type of the activity interface.
+   * @return The stub that implements the activity interface.
+   */
   <T> T newActivityStub(Class<T> activityInterface);
 
-  @SuppressWarnings("unchecked")
+  /**
+   * Sets a listener that is called every time an activity implementation heartbeats through {@link
+   * com.uber.cadence.activity.Activity#heartbeat(Object)}.
+   *
+   * @param detailsClass Type of the details passed to the {@link
+   *     com.uber.cadence.activity.Activity#heartbeat(Object)}.
+   * @param listener listener to register.
+   * @param <T> Type of the heartbeat details.
+   */
   <T> void setActivityHeartbeatListener(Class<T> detailsClass, Consumer<T> listener);
 }

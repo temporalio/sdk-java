@@ -31,43 +31,74 @@ import com.uber.cadence.workflow.Functions.Proc3;
 import com.uber.cadence.workflow.Functions.Proc4;
 import com.uber.cadence.workflow.Functions.Proc5;
 import com.uber.cadence.workflow.Functions.Proc6;
+import com.uber.cadence.workflow.WorkflowMethod;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Client to Cadence service used to start and query workflows by external processes. Also can be
- * used to create instances of {@link ActivityCompletionClient} to complete activities
+ * Client to the Cadence service used to start and query workflows by external processes. Also it
+ * supports creation of {@link ActivityCompletionClient} instances used to complete activities
  * asynchronously. Do not create this object for each request, keep it for the duration of the
  * process.
  *
- * <p>Use {@link #newInstance(String)} method to create an instance. Example usage:
+ * <p>Given a workflow interface executing a workflow requires initializing a {@link
+ * com.uber.cadence.client.WorkflowClient} instance, creating a client side stub to the workflow,
+ * and then calling a method annotated with {@literal @}{@link WorkflowMethod}.
  *
- * <pre>
- * // Create cadence client using cadence service host and port.
- * WorkflowClient client = WorkflowClient.newInstance(host, port, domain);
+ * <pre><code>
+ * WorkflowClient workflowClient = WorkflowClient.newClient(cadenceServiceHost, cadenceServicePort, domain);
+ * // Create a workflow stub.
+ * FileProcessingWorkflow workflow = workflowClient.newWorkflowStub(FileProcessingWorkflow.class);
+ * </code></pre>
  *
- * // Create client side stub to the workflow execution.
- * HelloWorldWorkflow workflow = client.newWorkflowStub(HelloWorldWorkflow.class);
+ * There are two ways to start workflow execution: synchronously and asynchronously. Synchronous
+ * invocation starts a workflow and then waits for its completion. If the process that started the
+ * workflow crashes or stops waiting, the workflow continues executing. Because workflows are
+ * potentially long running, and crashes of clients happen, it is not very commonly found in
+ * production use. Asynchronous start initiates workflow execution and immediately returns to the
+ * caller. This is the most common way to start workflows in production code.
  *
- * // Start Workflow Execution
- * WorkflowExecution started = WorkflowClient.start(workflow::helloWorld, "User");
+ * <p>Synchronous start:
  *
- * // started.getWorkflowId() should match the one in the options: "MyHelloWorld1"
- * System.out.println("Started helloWorld workflow with workflowId=\"" + started.getWorkflowId()
- *                     + "\" and runId=\"" + started.getRunId() + "\"");
- * </pre>
+ * <pre><code>
+ * // Start a workflow and wait for a result.
+ * // Note that if the waiting process is killed, the workflow will continue executing.
+ * String result = workflow.processFile(workflowArgs);
+ * </code></pre>
  *
- * Synchronously waiting for workflow completion:
+ * Asynchronous when the workflow result is not needed:
  *
- * <pre>
- * String result = workflow.helloWorld("User");
- * </pre>
+ * <pre><code>
+ * // Returns as soon as the workflow starts.
+ * WorkflowExecution workflowExecution = WorkflowClient.asyncStart(workflow::processFile, workflowArgs);
  *
- * Asynchronously waiting for workflow completion:
+ * System.out.println("Started process file workflow with workflowId=\"" + workflowExecution.getWorkflowId()
+ *                     + "\" and runId=\"" + workflowExecution.getRunId() + "\"");
+ * </code></pre>
  *
- * <pre>
+ * Asynchronous when the result is needed:
+ *
+ * <pre><code>
  * CompletableFuture&lt;String&gt; result = WorkflowClient.execute(workflow::helloWorld, "User");
- * </pre>
+ * </code></pre>
+ *
+ * If you need to wait for a workflow completion after an asynchronous start, maybe even from a
+ * different process, the simplest way is to call the blocking version again. If {@link
+ * WorkflowOptions#getWorkflowIdReusePolicy()} is not {@code AllowDuplicate} then instead of
+ * throwing {@link com.uber.cadence.client.DuplicateWorkflowException}, it reconnects to an existing
+ * workflow and waits for its completion. The following example shows how to do this from a
+ * different process than the one that started the workflow. All this process needs is a {@code
+ * WorkflowId}.
+ *
+ * <pre><code>
+ * FileProcessingWorkflow workflow = workflowClient.newWorkflowStub(FileProcessingWorkflow.class, workflowId);
+ * // Returns result potentially waiting for workflow to complete.
+ * String result = workflow.processFile(workflowArgs);
+ * </code></pre>
+ *
+ * @see com.uber.cadence.workflow.Workflow
+ * @see Activity
+ * @see com.uber.cadence.worker.Worker
  */
 public interface WorkflowClient {
 

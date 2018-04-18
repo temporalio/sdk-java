@@ -24,8 +24,8 @@ import com.uber.cadence.RespondActivityTaskCompletedRequest;
 import com.uber.cadence.RespondActivityTaskFailedRequest;
 import com.uber.cadence.activity.ActivityMethod;
 import com.uber.cadence.activity.ActivityTask;
-import com.uber.cadence.activity.MethodRetry;
 import com.uber.cadence.client.ActivityCancelledException;
+import com.uber.cadence.common.MethodRetry;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.internal.common.InternalUtils;
@@ -164,7 +164,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
 
     public ActivityTaskHandler.Result execute(
-        IWorkflowService service, String domain, ActivityTask task) {
+        IWorkflowService service, String domain, ActivityTaskImpl task) {
       ActivityExecutionContext context =
           new ActivityExecutionContextImpl(service, domain, task, dataConverter);
       byte[] input = task.getInput();

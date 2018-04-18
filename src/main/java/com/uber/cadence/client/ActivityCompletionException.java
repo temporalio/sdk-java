@@ -31,7 +31,7 @@ public class ActivityCompletionException extends RuntimeException {
 
   protected ActivityCompletionException(ActivityTask task) {
     execution = task.getWorkflowExecution();
-    activityType = task.getActivityType().getName();
+    activityType = task.getActivityType();
     activityId = task.getActivityId();
   }
 
@@ -41,14 +41,14 @@ public class ActivityCompletionException extends RuntimeException {
             ? "Execution="
                 + task.getWorkflowExecution()
                 + ", ActivityType="
-                + task.getActivityType().getName()
+                + task.getActivityType()
                 + ", ActivityID="
                 + task.getActivityId()
             : null,
         cause);
     if (task != null) {
       execution = task.getWorkflowExecution();
-      activityType = task.getActivityType().getName();
+      activityType = task.getActivityType();
       activityId = task.getActivityId();
     } else {
       execution = null;

@@ -17,6 +17,7 @@
 
 package com.uber.cadence.testing;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.uber.cadence.client.WorkflowClient;
 import com.uber.cadence.client.WorkflowClientOptions;
 import com.uber.cadence.internal.sync.TestWorkflowEnvironmentInternal;
@@ -27,13 +28,13 @@ import java.time.Duration;
 /**
  * TestWorkflowEnvironment provides workflow unit testing capabilities.
  *
- * <p>Testing workflow code is hard as it might be potentially very long running. The included
- * in-memory implementation of the Cadence service supports <b>automatic time skipping</b>. Anytime
- * a workflow under the test as well as a unit test code are waiting on a timer (or sleep) the
- * internal service time is automatically advanced to the nearest time that unblocks one of the
+ * <p>Testing the workflow code is hard as it might be potentially very long running. The included
+ * in-memory implementation of the Cadence service supports <b>an automatic time skipping</b>.
+ * Anytime a workflow under the test as well as the unit test code are waiting on a timer (or sleep)
+ * the internal service time is automatically advanced to the nearest time that unblocks one of the
  * waiting threads. This way a workflow that runs in production for months is unit tested in
  * milliseconds. Here is an example of a test that executes in a few milliseconds instead of over
- * two hours which is needed for the workflow to complete:
+ * two hours that are needed for the workflow to complete:
  *
  * <pre><code>
  *   public class SignaledWorkflowImpl implements SignaledWorkflow {
@@ -84,6 +85,7 @@ import java.time.Duration;
  *
  * </code></pre>
  */
+@VisibleForTesting
 public interface TestWorkflowEnvironment {
 
   static TestWorkflowEnvironment newInstance() {
@@ -137,10 +139,10 @@ public interface TestWorkflowEnvironment {
   String getDomain();
 
   /**
-   * Returns diagnostic data about the internal service state to the provided {@link StringBuilder}.
-   * Currently prints histories of all workflow instances stored in the service. This is useful to
-   * print in case of a unit test failure. One way to achieve it is to add the following Rule to a
-   * unit test:
+   * Returns the diagnostic data about the internal service state. Currently prints histories of all
+   * workflow instances stored in the service. This is useful information to print in the case of a
+   * unit test failure. A convenient way to achieve this is to add the following Rule to a unit
+   * test:
    *
    * <pre><code>
    *  {@literal @}Rule
@@ -149,6 +151,7 @@ public interface TestWorkflowEnvironment {
    *        {@literal @}Override
    *         protected void failed(Throwable e, Description description) {
    *           System.err.println(testEnvironment.getDiagnostics());
+   *           testEnvironment.close();
    *         }
    *       };
    * </code></pre>
@@ -156,8 +159,9 @@ public interface TestWorkflowEnvironment {
   String getDiagnostics();
 
   /**
-   * Calls {@link Worker#shutdown(Duration)} on all workers created through {@link
-   * #newWorker(String)} and closes the in-memory Cadence service.
+   * Performs the final validation of the service state and calls {@link Worker#shutdown(Duration)}
+   * on all workers created through {@link #newWorker(String)} and closes the in-memory Cadence
+   * service.
    */
   void close();
 }

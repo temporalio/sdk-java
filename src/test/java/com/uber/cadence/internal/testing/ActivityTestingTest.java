@@ -47,7 +47,7 @@ public class ActivityTestingTest {
 
     @Override
     public String activity1(String input) {
-      return Activity.getTask().getActivityType().getName() + "-" + input;
+      return Activity.getTask().getActivityType() + "-" + input;
     }
   }
 

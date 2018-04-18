@@ -18,7 +18,6 @@
 package com.uber.cadence.common;
 
 import com.google.common.base.Defaults;
-import com.uber.cadence.activity.MethodRetry;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;

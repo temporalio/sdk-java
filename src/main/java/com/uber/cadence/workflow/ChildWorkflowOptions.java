@@ -21,7 +21,7 @@ import static com.uber.cadence.internal.common.OptionsUtils.roundUpToSeconds;
 
 import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.WorkflowIdReusePolicy;
-import com.uber.cadence.activity.MethodRetry;
+import com.uber.cadence.common.MethodRetry;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.internal.common.OptionsUtils;
 import java.time.Duration;

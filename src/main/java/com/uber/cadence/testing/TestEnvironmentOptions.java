@@ -17,15 +17,17 @@
 
 package com.uber.cadence.testing;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.converter.JsonDataConverter;
 import com.uber.cadence.workflow.WorkflowInterceptor;
 import java.util.Objects;
 import java.util.function.Function;
 
-public class TestEnvironmentOptions {
+@VisibleForTesting
+public final class TestEnvironmentOptions {
 
-  public static class Builder {
+  public static final class Builder {
 
     private DataConverter dataConverter = JsonDataConverter.getInstance();
 
@@ -45,6 +47,11 @@ public class TestEnvironmentOptions {
       return this;
     }
 
+    /**
+     * Specifies an interceptor factory that creates interceptors for workflow calls like activity
+     * invocations. Note that the factory is called for each decision and must return a new object
+     * instance every time it is called.
+     */
     public Builder setInterceptorFactory(
         Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory) {
       this.interceptorFactory = Objects.requireNonNull(interceptorFactory);
