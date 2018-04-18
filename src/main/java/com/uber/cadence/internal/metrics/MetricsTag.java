@@ -22,11 +22,11 @@ public class MetricsTag {
   public static final String ACTIVITY_TYPE = "ActivityType";
   public static final String DOMAIN = "Domain";
   public static final String EVENT_ID = "EventID";
-  public static final String EVENT_Type = "EventType";
+  public static final String EVENT_TYPE = "EventType";
   public static final String RUN_ID = "RunID";
   public static final String TASK_LIST = "TaskList";
   public static final String TIMER_ID = "TimerID";
-  public static final String WorkflowID = "WorkflowID";
+  public static final String WORKFLOW_ID = "WorkflowID";
   public static final String WORKFLOW_TYPE = "WorkflowType";
   public static final String WORKER_ID = "WorkerID";
   public static final String WORKER_TYPE = "WorkerType";
