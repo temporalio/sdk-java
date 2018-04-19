@@ -31,9 +31,14 @@ import com.uber.cadence.WorkflowQuery;
 import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.internal.common.StartWorkflowExecutionParameters;
 import com.uber.cadence.internal.common.TerminateWorkflowExecutionParameters;
+import com.uber.cadence.internal.metrics.MetricsTag;
+import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.internal.replay.QueryWorkflowParameters;
 import com.uber.cadence.internal.replay.SignalExternalWorkflowParameters;
 import com.uber.cadence.serviceclient.IWorkflowService;
+import com.uber.m3.tally.Scope;
+import com.uber.m3.util.ImmutableMap;
+import java.util.Map;
 import java.util.UUID;
 import org.apache.thrift.TException;
 
@@ -43,9 +48,13 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
 
   private final IWorkflowService service;
 
-  public GenericWorkflowClientExternalImpl(IWorkflowService service, String domain) {
+  private final Scope metricsScope;
+
+  public GenericWorkflowClientExternalImpl(
+      IWorkflowService service, String domain, Scope metricsScope) {
     this.service = service;
     this.domain = domain;
+    this.metricsScope = metricsScope;
   }
 
   @Override
@@ -60,6 +69,20 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
 
   @Override
   public WorkflowExecution startWorkflow(StartWorkflowExecutionParameters startParameters)
+      throws WorkflowExecutionAlreadyStartedError {
+    try {
+      return startWorkflowInternal(startParameters);
+    } finally {
+      // TODO: can probably cache this
+      Map<String, String> tags =
+          new ImmutableMap.Builder<String, String>(1)
+              .put(MetricsTag.WORKFLOW_TYPE, startParameters.getWorkflowType().getName())
+              .build();
+      metricsScope.tagged(tags).counter(MetricsType.WORKFLOW_START_COUNTER).inc(1);
+    }
+  }
+
+  private WorkflowExecution startWorkflowInternal(StartWorkflowExecutionParameters startParameters)
       throws WorkflowExecutionAlreadyStartedError {
     StartWorkflowExecutionRequest request = new StartWorkflowExecutionRequest();
     request.setDomain(domain);

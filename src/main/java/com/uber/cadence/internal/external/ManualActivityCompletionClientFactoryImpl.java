@@ -20,20 +20,22 @@ package com.uber.cadence.internal.external;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.serviceclient.IWorkflowService;
+import com.uber.m3.tally.Scope;
 
 public class ManualActivityCompletionClientFactoryImpl
     extends ManualActivityCompletionClientFactory {
 
   private final IWorkflowService service;
-
   private final DataConverter dataConverter;
   private final String domain;
+  private final Scope metricsScope;
 
   public ManualActivityCompletionClientFactoryImpl(
-      IWorkflowService service, String domain, DataConverter dataConverter) {
+      IWorkflowService service, String domain, DataConverter dataConverter, Scope metricsScope) {
     this.service = service;
     this.domain = domain;
     this.dataConverter = dataConverter;
+    this.metricsScope = metricsScope;
   }
 
   public IWorkflowService getService() {
@@ -55,7 +57,7 @@ public class ManualActivityCompletionClientFactoryImpl
     if (taskToken == null || taskToken.length == 0) {
       throw new IllegalArgumentException("null or empty task token");
     }
-    return new ManualActivityCompletionClientImpl(service, taskToken, dataConverter);
+    return new ManualActivityCompletionClientImpl(service, taskToken, dataConverter, metricsScope);
   }
 
   @Override
@@ -67,6 +69,6 @@ public class ManualActivityCompletionClientFactoryImpl
       throw new IllegalArgumentException("null activityId");
     }
     return new ManualActivityCompletionClientImpl(
-        service, domain, execution, activityId, dataConverter);
+        service, domain, execution, activityId, dataConverter, metricsScope);
   }
 }

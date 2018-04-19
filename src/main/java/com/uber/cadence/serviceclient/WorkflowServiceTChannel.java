@@ -19,7 +19,6 @@ package com.uber.cadence.serviceclient;
 
 import com.google.common.collect.ImmutableMap;
 import com.uber.cadence.BadRequestError;
-import com.uber.cadence.CancellationAlreadyRequestedError;
 import com.uber.cadence.DeprecateDomainRequest;
 import com.uber.cadence.DescribeDomainRequest;
 import com.uber.cadence.DescribeDomainResponse;
@@ -31,7 +30,6 @@ import com.uber.cadence.DomainAlreadyExistsError;
 import com.uber.cadence.EntityNotExistsError;
 import com.uber.cadence.GetWorkflowExecutionHistoryRequest;
 import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
-import com.uber.cadence.InternalServiceError;
 import com.uber.cadence.ListClosedWorkflowExecutionsRequest;
 import com.uber.cadence.ListClosedWorkflowExecutionsResponse;
 import com.uber.cadence.ListOpenWorkflowExecutionsRequest;
@@ -56,7 +54,6 @@ import com.uber.cadence.RespondActivityTaskFailedRequest;
 import com.uber.cadence.RespondDecisionTaskCompletedRequest;
 import com.uber.cadence.RespondDecisionTaskFailedRequest;
 import com.uber.cadence.RespondQueryTaskCompletedRequest;
-import com.uber.cadence.ServiceBusyError;
 import com.uber.cadence.SignalWorkflowExecutionRequest;
 import com.uber.cadence.StartWorkflowExecutionRequest;
 import com.uber.cadence.StartWorkflowExecutionResponse;
@@ -67,6 +64,11 @@ import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.WorkflowService.GetWorkflowExecutionHistory_result;
 import com.uber.cadence.internal.common.CheckedExceptionWrapper;
+import com.uber.cadence.internal.metrics.MetricsType;
+import com.uber.cadence.internal.metrics.NoopScope;
+import com.uber.cadence.internal.metrics.ServiceMethod;
+import com.uber.m3.tally.Scope;
+import com.uber.m3.tally.Stopwatch;
 import com.uber.tchannel.api.ResponseCode;
 import com.uber.tchannel.api.SubChannel;
 import com.uber.tchannel.api.TChannel;
@@ -126,7 +128,8 @@ public class WorkflowServiceTChannel implements IWorkflowService {
     private final String clientAppName;
 
     /** Client for metrics reporting. */
-    //        private MetricsClient metricsClient = new DefaultMetricsClient();
+    private final Scope metricsScope;
+
     private ClientOptions(Builder builder) {
       this.rpcTimeoutMillis = builder.rpcTimeoutMillis;
       if (builder.clientAppName == null) {
@@ -141,22 +144,11 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       this.rpcLongPollTimeoutMillis = builder.rpcLongPollTimeoutMillis;
       this.rpcQueryTimeoutMillis = builder.rpcQueryTimeoutMillis;
-      //            this.metricsClient = builder.metricsClient;
+      if (builder.metricsScope == null) {
+        builder.metricsScope = NoopScope.getInstance();
+      }
+      this.metricsScope = builder.metricsScope;
     }
-
-    //        /**
-    //         * Copy to another client options with a different metrics client to report metrics.
-    //         * @param metricsClient metrics client
-    //         * @return client options
-    //         */
-    //        public ClientOptions copyWithMetricsClient(MetricsClient metricsClient) {
-    //            ClientOptions copy = new ClientOptions();
-    //            copy.rpcTimeoutMillis = this.rpcTimeoutMillis;
-    //            copy.deploymentStr = this.deploymentStr;
-    //            copy.clientAppName = this.clientAppName;
-    //            copy.metricsClient = metricsClient;
-    //            return copy;
-    //        }
 
     /** @return Returns the rpc timeout value in millis. */
     public long getRpcTimeoutMillis() {
@@ -181,13 +173,10 @@ public class WorkflowServiceTChannel implements IWorkflowService {
     public String getServiceName() {
       return serviceName;
     }
-    //
-    //        /**
-    //         * @return Returns the client for metrics reporting.
-    //         */
-    //        public MetricsClient getMetricsClient() {
-    //            return this.metricsClient;
-    //        }
+
+    public Scope getMetricsScope() {
+      return metricsScope;
+    }
 
     /**
      * Builder is the builder for ClientOptions.
@@ -202,6 +191,7 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       private long rpcLongPollTimeoutMillis = DEFAULT_POLL_RPC_TIMEOUT_MILLIS;
       public long rpcQueryTimeoutMillis = DEFAULT_QUERY_RPC_TIMEOUT_MILLIS;
       public String serviceName;
+      private Scope metricsScope;
 
       /**
        * Sets the rpc timeout value for non query and non long poll calls. Default is 1000.
@@ -260,19 +250,16 @@ public class WorkflowServiceTChannel implements IWorkflowService {
         return this;
       }
 
-      //            /**
-      //             * Sets the metrics client to be used for metrics reporting.
-      //             *
-      //             * Applications must typically pass an M3 or statsd client here. By
-      //             * default, the builder uses M3.
-      //             *
-      //             * @param client
-      //             * @return
-      //             */
-      //            public Builder setMetricsClient(MetricsClient client) {
-      //                this.metricsClient = client;
-      //                return this;
-      //            }
+      /**
+       * Sets the metrics scope to be used for metrics reporting.
+       *
+       * @param metricsScope
+       * @return Builder for ClentOptions
+       */
+      public Builder setMetricsScope(Scope metricsScope) {
+        this.metricsScope = metricsScope;
+        return this;
+      }
 
       /**
        * Builds and returns a ClientOptions object.
@@ -286,8 +273,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   private static final String INTERFACE_NAME = "WorkflowService";
-
-  private static final Logger logger = LoggerFactory.getLogger(WorkflowServiceTChannel.class);
 
   private final ClientOptions options;
   private final Map<String, String> thriftHeaders;
@@ -337,7 +322,7 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       ArrayList<InetSocketAddress> peers = new ArrayList<>();
       peers.add(new InetSocketAddress(address, port));
       this.subChannel = tChannel.makeSubChannel(options.getServiceName()).setPeers(peers);
-      logger.info("Initialized TChannel: " + this.subChannel.toString());
+      log.info("Initialized TChannel: " + this.subChannel.toString());
     } catch (UnknownHostException e) {
       tChannel.shutdown();
       throw new RuntimeException("Unable to get name of host " + host, e);
@@ -444,9 +429,52 @@ public class WorkflowServiceTChannel implements IWorkflowService {
     }
   }
 
+  interface RemoteCall<T> {
+    T apply() throws TException;
+  }
+
+  private <T> T measureRemoteCall(String scopeName, RemoteCall<T> call) throws TException {
+    Scope scope = options.getMetricsScope().subScope(scopeName);
+    scope.counter(MetricsType.CADENCE_REQUEST).inc(1);
+    Stopwatch sw = scope.timer(MetricsType.CADENCE_LATENCY).start();
+    try {
+      T resp = call.apply();
+      sw.stop();
+      return resp;
+    } catch (EntityNotExistsError
+        | BadRequestError
+        | DomainAlreadyExistsError
+        | WorkflowExecutionAlreadyStartedError
+        | QueryFailedError e) {
+      sw.stop();
+      scope.counter(MetricsType.CADENCE_INVALID_REQUEST).inc(1);
+      throw e;
+    } catch (TException e) {
+      sw.stop();
+      scope.counter(MetricsType.CADENCE_ERROR).inc(1);
+      throw e;
+    }
+  }
+
+  interface RemoteProc {
+    void apply() throws TException;
+  }
+
+  private void measureRemoteProc(String scopeName, RemoteProc proc) throws TException {
+    measureRemoteCall(
+        scopeName,
+        () -> {
+          proc.apply();
+          return null;
+        });
+  }
+
   @Override
-  public void RegisterDomain(RegisterDomainRequest registerRequest)
-      throws BadRequestError, InternalServiceError, DomainAlreadyExistsError, TException {
+  public void RegisterDomain(RegisterDomainRequest request) throws TException {
+    measureRemoteProc(ServiceMethod.REGISTER_DOMAIN, () -> registerDomain(request));
+  }
+
+  private void registerDomain(RegisterDomainRequest registerRequest) throws TException {
     ThriftResponse<WorkflowService.RegisterDomain_result> response = null;
     try {
       ThriftRequest<WorkflowService.RegisterDomain_args> request =
@@ -477,7 +505,12 @@ public class WorkflowServiceTChannel implements IWorkflowService {
 
   @Override
   public DescribeDomainResponse DescribeDomain(DescribeDomainRequest describeRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+      throws TException {
+    return measureRemoteCall(ServiceMethod.DESCRIBE_DOMAIN, () -> describeDomain(describeRequest));
+  }
+
+  private DescribeDomainResponse describeDomain(DescribeDomainRequest describeRequest)
+      throws TException {
     ThriftResponse<WorkflowService.DescribeDomain_result> response = null;
     try {
       ThriftRequest<WorkflowService.DescribeDomain_args> request =
@@ -507,8 +540,11 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
-  public UpdateDomainResponse UpdateDomain(UpdateDomainRequest updateRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+  public UpdateDomainResponse UpdateDomain(UpdateDomainRequest updateRequest) throws TException {
+    return measureRemoteCall(ServiceMethod.UPDATE_DOMAIN, () -> updateDomain(updateRequest));
+  }
+
+  private UpdateDomainResponse updateDomain(UpdateDomainRequest updateRequest) throws TException {
     ThriftResponse<WorkflowService.UpdateDomain_result> response = null;
     try {
       ThriftRequest<WorkflowService.UpdateDomain_args> request =
@@ -537,8 +573,11 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
-  public void DeprecateDomain(DeprecateDomainRequest deprecateRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+  public void DeprecateDomain(DeprecateDomainRequest deprecateRequest) throws TException {
+    measureRemoteProc(ServiceMethod.DEPRECATE_DOMAIN, () -> deprecateDomain(deprecateRequest));
+  }
+
+  private void deprecateDomain(DeprecateDomainRequest deprecateRequest) throws TException {
     ThriftResponse<WorkflowService.DeprecateDomain_result> response = null;
     try {
       ThriftRequest<WorkflowService.DeprecateDomain_args> request =
@@ -569,9 +608,13 @@ public class WorkflowServiceTChannel implements IWorkflowService {
 
   @Override
   public StartWorkflowExecutionResponse StartWorkflowExecution(
-      StartWorkflowExecutionRequest startRequest)
-      throws BadRequestError, InternalServiceError, WorkflowExecutionAlreadyStartedError,
-          ServiceBusyError, TException {
+      StartWorkflowExecutionRequest request) throws TException {
+    return measureRemoteCall(
+        ServiceMethod.START_WORKFLOW_EXECUTION, () -> startWorkflowExecution(request));
+  }
+
+  private StartWorkflowExecutionResponse startWorkflowExecution(
+      StartWorkflowExecutionRequest startRequest) throws TException {
     startRequest.setRequestId(UUID.randomUUID().toString());
     ThriftResponse<WorkflowService.StartWorkflowExecution_result> response = null;
     try {
@@ -607,9 +650,13 @@ public class WorkflowServiceTChannel implements IWorkflowService {
 
   @Override
   public GetWorkflowExecutionHistoryResponse GetWorkflowExecutionHistory(
-      GetWorkflowExecutionHistoryRequest getRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
-          TException {
+      GetWorkflowExecutionHistoryRequest request) throws TException {
+    return measureRemoteCall(
+        ServiceMethod.GET_WORKFLOW_EXECUTION_HISTORY, () -> getWorkflowExecutionHistory(request));
+  }
+
+  private GetWorkflowExecutionHistoryResponse getWorkflowExecutionHistory(
+      GetWorkflowExecutionHistoryRequest getRequest) throws TException {
     ThriftResponse<WorkflowService.GetWorkflowExecutionHistory_result> response = null;
     try {
       ThriftRequest<WorkflowService.GetWorkflowExecutionHistory_args> request =
@@ -644,8 +691,14 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
-  public PollForDecisionTaskResponse PollForDecisionTask(PollForDecisionTaskRequest pollRequest)
-      throws BadRequestError, InternalServiceError, ServiceBusyError, TException {
+  public PollForDecisionTaskResponse PollForDecisionTask(PollForDecisionTaskRequest request)
+      throws TException {
+    return measureRemoteCall(
+        ServiceMethod.POLL_FOR_DECISION_TASK, () -> pollForDecisionTask(request));
+  }
+
+  private PollForDecisionTaskResponse pollForDecisionTask(PollForDecisionTaskRequest pollRequest)
+      throws TException {
     ThriftResponse<WorkflowService.PollForDecisionTask_result> response = null;
     try {
       ThriftRequest<WorkflowService.PollForDecisionTask_args> request =
@@ -677,8 +730,14 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
-  public void RespondDecisionTaskCompleted(RespondDecisionTaskCompletedRequest completeRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+  public void RespondDecisionTaskCompleted(RespondDecisionTaskCompletedRequest request)
+      throws TException {
+    measureRemoteProc(
+        ServiceMethod.RESPOND_DECISION_TASK_COMPLETED, () -> respondDecisionTaskCompleted(request));
+  }
+
+  private void respondDecisionTaskCompleted(RespondDecisionTaskCompletedRequest completeRequest)
+      throws TException {
     ThriftResponse<WorkflowService.RespondDecisionTaskCompleted_result> response = null;
     try {
       ThriftRequest<WorkflowService.RespondDecisionTaskCompleted_args> request =
@@ -709,8 +768,14 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
-  public void RespondDecisionTaskFailed(RespondDecisionTaskFailedRequest failedRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+  public void RespondDecisionTaskFailed(RespondDecisionTaskFailedRequest request)
+      throws TException {
+    measureRemoteProc(
+        ServiceMethod.RESPOND_DECISION_TASK_FAILED, () -> respondDecisionTaskFailed(request));
+  }
+
+  private void respondDecisionTaskFailed(RespondDecisionTaskFailedRequest failedRequest)
+      throws TException {
     ThriftResponse<WorkflowService.RespondDecisionTaskFailed_result> response = null;
     try {
       ThriftRequest<WorkflowService.RespondDecisionTaskFailed_args> request =
@@ -741,8 +806,14 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
-  public PollForActivityTaskResponse PollForActivityTask(PollForActivityTaskRequest pollRequest)
-      throws BadRequestError, InternalServiceError, ServiceBusyError, TException {
+  public PollForActivityTaskResponse PollForActivityTask(PollForActivityTaskRequest request)
+      throws TException {
+    return measureRemoteCall(
+        ServiceMethod.POLL_FOR_ACTIVITY_TASK, () -> pollForActivityTask(request));
+  }
+
+  private PollForActivityTaskResponse pollForActivityTask(PollForActivityTaskRequest pollRequest)
+      throws TException {
     ThriftResponse<WorkflowService.PollForActivityTask_result> response = null;
     try {
       ThriftRequest<WorkflowService.PollForActivityTask_args> request =
@@ -775,8 +846,13 @@ public class WorkflowServiceTChannel implements IWorkflowService {
 
   @Override
   public RecordActivityTaskHeartbeatResponse RecordActivityTaskHeartbeat(
-      RecordActivityTaskHeartbeatRequest heartbeatRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+      RecordActivityTaskHeartbeatRequest request) throws TException {
+    return measureRemoteCall(
+        ServiceMethod.RECORD_ACTIVITY_TASK_HEARTBEAT, () -> recordActivityTaskHeartbeat(request));
+  }
+
+  private RecordActivityTaskHeartbeatResponse recordActivityTaskHeartbeat(
+      RecordActivityTaskHeartbeatRequest heartbeatRequest) throws TException {
     ThriftResponse<WorkflowService.RecordActivityTaskHeartbeat_result> response = null;
     try {
       ThriftRequest<WorkflowService.RecordActivityTaskHeartbeat_args> request =
@@ -807,8 +883,14 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
-  public void RespondActivityTaskCompleted(RespondActivityTaskCompletedRequest completeRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+  public void RespondActivityTaskCompleted(RespondActivityTaskCompletedRequest request)
+      throws TException {
+    measureRemoteProc(
+        ServiceMethod.RESPOND_ACTIVITY_TASK_COMPLETED, () -> respondActivityTaskCompleted(request));
+  }
+
+  private void respondActivityTaskCompleted(RespondActivityTaskCompletedRequest completeRequest)
+      throws TException {
     ThriftResponse<WorkflowService.RespondActivityTaskCompleted_result> response = null;
     try {
       ThriftRequest<WorkflowService.RespondActivityTaskCompleted_args> request =
@@ -839,9 +921,15 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
-  public void RespondActivityTaskCompletedByID(
-      RespondActivityTaskCompletedByIDRequest completeRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+  public void RespondActivityTaskCompletedByID(RespondActivityTaskCompletedByIDRequest request)
+      throws TException {
+    measureRemoteProc(
+        ServiceMethod.RESPOND_ACTIVITY_TASK_COMPLETED_BY_ID,
+        () -> respondActivityTaskCompletedByID(request));
+  }
+
+  private void respondActivityTaskCompletedByID(
+      RespondActivityTaskCompletedByIDRequest completeRequest) throws TException {
     ThriftResponse<WorkflowService.RespondActivityTaskCompletedByID_result> response = null;
     try {
       ThriftRequest<WorkflowService.RespondActivityTaskCompletedByID_args> request =
@@ -872,8 +960,14 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
-  public void RespondActivityTaskFailed(RespondActivityTaskFailedRequest failRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+  public void RespondActivityTaskFailed(RespondActivityTaskFailedRequest request)
+      throws TException {
+    measureRemoteProc(
+        ServiceMethod.RESPOND_ACTIVITY_TASK_FAILED, () -> respondActivityTaskFailed(request));
+  }
+
+  private void respondActivityTaskFailed(RespondActivityTaskFailedRequest failRequest)
+      throws TException {
     ThriftResponse<WorkflowService.RespondActivityTaskFailed_result> response = null;
     try {
       ThriftRequest<WorkflowService.RespondActivityTaskFailed_args> request =
@@ -904,8 +998,15 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
-  public void RespondActivityTaskFailedByID(RespondActivityTaskFailedByIDRequest failRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+  public void RespondActivityTaskFailedByID(RespondActivityTaskFailedByIDRequest request)
+      throws TException {
+    measureRemoteProc(
+        ServiceMethod.RESPOND_ACTIVITY_TASK_FAILED_BY_ID,
+        () -> respondActivityTaskFailedByID(request));
+  }
+
+  private void respondActivityTaskFailedByID(RespondActivityTaskFailedByIDRequest failRequest)
+      throws TException {
     ThriftResponse<WorkflowService.RespondActivityTaskFailedByID_result> response = null;
     try {
       ThriftRequest<WorkflowService.RespondActivityTaskFailedByID_args> request =
@@ -936,8 +1037,14 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
-  public void RespondActivityTaskCanceled(RespondActivityTaskCanceledRequest canceledRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+  public void RespondActivityTaskCanceled(RespondActivityTaskCanceledRequest request)
+      throws TException {
+    measureRemoteProc(
+        ServiceMethod.RESPOND_ACTIVITY_TASK_CANCELED, () -> respondActivityTaskCanceled(request));
+  }
+
+  private void respondActivityTaskCanceled(RespondActivityTaskCanceledRequest canceledRequest)
+      throws TException {
     ThriftResponse<WorkflowService.RespondActivityTaskCanceled_result> response = null;
     try {
       ThriftRequest<WorkflowService.RespondActivityTaskCanceled_args> request =
@@ -968,9 +1075,15 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
-  public void RespondActivityTaskCanceledByID(
-      RespondActivityTaskCanceledByIDRequest canceledByIDRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+  public void RespondActivityTaskCanceledByID(RespondActivityTaskCanceledByIDRequest request)
+      throws TException {
+    measureRemoteProc(
+        ServiceMethod.RESPOND_ACTIVITY_TASK_CANCELED_BY_ID,
+        () -> respondActivityTaskCanceledByID(request));
+  }
+
+  private void respondActivityTaskCanceledByID(
+      RespondActivityTaskCanceledByIDRequest canceledByIDRequest) throws TException {
     ThriftResponse<WorkflowService.RespondActivityTaskCanceledByID_result> response = null;
     try {
       ThriftRequest<WorkflowService.RespondActivityTaskCanceledByID_args> request =
@@ -1001,9 +1114,15 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
-  public void RequestCancelWorkflowExecution(RequestCancelWorkflowExecutionRequest cancelRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError,
-          CancellationAlreadyRequestedError, ServiceBusyError, TException {
+  public void RequestCancelWorkflowExecution(RequestCancelWorkflowExecutionRequest request)
+      throws TException {
+    measureRemoteProc(
+        ServiceMethod.REQUEST_CANCEL_WORKFLOW_EXECUTION,
+        () -> requestCancelWorkflowExecution(request));
+  }
+
+  private void requestCancelWorkflowExecution(RequestCancelWorkflowExecutionRequest cancelRequest)
+      throws TException {
     cancelRequest.setRequestId(UUID.randomUUID().toString());
     ThriftResponse<WorkflowService.RequestCancelWorkflowExecution_result> response = null;
     try {
@@ -1041,9 +1160,13 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
-  public void SignalWorkflowExecution(SignalWorkflowExecutionRequest signalRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
-          TException {
+  public void SignalWorkflowExecution(SignalWorkflowExecutionRequest request) throws TException {
+    measureRemoteProc(
+        ServiceMethod.SIGNAL_WORKFLOW_EXECUTION, () -> signalWorkflowExecution(request));
+  }
+
+  private void signalWorkflowExecution(SignalWorkflowExecutionRequest signalRequest)
+      throws TException {
     ThriftResponse<WorkflowService.SignalWorkflowExecution_result> response = null;
     try {
       ThriftRequest<WorkflowService.SignalWorkflowExecution_args> request =
@@ -1077,9 +1200,14 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
-  public void TerminateWorkflowExecution(TerminateWorkflowExecutionRequest terminateRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
-          TException {
+  public void TerminateWorkflowExecution(TerminateWorkflowExecutionRequest request)
+      throws TException {
+    measureRemoteProc(
+        ServiceMethod.TERMINATE_WORKFLOW_EXECUTION, () -> terminateWorkflowExecution(request));
+  }
+
+  private void terminateWorkflowExecution(TerminateWorkflowExecutionRequest terminateRequest)
+      throws TException {
     ThriftResponse<WorkflowService.TerminateWorkflowExecution_result> response = null;
     try {
       ThriftRequest<WorkflowService.TerminateWorkflowExecution_args> request =
@@ -1114,9 +1242,13 @@ public class WorkflowServiceTChannel implements IWorkflowService {
 
   @Override
   public ListOpenWorkflowExecutionsResponse ListOpenWorkflowExecutions(
-      ListOpenWorkflowExecutionsRequest listRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
-          TException {
+      ListOpenWorkflowExecutionsRequest request) throws TException {
+    return measureRemoteCall(
+        ServiceMethod.LIST_OPEN_WORKFLOW_EXECUTIONS, () -> listOpenWorkflowExecutions(request));
+  }
+
+  private ListOpenWorkflowExecutionsResponse listOpenWorkflowExecutions(
+      ListOpenWorkflowExecutionsRequest listRequest) throws TException {
     ThriftResponse<WorkflowService.ListOpenWorkflowExecutions_result> response = null;
     try {
       ThriftRequest<WorkflowService.ListOpenWorkflowExecutions_args> request =
@@ -1151,9 +1283,13 @@ public class WorkflowServiceTChannel implements IWorkflowService {
 
   @Override
   public ListClosedWorkflowExecutionsResponse ListClosedWorkflowExecutions(
-      ListClosedWorkflowExecutionsRequest listRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
-          TException {
+      ListClosedWorkflowExecutionsRequest request) throws TException {
+    return measureRemoteCall(
+        ServiceMethod.LIST_CLOSED_WORKFLOW_EXECUTIONS, () -> listClosedWorkflowExecutions(request));
+  }
+
+  private ListClosedWorkflowExecutionsResponse listClosedWorkflowExecutions(
+      ListClosedWorkflowExecutionsRequest listRequest) throws TException {
     ThriftResponse<WorkflowService.ListClosedWorkflowExecutions_result> response = null;
     try {
       ThriftRequest<WorkflowService.ListClosedWorkflowExecutions_args> request =
@@ -1187,8 +1323,14 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
-  public void RespondQueryTaskCompleted(RespondQueryTaskCompletedRequest completeRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+  public void RespondQueryTaskCompleted(RespondQueryTaskCompletedRequest request)
+      throws TException {
+    measureRemoteProc(
+        ServiceMethod.RESPOND_QUERY_TASK_COMPLETED, () -> respondQueryTaskCompleted(request));
+  }
+
+  private void respondQueryTaskCompleted(RespondQueryTaskCompletedRequest completeRequest)
+      throws TException {
     ThriftResponse<WorkflowService.RespondQueryTaskCompleted_result> response = null;
     try {
       ThriftRequest<WorkflowService.RespondQueryTaskCompleted_args> request =
@@ -1219,9 +1361,11 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
-  public QueryWorkflowResponse QueryWorkflow(QueryWorkflowRequest queryRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, QueryFailedError,
-          TException {
+  public QueryWorkflowResponse QueryWorkflow(QueryWorkflowRequest request) throws TException {
+    return measureRemoteCall(ServiceMethod.QUERY_WORKFLOW, () -> queryWorkflow(request));
+  }
+
+  private QueryWorkflowResponse queryWorkflow(QueryWorkflowRequest queryRequest) throws TException {
     ThriftResponse<WorkflowService.QueryWorkflow_result> response = null;
     try {
       ThriftRequest<WorkflowService.QueryWorkflow_args> request =
@@ -1258,8 +1402,13 @@ public class WorkflowServiceTChannel implements IWorkflowService {
 
   @Override
   public DescribeWorkflowExecutionResponse DescribeWorkflowExecution(
-      DescribeWorkflowExecutionRequest describeRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+      DescribeWorkflowExecutionRequest request) throws TException {
+    return measureRemoteCall(
+        ServiceMethod.DESCRIBE_WORKFLOW_EXECUTION, () -> describeWorkflowExecution(request));
+  }
+
+  private DescribeWorkflowExecutionResponse describeWorkflowExecution(
+      DescribeWorkflowExecutionRequest describeRequest) throws TException {
     ThriftResponse<WorkflowService.DescribeWorkflowExecution_result> response = null;
     try {
       ThriftRequest<WorkflowService.DescribeWorkflowExecution_args> request =
@@ -1290,8 +1439,13 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
-  public DescribeTaskListResponse DescribeTaskList(DescribeTaskListRequest describeRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+  public DescribeTaskListResponse DescribeTaskList(DescribeTaskListRequest request)
+      throws TException {
+    return measureRemoteCall(ServiceMethod.DESCRIBE_TASK_LIST, () -> describeTaskList(request));
+  }
+
+  private DescribeTaskListResponse describeTaskList(DescribeTaskListRequest describeRequest)
+      throws TException {
     ThriftResponse<WorkflowService.DescribeTaskList_result> response = null;
     try {
       ThriftRequest<WorkflowService.DescribeTaskList_args> request =

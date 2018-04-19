@@ -17,17 +17,22 @@
 
 package com.uber.cadence.internal.worker;
 
+import com.uber.cadence.InternalServiceError;
 import com.uber.cadence.PollForActivityTaskRequest;
 import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.RespondActivityTaskCanceledRequest;
 import com.uber.cadence.RespondActivityTaskCompletedRequest;
 import com.uber.cadence.RespondActivityTaskFailedRequest;
+import com.uber.cadence.ServiceBusyError;
 import com.uber.cadence.TaskList;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.internal.common.Retryer;
+import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.internal.worker.ActivityTaskHandler.Result;
 import com.uber.cadence.serviceclient.IWorkflowService;
+import com.uber.m3.tally.Stopwatch;
+import com.uber.m3.util.Duration;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
@@ -40,7 +45,7 @@ public final class ActivityWorker implements SuspendableWorker {
 
   private static final Logger log = LoggerFactory.getLogger(ActivityWorker.class);
 
-  private static final String POLL_THREAD_NAME_PREFIX = "Activity Poller ";
+  private static final String POLL_THREAD_NAME_PREFIX = "Poller taskList=";
 
   private Poller poller;
   private final ActivityTaskHandler handler;
@@ -83,9 +88,10 @@ public final class ActivityWorker implements SuspendableWorker {
       }
       Poller.ThrowingRunnable pollTask =
           new PollTask<>(service, domain, taskList, options, new TaskHandlerImpl(handler));
-      new PollTask<>(service, domain, taskList, options, new TaskHandlerImpl(handler));
-      poller = new Poller(pollerOptions, options.getIdentity(), pollTask);
+      poller =
+          new Poller(pollerOptions, options.getIdentity(), pollTask, options.getMetricsScope());
       poller.start();
+      options.getMetricsScope().counter(MetricsType.WORKER_START_COUNTER).inc(1);
     }
   }
 
@@ -142,7 +148,21 @@ public final class ActivityWorker implements SuspendableWorker {
     }
   }
 
-  private class TaskHandlerImpl implements PollTask.TaskHandler<PollForActivityTaskResponse> {
+  private class MeasurableActivityTask {
+    PollForActivityTaskResponse task;
+    Stopwatch sw;
+
+    MeasurableActivityTask(PollForActivityTaskResponse task, Stopwatch sw) {
+      this.task = Objects.requireNonNull(task);
+      this.sw = Objects.requireNonNull(sw);
+    }
+
+    void markDone() {
+      sw.stop();
+    }
+  }
+
+  private class TaskHandlerImpl implements PollTask.TaskHandler<MeasurableActivityTask> {
 
     final ActivityTaskHandler handler;
 
@@ -152,23 +172,44 @@ public final class ActivityWorker implements SuspendableWorker {
 
     @Override
     public void handle(
-        IWorkflowService service, String domain, String taskList, PollForActivityTaskResponse task)
+        IWorkflowService service, String domain, String taskList, MeasurableActivityTask task)
         throws Exception {
+      options
+          .getMetricsScope()
+          .timer(MetricsType.TASK_LIST_QUEUE_LATENCY)
+          .record(
+              Duration.ofNanos(
+                  task.task.getStartedTimestamp() - task.task.getScheduledTimestamp()));
+
       try {
-        ActivityTaskHandler.Result response = handler.handle(service, domain, task);
-        sendReply(task, response);
+        Stopwatch sw = options.getMetricsScope().timer(MetricsType.ACTIVITY_EXEC_LATENCY).start();
+        ActivityTaskHandler.Result response =
+            handler.handle(service, domain, task.task, options.getMetricsScope());
+        sw.stop();
+
+        sw = options.getMetricsScope().timer(MetricsType.ACTIVITY_RESP_LATENCY).start();
+        sendReply(task.task, response);
+        sw.stop();
+
+        task.markDone();
       } catch (CancellationException e) {
         RespondActivityTaskCanceledRequest cancelledRequest =
             new RespondActivityTaskCanceledRequest();
         cancelledRequest.setDetails(
             String.valueOf(e.getMessage()).getBytes(StandardCharsets.UTF_8));
-        sendReply(task, new Result(null, null, cancelledRequest, null));
+        Stopwatch sw = options.getMetricsScope().timer(MetricsType.ACTIVITY_RESP_LATENCY).start();
+        sendReply(task.task, new Result(null, null, cancelledRequest, null));
+        sw.stop();
       }
     }
 
     @Override
-    public PollForActivityTaskResponse poll(
-        IWorkflowService service, String domain, String taskList) throws TException {
+    public MeasurableActivityTask poll(IWorkflowService service, String domain, String taskList)
+        throws TException {
+      options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_COUNTER).inc(1);
+      Stopwatch sw = options.getMetricsScope().timer(MetricsType.ACTIVITY_POLL_LATENCY).start();
+      Stopwatch e2eSW = options.getMetricsScope().timer(MetricsType.ACTIVITY_E2E_LATENCY).start();
+
       PollForActivityTaskRequest pollRequest = new PollForActivityTaskRequest();
       pollRequest.setDomain(domain);
       pollRequest.setIdentity(options.getIdentity());
@@ -176,31 +217,49 @@ public final class ActivityWorker implements SuspendableWorker {
       if (log.isDebugEnabled()) {
         log.debug("poll request begin: " + pollRequest);
       }
-      PollForActivityTaskResponse result = service.PollForActivityTask(pollRequest);
+      PollForActivityTaskResponse result;
+      try {
+        result = service.PollForActivityTask(pollRequest);
+      } catch (InternalServiceError | ServiceBusyError e) {
+        options
+            .getMetricsScope()
+            .counter(MetricsType.ACTIVITY_POLL_TRANSIENT_FAILED_COUNTER)
+            .inc(1);
+        throw e;
+      } catch (TException e) {
+        options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_FAILED_COUNTER).inc(1);
+        throw e;
+      }
+
       if (result == null || result.getTaskToken() == null) {
         if (log.isDebugEnabled()) {
           log.debug("poll request returned no task");
         }
+        options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_NO_TASK_COUNTER).inc(1);
         return null;
       }
+
       if (log.isTraceEnabled()) {
         log.trace("poll request returned " + result);
       }
-      return result;
+
+      options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_SUCCEED_COUNTER).inc(1);
+      sw.stop();
+      return new MeasurableActivityTask(result, e2eSW);
     }
 
     @Override
-    public Throwable wrapFailure(PollForActivityTaskResponse task, Throwable failure) {
-      WorkflowExecution execution = task.getWorkflowExecution();
+    public Throwable wrapFailure(MeasurableActivityTask task, Throwable failure) {
+      WorkflowExecution execution = task.task.getWorkflowExecution();
       return new RuntimeException(
           "Failure processing activity task. WorkflowID="
               + execution.getWorkflowId()
               + ", RunID="
               + execution.getRunId()
               + ", ActivityType="
-              + task.getActivityType().getName()
+              + task.task.getActivityType().getName()
               + ", ActivityID="
-              + task.getActivityId(),
+              + task.task.getActivityId(),
           failure);
     }
 
@@ -213,6 +272,7 @@ public final class ActivityWorker implements SuspendableWorker {
         taskCompleted.setTaskToken(task.getTaskToken());
         taskCompleted.setIdentity(options.getIdentity());
         Retryer.retry(ro, () -> service.RespondActivityTaskCompleted(taskCompleted));
+        options.getMetricsScope().counter(MetricsType.ACTIVITY_TASK_COMPLETED_COUNTER).inc(1);
       } else {
         RespondActivityTaskFailedRequest taskFailed = response.getTaskFailed();
         if (taskFailed != null) {
@@ -220,6 +280,7 @@ public final class ActivityWorker implements SuspendableWorker {
           taskFailed.setTaskToken(task.getTaskToken());
           taskFailed.setIdentity(options.getIdentity());
           Retryer.retry(ro, () -> service.RespondActivityTaskFailed(taskFailed));
+          options.getMetricsScope().counter(MetricsType.ACTIVITY_TASK_FAILED_COUNTER).inc(1);
         } else {
           RespondActivityTaskCanceledRequest taskCancelled = response.getTaskCancelled();
           if (taskCancelled != null) {
@@ -227,6 +288,7 @@ public final class ActivityWorker implements SuspendableWorker {
             taskCancelled.setIdentity(options.getIdentity());
             ro = options.getReportFailureRetryOptions().merge(ro);
             Retryer.retry(ro, () -> service.RespondActivityTaskCanceled(taskCancelled));
+            options.getMetricsScope().counter(MetricsType.ACTIVITY_TASK_CANCELED_COUNTER).inc(1);
           }
         }
       }

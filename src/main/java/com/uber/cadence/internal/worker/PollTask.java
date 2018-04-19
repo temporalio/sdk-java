@@ -78,10 +78,7 @@ final class PollTask<T> implements Poller.ThrowingRunnable {
     this.pollSemaphore = new Semaphore(options.getTaskExecutorThreadPoolSize());
   }
 
-  /**
-   * Poll for a activity task and execute correspondent implementation using provided executor
-   * service.
-   */
+  /** Poll for a task and execute correspondent implementation using provided executor service. */
   @Override
   public void run() throws Exception {
     boolean synchronousSemaphoreRelease = false;

@@ -126,14 +126,16 @@ public final class WorkflowClientInternal implements WorkflowClient {
 
   private WorkflowClientInternal(
       IWorkflowService service, String domain, WorkflowClientOptions options) {
-    this.genericClient = new GenericWorkflowClientExternalImpl(service, domain);
+    this.genericClient =
+        new GenericWorkflowClientExternalImpl(service, domain, options.getMetricsScope());
     if (options == null) {
       options = new WorkflowClientOptions.Builder().build();
     }
     this.dataConverter = options.getDataConverter();
     this.interceptors = options.getInterceptors();
     this.manualActivityCompletionClientFactory =
-        new ManualActivityCompletionClientFactoryImpl(service, domain, dataConverter);
+        new ManualActivityCompletionClientFactoryImpl(
+            service, domain, dataConverter, options.getMetricsScope());
   }
 
   @Override

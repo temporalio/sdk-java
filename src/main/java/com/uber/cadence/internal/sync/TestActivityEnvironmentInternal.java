@@ -68,6 +68,7 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
 import com.uber.cadence.activity.ActivityOptions;
 import com.uber.cadence.common.RetryOptions;
+import com.uber.cadence.internal.metrics.NoopScope;
 import com.uber.cadence.internal.worker.ActivityTaskHandler;
 import com.uber.cadence.internal.worker.ActivityTaskHandler.Result;
 import com.uber.cadence.serviceclient.IWorkflowService;
@@ -173,7 +174,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
       task.setActivityType(new ActivityType().setName(activityType));
       IWorkflowService service = new WorkflowServiceWrapper(null);
       Result taskResult =
-          activityTaskHandler.handle(service, testEnvironmentOptions.getDomain(), task);
+          activityTaskHandler.handle(
+              service, testEnvironmentOptions.getDomain(), task, NoopScope.getInstance());
       return Workflow.newPromise(getReply(task, taskResult, returnType));
     }
 

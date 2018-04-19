@@ -23,15 +23,18 @@ import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.RespondActivityTaskCompletedRequest;
 import com.uber.cadence.RespondActivityTaskFailedRequest;
 import com.uber.cadence.activity.ActivityMethod;
-import com.uber.cadence.activity.ActivityTask;
 import com.uber.cadence.client.ActivityCancelledException;
 import com.uber.cadence.common.MethodRetry;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.internal.common.InternalUtils;
+import com.uber.cadence.internal.metrics.MetricsTag;
+import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.internal.worker.ActivityTaskHandler;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.cadence.testing.SimulatedTimeoutException;
+import com.uber.m3.tally.Scope;
+import com.uber.m3.util.ImmutableMap;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -100,13 +103,21 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
   }
 
-  private ActivityTaskHandler.Result mapToActivityFailure(ActivityTask task, Throwable failure) {
+  private ActivityTaskHandler.Result mapToActivityFailure(
+      String activityType, Throwable failure, Scope metricsScope) {
     if (failure instanceof Error) {
+      Map<String, String> tags =
+          new ImmutableMap.Builder<String, String>(1)
+              .put(MetricsTag.ACTIVITY_TYPE, activityType)
+              .build();
+      metricsScope.tagged(tags).counter(MetricsType.ACTIVITY_TASK_ERROR_COUNTER).inc(1);
       throw (Error) failure;
     }
+
     if (failure instanceof ActivityCancelledException) {
       throw new CancellationException(failure.getMessage());
     }
+
     // Only expected during unit tests.
     if (failure instanceof SimulatedTimeoutException) {
       SimulatedTimeoutException timeoutException = (SimulatedTimeoutException) failure;
@@ -115,6 +126,8 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
               timeoutException.getTimeoutType(),
               dataConverter.toData(timeoutException.getDetails()));
     }
+
+    metricsScope.counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
     RespondActivityTaskFailedRequest result = new RespondActivityTaskFailedRequest();
     failure = CheckedExceptionWrapper.unwrap(failure);
     result.setReason(failure.getClass().getName());
@@ -136,21 +149,25 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
 
   @Override
   public Result handle(
-      IWorkflowService service, String domain, PollForActivityTaskResponse pollResponse) {
+      IWorkflowService service,
+      String domain,
+      PollForActivityTaskResponse pollResponse,
+      Scope metricsScope) {
     String activityType = pollResponse.getActivityType().getName();
     ActivityTaskImpl activityTask = new ActivityTaskImpl(pollResponse);
     POJOActivityImplementation activity = activities.get(activityType);
     if (activity == null) {
       String knownTypes = Joiner.on(", ").join(activities.keySet());
       return mapToActivityFailure(
-          activityTask,
+          activityType,
           new IllegalArgumentException(
               "Activity Type \""
                   + activityType
                   + "\" is not registered with a worker. Known types are: "
-                  + knownTypes));
+                  + knownTypes),
+          metricsScope);
     }
-    return activity.execute(service, domain, activityTask);
+    return activity.execute(service, domain, activityTask, metricsScope);
   }
 
   private class POJOActivityImplementation {
@@ -164,7 +181,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
 
     public ActivityTaskHandler.Result execute(
-        IWorkflowService service, String domain, ActivityTaskImpl task) {
+        IWorkflowService service, String domain, ActivityTaskImpl task, Scope metricsScope) {
       ActivityExecutionContext context =
           new ActivityExecutionContextImpl(service, domain, task, dataConverter);
       byte[] input = task.getInput();
@@ -180,12 +197,10 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
           request.setResult(dataConverter.toData(result));
         }
         return new ActivityTaskHandler.Result(request, null, null, null);
-      } catch (RuntimeException e) {
-        return mapToActivityFailure(task, e);
+      } catch (RuntimeException | IllegalAccessException e) {
+        return mapToActivityFailure(task.getActivityType(), e, metricsScope);
       } catch (InvocationTargetException e) {
-        return mapToActivityFailure(task, e.getTargetException());
-      } catch (IllegalAccessException e) {
-        return mapToActivityFailure(task, e);
+        return mapToActivityFailure(task.getActivityType(), e.getTargetException(), metricsScope);
       } finally {
         CurrentActivityExecutionContext.unset();
       }

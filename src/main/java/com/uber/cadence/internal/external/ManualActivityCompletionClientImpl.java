@@ -31,7 +31,9 @@ import com.uber.cadence.client.ActivityCancelledException;
 import com.uber.cadence.client.ActivityCompletionFailureException;
 import com.uber.cadence.client.ActivityNotExistsException;
 import com.uber.cadence.converter.DataConverter;
+import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.serviceclient.IWorkflowService;
+import com.uber.m3.tally.Scope;
 import java.util.concurrent.CancellationException;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
@@ -51,15 +53,17 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
   private final String domain;
   private final WorkflowExecution execution;
   private final String activityId;
+  private final Scope metricsScope;
 
   public ManualActivityCompletionClientImpl(
-      IWorkflowService service, byte[] taskToken, DataConverter dataConverter) {
+      IWorkflowService service, byte[] taskToken, DataConverter dataConverter, Scope metricsScope) {
     this.service = service;
     this.taskToken = taskToken;
     this.dataConverter = dataConverter;
     this.domain = null;
     this.execution = null;
     this.activityId = null;
+    this.metricsScope = metricsScope;
   }
 
   public ManualActivityCompletionClientImpl(
@@ -67,13 +71,15 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
       String domain,
       WorkflowExecution execution,
       String activityId,
-      DataConverter dataConverter) {
+      DataConverter dataConverter,
+      Scope metricsScope) {
     this.service = service;
     this.taskToken = null;
     this.domain = domain;
     this.execution = execution;
     this.activityId = activityId;
     this.dataConverter = dataConverter;
+    this.metricsScope = metricsScope;
   }
 
   @Override
@@ -85,6 +91,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
       request.setTaskToken(taskToken);
       try {
         service.RespondActivityTaskCompleted(request);
+        metricsScope.counter(MetricsType.ACTIVITY_TASK_COMPLETED_COUNTER).inc(1);
       } catch (EntityNotExistsError e) {
         throw new ActivityNotExistsException(e);
       } catch (TException e) {
@@ -104,6 +111,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
       request.setRunID(execution.getRunId());
       try {
         service.RespondActivityTaskCompletedByID(request);
+        metricsScope.counter(MetricsType.ACTIVITY_TASK_COMPLETED_BY_ID_COUNTER).inc(1);
       } catch (EntityNotExistsError e) {
         throw new ActivityNotExistsException(e);
       } catch (TException e) {
@@ -125,6 +133,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
       request.setTaskToken(taskToken);
       try {
         service.RespondActivityTaskFailed(request);
+        metricsScope.counter(MetricsType.ACTIVITY_TASK_FAILED_COUNTER).inc(1);
       } catch (EntityNotExistsError e) {
         throw new ActivityNotExistsException(e);
       } catch (TException e) {
@@ -139,6 +148,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
       request.setRunID(execution.getRunId());
       try {
         service.RespondActivityTaskFailedByID(request);
+        metricsScope.counter(MetricsType.ACTIVITY_TASK_FAILED_BY_ID_COUNTER).inc(1);
       } catch (EntityNotExistsError e) {
         throw new ActivityNotExistsException(e);
       } catch (TException e) {
@@ -178,6 +188,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
       request.setTaskToken(taskToken);
       try {
         service.RespondActivityTaskCanceled(request);
+        metricsScope.counter(MetricsType.ACTIVITY_TASK_CANCELED_COUNTER).inc(1);
       } catch (TException e) {
         // There is nothing that can be done at this point.
         // so let's just ignore.
@@ -191,6 +202,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
       request.setRunID(execution.getRunId());
       try {
         service.RespondActivityTaskCanceledByID(request);
+        metricsScope.counter(MetricsType.ACTIVITY_TASK_CANCELED_BY_ID_COUNTER).inc(1);
       } catch (TException e) {
         // There is nothing that can be done at this point.
         // so let's just ignore.

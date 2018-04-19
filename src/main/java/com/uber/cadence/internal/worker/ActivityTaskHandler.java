@@ -23,6 +23,7 @@ import com.uber.cadence.RespondActivityTaskCompletedRequest;
 import com.uber.cadence.RespondActivityTaskFailedRequest;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.serviceclient.IWorkflowService;
+import com.uber.m3.tally.Scope;
 
 /**
  * Interface of an activity task handler.
@@ -79,7 +80,11 @@ public interface ActivityTaskHandler {
    * @param activityTask activity task which is response to PollForActivityTask call.
    * @return One of the possible decision task replies.
    */
-  Result handle(IWorkflowService service, String domain, PollForActivityTaskResponse activityTask);
+  Result handle(
+      IWorkflowService service,
+      String domain,
+      PollForActivityTaskResponse activityTask,
+      Scope metricsScope);
 
   /** True if this handler handles at least one activity type. */
   boolean isAnyTypeSupported();
