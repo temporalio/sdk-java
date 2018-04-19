@@ -71,45 +71,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   public WorkflowExecution startWorkflow(StartWorkflowExecutionParameters startParameters)
       throws WorkflowExecutionAlreadyStartedError {
     try {
-      StartWorkflowExecutionRequest request = new StartWorkflowExecutionRequest();
-      request.setDomain(domain);
-
-      request.setInput(startParameters.getInput());
-      request.setExecutionStartToCloseTimeoutSeconds(
-          (int) startParameters.getExecutionStartToCloseTimeoutSeconds());
-      request.setTaskStartToCloseTimeoutSeconds(
-          (int) startParameters.getTaskStartToCloseTimeoutSeconds());
-      request.setWorkflowIdReusePolicy(startParameters.getWorkflowIdReusePolicy());
-      String taskList = startParameters.getTaskList();
-      if (taskList != null && !taskList.isEmpty()) {
-        TaskList tl = new TaskList();
-        tl.setName(taskList);
-        request.setTaskList(tl);
-      }
-      String workflowId = startParameters.getWorkflowId();
-      if (workflowId == null) {
-        workflowId = UUID.randomUUID().toString();
-      }
-      request.setWorkflowId(workflowId);
-      request.setWorkflowType(startParameters.getWorkflowType());
-
-      //        if(startParameters.getChildPolicy() != null) {
-      //            request.setChildPolicy(startParameters.getChildPolicy());
-      //        }
-
-      StartWorkflowExecutionResponse result;
-      try {
-        result = service.StartWorkflowExecution(request);
-      } catch (WorkflowExecutionAlreadyStartedError e) {
-        throw e;
-      } catch (TException e) {
-        throw CheckedExceptionWrapper.wrap(e);
-      }
-      WorkflowExecution execution = new WorkflowExecution();
-      execution.setRunId(result.getRunId());
-      execution.setWorkflowId(request.getWorkflowId());
-
-      return execution;
+      return startWorkflowInternal(startParameters);
     } finally {
       // TODO: can probably cache this
       Map<String, String> tags =
@@ -118,6 +80,49 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
               .build();
       metricsScope.tagged(tags).counter(MetricsType.WORKFLOW_START_COUNTER).inc(1);
     }
+  }
+
+  private WorkflowExecution startWorkflowInternal(StartWorkflowExecutionParameters startParameters)
+      throws WorkflowExecutionAlreadyStartedError {
+    StartWorkflowExecutionRequest request = new StartWorkflowExecutionRequest();
+    request.setDomain(domain);
+
+    request.setInput(startParameters.getInput());
+    request.setExecutionStartToCloseTimeoutSeconds(
+        (int) startParameters.getExecutionStartToCloseTimeoutSeconds());
+    request.setTaskStartToCloseTimeoutSeconds(
+        (int) startParameters.getTaskStartToCloseTimeoutSeconds());
+    request.setWorkflowIdReusePolicy(startParameters.getWorkflowIdReusePolicy());
+    String taskList = startParameters.getTaskList();
+    if (taskList != null && !taskList.isEmpty()) {
+      TaskList tl = new TaskList();
+      tl.setName(taskList);
+      request.setTaskList(tl);
+    }
+    String workflowId = startParameters.getWorkflowId();
+    if (workflowId == null) {
+      workflowId = UUID.randomUUID().toString();
+    }
+    request.setWorkflowId(workflowId);
+    request.setWorkflowType(startParameters.getWorkflowType());
+
+    //        if(startParameters.getChildPolicy() != null) {
+    //            request.setChildPolicy(startParameters.getChildPolicy());
+    //        }
+
+    StartWorkflowExecutionResponse result;
+    try {
+      result = service.StartWorkflowExecution(request);
+    } catch (WorkflowExecutionAlreadyStartedError e) {
+      throw e;
+    } catch (TException e) {
+      throw CheckedExceptionWrapper.wrap(e);
+    }
+    WorkflowExecution execution = new WorkflowExecution();
+    execution.setRunId(result.getRunId());
+    execution.setWorkflowId(request.getWorkflowId());
+
+    return execution;
   }
 
   @Override

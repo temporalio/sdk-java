@@ -25,7 +25,7 @@ import com.uber.m3.tally.StatsReporter;
 import com.uber.m3.util.Duration;
 import java.util.Map;
 
-public class NoopScope {
+public final class NoopScope {
   private static class NoopReporter implements StatsReporter {
 
     @Override

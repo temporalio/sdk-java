@@ -153,10 +153,8 @@ public final class ActivityWorker implements SuspendableWorker {
     Stopwatch sw;
 
     MeasurableActivityTask(PollForActivityTaskResponse task, Stopwatch sw) {
-      Objects.requireNonNull(task);
-      Objects.requireNonNull(sw);
-      this.task = task;
-      this.sw = sw;
+      this.task = Objects.requireNonNull(task);
+      this.sw = Objects.requireNonNull(sw);
     }
 
     void markDone() {
