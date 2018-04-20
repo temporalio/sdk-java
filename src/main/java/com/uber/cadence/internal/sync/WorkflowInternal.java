@@ -39,6 +39,7 @@ import com.uber.cadence.workflow.Workflow;
 import com.uber.cadence.workflow.WorkflowInfo;
 import com.uber.cadence.workflow.WorkflowInterceptor;
 import com.uber.cadence.workflow.WorkflowQueue;
+import com.uber.m3.tally.Scope;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -306,5 +307,9 @@ public final class WorkflowInternal {
 
   public static void sleep(Duration duration) {
     getWorkflowInterceptor().sleep(duration);
+  }
+
+  public static Scope getMetricsScope() {
+    return getRootDecisionContext().getMetricsScope();
   }
 }

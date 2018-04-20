@@ -25,6 +25,7 @@ import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.Functions.Func1;
 import com.uber.cadence.workflow.Functions.Func2;
 import com.uber.cadence.workflow.Functions.Proc;
+import com.uber.m3.tally.Scope;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
@@ -706,6 +707,10 @@ public final class Workflow {
    */
   public static boolean isReplaying() {
     return WorkflowInternal.isReplaying();
+  }
+
+  public static Scope getMetricsScope() {
+    return WorkflowInternal.getMetricsScope();
   }
 
   /** Prohibit instantiation. */

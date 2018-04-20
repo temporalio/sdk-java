@@ -19,6 +19,7 @@ package com.uber.cadence.internal.metrics;
 
 import com.uber.m3.tally.Buckets;
 import com.uber.m3.tally.Capabilities;
+import com.uber.m3.tally.CapableOf;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.StatsReporter;
@@ -57,17 +58,7 @@ public final class NoopScope {
 
     @Override
     public Capabilities capabilities() {
-      return new Capabilities() {
-        @Override
-        public boolean reporting() {
-          return true;
-        }
-
-        @Override
-        public boolean tagging() {
-          return true;
-        }
-      };
+      return CapableOf.REPORTING_TAGGING;
     }
 
     @Override

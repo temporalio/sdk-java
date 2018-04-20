@@ -20,6 +20,7 @@ package com.uber.cadence.internal.replay;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.workflow.Promise;
+import com.uber.m3.tally.Scope;
 import java.time.Duration;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -28,7 +29,7 @@ import java.util.function.Consumer;
  * Represents the context for decider. Should only be used within the scope of workflow definition
  * code, meaning any code which is not part of activity implementations.
  */
-public interface DecisionContext {
+public interface DecisionContext extends ReplayAware {
 
   WorkflowExecution getWorkflowExecution();
 
@@ -102,13 +103,6 @@ public interface DecisionContext {
   long currentTimeMillis();
 
   /**
-   * <code>true</code> indicates if workflow is replaying already processed events to reconstruct it
-   * state. <code>false</code> indicates that code is making forward process for the first time. For
-   * example can be used to avoid duplicating log records due to replay.
-   */
-  boolean isReplaying();
-
-  /**
    * Create a Value that becomes ready after the specified delay.
    *
    * @param delaySeconds time-interval after which the Value becomes ready in seconds.
@@ -117,4 +111,6 @@ public interface DecisionContext {
    * @return cancellation handle. Invoke {@link Consumer#accept(Object)} to cancel timer.
    */
   Consumer<Exception> createTimer(long delaySeconds, Consumer<Exception> callback);
+
+  Scope getMetricsScope();
 }
