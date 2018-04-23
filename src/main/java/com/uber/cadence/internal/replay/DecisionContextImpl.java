@@ -56,7 +56,7 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   }
 
   public void setMetricsScope(Scope metricsScope) {
-    this.metricsScope = new ReplayAwareScope(metricsScope, this);
+    this.metricsScope = new ReplayAwareScope(metricsScope, this, workflowClock::currentTimeMillis);
   }
 
   @Override

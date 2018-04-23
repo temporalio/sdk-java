@@ -26,27 +26,30 @@ import com.uber.m3.tally.Histogram;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.ScopeCloseException;
 import com.uber.m3.tally.Stopwatch;
+import com.uber.m3.tally.StopwatchRecorder;
 import com.uber.m3.tally.Timer;
 import com.uber.m3.util.Duration;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 public class ReplayAwareScope implements Scope {
-  Scope scope;
-  ReplayAware context;
+  private Scope scope;
+  private ReplayAware context;
+  private Supplier<Long> clock;
 
-  public ReplayAwareScope(Scope scope, ReplayAware context) {
+  public ReplayAwareScope(Scope scope, ReplayAware context, Supplier<Long> clock) {
     this.scope = Objects.requireNonNull(scope);
     this.context = Objects.requireNonNull(context);
+    this.clock = Objects.requireNonNull(clock);
   }
 
-  private static class ReplayAwareCounter implements Counter {
+  private class ReplayAwareCounter implements Counter {
     Counter counter;
-    ReplayAware context;
 
-    public ReplayAwareCounter(Counter counter, ReplayAware context) {
+    ReplayAwareCounter(Counter counter) {
       this.counter = Objects.requireNonNull(counter);
-      this.context = Objects.requireNonNull(context);
     }
 
     @Override
@@ -59,13 +62,11 @@ public class ReplayAwareScope implements Scope {
     }
   }
 
-  private static class ReplayAwareGauge implements Gauge {
+  private class ReplayAwareGauge implements Gauge {
     Gauge gauge;
-    ReplayAware context;
 
-    public ReplayAwareGauge(Gauge gauge, ReplayAware context) {
+    ReplayAwareGauge(Gauge gauge) {
       this.gauge = Objects.requireNonNull(gauge);
-      this.context = Objects.requireNonNull(context);
     }
 
     @Override
@@ -78,13 +79,11 @@ public class ReplayAwareScope implements Scope {
     }
   }
 
-  private static class ReplayAwareTimer implements Timer {
+  private class ReplayAwareTimer implements Timer, DurationRecorder {
     Timer timer;
-    ReplayAware context;
 
-    public ReplayAwareTimer(Timer timer, ReplayAware context) {
+    ReplayAwareTimer(Timer timer) {
       this.timer = Objects.requireNonNull(timer);
-      this.context = Objects.requireNonNull(context);
     }
 
     @Override
@@ -98,20 +97,39 @@ public class ReplayAwareScope implements Scope {
 
     @Override
     public Stopwatch start() {
-      // TODO: Stopwatch is a concrete class with non-public constructor so there's no
-      // way to extend it. Need to fix this when the following issue is resolved.
-      // https://github.com/uber-java/tally/issues/26
-      return timer.start();
+      long startNanos = TimeUnit.MILLISECONDS.toNanos(clock.get());
+      return new Stopwatch(startNanos, new ReplayAwareStopwatchRecorder(this));
+    }
+
+    @Override
+    public void recordDuration(Duration interval) {
+      record(interval);
     }
   }
 
-  private static class ReplayAwareHistogram implements Histogram {
-    Histogram histogram;
-    ReplayAware context;
+  interface DurationRecorder {
+    void recordDuration(Duration interval);
+  }
 
-    public ReplayAwareHistogram(Histogram histogram, ReplayAware context) {
+  private class ReplayAwareStopwatchRecorder implements StopwatchRecorder {
+    DurationRecorder recorder;
+
+    ReplayAwareStopwatchRecorder(DurationRecorder recorder) {
+      this.recorder = recorder;
+    }
+
+    @Override
+    public void recordStopwatch(long startNanos) {
+      long endNanos = TimeUnit.MILLISECONDS.toNanos(clock.get());
+      recorder.recordDuration(Duration.between(startNanos, endNanos));
+    }
+  }
+
+  private class ReplayAwareHistogram implements Histogram, DurationRecorder {
+    Histogram histogram;
+
+    ReplayAwareHistogram(Histogram histogram) {
       this.histogram = Objects.requireNonNull(histogram);
-      this.context = Objects.requireNonNull(context);
     }
 
     @Override
@@ -134,41 +152,39 @@ public class ReplayAwareScope implements Scope {
 
     @Override
     public Stopwatch start() {
-      // TODO: Stopwatch is a concrete class with non-public constructor so there's no
-      // way to extend it. Need to fix this when the following issue is resolved.
-      // https://github.com/uber-java/tally/issues/26
-      return histogram.start();
+      long startNanos = TimeUnit.MILLISECONDS.toNanos(clock.get());
+      return new Stopwatch(startNanos, new ReplayAwareStopwatchRecorder(this));
     }
   }
 
   @Override
   public Counter counter(String name) {
-    return new ReplayAwareCounter(scope.counter(name), context);
+    return new ReplayAwareCounter(scope.counter(name));
   }
 
   @Override
   public Gauge gauge(String name) {
-    return new ReplayAwareGauge(scope.gauge(name), context);
+    return new ReplayAwareGauge(scope.gauge(name));
   }
 
   @Override
   public Timer timer(String name) {
-    return new ReplayAwareTimer(scope.timer(name), context);
+    return new ReplayAwareTimer(scope.timer(name));
   }
 
   @Override
   public Histogram histogram(String name, Buckets buckets) {
-    return new ReplayAwareHistogram(scope.histogram(name, buckets), context);
+    return new ReplayAwareHistogram(scope.histogram(name, buckets));
   }
 
   @Override
   public Scope tagged(Map<String, String> tags) {
-    return new ReplayAwareScope(scope.tagged(tags), context);
+    return new ReplayAwareScope(scope.tagged(tags), context, clock);
   }
 
   @Override
   public Scope subScope(String name) {
-    return new ReplayAwareScope(scope.subScope(name), context);
+    return new ReplayAwareScope(scope.subScope(name), context, clock);
   }
 
   @Override
