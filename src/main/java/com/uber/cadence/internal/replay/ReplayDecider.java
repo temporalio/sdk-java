@@ -88,6 +88,7 @@ class ReplayDecider {
             domain,
             decisionTask,
             historyHelper.getWorkflowExecutionStartedEventAttributes());
+    context.setMetricsScope(metricsScope);
   }
 
   public boolean isCancelRequested() {

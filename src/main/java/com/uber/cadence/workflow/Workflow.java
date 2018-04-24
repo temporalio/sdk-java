@@ -21,10 +21,12 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.activity.ActivityOptions;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.internal.sync.WorkflowInternal;
+import com.uber.cadence.worker.WorkerOptions;
 import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.Functions.Func1;
 import com.uber.cadence.workflow.Functions.Func2;
 import com.uber.cadence.workflow.Functions.Proc;
+import com.uber.m3.tally.Scope;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
@@ -706,6 +708,16 @@ public final class Workflow {
    */
   public static boolean isReplaying() {
     return WorkflowInternal.isReplaying();
+  }
+
+  /**
+   * Get scope for reporting business metrics in workflow logic. This should be used instead of
+   * creating new metrics scopes as it is able to dedup metrics during replay.
+   *
+   * <p>The original metrics scope is set through {@link WorkerOptions} when a worker starts up.
+   */
+  public static Scope getMetricsScope() {
+    return WorkflowInternal.getMetricsScope();
   }
 
   /** Prohibit instantiation. */

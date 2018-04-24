@@ -117,6 +117,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
             taskList,
             new WorkerOptions.Builder()
                 .setInterceptorFactory(testEnvironmentOptions.getInterceptorFactory())
+                .setMetricsScope(testEnvironmentOptions.getMetricsScope())
                 .build());
     workers.add(result);
     return result;
@@ -128,6 +129,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
         new WorkflowClientOptions.Builder()
             .setDataConverter(testEnvironmentOptions.getDataConverter())
             .setInterceptors(new TimeLockingInterceptor(service))
+            .setMetricsScope(testEnvironmentOptions.getMetricsScope())
             .build();
     return WorkflowClientInternal.newInstance(service, testEnvironmentOptions.getDomain(), options);
   }

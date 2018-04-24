@@ -176,7 +176,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   }
 
   @Override
-  public ReplayWorkflow getWorkflow(WorkflowType workflowType) throws Exception {
+  public ReplayWorkflow getWorkflow(WorkflowType workflowType) {
     SyncWorkflowDefinition workflow = getWorkflowDefinition(workflowType);
     return new SyncWorkflow(workflow, dataConverter, threadPool, interceptorFactory);
   }

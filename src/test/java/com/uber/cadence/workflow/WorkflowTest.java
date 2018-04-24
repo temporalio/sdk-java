@@ -125,7 +125,7 @@ public class WorkflowTest {
   @Parameter(1)
   public String testType;
 
-  private static final String domain = "UnitTest";
+  public static final String DOMAIN = "UnitTest";
   private static final Logger log = LoggerFactory.getLogger(WorkflowTest.class);
 
   private static String UUID_REGEXP =
@@ -173,17 +173,17 @@ public class WorkflowTest {
     if (useExternalService) {
       WorkerOptions workerOptions =
           new WorkerOptions.Builder().setInterceptorFactory(tracer).build();
-      worker = new Worker(domain, taskList, workerOptions);
-      workflowClient = WorkflowClient.newInstance(domain);
+      worker = new Worker(DOMAIN, taskList, workerOptions);
+      workflowClient = WorkflowClient.newInstance(DOMAIN);
       WorkflowClientOptions clientOptions =
           new WorkflowClientOptions.Builder()
               .setDataConverter(JsonDataConverter.getInstance())
               .build();
-      workflowClientWithOptions = WorkflowClient.newInstance(domain, clientOptions);
+      workflowClientWithOptions = WorkflowClient.newInstance(DOMAIN, clientOptions);
       scheduledExecutor = new ScheduledThreadPoolExecutor(1);
     } else {
       TestEnvironmentOptions testOptions =
-          new Builder().setDomain(domain).setInterceptorFactory(tracer).build();
+          new Builder().setDomain(DOMAIN).setInterceptorFactory(tracer).build();
       testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
       worker = testEnvironment.newWorker(taskList);
       workflowClient = testEnvironment.newWorkflowClient();
@@ -1549,7 +1549,7 @@ public class WorkflowTest {
           // Test getTrace through replay by a local worker.
           Worker queryWorker;
           if (useExternalService) {
-            queryWorker = new Worker(domain, taskList);
+            queryWorker = new Worker(DOMAIN, taskList);
           } else {
             queryWorker = testEnvironment.newWorker(taskList);
           }
@@ -1846,7 +1846,7 @@ public class WorkflowTest {
             .build();
     WorkflowClient wc;
     if (useExternalService) {
-      wc = WorkflowClient.newInstance(domain, clientOptions);
+      wc = WorkflowClient.newInstance(DOMAIN, clientOptions);
     } else {
       wc = testEnvironment.newWorkflowClient(clientOptions);
     }

@@ -20,7 +20,9 @@ package com.uber.cadence.testing;
 import com.google.common.annotations.VisibleForTesting;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.converter.JsonDataConverter;
+import com.uber.cadence.internal.metrics.NoopScope;
 import com.uber.cadence.workflow.WorkflowInterceptor;
+import com.uber.m3.tally.Scope;
 import java.util.Objects;
 import java.util.function.Function;
 
@@ -34,6 +36,8 @@ public final class TestEnvironmentOptions {
     private String domain = "unit-test";
 
     private Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory = (n) -> n;
+
+    private Scope metricsScope;
 
     /** Sets data converter to use for unit-tests. Default is {@link JsonDataConverter}. */
     public Builder setDataConverter(DataConverter dataConverter) {
@@ -58,8 +62,20 @@ public final class TestEnvironmentOptions {
       return this;
     }
 
+    /**
+     * Set scope to use for metrics reporting. Optional. Default is noop scope that skips reporting.
+     */
+    public Builder setMetricsScope(Scope metricsScope) {
+      this.metricsScope = metricsScope;
+      return this;
+    }
+
     public TestEnvironmentOptions build() {
-      return new TestEnvironmentOptions(dataConverter, domain, interceptorFactory);
+      if (metricsScope == null) {
+        metricsScope = NoopScope.getInstance();
+      }
+
+      return new TestEnvironmentOptions(dataConverter, domain, interceptorFactory, metricsScope);
     }
   }
 
@@ -69,13 +85,17 @@ public final class TestEnvironmentOptions {
 
   private final Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory;
 
+  private final Scope metricsScope;
+
   private TestEnvironmentOptions(
       DataConverter dataConverter,
       String domain,
-      Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory) {
+      Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
+      Scope metricsScope) {
     this.dataConverter = dataConverter;
     this.domain = domain;
     this.interceptorFactory = interceptorFactory;
+    this.metricsScope = metricsScope;
   }
 
   public DataConverter getDataConverter() {
@@ -88,6 +108,10 @@ public final class TestEnvironmentOptions {
 
   public Function<WorkflowInterceptor, WorkflowInterceptor> getInterceptorFactory() {
     return interceptorFactory;
+  }
+
+  public Scope getMetricsScope() {
+    return metricsScope;
   }
 
   @Override

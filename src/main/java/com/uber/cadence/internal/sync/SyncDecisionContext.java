@@ -47,6 +47,7 @@ import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.SignalExternalWorkflowException;
 import com.uber.cadence.workflow.Workflow;
 import com.uber.cadence.workflow.WorkflowInterceptor;
+import com.uber.m3.tally.Scope;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -478,5 +479,9 @@ final class SyncDecisionContext implements WorkflowInterceptor {
       throw new IllegalArgumentException("Unexpected exception type: ", failure);
     }
     return (SignalExternalWorkflowException) failure;
+  }
+
+  public Scope getMetricsScope() {
+    return context.getMetricsScope();
   }
 }
