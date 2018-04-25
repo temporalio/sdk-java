@@ -57,7 +57,7 @@ public class Functions {
   }
 
   @FunctionalInterface
-  public interface Proc {
+  public interface Proc extends Serializable {
     void apply();
   }
 

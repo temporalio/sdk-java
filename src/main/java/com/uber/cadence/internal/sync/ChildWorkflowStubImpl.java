@@ -51,6 +51,13 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
 
   @Override
   public Promise<WorkflowExecution> getExecution() {
+    // Technically we can create and return a promise here in case the workflow is not started, and
+    // create a separate started flag for signal method to check.
+    // We don't expect this to be a critical issue for client users so we choose the simpler
+    // approach of checking and throwing exception for now.
+    if (execution == null) {
+      throw new IllegalStateException("Workflow has not started.");
+    }
     return execution;
   }
 

@@ -148,7 +148,7 @@ public final class Async {
    * @return Promise that contains procedure result or failure
    */
   public static <A1> Promise<Void> procedure(Functions.Proc1<A1> procedure, A1 arg1) {
-    return procedure(() -> procedure.apply(arg1));
+    return AsyncInternal.procedure(procedure, arg1);
   }
 
   /**
