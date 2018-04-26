@@ -35,13 +35,15 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
   private final String workflowType;
   private final ChildWorkflowOptions options;
   private final WorkflowInterceptor decisionContext;
-  private CompletablePromise<WorkflowExecution> execution;
+  private final CompletablePromise<WorkflowExecution> execution;
+  private boolean executionStarted;
 
   ChildWorkflowStubImpl(
       String workflowType, ChildWorkflowOptions options, WorkflowInterceptor decisionContext) {
     this.workflowType = Objects.requireNonNull(workflowType);
     this.options = new ChildWorkflowOptions.Builder(options).validateAndBuildWithDefaults();
     this.decisionContext = Objects.requireNonNull(decisionContext);
+    this.execution = Workflow.newPromise();
   }
 
   @Override
@@ -51,13 +53,6 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
 
   @Override
   public Promise<WorkflowExecution> getExecution() {
-    // Technically we can create and return a promise here in case the workflow is not started, and
-    // create a separate started flag for signal method to check.
-    // We don't expect this to be a critical issue for client users so we choose the simpler
-    // approach of checking and throwing exception for now.
-    if (execution == null) {
-      throw new IllegalStateException("Workflow has not started.");
-    }
     return execution;
   }
 
@@ -87,14 +82,14 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
   public <R> Promise<R> executeAsync(Class<R> returnType, Object... args) {
     WorkflowResult<R> result =
         decisionContext.executeChildWorkflow(workflowType, returnType, args, options);
-    execution = Workflow.newPromise();
     execution.completeFrom(result.getWorkflowExecution());
+    executionStarted = true;
     return result.getResult();
   }
 
   @Override
   public void signal(String signalName, Object... args) {
-    if (execution == null) {
+    if (!executionStarted) {
       throw new IllegalStateException(
           "This stub cannot be used to signal a workflow"
               + " without starting it first. "
