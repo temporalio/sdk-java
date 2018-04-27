@@ -36,7 +36,6 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
   private final ChildWorkflowOptions options;
   private final WorkflowInterceptor decisionContext;
   private final CompletablePromise<WorkflowExecution> execution;
-  private boolean executionStarted;
 
   ChildWorkflowStubImpl(
       String workflowType, ChildWorkflowOptions options, WorkflowInterceptor decisionContext) {
@@ -83,19 +82,11 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
     WorkflowResult<R> result =
         decisionContext.executeChildWorkflow(workflowType, returnType, args, options);
     execution.completeFrom(result.getWorkflowExecution());
-    executionStarted = true;
     return result.getResult();
   }
 
   @Override
   public void signal(String signalName, Object... args) {
-    if (!executionStarted) {
-      throw new IllegalStateException(
-          "This stub cannot be used to signal a workflow"
-              + " without starting it first. "
-              + "To signal a workflow execution that was started elsewhere "
-              + "use a stub created through Workflow.newExternalWorkflowStub");
-    }
     Promise<Void> signaled =
         decisionContext.signalExternalWorkflow(execution.get(), signalName, args);
     if (AsyncInternal.isAsync()) {

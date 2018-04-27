@@ -545,6 +545,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           String childId = a.getWorkflowExecution().getWorkflowId();
           StateMachine<ChildWorkflowData> child = getChildWorkflow(childId);
           child.action(StateMachines.Action.START, ctx, a, 0);
+          scheduleDecision(ctx);
           // No need to lock until completion as child workflow might skip
           // time as well
           ctx.unlockTimer();
