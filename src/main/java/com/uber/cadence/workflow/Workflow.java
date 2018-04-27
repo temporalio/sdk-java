@@ -443,7 +443,7 @@ public final class Workflow {
    * as child workflow start is asynchronous.
    */
   public static Promise<WorkflowExecution> getWorkflowExecution(Object childWorkflowStub) {
-    return WorkflowInternal.getChildWorkflowExecution(childWorkflowStub);
+    return WorkflowInternal.getWorkflowExecution(childWorkflowStub);
   }
 
   /**
