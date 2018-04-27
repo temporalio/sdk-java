@@ -167,7 +167,7 @@ public final class WorkflowInternal {
             new ExternalWorkflowInvocationHandler(execution, getWorkflowInterceptor()));
   }
 
-  public static Promise<WorkflowExecution> getChildWorkflowExecution(Object workflowStub) {
+  public static Promise<WorkflowExecution> getWorkflowExecution(Object workflowStub) {
     if (workflowStub instanceof WorkflowStub) {
       return ((WorkflowStub) workflowStub).__getWorkflowExecution();
     }

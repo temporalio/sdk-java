@@ -35,13 +35,14 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
   private final String workflowType;
   private final ChildWorkflowOptions options;
   private final WorkflowInterceptor decisionContext;
-  private CompletablePromise<WorkflowExecution> execution;
+  private final CompletablePromise<WorkflowExecution> execution;
 
   ChildWorkflowStubImpl(
       String workflowType, ChildWorkflowOptions options, WorkflowInterceptor decisionContext) {
     this.workflowType = Objects.requireNonNull(workflowType);
     this.options = new ChildWorkflowOptions.Builder(options).validateAndBuildWithDefaults();
     this.decisionContext = Objects.requireNonNull(decisionContext);
+    this.execution = Workflow.newPromise();
   }
 
   @Override
@@ -80,20 +81,12 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
   public <R> Promise<R> executeAsync(Class<R> returnType, Object... args) {
     WorkflowResult<R> result =
         decisionContext.executeChildWorkflow(workflowType, returnType, args, options);
-    execution = Workflow.newPromise();
     execution.completeFrom(result.getWorkflowExecution());
     return result.getResult();
   }
 
   @Override
   public void signal(String signalName, Object... args) {
-    if (execution == null) {
-      throw new IllegalStateException(
-          "This stub cannot be used to signal a workflow"
-              + " without starting it first. "
-              + "To signal a workflow execution that was started elsewhere "
-              + "use a stub created through Workflow.newExternalWorkflowStub");
-    }
     Promise<Void> signaled =
         decisionContext.signalExternalWorkflow(execution.get(), signalName, args);
     if (AsyncInternal.isAsync()) {

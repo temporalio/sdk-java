@@ -19,6 +19,8 @@ package com.uber.cadence.workflow;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -46,6 +48,7 @@ import com.uber.cadence.common.MethodRetry;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.converter.JsonDataConverter;
 import com.uber.cadence.internal.sync.DeterministicRunnerTest;
+import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
 import com.uber.cadence.testing.TestEnvironmentOptions;
 import com.uber.cadence.testing.TestEnvironmentOptions.Builder;
 import com.uber.cadence.testing.TestWorkflowEnvironment;
@@ -140,6 +143,7 @@ public class WorkflowTest {
   private TestWorkflowEnvironment testEnvironment;
   private ScheduledExecutorService scheduledExecutor;
   private List<ScheduledFuture<?>> delayedCallbacks = new ArrayList<>();
+  private static WorkflowServiceTChannel service = new WorkflowServiceTChannel();
 
   private static WorkflowOptions.Builder newWorkflowOptionsBuilder(String taskList) {
     return new WorkflowOptions.Builder()
@@ -173,7 +177,7 @@ public class WorkflowTest {
     if (useExternalService) {
       WorkerOptions workerOptions =
           new WorkerOptions.Builder().setInterceptorFactory(tracer).build();
-      worker = new Worker(DOMAIN, taskList, workerOptions);
+      worker = new Worker(service, DOMAIN, taskList, workerOptions);
       workflowClient = WorkflowClient.newInstance(DOMAIN);
       WorkflowClientOptions clientOptions =
           new WorkflowClientOptions.Builder()
@@ -1002,6 +1006,73 @@ public class WorkflowTest {
   @Test
   public void testChildAsyncWorkflow() {
     startWorkerFor(TestChildAsyncWorkflow.class, TestMultiargsWorkflowsImpl.class);
+
+    WorkflowOptions.Builder options = new WorkflowOptions.Builder();
+    options.setExecutionStartToCloseTimeout(Duration.ofSeconds(200));
+    options.setTaskStartToCloseTimeout(Duration.ofSeconds(60));
+    options.setTaskList(taskList);
+    TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
+    assertEquals(null, client.execute(taskList));
+  }
+
+  // This workflow is designed specifically for testing some internal logic in Async.procedure
+  // and ChildWorkflowStubImpl. See comments on testChildAsyncLambdaWorkflow for more details.
+  public interface WaitOnSignalWorkflow {
+
+    @WorkflowMethod()
+    void execute();
+
+    @SignalMethod
+    void signal(String value);
+  }
+
+  public static class TestWaitOnSignalWorkflowImpl implements WaitOnSignalWorkflow {
+    private final CompletablePromise<String> signal = Workflow.newPromise();
+
+    @Override
+    public void execute() {
+      signal.get();
+    }
+
+    @Override
+    public void signal(String value) {
+      signal.complete(value);
+    }
+  }
+
+  public static class TestChildAsyncLambdaWorkflow implements TestWorkflow1 {
+
+    @Override
+    public String execute(String taskList) {
+      ChildWorkflowOptions workflowOptions =
+          new ChildWorkflowOptions.Builder()
+              .setExecutionStartToCloseTimeout(Duration.ofSeconds(100))
+              .setTaskStartToCloseTimeout(Duration.ofSeconds(60))
+              .setTaskList(taskList)
+              .build();
+
+      WaitOnSignalWorkflow child =
+          Workflow.newChildWorkflowStub(WaitOnSignalWorkflow.class, workflowOptions);
+      Promise<Void> promise = Async.procedure(() -> child.execute());
+      Promise<WorkflowExecution> executionPromise = Workflow.getWorkflowExecution(child);
+      assertNotNull(executionPromise);
+      WorkflowExecution execution = executionPromise.get();
+      assertNotEquals("", execution.getWorkflowId());
+      assertNotEquals("", execution.getRunId());
+      child.signal("test");
+
+      promise.get();
+      return null;
+    }
+  }
+
+  // The purpose of this test is to exercise the lambda execution logic inside Async.procedure(),
+  // which executes on a different thread than workflow-main. This is different than executing
+  // classes that implements the workflow method interface, which executes on the workflow main
+  // thread.
+  @Test
+  public void testChildAsyncLambdaWorkflow() {
+    startWorkerFor(TestChildAsyncLambdaWorkflow.class, TestWaitOnSignalWorkflowImpl.class);
 
     WorkflowOptions.Builder options = new WorkflowOptions.Builder();
     options.setExecutionStartToCloseTimeout(Duration.ofSeconds(200));
