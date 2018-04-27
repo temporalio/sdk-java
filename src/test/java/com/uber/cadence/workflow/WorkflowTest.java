@@ -48,6 +48,7 @@ import com.uber.cadence.common.MethodRetry;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.converter.JsonDataConverter;
 import com.uber.cadence.internal.sync.DeterministicRunnerTest;
+import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
 import com.uber.cadence.testing.TestEnvironmentOptions;
 import com.uber.cadence.testing.TestEnvironmentOptions.Builder;
 import com.uber.cadence.testing.TestWorkflowEnvironment;
@@ -142,6 +143,7 @@ public class WorkflowTest {
   private TestWorkflowEnvironment testEnvironment;
   private ScheduledExecutorService scheduledExecutor;
   private List<ScheduledFuture<?>> delayedCallbacks = new ArrayList<>();
+  private static WorkflowServiceTChannel service = new WorkflowServiceTChannel();
 
   private static WorkflowOptions.Builder newWorkflowOptionsBuilder(String taskList) {
     return new WorkflowOptions.Builder()
@@ -175,7 +177,7 @@ public class WorkflowTest {
     if (useExternalService) {
       WorkerOptions workerOptions =
           new WorkerOptions.Builder().setInterceptorFactory(tracer).build();
-      worker = new Worker(DOMAIN, taskList, workerOptions);
+      worker = new Worker(service, DOMAIN, taskList, workerOptions);
       workflowClient = WorkflowClient.newInstance(DOMAIN);
       WorkflowClientOptions clientOptions =
           new WorkflowClientOptions.Builder()
