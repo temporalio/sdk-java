@@ -322,7 +322,7 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       ArrayList<InetSocketAddress> peers = new ArrayList<>();
       peers.add(new InetSocketAddress(address, port));
       this.subChannel = tChannel.makeSubChannel(options.getServiceName()).setPeers(peers);
-      log.info("Initialized TChannel: " + this.subChannel.toString());
+      log.info("Initialized TChannel for service " + this.subChannel.getServiceName());
     } catch (UnknownHostException e) {
       tChannel.shutdown();
       throw new RuntimeException("Unable to get name of host " + host, e);

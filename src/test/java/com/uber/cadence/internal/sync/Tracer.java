@@ -70,4 +70,9 @@ public final class Tracer implements TestRule {
   public void assertExpected() {
     Assert.assertEquals(expected, trace);
   }
+
+  @Override
+  public String toString() {
+    return "expected " + String.join(",", expected) + " trace " + String.join(",", trace);
+  }
 }

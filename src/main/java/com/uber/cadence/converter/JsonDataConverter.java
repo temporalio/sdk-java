@@ -17,6 +17,7 @@
 
 package com.uber.cadence.converter;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -33,8 +34,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -66,15 +65,10 @@ public final class JsonDataConverter implements DataConverter {
    * Stop emitting stack trace after this line. Makes serialized stack traces more readable and
    * compact as it omits most of framework level code.
    */
-  private static final Set<String> CUTOFF_METHOD_NAMES =
-      new HashSet<String>() {
-        {
-          add(
-              "com.uber.cadence.internal.worker.POJOActivityImplementationFactory$POJOActivityImplementation.execute");
-          add(
-              "com.uber.cadence.internal.sync.POJODecisionTaskHandler$POJOWorkflowImplementation.execute");
-        }
-      };
+  private static final ImmutableSet<String> CUTOFF_METHOD_NAMES =
+      ImmutableSet.of(
+          "com.uber.cadence.internal.worker.POJOActivityImplementationFactory$POJOActivityImplementation.execute",
+          "com.uber.cadence.internal.sync.POJODecisionTaskHandler$POJOWorkflowImplementation.execute");
 
   private static final DataConverter INSTANCE = new JsonDataConverter();
   private static final byte[] EMPTY_BLOB = new byte[0];

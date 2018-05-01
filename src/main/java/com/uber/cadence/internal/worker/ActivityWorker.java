@@ -148,7 +148,7 @@ public final class ActivityWorker implements SuspendableWorker {
     }
   }
 
-  private class MeasurableActivityTask {
+  private static class MeasurableActivityTask {
     PollForActivityTaskResponse task;
     Stopwatch sw;
 
