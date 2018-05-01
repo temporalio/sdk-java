@@ -103,7 +103,11 @@ public class WorkflowTest {
 
   @Parameters(name = "{1}")
   public static Object[] data() {
-    return new Object[][] {{true, "Docker"}, {false, "TestService"}};
+    if (Boolean.parseBoolean(System.getenv("SKIP_DOCKER_SERVICE"))) {
+      return new Object[][] {{false, "TestService"}};
+    } else {
+      return new Object[][] {{true, "Docker"}, {false, "TestService"}};
+    }
   }
 
   @Rule public TestName testName = new TestName();

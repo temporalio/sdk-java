@@ -60,11 +60,6 @@ compileJava {
             ".*/generated-sources/.*" << "-Werror"
 }
 
-license {
-    header = project.file('license-header.txt')
-    exclude '**/com/uber/cadence/*.java'
-}
-
 compileTestJava {
     options.encoding = 'UTF-8'
     options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation" << "-XepExcludedPaths:" +
@@ -97,5 +92,14 @@ publishing {
     }
     repositories {
         mavenLocal()
+    }
+}
+
+test {
+    testLogging {
+        events "passed", "skipped", "failed"
+        exceptionFormat "full"
+        // Uncomment the following line if you want to see test logs in gradlew run.
+        // showStandardStreams true
     }
 }

@@ -68,8 +68,11 @@ import org.junit.Test;
 import org.junit.rules.TestWatcher;
 import org.junit.rules.Timeout;
 import org.junit.runner.Description;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class WorkflowTestingTest {
+  private static final Logger log = LoggerFactory.getLogger(WorkflowTestingTest.class);
 
   @Rule public Timeout globalTimeout = Timeout.seconds(5);
 
@@ -84,7 +87,7 @@ public class WorkflowTestingTest {
 
   private static final String TASK_LIST = "test-workflow";
 
-  private static TestWorkflowEnvironment testEnvironment;
+  private TestWorkflowEnvironment testEnvironment;
 
   @Before
   public void setUp() {
@@ -469,7 +472,7 @@ public class WorkflowTestingTest {
     CompletableFuture<String> result = WorkflowClient.execute(workflow::workflow1, "input1");
     workflow.ProcessSignal("signalInput");
     assertEquals("signalInput-input1", result.get());
-    System.out.println(testEnvironment.getDiagnostics());
+    log.info(testEnvironment.getDiagnostics());
   }
 
   public interface TestCancellationActivity {
