@@ -32,6 +32,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.function.Supplier;
+import org.slf4j.Logger;
 
 /**
  * Workflow encapsulates the orchestration of activities and child workflows. It can also answer to
@@ -718,6 +719,28 @@ public final class Workflow {
    */
   public static Scope getMetricsScope() {
     return WorkflowInternal.getMetricsScope();
+  }
+
+  /**
+   * Get logger to use inside workflow. Logs in replay mode are omitted unless {@param
+   * enableLoggingInReplay} is set to true in {@link WorkerOptions} when a worker starts up.
+   *
+   * @param clazz class name to appear in logging.
+   * @return logger to use in workflow logic.
+   */
+  public static Logger getLogger(Class<?> clazz) {
+    return WorkflowInternal.getLogger(clazz);
+  }
+
+  /**
+   * Get logger to use inside workflow. Logs in replay mode are omitted unless {@param
+   * enableLoggingInReplay} is set to true in {@link WorkerOptions} when a worker starts up.
+   *
+   * @param name name to appear in logging.
+   * @return logger to use in workflow logic.
+   */
+  public static Logger getLogger(String name) {
+    return WorkflowInternal.getLogger(name);
   }
 
   /** Prohibit instantiation. */

@@ -112,5 +112,9 @@ public interface DecisionContext extends ReplayAware {
    */
   Consumer<Exception> createTimer(long delaySeconds, Consumer<Exception> callback);
 
+  /** @return scope to be used for metrics reporting. */
   Scope getMetricsScope();
+
+  /** @return whether we do logging during decision replay. */
+  boolean getEnableLoggingInReplay();
 }

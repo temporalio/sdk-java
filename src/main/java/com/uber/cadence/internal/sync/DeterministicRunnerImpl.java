@@ -522,5 +522,10 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     public Scope getMetricsScope() {
       throw new UnsupportedOperationException("not implemented");
     }
+
+    @Override
+    public boolean getEnableLoggingInReplay() {
+      return false;
+    }
   }
 }

@@ -44,19 +44,28 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
 
   private Scope metricsScope;
 
+  private final boolean enableLoggingInReplay;
+
   DecisionContextImpl(
       DecisionsHelper decisionsHelper,
       String domain,
       PollForDecisionTaskResponse decisionTask,
-      WorkflowExecutionStartedEventAttributes startedAttributes) {
+      WorkflowExecutionStartedEventAttributes startedAttributes,
+      boolean enableLoggingInReplay) {
     this.activityClient = new ActivityDecisionContext(decisionsHelper);
     this.workflowContext = new WorkflowContext(domain, decisionTask, startedAttributes);
     this.workflowClient = new WorkflowDecisionContext(decisionsHelper, workflowContext);
     this.workflowClock = new ClockDecisionContext(decisionsHelper);
+    this.enableLoggingInReplay = enableLoggingInReplay;
   }
 
   public void setMetricsScope(Scope metricsScope) {
     this.metricsScope = new ReplayAwareScope(metricsScope, this, workflowClock::currentTimeMillis);
+  }
+
+  @Override
+  public boolean getEnableLoggingInReplay() {
+    return enableLoggingInReplay;
   }
 
   @Override

@@ -43,6 +43,8 @@ public final class SingleWorkerOptions {
 
     private Scope metricsScope;
 
+    private boolean enableLoggingInReplay;
+
     public Builder setIdentity(String identity) {
       this.identity = identity;
       return this;
@@ -65,6 +67,11 @@ public final class SingleWorkerOptions {
 
     public Builder setMetricsScope(Scope metricsScope) {
       this.metricsScope = metricsScope;
+      return this;
+    }
+
+    public Builder setEnableLoggingInReplay(boolean enableLoggingInReplay) {
+      this.enableLoggingInReplay = enableLoggingInReplay;
       return this;
     }
 
@@ -111,7 +118,8 @@ public final class SingleWorkerOptions {
           pollerOptions,
           reportCompletionRetryOptions,
           reportFailureRetryOptions,
-          metricsScope);
+          metricsScope,
+          enableLoggingInReplay);
     }
 
     public Builder setReportCompletionRetryOptions(RetryOptions reportCompletionRetryOptions) {
@@ -139,6 +147,8 @@ public final class SingleWorkerOptions {
 
   private final Scope metricsScope;
 
+  private final boolean enableLoggingInReplay;
+
   private SingleWorkerOptions(
       String identity,
       DataConverter dataConverter,
@@ -146,7 +156,8 @@ public final class SingleWorkerOptions {
       PollerOptions pollerOptions,
       RetryOptions reportCompletionRetryOptions,
       RetryOptions reportFailureRetryOptions,
-      Scope metricsScope) {
+      Scope metricsScope,
+      boolean enableLoggingInReplay) {
     this.identity = identity;
     this.dataConverter = dataConverter;
     this.taskExecutorThreadPoolSize = taskExecutorThreadPoolSize;
@@ -154,6 +165,7 @@ public final class SingleWorkerOptions {
     this.reportCompletionRetryOptions = reportCompletionRetryOptions;
     this.reportFailureRetryOptions = reportFailureRetryOptions;
     this.metricsScope = metricsScope;
+    this.enableLoggingInReplay = enableLoggingInReplay;
   }
 
   public String getIdentity() {
@@ -182,5 +194,9 @@ public final class SingleWorkerOptions {
 
   public Scope getMetricsScope() {
     return metricsScope;
+  }
+
+  public boolean getEnableLoggingInReplay() {
+    return enableLoggingInReplay;
   }
 }

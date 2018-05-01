@@ -145,6 +145,7 @@ public final class Worker {
         .setReportFailureRetryOptions(options.getReportActivityFailureRetryOptions())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentActivityExecutionSize())
         .setMetricsScope(options.getMetricsScope())
+        .setEnableLoggingInReplay(options.getEnableLoggingInReplay())
         .build();
   }
 
@@ -157,6 +158,7 @@ public final class Worker {
         .setReportFailureRetryOptions(options.getReportWorkflowFailureRetryOptions())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentWorklfowExecutionSize())
         .setMetricsScope(options.getMetricsScope())
+        .setEnableLoggingInReplay(options.getEnableLoggingInReplay())
         .build();
   }
 

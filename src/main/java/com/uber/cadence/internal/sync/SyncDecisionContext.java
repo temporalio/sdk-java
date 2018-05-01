@@ -484,4 +484,8 @@ final class SyncDecisionContext implements WorkflowInterceptor {
   public Scope getMetricsScope() {
     return context.getMetricsScope();
   }
+
+  public boolean isLoggingEnabledInReplay() {
+    return context.getEnableLoggingInReplay();
+  }
 }

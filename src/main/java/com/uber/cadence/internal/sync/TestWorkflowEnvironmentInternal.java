@@ -118,6 +118,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
             new WorkerOptions.Builder()
                 .setInterceptorFactory(testEnvironmentOptions.getInterceptorFactory())
                 .setMetricsScope(testEnvironmentOptions.getMetricsScope())
+                .setEnableLoggingInReplay(testEnvironmentOptions.isLoggingEnabledInReplay())
                 .build());
     workers.add(result);
     return result;

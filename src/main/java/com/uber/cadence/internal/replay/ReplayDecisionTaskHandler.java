@@ -29,6 +29,7 @@ import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.internal.worker.DecisionTaskHandler;
 import com.uber.cadence.internal.worker.DecisionTaskWithHistoryIterator;
+import com.uber.cadence.internal.worker.SingleWorkerOptions;
 import com.uber.m3.tally.Scope;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -44,12 +45,14 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
   private final ReplayWorkflowFactory workflowFactory;
   private final String domain;
   private final Scope metricsScope;
+  private final boolean enableLoggingInReplay;
 
   public ReplayDecisionTaskHandler(
-      String domain, ReplayWorkflowFactory asyncWorkflowFactory, Scope metricsScope) {
+      String domain, ReplayWorkflowFactory asyncWorkflowFactory, SingleWorkerOptions options) {
     this.domain = domain;
     this.workflowFactory = asyncWorkflowFactory;
-    this.metricsScope = metricsScope;
+    this.metricsScope = options.getMetricsScope();
+    this.enableLoggingInReplay = options.getEnableLoggingInReplay();
   }
 
   @Override
@@ -161,6 +164,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     WorkflowType workflowType = decisionTask.getWorkflowType();
     DecisionsHelper decisionsHelper = new DecisionsHelper(decisionTask);
     ReplayWorkflow workflow = workflowFactory.getWorkflow(workflowType);
-    return new ReplayDecider(domain, workflow, historyHelper, decisionsHelper, metricsScope);
+    return new ReplayDecider(
+        domain, workflow, historyHelper, decisionsHelper, metricsScope, enableLoggingInReplay);
   }
 }

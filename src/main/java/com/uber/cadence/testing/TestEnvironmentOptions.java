@@ -39,6 +39,8 @@ public final class TestEnvironmentOptions {
 
     private Scope metricsScope;
 
+    private boolean enableLoggingInReplay;
+
     /** Sets data converter to use for unit-tests. Default is {@link JsonDataConverter}. */
     public Builder setDataConverter(DataConverter dataConverter) {
       this.dataConverter = Objects.requireNonNull(dataConverter);
@@ -70,32 +72,39 @@ public final class TestEnvironmentOptions {
       return this;
     }
 
+    /** Set whether to log during decision replay. */
+    public Builder setEnableLoggingInReplay(boolean enableLoggingInReplay) {
+      this.enableLoggingInReplay = enableLoggingInReplay;
+      return this;
+    }
+
     public TestEnvironmentOptions build() {
       if (metricsScope == null) {
         metricsScope = NoopScope.getInstance();
       }
 
-      return new TestEnvironmentOptions(dataConverter, domain, interceptorFactory, metricsScope);
+      return new TestEnvironmentOptions(
+          dataConverter, domain, interceptorFactory, metricsScope, enableLoggingInReplay);
     }
   }
 
   private final DataConverter dataConverter;
-
   private final String domain;
-
   private final Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory;
-
   private final Scope metricsScope;
+  private final boolean enableLoggingInReplay;
 
   private TestEnvironmentOptions(
       DataConverter dataConverter,
       String domain,
       Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
-      Scope metricsScope) {
+      Scope metricsScope,
+      boolean enableLoggingInReplay) {
     this.dataConverter = dataConverter;
     this.domain = domain;
     this.interceptorFactory = interceptorFactory;
     this.metricsScope = metricsScope;
+    this.enableLoggingInReplay = enableLoggingInReplay;
   }
 
   public DataConverter getDataConverter() {
@@ -112,6 +121,10 @@ public final class TestEnvironmentOptions {
 
   public Scope getMetricsScope() {
     return metricsScope;
+  }
+
+  public boolean isLoggingEnabledInReplay() {
+    return enableLoggingInReplay;
   }
 
   @Override

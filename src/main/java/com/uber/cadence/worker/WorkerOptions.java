@@ -48,6 +48,7 @@ public final class WorkerOptions {
     private RetryOptions reportWorkflowFailureRetryOptions;
     private Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory = (n) -> n;
     private Scope metricsScope;
+    private boolean enableLoggingInReplay;
 
     /**
      * When set to true doesn't poll on workflow task list even if there are registered workflows
@@ -178,6 +179,11 @@ public final class WorkerOptions {
       return this;
     }
 
+    public Builder setEnableLoggingInReplay(boolean enableLoggingInReplay) {
+      this.enableLoggingInReplay = enableLoggingInReplay;
+      return this;
+    }
+
     public WorkerOptions build() {
       if (identity == null) {
         identity = ManagementFactory.getRuntimeMXBean().getName();
@@ -203,7 +209,8 @@ public final class WorkerOptions {
           reportWorkflowCompletionRetryOptions,
           reportWorkflowFailureRetryOptions,
           interceptorFactory,
-          metricsScope);
+          metricsScope,
+          enableLoggingInReplay);
     }
   }
 
@@ -223,6 +230,7 @@ public final class WorkerOptions {
   private final RetryOptions reportWorkflowFailureRetryOptions;
   private final Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory;
   private final Scope metricsScope;
+  private final boolean enableLoggingInReplay;
 
   private WorkerOptions(
       boolean disableWorkflowWorker,
@@ -240,7 +248,8 @@ public final class WorkerOptions {
       RetryOptions reportWorkflowCompletionRetryOptions,
       RetryOptions reportWorkflowFailureRetryOptions,
       Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
-      Scope metricsScope) {
+      Scope metricsScope,
+      boolean enableLoggingInReplay) {
     this.disableWorkflowWorker = disableWorkflowWorker;
     this.disableActivityWorker = disableActivityWorker;
     this.workerActivitiesPerSecond = workerActivitiesPerSecond;
@@ -257,6 +266,7 @@ public final class WorkerOptions {
     this.reportWorkflowFailureRetryOptions = reportWorkflowFailureRetryOptions;
     this.interceptorFactory = interceptorFactory;
     this.metricsScope = metricsScope;
+    this.enableLoggingInReplay = enableLoggingInReplay;
   }
 
   public boolean isDisableWorkflowWorker() {
@@ -321,6 +331,10 @@ public final class WorkerOptions {
 
   public Scope getMetricsScope() {
     return metricsScope;
+  }
+
+  public boolean getEnableLoggingInReplay() {
+    return enableLoggingInReplay;
   }
 
   @Override

@@ -76,7 +76,8 @@ class ReplayDecider {
       ReplayWorkflow workflow,
       HistoryHelper historyHelper,
       DecisionsHelper decisionsHelper,
-      Scope metricsScope) {
+      Scope metricsScope,
+      boolean enableLoggingInReplay) {
     this.workflow = workflow;
     this.historyHelper = historyHelper;
     this.decisionsHelper = decisionsHelper;
@@ -87,7 +88,8 @@ class ReplayDecider {
             decisionsHelper,
             domain,
             decisionTask,
-            historyHelper.getWorkflowExecutionStartedEventAttributes());
+            historyHelper.getWorkflowExecutionStartedEventAttributes(),
+            enableLoggingInReplay);
     context.setMetricsScope(metricsScope);
   }
 
