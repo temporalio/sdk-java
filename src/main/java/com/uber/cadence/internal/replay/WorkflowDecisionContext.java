@@ -108,6 +108,14 @@ final class WorkflowDecisionContext {
     String workflowId = parameters.getWorkflowId();
     if (workflowId == null) {
       workflowId = generateUniqueId();
+    } else {
+      if (scheduledExternalWorkflows.containsKey(workflowId)) {
+        throw new StartChildWorkflowFailedException(
+            0,
+            new WorkflowExecution().setWorkflowId(workflowId),
+            attributes.getWorkflowType(),
+            ChildWorkflowExecutionFailedCause.WORKFLOW_ALREADY_RUNNING);
+      }
     }
     attributes.setWorkflowId(workflowId);
     if (parameters.getDomain() == null) {

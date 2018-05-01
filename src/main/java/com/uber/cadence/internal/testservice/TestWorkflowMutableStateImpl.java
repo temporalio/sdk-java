@@ -67,6 +67,7 @@ import com.uber.cadence.StartChildWorkflowExecutionFailedEventAttributes;
 import com.uber.cadence.StartTimerDecisionAttributes;
 import com.uber.cadence.StartWorkflowExecutionRequest;
 import com.uber.cadence.TimeoutType;
+import com.uber.cadence.WorkflowExecutionCloseStatus;
 import com.uber.cadence.WorkflowExecutionSignaledEventAttributes;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.testservice.StateMachines.Action;
@@ -190,6 +191,26 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   @Override
   public ExecutionId getExecutionId() {
     return executionId;
+  }
+
+  @Override
+  public Optional<WorkflowExecutionCloseStatus> getCloseStatus() {
+    switch (workflow.getState()) {
+      case NONE:
+      case INITIATED:
+      case STARTED:
+      case CANCELLATION_REQUESTED:
+        return Optional.empty();
+      case FAILED:
+        return Optional.of(WorkflowExecutionCloseStatus.FAILED);
+      case TIMED_OUT:
+        return Optional.of(WorkflowExecutionCloseStatus.TIMED_OUT);
+      case CANCELED:
+        return Optional.of(WorkflowExecutionCloseStatus.CANCELED);
+      case COMPLETED:
+        return Optional.of(WorkflowExecutionCloseStatus.COMPLETED);
+    }
+    throw new IllegalStateException("unreachable");
   }
 
   @Override
@@ -581,11 +602,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public void failStartChildWorkflow(
-      String activityId, StartChildWorkflowExecutionFailedEventAttributes a)
+      String childId, StartChildWorkflowExecutionFailedEventAttributes a)
       throws InternalServiceError, EntityNotExistsError, BadRequestError {
     update(
         ctx -> {
-          String childId = a.getWorkflowId();
           StateMachine<ChildWorkflowData> child = getChildWorkflow(childId);
           child.action(StateMachines.Action.FAIL, ctx, a, 0);
           childWorkflows.remove(childId);

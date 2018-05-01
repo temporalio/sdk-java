@@ -34,7 +34,8 @@ public abstract class ChildWorkflowException extends WorkflowOperationException 
       WorkflowExecution workflowExecution,
       WorkflowType workflowType) {
     super(
-        "WorkflowType=\""
+        message
+            + " WorkflowType=\""
             + workflowType.getName()
             + "\", ID=\""
             + workflowExecution.getWorkflowId()

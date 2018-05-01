@@ -29,6 +29,7 @@ import static com.uber.cadence.internal.testservice.StateMachines.Action.UPDATE;
 import static com.uber.cadence.internal.testservice.StateMachines.State.CANCELED;
 import static com.uber.cadence.internal.testservice.StateMachines.State.CANCELLATION_REQUESTED;
 import static com.uber.cadence.internal.testservice.StateMachines.State.COMPLETED;
+import static com.uber.cadence.internal.testservice.StateMachines.State.CONTINUED_AS_NEW;
 import static com.uber.cadence.internal.testservice.StateMachines.State.FAILED;
 import static com.uber.cadence.internal.testservice.StateMachines.State.INITIATED;
 import static com.uber.cadence.internal.testservice.StateMachines.State.NONE;
@@ -124,7 +125,8 @@ class StateMachines {
     TIMED_OUT,
     CANCELLATION_REQUESTED,
     CANCELED,
-    COMPLETED
+    COMPLETED,
+    CONTINUED_AS_NEW,
   }
 
   enum Action {
@@ -201,7 +203,7 @@ class StateMachines {
     return new StateMachine<>(new WorkflowData())
         .add(NONE, START, STARTED, StateMachines::startWorkflow)
         .add(STARTED, COMPLETE, COMPLETED, StateMachines::completeWorkflow)
-        .add(STARTED, CONTINUE_AS_NEW, COMPLETED, StateMachines::continueAsNewWorkflow)
+        .add(STARTED, CONTINUE_AS_NEW, CONTINUED_AS_NEW, StateMachines::continueAsNewWorkflow)
         .add(STARTED, FAIL, FAILED, StateMachines::failWorkflow)
         .add(STARTED, TIME_OUT, TIMED_OUT, StateMachines::timeoutWorkflow)
         .add(
@@ -308,6 +310,12 @@ class StateMachines {
       ChildWorkflowData data,
       StartChildWorkflowExecutionFailedEventAttributes a,
       long notUsed) {
+    a.setInitiatedEventId(data.initiatedEventId);
+    a.setWorkflowType(data.initiatedEvent.getWorkflowType());
+    a.setWorkflowId(data.initiatedEvent.getWorkflowId());
+    if (data.initiatedEvent.isSetDomain()) {
+      a.setDomain(data.initiatedEvent.getDomain());
+    }
     HistoryEvent event =
         new HistoryEvent()
             .setEventType(EventType.StartChildWorkflowExecutionFailed)
@@ -353,6 +361,11 @@ class StateMachines {
       long notUsed) {
     a.setInitiatedEventId(data.initiatedEventId);
     a.setStartedEventId(data.startedEventId);
+    a.setWorkflowExecution(data.execution);
+    a.setWorkflowType(data.initiatedEvent.getWorkflowType());
+    if (data.initiatedEvent.domain != null) {
+      a.setDomain(data.initiatedEvent.domain);
+    }
     HistoryEvent event =
         new HistoryEvent()
             .setEventType(EventType.ChildWorkflowExecutionFailed)

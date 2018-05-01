@@ -48,12 +48,17 @@ import com.uber.cadence.SignalExternalWorkflowExecutionFailedCause;
 import com.uber.cadence.SignalWorkflowExecutionRequest;
 import com.uber.cadence.StartChildWorkflowExecutionFailedEventAttributes;
 import com.uber.cadence.StartWorkflowExecutionRequest;
+import com.uber.cadence.WorkflowExecutionCloseStatus;
 import com.uber.cadence.internal.testservice.TestWorkflowMutableStateImpl.QueryId;
+import java.util.Optional;
 import org.apache.thrift.TException;
 
 interface TestWorkflowMutableState {
 
   ExecutionId getExecutionId();
+
+  /** @return close status of the workflow or empty if still open */
+  Optional<WorkflowExecutionCloseStatus> getCloseStatus();
 
   StartWorkflowExecutionRequest getStartRequest();
 

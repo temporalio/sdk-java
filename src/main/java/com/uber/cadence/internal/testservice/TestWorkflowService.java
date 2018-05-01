@@ -66,9 +66,11 @@ import com.uber.cadence.UpdateDomainRequest;
 import com.uber.cadence.UpdateDomainResponse;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
+import com.uber.cadence.WorkflowExecutionCloseStatus;
 import com.uber.cadence.WorkflowExecutionContinuedAsNewEventAttributes;
 import com.uber.cadence.WorkflowExecutionFilter;
 import com.uber.cadence.WorkflowExecutionInfo;
+import com.uber.cadence.WorkflowIdReusePolicy;
 import com.uber.cadence.internal.testservice.TestWorkflowMutableStateImpl.QueryId;
 import com.uber.cadence.internal.testservice.TestWorkflowStore.WorkflowState;
 import com.uber.cadence.serviceclient.IWorkflowService;
@@ -102,7 +104,7 @@ public final class TestWorkflowService implements IWorkflowService {
   private final Map<ExecutionId, TestWorkflowMutableState> executions = new HashMap<>();
 
   // key->WorkflowId
-  private final Map<WorkflowId, TestWorkflowMutableState> openExecutions = new HashMap<>();
+  private final Map<WorkflowId, TestWorkflowMutableState> executionsByWorkflowId = new HashMap<>();
 
   public void close() {
     store.close();
@@ -129,7 +131,7 @@ public final class TestWorkflowService implements IWorkflowService {
       throws EntityNotExistsError {
     lock.lock();
     try {
-      TestWorkflowMutableState mutableState = openExecutions.get(workflowId);
+      TestWorkflowMutableState mutableState = executionsByWorkflowId.get(workflowId);
       if (mutableState == null) {
         throw new EntityNotExistsError("Execution not found in mutable state: " + workflowId);
       }
@@ -177,25 +179,43 @@ public final class TestWorkflowService implements IWorkflowService {
     String requestWorkflowId = requireNotNull("WorkflowId", startRequest.getWorkflowId());
     String domain = requireNotNull("Domain", startRequest.getDomain());
     WorkflowId workflowId = new WorkflowId(domain, requestWorkflowId);
-    TestWorkflowMutableState running;
+    TestWorkflowMutableState existing;
     lock.lock();
     try {
-      running = openExecutions.get(workflowId);
+      existing = executionsByWorkflowId.get(workflowId);
     } finally {
       lock.unlock();
     }
-    if (running != null) {
-      WorkflowExecutionAlreadyStartedError error = new WorkflowExecutionAlreadyStartedError();
-      WorkflowExecution execution = running.getExecutionId().getExecution();
-      error.setMessage(
-          String.format(
-              "Workflow execution already running. WorkflowId: %s, " + "RunId: %s",
-              execution.getWorkflowId(), execution.getRunId()));
-      error.setRunId(execution.getRunId());
-      error.setStartRequestId(startRequest.getRequestId());
-      throw error;
+    if (existing != null) {
+      Optional<WorkflowExecutionCloseStatus> statusOptional = existing.getCloseStatus();
+      WorkflowIdReusePolicy policy =
+          startRequest.isSetWorkflowIdReusePolicy()
+              ? startRequest.getWorkflowIdReusePolicy()
+              : WorkflowIdReusePolicy.AllowDuplicateFailedOnly;
+      if (!statusOptional.isPresent() || policy == WorkflowIdReusePolicy.RejectDuplicate) {
+        return throwDuplicatedWorkflow(startRequest, existing);
+      }
+      WorkflowExecutionCloseStatus status = statusOptional.get();
+      if (policy == WorkflowIdReusePolicy.AllowDuplicateFailedOnly
+          && (status == WorkflowExecutionCloseStatus.COMPLETED
+              || status == WorkflowExecutionCloseStatus.CONTINUED_AS_NEW)) {
+        return throwDuplicatedWorkflow(startRequest, existing);
+      }
     }
     return startWorkflowExecutionNoRunningCheck(startRequest, parent, workflowId);
+  }
+
+  private StartWorkflowExecutionResponse throwDuplicatedWorkflow(
+      StartWorkflowExecutionRequest startRequest, TestWorkflowMutableState existing)
+      throws WorkflowExecutionAlreadyStartedError {
+    WorkflowExecutionAlreadyStartedError error = new WorkflowExecutionAlreadyStartedError();
+    WorkflowExecution execution = existing.getExecutionId().getExecution();
+    error.setMessage(
+        String.format(
+            "WorkflowId: %s, " + "RunId: %s", execution.getWorkflowId(), execution.getRunId()));
+    error.setRunId(execution.getRunId());
+    error.setStartRequestId(startRequest.getRequestId());
+    throw error;
   }
 
   private StartWorkflowExecutionResponse startWorkflowExecutionNoRunningCheck(
@@ -210,7 +230,7 @@ public final class TestWorkflowService implements IWorkflowService {
     ExecutionId executionId = new ExecutionId(domain, execution);
     lock.lock();
     try {
-      openExecutions.put(workflowId, result);
+      executionsByWorkflowId.put(workflowId, result);
       executions.put(executionId, result);
     } finally {
       lock.unlock();
