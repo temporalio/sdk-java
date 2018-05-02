@@ -209,6 +209,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         return Optional.of(WorkflowExecutionCloseStatus.CANCELED);
       case COMPLETED:
         return Optional.of(WorkflowExecutionCloseStatus.COMPLETED);
+      case CONTINUED_AS_NEW:
+        return Optional.of(WorkflowExecutionCloseStatus.CONTINUED_AS_NEW);
     }
     throw new IllegalStateException("unreachable");
   }
