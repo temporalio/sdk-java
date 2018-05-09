@@ -19,6 +19,7 @@ package com.uber.cadence.workflow;
 
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.activity.ActivityOptions;
+import com.uber.cadence.workflow.Functions.Func;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -62,6 +63,8 @@ public interface WorkflowInterceptor {
   void await(String reason, Supplier<Boolean> unblockCondition);
 
   Promise<Void> newTimer(Duration duration);
+
+  <R> R sideEffect(Class<R> resultType, Func<R> func);
 
   void continueAsNew(
       Optional<String> workflowType, Optional<ContinueAsNewOptions> options, Object[] args);

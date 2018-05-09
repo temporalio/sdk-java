@@ -116,8 +116,6 @@ final class WorkflowContext {
 
   private WorkflowExecutionStartedEventAttributes getWorkflowStartedEventAttributes() {
     HistoryEvent firstHistoryEvent = decisionTask.getHistory().getEvents().get(0);
-    WorkflowExecutionStartedEventAttributes attributes =
-        firstHistoryEvent.getWorkflowExecutionStartedEventAttributes();
-    return attributes;
+    return firstHistoryEvent.getWorkflowExecutionStartedEventAttributes();
   }
 }

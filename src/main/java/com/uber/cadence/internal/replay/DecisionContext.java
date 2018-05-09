@@ -19,6 +19,7 @@ package com.uber.cadence.internal.replay;
 
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
+import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.Promise;
 import com.uber.m3.tally.Scope;
 import java.time.Duration;
@@ -111,6 +112,20 @@ public interface DecisionContext extends ReplayAware {
    * @return cancellation handle. Invoke {@link Consumer#accept(Object)} to cancel timer.
    */
   Consumer<Exception> createTimer(long delaySeconds, Consumer<Exception> callback);
+
+  /**
+   * Executes the provided function once, records its result into the workflow history. The recorded
+   * result on history will be returned without executing the provided function during replay. This
+   * guarantees the deterministic requirement for workflow as the exact same result will be returned
+   * in replay. Common use case is to run some short non-deterministic code in workflow, like
+   * getting random number or new UUID. The only way to fail SideEffect is to throw {@link Error}
+   * which causes decision task failure. The decision task after timeout is rescheduled and
+   * re-executed giving SideEffect another chance to succeed.
+   *
+   * @param func function that is called once to return a value.
+   * @return value of the side effect.
+   */
+  byte[] sideEffect(Func<byte[]> func);
 
   /** @return scope to be used for metrics reporting. */
   Scope getMetricsScope();

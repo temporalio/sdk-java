@@ -20,26 +20,17 @@ package com.uber.cadence.internal.replay;
 import com.uber.cadence.Decision;
 import com.uber.cadence.DecisionType;
 import com.uber.cadence.HistoryEvent;
-import com.uber.cadence.SignalExternalWorkflowExecutionDecisionAttributes;
+import com.uber.cadence.RequestCancelExternalWorkflowExecutionDecisionAttributes;
 
-class SignalDecisionStateMachine extends DecisionStateMachineBase {
+final class ExternalWorkflowCancellationDecisionStateMachine extends DecisionStateMachineBase {
 
-  private SignalExternalWorkflowExecutionDecisionAttributes attributes;
+  private RequestCancelExternalWorkflowExecutionDecisionAttributes attributes;
 
   private boolean canceled;
 
-  public SignalDecisionStateMachine(
-      DecisionId id, SignalExternalWorkflowExecutionDecisionAttributes attributes) {
-    super(id);
-    this.attributes = attributes;
-  }
-
-  /** Used for unit testing */
-  SignalDecisionStateMachine(
-      DecisionId id,
-      SignalExternalWorkflowExecutionDecisionAttributes attributes,
-      DecisionState state) {
-    super(id, state);
+  ExternalWorkflowCancellationDecisionStateMachine(
+      DecisionId decisionId, RequestCancelExternalWorkflowExecutionDecisionAttributes attributes) {
+    super(decisionId);
     this.attributes = attributes;
   }
 
@@ -47,43 +38,17 @@ class SignalDecisionStateMachine extends DecisionStateMachineBase {
   public Decision getDecision() {
     switch (state) {
       case CREATED:
-        return createSignalExternalWorkflowExecutionDecision();
+        return createRequestCancelExternalWorkflowExecutionDecision();
       default:
         return null;
     }
   }
 
   @Override
-  public boolean isDone() {
-    return state == DecisionState.COMPLETED || canceled;
-  }
-
-  @Override
   public boolean cancel(Runnable immediateCancellationCallback) {
     stateHistory.add("cancel");
-    boolean result = false;
-    switch (state) {
-      case CREATED:
-      case INITIATED:
-        state = DecisionState.COMPLETED;
-        if (immediateCancellationCallback != null) {
-          immediateCancellationCallback.run();
-        }
-        result = true;
-        break;
-      case DECISION_SENT:
-        state = DecisionState.CANCELED_BEFORE_INITIATED;
-        if (immediateCancellationCallback != null) {
-          immediateCancellationCallback.run();
-        }
-        result = true;
-        break;
-      default:
-        failStateTransition();
-    }
-    canceled = true;
-    stateHistory.add(state.toString());
-    return result;
+    failStateTransition();
+    return false;
   }
 
   @Override
@@ -92,9 +57,6 @@ class SignalDecisionStateMachine extends DecisionStateMachineBase {
     switch (state) {
       case DECISION_SENT:
         state = DecisionState.INITIATED;
-        break;
-      case CANCELED_BEFORE_INITIATED:
-        // No state change
         break;
       default:
         failStateTransition();
@@ -118,11 +80,7 @@ class SignalDecisionStateMachine extends DecisionStateMachineBase {
     switch (state) {
       case DECISION_SENT:
       case INITIATED:
-      case CANCELED_BEFORE_INITIATED:
         state = DecisionState.COMPLETED;
-        break;
-      case COMPLETED:
-        // No state change
         break;
       default:
         failStateTransition();
@@ -145,10 +103,10 @@ class SignalDecisionStateMachine extends DecisionStateMachineBase {
     throw new UnsupportedOperationException();
   }
 
-  private Decision createSignalExternalWorkflowExecutionDecision() {
+  private Decision createRequestCancelExternalWorkflowExecutionDecision() {
     Decision decision = new Decision();
-    decision.setSignalExternalWorkflowExecutionDecisionAttributes(attributes);
-    decision.setDecisionType(DecisionType.SignalExternalWorkflowExecution);
+    decision.setRequestCancelExternalWorkflowExecutionDecisionAttributes(attributes);
+    decision.setDecisionType(DecisionType.RequestCancelExternalWorkflowExecution);
     return decision;
   }
 }

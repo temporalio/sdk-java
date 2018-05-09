@@ -26,6 +26,7 @@ import com.uber.cadence.internal.replay.DecisionContext;
 import com.uber.cadence.internal.replay.ExecuteActivityParameters;
 import com.uber.cadence.internal.replay.SignalExternalWorkflowParameters;
 import com.uber.cadence.internal.replay.StartChildWorkflowExecutionParameters;
+import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.Promise;
 import com.uber.m3.tally.Scope;
 import java.time.Duration;
@@ -515,6 +516,11 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
     @Override
     public Consumer<Exception> createTimer(long delaySeconds, Consumer<Exception> callback) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public byte[] sideEffect(Func<byte[]> func) {
       throw new UnsupportedOperationException("not implemented");
     }
 

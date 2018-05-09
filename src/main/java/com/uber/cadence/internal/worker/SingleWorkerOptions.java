@@ -45,6 +45,19 @@ public final class SingleWorkerOptions {
 
     private boolean enableLoggingInReplay;
 
+    public Builder() {}
+
+    public Builder(SingleWorkerOptions options) {
+      this.identity = options.getIdentity();
+      this.dataConverter = options.getDataConverter();
+      this.pollerOptions = options.getPollerOptions();
+      this.taskExecutorThreadPoolSize = options.getTaskExecutorThreadPoolSize();
+      this.reportCompletionRetryOptions = options.getReportCompletionRetryOptions();
+      this.reportFailureRetryOptions = options.getReportFailureRetryOptions();
+      this.metricsScope = options.getMetricsScope();
+      this.enableLoggingInReplay = options.getEnableLoggingInReplay();
+    }
+
     public Builder setIdentity(String identity) {
       this.identity = identity;
       return this;

@@ -35,18 +35,38 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.StatsReporter;
 import com.uber.m3.tally.Stopwatch;
 import java.time.Duration;
+import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestWatcher;
+import org.junit.runner.Description;
 import org.mockito.ArgumentCaptor;
 
 public class MetricsTest {
+
+  @Rule
+  public TestWatcher watchman =
+      new TestWatcher() {
+        @Override
+        protected void failed(Throwable e, Description description) {
+          if (testEnvironment != null) {
+            System.err.println("HISTORIES:\n" + testEnvironment.getDiagnostics());
+          }
+        }
+      };
+
   private static final String taskList = "metrics-test";
+  private TestWorkflowEnvironment testEnvironment;
+  private StatsReporter reporter;
 
   public interface TestWorkflow {
+
     @WorkflowMethod
     void execute();
   }
 
   public static class TestMetricsInWorkflow implements TestWorkflow {
+
     @Override
     public void execute() {
       Workflow.getMetricsScope().counter("test-started").inc(1);
@@ -61,6 +81,7 @@ public class MetricsTest {
   }
 
   public interface TestChildWorkflow {
+
     @WorkflowMethod
     void executeChild();
   }
@@ -79,9 +100,9 @@ public class MetricsTest {
     }
   }
 
-  @Test
-  public void testWorkflowMetrics() throws InterruptedException {
-    StatsReporter reporter = mock(StatsReporter.class);
+  @Before
+  public void setUp() {
+    reporter = mock(StatsReporter.class);
     Scope scope =
         new RootScopeBuilder()
             .reporter(reporter)
@@ -89,13 +110,18 @@ public class MetricsTest {
 
     TestEnvironmentOptions testOptions =
         new Builder().setDomain(WorkflowTest.DOMAIN).setMetricsScope(scope).build();
-    TestWorkflowEnvironment env = TestWorkflowEnvironment.newInstance(testOptions);
-    Worker worker = env.newWorker(taskList);
+    testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
+  }
+
+  @Test
+  public void testWorkflowMetrics() throws InterruptedException {
+
+    Worker worker = testEnvironment.newWorker(taskList);
     worker.registerWorkflowImplementationTypes(
         TestMetricsInWorkflow.class, TestMetricsInChildWorkflow.class);
     worker.start();
 
-    WorkflowClient workflowClient = env.newWorkflowClient();
+    WorkflowClient workflowClient = testEnvironment.newWorkflowClient();
     WorkflowOptions options =
         new WorkflowOptions.Builder()
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(1000))
@@ -104,7 +130,7 @@ public class MetricsTest {
     TestWorkflow workflow = workflowClient.newWorkflowStub(TestWorkflow.class, options);
     workflow.execute();
 
-    Thread.sleep(20);
+    Thread.sleep(200);
 
     verify(reporter, times(1)).reportCounter("test-started", null, 1);
     verify(reporter, times(1)).reportCounter("test-done", null, 1);
@@ -116,7 +142,11 @@ public class MetricsTest {
     verify(reporter, times(1)).reportTimer(eq("test-timer"), any(), sleepDurationCaptor.capture());
 
     com.uber.m3.util.Duration sleepDuration = sleepDurationCaptor.getValue();
-    assertTrue(sleepDuration.compareTo(com.uber.m3.util.Duration.ofSeconds(3)) > 0);
-    assertTrue(sleepDuration.compareTo(com.uber.m3.util.Duration.ofMillis(3100)) < 0);
+    assertTrue(
+        sleepDuration.toString(),
+        sleepDuration.compareTo(com.uber.m3.util.Duration.ofSeconds(3)) > 0);
+    assertTrue(
+        sleepDuration.toString(),
+        sleepDuration.compareTo(com.uber.m3.util.Duration.ofMillis(3100)) < 0);
   }
 }

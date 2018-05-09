@@ -79,6 +79,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
@@ -172,11 +173,13 @@ public final class TestWorkflowService implements IWorkflowService {
       StartWorkflowExecutionRequest startRequest)
       throws BadRequestError, InternalServiceError, WorkflowExecutionAlreadyStartedError,
           ServiceBusyError, TException {
-    return startWorkflowExecutionImpl(startRequest, Optional.empty());
+    return startWorkflowExecutionImpl(startRequest, Optional.empty(), OptionalLong.empty());
   }
 
   StartWorkflowExecutionResponse startWorkflowExecutionImpl(
-      StartWorkflowExecutionRequest startRequest, Optional<TestWorkflowMutableState> parent)
+      StartWorkflowExecutionRequest startRequest,
+      Optional<TestWorkflowMutableState> parent,
+      OptionalLong parentChildInitiatedEventId)
       throws BadRequestError, WorkflowExecutionAlreadyStartedError, InternalServiceError {
     String requestWorkflowId = requireNotNull("WorkflowId", startRequest.getWorkflowId());
     String domain = requireNotNull("Domain", startRequest.getDomain());
@@ -204,7 +207,8 @@ public final class TestWorkflowService implements IWorkflowService {
         return throwDuplicatedWorkflow(startRequest, existing);
       }
     }
-    return startWorkflowExecutionNoRunningCheck(startRequest, parent, workflowId);
+    return startWorkflowExecutionNoRunningCheck(
+        startRequest, parent, parentChildInitiatedEventId, workflowId);
   }
 
   private StartWorkflowExecutionResponse throwDuplicatedWorkflow(
@@ -223,11 +227,13 @@ public final class TestWorkflowService implements IWorkflowService {
   private StartWorkflowExecutionResponse startWorkflowExecutionNoRunningCheck(
       StartWorkflowExecutionRequest startRequest,
       Optional<TestWorkflowMutableState> parent,
+      OptionalLong parentChildInitiatedEventId,
       WorkflowId workflowId)
       throws InternalServiceError, BadRequestError {
     String domain = startRequest.getDomain();
     TestWorkflowMutableState result =
-        new TestWorkflowMutableStateImpl(startRequest, parent, this, store);
+        new TestWorkflowMutableStateImpl(
+            startRequest, parent, parentChildInitiatedEventId, this, store);
     WorkflowExecution execution = result.getExecutionId().getExecution();
     ExecutionId executionId = new ExecutionId(domain, execution);
     lock.lock();
@@ -444,7 +450,8 @@ public final class TestWorkflowService implements IWorkflowService {
       WorkflowExecutionContinuedAsNewEventAttributes a,
       String identity,
       ExecutionId executionId,
-      Optional<TestWorkflowMutableState> parent)
+      Optional<TestWorkflowMutableState> parent,
+      OptionalLong parentChildInitiatedEventId)
       throws InternalServiceError, BadRequestError {
     StartWorkflowExecutionRequest startRequest =
         new StartWorkflowExecutionRequest()
@@ -458,7 +465,8 @@ public final class TestWorkflowService implements IWorkflowService {
             .setWorkflowIdReusePolicy(previousRunStartRequest.getWorkflowIdReusePolicy())
             .setIdentity(identity);
     StartWorkflowExecutionResponse response =
-        startWorkflowExecutionNoRunningCheck(startRequest, parent, executionId.getWorkflowId());
+        startWorkflowExecutionNoRunningCheck(
+            startRequest, parent, parentChildInitiatedEventId, executionId.getWorkflowId());
     return response.getRunId();
   }
 

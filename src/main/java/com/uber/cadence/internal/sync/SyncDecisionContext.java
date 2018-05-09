@@ -43,6 +43,7 @@ import com.uber.cadence.workflow.ChildWorkflowTimedOutException;
 import com.uber.cadence.workflow.CompletablePromise;
 import com.uber.cadence.workflow.ContinueAsNewOptions;
 import com.uber.cadence.workflow.Functions;
+import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.SignalExternalWorkflowException;
 import com.uber.cadence.workflow.Workflow;
@@ -338,6 +339,18 @@ final class SyncDecisionContext implements WorkflowInterceptor {
               return null;
             });
     return timer;
+  }
+
+  @Override
+  public <R> R sideEffect(Class<R> resultType, Func<R> func) {
+    DataConverter dataConverter = getDataConverter();
+    byte[] result =
+        context.sideEffect(
+            () -> {
+              R r = func.apply();
+              return dataConverter.toData(r);
+            });
+    return dataConverter.fromData(result, resultType);
   }
 
   void fireTimers() {

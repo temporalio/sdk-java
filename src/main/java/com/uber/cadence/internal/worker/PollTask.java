@@ -42,8 +42,6 @@ final class PollTask<T> implements Poller.ThrowingRunnable {
     T poll() throws Exception;
   }
 
-  private static final String ACTIVITY_THREAD_NAME_PREFIX = "Cadence Activity ";
-
   private final IWorkflowService service;
   private final String domain;
   private final String taskList;
@@ -72,7 +70,7 @@ final class PollTask<T> implements Poller.ThrowingRunnable {
             new SynchronousQueue<>());
     taskExecutor.setThreadFactory(
         new ExecutorThreadFactory(
-            ACTIVITY_THREAD_NAME_PREFIX + " " + taskList + " ",
+            options.getPollerOptions().getPollThreadNamePrefix() + " " + taskList + " ",
             options.getPollerOptions().getUncaughtExceptionHandler()));
     taskExecutor.setRejectedExecutionHandler(new BlockCallerPolicy());
     this.pollSemaphore = new Semaphore(options.getTaskExecutorThreadPoolSize());

@@ -109,6 +109,7 @@ import com.uber.cadence.internal.testservice.TestWorkflowStore.DecisionTask;
 import com.uber.cadence.internal.testservice.TestWorkflowStore.TaskListId;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.concurrent.ForkJoinPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -439,7 +440,9 @@ class StateMachines {
             () -> {
               try {
                 data.service.startWorkflowExecutionImpl(
-                    startChild, Optional.of(ctx.getWorkflowMutableState()));
+                    startChild,
+                    Optional.of(ctx.getWorkflowMutableState()),
+                    OptionalLong.of(data.initiatedEventId));
               } catch (WorkflowExecutionAlreadyStartedError workflowExecutionAlreadyStartedError) {
                 StartChildWorkflowExecutionFailedEventAttributes failRequest =
                     new StartChildWorkflowExecutionFailedEventAttributes()

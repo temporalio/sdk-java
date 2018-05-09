@@ -19,6 +19,7 @@ package com.uber.cadence.workflow;
 
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.activity.ActivityOptions;
+import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.Functions.Func1;
 import java.time.Duration;
 import java.util.Optional;
@@ -73,6 +74,11 @@ public class WorkflowInterceptorBase implements WorkflowInterceptor {
   @Override
   public Promise<Void> newTimer(Duration duration) {
     return next.newTimer(duration);
+  }
+
+  @Override
+  public <R> R sideEffect(Class<R> resultType, Func<R> func) {
+    return next.sideEffect(resultType, func);
   }
 
   @Override

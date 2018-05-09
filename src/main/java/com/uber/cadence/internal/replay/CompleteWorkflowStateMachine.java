@@ -46,7 +46,7 @@ final class CompleteWorkflowStateMachine implements DecisionStateMachine {
   }
 
   @Override
-  public void cancel(Runnable immediateCancellationCallback) {
+  public boolean cancel(Runnable immediateCancellationCallback) {
     throw new UnsupportedOperationException();
   }
 

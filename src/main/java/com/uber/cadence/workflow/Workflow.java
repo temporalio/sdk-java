@@ -712,6 +712,56 @@ public final class Workflow {
   }
 
   /**
+   * Executes the provided function once, records its result into the workflow history. The recorded
+   * result on history will be returned without executing the provided function during replay. This
+   * guarantees the deterministic requirement for workflow as the exact same result will be returned
+   * in replay. Common use case is to run some short non-deterministic code in workflow, like
+   * getting random number or new UUID. The only way to fail SideEffect is to panic which causes
+   * decision task failure. The decision task after timeout is rescheduled and re-executed giving
+   * SideEffect another chance to succeed.
+   *
+   * <p>Caution: do not use sideEffect to modify any worklfow sate. Only use the SideEffect's return
+   * value. For example this code is BROKEN:
+   *
+   * <pre><code>
+   *  // Bad example:
+   *  AtomicInteger random = new AtomicInteger();
+   *  Workflow.sideEffect(() -> {
+   *         random.set(random.nextInt(100));
+   *         return null;
+   *  });
+   *  // random will always be 0 in replay, thus this code is non-deterministic
+   *  if random.get() < 50 {
+   *         ....
+   *  } else {
+   *         ....
+   *  }
+   *  </code></pre>
+   *
+   * On replay the provided function is not executed, the random will always be 0, and the workflow
+   * could takes a different path breaking the determinism.
+   *
+   * <p>Here is the correct way to use sideEffect:
+   *
+   * <pre><code>
+   *  // Good example:
+   *  int random = Workflow.sideEffect(Integer.class, () -> random.nextInt(100));
+   *  if random < 50 {
+   *         ....
+   *  } else {
+   *         ....
+   *  }
+   *  </code></pre>
+   *
+   * @param returnType type of the side effect
+   * @param func function that returns side effect value
+   * @return value of the side effect
+   */
+  public static <R> R sideEffect(Class<R> returnType, Func<R> func) {
+    return WorkflowInternal.sideEffect(returnType, func);
+  }
+
+  /**
    * Get scope for reporting business metrics in workflow logic. This should be used instead of
    * creating new metrics scopes as it is able to dedup metrics during replay.
    *

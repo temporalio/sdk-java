@@ -17,12 +17,10 @@
 
 package com.uber.cadence.internal.replay;
 
-import com.uber.cadence.ActivityTaskStartedEventAttributes;
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.TimerFiredEventAttributes;
 
 interface HistoryEventHandler {
-  void handleActivityTaskStarted(ActivityTaskStartedEventAttributes attributes);
 
   void handleActivityTaskCanceled(HistoryEvent event);
 
@@ -51,4 +49,8 @@ interface HistoryEventHandler {
   void handleTimerFired(TimerFiredEventAttributes attributes);
 
   void handleTimerCanceled(HistoryEvent event);
+
+  void handleExternalWorkflowExecutionSignaled(HistoryEvent event);
+
+  void handleMarkerRecorded(HistoryEvent event);
 }

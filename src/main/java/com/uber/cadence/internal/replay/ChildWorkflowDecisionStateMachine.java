@@ -96,15 +96,15 @@ final class ChildWorkflowDecisionStateMachine extends DecisionStateMachineBase {
   }
 
   @Override
-  public void cancel(Runnable immediateCancellationCallback) {
+  public boolean cancel(Runnable immediateCancellationCallback) {
     switch (state) {
       case STARTED:
         stateHistory.add("cancel");
         state = DecisionState.CANCELED_AFTER_STARTED;
         stateHistory.add(state.toString());
-        break;
+        return true;
       default:
-        super.cancel(immediateCancellationCallback);
+        return super.cancel(immediateCancellationCallback);
     }
   }
 

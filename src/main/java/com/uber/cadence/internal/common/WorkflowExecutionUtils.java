@@ -910,4 +910,56 @@ public class WorkflowExecutionUtils {
       fixStackTrace(entry.getValue(), stackIndentation + INDENTATION);
     }
   }
+
+  /** Is this an event that was created to mirror a decision? */
+  public static boolean isDecisionEvent(HistoryEvent event) {
+    EventType eventType = event.getEventType();
+    boolean result =
+        ((event != null)
+            && (eventType == EventType.ActivityTaskScheduled
+                || eventType == EventType.StartChildWorkflowExecutionInitiated
+                || eventType == EventType.TimerStarted
+                || eventType == EventType.WorkflowExecutionCompleted
+                || eventType == EventType.WorkflowExecutionFailed
+                || eventType == EventType.WorkflowExecutionCanceled
+                || eventType == EventType.WorkflowExecutionContinuedAsNew
+                || eventType == EventType.ActivityTaskCancelRequested
+                || eventType == EventType.RequestCancelActivityTaskFailed
+                || eventType == EventType.TimerCanceled
+                || eventType == EventType.CancelTimerFailed
+                || eventType == EventType.RequestCancelExternalWorkflowExecutionInitiated
+                || eventType == EventType.MarkerRecorded
+                || eventType == EventType.SignalExternalWorkflowExecutionInitiated));
+    return result;
+  }
+
+  public static EventType getEventTypeForDecision(DecisionType decisionType) {
+    switch (decisionType) {
+      case ScheduleActivityTask:
+        return EventType.ActivityTaskScheduled;
+      case RequestCancelActivityTask:
+        return EventType.ActivityTaskCancelRequested;
+      case StartTimer:
+        return EventType.TimerStarted;
+      case CompleteWorkflowExecution:
+        return EventType.WorkflowExecutionCompleted;
+      case FailWorkflowExecution:
+        return EventType.WorkflowExecutionFailed;
+      case CancelTimer:
+        return EventType.TimerCanceled;
+      case CancelWorkflowExecution:
+        return EventType.WorkflowExecutionCanceled;
+      case RequestCancelExternalWorkflowExecution:
+        return EventType.ExternalWorkflowExecutionCancelRequested;
+      case RecordMarker:
+        return EventType.MarkerRecorded;
+      case ContinueAsNewWorkflowExecution:
+        return EventType.WorkflowExecutionContinuedAsNew;
+      case StartChildWorkflowExecution:
+        return EventType.StartChildWorkflowExecutionInitiated;
+      case SignalExternalWorkflowExecution:
+        return EventType.SignalExternalWorkflowExecutionInitiated;
+    }
+    throw new IllegalArgumentException("Unknown decisionType");
+  }
 }

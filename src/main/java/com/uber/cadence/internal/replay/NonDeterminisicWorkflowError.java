@@ -17,12 +17,9 @@
 
 package com.uber.cadence.internal.replay;
 
-enum DecisionTarget {
-  ACTIVITY,
-  CHILD_WORKFLOW,
-  CANCEL_EXTERNAL_WORKFLOW,
-  SIGNAL_EXTERNAL_WORKFLOW,
-  TIMER,
-  MARKER,
-  SELF
+final class NonDeterminisicWorkflowError extends Error {
+
+  NonDeterminisicWorkflowError(String message) {
+    super(message);
+  }
 }

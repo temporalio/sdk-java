@@ -70,8 +70,9 @@ abstract class DecisionStateMachineBase implements DecisionStateMachine {
   }
 
   @Override
-  public void cancel(Runnable immediateCancellationCallback) {
+  public boolean cancel(Runnable immediateCancellationCallback) {
     stateHistory.add("cancel");
+    boolean result = false;
     switch (state) {
       case CREATED:
         state = DecisionState.COMPLETED;
@@ -81,14 +82,17 @@ abstract class DecisionStateMachineBase implements DecisionStateMachine {
         break;
       case DECISION_SENT:
         state = DecisionState.CANCELED_BEFORE_INITIATED;
+        result = true;
         break;
       case INITIATED:
         state = DecisionState.CANCELED_AFTER_INITIATED;
+        result = true;
         break;
       default:
         failStateTransition();
     }
     stateHistory.add(state.toString());
+    return result;
   }
 
   @Override

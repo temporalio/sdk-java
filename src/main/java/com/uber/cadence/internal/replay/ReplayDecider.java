@@ -21,17 +21,16 @@ import com.uber.cadence.EventType;
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.TimerFiredEventAttributes;
-import com.uber.cadence.TimerStartedEventAttributes;
 import com.uber.cadence.WorkflowExecutionSignaledEventAttributes;
 import com.uber.cadence.WorkflowQuery;
 import com.uber.cadence.internal.common.OptionsUtils;
 import com.uber.cadence.internal.metrics.MetricsType;
+import com.uber.cadence.internal.replay.HistoryHelper.DecisionEvents;
+import com.uber.cadence.internal.replay.HistoryHelper.DecisionEventsIterator;
 import com.uber.cadence.internal.worker.WorkflowExecutionException;
 import com.uber.cadence.workflow.Functions;
 import com.uber.m3.tally.Scope;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -101,7 +100,8 @@ class ReplayDecider {
     workflow.start(event, context);
   }
 
-  private void processEvent(HistoryEvent event, EventType eventType) throws Throwable {
+  private void processEvent(HistoryEvent event) throws Throwable {
+    EventType eventType = event.getEventType();
     switch (eventType) {
       case ActivityTaskCanceled:
         context.handleActivityTaskCanceled(event);
@@ -113,13 +113,14 @@ class ReplayDecider {
         context.handleActivityTaskFailed(event);
         break;
       case ActivityTaskStarted:
-        context.handleActivityTaskStarted(event.getActivityTaskStartedEventAttributes());
+        decisionsHelper.handleActivityTaskStarted(event);
         break;
       case ActivityTaskTimedOut:
         context.handleActivityTaskTimedOut(event);
         break;
       case ExternalWorkflowExecutionCancelRequested:
         context.handleChildWorkflowExecutionCancelRequested(event);
+        decisionsHelper.handleExternalWorkflowExecutionCancelRequested(event);
         break;
       case ChildWorkflowExecutionCanceled:
         context.handleChildWorkflowExecutionCanceled(event);
@@ -146,8 +147,7 @@ class ReplayDecider {
         // NOOP
         break;
       case DecisionTaskStarted:
-        handleDecisionTaskStarted(event);
-        break;
+        throw new IllegalArgumentException("not expected");
       case DecisionTaskTimedOut:
         // Handled in the processEvent(event)
         break;
@@ -185,6 +185,7 @@ class ReplayDecider {
         decisionsHelper.handleRequestCancelActivityTaskFailed(event);
         break;
       case MarkerRecorded:
+        context.handleMarkerRecorded(event);
         break;
       case WorkflowExecutionCompleted:
         break;
@@ -195,7 +196,7 @@ class ReplayDecider {
       case WorkflowExecutionContinuedAsNew:
         break;
       case TimerStarted:
-        handleTimerStarted(event);
+        decisionsHelper.handleTimerStarted(event);
         break;
       case TimerCanceled:
         context.handleTimerCanceled(event);
@@ -319,8 +320,6 @@ class ReplayDecider {
             });
   }
 
-  private void handleDecisionTaskStarted(HistoryEvent event) {}
-
   private void handleWorkflowExecutionCancelRequested(HistoryEvent event) {
     context.setCancelRequested(true);
     String cause = event.getWorkflowExecutionCancelRequestedEventAttributes().getCause();
@@ -335,15 +334,6 @@ class ReplayDecider {
       return;
     }
     context.handleTimerFired(attributes);
-  }
-
-  private void handleTimerStarted(HistoryEvent event) {
-    TimerStartedEventAttributes attributes = event.getTimerStartedEventAttributes();
-    String timerId = attributes.getTimerId();
-    if (timerId.equals(DecisionsHelper.FORCE_IMMEDIATE_DECISION_TIMER)) {
-      return;
-    }
-    decisionsHelper.handleTimerStarted(event);
   }
 
   private void handleWorkflowExecutionSignaled(HistoryEvent event) {
@@ -361,69 +351,36 @@ class ReplayDecider {
     decisionsHelper.handleDecisionCompletion(event.getDecisionTaskCompletedEventAttributes());
   }
 
-  public void decide() throws Throwable {
+  void decide() throws Throwable {
     decideImpl(null);
   }
 
   private void decideImpl(Functions.Proc query) throws Throwable {
     try {
-      long previousDecisionStartedEventId = historyHelper.getPreviousStartedEventId();
-      long lastNonFailedStartEventId = -1;
-      // Buffer events until the next DecisionTaskStarted and then process them
-      // setting current time to the time of DecisionTaskStarted event
-      HistoryHelper.EventsIterator eventsIterator = historyHelper.getEvents();
-      // Processes history in batches. One batch per decision. The idea is to push all events to a
-      // workflow before running event loop. This way it can make decisions based on the complete
-      // information instead of a partial one. For example if workflow waits on two activities to
-      // proceed and takes different action if one of them is not ready it would behave
-      // differently if both activities are completed before the event loop or if the event loop
-      // runs after every activity event. Looks ahead to the DecisionTaskStarted event to get
-      // current time before calling eventLoop.
-      do {
-        List<HistoryEvent> decisionCompletionToStartEvents = new ArrayList<>();
-        while (eventsIterator.hasNext()) {
-          HistoryEvent event = eventsIterator.next();
-          EventType eventType = event.getEventType();
-          if (eventType == EventType.DecisionTaskCompleted) {
-            decisionsHelper.setWorkflowContextData(
-                event.getDecisionTaskCompletedEventAttributes().getExecutionContext());
-          } else if (eventType == EventType.DecisionTaskStarted || !eventsIterator.hasNext()) {
-            // Above check for the end of history is to support queries that get histories
-            // without DecisionTaskStarted being the last event.
+      DecisionEventsIterator iterator = historyHelper.getIterator();
+      while (iterator.hasNext()) {
+        DecisionEvents decision = iterator.next();
+        context.setReplaying(decision.isReplay());
+        context.setReplayCurrentTimeMilliseconds(decision.getReplayCurrentTimeMilliseconds());
 
-            decisionsHelper.handleDecisionTaskStartedEvent();
-            if (!eventsIterator.isNextDecisionFailed()) {
-              if (query == null
-                  && lastNonFailedStartEventId > 0
-                  && previousDecisionStartedEventId == 0) {
-                throw new Error("Unexpected 0 previousDecisionStartedEventId: ");
-              }
-              lastNonFailedStartEventId = event.getEventId();
-              // Cadence timestamp is in nanoseconds
-              long replayCurrentTimeMilliseconds = event.getTimestamp() / MILLION;
-              context.setReplayCurrentTimeMilliseconds(replayCurrentTimeMilliseconds);
-              break;
-            }
-          } else if (eventType != EventType.DecisionTaskScheduled
-              && eventType != EventType.DecisionTaskTimedOut
-              && eventType != EventType.DecisionTaskFailed) {
-            if (eventType == EventType.WorkflowExecutionStarted) {
-              wfStartTime = event.getTimestamp();
-            }
-            decisionCompletionToStartEvents.add(event);
-          }
+        decisionsHelper.handleDecisionTaskStartedEvent(decision.getNextDecisionEventId());
+        // Markers must be cached first as their data is needed when processing events.
+        for (HistoryEvent event : decision.getMarkers()) {
+          processEvent(event);
         }
-
-        for (HistoryEvent event : decisionCompletionToStartEvents) {
-          if (event.getEventId() >= previousDecisionStartedEventId) {
-            context.setReplaying(false);
-          }
-          EventType eventType = event.getEventType();
-          processEvent(event, eventType);
+        for (HistoryEvent event : decision.getEvents()) {
+          processEvent(event);
         }
         eventLoop();
         mayBeCompleteWorkflow();
-      } while (eventsIterator.hasNext());
+        if (decision.isReplay()) {
+          decisionsHelper.notifyDecisionSent();
+        }
+        // Updates state machines with results of the previous decisions
+        for (HistoryEvent event : decision.getDecisionEvents()) {
+          processEvent(event);
+        }
+      }
     } catch (Error e) {
       metricsScope.counter(MetricsType.DECISION_TASK_ERROR_COUNTER).inc(1);
       throw e;
@@ -435,7 +392,7 @@ class ReplayDecider {
     }
   }
 
-  public DecisionsHelper getDecisionsHelper() {
+  DecisionsHelper getDecisionsHelper() {
     return decisionsHelper;
   }
 

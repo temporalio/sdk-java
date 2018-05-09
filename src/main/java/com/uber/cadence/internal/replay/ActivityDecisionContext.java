@@ -20,7 +20,6 @@ package com.uber.cadence.internal.replay;
 import com.uber.cadence.ActivityTaskCanceledEventAttributes;
 import com.uber.cadence.ActivityTaskCompletedEventAttributes;
 import com.uber.cadence.ActivityTaskFailedEventAttributes;
-import com.uber.cadence.ActivityTaskStartedEventAttributes;
 import com.uber.cadence.ActivityTaskTimedOutEventAttributes;
 import com.uber.cadence.ActivityType;
 import com.uber.cadence.HistoryEvent;
@@ -37,30 +36,35 @@ final class ActivityDecisionContext {
 
   private final class ActivityCancellationHandler implements Consumer<Exception> {
 
+    private final long scheduledEventId;
+
     private final String activityId;
 
     private final BiConsumer<byte[], Exception> callback;
 
     private ActivityCancellationHandler(
-        String activityId, BiConsumer<byte[], Exception> callaback) {
+        long scheduledEventId, String activityId, BiConsumer<byte[], Exception> callaback) {
+      this.scheduledEventId = scheduledEventId;
       this.activityId = activityId;
       this.callback = callaback;
     }
 
     @Override
     public void accept(Exception cause) {
-      if (!scheduledActivities.containsKey(activityId)) {
+      if (!scheduledActivities.containsKey(scheduledEventId)) {
         // Cancellation handlers are not deregistered. So they fire after an activity completion.
         return;
       }
       decisions.requestCancelActivityTask(
-          activityId,
+          scheduledEventId,
           () -> {
             OpenRequestInfo<byte[], ActivityType> scheduled =
-                scheduledActivities.remove(activityId);
+                scheduledActivities.remove(scheduledEventId);
             if (scheduled == null) {
               throw new IllegalArgumentException(
-                  "Activity \"" + activityId + "\" wasn't scheduled");
+                  String.format(
+                      "Activity with activityId=%s and scheduledEventId=%d wasn't found",
+                      activityId, scheduledEventId));
             }
             callback.accept(null, new CancellationException("Cancelled by request"));
           });
@@ -69,7 +73,8 @@ final class ActivityDecisionContext {
 
   private final DecisionsHelper decisions;
 
-  private final Map<String, OpenRequestInfo<byte[], ActivityType>> scheduledActivities =
+  // key is scheduledEventId
+  private final Map<Long, OpenRequestInfo<byte[], ActivityType>> scheduledActivities =
       new HashMap<>();
 
   ActivityDecisionContext(DecisionsHelper decisions) {
@@ -106,21 +111,19 @@ final class ActivityDecisionContext {
       tl.setName(taskList);
       attributes.setTaskList(tl);
     }
-    decisions.scheduleActivityTask(attributes);
+    long scheduledEventId = decisions.scheduleActivityTask(attributes);
     context.setCompletionHandle(callback);
-    scheduledActivities.put(attributes.getActivityId(), context);
+    scheduledActivities.put(scheduledEventId, context);
     return new ActivityDecisionContext.ActivityCancellationHandler(
-        attributes.getActivityId(), callback);
+        scheduledEventId, attributes.getActivityId(), callback);
   }
-
-  void handleActivityTaskStarted(ActivityTaskStartedEventAttributes attributes) {}
 
   void handleActivityTaskCanceled(HistoryEvent event) {
     ActivityTaskCanceledEventAttributes attributes = event.getActivityTaskCanceledEventAttributes();
-    String activityId = decisions.getActivityId(attributes);
     if (decisions.handleActivityTaskCanceled(event)) {
       CancellationException e = new CancellationException();
-      OpenRequestInfo<byte[], ActivityType> scheduled = scheduledActivities.remove(activityId);
+      OpenRequestInfo<byte[], ActivityType> scheduled =
+          scheduledActivities.remove(attributes.getScheduledEventId());
       if (scheduled != null) {
         BiConsumer<byte[], Exception> completionHandle = scheduled.getCompletionCallback();
         // It is OK to fail with subclass of CancellationException when cancellation requested.
@@ -134,9 +137,9 @@ final class ActivityDecisionContext {
   void handleActivityTaskCompleted(HistoryEvent event) {
     ActivityTaskCompletedEventAttributes attributes =
         event.getActivityTaskCompletedEventAttributes();
-    String activityId = decisions.getActivityId(attributes);
-    if (decisions.handleActivityTaskClosed(activityId)) {
-      OpenRequestInfo<byte[], ActivityType> scheduled = scheduledActivities.remove(activityId);
+    if (decisions.handleActivityTaskClosed(attributes.getScheduledEventId())) {
+      OpenRequestInfo<byte[], ActivityType> scheduled =
+          scheduledActivities.remove(attributes.getScheduledEventId());
       if (scheduled != null) {
         byte[] result = attributes.getResult();
         BiConsumer<byte[], Exception> completionHandle = scheduled.getCompletionCallback();
@@ -147,15 +150,15 @@ final class ActivityDecisionContext {
 
   void handleActivityTaskFailed(HistoryEvent event) {
     ActivityTaskFailedEventAttributes attributes = event.getActivityTaskFailedEventAttributes();
-    String activityId = decisions.getActivityId(attributes);
-    if (decisions.handleActivityTaskClosed(activityId)) {
-      OpenRequestInfo<byte[], ActivityType> scheduled = scheduledActivities.remove(activityId);
+    if (decisions.handleActivityTaskClosed(attributes.getScheduledEventId())) {
+      OpenRequestInfo<byte[], ActivityType> scheduled =
+          scheduledActivities.remove(attributes.getScheduledEventId());
       if (scheduled != null) {
         String reason = attributes.getReason();
         byte[] details = attributes.getDetails();
         ActivityTaskFailedException failure =
             new ActivityTaskFailedException(
-                event.getEventId(), scheduled.getUserContext(), activityId, reason, details);
+                event.getEventId(), scheduled.getUserContext(), null, reason, details);
         BiConsumer<byte[], Exception> completionHandle = scheduled.getCompletionCallback();
         completionHandle.accept(null, failure);
       }
@@ -164,15 +167,15 @@ final class ActivityDecisionContext {
 
   void handleActivityTaskTimedOut(HistoryEvent event) {
     ActivityTaskTimedOutEventAttributes attributes = event.getActivityTaskTimedOutEventAttributes();
-    String activityId = decisions.getActivityId(attributes);
-    if (decisions.handleActivityTaskClosed(activityId)) {
-      OpenRequestInfo<byte[], ActivityType> scheduled = scheduledActivities.remove(activityId);
+    if (decisions.handleActivityTaskClosed(attributes.getScheduledEventId())) {
+      OpenRequestInfo<byte[], ActivityType> scheduled =
+          scheduledActivities.remove(attributes.getScheduledEventId());
       if (scheduled != null) {
         TimeoutType timeoutType = attributes.getTimeoutType();
         byte[] details = attributes.getDetails();
         ActivityTaskTimeoutException failure =
             new ActivityTaskTimeoutException(
-                event.getEventId(), scheduled.getUserContext(), activityId, timeoutType, details);
+                event.getEventId(), scheduled.getUserContext(), null, timeoutType, details);
         BiConsumer<byte[], Exception> completionHandle = scheduled.getCompletionCallback();
         completionHandle.accept(null, failure);
       }

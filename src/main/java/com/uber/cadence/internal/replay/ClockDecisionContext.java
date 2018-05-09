@@ -18,40 +18,51 @@
 package com.uber.cadence.internal.replay;
 
 import com.uber.cadence.HistoryEvent;
+import com.uber.cadence.MarkerRecordedEventAttributes;
 import com.uber.cadence.StartTimerDecisionAttributes;
 import com.uber.cadence.TimerCanceledEventAttributes;
 import com.uber.cadence.TimerFiredEventAttributes;
+import com.uber.cadence.workflow.Functions.Func;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Clock that must be used inside workflow definition code to ensure replay determinism. */
 final class ClockDecisionContext {
 
+  private static final String SIDE_EFFECT_MARKER_NAME = "SideEffect";
+
+  private static final Logger log = LoggerFactory.getLogger(ReplayDecider.class);
+
   private final class TimerCancellationHandler implements Consumer<Exception> {
 
-    private final String timerId;
+    private final long startEventId;
 
-    TimerCancellationHandler(String timerId) {
-      this.timerId = timerId;
+    TimerCancellationHandler(long timerId) {
+      this.startEventId = timerId;
     }
 
     @Override
     public void accept(Exception reason) {
-      decisions.cancelTimer(timerId, () -> timerCancelled(timerId, reason));
+      decisions.cancelTimer(startEventId, () -> timerCancelled(startEventId, reason));
     }
   }
 
   private final DecisionsHelper decisions;
 
-  private final Map<String, OpenRequestInfo<?, Long>> scheduledTimers = new HashMap<>();
+  // key is startedEventId
+  private final Map<Long, OpenRequestInfo<?, Long>> scheduledTimers = new HashMap<>();
 
   private long replayCurrentTimeMilliseconds;
 
   private boolean replaying = true;
+
+  private final Map<Long, byte[]> sideEffectResults = new HashMap<>();
 
   ClockDecisionContext(DecisionsHelper decisions) {
     this.decisions = decisions;
@@ -81,12 +92,11 @@ final class ClockDecisionContext {
     final OpenRequestInfo<?, Long> context = new OpenRequestInfo<>(firingTime);
     final StartTimerDecisionAttributes timer = new StartTimerDecisionAttributes();
     timer.setStartToFireTimeoutSeconds(delaySeconds);
-    final String timerId = decisions.getNextId();
-    timer.setTimerId(timerId);
-    decisions.startTimer(timer, null);
+    timer.setTimerId(String.valueOf(decisions.getNextId()));
+    long startEventId = decisions.startTimer(timer, null);
     context.setCompletionHandle((ctx, e) -> callback.accept(e));
-    scheduledTimers.put(timerId, context);
-    return new ClockDecisionContext.TimerCancellationHandler(timerId);
+    scheduledTimers.put(startEventId, context);
+    return new ClockDecisionContext.TimerCancellationHandler(startEventId);
   }
 
   void setReplaying(boolean replaying) {
@@ -94,9 +104,9 @@ final class ClockDecisionContext {
   }
 
   void handleTimerFired(TimerFiredEventAttributes attributes) {
-    String timerId = attributes.getTimerId();
-    if (decisions.handleTimerClosed(timerId)) {
-      OpenRequestInfo<?, Long> scheduled = scheduledTimers.remove(timerId);
+    long startedEventId = attributes.getStartedEventId();
+    if (decisions.handleTimerClosed(attributes)) {
+      OpenRequestInfo<?, Long> scheduled = scheduledTimers.remove(startedEventId);
       if (scheduled != null) {
         BiConsumer<?, Exception> completionCallback = scheduled.getCompletionCallback();
         completionCallback.accept(null, null);
@@ -106,14 +116,14 @@ final class ClockDecisionContext {
 
   void handleTimerCanceled(HistoryEvent event) {
     TimerCanceledEventAttributes attributes = event.getTimerCanceledEventAttributes();
-    String timerId = attributes.getTimerId();
+    long startedEventId = attributes.getStartedEventId();
     if (decisions.handleTimerCanceled(event)) {
-      timerCancelled(timerId, null);
+      timerCancelled(startedEventId, null);
     }
   }
 
-  private void timerCancelled(String timerId, Exception reason) {
-    OpenRequestInfo<?, ?> scheduled = scheduledTimers.remove(timerId);
+  private void timerCancelled(long startEventId, Exception reason) {
+    OpenRequestInfo<?, ?> scheduled = scheduledTimers.remove(startEventId);
     if (scheduled == null) {
       return;
     }
@@ -121,5 +131,35 @@ final class ClockDecisionContext {
     CancellationException exception = new CancellationException("Cancelled by request");
     exception.initCause(reason);
     context.accept(null, exception);
+  }
+
+  byte[] sideEffect(Func<byte[]> func) {
+    long sideEffectEventId = decisions.getNextDecisionEventId();
+    byte[] result;
+    if (replaying) {
+      result = sideEffectResults.get(sideEffectEventId);
+      if (result == null) {
+        throw new Error("No cached result found for SideEffect EventID=" + sideEffectEventId);
+      }
+    } else {
+      try {
+        result = func.apply();
+      } catch (Error e) {
+        throw e;
+      } catch (Exception e) {
+        throw new Error("sideEffect function failed", e);
+      }
+    }
+    decisions.recordMarker(SIDE_EFFECT_MARKER_NAME, result);
+    return result;
+  }
+
+  void handleMarkerRecorded(HistoryEvent event) {
+    MarkerRecordedEventAttributes attributes = event.getMarkerRecordedEventAttributes();
+    if (SIDE_EFFECT_MARKER_NAME.equals(attributes.getMarkerName())) {
+      sideEffectResults.put(event.getEventId(), attributes.getDetails());
+    } else {
+      log.warn("Unexpected marker: " + event);
+    }
   }
 }

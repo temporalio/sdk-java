@@ -54,6 +54,7 @@ import com.uber.cadence.testing.TestEnvironmentOptions.Builder;
 import com.uber.cadence.testing.TestWorkflowEnvironment;
 import com.uber.cadence.worker.Worker;
 import com.uber.cadence.worker.WorkerOptions;
+import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.Functions.Func1;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -97,13 +98,21 @@ import org.slf4j.LoggerFactory;
 @RunWith(ParallelParameterized.class)
 public class WorkflowTest {
 
+  /**
+   * When set to true increases test, activity and workflow timeouts to large values to support
+   * stepping through code in a debugger without timing out.
+   */
+  private static final boolean DEBUGGER_TIMEOUTS = false;
+
   public static final String ANNOTATION_TASK_LIST = "WorkflowTest-testExecute[Docker]";
 
   private TracingWorkflowInterceptorFactory tracer;
+  private static final boolean skipDockerService =
+      Boolean.parseBoolean(System.getenv("SKIP_DOCKER_SERVICE"));
 
   @Parameters(name = "{1}")
   public static Object[] data() {
-    if (Boolean.parseBoolean(System.getenv("SKIP_DOCKER_SERVICE"))) {
+    if (skipDockerService) {
       return new Object[][] {{false, "TestService"}};
     } else {
       return new Object[][] {{true, "Docker"}, {false, "TestService"}};
@@ -111,7 +120,10 @@ public class WorkflowTest {
   }
 
   @Rule public TestName testName = new TestName();
-  @Rule public Timeout globalTimeout = Timeout.seconds(5);
+
+  @Rule
+  public Timeout globalTimeout =
+      Timeout.seconds(DEBUGGER_TIMEOUTS ? 500 : (skipDockerService ? 5 : 20));
 
   @Rule
   public TestWatcher watchman =
@@ -150,19 +162,37 @@ public class WorkflowTest {
   private static WorkflowServiceTChannel service = new WorkflowServiceTChannel();
 
   private static WorkflowOptions.Builder newWorkflowOptionsBuilder(String taskList) {
-    return new WorkflowOptions.Builder()
-        .setExecutionStartToCloseTimeout(Duration.ofSeconds(1000))
-        .setTaskList(taskList);
+    if (DEBUGGER_TIMEOUTS) {
+      return new WorkflowOptions.Builder()
+          .setExecutionStartToCloseTimeout(Duration.ofSeconds(1000))
+          .setTaskStartToCloseTimeout(Duration.ofSeconds(60))
+          .setTaskList(taskList);
+    } else {
+      return new WorkflowOptions.Builder()
+          .setExecutionStartToCloseTimeout(Duration.ofSeconds(30))
+          .setTaskStartToCloseTimeout(Duration.ofSeconds(5))
+          .setTaskList(taskList);
+    }
   }
 
   private static ActivityOptions newActivityOptions1(String taskList) {
-    return new ActivityOptions.Builder()
-        .setTaskList(taskList)
-        .setScheduleToCloseTimeout(Duration.ofSeconds(5))
-        .setHeartbeatTimeout(Duration.ofSeconds(5))
-        .setScheduleToStartTimeout(Duration.ofSeconds(5))
-        .setStartToCloseTimeout(Duration.ofSeconds(10))
-        .build();
+    if (DEBUGGER_TIMEOUTS) {
+      return new ActivityOptions.Builder()
+          .setTaskList(taskList)
+          .setScheduleToCloseTimeout(Duration.ofSeconds(5))
+          .setHeartbeatTimeout(Duration.ofSeconds(5))
+          .setScheduleToStartTimeout(Duration.ofSeconds(5))
+          .setStartToCloseTimeout(Duration.ofSeconds(10))
+          .build();
+    } else {
+      return new ActivityOptions.Builder()
+          .setTaskList(taskList)
+          .setScheduleToCloseTimeout(Duration.ofSeconds(1000))
+          .setHeartbeatTimeout(Duration.ofSeconds(1000))
+          .setScheduleToStartTimeout(Duration.ofSeconds(1000))
+          .setStartToCloseTimeout(Duration.ofSeconds(10000))
+          .build();
+    }
   }
 
   private static ActivityOptions newActivityOptions2() {
@@ -171,11 +201,11 @@ public class WorkflowTest {
 
   @Before
   public void setUp() {
-    if (testName.getMethodName().equals("testExecute[TestService]")
-        || testName.getMethodName().equals("testStart[TestService]")) {
+    String testMethod = testName.getMethodName();
+    if (testMethod.startsWith("testExecute") || testMethod.startsWith("testStart")) {
       taskList = ANNOTATION_TASK_LIST;
     } else {
-      taskList = "WorkflowTest-" + testName.getMethodName();
+      taskList = "WorkflowTest-" + testMethod + "-" + UUID.randomUUID().toString();
     }
     tracer = new TracingWorkflowInterceptorFactory();
     if (useExternalService) {
@@ -889,10 +919,7 @@ public class WorkflowTest {
   @Test
   public void testExecute() throws ExecutionException, InterruptedException {
     startWorkerFor(TestMultiargsWorkflowsImpl.class);
-    WorkflowOptions workflowOptions =
-        newWorkflowOptionsBuilder(taskList)
-            .setTaskList(ANNOTATION_TASK_LIST) // To override func2 annotation property
-            .build();
+    WorkflowOptions workflowOptions = newWorkflowOptionsBuilder(taskList).build();
     TestMultiargsWorkflowsFunc stubF =
         workflowClient.newWorkflowStub(TestMultiargsWorkflowsFunc.class, workflowOptions);
     assertEquals("func", WorkflowClient.execute(stubF::func).get());
@@ -2755,6 +2782,38 @@ public class WorkflowTest {
     assertEquals("result=2, 100", result);
   }
 
+  public static class TestSideEffectWorkflowImpl implements TestWorkflow1 {
+
+    @Override
+    public String execute(String taskList) {
+      TestActivities testActivities =
+          Workflow.newActivityStub(TestActivities.class, newActivityOptions1(taskList));
+
+      long workflowTime = Workflow.currentTimeMillis();
+      long time = Workflow.sideEffect(long.class, () -> workflowTime);
+      Workflow.sleep(Duration.ofSeconds(1));
+      String result;
+      if (workflowTime == time) {
+        result = testActivities.activity1("activity1");
+      } else {
+        result = testActivities.activity2("activity2", 2);
+      }
+      return result;
+    }
+  }
+
+  @Test
+  //  @Ignore("Side effect is not implemented yet")
+  public void testSideEffect() {
+    startWorkerFor(TestSideEffectWorkflowImpl.class);
+    TestWorkflow1 workflowStub =
+        workflowClient.newWorkflowStub(
+            TestWorkflow1.class, newWorkflowOptionsBuilder(taskList).build());
+    String result = workflowStub.execute(taskList);
+    assertEquals("activity1", result);
+    tracer.setExpected("sideEffect", "sleep PT1S", "executeActivity customActivity1");
+  }
+
   private static class TracingWorkflowInterceptorFactory
       implements Function<WorkflowInterceptor, WorkflowInterceptor> {
 
@@ -2862,6 +2921,12 @@ public class WorkflowTest {
     public Promise<Void> newTimer(Duration duration) {
       trace.add("newTimer " + duration);
       return next.newTimer(duration);
+    }
+
+    @Override
+    public <R> R sideEffect(Class<R> resultType, Func<R> func) {
+      trace.add("sideEffect");
+      return next.sideEffect(resultType, func);
     }
 
     @Override

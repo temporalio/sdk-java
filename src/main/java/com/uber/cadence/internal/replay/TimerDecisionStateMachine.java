@@ -87,10 +87,10 @@ class TimerDecisionStateMachine extends DecisionStateMachineBase {
   }
 
   @Override
-  public void cancel(Runnable immediateCancellationCallback) {
+  public boolean cancel(Runnable immediateCancellationCallback) {
     canceled = true;
     immediateCancellationCallback.run();
-    super.cancel(null);
+    return super.cancel(null);
   }
 
   /**

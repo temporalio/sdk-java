@@ -17,7 +17,6 @@
 
 package com.uber.cadence.internal.replay;
 
-import com.uber.cadence.ActivityTaskStartedEventAttributes;
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.TimerFiredEventAttributes;
@@ -25,6 +24,7 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.internal.metrics.ReplayAwareScope;
+import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.Workflow;
 import com.uber.m3.tally.Scope;
@@ -88,7 +88,7 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
     return workflowContext.isCancelRequested();
   }
 
-  public void setCancelRequested(boolean flag) {
+  void setCancelRequested(boolean flag) {
     workflowContext.setCancelRequested(flag);
   }
 
@@ -175,7 +175,10 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
     return workflowClient.generateUniqueId();
   }
 
-  public void setReplayCurrentTimeMilliseconds(long replayCurrentTimeMilliseconds) {
+  void setReplayCurrentTimeMilliseconds(long replayCurrentTimeMilliseconds) {
+    if (replayCurrentTimeMilliseconds < workflowClock.currentTimeMillis()) {
+      throw new IllegalArgumentException("workflow clock moved back");
+    }
     workflowClock.setReplayCurrentTimeMilliseconds(replayCurrentTimeMilliseconds);
   }
 
@@ -190,17 +193,17 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   }
 
   @Override
+  public byte[] sideEffect(Func<byte[]> func) {
+    return workflowClock.sideEffect(func);
+  }
+
+  @Override
   public long currentTimeMillis() {
     return workflowClock.currentTimeMillis();
   }
 
-  public void setReplaying(boolean replaying) {
+  void setReplaying(boolean replaying) {
     workflowClock.setReplaying(replaying);
-  }
-
-  @Override
-  public void handleActivityTaskStarted(ActivityTaskStartedEventAttributes attributes) {
-    activityClient.handleActivityTaskStarted(attributes);
   }
 
   @Override
@@ -224,9 +227,7 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   }
 
   @Override
-  public void handleChildWorkflowExecutionCancelRequested(HistoryEvent event) {
-    workflowClient.handleChildWorkflowExecutionCancelRequested(event);
-  }
+  public void handleChildWorkflowExecutionCancelRequested(HistoryEvent event) {}
 
   @Override
   public void handleChildWorkflowExecutionCanceled(HistoryEvent event) {
@@ -273,11 +274,17 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
     workflowClock.handleTimerCanceled(event);
   }
 
-  public void handleSignalExternalWorkflowExecutionFailed(HistoryEvent event) {
+  void handleSignalExternalWorkflowExecutionFailed(HistoryEvent event) {
     workflowClient.handleSignalExternalWorkflowExecutionFailed(event);
   }
 
+  @Override
   public void handleExternalWorkflowExecutionSignaled(HistoryEvent event) {
     workflowClient.handleExternalWorkflowExecutionSignaled(event);
+  }
+
+  @Override
+  public void handleMarkerRecorded(HistoryEvent event) {
+    workflowClock.handleMarkerRecorded(event);
   }
 }
