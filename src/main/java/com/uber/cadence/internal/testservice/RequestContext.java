@@ -106,8 +106,13 @@ final class RequestContext {
     timerLocks--;
   }
 
-  public int getTimerLocks() {
+  int getTimerLocks() {
     return timerLocks;
+  }
+
+  void clearTimersAndLocks() {
+    timerLocks = 0;
+    timers.clear();
   }
 
   long currentTimeInNanoseconds() {

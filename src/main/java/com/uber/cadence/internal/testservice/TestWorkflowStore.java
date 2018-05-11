@@ -137,6 +137,8 @@ interface TestWorkflowStore {
 
   long save(RequestContext requestContext) throws InternalServiceError, EntityNotExistsError;
 
+  void applyTimersAndLocks(RequestContext ctx);
+
   void registerDelayedCallback(Duration delay, Runnable r);
 
   PollForDecisionTaskResponse pollForDecisionTask(PollForDecisionTaskRequest pollRequest)

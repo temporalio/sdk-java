@@ -133,7 +133,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private final Map<String, StateMachine<TimerData>> timers = new HashMap<>();
   private final Map<String, StateMachine<SignalExternalData>> externalSignals = new HashMap<>();
   private StateMachine<WorkflowData> workflow;
-  private StateMachine<DecisionTaskData> decision;
+  private volatile StateMachine<DecisionTaskData> decision;
   private long lastNonFailedDecisionStartEventId;
   private final Map<String, CompletableFuture<QueryWorkflowResponse>> queries =
       new ConcurrentHashMap<>();
@@ -182,6 +182,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       if (concurrentDecision && workflow.getState() != State.TIMED_OUT) {
         concurrentToDecision.add(ctx);
         ctx.fireCallbacks(0);
+        store.applyTimersAndLocks(ctx);
       } else {
         nextEventId = ctx.commitChanges(store);
       }
@@ -606,6 +607,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           child.action(StateMachines.Action.FAIL, ctx, a, 0);
           childWorkflows.remove(a.getInitiatedEventId());
           scheduleDecision(ctx);
+          ctx.unlockTimer();
         });
   }
 
@@ -619,6 +621,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           child.action(Action.TIME_OUT, ctx, a.getTimeoutType(), 0);
           childWorkflows.remove(a.getInitiatedEventId());
           scheduleDecision(ctx);
+          ctx.unlockTimer();
         });
   }
 
@@ -646,6 +649,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           child.action(StateMachines.Action.COMPLETE, ctx, a, 0);
           childWorkflows.remove(a.getInitiatedEventId());
           scheduleDecision(ctx);
+          ctx.unlockTimer();
         });
   }
 
@@ -659,6 +663,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           child.action(StateMachines.Action.CANCEL, ctx, a, 0);
           childWorkflows.remove(a.getInitiatedEventId());
           scheduleDecision(ctx);
+          ctx.unlockTimer();
         });
   }
 
