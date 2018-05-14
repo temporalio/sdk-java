@@ -188,27 +188,27 @@ public final class TestWorkflowService implements IWorkflowService {
     lock.lock();
     try {
       existing = executionsByWorkflowId.get(workflowId);
+      if (existing != null) {
+        Optional<WorkflowExecutionCloseStatus> statusOptional = existing.getCloseStatus();
+        WorkflowIdReusePolicy policy =
+            startRequest.isSetWorkflowIdReusePolicy()
+                ? startRequest.getWorkflowIdReusePolicy()
+                : WorkflowIdReusePolicy.AllowDuplicateFailedOnly;
+        if (!statusOptional.isPresent() || policy == WorkflowIdReusePolicy.RejectDuplicate) {
+          return throwDuplicatedWorkflow(startRequest, existing);
+        }
+        WorkflowExecutionCloseStatus status = statusOptional.get();
+        if (policy == WorkflowIdReusePolicy.AllowDuplicateFailedOnly
+            && (status == WorkflowExecutionCloseStatus.COMPLETED
+                || status == WorkflowExecutionCloseStatus.CONTINUED_AS_NEW)) {
+          return throwDuplicatedWorkflow(startRequest, existing);
+        }
+      }
+      return startWorkflowExecutionNoRunningCheckLocked(
+          startRequest, parent, parentChildInitiatedEventId, workflowId);
     } finally {
       lock.unlock();
     }
-    if (existing != null) {
-      Optional<WorkflowExecutionCloseStatus> statusOptional = existing.getCloseStatus();
-      WorkflowIdReusePolicy policy =
-          startRequest.isSetWorkflowIdReusePolicy()
-              ? startRequest.getWorkflowIdReusePolicy()
-              : WorkflowIdReusePolicy.AllowDuplicateFailedOnly;
-      if (!statusOptional.isPresent() || policy == WorkflowIdReusePolicy.RejectDuplicate) {
-        return throwDuplicatedWorkflow(startRequest, existing);
-      }
-      WorkflowExecutionCloseStatus status = statusOptional.get();
-      if (policy == WorkflowIdReusePolicy.AllowDuplicateFailedOnly
-          && (status == WorkflowExecutionCloseStatus.COMPLETED
-              || status == WorkflowExecutionCloseStatus.CONTINUED_AS_NEW)) {
-        return throwDuplicatedWorkflow(startRequest, existing);
-      }
-    }
-    return startWorkflowExecutionNoRunningCheck(
-        startRequest, parent, parentChildInitiatedEventId, workflowId);
   }
 
   private StartWorkflowExecutionResponse throwDuplicatedWorkflow(
@@ -224,7 +224,7 @@ public final class TestWorkflowService implements IWorkflowService {
     throw error;
   }
 
-  private StartWorkflowExecutionResponse startWorkflowExecutionNoRunningCheck(
+  private StartWorkflowExecutionResponse startWorkflowExecutionNoRunningCheckLocked(
       StartWorkflowExecutionRequest startRequest,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
@@ -236,13 +236,8 @@ public final class TestWorkflowService implements IWorkflowService {
             startRequest, parent, parentChildInitiatedEventId, this, store);
     WorkflowExecution execution = result.getExecutionId().getExecution();
     ExecutionId executionId = new ExecutionId(domain, execution);
-    lock.lock();
-    try {
-      executionsByWorkflowId.put(workflowId, result);
-      executions.put(executionId, result);
-    } finally {
-      lock.unlock();
-    }
+    executionsByWorkflowId.put(workflowId, result);
+    executions.put(executionId, result);
     result.startWorkflow();
     return new StartWorkflowExecutionResponse().setRunId(execution.getRunId());
   }
@@ -464,10 +459,15 @@ public final class TestWorkflowService implements IWorkflowService {
             .setWorkflowId(executionId.getWorkflowId().getWorkflowId())
             .setWorkflowIdReusePolicy(previousRunStartRequest.getWorkflowIdReusePolicy())
             .setIdentity(identity);
-    StartWorkflowExecutionResponse response =
-        startWorkflowExecutionNoRunningCheck(
-            startRequest, parent, parentChildInitiatedEventId, executionId.getWorkflowId());
-    return response.getRunId();
+    lock.lock();
+    try {
+      StartWorkflowExecutionResponse response =
+          startWorkflowExecutionNoRunningCheckLocked(
+              startRequest, parent, parentChildInitiatedEventId, executionId.getWorkflowId());
+      return response.getRunId();
+    } finally {
+      lock.unlock();
+    }
   }
 
   @Override
