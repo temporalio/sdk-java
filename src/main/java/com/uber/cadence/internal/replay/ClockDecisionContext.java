@@ -17,14 +17,18 @@
 
 package com.uber.cadence.internal.replay;
 
+import com.uber.cadence.EventType;
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.MarkerRecordedEventAttributes;
 import com.uber.cadence.StartTimerDecisionAttributes;
 import com.uber.cadence.TimerCanceledEventAttributes;
 import com.uber.cadence.TimerFiredEventAttributes;
+import com.uber.cadence.internal.replay.DecisionContext.MutableSideEffectData;
 import com.uber.cadence.workflow.Functions.Func;
+import com.uber.cadence.workflow.Functions.Func1;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
@@ -36,6 +40,7 @@ import org.slf4j.LoggerFactory;
 final class ClockDecisionContext {
 
   private static final String SIDE_EFFECT_MARKER_NAME = "SideEffect";
+  private static final String MUTABLE_SIDE_EFFECT_MARKER_NAME = "MutableSideEffect";
 
   private static final Logger log = LoggerFactory.getLogger(ReplayDecider.class);
 
@@ -53,6 +58,31 @@ final class ClockDecisionContext {
     }
   }
 
+  private static final class MutableSideEffectResult {
+
+    private final byte[] data;
+
+    /**
+     * Count of how many times the mutableSideEffect was called since the last marker recorded. It
+     * is used to ensure that an updated value is returned after the same exact number of times
+     * during a replay.
+     */
+    private int accessCount;
+
+    private MutableSideEffectResult(byte[] data) {
+      this.data = data;
+    }
+
+    public byte[] getData() {
+      accessCount++;
+      return data;
+    }
+
+    public int getAccessCount() {
+      return accessCount;
+    }
+  }
+
   private final DecisionsHelper decisions;
 
   // key is startedEventId
@@ -62,7 +92,10 @@ final class ClockDecisionContext {
 
   private boolean replaying = true;
 
+  // Key is side effect marker eventId
   private final Map<Long, byte[]> sideEffectResults = new HashMap<>();
+  // Key is mutableSideEffect id
+  private final Map<String, MutableSideEffectResult> mutableSideEffectResults = new HashMap<>();
 
   ClockDecisionContext(DecisionsHelper decisions) {
     this.decisions = decisions;
@@ -96,7 +129,7 @@ final class ClockDecisionContext {
     long startEventId = decisions.startTimer(timer, null);
     context.setCompletionHandle((ctx, e) -> callback.accept(e));
     scheduledTimers.put(startEventId, context);
-    return new ClockDecisionContext.TimerCancellationHandler(startEventId);
+    return new TimerCancellationHandler(startEventId);
   }
 
   void setReplaying(boolean replaying) {
@@ -154,11 +187,87 @@ final class ClockDecisionContext {
     return result;
   }
 
+  /**
+   * @param id mutable side effect id
+   * @param func given the value from the last marker returns value to store. If result is empty
+   *     nothing is recorded into the history.
+   * @return the latest value returned by func
+   */
+  Optional<byte[]> mutableSideEffect(
+      String id,
+      Func1<MutableSideEffectData, byte[]> markerDataSerializer,
+      Func1<byte[], MutableSideEffectData> markerDataDeserializer,
+      Func1<Optional<byte[]>, Optional<byte[]>> func) {
+    MutableSideEffectResult result = mutableSideEffectResults.get(id);
+    Optional<byte[]> stored;
+    if (result == null) {
+      stored = Optional.empty();
+    } else {
+      stored = Optional.of(result.getData());
+    }
+    long eventId = decisions.getNextDecisionEventId();
+    int accessCount = result == null ? 0 : result.getAccessCount();
+    if (replaying) {
+
+      Optional<byte[]> data =
+          getSideEffectDataFromHistory(eventId, id, accessCount, markerDataDeserializer);
+      if (data.isPresent()) {
+        // Need to insert marker to ensure that eventId is incremented
+        recordMutableSideEffectMarker(id, eventId, data.get(), accessCount, markerDataSerializer);
+        return data;
+      }
+      return stored;
+    }
+    Optional<byte[]> toStore = func.apply(stored);
+    if (toStore.isPresent()) {
+      byte[] data = toStore.get();
+      recordMutableSideEffectMarker(id, eventId, data, accessCount, markerDataSerializer);
+      return toStore;
+    }
+    return stored;
+  }
+
+  private Optional<byte[]> getSideEffectDataFromHistory(
+      long eventId,
+      String mutableSideEffectId,
+      int expectedAcccessCount,
+      Func1<byte[], MutableSideEffectData> markerDataDeserializer) {
+    HistoryEvent event = decisions.getDecisionEvent(eventId);
+    if (event.getEventType() != EventType.MarkerRecorded) {
+      return Optional.empty();
+    }
+    MarkerRecordedEventAttributes attributes = event.getMarkerRecordedEventAttributes();
+    String name = attributes.getMarkerName();
+    if (!MUTABLE_SIDE_EFFECT_MARKER_NAME.equals(name)) {
+      return Optional.empty();
+    }
+    MutableSideEffectData markerData = markerDataDeserializer.apply(attributes.getDetails());
+    // access count is used to not return data from the marker before the recorded number of calls
+    if (!mutableSideEffectId.equals(markerData.getId())
+        || markerData.getAccessCount() > expectedAcccessCount) {
+      return Optional.empty();
+    }
+    return Optional.of(markerData.getData());
+  }
+
+  private void recordMutableSideEffectMarker(
+      String id,
+      long eventId,
+      byte[] data,
+      int accessCount,
+      Func1<MutableSideEffectData, byte[]> markerDataSerializer) {
+    MutableSideEffectData dataObject = new MutableSideEffectData(id, eventId, data, accessCount);
+    byte[] details = markerDataSerializer.apply(dataObject);
+    mutableSideEffectResults.put(id, new MutableSideEffectResult(data));
+    decisions.recordMarker(MUTABLE_SIDE_EFFECT_MARKER_NAME, details);
+  }
+
   void handleMarkerRecorded(HistoryEvent event) {
     MarkerRecordedEventAttributes attributes = event.getMarkerRecordedEventAttributes();
-    if (SIDE_EFFECT_MARKER_NAME.equals(attributes.getMarkerName())) {
+    String name = attributes.getMarkerName();
+    if (SIDE_EFFECT_MARKER_NAME.equals(name)) {
       sideEffectResults.put(event.getEventId(), attributes.getDetails());
-    } else {
+    } else if (!MUTABLE_SIDE_EFFECT_MARKER_NAME.equals(name)) {
       log.warn("Unexpected marker: " + event);
     }
   }

@@ -25,10 +25,12 @@ import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.internal.metrics.ReplayAwareScope;
 import com.uber.cadence.workflow.Functions.Func;
+import com.uber.cadence.workflow.Functions.Func1;
 import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.Workflow;
 import com.uber.m3.tally.Scope;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -195,6 +197,15 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   @Override
   public byte[] sideEffect(Func<byte[]> func) {
     return workflowClock.sideEffect(func);
+  }
+
+  @Override
+  public Optional<byte[]> mutableSideEffect(
+      String id,
+      Func1<MutableSideEffectData, byte[]> markerDataSerializer,
+      Func1<byte[], MutableSideEffectData> markerDataDeserializer,
+      Func1<Optional<byte[]>, Optional<byte[]>> func) {
+    return workflowClock.mutableSideEffect(id, markerDataSerializer, markerDataDeserializer, func);
   }
 
   @Override

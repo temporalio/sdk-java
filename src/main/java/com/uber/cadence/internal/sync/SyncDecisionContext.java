@@ -29,6 +29,7 @@ import com.uber.cadence.internal.replay.ActivityTaskTimeoutException;
 import com.uber.cadence.internal.replay.ChildWorkflowTaskFailedException;
 import com.uber.cadence.internal.replay.ContinueAsNewWorkflowExecutionParameters;
 import com.uber.cadence.internal.replay.DecisionContext;
+import com.uber.cadence.internal.replay.DecisionContext.MutableSideEffectData;
 import com.uber.cadence.internal.replay.ExecuteActivityParameters;
 import com.uber.cadence.internal.replay.SignalExternalWorkflowParameters;
 import com.uber.cadence.internal.replay.StartChildWorkflowExecutionParameters;
@@ -56,6 +57,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -351,6 +354,40 @@ final class SyncDecisionContext implements WorkflowInterceptor {
               return dataConverter.toData(r);
             });
     return dataConverter.fromData(result, resultType);
+  }
+
+  @Override
+  public <R> R mutableSideEffect(
+      String id, Class<R> returnType, BiPredicate<R, R> updated, Func<R> func) {
+    DataConverter dataConverter = getDataConverter();
+    AtomicReference<R> unserializedResult = new AtomicReference<>();
+    // As lambda below never returns Optional.empty() if there is no stored value
+    // it is safe to call get on mutableSideEffect result.
+    byte[] binaryResult =
+        context
+            .mutableSideEffect(
+                id,
+                (md) -> dataConverter.toData(md),
+                (data) -> dataConverter.fromData(data, MutableSideEffectData.class),
+                (storedBinary) -> {
+                  Optional<R> stored =
+                      storedBinary.map((b) -> dataConverter.fromData(b, returnType));
+                  R funcResult =
+                      Objects.requireNonNull(
+                          func.apply(), "mutableSideEffect function " + "returned null");
+                  if (!stored.isPresent() || updated.test(stored.get(), funcResult)) {
+                    unserializedResult.set(funcResult);
+                    return Optional.of(dataConverter.toData(funcResult));
+                  }
+                  return Optional.empty(); // returned only when value doesn't need to be updated
+                })
+            .get();
+    // An optimization that avoids unnecessary deserialization of the result.
+    R unserialized = unserializedResult.get();
+    if (unserialized != null) {
+      return unserialized;
+    }
+    return dataConverter.fromData(binaryResult, returnType);
   }
 
   void fireTimers() {

@@ -82,6 +82,14 @@ class HistoryHelper {
       return decisionEvents;
     }
 
+    public HistoryEvent getDecisionEvent(long eventId) {
+      int index = (int) (eventId - nextDecisionEventId);
+      if (index < 0 || index > decisionEvents.size()) {
+        throw new IllegalArgumentException("No decision event found at eventId=" + eventId);
+      }
+      return decisionEvents.get(index);
+    }
+
     public List<HistoryEvent> getMarkers() {
       return markers;
     }

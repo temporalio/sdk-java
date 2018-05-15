@@ -27,6 +27,7 @@ import com.uber.cadence.internal.replay.ExecuteActivityParameters;
 import com.uber.cadence.internal.replay.SignalExternalWorkflowParameters;
 import com.uber.cadence.internal.replay.StartChildWorkflowExecutionParameters;
 import com.uber.cadence.workflow.Functions.Func;
+import com.uber.cadence.workflow.Functions.Func1;
 import com.uber.cadence.workflow.Promise;
 import com.uber.m3.tally.Scope;
 import java.time.Duration;
@@ -501,6 +502,15 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
     @Override
     public String generateUniqueId() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public Optional<byte[]> mutableSideEffect(
+        String id,
+        Func1<MutableSideEffectData, byte[]> markerDataSerializer,
+        Func1<byte[], MutableSideEffectData> markerDataDeserializer,
+        Func1<Optional<byte[]>, Optional<byte[]>> func) {
       throw new UnsupportedOperationException("not implemented");
     }
 

@@ -22,6 +22,7 @@ import com.uber.cadence.activity.ActivityOptions;
 import com.uber.cadence.workflow.Functions.Func;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 
 public interface WorkflowInterceptor {
@@ -65,6 +66,8 @@ public interface WorkflowInterceptor {
   Promise<Void> newTimer(Duration duration);
 
   <R> R sideEffect(Class<R> resultType, Func<R> func);
+
+  <R> R mutableSideEffect(String id, Class<R> returnType, BiPredicate<R, R> updated, Func<R> func);
 
   void continueAsNew(
       Optional<String> workflowType, Optional<ContinueAsNewOptions> options, Object[] args);

@@ -20,9 +20,11 @@ package com.uber.cadence.internal.replay;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.workflow.Functions.Func;
+import com.uber.cadence.workflow.Functions.Func1;
 import com.uber.cadence.workflow.Promise;
 import com.uber.m3.tally.Scope;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -31,6 +33,37 @@ import java.util.function.Consumer;
  * code, meaning any code which is not part of activity implementations.
  */
 public interface DecisionContext extends ReplayAware {
+
+  final class MutableSideEffectData {
+
+    private final String id;
+    private final long eventId;
+    private final byte[] data;
+    private final int accessCount;
+
+    public MutableSideEffectData(String id, long eventId, byte[] data, int accessCount) {
+      this.id = id;
+      this.eventId = eventId;
+      this.data = data;
+      this.accessCount = accessCount;
+    }
+
+    public String getId() {
+      return id;
+    }
+
+    public long getEventId() {
+      return eventId;
+    }
+
+    public byte[] getData() {
+      return data;
+    }
+
+    public int getAccessCount() {
+      return accessCount;
+    }
+  }
 
   WorkflowExecution getWorkflowExecution();
 
@@ -96,6 +129,12 @@ public interface DecisionContext extends ReplayAware {
 
   /** Deterministic unique Id generator */
   String generateUniqueId();
+
+  Optional<byte[]> mutableSideEffect(
+      String id,
+      Func1<MutableSideEffectData, byte[]> markerDataSerializer,
+      Func1<byte[], MutableSideEffectData> markerDataDeserializer,
+      Func1<Optional<byte[]>, Optional<byte[]>> func);
 
   /**
    * @return time of the {@link com.uber.cadence.PollForDecisionTaskResponse} start event of the

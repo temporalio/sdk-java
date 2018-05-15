@@ -31,6 +31,7 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
+import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 
@@ -720,8 +721,8 @@ public final class Workflow {
    * decision task failure. The decision task after timeout is rescheduled and re-executed giving
    * SideEffect another chance to succeed.
    *
-   * <p>Caution: do not use sideEffect to modify any worklfow sate. Only use the SideEffect's return
-   * value. For example this code is BROKEN:
+   * <p>Caution: do not use sideEffect function to modify any worklfow sate. Only use the
+   * SideEffect's return value. For example this code is BROKEN:
    *
    * <pre><code>
    *  // Bad example:
@@ -753,12 +754,48 @@ public final class Workflow {
    *  }
    *  </code></pre>
    *
+   * If function throws any exception it is not delivered to the workflow code. It is wrapped in
+   * {@link Error} causing failure of the current decision.
+   *
    * @param returnType type of the side effect
    * @param func function that returns side effect value
    * @return value of the side effect
+   * @see #mutableSideEffect(String, Class, BiPredicate, Func)
    */
   public static <R> R sideEffect(Class<R> returnType, Func<R> func) {
     return WorkflowInternal.sideEffect(returnType, func);
+  }
+
+  /**
+   * {@code mutableSideEffect} is similar to {@link #sideEffect(Class, Func)} in allowing calls of
+   * non-deterministic functions from workflow code.
+   *
+   * <p>The difference between {@code mutableSideEffect} and {@link #sideEffect(Class, Func)} is
+   * that every new {@code sideEffect} call in non-replay mode results in a new marker event
+   * recorded into the history. However, {@code mutableSideEffect} only records a new marker if a
+   * value has changed. During the replay, {@code mutableSideEffect} will not execute the function
+   * again, but it will return the exact same value as it was returning during the non-replay run.
+   *
+   * <p>One good use case of {@code mutableSideEffect} is to access a dynamically changing config
+   * without breaking determinism. Even if called very frequently the config value is recorded only
+   * when it changes not causing any performance degradation due to a large history size.
+   *
+   * <p>Caution: do not use {@code mutableSideEffect} function to modify any workflow sate. Only use
+   * the mutableSideEffect's return value.
+   *
+   * <p>If function throws any exception it is not delivered to the workflow code. It is wrapped in
+   * {@link Error} causing failure of the current decision.
+   *
+   * @param id unique identifier of this side effect
+   * @param updated used to decide if a new value should be recorded. A func result is recorded only
+   *     if call to updated with stored and a new value as arguments returns true. It is not called
+   *     for the first value.
+   * @param func function that produces a value. This function can contain non deterministic code.
+   * @see #sideEffect(Class, Func)
+   */
+  public static <R> R mutableSideEffect(
+      String id, Class<R> returnType, BiPredicate<R, R> updated, Func<R> func) {
+    return WorkflowInternal.mutableSideEffect(id, returnType, updated, func);
   }
 
   /**

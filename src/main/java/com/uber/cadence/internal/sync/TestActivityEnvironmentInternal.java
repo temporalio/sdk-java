@@ -90,6 +90,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.thrift.TException;
@@ -219,6 +220,12 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
 
     @Override
     public <R> R sideEffect(Class<R> resultType, Func<R> func) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public <R> R mutableSideEffect(
+        String id, Class<R> returnType, BiPredicate<R, R> updated, Func<R> func) {
       throw new UnsupportedOperationException("not implemented");
     }
 
