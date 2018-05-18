@@ -362,6 +362,7 @@ import org.slf4j.Logger;
  * values. Other than that, no additional limitations exist on activity implementations.
  */
 public final class Workflow {
+  public static final int DEFAULT_VERSION = WorkflowInternal.DEFAULT_VERSION;
 
   /**
    * Creates client stub to activities that implement given interface.
@@ -796,6 +797,97 @@ public final class Workflow {
   public static <R> R mutableSideEffect(
       String id, Class<R> returnType, BiPredicate<R, R> updated, Func<R> func) {
     return WorkflowInternal.mutableSideEffect(id, returnType, updated, func);
+  }
+
+  /**
+   * {@code getVersion} is used to safely perform backwards incompatible changes to workflow
+   * definitions. It is not allowed to update workflow code while there are workflows running as it
+   * is going to break determinism. The solution is to have both old code that is used to replay
+   * existing workflows as well as the new one that is used when it is executed for the first time.\
+   *
+   * <p>{@code getVersion} returns maxSupported version when is executed for the first time. This
+   * version is recorded into the workflow history as a marker event. Even if maxSupported version
+   * is changed the version that was recorded is returned on replay. DefaultVersion constant
+   * contains version of code that wasn't versioned before.
+   *
+   * <p>For example initially workflow has the following code:
+   *
+   * <pre><code>
+   * result = testActivities.activity1();
+   * </code></pre>
+   *
+   * it should be updated to
+   *
+   * <pre><code>
+   * result = testActivities.activity2();
+   * </code></pre>
+   *
+   * The backwards compatible way to execute the update is
+   *
+   * <pre><code>
+   * int version = Workflow.getVersion("fooChange", Workflow.DEFAULT_VERSION, 1);
+   * String result;
+   * if (version == Workflow.DEFAULT_VERSION) {
+   *   result = testActivities.activity1();
+   * } else {
+   *   result = testActivities.activity2();
+   * }
+   * </code></pre>
+   *
+   * Then later if we want to have another change:
+   *
+   * <pre><code>
+   * int version = Workflow.getVersion("fooChange", Workflow.DEFAULT_VERSION, 2);
+   * String result;
+   * if (version == Workflow.DEFAULT_VERSION) {
+   *   result = testActivities.activity1();
+   * } else if (version == 1) {
+   *   result = testActivities.activity2();
+   * } else {
+   *   result = testActivities.activity3();
+   * }
+   * </code></pre>
+   *
+   * Later when there are no workflow executions running DefaultVersion the correspondent branch can
+   * be removed:
+   *
+   * <pre><code>
+   * int version = Workflow.getVersion("fooChange", 1, 2);
+   * String result;
+   * if (version == 1) {
+   *   result = testActivities.activity2();
+   * } else {
+   *   result = testActivities.activity3();
+   * }
+   * </code></pre>
+   *
+   * It is recommended to keep the GetVersion() call even if single branch is left:
+   *
+   * <pre><code>
+   * Workflow.getVersion("fooChange", 2, 2);
+   * result = testActivities.activity3();
+   * </code></pre>
+   *
+   * The reason to keep it is: 1) it ensures that if there is older version execution still running,
+   * it will fail here and not proceed; 2) if you ever need to make more changes for “fooChange”,
+   * for example change activity3 to activity4, you just need to update the maxVersion from 2 to 3.
+   *
+   * <p>Note that, you only need to preserve the first call to GetVersion() for each changeID. All
+   * subsequent call to GetVersion() with same changeID are safe to remove. However, if you really
+   * want to get rid of the first GetVersion() call as well, you can do so, but you need to make
+   * sure: 1) all older version executions are completed; 2) you can no longer use “fooChange” as
+   * changeID. If you ever need to make changes to that same part, you would need to use a different
+   * changeID like “fooChange-fix2”, and start minVersion from DefaultVersion again.
+   *
+   * @param changeID identifier of a particular change. All calls to getVersion that share a
+   *     changeID are guaranteed to return the same version number. Use this to perform multiple
+   *     coordinated changes that should be enabled together.
+   * @param minSupported min version supported for the change
+   * @param maxSupported max version supported for the change
+   * @return version
+   */
+  public static int getVersion(String changeID, int minSupported, int maxSupported) {
+    return WorkflowInternal.getVersion(changeID, minSupported, maxSupported);
   }
 
   /**

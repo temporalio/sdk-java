@@ -97,13 +97,6 @@ final class ActivityDecisionContext {
     attributes.setScheduleToStartTimeoutSeconds(
         (int) parameters.getScheduleToStartTimeoutSeconds());
     attributes.setStartToCloseTimeoutSeconds((int) parameters.getStartToCloseTimeoutSeconds());
-    //
-    // attributes.setTaskPriority(InternalUtils.taskPriorityToString(parameters.getTaskPriority()));
-    String activityId = parameters.getActivityId();
-    if (activityId == null) {
-      activityId = String.valueOf(decisions.getNextId());
-    }
-    attributes.setActivityId(activityId);
 
     String taskList = parameters.getTaskList();
     if (taskList != null && !taskList.isEmpty()) {
@@ -144,6 +137,11 @@ final class ActivityDecisionContext {
         byte[] result = attributes.getResult();
         BiConsumer<byte[], Exception> completionHandle = scheduled.getCompletionCallback();
         completionHandle.accept(result, null);
+      } else {
+        throw new NonDeterminisicWorkflowError(
+            "Trying to complete activity event "
+                + attributes.getScheduledEventId()
+                + " that is not in scheduledActivities");
       }
     }
   }

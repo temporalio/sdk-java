@@ -29,7 +29,6 @@ import com.uber.cadence.internal.replay.ActivityTaskTimeoutException;
 import com.uber.cadence.internal.replay.ChildWorkflowTaskFailedException;
 import com.uber.cadence.internal.replay.ContinueAsNewWorkflowExecutionParameters;
 import com.uber.cadence.internal.replay.DecisionContext;
-import com.uber.cadence.internal.replay.DecisionContext.MutableSideEffectData;
 import com.uber.cadence.internal.replay.ExecuteActivityParameters;
 import com.uber.cadence.internal.replay.SignalExternalWorkflowParameters;
 import com.uber.cadence.internal.replay.StartChildWorkflowExecutionParameters;
@@ -359,7 +358,6 @@ final class SyncDecisionContext implements WorkflowInterceptor {
   @Override
   public <R> R mutableSideEffect(
       String id, Class<R> returnType, BiPredicate<R, R> updated, Func<R> func) {
-    DataConverter dataConverter = getDataConverter();
     AtomicReference<R> unserializedResult = new AtomicReference<>();
     // As lambda below never returns Optional.empty() if there is no stored value
     // it is safe to call get on mutableSideEffect result.
@@ -367,17 +365,15 @@ final class SyncDecisionContext implements WorkflowInterceptor {
         context
             .mutableSideEffect(
                 id,
-                (md) -> dataConverter.toData(md),
-                (data) -> dataConverter.fromData(data, MutableSideEffectData.class),
+                converter,
                 (storedBinary) -> {
-                  Optional<R> stored =
-                      storedBinary.map((b) -> dataConverter.fromData(b, returnType));
+                  Optional<R> stored = storedBinary.map((b) -> converter.fromData(b, returnType));
                   R funcResult =
                       Objects.requireNonNull(
                           func.apply(), "mutableSideEffect function " + "returned null");
                   if (!stored.isPresent() || updated.test(stored.get(), funcResult)) {
                     unserializedResult.set(funcResult);
-                    return Optional.of(dataConverter.toData(funcResult));
+                    return Optional.of(converter.toData(funcResult));
                   }
                   return Optional.empty(); // returned only when value doesn't need to be updated
                 })
@@ -387,7 +383,12 @@ final class SyncDecisionContext implements WorkflowInterceptor {
     if (unserialized != null) {
       return unserialized;
     }
-    return dataConverter.fromData(binaryResult, returnType);
+    return converter.fromData(binaryResult, returnType);
+  }
+
+  @Override
+  public int getVersion(String changeID, int minSupported, int maxSupported) {
+    return context.getVersion(changeID, converter, minSupported, maxSupported);
   }
 
   void fireTimers() {

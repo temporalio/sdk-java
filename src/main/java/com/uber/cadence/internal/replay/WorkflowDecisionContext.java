@@ -39,7 +39,6 @@ import com.uber.cadence.workflow.ChildWorkflowTerminatedException;
 import com.uber.cadence.workflow.ChildWorkflowTimedOutException;
 import com.uber.cadence.workflow.SignalExternalWorkflowException;
 import com.uber.cadence.workflow.StartChildWorkflowFailedException;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -96,11 +95,7 @@ final class WorkflowDecisionContext {
     final StartChildWorkflowExecutionDecisionAttributes attributes =
         new StartChildWorkflowExecutionDecisionAttributes();
     attributes.setWorkflowType(parameters.getWorkflowType());
-    String workflowId = parameters.getWorkflowId();
-    if (workflowId == null) {
-      workflowId = generateUniqueId();
-    }
-    attributes.setWorkflowId(workflowId);
+    attributes.setWorkflowId(parameters.getWorkflowId());
     if (parameters.getDomain() == null) {
       // Could be removed as soon as server allows null for domain.
       attributes.setDomain(workflowContext.getDomain());
@@ -140,7 +135,9 @@ final class WorkflowDecisionContext {
     }
     attributes.setTaskList(tl);
     attributes.setWorkflowIdReusePolicy(parameters.getWorkflowIdReusePolicy());
-    long initiatedEventId = decisions.startChildWorkflowExecution(attributes);
+    long initiatedEventId =
+        decisions.startChildWorkflowExecution(
+            attributes, workflowContext.getWorkflowExecution().getRunId());
     final OpenChildWorkflowRequestInfo context =
         new OpenChildWorkflowRequestInfo(executionCallback);
     context.setCompletionHandle(callback);
@@ -153,13 +150,11 @@ final class WorkflowDecisionContext {
     final OpenRequestInfo<Void, Void> context = new OpenRequestInfo<>();
     final SignalExternalWorkflowExecutionDecisionAttributes attributes =
         new SignalExternalWorkflowExecutionDecisionAttributes();
-    String signalId = decisions.getNextId();
     if (parameters.getDomain() == null) {
       attributes.setDomain(workflowContext.getDomain());
     } else {
       attributes.setDomain(parameters.getDomain());
     }
-    attributes.setControl(signalId.getBytes(StandardCharsets.UTF_8));
     attributes.setSignalName(parameters.getSignalName());
     attributes.setInput(parameters.getInput());
     WorkflowExecution execution = new WorkflowExecution();
@@ -198,12 +193,6 @@ final class WorkflowDecisionContext {
 
     // TODO: add validation to check if continueAsNew is not set
     workflowContext.setContinueAsNewOnCompletion(continueParameters);
-  }
-
-  String generateUniqueId() {
-    WorkflowExecution workflowExecution = workflowContext.getWorkflowExecution();
-    String runId = workflowExecution.getRunId();
-    return runId + ":" + decisions.getNextId();
   }
 
   void handleChildWorkflowExecutionCanceled(HistoryEvent event) {

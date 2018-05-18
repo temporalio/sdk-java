@@ -17,13 +17,14 @@
 
 package com.uber.cadence.internal.replay;
 
-import com.uber.cadence.EventType;
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.MarkerRecordedEventAttributes;
 import com.uber.cadence.StartTimerDecisionAttributes;
 import com.uber.cadence.TimerCanceledEventAttributes;
 import com.uber.cadence.TimerFiredEventAttributes;
-import com.uber.cadence.internal.replay.DecisionContext.MutableSideEffectData;
+import com.uber.cadence.converter.DataConverter;
+import com.uber.cadence.internal.replay.MarkerHandler.MarkerData;
+import com.uber.cadence.internal.sync.WorkflowInternal;
 import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.Functions.Func1;
 import java.util.HashMap;
@@ -33,6 +34,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,6 +43,7 @@ final class ClockDecisionContext {
 
   private static final String SIDE_EFFECT_MARKER_NAME = "SideEffect";
   private static final String MUTABLE_SIDE_EFFECT_MARKER_NAME = "MutableSideEffect";
+  public static final String VERSION_MARKER_NAME = "Version";
 
   private static final Logger log = LoggerFactory.getLogger(ReplayDecider.class);
 
@@ -58,31 +61,6 @@ final class ClockDecisionContext {
     }
   }
 
-  private static final class MutableSideEffectResult {
-
-    private final byte[] data;
-
-    /**
-     * Count of how many times the mutableSideEffect was called since the last marker recorded. It
-     * is used to ensure that an updated value is returned after the same exact number of times
-     * during a replay.
-     */
-    private int accessCount;
-
-    private MutableSideEffectResult(byte[] data) {
-      this.data = data;
-    }
-
-    public byte[] getData() {
-      accessCount++;
-      return data;
-    }
-
-    public int getAccessCount() {
-      return accessCount;
-    }
-  }
-
   private final DecisionsHelper decisions;
 
   // key is startedEventId
@@ -94,11 +72,15 @@ final class ClockDecisionContext {
 
   // Key is side effect marker eventId
   private final Map<Long, byte[]> sideEffectResults = new HashMap<>();
-  // Key is mutableSideEffect id
-  private final Map<String, MutableSideEffectResult> mutableSideEffectResults = new HashMap<>();
+
+  private final MarkerHandler mutableSideEffectHandler;
+  private final MarkerHandler versionHandler;
 
   ClockDecisionContext(DecisionsHelper decisions) {
     this.decisions = decisions;
+    mutableSideEffectHandler =
+        new MarkerHandler(decisions, MUTABLE_SIDE_EFFECT_MARKER_NAME, () -> replaying);
+    versionHandler = new MarkerHandler(decisions, VERSION_MARKER_NAME, () -> replaying);
   }
 
   long currentTimeMillis() {
@@ -125,8 +107,7 @@ final class ClockDecisionContext {
     final OpenRequestInfo<?, Long> context = new OpenRequestInfo<>(firingTime);
     final StartTimerDecisionAttributes timer = new StartTimerDecisionAttributes();
     timer.setStartToFireTimeoutSeconds(delaySeconds);
-    timer.setTimerId(String.valueOf(decisions.getNextId()));
-    long startEventId = decisions.startTimer(timer, null);
+    long startEventId = decisions.startTimer(timer);
     context.setCompletionHandle((ctx, e) -> callback.accept(e));
     scheduledTimers.put(startEventId, context);
     return new TimerCancellationHandler(startEventId);
@@ -167,6 +148,7 @@ final class ClockDecisionContext {
   }
 
   byte[] sideEffect(Func<byte[]> func) {
+    decisions.addAllMissingVersionMarker(false, Optional.empty());
     long sideEffectEventId = decisions.getNextDecisionEventId();
     byte[] result;
     if (replaying) {
@@ -194,72 +176,9 @@ final class ClockDecisionContext {
    * @return the latest value returned by func
    */
   Optional<byte[]> mutableSideEffect(
-      String id,
-      Func1<MutableSideEffectData, byte[]> markerDataSerializer,
-      Func1<byte[], MutableSideEffectData> markerDataDeserializer,
-      Func1<Optional<byte[]>, Optional<byte[]>> func) {
-    MutableSideEffectResult result = mutableSideEffectResults.get(id);
-    Optional<byte[]> stored;
-    if (result == null) {
-      stored = Optional.empty();
-    } else {
-      stored = Optional.of(result.getData());
-    }
-    long eventId = decisions.getNextDecisionEventId();
-    int accessCount = result == null ? 0 : result.getAccessCount();
-    if (replaying) {
-
-      Optional<byte[]> data =
-          getSideEffectDataFromHistory(eventId, id, accessCount, markerDataDeserializer);
-      if (data.isPresent()) {
-        // Need to insert marker to ensure that eventId is incremented
-        recordMutableSideEffectMarker(id, eventId, data.get(), accessCount, markerDataSerializer);
-        return data;
-      }
-      return stored;
-    }
-    Optional<byte[]> toStore = func.apply(stored);
-    if (toStore.isPresent()) {
-      byte[] data = toStore.get();
-      recordMutableSideEffectMarker(id, eventId, data, accessCount, markerDataSerializer);
-      return toStore;
-    }
-    return stored;
-  }
-
-  private Optional<byte[]> getSideEffectDataFromHistory(
-      long eventId,
-      String mutableSideEffectId,
-      int expectedAcccessCount,
-      Func1<byte[], MutableSideEffectData> markerDataDeserializer) {
-    HistoryEvent event = decisions.getDecisionEvent(eventId);
-    if (event.getEventType() != EventType.MarkerRecorded) {
-      return Optional.empty();
-    }
-    MarkerRecordedEventAttributes attributes = event.getMarkerRecordedEventAttributes();
-    String name = attributes.getMarkerName();
-    if (!MUTABLE_SIDE_EFFECT_MARKER_NAME.equals(name)) {
-      return Optional.empty();
-    }
-    MutableSideEffectData markerData = markerDataDeserializer.apply(attributes.getDetails());
-    // access count is used to not return data from the marker before the recorded number of calls
-    if (!mutableSideEffectId.equals(markerData.getId())
-        || markerData.getAccessCount() > expectedAcccessCount) {
-      return Optional.empty();
-    }
-    return Optional.of(markerData.getData());
-  }
-
-  private void recordMutableSideEffectMarker(
-      String id,
-      long eventId,
-      byte[] data,
-      int accessCount,
-      Func1<MutableSideEffectData, byte[]> markerDataSerializer) {
-    MutableSideEffectData dataObject = new MutableSideEffectData(id, eventId, data, accessCount);
-    byte[] details = markerDataSerializer.apply(dataObject);
-    mutableSideEffectResults.put(id, new MutableSideEffectResult(data));
-    decisions.recordMarker(MUTABLE_SIDE_EFFECT_MARKER_NAME, details);
+      String id, DataConverter converter, Func1<Optional<byte[]>, Optional<byte[]>> func) {
+    decisions.addAllMissingVersionMarker(false, Optional.empty());
+    return mutableSideEffectHandler.handle(id, converter, func);
   }
 
   void handleMarkerRecorded(HistoryEvent event) {
@@ -267,8 +186,44 @@ final class ClockDecisionContext {
     String name = attributes.getMarkerName();
     if (SIDE_EFFECT_MARKER_NAME.equals(name)) {
       sideEffectResults.put(event.getEventId(), attributes.getDetails());
-    } else if (!MUTABLE_SIDE_EFFECT_MARKER_NAME.equals(name)) {
+    } else if (!MUTABLE_SIDE_EFFECT_MARKER_NAME.equals(name) && !VERSION_MARKER_NAME.equals(name)) {
       log.warn("Unexpected marker: " + event);
+    }
+  }
+
+  int getVersion(String changeId, DataConverter converter, int minSupported, int maxSupported) {
+    Predicate<byte[]> changeIdEquals =
+        (bytesInEvent) -> {
+          MarkerData markerData = converter.fromData(bytesInEvent, MarkerData.class);
+          return markerData.getId().equals(changeId);
+        };
+    decisions.addAllMissingVersionMarker(true, Optional.of(changeIdEquals));
+
+    Optional<byte[]> result =
+        versionHandler.handle(
+            changeId,
+            converter,
+            (stored) -> {
+              if (stored.isPresent()) {
+                return Optional.empty();
+              }
+              return Optional.of(converter.toData(maxSupported));
+            });
+
+    if (!result.isPresent()) {
+      return WorkflowInternal.DEFAULT_VERSION;
+    }
+    int version = converter.fromData(result.get(), Integer.class);
+    validateVersion(changeId, version, minSupported, maxSupported);
+    return version;
+  }
+
+  private void validateVersion(String changeID, int version, int minSupported, int maxSupported) {
+    if (version < minSupported || version > maxSupported) {
+      throw new Error(
+          String.format(
+              "Version %d of changeID %s is not supported. Supported version is between %d and %d.",
+              version, changeID, minSupported, maxSupported));
     }
   }
 }

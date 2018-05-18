@@ -23,6 +23,7 @@ import com.uber.cadence.TimerFiredEventAttributes;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
 import com.uber.cadence.WorkflowType;
+import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.metrics.ReplayAwareScope;
 import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.Functions.Func1;
@@ -172,11 +173,6 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
     workflowClient.continueAsNewOnCompletion(parameters);
   }
 
-  @Override
-  public String generateUniqueId() {
-    return workflowClient.generateUniqueId();
-  }
-
   void setReplayCurrentTimeMilliseconds(long replayCurrentTimeMilliseconds) {
     if (replayCurrentTimeMilliseconds < workflowClock.currentTimeMillis()) {
       throw new IllegalArgumentException("workflow clock moved back");
@@ -201,11 +197,14 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
 
   @Override
   public Optional<byte[]> mutableSideEffect(
-      String id,
-      Func1<MutableSideEffectData, byte[]> markerDataSerializer,
-      Func1<byte[], MutableSideEffectData> markerDataDeserializer,
-      Func1<Optional<byte[]>, Optional<byte[]>> func) {
-    return workflowClock.mutableSideEffect(id, markerDataSerializer, markerDataDeserializer, func);
+      String id, DataConverter converter, Func1<Optional<byte[]>, Optional<byte[]>> func) {
+    return workflowClock.mutableSideEffect(id, converter, func);
+  }
+
+  @Override
+  public int getVersion(
+      String changeID, DataConverter converter, int minSupported, int maxSupported) {
+    return workflowClock.getVersion(changeID, converter, minSupported, maxSupported);
   }
 
   @Override

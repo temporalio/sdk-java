@@ -19,6 +19,7 @@ package com.uber.cadence.internal.replay;
 
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
+import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.Functions.Func1;
 import com.uber.cadence.workflow.Promise;
@@ -33,37 +34,6 @@ import java.util.function.Consumer;
  * code, meaning any code which is not part of activity implementations.
  */
 public interface DecisionContext extends ReplayAware {
-
-  final class MutableSideEffectData {
-
-    private final String id;
-    private final long eventId;
-    private final byte[] data;
-    private final int accessCount;
-
-    public MutableSideEffectData(String id, long eventId, byte[] data, int accessCount) {
-      this.id = id;
-      this.eventId = eventId;
-      this.data = data;
-      this.accessCount = accessCount;
-    }
-
-    public String getId() {
-      return id;
-    }
-
-    public long getEventId() {
-      return eventId;
-    }
-
-    public byte[] getData() {
-      return data;
-    }
-
-    public int getAccessCount() {
-      return accessCount;
-    }
-  }
 
   WorkflowExecution getWorkflowExecution();
 
@@ -127,14 +97,8 @@ public interface DecisionContext extends ReplayAware {
 
   void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionParameters parameters);
 
-  /** Deterministic unique Id generator */
-  String generateUniqueId();
-
   Optional<byte[]> mutableSideEffect(
-      String id,
-      Func1<MutableSideEffectData, byte[]> markerDataSerializer,
-      Func1<byte[], MutableSideEffectData> markerDataDeserializer,
-      Func1<Optional<byte[]>, Optional<byte[]>> func);
+      String id, DataConverter dataConverter, Func1<Optional<byte[]>, Optional<byte[]>> func);
 
   /**
    * @return time of the {@link com.uber.cadence.PollForDecisionTaskResponse} start event of the
@@ -165,6 +129,23 @@ public interface DecisionContext extends ReplayAware {
    * @return value of the side effect.
    */
   byte[] sideEffect(Func<byte[]> func);
+
+  /**
+   * GetVersion is used to safely perform backwards incompatible changes to workflow definitions. It
+   * is not allowed to update workflow code while there are workflows running as it is going to
+   * break determinism. The solution is to have both old code that is used to replay existing
+   * workflows as well as the new one that is used when it is executed for the first time.
+   * GetVersion returns maxSupported version when executed for the first time. This version is
+   * recorded into the workflow history as a marker event. Even if maxSupported version is changed
+   * the version that was recorded is returned on replay. DefaultVersion constant contains version
+   * of code that wasn't versioned before.
+   *
+   * @param changeID identifier of a particular change
+   * @param minSupported min version supported for the change
+   * @param maxSupported max version supported for the change
+   * @return version
+   */
+  int getVersion(String changeID, DataConverter dataConverter, int minSupported, int maxSupported);
 
   /** @return scope to be used for metrics reporting. */
   Scope getMetricsScope();

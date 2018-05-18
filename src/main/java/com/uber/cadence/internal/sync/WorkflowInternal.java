@@ -58,6 +58,7 @@ import org.slf4j.LoggerFactory;
  * Never reference directly. It is public only because Java doesn't have internal package support.
  */
 public final class WorkflowInternal {
+  public static final int DEFAULT_VERSION = -1;
 
   public static WorkflowThread newThread(boolean ignoreParentCancellation, Runnable runnable) {
     return WorkflowThread.newThread(runnable, ignoreParentCancellation);
@@ -250,6 +251,10 @@ public final class WorkflowInternal {
   public static <R> R mutableSideEffect(
       String id, Class<R> returnType, BiPredicate<R, R> updated, Func<R> func) {
     return getWorkflowInterceptor().mutableSideEffect(id, returnType, updated, func);
+  }
+
+  public static int getVersion(String changeID, int minSupported, int maxSupported) {
+    return getWorkflowInterceptor().getVersion(changeID, minSupported, maxSupported);
   }
 
   public static <U> Promise<List<U>> promiseAllOf(Collection<Promise<U>> promises) {

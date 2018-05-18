@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,12 +83,20 @@ class HistoryHelper {
       return decisionEvents;
     }
 
-    public HistoryEvent getDecisionEvent(long eventId) {
+    HistoryEvent getDecisionEvent(long eventId) {
       int index = (int) (eventId - nextDecisionEventId);
-      if (index < 0 || index > decisionEvents.size()) {
+      if (index < 0 || index >= decisionEvents.size()) {
         throw new IllegalArgumentException("No decision event found at eventId=" + eventId);
       }
       return decisionEvents.get(index);
+    }
+
+    Optional<HistoryEvent> getOptionalDecisionEvent(long eventId) {
+      int index = (int) (eventId - nextDecisionEventId);
+      if (index < 0 || index >= decisionEvents.size()) {
+        return Optional.empty();
+      }
+      return Optional.of(decisionEvents.get(index));
     }
 
     public List<HistoryEvent> getMarkers() {
