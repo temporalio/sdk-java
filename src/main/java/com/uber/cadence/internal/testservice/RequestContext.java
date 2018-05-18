@@ -41,10 +41,12 @@ final class RequestContext {
 
     private final long delaySeconds;
     private final Runnable callback;
+    private final String taskInfo;
 
-    Timer(long delaySeconds, Runnable callback) {
+    Timer(long delaySeconds, Runnable callback, String taskInfo) {
       this.delaySeconds = delaySeconds;
       this.callback = callback;
+      this.taskInfo = taskInfo;
     }
 
     long getDelaySeconds() {
@@ -53,6 +55,10 @@ final class RequestContext {
 
     Runnable getCallback() {
       return callback;
+    }
+
+    String getTaskInfo() {
+      return taskInfo;
     }
   }
 
@@ -173,8 +179,8 @@ final class RequestContext {
     this.activityTasks.add(activityTask);
   }
 
-  void addTimer(long delaySeconds, Runnable callback) {
-    Timer timer = new Timer(delaySeconds, callback);
+  void addTimer(long delaySeconds, Runnable callback, String name) {
+    Timer timer = new Timer(delaySeconds, callback, name);
     this.timers.add(timer);
   }
 

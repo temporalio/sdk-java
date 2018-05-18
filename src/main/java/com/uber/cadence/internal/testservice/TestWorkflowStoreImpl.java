@@ -152,7 +152,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       new SelfAdvancingTimerImpl(System.currentTimeMillis());
 
   public TestWorkflowStoreImpl() {
-    timerService.lockTimeSkipping(); // locked until the first save
+    // locked until the first save
+    timerService.lockTimeSkipping("TestWorkflowStoreImpl constructor");
   }
 
   @Override
@@ -185,11 +186,12 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       history.checkNextEventId(ctx.getInitialEventId());
       history.addAllLocked(events, ctx.currentTimeInNanoseconds());
       result = history.getNextEventIdLocked();
-      timerService.updateLocks(ctx.getTimerLocks());
+      timerService.updateLocks(ctx.getTimerLocks(), "TestWorkflowStoreImpl save");
       ctx.fireCallbacks(history.getEventsLocked().size());
     } finally {
       if (historiesEmpty && !histories.isEmpty()) {
-        timerService.unlockTimeSkipping(); // Initially locked in the constructor
+        timerService.unlockTimeSkipping(
+            "TestWorkflowStoreImpl save"); // Initially locked in the constructor
       }
       lock.unlock();
     }
@@ -213,7 +215,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     List<Timer> timers = ctx.getTimers();
     if (timers != null) {
       for (Timer t : timers) {
-        timerService.schedule(Duration.ofSeconds(t.getDelaySeconds()), t.getCallback());
+        timerService.schedule(
+            Duration.ofSeconds(t.getDelaySeconds()), t.getCallback(), t.getTaskInfo());
       }
     }
     return result;
@@ -223,7 +226,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   public void applyTimersAndLocks(RequestContext ctx) {
     lock.lock();
     try {
-      timerService.updateLocks(ctx.getTimerLocks());
+      timerService.updateLocks(ctx.getTimerLocks(), "TestWorkflowStoreImpl applyTimersAndLocks");
     } finally {
       lock.unlock();
     }
@@ -231,7 +234,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     List<Timer> timers = ctx.getTimers();
     if (timers != null) {
       for (Timer t : timers) {
-        timerService.schedule(Duration.ofSeconds(t.getDelaySeconds()), t.getCallback());
+        timerService.schedule(
+            Duration.ofSeconds(t.getDelaySeconds()), t.getCallback(), t.getTaskInfo());
       }
     }
 
@@ -240,7 +244,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
 
   @Override
   public void registerDelayedCallback(Duration delay, Runnable r) {
-    timerService.schedule(delay, r);
+    timerService.schedule(delay, r, "registerDelayedCallback");
   }
 
   private BlockingQueue<PollForActivityTaskResponse> getActivityTaskListQueue(
@@ -373,6 +377,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     } finally {
       lock.unlock();
     }
+
+    timerService.getDiagnostics(result);
   }
 
   @Override

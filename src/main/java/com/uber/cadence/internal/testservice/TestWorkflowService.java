@@ -747,16 +747,16 @@ public final class TestWorkflowService implements IWorkflowService {
   }
 
   /**
-   * Disables time skipping. To enable back call {@link #unlockTimeSkipping()}. These calls are
-   * counted, so calling unlock does not guarantee that time is going to be skipped immediately as
-   * another lock can be holding it.
+   * Disables time skipping. To enable back call {@link #unlockTimeSkipping(String)}. These calls
+   * are counted, so calling unlock does not guarantee that time is going to be skipped immediately
+   * as another lock can be holding it.
    */
-  public void lockTimeSkipping() {
-    store.getTimer().lockTimeSkipping();
+  public void lockTimeSkipping(String caller) {
+    store.getTimer().lockTimeSkipping(caller);
   }
 
-  public void unlockTimeSkipping() {
-    store.getTimer().unlockTimeSkipping();
+  public void unlockTimeSkipping(String caller) {
+    store.getTimer().unlockTimeSkipping(caller);
   }
 
   /**
@@ -771,10 +771,11 @@ public final class TestWorkflowService implements IWorkflowService {
         .schedule(
             duration,
             () -> {
-              store.getTimer().lockTimeSkipping();
+              store.getTimer().lockTimeSkipping("TestWorkflowService sleep");
               result.complete(null);
-            });
-    store.getTimer().unlockTimeSkipping();
+            },
+            "workflow sleep");
+    store.getTimer().unlockTimeSkipping("TestWorkflowService sleep");
     try {
       result.get();
     } catch (InterruptedException e) {

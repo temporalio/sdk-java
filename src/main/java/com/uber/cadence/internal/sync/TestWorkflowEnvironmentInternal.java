@@ -105,7 +105,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
       this.testEnvironmentOptions = options;
     }
     service = new WorkflowServiceWrapper();
-    service.lockTimeSkipping();
+    service.lockTimeSkipping("TestWorkflowEnvironmentInternal constructor");
   }
 
   @Override
@@ -137,7 +137,15 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
 
   @Override
   public WorkflowClient newWorkflowClient(WorkflowClientOptions options) {
-    return WorkflowClientInternal.newInstance(service, testEnvironmentOptions.getDomain(), options);
+    WorkflowClientInterceptor[] existingInterceptors = options.getInterceptors();
+    WorkflowClientInterceptor[] interceptors =
+        new WorkflowClientInterceptor[existingInterceptors.length + 1];
+    System.arraycopy(existingInterceptors, 0, interceptors, 0, existingInterceptors.length);
+    interceptors[interceptors.length - 1] = new TimeLockingInterceptor(service);
+    WorkflowClientOptions newOptions =
+        new WorkflowClientOptions.Builder(options).setInterceptors(interceptors).build();
+    return WorkflowClientInternal.newInstance(
+        service, testEnvironmentOptions.getDomain(), newOptions);
   }
 
   @Override
@@ -559,12 +567,12 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
       impl.registerDelayedCallback(delay, r);
     }
 
-    public void lockTimeSkipping() {
-      impl.lockTimeSkipping();
+    public void lockTimeSkipping(String caller) {
+      impl.lockTimeSkipping(caller);
     }
 
-    public void unlockTimeSkipping() {
-      impl.unlockTimeSkipping();
+    public void unlockTimeSkipping(String caller) {
+      impl.unlockTimeSkipping(caller);
     }
 
     public void sleep(Duration duration) {
@@ -629,11 +637,11 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
 
       @Override
       public <R> R getResult(Class<R> returnType) {
-        service.unlockTimeSkipping();
+        service.unlockTimeSkipping("TimeLockingWorkflowStub getResult");
         try {
           return next.getResult(returnType);
         } finally {
-          service.lockTimeSkipping();
+          service.lockTimeSkipping("TimeLockingWorkflowStub getResult");
         }
       }
 
@@ -645,11 +653,11 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
       @Override
       public <R> R getResult(long timeout, TimeUnit unit, Class<R> returnType)
           throws TimeoutException {
-        service.unlockTimeSkipping();
+        service.unlockTimeSkipping("TimeLockingWorkflowStub getResult");
         try {
           return next.getResult(timeout, unit, returnType);
         } finally {
-          service.lockTimeSkipping();
+          service.lockTimeSkipping("TimeLockingWorkflowStub getResult");
         }
       }
 
@@ -681,7 +689,8 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
           CompletableFuture<R> ignored =
               resultAsync.whenComplete(
                   (r, e) -> {
-                    service.lockTimeSkipping();
+                    service.lockTimeSkipping(
+                        "TimeLockingWorkflowStub TimeLockingFuture constructor");
                     if (e == null) {
                       this.complete(r);
                     } else {
@@ -692,25 +701,28 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
 
         @Override
         public R get() throws InterruptedException, ExecutionException {
-          service.unlockTimeSkipping();
-          return super.get();
+          service.unlockTimeSkipping("TimeLockingWorkflowStub TimeLockingFuture get");
+          try {
+            return super.get();
+          } finally {
+            service.lockTimeSkipping("TimeLockingWorkflowStub TimeLockingFuture get");
+          }
         }
 
         @Override
         public R get(long timeout, TimeUnit unit)
             throws InterruptedException, ExecutionException, TimeoutException {
-          service.unlockTimeSkipping();
+          service.unlockTimeSkipping("TimeLockingWorkflowStub TimeLockingFuture get");
           try {
             return super.get(timeout, unit);
-          } catch (TimeoutException | InterruptedException e) {
-            service.lockTimeSkipping();
-            throw e;
+          } finally {
+            service.lockTimeSkipping("TimeLockingWorkflowStub TimeLockingFuture get");
           }
         }
 
         @Override
         public R join() {
-          service.unlockTimeSkipping();
+          service.unlockTimeSkipping("TimeLockingWorkflowStub TimeLockingFuture join");
           return super.join();
         }
       }

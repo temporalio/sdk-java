@@ -29,10 +29,16 @@ public final class WorkflowClientOptions {
   public static final class Builder {
 
     private DataConverter dataConverter = JsonDataConverter.getInstance();
-
     private WorkflowClientInterceptor[] interceptors = EMPTY_INTERCEPTOR_ARRAY;
-
     private Scope metricsScope;
+
+    public Builder() {}
+
+    public Builder(WorkflowClientOptions options) {
+      dataConverter = options.getDataConverter();
+      interceptors = options.getInterceptors();
+      metricsScope = options.getMetricsScope();
+    }
 
     /**
      * Used to override default (JSON) data converter implementation.

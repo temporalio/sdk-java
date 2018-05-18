@@ -22,7 +22,7 @@ import java.util.function.LongSupplier;
 
 /**
  * Timer service that automatically forwards current time to the next task time when is not locked
- * through {@link #lockTimeSkipping()}.
+ * through {@link #lockTimeSkipping(String)}.
  */
 interface SelfAdvancingTimer {
 
@@ -32,16 +32,18 @@ interface SelfAdvancingTimer {
    */
   void schedule(Duration delay, Runnable task);
 
+  void schedule(Duration delay, Runnable task, String taskInfo);
+
   /** Supplier that returns current time of the timer when called. */
   LongSupplier getClock();
 
   /**
-   * Prohibit automatic time skipping until {@link #unlockTimeSkipping()} is called. Locks and
+   * Prohibit automatic time skipping until {@link #unlockTimeSkipping(String)} is called. Locks and
    * unlocks are counted.
    */
-  void lockTimeSkipping();
+  LockHandle lockTimeSkipping(String caller);
 
-  void unlockTimeSkipping();
+  void unlockTimeSkipping(String caller);
 
   /**
    * Update lock count. The same as calling lockTimeSkipping count number of times for positive
@@ -49,7 +51,13 @@ interface SelfAdvancingTimer {
    *
    * @param count
    */
-  void updateLocks(int count);
+  void updateLocks(int count, String caller);
+
+  void getDiagnostics(StringBuilder result);
 
   void shutdown();
+}
+
+interface LockHandle {
+  void unlock();
 }

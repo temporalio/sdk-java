@@ -63,12 +63,12 @@ public class SelfAdvancingTimerImplTest {
   @Test
   public void testOrdering() throws InterruptedException {
     List<Long> captured = Collections.synchronizedList(new ArrayList<>());
-    timer.lockTimeSkipping();
+    timer.lockTimeSkipping("unit test");
     timer.schedule(Duration.ofSeconds(100), () -> captured.add(clock.getAsLong()));
     timer.schedule(Duration.ofSeconds(20), () -> captured.add(clock.getAsLong()));
     timer.schedule(Duration.ofSeconds(10), () -> captured.add(clock.getAsLong()));
     timer.schedule(Duration.ofSeconds(1), () -> captured.add(clock.getAsLong()));
-    timer.unlockTimeSkipping();
+    timer.unlockTimeSkipping("unit test");
     Thread.sleep(100);
     List<Long> expected =
         Arrays.asList(

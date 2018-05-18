@@ -160,18 +160,21 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   private void update(UpdateProcedure updater)
       throws InternalServiceError, EntityNotExistsError, BadRequestError {
-    update(false, updater);
+    StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
+    update(false, updater, stackTraceElements[2].getMethodName());
   }
 
   private void completeDecisionUpdate(UpdateProcedure updater)
       throws InternalServiceError, EntityNotExistsError, BadRequestError {
-    update(true, updater);
+    StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
+    update(true, updater, stackTraceElements[2].getMethodName());
   }
 
-  private void update(boolean completeDecisionUpdate, UpdateProcedure updater)
+  private void update(boolean completeDecisionUpdate, UpdateProcedure updater, String caller)
       throws InternalServiceError, EntityNotExistsError, BadRequestError {
+    String callerInfo = "Decision Update from " + caller;
     lock.lock();
-    selfAdvancingTimer.lockTimeSkipping();
+    LockHandle lockHandle = selfAdvancingTimer.lockTimeSkipping(callerInfo);
     try {
       checkCompleted();
       boolean concurrentDecision =
@@ -191,7 +194,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     } catch (Exception e) {
       throw new InternalServiceError(Throwables.getStackTraceAsString(e));
     } finally {
-      selfAdvancingTimer.unlockTimeSkipping();
+      lockHandle.unlock();
       lock.unlock();
     }
   }
@@ -239,7 +242,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             decision.action(StateMachines.Action.START, ctx, pollRequest, 0);
             ctx.addTimer(
                 startRequest.getTaskStartToCloseTimeoutSeconds(),
-                () -> timeoutDecisionTask(scheduledEventId));
+                () -> timeoutDecisionTask(scheduledEventId),
+                "DecisionTask StartToCloseTimeout");
           });
     }
   }
@@ -445,10 +449,12 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     activity.action(StateMachines.Action.INITIATE, ctx, a, decisionTaskCompletedId);
     ctx.addTimer(
         a.getScheduleToCloseTimeoutSeconds(),
-        () -> timeoutActivity(activityId, TimeoutType.SCHEDULE_TO_CLOSE));
+        () -> timeoutActivity(activityId, TimeoutType.SCHEDULE_TO_CLOSE),
+        "Activity ScheduleToCloseTimeout");
     ctx.addTimer(
         a.getScheduleToStartTimeoutSeconds(),
-        () -> timeoutActivity(activityId, TimeoutType.SCHEDULE_TO_START));
+        () -> timeoutActivity(activityId, TimeoutType.SCHEDULE_TO_START),
+        "Activity ScheduleToStartTimeout");
     ctx.lockTimer();
   }
 
@@ -681,7 +687,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     timer = StateMachines.newTimerStateMachine();
     timers.put(timerId, timer);
     timer.action(StateMachines.Action.START, ctx, a, decisionTaskCompletedId);
-    ctx.addTimer(a.getStartToFireTimeoutSeconds(), () -> fireTimer(timerId));
+    ctx.addTimer(a.getStartToFireTimeoutSeconds(), () -> fireTimer(timerId), "fire timer");
   }
 
   private void fireTimer(String timerId) {
@@ -829,7 +835,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             workflow.action(StateMachines.Action.START, ctx, startRequest, 0);
             scheduleDecision(ctx);
             ctx.addTimer(
-                startRequest.getExecutionStartToCloseTimeoutSeconds(), this::timeoutWorkflow);
+                startRequest.getExecutionStartToCloseTimeoutSeconds(),
+                this::timeoutWorkflow,
+                "workflow execution timeout");
           });
     } catch (EntityNotExistsError entityNotExistsError) {
       throw new InternalServiceError(Throwables.getStackTraceAsString(entityNotExistsError));
@@ -892,7 +900,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           int heartbeatTimeout = data.scheduledEvent.getHeartbeatTimeoutSeconds();
           if (startToCloseTimeout > 0) {
             ctx.addTimer(
-                startToCloseTimeout, () -> timeoutActivity(activityId, TimeoutType.START_TO_CLOSE));
+                startToCloseTimeout,
+                () -> timeoutActivity(activityId, TimeoutType.START_TO_CLOSE),
+                "Activity StartToCloseTimeout");
           }
           updateHeartbeatTimer(ctx, activityId, activity, startToCloseTimeout, heartbeatTimeout);
         });
@@ -920,7 +930,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       int heartbeatTimeout) {
     if (heartbeatTimeout > 0 && heartbeatTimeout < startToCloseTimeout) {
       activity.getData().lastHeartbeatTime = clock.getAsLong();
-      ctx.addTimer(heartbeatTimeout, () -> timeoutActivity(activityId, TimeoutType.HEARTBEAT));
+      ctx.addTimer(
+          heartbeatTimeout,
+          () -> timeoutActivity(activityId, TimeoutType.HEARTBEAT),
+          "Activity Heartbeat Timeout");
     }
   }
 
@@ -1062,7 +1075,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       log.error("Failure trying to timeout an activity", e);
     } finally {
       if (unlockTimer) {
-        selfAdvancingTimer.unlockTimeSkipping();
+        selfAdvancingTimer.unlockTimeSkipping("timeoutActivity " + activityId);
       }
     }
   }

@@ -18,8 +18,10 @@
 package com.uber.cadence.internal.testservice;
 
 import com.google.common.util.concurrent.Uninterruptibles;
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.util.Comparator;
+import java.util.LinkedList;
 import java.util.PriorityQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -38,10 +40,12 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
 
     private final long executionTime;
     private final Runnable runnable;
+    private final String taskInfo;
 
-    TimerTask(long executionTime, Runnable runnable) {
+    TimerTask(long executionTime, Runnable runnable, String taskInfo) {
       this.executionTime = executionTime;
       this.runnable = runnable;
+      this.taskInfo = taskInfo;
     }
 
     long getExecutionTime() {
@@ -50,6 +54,10 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
 
     public Runnable getRunnable() {
       return runnable;
+    }
+
+    String getTaskInfo() {
+      return taskInfo;
     }
 
     @Override
@@ -76,13 +84,13 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
       while (!Thread.currentThread().isInterrupted()) {
         updateTimeLocked();
         if (!emptyQueue && tasks.isEmpty()) {
-          lockTimeSkippingLocked(); // Switching to wall time when no tasks scheduled
+          lockTimeSkippingLocked("runLocked"); // Switching to wall time when no tasks scheduled
           emptyQueue = true;
         }
         TimerTask peekedTask = tasks.peek();
         if (peekedTask != null && peekedTask.getExecutionTime() <= currentTime) {
           try {
-            lockTimeSkippingLocked();
+            LockHandle lockHandle = lockTimeSkippingLocked("runnable " + peekedTask.getTaskInfo());
             TimerTask polledTask = tasks.poll();
             Runnable runnable = polledTask.getRunnable();
             executor.execute(
@@ -90,7 +98,7 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
                   try {
                     runnable.run();
                   } finally {
-                    unlockTimeSkipping();
+                    lockHandle.unlock();
                   }
                 });
           } catch (Throwable e) {
@@ -106,6 +114,56 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
           break;
         }
       }
+    }
+  }
+
+  private static class LockEvent {
+    String caller;
+    LockEventType lockType;
+    long timestamp;
+
+    public LockEvent(String caller, LockEventType lockType) {
+      this.caller = caller;
+      this.lockType = lockType;
+      timestamp = System.currentTimeMillis();
+    }
+  }
+
+  private enum LockEventType {
+    LOCK,
+    UNLOCK;
+
+    @Override
+    public String toString() {
+      return this == LOCK ? "L" : "U";
+    }
+  }
+
+  private class TimerLockHandle implements LockHandle {
+    private final LockEvent event;
+
+    public TimerLockHandle(LockEvent event) {
+      this.event = event;
+    }
+
+    @Override
+    public void unlock() {
+      lock.lock();
+      try {
+        unlockFromHandleLocked();
+        condition.signal();
+      } finally {
+        lock.unlock();
+      }
+    }
+
+    private void unlockFromHandleLocked() {
+      Boolean removed = lockEvents.remove(event);
+      if (!removed) {
+        throw new IllegalStateException("Unbalanced lock and unlock calls");
+      }
+
+      unlockTimeSkippingLockedInternal();
     }
   }
 
@@ -128,6 +186,9 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
   private long systemTimeLastLocked = -1;
   private boolean emptyQueue = true;
 
+  @SuppressWarnings("JdkObsolete")
+  private final LinkedList<LockEvent> lockEvents = new LinkedList<>();
+
   private final PriorityQueue<TimerTask> tasks =
       new PriorityQueue<>(Comparator.comparing(TimerTask::getExecutionTime));
   private final Thread timerPump = new Thread(new TimerPump(), "SelfAdvancingTimer Pump");
@@ -136,7 +197,7 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
     currentTime = initialTime == 0 ? System.currentTimeMillis() : initialTime;
     executor.setRejectedExecutionHandler(new CallerRunsPolicy());
     // Queue is initially empty. The code assumes that in this case skipping is already locked.
-    lockTimeSkipping();
+    lockTimeSkipping("SelfAdvancingTimerImpl constructor");
     timerPump.start();
   }
 
@@ -169,14 +230,19 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
 
   @Override
   public void schedule(Duration delay, Runnable task) {
+    schedule(delay, task, "unknown");
+  }
+
+  @Override
+  public void schedule(Duration delay, Runnable task, String taskInfo) {
     lock.lock();
     try {
       {
         long executionTime = delay.toMillis() + currentTime;
-        tasks.add(new TimerTask(executionTime, task));
+        tasks.add(new TimerTask(executionTime, task, taskInfo));
         // Locked when queue became empty
         if (tasks.size() == 1 && emptyQueue) {
-          unlockTimeSkippingLocked();
+          unlockTimeSkippingLocked("schedule task for " + taskInfo);
           emptyQueue = false;
         }
         condition.signal();
@@ -193,27 +259,30 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
   }
 
   @Override
-  public void lockTimeSkipping() {
+  public LockHandle lockTimeSkipping(String caller) {
     lock.lock();
     try {
-      lockTimeSkippingLocked();
+      return lockTimeSkippingLocked(caller);
     } finally {
       lock.unlock();
     }
   }
 
-  private void lockTimeSkippingLocked() {
+  private LockHandle lockTimeSkippingLocked(String caller) {
     if (lockCount++ == 0) {
       timeLastLocked = currentTime;
       systemTimeLastLocked = System.currentTimeMillis();
     }
+    LockEvent event = new LockEvent(caller, LockEventType.LOCK);
+    lockEvents.add(event);
+    return new TimerLockHandle(event);
   }
 
   @Override
-  public void unlockTimeSkipping() {
+  public void unlockTimeSkipping(String caller) {
     lock.lock();
     try {
-      unlockTimeSkippingLocked();
+      unlockTimeSkippingLocked(caller);
       condition.signal();
     } finally {
       lock.unlock();
@@ -221,17 +290,44 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
   }
 
   @Override
-  public void updateLocks(int count) {
+  public void updateLocks(int count, String caller) {
     lock.lock();
     try {
       if (count >= 0) {
         for (int i = 0; i < count; i++) {
-          lockTimeSkippingLocked();
+          lockTimeSkippingLocked("updateLocks " + caller);
         }
       } else {
         for (int i = 0; i < -count; i++) {
-          unlockTimeSkippingLocked();
+          unlockTimeSkippingLocked("updateLocks " + caller);
         }
+      }
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  @Override
+  public void getDiagnostics(StringBuilder result) {
+    result.append("Self Advancing Timer Lock Events:\n");
+    lock.lock();
+    try {
+      int lockCount = 0;
+      for (LockEvent event : lockEvents) {
+        if (event.lockType == LockEventType.LOCK) {
+          lockCount++;
+        } else {
+          lockCount--;
+        }
+        result
+            .append(new Timestamp(event.timestamp))
+            .append("\t")
+            .append(event.lockType)
+            .append("\t")
+            .append(lockCount)
+            .append("\t")
+            .append(event.caller)
+            .append("\n");
       }
     } finally {
       lock.unlock();
@@ -245,7 +341,12 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
     Uninterruptibles.joinUninterruptibly(timerPump);
   }
 
-  private void unlockTimeSkippingLocked() {
+  private void unlockTimeSkippingLocked(String caller) {
+    unlockTimeSkippingLockedInternal();
+    lockEvents.add(new LockEvent(caller, LockEventType.UNLOCK));
+  }
+
+  private void unlockTimeSkippingLockedInternal() {
     if (lockCount == 0) {
       throw new IllegalStateException("Unbalanced lock and unlock calls");
     }
