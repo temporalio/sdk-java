@@ -18,12 +18,14 @@
 package com.uber.cadence.workflow;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.uber.cadence.client.WorkflowClient;
 import com.uber.cadence.client.WorkflowOptions;
+import com.uber.cadence.internal.logging.LoggerTag;
 import com.uber.cadence.testing.TestEnvironmentOptions;
 import com.uber.cadence.testing.TestEnvironmentOptions.Builder;
 import com.uber.cadence.testing.TestWorkflowEnvironment;
@@ -134,6 +136,10 @@ public class LoggerTest {
     int i = 0;
     for (ILoggingEvent event : listAppender.list) {
       if (event.getFormattedMessage().contains(message)) {
+        assertTrue(event.getMDCPropertyMap().containsKey(LoggerTag.WORKFLOW_ID));
+        assertTrue(event.getMDCPropertyMap().containsKey(LoggerTag.WORKFLOW_TYPE));
+        assertTrue(event.getMDCPropertyMap().containsKey(LoggerTag.RUN_ID));
+        assertTrue(event.getMDCPropertyMap().containsKey(LoggerTag.TASK_LIST));
         i++;
       }
     }

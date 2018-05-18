@@ -17,11 +17,13 @@
 
 package com.uber.cadence.internal.worker;
 
+import com.uber.cadence.internal.logging.LoggerTag;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.MDC;
 
 /**
  * Assumes that there is only one instance of PollTask per worker as it contains thread pool and
@@ -84,6 +86,8 @@ final class PollTask<T> implements Poller.ThrowingRunnable {
       pollSemaphore.acquire();
       // we will release the semaphore in a finally clause
       synchronousSemaphoreRelease = true;
+      MDC.put(LoggerTag.DOMAIN, domain);
+      MDC.put(LoggerTag.TASK_LIST, taskList);
       final T task = handler.poll(service, domain, taskList);
       if (task == null) {
         return;
@@ -92,6 +96,8 @@ final class PollTask<T> implements Poller.ThrowingRunnable {
       try {
         taskExecutor.execute(
             () -> {
+              MDC.put(LoggerTag.DOMAIN, domain);
+              MDC.put(LoggerTag.TASK_LIST, taskList);
               try {
                 handler.handle(service, domain, taskList, task);
               } catch (Throwable ee) {
@@ -101,6 +107,8 @@ final class PollTask<T> implements Poller.ThrowingRunnable {
                     .uncaughtException(Thread.currentThread(), handler.wrapFailure(task, ee));
               } finally {
                 pollSemaphore.release();
+                MDC.remove(LoggerTag.DOMAIN);
+                MDC.remove(LoggerTag.TASK_LIST);
               }
             });
       } catch (Error | Exception e) {
@@ -111,6 +119,8 @@ final class PollTask<T> implements Poller.ThrowingRunnable {
       if (synchronousSemaphoreRelease) {
         pollSemaphore.release();
       }
+      MDC.remove(LoggerTag.DOMAIN);
+      MDC.remove(LoggerTag.TASK_LIST);
     }
   }
 }

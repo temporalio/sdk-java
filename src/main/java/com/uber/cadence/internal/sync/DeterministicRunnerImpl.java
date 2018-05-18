@@ -417,7 +417,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
     @Override
     public WorkflowType getWorkflowType() {
-      throw new UnsupportedOperationException("not implemented");
+      return new WorkflowType().setName("dummy-workflow");
     }
 
     @Override
@@ -443,22 +443,22 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
     @Override
     public String getTaskList() {
-      throw new UnsupportedOperationException("not implemented");
+      return "dummy-task-list";
     }
 
     @Override
     public String getDomain() {
-      throw new UnsupportedOperationException("not implemented");
+      return "dummy-domain";
     }
 
     @Override
     public String getWorkflowId() {
-      throw new UnsupportedOperationException("not implemented");
+      return "dummy-workflow-id";
     }
 
     @Override
     public String getRunId() {
-      throw new UnsupportedOperationException("not implemented");
+      return "dummy-run-id";
     }
 
     @Override

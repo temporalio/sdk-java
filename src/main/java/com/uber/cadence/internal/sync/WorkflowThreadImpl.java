@@ -17,6 +17,8 @@
 
 package com.uber.cadence.internal.sync;
 
+import com.uber.cadence.internal.logging.LoggerTag;
+import com.uber.cadence.internal.replay.DecisionContext;
 import com.uber.cadence.workflow.Promise;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -32,6 +34,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 class WorkflowThreadImpl implements WorkflowThread {
 
@@ -41,22 +44,25 @@ class WorkflowThreadImpl implements WorkflowThread {
    */
   class RunnableWrapper implements Runnable {
 
-    private final WorkflowThreadContext context;
+    private final WorkflowThreadContext threadContext;
+    private final DecisionContext decisionContext;
     private String originalName;
     private String name;
     private CancellationScopeImpl cancellationScope;
 
     RunnableWrapper(
-        WorkflowThreadContext context,
+        WorkflowThreadContext threadContext,
+        DecisionContext decisionContext,
         String name,
         boolean detached,
         CancellationScopeImpl parent,
         Runnable runnable) {
-      this.context = context;
+      this.threadContext = threadContext;
+      this.decisionContext = decisionContext;
       this.name = name;
       cancellationScope = new CancellationScopeImpl(detached, runnable, parent);
       if (context.getStatus() != Status.CREATED) {
-        throw new IllegalStateException("context not in CREATED state");
+        throw new IllegalStateException("threadContext not in CREATED state");
       }
     }
 
@@ -66,14 +72,20 @@ class WorkflowThreadImpl implements WorkflowThread {
       originalName = thread.getName();
       thread.setName(name);
       DeterministicRunnerImpl.setCurrentThreadInternal(WorkflowThreadImpl.this);
+      decisionContext.getWorkflowId();
+      MDC.put(LoggerTag.WORKFLOW_ID, decisionContext.getWorkflowId());
+      MDC.put(LoggerTag.WORKFLOW_TYPE, decisionContext.getWorkflowType().getName());
+      MDC.put(LoggerTag.RUN_ID, decisionContext.getRunId());
+      MDC.put(LoggerTag.TASK_LIST, decisionContext.getTaskList());
+      MDC.put(LoggerTag.DOMAIN, decisionContext.getDomain());
       try {
         // initialYield blocks thread until the first runUntilBlocked is called.
         // Otherwise r starts executing without control of the sync.
-        context.initialYield();
+        threadContext.initialYield();
         cancellationScope.run();
       } catch (DestroyWorkflowThreadError e) {
-        if (!context.isDestroyRequested()) {
-          context.setUnhandledException(e);
+        if (!threadContext.isDestroyRequested()) {
+          threadContext.setUnhandledException(e);
         }
       } catch (Error e) {
         // Error aborts decision, not fails the workflow.
@@ -85,10 +97,10 @@ class WorkflowThreadImpl implements WorkflowThread {
           log.error(
               String.format("Workflow thread \"%s\" run failed with Error:\n%s", name, stackTrace));
         }
-        context.setUnhandledException(e);
+        threadContext.setUnhandledException(e);
       } catch (CancellationException e) {
         if (!isCancelRequested()) {
-          context.setUnhandledException(e);
+          threadContext.setUnhandledException(e);
         }
         log.debug(String.format("Workflow thread \"%s\" run cancelled", name));
       } catch (Throwable e) {
@@ -102,12 +114,13 @@ class WorkflowThreadImpl implements WorkflowThread {
                   "Workflow thread \"%s\" run failed with unhandled exception:\n%s",
                   name, stackTrace));
         }
-        context.setUnhandledException(e);
+        threadContext.setUnhandledException(e);
       } finally {
         DeterministicRunnerImpl.setCurrentThreadInternal(null);
-        context.setStatus(Status.DONE);
+        threadContext.setStatus(Status.DONE);
         thread.setName(originalName);
         thread = null;
+        MDC.clear();
       }
     }
 
@@ -165,7 +178,14 @@ class WorkflowThreadImpl implements WorkflowThread {
     if (name == null) {
       name = "workflow-" + super.hashCode();
     }
-    this.task = new RunnableWrapper(context, name, detached, parentCancellationScope, runnable);
+    this.task =
+        new RunnableWrapper(
+            context,
+            runner.getDecisionContext().getContext(),
+            name,
+            detached,
+            parentCancellationScope,
+            runnable);
   }
 
   @Override
@@ -283,8 +303,8 @@ class WorkflowThreadImpl implements WorkflowThread {
   }
 
   /**
-   * Evaluates function in the context of the coroutine without unblocking it. Used to get current
-   * coroutine status, like stack trace.
+   * Evaluates function in the threadContext of the coroutine without unblocking it. Used to get
+   * current coroutine status, like stack trace.
    *
    * @param function Parameter is reason for current goroutine blockage.
    */

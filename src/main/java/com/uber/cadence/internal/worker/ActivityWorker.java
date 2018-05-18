@@ -28,6 +28,7 @@ import com.uber.cadence.TaskList;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.internal.common.Retryer;
+import com.uber.cadence.internal.logging.LoggerTag;
 import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.internal.worker.ActivityTaskHandler.Result;
 import com.uber.cadence.serviceclient.IWorkflowService;
@@ -40,6 +41,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 public final class ActivityWorker implements SuspendableWorker {
 
@@ -181,6 +183,11 @@ public final class ActivityWorker implements SuspendableWorker {
               Duration.ofNanos(
                   task.task.getStartedTimestamp() - task.task.getScheduledTimestamp()));
 
+      MDC.put(LoggerTag.ACTIVITY_ID, task.task.getActivityId());
+      MDC.put(LoggerTag.ACTIVITY_TYPE, task.task.getActivityType().getName());
+      MDC.put(LoggerTag.WORKFLOW_ID, task.task.getWorkflowExecution().getWorkflowId());
+      MDC.put(LoggerTag.RUN_ID, task.task.getWorkflowExecution().getRunId());
+
       try {
         Stopwatch sw = options.getMetricsScope().timer(MetricsType.ACTIVITY_EXEC_LATENCY).start();
         ActivityTaskHandler.Result response =
@@ -200,6 +207,11 @@ public final class ActivityWorker implements SuspendableWorker {
         Stopwatch sw = options.getMetricsScope().timer(MetricsType.ACTIVITY_RESP_LATENCY).start();
         sendReply(task.task, new Result(null, null, cancelledRequest, null));
         sw.stop();
+      } finally {
+        MDC.remove(LoggerTag.ACTIVITY_ID);
+        MDC.remove(LoggerTag.ACTIVITY_TYPE);
+        MDC.remove(LoggerTag.WORKFLOW_ID);
+        MDC.remove(LoggerTag.RUN_ID);
       }
     }
 

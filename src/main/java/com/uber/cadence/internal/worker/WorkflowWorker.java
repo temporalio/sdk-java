@@ -35,6 +35,7 @@ import com.uber.cadence.WorkflowQuery;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.internal.common.Retryer;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
+import com.uber.cadence.internal.logging.LoggerTag;
 import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.m3.tally.Stopwatch;
@@ -45,6 +46,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 public final class WorkflowWorker implements SuspendableWorker {
 
@@ -188,17 +190,26 @@ public final class WorkflowWorker implements SuspendableWorker {
     public void handle(
         IWorkflowService service, String domain, String taskList, PollForDecisionTaskResponse task)
         throws Exception {
-      Stopwatch sw =
-          options.getMetricsScope().timer(MetricsType.DECISION_EXECUTION_LATENCY).start();
-      DecisionTaskHandler.Result response =
-          handler.handleDecisionTask(new DecisionTaskWithHistoryIteratorImpl(task));
-      sw.stop();
+      MDC.put(LoggerTag.WORKFLOW_ID, task.getWorkflowExecution().getWorkflowId());
+      MDC.put(LoggerTag.WORKFLOW_TYPE, task.getWorkflowType().getName());
+      MDC.put(LoggerTag.RUN_ID, task.getWorkflowExecution().getRunId());
+      try {
+        Stopwatch sw =
+            options.getMetricsScope().timer(MetricsType.DECISION_EXECUTION_LATENCY).start();
+        DecisionTaskHandler.Result response =
+            handler.handleDecisionTask(new DecisionTaskWithHistoryIteratorImpl(task));
+        sw.stop();
 
-      sw = options.getMetricsScope().timer(MetricsType.DECISION_RESPONSE_LATENCY).start();
-      sendReply(service, task.getTaskToken(), response);
-      sw.stop();
+        sw = options.getMetricsScope().timer(MetricsType.DECISION_RESPONSE_LATENCY).start();
+        sendReply(service, task.getTaskToken(), response);
+        sw.stop();
 
-      options.getMetricsScope().counter(MetricsType.DECISION_TASK_COMPLETED_COUNTER).inc(1);
+        options.getMetricsScope().counter(MetricsType.DECISION_TASK_COMPLETED_COUNTER).inc(1);
+      } finally {
+        MDC.remove(LoggerTag.WORKFLOW_ID);
+        MDC.remove(LoggerTag.WORKFLOW_TYPE);
+        MDC.remove(LoggerTag.RUN_ID);
+      }
     }
 
     @Override
