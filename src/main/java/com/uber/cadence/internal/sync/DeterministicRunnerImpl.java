@@ -42,7 +42,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -534,6 +536,11 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
 
     @Override
+    public Random newRandom() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
     public Scope getMetricsScope() {
       throw new UnsupportedOperationException("not implemented");
     }
@@ -541,6 +548,11 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     @Override
     public boolean getEnableLoggingInReplay() {
       return false;
+    }
+
+    @Override
+    public UUID randomUUID() {
+      throw new UnsupportedOperationException("not implemented");
     }
   }
 }

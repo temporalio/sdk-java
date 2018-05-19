@@ -26,6 +26,8 @@ import com.uber.cadence.workflow.Promise;
 import com.uber.m3.tally.Scope;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.Random;
+import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -147,9 +149,14 @@ public interface DecisionContext extends ReplayAware {
    */
   int getVersion(String changeID, DataConverter dataConverter, int minSupported, int maxSupported);
 
+  Random newRandom();
+
   /** @return scope to be used for metrics reporting. */
   Scope getMetricsScope();
 
   /** @return whether we do logging during decision replay. */
   boolean getEnableLoggingInReplay();
+
+  /** @return replay safe UUID */
+  UUID randomUUID();
 }

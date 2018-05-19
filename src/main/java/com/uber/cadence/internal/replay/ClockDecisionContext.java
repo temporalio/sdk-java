@@ -107,6 +107,7 @@ final class ClockDecisionContext {
     final OpenRequestInfo<?, Long> context = new OpenRequestInfo<>(firingTime);
     final StartTimerDecisionAttributes timer = new StartTimerDecisionAttributes();
     timer.setStartToFireTimeoutSeconds(delaySeconds);
+    timer.setTimerId(String.valueOf(decisions.getAndIncrementNextId()));
     long startEventId = decisions.startTimer(timer);
     context.setCompletionHandle((ctx, e) -> callback.accept(e));
     scheduledTimers.put(startEventId, context);

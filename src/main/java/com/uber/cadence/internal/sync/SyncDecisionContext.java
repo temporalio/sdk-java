@@ -54,6 +54,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -425,6 +427,16 @@ final class SyncDecisionContext implements WorkflowInterceptor {
           Object result = callback.apply(args);
           return converter.toData(result);
         });
+  }
+
+  @Override
+  public UUID randomUUID() {
+    return context.randomUUID();
+  }
+
+  @Override
+  public Random newRandom() {
+    return context.newRandom();
   }
 
   public DataConverter getDataConverter() {

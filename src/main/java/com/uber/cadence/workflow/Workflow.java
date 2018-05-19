@@ -29,6 +29,7 @@ import com.uber.cadence.workflow.Functions.Proc;
 import com.uber.m3.tally.Scope;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.function.BiPredicate;
@@ -705,6 +706,21 @@ public final class Workflow {
   }
 
   /**
+   * Replay safe way to generate UUID.
+   *
+   * <p>Must be used instead of {@link UUID#randomUUID()} which relies on a random generator, thus
+   * leads to non deterministic code which is prohibited inside a workflow.
+   */
+  public static UUID randomUUID() {
+    return WorkflowInternal.randomUUID();
+  }
+
+  /** Replay safe random numbers generator. Seeded differently for each workflow instance. */
+  public static Random newRandom() {
+    return WorkflowInternal.newRandom();
+  }
+
+  /**
    * True if workflow code is being replayed. <b>Warning!</b> Never make workflow logic depend on
    * this flag as it is going to break determinism. The only reasonable uses for this flag are
    * deduping external never failing side effects like logging or metric reporting.
@@ -718,9 +734,9 @@ public final class Workflow {
    * result on history will be returned without executing the provided function during replay. This
    * guarantees the deterministic requirement for workflow as the exact same result will be returned
    * in replay. Common use case is to run some short non-deterministic code in workflow, like
-   * getting random number or new UUID. The only way to fail SideEffect is to panic which causes
-   * decision task failure. The decision task after timeout is rescheduled and re-executed giving
-   * SideEffect another chance to succeed.
+   * getting random number. The only way to fail SideEffect is to panic which causes decision task
+   * failure. The decision task after timeout is rescheduled and re-executed giving SideEffect
+   * another chance to succeed.
    *
    * <p>Caution: do not use sideEffect function to modify any worklfow sate. Only use the
    * SideEffect's return value. For example this code is BROKEN:

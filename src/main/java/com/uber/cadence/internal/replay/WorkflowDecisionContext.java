@@ -39,9 +39,12 @@ import com.uber.cadence.workflow.ChildWorkflowTerminatedException;
 import com.uber.cadence.workflow.ChildWorkflowTimedOutException;
 import com.uber.cadence.workflow.SignalExternalWorkflowException;
 import com.uber.cadence.workflow.StartChildWorkflowFailedException;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -95,7 +98,11 @@ final class WorkflowDecisionContext {
     final StartChildWorkflowExecutionDecisionAttributes attributes =
         new StartChildWorkflowExecutionDecisionAttributes();
     attributes.setWorkflowType(parameters.getWorkflowType());
-    attributes.setWorkflowId(parameters.getWorkflowId());
+    String workflowId = parameters.getWorkflowId();
+    if (workflowId == null) {
+      workflowId = randomUUID().toString();
+    }
+    attributes.setWorkflowId(workflowId);
     if (parameters.getDomain() == null) {
       // Could be removed as soon as server allows null for domain.
       attributes.setDomain(workflowContext.getDomain());
@@ -135,9 +142,7 @@ final class WorkflowDecisionContext {
     }
     attributes.setTaskList(tl);
     attributes.setWorkflowIdReusePolicy(parameters.getWorkflowIdReusePolicy());
-    long initiatedEventId =
-        decisions.startChildWorkflowExecution(
-            attributes, workflowContext.getWorkflowExecution().getRunId());
+    long initiatedEventId = decisions.startChildWorkflowExecution(attributes);
     final OpenChildWorkflowRequestInfo context =
         new OpenChildWorkflowRequestInfo(executionCallback);
     context.setCompletionHandle(callback);
@@ -155,6 +160,8 @@ final class WorkflowDecisionContext {
     } else {
       attributes.setDomain(parameters.getDomain());
     }
+    String signalId = decisions.getAndIncrementNextId();
+    attributes.setControl(signalId.getBytes(StandardCharsets.UTF_8));
     attributes.setSignalName(parameters.getSignalName());
     attributes.setInput(parameters.getInput());
     WorkflowExecution execution = new WorkflowExecution();
@@ -193,6 +200,19 @@ final class WorkflowDecisionContext {
 
     // TODO: add validation to check if continueAsNew is not set
     workflowContext.setContinueAsNewOnCompletion(continueParameters);
+  }
+
+  /** Replay safe UUID */
+  UUID randomUUID() {
+    WorkflowExecution workflowExecution = workflowContext.getWorkflowExecution();
+    String runId = workflowExecution.getRunId();
+    String id = runId + ":" + decisions.getAndIncrementNextId();
+    byte[] bytes = id.getBytes(StandardCharsets.UTF_8);
+    return UUID.nameUUIDFromBytes(bytes);
+  }
+
+  Random newRandom() {
+    return new Random(randomUUID().getLeastSignificantBits());
   }
 
   void handleChildWorkflowExecutionCanceled(HistoryEvent event) {

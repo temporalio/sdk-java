@@ -98,6 +98,13 @@ final class ActivityDecisionContext {
         (int) parameters.getScheduleToStartTimeoutSeconds());
     attributes.setStartToCloseTimeoutSeconds((int) parameters.getStartToCloseTimeoutSeconds());
 
+    // attributes.setTaskPriority(InternalUtils.taskPriorityToString(parameters.getTaskPriority()));
+    String activityId = parameters.getActivityId();
+    if (activityId == null) {
+      activityId = String.valueOf(decisions.getAndIncrementNextId());
+    }
+    attributes.setActivityId(activityId);
+
     String taskList = parameters.getTaskList();
     if (taskList != null && !taskList.isEmpty()) {
       TaskList tl = new TaskList();

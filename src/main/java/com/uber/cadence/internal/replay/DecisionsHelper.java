@@ -54,7 +54,6 @@ import com.uber.cadence.WorkflowType;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.replay.HistoryHelper.DecisionEvents;
 import com.uber.cadence.internal.worker.WorkflowExecutionException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -91,6 +90,8 @@ class DecisionsHelper {
    */
   private long nextDecisionEventId;
 
+  private long idCounter;
+
   private DecisionEvents decisionEvents;
 
   /** Use access-order to ensure that decisions are emitted in order of their creation */
@@ -116,7 +117,6 @@ class DecisionsHelper {
     addAllMissingVersionMarker(false, Optional.empty());
 
     long nextDecisionEventId = getNextDecisionEventId();
-    schedule.setActivityId(getNextId());
     DecisionId decisionId = new DecisionId(DecisionTarget.ACTIVITY, nextDecisionEventId);
     activityIdToScheduledEventId.put(schedule.getActivityId(), nextDecisionEventId);
     addDecision(decisionId, new ActivityDecisionStateMachine(decisionId, schedule));
@@ -194,13 +194,8 @@ class DecisionsHelper {
     return decision.isDone();
   }
 
-  long startChildWorkflowExecution(
-      StartChildWorkflowExecutionDecisionAttributes childWorkflow, String runId) {
+  long startChildWorkflowExecution(StartChildWorkflowExecutionDecisionAttributes childWorkflow) {
     addAllMissingVersionMarker(false, Optional.empty());
-
-    if (childWorkflow.getWorkflowId() == null) {
-      childWorkflow.setWorkflowId(runId + ":" + getNextId());
-    }
 
     long nextDecisionEventId = getNextDecisionEventId();
     DecisionId decisionId = new DecisionId(DecisionTarget.CHILD_WORKFLOW, nextDecisionEventId);
@@ -269,8 +264,6 @@ class DecisionsHelper {
   long signalExternalWorkflowExecution(SignalExternalWorkflowExecutionDecisionAttributes signal) {
     addAllMissingVersionMarker(false, Optional.empty());
 
-    signal.setControl(getNextId().getBytes(StandardCharsets.UTF_8));
-
     long nextDecisionEventId = getNextDecisionEventId();
     DecisionId decisionId =
         new DecisionId(DecisionTarget.SIGNAL_EXTERNAL_WORKFLOW, nextDecisionEventId);
@@ -306,7 +299,6 @@ class DecisionsHelper {
 
     long startEventId = getNextDecisionEventId();
     DecisionId decisionId = new DecisionId(DecisionTarget.TIMER, startEventId);
-    request.setTimerId(String.valueOf(getNextId()));
     addDecision(decisionId, new TimerDecisionStateMachine(decisionId, request));
     return startEventId;
   }
@@ -687,11 +679,8 @@ class DecisionsHelper {
     return result;
   }
 
-  private String getNextId() {
-    if (nextDecisionEventId == 0) {
-      throw new IllegalStateException("nextDecisionEventId is not set");
-    }
-    return String.valueOf(nextDecisionEventId);
+  String getAndIncrementNextId() {
+    return String.valueOf(idCounter++);
   }
 
   HistoryEvent getDecisionEvent(long eventId) {

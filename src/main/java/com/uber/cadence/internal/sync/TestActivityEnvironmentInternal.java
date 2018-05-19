@@ -87,6 +87,7 @@ import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -188,6 +189,11 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
+    public Random newRandom() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
     public Promise<Void> signalExternalWorkflow(
         WorkflowExecution execution, String signalName, Object[] args) {
       throw new UnsupportedOperationException("not implemented");
@@ -243,6 +249,11 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     @Override
     public void registerQuery(
         String queryType, Class<?>[] argTypes, Func1<Object[], Object> callback) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public UUID randomUUID() {
       throw new UnsupportedOperationException("not implemented");
     }
 
