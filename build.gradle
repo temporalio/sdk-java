@@ -23,13 +23,20 @@ apply plugin: "org.jruyi.thrift"
 apply plugin: 'maven-publish'
 apply plugin: 'com.github.sherter.google-java-format'
 
+if (hasProperty("signing.keyId")) {
+    apply plugin: 'signing'
+    signing {
+        sign configurations.archives
+    }
+}
+
 googleJavaFormat {
     toolVersion '1.5'
     include '**/*.java'
     exclude '**/generated-sources/*'
 }
 
-group = 'com.uber'
+group = 'com.uber.cadence'
 version = '0.2.0-SNAPSHOT'
 
 description = """Uber Cadence Java Client"""
@@ -74,24 +81,79 @@ if (JavaVersion.current().isJava8Compatible()) {
     }
 }
 
+task javadocJar(type: Jar) {
+    classifier = 'javadoc'
+    from javadoc
+}
+
 task sourcesJar(type: Jar, dependsOn: classes) {
     classifier = 'sources'
     from sourceSets.main.allSource
 }
 
 artifacts {
-    archives sourcesJar
+    archives javadocJar, sourcesJar
 }
 
+def ossrhUsername = hasProperty('ossrhUsername') ? property('ossrhUsername') : ""
+def ossrhPassword = hasProperty('ossrhPassword') ? property('ossrhPassword') : ""
+
 publishing {
+// Uncomment the following when we can use maven-publish to sign artifacts
+// https://github.com/gradle/gradle/issues/4943
+
+//    mavenCustom(MavenPublication) {
+//        pom.withXml {
+//            asNode().with {
+//                appendNode('packaging', 'jar')
+//                appendNode('name', 'cadence-client')
+//                appendNode('description', description)
+//                appendNode('url', 'https://github.com/uber-java/cadence-client')
+//                appendNode('scm').with {
+//                    appendNode('url', 'https://github.com/uber-java/cadence-client')
+//                    appendNode('connection', 'git@github.com:uber-java/cadence-client.git')
+//                }
+//                appendNode('licenses').with {
+//                    appendNode('license').with {
+//                        appendNode('name', 'The Apache License, Version 2.0')
+//                        appendNode('url', 'http://www.apache.org/licenses/LICENSE-2.0.txt')
+//                    }
+//                }
+//                appendNode('developers').with {
+//                    appendNode('maxim').with {
+//                        appendNode('id', 'maxim')
+//                        appendNode('name', 'Maxim Fateev')
+//                        appendNode('email', 'maxim@uber.com')
+//                    }
+//                    appendNode('developer').with {
+//                        appendNode('id', 'meiliang')
+//                        appendNode('name', 'Liang Mei')
+//                        appendNode('email', 'meiliang@uber.com')
+//                    }
+//                }
+//            }
+//        }
+//    }
+
     publications {
         mavenJava(MavenPublication) {
             from components.java
+            artifact javadocJar
             artifact sourcesJar
         }
     }
     repositories {
-        mavenLocal()
+        maven {
+            credentials {
+                username ossrhUsername
+                password ossrhPassword
+            }
+            if(project.version.endsWith('-SNAPSHOT')) {
+                url "https://oss.sonatype.org/content/repositories/snapshots/"
+            } else {
+                url "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+            }
+        }
     }
 }
 
@@ -101,5 +163,55 @@ test {
         exceptionFormat "full"
         // Uncomment the following line if you want to see test logs in gradlew run.
         // showStandardStreams true
+    }
+}
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+
+            repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+                authentication(userName: ossrhUsername, password: ossrhPassword)
+            }
+
+            snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+                authentication(userName: ossrhUsername, password: ossrhPassword)
+            }
+
+            pom.project {
+                name 'cadence-client'
+                packaging 'jar'
+                // optionally artifactId can be defined here
+                description 'Uber Cadence Java Client'
+                url 'https://github.com/uber-java/cadence-client'
+
+                scm {
+                    connection 'scm:git:git@github.com:uber-java/cadence-client.git/'
+                    developerConnection 'scm:git:git@github.com:uber-java/cadence-client.git/'
+                    url 'https://github.com/uber-java/cadence-client'
+                }
+
+                licenses {
+                    license {
+                        name 'The Apache License, Version 2.0'
+                        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id 'maxim'
+                        name 'Maxim Fateev'
+                        email 'maxim@uber.com'
+                    }
+                    developer {
+                        id 'meiliang'
+                        name 'Liang Mei'
+                        email 'meiliang@uber.com'
+                    }
+                }
+            }
+        }
     }
 }
