@@ -29,11 +29,15 @@ If this does not work, see instructions for running the Cadence Server at https:
 Add *cadence-client* as a dependency to your *pom.xml*:
 
     <dependency>
-      <groupId>com.uber</groupId>
+      <groupId>com.uber.cadence</groupId>
       <artifactId>cadence-client</artifactId>
-      <version>0.2.0-SNAPSHOT</version>
+      <version>0.1.0</version>
     </dependency>
+    
+or to *build.gradle*:
 
+    compile group: 'com.uber.cadence', name: 'cadence-client', version: '0.1.0'
+    
 # Overview
 
 Cadence orchestrates your application’s tasks. Applications using Cadence can execute a logical flow of tasks,
