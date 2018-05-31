@@ -26,6 +26,7 @@ import static org.mockito.Mockito.verify;
 
 import com.uber.cadence.client.WorkflowClient;
 import com.uber.cadence.client.WorkflowOptions;
+import com.uber.cadence.internal.metrics.MetricsTag;
 import com.uber.cadence.testing.TestEnvironmentOptions;
 import com.uber.cadence.testing.TestEnvironmentOptions.Builder;
 import com.uber.cadence.testing.TestWorkflowEnvironment;
@@ -34,7 +35,9 @@ import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.StatsReporter;
 import com.uber.m3.tally.Stopwatch;
+import com.uber.m3.util.ImmutableMap;
 import java.time.Duration;
+import java.util.Map;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -132,10 +135,16 @@ public class MetricsTest {
 
     Thread.sleep(200);
 
-    verify(reporter, times(1)).reportCounter("test-started", null, 1);
-    verify(reporter, times(1)).reportCounter("test-done", null, 1);
-    verify(reporter, times(1)).reportCounter("test-child-started", null, 1);
-    verify(reporter, times(1)).reportCounter("test-child-done", null, 1);
+    Map<String, String> tags =
+        new ImmutableMap.Builder<String, String>(2)
+            .put(MetricsTag.DOMAIN, WorkflowTest.DOMAIN)
+            .put(MetricsTag.TASK_LIST, taskList)
+            .build();
+
+    verify(reporter, times(1)).reportCounter("test-started", tags, 1);
+    verify(reporter, times(1)).reportCounter("test-done", tags, 1);
+    verify(reporter, times(1)).reportCounter("test-child-started", tags, 1);
+    verify(reporter, times(1)).reportCounter("test-child-done", tags, 1);
 
     ArgumentCaptor<com.uber.m3.util.Duration> sleepDurationCaptor =
         ArgumentCaptor.forClass(com.uber.m3.util.Duration.class);

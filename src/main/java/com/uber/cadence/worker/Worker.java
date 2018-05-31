@@ -21,6 +21,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.client.WorkflowClient;
 import com.uber.cadence.converter.DataConverter;
+import com.uber.cadence.internal.metrics.MetricsTag;
 import com.uber.cadence.internal.sync.SyncActivityWorker;
 import com.uber.cadence.internal.sync.SyncWorkflowWorker;
 import com.uber.cadence.internal.worker.SingleWorkerOptions;
@@ -29,7 +30,9 @@ import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
 import com.uber.cadence.worker.WorkerOptions.Builder;
 import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.WorkflowMethod;
+import com.uber.m3.util.ImmutableMap;
 import java.time.Duration;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -115,13 +118,13 @@ public final class Worker {
       options = new Builder().build();
     }
     this.options = options;
-    SingleWorkerOptions activityOptions = toActivityOptions(options);
+    SingleWorkerOptions activityOptions = toActivityOptions(options, domain, taskList);
     if (!options.isDisableActivityWorker()) {
       activityWorker = new SyncActivityWorker(service, domain, taskList, activityOptions);
     } else {
       activityWorker = null;
     }
-    SingleWorkerOptions workflowOptions = toWorkflowOptions(options);
+    SingleWorkerOptions workflowOptions = toWorkflowOptions(options, domain, taskList);
     if (!options.isDisableWorkflowWorker()) {
       workflowWorker =
           new SyncWorkflowWorker(
@@ -136,7 +139,13 @@ public final class Worker {
     }
   }
 
-  private SingleWorkerOptions toActivityOptions(WorkerOptions options) {
+  private SingleWorkerOptions toActivityOptions(
+      WorkerOptions options, String domain, String taskList) {
+    Map<String, String> tags =
+        new ImmutableMap.Builder<String, String>(2)
+            .put(MetricsTag.DOMAIN, domain)
+            .put(MetricsTag.TASK_LIST, taskList)
+            .build();
     return new SingleWorkerOptions.Builder()
         .setDataConverter(options.getDataConverter())
         .setIdentity(options.getIdentity())
@@ -144,12 +153,18 @@ public final class Worker {
         .setReportCompletionRetryOptions(options.getReportActivityCompletionRetryOptions())
         .setReportFailureRetryOptions(options.getReportActivityFailureRetryOptions())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentActivityExecutionSize())
-        .setMetricsScope(options.getMetricsScope())
+        .setMetricsScope(options.getMetricsScope().tagged(tags))
         .setEnableLoggingInReplay(options.getEnableLoggingInReplay())
         .build();
   }
 
-  private SingleWorkerOptions toWorkflowOptions(WorkerOptions options) {
+  private SingleWorkerOptions toWorkflowOptions(
+      WorkerOptions options, String domain, String taskList) {
+    Map<String, String> tags =
+        new ImmutableMap.Builder<String, String>(2)
+            .put(MetricsTag.DOMAIN, domain)
+            .put(MetricsTag.TASK_LIST, taskList)
+            .build();
     return new SingleWorkerOptions.Builder()
         .setDataConverter(options.getDataConverter())
         .setIdentity(options.getIdentity())
@@ -157,7 +172,7 @@ public final class Worker {
         .setReportCompletionRetryOptions(options.getReportWorkflowCompletionRetryOptions())
         .setReportFailureRetryOptions(options.getReportWorkflowFailureRetryOptions())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentWorklfowExecutionSize())
-        .setMetricsScope(options.getMetricsScope())
+        .setMetricsScope(options.getMetricsScope().tagged(tags))
         .setEnableLoggingInReplay(options.getEnableLoggingInReplay())
         .build();
   }
