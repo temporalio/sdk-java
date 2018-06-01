@@ -90,6 +90,8 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
@@ -103,6 +105,9 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   private final TestEnvironmentOptions testEnvironmentOptions;
   private final AtomicInteger idSequencer = new AtomicInteger();
   private ClassConsumerPair<Object> activityHeartbetListener;
+  private static final ScheduledExecutorService heartbeatExecutor =
+      Executors.newScheduledThreadPool(20);
+  private IWorkflowService workflowService;
 
   public TestActivityEnvironmentInternal(TestEnvironmentOptions options) {
     if (options == null) {
@@ -110,7 +115,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     } else {
       this.testEnvironmentOptions = options;
     }
-    activityTaskHandler = new POJOActivityTaskHandler(testEnvironmentOptions.getDataConverter());
+    activityTaskHandler =
+        new POJOActivityTaskHandler(testEnvironmentOptions.getDataConverter(), heartbeatExecutor);
   }
 
   /**
@@ -138,8 +144,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     ActivityOptions options =
         new ActivityOptions.Builder().setScheduleToCloseTimeout(Duration.ofDays(1)).build();
     InvocationHandler invocationHandler =
-        ActivityInvocationHandler.newInstance(
-            options, new TestActivityExecutor(activityTaskHandler));
+        ActivityInvocationHandler.newInstance(options, new TestActivityExecutor(workflowService));
     invocationHandler = new DeterministicRunnerWrapper(invocationHandler);
     return ActivityInvocationHandler.newProxy(activityInterface, invocationHandler);
   }
@@ -150,12 +155,17 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     activityHeartbetListener = new ClassConsumerPair(detailsClass, listener);
   }
 
+  @Override
+  public void setWorkflowService(IWorkflowService workflowService) {
+    this.workflowService = workflowService;
+  }
+
   private class TestActivityExecutor implements WorkflowInterceptor {
 
-    private final POJOActivityTaskHandler taskHandler;
+    private final IWorkflowService workflowService;
 
-    TestActivityExecutor(POJOActivityTaskHandler activityTaskHandler) {
-      this.taskHandler = activityTaskHandler;
+    TestActivityExecutor(IWorkflowService workflowService) {
+      this.workflowService = workflowService;
     }
 
     @Override
@@ -175,7 +185,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
               .setWorkflowId("test-workflow-id")
               .setRunId(UUID.randomUUID().toString()));
       task.setActivityType(new ActivityType().setName(activityType));
-      IWorkflowService service = new WorkflowServiceWrapper(null);
+      IWorkflowService service = new WorkflowServiceWrapper(workflowService);
       Result taskResult =
           activityTaskHandler.handle(
               service, testEnvironmentOptions.getDomain(), task, NoopScope.getInstance());

@@ -477,7 +477,7 @@ public class WorkflowTestingTest {
 
   public interface TestCancellationActivity {
 
-    @ActivityMethod(scheduleToCloseTimeoutSeconds = 1000)
+    @ActivityMethod(scheduleToCloseTimeoutSeconds = 1000, heartbeatTimeoutSeconds = 2)
     String activity1(String input);
   }
 

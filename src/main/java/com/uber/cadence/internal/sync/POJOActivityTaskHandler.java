@@ -41,23 +41,22 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ScheduledExecutorService;
 
 class POJOActivityTaskHandler implements ActivityTaskHandler {
 
-  private DataConverter dataConverter;
+  private final DataConverter dataConverter;
+  private final ScheduledExecutorService heartbeatExecutor;
   private final Map<String, POJOActivityImplementation> activities =
       Collections.synchronizedMap(new HashMap<>());
 
-  POJOActivityTaskHandler(DataConverter dataConverter) {
+  POJOActivityTaskHandler(DataConverter dataConverter, ScheduledExecutorService heartbeatExecutor) {
     this.dataConverter = dataConverter;
+    this.heartbeatExecutor = heartbeatExecutor;
   }
 
   public DataConverter getDataConverter() {
     return dataConverter;
-  }
-
-  public void setDataConverter(DataConverter dataConverter) {
-    this.dataConverter = dataConverter;
   }
 
   public void addActivityImplementation(Object activity) {
@@ -183,7 +182,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     public ActivityTaskHandler.Result execute(
         IWorkflowService service, String domain, ActivityTaskImpl task, Scope metricsScope) {
       ActivityExecutionContext context =
-          new ActivityExecutionContextImpl(service, domain, task, dataConverter);
+          new ActivityExecutionContextImpl(service, domain, task, dataConverter, heartbeatExecutor);
       byte[] input = task.getInput();
       Object[] args = dataConverter.fromDataArray(input, method.getParameterTypes());
       CurrentActivityExecutionContext.set(context);

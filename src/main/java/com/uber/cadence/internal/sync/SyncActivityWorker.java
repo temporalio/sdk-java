@@ -20,6 +20,8 @@ package com.uber.cadence.internal.sync;
 import com.uber.cadence.internal.worker.ActivityWorker;
 import com.uber.cadence.internal.worker.SingleWorkerOptions;
 import com.uber.cadence.serviceclient.IWorkflowService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /** Activity worker that supports POJO activity implementations. */
@@ -27,10 +29,11 @@ public class SyncActivityWorker {
 
   private final ActivityWorker worker;
   private final POJOActivityTaskHandler taskHandler;
+  private final ScheduledExecutorService heartbeatExecutor = Executors.newScheduledThreadPool(4);
 
   public SyncActivityWorker(
       IWorkflowService service, String domain, String taskList, SingleWorkerOptions options) {
-    taskHandler = new POJOActivityTaskHandler(options.getDataConverter());
+    taskHandler = new POJOActivityTaskHandler(options.getDataConverter(), heartbeatExecutor);
     worker = new ActivityWorker(service, domain, taskList, options, taskHandler);
   }
 
@@ -44,19 +47,24 @@ public class SyncActivityWorker {
 
   public void shutdown() {
     worker.shutdown();
+    heartbeatExecutor.shutdown();
   }
 
   public void shutdownNow() {
     worker.shutdownNow();
+    heartbeatExecutor.shutdownNow();
   }
 
   public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-    return worker.awaitTermination(timeout, unit);
+    return worker.awaitTermination(timeout, unit)
+        && heartbeatExecutor.awaitTermination(timeout, unit);
   }
 
   public boolean shutdownAndAwaitTermination(long timeout, TimeUnit unit)
       throws InterruptedException {
-    return worker.shutdownAndAwaitTermination(timeout, unit);
+    heartbeatExecutor.shutdownNow();
+    return worker.shutdownAndAwaitTermination(timeout, unit)
+        && heartbeatExecutor.awaitTermination(timeout, unit);
   }
 
   public boolean isRunning() {
