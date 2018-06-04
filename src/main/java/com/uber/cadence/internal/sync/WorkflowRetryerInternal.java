@@ -54,6 +54,7 @@ final class WorkflowRetryerInternal {
   public static <R> R validateOptionsAndRetry(RetryOptions options, Functions.Func<R> func) {
     return retry(RetryOptions.merge(null, options), func);
   }
+
   /**
    * Retry function synchronously.
    *
@@ -64,19 +65,24 @@ final class WorkflowRetryerInternal {
   public static <R> R retry(RetryOptions options, Functions.Func<R> func) {
     options.validate();
     int attempt = 1;
-    long startTime = Workflow.currentTimeMillis();
+    long startTime = WorkflowInternal.currentTimeMillis();
+    // Records retry options in the history allowing changing them without breaking determinism.
+    String retryId = WorkflowInternal.randomUUID().toString();
+    RetryOptions retryOptions =
+        WorkflowInternal.mutableSideEffect(
+            retryId, RetryOptions.class, Object::equals, () -> options);
     while (true) {
-      long nextSleepTime = calculateSleepTime(attempt, options);
+      long nextSleepTime = calculateSleepTime(attempt, retryOptions);
       try {
         return func.apply();
       } catch (Exception e) {
-        long elapsed = Workflow.currentTimeMillis() - startTime;
-        if (shouldRethrow(e, options, attempt, elapsed, nextSleepTime)) {
-          throw Workflow.wrap(e);
+        long elapsed = WorkflowInternal.currentTimeMillis() - startTime;
+        if (shouldRethrow(e, retryOptions, attempt, elapsed, nextSleepTime)) {
+          throw WorkflowInternal.wrap(e);
         }
       }
       attempt++;
-      Workflow.sleep(nextSleepTime);
+      WorkflowInternal.sleep(Duration.ofMillis(nextSleepTime));
     }
   }
 
@@ -88,14 +94,23 @@ final class WorkflowRetryerInternal {
    * @return result promise to the result or failure if retries stopped according to options.
    */
   public static <R> Promise<R> retryAsync(RetryOptions options, Functions.Func<Promise<R>> func) {
-    long startTime = Workflow.currentTimeMillis();
-    return retryAsync(options, func, startTime, 1);
+    String retryId = WorkflowInternal.randomUUID().toString();
+    long startTime = WorkflowInternal.currentTimeMillis();
+    return retryAsync(retryId, options, func, startTime, 1);
   }
 
   private static <R> Promise<R> retryAsync(
-      RetryOptions options, Functions.Func<Promise<R>> func, long startTime, long attempt) {
+      String retryId,
+      RetryOptions options,
+      Functions.Func<Promise<R>> func,
+      long startTime,
+      long attempt) {
     options.validate();
-    CompletablePromise<R> funcResult = Workflow.newPromise();
+    RetryOptions retryOptions =
+        WorkflowInternal.mutableSideEffect(
+            retryId, RetryOptions.class, Object::equals, () -> options);
+
+    CompletablePromise<R> funcResult = WorkflowInternal.newCompletablePromise();
     try {
       funcResult.completeFrom(func.apply());
     } catch (RuntimeException e) {
@@ -105,17 +120,18 @@ final class WorkflowRetryerInternal {
         .handle(
             (r, e) -> {
               if (e == null) {
-                return Workflow.newPromise(r);
+                return WorkflowInternal.newPromise(r);
               }
-              long elapsed = Workflow.currentTimeMillis() - startTime;
-              long sleepTime = calculateSleepTime(attempt, options);
-              if (shouldRethrow(e, options, attempt, elapsed, sleepTime)) {
+              long elapsed = WorkflowInternal.currentTimeMillis() - startTime;
+              long sleepTime = calculateSleepTime(attempt, retryOptions);
+              if (shouldRethrow(e, retryOptions, attempt, elapsed, sleepTime)) {
                 throw e;
               }
               // newTimer runs in a separate thread, so it performs trampolining eliminating tail
               // recursion.
-              return Workflow.newTimer(Duration.ofMillis(sleepTime))
-                  .thenCompose((nil) -> retryAsync(options, func, startTime, attempt + 1));
+              return WorkflowInternal.newTimer(Duration.ofMillis(sleepTime))
+                  .thenCompose(
+                      (nil) -> retryAsync(retryId, retryOptions, func, startTime, attempt + 1));
             })
         .thenCompose((r) -> r);
   }
@@ -137,12 +153,9 @@ final class WorkflowRetryerInternal {
       return true;
     }
     Duration expiration = options.getExpiration();
-    if (expiration != null
+    return expiration != null
         && elapsed + sleepTime >= expiration.toMillis()
-        && (attempt > options.getMinimumAttempts())) {
-      return true;
-    }
-    return false;
+        && (attempt > options.getMinimumAttempts());
   }
 
   private static long calculateSleepTime(long attempt, RetryOptions options) {

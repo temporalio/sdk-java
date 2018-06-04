@@ -506,7 +506,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     @Override
     public Optional<byte[]> mutableSideEffect(
         String id, DataConverter converter, Func1<Optional<byte[]>, Optional<byte[]>> func) {
-      throw new UnsupportedOperationException("not implemented");
+      return func.apply(Optional.empty());
     }
 
     @Override
@@ -552,7 +552,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
     @Override
     public UUID randomUUID() {
-      throw new UnsupportedOperationException("not implemented");
+      return UUID.randomUUID();
     }
   }
 }

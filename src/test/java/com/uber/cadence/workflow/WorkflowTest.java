@@ -378,6 +378,56 @@ public class WorkflowTest {
     assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
   }
 
+  public static class TestActivityRetryOptionsChange implements TestWorkflow1 {
+
+    @Override
+    public String execute(String taskList) {
+      ActivityOptions.Builder options =
+          new ActivityOptions.Builder()
+              .setTaskList(taskList)
+              .setHeartbeatTimeout(Duration.ofSeconds(5))
+              .setScheduleToCloseTimeout(Duration.ofSeconds(5))
+              .setScheduleToStartTimeout(Duration.ofSeconds(5))
+              .setStartToCloseTimeout(Duration.ofSeconds(10));
+      RetryOptions retryOptions;
+      if (Workflow.isReplaying()) {
+        retryOptions =
+            new RetryOptions.Builder()
+                .setMinimumAttempts(1)
+                .setMaximumInterval(Duration.ofSeconds(1))
+                .setInitialInterval(Duration.ofSeconds(1))
+                .setMaximumAttempts(3)
+                .build();
+      } else {
+        retryOptions =
+            new RetryOptions.Builder()
+                .setMinimumAttempts(2)
+                .setMaximumInterval(Duration.ofSeconds(1))
+                .setInitialInterval(Duration.ofSeconds(1))
+                .setMaximumAttempts(2)
+                .build();
+      }
+      TestActivities activities = Workflow.newActivityStub(TestActivities.class, options.build());
+      Workflow.retry(retryOptions, () -> activities.throwIO());
+      return "ignored";
+    }
+  }
+
+  @Test
+  public void testActivityRetryOptionsChange() {
+    startWorkerFor(TestActivityRetryOptionsChange.class);
+    TestWorkflow1 workflowStub =
+        workflowClient.newWorkflowStub(
+            TestWorkflow1.class, newWorkflowOptionsBuilder(taskList).build());
+    try {
+      workflowStub.execute(taskList);
+      fail("unreachable");
+    } catch (WorkflowException e) {
+      assertTrue(e.getCause().getCause() instanceof IOException);
+    }
+    assertEquals(activitiesImpl.toString(), 2, activitiesImpl.invocations.size());
+  }
+
   public static class TestUntypedActivityRetry implements TestWorkflow1 {
 
     @Override
@@ -488,6 +538,57 @@ public class WorkflowTest {
       assertTrue(e.getCause().getCause() instanceof IOException);
     }
     assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
+  }
+
+  public static class TestAsyncActivityRetryOptionsChange implements TestWorkflow1 {
+
+    private TestActivities activities;
+
+    @Override
+    public String execute(String taskList) {
+      ActivityOptions.Builder options =
+          new ActivityOptions.Builder()
+              .setTaskList(taskList)
+              .setHeartbeatTimeout(Duration.ofSeconds(5))
+              .setScheduleToCloseTimeout(Duration.ofSeconds(5))
+              .setScheduleToStartTimeout(Duration.ofSeconds(5))
+              .setStartToCloseTimeout(Duration.ofSeconds(10));
+      if (Workflow.isReplaying()) {
+        options.setRetryOptions(
+            new RetryOptions.Builder()
+                .setMinimumAttempts(1)
+                .setMaximumInterval(Duration.ofSeconds(1))
+                .setInitialInterval(Duration.ofSeconds(1))
+                .setMaximumAttempts(3)
+                .build());
+      } else {
+        options.setRetryOptions(
+            new RetryOptions.Builder()
+                .setMinimumAttempts(2)
+                .setMaximumInterval(Duration.ofSeconds(1))
+                .setInitialInterval(Duration.ofSeconds(1))
+                .setMaximumAttempts(2)
+                .build());
+      }
+      this.activities = Workflow.newActivityStub(TestActivities.class, options.build());
+      Async.procedure(activities::throwIO).get();
+      return "ignored";
+    }
+  }
+
+  @Test
+  public void testAsyncActivityRetryOptionsChange() {
+    startWorkerFor(TestAsyncActivityRetryOptionsChange.class);
+    TestWorkflow1 workflowStub =
+        workflowClient.newWorkflowStub(
+            TestWorkflow1.class, newWorkflowOptionsBuilder(taskList).build());
+    try {
+      workflowStub.execute(taskList);
+      fail("unreachable");
+    } catch (WorkflowException e) {
+      assertTrue(e.getCause().getCause() instanceof IOException);
+    }
+    assertEquals(activitiesImpl.toString(), 2, activitiesImpl.invocations.size());
   }
 
   public static class TestHeartbeatTimeoutDetails implements TestWorkflow1 {
@@ -1451,6 +1552,75 @@ public class WorkflowTest {
   @Test
   public void testAsyncRetry() {
     startWorkerFor(TestAsyncRetryWorkflowImpl.class);
+    TestWorkflow2 client =
+        workflowClient.newWorkflowStub(
+            TestWorkflow2.class, newWorkflowOptionsBuilder(taskList).build());
+    String result = null;
+    try {
+      result = client.execute(useExternalService);
+      fail("unreachable");
+    } catch (WorkflowException e) {
+      assertTrue(e.getCause() instanceof IllegalThreadStateException);
+      assertEquals("simulated", e.getCause().getMessage());
+    }
+    assertNull(result);
+    List<String> trace = client.getTrace();
+    assertEquals(trace.toString(), 3, trace.size());
+    assertEquals("started", trace.get(0));
+    assertTrue(trace.get(1).startsWith("retry at "));
+    assertTrue(trace.get(2).startsWith("retry at "));
+  }
+
+  public static class TestAsyncRetryOptionsChangeWorkflow implements TestWorkflow2 {
+
+    private final List<String> trace = new ArrayList<>();
+
+    @Override
+    public String execute(boolean useExternalService) {
+      RetryOptions retryOptions;
+      if (Workflow.isReplaying()) {
+        retryOptions =
+            new RetryOptions.Builder()
+                .setMinimumAttempts(1)
+                .setMaximumInterval(Duration.ofSeconds(1))
+                .setInitialInterval(Duration.ofSeconds(1))
+                .setMaximumAttempts(3)
+                .build();
+      } else {
+        retryOptions =
+            new RetryOptions.Builder()
+                .setMinimumAttempts(2)
+                .setMaximumInterval(Duration.ofSeconds(1))
+                .setInitialInterval(Duration.ofSeconds(1))
+                .setMaximumAttempts(2)
+                .build();
+      }
+
+      trace.clear(); // clear because of replay
+      trace.add("started");
+      Async.retry(
+              retryOptions,
+              () -> {
+                trace.add("retry at " + Workflow.currentTimeMillis());
+                return Workflow.newFailedPromise(new IllegalThreadStateException("simulated"));
+              })
+          .get();
+      trace.add("beforeSleep");
+      Workflow.sleep(60000);
+      trace.add("done");
+      return "";
+    }
+
+    @Override
+    public List<String> getTrace() {
+      return trace;
+    }
+  }
+
+  /** @see DeterministicRunnerTest#testRetry() */
+  @Test
+  public void testAsyncRetryOptionsChange() {
+    startWorkerFor(TestAsyncRetryOptionsChangeWorkflow.class);
     TestWorkflow2 client =
         workflowClient.newWorkflowStub(
             TestWorkflow2.class, newWorkflowOptionsBuilder(taskList).build());
