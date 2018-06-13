@@ -104,11 +104,7 @@ public class ActivityTestingTest {
   public void testHeartbeat() {
     testEnvironment.registerActivitiesImplementations(new HeartbeatActivityImpl());
     AtomicReference<String> details = new AtomicReference<>();
-    testEnvironment.setActivityHeartbeatListener(
-        String.class,
-        (d) -> {
-          details.set(d);
-        });
+    testEnvironment.setActivityHeartbeatListener(String.class, details::set);
     TestActivity activity = testEnvironment.newActivityStub(TestActivity.class);
     String result = activity.activity1("input1");
     assertEquals("input1", result);
@@ -139,7 +135,7 @@ public class ActivityTestingTest {
   public void testHeartbeatThrottling() throws InterruptedException {
     testEnvironment.registerActivitiesImplementations(new BurstHeartbeatActivityImpl());
     ConcurrentSet<Integer> details = new ConcurrentSet<>();
-    testEnvironment.setActivityHeartbeatListener(Integer.class, i -> details.add(i));
+    testEnvironment.setActivityHeartbeatListener(Integer.class, details::add);
     InterruptibleTestActivity activity =
         testEnvironment.newActivityStub(InterruptibleTestActivity.class);
     activity.activity1();

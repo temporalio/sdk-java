@@ -58,6 +58,7 @@ import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.Functions.Func1;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -790,6 +791,13 @@ public class WorkflowTest {
       Async.procedure(testActivities::proc4, "1", 2, 3, 4).get();
       Async.procedure(testActivities::proc5, "1", 2, 3, 4, 5).get();
       Async.procedure(testActivities::proc6, "1", 2, 3, 4, 5, 6).get();
+
+      // Test serialization of generic data structure
+      List<UUID> uuids = new ArrayList<>();
+      uuids.add(Workflow.randomUUID());
+      uuids.add(Workflow.randomUUID());
+      List<UUID> uuidsResult = Async.function(testActivities::activityUUIDList, uuids).get();
+      assertEquals(uuids, uuidsResult);
       return "workflow";
     }
   }
@@ -1801,7 +1809,7 @@ public class WorkflowTest {
   }
 
   @Test
-  public void testSignal() throws Exception {
+  public void testSignal() {
     AtomicReference<WorkflowExecution> execution = new AtomicReference<>();
     startWorkerFor(TestSignalWorkflowImpl.class);
     WorkflowOptions.Builder optionsBuilder = newWorkflowOptionsBuilder(taskList);
@@ -2561,6 +2569,8 @@ public class WorkflowTest {
       maximumAttempts = 3
     )
     void throwIOAnnotated();
+
+    List<UUID> activityUUIDList(List<UUID> arg);
   }
 
   private static class TestActivitiesImpl implements TestActivities {
@@ -2725,6 +2735,11 @@ public class WorkflowTest {
       } catch (IOException e) {
         throw Activity.wrap(e);
       }
+    }
+
+    @Override
+    public List<UUID> activityUUIDList(List<UUID> arg) {
+      return arg;
     }
   }
 
@@ -3286,6 +3301,105 @@ public class WorkflowTest {
     tracer.setExpected("sideEffect", "sideEffect", "executeActivity TestActivities::activity2");
   }
 
+  public interface GenericParametersActivity {
+
+    List<UUID> execute(List<UUID> arg1, Set<UUID> arg2);
+  }
+
+  public static class GenericParametersActivityImpl implements GenericParametersActivity {
+
+    @Override
+    public List<UUID> execute(List<UUID> arg1, Set<UUID> arg2) {
+      List<UUID> result = new ArrayList<>();
+      result.addAll(arg1);
+      result.addAll(arg2);
+      return result;
+    }
+  }
+
+  public interface GenericParametersWorkflow {
+
+    @WorkflowMethod
+    List<UUID> execute(String taskList, List<UUID> arg1, Set<UUID> arg2);
+
+    @SignalMethod
+    void signal(List<UUID> arg);
+
+    @QueryMethod
+    List<UUID> query(List<UUID> arg);
+  }
+
+  public static class GenericParametersWorkflowImpl implements GenericParametersWorkflow {
+
+    private List<UUID> signaled;
+    private GenericParametersActivity activity;
+
+    @Override
+    public List<UUID> execute(String taskList, List<UUID> arg1, Set<UUID> arg2) {
+      Workflow.await(() -> signaled != null && signaled.size() == 0);
+      activity =
+          Workflow.newActivityStub(GenericParametersActivity.class, newActivityOptions1(taskList));
+      return activity.execute(arg1, arg2);
+    }
+
+    @Override
+    public void signal(List<UUID> arg) {
+      signaled = arg;
+    }
+
+    @Override
+    public List<UUID> query(List<UUID> arg) {
+      List<UUID> result = new ArrayList<>();
+      result.addAll(arg);
+      result.addAll(signaled);
+      return result;
+    }
+  }
+
+  @Test
+  public void testGenericParametersWorkflow() throws ExecutionException, InterruptedException {
+    worker.registerActivitiesImplementations(new GenericParametersActivityImpl());
+    startWorkerFor(GenericParametersWorkflowImpl.class);
+    GenericParametersWorkflow workflowStub =
+        workflowClient.newWorkflowStub(
+            GenericParametersWorkflow.class, newWorkflowOptionsBuilder(taskList).build());
+    List<UUID> uuidList = new ArrayList<>();
+    uuidList.add(UUID.randomUUID());
+    uuidList.add(UUID.randomUUID());
+    Set<UUID> uuidSet = new HashSet<>();
+    uuidSet.add(UUID.randomUUID());
+    uuidSet.add(UUID.randomUUID());
+    uuidSet.add(UUID.randomUUID());
+    CompletableFuture<List<UUID>> resultF =
+        WorkflowClient.execute(workflowStub::execute, taskList, uuidList, uuidSet);
+    // Test signal and query serialization
+    workflowStub.signal(uuidList);
+    if (useExternalService) {
+      Thread.sleep(10000);
+    } else {
+      testEnvironment.sleep(Duration.ofSeconds(1));
+    }
+    List<UUID> queryArg = new ArrayList<>();
+    queryArg.add(UUID.randomUUID());
+    queryArg.add(UUID.randomUUID());
+    List<UUID> queryResult = workflowStub.query(queryArg);
+    List<UUID> expectedQueryResult = new ArrayList<>();
+    expectedQueryResult.addAll(queryArg);
+    expectedQueryResult.addAll(uuidList);
+    expectedQueryResult.sort(UUID::compareTo);
+    queryResult.sort(UUID::compareTo);
+    assertEquals(expectedQueryResult, queryResult);
+    workflowStub.signal(new ArrayList<>()); // empty list unblocks workflow await.
+    // test workflow result serialization
+    List<UUID> expectedResult = new ArrayList<>();
+    expectedResult.addAll(uuidList);
+    expectedResult.addAll(uuidSet);
+    List<UUID> result = resultF.get();
+    result.sort(UUID::compareTo);
+    expectedResult.sort(UUID::compareTo);
+    assertEquals(expectedResult, result);
+  }
+
   private static class FilteredTrace {
 
     private final List<String> impl = Collections.synchronizedList(new ArrayList<>());
@@ -3315,16 +3429,24 @@ public class WorkflowTest {
 
     @Override
     public <R> Promise<R> executeActivity(
-        String activityName, Class<R> returnType, Object[] args, ActivityOptions options) {
+        String activityName,
+        Class<R> resultClass,
+        Type resultType,
+        Object[] args,
+        ActivityOptions options) {
       trace.add("executeActivity " + activityName);
-      return next.executeActivity(activityName, returnType, args, options);
+      return next.executeActivity(activityName, resultClass, resultType, args, options);
     }
 
     @Override
     public <R> WorkflowResult<R> executeChildWorkflow(
-        String workflowType, Class<R> returnType, Object[] args, ChildWorkflowOptions options) {
+        String workflowType,
+        Class<R> resultClass,
+        Type resultType,
+        Object[] args,
+        ChildWorkflowOptions options) {
       trace.add("executeChildWorkflow " + workflowType);
-      return next.executeChildWorkflow(workflowType, returnType, args, options);
+      return next.executeChildWorkflow(workflowType, resultClass, resultType, args, options);
     }
 
     @Override
@@ -3371,16 +3493,16 @@ public class WorkflowTest {
     }
 
     @Override
-    public <R> R sideEffect(Class<R> resultType, Func<R> func) {
+    public <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func) {
       trace.add("sideEffect");
-      return next.sideEffect(resultType, func);
+      return next.sideEffect(resultClass, resultType, func);
     }
 
     @Override
     public <R> R mutableSideEffect(
-        String id, Class<R> returnType, BiPredicate<R, R> updated, Func<R> func) {
+        String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
       trace.add("mutableSideEffect");
-      return next.mutableSideEffect(id, returnType, updated, func);
+      return next.mutableSideEffect(id, resultClass, resultType, updated, func);
     }
 
     @Override
@@ -3397,8 +3519,7 @@ public class WorkflowTest {
     }
 
     @Override
-    public void registerQuery(
-        String queryType, Class<?>[] argTypes, Func1<Object[], Object> callback) {
+    public void registerQuery(String queryType, Type[] argTypes, Func1<Object[], Object> callback) {
       trace.add("registerQuery " + queryType);
       next.registerQuery(queryType, argTypes, callback);
     }

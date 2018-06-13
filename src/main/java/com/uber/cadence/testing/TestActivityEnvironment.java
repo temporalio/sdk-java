@@ -20,6 +20,7 @@ package com.uber.cadence.testing;
 import com.google.common.annotations.VisibleForTesting;
 import com.uber.cadence.internal.sync.TestActivityEnvironmentInternal;
 import com.uber.cadence.serviceclient.IWorkflowService;
+import java.lang.reflect.Type;
 import java.util.function.Consumer;
 
 /**
@@ -80,12 +81,25 @@ public interface TestActivityEnvironment {
    * Sets a listener that is called every time an activity implementation heartbeats through {@link
    * com.uber.cadence.activity.Activity#heartbeat(Object)}.
    *
-   * @param detailsClass Type of the details passed to the {@link
+   * @param detailsClass class of the details passed to the {@link
    *     com.uber.cadence.activity.Activity#heartbeat(Object)}.
    * @param listener listener to register.
    * @param <T> Type of the heartbeat details.
    */
   <T> void setActivityHeartbeatListener(Class<T> detailsClass, Consumer<T> listener);
+
+  /**
+   * Sets a listener that is called every time an activity implementation heartbeats through {@link
+   * com.uber.cadence.activity.Activity#heartbeat(Object)}.
+   *
+   * @param detailsClass class of the details passed to the {@link
+   *     com.uber.cadence.activity.Activity#heartbeat(Object)}.
+   * @param detailsType type of the details. Differs for detailsClass for generic types.
+   * @param listener listener to register.
+   * @param <T> Type of the heartbeat details.
+   */
+  <T> void setActivityHeartbeatListener(
+      Class<T> detailsClass, Type detailsType, Consumer<T> listener);
 
   void setWorkflowService(IWorkflowService workflowService);
 }

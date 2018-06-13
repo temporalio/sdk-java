@@ -45,6 +45,7 @@ import com.uber.m3.tally.Scope;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
@@ -120,7 +121,7 @@ public final class WorkflowInternal {
           getWorkflowInterceptor()
               .registerQuery(
                   name,
-                  method.getParameterTypes(),
+                  method.getGenericParameterTypes(),
                   (args) -> {
                     try {
                       return method.invoke(queryImplementation, args);
@@ -211,14 +212,15 @@ public final class WorkflowInternal {
    * Execute activity by name.
    *
    * @param name name of the activity
-   * @param returnType activity return type
+   * @param resultClass activity return type
    * @param args list of activity arguments
    * @param <R> activity return type
    * @return activity result
    */
   public static <R> R executeActivity(
-      String name, ActivityOptions options, Class<R> returnType, Object... args) {
-    Promise<R> result = getWorkflowInterceptor().executeActivity(name, returnType, args, options);
+      String name, ActivityOptions options, Class<R> resultClass, Type resultType, Object... args) {
+    Promise<R> result =
+        getWorkflowInterceptor().executeActivity(name, resultClass, resultType, args, options);
     if (AsyncInternal.isAsync()) {
       AsyncInternal.setAsyncResult(result);
       return null; // ignored
@@ -246,13 +248,13 @@ public final class WorkflowInternal {
     return getWorkflowInterceptor().await(timeout, reason, unblockCondition);
   }
 
-  public static <R> R sideEffect(Class<R> returnType, Func<R> func) {
-    return getWorkflowInterceptor().sideEffect(returnType, func);
+  public static <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func) {
+    return getWorkflowInterceptor().sideEffect(resultClass, resultType, func);
   }
 
   public static <R> R mutableSideEffect(
-      String id, Class<R> returnType, BiPredicate<R, R> updated, Func<R> func) {
-    return getWorkflowInterceptor().mutableSideEffect(id, returnType, updated, func);
+      String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
+    return getWorkflowInterceptor().mutableSideEffect(id, resultClass, resultType, updated, func);
   }
 
   public static int getVersion(String changeID, int minSupported, int maxSupported) {

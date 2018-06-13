@@ -21,6 +21,7 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.activity.ActivityOptions;
 import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.Functions.Func1;
+import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.Random;
@@ -28,6 +29,7 @@ import java.util.UUID;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 
+/** Convenience base class for WorkflowInterceptor implementations. */
 public class WorkflowInterceptorBase implements WorkflowInterceptor {
 
   private final WorkflowInterceptor next;
@@ -38,14 +40,22 @@ public class WorkflowInterceptorBase implements WorkflowInterceptor {
 
   @Override
   public <R> Promise<R> executeActivity(
-      String activityName, Class<R> returnType, Object[] args, ActivityOptions options) {
-    return next.executeActivity(activityName, returnType, args, options);
+      String activityName,
+      Class<R> resultClass,
+      Type resultType,
+      Object[] args,
+      ActivityOptions options) {
+    return next.executeActivity(activityName, resultClass, resultType, args, options);
   }
 
   @Override
   public <R> WorkflowResult<R> executeChildWorkflow(
-      String workflowType, Class<R> returnType, Object[] args, ChildWorkflowOptions options) {
-    return next.executeChildWorkflow(workflowType, returnType, args, options);
+      String workflowType,
+      Class<R> resultClass,
+      Type resultType,
+      Object[] args,
+      ChildWorkflowOptions options) {
+    return next.executeChildWorkflow(workflowType, resultClass, resultType, args, options);
   }
 
   @Override
@@ -85,14 +95,14 @@ public class WorkflowInterceptorBase implements WorkflowInterceptor {
   }
 
   @Override
-  public <R> R sideEffect(Class<R> resultType, Func<R> func) {
-    return next.sideEffect(resultType, func);
+  public <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func) {
+    return next.sideEffect(resultClass, resultType, func);
   }
 
   @Override
   public <R> R mutableSideEffect(
-      String id, Class<R> returnType, BiPredicate<R, R> updated, Func<R> func) {
-    return next.mutableSideEffect(id, returnType, updated, func);
+      String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
+    return next.mutableSideEffect(id, resultClass, resultType, updated, func);
   }
 
   @Override
@@ -107,8 +117,7 @@ public class WorkflowInterceptorBase implements WorkflowInterceptor {
   }
 
   @Override
-  public void registerQuery(
-      String queryType, Class<?>[] argTypes, Func1<Object[], Object> callback) {
+  public void registerQuery(String queryType, Type[] argTypes, Func1<Object[], Object> callback) {
     next.registerQuery(queryType, argTypes, callback);
   }
 

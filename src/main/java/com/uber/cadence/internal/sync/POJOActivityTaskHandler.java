@@ -184,7 +184,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
       ActivityExecutionContext context =
           new ActivityExecutionContextImpl(service, domain, task, dataConverter, heartbeatExecutor);
       byte[] input = task.getInput();
-      Object[] args = dataConverter.fromDataArray(input, method.getParameterTypes());
+      Object[] args = dataConverter.fromDataArray(input, method.getGenericParameterTypes());
       CurrentActivityExecutionContext.set(context);
       try {
         Object result = method.invoke(activity, args);
