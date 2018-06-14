@@ -121,6 +121,9 @@ public class MetricsType {
   public static final String UNHANDLED_SIGNALS_COUNTER =
       CADENCE_METRICS_PREFIX + "unhandled-signals";
 
+  public static final String CORRUPTED_SIGNALS_COUNTER =
+      CADENCE_METRICS_PREFIX + "corrupted-signals";
+
   public static final String WORKER_START_COUNTER = CADENCE_METRICS_PREFIX + "worker-start";
   public static final String POLLER_START_COUNTER = CADENCE_METRICS_PREFIX + "poller-start";
 
