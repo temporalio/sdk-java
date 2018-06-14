@@ -200,7 +200,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
       queryType = InternalUtils.getSimpleName(method);
     }
 
-    return untyped.query(queryType, method.getReturnType(), args);
+    return untyped.query(queryType, method.getReturnType(), method.getGenericReturnType(), args);
   }
 
   private Object startWorkflow(Method method, Object[] args) {
@@ -222,10 +222,11 @@ class WorkflowInvocationHandler implements InvocationHandler {
       if (async.type == InvocationType.START) {
         async.result.set(untyped.getExecution());
       } else {
-        async.result.set(untyped.getResultAsync(method.getReturnType()));
+        async.result.set(
+            untyped.getResultAsync(method.getReturnType(), method.getGenericReturnType()));
       }
       return null;
     }
-    return untyped.getResult(method.getReturnType());
+    return untyped.getResult(method.getReturnType(), method.getGenericReturnType());
   }
 }

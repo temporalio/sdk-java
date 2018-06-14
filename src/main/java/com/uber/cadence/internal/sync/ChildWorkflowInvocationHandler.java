@@ -70,7 +70,7 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
               + "from @WorkflowMethod, @QueryMethod or @SignalMethod");
     }
     if (workflowMethod != null) {
-      return stub.execute(method.getReturnType(), args);
+      return stub.execute(method.getReturnType(), method.getGenericReturnType(), args);
     }
     if (queryMethod != null) {
       throw new UnsupportedOperationException(

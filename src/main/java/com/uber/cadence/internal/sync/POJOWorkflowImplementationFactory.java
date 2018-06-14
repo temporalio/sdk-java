@@ -207,7 +207,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
     @Override
     public byte[] execute(byte[] input) throws CancellationException, WorkflowExecutionException {
-      Object[] args = dataConverter.fromDataArray(input, workflowMethod.getParameterTypes());
+      Object[] args = dataConverter.fromDataArray(input, workflowMethod.getGenericParameterTypes());
       try {
         newInstance();
         Object result = workflowMethod.invoke(workflow, args);
@@ -284,7 +284,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
                 + signalHandlers.keySet());
         return;
       }
-      Object[] args = dataConverter.fromDataArray(input, signalMethod.getParameterTypes());
+      Object[] args = dataConverter.fromDataArray(input, signalMethod.getGenericParameterTypes());
       try {
         newInstance();
         signalMethod.invoke(workflow, args);

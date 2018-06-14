@@ -70,7 +70,7 @@ final class WorkflowRetryerInternal {
     String retryId = WorkflowInternal.randomUUID().toString();
     RetryOptions retryOptions =
         WorkflowInternal.mutableSideEffect(
-            retryId, RetryOptions.class, Object::equals, () -> options);
+            retryId, RetryOptions.class, RetryOptions.class, Object::equals, () -> options);
     while (true) {
       long nextSleepTime = calculateSleepTime(attempt, retryOptions);
       try {
@@ -108,7 +108,7 @@ final class WorkflowRetryerInternal {
     options.validate();
     RetryOptions retryOptions =
         WorkflowInternal.mutableSideEffect(
-            retryId, RetryOptions.class, Object::equals, () -> options);
+            retryId, RetryOptions.class, RetryOptions.class, Object::equals, () -> options);
 
     CompletablePromise<R> funcResult = WorkflowInternal.newCompletablePromise();
     try {

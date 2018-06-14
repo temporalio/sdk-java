@@ -26,6 +26,7 @@ import com.uber.cadence.internal.worker.WorkflowWorker;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.WorkflowInterceptor;
+import java.lang.reflect.Type;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -105,11 +106,15 @@ public class SyncWorkflowWorker {
   }
 
   public <R> R queryWorkflowExecution(
-      WorkflowExecution execution, String queryType, Class<R> returnType, Object[] args)
+      WorkflowExecution execution,
+      String queryType,
+      Class<R> resultClass,
+      Type resultType,
+      Object[] args)
       throws Exception {
     DataConverter dataConverter = options.getDataConverter();
     byte[] serializedArgs = dataConverter.toData(args);
     byte[] result = worker.queryWorkflowExecution(execution, queryType, serializedArgs);
-    return dataConverter.fromData(result, returnType);
+    return dataConverter.fromData(result, resultClass, resultType);
   }
 }

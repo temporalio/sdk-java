@@ -28,6 +28,7 @@ import com.uber.cadence.workflow.SignalExternalWorkflowException;
 import com.uber.cadence.workflow.Workflow;
 import com.uber.cadence.workflow.WorkflowInterceptor;
 import com.uber.cadence.workflow.WorkflowInterceptor.WorkflowResult;
+import java.lang.reflect.Type;
 import java.util.Objects;
 
 class ChildWorkflowStubImpl implements ChildWorkflowStub {
@@ -61,11 +62,16 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
   }
 
   @Override
-  public <R> R execute(Class<R> returnType, Object... args) {
-    Promise<R> result = executeAsync(returnType, args);
+  public <R> R execute(Class<R> resultClass, Object... args) {
+    return execute(resultClass, resultClass, args);
+  }
+
+  @Override
+  public <R> R execute(Class<R> resultClass, Type resultType, Object... args) {
+    Promise<R> result = executeAsync(resultClass, resultType, args);
     if (AsyncInternal.isAsync()) {
       AsyncInternal.setAsyncResult(result);
-      return Defaults.defaultValue(returnType);
+      return Defaults.defaultValue(resultClass);
     }
     try {
       return result.get();
@@ -78,9 +84,14 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
   }
 
   @Override
-  public <R> Promise<R> executeAsync(Class<R> returnType, Object... args) {
+  public <R> Promise<R> executeAsync(Class<R> resultClass, Object... args) {
+    return executeAsync(resultClass, resultClass, args);
+  }
+
+  @Override
+  public <R> Promise<R> executeAsync(Class<R> resultClass, Type resultType, Object... args) {
     WorkflowResult<R> result =
-        decisionContext.executeChildWorkflow(workflowType, returnType, args, options);
+        decisionContext.executeChildWorkflow(workflowType, resultClass, resultType, args, options);
     execution.completeFrom(result.getWorkflowExecution());
     return result.getResult();
   }

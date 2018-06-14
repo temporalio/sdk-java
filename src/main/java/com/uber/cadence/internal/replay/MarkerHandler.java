@@ -143,7 +143,8 @@ class MarkerHandler {
     if (!markerName.equals(name)) {
       return Optional.empty();
     }
-    MarkerData markerData = converter.fromData(attributes.getDetails(), MarkerData.class);
+    MarkerData markerData =
+        converter.fromData(attributes.getDetails(), MarkerData.class, MarkerData.class);
     // access count is used to not return data from the marker before the recorded number of calls
     if (!markerId.equals(markerData.getId())
         || markerData.getAccessCount() > expectedAcccessCount) {

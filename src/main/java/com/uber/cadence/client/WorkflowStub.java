@@ -18,6 +18,7 @@
 package com.uber.cadence.client;
 
 import com.uber.cadence.WorkflowExecution;
+import java.lang.reflect.Type;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -43,13 +44,27 @@ public interface WorkflowStub {
    * Returns workflow result potentially waiting for workflow to complete. Behind the scene this
    * call performs long poll on Cadence service waiting for workflow completion notification.
    *
-   * @param returnType class of the workflow return value
+   * @param resultClass class of the workflow return value
+   * @param resultType type of the workflow return value. Differs from resultClass for generic
+   *     types.
    * @param <R> type of the workflow return value
    * @return workflow return value
    */
-  <R> R getResult(Class<R> returnType);
+  <R> R getResult(Class<R> resultClass, Type resultType);
 
-  <R> CompletableFuture<R> getResultAsync(Class<R> returnType);
+  <R> CompletableFuture<R> getResultAsync(Class<R> resultClass, Type resultType);
+
+  /**
+   * Returns workflow result potentially waiting for workflow to complete. Behind the scene this
+   * call performs long poll on Cadence service waiting for workflow completion notification.
+   *
+   * @param resultClass class of the workflow return value
+   * @param <R> type of the workflow return value
+   * @return workflow return value
+   */
+  <R> R getResult(Class<R> resultClass);
+
+  <R> CompletableFuture<R> getResultAsync(Class<R> resultClass);
 
   /**
    * Returns workflow result potentially waiting for workflow to complete. Behind the scene this
@@ -57,16 +72,36 @@ public interface WorkflowStub {
    *
    * @param timeout maximum time to wait
    * @param unit unit of timeout
-   * @param returnType class of the workflow return value
+   * @param resultClass class of the workflow return value
+   * @param resultType type of the workflow return value. Differs from resultClass for generic
    * @param <R> type of the workflow return value
    * @return workflow return value
    * @throws TimeoutException if workflow is not completed after the timeout time.
    */
-  <R> R getResult(long timeout, TimeUnit unit, Class<R> returnType) throws TimeoutException;
+  <R> R getResult(long timeout, TimeUnit unit, Class<R> resultClass, Type resultType)
+      throws TimeoutException;
 
-  <R> CompletableFuture<R> getResultAsync(long timeout, TimeUnit unit, Class<R> returnType);
+  /**
+   * Returns workflow result potentially waiting for workflow to complete. Behind the scene this
+   * call performs long poll on Cadence service waiting for workflow completion notification.
+   *
+   * @param timeout maximum time to wait
+   * @param unit unit of timeout
+   * @param resultClass class of the workflow return value
+   * @param <R> type of the workflow return value
+   * @return workflow return value
+   * @throws TimeoutException if workflow is not completed after the timeout time.
+   */
+  <R> R getResult(long timeout, TimeUnit unit, Class<R> resultClass) throws TimeoutException;
 
-  <R> R query(String queryType, Class<R> returnType, Object... args);
+  <R> CompletableFuture<R> getResultAsync(
+      long timeout, TimeUnit unit, Class<R> resultClass, Type resultType);
+
+  <R> CompletableFuture<R> getResultAsync(long timeout, TimeUnit unit, Class<R> resultClass);
+
+  <R> R query(String queryType, Class<R> resultClass, Object... args);
+
+  <R> R query(String queryType, Class<R> resultClass, Type resultType, Object... args);
 
   /** Request cancellation. */
   void cancel();

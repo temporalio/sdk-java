@@ -20,6 +20,7 @@ package com.uber.cadence.workflow;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.activity.ActivityOptions;
 import com.uber.cadence.workflow.Functions.Func;
+import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.Random;
@@ -49,10 +50,18 @@ public interface WorkflowInterceptor {
   }
 
   <R> Promise<R> executeActivity(
-      String activityName, Class<R> returnType, Object[] args, ActivityOptions options);
+      String activityName,
+      Class<R> resultClass,
+      Type resultType,
+      Object[] args,
+      ActivityOptions options);
 
   <R> WorkflowResult<R> executeChildWorkflow(
-      String workflowType, Class<R> returnType, Object[] args, ChildWorkflowOptions options);
+      String workflowType,
+      Class<R> resultClass,
+      Type resultType,
+      Object[] args,
+      ChildWorkflowOptions options);
 
   Random newRandom();
 
@@ -69,17 +78,17 @@ public interface WorkflowInterceptor {
 
   Promise<Void> newTimer(Duration duration);
 
-  <R> R sideEffect(Class<R> resultType, Func<R> func);
+  <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func);
 
-  <R> R mutableSideEffect(String id, Class<R> returnType, BiPredicate<R, R> updated, Func<R> func);
+  <R> R mutableSideEffect(
+      String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func);
 
   int getVersion(String changeID, int minSupported, int maxSupported);
 
   void continueAsNew(
       Optional<String> workflowType, Optional<ContinueAsNewOptions> options, Object[] args);
 
-  void registerQuery(
-      String queryType, Class<?>[] argTypes, Functions.Func1<Object[], Object> callback);
+  void registerQuery(String queryType, Type[] argTypes, Functions.Func1<Object[], Object> callback);
 
   UUID randomUUID();
 }

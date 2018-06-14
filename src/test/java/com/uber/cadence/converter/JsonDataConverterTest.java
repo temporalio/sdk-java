@@ -24,9 +24,12 @@ import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.TaskList;
 import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
 import com.uber.cadence.WorkflowType;
+import java.lang.reflect.Method;
+import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import org.junit.Test;
 
 public class JsonDataConverterTest {
@@ -50,7 +53,25 @@ public class JsonDataConverterTest {
             .setWorkflowExecutionStartedEventAttributes(started));
     History history = new History().setEvents(events);
     byte[] converted = converter.toData(history);
-    History fromConverted = converter.fromData(converted, History.class);
+    History fromConverted = converter.fromData(converted, History.class, History.class);
     assertEquals(new String(converted, StandardCharsets.UTF_8), history, fromConverted);
+  }
+
+  public static void foo(List<UUID> arg) {}
+
+  @Test
+  public void testUUIDList() throws NoSuchMethodException {
+    Method m = JsonDataConverterTest.class.getDeclaredMethod("foo", List.class);
+    Type arg = m.getGenericParameterTypes()[0];
+
+    List<UUID> list = new ArrayList<>();
+    for (int i = 0; i < 2; i++) {
+      list.add(UUID.randomUUID());
+    }
+    DataConverter converter = JsonDataConverter.getInstance();
+    byte[] data = converter.toData(list);
+    @SuppressWarnings("unchecked")
+    List<UUID> result = (List<UUID>) converter.fromDataArray(data, arg)[0];
+    assertEquals(result.toString(), list, result);
   }
 }

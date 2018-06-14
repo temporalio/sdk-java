@@ -82,7 +82,10 @@ class ActivityInvocationHandler implements InvocationHandler {
 
         ActivityOptions mergedOptions = ActivityOptions.merge(activityMethod, methodRetry, options);
         ActivityStub stub = ActivityStubImpl.newInstance(mergedOptions, activityExecutor);
-        function = (a) -> stub.execute(activityName, method.getReturnType(), a);
+        function =
+            (a) ->
+                stub.execute(
+                    activityName, method.getReturnType(), method.getGenericReturnType(), a);
         methodFunctions.put(method, function);
       } catch (NoSuchMethodException e) {
         throw Workflow.wrap(e);
