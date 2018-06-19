@@ -20,17 +20,20 @@ package com.uber.cadence.workflow;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 import com.uber.cadence.client.WorkflowClient;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.internal.metrics.MetricsTag;
+import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.testing.TestEnvironmentOptions;
 import com.uber.cadence.testing.TestEnvironmentOptions.Builder;
 import com.uber.cadence.testing.TestWorkflowEnvironment;
 import com.uber.cadence.worker.Worker;
+import com.uber.cadence.workflow.interceptors.CorruptedSignalWorkflowInterceptorFactory;
+import com.uber.cadence.workflow.samples.ReceiveSignalObject_ChildWorkflowImpl;
+import com.uber.cadence.workflow.samples.SendSignalObject_Workflow;
+import com.uber.cadence.workflow.samples.SendSignalObject_WorkflowImpl;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.StatsReporter;
@@ -109,7 +112,7 @@ public class MetricsTest {
     Scope scope =
         new RootScopeBuilder()
             .reporter(reporter)
-            .reportEvery(com.uber.m3.util.Duration.ofMillis(10));
+            .reportEvery(com.uber.m3.util.Duration.ofMillis(300));
 
     TestEnvironmentOptions testOptions =
         new Builder().setDomain(WorkflowTest.DOMAIN).setMetricsScope(scope).build();
@@ -157,5 +160,35 @@ public class MetricsTest {
     assertTrue(
         sleepDuration.toString(),
         sleepDuration.compareTo(com.uber.m3.util.Duration.ofMillis(3100)) < 0);
+  }
+
+  @Test
+  public void testCorruptedSignalMetrics() throws InterruptedException {
+    Worker worker = testEnvironment.newWorker(taskList, builder ->
+            builder.setInterceptorFactory(new CorruptedSignalWorkflowInterceptorFactory()));
+
+    worker.registerWorkflowImplementationTypes(
+            SendSignalObject_WorkflowImpl.class, ReceiveSignalObject_ChildWorkflowImpl.class);
+    worker.start();
+
+    WorkflowOptions options =
+            new WorkflowOptions.Builder()
+                    .setExecutionStartToCloseTimeout(Duration.ofSeconds(1000))
+                    .setTaskList(taskList)
+                    .build();
+
+    WorkflowClient workflowClient = testEnvironment.newWorkflowClient();
+    SendSignalObject_Workflow workflow = workflowClient.newWorkflowStub(SendSignalObject_Workflow.class, options);
+    workflow.execute();
+
+    //Wait for reporter
+    Thread.sleep(500);
+
+    Map<String, String> tags =
+            new ImmutableMap.Builder<String, String>(2)
+                    .put(MetricsTag.DOMAIN, WorkflowTest.DOMAIN)
+                    .put(MetricsTag.TASK_LIST, taskList)
+                    .build();
+    verify(reporter, times(1)).reportCounter(MetricsType.CORRUPTED_SIGNALS_COUNTER, tags, 2);
   }
 }

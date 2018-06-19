@@ -284,29 +284,35 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
                 + signalHandlers.keySet());
         return;
       }
-      Object[] args = dataConverter.fromDataArray(input, signalMethod.getParameterTypes());
       try {
+        Object[] args = dataConverter.fromDataArray(input, signalMethod.getParameterTypes());
         newInstance();
         signalMethod.invoke(workflow, args);
       } catch (IllegalAccessException e) {
         throw new Error("Failure processing \"" + signalName + "\" at eventID " + eventId, e);
+      } catch (DataConverterException e){
+        logSerializationException(signalName, eventId, e);
       } catch (InvocationTargetException e) {
         Throwable targetException = e.getTargetException();
         if (targetException instanceof DataConverterException) {
-          log.error(
-              "Failure deserializing signal input for \""
-                  + signalName
-                  + "\" at eventID "
-                  + eventId
-                  + ". Dropping it.",
-              targetException);
-          metricsScope.counter(MetricsType.CORRUPTED_SIGNALS_COUNTER).inc(1);
+          logSerializationException(signalName, eventId, (DataConverterException)targetException);
         } else {
           throw new Error(
               "Failure processing \"" + signalName + "\" at eventID " + eventId, targetException);
         }
       }
     }
+  }
+
+  void logSerializationException(String signalName, Long eventId, DataConverterException exception){
+    log.error(
+            "Failure deserializing signal input for \""
+                    + signalName
+                    + "\" at eventID "
+                    + eventId
+                    + ". Dropping it.",
+            exception);
+    metricsScope.counter(MetricsType.CORRUPTED_SIGNALS_COUNTER).inc(1);
   }
 
   static WorkflowExecutionException mapToWorkflowExecutionException(

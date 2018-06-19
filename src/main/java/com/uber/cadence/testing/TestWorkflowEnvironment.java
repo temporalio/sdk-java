@@ -23,7 +23,9 @@ import com.uber.cadence.client.WorkflowClientOptions;
 import com.uber.cadence.internal.sync.TestWorkflowEnvironmentInternal;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.cadence.worker.Worker;
+import com.uber.cadence.worker.WorkerOptions;
 import java.time.Duration;
+import java.util.function.Function;
 
 /**
  * TestWorkflowEnvironment provides workflow unit testing capabilities.
@@ -103,6 +105,15 @@ public interface TestWorkflowEnvironment {
    * @param taskList task list to poll.
    */
   Worker newWorker(String taskList);
+
+  /**
+   * Creates a new Worker instance that is connected to the in-memory test Cadence service. {@link
+   * #close()} calls {@link Worker#shutdown(Duration)} for all workers created through this method.
+   *
+   * @param taskList task list to poll.
+   * @param overrideOptions is used to override the default worker options.
+   */
+  Worker newWorker(String taskList, Function<WorkerOptions.Builder,WorkerOptions.Builder> overrideOptions);
 
   /** Creates a WorkflowClient that is connected to the in-memory test Cadence service. */
   WorkflowClient newWorkflowClient();
