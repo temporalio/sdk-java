@@ -20,6 +20,8 @@ package com.uber.cadence.workflow.interceptors;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.activity.ActivityOptions;
 import com.uber.cadence.workflow.*;
+
+import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
@@ -35,8 +37,8 @@ public class SignalWorkflowInterceptor implements WorkflowInterceptor {
     private Function<String, String> overrideSignalName;
     private final WorkflowInterceptor next;
 
-    public SignalWorkflowInterceptor(Function<Object[],Object[]> overrideArgs,
-                                     Function<String,String> overrideSignalName,
+    public SignalWorkflowInterceptor(Function<Object[], Object[]> overrideArgs,
+                                     Function<String, String> overrideSignalName,
                                      WorkflowInterceptor next) {
         this.overrideArgs = overrideArgs;
         this.overrideSignalName = overrideSignalName;
@@ -44,15 +46,13 @@ public class SignalWorkflowInterceptor implements WorkflowInterceptor {
     }
 
     @Override
-    public <R> Promise<R> executeActivity(
-            String activityName, Class<R> returnType, Object[] args, ActivityOptions options) {
-        return next.executeActivity(activityName, returnType, args, options);
+    public <R> Promise<R> executeActivity(String activityName, Class<R> resultClass, Type resultType, Object[] args, ActivityOptions options) {
+        return next.executeActivity(activityName, resultClass, resultType, args, options);
     }
 
     @Override
-    public <R> WorkflowResult<R> executeChildWorkflow(
-            String workflowType, Class<R> returnType, Object[] args, ChildWorkflowOptions options) {
-        return next.executeChildWorkflow(workflowType, returnType, args, options);
+    public <R> WorkflowResult<R> executeChildWorkflow(String workflowType, Class<R> resultClass, Type resultType, Object[] args, ChildWorkflowOptions options) {
+        return next.executeChildWorkflow(workflowType, resultClass, resultType, args, options);
     }
 
     @Override
@@ -63,8 +63,8 @@ public class SignalWorkflowInterceptor implements WorkflowInterceptor {
     @Override
     public Promise<Void> signalExternalWorkflow(
             WorkflowExecution execution, String signalName, Object[] args) {
-        if(args != null && args.length > 0){
-            args = new Object[] {"corrupted signal"};
+        if (args != null && args.length > 0) {
+            args = new Object[]{"corrupted signal"};
         }
         return next.signalExternalWorkflow(execution, overrideSignalName.apply(signalName), overrideArgs.apply(args));
     }
@@ -95,14 +95,13 @@ public class SignalWorkflowInterceptor implements WorkflowInterceptor {
     }
 
     @Override
-    public <R> R sideEffect(Class<R> resultType, Functions.Func<R> func) {
-        return next.sideEffect(resultType, func);
+    public <R> R sideEffect(Class<R> resultClass, Type resultType, Functions.Func<R> func) {
+        return next.sideEffect(resultClass, resultType, func);
     }
 
     @Override
-    public <R> R mutableSideEffect(
-            String id, Class<R> returnType, BiPredicate<R, R> updated, Functions.Func<R> func) {
-        return next.mutableSideEffect(id, returnType, updated, func);
+    public <R> R mutableSideEffect(String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Functions.Func<R> func) {
+        return null;
     }
 
     @Override
@@ -117,8 +116,7 @@ public class SignalWorkflowInterceptor implements WorkflowInterceptor {
     }
 
     @Override
-    public void registerQuery(
-            String queryType, Class<?>[] argTypes, Functions.Func1<Object[], Object> callback) {
+    public void registerQuery(String queryType, Type[] argTypes, Functions.Func1<Object[], Object> callback) {
         next.registerQuery(queryType, argTypes, callback);
     }
 
