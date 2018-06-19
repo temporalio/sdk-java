@@ -15,20 +15,9 @@
  *  permissions and limitations under the License.
  */
 
-package com.uber.cadence.workflow.samples;
+package com.uber.cadence.workflow.workflows;
 
-import com.uber.cadence.workflow.SignalMethod;
-import com.uber.cadence.workflow.WorkflowMethod;
-import com.uber.cadence.workflow.samples.Signal;
+public class Signal {
 
-public interface ReceiveSignalObject_ChildWorkflow {
-
-      @WorkflowMethod
-      String execute();
-
-      @SignalMethod(name = "testSignal")
-      void signal(Signal arg);
-
-      @SignalMethod(name = "endWorkflow")
-      void close();
+    public String value;
 }

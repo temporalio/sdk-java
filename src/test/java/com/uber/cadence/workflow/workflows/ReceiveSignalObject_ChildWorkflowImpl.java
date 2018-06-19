@@ -15,11 +15,10 @@
  *  permissions and limitations under the License.
  */
 
-package com.uber.cadence.workflow.samples;
+package com.uber.cadence.workflow.workflows;
 
 import com.uber.cadence.workflow.CompletablePromise;
 import com.uber.cadence.workflow.Workflow;
-import com.uber.cadence.workflow.WorkflowTest;
 
 public class ReceiveSignalObject_ChildWorkflowImpl implements ReceiveSignalObject_ChildWorkflow {
       private String receivedSignal = "Initial State";

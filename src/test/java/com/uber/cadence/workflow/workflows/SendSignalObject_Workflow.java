@@ -15,9 +15,12 @@
  *  permissions and limitations under the License.
  */
 
-package com.uber.cadence.workflow.samples;
+package com.uber.cadence.workflow.workflows;
 
-public class Signal {
+import com.uber.cadence.workflow.WorkflowMethod;
 
-    public String value;
+public interface SendSignalObject_Workflow {
+
+    @WorkflowMethod
+    String execute();
 }

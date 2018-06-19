@@ -15,22 +15,19 @@
  *  permissions and limitations under the License.
  */
 
-package com.uber.cadence.workflow.interceptors;
+package com.uber.cadence.workflow.workflows;
 
-import com.uber.cadence.workflow.WorkflowInterceptor;
+import com.uber.cadence.workflow.SignalMethod;
+import com.uber.cadence.workflow.WorkflowMethod;
 
-import java.util.function.Function;
+public interface ReceiveSignalObject_ChildWorkflow {
 
-public class CorruptedSignalWorkflowInterceptorFactory
-        implements Function<WorkflowInterceptor, WorkflowInterceptor> {
+      @WorkflowMethod
+      String execute();
 
-    @Override
-    public WorkflowInterceptor apply(WorkflowInterceptor next) {
-        return new SignalWorkflowInterceptor( args -> {
-                    if(args != null && args.length > 0){
-                        return new Object [] {"Corrupted Signal"};
-                    }
-                    return args;
-                }, sig->sig, next);
-    }
+      @SignalMethod(name = "testSignal")
+      void signal(Signal arg);
+
+      @SignalMethod(name = "endWorkflow")
+      void close();
 }

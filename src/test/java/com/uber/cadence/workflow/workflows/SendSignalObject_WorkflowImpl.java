@@ -15,14 +15,11 @@
  *  permissions and limitations under the License.
  */
 
-package com.uber.cadence.workflow.samples;
+package com.uber.cadence.workflow.workflows;
 
 import com.uber.cadence.workflow.Async;
 import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.Workflow;
-import com.uber.cadence.workflow.samples.ReceiveSignalObject_ChildWorkflow;
-import com.uber.cadence.workflow.samples.SendSignalObject_Workflow;
-import com.uber.cadence.workflow.samples.Signal;
 
 public class SendSignalObject_WorkflowImpl implements SendSignalObject_Workflow {
   @Override

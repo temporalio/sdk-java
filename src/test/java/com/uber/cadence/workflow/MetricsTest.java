@@ -30,10 +30,10 @@ import com.uber.cadence.testing.TestEnvironmentOptions;
 import com.uber.cadence.testing.TestEnvironmentOptions.Builder;
 import com.uber.cadence.testing.TestWorkflowEnvironment;
 import com.uber.cadence.worker.Worker;
-import com.uber.cadence.workflow.interceptors.CorruptedSignalWorkflowInterceptorFactory;
-import com.uber.cadence.workflow.samples.ReceiveSignalObject_ChildWorkflowImpl;
-import com.uber.cadence.workflow.samples.SendSignalObject_Workflow;
-import com.uber.cadence.workflow.samples.SendSignalObject_WorkflowImpl;
+import com.uber.cadence.workflow.interceptors.SignalWorkflowInterceptor;
+import com.uber.cadence.workflow.workflows.ReceiveSignalObject_ChildWorkflowImpl;
+import com.uber.cadence.workflow.workflows.SendSignalObject_Workflow;
+import com.uber.cadence.workflow.workflows.SendSignalObject_WorkflowImpl;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.StatsReporter;
@@ -41,6 +41,8 @@ import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
 import java.time.Duration;
 import java.util.Map;
+import java.util.function.Function;
+
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -190,5 +192,19 @@ public class MetricsTest {
                     .put(MetricsTag.TASK_LIST, taskList)
                     .build();
     verify(reporter, times(1)).reportCounter(MetricsType.CORRUPTED_SIGNALS_COUNTER, tags, 2);
+  }
+
+  private static class CorruptedSignalWorkflowInterceptorFactory
+          implements Function<WorkflowInterceptor, WorkflowInterceptor> {
+
+      @Override
+      public WorkflowInterceptor apply(WorkflowInterceptor next) {
+          return new SignalWorkflowInterceptor(args -> {
+                      if(args != null && args.length > 0){
+                          return new Object [] {"Corrupted Signal"};
+                      }
+                      return args;
+                  }, sig->sig, next);
+      }
   }
 }
