@@ -76,6 +76,7 @@ import com.uber.cadence.testing.TestEnvironmentOptions;
 import com.uber.cadence.testing.TestWorkflowEnvironment;
 import com.uber.cadence.worker.Worker;
 import com.uber.cadence.worker.WorkerOptions;
+import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -643,26 +644,52 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
       }
 
       @Override
-      public <R> R getResult(Class<R> returnType) {
+      public <R> R getResult(Class<R> resultClass, Type resultType) {
         service.unlockTimeSkipping("TimeLockingWorkflowStub getResult");
         try {
-          return next.getResult(returnType);
+          return next.getResult(resultClass, resultType);
         } finally {
           service.lockTimeSkipping("TimeLockingWorkflowStub getResult");
         }
       }
 
       @Override
-      public <R> CompletableFuture<R> getResultAsync(Class<R> returnType) {
-        return new TimeLockingFuture<>(next.getResultAsync(returnType));
+      public <R> R getResult(Class<R> resultClass) {
+        service.unlockTimeSkipping("TimeLockingWorkflowStub getResult");
+        try {
+          return next.getResult(resultClass);
+        } finally {
+          service.lockTimeSkipping("TimeLockingWorkflowStub getResult");
+        }
       }
 
       @Override
-      public <R> R getResult(long timeout, TimeUnit unit, Class<R> returnType)
+      public <R> CompletableFuture<R> getResultAsync(Class<R> resultClass, Type resultType) {
+        return new TimeLockingFuture<>(next.getResultAsync(resultClass, resultType));
+      }
+
+      @Override
+      public <R> CompletableFuture<R> getResultAsync(Class<R> resultClass) {
+        return new TimeLockingFuture<>(next.getResultAsync(resultClass));
+      }
+
+      @Override
+      public <R> R getResult(long timeout, TimeUnit unit, Class<R> resultClass, Type resultType)
           throws TimeoutException {
         service.unlockTimeSkipping("TimeLockingWorkflowStub getResult");
         try {
-          return next.getResult(timeout, unit, returnType);
+          return next.getResult(timeout, unit, resultClass, resultType);
+        } finally {
+          service.lockTimeSkipping("TimeLockingWorkflowStub getResult");
+        }
+      }
+
+      @Override
+      public <R> R getResult(long timeout, TimeUnit unit, Class<R> resultClass)
+          throws TimeoutException {
+        service.unlockTimeSkipping("TimeLockingWorkflowStub getResult");
+        try {
+          return next.getResult(timeout, unit, resultClass);
         } finally {
           service.lockTimeSkipping("TimeLockingWorkflowStub getResult");
         }
@@ -670,13 +697,24 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
 
       @Override
       public <R> CompletableFuture<R> getResultAsync(
-          long timeout, TimeUnit unit, Class<R> returnType) {
-        return new TimeLockingFuture<>(next.getResultAsync(timeout, unit, returnType));
+          long timeout, TimeUnit unit, Class<R> resultClass, Type resultType) {
+        return new TimeLockingFuture<>(next.getResultAsync(timeout, unit, resultClass, resultType));
       }
 
       @Override
-      public <R> R query(String queryType, Class<R> returnType, Object... args) {
-        return next.query(queryType, returnType, args);
+      public <R> CompletableFuture<R> getResultAsync(
+          long timeout, TimeUnit unit, Class<R> resultClass) {
+        return new TimeLockingFuture<>(next.getResultAsync(timeout, unit, resultClass));
+      }
+
+      @Override
+      public <R> R query(String queryType, Class<R> resultClass, Object... args) {
+        return next.query(queryType, resultClass, args);
+      }
+
+      @Override
+      public <R> R query(String queryType, Class<R> resultClass, Type resultType, Object... args) {
+        return next.query(queryType, resultClass, resultType, args);
       }
 
       @Override

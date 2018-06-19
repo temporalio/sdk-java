@@ -23,6 +23,7 @@ import com.uber.cadence.workflow.ActivityException;
 import com.uber.cadence.workflow.ActivityStub;
 import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.WorkflowInterceptor;
+import java.lang.reflect.Type;
 
 /** Supports calling activity by name and arguments without its strongly typed interface. */
 class ActivityStubImpl implements ActivityStub {
@@ -42,11 +43,16 @@ class ActivityStubImpl implements ActivityStub {
   }
 
   @Override
-  public <T> T execute(String activityName, Class<T> returnType, Object... args) {
-    Promise<T> result = executeAsync(activityName, returnType, args);
+  public <T> T execute(String activityName, Class<T> resultClass, Object... args) {
+    return execute(activityName, resultClass, resultClass, args);
+  }
+
+  @Override
+  public <T> T execute(String activityName, Class<T> resultClass, Type resultType, Object... args) {
+    Promise<T> result = executeAsync(activityName, resultClass, resultType, args);
     if (AsyncInternal.isAsync()) {
       AsyncInternal.setAsyncResult(result);
-      return Defaults.defaultValue(returnType);
+      return Defaults.defaultValue(resultClass);
     }
     try {
       return result.get();
@@ -60,7 +66,13 @@ class ActivityStubImpl implements ActivityStub {
   }
 
   @Override
-  public <R> Promise<R> executeAsync(String activityName, Class<R> returnType, Object... args) {
-    return activityExecutor.executeActivity(activityName, returnType, args, options);
+  public <R> Promise<R> executeAsync(String activityName, Class<R> resultClass, Object... args) {
+    return executeAsync(activityName, resultClass, resultClass, args);
+  }
+
+  @Override
+  public <R> Promise<R> executeAsync(
+      String activityName, Class<R> resultClass, Type resultType, Object... args) {
+    return activityExecutor.executeActivity(activityName, resultClass, resultType, args, options);
   }
 }

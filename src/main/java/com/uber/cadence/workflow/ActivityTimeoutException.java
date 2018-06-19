@@ -20,6 +20,7 @@ package com.uber.cadence.workflow;
 import com.uber.cadence.ActivityType;
 import com.uber.cadence.TimeoutType;
 import com.uber.cadence.converter.DataConverter;
+import java.lang.reflect.Type;
 import java.util.Objects;
 
 /**
@@ -54,6 +55,11 @@ public final class ActivityTimeoutException extends ActivityException {
 
   /** @return The value from the last activity heartbeat details field. */
   public <V> V getDetails(Class<V> detailsClass) {
-    return dataConverter.fromData(details, detailsClass);
+    return dataConverter.fromData(details, detailsClass, detailsClass);
+  }
+
+  /** @return The value from the last activity heartbeat details field. */
+  public <V> V getDetails(Class<V> detailsClass, Type detailsType) {
+    return dataConverter.fromData(details, detailsClass, detailsType);
   }
 }

@@ -39,6 +39,7 @@ import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.external.GenericWorkflowClientExternal;
 import com.uber.cadence.internal.replay.QueryWorkflowParameters;
 import com.uber.cadence.internal.replay.SignalExternalWorkflowParameters;
+import java.lang.reflect.Type;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
@@ -154,16 +155,28 @@ class WorkflowStubImpl implements WorkflowStub {
   }
 
   @Override
-  public <R> R getResult(Class<R> returnType) {
+  public <R> R getResult(Class<R> resultClass) {
+    return getResult(resultClass, resultClass);
+  }
+
+  @Override
+  public <R> R getResult(Class<R> resultClass, Type resultType) {
     try {
-      return getResult(Long.MAX_VALUE, TimeUnit.MILLISECONDS, returnType);
+      return getResult(Long.MAX_VALUE, TimeUnit.MILLISECONDS, resultClass, resultType);
     } catch (TimeoutException e) {
       throw CheckedExceptionWrapper.wrap(e);
     }
   }
 
   @Override
-  public <R> R getResult(long timeout, TimeUnit unit, Class<R> returnType) throws TimeoutException {
+  public <R> R getResult(long timeout, TimeUnit unit, Class<R> resultClass)
+      throws TimeoutException {
+    return getResult(timeout, unit, resultClass, resultClass);
+  }
+
+  @Override
+  public <R> R getResult(long timeout, TimeUnit unit, Class<R> resultClass, Type resultType)
+      throws TimeoutException {
     checkStarted();
     try {
       byte[] resultValue =
@@ -177,21 +190,33 @@ class WorkflowStubImpl implements WorkflowStub {
       if (resultValue == null) {
         return null;
       }
-      return dataConverter.fromData(resultValue, returnType);
+      return dataConverter.fromData(resultValue, resultClass, resultType);
     } catch (TimeoutException e) {
       throw e;
     } catch (Exception e) {
-      return mapToWorkflowFailureException(e, returnType);
+      return mapToWorkflowFailureException(e, resultClass);
     }
   }
 
   @Override
-  public <R> CompletableFuture<R> getResultAsync(Class<R> returnType) {
-    return getResultAsync(Long.MAX_VALUE, TimeUnit.MILLISECONDS, returnType);
+  public <R> CompletableFuture<R> getResultAsync(Class<R> resultClass) {
+    return getResultAsync(resultClass, resultClass);
   }
 
   @Override
-  public <R> CompletableFuture<R> getResultAsync(long timeout, TimeUnit unit, Class<R> returnType) {
+  public <R> CompletableFuture<R> getResultAsync(Class<R> resultClass, Type resultType) {
+    return getResultAsync(Long.MAX_VALUE, TimeUnit.MILLISECONDS, resultClass, resultType);
+  }
+
+  @Override
+  public <R> CompletableFuture<R> getResultAsync(
+      long timeout, TimeUnit unit, Class<R> resultClass) {
+    return getResultAsync(timeout, unit, resultClass, resultClass);
+  }
+
+  @Override
+  public <R> CompletableFuture<R> getResultAsync(
+      long timeout, TimeUnit unit, Class<R> resultClass, Type resultType) {
     checkStarted();
     return WorkflowExecutionUtils.getWorkflowExecutionResultAsync(
             genericClient.getService(),
@@ -207,7 +232,7 @@ class WorkflowStubImpl implements WorkflowStub {
               }
               if (e instanceof WorkflowExecutionFailedException) {
                 return mapToWorkflowFailureException(
-                    (WorkflowExecutionFailedException) e, returnType);
+                    (WorkflowExecutionFailedException) e, resultClass);
               }
               if (e != null) {
                 throw CheckedExceptionWrapper.wrap(e);
@@ -215,7 +240,7 @@ class WorkflowStubImpl implements WorkflowStub {
               if (r == null) {
                 return null;
               }
-              return dataConverter.fromData(r, returnType);
+              return dataConverter.fromData(r, resultClass, resultType);
             });
   }
 
@@ -237,7 +262,8 @@ class WorkflowStubImpl implements WorkflowStub {
         throw new WorkflowFailureException(
             execution.get(), workflowType, executionFailed.getDecisionTaskCompletedEventId(), ee);
       }
-      Throwable cause = dataConverter.fromData(executionFailed.getDetails(), detailsClass);
+      Throwable cause =
+          dataConverter.fromData(executionFailed.getDetails(), detailsClass, detailsClass);
       throw new WorkflowFailureException(
           execution.get(), workflowType, executionFailed.getDecisionTaskCompletedEventId(), cause);
     } else if (failure instanceof EntityNotExistsError) {
@@ -252,7 +278,12 @@ class WorkflowStubImpl implements WorkflowStub {
   }
 
   @Override
-  public <R> R query(String queryType, Class<R> returnType, Object... args) {
+  public <R> R query(String queryType, Class<R> resultClass, Object... args) {
+    return query(queryType, resultClass, resultClass, args);
+  }
+
+  @Override
+  public <R> R query(String queryType, Class<R> resultClass, Type resultType, Object... args) {
     checkStarted();
     QueryWorkflowParameters p = new QueryWorkflowParameters();
     p.setInput(dataConverter.toData(args));
@@ -260,7 +291,7 @@ class WorkflowStubImpl implements WorkflowStub {
     p.setWorkflowId(execution.get().getWorkflowId());
     try {
       byte[] result = genericClient.queryWorkflow(p);
-      return dataConverter.fromData(result, returnType);
+      return dataConverter.fromData(result, resultClass, resultType);
     } catch (RuntimeException e) {
       Exception unwrapped = CheckedExceptionWrapper.unwrap(e);
       if (unwrapped instanceof EntityNotExistsError) {

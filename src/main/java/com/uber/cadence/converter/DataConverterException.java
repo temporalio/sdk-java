@@ -17,6 +17,7 @@
 
 package com.uber.cadence.converter;
 
+import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
@@ -27,11 +28,11 @@ import java.util.Arrays;
 @SuppressWarnings("serial")
 public class DataConverterException extends RuntimeException {
 
-  private Class<?>[] valueTypes;
+  private Type[] valueTypes;
 
   private String content;
 
-  public DataConverterException(byte[] content, Class<?>[] valueTypes, Throwable cause) {
+  public DataConverterException(byte[] content, Type[] valueTypes, Throwable cause) {
     super(cause);
     this.valueTypes = valueTypes;
     setContent(content);

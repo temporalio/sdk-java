@@ -84,8 +84,10 @@ import com.uber.cadence.workflow.Workflow;
 import com.uber.cadence.workflow.WorkflowInterceptor;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
+import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
@@ -150,9 +152,15 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   }
 
   @Override
-  @SuppressWarnings("unchecked")
   public <T> void setActivityHeartbeatListener(Class<T> detailsClass, Consumer<T> listener) {
-    activityHeartbetListener = new ClassConsumerPair(detailsClass, listener);
+    setActivityHeartbeatListener(detailsClass, detailsClass, listener);
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public <T> void setActivityHeartbeatListener(
+      Class<T> detailsClass, Type detailsType, Consumer<T> listener) {
+    activityHeartbetListener = new ClassConsumerPair(detailsClass, detailsType, listener);
   }
 
   @Override
@@ -170,7 +178,11 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
 
     @Override
     public <T> Promise<T> executeActivity(
-        String activityType, Class<T> returnType, Object[] args, ActivityOptions options) {
+        String activityType,
+        Class<T> resultClass,
+        Type resultType,
+        Object[] args,
+        ActivityOptions options) {
       PollForActivityTaskResponse task = new PollForActivityTaskResponse();
       task.setScheduleToCloseTimeoutSeconds((int) options.getScheduleToCloseTimeout().getSeconds());
       task.setHeartbeatTimeoutSeconds((int) options.getHeartbeatTimeout().getSeconds());
@@ -189,12 +201,16 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
       Result taskResult =
           activityTaskHandler.handle(
               service, testEnvironmentOptions.getDomain(), task, NoopScope.getInstance());
-      return Workflow.newPromise(getReply(task, taskResult, returnType));
+      return Workflow.newPromise(getReply(task, taskResult, resultClass, resultType));
     }
 
     @Override
     public <R> WorkflowResult<R> executeChildWorkflow(
-        String workflowType, Class<R> returnType, Object[] args, ChildWorkflowOptions options) {
+        String workflowType,
+        Class<R> resultClass,
+        Type resultType,
+        Object[] args,
+        ChildWorkflowOptions options) {
       throw new UnsupportedOperationException("not implemented");
     }
 
@@ -235,13 +251,13 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
-    public <R> R sideEffect(Class<R> resultType, Func<R> func) {
+    public <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func) {
       throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
     public <R> R mutableSideEffect(
-        String id, Class<R> returnType, BiPredicate<R, R> updated, Func<R> func) {
+        String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
       throw new UnsupportedOperationException("not implemented");
     }
 
@@ -257,8 +273,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
-    public void registerQuery(
-        String queryType, Class<?>[] argTypes, Func1<Object[], Object> callback) {
+    public void registerQuery(String queryType, Type[] argTypes, Func1<Object[], Object> callback) {
       throw new UnsupportedOperationException("not implemented");
     }
 
@@ -270,14 +285,15 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     private <T> T getReply(
         PollForActivityTaskResponse task,
         ActivityTaskHandler.Result response,
-        Class<T> returnType) {
+        Class<T> resultClass,
+        Type resultType) {
       RetryOptions ro = response.getRequestRetryOptions();
       RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
 
         return testEnvironmentOptions
             .getDataConverter()
-            .fromData(taskCompleted.getResult(), returnType);
+            .fromData(taskCompleted.getResult(), resultClass, resultType);
       } else {
         RespondActivityTaskFailedRequest taskFailed = response.getTaskFailed();
         if (taskFailed != null) {
@@ -292,7 +308,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
             cause =
                 testEnvironmentOptions
                     .getDataConverter()
-                    .fromData(taskFailed.getDetails(), causeClass);
+                    .fromData(taskFailed.getDetails(), causeClass, causeClass);
           } catch (Exception e) {
             cause = e;
           }
@@ -307,18 +323,20 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
           }
         }
       }
-      return Defaults.defaultValue(returnType);
+      return Defaults.defaultValue(resultClass);
     }
   }
 
   private static class ClassConsumerPair<T> {
 
     final Consumer<T> consumer;
-    final Class<T> valueType;
+    final Class<T> valueClass;
+    final Type valueType;
 
-    ClassConsumerPair(Class<T> valueType, Consumer<T> consumer) {
-      this.valueType = valueType;
-      this.consumer = consumer;
+    ClassConsumerPair(Class<T> valueClass, Type valueType, Consumer<T> consumer) {
+      this.valueClass = Objects.requireNonNull(valueClass);
+      this.valueType = Objects.requireNonNull(valueType);
+      this.consumer = Objects.requireNonNull(consumer);
     }
   }
 
@@ -351,7 +369,10 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         Object details =
             testEnvironmentOptions
                 .getDataConverter()
-                .fromData(heartbeatRequest.getDetails(), activityHeartbetListener.valueType);
+                .fromData(
+                    heartbeatRequest.getDetails(),
+                    activityHeartbetListener.valueClass,
+                    activityHeartbetListener.valueType);
         activityHeartbetListener.consumer.accept(details);
       }
       // TODO: Cancellation

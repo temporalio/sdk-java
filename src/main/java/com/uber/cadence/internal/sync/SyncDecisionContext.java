@@ -49,6 +49,7 @@ import com.uber.cadence.workflow.SignalExternalWorkflowException;
 import com.uber.cadence.workflow.Workflow;
 import com.uber.cadence.workflow.WorkflowInterceptor;
 import com.uber.m3.tally.Scope;
+import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -109,23 +110,28 @@ final class SyncDecisionContext implements WorkflowInterceptor {
 
   @Override
   public <T> Promise<T> executeActivity(
-      String activityName, Class<T> returnType, Object[] args, ActivityOptions options) {
+      String activityName,
+      Class<T> resultClass,
+      Type resultType,
+      Object[] args,
+      ActivityOptions options) {
     RetryOptions retryOptions = options.getRetryOptions();
     if (retryOptions != null) {
       return WorkflowRetryerInternal.retryAsync(
-          retryOptions, () -> executeActivityOnce(activityName, options, args, returnType));
+          retryOptions,
+          () -> executeActivityOnce(activityName, options, args, resultClass, resultType));
     }
-    return executeActivityOnce(activityName, options, args, returnType);
+    return executeActivityOnce(activityName, options, args, resultClass, resultType);
   }
 
   private <T> Promise<T> executeActivityOnce(
-      String name, ActivityOptions options, Object[] args, Class<T> returnType) {
+      String name, ActivityOptions options, Object[] args, Class<T> returnClass, Type returnType) {
     byte[] input = converter.toData(args);
     Promise<byte[]> binaryResult = executeActivityOnce(name, options, input);
-    if (returnType == Void.TYPE) {
+    if (returnClass == Void.TYPE) {
       return binaryResult.thenApply((r) -> null);
     }
-    return binaryResult.thenApply((r) -> converter.fromData(r, returnType));
+    return binaryResult.thenApply((r) -> converter.fromData(r, returnClass, returnType));
   }
 
   private Promise<byte[]> executeActivityOnce(String name, ActivityOptions options, byte[] input) {
@@ -183,7 +189,7 @@ final class SyncDecisionContext implements WorkflowInterceptor {
         @SuppressWarnings("unchecked") // cc is just to have a place to put this annotation
         Class<? extends Exception> cc = (Class<? extends Exception>) Class.forName(causeClassName);
         causeClass = cc;
-        cause = getDataConverter().fromData(taskFailed.getDetails(), causeClass);
+        cause = getDataConverter().fromData(taskFailed.getDetails(), causeClass, causeClass);
       } catch (Exception e) {
         cause = e;
       }
@@ -220,11 +226,15 @@ final class SyncDecisionContext implements WorkflowInterceptor {
 
   @Override
   public <R> WorkflowResult<R> executeChildWorkflow(
-      String workflowType, Class<R> returnType, Object[] args, ChildWorkflowOptions options) {
+      String workflowType,
+      Class<R> returnClass,
+      Type returnType,
+      Object[] args,
+      ChildWorkflowOptions options) {
     byte[] input = converter.toData(args);
     CompletablePromise<WorkflowExecution> execution = Workflow.newPromise();
     Promise<byte[]> output = executeChildWorkflow(workflowType, options, input, execution);
-    Promise<R> result = output.thenApply((b) -> converter.fromData(b, returnType));
+    Promise<R> result = output.thenApply((b) -> converter.fromData(b, returnClass, returnType));
     return new WorkflowResult<>(result, execution);
   }
 
@@ -305,7 +315,7 @@ final class SyncDecisionContext implements WorkflowInterceptor {
       @SuppressWarnings("unchecked")
       Class<? extends Exception> causeClass =
           (Class<? extends Exception>) Class.forName(causeClassName);
-      cause = getDataConverter().fromData(taskFailed.getDetails(), causeClass);
+      cause = getDataConverter().fromData(taskFailed.getDetails(), causeClass, causeClass);
     } catch (Exception e) {
       cause = e;
     }
@@ -346,7 +356,7 @@ final class SyncDecisionContext implements WorkflowInterceptor {
   }
 
   @Override
-  public <R> R sideEffect(Class<R> resultType, Func<R> func) {
+  public <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func) {
     DataConverter dataConverter = getDataConverter();
     byte[] result =
         context.sideEffect(
@@ -354,12 +364,12 @@ final class SyncDecisionContext implements WorkflowInterceptor {
               R r = func.apply();
               return dataConverter.toData(r);
             });
-    return dataConverter.fromData(result, resultType);
+    return dataConverter.fromData(result, resultClass, resultType);
   }
 
   @Override
   public <R> R mutableSideEffect(
-      String id, Class<R> returnType, BiPredicate<R, R> updated, Func<R> func) {
+      String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
     AtomicReference<R> unserializedResult = new AtomicReference<>();
     // As lambda below never returns Optional.empty() if there is no stored value
     // it is safe to call get on mutableSideEffect result.
@@ -369,7 +379,8 @@ final class SyncDecisionContext implements WorkflowInterceptor {
                 id,
                 converter,
                 (storedBinary) -> {
-                  Optional<R> stored = storedBinary.map((b) -> converter.fromData(b, returnType));
+                  Optional<R> stored =
+                      storedBinary.map((b) -> converter.fromData(b, resultClass, resultType));
                   R funcResult =
                       Objects.requireNonNull(
                           func.apply(), "mutableSideEffect function " + "returned null");
@@ -385,7 +396,7 @@ final class SyncDecisionContext implements WorkflowInterceptor {
     if (unserialized != null) {
       return unserialized;
     }
-    return converter.fromData(binaryResult, returnType);
+    return converter.fromData(binaryResult, resultClass, resultType);
   }
 
   @Override
@@ -416,7 +427,7 @@ final class SyncDecisionContext implements WorkflowInterceptor {
 
   @Override
   public void registerQuery(
-      String queryType, Class<?>[] argTypes, Functions.Func1<Object[], Object> callback) {
+      String queryType, Type[] argTypes, Functions.Func1<Object[], Object> callback) {
     //    if (queryCallbacks.containsKey(queryType)) {
     //      throw new IllegalStateException("Query \"" + queryType + "\" is already registered");
     //    }

@@ -17,6 +17,8 @@
 
 package com.uber.cadence.converter;
 
+import java.lang.reflect.Type;
+
 /**
  * Used by the framework to serialize/deserialize method parameters that need to be sent over the
  * wire.
@@ -39,11 +41,13 @@ public interface DataConverter {
    * Implements conversion of a single value.
    *
    * @param content Serialized value to convert to a Java object.
+   * @param valueClass
+   * @param valueType
    * @return converted Java object
    * @throws DataConverterException if conversion of the data passed as parameter failed for any
    *     reason.
    */
-  <T> T fromData(byte[] content, Class<T> valueType) throws DataConverterException;
+  <T> T fromData(byte[] content, Class<T> valueClass, Type valueType) throws DataConverterException;
 
   /**
    * Implements conversion of an array of values of different types. Useful for deserializing
@@ -54,5 +58,5 @@ public interface DataConverter {
    * @throws DataConverterException if conversion of the data passed as parameter failed for any
    *     reason.
    */
-  Object[] fromDataArray(byte[] content, Class<?>... valueType) throws DataConverterException;
+  Object[] fromDataArray(byte[] content, Type... valueType) throws DataConverterException;
 }

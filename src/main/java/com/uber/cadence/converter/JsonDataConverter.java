@@ -33,6 +33,7 @@ import com.google.gson.stream.JsonWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -128,14 +129,15 @@ public final class JsonDataConverter implements DataConverter {
   }
 
   @Override
-  public <T> T fromData(byte[] content, Class<T> valueType) throws DataConverterException {
+  public <T> T fromData(byte[] content, Class<T> valueClass, Type valueType)
+      throws DataConverterException {
     if (content == null) {
       return null;
     }
     try {
       // Deserialize thrift values.
-      if (TBase.class.isAssignableFrom(valueType)) {
-        T instance = valueType.getConstructor().newInstance();
+      if (TBase.class.isAssignableFrom(valueClass)) {
+        T instance = valueClass.getConstructor().newInstance();
         newThriftDeserializer().deserialize((TBase) instance, content);
         return instance;
       }
@@ -146,15 +148,15 @@ public final class JsonDataConverter implements DataConverter {
   }
 
   @Override
-  public Object[] fromDataArray(byte[] content, Class<?>... valueType)
-      throws DataConverterException {
+  public Object[] fromDataArray(byte[] content, Type... valueType) throws DataConverterException {
     try {
       if ((content == null || content.length == 0)
           && (valueType == null || valueType.length == 0)) {
         return EMPTY_OBJECT_ARRAY;
       }
       if (valueType.length == 1) {
-        return new Object[] {fromData(content, valueType[0])};
+        Object result = gson.fromJson(new String(content, StandardCharsets.UTF_8), valueType[0]);
+        return new Object[] {result};
       }
       JsonArray array = parser.parse(new String(content, StandardCharsets.UTF_8)).getAsJsonArray();
       Object[] result = new Object[valueType.length];

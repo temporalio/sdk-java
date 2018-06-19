@@ -18,6 +18,7 @@
 package com.uber.cadence.workflow;
 
 import com.uber.cadence.WorkflowExecution;
+import java.lang.reflect.Type;
 
 /**
  * Supports starting and signalling child workflows by the name and list of arguments. This is
@@ -34,9 +35,13 @@ public interface ChildWorkflowStub {
 
   ChildWorkflowOptions getOptions();
 
-  <R> R execute(Class<R> returnType, Object... args);
+  <R> R execute(Class<R> resultClass, Object... args);
 
-  <R> Promise<R> executeAsync(Class<R> returnType, Object... args);
+  <R> R execute(Class<R> resultClass, Type resultType, Object... args);
+
+  <R> Promise<R> executeAsync(Class<R> resultClass, Object... args);
+
+  <R> Promise<R> executeAsync(Class<R> resultClass, Type resultType, Object... args);
 
   void signal(String signalName, Object... args);
 }

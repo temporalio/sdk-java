@@ -195,7 +195,8 @@ final class ClockDecisionContext {
   int getVersion(String changeId, DataConverter converter, int minSupported, int maxSupported) {
     Predicate<byte[]> changeIdEquals =
         (bytesInEvent) -> {
-          MarkerData markerData = converter.fromData(bytesInEvent, MarkerData.class);
+          MarkerData markerData =
+              converter.fromData(bytesInEvent, MarkerData.class, MarkerData.class);
           return markerData.getId().equals(changeId);
         };
     decisions.addAllMissingVersionMarker(true, Optional.of(changeIdEquals));
@@ -214,7 +215,7 @@ final class ClockDecisionContext {
     if (!result.isPresent()) {
       return WorkflowInternal.DEFAULT_VERSION;
     }
-    int version = converter.fromData(result.get(), Integer.class);
+    int version = converter.fromData(result.get(), Integer.class, Integer.class);
     validateVersion(changeId, version, minSupported, maxSupported);
     return version;
   }

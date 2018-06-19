@@ -31,6 +31,7 @@ import com.uber.cadence.worker.WorkerOptions.Builder;
 import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.WorkflowMethod;
 import com.uber.m3.util.ImmutableMap;
+import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
@@ -305,10 +306,39 @@ public final class Worker {
   public <R> R queryWorkflowExecution(
       WorkflowExecution execution, String queryType, Class<R> returnType, Object... args)
       throws Exception {
+    return queryWorkflowExecution(execution, queryType, returnType, returnType, args);
+  }
+
+  /**
+   * This is an utility method to query a workflow execution using this particular instance of a
+   * worker. It gets a history from a Cadence service, replays a workflow code and then runs the
+   * query. This method is useful to troubleshoot workflows by running them in a debugger. To work
+   * the workflow implementation type must be registered with this worker. In most cases using
+   * {@link WorkflowClient} to query workflows is preferable, as it doesn't require workflow
+   * implementation code to be available. There is no need to call {@link #start()} to be able to
+   * call this method.
+   *
+   * @param execution workflow execution to replay and then query locally
+   * @param queryType query type to execute
+   * @param resultClass return class of the query result
+   * @param resultType return type of the query result. Useful when resultClass is a generic type.
+   * @param args query arguments
+   * @param <R> type of the query result
+   * @return query result
+   * @throws Exception if replay failed for any reason
+   */
+  public <R> R queryWorkflowExecution(
+      WorkflowExecution execution,
+      String queryType,
+      Class<R> resultClass,
+      Type resultType,
+      Object... args)
+      throws Exception {
     if (workflowWorker == null) {
       throw new IllegalStateException("disableWorkflowWorker is set in worker options");
     }
-    return workflowWorker.queryWorkflowExecution(execution, queryType, returnType, args);
+    return workflowWorker.queryWorkflowExecution(
+        execution, queryType, resultClass, resultType, args);
   }
 
   public String getTaskList() {
