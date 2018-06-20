@@ -80,6 +80,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -370,8 +371,10 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   private <T> ThriftRequest<T> buildThriftRequest(String apiName, T body, Long rpcTimeoutOverride) {
     String endpoint = getEndpoint(INTERFACE_NAME, apiName);
     ThriftRequest.Builder<T> builder =
-        new ThriftRequest.Builder<T>(options.getServiceName(), endpoint);
-    builder.setHeaders(thriftHeaders);
+        new ThriftRequest.Builder<>(options.getServiceName(), endpoint);
+    // Create a mutable hashmap for headers, as tchannel.tracing.PrefixedHeadersCarrier assumes
+    // that it can call put directly to add new stuffs (e.g. traces).
+    builder.setHeaders(new HashMap<>(thriftHeaders));
     if (rpcTimeoutOverride != null) {
       builder.setTimeout(rpcTimeoutOverride);
     } else {
