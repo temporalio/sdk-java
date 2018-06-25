@@ -560,6 +560,7 @@ public class WorkflowTest {
                 .setMinimumAttempts(1)
                 .setMaximumInterval(Duration.ofSeconds(1))
                 .setInitialInterval(Duration.ofSeconds(1))
+                .setDoNotRetry(NullPointerException.class)
                 .setMaximumAttempts(3)
                 .build());
       } else {
@@ -569,6 +570,7 @@ public class WorkflowTest {
                 .setMaximumInterval(Duration.ofSeconds(1))
                 .setInitialInterval(Duration.ofSeconds(1))
                 .setMaximumAttempts(2)
+                .setDoNotRetry(NullPointerException.class)
                 .build());
       }
       this.activities = Workflow.newActivityStub(TestActivities.class, options.build());
