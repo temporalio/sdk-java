@@ -76,6 +76,7 @@ public final class JsonDataConverter implements DataConverter {
   private static final Object[] EMPTY_OBJECT_ARRAY = new Object[0];
   public static final String TYPE_FIELD_NAME = "type";
   public static final String JSON_CONVERTER_TYPE = "JSON";
+  public static final String CLASS_NAME_FIELD_NAME = "className";
   private final Gson gson;
   private final JsonParser parser = new JsonParser();
 
@@ -195,7 +196,7 @@ public final class JsonDataConverter implements DataConverter {
           @SuppressWarnings("unchecked")
           public T read(JsonReader in) throws IOException {
             in.beginObject();
-            if (!in.nextName().equals("type")) {
+            if (!in.nextName().equals(TYPE_FIELD_NAME)) {
               throw new IOException("Cannot deserialize DataConverter. Missing type field");
             }
             String value = in.nextString();
@@ -205,6 +206,35 @@ public final class JsonDataConverter implements DataConverter {
             }
             in.endObject();
             return (T) JsonDataConverter.getInstance();
+          }
+        };
+      }
+      if (Class.class.isAssignableFrom(typeToken.getRawType())) {
+        return new TypeAdapter<T>() {
+          @Override
+          public void write(JsonWriter out, T value) throws IOException {
+            out.beginObject();
+            String className = ((Class) value).getName();
+            out.name(CLASS_NAME_FIELD_NAME).value(className);
+            out.endObject();
+          }
+
+          @Override
+          public T read(JsonReader in) throws IOException {
+            in.beginObject();
+            if (!in.nextName().equals(CLASS_NAME_FIELD_NAME)) {
+              throw new IOException(
+                  "Cannot deserialize class. Missing " + CLASS_NAME_FIELD_NAME + " field");
+            }
+            String className = in.nextString();
+            try {
+              @SuppressWarnings("unchecked")
+              T result = (T) Class.forName(className);
+              in.endObject();
+              return result;
+            } catch (ClassNotFoundException e) {
+              throw new RuntimeException(e);
+            }
           }
         };
       }

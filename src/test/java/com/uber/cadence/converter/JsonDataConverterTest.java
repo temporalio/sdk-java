@@ -74,4 +74,13 @@ public class JsonDataConverterTest {
     List<UUID> result = (List<UUID>) converter.fromDataArray(data, arg)[0];
     assertEquals(result.toString(), list, result);
   }
+
+  @Test
+  public void testClass() {
+    DataConverter converter = JsonDataConverter.getInstance();
+    byte[] data = converter.toData(this.getClass());
+    @SuppressWarnings("unchecked")
+    Class result = converter.fromData(data, Class.class, Class.class);
+    assertEquals(result.toString(), this.getClass(), result);
+  }
 }
