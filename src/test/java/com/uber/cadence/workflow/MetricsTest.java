@@ -108,21 +108,21 @@ public class MetricsTest {
     }
   }
 
-  @Before
-  public void setUp() {
+  public void setUp(com.uber.m3.util.Duration reportingFrequecy){
     reporter = mock(StatsReporter.class);
     Scope scope =
-        new RootScopeBuilder()
-            .reporter(reporter)
-            .reportEvery(com.uber.m3.util.Duration.ofMillis(300));
+            new RootScopeBuilder()
+                    .reporter(reporter)
+                    .reportEvery(reportingFrequecy);
 
     TestEnvironmentOptions testOptions =
-        new Builder().setDomain(WorkflowTest.DOMAIN).setMetricsScope(scope).build();
+            new Builder().setDomain(WorkflowTest.DOMAIN).setMetricsScope(scope).build();
     testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
   }
 
   @Test
   public void testWorkflowMetrics() throws InterruptedException {
+    setUp(com.uber.m3.util.Duration.ofMillis(10));
 
     Worker worker = testEnvironment.newWorker(taskList);
     worker.registerWorkflowImplementationTypes(
@@ -166,6 +166,8 @@ public class MetricsTest {
 
   @Test
   public void testCorruptedSignalMetrics() throws InterruptedException {
+    setUp(com.uber.m3.util.Duration.ofMillis(300));
+
     Worker worker = testEnvironment.newWorker(taskList, builder ->
             builder.setInterceptorFactory(new CorruptedSignalWorkflowInterceptorFactory()));
 
