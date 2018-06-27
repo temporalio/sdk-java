@@ -450,7 +450,6 @@ public final class TestWorkflowService implements IWorkflowService {
       throws InternalServiceError, BadRequestError {
     StartWorkflowExecutionRequest startRequest =
         new StartWorkflowExecutionRequest()
-            .setInput(a.getInput())
             .setWorkflowType(a.getWorkflowType())
             .setExecutionStartToCloseTimeoutSeconds(a.getExecutionStartToCloseTimeoutSeconds())
             .setTaskStartToCloseTimeoutSeconds(a.getTaskStartToCloseTimeoutSeconds())
@@ -459,6 +458,9 @@ public final class TestWorkflowService implements IWorkflowService {
             .setWorkflowId(executionId.getWorkflowId().getWorkflowId())
             .setWorkflowIdReusePolicy(previousRunStartRequest.getWorkflowIdReusePolicy())
             .setIdentity(identity);
+    if (a.isSetInput()) {
+      startRequest.setInput(a.getInput());
+    }
     lock.lock();
     try {
       StartWorkflowExecutionResponse response =

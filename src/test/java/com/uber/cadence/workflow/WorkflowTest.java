@@ -633,7 +633,7 @@ public class WorkflowTest {
     WorkflowStub workflowStub =
         workflowClient.newUntypedWorkflowStub(
             "TestWorkflow1::execute", newWorkflowOptionsBuilder(taskList).build());
-    WorkflowExecution execution = workflowStub.start();
+    WorkflowExecution execution = workflowStub.start(taskList);
     Thread.sleep(500);
     String stackTrace = workflowStub.query(WorkflowClient.QUERY_TYPE_STACK_TRCE, String.class);
     assertTrue(stackTrace, stackTrace.contains("WorkflowTest$TestSyncWorkflowImpl.execute"));
@@ -653,7 +653,7 @@ public class WorkflowTest {
     WorkflowStub client =
         workflowClient.newUntypedWorkflowStub(
             "TestWorkflow1::execute", newWorkflowOptionsBuilder(taskList).build());
-    client.start();
+    client.start(taskList);
     client.cancel();
     try {
       client.getResult(String.class);
@@ -724,7 +724,7 @@ public class WorkflowTest {
     WorkflowStub client =
         workflowClient.newUntypedWorkflowStub(
             "TestWorkflow1::execute", newWorkflowOptionsBuilder(taskList).build());
-    client.start();
+    client.start(taskList);
     Thread.sleep(500); // To let activityWithDelay start.
     client.cancel();
     try {

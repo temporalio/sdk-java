@@ -386,7 +386,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   private void processCancelTimer(
       RequestContext ctx, CancelTimerDecisionAttributes d, long decisionTaskCompletedId)
-      throws InternalServiceError {
+      throws InternalServiceError, BadRequestError {
     String timerId = d.getTimerId();
     StateMachine<TimerData> timer = timers.get(timerId);
     if (timer == null) {
@@ -410,7 +410,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       RequestContext ctx,
       RequestCancelActivityTaskDecisionAttributes a,
       long decisionTaskCompletedId)
-      throws InternalServiceError {
+      throws InternalServiceError, BadRequestError {
     String activityId = a.getActivityId();
     StateMachine<?> activity = activities.get(activityId);
     if (activity == null) {
@@ -508,7 +508,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       RequestContext ctx,
       SignalExternalWorkflowExecutionDecisionAttributes a,
       long decisionTaskCompletedId)
-      throws InternalServiceError {
+      throws InternalServiceError, BadRequestError {
     String signalId = UUID.randomUUID().toString();
     StateMachine<SignalExternalData> signalStateMachine =
         StateMachines.newSignalExternalStateMachine();
@@ -718,7 +718,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   private void processFailWorkflowExecution(
       RequestContext ctx, FailWorkflowExecutionDecisionAttributes d, long decisionTaskCompletedId)
-      throws InternalServiceError {
+      throws InternalServiceError, BadRequestError {
     workflow.action(StateMachines.Action.FAIL, ctx, d, decisionTaskCompletedId);
     if (parent.isPresent()) {
       ctx.lockTimer(); // unlocked by the parent
@@ -750,7 +750,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       RequestContext ctx,
       CompleteWorkflowExecutionDecisionAttributes d,
       long decisionTaskCompletedId)
-      throws InternalServiceError {
+      throws InternalServiceError, BadRequestError {
     workflow.action(StateMachines.Action.COMPLETE, ctx, d, decisionTaskCompletedId);
     if (parent.isPresent()) {
       ctx.lockTimer(); // unlocked by the parent
@@ -780,7 +780,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   private void processCancelWorkflowExecution(
       RequestContext ctx, CancelWorkflowExecutionDecisionAttributes d, long decisionTaskCompletedId)
-      throws InternalServiceError {
+      throws InternalServiceError, BadRequestError {
     workflow.action(StateMachines.Action.CANCEL, ctx, d, decisionTaskCompletedId);
     if (parent.isPresent()) {
       ctx.lockTimer(); // unlocked by the parent
@@ -863,7 +863,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     }
   }
 
-  private void scheduleDecision(RequestContext ctx) throws InternalServiceError {
+  private void scheduleDecision(RequestContext ctx) throws InternalServiceError, BadRequestError {
     if (decision != null) {
       if (decision.getState() == StateMachines.State.INITIATED) {
         return; // No need to schedule again
