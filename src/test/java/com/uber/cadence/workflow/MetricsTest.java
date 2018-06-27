@@ -31,9 +31,6 @@ import com.uber.cadence.testing.TestEnvironmentOptions.Builder;
 import com.uber.cadence.testing.TestWorkflowEnvironment;
 import com.uber.cadence.worker.Worker;
 import com.uber.cadence.workflow.interceptors.SignalWorkflowInterceptor;
-import com.uber.cadence.workflow.workflows.ReceiveSignalObject_ChildWorkflowImpl;
-import com.uber.cadence.workflow.workflows.SendSignalObject_Workflow;
-import com.uber.cadence.workflow.workflows.SendSignalObject_WorkflowImpl;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.StatsReporter;
@@ -43,7 +40,6 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.function.Function;
 
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestWatcher;
@@ -106,6 +102,64 @@ public class MetricsTest {
 
       Workflow.getMetricsScope().counter("test-child-done").inc(1);
     }
+  }
+
+  public interface ReceiveSignalObject_ChildWorkflow {
+
+    @WorkflowMethod
+    String execute();
+
+    @SignalMethod(name = "testSignal")
+    void signal(Signal arg);
+
+    @SignalMethod(name = "endWorkflow")
+    void close();
+  }
+
+  public static class ReceiveSignalObject_ChildWorkflowImpl implements ReceiveSignalObject_ChildWorkflow {
+    private String receivedSignal = "Initial State";
+    // Keep workflow open so that we can send signal
+    CompletablePromise<Void> promise = Workflow.newPromise();
+    @Override
+    public String execute() {
+      promise.get();
+      return receivedSignal;
+    }
+
+    @Override
+    public void signal(Signal arg) {
+      receivedSignal = arg.value;
+    }
+
+    @Override
+    public void close() {
+      promise.complete(null);
+    }
+  }
+
+  public interface SendSignalObject_Workflow {
+
+    @WorkflowMethod
+    String execute();
+  }
+
+  public static class SendSignalObject_WorkflowImpl implements SendSignalObject_Workflow {
+    @Override
+    public String execute() {
+      ReceiveSignalObject_ChildWorkflow child =
+              Workflow.newChildWorkflowStub(ReceiveSignalObject_ChildWorkflow.class);
+      Promise<String> greeting = Async.function(child::execute);
+      Signal sig = new Signal();
+      sig.value = "Hello World";
+      child.signal(sig);
+      child.close();
+      return greeting.get();
+    }
+  }
+
+  public static class Signal {
+
+    public String value;
   }
 
   public void setUp(com.uber.m3.util.Duration reportingFrequecy){
