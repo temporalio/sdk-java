@@ -104,7 +104,7 @@ public class MetricsTest {
     }
   }
 
-  public interface ReceiveSignalObject_ChildWorkflow {
+  public interface ReceiveSignalObjectChildWorkflow {
 
     @WorkflowMethod
     String execute();
@@ -116,7 +116,7 @@ public class MetricsTest {
     void close();
   }
 
-  public static class ReceiveSignalObject_ChildWorkflowImpl implements ReceiveSignalObject_ChildWorkflow {
+  public static class ReceiveSignalObjectChildWorkflowImpl implements ReceiveSignalObjectChildWorkflow {
     private String receivedSignal = "Initial State";
     // Keep workflow open so that we can send signal
     CompletablePromise<Void> promise = Workflow.newPromise();
@@ -137,17 +137,17 @@ public class MetricsTest {
     }
   }
 
-  public interface SendSignalObject_Workflow {
+  public interface SendSignalObjectWorkflow {
 
     @WorkflowMethod
     String execute();
   }
 
-  public static class SendSignalObject_WorkflowImpl implements SendSignalObject_Workflow {
+  public static class SendSignalObjectWorkflowImpl implements SendSignalObjectWorkflow {
     @Override
     public String execute() {
-      ReceiveSignalObject_ChildWorkflow child =
-              Workflow.newChildWorkflowStub(ReceiveSignalObject_ChildWorkflow.class);
+      ReceiveSignalObjectChildWorkflow child =
+              Workflow.newChildWorkflowStub(ReceiveSignalObjectChildWorkflow.class);
       Promise<String> greeting = Async.function(child::execute);
       Signal sig = new Signal();
       sig.value = "Hello World";
@@ -226,7 +226,7 @@ public class MetricsTest {
             builder.setInterceptorFactory(new CorruptedSignalWorkflowInterceptorFactory()));
 
     worker.registerWorkflowImplementationTypes(
-            SendSignalObject_WorkflowImpl.class, ReceiveSignalObject_ChildWorkflowImpl.class);
+            SendSignalObjectWorkflowImpl.class, ReceiveSignalObjectChildWorkflowImpl.class);
     worker.start();
 
     WorkflowOptions options =
@@ -236,7 +236,7 @@ public class MetricsTest {
                     .build();
 
     WorkflowClient workflowClient = testEnvironment.newWorkflowClient();
-    SendSignalObject_Workflow workflow = workflowClient.newWorkflowStub(SendSignalObject_Workflow.class, options);
+    SendSignalObjectWorkflow workflow = workflowClient.newWorkflowStub(SendSignalObjectWorkflow.class, options);
     workflow.execute();
 
     //Wait for reporter
