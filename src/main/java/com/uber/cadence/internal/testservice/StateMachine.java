@@ -17,6 +17,7 @@
 
 package com.uber.cadence.internal.testservice;
 
+import com.uber.cadence.BadRequestError;
 import com.uber.cadence.InternalServiceError;
 import com.uber.cadence.internal.testservice.StateMachines.Action;
 import com.uber.cadence.internal.testservice.StateMachines.State;
@@ -41,7 +42,8 @@ final class StateMachine<Data> {
   @FunctionalInterface
   interface Callback<D, R> {
 
-    void apply(RequestContext ctx, D data, R request, long referenceId) throws InternalServiceError;
+    void apply(RequestContext ctx, D data, R request, long referenceId)
+        throws InternalServiceError, BadRequestError;
   }
 
   private static class Transition {
@@ -151,7 +153,7 @@ final class StateMachine<Data> {
   }
 
   <V> void action(Action action, RequestContext context, V request, long referenceId)
-      throws InternalServiceError {
+      throws InternalServiceError, BadRequestError {
     Transition transition = new Transition(state, action);
     TransitionDestination<Data> destination = transitions.get(transition);
     if (destination == null) {

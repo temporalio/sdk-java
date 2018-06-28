@@ -110,7 +110,7 @@ public final class JsonDataConverter implements DataConverter {
   @Override
   public byte[] toData(Object... values) throws DataConverterException {
     if (values == null || values.length == 0) {
-      return EMPTY_BLOB;
+      return null;
     }
     try {
       if (values.length == 1) {
@@ -144,29 +144,34 @@ public final class JsonDataConverter implements DataConverter {
       }
       return gson.fromJson(new String(content, StandardCharsets.UTF_8), valueType);
     } catch (Exception e) {
-      throw new DataConverterException(content, e);
+      throw new DataConverterException(content, new Type[] {valueType}, e);
     }
   }
 
   @Override
-  public Object[] fromDataArray(byte[] content, Type... valueType) throws DataConverterException {
+  public Object[] fromDataArray(byte[] content, Type... valueTypes) throws DataConverterException {
     try {
-      if ((content == null || content.length == 0)
-          && (valueType == null || valueType.length == 0)) {
-        return EMPTY_OBJECT_ARRAY;
+      if (content == null) {
+        if (valueTypes.length == 0) {
+          return EMPTY_OBJECT_ARRAY;
+        }
+        throw new DataConverterException(
+            "Content doesn't match expected arguments", content, valueTypes);
       }
-      if (valueType.length == 1) {
-        Object result = gson.fromJson(new String(content, StandardCharsets.UTF_8), valueType[0]);
+      if (valueTypes.length == 1) {
+        Object result = gson.fromJson(new String(content, StandardCharsets.UTF_8), valueTypes[0]);
         return new Object[] {result};
       }
       JsonArray array = parser.parse(new String(content, StandardCharsets.UTF_8)).getAsJsonArray();
-      Object[] result = new Object[valueType.length];
-      for (int i = 0; i < valueType.length; i++) {
-        result[i] = gson.fromJson(array.get(i), valueType[i]);
+      Object[] result = new Object[valueTypes.length];
+      for (int i = 0; i < valueTypes.length; i++) {
+        result[i] = gson.fromJson(array.get(i), valueTypes[i]);
       }
       return result;
+    } catch (DataConverterException e) {
+      throw e;
     } catch (Exception e) {
-      throw new DataConverterException(content, valueType, e);
+      throw new DataConverterException(content, valueTypes, e);
     }
   }
 

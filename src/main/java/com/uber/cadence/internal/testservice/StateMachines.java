@@ -43,6 +43,7 @@ import com.uber.cadence.ActivityTaskFailedEventAttributes;
 import com.uber.cadence.ActivityTaskScheduledEventAttributes;
 import com.uber.cadence.ActivityTaskStartedEventAttributes;
 import com.uber.cadence.ActivityTaskTimedOutEventAttributes;
+import com.uber.cadence.BadRequestError;
 import com.uber.cadence.CancelTimerDecisionAttributes;
 import com.uber.cadence.CancelWorkflowExecutionDecisionAttributes;
 import com.uber.cadence.ChildWorkflowExecutionCanceledEventAttributes;
@@ -417,7 +418,6 @@ class StateMachines {
           data.initiatedEvent = a;
           StartWorkflowExecutionRequest startChild =
               new StartWorkflowExecutionRequest()
-                  .setInput(d.getInput())
                   .setDomain(d.getDomain() == null ? ctx.getDomain() : d.getDomain())
                   .setExecutionStartToCloseTimeoutSeconds(
                       d.getExecutionStartToCloseTimeoutSeconds())
@@ -426,6 +426,9 @@ class StateMachines {
                   .setWorkflowId(d.getWorkflowId())
                   .setWorkflowIdReusePolicy(d.getWorkflowIdReusePolicy())
                   .setWorkflowType(d.getWorkflowType());
+          if (d.isSetInput()) {
+            startChild.setInput(d.getInput());
+          }
           addStartChildTask(ctx, data, initiatedEventId, startChild);
         });
   }
@@ -461,16 +464,31 @@ class StateMachines {
   }
 
   private static void startWorkflow(
-      RequestContext ctx, WorkflowData data, StartWorkflowExecutionRequest request, long notUsed) {
-    WorkflowExecutionStartedEventAttributes a =
-        new WorkflowExecutionStartedEventAttributes()
-            .setIdentity(request.getIdentity())
-            .setTaskStartToCloseTimeoutSeconds(request.getTaskStartToCloseTimeoutSeconds())
-            .setWorkflowType(request.getWorkflowType())
-            .setTaskList(request.getTaskList())
-            .setExecutionStartToCloseTimeoutSeconds(
-                request.getExecutionStartToCloseTimeoutSeconds())
-            .setInput(request.getInput());
+      RequestContext ctx, WorkflowData data, StartWorkflowExecutionRequest request, long notUsed)
+      throws BadRequestError {
+    WorkflowExecutionStartedEventAttributes a = new WorkflowExecutionStartedEventAttributes();
+    if (request.isSetIdentity()) {
+      a.setIdentity(request.getIdentity());
+    }
+    if (!request.isSetTaskStartToCloseTimeoutSeconds()) {
+      throw new BadRequestError("missing taskStartToCloseTimeoutSeconds");
+    }
+    a.setTaskStartToCloseTimeoutSeconds(request.getTaskStartToCloseTimeoutSeconds());
+    if (!request.isSetWorkflowType()) {
+      throw new BadRequestError("missing workflowType");
+    }
+    a.setWorkflowType(request.getWorkflowType());
+    if (!request.isSetTaskList()) {
+      throw new BadRequestError("missing taskList");
+    }
+    a.setTaskList(request.getTaskList());
+    if (!request.isSetExecutionStartToCloseTimeoutSeconds()) {
+      throw new BadRequestError("missing executionStartToCloseTimeoutSeconds");
+    }
+    a.setExecutionStartToCloseTimeoutSeconds(request.getExecutionStartToCloseTimeoutSeconds());
+    if (request.isSetInput()) {
+      a.setInput(request.getInput());
+    }
     HistoryEvent event =
         new HistoryEvent()
             .setEventType(EventType.WorkflowExecutionStarted)

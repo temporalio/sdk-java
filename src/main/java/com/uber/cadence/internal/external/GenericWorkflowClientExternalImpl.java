@@ -86,8 +86,9 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
       throws WorkflowExecutionAlreadyStartedError {
     StartWorkflowExecutionRequest request = new StartWorkflowExecutionRequest();
     request.setDomain(domain);
-
-    request.setInput(startParameters.getInput());
+    if (startParameters.getInput() != null) {
+      request.setInput(startParameters.getInput());
+    }
     request.setExecutionStartToCloseTimeoutSeconds(
         (int) startParameters.getExecutionStartToCloseTimeoutSeconds());
     request.setTaskStartToCloseTimeoutSeconds(

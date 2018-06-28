@@ -28,42 +28,40 @@ import java.util.Arrays;
 @SuppressWarnings("serial")
 public class DataConverterException extends RuntimeException {
 
-  private Type[] valueTypes;
-
-  private String content;
-
   public DataConverterException(byte[] content, Type[] valueTypes, Throwable cause) {
+    super(toMessage(null, content, valueTypes), cause);
+  }
+
+  public DataConverterException(Exception cause) {
     super(cause);
-    this.valueTypes = valueTypes;
-    setContent(content);
   }
 
-  public DataConverterException(byte[] content, Throwable cause) {
-    super(cause);
-    setContent(content);
+  public DataConverterException(String message, byte[] content, Type[] valueTypes) {
+    super(toMessage(message, content, valueTypes));
   }
 
-  public DataConverterException(Exception e) {
-    super(e);
-  }
-
-  private void setContent(byte[] content) {
-    if (content != null) {
-      // Limit size of the string.
-      int maxIndex = Math.min(content.length, 255);
-      this.content = new String(content, 0, maxIndex, StandardCharsets.UTF_8);
-    }
-  }
-
-  @Override
-  public String getMessage() {
+  private static String toMessage(String message, byte[] content, Type[] valueTypes) {
     if (content == null && valueTypes == null) {
-      return super.getMessage();
+      return message;
     }
-    return super.getMessage()
-        + " when parsing:\""
-        + content
-        + "\" into following types: "
-        + Arrays.toString(valueTypes);
+    StringBuilder result = new StringBuilder();
+    if (message != null && message.length() > 0) {
+      result.append(message);
+      result.append(" ");
+    }
+    result.append("when parsing:\"");
+    result.append(truncateContent(content));
+    result.append("\" into following types: ");
+    result.append(Arrays.toString(valueTypes));
+    return result.toString();
+  }
+
+  private static String truncateContent(byte[] content) {
+    if (content == null) {
+      return "";
+    }
+    // Limit size of the string.
+    int maxIndex = Math.min(content.length, 255);
+    return new String(content, 0, maxIndex, StandardCharsets.UTF_8);
   }
 }
