@@ -20,17 +20,17 @@ package com.uber.cadence.workflow;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 import com.uber.cadence.client.WorkflowClient;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.internal.metrics.MetricsTag;
+import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.testing.TestEnvironmentOptions;
 import com.uber.cadence.testing.TestEnvironmentOptions.Builder;
 import com.uber.cadence.testing.TestWorkflowEnvironment;
 import com.uber.cadence.worker.Worker;
+import com.uber.cadence.workflow.interceptors.SignalWorkflowInterceptor;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.StatsReporter;
@@ -38,7 +38,8 @@ import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
 import java.time.Duration;
 import java.util.Map;
-import org.junit.Before;
+import java.util.function.Function;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestWatcher;
@@ -103,21 +104,79 @@ public class MetricsTest {
     }
   }
 
-  @Before
-  public void setUp() {
+  public interface ReceiveSignalObjectChildWorkflow {
+
+    @WorkflowMethod
+    String execute();
+
+    @SignalMethod(name = "testSignal")
+    void signal(Signal arg);
+
+    @SignalMethod(name = "endWorkflow")
+    void close();
+  }
+
+  public static class ReceiveSignalObjectChildWorkflowImpl implements ReceiveSignalObjectChildWorkflow {
+    private String receivedSignal = "Initial State";
+    // Keep workflow open so that we can send signal
+    CompletablePromise<Void> promise = Workflow.newPromise();
+    @Override
+    public String execute() {
+      promise.get();
+      return receivedSignal;
+    }
+
+    @Override
+    public void signal(Signal arg) {
+      receivedSignal = arg.value;
+    }
+
+    @Override
+    public void close() {
+      promise.complete(null);
+    }
+  }
+
+  public interface SendSignalObjectWorkflow {
+
+    @WorkflowMethod
+    String execute();
+  }
+
+  public static class SendSignalObjectWorkflowImpl implements SendSignalObjectWorkflow {
+    @Override
+    public String execute() {
+      ReceiveSignalObjectChildWorkflow child =
+              Workflow.newChildWorkflowStub(ReceiveSignalObjectChildWorkflow.class);
+      Promise<String> greeting = Async.function(child::execute);
+      Signal sig = new Signal();
+      sig.value = "Hello World";
+      child.signal(sig);
+      child.close();
+      return greeting.get();
+    }
+  }
+
+  public static class Signal {
+
+    public String value;
+  }
+
+  public void setUp(com.uber.m3.util.Duration reportingFrequecy){
     reporter = mock(StatsReporter.class);
     Scope scope =
-        new RootScopeBuilder()
-            .reporter(reporter)
-            .reportEvery(com.uber.m3.util.Duration.ofMillis(10));
+            new RootScopeBuilder()
+                    .reporter(reporter)
+                    .reportEvery(reportingFrequecy);
 
     TestEnvironmentOptions testOptions =
-        new Builder().setDomain(WorkflowTest.DOMAIN).setMetricsScope(scope).build();
+            new Builder().setDomain(WorkflowTest.DOMAIN).setMetricsScope(scope).build();
     testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
   }
 
   @Test
   public void testWorkflowMetrics() throws InterruptedException {
+    setUp(com.uber.m3.util.Duration.ofMillis(10));
 
     Worker worker = testEnvironment.newWorker(taskList);
     worker.registerWorkflowImplementationTypes(
@@ -157,5 +216,51 @@ public class MetricsTest {
     assertTrue(
         sleepDuration.toString(),
         sleepDuration.compareTo(com.uber.m3.util.Duration.ofMillis(3100)) < 0);
+  }
+
+  @Test
+  public void testCorruptedSignalMetrics() throws InterruptedException {
+    setUp(com.uber.m3.util.Duration.ofMillis(300));
+
+    Worker worker = testEnvironment.newWorker(taskList, builder ->
+            builder.setInterceptorFactory(new CorruptedSignalWorkflowInterceptorFactory()));
+
+    worker.registerWorkflowImplementationTypes(
+            SendSignalObjectWorkflowImpl.class, ReceiveSignalObjectChildWorkflowImpl.class);
+    worker.start();
+
+    WorkflowOptions options =
+            new WorkflowOptions.Builder()
+                    .setExecutionStartToCloseTimeout(Duration.ofSeconds(1000))
+                    .setTaskList(taskList)
+                    .build();
+
+    WorkflowClient workflowClient = testEnvironment.newWorkflowClient();
+    SendSignalObjectWorkflow workflow = workflowClient.newWorkflowStub(SendSignalObjectWorkflow.class, options);
+    workflow.execute();
+
+    //Wait for reporter
+    Thread.sleep(600);
+
+    Map<String, String> tags =
+            new ImmutableMap.Builder<String, String>(2)
+                    .put(MetricsTag.DOMAIN, WorkflowTest.DOMAIN)
+                    .put(MetricsTag.TASK_LIST, taskList)
+                    .build();
+    verify(reporter, times(1)).reportCounter(MetricsType.CORRUPTED_SIGNALS_COUNTER, tags, 2);
+  }
+
+  private static class CorruptedSignalWorkflowInterceptorFactory
+          implements Function<WorkflowInterceptor, WorkflowInterceptor> {
+
+      @Override
+      public WorkflowInterceptor apply(WorkflowInterceptor next) {
+          return new SignalWorkflowInterceptor(args -> {
+                      if(args != null && args.length > 0){
+                          return new Object [] {"Corrupted Signal"};
+                      }
+                      return args;
+                  }, sig->sig, next);
+      }
   }
 }

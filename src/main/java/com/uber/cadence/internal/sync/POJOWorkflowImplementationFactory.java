@@ -23,6 +23,7 @@ import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.converter.DataConverterException;
 import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.internal.common.InternalUtils;
+import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.internal.replay.ReplayWorkflow;
 import com.uber.cadence.internal.replay.ReplayWorkflowFactory;
 import com.uber.cadence.internal.worker.WorkflowExecutionException;
@@ -35,6 +36,7 @@ import com.uber.cadence.workflow.Workflow;
 import com.uber.cadence.workflow.WorkflowInfo;
 import com.uber.cadence.workflow.WorkflowInterceptor;
 import com.uber.cadence.workflow.WorkflowMethod;
+import com.uber.m3.tally.Scope;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -64,14 +66,17 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       Collections.synchronizedMap(new HashMap<>());
 
   private final ExecutorService threadPool;
+  private final Scope metricsScope;
 
   POJOWorkflowImplementationFactory(
       DataConverter dataConverter,
       ExecutorService threadPool,
-      Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory) {
+      Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
+      Scope metricsScope) {
     this.dataConverter = Objects.requireNonNull(dataConverter);
     this.threadPool = Objects.requireNonNull(threadPool);
     this.interceptorFactory = Objects.requireNonNull(interceptorFactory);
+    this.metricsScope = metricsScope;
   }
 
   void setWorkflowImplementationTypes(Class<?>[] workflowImplementationTypes) {
@@ -279,28 +284,36 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
                 + signalHandlers.keySet());
         return;
       }
-      Object[] args = dataConverter.fromDataArray(input, signalMethod.getGenericParameterTypes());
+
       try {
+        Object[] args = dataConverter.fromDataArray(input, signalMethod.getGenericParameterTypes());
         newInstance();
         signalMethod.invoke(workflow, args);
       } catch (IllegalAccessException e) {
         throw new Error("Failure processing \"" + signalName + "\" at eventID " + eventId, e);
+      } catch (DataConverterException e){
+        logSerializationException(signalName, eventId, e);
       } catch (InvocationTargetException e) {
         Throwable targetException = e.getTargetException();
         if (targetException instanceof DataConverterException) {
-          log.error(
-              "Failure deserializing signal input for \""
-                  + signalName
-                  + "\" at eventID "
-                  + eventId
-                  + ". Dropping it.",
-              targetException);
+          logSerializationException(signalName, eventId, (DataConverterException)targetException);
         } else {
           throw new Error(
               "Failure processing \"" + signalName + "\" at eventID " + eventId, targetException);
         }
       }
     }
+  }
+
+  void logSerializationException(String signalName, Long eventId, DataConverterException exception){
+    log.error(
+            "Failure deserializing signal input for \""
+                    + signalName
+                    + "\" at eventID "
+                    + eventId
+                    + ". Dropping it.",
+            exception);
+    metricsScope.counter(MetricsType.CORRUPTED_SIGNALS_COUNTER).inc(1);
   }
 
   static WorkflowExecutionException mapToWorkflowExecutionException(

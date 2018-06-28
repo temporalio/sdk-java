@@ -86,6 +86,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
 import org.apache.thrift.TException;
 import org.apache.thrift.async.AsyncMethodCallback;
 import org.slf4j.Logger;
@@ -111,16 +112,22 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
 
   @Override
   public Worker newWorker(String taskList) {
+    return newWorker(taskList, x->x);
+  }
+
+  @Override
+  public Worker newWorker(String taskList, Function<WorkerOptions.Builder,WorkerOptions.Builder> overrideOptions) {
     WorkerOptions.Builder builder =
-        new WorkerOptions.Builder()
-            .setInterceptorFactory(testEnvironmentOptions.getInterceptorFactory())
-            .setMetricsScope(testEnvironmentOptions.getMetricsScope())
-            .setEnableLoggingInReplay(testEnvironmentOptions.isLoggingEnabledInReplay());
+            new WorkerOptions.Builder()
+                    .setInterceptorFactory(testEnvironmentOptions.getInterceptorFactory())
+                    .setMetricsScope(testEnvironmentOptions.getMetricsScope())
+                    .setEnableLoggingInReplay(testEnvironmentOptions.isLoggingEnabledInReplay());
     if (testEnvironmentOptions.getDataConverter() != null) {
       builder.setDataConverter(testEnvironmentOptions.getDataConverter());
     }
+    builder = overrideOptions.apply(builder);
     Worker result =
-        new Worker(service, testEnvironmentOptions.getDomain(), taskList, builder.build());
+            new Worker(service, testEnvironmentOptions.getDomain(), taskList, builder.build());
     workers.add(result);
     return result;
   }
