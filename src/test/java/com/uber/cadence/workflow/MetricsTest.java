@@ -240,7 +240,7 @@ public class MetricsTest {
     workflow.execute();
 
     //Wait for reporter
-    Thread.sleep(500);
+    Thread.sleep(600);
 
     Map<String, String> tags =
             new ImmutableMap.Builder<String, String>(2)
