@@ -112,22 +112,23 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
 
   @Override
   public Worker newWorker(String taskList) {
-    return newWorker(taskList, x->x);
+    return newWorker(taskList, x -> x);
   }
 
   @Override
-  public Worker newWorker(String taskList, Function<WorkerOptions.Builder,WorkerOptions.Builder> overrideOptions) {
+  public Worker newWorker(
+      String taskList, Function<WorkerOptions.Builder, WorkerOptions.Builder> overrideOptions) {
     WorkerOptions.Builder builder =
-            new WorkerOptions.Builder()
-                    .setInterceptorFactory(testEnvironmentOptions.getInterceptorFactory())
-                    .setMetricsScope(testEnvironmentOptions.getMetricsScope())
-                    .setEnableLoggingInReplay(testEnvironmentOptions.isLoggingEnabledInReplay());
+        new WorkerOptions.Builder()
+            .setInterceptorFactory(testEnvironmentOptions.getInterceptorFactory())
+            .setMetricsScope(testEnvironmentOptions.getMetricsScope())
+            .setEnableLoggingInReplay(testEnvironmentOptions.isLoggingEnabledInReplay());
     if (testEnvironmentOptions.getDataConverter() != null) {
       builder.setDataConverter(testEnvironmentOptions.getDataConverter());
     }
     builder = overrideOptions.apply(builder);
     Worker result =
-            new Worker(service, testEnvironmentOptions.getDomain(), taskList, builder.build());
+        new Worker(service, testEnvironmentOptions.getDomain(), taskList, builder.build());
     workers.add(result);
     return result;
   }

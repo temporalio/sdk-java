@@ -39,7 +39,6 @@ import com.uber.m3.util.ImmutableMap;
 import java.time.Duration;
 import java.util.Map;
 import java.util.function.Function;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestWatcher;
@@ -116,10 +115,12 @@ public class MetricsTest {
     void close();
   }
 
-  public static class ReceiveSignalObjectChildWorkflowImpl implements ReceiveSignalObjectChildWorkflow {
+  public static class ReceiveSignalObjectChildWorkflowImpl
+      implements ReceiveSignalObjectChildWorkflow {
     private String receivedSignal = "Initial State";
     // Keep workflow open so that we can send signal
     CompletablePromise<Void> promise = Workflow.newPromise();
+
     @Override
     public String execute() {
       promise.get();
@@ -147,7 +148,7 @@ public class MetricsTest {
     @Override
     public String execute() {
       ReceiveSignalObjectChildWorkflow child =
-              Workflow.newChildWorkflowStub(ReceiveSignalObjectChildWorkflow.class);
+          Workflow.newChildWorkflowStub(ReceiveSignalObjectChildWorkflow.class);
       Promise<String> greeting = Async.function(child::execute);
       Signal sig = new Signal();
       sig.value = "Hello World";
@@ -162,15 +163,12 @@ public class MetricsTest {
     public String value;
   }
 
-  public void setUp(com.uber.m3.util.Duration reportingFrequecy){
+  public void setUp(com.uber.m3.util.Duration reportingFrequecy) {
     reporter = mock(StatsReporter.class);
-    Scope scope =
-            new RootScopeBuilder()
-                    .reporter(reporter)
-                    .reportEvery(reportingFrequecy);
+    Scope scope = new RootScopeBuilder().reporter(reporter).reportEvery(reportingFrequecy);
 
     TestEnvironmentOptions testOptions =
-            new Builder().setDomain(WorkflowTest.DOMAIN).setMetricsScope(scope).build();
+        new Builder().setDomain(WorkflowTest.DOMAIN).setMetricsScope(scope).build();
     testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
   }
 
@@ -222,45 +220,52 @@ public class MetricsTest {
   public void testCorruptedSignalMetrics() throws InterruptedException {
     setUp(com.uber.m3.util.Duration.ofMillis(300));
 
-    Worker worker = testEnvironment.newWorker(taskList, builder ->
-            builder.setInterceptorFactory(new CorruptedSignalWorkflowInterceptorFactory()));
+    Worker worker =
+        testEnvironment.newWorker(
+            taskList,
+            builder ->
+                builder.setInterceptorFactory(new CorruptedSignalWorkflowInterceptorFactory()));
 
     worker.registerWorkflowImplementationTypes(
-            SendSignalObjectWorkflowImpl.class, ReceiveSignalObjectChildWorkflowImpl.class);
+        SendSignalObjectWorkflowImpl.class, ReceiveSignalObjectChildWorkflowImpl.class);
     worker.start();
 
     WorkflowOptions options =
-            new WorkflowOptions.Builder()
-                    .setExecutionStartToCloseTimeout(Duration.ofSeconds(1000))
-                    .setTaskList(taskList)
-                    .build();
+        new WorkflowOptions.Builder()
+            .setExecutionStartToCloseTimeout(Duration.ofSeconds(1000))
+            .setTaskList(taskList)
+            .build();
 
     WorkflowClient workflowClient = testEnvironment.newWorkflowClient();
-    SendSignalObjectWorkflow workflow = workflowClient.newWorkflowStub(SendSignalObjectWorkflow.class, options);
+    SendSignalObjectWorkflow workflow =
+        workflowClient.newWorkflowStub(SendSignalObjectWorkflow.class, options);
     workflow.execute();
 
-    //Wait for reporter
+    // Wait for reporter
     Thread.sleep(600);
 
     Map<String, String> tags =
-            new ImmutableMap.Builder<String, String>(2)
-                    .put(MetricsTag.DOMAIN, WorkflowTest.DOMAIN)
-                    .put(MetricsTag.TASK_LIST, taskList)
-                    .build();
+        new ImmutableMap.Builder<String, String>(2)
+            .put(MetricsTag.DOMAIN, WorkflowTest.DOMAIN)
+            .put(MetricsTag.TASK_LIST, taskList)
+            .build();
     verify(reporter, times(1)).reportCounter(MetricsType.CORRUPTED_SIGNALS_COUNTER, tags, 2);
   }
 
   private static class CorruptedSignalWorkflowInterceptorFactory
-          implements Function<WorkflowInterceptor, WorkflowInterceptor> {
+      implements Function<WorkflowInterceptor, WorkflowInterceptor> {
 
-      @Override
-      public WorkflowInterceptor apply(WorkflowInterceptor next) {
-          return new SignalWorkflowInterceptor(args -> {
-                      if(args != null && args.length > 0){
-                          return new Object [] {"Corrupted Signal"};
-                      }
-                      return args;
-                  }, sig->sig, next);
-      }
+    @Override
+    public WorkflowInterceptor apply(WorkflowInterceptor next) {
+      return new SignalWorkflowInterceptor(
+          args -> {
+            if (args != null && args.length > 0) {
+              return new Object[] {"Corrupted Signal"};
+            }
+            return args;
+          },
+          sig -> sig,
+          next);
+    }
   }
 }

@@ -113,7 +113,8 @@ public interface TestWorkflowEnvironment {
    * @param taskList task list to poll.
    * @param overrideOptions is used to override the default worker options.
    */
-  Worker newWorker(String taskList, Function<WorkerOptions.Builder,WorkerOptions.Builder> overrideOptions);
+  Worker newWorker(
+      String taskList, Function<WorkerOptions.Builder, WorkerOptions.Builder> overrideOptions);
 
   /** Creates a WorkflowClient that is connected to the in-memory test Cadence service. */
   WorkflowClient newWorkflowClient();
