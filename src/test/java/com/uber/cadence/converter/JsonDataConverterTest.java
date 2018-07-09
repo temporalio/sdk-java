@@ -75,6 +75,46 @@ public class JsonDataConverterTest {
     assertEquals(result.toString(), list, result);
   }
 
+  public static void threeArguments(int one, int two, String three) {}
+
+  public static void aLotOfArguments(int one, int two, String three, Object obj, int[] intArr) {}
+
+  @Test
+  public void AdditionalInputArgumentsAreIgnored() throws NoSuchMethodException {
+    Method m =
+        JsonDataConverterTest.class.getDeclaredMethod(
+            "threeArguments", int.class, int.class, String.class);
+    Type[] arg = m.getGenericParameterTypes();
+
+    DataConverter converter = JsonDataConverter.getInstance();
+    byte[] data = converter.toData(1, 2, "a string", "an extra string :o!!!");
+    @SuppressWarnings("unchecked")
+    Object[] deserializedArguments = converter.fromDataArray(data, arg);
+    assertEquals(3, deserializedArguments.length);
+    assertEquals(1, (int) deserializedArguments[0]);
+    assertEquals(2, (int) deserializedArguments[1]);
+    assertEquals("a string", deserializedArguments[2]);
+  }
+
+  @Test
+  public void MissingInputArgumentsArePopulatedWithDefaultValues() throws NoSuchMethodException {
+    Method m =
+        JsonDataConverterTest.class.getDeclaredMethod(
+            "aLotOfArguments", int.class, int.class, String.class, Object.class, int[].class);
+    Type[] arg = m.getGenericParameterTypes();
+
+    DataConverter converter = JsonDataConverter.getInstance();
+    byte[] data = converter.toData(1);
+    @SuppressWarnings("unchecked")
+    Object[] deserializedArguments = converter.fromDataArray(data, arg);
+    assertEquals(5, deserializedArguments.length);
+    assertEquals(1, (int) deserializedArguments[0]);
+    assertEquals(0, (int) deserializedArguments[1]);
+    assertEquals(null, deserializedArguments[2]);
+    assertEquals(null, deserializedArguments[3]);
+    assertEquals(null, deserializedArguments[4]);
+  }
+
   @Test
   public void testClass() {
     DataConverter converter = JsonDataConverter.getInstance();
