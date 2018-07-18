@@ -9,7 +9,7 @@ If you are authoring in Go, see [Go Cadence Client](https://github.com/uber-go/c
 
 ## Samples
 
-For samples, see [Samples for the Java Cadence client](https://github.com/mfateev/uber-java-cadence-samples).
+For samples, see [Samples for the Java Cadence client](https://github.com/uber/cadence-java-samples).
 
 ## Run Cadence Server
 
@@ -31,12 +31,12 @@ Add *cadence-client* as a dependency to your *pom.xml*:
     <dependency>
       <groupId>com.uber.cadence</groupId>
       <artifactId>cadence-client</artifactId>
-      <version>0.1.0</version>
+      <version>1.0.5</version>
     </dependency>
     
 or to *build.gradle*:
 
-    compile group: 'com.uber.cadence', name: 'cadence-client', version: '0.1.0'
+    compile group: 'com.uber.cadence', name: 'cadence-client', version: '1.0.5'
     
 # Overview
 
