@@ -65,9 +65,9 @@ final class PollTask<T> implements Poller.ThrowingRunnable {
     this.handler = handler;
     taskExecutor =
         new ThreadPoolExecutor(
+            0,
             options.getTaskExecutorThreadPoolSize(),
-            options.getTaskExecutorThreadPoolSize(),
-            10,
+            1,
             TimeUnit.SECONDS,
             new SynchronousQueue<>());
     taskExecutor.setThreadFactory(

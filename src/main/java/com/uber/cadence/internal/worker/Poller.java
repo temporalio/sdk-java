@@ -180,22 +180,17 @@ final class Poller implements SuspendableWorker {
       // not started yet.
       return true;
     }
-    boolean result = pollExecutor.awaitTermination(timeout, unit);
-    log.info("awaitTermination done");
-    return result;
+    return pollExecutor.awaitTermination(timeout, unit);
   }
 
   @Override
   public boolean shutdownAndAwaitTermination(long timeout, TimeUnit unit)
       throws InterruptedException {
-    log.info("shutdownAndAwaitTermination poller=" + this.options.getPollThreadNamePrefix());
     if (!isStarted()) {
       return true;
     }
     pollExecutor.shutdownNow();
-    boolean result = pollExecutor.awaitTermination(timeout, unit);
-    log.info("shutdownAndAwaitTermination done");
-    return result;
+    return pollExecutor.awaitTermination(timeout, unit);
   }
 
   @Override

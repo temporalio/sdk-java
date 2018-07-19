@@ -1173,9 +1173,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setQuery(queryRequest.getQuery());
     TaskListId taskListId =
         new TaskListId(queryRequest.getDomain(), startRequest.getTaskList().getName());
-    store.sendQueryTask(executionId, taskListId, task);
     CompletableFuture<QueryWorkflowResponse> result = new CompletableFuture<>();
     queries.put(queryId.getQueryId(), result);
+    store.sendQueryTask(executionId, taskListId, task);
     try {
       return result.get();
     } catch (InterruptedException e) {

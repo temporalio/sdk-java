@@ -30,6 +30,7 @@ import java.lang.reflect.Type;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
 /** Workflow worker that supports POJO workflow implementations. */
@@ -38,6 +39,7 @@ public class SyncWorkflowWorker {
   private final WorkflowWorker worker;
   private final POJOWorkflowImplementationFactory factory;
   private final SingleWorkerOptions options;
+  private final AtomicInteger workflowThreadCounter = new AtomicInteger();
 
   public SyncWorkflowWorker(
       IWorkflowService service,
@@ -48,11 +50,9 @@ public class SyncWorkflowWorker {
       int workflowThreadPoolSize) {
     ThreadPoolExecutor workflowThreadPool =
         new ThreadPoolExecutor(
-            workflowThreadPoolSize,
-            workflowThreadPoolSize,
-            10,
-            TimeUnit.SECONDS,
-            new SynchronousQueue<>());
+            0, workflowThreadPoolSize, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
+    workflowThreadPool.setThreadFactory(
+        r -> new Thread(r, "workflow-thread-" + workflowThreadCounter.incrementAndGet()));
     factory =
         new POJOWorkflowImplementationFactory(
             options.getDataConverter(),

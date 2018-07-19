@@ -25,7 +25,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import com.googlecode.junittoolbox.ParallelParameterized;
 import com.uber.cadence.SignalExternalWorkflowExecutionFailedCause;
 import com.uber.cadence.TimeoutType;
 import com.uber.cadence.WorkflowExecution;
@@ -60,20 +59,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.time.Duration;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Queue;
-import java.util.Random;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -99,12 +85,13 @@ import org.junit.rules.TestWatcher;
 import org.junit.rules.Timeout;
 import org.junit.runner.Description;
 import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@RunWith(ParallelParameterized.class)
+@RunWith(Parameterized.class)
 public class WorkflowTest {
 
   /**
@@ -132,7 +119,7 @@ public class WorkflowTest {
 
   @Rule
   public Timeout globalTimeout =
-      Timeout.seconds(DEBUGGER_TIMEOUTS ? 500 : (skipDockerService ? 3 : 20));
+      Timeout.seconds(DEBUGGER_TIMEOUTS ? 500 : (skipDockerService ? 5 : 20));
 
   @Rule
   public TestWatcher watchman =
@@ -251,7 +238,7 @@ public class WorkflowTest {
 
   @After
   public void tearDown() throws Throwable {
-    worker.shutdown(Duration.ofMillis(1));
+    worker.shutdown(Duration.ofMinutes(1));
     activitiesImpl.close();
     if (testEnvironment != null) {
       testEnvironment.close();
@@ -2581,14 +2568,15 @@ public class WorkflowTest {
     final List<String> invocations = Collections.synchronizedList(new ArrayList<>());
     final List<String> procResult = Collections.synchronizedList(new ArrayList<>());
     private final ThreadPoolExecutor executor =
-        new ThreadPoolExecutor(2, 100, 1, TimeUnit.MINUTES, new LinkedBlockingQueue<>());
+        new ThreadPoolExecutor(0, 100, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
     private TestActivitiesImpl(ActivityCompletionClient completionClient) {
       this.completionClient = completionClient;
     }
 
-    void close() {
-      executor.shutdown();
+    void close() throws InterruptedException {
+      executor.shutdownNow();
+      executor.awaitTermination(1, TimeUnit.MINUTES);
     }
 
     void assertInvocations(String... expected) {

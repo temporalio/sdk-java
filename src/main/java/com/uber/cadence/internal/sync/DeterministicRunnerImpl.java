@@ -45,10 +45,7 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
@@ -121,11 +118,20 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   }
 
   DeterministicRunnerImpl(Supplier<Long> clock, Runnable root) {
-    this(
-        new ThreadPoolExecutor(0, 1000, 1, TimeUnit.MINUTES, new SynchronousQueue<>()),
-        newDummySyncDecisionContext(),
-        clock,
-        root);
+    this(getDefaultThreadPool(), newDummySyncDecisionContext(), clock, root);
+  }
+
+  private static ThreadPoolExecutor getDefaultThreadPool() {
+    ThreadPoolExecutor result =
+        new ThreadPoolExecutor(0, 1000, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
+    result.setThreadFactory(
+        new ThreadFactory() {
+          @Override
+          public Thread newThread(Runnable r) {
+            return new Thread(r, "deterministic runner thread");
+          }
+        });
+    return result;
   }
 
   DeterministicRunnerImpl(
