@@ -208,7 +208,8 @@ public class WorkflowTest {
     if (useExternalService) {
       WorkerOptions workerOptions =
           new WorkerOptions.Builder().setInterceptorFactory(tracer).build();
-      worker = new Worker(service, DOMAIN, taskList, workerOptions);
+      Worker.Factory workerFactory = new Worker.Factory(service, DOMAIN);
+      worker = workerFactory.newWorker(taskList, workerOptions);
       workflowClient = WorkflowClient.newInstance(DOMAIN);
       WorkflowClientOptions clientOptions =
           new WorkflowClientOptions.Builder()
@@ -238,7 +239,6 @@ public class WorkflowTest {
 
   @After
   public void tearDown() throws Throwable {
-    worker.shutdown(Duration.ofMinutes(1));
     activitiesImpl.close();
     if (testEnvironment != null) {
       testEnvironment.close();
@@ -260,7 +260,7 @@ public class WorkflowTest {
 
   private void startWorkerFor(Class<?>... workflowTypes) {
     worker.registerWorkflowImplementationTypes(workflowTypes);
-    worker.start();
+    testEnvironment.start();
   }
 
   void registerDelayedCallback(Duration delay, Runnable r) {
@@ -1828,7 +1828,8 @@ public class WorkflowTest {
           // Test getTrace through replay by a local worker.
           Worker queryWorker;
           if (useExternalService) {
-            queryWorker = new Worker(DOMAIN, taskList);
+            Worker.Factory workerFactory = new Worker.Factory(service, DOMAIN);
+            queryWorker = workerFactory.newWorker(taskList);
           } else {
             queryWorker = testEnvironment.newWorker(taskList);
           }

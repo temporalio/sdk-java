@@ -179,7 +179,7 @@ public class MetricsTest {
     Worker worker = testEnvironment.newWorker(taskList);
     worker.registerWorkflowImplementationTypes(
         TestMetricsInWorkflow.class, TestMetricsInChildWorkflow.class);
-    worker.start();
+    testEnvironment.start();
 
     WorkflowClient workflowClient = testEnvironment.newWorkflowClient();
     WorkflowOptions options =
@@ -228,7 +228,7 @@ public class MetricsTest {
 
     worker.registerWorkflowImplementationTypes(
         SendSignalObjectWorkflowImpl.class, ReceiveSignalObjectChildWorkflowImpl.class);
-    worker.start();
+    testEnvironment.start();
 
     WorkflowOptions options =
         new WorkflowOptions.Builder()

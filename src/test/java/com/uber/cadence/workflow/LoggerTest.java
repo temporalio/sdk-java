@@ -114,7 +114,7 @@ public class LoggerTest {
     Worker worker = env.newWorker(taskList);
     worker.registerWorkflowImplementationTypes(
         TestLoggingInWorkflow.class, TestLoggerInChildWorkflow.class);
-    worker.start();
+    env.start();
 
     WorkflowClient workflowClient = env.newWorkflowClient();
     WorkflowOptions options =

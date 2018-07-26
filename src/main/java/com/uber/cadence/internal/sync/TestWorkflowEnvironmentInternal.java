@@ -78,9 +78,6 @@ import com.uber.cadence.worker.Worker;
 import com.uber.cadence.worker.WorkerOptions;
 import java.lang.reflect.Type;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -98,7 +95,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
 
   private final TestEnvironmentOptions testEnvironmentOptions;
   private final WorkflowServiceWrapper service;
-  private final List<Worker> workers = Collections.synchronizedList(new ArrayList<>());
+  private final Worker.Factory workerFactory;
 
   public TestWorkflowEnvironmentInternal(TestEnvironmentOptions options) {
     if (options == null) {
@@ -108,6 +105,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     }
     service = new WorkflowServiceWrapper();
     service.lockTimeSkipping("TestWorkflowEnvironmentInternal constructor");
+    workerFactory = new Worker.Factory(service, options.getDomain());
   }
 
   @Override
@@ -127,9 +125,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
       builder.setDataConverter(testEnvironmentOptions.getDataConverter());
     }
     builder = overrideOptions.apply(builder);
-    Worker result =
-        new Worker(service, testEnvironmentOptions.getDomain(), taskList, builder.build());
-    workers.add(result);
+    Worker result = workerFactory.newWorker(taskList, builder.build());
     return result;
   }
 
@@ -191,14 +187,13 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
 
   @Override
   public void close() {
-    for (Worker w : workers) {
-      if (w.isStarted()) {
-        w.shutdown(Duration.ofMillis(10));
-      } else {
-        log.warn("Worker was created, but never started for taskList: " + w.getTaskList());
-      }
-    }
+    workerFactory.shutdown(Duration.ofMillis(10));
     service.close();
+  }
+
+  @Override
+  public void start() {
+    workerFactory.start();
   }
 
   private static class WorkflowServiceWrapper implements IWorkflowService {

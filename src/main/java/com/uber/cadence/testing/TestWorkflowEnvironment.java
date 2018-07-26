@@ -176,4 +176,7 @@ public interface TestWorkflowEnvironment {
    * service.
    */
   void close();
+
+  /** Starts all the workers created by the test environment instance */
+  void start();
 }
