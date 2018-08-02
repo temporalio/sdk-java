@@ -21,14 +21,10 @@ import com.uber.cadence.GetWorkflowExecutionHistoryRequest;
 import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
 import com.uber.cadence.History;
 import com.uber.cadence.HistoryEvent;
-import com.uber.cadence.InternalServiceError;
-import com.uber.cadence.PollForDecisionTaskRequest;
 import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.RespondDecisionTaskCompletedRequest;
 import com.uber.cadence.RespondDecisionTaskFailedRequest;
 import com.uber.cadence.RespondQueryTaskCompletedRequest;
-import com.uber.cadence.ServiceBusyError;
-import com.uber.cadence.TaskList;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
 import com.uber.cadence.WorkflowQuery;
@@ -96,13 +92,13 @@ public final class WorkflowWorker implements SuspendableWorker {
       }
       SingleWorkerOptions workerOptions =
           new SingleWorkerOptions.Builder(options).setPollerOptions(pollerOptions).build();
-      Poller.ThrowingRunnable pollTask =
-          new PollTask<>(service, domain, taskList, workerOptions, new TaskHandlerImpl(handler));
+
       poller =
-          new Poller(
+          new Poller<>(
+              options.getIdentity(),
+              new WorkflowPollTask(service, domain, taskList, options),
+              new PollTaskExecutor<>(domain, taskList, options, new TaskHandlerImpl(handler)),
               pollerOptions,
-              workerOptions.getIdentity(),
-              pollTask,
               workerOptions.getMetricsScope());
       poller.start();
       options.getMetricsScope().counter(MetricsType.WORKER_START_COUNTER).inc(1);
@@ -178,7 +174,8 @@ public final class WorkflowWorker implements SuspendableWorker {
     }
   }
 
-  private class TaskHandlerImpl implements PollTask.TaskHandler<PollForDecisionTaskResponse> {
+  private class TaskHandlerImpl
+      implements PollTaskExecutor.TaskHandler<PollForDecisionTaskResponse> {
 
     final DecisionTaskHandler handler;
 
@@ -187,9 +184,7 @@ public final class WorkflowWorker implements SuspendableWorker {
     }
 
     @Override
-    public void handle(
-        IWorkflowService service, String domain, String taskList, PollForDecisionTaskResponse task)
-        throws Exception {
+    public void handle(PollForDecisionTaskResponse task) throws Exception {
       MDC.put(LoggerTag.WORKFLOW_ID, task.getWorkflowExecution().getWorkflowId());
       MDC.put(LoggerTag.WORKFLOW_TYPE, task.getWorkflowType().getName());
       MDC.put(LoggerTag.RUN_ID, task.getWorkflowExecution().getRunId());
@@ -210,62 +205,6 @@ public final class WorkflowWorker implements SuspendableWorker {
         MDC.remove(LoggerTag.WORKFLOW_TYPE);
         MDC.remove(LoggerTag.RUN_ID);
       }
-    }
-
-    @Override
-    public PollForDecisionTaskResponse poll(
-        IWorkflowService service, String domain, String taskList) throws TException {
-      options.getMetricsScope().counter(MetricsType.DECISION_POLL_COUNTER).inc(1);
-      Stopwatch sw = options.getMetricsScope().timer(MetricsType.DECISION_POLL_LATENCY).start();
-
-      PollForDecisionTaskRequest pollRequest = new PollForDecisionTaskRequest();
-      pollRequest.setDomain(domain);
-      pollRequest.setIdentity(options.getIdentity());
-
-      TaskList tl = new TaskList();
-      tl.setName(taskList);
-      pollRequest.setTaskList(tl);
-
-      if (log.isDebugEnabled()) {
-        log.debug("poll request begin: " + pollRequest);
-      }
-      PollForDecisionTaskResponse result;
-      try {
-        result = service.PollForDecisionTask(pollRequest);
-      } catch (InternalServiceError | ServiceBusyError e) {
-        options
-            .getMetricsScope()
-            .counter(MetricsType.DECISION_POLL_TRANSIENT_FAILED_COUNTER)
-            .inc(1);
-        throw e;
-      } catch (TException e) {
-        options.getMetricsScope().counter(MetricsType.DECISION_POLL_FAILED_COUNTER).inc(1);
-        throw e;
-      }
-
-      if (log.isDebugEnabled()) {
-        log.debug(
-            "poll request returned decision task: workflowType="
-                + result.getWorkflowType()
-                + ", workflowExecution="
-                + result.getWorkflowExecution()
-                + ", startedEventId="
-                + result.getStartedEventId()
-                + ", previousStartedEventId="
-                + result.getPreviousStartedEventId()
-                + (result.getQuery() != null
-                    ? ", queryType=" + result.getQuery().getQueryType()
-                    : ""));
-      }
-
-      if (result == null || result.getTaskToken() == null) {
-        options.getMetricsScope().counter(MetricsType.DECISION_POLL_NO_TASK_COUNTER).inc(1);
-        return null;
-      }
-
-      options.getMetricsScope().counter(MetricsType.DECISION_POLL_SUCCEED_COUNTER).inc(1);
-      sw.stop();
-      return result;
     }
 
     @Override

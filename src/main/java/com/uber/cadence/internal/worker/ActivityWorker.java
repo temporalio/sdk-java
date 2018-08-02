@@ -17,14 +17,10 @@
 
 package com.uber.cadence.internal.worker;
 
-import com.uber.cadence.InternalServiceError;
-import com.uber.cadence.PollForActivityTaskRequest;
 import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.RespondActivityTaskCanceledRequest;
 import com.uber.cadence.RespondActivityTaskCompletedRequest;
 import com.uber.cadence.RespondActivityTaskFailedRequest;
-import com.uber.cadence.ServiceBusyError;
-import com.uber.cadence.TaskList;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.internal.common.Retryer;
@@ -88,10 +84,13 @@ public final class ActivityWorker implements SuspendableWorker {
                         + "\", type=\"activity\"")
                 .build();
       }
-      Poller.ThrowingRunnable pollTask =
-          new PollTask<>(service, domain, taskList, options, new TaskHandlerImpl(handler));
       poller =
-          new Poller(pollerOptions, options.getIdentity(), pollTask, options.getMetricsScope());
+          new Poller<>(
+              options.getIdentity(),
+              new ActivityPollTask(service, domain, taskList, options),
+              new PollTaskExecutor<>(domain, taskList, options, new TaskHandlerImpl(handler)),
+              pollerOptions,
+              options.getMetricsScope());
       poller.start();
       options.getMetricsScope().counter(MetricsType.WORKER_START_COUNTER).inc(1);
     }
@@ -150,7 +149,7 @@ public final class ActivityWorker implements SuspendableWorker {
     }
   }
 
-  private static class MeasurableActivityTask {
+  static class MeasurableActivityTask {
     PollForActivityTaskResponse task;
     Stopwatch sw;
 
@@ -164,7 +163,7 @@ public final class ActivityWorker implements SuspendableWorker {
     }
   }
 
-  private class TaskHandlerImpl implements PollTask.TaskHandler<MeasurableActivityTask> {
+  private class TaskHandlerImpl implements PollTaskExecutor.TaskHandler<MeasurableActivityTask> {
 
     final ActivityTaskHandler handler;
 
@@ -173,9 +172,7 @@ public final class ActivityWorker implements SuspendableWorker {
     }
 
     @Override
-    public void handle(
-        IWorkflowService service, String domain, String taskList, MeasurableActivityTask task)
-        throws Exception {
+    public void handle(MeasurableActivityTask task) throws Exception {
       options
           .getMetricsScope()
           .timer(MetricsType.TASK_LIST_QUEUE_LATENCY)
@@ -213,51 +210,6 @@ public final class ActivityWorker implements SuspendableWorker {
         MDC.remove(LoggerTag.WORKFLOW_ID);
         MDC.remove(LoggerTag.RUN_ID);
       }
-    }
-
-    @Override
-    public MeasurableActivityTask poll(IWorkflowService service, String domain, String taskList)
-        throws TException {
-      options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_COUNTER).inc(1);
-      Stopwatch sw = options.getMetricsScope().timer(MetricsType.ACTIVITY_POLL_LATENCY).start();
-      Stopwatch e2eSW = options.getMetricsScope().timer(MetricsType.ACTIVITY_E2E_LATENCY).start();
-
-      PollForActivityTaskRequest pollRequest = new PollForActivityTaskRequest();
-      pollRequest.setDomain(domain);
-      pollRequest.setIdentity(options.getIdentity());
-      pollRequest.setTaskList(new TaskList().setName(taskList));
-      if (log.isDebugEnabled()) {
-        log.debug("poll request begin: " + pollRequest);
-      }
-      PollForActivityTaskResponse result;
-      try {
-        result = service.PollForActivityTask(pollRequest);
-      } catch (InternalServiceError | ServiceBusyError e) {
-        options
-            .getMetricsScope()
-            .counter(MetricsType.ACTIVITY_POLL_TRANSIENT_FAILED_COUNTER)
-            .inc(1);
-        throw e;
-      } catch (TException e) {
-        options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_FAILED_COUNTER).inc(1);
-        throw e;
-      }
-
-      if (result == null || result.getTaskToken() == null) {
-        if (log.isDebugEnabled()) {
-          log.debug("poll request returned no task");
-        }
-        options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_NO_TASK_COUNTER).inc(1);
-        return null;
-      }
-
-      if (log.isTraceEnabled()) {
-        log.trace("poll request returned " + result);
-      }
-
-      options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_SUCCEED_COUNTER).inc(1);
-      sw.stop();
-      return new MeasurableActivityTask(result, e2eSW);
     }
 
     @Override
