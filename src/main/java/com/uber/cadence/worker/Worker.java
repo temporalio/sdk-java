@@ -324,7 +324,8 @@ public final class Worker {
 
     public Factory(IWorkflowService workflowService, String domain) {
       Objects.requireNonNull(workflowService, "workflowService should not be null");
-      Preconditions.checkArgument(!Strings.isNullOrEmpty(domain), "domain should not be an empty string");
+      Preconditions.checkArgument(
+          !Strings.isNullOrEmpty(domain), "domain should not be an empty string");
 
       this.workflowService = workflowService;
       this.domain = domain;
@@ -335,7 +336,8 @@ public final class Worker {
     }
 
     public Worker newWorker(String taskList, WorkerOptions options) {
-      Preconditions.checkArgument(!Strings.isNullOrEmpty(taskList), "taskList should not be an empty string");
+      Preconditions.checkArgument(
+          !Strings.isNullOrEmpty(taskList), "taskList should not be an empty string");
 
       synchronized (this) {
         Preconditions.checkState(

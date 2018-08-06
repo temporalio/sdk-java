@@ -25,8 +25,7 @@ import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class ActivityPollTask
-    implements Poller.PollTask<ActivityWorker.MeasurableActivityTask> {
+final class ActivityPollTask implements Poller.PollTask<ActivityWorker.MeasurableActivityTask> {
 
   private final IWorkflowService service;
   private final String domain;

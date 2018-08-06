@@ -17,11 +17,9 @@
 
 package com.uber.cadence.internal.worker;
 
-import com.google.common.base.Preconditions;
 import com.uber.cadence.internal.common.BackoffThrottler;
 import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.m3.tally.Scope;
-
 import java.util.Objects;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
