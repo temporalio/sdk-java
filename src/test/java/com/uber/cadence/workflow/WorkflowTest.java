@@ -25,6 +25,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.uber.cadence.SignalExternalWorkflowExecutionFailedCause;
 import com.uber.cadence.TimeoutType;
 import com.uber.cadence.WorkflowExecution;
@@ -632,6 +633,44 @@ public class WorkflowTest {
     assertTrue(stackTrace, stackTrace.contains("activityWithDelay"));
     String result = workflowStub.getResult(String.class);
     assertEquals("activity10", result);
+  }
+
+  public static class TestCancellationForWorkflowsWithFailedPromises implements TestWorkflow1 {
+
+    @Override
+    public String execute(String taskList) {
+      Promise<String> failedPromise =
+          Async.function(
+              () -> {
+                throw new UncheckedExecutionException(new Exception("Oh noo!"));
+              });
+      Promise<String> failedPromise2 =
+          Async.function(
+              () -> {
+                throw new UncheckedExecutionException(new Exception("Oh noo again!"));
+              });
+      Workflow.await(() -> false);
+      fail("unreachable");
+      return "done";
+    }
+  }
+
+  @Test
+  public void WorkflowsWithFailedPromisesCanBeCancelled() {
+    worker.registerWorkflowImplementationTypes(
+        TestCancellationForWorkflowsWithFailedPromises.class);
+    testEnvironment.start();
+    WorkflowStub client =
+        workflowClient.newUntypedWorkflowStub(
+            "TestWorkflow1::execute", newWorkflowOptionsBuilder(taskList).build());
+    client.start(taskList);
+    client.cancel();
+
+    try {
+      client.getResult(String.class);
+      fail("unreachable");
+    } catch (CancellationException ignored) {
+    }
   }
 
   @Test
