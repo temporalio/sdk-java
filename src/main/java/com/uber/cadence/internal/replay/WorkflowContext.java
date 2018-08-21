@@ -17,7 +17,6 @@
 
 package com.uber.cadence.internal.replay;
 
-import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
 
@@ -115,7 +114,6 @@ final class WorkflowContext {
   }
 
   private WorkflowExecutionStartedEventAttributes getWorkflowStartedEventAttributes() {
-    HistoryEvent firstHistoryEvent = decisionTask.getHistory().getEvents().get(0);
-    return firstHistoryEvent.getWorkflowExecutionStartedEventAttributes();
+    return startedAttributes;
   }
 }

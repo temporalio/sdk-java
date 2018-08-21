@@ -17,17 +17,7 @@
 
 package com.uber.cadence.internal.worker;
 
-import com.uber.cadence.GetWorkflowExecutionHistoryRequest;
-import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
-import com.uber.cadence.History;
-import com.uber.cadence.HistoryEvent;
-import com.uber.cadence.PollForDecisionTaskResponse;
-import com.uber.cadence.RespondDecisionTaskCompletedRequest;
-import com.uber.cadence.RespondDecisionTaskFailedRequest;
-import com.uber.cadence.RespondQueryTaskCompletedRequest;
-import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
-import com.uber.cadence.WorkflowQuery;
+import com.uber.cadence.*;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.internal.common.Retryer;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
@@ -250,23 +240,39 @@ public final class WorkflowWorker implements SuspendableWorker {
 
   private class DecisionTaskWithHistoryIteratorImpl implements DecisionTaskWithHistoryIterator {
 
-    private long start = System.currentTimeMillis();
+    private final Duration retryServiceOperationInitialInterval = Duration.ofMillis(200);
+    private final Duration retryServiceOperationMaxInterval = Duration.ofSeconds(4);
+    private final Duration paginationStart = Duration.ofMillis(System.currentTimeMillis());
+    private Duration decisionTaskStartToCloseTimeout;
+
+    private final Duration retryServiceOperationExpirationInterval() {
+      Duration passed = Duration.ofMillis(System.currentTimeMillis()).minus(paginationStart);
+      return decisionTaskStartToCloseTimeout.minus(passed);
+    }
+
     private final PollForDecisionTaskResponse task;
     private Iterator<HistoryEvent> current;
     private byte[] nextPageToken;
-    private WorkflowExecutionStartedEventAttributes startedEvent;
 
     DecisionTaskWithHistoryIteratorImpl(PollForDecisionTaskResponse task) {
       this.task = task;
       History history = task.getHistory();
-      HistoryEvent firstEvent = history.getEvents().get(0);
-      this.startedEvent = firstEvent.getWorkflowExecutionStartedEventAttributes();
-      if (this.startedEvent == null) {
-        throw new IllegalArgumentException(
-            "First event in the history is not WorkflowExecutionStarted");
-      }
       current = history.getEventsIterator();
       nextPageToken = task.getNextPageToken();
+
+      for (int i = history.events.size() - 1; i >= 0; i--) {
+        DecisionTaskScheduledEventAttributes attributes =
+            history.events.get(i).getDecisionTaskScheduledEventAttributes();
+        if (attributes != null) {
+          decisionTaskStartToCloseTimeout =
+              Duration.ofSeconds(attributes.getStartToCloseTimeoutSeconds());
+          break;
+        }
+      }
+
+      if(decisionTaskStartToCloseTimeout == null){
+        throw new IllegalArgumentException(String.format("PollForDecisionTaskResponse is missing DecisionTaskScheduled event. RunId: %s, WorkflowId: %s", task.getWorkflowExecution().runId, task.getWorkflowExecution().workflowId));
+      }
     }
 
     @Override
@@ -287,21 +293,15 @@ public final class WorkflowWorker implements SuspendableWorker {
           if (current.hasNext()) {
             return current.next();
           }
-          Duration passed = Duration.ofMillis(System.currentTimeMillis() - start);
-          Duration timeout = Duration.ofSeconds(startedEvent.getTaskStartToCloseTimeoutSeconds());
-          Duration expiration = timeout.minus(passed);
-          if (expiration.isZero() || expiration.isNegative()) {
-            throw new Error("History pagination time exceeded TaskStartToCloseTimeout");
-          }
 
           options.getMetricsScope().counter(MetricsType.WORKFLOW_GET_HISTORY_COUNTER).inc(1);
           Stopwatch sw =
               options.getMetricsScope().timer(MetricsType.WORKFLOW_GET_HISTORY_LATENCY).start();
           RetryOptions retryOptions =
               new RetryOptions.Builder()
-                  .setExpiration(expiration)
-                  .setInitialInterval(Duration.ofMillis(50))
-                  .setMaximumInterval(Duration.ofSeconds(1))
+                  .setExpiration(retryServiceOperationExpirationInterval())
+                  .setInitialInterval(retryServiceOperationInitialInterval)
+                  .setMaximumInterval(retryServiceOperationMaxInterval)
                   .build();
 
           GetWorkflowExecutionHistoryRequest request = new GetWorkflowExecutionHistoryRequest();
@@ -330,11 +330,6 @@ public final class WorkflowWorker implements SuspendableWorker {
         }
       };
     }
-
-    @Override
-    public WorkflowExecutionStartedEventAttributes getStartedEvent() {
-      return startedEvent;
-    }
   }
 
   private static class ReplayDecisionTaskWithHistoryIterator
@@ -342,23 +337,18 @@ public final class WorkflowWorker implements SuspendableWorker {
 
     private final Iterator<HistoryEvent> history;
     private final PollForDecisionTaskResponse task;
-    private final WorkflowExecutionStartedEventAttributes startedEvent;
     private HistoryEvent first;
 
     private ReplayDecisionTaskWithHistoryIterator(
         WorkflowExecution execution, Iterator<HistoryEvent> history) {
       this.history = history;
       first = history.next();
-      this.startedEvent = first.getWorkflowExecutionStartedEventAttributes();
-      if (startedEvent == null) {
-        throw new IllegalArgumentException(
-            "First history event is not WorkflowExecutionStarted, but: " + first.getEventType());
-      }
+
       task = new PollForDecisionTaskResponse();
       task.setWorkflowExecution(execution);
       task.setStartedEventId(Long.MAX_VALUE);
       task.setPreviousStartedEventId(Long.MAX_VALUE);
-      task.setWorkflowType(startedEvent.getWorkflowType());
+      task.setWorkflowType(task.getWorkflowType());
     }
 
     @Override
@@ -384,11 +374,6 @@ public final class WorkflowWorker implements SuspendableWorker {
           return history.next();
         }
       };
-    }
-
-    @Override
-    public WorkflowExecutionStartedEventAttributes getStartedEvent() {
-      return startedEvent;
     }
   }
 }

@@ -97,14 +97,15 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
   private Result handleDecisionTaskImpl(DecisionTaskWithHistoryIterator decisionTaskIterator)
       throws Throwable {
     HistoryHelper historyHelper = new HistoryHelper(decisionTaskIterator);
-    ReplayDecider decider = createDecider(historyHelper);
     PollForDecisionTaskResponse decisionTask = historyHelper.getDecisionTask();
+    ReplayDecider decider = createDecider(decisionTask);
+
     if (decisionTask.isSetQuery()) {
       RespondQueryTaskCompletedRequest queryCompletedRequest =
           new RespondQueryTaskCompletedRequest();
       queryCompletedRequest.setTaskToken(decisionTask.getTaskToken());
       try {
-        byte[] queryResult = decider.query(decisionTask.getQuery());
+        byte[] queryResult = decider.query(historyHelper, decisionTask.getQuery());
         queryCompletedRequest.setQueryResult(queryResult);
         queryCompletedRequest.setCompletedType(QueryTaskCompletedType.COMPLETED);
       } catch (Throwable e) {
@@ -117,7 +118,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
       }
       return new DecisionTaskHandler.Result(null, null, queryCompletedRequest, null);
     } else {
-      decider.decide();
+      decider.decide(historyHelper);
       DecisionsHelper decisionsHelper = decider.getDecisionsHelper();
       List<Decision> decisions = decisionsHelper.getDecisions();
       byte[] context = decisionsHelper.getWorkflowContextDataToReturn();
@@ -159,12 +160,11 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     return workflowFactory.isAnyTypeSupported();
   }
 
-  private ReplayDecider createDecider(HistoryHelper historyHelper) throws Exception {
-    PollForDecisionTaskResponse decisionTask = historyHelper.getDecisionTask();
+  private ReplayDecider createDecider(PollForDecisionTaskResponse decisionTask) throws Exception {
     WorkflowType workflowType = decisionTask.getWorkflowType();
     DecisionsHelper decisionsHelper = new DecisionsHelper(decisionTask);
     ReplayWorkflow workflow = workflowFactory.getWorkflow(workflowType);
     return new ReplayDecider(
-        domain, workflow, historyHelper, decisionsHelper, metricsScope, enableLoggingInReplay);
+        domain, workflow, decisionsHelper, metricsScope, enableLoggingInReplay);
   }
 }
