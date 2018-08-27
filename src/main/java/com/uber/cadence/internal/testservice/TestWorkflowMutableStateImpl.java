@@ -68,6 +68,7 @@ import com.uber.cadence.StartChildWorkflowExecutionDecisionAttributes;
 import com.uber.cadence.StartChildWorkflowExecutionFailedEventAttributes;
 import com.uber.cadence.StartTimerDecisionAttributes;
 import com.uber.cadence.StartWorkflowExecutionRequest;
+import com.uber.cadence.StickyExecutionAttributes;
 import com.uber.cadence.TimeoutType;
 import com.uber.cadence.WorkflowExecutionCloseStatus;
 import com.uber.cadence.WorkflowExecutionSignaledEventAttributes;
@@ -137,6 +138,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private long lastNonFailedDecisionStartEventId;
   private final Map<String, CompletableFuture<QueryWorkflowResponse>> queries =
       new ConcurrentHashMap<>();
+  public StickyExecutionAttributes stickyExecutionAttributes;
 
   /** @param parentChildInitiatedEventId id of the child initiated event in the parent history */
   TestWorkflowMutableStateImpl(
@@ -164,9 +166,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     update(false, updater, stackTraceElements[2].getMethodName());
   }
 
-  private void completeDecisionUpdate(UpdateProcedure updater)
+  private void completeDecisionUpdate(UpdateProcedure updater, StickyExecutionAttributes attributes)
       throws InternalServiceError, EntityNotExistsError, BadRequestError {
     StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
+    stickyExecutionAttributes = attributes;
     update(true, updater, stackTraceElements[2].getMethodName());
   }
 
@@ -175,11 +178,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     String callerInfo = "Decision Update from " + caller;
     lock.lock();
     LockHandle lockHandle = selfAdvancingTimer.lockTimeSkipping(callerInfo);
+
     try {
       checkCompleted();
       boolean concurrentDecision =
           !completeDecisionUpdate
               && (decision != null && decision.getState() == StateMachines.State.STARTED);
+
       RequestContext ctx = new RequestContext(clock, this, nextEventId);
       updater.apply(ctx);
       if (concurrentDecision && workflow.getState() != State.TIMED_OUT) {
@@ -232,6 +237,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
+  public StickyExecutionAttributes getStickyExecutionAttributes() {
+    return stickyExecutionAttributes;
+  }
+
+  @Override
   public void startDecisionTask(
       PollForDecisionTaskResponse task, PollForDecisionTaskRequest pollRequest)
       throws InternalServiceError, EntityNotExistsError, BadRequestError {
@@ -241,7 +251,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             long scheduledEventId = decision.getData().scheduledEventId;
             decision.action(StateMachines.Action.START, ctx, pollRequest, 0);
             ctx.addTimer(
-                startRequest.getTaskStartToCloseTimeoutSeconds(),
+                stickyExecutionAttributes != null
+                    ? stickyExecutionAttributes.getScheduleToStartTimeoutSeconds()
+                    : startRequest.getTaskStartToCloseTimeoutSeconds(),
                 () -> timeoutDecisionTask(scheduledEventId),
                 "DecisionTask StartToCloseTimeout");
           });
@@ -254,7 +266,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     List<Decision> decisions = request.getDecisions();
     completeDecisionUpdate(
         ctx -> {
-          if (ctx.getInitialEventId() != historySize) {
+          if (ctx.getInitialEventId() != historySize + 1) {
             throw new BadRequestError(
                 "Expired decision: expectedHistorySize="
                     + historySize
@@ -275,6 +287,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               ctx.add(deferredCtx);
             }
             this.concurrentToDecision.clear();
+
+            // Reset sticky execution attributes on failure
+            stickyExecutionAttributes = null;
             scheduleDecision(ctx);
             return;
           }
@@ -299,7 +314,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           }
           this.concurrentToDecision.clear();
           ctx.unlockTimer();
-        });
+        },
+        request.getStickyAttributes());
   }
 
   private boolean hasCompleteDecision(List<Decision> decisions) {
@@ -567,7 +583,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         ctx -> {
           decision.action(Action.FAIL, ctx, request, 0);
           scheduleDecision(ctx);
-        });
+        },
+        null); // reset sticky attributes to null
   }
 
   // TODO: insert a single decision timeout into the history
@@ -581,7 +598,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             }
             decision.action(StateMachines.Action.TIME_OUT, ctx, TimeoutType.START_TO_CLOSE, 0);
             scheduleDecision(ctx);
-          });
+          },
+          null); // reset sticky attributes to null
     } catch (EntityNotExistsError e) {
       // Expected as timers are not removed
     } catch (Exception e) {

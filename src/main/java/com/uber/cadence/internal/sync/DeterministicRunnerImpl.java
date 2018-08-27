@@ -284,7 +284,8 @@ class DeterministicRunnerImpl implements DeterministicRunner {
       threads.clear();
 
       // We cannot use an iterator to unregister failed Promises since f.get()
-      // will remove the promise directly from failedPromises. This causes an ConcurrentModificationException
+      // will remove the promise directly from failedPromises. This causes an
+      // ConcurrentModificationException
       // For this reason we will loop over a copy of failedPromises.
       Set<Promise> failedPromisesLoop = new HashSet<>(failedPromises);
       for (Promise f : failedPromisesLoop) {

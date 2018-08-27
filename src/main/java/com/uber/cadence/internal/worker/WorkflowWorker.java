@@ -270,8 +270,11 @@ public final class WorkflowWorker implements SuspendableWorker {
         }
       }
 
-      if(decisionTaskStartToCloseTimeout == null){
-        throw new IllegalArgumentException(String.format("PollForDecisionTaskResponse is missing DecisionTaskScheduled event. RunId: %s, WorkflowId: %s", task.getWorkflowExecution().runId, task.getWorkflowExecution().workflowId));
+      if (decisionTaskStartToCloseTimeout == null) {
+        throw new IllegalArgumentException(
+            String.format(
+                "PollForDecisionTaskResponse is missing DecisionTaskScheduled event. RunId: %s, WorkflowId: %s",
+                task.getWorkflowExecution().runId, task.getWorkflowExecution().workflowId));
       }
     }
 

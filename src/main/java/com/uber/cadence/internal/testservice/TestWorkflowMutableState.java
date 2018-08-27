@@ -48,6 +48,7 @@ import com.uber.cadence.SignalExternalWorkflowExecutionFailedCause;
 import com.uber.cadence.SignalWorkflowExecutionRequest;
 import com.uber.cadence.StartChildWorkflowExecutionFailedEventAttributes;
 import com.uber.cadence.StartWorkflowExecutionRequest;
+import com.uber.cadence.StickyExecutionAttributes;
 import com.uber.cadence.WorkflowExecutionCloseStatus;
 import com.uber.cadence.internal.testservice.TestWorkflowMutableStateImpl.QueryId;
 import java.util.Optional;
@@ -136,4 +137,6 @@ interface TestWorkflowMutableState {
 
   void completeQuery(QueryId queryId, RespondQueryTaskCompletedRequest completeRequest)
       throws EntityNotExistsError;
+
+  StickyExecutionAttributes getStickyExecutionAttributes();
 }

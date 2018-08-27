@@ -74,7 +74,7 @@ import org.slf4j.LoggerFactory;
 public class WorkflowTestingTest {
   private static final Logger log = LoggerFactory.getLogger(WorkflowTestingTest.class);
 
-  @Rule public Timeout globalTimeout = Timeout.seconds(5);
+  @Rule public Timeout globalTimeout = Timeout.seconds(5000);
 
   @Rule
   public TestWatcher watchman =

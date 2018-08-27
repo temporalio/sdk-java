@@ -149,6 +149,7 @@ public class WorkflowTest {
 
   private String taskList;
 
+  private Worker.Factory workerFactory;
   private Worker worker;
   private TestActivitiesImpl activitiesImpl;
   private WorkflowClient workflowClient;
@@ -209,7 +210,7 @@ public class WorkflowTest {
     if (useExternalService) {
       WorkerOptions workerOptions =
           new WorkerOptions.Builder().setInterceptorFactory(tracer).build();
-      Worker.Factory workerFactory = new Worker.Factory(service, DOMAIN);
+      workerFactory = new Worker.Factory(service, DOMAIN);
       worker = workerFactory.newWorker(taskList, workerOptions);
       workflowClient = WorkflowClient.newInstance(DOMAIN);
       WorkflowClientOptions clientOptions =
@@ -261,7 +262,11 @@ public class WorkflowTest {
 
   private void startWorkerFor(Class<?>... workflowTypes) {
     worker.registerWorkflowImplementationTypes(workflowTypes);
-    testEnvironment.start();
+    if (useExternalService) {
+      workerFactory.start();
+    } else {
+      testEnvironment.start();
+    }
   }
 
   void registerDelayedCallback(Duration delay, Runnable r) {

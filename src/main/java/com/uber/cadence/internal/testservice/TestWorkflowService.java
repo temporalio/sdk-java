@@ -266,6 +266,10 @@ public final class TestWorkflowService implements IWorkflowService {
     TestWorkflowMutableState mutableState = getMutableState(executionId);
     try {
       mutableState.startDecisionTask(task, pollRequest);
+      // The task always has the original tasklist is was created on as part of the response. This
+      // may different
+      // then the task list it was scheduled on as in the case of sticky execution.
+      task.setWorkflowExecutionTaskList(mutableState.getStartRequest().taskList);
       return task;
     } catch (EntityNotExistsError e) {
       if (log.isDebugEnabled()) {
@@ -273,6 +277,7 @@ public final class TestWorkflowService implements IWorkflowService {
       }
       // skip the task
     }
+    task.setWorkflowExecutionTaskList(mutableState.getStartRequest().taskList);
     return task;
   }
 

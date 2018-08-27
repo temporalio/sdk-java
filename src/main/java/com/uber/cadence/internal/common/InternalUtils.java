@@ -17,6 +17,8 @@
 
 package com.uber.cadence.internal.common;
 
+import com.uber.cadence.TaskList;
+import com.uber.cadence.TaskListKind;
 import com.uber.cadence.workflow.WorkflowMethod;
 import java.lang.reflect.Method;
 
@@ -62,6 +64,20 @@ public final class InternalUtils {
           "Method annotated with @WorkflowMethod is not " + "found at " + workflowInterface);
     }
     return result;
+  }
+
+  public static TaskList createStickyTaskList(String taskListName) {
+    TaskList tl = new TaskList();
+    tl.setName(taskListName);
+    tl.setKind(TaskListKind.STICKY);
+    return tl;
+  }
+
+  public static TaskList createNormalTaskList(String taskListName) {
+    TaskList tl = new TaskList();
+    tl.setName(taskListName);
+    tl.setKind(TaskListKind.NORMAL);
+    return tl;
   }
 
   /** Prohibit instantiation */

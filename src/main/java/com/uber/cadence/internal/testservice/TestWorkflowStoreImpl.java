@@ -29,6 +29,7 @@ import com.uber.cadence.PollForActivityTaskRequest;
 import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.PollForDecisionTaskRequest;
 import com.uber.cadence.PollForDecisionTaskResponse;
+import com.uber.cadence.StickyExecutionAttributes;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionInfo;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
@@ -75,7 +76,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     }
 
     private void checkNextEventId(long nextEventId) {
-      if (nextEventId != history.size()) {
+      if (nextEventId != history.size() + 1L && (nextEventId != 0 && history.size() != 0)) {
         throw new IllegalStateException(
             "NextEventId=" + nextEventId + ", historySize=" + history.size() + " for " + id);
       }
@@ -88,7 +89,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
               "Attempt to add an event after a completion event: "
                   + WorkflowExecutionUtils.prettyPrintHistoryEvent(event));
         }
-        event.setEventId(history.size());
+        event.setEventId(history.size() + 1L);
         event.setTimestamp(timeInNanos);
         history.add(event);
         completed = completed || WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(event);
@@ -97,7 +98,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     }
 
     long getNextEventIdLocked() {
-      return history.size();
+      return history.size() + 1L;
     }
 
     List<HistoryEvent> getEventsLocked() {
@@ -197,9 +198,18 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     }
     // Push tasks to the queues out of locks
     DecisionTask decisionTask = ctx.getDecisionTask();
+
     if (decisionTask != null) {
-      BlockingQueue<PollForDecisionTaskResponse> decisionsQueue =
-          getDecisionTaskListQueue(decisionTask.getTaskListId());
+      StickyExecutionAttributes attributes =
+          ctx.getWorkflowMutableState().getStickyExecutionAttributes();
+      TaskListId id =
+          new TaskListId(
+              decisionTask.getTaskListId().getDomain(),
+              attributes == null
+                  ? decisionTask.getTaskListId().getTaskListName()
+                  : attributes.getWorkerTaskList().getName());
+
+      BlockingQueue<PollForDecisionTaskResponse> decisionsQueue = getDecisionTaskListQueue(id);
       decisionsQueue.add(decisionTask.getTask());
     }
 
