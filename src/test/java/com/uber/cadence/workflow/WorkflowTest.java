@@ -1217,6 +1217,7 @@ public class WorkflowTest {
 
     @Override
     public void signal(String value) {
+      Workflow.sleep(Duration.ofSeconds(1));
       signal.complete(value);
     }
   }

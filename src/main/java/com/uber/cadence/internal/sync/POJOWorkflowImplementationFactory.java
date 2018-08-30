@@ -297,6 +297,8 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
         Throwable targetException = e.getTargetException();
         if (targetException instanceof DataConverterException) {
           logSerializationException(signalName, eventId, (DataConverterException) targetException);
+        } else if (targetException instanceof Error) {
+          throw (Error)targetException;
         } else {
           throw new Error(
               "Failure processing \"" + signalName + "\" at eventID " + eventId, targetException);
