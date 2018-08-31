@@ -27,6 +27,7 @@ import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.WorkflowInterceptor;
 import java.lang.reflect.Type;
+import java.time.Duration;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -59,7 +60,11 @@ public class SyncWorkflowWorker {
             workflowThreadPool,
             interceptorFactory,
             options.getMetricsScope());
-    DecisionTaskHandler taskHandler = new ReplayDecisionTaskHandler(domain, factory, options);
+    // TODO: cache, scheduleToStartTimeout and stickTaskList name passed in to
+    // ReplayDecisionTaskHandler will be passed via
+    // factoryOptions in future PR
+    DecisionTaskHandler taskHandler =
+        new ReplayDecisionTaskHandler(domain, factory, null, options, null, Duration.ofSeconds(5));
     worker = new WorkflowWorker(service, domain, taskList, options, taskHandler);
     this.options = options;
   }
