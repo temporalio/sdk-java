@@ -17,11 +17,13 @@
 
 package com.uber.cadence.internal.worker;
 
+import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
 import java.util.Objects;
 
-public final class PollDecisionTaskDispatcherFactory implements DispatcherFactory {
+public final class PollDecisionTaskDispatcherFactory
+    implements DispatcherFactory<String, PollForDecisionTaskResponse> {
   private IWorkflowService service = new WorkflowServiceTChannel();
   private Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
 
@@ -31,10 +33,14 @@ public final class PollDecisionTaskDispatcherFactory implements DispatcherFactor
     uncaughtExceptionHandler = handler;
   }
 
+  public PollDecisionTaskDispatcherFactory(IWorkflowService service) {
+    this.service = Objects.requireNonNull(service);
+  }
+
   public PollDecisionTaskDispatcherFactory() {}
 
   @Override
-  public Dispatcher create() {
+  public Dispatcher<String, PollForDecisionTaskResponse> create() {
     return new PollDecisionTaskDispatcher(service, uncaughtExceptionHandler);
   }
 }

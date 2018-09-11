@@ -23,14 +23,15 @@ import com.uber.cadence.*;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.internal.worker.DecisionTaskHandler;
-import com.uber.cadence.internal.worker.DecisionTaskWithHistoryIterator;
 import com.uber.cadence.internal.worker.SingleWorkerOptions;
+import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.m3.tally.Scope;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,6 +45,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
   private final Scope metricsScope;
   private final boolean enableLoggingInReplay;
   private final Duration stickyTaskListScheduleToStartTimeout;
+  private IWorkflowService service;
   private String stickyTaskListName;
 
   public ReplayDecisionTaskHandler(
@@ -52,7 +54,8 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
       DeciderCache cache,
       SingleWorkerOptions options,
       String stickyTaskListName,
-      Duration stickyTaskListScheduleToStartTimeout) {
+      Duration stickyTaskListScheduleToStartTimeout,
+      IWorkflowService service) {
     this.domain = domain;
     this.workflowFactory = asyncWorkflowFactory;
     this.cache = cache;
@@ -60,16 +63,16 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     this.enableLoggingInReplay = options.getEnableLoggingInReplay();
     this.stickyTaskListName = stickyTaskListName;
     this.stickyTaskListScheduleToStartTimeout = stickyTaskListScheduleToStartTimeout;
+    this.service = Objects.requireNonNull(service);
   }
 
   @Override
-  public DecisionTaskHandler.Result handleDecisionTask(
-      DecisionTaskWithHistoryIterator decisionTaskIterator) throws Exception {
+  public DecisionTaskHandler.Result handleDecisionTask(PollForDecisionTaskResponse decisionTask)
+      throws Exception {
     try {
-      return handleDecisionTaskImpl(decisionTaskIterator);
+      return handleDecisionTaskImpl(decisionTask);
     } catch (Throwable e) {
       metricsScope.counter(MetricsType.DECISION_EXECUTION_FAILED_COUNTER).inc(1);
-      PollForDecisionTaskResponse decisionTask = decisionTaskIterator.getDecisionTask();
       // Only fail decision on first attempt, subsequent failure on the same decision task will
       // timeout. This is to avoid spin on the failed decision task.
       if (decisionTask.getAttempt() > 0) {
@@ -101,9 +104,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     }
   }
 
-  private Result handleDecisionTaskImpl(DecisionTaskWithHistoryIterator decisionTaskIterator)
-      throws Throwable {
-    PollForDecisionTaskResponse decisionTask = decisionTaskIterator.getDecisionTask();
+  private Result handleDecisionTaskImpl(PollForDecisionTaskResponse decisionTask) throws Throwable {
 
     Decider decider =
         stickyTaskListName == null
@@ -111,9 +112,9 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
             : cache.getOrCreate(decisionTask, this::createDecider);
     try {
       if (decisionTask.isSetQuery()) {
-        return processQuery(decisionTaskIterator, (ReplayDecider) decider);
+        return processQuery(decisionTask, (ReplayDecider) decider);
       } else {
-        return processDecision(decisionTaskIterator, (ReplayDecider) decider);
+        return processDecision(decisionTask, (ReplayDecider) decider);
       }
     } catch (Exception e) {
       if (stickyTaskListName != null) {
@@ -127,13 +128,11 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     }
   }
 
-  private Result processDecision(
-      DecisionTaskWithHistoryIterator decisionTaskIterator, ReplayDecider decider)
+  private Result processDecision(PollForDecisionTaskResponse decisionTask, ReplayDecider decider)
       throws Throwable {
-    decider.decide(decisionTaskIterator);
+    decider.decide(decisionTask);
     DecisionsHelper decisionsHelper = decider.getDecisionsHelper();
     List<Decision> decisions = decisionsHelper.getDecisions();
-    PollForDecisionTaskResponse decisionTask = decisionTaskIterator.getDecisionTask();
 
     if (log.isTraceEnabled()) {
       WorkflowExecution execution = decisionTask.getWorkflowExecution();
@@ -163,13 +162,11 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     return createCompletedRequest(decisionTask, decisionsHelper, decisions);
   }
 
-  private Result processQuery(
-      DecisionTaskWithHistoryIterator decisionTaskIterator, ReplayDecider decider) {
-    PollForDecisionTaskResponse decisionTask = decisionTaskIterator.getDecisionTask();
+  private Result processQuery(PollForDecisionTaskResponse decisionTask, ReplayDecider decider) {
     RespondQueryTaskCompletedRequest queryCompletedRequest = new RespondQueryTaskCompletedRequest();
     queryCompletedRequest.setTaskToken(decisionTask.getTaskToken());
     try {
-      byte[] queryResult = decider.query(decisionTaskIterator, decisionTask.getQuery());
+      byte[] queryResult = decider.query(decisionTask, decisionTask.getQuery());
       queryCompletedRequest.setQueryResult(queryResult);
       queryCompletedRequest.setCompletedType(QueryTaskCompletedType.COMPLETED);
     } catch (Throwable e) {
@@ -214,6 +211,6 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     DecisionsHelper decisionsHelper = new DecisionsHelper(decisionTask);
     ReplayWorkflow workflow = workflowFactory.getWorkflow(workflowType);
     return new ReplayDecider(
-        domain, workflow, decisionsHelper, metricsScope, enableLoggingInReplay);
+        service, domain, workflow, decisionsHelper, metricsScope, enableLoggingInReplay);
   }
 }

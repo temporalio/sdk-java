@@ -17,8 +17,10 @@
 
 package com.uber.cadence.internal.sync;
 
+import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.converter.DataConverter;
+import com.uber.cadence.internal.replay.DeciderCache;
 import com.uber.cadence.internal.replay.ReplayDecisionTaskHandler;
 import com.uber.cadence.internal.worker.DecisionTaskHandler;
 import com.uber.cadence.internal.worker.SingleWorkerOptions;
@@ -28,19 +30,18 @@ import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.WorkflowInterceptor;
 import java.lang.reflect.Type;
 import java.time.Duration;
-import java.util.concurrent.SynchronousQueue;
+import java.util.Objects;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /** Workflow worker that supports POJO workflow implementations. */
-public class SyncWorkflowWorker {
+public class SyncWorkflowWorker implements Consumer<PollForDecisionTaskResponse> {
 
   private final WorkflowWorker worker;
   private final POJOWorkflowImplementationFactory factory;
   private final SingleWorkerOptions options;
-  private final AtomicInteger workflowThreadCounter = new AtomicInteger();
 
   public SyncWorkflowWorker(
       IWorkflowService service,
@@ -48,23 +49,28 @@ public class SyncWorkflowWorker {
       String taskList,
       Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
       SingleWorkerOptions options,
-      int workflowThreadPoolSize) {
-    ThreadPoolExecutor workflowThreadPool =
-        new ThreadPoolExecutor(
-            0, workflowThreadPoolSize, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
-    workflowThreadPool.setThreadFactory(
-        r -> new Thread(r, "workflow-thread-" + workflowThreadCounter.incrementAndGet()));
+      DeciderCache cache,
+      String stickyTaskListName,
+      Duration stickyDecisionScheduleToStartTimeout,
+      ThreadPoolExecutor workflowThreadPool) {
+    Objects.requireNonNull(workflowThreadPool);
+
     factory =
         new POJOWorkflowImplementationFactory(
             options.getDataConverter(),
             workflowThreadPool,
             interceptorFactory,
             options.getMetricsScope());
-    // TODO: cache, scheduleToStartTimeout and stickTaskList name passed in to
-    // ReplayDecisionTaskHandler will be passed via
-    // factoryOptions in future PR
     DecisionTaskHandler taskHandler =
-        new ReplayDecisionTaskHandler(domain, factory, null, options, null, Duration.ofSeconds(5));
+        new ReplayDecisionTaskHandler(
+            domain,
+            factory,
+            cache,
+            options,
+            stickyTaskListName,
+            stickyDecisionScheduleToStartTimeout,
+            service);
+
     worker = new WorkflowWorker(service, domain, taskList, options, taskHandler);
     this.options = options;
   }
@@ -121,5 +127,10 @@ public class SyncWorkflowWorker {
     byte[] serializedArgs = dataConverter.toData(args);
     byte[] result = worker.queryWorkflowExecution(execution, queryType, serializedArgs);
     return dataConverter.fromData(result, resultClass, resultType);
+  }
+
+  @Override
+  public void accept(PollForDecisionTaskResponse pollForDecisionTaskResponse) {
+    worker.accept(pollForDecisionTaskResponse);
   }
 }

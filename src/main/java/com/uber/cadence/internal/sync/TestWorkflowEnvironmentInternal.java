@@ -105,7 +105,8 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     }
     service = new WorkflowServiceWrapper();
     service.lockTimeSkipping("TestWorkflowEnvironmentInternal constructor");
-    workerFactory = new Worker.Factory(service, options.getDomain());
+    workerFactory =
+        new Worker.Factory(service, options.getDomain(), options.getWorkerFactoryOptions());
   }
 
   @Override
@@ -194,6 +195,11 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   @Override
   public void start() {
     workerFactory.start();
+  }
+
+  @Override
+  public Worker.Factory getWorkerFactory() {
+    return workerFactory;
   }
 
   private static class WorkflowServiceWrapper implements IWorkflowService {

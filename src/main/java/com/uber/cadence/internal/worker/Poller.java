@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
 
 public final class Poller<T> implements SuspendableWorker {
 
-  interface PollTask<TT> {
+  public interface PollTask<TT> {
     TT poll() throws TException;
   }
 
@@ -54,7 +54,7 @@ public final class Poller<T> implements SuspendableWorker {
   private Thread.UncaughtExceptionHandler uncaughtExceptionHandler =
       (t, e) -> log.error("Failure in thread " + t.getName(), e);
 
-  Poller(
+  public Poller(
       String identity,
       PollTask<T> pollTask,
       Consumer<T> consumer,

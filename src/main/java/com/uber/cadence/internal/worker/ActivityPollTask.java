@@ -17,7 +17,11 @@
 
 package com.uber.cadence.internal.worker;
 
-import com.uber.cadence.*;
+import com.uber.cadence.InternalServiceError;
+import com.uber.cadence.PollForActivityTaskRequest;
+import com.uber.cadence.PollForActivityTaskResponse;
+import com.uber.cadence.ServiceBusyError;
+import com.uber.cadence.TaskList;
 import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.m3.tally.Stopwatch;

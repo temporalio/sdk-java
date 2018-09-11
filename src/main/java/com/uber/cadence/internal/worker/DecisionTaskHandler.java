@@ -17,11 +17,11 @@
 
 package com.uber.cadence.internal.worker;
 
+import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.RespondDecisionTaskCompletedRequest;
 import com.uber.cadence.RespondDecisionTaskFailedRequest;
 import com.uber.cadence.RespondQueryTaskCompletedRequest;
 import com.uber.cadence.common.RetryOptions;
-import java.util.Iterator;
 
 /**
  * Interface of workflow task handlers.
@@ -82,14 +82,11 @@ public interface DecisionTaskHandler {
    * Handles a single workflow task. Shouldn't throw any exceptions. A compliant implementation
    * should return any unexpected errors as RespondDecisionTaskFailedRequest.
    *
-   * @param decisionTaskIterator The decision task to handle. Iterator wraps the task to support
-   *     pagination of the history. The events are loaded lazily when history iterator next is
-   *     called. It is expected that the method implementation aborts decision by rethrowing any
-   *     exception from {@link Iterator#next()}.
+   * @param decisionTask The decision task to handle.
    * @return One of the possible decision task replies: RespondDecisionTaskCompletedRequest,
    *     RespondQueryTaskCompletedRequest, RespondDecisionTaskFailedRequest
    */
-  Result handleDecisionTask(DecisionTaskWithHistoryIterator decisionTaskIterator) throws Exception;
+  Result handleDecisionTask(PollForDecisionTaskResponse decisionTask) throws Exception;
 
   /** True if this handler handles at least one workflow type. */
   boolean isAnyTypeSupported();

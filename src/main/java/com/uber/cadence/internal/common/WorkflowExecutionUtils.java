@@ -553,12 +553,34 @@ public class WorkflowExecutionUtils {
     return instanceMetadata;
   }
 
+  public static GetWorkflowExecutionHistoryResponse getHistoryPage(
+      byte[] nextPageToken,
+      IWorkflowService service,
+      String domain,
+      WorkflowExecution workflowExecution) {
+
+    GetWorkflowExecutionHistoryRequest getHistoryRequest = new GetWorkflowExecutionHistoryRequest();
+    getHistoryRequest.setDomain(domain);
+    getHistoryRequest.setExecution(workflowExecution);
+    getHistoryRequest.setNextPageToken(nextPageToken);
+
+    GetWorkflowExecutionHistoryResponse history;
+    try {
+      history = service.GetWorkflowExecutionHistory(getHistoryRequest);
+    } catch (TException e) {
+      throw new Error(e);
+    }
+    if (history == null) {
+      throw new IllegalArgumentException("unknown workflow execution: " + workflowExecution);
+    }
+    return history;
+  }
+
   /** Returns workflow instance history in a human readable format. */
   public static String prettyPrintHistory(
       IWorkflowService service, String domain, WorkflowExecution workflowExecution) {
     return prettyPrintHistory(service, domain, workflowExecution, true);
   }
-
   /**
    * Returns workflow instance history in a human readable format.
    *
@@ -605,29 +627,6 @@ public class WorkflowExecutionUtils {
         nextPageToken = history.getNextPageToken();
       }
     };
-  }
-
-  public static GetWorkflowExecutionHistoryResponse getHistoryPage(
-      byte[] nextPageToken,
-      IWorkflowService service,
-      String domain,
-      WorkflowExecution workflowExecution) {
-
-    GetWorkflowExecutionHistoryRequest getHistoryRequest = new GetWorkflowExecutionHistoryRequest();
-    getHistoryRequest.setDomain(domain);
-    getHistoryRequest.setExecution(workflowExecution);
-    getHistoryRequest.setNextPageToken(nextPageToken);
-
-    GetWorkflowExecutionHistoryResponse history;
-    try {
-      history = service.GetWorkflowExecutionHistory(getHistoryRequest);
-    } catch (TException e) {
-      throw new Error(e);
-    }
-    if (history == null) {
-      throw new IllegalArgumentException("unknown workflow execution: " + workflowExecution);
-    }
-    return history;
   }
 
   /**

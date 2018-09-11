@@ -17,16 +17,15 @@
 
 package com.uber.cadence.internal.replay;
 
+import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.WorkflowQuery;
-import com.uber.cadence.internal.worker.DecisionTaskWithHistoryIterator;
 
 public interface Decider {
 
   // TODO: refactor in future CR. Merge methods and decide should return a list of decisions.
-  void decide(DecisionTaskWithHistoryIterator iterator) throws Throwable;
+  void decide(PollForDecisionTaskResponse decisionTask) throws Throwable;
 
-  byte[] query(DecisionTaskWithHistoryIterator decisionTaskIterator, WorkflowQuery query)
-      throws Throwable;
+  byte[] query(PollForDecisionTaskResponse decisionTask, WorkflowQuery query) throws Throwable;
 
   void close();
 }

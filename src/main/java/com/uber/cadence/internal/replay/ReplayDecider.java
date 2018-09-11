@@ -18,25 +18,35 @@
 package com.uber.cadence.internal.replay;
 
 import com.uber.cadence.EventType;
+import com.uber.cadence.GetWorkflowExecutionHistoryRequest;
+import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
+import com.uber.cadence.History;
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.TimerFiredEventAttributes;
 import com.uber.cadence.WorkflowExecutionSignaledEventAttributes;
 import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
 import com.uber.cadence.WorkflowQuery;
+import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.internal.common.OptionsUtils;
+import com.uber.cadence.internal.common.Retryer;
 import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.internal.replay.HistoryHelper.DecisionEvents;
 import com.uber.cadence.internal.replay.HistoryHelper.DecisionEventsIterator;
 import com.uber.cadence.internal.worker.DecisionTaskWithHistoryIterator;
 import com.uber.cadence.internal.worker.WorkflowExecutionException;
+import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.cadence.workflow.Functions;
 import com.uber.m3.tally.Scope;
+import com.uber.m3.tally.Stopwatch;
 import java.time.Duration;
+import java.util.Iterator;
+import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,12 +58,13 @@ class ReplayDecider implements Decider {
 
   private static final Logger log = LoggerFactory.getLogger(ReplayDecider.class);
 
-  private static final int MILLION = 1000000;
+  private static final int MAXIMUM_PAGE_SIZE = 10000;
 
   private final DecisionsHelper decisionsHelper;
 
   private final DecisionContextImpl context;
 
+  private IWorkflowService service;
   private ReplayWorkflow workflow;
 
   private boolean cancelRequested;
@@ -70,18 +81,23 @@ class ReplayDecider implements Decider {
 
   private long wfStartTime = -1;
 
+  private final WorkflowExecutionStartedEventAttributes startedEvent;
+
   ReplayDecider(
+      IWorkflowService service,
       String domain,
       ReplayWorkflow workflow,
       DecisionsHelper decisionsHelper,
       Scope metricsScope,
       boolean enableLoggingInReplay) {
+    this.service = service;
     this.workflow = workflow;
     this.decisionsHelper = decisionsHelper;
     this.metricsScope = metricsScope;
     PollForDecisionTaskResponse decisionTask = decisionsHelper.getTask();
-    WorkflowExecutionStartedEventAttributes startedEvent =
-        decisionTask.getHistory().events.get(0).getWorkflowExecutionStartedEventAttributes();
+
+    startedEvent =
+        decisionTask.getHistory().getEvents().get(0).getWorkflowExecutionStartedEventAttributes();
     if (startedEvent == null) {
       throw new IllegalArgumentException(
           "First event in the history is not WorkflowExecutionStarted");
@@ -349,15 +365,16 @@ class ReplayDecider implements Decider {
   }
 
   @Override
-  public void decide(DecisionTaskWithHistoryIterator decisionTaskWithHistoryIterator)
-      throws Throwable {
-    decideImpl(decisionTaskWithHistoryIterator, null);
+  public void decide(PollForDecisionTaskResponse decisionTask) throws Throwable {
+    decideImpl(decisionTask, null);
   }
 
-  private void decideImpl(
-      DecisionTaskWithHistoryIterator decisionTaskWithHistoryIterator, Functions.Proc query)
+  private void decideImpl(PollForDecisionTaskResponse decisionTask, Functions.Proc query)
       throws Throwable {
     try {
+      DecisionTaskWithHistoryIterator decisionTaskWithHistoryIterator =
+          new DecisionTaskWithHistoryIteratorImpl(
+              decisionTask, Duration.ofSeconds(startedEvent.getTaskStartToCloseTimeoutSeconds()));
       HistoryHelper historyHelper = new HistoryHelper(decisionTaskWithHistoryIterator);
       DecisionEventsIterator iterator = historyHelper.getIterator();
       if ((decisionsHelper.getNextDecisionEventId()
@@ -419,10 +436,86 @@ class ReplayDecider implements Decider {
   }
 
   @Override
-  public byte[] query(DecisionTaskWithHistoryIterator decisionTaskIterator, WorkflowQuery query)
-      throws Throwable {
+  public byte[] query(PollForDecisionTaskResponse response, WorkflowQuery query) throws Throwable {
     AtomicReference<byte[]> result = new AtomicReference<>();
-    decideImpl(decisionTaskIterator, () -> result.set(workflow.query(query)));
+    decideImpl(response, () -> result.set(workflow.query(query)));
     return result.get();
+  }
+
+  private class DecisionTaskWithHistoryIteratorImpl implements DecisionTaskWithHistoryIterator {
+
+    private final Duration retryServiceOperationInitialInterval = Duration.ofMillis(200);
+    private final Duration retryServiceOperationMaxInterval = Duration.ofSeconds(4);
+    private final Duration paginationStart = Duration.ofMillis(System.currentTimeMillis());
+    private Duration decisionTaskStartToCloseTimeout;
+
+    private final Duration retryServiceOperationExpirationInterval() {
+      Duration passed = Duration.ofMillis(System.currentTimeMillis()).minus(paginationStart);
+      return decisionTaskStartToCloseTimeout.minus(passed);
+    }
+
+    private final PollForDecisionTaskResponse task;
+    private Iterator<HistoryEvent> current;
+    private byte[] nextPageToken;
+
+    DecisionTaskWithHistoryIteratorImpl(
+        PollForDecisionTaskResponse task, Duration decisionTaskStartToCloseTimeout) {
+      this.task = Objects.requireNonNull(task);
+      this.decisionTaskStartToCloseTimeout =
+          Objects.requireNonNull(decisionTaskStartToCloseTimeout);
+
+      History history = task.getHistory();
+      current = history.getEventsIterator();
+      nextPageToken = task.getNextPageToken();
+    }
+
+    @Override
+    public PollForDecisionTaskResponse getDecisionTask() {
+      return task;
+    }
+
+    @Override
+    public Iterator<HistoryEvent> getHistory() {
+      return new Iterator<HistoryEvent>() {
+        @Override
+        public boolean hasNext() {
+          return current.hasNext() || nextPageToken != null;
+        }
+
+        @Override
+        public HistoryEvent next() {
+          if (current.hasNext()) {
+            return current.next();
+          }
+
+          metricsScope.counter(MetricsType.WORKFLOW_GET_HISTORY_COUNTER).inc(1);
+          Stopwatch sw = metricsScope.timer(MetricsType.WORKFLOW_GET_HISTORY_LATENCY).start();
+          RetryOptions retryOptions =
+              new RetryOptions.Builder()
+                  .setExpiration(retryServiceOperationExpirationInterval())
+                  .setInitialInterval(retryServiceOperationInitialInterval)
+                  .setMaximumInterval(retryServiceOperationMaxInterval)
+                  .build();
+
+          GetWorkflowExecutionHistoryRequest request = new GetWorkflowExecutionHistoryRequest();
+          request.setDomain(context.getDomain());
+          request.setExecution(task.getWorkflowExecution());
+          request.setMaximumPageSize(MAXIMUM_PAGE_SIZE);
+          try {
+            GetWorkflowExecutionHistoryResponse r =
+                Retryer.retryWithResult(
+                    retryOptions, () -> service.GetWorkflowExecutionHistory(request));
+            current = r.getHistory().getEventsIterator();
+            nextPageToken = r.getNextPageToken();
+            metricsScope.counter(MetricsType.WORKFLOW_GET_HISTORY_SUCCEED_COUNTER).inc(1);
+            sw.stop();
+          } catch (TException e) {
+            metricsScope.counter(MetricsType.WORKFLOW_GET_HISTORY_FAILED_COUNTER).inc(1);
+            throw new Error(e);
+          }
+          return current.next();
+        }
+      };
+    }
   }
 }

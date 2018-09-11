@@ -17,7 +17,13 @@
 
 package com.uber.cadence.internal.worker;
 
-import com.uber.cadence.*;
+import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
+import com.uber.cadence.PollForDecisionTaskResponse;
+import com.uber.cadence.RespondDecisionTaskCompletedRequest;
+import com.uber.cadence.RespondDecisionTaskFailedRequest;
+import com.uber.cadence.RespondQueryTaskCompletedRequest;
+import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowQuery;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.internal.common.Retryer;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
@@ -25,23 +31,23 @@ import com.uber.cadence.internal.logging.LoggerTag;
 import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.m3.tally.Stopwatch;
-import java.time.Duration;
-import java.util.Iterator;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
-public final class WorkflowWorker implements SuspendableWorker {
+public final class WorkflowWorker
+    implements SuspendableWorker, Consumer<PollForDecisionTaskResponse> {
 
   private static final Logger log = LoggerFactory.getLogger(WorkflowWorker.class);
 
   private static final String POLL_THREAD_NAME_PREFIX = "Workflow Poller taskList=";
-  private static final int MAXIMUM_PAGE_SIZE = 10000;
 
   private Poller poller;
+  private final PollTaskExecutor<PollForDecisionTaskResponse> pollTaskExecutor;
   private final DecisionTaskHandler handler;
   private final IWorkflowService service;
   private final String domain;
@@ -62,6 +68,8 @@ public final class WorkflowWorker implements SuspendableWorker {
     this.taskList = taskList;
     this.options = options;
     this.handler = handler;
+    pollTaskExecutor =
+        new PollTaskExecutor<>(domain, taskList, options, new TaskHandlerImpl(handler));
   }
 
   @Override
@@ -87,7 +95,7 @@ public final class WorkflowWorker implements SuspendableWorker {
           new Poller<>(
               options.getIdentity(),
               new WorkflowPollTask(service, domain, taskList, options),
-              new PollTaskExecutor<>(domain, taskList, options, new TaskHandlerImpl(handler)),
+              pollTaskExecutor,
               pollerOptions,
               workerOptions.getMetricsScope());
       poller.start();
@@ -97,17 +105,26 @@ public final class WorkflowWorker implements SuspendableWorker {
 
   public byte[] queryWorkflowExecution(WorkflowExecution execution, String queryType, byte[] args)
       throws Exception {
-    Iterator<HistoryEvent> history = WorkflowExecutionUtils.getHistory(service, domain, execution);
-    DecisionTaskWithHistoryIterator historyIterator =
-        new ReplayDecisionTaskWithHistoryIterator(execution, history);
+
+    PollForDecisionTaskResponse task;
+    task = new PollForDecisionTaskResponse();
+    task.setWorkflowExecution(execution);
+    task.setStartedEventId(Long.MAX_VALUE);
+    task.setPreviousStartedEventId(Long.MAX_VALUE);
+    task.setWorkflowType(task.getWorkflowType());
     WorkflowQuery query = new WorkflowQuery();
     query.setQueryType(queryType).setQueryArgs(args);
-    historyIterator.getDecisionTask().setQuery(query);
-    DecisionTaskHandler.Result result = handler.handleDecisionTask(historyIterator);
+    task.setQuery(query);
+    GetWorkflowExecutionHistoryResponse history =
+        WorkflowExecutionUtils.getHistoryPage(null, service, domain, execution);
+    task.setHistory(history.getHistory());
+
+    DecisionTaskHandler.Result result = handler.handleDecisionTask(task);
     if (result.getQueryCompleted() != null) {
       RespondQueryTaskCompletedRequest r = result.getQueryCompleted();
       return r.getQueryResult();
     }
+
     throw new RuntimeException("Query returned wrong response: " + result);
   }
 
@@ -164,6 +181,11 @@ public final class WorkflowWorker implements SuspendableWorker {
     }
   }
 
+  @Override
+  public void accept(PollForDecisionTaskResponse pollForDecisionTaskResponse) {
+    pollTaskExecutor.accept(pollForDecisionTaskResponse);
+  }
+
   private class TaskHandlerImpl
       implements PollTaskExecutor.TaskHandler<PollForDecisionTaskResponse> {
 
@@ -181,8 +203,7 @@ public final class WorkflowWorker implements SuspendableWorker {
       try {
         Stopwatch sw =
             options.getMetricsScope().timer(MetricsType.DECISION_EXECUTION_LATENCY).start();
-        DecisionTaskHandler.Result response =
-            handler.handleDecisionTask(new DecisionTaskWithHistoryIteratorImpl(task));
+        DecisionTaskHandler.Result response = handler.handleDecisionTask(task);
         sw.stop();
 
         sw = options.getMetricsScope().timer(MetricsType.DECISION_RESPONSE_LATENCY).start();
@@ -235,148 +256,6 @@ public final class WorkflowWorker implements SuspendableWorker {
         }
       }
       // Manual activity completion
-    }
-  }
-
-  private class DecisionTaskWithHistoryIteratorImpl implements DecisionTaskWithHistoryIterator {
-
-    private final Duration retryServiceOperationInitialInterval = Duration.ofMillis(200);
-    private final Duration retryServiceOperationMaxInterval = Duration.ofSeconds(4);
-    private final Duration paginationStart = Duration.ofMillis(System.currentTimeMillis());
-    private Duration decisionTaskStartToCloseTimeout;
-
-    private final Duration retryServiceOperationExpirationInterval() {
-      Duration passed = Duration.ofMillis(System.currentTimeMillis()).minus(paginationStart);
-      return decisionTaskStartToCloseTimeout.minus(passed);
-    }
-
-    private final PollForDecisionTaskResponse task;
-    private Iterator<HistoryEvent> current;
-    private byte[] nextPageToken;
-
-    DecisionTaskWithHistoryIteratorImpl(PollForDecisionTaskResponse task) {
-      this.task = task;
-      History history = task.getHistory();
-      current = history.getEventsIterator();
-      nextPageToken = task.getNextPageToken();
-
-      for (int i = history.events.size() - 1; i >= 0; i--) {
-        DecisionTaskScheduledEventAttributes attributes =
-            history.events.get(i).getDecisionTaskScheduledEventAttributes();
-        if (attributes != null) {
-          decisionTaskStartToCloseTimeout =
-              Duration.ofSeconds(attributes.getStartToCloseTimeoutSeconds());
-          break;
-        }
-      }
-
-      if (decisionTaskStartToCloseTimeout == null) {
-        throw new IllegalArgumentException(
-            String.format(
-                "PollForDecisionTaskResponse is missing DecisionTaskScheduled event. RunId: %s, WorkflowId: %s",
-                task.getWorkflowExecution().runId, task.getWorkflowExecution().workflowId));
-      }
-    }
-
-    @Override
-    public PollForDecisionTaskResponse getDecisionTask() {
-      return task;
-    }
-
-    @Override
-    public Iterator<HistoryEvent> getHistory() {
-      return new Iterator<HistoryEvent>() {
-        @Override
-        public boolean hasNext() {
-          return current.hasNext() || nextPageToken != null;
-        }
-
-        @Override
-        public HistoryEvent next() {
-          if (current.hasNext()) {
-            return current.next();
-          }
-
-          options.getMetricsScope().counter(MetricsType.WORKFLOW_GET_HISTORY_COUNTER).inc(1);
-          Stopwatch sw =
-              options.getMetricsScope().timer(MetricsType.WORKFLOW_GET_HISTORY_LATENCY).start();
-          RetryOptions retryOptions =
-              new RetryOptions.Builder()
-                  .setExpiration(retryServiceOperationExpirationInterval())
-                  .setInitialInterval(retryServiceOperationInitialInterval)
-                  .setMaximumInterval(retryServiceOperationMaxInterval)
-                  .build();
-
-          GetWorkflowExecutionHistoryRequest request = new GetWorkflowExecutionHistoryRequest();
-          request.setDomain(domain);
-          request.setExecution(task.getWorkflowExecution());
-          request.setMaximumPageSize(MAXIMUM_PAGE_SIZE);
-          try {
-            GetWorkflowExecutionHistoryResponse r =
-                Retryer.retryWithResult(
-                    retryOptions, () -> service.GetWorkflowExecutionHistory(request));
-            current = r.getHistory().getEventsIterator();
-            nextPageToken = r.getNextPageToken();
-            options
-                .getMetricsScope()
-                .counter(MetricsType.WORKFLOW_GET_HISTORY_SUCCEED_COUNTER)
-                .inc(1);
-            sw.stop();
-          } catch (TException e) {
-            options
-                .getMetricsScope()
-                .counter(MetricsType.WORKFLOW_GET_HISTORY_FAILED_COUNTER)
-                .inc(1);
-            throw new Error(e);
-          }
-          return current.next();
-        }
-      };
-    }
-  }
-
-  private static class ReplayDecisionTaskWithHistoryIterator
-      implements DecisionTaskWithHistoryIterator {
-
-    private final Iterator<HistoryEvent> history;
-    private final PollForDecisionTaskResponse task;
-    private HistoryEvent first;
-
-    private ReplayDecisionTaskWithHistoryIterator(
-        WorkflowExecution execution, Iterator<HistoryEvent> history) {
-      this.history = history;
-      first = history.next();
-
-      task = new PollForDecisionTaskResponse();
-      task.setWorkflowExecution(execution);
-      task.setStartedEventId(Long.MAX_VALUE);
-      task.setPreviousStartedEventId(Long.MAX_VALUE);
-      task.setWorkflowType(task.getWorkflowType());
-    }
-
-    @Override
-    public PollForDecisionTaskResponse getDecisionTask() {
-      return task;
-    }
-
-    @Override
-    public Iterator<HistoryEvent> getHistory() {
-      return new Iterator<HistoryEvent>() {
-        @Override
-        public boolean hasNext() {
-          return first != null || history.hasNext();
-        }
-
-        @Override
-        public HistoryEvent next() {
-          if (first != null) {
-            HistoryEvent result = first;
-            first = null;
-            return result;
-          }
-          return history.next();
-        }
-      };
     }
   }
 }

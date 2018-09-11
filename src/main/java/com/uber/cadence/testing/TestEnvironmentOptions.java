@@ -21,6 +21,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.converter.JsonDataConverter;
 import com.uber.cadence.internal.metrics.NoopScope;
+import com.uber.cadence.worker.Worker;
 import com.uber.cadence.workflow.WorkflowInterceptor;
 import com.uber.m3.tally.Scope;
 import java.util.Objects;
@@ -40,6 +41,8 @@ public final class TestEnvironmentOptions {
     private Scope metricsScope;
 
     private boolean enableLoggingInReplay;
+
+    private Worker.FactoryOptions factoryOptions;
 
     /** Sets data converter to use for unit-tests. Default is {@link JsonDataConverter}. */
     public Builder setDataConverter(DataConverter dataConverter) {
@@ -72,6 +75,12 @@ public final class TestEnvironmentOptions {
       return this;
     }
 
+    /** Set factoryOptions for worker factory used to create workers. */
+    public Builder setFactoryOptions(Worker.FactoryOptions options) {
+      this.factoryOptions = options;
+      return this;
+    }
+
     /** Set whether to log during decision replay. */
     public Builder setEnableLoggingInReplay(boolean enableLoggingInReplay) {
       this.enableLoggingInReplay = enableLoggingInReplay;
@@ -84,7 +93,12 @@ public final class TestEnvironmentOptions {
       }
 
       return new TestEnvironmentOptions(
-          dataConverter, domain, interceptorFactory, metricsScope, enableLoggingInReplay);
+          dataConverter,
+          domain,
+          interceptorFactory,
+          metricsScope,
+          factoryOptions,
+          enableLoggingInReplay);
     }
   }
 
@@ -93,17 +107,20 @@ public final class TestEnvironmentOptions {
   private final Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory;
   private final Scope metricsScope;
   private final boolean enableLoggingInReplay;
+  private final Worker.FactoryOptions workerFactoryOptions;
 
   private TestEnvironmentOptions(
       DataConverter dataConverter,
       String domain,
       Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
       Scope metricsScope,
+      Worker.FactoryOptions options,
       boolean enableLoggingInReplay) {
     this.dataConverter = dataConverter;
     this.domain = domain;
     this.interceptorFactory = interceptorFactory;
     this.metricsScope = metricsScope;
+    this.workerFactoryOptions = options;
     this.enableLoggingInReplay = enableLoggingInReplay;
   }
 
@@ -125,6 +142,10 @@ public final class TestEnvironmentOptions {
 
   public boolean isLoggingEnabledInReplay() {
     return enableLoggingInReplay;
+  }
+
+  public Worker.FactoryOptions getWorkerFactoryOptions() {
+    return workerFactoryOptions;
   }
 
   @Override

@@ -153,6 +153,7 @@ public class ReplayDeciderCacheTests {
 
   private ReplayDecider createFakeDecider(PollForDecisionTaskResponse response) {
     return new ReplayDecider(
+        new TestWorkflowService(),
         "domain",
         new ReplayWorkflow() {
           @Override

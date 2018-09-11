@@ -179,4 +179,6 @@ public interface TestWorkflowEnvironment {
 
   /** Starts all the workers created by the test environment instance */
   void start();
+
+  Worker.Factory getWorkerFactory();
 }
