@@ -24,6 +24,7 @@ import com.uber.cadence.converter.DataConverterException;
 import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.metrics.MetricsType;
+import com.uber.cadence.internal.replay.DeciderCache;
 import com.uber.cadence.internal.replay.ReplayWorkflow;
 import com.uber.cadence.internal.replay.ReplayWorkflowFactory;
 import com.uber.cadence.internal.worker.WorkflowExecutionException;
@@ -67,16 +68,19 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
   private final ExecutorService threadPool;
   private final Scope metricsScope;
+  private DeciderCache cache;
 
   POJOWorkflowImplementationFactory(
       DataConverter dataConverter,
       ExecutorService threadPool,
       Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
-      Scope metricsScope) {
+      Scope metricsScope,
+      DeciderCache cache) {
     this.dataConverter = Objects.requireNonNull(dataConverter);
     this.threadPool = Objects.requireNonNull(threadPool);
     this.interceptorFactory = Objects.requireNonNull(interceptorFactory);
     this.metricsScope = metricsScope;
+    this.cache = cache;
   }
 
   void setWorkflowImplementationTypes(Class<?>[] workflowImplementationTypes) {
@@ -183,7 +187,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   @Override
   public ReplayWorkflow getWorkflow(WorkflowType workflowType) {
     SyncWorkflowDefinition workflow = getWorkflowDefinition(workflowType);
-    return new SyncWorkflow(workflow, dataConverter, threadPool, interceptorFactory);
+    return new SyncWorkflow(workflow, dataConverter, threadPool, interceptorFactory, cache);
   }
 
   @Override

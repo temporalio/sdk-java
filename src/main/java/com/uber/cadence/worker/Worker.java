@@ -342,7 +342,6 @@ public final class Worker {
     private final String domain;
     private final UUID id =
         UUID.randomUUID(); // Guarantee uniqueness for stickyTaskListName when multiple factories
-    // are created.
     private final ThreadPoolExecutor workflowThreadPool;
     private final AtomicInteger workflowThreadCounter = new AtomicInteger();
     private final FactoryOptions factoryOptions;

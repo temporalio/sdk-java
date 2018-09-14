@@ -60,7 +60,9 @@ public class SyncWorkflowWorker implements Consumer<PollForDecisionTaskResponse>
             options.getDataConverter(),
             workflowThreadPool,
             interceptorFactory,
-            options.getMetricsScope());
+            options.getMetricsScope(),
+            cache);
+
     DecisionTaskHandler taskHandler =
         new ReplayDecisionTaskHandler(
             domain,

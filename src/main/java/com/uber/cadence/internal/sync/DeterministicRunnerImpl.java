@@ -23,6 +23,7 @@ import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.converter.JsonDataConverter;
 import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.internal.replay.ContinueAsNewWorkflowExecutionParameters;
+import com.uber.cadence.internal.replay.DeciderCache;
 import com.uber.cadence.internal.replay.DecisionContext;
 import com.uber.cadence.internal.replay.ExecuteActivityParameters;
 import com.uber.cadence.internal.replay.SignalExternalWorkflowParameters;
@@ -81,6 +82,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   private final List<WorkflowThread> threadsToAdd = Collections.synchronizedList(new ArrayList<>());
   private final List<NamedRunnable> toExecuteInWorkflowThread = new ArrayList<>();
   private final Supplier<Long> clock;
+  private DeciderCache cache;
   private boolean inRunUntilAllBlocked;
   private boolean closeRequested;
   private boolean closed;
@@ -118,7 +120,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   }
 
   DeterministicRunnerImpl(Supplier<Long> clock, Runnable root) {
-    this(getDefaultThreadPool(), newDummySyncDecisionContext(), clock, root);
+    this(getDefaultThreadPool(), newDummySyncDecisionContext(), clock, root, null);
   }
 
   private static ThreadPoolExecutor getDefaultThreadPool() {
@@ -139,10 +141,20 @@ class DeterministicRunnerImpl implements DeterministicRunner {
       SyncDecisionContext decisionContext,
       Supplier<Long> clock,
       Runnable root) {
+    this(threadPool, decisionContext, clock, root, null);
+  }
+
+  DeterministicRunnerImpl(
+      ExecutorService threadPool,
+      SyncDecisionContext decisionContext,
+      Supplier<Long> clock,
+      Runnable root,
+      DeciderCache cache) {
     this.threadPool = threadPool;
     this.decisionContext =
         decisionContext != null ? decisionContext : newDummySyncDecisionContext();
     this.clock = clock;
+    this.cache = cache;
     runnerCancellationScope = new CancellationScopeImpl(true, null, null);
     // TODO: workflow instance specific thread name
     rootWorkflowThread =
@@ -153,7 +165,8 @@ class DeterministicRunnerImpl implements DeterministicRunner {
             WORKFLOW_ROOT_THREAD_NAME,
             false,
             runnerCancellationScope,
-            root);
+            root,
+            cache);
     threads.addLast(rootWorkflowThread);
     rootWorkflowThread.start();
   }
@@ -183,7 +196,14 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         for (NamedRunnable nr : toExecuteInWorkflowThread) {
           WorkflowThread thread =
               new WorkflowThreadImpl(
-                  false, threadPool, this, nr.name, false, runnerCancellationScope, nr.runnable);
+                  false,
+                  threadPool,
+                  this,
+                  nr.name,
+                  false,
+                  runnerCancellationScope,
+                  nr.runnable,
+                  cache);
           // It is important to prepend threads as there are callbacks
           // like signals that have to run before any other threads.
           // Otherwise signal might be never processed if it was received
@@ -363,7 +383,14 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     checkClosed();
     WorkflowThread result =
         new WorkflowThreadImpl(
-            false, threadPool, this, name, detached, CancellationScopeImpl.current(), runnable);
+            false,
+            threadPool,
+            this,
+            name,
+            detached,
+            CancellationScopeImpl.current(),
+            runnable,
+            cache);
     threadsToAdd.add(result); // This is synchronized collection.
     return result;
   }

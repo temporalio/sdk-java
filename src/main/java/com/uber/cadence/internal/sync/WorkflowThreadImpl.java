@@ -18,6 +18,7 @@
 package com.uber.cadence.internal.sync;
 
 import com.uber.cadence.internal.logging.LoggerTag;
+import com.uber.cadence.internal.replay.DeciderCache;
 import com.uber.cadence.internal.replay.DecisionContext;
 import com.uber.cadence.workflow.Promise;
 import java.io.PrintWriter;
@@ -148,6 +149,7 @@ class WorkflowThreadImpl implements WorkflowThread {
   private final boolean root;
   private final ExecutorService threadPool;
   private final WorkflowThreadContext context;
+  private DeciderCache cache;
   private final DeterministicRunnerImpl runner;
   private final RunnableWrapper task;
   private Thread thread;
@@ -169,12 +171,14 @@ class WorkflowThreadImpl implements WorkflowThread {
       String name,
       boolean detached,
       CancellationScopeImpl parentCancellationScope,
-      Runnable runnable) {
+      Runnable runnable,
+      DeciderCache cache) {
     this.root = root;
     this.threadPool = threadPool;
     this.runner = runner;
     this.context = new WorkflowThreadContext(runner.getLock());
-    // TODO: Use thread pool instead of creating new threads.
+    this.cache = cache;
+
     if (name == null) {
       name = "workflow-" + super.hashCode();
     }
@@ -224,6 +228,14 @@ class WorkflowThreadImpl implements WorkflowThread {
       throw new IllegalThreadStateException("already started");
     }
     context.setStatus(Status.RUNNING);
+
+    try {
+      taskFuture = threadPool.submit(task);
+      return;
+    } catch (RejectedExecutionException e) {
+      cache.evictNext();
+    }
+
     try {
       taskFuture = threadPool.submit(task);
     } catch (RejectedExecutionException e) {

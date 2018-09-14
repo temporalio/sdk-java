@@ -17,6 +17,7 @@
 
 package com.uber.cadence.internal.sync;
 
+import com.uber.cadence.internal.replay.DeciderCache;
 import com.uber.cadence.workflow.CancellationScope;
 import com.uber.cadence.workflow.Workflow;
 import java.util.concurrent.ExecutorService;
@@ -43,6 +44,25 @@ interface DeterministicRunner {
    * @param decisionContext decision context to use
    * @param clock Supplier that returns current time that sync should use
    * @param root function that root thread of the runner executes.
+   * @param cache DeciderCache used cache inflight workflows. New workflow threads will evict this
+   *     cache when the thread pool runs out
+   * @return instance of the DeterministicRunner.
+   */
+  static DeterministicRunner newRunner(
+      ExecutorService threadPool,
+      SyncDecisionContext decisionContext,
+      Supplier<Long> clock,
+      Runnable root,
+      DeciderCache cache) {
+    return new DeterministicRunnerImpl(threadPool, decisionContext, clock, root, cache);
+  }
+
+  /**
+   * Create new instance of DeterministicRunner
+   *
+   * @param decisionContext decision context to use
+   * @param clock Supplier that returns current time that sync should use
+   * @param root function that root thread of the runner executes.
    * @return instance of the DeterministicRunner.
    */
   static DeterministicRunner newRunner(
@@ -50,7 +70,7 @@ interface DeterministicRunner {
       SyncDecisionContext decisionContext,
       Supplier<Long> clock,
       Runnable root) {
-    return new DeterministicRunnerImpl(threadPool, decisionContext, clock, root);
+    return new DeterministicRunnerImpl(threadPool, decisionContext, clock, root, null);
   }
 
   /**

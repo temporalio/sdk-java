@@ -23,6 +23,7 @@ import com.uber.cadence.WorkflowQuery;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.client.WorkflowClient;
 import com.uber.cadence.converter.DataConverter;
+import com.uber.cadence.internal.replay.DeciderCache;
 import com.uber.cadence.internal.replay.DecisionContext;
 import com.uber.cadence.internal.replay.ReplayWorkflow;
 import com.uber.cadence.internal.worker.WorkflowExecutionException;
@@ -41,6 +42,7 @@ class SyncWorkflow implements ReplayWorkflow {
   private final ExecutorService threadPool;
   private final SyncWorkflowDefinition workflow;
   private final Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory;
+  private DeciderCache cache;
   private WorkflowRunnable workflowProc;
   private DeterministicRunner runner;
 
@@ -48,11 +50,13 @@ class SyncWorkflow implements ReplayWorkflow {
       SyncWorkflowDefinition workflow,
       DataConverter dataConverter,
       ExecutorService threadPool,
-      Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory) {
+      Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
+      DeciderCache cache) {
     this.workflow = Objects.requireNonNull(workflow);
     this.dataConverter = Objects.requireNonNull(dataConverter);
     this.threadPool = Objects.requireNonNull(threadPool);
     this.interceptorFactory = Objects.requireNonNull(interceptorFactory);
+    this.cache = cache;
   }
 
   @Override
@@ -74,7 +78,7 @@ class SyncWorkflow implements ReplayWorkflow {
             syncContext, workflow, event.getWorkflowExecutionStartedEventAttributes());
     runner =
         DeterministicRunner.newRunner(
-            threadPool, syncContext, context::currentTimeMillis, workflowProc);
+            threadPool, syncContext, context::currentTimeMillis, workflowProc, cache);
     syncContext.setRunner(runner);
   }
 
