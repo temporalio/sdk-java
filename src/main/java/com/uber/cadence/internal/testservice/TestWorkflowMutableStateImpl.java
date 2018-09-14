@@ -82,6 +82,10 @@ import com.uber.cadence.internal.testservice.StateMachines.State;
 import com.uber.cadence.internal.testservice.StateMachines.TimerData;
 import com.uber.cadence.internal.testservice.StateMachines.WorkflowData;
 import com.uber.cadence.internal.testservice.TestWorkflowStore.TaskListId;
+import org.apache.thrift.TException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -102,9 +106,6 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.LongSupplier;
-import org.apache.thrift.TException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
@@ -138,6 +139,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private long lastNonFailedDecisionStartEventId;
   private final Map<String, CompletableFuture<QueryWorkflowResponse>> queries =
       new ConcurrentHashMap<>();
+  private final Map<String, PollForDecisionTaskResponse> queryRequests = new ConcurrentHashMap<>();
   public StickyExecutionAttributes stickyExecutionAttributes;
 
   /** @param parentChildInitiatedEventId id of the child initiated event in the parent history */
@@ -1183,15 +1185,22 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   @Override
   public QueryWorkflowResponse query(QueryWorkflowRequest queryRequest) throws TException {
     QueryId queryId = new QueryId(executionId);
+
     PollForDecisionTaskResponse task =
         new PollForDecisionTaskResponse()
             .setTaskToken(queryId.toBytes())
             .setWorkflowExecution(executionId.getExecution())
             .setWorkflowType(startRequest.getWorkflowType())
-            .setQuery(queryRequest.getQuery());
+            .setQuery(queryRequest.getQuery())
+            .setWorkflowExecutionTaskList(startRequest.getTaskList());
     TaskListId taskListId =
-        new TaskListId(queryRequest.getDomain(), startRequest.getTaskList().getName());
+        new TaskListId(
+            queryRequest.getDomain(),
+            stickyExecutionAttributes == null
+                ? startRequest.getTaskList().getName()
+                : stickyExecutionAttributes.getWorkerTaskList().getName());
     CompletableFuture<QueryWorkflowResponse> result = new CompletableFuture<>();
+    queryRequests.put(queryId.getQueryId(), task);
     queries.put(queryId.getQueryId(), result);
     store.sendQueryTask(executionId, taskListId, task);
     try {
@@ -1218,6 +1227,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       QueryWorkflowResponse response =
           new QueryWorkflowResponse().setQueryResult(completeRequest.getQueryResult());
       result.complete(response);
+    } else if (stickyExecutionAttributes != null) {
+      stickyExecutionAttributes = null;
+      PollForDecisionTaskResponse task = queryRequests.remove(queryId.getQueryId());
+
+      TaskListId taskListId =
+          new TaskListId(startRequest.getDomain(), startRequest.getTaskList().getName());
+      store.sendQueryTask(executionId, taskListId, task);
     } else {
       QueryFailedError error = new QueryFailedError().setMessage(completeRequest.getErrorMessage());
       result.completeExceptionally(error);

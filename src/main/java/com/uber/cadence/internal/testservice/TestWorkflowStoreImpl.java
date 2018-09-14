@@ -34,6 +34,9 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionInfo;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.testservice.RequestContext.Timer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -46,8 +49,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 class TestWorkflowStoreImpl implements TestWorkflowStore {
 
@@ -316,9 +317,15 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       throws EntityNotExistsError {
     lock.lock();
     try {
-      HistoryStore history = getHistoryStore(executionId);
-      List<HistoryEvent> events = new ArrayList<>(history.getEventsLocked());
-      task.setHistory(new History().setEvents(events));
+      HistoryStore historyStore = getHistoryStore(executionId);
+      List<HistoryEvent> events = new ArrayList<>(historyStore.getEventsLocked());
+      History history = new History();
+      if (taskList.getTaskListName().equals(task.getWorkflowExecutionTaskList().getName())) {
+        history.setEvents(events);
+      } else {
+        history.setEvents(new ArrayList<>());
+      }
+      task.setHistory(history);
     } finally {
       lock.unlock();
     }

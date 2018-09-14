@@ -39,6 +39,10 @@ import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.cadence.workflow.Functions;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
+import org.apache.thrift.TException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.time.Duration;
 import java.util.Iterator;
 import java.util.Objects;
@@ -46,9 +50,6 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
-import org.apache.thrift.TException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Implements decider that relies on replay of a worklfow code. An instance of this class is created
@@ -381,7 +382,8 @@ class ReplayDecider implements Decider {
               != historyHelper.getPreviousStartedEventId()
                   + 2) // getNextDecisionEventId() skips over completed.
           && (decisionsHelper.getNextDecisionEventId() != 0
-              && historyHelper.getPreviousStartedEventId() != 0)) {
+              && historyHelper.getPreviousStartedEventId() != 0)
+          && (decisionTask.getHistory().getEventsSize() > 0)) {
         throw new IllegalStateException(
             String.format(
                 "ReplayDecider expects next event id at %d. History's previous started event id is %d",

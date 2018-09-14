@@ -106,16 +106,49 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
 
   private Result handleDecisionTaskImpl(PollForDecisionTaskResponse decisionTask) throws Throwable {
 
+    if (decisionTask.isSetQuery()) {
+      return processQuery(decisionTask);
+    } else {
+
+      return processDecision(decisionTask);
+    }
+  }
+
+  private Result processDecision(PollForDecisionTaskResponse decisionTask) throws Throwable {
     Decider decider =
         stickyTaskListName == null
             ? createDecider(decisionTask)
             : cache.getOrCreate(decisionTask, this::createDecider);
     try {
-      if (decisionTask.isSetQuery()) {
-        return processQuery(decisionTask, (ReplayDecider) decider);
-      } else {
-        return processDecision(decisionTask, (ReplayDecider) decider);
+      decider.decide(decisionTask);
+      DecisionsHelper decisionsHelper = ((ReplayDecider) decider).getDecisionsHelper();
+      List<Decision> decisions = decisionsHelper.getDecisions();
+
+      if (log.isTraceEnabled()) {
+        WorkflowExecution execution = decisionTask.getWorkflowExecution();
+        log.trace(
+            "WorkflowTask startedEventId="
+                + decisionTask.getStartedEventId()
+                + ", WorkflowID="
+                + execution.getWorkflowId()
+                + ", RunID="
+                + execution.getRunId()
+                + " completed with "
+                + WorkflowExecutionUtils.prettyPrintDecisions(decisions));
+      } else if (log.isDebugEnabled()) {
+        WorkflowExecution execution = decisionTask.getWorkflowExecution();
+        log.debug(
+            "WorkflowTask startedEventId="
+                + decisionTask.getStartedEventId()
+                + ", WorkflowID="
+                + execution.getWorkflowId()
+                + ", RunID="
+                + execution.getRunId()
+                + " completed with "
+                + decisions.size()
+                + " new decisions");
       }
+      return createCompletedRequest(decisionTask, decisionsHelper, decisions);
     } catch (Exception e) {
       if (stickyTaskListName != null) {
         cache.invalidate(decisionTask);
@@ -128,44 +161,14 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     }
   }
 
-  private Result processDecision(PollForDecisionTaskResponse decisionTask, ReplayDecider decider)
-      throws Throwable {
-    decider.decide(decisionTask);
-    DecisionsHelper decisionsHelper = decider.getDecisionsHelper();
-    List<Decision> decisions = decisionsHelper.getDecisions();
-
-    if (log.isTraceEnabled()) {
-      WorkflowExecution execution = decisionTask.getWorkflowExecution();
-      log.trace(
-          "WorkflowTask startedEventId="
-              + decisionTask.getStartedEventId()
-              + ", WorkflowID="
-              + execution.getWorkflowId()
-              + ", RunID="
-              + execution.getRunId()
-              + " completed with "
-              + WorkflowExecutionUtils.prettyPrintDecisions(decisions));
-    } else if (log.isDebugEnabled()) {
-      WorkflowExecution execution = decisionTask.getWorkflowExecution();
-      log.debug(
-          "WorkflowTask startedEventId="
-              + decisionTask.getStartedEventId()
-              + ", WorkflowID="
-              + execution.getWorkflowId()
-              + ", RunID="
-              + execution.getRunId()
-              + " completed with "
-              + decisions.size()
-              + " new decisions");
-    }
-
-    return createCompletedRequest(decisionTask, decisionsHelper, decisions);
-  }
-
-  private Result processQuery(PollForDecisionTaskResponse decisionTask, ReplayDecider decider) {
+  private Result processQuery(PollForDecisionTaskResponse decisionTask) {
     RespondQueryTaskCompletedRequest queryCompletedRequest = new RespondQueryTaskCompletedRequest();
     queryCompletedRequest.setTaskToken(decisionTask.getTaskToken());
     try {
+      Decider decider =
+          stickyTaskListName == null
+              ? createDecider(decisionTask)
+              : cache.getOrCreate(decisionTask, this::createDecider);
       byte[] queryResult = decider.query(decisionTask, decisionTask.getQuery());
       queryCompletedRequest.setQueryResult(queryResult);
       queryCompletedRequest.setCompletedType(QueryTaskCompletedType.COMPLETED);
