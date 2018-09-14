@@ -19,27 +19,34 @@ package com.uber.cadence.internal.worker;
 
 import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.serviceclient.IWorkflowService;
+import com.uber.m3.tally.Scope;
 import java.util.Objects;
 import java.util.function.Supplier;
 
 public class WorkflowPollTaskFactory
     implements Supplier<Poller.PollTask<PollForDecisionTaskResponse>> {
 
-  private final SingleWorkerOptions options;
   private final IWorkflowService service;
   private final String domain;
   private final String taskList;
+  private final Scope metricScope;
+  private final String identity;
 
   public WorkflowPollTaskFactory(
-      IWorkflowService service, String domain, String taskList, SingleWorkerOptions options) {
+      IWorkflowService service,
+      String domain,
+      String taskList,
+      Scope metricScope,
+      String identity) {
     this.service = Objects.requireNonNull(service, "service should not be null");
     this.domain = Objects.requireNonNull(domain, "domain should not be null");
     this.taskList = Objects.requireNonNull(taskList, "taskList should not be null");
-    this.options = Objects.requireNonNull(options, "options should not be null");
+    this.metricScope = Objects.requireNonNull(metricScope, "metricScope should not be null");
+    this.identity = Objects.requireNonNull(identity, "identity should not be null");
   }
 
   @Override
   public Poller.PollTask<PollForDecisionTaskResponse> get() {
-    return new WorkflowPollTask(service, domain, taskList, options);
+    return new WorkflowPollTask(service, domain, taskList, metricScope, identity);
   }
 }

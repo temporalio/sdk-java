@@ -18,6 +18,7 @@
 package com.uber.cadence.internal.sync;
 
 import com.uber.cadence.internal.logging.LoggerTag;
+import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.internal.replay.DeciderCache;
 import com.uber.cadence.internal.replay.DecisionContext;
 import com.uber.cadence.workflow.Promise;
@@ -233,6 +234,10 @@ class WorkflowThreadImpl implements WorkflowThread {
       taskFuture = threadPool.submit(task);
       return;
     } catch (RejectedExecutionException e) {
+      getDecisionContext()
+          .getMetricsScope()
+          .counter(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION)
+          .inc(1);
       cache.evictNext();
     }
 

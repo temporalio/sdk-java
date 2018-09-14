@@ -24,16 +24,21 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.cache.Weigher;
 import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.internal.common.ThrowableFunc1;
+import com.uber.cadence.internal.metrics.MetricsType;
+import com.uber.m3.tally.Scope;
+import java.util.Objects;
 import java.util.UUID;
 
 public final class DeciderCache {
   private final String evictionEntryId = UUID.randomUUID().toString();
   private final int maxCacheSize;
+  private final Scope metricsScope;
   private LoadingCache<String, WeightedCacheEntry<Decider>> cache;
 
-  public DeciderCache(int maxCacheSize) {
+  public DeciderCache(int maxCacheSize, Scope scope) {
     Preconditions.checkArgument(maxCacheSize > 0, "Max cache size must be greater than 0");
     this.maxCacheSize = maxCacheSize;
+    this.metricsScope = Objects.requireNonNull(scope);
     this.cache =
         CacheBuilder.newBuilder()
             .maximumWeight(maxCacheSize)
@@ -60,6 +65,7 @@ public final class DeciderCache {
       ThrowableFunc1<PollForDecisionTaskResponse, Decider, Exception> createReplayDecider)
       throws Exception {
     String runId = decisionTask.getWorkflowExecution().getRunId();
+    metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
     if (isFullHistory(decisionTask)) {
       cache.invalidate(runId);
       return cache.get(
@@ -71,17 +77,22 @@ public final class DeciderCache {
 
   public Decider getUnchecked(String runId) throws Exception {
     try {
-      return cache.getUnchecked(runId).entry;
+      Decider cachedDecider = cache.getUnchecked(runId).entry;
+      metricsScope.counter(MetricsType.STICKY_CACHE_HIT).inc(1);
+      return cachedDecider;
     } catch (CacheLoader.InvalidCacheLoadException e) {
+      metricsScope.counter(MetricsType.STICKY_CACHE_MISS).inc(1);
       throw new EvictedException(runId);
     }
   }
 
   public void evictNext() {
+    metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
     int remainingSpace = (int) (maxCacheSize - cache.size());
     // Force eviction to happen
     cache.put(evictionEntryId, new WeightedCacheEntry<>(null, remainingSpace + 1));
     cache.invalidate(evictionEntryId);
+    metricsScope.counter(MetricsType.STICKY_CACHE_TOTAL_FORCED_EVICTION).inc(1);
   }
 
   public void invalidate(PollForDecisionTaskResponse decisionTask) {

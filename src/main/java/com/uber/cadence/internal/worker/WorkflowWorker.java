@@ -94,7 +94,8 @@ public final class WorkflowWorker
       poller =
           new Poller<>(
               options.getIdentity(),
-              new WorkflowPollTask(service, domain, taskList, options),
+              new WorkflowPollTask(
+                  service, domain, taskList, options.getMetricsScope(), options.getIdentity()),
               pollTaskExecutor,
               pollerOptions,
               workerOptions.getMetricsScope());

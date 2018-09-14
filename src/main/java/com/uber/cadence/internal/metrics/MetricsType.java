@@ -134,5 +134,10 @@ public class MetricsType {
 
   public static final String STICKY_CACHE_HIT = CADENCE_METRICS_PREFIX + "sticky-cache-hit";
   public static final String STICKY_CACHE_MISS = CADENCE_METRICS_PREFIX + "sticky-cache-miss";
+  public static final String STICKY_CACHE_TOTAL_FORCED_EVICTION =
+      CADENCE_METRICS_PREFIX + "sticky-cache-total-forced-eviction";
+  public static final String STICKY_CACHE_THREAD_FORCED_EVICTION =
+      CADENCE_METRICS_PREFIX + "sticky-cache-thread-forced-eviction";
   public static final String STICKY_CACHE_STALL = CADENCE_METRICS_PREFIX + "sticky-cache-stall";
+  public static final String STICKY_CACHE_SIZE = CADENCE_METRICS_PREFIX + "sticky-cache-size";
 }

@@ -18,16 +18,28 @@
 package com.uber.cadence.internal.replay;
 
 import static junit.framework.TestCase.assertEquals;
-import static junit.framework.TestCase.assertNotSame;
-import static junit.framework.TestCase.fail;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.WorkflowQuery;
+import com.uber.cadence.internal.metrics.MetricsTag;
+import com.uber.cadence.internal.metrics.MetricsType;
+import com.uber.cadence.internal.metrics.NoopScope;
 import com.uber.cadence.internal.testservice.TestWorkflowService;
 import com.uber.cadence.internal.worker.WorkflowExecutionException;
 import com.uber.cadence.testUtils.HistoryUtils;
 import com.uber.cadence.worker.WorkerOptions;
+import com.uber.m3.tally.RootScopeBuilder;
+import com.uber.m3.tally.Scope;
+import com.uber.m3.tally.StatsReporter;
+import com.uber.m3.util.Duration;
+import com.uber.m3.util.ImmutableMap;
+import java.util.Map;
 import junit.framework.TestCase;
 import org.junit.Test;
 
@@ -37,7 +49,7 @@ public class ReplayDeciderCacheTests {
   public void whenHistoryIsFullNewReplayDeciderIsReturnedAndCached_InitiallyEmpty()
       throws Exception {
     // Arrange
-    DeciderCache replayDeciderCache = new DeciderCache(10);
+    DeciderCache replayDeciderCache = new DeciderCache(10, NoopScope.getInstance());
     PollForDecisionTaskResponse decisionTask =
         HistoryUtils.generateDecisionTaskWithInitialHistory();
 
@@ -55,7 +67,7 @@ public class ReplayDeciderCacheTests {
   @Test
   public void whenHistoryIsFullNewReplayDeciderIsReturned_InitiallyCached() throws Exception {
     // Arrange
-    DeciderCache replayDeciderCache = new DeciderCache(10);
+    DeciderCache replayDeciderCache = new DeciderCache(10, NoopScope.getInstance());
     PollForDecisionTaskResponse decisionTask =
         HistoryUtils.generateDecisionTaskWithInitialHistory();
 
@@ -74,7 +86,16 @@ public class ReplayDeciderCacheTests {
   @Test
   public void whenHistoryIsPartialCachedEntryIsReturned() throws Exception {
     // Arrange
-    DeciderCache replayDeciderCache = new DeciderCache(10);
+    Map<String, String> tags =
+        new ImmutableMap.Builder<String, String>(2)
+            .put(MetricsTag.DOMAIN, "domain")
+            .put(MetricsTag.TASK_LIST, "stickyTaskList")
+            .build();
+    StatsReporter reporter = mock(StatsReporter.class);
+    Scope scope =
+        new RootScopeBuilder().reporter(reporter).reportEvery(Duration.ofMillis(300)).tagged(tags);
+
+    DeciderCache replayDeciderCache = new DeciderCache(10, scope);
     TestWorkflowService service = new TestWorkflowService();
     PollForDecisionTaskResponse decisionTask =
         HistoryUtils.generateDecisionTaskWithInitialHistory(
@@ -91,6 +112,9 @@ public class ReplayDeciderCacheTests {
     Decider decider2 = replayDeciderCache.getOrCreate(decisionTask, this::createFakeDecider);
 
     // Assert
+    // Wait for reporter
+    Thread.sleep(600);
+    verify(reporter, times(1)).reportCounter(MetricsType.STICKY_CACHE_HIT, tags, 2);
     assertEquals(decider2, replayDeciderCache.getUnchecked(runId));
     assertEquals(decider2, decider);
   }
@@ -99,7 +123,15 @@ public class ReplayDeciderCacheTests {
   public void whenHistoryIsPartialAndCacheIsEmptyThenCacheEvictedExceptionIsThrown()
       throws Exception {
     // Arrange
-    DeciderCache replayDeciderCache = new DeciderCache(10);
+    Map<String, String> tags =
+        new ImmutableMap.Builder<String, String>(2)
+            .put(MetricsTag.DOMAIN, "domain")
+            .put(MetricsTag.TASK_LIST, "stickyTaskList")
+            .build();
+    StatsReporter reporter = mock(StatsReporter.class);
+    Scope scope =
+        new RootScopeBuilder().reporter(reporter).reportEvery(Duration.ofMillis(10)).tagged(tags);
+    DeciderCache replayDeciderCache = new DeciderCache(10, scope);
 
     // Act
     PollForDecisionTaskResponse decisionTask =
@@ -108,6 +140,10 @@ public class ReplayDeciderCacheTests {
     try {
       replayDeciderCache.getOrCreate(decisionTask, this::createFakeDecider);
     } catch (DeciderCache.EvictedException ex) {
+
+      // Wait for reporter
+      Thread.sleep(600);
+      verify(reporter, times(1)).reportCounter(MetricsType.STICKY_CACHE_MISS, tags, 1);
       return;
     }
 
@@ -117,8 +153,17 @@ public class ReplayDeciderCacheTests {
 
   @Test
   public void evictNextWillInvalidateTheNextEntryInLineToBeEvicted() throws Exception {
+    Map<String, String> tags =
+        new ImmutableMap.Builder<String, String>(2)
+            .put(MetricsTag.DOMAIN, "domain")
+            .put(MetricsTag.TASK_LIST, "stickyTaskList")
+            .build();
+    StatsReporter reporter = mock(StatsReporter.class);
+    Scope scope =
+        new RootScopeBuilder().reporter(reporter).reportEvery(Duration.ofMillis(10)).tagged(tags);
+
     // Arrange
-    DeciderCache replayDeciderCache = new DeciderCache(10);
+    DeciderCache replayDeciderCache = new DeciderCache(10, scope);
     PollForDecisionTaskResponse decisionTask1 =
         HistoryUtils.generateDecisionTaskWithInitialHistory();
     PollForDecisionTaskResponse decisionTask2 =
@@ -139,6 +184,11 @@ public class ReplayDeciderCacheTests {
     assertEquals(2, replayDeciderCache.size());
     String runId1 = decisionTask1.workflowExecution.getRunId();
     assertCacheIsEmpty(replayDeciderCache, runId1);
+
+    // Wait for reporter
+    Thread.sleep(600);
+    verify(reporter, times(1))
+        .reportCounter(MetricsType.STICKY_CACHE_TOTAL_FORCED_EVICTION, tags, 1);
   }
 
   private void assertCacheIsEmpty(DeciderCache cache, String runId) throws Exception {

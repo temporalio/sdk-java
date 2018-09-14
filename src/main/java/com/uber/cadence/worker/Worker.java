@@ -26,6 +26,7 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.client.WorkflowClient;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.metrics.MetricsTag;
+import com.uber.cadence.internal.metrics.NoopScope;
 import com.uber.cadence.internal.replay.DeciderCache;
 import com.uber.cadence.internal.sync.SyncActivityWorker;
 import com.uber.cadence.internal.sync.SyncWorkflowWorker;
@@ -40,6 +41,7 @@ import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
 import com.uber.cadence.worker.WorkerOptions.Builder;
 import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.WorkflowMethod;
+import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import java.lang.reflect.Type;
 import java.net.InetAddress;
@@ -400,11 +402,13 @@ public final class Worker {
         return;
       }
 
-      this.cache = new DeciderCache(factoryOptions.cacheMaximumSize);
+      factoryOptions.metricsScope.tagged(
+          new ImmutableMap.Builder<String, String>(2)
+              .put(MetricsTag.DOMAIN, domain)
+              .put(MetricsTag.TASK_LIST, getStickyTaskListName())
+              .build());
 
-      // TODO: expose configuring these through Factory options
-      SingleWorkerOptions options = getDefaultSingleWorkerOptions();
-      PollerOptions pollerOptions = getDefaultPollerOptions(options);
+      this.cache = new DeciderCache(factoryOptions.cacheMaximumSize, factoryOptions.metricsScope);
 
       dispatcher = new PollDecisionTaskDispatcherFactory(workflowService).create();
       stickyPoller =
@@ -414,11 +418,12 @@ public final class Worker {
                       workflowService,
                       domain,
                       getStickyTaskListName(),
-                      getDefaultSingleWorkerOptions())
+                      factoryOptions.metricsScope,
+                      id.toString())
                   .get(),
               dispatcher,
-              pollerOptions,
-              options.getMetricsScope());
+              factoryOptions.stickyWorkflowPollerOptions,
+              factoryOptions.metricsScope);
     }
 
     public Worker newWorker(String taskList) {
@@ -534,6 +539,8 @@ public final class Worker {
       private int stickyDecisionScheduleToStartTimeoutInSeconds = 5;
       private int cacheMaximumSize = 600;
       private int maxWorkflowThreadCount = 600;
+      private PollerOptions stickyWorkflowPollerOptions;
+      private Scope metricScope;
 
       public Builder setEnableStickyExecution(boolean enableStickyExecution) {
         this.enableStickyExecution = enableStickyExecution;
@@ -557,12 +564,24 @@ public final class Worker {
         return this;
       }
 
+      public Builder setStickyWorkflowPollerOptions(PollerOptions stickyWorkflowPollerOptions) {
+        this.stickyWorkflowPollerOptions = stickyWorkflowPollerOptions;
+        return this;
+      }
+
+      public Builder setMetricScope(Scope metricScope) {
+        this.metricScope = metricScope;
+        return this;
+      }
+
       public FactoryOptions Build() {
         return new FactoryOptions(
             enableStickyExecution,
             cacheMaximumSize,
             maxWorkflowThreadCount,
-            stickyDecisionScheduleToStartTimeoutInSeconds);
+            stickyDecisionScheduleToStartTimeoutInSeconds,
+            stickyWorkflowPollerOptions,
+            metricScope);
       }
     }
 
@@ -570,12 +589,16 @@ public final class Worker {
     private final int cacheMaximumSize;
     private final int maxWorkflowThreadCount;
     private final int stickyDecisionScheduleToStartTimeoutInSeconds;
+    private final PollerOptions stickyWorkflowPollerOptions;
+    private final Scope metricsScope;
 
     private FactoryOptions(
         boolean enableStickyExecution,
         int cacheMaximumSize,
         int maxWorkflowThreadCount,
-        int stickyDecisionScheduleToStartTimeoutInSeconds) {
+        int stickyDecisionScheduleToStartTimeoutInSeconds,
+        PollerOptions stickyWorkflowPollerOptions,
+        Scope metricsScope) {
       Preconditions.checkArgument(
           cacheMaximumSize > 0, "cacheMaximumSize should be greater than 0");
       Preconditions.checkArgument(
@@ -589,6 +612,23 @@ public final class Worker {
       this.maxWorkflowThreadCount = maxWorkflowThreadCount;
       this.stickyDecisionScheduleToStartTimeoutInSeconds =
           stickyDecisionScheduleToStartTimeoutInSeconds;
+
+      if (stickyWorkflowPollerOptions == null) {
+        this.stickyWorkflowPollerOptions =
+            new PollerOptions.Builder()
+                .setPollBackoffInitialInterval(Duration.ofMillis(200))
+                .setPollBackoffMaximumInterval(Duration.ofSeconds(20))
+                .setPollThreadCount(1)
+                .build();
+      } else {
+        this.stickyWorkflowPollerOptions = stickyWorkflowPollerOptions;
+      }
+
+      if (metricsScope == null) {
+        this.metricsScope = NoopScope.getInstance();
+      } else {
+        this.metricsScope = metricsScope;
+      }
     }
   }
 }

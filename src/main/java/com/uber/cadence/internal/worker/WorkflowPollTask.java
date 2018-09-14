@@ -17,44 +17,50 @@
 
 package com.uber.cadence.internal.worker;
 
-import com.google.common.base.Preconditions;
-import com.uber.cadence.*;
+import com.uber.cadence.InternalServiceError;
+import com.uber.cadence.PollForDecisionTaskRequest;
+import com.uber.cadence.PollForDecisionTaskResponse;
+import com.uber.cadence.ServiceBusyError;
+import com.uber.cadence.TaskList;
 import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.serviceclient.IWorkflowService;
+import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
+import java.util.Objects;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskResponse> {
 
-  private final SingleWorkerOptions options;
+  private final Scope metricScope;
   private final IWorkflowService service;
   private final String domain;
   private final String taskList;
+  private final String identity;
   private static final Logger log = LoggerFactory.getLogger(WorkflowWorker.class);
 
   WorkflowPollTask(
-      IWorkflowService service, String domain, String taskList, SingleWorkerOptions options) {
-    Preconditions.checkNotNull(service, "service should not be null");
-    Preconditions.checkNotNull(domain, "domain should not be null");
-    Preconditions.checkNotNull(taskList, "taskList should not be null");
-    Preconditions.checkNotNull(options, "options should not be null");
-
-    this.service = service;
-    this.domain = domain;
-    this.taskList = taskList;
-    this.options = options;
+      IWorkflowService service,
+      String domain,
+      String taskList,
+      Scope metricScope,
+      String identity) {
+    this.identity = Objects.requireNonNull(identity);
+    this.service = Objects.requireNonNull(service);
+    this.domain = Objects.requireNonNull(domain);
+    this.taskList = Objects.requireNonNull(taskList);
+    this.metricScope = Objects.requireNonNull(metricScope);
   }
 
   @Override
   public PollForDecisionTaskResponse poll() throws TException {
-    options.getMetricsScope().counter(MetricsType.DECISION_POLL_COUNTER).inc(1);
-    Stopwatch sw = options.getMetricsScope().timer(MetricsType.DECISION_POLL_LATENCY).start();
+    metricScope.counter(MetricsType.DECISION_POLL_COUNTER).inc(1);
+    Stopwatch sw = metricScope.timer(MetricsType.DECISION_POLL_LATENCY).start();
 
     PollForDecisionTaskRequest pollRequest = new PollForDecisionTaskRequest();
     pollRequest.setDomain(domain);
-    pollRequest.setIdentity(options.getIdentity());
+    pollRequest.setIdentity(identity);
 
     TaskList tl = new TaskList();
     tl.setName(taskList);
@@ -67,10 +73,10 @@ final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskRespo
     try {
       result = service.PollForDecisionTask(pollRequest);
     } catch (InternalServiceError | ServiceBusyError e) {
-      options.getMetricsScope().counter(MetricsType.DECISION_POLL_TRANSIENT_FAILED_COUNTER).inc(1);
+      metricScope.counter(MetricsType.DECISION_POLL_TRANSIENT_FAILED_COUNTER).inc(1);
       throw e;
     } catch (TException e) {
-      options.getMetricsScope().counter(MetricsType.DECISION_POLL_FAILED_COUNTER).inc(1);
+      metricScope.counter(MetricsType.DECISION_POLL_FAILED_COUNTER).inc(1);
       throw e;
     }
 
@@ -90,11 +96,11 @@ final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskRespo
     }
 
     if (result == null || result.getTaskToken() == null) {
-      options.getMetricsScope().counter(MetricsType.DECISION_POLL_NO_TASK_COUNTER).inc(1);
+      metricScope.counter(MetricsType.DECISION_POLL_NO_TASK_COUNTER).inc(1);
       return null;
     }
 
-    options.getMetricsScope().counter(MetricsType.DECISION_POLL_SUCCEED_COUNTER).inc(1);
+    metricScope.counter(MetricsType.DECISION_POLL_SUCCEED_COUNTER).inc(1);
     sw.stop();
     return result;
   }

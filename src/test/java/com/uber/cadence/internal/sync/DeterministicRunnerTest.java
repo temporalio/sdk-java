@@ -22,17 +22,38 @@ import static junit.framework.TestCase.assertNotNull;
 import static junit.framework.TestCase.assertTrue;
 import static junit.framework.TestCase.fail;
 import static org.junit.Assert.assertFalse;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.WorkflowQuery;
+import com.uber.cadence.WorkflowType;
 import com.uber.cadence.common.RetryOptions;
+import com.uber.cadence.converter.JsonDataConverter;
+import com.uber.cadence.internal.metrics.MetricsTag;
+import com.uber.cadence.internal.metrics.MetricsType;
+import com.uber.cadence.internal.metrics.NoopScope;
 import com.uber.cadence.internal.replay.Decider;
 import com.uber.cadence.internal.replay.DeciderCache;
+import com.uber.cadence.internal.replay.DecisionContext;
 import com.uber.cadence.testUtils.HistoryUtils;
-import com.uber.cadence.workflow.*;
+import com.uber.cadence.workflow.Async;
+import com.uber.cadence.workflow.CancellationScope;
+import com.uber.cadence.workflow.CompletablePromise;
+import com.uber.cadence.workflow.Functions;
+import com.uber.cadence.workflow.Promise;
+import com.uber.cadence.workflow.Workflow;
+import com.uber.cadence.workflow.WorkflowTest;
+import com.uber.m3.tally.RootScopeBuilder;
+import com.uber.m3.tally.Scope;
+import com.uber.m3.tally.StatsReporter;
+import com.uber.m3.util.ImmutableMap;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
@@ -620,16 +641,33 @@ public class DeterministicRunnerTest {
   @Test
   public void workflowThreadsWillEvictCacheWhenMaxThreadCountIsHit() throws Throwable {
     // Arrange
+    // Arrange
+    Map<String, String> tags =
+        new ImmutableMap.Builder<String, String>(2)
+            .put(MetricsTag.DOMAIN, "domain")
+            .put(MetricsTag.TASK_LIST, "stickyTaskList")
+            .build();
+    StatsReporter reporter = mock(StatsReporter.class);
+    Scope scope =
+        new RootScopeBuilder()
+            .reporter(reporter)
+            .reportEvery(com.uber.m3.util.Duration.ofMillis(300))
+            .tagged(tags);
     ThreadPoolExecutor threadPool =
         new ThreadPoolExecutor(1, 3, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
     AtomicReference<String> status = new AtomicReference<>();
 
-    DeciderCache cache = new DeciderCache(3);
-    boolean unblock = false;
+    DeciderCache cache = new DeciderCache(3, scope);
+    DecisionContext decisionContext = mock(DecisionContext.class);
+    when(decisionContext.getMetricsScope()).thenReturn(scope);
+    when(decisionContext.getDomain()).thenReturn("domain");
+    when(decisionContext.getWorkflowType()).thenReturn(new WorkflowType());
+
     DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
             threadPool,
-            null,
+            new SyncDecisionContext(
+                decisionContext, JsonDataConverter.getInstance(), (next) -> next),
             () -> 0L, // clock override
             () -> {
               Promise<Void> thread =
@@ -652,7 +690,8 @@ public class DeterministicRunnerTest {
     DeterministicRunnerImpl d2 =
         new DeterministicRunnerImpl(
             threadPool,
-            null,
+            new SyncDecisionContext(
+                decisionContext, JsonDataConverter.getInstance(), (next) -> next),
             () -> 0L, // clock override
             () -> {
               Promise<Void> thread =
@@ -676,6 +715,10 @@ public class DeterministicRunnerTest {
     // Assert: Cache is evicted and only threads consumed by d2 remain.
     assertEquals(2, threadPool.getActiveCount());
     assertEquals(0, cache.size()); // cache was evicted
+    // Wait for reporter
+    Thread.sleep(600);
+    verify(reporter, times(1))
+        .reportCounter(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION, tags, 1);
   }
 
   @Test
@@ -685,8 +728,8 @@ public class DeterministicRunnerTest {
         new ThreadPoolExecutor(1, 5, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
     AtomicReference<String> status = new AtomicReference<>();
 
-    DeciderCache cache = new DeciderCache(3);
-    boolean unblock = false;
+    DeciderCache cache = new DeciderCache(3, NoopScope.getInstance());
+
     DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
             threadPool,
