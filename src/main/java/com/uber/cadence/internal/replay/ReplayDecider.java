@@ -17,6 +17,7 @@
 
 package com.uber.cadence.internal.replay;
 
+import com.uber.cadence.Decision;
 import com.uber.cadence.EventType;
 import com.uber.cadence.GetWorkflowExecutionHistoryRequest;
 import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
@@ -39,17 +40,17 @@ import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.cadence.workflow.Functions;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
-import org.apache.thrift.TException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.time.Duration;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import org.apache.thrift.TException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Implements decider that relies on replay of a worklfow code. An instance of this class is created
@@ -155,7 +156,7 @@ class ReplayDecider implements Decider {
         context.handleChildWorkflowExecutionTimedOut(event);
         break;
       case DecisionTaskCompleted:
-        handleDecisionTaskCompleted(event);
+        // NOOP
         break;
       case DecisionTaskScheduled:
         // NOOP
@@ -361,13 +362,10 @@ class ReplayDecider implements Decider {
         signalAttributes.getSignalName(), signalAttributes.getInput(), event.getEventId());
   }
 
-  private void handleDecisionTaskCompleted(HistoryEvent event) {
-    decisionsHelper.handleDecisionCompletion(event.getDecisionTaskCompletedEventAttributes());
-  }
-
   @Override
-  public void decide(PollForDecisionTaskResponse decisionTask) throws Throwable {
+  public List<Decision> decide(PollForDecisionTaskResponse decisionTask) throws Throwable {
     decideImpl(decisionTask, null);
+    return getDecisionsHelper().getDecisions();
   }
 
   private void decideImpl(PollForDecisionTaskResponse decisionTask, Functions.Proc query)

@@ -82,10 +82,6 @@ import com.uber.cadence.internal.testservice.StateMachines.State;
 import com.uber.cadence.internal.testservice.StateMachines.TimerData;
 import com.uber.cadence.internal.testservice.StateMachines.WorkflowData;
 import com.uber.cadence.internal.testservice.TestWorkflowStore.TaskListId;
-import org.apache.thrift.TException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -106,6 +102,9 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.LongSupplier;
+import org.apache.thrift.TException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 

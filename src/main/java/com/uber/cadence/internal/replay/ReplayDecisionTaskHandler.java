@@ -120,10 +120,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
             ? createDecider(decisionTask)
             : cache.getOrCreate(decisionTask, this::createDecider);
     try {
-      decider.decide(decisionTask);
-      DecisionsHelper decisionsHelper = ((ReplayDecider) decider).getDecisionsHelper();
-      List<Decision> decisions = decisionsHelper.getDecisions();
-
+      List<Decision> decisions = decider.decide(decisionTask);
       if (log.isTraceEnabled()) {
         WorkflowExecution execution = decisionTask.getWorkflowExecution();
         log.trace(
@@ -148,7 +145,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
                 + decisions.size()
                 + " new decisions");
       }
-      return createCompletedRequest(decisionTask, decisionsHelper, decisions);
+      return createCompletedRequest(decisionTask, decisions);
     } catch (Exception e) {
       if (stickyTaskListName != null) {
         cache.invalidate(decisionTask);
@@ -184,15 +181,11 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
   }
 
   private Result createCompletedRequest(
-      PollForDecisionTaskResponse decisionTask,
-      DecisionsHelper decisionsHelper,
-      List<Decision> decisions) {
-    byte[] context = decisionsHelper.getWorkflowContextDataToReturn();
+      PollForDecisionTaskResponse decisionTask, List<Decision> decisions) {
     RespondDecisionTaskCompletedRequest completedRequest =
         new RespondDecisionTaskCompletedRequest();
     completedRequest.setTaskToken(decisionTask.getTaskToken());
     completedRequest.setDecisions(decisions);
-    completedRequest.setExecutionContext(context);
 
     if (stickyTaskListName != null) {
       StickyExecutionAttributes attributes = new StickyExecutionAttributes();

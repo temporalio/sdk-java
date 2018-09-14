@@ -34,9 +34,6 @@ import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionInfo;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.testservice.RequestContext.Timer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -49,6 +46,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class TestWorkflowStoreImpl implements TestWorkflowStore {
 

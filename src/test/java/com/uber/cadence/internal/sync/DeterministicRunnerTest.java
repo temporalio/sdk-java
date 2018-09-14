@@ -27,6 +27,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.uber.cadence.Decision;
 import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.WorkflowQuery;
 import com.uber.cadence.WorkflowType;
@@ -790,7 +791,9 @@ public class DeterministicRunnerTest {
     }
 
     @Override
-    public void decide(PollForDecisionTaskResponse decisionTask) throws Throwable {}
+    public List<Decision> decide(PollForDecisionTaskResponse decisionTask) throws Throwable {
+      return new ArrayList<>();
+    }
 
     @Override
     public byte[] query(PollForDecisionTaskResponse decisionTask, WorkflowQuery query)

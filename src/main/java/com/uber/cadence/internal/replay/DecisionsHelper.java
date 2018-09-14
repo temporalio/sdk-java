@@ -30,7 +30,6 @@ import com.uber.cadence.ChildWorkflowExecutionTimedOutEventAttributes;
 import com.uber.cadence.CompleteWorkflowExecutionDecisionAttributes;
 import com.uber.cadence.ContinueAsNewWorkflowExecutionDecisionAttributes;
 import com.uber.cadence.Decision;
-import com.uber.cadence.DecisionTaskCompletedEventAttributes;
 import com.uber.cadence.DecisionType;
 import com.uber.cadence.EventType;
 import com.uber.cadence.ExternalWorkflowExecutionCancelRequestedEventAttributes;
@@ -55,7 +54,6 @@ import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.replay.HistoryHelper.DecisionEvents;
 import com.uber.cadence.internal.worker.WorkflowExecutionException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -100,10 +98,6 @@ class DecisionsHelper {
 
   // TODO: removal of completed activities
   private final Map<String, Long> activityIdToScheduledEventId = new HashMap<>();
-
-  private byte[] workflowContextData;
-
-  private byte[] workfowContextFromLastDecisionCompletion;
 
   DecisionsHelper(PollForDecisionTaskResponse task) {
     this.task = task;
@@ -581,25 +575,6 @@ class DecisionsHelper {
   @Override
   public String toString() {
     return WorkflowExecutionUtils.prettyPrintDecisions(getDecisions());
-  }
-
-  void setWorkflowContextData(byte[] workflowState) {
-    this.workflowContextData = workflowState;
-  }
-
-  /** @return new workflow state or null if it didn't change since the last decision completion */
-  byte[] getWorkflowContextDataToReturn() {
-    if (workfowContextFromLastDecisionCompletion == null
-        || !Arrays.equals(workfowContextFromLastDecisionCompletion, workflowContextData)) {
-      return workflowContextData;
-    }
-    return null;
-  }
-
-  void handleDecisionCompletion(
-      DecisionTaskCompletedEventAttributes decisionTaskCompletedEventAttributes) {
-    workfowContextFromLastDecisionCompletion =
-        decisionTaskCompletedEventAttributes.getExecutionContext();
   }
 
   PollForDecisionTaskResponse getTask() {
