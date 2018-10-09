@@ -22,6 +22,7 @@ import static com.uber.cadence.internal.sync.DeterministicRunnerImpl.currentThre
 import com.uber.cadence.workflow.CancellationScope;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.Future;
 import java.util.function.Supplier;
 
 /** Thread that is scheduled deterministically by {@link DeterministicRunner}. */
@@ -89,7 +90,7 @@ interface WorkflowThread extends CancellationScope {
 
   boolean isDone();
 
-  void stop();
+  Future<?> stopNow();
 
   void addStackTrace(StringBuilder result);
 

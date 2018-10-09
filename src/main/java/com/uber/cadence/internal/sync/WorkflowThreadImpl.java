@@ -27,16 +27,14 @@ import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.*;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+
+import static javafx.scene.input.KeyCode.T;
 
 class WorkflowThreadImpl implements WorkflowThread {
 
@@ -331,10 +329,10 @@ class WorkflowThreadImpl implements WorkflowThread {
 
   /**
    * Interrupt coroutine by throwing DestroyWorkflowThreadError from a await method it is blocked on
-   * and wait for coroutine thread to finish execution.
+   * and return underlying Future to be waited on.
    */
   @Override
-  public void stop() {
+  public Future<?> stopNow() {
     // Cannot call destroy() on itself
     if (thread == Thread.currentThread()) {
       throw new Error("Cannot call destroy on itself: " + thread.getName());
@@ -344,16 +342,16 @@ class WorkflowThreadImpl implements WorkflowThread {
       throw new RuntimeException(
           "Couldn't destroy the thread. " + "The blocked thread stack trace: " + getStackTrace());
     }
-    try {
-      // Check if thread was started
-      if (taskFuture != null) {
-        taskFuture.get();
-      }
-    } catch (InterruptedException e) {
-      throw new Error("Unexpected interrupt", e);
-    } catch (ExecutionException e) {
-      throw new Error("Unexpected failure stopping coroutine", e);
+    if(taskFuture == null){
+     return getCompletedFuture();
     }
+    return taskFuture;
+  }
+
+  private Future<?> getCompletedFuture(){
+    CompletableFuture<String> f = new CompletableFuture<>();
+    f.complete("done");
+    return f;
   }
 
   @Override
