@@ -502,9 +502,12 @@ class ReplayDecider implements Decider {
                   .build();
 
           GetWorkflowExecutionHistoryRequest request = new GetWorkflowExecutionHistoryRequest();
-          request.setDomain(context.getDomain());
-          request.setExecution(task.getWorkflowExecution());
-          request.setMaximumPageSize(MAXIMUM_PAGE_SIZE);
+          request
+              .setDomain(context.getDomain())
+              .setExecution(task.getWorkflowExecution())
+              .setMaximumPageSize(MAXIMUM_PAGE_SIZE)
+              .setNextPageToken(nextPageToken);
+
           try {
             GetWorkflowExecutionHistoryResponse r =
                 Retryer.retryWithResult(
