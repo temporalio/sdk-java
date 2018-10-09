@@ -402,28 +402,25 @@ public final class Worker {
         return;
       }
 
-      factoryOptions.metricsScope.tagged(
-          new ImmutableMap.Builder<String, String>(2)
-              .put(MetricsTag.DOMAIN, domain)
-              .put(MetricsTag.TASK_LIST, getStickyTaskListName())
-              .build());
+      Scope metricsScope =
+          factoryOptions.metricsScope.tagged(
+              new ImmutableMap.Builder<String, String>(2)
+                  .put(MetricsTag.DOMAIN, domain)
+                  .put(MetricsTag.TASK_LIST, getHostName())
+                  .build());
 
-      this.cache = new DeciderCache(factoryOptions.cacheMaximumSize, factoryOptions.metricsScope);
+      this.cache = new DeciderCache(factoryOptions.cacheMaximumSize, metricsScope);
 
       dispatcher = new PollDecisionTaskDispatcherFactory(workflowService).create();
       stickyPoller =
           new Poller<>(
               id.toString(),
               new WorkflowPollTaskFactory(
-                      workflowService,
-                      domain,
-                      getStickyTaskListName(),
-                      factoryOptions.metricsScope,
-                      id.toString())
+                      workflowService, domain, getStickyTaskListName(), metricsScope, id.toString())
                   .get(),
               dispatcher,
               factoryOptions.stickyWorkflowPollerOptions,
-              factoryOptions.metricsScope);
+              metricsScope);
     }
 
     public Worker newWorker(String taskList) {
@@ -500,7 +497,8 @@ public final class Worker {
       return this.cache;
     }
 
-    private String getHostName() {
+    @VisibleForTesting
+    String getHostName() {
       try {
         return InetAddress.getLocalHost().getHostName();
       } catch (UnknownHostException e) {
@@ -512,18 +510,6 @@ public final class Worker {
       return this.factoryOptions.enableStickyExecution
           ? String.format("%s:%s", getHostName(), id)
           : null;
-    }
-
-    private SingleWorkerOptions getDefaultSingleWorkerOptions() {
-      return Worker.toWorkflowOptions(new Builder().build(), domain, getStickyTaskListName());
-    }
-
-    private PollerOptions getDefaultPollerOptions(SingleWorkerOptions options) {
-      PollerOptions pollerOptions = options.getPollerOptions();
-      if (pollerOptions.getPollThreadNamePrefix() == null) {
-        pollerOptions = new PollerOptions.Builder(pollerOptions).build();
-      }
-      return pollerOptions;
     }
 
     enum State {

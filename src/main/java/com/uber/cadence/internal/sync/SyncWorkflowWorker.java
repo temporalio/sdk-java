@@ -54,13 +54,14 @@ public class SyncWorkflowWorker implements Consumer<PollForDecisionTaskResponse>
       Duration stickyDecisionScheduleToStartTimeout,
       ThreadPoolExecutor workflowThreadPool) {
     Objects.requireNonNull(workflowThreadPool);
+    this.options = options;
 
     factory =
         new POJOWorkflowImplementationFactory(
             options.getDataConverter(),
             workflowThreadPool,
             interceptorFactory,
-            options.getMetricsScope(),
+            this.options.getMetricsScope(),
             cache);
 
     DecisionTaskHandler taskHandler =
@@ -68,13 +69,12 @@ public class SyncWorkflowWorker implements Consumer<PollForDecisionTaskResponse>
             domain,
             factory,
             cache,
-            options,
+            this.options,
             stickyTaskListName,
             stickyDecisionScheduleToStartTimeout,
             service);
 
-    worker = new WorkflowWorker(service, domain, taskList, options, taskHandler);
-    this.options = options;
+    worker = new WorkflowWorker(service, domain, taskList, this.options, taskHandler);
   }
 
   public void setWorkflowImplementationTypes(Class<?>[] workflowImplementationTypes) {

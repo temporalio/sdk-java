@@ -181,9 +181,13 @@ class HistoryHelper {
   static class DecisionEventsIterator implements Iterator<DecisionEvents> {
 
     private EventsIterator events;
+    private long replayCurrentTimeMilliseconds;
 
-    DecisionEventsIterator(DecisionTaskWithHistoryIterator decisionTaskWithHistoryIterator) {
+    DecisionEventsIterator(
+        DecisionTaskWithHistoryIterator decisionTaskWithHistoryIterator,
+        long replayCurrentTimeMilliseconds) {
       this.events = new EventsIterator(decisionTaskWithHistoryIterator.getHistory());
+      this.replayCurrentTimeMilliseconds = replayCurrentTimeMilliseconds;
     }
 
     @Override
@@ -196,12 +200,17 @@ class HistoryHelper {
       List<HistoryEvent> decisionEvents = new ArrayList<>();
       List<HistoryEvent> newEvents = new ArrayList<>();
       boolean replay = true;
-      long replayCurrentTimeMilliseconds = -1;
       long nextDecisionEventId = -1;
       while (events.hasNext()) {
         HistoryEvent event = events.next();
         EventType eventType = event.getEventType();
-        // hasNext is for queries that do not have DecisionTaskStarted at the end of the history.
+
+        // Sticky workers receive an event history that starts with DecisionTaskCompleted
+        if (eventType == EventType.DecisionTaskCompleted && nextDecisionEventId == -1) {
+          nextDecisionEventId = event.getEventId() + 1;
+          break;
+        }
+
         if (eventType == EventType.DecisionTaskStarted || !events.hasNext()) {
           replayCurrentTimeMilliseconds = TimeUnit.NANOSECONDS.toMillis(event.getTimestamp());
           if (!events.hasNext()) {
@@ -216,10 +225,14 @@ class HistoryHelper {
             continue;
           } else if (peekedType == EventType.DecisionTaskCompleted) {
             events.next(); // consume DecisionTaskCompleted
-            nextDecisionEventId = peeked.getEventId() + 1; // +1 for next
+            nextDecisionEventId = peeked.getEventId() + 1; // +1 for next and skip over completed
             break;
           } else {
-            throw new Error("Unexpected event after DecisionTaskStarted: " + peeked);
+            throw new Error(
+                "Unexpected event after DecisionTaskStarted: "
+                    + peeked
+                    + " DecisionTaskStarted Event: "
+                    + event);
           }
         }
         newEvents.add(event);
@@ -245,9 +258,9 @@ class HistoryHelper {
   private final DecisionTaskWithHistoryIterator decisionTaskWithHistoryIterator;
   private final DecisionEventsIterator iterator;
 
-  HistoryHelper(DecisionTaskWithHistoryIterator decisionTasks) {
+  HistoryHelper(DecisionTaskWithHistoryIterator decisionTasks, long replayCurrentTimeMilliseconds) {
     this.decisionTaskWithHistoryIterator = decisionTasks;
-    this.iterator = new DecisionEventsIterator(decisionTasks);
+    this.iterator = new DecisionEventsIterator(decisionTasks, replayCurrentTimeMilliseconds);
   }
 
   public DecisionEventsIterator getIterator() {

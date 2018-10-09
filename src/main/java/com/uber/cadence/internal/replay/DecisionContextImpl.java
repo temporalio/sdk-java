@@ -192,6 +192,10 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
     workflowClock.setReplayCurrentTimeMilliseconds(replayCurrentTimeMilliseconds);
   }
 
+  long getReplayCurrentTimeMilliseconds() {
+    return workflowClock.currentTimeMillis();
+  }
+
   @Override
   public boolean isReplaying() {
     return workflowClock.isReplaying();

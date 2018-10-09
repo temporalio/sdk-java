@@ -66,7 +66,7 @@ final class ClockDecisionContext {
   // key is startedEventId
   private final Map<Long, OpenRequestInfo<?, Long>> scheduledTimers = new HashMap<>();
 
-  private long replayCurrentTimeMilliseconds;
+  private long replayCurrentTimeMilliseconds = -1;
 
   private boolean replaying = true;
 

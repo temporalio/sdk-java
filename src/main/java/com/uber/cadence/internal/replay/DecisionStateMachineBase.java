@@ -20,8 +20,12 @@ package com.uber.cadence.internal.replay;
 import com.uber.cadence.HistoryEvent;
 import java.util.ArrayList;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 abstract class DecisionStateMachineBase implements DecisionStateMachine {
+
+  private static final Logger log = LoggerFactory.getLogger(DecisionStateMachineBase.class);
 
   protected DecisionState state = DecisionState.CREATED;
 
