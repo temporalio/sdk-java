@@ -131,6 +131,9 @@ public class WorkflowServiceTChannel implements IWorkflowService {
     /** Client for metrics reporting. */
     private final Scope metricsScope;
 
+    /** Optional TChannel transport headers */
+    private final Map<String, String> transportHeaders;
+
     private ClientOptions(Builder builder) {
       this.rpcTimeoutMillis = builder.rpcTimeoutMillis;
       if (builder.clientAppName == null) {
@@ -149,6 +152,11 @@ public class WorkflowServiceTChannel implements IWorkflowService {
         builder.metricsScope = NoopScope.getInstance();
       }
       this.metricsScope = builder.metricsScope;
+      if (builder.transportHeaders != null) {
+        this.transportHeaders = builder.transportHeaders;
+      } else {
+        this.transportHeaders = ImmutableMap.of();
+      }
     }
 
     /** @return Returns the rpc timeout value in millis. */
@@ -179,6 +187,10 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       return metricsScope;
     }
 
+    public Map<String, String> getTransportHeaders() {
+      return transportHeaders;
+    }
+
     /**
      * Builder is the builder for ClientOptions.
      *
@@ -193,6 +205,7 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       public long rpcQueryTimeoutMillis = DEFAULT_QUERY_RPC_TIMEOUT_MILLIS;
       public String serviceName;
       private Scope metricsScope;
+      private Map<String, String> transportHeaders;
 
       /**
        * Sets the rpc timeout value for non query and non long poll calls. Default is 1000.
@@ -259,6 +272,17 @@ public class WorkflowServiceTChannel implements IWorkflowService {
        */
       public Builder setMetricsScope(Scope metricsScope) {
         this.metricsScope = metricsScope;
+        return this;
+      }
+
+      /**
+       * Sets additional transport headers for tchannel client.
+       *
+       * @param transportHeaders Map with additional transport headers
+       * @return Builder for ClentOptions
+       */
+      public Builder setTransportHeaders(Map<String, String> transportHeaders) {
+        this.transportHeaders = transportHeaders;
         return this;
       }
 
@@ -379,6 +403,9 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       builder.setTimeout(rpcTimeoutOverride);
     } else {
       builder.setTimeout(this.options.getRpcTimeoutMillis());
+    }
+    for (Map.Entry<String, String> header : this.options.getTransportHeaders().entrySet()) {
+      builder.setTransportHeader(header.getKey(), header.getValue());
     }
     builder.setBody(body);
     return builder.build();
