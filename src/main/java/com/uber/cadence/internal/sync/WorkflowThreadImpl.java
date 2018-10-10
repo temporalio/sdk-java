@@ -236,7 +236,13 @@ class WorkflowThreadImpl implements WorkflowThread {
           .getMetricsScope()
           .counter(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION)
           .inc(1);
-      cache.evictNext();
+      try {
+        if (cache != null) {
+          cache.evictNext();
+        }
+      } catch (InterruptedException e1) {
+        log.warn("Unable to evict cache", e1);
+      }
     }
 
     try {

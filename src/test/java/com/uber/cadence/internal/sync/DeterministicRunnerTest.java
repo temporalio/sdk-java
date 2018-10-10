@@ -22,10 +22,7 @@ import static junit.framework.TestCase.assertNotNull;
 import static junit.framework.TestCase.assertTrue;
 import static junit.framework.TestCase.fail;
 import static org.junit.Assert.assertFalse;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import com.uber.cadence.Decision;
 import com.uber.cadence.PollForDecisionTaskResponse;
@@ -718,8 +715,8 @@ public class DeterministicRunnerTest {
     assertEquals(0, cache.size()); // cache was evicted
     // Wait for reporter
     Thread.sleep(600);
-    verify(reporter, times(1))
-        .reportCounter(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION, tags, 1);
+    verify(reporter, atLeastOnce())
+        .reportCounter(eq(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION), eq(tags), anyInt());
   }
 
   @Test

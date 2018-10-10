@@ -20,9 +20,9 @@ package com.uber.cadence.internal.replay;
 import static junit.framework.TestCase.assertEquals;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Matchers.anyInt;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.*;
 
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.PollForDecisionTaskResponse;
@@ -160,10 +160,10 @@ public class ReplayDeciderCacheTests {
             .build();
     StatsReporter reporter = mock(StatsReporter.class);
     Scope scope =
-        new RootScopeBuilder().reporter(reporter).reportEvery(Duration.ofMillis(10)).tagged(tags);
+        new RootScopeBuilder().reporter(reporter).reportEvery(Duration.ofMillis(100)).tagged(tags);
 
     // Arrange
-    DeciderCache replayDeciderCache = new DeciderCache(10, scope);
+    DeciderCache replayDeciderCache = new DeciderCache(50, scope);
     PollForDecisionTaskResponse decisionTask1 =
         HistoryUtils.generateDecisionTaskWithInitialHistory();
     PollForDecisionTaskResponse decisionTask2 =
@@ -187,8 +187,9 @@ public class ReplayDeciderCacheTests {
 
     // Wait for reporter
     Thread.sleep(600);
-    verify(reporter, times(1))
-        .reportCounter(MetricsType.STICKY_CACHE_TOTAL_FORCED_EVICTION, tags, 1);
+    verify(reporter, atLeastOnce())
+        .reportCounter(
+                eq(MetricsType.STICKY_CACHE_TOTAL_FORCED_EVICTION), eq(tags), anyInt());
   }
 
   private void assertCacheIsEmpty(DeciderCache cache, String runId) throws Exception {
