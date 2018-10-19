@@ -50,7 +50,6 @@ import com.uber.cadence.converter.JsonDataConverter;
 import com.uber.cadence.internal.sync.DeterministicRunnerTest;
 import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
 import com.uber.cadence.testing.TestEnvironmentOptions;
-import com.uber.cadence.testing.TestEnvironmentOptions.Builder;
 import com.uber.cadence.testing.TestWorkflowEnvironment;
 import com.uber.cadence.worker.Worker;
 import com.uber.cadence.worker.WorkerOptions;
@@ -120,7 +119,7 @@ public class WorkflowTest {
 
   @Rule
   public Timeout globalTimeout =
-      Timeout.seconds(DEBUGGER_TIMEOUTS ? 500 : (skipDockerService ? 5 : 20));
+      Timeout.seconds(DEBUGGER_TIMEOUTS ? 500 : skipDockerService ? 5 : 20);
 
   @Rule
   public TestWatcher watchman =
@@ -221,7 +220,10 @@ public class WorkflowTest {
       scheduledExecutor = new ScheduledThreadPoolExecutor(1);
     } else {
       TestEnvironmentOptions testOptions =
-          new Builder().setDomain(DOMAIN).setInterceptorFactory(tracer).build();
+          new TestEnvironmentOptions.Builder()
+              .setDomain(DOMAIN)
+              .setInterceptorFactory(tracer)
+              .build();
       testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
       worker = testEnvironment.newWorker(taskList);
       workflowClient = testEnvironment.newWorkflowClient();
@@ -1502,7 +1504,7 @@ public class WorkflowTest {
       long time = Workflow.currentTimeMillis();
       timer1
           .thenApply(
-              (r) -> {
+              r -> {
                 // Testing that timer can be created from a callback thread.
                 if (useExternalService) {
                   Workflow.newTimer(Duration.ofSeconds(10));
@@ -2001,7 +2003,7 @@ public class WorkflowTest {
 
       return timer1
           .thenApply(
-              (e) -> {
+              e -> {
                 timer2.get();
                 return "timer2Fired";
               })
@@ -2927,37 +2929,37 @@ public class WorkflowTest {
 
     @Override
     public void proc() {
-      procResult = ("proc");
+      procResult = "proc";
     }
 
     @Override
     public void proc1(String a1) {
-      procResult = (a1);
+      procResult = a1;
     }
 
     @Override
     public void proc2(String a1, int a2) {
-      procResult = (a1 + a2);
+      procResult = a1 + a2;
     }
 
     @Override
     public void proc3(String a1, int a2, int a3) {
-      procResult = (a1 + a2 + a3);
+      procResult = a1 + a2 + a3;
     }
 
     @Override
     public void proc4(String a1, int a2, int a3, int a4) {
-      procResult = (a1 + a2 + a3 + a4);
+      procResult = a1 + a2 + a3 + a4;
     }
 
     @Override
     public void proc5(String a1, int a2, int a3, int a4, int a5) {
-      procResult = (a1 + a2 + a3 + a4 + a5);
+      procResult = a1 + a2 + a3 + a4 + a5;
     }
 
     @Override
     public void proc6(String a1, int a2, int a3, int a4, int a5, int a6) {
-      procResult = (a1 + a2 + a3 + a4 + a5 + a6);
+      procResult = a1 + a2 + a3 + a4 + a5 + a6;
     }
 
     @Override

@@ -92,6 +92,10 @@ public final class TestEnvironmentOptions {
         metricsScope = NoopScope.getInstance();
       }
 
+      if (factoryOptions == null) {
+        factoryOptions = new Worker.FactoryOptions.Builder().Build();
+      }
+
       return new TestEnvironmentOptions(
           dataConverter,
           domain,

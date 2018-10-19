@@ -18,6 +18,7 @@
 package com.uber.cadence.worker;
 
 import static org.junit.Assert.assertNotNull;
+
 import com.uber.cadence.activity.ActivityMethod;
 import com.uber.cadence.activity.ActivityOptions;
 import com.uber.cadence.client.WorkflowClient;
@@ -30,8 +31,10 @@ import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.Workflow;
 import com.uber.cadence.workflow.WorkflowMethod;
 import java.time.Duration;
-import java.util.*;
-
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+import java.util.UUID;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -73,7 +76,8 @@ public class WorkerStressTests {
     String taskListName = "veryLongWorkflow";
 
     TestEnvironmentWrapper wrapper =
-        new TestEnvironmentWrapper(new Worker.FactoryOptions.Builder().setmaxWorkflowThreadCount(200).Build());
+        new TestEnvironmentWrapper(
+            new Worker.FactoryOptions.Builder().setMaxWorkflowThreadCount(200).Build());
     Worker.Factory factory = wrapper.getWorkerFactory();
     Worker worker = factory.newWorker(taskListName, new WorkerOptions.Builder().build());
     worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
@@ -102,6 +106,60 @@ public class WorkerStressTests {
 
     workflow.start(w);
     assertNotNull("I'm done.", workflow.getResult(String.class));
+    wrapper.close();
+  }
+
+  @Test
+  public void selfEvictionDoesNotCauseDeadlock() throws InterruptedException {
+
+    // Arrange
+    String taskListName = "veryLongWorkflow" + UUID.randomUUID();
+
+    TestEnvironmentWrapper wrapper =
+        new TestEnvironmentWrapper(
+            new Worker.FactoryOptions.Builder()
+                .setDisableStickyExecution(false)
+                .setMaxWorkflowThreadCount(2)
+                .Build());
+    Worker.Factory factory = wrapper.getWorkerFactory();
+    Worker worker = factory.newWorker(taskListName, new WorkerOptions.Builder().build());
+    worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
+    worker.registerActivitiesImplementations(new ActivitiesImpl());
+    factory.start();
+
+    WorkflowOptions workflowOptions =
+        new WorkflowOptions.Builder()
+            .setTaskList(taskListName)
+            .setExecutionStartToCloseTimeout(Duration.ofSeconds(250))
+            .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
+            .build();
+    WorkflowStub workflow =
+        wrapper
+            .getWorkflowClient()
+            .newUntypedWorkflowStub("ActivitiesWorkflow::execute", workflowOptions);
+
+    // Act
+    WorkflowParams w = new WorkflowParams();
+    w.CadenceSleep = Duration.ofSeconds(0);
+    w.ChainSequence = 1;
+    w.ConcurrentCount = 15;
+    w.PayloadSizeBytes = 100;
+    w.TaskListName = taskListName;
+
+    // This will attempt to self evict given that there are only two threads available
+    workflow.start(w);
+
+    // Wait enough time to trigger self eviction
+    Thread.sleep(Duration.ofSeconds(1).toMillis());
+
+    // Start a second workflow and kick the previous one out
+    WorkflowStub workflow2 =
+        wrapper
+            .getWorkflowClient()
+            .newUntypedWorkflowStub("ActivitiesWorkflow::execute", workflowOptions);
+    w.ConcurrentCount = 1;
+    workflow2.start(w);
+    assertNotNull("I'm done.", workflow2.getResult(String.class));
     wrapper.close();
   }
 

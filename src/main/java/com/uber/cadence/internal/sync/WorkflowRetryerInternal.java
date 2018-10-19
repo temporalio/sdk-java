@@ -164,7 +164,7 @@ final class WorkflowRetryerInternal {
             ? DEFAULT_COEFFICIENT
             : options.getBackoffCoefficient();
     double sleepMillis =
-        (Math.pow(backoffCoefficient, attempt - 1)) * options.getInitialInterval().toMillis();
+        Math.pow(backoffCoefficient, attempt - 1) * options.getInitialInterval().toMillis();
     Duration maximumInterval = options.getMaximumInterval();
     if (maximumInterval == null) {
       return (long)

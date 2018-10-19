@@ -22,6 +22,7 @@ import com.uber.cadence.WorkflowType;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.converter.JsonDataConverter;
 import com.uber.cadence.internal.common.CheckedExceptionWrapper;
+import com.uber.cadence.internal.metrics.NoopScope;
 import com.uber.cadence.internal.replay.ContinueAsNewWorkflowExecutionParameters;
 import com.uber.cadence.internal.replay.DeciderCache;
 import com.uber.cadence.internal.replay.DecisionContext;
@@ -290,12 +291,14 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     List<Future<?>> threadFutures = new ArrayList<>();
     lock.lock();
     if (closed) {
+      lock.unlock();
       return;
     }
     // Do not close while runUntilAllBlocked executes.
     // closeRequested tells it to call close() at the end.
     closeRequested = true;
     if (inRunUntilAllBlocked) {
+      lock.unlock();
       return;
     }
     try {
@@ -343,10 +346,10 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
   @Override
   public String stackTrace() {
-    lock.lock();
-    checkClosed();
     StringBuilder result = new StringBuilder();
+    lock.lock();
     try {
+      checkClosed();
       for (WorkflowThread coroutine : threads) {
         if (result.length() > 0) {
           result.append("\n");
@@ -415,8 +418,8 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   @Override
   public void executeInWorkflowThread(String name, Runnable runnable) {
     lock.lock();
-    checkClosed();
     try {
+      checkClosed();
       toExecuteInWorkflowThread.add(new NamedRunnable(name, runnable));
     } finally {
       lock.unlock();
@@ -594,7 +597,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
     @Override
     public Scope getMetricsScope() {
-      throw new UnsupportedOperationException("not implemented");
+      return NoopScope.getInstance();
     }
 
     @Override

@@ -206,7 +206,7 @@ public class DeterministicRunnerTest {
       trace.addExpected("retry at " + time);
       long sleepMillis =
           (long)
-              ((Math.pow(retryOptions.getBackoffCoefficient(), attempt - 1))
+              (Math.pow(retryOptions.getBackoffCoefficient(), attempt - 1)
                   * retryOptions.getInitialInterval().toMillis());
       sleepMillis = Math.min(sleepMillis, retryOptions.getMaximumInterval().toMillis());
       attempt++;
@@ -664,8 +664,7 @@ public class DeterministicRunnerTest {
     DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
             threadPool,
-            new SyncDecisionContext(
-                decisionContext, JsonDataConverter.getInstance(), (next) -> next),
+            new SyncDecisionContext(decisionContext, JsonDataConverter.getInstance(), next -> next),
             () -> 0L, // clock override
             () -> {
               Promise<Void> thread =
@@ -688,8 +687,7 @@ public class DeterministicRunnerTest {
     DeterministicRunnerImpl d2 =
         new DeterministicRunnerImpl(
             threadPool,
-            new SyncDecisionContext(
-                decisionContext, JsonDataConverter.getInstance(), (next) -> next),
+            new SyncDecisionContext(decisionContext, JsonDataConverter.getInstance(), next -> next),
             () -> 0L, // clock override
             () -> {
               Promise<Void> thread =

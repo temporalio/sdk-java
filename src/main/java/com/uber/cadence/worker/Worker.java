@@ -38,11 +38,13 @@ import com.uber.cadence.internal.worker.SingleWorkerOptions;
 import com.uber.cadence.internal.worker.WorkflowPollTaskFactory;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
-import com.uber.cadence.worker.WorkerOptions.Builder;
 import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.WorkflowMethod;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.lang.reflect.Type;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -104,7 +106,7 @@ public final class Worker {
     this.threadPoolExecutor = Objects.requireNonNull(threadPoolExecutor);
 
     this.taskList = taskList;
-    this.options = MoreObjects.firstNonNull(options, new Builder().build());
+    this.options = MoreObjects.firstNonNull(options, new WorkerOptions.Builder().build());
 
     SingleWorkerOptions activityOptions = toActivityOptions(this.options, domain, taskList);
     activityWorker =
@@ -258,20 +260,16 @@ public final class Worker {
   /**
    * Shutdown a worker, waiting for activities to complete execution up to the specified timeout.
    */
-  private void shutdown(Duration timeout) {
-    try {
-      long time = System.currentTimeMillis();
-      if (activityWorker != null) {
-        activityWorker.shutdownAndAwaitTermination(timeout.toMillis(), TimeUnit.MILLISECONDS);
-      }
-      if (workflowWorker != null) {
-        long left = timeout.toMillis() - (System.currentTimeMillis() - time);
-        workflowWorker.shutdownAndAwaitTermination(left, TimeUnit.MILLISECONDS);
-      }
-      closed.set(true);
-    } catch (InterruptedException e) {
-      throw new RuntimeException(e);
+  private void shutdown(Duration timeout) throws InterruptedException {
+    long time = System.currentTimeMillis();
+    if (activityWorker != null) {
+      activityWorker.shutdownAndAwaitTermination(timeout.toMillis(), TimeUnit.MILLISECONDS);
     }
+    if (workflowWorker != null) {
+      long left = timeout.toMillis() - (System.currentTimeMillis() - time);
+      workflowWorker.shutdownAndAwaitTermination(left, TimeUnit.MILLISECONDS);
+    }
+    closed.set(true);
   }
 
   @Override
@@ -338,6 +336,7 @@ public final class Worker {
     return taskList;
   }
 
+  /** Maintains worker creation and lifecycle. */
   public static final class Factory {
     private final List<Worker> workers = new ArrayList<>();
     private final IWorkflowService workflowService;
@@ -356,27 +355,70 @@ public final class Worker {
 
     private final String statusErrorMessage =
         "attempted to %s while in %s state. Acceptable States: %s";
-
+    private static final Logger log = LoggerFactory.getLogger(Factory.class);
+    /**
+     * Creates a factory. Workers will be connected to a local deployment of cadence-server
+     *
+     * @param domain Domain used by workers to poll for workflows.
+     */
     public Factory(String domain) {
       this(new WorkflowServiceTChannel(), domain, null);
     }
 
+    /**
+     * Creates a factory. Workers will be connected to the cadence-server at the specific host and
+     * port.
+     *
+     * @param host host used by the underlying workflowServiceClient to connect to.
+     * @param port port used by the underlying workflowServiceClient to connect to.
+     * @param domain Domain used by workers to poll for workflows.
+     */
     public Factory(String host, int port, String domain) {
       this(new WorkflowServiceTChannel(host, port), domain, null);
     }
 
-    public Factory(String domain, FactoryOptions options) {
-      this(new WorkflowServiceTChannel(), domain, options);
+    /**
+     * Creates a factory connected to a local deployment of cadence-server.
+     *
+     * @param domain Domain used by workers to poll for workflows.
+     * @param factoryOptions Options used to configure factory settings
+     */
+    public Factory(String domain, FactoryOptions factoryOptions) {
+      this(new WorkflowServiceTChannel(), domain, factoryOptions);
     }
 
-    public Factory(String host, int port, String domain, FactoryOptions options) {
-      this(new WorkflowServiceTChannel(host, port), domain, options);
+    /**
+     * Creates a factory. Workers will be connected to the cadence-server at the specific host and
+     * port.
+     *
+     * @param host host used by the underlying workflowServiceClient to connect to.
+     * @param port port used by the underlying workflowServiceClient to connect to.
+     * @param domain Domain used by workers to poll for workflows.
+     * @param factoryOptions Options used to configure factory settings
+     */
+    public Factory(String host, int port, String domain, FactoryOptions factoryOptions) {
+      this(new WorkflowServiceTChannel(host, port), domain, factoryOptions);
     }
 
+    /**
+     * Creates a factory. Workers will be connect to the cadence-server using the workflowService
+     * client passed in.
+     *
+     * @param workflowService client to the Cadence Service endpoint.
+     * @param domain Domain used by workers to poll for workflows.
+     */
     public Factory(IWorkflowService workflowService, String domain) {
       this(workflowService, domain, null);
     }
 
+    /**
+     * Creates a factory. Workers will be connect to the cadence-server using the workflowService
+     * client passed in.
+     *
+     * @param workflowService client to the Cadence Service endpoint.
+     * @param domain Domain used by workers to poll for workflows.
+     * @param factoryOptions Options used to configure factory settings
+     */
     public Factory(IWorkflowService workflowService, String domain, FactoryOptions factoryOptions) {
       Preconditions.checkArgument(
           !Strings.isNullOrEmpty(domain), "domain should not be an empty string");
@@ -385,8 +427,9 @@ public final class Worker {
       this.workflowService =
           Objects.requireNonNull(workflowService, "workflowService should not be null");
 
-      this.factoryOptions =
+      factoryOptions =
           factoryOptions == null ? new FactoryOptions.Builder().Build() : factoryOptions;
+      this.factoryOptions = factoryOptions;
 
       workflowThreadPool =
           new ThreadPoolExecutor(
@@ -398,18 +441,18 @@ public final class Worker {
       workflowThreadPool.setThreadFactory(
           r -> new Thread(r, "workflow-thread-" + workflowThreadCounter.incrementAndGet()));
 
-      if (!this.factoryOptions.enableStickyExecution) {
+      if (this.factoryOptions.disableStickyExecution) {
         return;
       }
 
       Scope metricsScope =
-          factoryOptions.metricsScope.tagged(
+          this.factoryOptions.metricsScope.tagged(
               new ImmutableMap.Builder<String, String>(2)
                   .put(MetricsTag.DOMAIN, domain)
                   .put(MetricsTag.TASK_LIST, getHostName())
                   .build());
 
-      this.cache = new DeciderCache(factoryOptions.cacheMaximumSize, metricsScope);
+      this.cache = new DeciderCache(this.factoryOptions.cacheMaximumSize, metricsScope);
 
       dispatcher = new PollDecisionTaskDispatcherFactory(workflowService).create();
       stickyPoller =
@@ -419,14 +462,33 @@ public final class Worker {
                       workflowService, domain, getStickyTaskListName(), metricsScope, id.toString())
                   .get(),
               dispatcher,
-              factoryOptions.stickyWorkflowPollerOptions,
+              this.factoryOptions.stickyWorkflowPollerOptions,
               metricsScope);
     }
 
+    /**
+     * Creates worker that connects to an instance of the Cadence Service. It uses the domain
+     * configured at the Factory level. New workers cannot be created after the start() has been
+     * called
+     *
+     * @param taskList task list name worker uses to poll. It uses this name for both decision and
+     *     activity task list polls.
+     * @return Worker
+     */
     public Worker newWorker(String taskList) {
       return newWorker(taskList, null);
     }
 
+    /**
+     * Creates worker that connects to an instance of the Cadence Service. It uses the domain
+     * configured at the Factory level. New workers cannot be created after the start() has been
+     * called
+     *
+     * @param taskList task list name worker uses to poll. It uses this name for both decision and
+     *     activity task list polls.
+     * @param options Options (like {@link DataConverter} override) for configuring worker.
+     * @return Worker
+     */
     public Worker newWorker(String taskList, WorkerOptions options) {
       Preconditions.checkArgument(
           !Strings.isNullOrEmpty(taskList), "taskList should not be an empty string");
@@ -448,7 +510,7 @@ public final class Worker {
                 workflowThreadPool);
         workers.add(worker);
 
-        if (this.factoryOptions.enableStickyExecution) {
+        if (!this.factoryOptions.disableStickyExecution) {
           dispatcher.subscribe(taskList, worker.workflowWorker);
         }
 
@@ -456,6 +518,7 @@ public final class Worker {
       }
     }
 
+    /** Starts all the workers created by this factory. */
     public void start() {
       synchronized (this) {
         Preconditions.checkState(
@@ -480,14 +543,26 @@ public final class Worker {
       }
     }
 
+    /**
+     * Shuts down Poller used for sticky workflows and all workers created by this factory. Shutdown
+     * will be called on each worker created by this factory with the given timeout. If the timeout
+     * is exceeded a warning is logged.
+     *
+     * @param timeout
+     */
     public void shutdown(Duration timeout) {
       synchronized (this) {
         state = State.Shutdown;
         if (stickyPoller != null) {
           stickyPoller.shutdown();
         }
+
         for (Worker worker : workers) {
-          worker.shutdown(timeout);
+          try{
+            worker.shutdown(timeout);
+          } catch (InterruptedException e) {
+            log.warn("Interrupted exception thrown during worker shutdown.",e);
+          }
         }
       }
     }
@@ -507,9 +582,9 @@ public final class Worker {
     }
 
     private String getStickyTaskListName() {
-      return this.factoryOptions.enableStickyExecution
-          ? String.format("%s:%s", getHostName(), id)
-          : null;
+      return this.factoryOptions.disableStickyExecution
+          ? null
+          : String.format("%s:%s", getHostName(), id);
     }
 
     enum State {
@@ -521,28 +596,45 @@ public final class Worker {
 
   public static class FactoryOptions {
     public static class Builder {
-      private boolean enableStickyExecution;
+      private boolean disableStickyExecution;
       private int stickyDecisionScheduleToStartTimeoutInSeconds = 5;
       private int cacheMaximumSize = 600;
       private int maxWorkflowThreadCount = 600;
       private PollerOptions stickyWorkflowPollerOptions;
       private Scope metricScope;
 
-      public Builder setEnableStickyExecution(boolean enableStickyExecution) {
-        this.enableStickyExecution = enableStickyExecution;
+      /**
+       * When set to false it will create an affinity between the worker and the workflow run it's
+       * processing. Workers will cache workflows and will handle all decisions for that workflow
+       * instance until it's complete or evicted from the cache. Default value is false.
+       */
+      public Builder setDisableStickyExecution(boolean disableStickyExecution) {
+        this.disableStickyExecution = disableStickyExecution;
         return this;
       }
 
+      /**
+       * When Sticky execution is enabled this will set the maximum allowed number of workflows
+       * cached. This cache is shared by all workers created by the Factory. Default value is 600
+       */
       public Builder setCacheMaximumSize(int cacheMaximumSize) {
         this.cacheMaximumSize = cacheMaximumSize;
         return this;
       }
 
-      public Builder setmaxWorkflowThreadCount(int maxWorkflowThreadCount) {
+      /**
+       * Maximum number of threads available for workflow execution across all workers created by
+       * the Factory.
+       */
+      public Builder setMaxWorkflowThreadCount(int maxWorkflowThreadCount) {
         this.maxWorkflowThreadCount = maxWorkflowThreadCount;
         return this;
       }
 
+      /**
+       * Timeout for sticky workflow decision to be picked up by the host assigned to it. Once it
+       * times out then it can be picked up by any worker. Default value is 5 seconds.
+       */
       public Builder setStickyDecisionScheduleToStartTimeoutInSeconds(
           int stickyDecisionScheduleToStartTimeoutInSeconds) {
         this.stickyDecisionScheduleToStartTimeoutInSeconds =
@@ -550,6 +642,10 @@ public final class Worker {
         return this;
       }
 
+      /**
+       * PollerOptions for poller responsible for polling for decisions for workflows cached by all
+       * workers created by this factory.
+       */
       public Builder setStickyWorkflowPollerOptions(PollerOptions stickyWorkflowPollerOptions) {
         this.stickyWorkflowPollerOptions = stickyWorkflowPollerOptions;
         return this;
@@ -562,7 +658,7 @@ public final class Worker {
 
       public FactoryOptions Build() {
         return new FactoryOptions(
-            enableStickyExecution,
+            disableStickyExecution,
             cacheMaximumSize,
             maxWorkflowThreadCount,
             stickyDecisionScheduleToStartTimeoutInSeconds,
@@ -571,7 +667,7 @@ public final class Worker {
       }
     }
 
-    private final boolean enableStickyExecution;
+    private final boolean disableStickyExecution;
     private final int cacheMaximumSize;
     private final int maxWorkflowThreadCount;
     private final int stickyDecisionScheduleToStartTimeoutInSeconds;
@@ -579,7 +675,7 @@ public final class Worker {
     private final Scope metricsScope;
 
     private FactoryOptions(
-        boolean enableStickyExecution,
+        boolean disableStickyExecution,
         int cacheMaximumSize,
         int maxWorkflowThreadCount,
         int stickyDecisionScheduleToStartTimeoutInSeconds,
@@ -593,7 +689,7 @@ public final class Worker {
           stickyDecisionScheduleToStartTimeoutInSeconds > 0,
           "stickyDecisionScheduleToStartTimeoutInSeconds should be greater than 0");
 
-      this.enableStickyExecution = enableStickyExecution;
+      this.disableStickyExecution = disableStickyExecution;
       this.cacheMaximumSize = cacheMaximumSize;
       this.maxWorkflowThreadCount = maxWorkflowThreadCount;
       this.stickyDecisionScheduleToStartTimeoutInSeconds =

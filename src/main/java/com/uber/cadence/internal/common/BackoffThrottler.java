@@ -78,7 +78,7 @@ public final class BackoffThrottler {
 
   private long calculateSleepTime() {
     double sleepMillis =
-        (Math.pow(backoffCoefficient, failureCount.get() - 1)) * initialSleep.toMillis();
+        Math.pow(backoffCoefficient, failureCount.get() - 1) * initialSleep.toMillis();
     if (maxSleep != null) {
       return Math.min((long) sleepMillis, maxSleep.toMillis());
     }

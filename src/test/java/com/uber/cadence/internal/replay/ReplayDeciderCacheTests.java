@@ -152,7 +152,7 @@ public class ReplayDeciderCacheTests {
   }
 
   @Test
-  public void evictNextWillInvalidateTheNextEntryInLineToBeEvicted() throws Exception {
+  public void evictAnyWillInvalidateAnEntryRandomlyFromTheCache() throws Exception {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.DOMAIN, "domain")
@@ -178,18 +178,33 @@ public class ReplayDeciderCacheTests {
 
     assertEquals(3, replayDeciderCache.size());
 
-    replayDeciderCache.evictNext();
+    replayDeciderCache.evictAny(decisionTask3.workflowExecution.runId);
 
     // Assert
     assertEquals(2, replayDeciderCache.size());
-    String runId1 = decisionTask1.workflowExecution.getRunId();
-    assertCacheIsEmpty(replayDeciderCache, runId1);
 
     // Wait for reporter
     Thread.sleep(600);
     verify(reporter, atLeastOnce())
-        .reportCounter(
-                eq(MetricsType.STICKY_CACHE_TOTAL_FORCED_EVICTION), eq(tags), anyInt());
+        .reportCounter(eq(MetricsType.STICKY_CACHE_TOTAL_FORCED_EVICTION), eq(tags), anyInt());
+  }
+
+  @Test
+  public void evictAnyWillNotInvalidateItself() throws Exception {
+    // Arrange
+    DeciderCache replayDeciderCache = new DeciderCache(50, NoopScope.getInstance());
+    PollForDecisionTaskResponse decisionTask1 =
+        HistoryUtils.generateDecisionTaskWithInitialHistory();
+
+    // Act
+    Decider decider1 = replayDeciderCache.getOrCreate(decisionTask1, this::createFakeDecider);
+
+    assertEquals(1, replayDeciderCache.size());
+
+    replayDeciderCache.evictAny(decisionTask1.workflowExecution.runId);
+
+    // Assert
+    assertEquals(1, replayDeciderCache.size());
   }
 
   private void assertCacheIsEmpty(DeciderCache cache, String runId) throws Exception {

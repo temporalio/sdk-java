@@ -140,4 +140,6 @@ public class MetricsType {
       CADENCE_METRICS_PREFIX + "sticky-cache-thread-forced-eviction";
   public static final String STICKY_CACHE_STALL = CADENCE_METRICS_PREFIX + "sticky-cache-stall";
   public static final String STICKY_CACHE_SIZE = CADENCE_METRICS_PREFIX + "sticky-cache-size";
+  public static final String WORKFLOW_ACTIVE_THREAD_COUNT =
+      CADENCE_METRICS_PREFIX + "workflow_active_thread_count";
 }

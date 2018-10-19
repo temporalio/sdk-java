@@ -27,7 +27,6 @@ import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.internal.metrics.MetricsTag;
 import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.testing.TestEnvironmentOptions;
-import com.uber.cadence.testing.TestEnvironmentOptions.Builder;
 import com.uber.cadence.testing.TestWorkflowEnvironment;
 import com.uber.cadence.worker.Worker;
 import com.uber.cadence.workflow.interceptors.SignalWorkflowInterceptor;
@@ -168,7 +167,10 @@ public class MetricsTest {
     Scope scope = new RootScopeBuilder().reporter(reporter).reportEvery(reportingFrequecy);
 
     TestEnvironmentOptions testOptions =
-        new Builder().setDomain(WorkflowTest.DOMAIN).setMetricsScope(scope).build();
+        new TestEnvironmentOptions.Builder()
+            .setDomain(WorkflowTest.DOMAIN)
+            .setMetricsScope(scope)
+            .build();
     testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
   }
 
@@ -249,7 +251,7 @@ public class MetricsTest {
             .put(MetricsTag.DOMAIN, WorkflowTest.DOMAIN)
             .put(MetricsTag.TASK_LIST, taskList)
             .build();
-    verify(reporter, times(1)).reportCounter(MetricsType.CORRUPTED_SIGNALS_COUNTER, tags, 2);
+    verify(reporter, times(1)).reportCounter(MetricsType.CORRUPTED_SIGNALS_COUNTER, tags, 1);
   }
 
   private static class CorruptedSignalWorkflowInterceptorFactory

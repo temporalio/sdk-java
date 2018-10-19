@@ -24,7 +24,7 @@ import java.util.Objects;
 
 public final class PollDecisionTaskDispatcherFactory
     implements DispatcherFactory<String, PollForDecisionTaskResponse> {
-  private IWorkflowService service = new WorkflowServiceTChannel();
+  private IWorkflowService service;
   private Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
 
   public PollDecisionTaskDispatcherFactory(
@@ -36,8 +36,6 @@ public final class PollDecisionTaskDispatcherFactory
   public PollDecisionTaskDispatcherFactory(IWorkflowService service) {
     this.service = Objects.requireNonNull(service);
   }
-
-  public PollDecisionTaskDispatcherFactory() {}
 
   @Override
   public Dispatcher<String, PollForDecisionTaskResponse> create() {

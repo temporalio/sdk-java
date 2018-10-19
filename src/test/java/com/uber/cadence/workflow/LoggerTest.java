@@ -27,7 +27,6 @@ import com.uber.cadence.client.WorkflowClient;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.internal.logging.LoggerTag;
 import com.uber.cadence.testing.TestEnvironmentOptions;
-import com.uber.cadence.testing.TestEnvironmentOptions.Builder;
 import com.uber.cadence.testing.TestWorkflowEnvironment;
 import com.uber.cadence.worker.Worker;
 import java.time.Duration;
@@ -106,7 +105,7 @@ public class LoggerTest {
   @Test
   public void testWorkflowLogger() {
     TestEnvironmentOptions testOptions =
-        new Builder()
+        new TestEnvironmentOptions.Builder()
             .setDomain(WorkflowTest.DOMAIN)
             .setEnableLoggingInReplay(loggingEnabledInReplay)
             .build();
@@ -126,8 +125,7 @@ public class LoggerTest {
         workflowClient.newWorkflowStub(LoggerTest.TestWorkflow.class, options);
     workflow.execute(wfID);
 
-    assertEquals(
-        startLinesExpected, matchingLines(String.format("Start executing workflow %s.", wfID)));
+    assertEquals(1, matchingLines(String.format("Start executing workflow %s.", wfID)));
     assertEquals(1, matchingLines(String.format("Executing child workflow %s.", wfID)));
     assertEquals(1, matchingLines(String.format("Done executing workflow %s.", wfID)));
   }

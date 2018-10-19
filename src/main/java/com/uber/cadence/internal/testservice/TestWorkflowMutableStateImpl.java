@@ -697,7 +697,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       throws BadRequestError, InternalServiceError {
     String timerId = a.getTimerId();
     if (timerId == null) {
-      throw new BadRequestError(("A valid TimerId is not set on StartTimerDecision"));
+      throw new BadRequestError("A valid TimerId is not set on StartTimerDecision");
     }
     StateMachine<TimerData> timer = timers.get(timerId);
     if (timer != null) {
