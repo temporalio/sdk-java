@@ -58,11 +58,7 @@ public class SyncWorkflowWorker implements Consumer<PollForDecisionTaskResponse>
 
     factory =
         new POJOWorkflowImplementationFactory(
-            options.getDataConverter(),
-            workflowThreadPool,
-            interceptorFactory,
-            this.options.getMetricsScope(),
-            cache);
+            options.getDataConverter(), workflowThreadPool, interceptorFactory, cache);
 
     DecisionTaskHandler taskHandler =
         new ReplayDecisionTaskHandler(

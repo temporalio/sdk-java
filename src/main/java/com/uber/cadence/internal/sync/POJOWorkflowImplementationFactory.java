@@ -37,7 +37,6 @@ import com.uber.cadence.workflow.Workflow;
 import com.uber.cadence.workflow.WorkflowInfo;
 import com.uber.cadence.workflow.WorkflowInterceptor;
 import com.uber.cadence.workflow.WorkflowMethod;
-import com.uber.m3.tally.Scope;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -67,19 +66,16 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       Collections.synchronizedMap(new HashMap<>());
 
   private final ExecutorService threadPool;
-  private final Scope metricsScope;
   private DeciderCache cache;
 
   POJOWorkflowImplementationFactory(
       DataConverter dataConverter,
       ExecutorService threadPool,
       Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
-      Scope metricsScope,
       DeciderCache cache) {
     this.dataConverter = Objects.requireNonNull(dataConverter);
     this.threadPool = Objects.requireNonNull(threadPool);
     this.interceptorFactory = Objects.requireNonNull(interceptorFactory);
-    this.metricsScope = metricsScope;
     this.cache = cache;
   }
 
@@ -320,7 +316,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
             + eventId
             + ". Dropping it.",
         exception);
-    metricsScope.counter(MetricsType.CORRUPTED_SIGNALS_COUNTER).inc(1);
+    Workflow.getMetricsScope().counter(MetricsType.CORRUPTED_SIGNALS_COUNTER).inc(1);
   }
 
   static WorkflowExecutionException mapToWorkflowExecutionException(
