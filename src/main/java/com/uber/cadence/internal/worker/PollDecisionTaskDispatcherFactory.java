@@ -19,7 +19,6 @@ package com.uber.cadence.internal.worker;
 
 import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.serviceclient.IWorkflowService;
-import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
 import java.util.Objects;
 
 public final class PollDecisionTaskDispatcherFactory

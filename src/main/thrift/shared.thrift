@@ -54,6 +54,25 @@ exception QueryFailedError {
   1: required string message
 }
 
+exception DomainNotActiveError {
+  1: required string message
+  2: required string domainName
+  3: required string currentCluster
+  4: required string activeCluster
+}
+
+exception LimitExceededError {
+  1: required string message
+}
+
+exception AccessDeniedError {
+  1: required string message
+}
+
+exception RetryTaskError {
+  1: required string message
+}
+
 enum WorkflowIdReusePolicy {
   /*
    * allow start a workflow execution using the same workflow ID,
@@ -85,6 +104,10 @@ enum TimeoutType {
   HEARTBEAT,
 }
 
+// whenever this list of decision is changed
+// do change the mutableStateBuilder.go
+// function shouldBufferEvent
+// to make sure wo do the correct event ordering
 enum DecisionType {
   ScheduleActivityTask,
   RequestCancelActivityTask,
@@ -161,6 +184,9 @@ enum DecisionTaskFailedCause {
   WORKFLOW_WORKER_UNHANDLED_FAILURE,
   BAD_SIGNAL_WORKFLOW_EXECUTION_ATTRIBUTES,
   BAD_START_CHILD_EXECUTION_ATTRIBUTES,
+  FORCE_CLOSE_DECISION,
+  FAILOVER_CLOSE_DECISION,
+  BAD_SIGNAL_INPUT_SIZE,
 }
 
 enum CancelExternalWorkflowExecutionFailedCause {
@@ -209,6 +235,10 @@ enum HistoryEventFilterType {
 enum TaskListKind {
   NORMAL,
   STICKY,
+}
+
+struct Header {
+    10: optional map<string, binary> fields
 }
 
 struct WorkflowType {
@@ -264,6 +294,7 @@ struct ScheduleActivityTaskDecisionAttributes {
   50: optional i32 scheduleToStartTimeoutSeconds
   55: optional i32 startToCloseTimeoutSeconds
   60: optional i32 heartbeatTimeoutSeconds
+  70: optional RetryPolicy retryPolicy
 }
 
 struct RequestCancelActivityTaskDecisionAttributes {
@@ -312,6 +343,7 @@ struct SignalExternalWorkflowExecutionDecisionAttributes {
 struct RecordMarkerDecisionAttributes {
   10: optional string markerName
   20: optional binary details
+  30: optional Header header
 }
 
 struct ContinueAsNewWorkflowExecutionDecisionAttributes {
@@ -320,6 +352,8 @@ struct ContinueAsNewWorkflowExecutionDecisionAttributes {
   30: optional binary input
   40: optional i32 executionStartToCloseTimeoutSeconds
   50: optional i32 taskStartToCloseTimeoutSeconds
+  60: optional i32 backoffStartIntervalInSeconds
+  70: optional RetryPolicy retryPolicy
 }
 
 struct StartChildWorkflowExecutionDecisionAttributes {
@@ -333,6 +367,7 @@ struct StartChildWorkflowExecutionDecisionAttributes {
   80: optional ChildPolicy childPolicy
   90: optional binary control
   100: optional WorkflowIdReusePolicy workflowIdReusePolicy
+  110: optional RetryPolicy retryPolicy
 }
 
 struct Decision {
@@ -353,11 +388,19 @@ struct Decision {
 
 struct WorkflowExecutionStartedEventAttributes {
   10: optional WorkflowType workflowType
+  12: optional string parentWorkflowDomain
+  14: optional WorkflowExecution parentWorkflowExecution
+  16: optional i64 (js.type = "Long") parentInitiatedEventId
   20: optional TaskList taskList
   30: optional binary input
   40: optional i32 executionStartToCloseTimeoutSeconds
   50: optional i32 taskStartToCloseTimeoutSeconds
+  52: optional ChildPolicy childPolicy
+  54: optional string continuedExecutionRunId
   60: optional string identity
+  70: optional RetryPolicy retryPolicy
+  80: optional i32 attempt
+  90: optional i64 (js.type = "Long") expirationTimestamp
 }
 
 struct WorkflowExecutionCompletedEventAttributes {
@@ -383,6 +426,7 @@ struct WorkflowExecutionContinuedAsNewEventAttributes {
   50: optional i32 executionStartToCloseTimeoutSeconds
   60: optional i32 taskStartToCloseTimeoutSeconds
   70: optional i64 (js.type = "Long") decisionTaskCompletedEventId
+  80: optional i32 backoffStartIntervalInSeconds
 }
 
 struct DecisionTaskScheduledEventAttributes {
@@ -402,6 +446,7 @@ struct DecisionTaskCompletedEventAttributes {
   20: optional i64 (js.type = "Long") scheduledEventId
   30: optional i64 (js.type = "Long") startedEventId
   40: optional string identity
+  50: optional string binaryChecksum
 }
 
 struct DecisionTaskTimedOutEventAttributes {
@@ -429,12 +474,14 @@ struct ActivityTaskScheduledEventAttributes {
   55: optional i32 startToCloseTimeoutSeconds
   60: optional i32 heartbeatTimeoutSeconds
   90: optional i64 (js.type = "Long") decisionTaskCompletedEventId
+  110: optional RetryPolicy retryPolicy
 }
 
 struct ActivityTaskStartedEventAttributes {
   10: optional i64 (js.type = "Long") scheduledEventId
   20: optional string identity
   30: optional string requestId
+  40: optional i32 attempt
 }
 
 struct ActivityTaskCompletedEventAttributes {
@@ -519,6 +566,7 @@ struct MarkerRecordedEventAttributes {
   10: optional string markerName
   20: optional binary details
   30: optional i64 (js.type = "Long") decisionTaskCompletedEventId
+  40: optional Header header
 }
 
 struct WorkflowExecutionSignaledEventAttributes {
@@ -594,6 +642,7 @@ struct StartChildWorkflowExecutionInitiatedEventAttributes {
   90:  optional binary control
   100: optional i64 (js.type = "Long") decisionTaskCompletedEventId
   110: optional WorkflowIdReusePolicy workflowIdReusePolicy
+  120: optional RetryPolicy retryPolicy
 }
 
 struct StartChildWorkflowExecutionFailedEventAttributes {
@@ -662,6 +711,7 @@ struct HistoryEvent {
   10:  optional i64 (js.type = "Long") eventId
   20:  optional i64 (js.type = "Long") timestamp
   30:  optional EventType eventType
+  35:  optional i64 (js.type = "Long") version
   40:  optional WorkflowExecutionStartedEventAttributes workflowExecutionStartedEventAttributes
   50:  optional WorkflowExecutionCompletedEventAttributes workflowExecutionCompletedEventAttributes
   60:  optional WorkflowExecutionFailedEventAttributes workflowExecutionFailedEventAttributes
@@ -727,6 +777,8 @@ struct DomainInfo {
   20: optional DomainStatus status
   30: optional string description
   40: optional string ownerEmail
+  // A key-value map for any customized purpose
+  50: optional map<string,string> data
 }
 
 struct DomainConfiguration {
@@ -737,6 +789,8 @@ struct DomainConfiguration {
 struct UpdateDomainInfo {
   10: optional string description
   20: optional string ownerEmail
+  // A key-value map for any customized purpose
+  30: optional map<string,string> data
 }
 
 struct ClusterReplicationConfiguration {
@@ -756,10 +810,23 @@ struct RegisterDomainRequest {
   50: optional bool emitMetric
   60: optional list<ClusterReplicationConfiguration> clusters
   70: optional string activeClusterName
+  // A key-value map for any customized purpose
+  80: optional map<string,string> data
+  90: optional string securityToken
+}
+
+struct ListDomainsRequest {
+  10: optional i32 pageSize
+  20: optional binary nextPageToken
+}
+
+struct ListDomainsResponse {
+  10: optional list<DescribeDomainResponse> domains
+  20: optional binary nextPageToken
 }
 
 struct DescribeDomainRequest {
- 10: optional string name
+  10: optional string name
 }
 
 struct DescribeDomainResponse {
@@ -775,6 +842,7 @@ struct UpdateDomainRequest {
  20: optional UpdateDomainInfo updatedInfo
  30: optional DomainConfiguration configuration
  40: optional DomainReplicationConfiguration replicationConfiguration
+ 50: optional string securityToken
 }
 
 struct UpdateDomainResponse {
@@ -787,6 +855,7 @@ struct UpdateDomainResponse {
 
 struct DeprecateDomainRequest {
  10: optional string name
+ 20: optional string securityToken
 }
 
 struct StartWorkflowExecutionRequest {
@@ -800,6 +869,8 @@ struct StartWorkflowExecutionRequest {
   80: optional string identity
   90: optional string requestId
   100: optional WorkflowIdReusePolicy workflowIdReusePolicy
+  110: optional ChildPolicy childPolicy
+  120: optional RetryPolicy retryPolicy
 }
 
 struct StartWorkflowExecutionResponse {
@@ -837,6 +908,13 @@ struct RespondDecisionTaskCompletedRequest {
   30: optional binary executionContext
   40: optional string identity
   50: optional StickyExecutionAttributes stickyAttributes
+  60: optional bool returnNewDecisionTask
+  70: optional bool forceCreateNewDecisionTask
+  80: optional string binaryChecksum
+}
+
+struct RespondDecisionTaskCompletedResponse {
+  10: optional PollForDecisionTaskResponse decisionTask
 }
 
 struct RespondDecisionTaskFailedRequest {
@@ -864,12 +942,26 @@ struct PollForActivityTaskResponse {
   90:  optional i64 (js.type = "Long") startedTimestamp
   100: optional i32 startToCloseTimeoutSeconds
   110: optional i32 heartbeatTimeoutSeconds
+  120: optional i32 attempt
+  130: optional i64 (js.type = "Long") scheduledTimestampOfThisAttempt
+  140: optional binary heartbeatDetails
+  150: optional WorkflowType workflowType
+  160: optional string workflowDomain
 }
 
 struct RecordActivityTaskHeartbeatRequest {
   10: optional binary taskToken
   20: optional binary details
   30: optional string identity
+}
+
+struct RecordActivityTaskHeartbeatByIDRequest {
+  10: optional string domain
+  20: optional string workflowID
+  30: optional string runID
+  40: optional string activityID
+  50: optional binary details
+  60: optional string identity
 }
 
 struct RecordActivityTaskHeartbeatResponse {
@@ -954,6 +1046,23 @@ struct SignalWorkflowExecutionRequest {
   70: optional binary control
 }
 
+struct SignalWithStartWorkflowExecutionRequest {
+  10: optional string domain
+  20: optional string workflowId
+  30: optional WorkflowType workflowType
+  40: optional TaskList taskList
+  50: optional binary input
+  60: optional i32 executionStartToCloseTimeoutSeconds
+  70: optional i32 taskStartToCloseTimeoutSeconds
+  80: optional string identity
+  90: optional string requestId
+  100: optional WorkflowIdReusePolicy workflowIdReusePolicy
+  110: optional string signalName
+  120: optional binary signalInput
+  130: optional binary control
+  140: optional RetryPolicy retryPolicy
+}
+
 struct TerminateWorkflowExecutionRequest {
   10: optional string domain
   20: optional WorkflowExecution workflowExecution
@@ -1006,6 +1115,16 @@ struct WorkflowQuery {
   20: optional binary queryArgs
 }
 
+struct ResetStickyTaskListRequest {
+  10: optional string domain
+  20: optional WorkflowExecution execution
+}
+
+struct ResetStickyTaskListResponse {
+    // The reason to keep this response is to allow returning
+    // information in the future.
+}
+
 struct RespondQueryTaskCompletedRequest {
   10: optional binary taskToken
   20: optional QueryTaskCompletedType completedType
@@ -1042,6 +1161,26 @@ struct DescribeTaskListResponse {
   10: optional list<PollerInfo> pollers
 }
 
+//At least one of the parameters needs to be provided
+struct DescribeHistoryHostRequest {
+  10: optional string               hostAddress //ip:port
+  20: optional i32                  shardIdForHost
+  30: optional WorkflowExecution    executionForHost
+}
+
+struct DescribeHistoryHostResponse{
+  10: optional i32                  numberOfShards
+  20: optional list<i32>            shardIDs
+  30: optional DomainCacheInfo      domainCache
+  40: optional string               shardControllerStatus
+  50: optional string               address
+}
+
+struct DomainCacheInfo{
+  10: optional i64 numOfItemsInCacheByID
+  20: optional i64 numOfItemsInCacheByName
+}
+
 enum TaskListType {
   /*
    * Decision type of tasklist
@@ -1057,4 +1196,28 @@ struct PollerInfo {
   // Unix Nano
   10: optional i64 (js.type = "Long")  lastAccessTime
   20: optional string identity
+}
+
+struct RetryPolicy {
+  // Interval of the first retry. If coefficient is 1.0 then it is used for all retries.
+  10: optional i32 initialIntervalInSeconds
+
+  // Coefficient used to calculate the next retry interval.
+  // The next retry interval is previous interval multiplied by the coefficient.
+  // Must be 1 or larger.
+  20: optional double backoffCoefficient
+
+  // Maximum interval between retries. Exponential backoff leads to interval increase.
+  // This value is the cap of the increase. Default is 100x of initial interval.
+  30: optional i32 maximumIntervalInSeconds
+
+  // Maximum number of attempts. When exceeded the retries stop even if not expired yet.
+  // Must be 1 or bigger. Default is unlimited.
+  40: optional i32 maximumAttempts
+
+  // Non-Retriable errors. Will stop retrying if error matches this list.
+  50: optional list<string> nonRetriableErrorReasons
+
+  // Expiration time for the whole retry process.
+  60: optional i32 expirationIntervalInSeconds
 }

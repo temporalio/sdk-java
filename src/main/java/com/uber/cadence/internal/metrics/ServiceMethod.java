@@ -22,6 +22,7 @@ public class ServiceMethod {
       MetricsType.CADENCE_METRICS_PREFIX + "DeprecateDomain";
   public static final String DESCRIBE_DOMAIN =
       MetricsType.CADENCE_METRICS_PREFIX + "DescribeDomain";
+  public static final String LIST_DOMAINS = MetricsType.CADENCE_METRICS_PREFIX + "ListDomains";
   public static final String GET_WORKFLOW_EXECUTION_HISTORY =
       MetricsType.CADENCE_METRICS_PREFIX + "GetWorkflowExecutionHistory";
   public static final String LIST_CLOSED_WORKFLOW_EXECUTIONS =
@@ -72,4 +73,6 @@ public class ServiceMethod {
       MetricsType.CADENCE_METRICS_PREFIX + "RespondQueryTaskCompleted";
   public static final String DESCRIBE_WORKFLOW_EXECUTION =
       MetricsType.CADENCE_METRICS_PREFIX + "DescribeWorkflowExecution";
+  public static final String RESET_STICKY_TASK_LIST =
+      MetricsType.CADENCE_METRICS_PREFIX + "ResetStickyTaskList";
 }

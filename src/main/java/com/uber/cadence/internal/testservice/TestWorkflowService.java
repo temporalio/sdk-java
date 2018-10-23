@@ -27,12 +27,16 @@ import com.uber.cadence.DescribeTaskListResponse;
 import com.uber.cadence.DescribeWorkflowExecutionRequest;
 import com.uber.cadence.DescribeWorkflowExecutionResponse;
 import com.uber.cadence.DomainAlreadyExistsError;
+import com.uber.cadence.DomainNotActiveError;
 import com.uber.cadence.EntityNotExistsError;
 import com.uber.cadence.GetWorkflowExecutionHistoryRequest;
 import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
 import com.uber.cadence.InternalServiceError;
+import com.uber.cadence.LimitExceededError;
 import com.uber.cadence.ListClosedWorkflowExecutionsRequest;
 import com.uber.cadence.ListClosedWorkflowExecutionsResponse;
+import com.uber.cadence.ListDomainsRequest;
+import com.uber.cadence.ListDomainsResponse;
 import com.uber.cadence.ListOpenWorkflowExecutionsRequest;
 import com.uber.cadence.ListOpenWorkflowExecutionsResponse;
 import com.uber.cadence.PollForActivityTaskRequest;
@@ -42,10 +46,13 @@ import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.QueryFailedError;
 import com.uber.cadence.QueryWorkflowRequest;
 import com.uber.cadence.QueryWorkflowResponse;
+import com.uber.cadence.RecordActivityTaskHeartbeatByIDRequest;
 import com.uber.cadence.RecordActivityTaskHeartbeatRequest;
 import com.uber.cadence.RecordActivityTaskHeartbeatResponse;
 import com.uber.cadence.RegisterDomainRequest;
 import com.uber.cadence.RequestCancelWorkflowExecutionRequest;
+import com.uber.cadence.ResetStickyTaskListRequest;
+import com.uber.cadence.ResetStickyTaskListResponse;
 import com.uber.cadence.RespondActivityTaskCanceledByIDRequest;
 import com.uber.cadence.RespondActivityTaskCanceledRequest;
 import com.uber.cadence.RespondActivityTaskCompletedByIDRequest;
@@ -53,11 +60,13 @@ import com.uber.cadence.RespondActivityTaskCompletedRequest;
 import com.uber.cadence.RespondActivityTaskFailedByIDRequest;
 import com.uber.cadence.RespondActivityTaskFailedRequest;
 import com.uber.cadence.RespondDecisionTaskCompletedRequest;
+import com.uber.cadence.RespondDecisionTaskCompletedResponse;
 import com.uber.cadence.RespondDecisionTaskFailedRequest;
 import com.uber.cadence.RespondQueryTaskCompletedRequest;
 import com.uber.cadence.ServiceBusyError;
 import com.uber.cadence.SignalExternalWorkflowExecutionDecisionAttributes;
 import com.uber.cadence.SignalExternalWorkflowExecutionFailedCause;
+import com.uber.cadence.SignalWithStartWorkflowExecutionRequest;
 import com.uber.cadence.SignalWorkflowExecutionRequest;
 import com.uber.cadence.StartWorkflowExecutionRequest;
 import com.uber.cadence.StartWorkflowExecutionResponse;
@@ -153,6 +162,13 @@ public final class TestWorkflowService implements IWorkflowService {
   @Override
   public DescribeDomainResponse DescribeDomain(DescribeDomainRequest describeRequest)
       throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public ListDomainsResponse ListDomains(ListDomainsRequest listRequest)
+      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
+          TException {
     throw new UnsupportedOperationException("not implemented");
   }
 
@@ -282,11 +298,13 @@ public final class TestWorkflowService implements IWorkflowService {
   }
 
   @Override
-  public void RespondDecisionTaskCompleted(RespondDecisionTaskCompletedRequest request)
+  public RespondDecisionTaskCompletedResponse RespondDecisionTaskCompleted(
+      RespondDecisionTaskCompletedRequest request)
       throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
     DecisionTaskToken taskToken = DecisionTaskToken.fromBytes(request.getTaskToken());
     TestWorkflowMutableState mutableState = getMutableState(taskToken.getExecutionId());
     mutableState.completeDecisionTask(taskToken.getHistorySize(), request);
+    return new RespondDecisionTaskCompletedResponse();
   }
 
   @Override
@@ -327,7 +345,22 @@ public final class TestWorkflowService implements IWorkflowService {
       throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
     ActivityId activityId = ActivityId.fromBytes(heartbeatRequest.getTaskToken());
     TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
-    return mutableState.heartbeatActivityTask(activityId.getId(), heartbeatRequest);
+    return mutableState.heartbeatActivityTask(activityId.getId(), heartbeatRequest.getDetails());
+  }
+
+  @Override
+  public RecordActivityTaskHeartbeatResponse RecordActivityTaskHeartbeatByID(
+      RecordActivityTaskHeartbeatByIDRequest heartbeatRequest)
+      throws BadRequestError, InternalServiceError, EntityNotExistsError, DomainNotActiveError,
+          LimitExceededError, ServiceBusyError, TException {
+    ExecutionId execution =
+        new ExecutionId(
+            heartbeatRequest.getDomain(),
+            heartbeatRequest.getWorkflowID(),
+            heartbeatRequest.getRunID());
+    TestWorkflowMutableState mutableState = getMutableState(execution);
+    return mutableState.heartbeatActivityTask(
+        heartbeatRequest.getActivityID(), heartbeatRequest.getDetails());
   }
 
   @Override
@@ -413,6 +446,15 @@ public final class TestWorkflowService implements IWorkflowService {
         new ExecutionId(signalRequest.getDomain(), signalRequest.getWorkflowExecution());
     TestWorkflowMutableState mutableState = getMutableState(executionId);
     mutableState.signal(signalRequest);
+  }
+
+  @Override
+  public StartWorkflowExecutionResponse SignalWithStartWorkflowExecution(
+      SignalWithStartWorkflowExecutionRequest signalWithStartRequest)
+      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
+          DomainNotActiveError, LimitExceededError, WorkflowExecutionAlreadyStartedError,
+          TException {
+    throw new UnsupportedOperationException("not implemented");
   }
 
   public void signalExternalWorkflowExecution(
@@ -523,6 +565,13 @@ public final class TestWorkflowService implements IWorkflowService {
   }
 
   @Override
+  public ResetStickyTaskListResponse ResetStickyTaskList(ResetStickyTaskListRequest resetRequest)
+      throws BadRequestError, InternalServiceError, EntityNotExistsError, LimitExceededError,
+          ServiceBusyError, DomainNotActiveError, TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
   public QueryWorkflowResponse QueryWorkflow(QueryWorkflowRequest queryRequest)
       throws BadRequestError, InternalServiceError, EntityNotExistsError, QueryFailedError,
           TException {
@@ -554,6 +603,12 @@ public final class TestWorkflowService implements IWorkflowService {
   @Override
   public void DescribeDomain(
       DescribeDomainRequest describeRequest, AsyncMethodCallback resultHandler) throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void ListDomains(ListDomainsRequest listRequest, AsyncMethodCallback resultHandler)
+      throws TException {
     throw new UnsupportedOperationException("not implemented");
   }
 
@@ -627,6 +682,13 @@ public final class TestWorkflowService implements IWorkflowService {
   }
 
   @Override
+  public void RecordActivityTaskHeartbeatByID(
+      RecordActivityTaskHeartbeatByIDRequest heartbeatRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
   public void RespondActivityTaskCompleted(
       RespondActivityTaskCompletedRequest completeRequest, AsyncMethodCallback resultHandler)
       throws TException {
@@ -683,6 +745,14 @@ public final class TestWorkflowService implements IWorkflowService {
   }
 
   @Override
+  public void SignalWithStartWorkflowExecution(
+      SignalWithStartWorkflowExecutionRequest signalWithStartRequest,
+      AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
   public void TerminateWorkflowExecution(
       TerminateWorkflowExecutionRequest terminateRequest, AsyncMethodCallback resultHandler)
       throws TException {
@@ -706,6 +776,13 @@ public final class TestWorkflowService implements IWorkflowService {
   @Override
   public void RespondQueryTaskCompleted(
       RespondQueryTaskCompletedRequest completeRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void ResetStickyTaskList(
+      ResetStickyTaskListRequest resetRequest, AsyncMethodCallback resultHandler)
       throws TException {
     throw new UnsupportedOperationException("not implemented");
   }

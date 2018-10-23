@@ -27,11 +27,16 @@ import com.uber.cadence.DescribeTaskListResponse;
 import com.uber.cadence.DescribeWorkflowExecutionRequest;
 import com.uber.cadence.DescribeWorkflowExecutionResponse;
 import com.uber.cadence.DomainAlreadyExistsError;
+import com.uber.cadence.DomainNotActiveError;
 import com.uber.cadence.EntityNotExistsError;
 import com.uber.cadence.GetWorkflowExecutionHistoryRequest;
 import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
+import com.uber.cadence.InternalServiceError;
+import com.uber.cadence.LimitExceededError;
 import com.uber.cadence.ListClosedWorkflowExecutionsRequest;
 import com.uber.cadence.ListClosedWorkflowExecutionsResponse;
+import com.uber.cadence.ListDomainsRequest;
+import com.uber.cadence.ListDomainsResponse;
 import com.uber.cadence.ListOpenWorkflowExecutionsRequest;
 import com.uber.cadence.ListOpenWorkflowExecutionsResponse;
 import com.uber.cadence.PollForActivityTaskRequest;
@@ -41,10 +46,13 @@ import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.QueryFailedError;
 import com.uber.cadence.QueryWorkflowRequest;
 import com.uber.cadence.QueryWorkflowResponse;
+import com.uber.cadence.RecordActivityTaskHeartbeatByIDRequest;
 import com.uber.cadence.RecordActivityTaskHeartbeatRequest;
 import com.uber.cadence.RecordActivityTaskHeartbeatResponse;
 import com.uber.cadence.RegisterDomainRequest;
 import com.uber.cadence.RequestCancelWorkflowExecutionRequest;
+import com.uber.cadence.ResetStickyTaskListRequest;
+import com.uber.cadence.ResetStickyTaskListResponse;
 import com.uber.cadence.RespondActivityTaskCanceledByIDRequest;
 import com.uber.cadence.RespondActivityTaskCanceledRequest;
 import com.uber.cadence.RespondActivityTaskCompletedByIDRequest;
@@ -52,8 +60,11 @@ import com.uber.cadence.RespondActivityTaskCompletedRequest;
 import com.uber.cadence.RespondActivityTaskFailedByIDRequest;
 import com.uber.cadence.RespondActivityTaskFailedRequest;
 import com.uber.cadence.RespondDecisionTaskCompletedRequest;
+import com.uber.cadence.RespondDecisionTaskCompletedResponse;
 import com.uber.cadence.RespondDecisionTaskFailedRequest;
 import com.uber.cadence.RespondQueryTaskCompletedRequest;
+import com.uber.cadence.ServiceBusyError;
+import com.uber.cadence.SignalWithStartWorkflowExecutionRequest;
 import com.uber.cadence.SignalWorkflowExecutionRequest;
 import com.uber.cadence.StartWorkflowExecutionRequest;
 import com.uber.cadence.StartWorkflowExecutionResponse;
@@ -525,6 +536,9 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetDomainExistsError()) {
         throw result.getDomainExistsError();
       }
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
       throw new TException("RegisterDomain failed with unknown error:" + result);
     } finally {
       if (response != null) {
@@ -561,7 +575,48 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
       }
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
       throw new TException("DescribeDomain failed with unknown error:" + result);
+    } finally {
+      if (response != null) {
+        response.release();
+      }
+    }
+  }
+
+  @Override
+  public ListDomainsResponse ListDomains(ListDomainsRequest listRequest)
+      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
+          TException {
+    return measureRemoteCall(ServiceMethod.LIST_DOMAINS, () -> listDomains(listRequest));
+  }
+
+  private ListDomainsResponse listDomains(ListDomainsRequest describeRequest) throws TException {
+    ThriftResponse<WorkflowService.ListDomains_result> response = null;
+    try {
+      ThriftRequest<WorkflowService.ListDomains_args> request =
+          buildThriftRequest("ListDomains", new WorkflowService.ListDomains_args(describeRequest));
+      response = doRemoteCall(request);
+      WorkflowService.ListDomains_result result =
+          response.getBody(WorkflowService.ListDomains_result.class);
+      if (response.getResponseCode() == ResponseCode.OK) {
+        return result.getSuccess();
+      }
+      if (result.isSetBadRequestError()) {
+        throw result.getBadRequestError();
+      }
+      if (result.isSetInternalServiceError()) {
+        throw result.getInternalServiceError();
+      }
+      if (result.isSetEntityNotExistError()) {
+        throw result.getEntityNotExistError();
+      }
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
+      throw new TException("ListDomains failed with unknown error:" + result);
     } finally {
       if (response != null) {
         response.release();
@@ -593,6 +648,12 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
+      }
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
+      if (result.isSetDomainNotActiveError()) {
+        throw result.getDomainNotActiveError();
       }
       throw new TException("UpdateDomain failed with unknown error:" + result);
     } finally {
@@ -627,6 +688,12 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
+      }
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
+      if (result.isSetDomainNotActiveError()) {
+        throw result.getDomainNotActiveError();
       }
       throw new TException("DeprecateDomain failed with unknown error:" + result);
     } finally {
@@ -669,6 +736,12 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetServiceBusyError()) {
         throw result.getServiceBusyError();
+      }
+      if (result.isSetDomainNotActiveError()) {
+        throw result.getDomainNotActiveError();
+      }
+      if (result.isSetLimitExceededError()) {
+        throw result.getLimitExceededError();
       }
       throw new TException("StartWorkflowExecution failed with unknown error:" + result);
     } finally {
@@ -751,6 +824,12 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetServiceBusyError()) {
         throw result.getServiceBusyError();
       }
+      if (result.isSetDomainNotActiveError()) {
+        throw result.getDomainNotActiveError();
+      }
+      if (result.isSetLimitExceededError()) {
+        throw result.getLimitExceededError();
+      }
       throw new TException("PollForDecisionTask failed with unknown error:" + result);
     } finally {
       if (response != null) {
@@ -760,25 +839,27 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
-  public void RespondDecisionTaskCompleted(RespondDecisionTaskCompletedRequest request)
-      throws TException {
-    measureRemoteProc(
-        ServiceMethod.RESPOND_DECISION_TASK_COMPLETED, () -> respondDecisionTaskCompleted(request));
+  public RespondDecisionTaskCompletedResponse RespondDecisionTaskCompleted(
+      RespondDecisionTaskCompletedRequest completedRequest) throws TException {
+    return measureRemoteCall(
+        ServiceMethod.RESPOND_DECISION_TASK_COMPLETED,
+        () -> respondDecisionTaskCompleted(completedRequest));
   }
 
-  private void respondDecisionTaskCompleted(RespondDecisionTaskCompletedRequest completeRequest)
-      throws TException {
+  private RespondDecisionTaskCompletedResponse respondDecisionTaskCompleted(
+      RespondDecisionTaskCompletedRequest completedRequest) throws TException {
     ThriftResponse<WorkflowService.RespondDecisionTaskCompleted_result> response = null;
     try {
       ThriftRequest<WorkflowService.RespondDecisionTaskCompleted_args> request =
           buildThriftRequest(
               "RespondDecisionTaskCompleted",
-              new WorkflowService.RespondDecisionTaskCompleted_args(completeRequest));
+              new WorkflowService.RespondDecisionTaskCompleted_args(completedRequest),
+              options.getRpcLongPollTimeoutMillis());
       response = doRemoteCall(request);
       WorkflowService.RespondDecisionTaskCompleted_result result =
           response.getBody(WorkflowService.RespondDecisionTaskCompleted_result.class);
       if (response.getResponseCode() == ResponseCode.OK) {
-        return;
+        return result.getSuccess();
       }
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
@@ -786,8 +867,14 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetInternalServiceError()) {
         throw result.getInternalServiceError();
       }
-      if (result.isSetEntityNotExistError()) {
-        throw result.getEntityNotExistError();
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
+      if (result.isSetDomainNotActiveError()) {
+        throw result.getDomainNotActiveError();
+      }
+      if (result.isSetLimitExceededError()) {
+        throw result.getLimitExceededError();
       }
       throw new TException("RespondDecisionTaskCompleted failed with unknown error:" + result);
     } finally {
@@ -826,6 +913,15 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
+      }
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
+      if (result.isSetDomainNotActiveError()) {
+        throw result.getDomainNotActiveError();
+      }
+      if (result.isSetLimitExceededError()) {
+        throw result.getLimitExceededError();
       }
       throw new TException("RespondDecisionTaskFailed failed with unknown error:" + result);
     } finally {
@@ -866,6 +962,12 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetServiceBusyError()) {
         throw result.getServiceBusyError();
       }
+      if (result.isSetDomainNotActiveError()) {
+        throw result.getDomainNotActiveError();
+      }
+      if (result.isSetLimitExceededError()) {
+        throw result.getLimitExceededError();
+      }
       throw new TException("PollForActivityTask failed with unknown error:" + result);
     } finally {
       if (response != null) {
@@ -904,7 +1006,66 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
       }
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
+      if (result.isSetDomainNotActiveError()) {
+        throw result.getDomainNotActiveError();
+      }
+      if (result.isSetLimitExceededError()) {
+        throw result.getLimitExceededError();
+      }
       throw new TException("RecordActivityTaskHeartbeat failed with unknown error:" + result);
+    } finally {
+      if (response != null) {
+        response.release();
+      }
+    }
+  }
+
+  @Override
+  public RecordActivityTaskHeartbeatResponse RecordActivityTaskHeartbeatByID(
+      RecordActivityTaskHeartbeatByIDRequest heartbeatRequest)
+      throws BadRequestError, InternalServiceError, EntityNotExistsError, DomainNotActiveError,
+          LimitExceededError, ServiceBusyError, TException {
+    return measureRemoteCall(
+        ServiceMethod.RECORD_ACTIVITY_TASK_HEARTBEAT_BY_ID,
+        () -> recordActivityTaskHeartbeatByID(heartbeatRequest));
+  }
+
+  private RecordActivityTaskHeartbeatResponse recordActivityTaskHeartbeatByID(
+      RecordActivityTaskHeartbeatByIDRequest heartbeatRequest) throws TException {
+    ThriftResponse<WorkflowService.RecordActivityTaskHeartbeatByID_result> response = null;
+    try {
+      ThriftRequest<WorkflowService.RecordActivityTaskHeartbeatByID_args> request =
+          buildThriftRequest(
+              "RecordActivityTaskHeartbeatByID",
+              new WorkflowService.RecordActivityTaskHeartbeatByID_args(heartbeatRequest));
+      response = doRemoteCall(request);
+      WorkflowService.RecordActivityTaskHeartbeatByID_result result =
+          response.getBody(WorkflowService.RecordActivityTaskHeartbeatByID_result.class);
+      if (response.getResponseCode() == ResponseCode.OK) {
+        return result.getSuccess();
+      }
+      if (result.isSetBadRequestError()) {
+        throw result.getBadRequestError();
+      }
+      if (result.isSetInternalServiceError()) {
+        throw result.getInternalServiceError();
+      }
+      if (result.isSetEntityNotExistError()) {
+        throw result.getEntityNotExistError();
+      }
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
+      if (result.isSetDomainNotActiveError()) {
+        throw result.getDomainNotActiveError();
+      }
+      if (result.isSetLimitExceededError()) {
+        throw result.getLimitExceededError();
+      }
+      throw new TException("RecordActivityTaskHeartbeatByID failed with unknown error:" + result);
     } finally {
       if (response != null) {
         response.release();
@@ -941,6 +1102,15 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
+      }
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
+      if (result.isSetDomainNotActiveError()) {
+        throw result.getDomainNotActiveError();
+      }
+      if (result.isSetLimitExceededError()) {
+        throw result.getLimitExceededError();
       }
       throw new TException("RespondActivityTaskCompleted failed with unknown error:" + result);
     } finally {
@@ -981,6 +1151,15 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
       }
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
+      if (result.isSetDomainNotActiveError()) {
+        throw result.getDomainNotActiveError();
+      }
+      if (result.isSetLimitExceededError()) {
+        throw result.getLimitExceededError();
+      }
       throw new TException("RespondActivityTaskCompletedByID failed with unknown error:" + result);
     } finally {
       if (response != null) {
@@ -1018,6 +1197,15 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
+      }
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
+      if (result.isSetDomainNotActiveError()) {
+        throw result.getDomainNotActiveError();
+      }
+      if (result.isSetLimitExceededError()) {
+        throw result.getLimitExceededError();
       }
       throw new TException("RespondActivityTaskFailed failed with unknown error:" + result);
     } finally {
@@ -1058,6 +1246,15 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
       }
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
+      if (result.isSetDomainNotActiveError()) {
+        throw result.getDomainNotActiveError();
+      }
+      if (result.isSetLimitExceededError()) {
+        throw result.getLimitExceededError();
+      }
       throw new TException("RespondActivityTaskFailedByID failedByID with unknown error:" + result);
     } finally {
       if (response != null) {
@@ -1095,6 +1292,15 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
+      }
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
+      if (result.isSetDomainNotActiveError()) {
+        throw result.getDomainNotActiveError();
+      }
+      if (result.isSetLimitExceededError()) {
+        throw result.getLimitExceededError();
       }
       throw new TException("RespondActivityTaskCanceled failed with unknown error:" + result);
     } finally {
@@ -1134,6 +1340,15 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
+      }
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
+      if (result.isSetDomainNotActiveError()) {
+        throw result.getDomainNotActiveError();
+      }
+      if (result.isSetLimitExceededError()) {
+        throw result.getLimitExceededError();
       }
       throw new TException("RespondActivityTaskCanceledByID failed with unknown error:" + result);
     } finally {
@@ -1181,6 +1396,12 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetServiceBusyError()) {
         throw result.getServiceBusyError();
       }
+      if (result.isSetDomainNotActiveError()) {
+        throw result.getDomainNotActiveError();
+      }
+      if (result.isSetLimitExceededError()) {
+        throw result.getLimitExceededError();
+      }
       throw new TException("RequestCancelWorkflowExecution failed with unknown error:" + result);
     } finally {
       if (response != null) {
@@ -1221,7 +1442,68 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetServiceBusyError()) {
         throw result.getServiceBusyError();
       }
+      if (result.isSetDomainNotActiveError()) {
+        throw result.getDomainNotActiveError();
+      }
+      if (result.isSetLimitExceededError()) {
+        throw result.getLimitExceededError();
+      }
       throw new TException("SignalWorkflowExecution failed with unknown error:" + result);
+    } finally {
+      if (response != null) {
+        response.release();
+      }
+    }
+  }
+
+  @Override
+  public StartWorkflowExecutionResponse SignalWithStartWorkflowExecution(
+      SignalWithStartWorkflowExecutionRequest signalWithStartRequest)
+      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
+          DomainNotActiveError, LimitExceededError, WorkflowExecutionAlreadyStartedError,
+          TException {
+    return measureRemoteCall(
+        ServiceMethod.SIGNAL_WITH_START_WORKFLOW_EXECUTION,
+        () -> signalWithStartWorkflowExecution(signalWithStartRequest));
+  }
+
+  private StartWorkflowExecutionResponse signalWithStartWorkflowExecution(
+      SignalWithStartWorkflowExecutionRequest signalWithStartRequest) throws TException {
+    ThriftResponse<WorkflowService.SignalWithStartWorkflowExecution_result> response = null;
+    try {
+      ThriftRequest<WorkflowService.SignalWithStartWorkflowExecution_args> request =
+          buildThriftRequest(
+              "SignalWithStartWorkflowExecution",
+              new WorkflowService.SignalWithStartWorkflowExecution_args(signalWithStartRequest),
+              options.getRpcLongPollTimeoutMillis());
+      response = doRemoteCall(request);
+      WorkflowService.SignalWithStartWorkflowExecution_result result =
+          response.getBody(WorkflowService.SignalWithStartWorkflowExecution_result.class);
+      if (response.getResponseCode() == ResponseCode.OK) {
+        return result.getSuccess();
+      }
+      if (result.isSetBadRequestError()) {
+        throw result.getBadRequestError();
+      }
+      if (result.isSetInternalServiceError()) {
+        throw result.getInternalServiceError();
+      }
+      if (result.isSetEntityNotExistError()) {
+        throw result.getEntityNotExistError();
+      }
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
+      if (result.isSetDomainNotActiveError()) {
+        throw result.getDomainNotActiveError();
+      }
+      if (result.isSetLimitExceededError()) {
+        throw result.getLimitExceededError();
+      }
+      if (result.isSetDomainNotActiveError()) {
+        throw result.getDomainNotActiveError();
+      }
+      throw new TException("SignalWithStartWorkflowExecution failed with unknown error:" + result);
     } finally {
       if (response != null) {
         response.release();
@@ -1261,6 +1543,12 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetServiceBusyError()) {
         throw result.getServiceBusyError();
+      }
+      if (result.isSetDomainNotActiveError()) {
+        throw result.getDomainNotActiveError();
+      }
+      if (result.isSetLimitExceededError()) {
+        throw result.getLimitExceededError();
       }
       throw new TException("TerminateWorkflowExecution failed with unknown error:" + result);
     } finally {
@@ -1302,6 +1590,9 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetServiceBusyError()) {
         throw result.getServiceBusyError();
+      }
+      if (result.isSetLimitExceededError()) {
+        throw result.getLimitExceededError();
       }
       throw new TException("ListOpenWorkflowExecutions failed with unknown error:" + result);
     } finally {
@@ -1382,6 +1673,15 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
       }
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
+      if (result.isSetDomainNotActiveError()) {
+        throw result.getDomainNotActiveError();
+      }
+      if (result.isSetLimitExceededError()) {
+        throw result.getLimitExceededError();
+      }
       throw new TException("RespondQueryTaskCompleted failed with unknown error:" + result);
     } finally {
       if (response != null) {
@@ -1431,6 +1731,55 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
+  public ResetStickyTaskListResponse ResetStickyTaskList(ResetStickyTaskListRequest resetRequest)
+      throws BadRequestError, InternalServiceError, EntityNotExistsError, LimitExceededError,
+          ServiceBusyError, DomainNotActiveError, TException {
+    return measureRemoteCall(
+        ServiceMethod.RESET_STICKY_TASK_LIST, () -> resetStickyTaskList(resetRequest));
+  }
+
+  private ResetStickyTaskListResponse resetStickyTaskList(ResetStickyTaskListRequest queryRequest)
+      throws TException {
+    ThriftResponse<WorkflowService.ResetStickyTaskList_result> response = null;
+    try {
+      ThriftRequest<WorkflowService.ResetStickyTaskList_args> request =
+          buildThriftRequest(
+              "ResetStickyTaskList",
+              new WorkflowService.ResetStickyTaskList_args(queryRequest),
+              options.getRpcQueryTimeoutMillis());
+      response = doRemoteCall(request);
+      WorkflowService.ResetStickyTaskList_result result =
+          response.getBody(WorkflowService.ResetStickyTaskList_result.class);
+      if (response.getResponseCode() == ResponseCode.OK) {
+        return result.getSuccess();
+      }
+      if (result.isSetBadRequestError()) {
+        throw result.getBadRequestError();
+      }
+      if (result.isSetInternalServiceError()) {
+        throw result.getInternalServiceError();
+      }
+      if (result.isSetEntityNotExistError()) {
+        throw result.getEntityNotExistError();
+      }
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
+      if (result.isSetDomainNotActiveError()) {
+        throw result.getDomainNotActiveError();
+      }
+      if (result.isSetLimitExceededError()) {
+        throw result.getLimitExceededError();
+      }
+      throw new TException("ResetStickyTaskList failed with unknown error:" + result);
+    } finally {
+      if (response != null) {
+        response.release();
+      }
+    }
+  }
+
+  @Override
   public DescribeWorkflowExecutionResponse DescribeWorkflowExecution(
       DescribeWorkflowExecutionRequest request) throws TException {
     return measureRemoteCall(
@@ -1459,6 +1808,12 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
+      }
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
+      if (result.isSetLimitExceededError()) {
+        throw result.getLimitExceededError();
       }
       throw new TException("DescribeWorkflowExecution failed with unknown error:" + result);
     } finally {
@@ -1496,37 +1851,18 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
       }
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
+      if (result.isSetLimitExceededError()) {
+        throw result.getLimitExceededError();
+      }
       throw new TException("DescribeTaskList failed with unknown error:" + result);
     } finally {
       if (response != null) {
         response.release();
       }
     }
-  }
-
-  @Override
-  public void RegisterDomain(
-      RegisterDomainRequest registerRequest, AsyncMethodCallback resultHandler) throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void DescribeDomain(
-      DescribeDomainRequest describeRequest, AsyncMethodCallback resultHandler) throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void UpdateDomain(UpdateDomainRequest updateRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void DeprecateDomain(
-      DeprecateDomainRequest deprecateRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
   }
 
   @Override
@@ -1630,6 +1966,13 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
+  public void RecordActivityTaskHeartbeatByID(
+      RecordActivityTaskHeartbeatByIDRequest heartbeatRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
   public void RespondActivityTaskCompleted(
       RespondActivityTaskCompletedRequest completeRequest, AsyncMethodCallback resultHandler)
       throws TException {
@@ -1686,6 +2029,14 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
+  public void SignalWithStartWorkflowExecution(
+      SignalWithStartWorkflowExecutionRequest signalWithStartRequest,
+      AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
   public void TerminateWorkflowExecution(
       TerminateWorkflowExecutionRequest terminateRequest, AsyncMethodCallback resultHandler)
       throws TException {
@@ -1714,6 +2065,13 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
+  public void ResetStickyTaskList(
+      ResetStickyTaskListRequest resetRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
   public void QueryWorkflow(QueryWorkflowRequest queryRequest, AsyncMethodCallback resultHandler)
       throws TException {
     throw new UnsupportedOperationException("not implemented");
@@ -1728,6 +2086,37 @@ public class WorkflowServiceTChannel implements IWorkflowService {
 
   @Override
   public void DescribeTaskList(DescribeTaskListRequest request, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void RegisterDomain(
+      RegisterDomainRequest registerRequest, AsyncMethodCallback resultHandler) throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void DescribeDomain(
+      DescribeDomainRequest describeRequest, AsyncMethodCallback resultHandler) throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void ListDomains(ListDomainsRequest listRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void UpdateDomain(UpdateDomainRequest updateRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void DeprecateDomain(
+      DeprecateDomainRequest deprecateRequest, AsyncMethodCallback resultHandler)
       throws TException {
     throw new UnsupportedOperationException("not implemented");
   }

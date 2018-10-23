@@ -27,12 +27,16 @@ import com.uber.cadence.DescribeTaskListResponse;
 import com.uber.cadence.DescribeWorkflowExecutionRequest;
 import com.uber.cadence.DescribeWorkflowExecutionResponse;
 import com.uber.cadence.DomainAlreadyExistsError;
+import com.uber.cadence.DomainNotActiveError;
 import com.uber.cadence.EntityNotExistsError;
 import com.uber.cadence.GetWorkflowExecutionHistoryRequest;
 import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
 import com.uber.cadence.InternalServiceError;
+import com.uber.cadence.LimitExceededError;
 import com.uber.cadence.ListClosedWorkflowExecutionsRequest;
 import com.uber.cadence.ListClosedWorkflowExecutionsResponse;
+import com.uber.cadence.ListDomainsRequest;
+import com.uber.cadence.ListDomainsResponse;
 import com.uber.cadence.ListOpenWorkflowExecutionsRequest;
 import com.uber.cadence.ListOpenWorkflowExecutionsResponse;
 import com.uber.cadence.PollForActivityTaskRequest;
@@ -42,10 +46,13 @@ import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.QueryFailedError;
 import com.uber.cadence.QueryWorkflowRequest;
 import com.uber.cadence.QueryWorkflowResponse;
+import com.uber.cadence.RecordActivityTaskHeartbeatByIDRequest;
 import com.uber.cadence.RecordActivityTaskHeartbeatRequest;
 import com.uber.cadence.RecordActivityTaskHeartbeatResponse;
 import com.uber.cadence.RegisterDomainRequest;
 import com.uber.cadence.RequestCancelWorkflowExecutionRequest;
+import com.uber.cadence.ResetStickyTaskListRequest;
+import com.uber.cadence.ResetStickyTaskListResponse;
 import com.uber.cadence.RespondActivityTaskCanceledByIDRequest;
 import com.uber.cadence.RespondActivityTaskCanceledRequest;
 import com.uber.cadence.RespondActivityTaskCompletedByIDRequest;
@@ -53,9 +60,11 @@ import com.uber.cadence.RespondActivityTaskCompletedRequest;
 import com.uber.cadence.RespondActivityTaskFailedByIDRequest;
 import com.uber.cadence.RespondActivityTaskFailedRequest;
 import com.uber.cadence.RespondDecisionTaskCompletedRequest;
+import com.uber.cadence.RespondDecisionTaskCompletedResponse;
 import com.uber.cadence.RespondDecisionTaskFailedRequest;
 import com.uber.cadence.RespondQueryTaskCompletedRequest;
 import com.uber.cadence.ServiceBusyError;
+import com.uber.cadence.SignalWithStartWorkflowExecutionRequest;
 import com.uber.cadence.SignalWorkflowExecutionRequest;
 import com.uber.cadence.StartWorkflowExecutionRequest;
 import com.uber.cadence.StartWorkflowExecutionResponse;
@@ -222,6 +231,14 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     }
 
     @Override
+    public RecordActivityTaskHeartbeatResponse RecordActivityTaskHeartbeatByID(
+        RecordActivityTaskHeartbeatByIDRequest heartbeatRequest)
+        throws BadRequestError, InternalServiceError, EntityNotExistsError, DomainNotActiveError,
+            LimitExceededError, ServiceBusyError, TException {
+      return impl.RecordActivityTaskHeartbeatByID(heartbeatRequest);
+    }
+
+    @Override
     public void RespondActivityTaskCompleted(RespondActivityTaskCompletedRequest completeRequest)
         throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
       impl.RespondActivityTaskCompleted(completeRequest);
@@ -274,6 +291,15 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     }
 
     @Override
+    public StartWorkflowExecutionResponse SignalWithStartWorkflowExecution(
+        SignalWithStartWorkflowExecutionRequest signalWithStartRequest)
+        throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
+            DomainNotActiveError, LimitExceededError, WorkflowExecutionAlreadyStartedError,
+            TException {
+      return impl.SignalWithStartWorkflowExecution(signalWithStartRequest);
+    }
+
+    @Override
     public void TerminateWorkflowExecution(TerminateWorkflowExecutionRequest terminateRequest)
         throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
             TException {
@@ -300,6 +326,13 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     public void RespondQueryTaskCompleted(RespondQueryTaskCompletedRequest completeRequest)
         throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
       impl.RespondQueryTaskCompleted(completeRequest);
+    }
+
+    @Override
+    public ResetStickyTaskListResponse ResetStickyTaskList(ResetStickyTaskListRequest resetRequest)
+        throws BadRequestError, InternalServiceError, EntityNotExistsError, LimitExceededError,
+            ServiceBusyError, DomainNotActiveError, TException {
+      return impl.ResetStickyTaskList(resetRequest);
     }
 
     @Override
@@ -334,6 +367,12 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
         DescribeDomainRequest describeRequest, AsyncMethodCallback resultHandler)
         throws TException {
       impl.DescribeDomain(describeRequest, resultHandler);
+    }
+
+    @Override
+    public void ListDomains(ListDomainsRequest listRequest, AsyncMethodCallback resultHandler)
+        throws TException {
+      impl.ListDomains(listRequest, resultHandler);
     }
 
     @Override
@@ -399,6 +438,13 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     }
 
     @Override
+    public void RecordActivityTaskHeartbeatByID(
+        RecordActivityTaskHeartbeatByIDRequest heartbeatRequest, AsyncMethodCallback resultHandler)
+        throws TException {
+      impl.RecordActivityTaskHeartbeatByID(heartbeatRequest, resultHandler);
+    }
+
+    @Override
     public void RespondActivityTaskCompleted(
         RespondActivityTaskCompletedRequest completeRequest, AsyncMethodCallback resultHandler)
         throws TException {
@@ -455,6 +501,14 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     }
 
     @Override
+    public void SignalWithStartWorkflowExecution(
+        SignalWithStartWorkflowExecutionRequest signalWithStartRequest,
+        AsyncMethodCallback resultHandler)
+        throws TException {
+      impl.SignalWithStartWorkflowExecution(signalWithStartRequest, resultHandler);
+    }
+
+    @Override
     public void TerminateWorkflowExecution(
         TerminateWorkflowExecutionRequest terminateRequest, AsyncMethodCallback resultHandler)
         throws TException {
@@ -480,6 +534,13 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
         RespondQueryTaskCompletedRequest completeRequest, AsyncMethodCallback resultHandler)
         throws TException {
       impl.RespondQueryTaskCompleted(completeRequest, resultHandler);
+    }
+
+    @Override
+    public void ResetStickyTaskList(
+        ResetStickyTaskListRequest resetRequest, AsyncMethodCallback resultHandler)
+        throws TException {
+      impl.ResetStickyTaskList(resetRequest, resultHandler);
     }
 
     @Override
@@ -511,6 +572,13 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     public DescribeDomainResponse DescribeDomain(DescribeDomainRequest describeRequest)
         throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
       return impl.DescribeDomain(describeRequest);
+    }
+
+    @Override
+    public ListDomainsResponse ListDomains(ListDomainsRequest listRequest)
+        throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
+            TException {
+      return impl.ListDomains(listRequest);
     }
 
     @Override
@@ -548,9 +616,10 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     }
 
     @Override
-    public void RespondDecisionTaskCompleted(RespondDecisionTaskCompletedRequest completeRequest)
+    public RespondDecisionTaskCompletedResponse RespondDecisionTaskCompleted(
+        RespondDecisionTaskCompletedRequest completeRequest)
         throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
-      impl.RespondDecisionTaskCompleted(completeRequest);
+      return impl.RespondDecisionTaskCompleted(completeRequest);
     }
 
     @Override

@@ -45,7 +45,6 @@ import com.uber.cadence.QueryFailedError;
 import com.uber.cadence.QueryTaskCompletedType;
 import com.uber.cadence.QueryWorkflowRequest;
 import com.uber.cadence.QueryWorkflowResponse;
-import com.uber.cadence.RecordActivityTaskHeartbeatRequest;
 import com.uber.cadence.RecordActivityTaskHeartbeatResponse;
 import com.uber.cadence.RecordMarkerDecisionAttributes;
 import com.uber.cadence.RequestCancelActivityTaskDecisionAttributes;
@@ -1038,14 +1037,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public RecordActivityTaskHeartbeatResponse heartbeatActivityTask(
-      String activityId, RecordActivityTaskHeartbeatRequest request)
-      throws InternalServiceError, EntityNotExistsError {
+      String activityId, byte[] details) throws InternalServiceError, EntityNotExistsError {
     RecordActivityTaskHeartbeatResponse result = new RecordActivityTaskHeartbeatResponse();
     try {
       update(
           ctx -> {
             StateMachine<ActivityTaskData> activity = getActivity(activityId);
-            activity.action(StateMachines.Action.UPDATE, ctx, request, 0);
+            activity.action(StateMachines.Action.UPDATE, ctx, details, 0);
             if (activity.getState() == StateMachines.State.CANCELLATION_REQUESTED) {
               result.setCancelRequested(true);
             }

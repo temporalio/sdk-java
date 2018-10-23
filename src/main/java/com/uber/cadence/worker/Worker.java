@@ -42,9 +42,6 @@ import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.WorkflowMethod;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.lang.reflect.Type;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -59,6 +56,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Hosts activity and workflow implementations. Uses long poll to receive activity and decision
@@ -428,7 +427,7 @@ public final class Worker {
           Objects.requireNonNull(workflowService, "workflowService should not be null");
 
       factoryOptions =
-          factoryOptions == null ? new FactoryOptions.Builder().Build() : factoryOptions;
+          factoryOptions == null ? new FactoryOptions.Builder().build() : factoryOptions;
       this.factoryOptions = factoryOptions;
 
       workflowThreadPool =
@@ -558,10 +557,10 @@ public final class Worker {
         }
 
         for (Worker worker : workers) {
-          try{
+          try {
             worker.shutdown(timeout);
           } catch (InterruptedException e) {
-            log.warn("Interrupted exception thrown during worker shutdown.",e);
+            log.warn("Interrupted exception thrown during worker shutdown.", e);
           }
         }
       }
@@ -656,7 +655,7 @@ public final class Worker {
         return this;
       }
 
-      public FactoryOptions Build() {
+      public FactoryOptions build() {
         return new FactoryOptions(
             disableStickyExecution,
             cacheMaximumSize,

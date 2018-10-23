@@ -71,7 +71,6 @@ import com.uber.cadence.PollForActivityTaskRequest;
 import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.PollForDecisionTaskRequest;
 import com.uber.cadence.PollForDecisionTaskResponse;
-import com.uber.cadence.RecordActivityTaskHeartbeatRequest;
 import com.uber.cadence.RequestCancelActivityTaskDecisionAttributes;
 import com.uber.cadence.RequestCancelWorkflowExecutionRequest;
 import com.uber.cadence.RespondActivityTaskCanceledByIDRequest;
@@ -934,11 +933,8 @@ class StateMachines {
   }
 
   private static void heartbeatActivityTask(
-      RequestContext nullCtx,
-      ActivityTaskData data,
-      RecordActivityTaskHeartbeatRequest request,
-      long notUsed) {
-    data.heartbeatDetails = request.getDetails();
+      RequestContext nullCtx, ActivityTaskData data, byte[] details, long notUsed) {
+    data.heartbeatDetails = details;
   }
 
   private static void startTimer(

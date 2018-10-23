@@ -69,8 +69,10 @@ import org.slf4j.LoggerFactory;
 public class StickyWorkerTest {
   public static final String DOMAIN = "UnitTest";
 
-  private static final boolean skipDockerService =
-      Boolean.parseBoolean(System.getenv("SKIP_DOCKER_SERVICE"));
+  // TODO: Enable for docker as soon as the server commit
+  // a36c84991664571636d37a3826b282ddbdbd2402 is released
+  private static final boolean skipDockerService = true;
+  //      Boolean.parseBoolean(System.getenv("SKIP_DOCKER_SERVICE"));
 
   @Parameterized.Parameter public boolean useExternalService;
 
@@ -101,7 +103,7 @@ public class StickyWorkerTest {
 
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
-            new Worker.FactoryOptions.Builder().setMetricScope(scope).Build());
+            new Worker.FactoryOptions.Builder().setMetricScope(scope).build());
     Worker.Factory factory = wrapper.getWorkerFactory();
     Worker worker = factory.newWorker(taskListName, new WorkerOptions.Builder().build());
     worker.registerWorkflowImplementationTypes(GreetingSignalWorkflowImpl.class);
@@ -156,7 +158,7 @@ public class StickyWorkerTest {
 
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
-            new Worker.FactoryOptions.Builder().setMetricScope(scope).Build());
+            new Worker.FactoryOptions.Builder().setMetricScope(scope).build());
     Worker.Factory factory = wrapper.getWorkerFactory();
     Worker worker = factory.newWorker(taskListName, new WorkerOptions.Builder().build());
     worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
@@ -211,7 +213,7 @@ public class StickyWorkerTest {
 
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
-            new Worker.FactoryOptions.Builder().setMetricScope(scope).Build());
+            new Worker.FactoryOptions.Builder().setMetricScope(scope).build());
     Worker.Factory factory = wrapper.getWorkerFactory();
     Worker worker = factory.newWorker(taskListName, new WorkerOptions.Builder().build());
     worker.registerWorkflowImplementationTypes(
@@ -259,7 +261,7 @@ public class StickyWorkerTest {
 
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
-            new Worker.FactoryOptions.Builder().setMetricScope(scope).Build());
+            new Worker.FactoryOptions.Builder().setMetricScope(scope).build());
     Worker.Factory factory = wrapper.getWorkerFactory();
     Worker worker = factory.newWorker(taskListName, new WorkerOptions.Builder().build());
     worker.registerWorkflowImplementationTypes(TestMutableSideEffectWorkflowImpl.class);
@@ -308,7 +310,7 @@ public class StickyWorkerTest {
     String taskListName = "notCachedStickyTest";
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
-            new Worker.FactoryOptions.Builder().setDisableStickyExecution(true).Build());
+            new Worker.FactoryOptions.Builder().setDisableStickyExecution(true).build());
     Worker.Factory factory = wrapper.getWorkerFactory();
     Worker worker = factory.newWorker(taskListName);
     worker.registerWorkflowImplementationTypes(GreetingSignalWorkflowImpl.class);
@@ -340,7 +342,7 @@ public class StickyWorkerTest {
     // Arrange
     String taskListName = "evictedStickyTest";
     TestEnvironmentWrapper wrapper =
-        new TestEnvironmentWrapper(new Worker.FactoryOptions.Builder().Build());
+        new TestEnvironmentWrapper(new Worker.FactoryOptions.Builder().build());
     Worker.Factory factory = wrapper.getWorkerFactory();
     Worker worker = factory.newWorker(taskListName);
     worker.registerWorkflowImplementationTypes(GreetingSignalWorkflowImpl.class);
@@ -379,7 +381,7 @@ public class StickyWorkerTest {
     // Arrange
     String taskListName = "queryStickyTest";
     TestEnvironmentWrapper wrapper =
-        new TestEnvironmentWrapper(new Worker.FactoryOptions.Builder().Build());
+        new TestEnvironmentWrapper(new Worker.FactoryOptions.Builder().build());
     Worker.Factory factory = wrapper.getWorkerFactory();
     Worker worker = factory.newWorker(taskListName);
     worker.registerWorkflowImplementationTypes(GreetingSignalWorkflowImpl.class);
@@ -419,7 +421,7 @@ public class StickyWorkerTest {
     // Arrange
     String taskListName = "queryEvictionStickyTest";
     TestEnvironmentWrapper wrapper =
-        new TestEnvironmentWrapper(new Worker.FactoryOptions.Builder().Build());
+        new TestEnvironmentWrapper(new Worker.FactoryOptions.Builder().build());
     Worker.Factory factory = wrapper.getWorkerFactory();
     Worker worker = factory.newWorker(taskListName);
     worker.registerWorkflowImplementationTypes(GreetingSignalWorkflowImpl.class);
@@ -464,7 +466,7 @@ public class StickyWorkerTest {
 
     public TestEnvironmentWrapper(Worker.FactoryOptions options) {
       if (options == null) {
-        options = new Worker.FactoryOptions.Builder().Build();
+        options = new Worker.FactoryOptions.Builder().build();
       }
       factory = new Worker.Factory(DOMAIN, options);
       TestEnvironmentOptions testOptions =

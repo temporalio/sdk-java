@@ -77,7 +77,7 @@ public class WorkerStressTests {
 
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
-            new Worker.FactoryOptions.Builder().setMaxWorkflowThreadCount(200).Build());
+            new Worker.FactoryOptions.Builder().setMaxWorkflowThreadCount(200).build());
     Worker.Factory factory = wrapper.getWorkerFactory();
     Worker worker = factory.newWorker(taskListName, new WorkerOptions.Builder().build());
     worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
@@ -120,7 +120,7 @@ public class WorkerStressTests {
             new Worker.FactoryOptions.Builder()
                 .setDisableStickyExecution(false)
                 .setMaxWorkflowThreadCount(2)
-                .Build());
+                .build());
     Worker.Factory factory = wrapper.getWorkerFactory();
     Worker worker = factory.newWorker(taskListName, new WorkerOptions.Builder().build());
     worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
@@ -171,7 +171,7 @@ public class WorkerStressTests {
 
     public TestEnvironmentWrapper(Worker.FactoryOptions options) {
       if (options == null) {
-        options = new Worker.FactoryOptions.Builder().Build();
+        options = new Worker.FactoryOptions.Builder().build();
       }
       factory = new Worker.Factory(DOMAIN, options);
       TestEnvironmentOptions testOptions =

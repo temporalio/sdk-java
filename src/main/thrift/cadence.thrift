@@ -42,6 +42,7 @@ service WorkflowService {
       1: shared.BadRequestError badRequestError,
       2: shared.InternalServiceError internalServiceError,
       3: shared.DomainAlreadyExistsError domainExistsError,
+      4: shared.ServiceBusyError serviceBusyError,
     )
 
   /**
@@ -52,7 +53,19 @@ service WorkflowService {
       1: shared.BadRequestError badRequestError,
       2: shared.InternalServiceError internalServiceError,
       3: shared.EntityNotExistsError entityNotExistError,
+      4: shared.ServiceBusyError serviceBusyError,
     )
+
+  /**
+    * ListDomains returns the information and configuration for all domains.
+    **/
+    shared.ListDomainsResponse ListDomains(1: shared.ListDomainsRequest listRequest)
+      throws (
+        1: shared.BadRequestError badRequestError,
+        2: shared.InternalServiceError internalServiceError,
+        3: shared.EntityNotExistsError entityNotExistError,
+        4: shared.ServiceBusyError serviceBusyError,
+      )
 
   /**
   * UpdateDomain is used to update the information and configuration for a registered domain.
@@ -62,6 +75,8 @@ service WorkflowService {
         1: shared.BadRequestError badRequestError,
         2: shared.InternalServiceError internalServiceError,
         3: shared.EntityNotExistsError entityNotExistError,
+        4: shared.ServiceBusyError serviceBusyError,
+        5: shared.DomainNotActiveError domainNotActiveError,
       )
 
   /**
@@ -74,6 +89,8 @@ service WorkflowService {
       1: shared.BadRequestError badRequestError,
       2: shared.InternalServiceError internalServiceError,
       3: shared.EntityNotExistsError entityNotExistError,
+      4: shared.ServiceBusyError serviceBusyError,
+      5: shared.DomainNotActiveError domainNotActiveError,
     )
 
   /**
@@ -88,6 +105,9 @@ service WorkflowService {
       2: shared.InternalServiceError internalServiceError,
       3: shared.WorkflowExecutionAlreadyStartedError sessionAlreadyExistError,
       4: shared.ServiceBusyError serviceBusyError,
+      5: shared.DomainNotActiveError domainNotActiveError,
+      6: shared.LimitExceededError limitExceededError,
+      7: shared.EntityNotExistsError entityNotExistError,
     )
 
   /**
@@ -114,6 +134,9 @@ service WorkflowService {
       1: shared.BadRequestError badRequestError,
       2: shared.InternalServiceError internalServiceError,
       3: shared.ServiceBusyError serviceBusyError,
+      4: shared.LimitExceededError limitExceededError,
+      5: shared.EntityNotExistsError entityNotExistError,
+      6: shared.DomainNotActiveError domainNotActiveError,
     )
 
   /**
@@ -122,12 +145,16 @@ service WorkflowService {
   * potentially new ActivityTask being created for corresponding decisions.  It will also create a DecisionTaskCompleted
   * event in the history for that session.  Use the 'taskToken' provided as response of PollForDecisionTask API call
   * for completing the DecisionTask.
+  * The response could contain a new decision task if there is one or if the request asking for one.
   **/
-  void RespondDecisionTaskCompleted(1: shared.RespondDecisionTaskCompletedRequest completeRequest)
+  shared.RespondDecisionTaskCompletedResponse RespondDecisionTaskCompleted(1: shared.RespondDecisionTaskCompletedRequest completeRequest)
     throws (
       1: shared.BadRequestError badRequestError,
       2: shared.InternalServiceError internalServiceError,
       3: shared.EntityNotExistsError entityNotExistError,
+      4: shared.DomainNotActiveError domainNotActiveError,
+      5: shared.LimitExceededError limitExceededError,
+      6: shared.ServiceBusyError serviceBusyError,
     )
 
   /**
@@ -141,6 +168,9 @@ service WorkflowService {
       1: shared.BadRequestError badRequestError,
       2: shared.InternalServiceError internalServiceError,
       3: shared.EntityNotExistsError entityNotExistError,
+      4: shared.DomainNotActiveError domainNotActiveError,
+      5: shared.LimitExceededError limitExceededError,
+      6: shared.ServiceBusyError serviceBusyError,
     )
 
   /**
@@ -157,6 +187,9 @@ service WorkflowService {
       1: shared.BadRequestError badRequestError,
       2: shared.InternalServiceError internalServiceError,
       3: shared.ServiceBusyError serviceBusyError,
+      4: shared.LimitExceededError limitExceededError,
+      5: shared.EntityNotExistsError entityNotExistError,
+      6: shared.DomainNotActiveError domainNotActiveError,
     )
 
   /**
@@ -171,6 +204,26 @@ service WorkflowService {
       1: shared.BadRequestError badRequestError,
       2: shared.InternalServiceError internalServiceError,
       3: shared.EntityNotExistsError entityNotExistError,
+      4: shared.DomainNotActiveError domainNotActiveError,
+      5: shared.LimitExceededError limitExceededError,
+      6: shared.ServiceBusyError serviceBusyError,
+    )
+
+  /**
+  * RecordActivityTaskHeartbeatByID is called by application worker while it is processing an ActivityTask.  If worker fails
+  * to heartbeat within 'heartbeatTimeoutSeconds' interval for the ActivityTask, then it will be marked as timedout and
+  * 'ActivityTaskTimedOut' event will be written to the workflow history.  Calling 'RecordActivityTaskHeartbeatByID' will
+  * fail with 'EntityNotExistsError' in such situations.  Instead of using 'taskToken' like in RecordActivityTaskHeartbeat,
+  * use Domain, WorkflowID and ActivityID
+  **/
+  shared.RecordActivityTaskHeartbeatResponse RecordActivityTaskHeartbeatByID(1: shared.RecordActivityTaskHeartbeatByIDRequest heartbeatRequest)
+    throws (
+      1: shared.BadRequestError badRequestError,
+      2: shared.InternalServiceError internalServiceError,
+      3: shared.EntityNotExistsError entityNotExistError,
+      4: shared.DomainNotActiveError domainNotActiveError,
+      5: shared.LimitExceededError limitExceededError,
+      6: shared.ServiceBusyError serviceBusyError,
     )
 
   /**
@@ -185,12 +238,15 @@ service WorkflowService {
       1: shared.BadRequestError badRequestError,
       2: shared.InternalServiceError internalServiceError,
       3: shared.EntityNotExistsError entityNotExistError,
+      4: shared.DomainNotActiveError domainNotActiveError,
+      5: shared.LimitExceededError limitExceededError,
+      6: shared.ServiceBusyError serviceBusyError,
     )
 
   /**
   * RespondActivityTaskCompletedByID is called by application worker when it is done processing an ActivityTask.
   * It will result in a new 'ActivityTaskCompleted' event being written to the workflow history and a new DecisionTask
-  * created for the workflow so new decisions could be made.  Similar to RespondActivityTaskCompleted but use DomainID,
+  * created for the workflow so new decisions could be made.  Similar to RespondActivityTaskCompleted but use Domain,
   * WorkflowID and ActivityID instead of 'taskToken' for completion. It fails with 'EntityNotExistsError'
   * if the these IDs are not valid anymore due to activity timeout.
   **/
@@ -199,6 +255,9 @@ service WorkflowService {
       1: shared.BadRequestError badRequestError,
       2: shared.InternalServiceError internalServiceError,
       3: shared.EntityNotExistsError entityNotExistError,
+      4: shared.DomainNotActiveError domainNotActiveError,
+      5: shared.LimitExceededError limitExceededError,
+      6: shared.ServiceBusyError serviceBusyError,
     )
 
   /**
@@ -213,13 +272,16 @@ service WorkflowService {
       1: shared.BadRequestError badRequestError,
       2: shared.InternalServiceError internalServiceError,
       3: shared.EntityNotExistsError entityNotExistError,
+      4: shared.DomainNotActiveError domainNotActiveError,
+      5: shared.LimitExceededError limitExceededError,
+      6: shared.ServiceBusyError serviceBusyError,
     )
 
   /**
   * RespondActivityTaskFailedByID is called by application worker when it is done processing an ActivityTask.
   * It will result in a new 'ActivityTaskFailed' event being written to the workflow history and a new DecisionTask
   * created for the workflow instance so new decisions could be made.  Similar to RespondActivityTaskFailed but use
-  * DomainID, WorkflowID and ActivityID instead of 'taskToken' for completion. It fails with 'EntityNotExistsError'
+  * Domain, WorkflowID and ActivityID instead of 'taskToken' for completion. It fails with 'EntityNotExistsError'
   * if the these IDs are not valid anymore due to activity timeout.
   **/
   void  RespondActivityTaskFailedByID(1: shared.RespondActivityTaskFailedByIDRequest failRequest)
@@ -227,6 +289,9 @@ service WorkflowService {
       1: shared.BadRequestError badRequestError,
       2: shared.InternalServiceError internalServiceError,
       3: shared.EntityNotExistsError entityNotExistError,
+      4: shared.DomainNotActiveError domainNotActiveError,
+      5: shared.LimitExceededError limitExceededError,
+      6: shared.ServiceBusyError serviceBusyError,
     )
 
   /**
@@ -241,13 +306,16 @@ service WorkflowService {
       1: shared.BadRequestError badRequestError,
       2: shared.InternalServiceError internalServiceError,
       3: shared.EntityNotExistsError entityNotExistError,
+      4: shared.DomainNotActiveError domainNotActiveError,
+      5: shared.LimitExceededError limitExceededError,
+      6: shared.ServiceBusyError serviceBusyError,
     )
 
   /**
   * RespondActivityTaskCanceledByID is called by application worker when it is successfully canceled an ActivityTask.
   * It will result in a new 'ActivityTaskCanceled' event being written to the workflow history and a new DecisionTask
   * created for the workflow instance so new decisions could be made.  Similar to RespondActivityTaskCanceled but use
-  * DomainID, WorkflowID and ActivityID instead of 'taskToken' for completion. It fails with 'EntityNotExistsError'
+  * Domain, WorkflowID and ActivityID instead of 'taskToken' for completion. It fails with 'EntityNotExistsError'
   * if the these IDs are not valid anymore due to activity timeout.
   **/
   void RespondActivityTaskCanceledByID(1: shared.RespondActivityTaskCanceledByIDRequest canceledRequest)
@@ -255,6 +323,9 @@ service WorkflowService {
       1: shared.BadRequestError badRequestError,
       2: shared.InternalServiceError internalServiceError,
       3: shared.EntityNotExistsError entityNotExistError,
+      4: shared.DomainNotActiveError domainNotActiveError,
+      5: shared.LimitExceededError limitExceededError,
+      6: shared.ServiceBusyError serviceBusyError,
     )
 
   /**
@@ -264,13 +335,15 @@ service WorkflowService {
   * anymore due to completion or doesn't exist.
   **/
   void RequestCancelWorkflowExecution(1: shared.RequestCancelWorkflowExecutionRequest cancelRequest)
-      throws (
-        1: shared.BadRequestError badRequestError,
-        2: shared.InternalServiceError internalServiceError,
-        3: shared.EntityNotExistsError entityNotExistError,
-        4: shared.CancellationAlreadyRequestedError cancellationAlreadyRequestedError,
-        5: shared.ServiceBusyError serviceBusyError,
-      )
+    throws (
+      1: shared.BadRequestError badRequestError,
+      2: shared.InternalServiceError internalServiceError,
+      3: shared.EntityNotExistsError entityNotExistError,
+      4: shared.CancellationAlreadyRequestedError cancellationAlreadyRequestedError,
+      5: shared.ServiceBusyError serviceBusyError,
+      6: shared.DomainNotActiveError domainNotActiveError,
+      7: shared.LimitExceededError limitExceededError,
+    )
 
   /**
   * SignalWorkflowExecution is used to send a signal event to running workflow execution.  This results in
@@ -282,6 +355,26 @@ service WorkflowService {
       2: shared.InternalServiceError internalServiceError,
       3: shared.EntityNotExistsError entityNotExistError,
       4: shared.ServiceBusyError serviceBusyError,
+      5: shared.DomainNotActiveError domainNotActiveError,
+      6: shared.LimitExceededError limitExceededError,
+    )
+
+  /**
+  * SignalWithStartWorkflowExecution is used to ensure sending signal to a workflow.
+  * If the workflow is running, this results in WorkflowExecutionSignaled event being recorded in the history
+  * and a decision task being created for the execution.
+  * If the workflow is not running or not found, this results in WorkflowExecutionStarted and WorkflowExecutionSignaled
+  * events being recorded in history, and a decision task being created for the execution
+  **/
+  shared.StartWorkflowExecutionResponse SignalWithStartWorkflowExecution(1: shared.SignalWithStartWorkflowExecutionRequest signalWithStartRequest)
+    throws (
+      1: shared.BadRequestError badRequestError,
+      2: shared.InternalServiceError internalServiceError,
+      3: shared.EntityNotExistsError entityNotExistError,
+      4: shared.ServiceBusyError serviceBusyError,
+      5: shared.DomainNotActiveError domainNotActiveError,
+      6: shared.LimitExceededError limitExceededError,
+      7: shared.WorkflowExecutionAlreadyStartedError workflowAlreadyStartedError,
     )
 
   /**
@@ -294,6 +387,8 @@ service WorkflowService {
       2: shared.InternalServiceError internalServiceError,
       3: shared.EntityNotExistsError entityNotExistError,
       4: shared.ServiceBusyError serviceBusyError,
+      5: shared.DomainNotActiveError domainNotActiveError,
+      6: shared.LimitExceededError limitExceededError,
     )
 
   /**
@@ -305,6 +400,7 @@ service WorkflowService {
       2: shared.InternalServiceError internalServiceError,
       3: shared.EntityNotExistsError entityNotExistError,
       4: shared.ServiceBusyError serviceBusyError,
+      5: shared.LimitExceededError limitExceededError,
     )
 
   /**
@@ -328,6 +424,28 @@ service WorkflowService {
       1: shared.BadRequestError badRequestError,
       2: shared.InternalServiceError internalServiceError,
       3: shared.EntityNotExistsError entityNotExistError,
+      4: shared.LimitExceededError limitExceededError,
+      5: shared.ServiceBusyError serviceBusyError,
+      6: shared.DomainNotActiveError domainNotActiveError,
+    )
+
+  /**
+  * Reset the sticky tasklist related information in mutable state of a given workflow.
+  * Things cleared are:
+  * 1. StickyTaskList
+  * 2. StickyScheduleToStartTimeout
+  * 3. ClientLibraryVersion
+  * 4. ClientFeatureVersion
+  * 5. ClientImpl
+  **/
+  shared.ResetStickyTaskListResponse ResetStickyTaskList(1: shared.ResetStickyTaskListRequest resetRequest)
+    throws (
+      1: shared.BadRequestError badRequestError,
+      2: shared.InternalServiceError internalServiceError,
+      3: shared.EntityNotExistsError entityNotExistError,
+      4: shared.LimitExceededError limitExceededError,
+      5: shared.ServiceBusyError serviceBusyError,
+      6: shared.DomainNotActiveError domainNotActiveError,
     )
 
   /**
@@ -339,6 +457,8 @@ service WorkflowService {
 	  2: shared.InternalServiceError internalServiceError,
 	  3: shared.EntityNotExistsError entityNotExistError,
 	  4: shared.QueryFailedError queryFailedError,
+	  5: shared.LimitExceededError limitExceededError,
+      6: shared.ServiceBusyError serviceBusyError,
 	)
 
   /**
@@ -349,6 +469,8 @@ service WorkflowService {
       1: shared.BadRequestError badRequestError,
       2: shared.InternalServiceError internalServiceError,
       3: shared.EntityNotExistsError entityNotExistError,
+      4: shared.LimitExceededError limitExceededError,
+      5: shared.ServiceBusyError serviceBusyError,
     )
 
   /**
@@ -357,9 +479,11 @@ service WorkflowService {
   **/
   shared.DescribeTaskListResponse DescribeTaskList(1: shared.DescribeTaskListRequest request)
     throws (
-        1: shared.BadRequestError badRequestError,
-        2: shared.InternalServiceError internalServiceError,
-        3: shared.EntityNotExistsError entityNotExistError,
-      )
+      1: shared.BadRequestError badRequestError,
+      2: shared.InternalServiceError internalServiceError,
+      3: shared.EntityNotExistsError entityNotExistError,
+      4: shared.LimitExceededError limitExceededError,
+      5: shared.ServiceBusyError serviceBusyError,
+    )
 
 }

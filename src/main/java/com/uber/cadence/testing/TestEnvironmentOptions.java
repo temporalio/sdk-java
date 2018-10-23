@@ -93,7 +93,7 @@ public final class TestEnvironmentOptions {
       }
 
       if (factoryOptions == null) {
-        factoryOptions = new Worker.FactoryOptions.Builder().Build();
+        factoryOptions = new Worker.FactoryOptions.Builder().build();
       }
 
       return new TestEnvironmentOptions(
