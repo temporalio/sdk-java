@@ -206,13 +206,15 @@ class WorkflowInvocationHandler implements InvocationHandler {
   private Object startWorkflow(Method method, Object[] args) {
     Optional<WorkflowOptions> options = untyped.getOptions();
     if (untyped.getExecution() == null
-        || options.get().getWorkflowIdReusePolicy() == WorkflowIdReusePolicy.AllowDuplicate) {
+        || (options.isPresent()
+            && options.get().getWorkflowIdReusePolicy() == WorkflowIdReusePolicy.AllowDuplicate)) {
       try {
         untyped.start(args);
       } catch (DuplicateWorkflowException e) {
         // We do allow duplicated calls if policy is not AllowDuplicate. Semantic is to wait for
         // result.
-        if (options.get().getWorkflowIdReusePolicy() == WorkflowIdReusePolicy.AllowDuplicate) {
+        if (options.isPresent()
+            && options.get().getWorkflowIdReusePolicy() == WorkflowIdReusePolicy.AllowDuplicate) {
           throw e;
         }
       }

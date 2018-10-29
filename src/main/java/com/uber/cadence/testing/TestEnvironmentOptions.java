@@ -93,7 +93,8 @@ public final class TestEnvironmentOptions {
       }
 
       if (factoryOptions == null) {
-        factoryOptions = new Worker.FactoryOptions.Builder().build();
+        factoryOptions =
+            new Worker.FactoryOptions.Builder().setDisableStickyExecution(false).build();
       }
 
       return new TestEnvironmentOptions(

@@ -171,7 +171,7 @@ public class WorkerStressTests {
 
     public TestEnvironmentWrapper(Worker.FactoryOptions options) {
       if (options == null) {
-        options = new Worker.FactoryOptions.Builder().build();
+        options = new Worker.FactoryOptions.Builder().setDisableStickyExecution(false).build();
       }
       factory = new Worker.Factory(DOMAIN, options);
       TestEnvironmentOptions testOptions =

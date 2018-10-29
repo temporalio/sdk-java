@@ -228,7 +228,7 @@ class WorkflowThreadImpl implements WorkflowThread {
 
     getDecisionContext()
         .getMetricsScope()
-        .gauge(MetricsType.STICKY_CACHE_SIZE)
+        .gauge(MetricsType.WORKFLOW_ACTIVE_THREAD_COUNT)
         .update(((ThreadPoolExecutor) threadPool).getActiveCount());
 
     try {

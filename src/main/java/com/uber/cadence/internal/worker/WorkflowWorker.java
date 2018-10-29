@@ -17,13 +17,7 @@
 
 package com.uber.cadence.internal.worker;
 
-import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
-import com.uber.cadence.PollForDecisionTaskResponse;
-import com.uber.cadence.RespondDecisionTaskCompletedRequest;
-import com.uber.cadence.RespondDecisionTaskFailedRequest;
-import com.uber.cadence.RespondQueryTaskCompletedRequest;
-import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.WorkflowQuery;
+import com.uber.cadence.*;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.internal.common.Retryer;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
@@ -31,6 +25,8 @@ import com.uber.cadence.internal.logging.LoggerTag;
 import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.m3.tally.Stopwatch;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -112,17 +108,41 @@ public final class WorkflowWorker
     task.setWorkflowExecution(execution);
     task.setStartedEventId(Long.MAX_VALUE);
     task.setPreviousStartedEventId(Long.MAX_VALUE);
-    task.setWorkflowType(task.getWorkflowType());
     WorkflowQuery query = new WorkflowQuery();
     query.setQueryType(queryType).setQueryArgs(args);
     task.setQuery(query);
-    GetWorkflowExecutionHistoryResponse history =
+    GetWorkflowExecutionHistoryResponse historyResponse =
         WorkflowExecutionUtils.getHistoryPage(null, service, domain, execution);
-    task.setHistory(history.getHistory());
+    History history = historyResponse.getHistory();
 
+    List<HistoryEvent> events = history.getEvents();
+    if (events == null || events.isEmpty()) {
+      throw new IllegalStateException("Empty history for " + execution);
+    }
+    HistoryEvent startedEvent = events.get(0);
+    WorkflowExecutionStartedEventAttributes started =
+        startedEvent.getWorkflowExecutionStartedEventAttributes();
+    if (started == null) {
+      throw new IllegalStateException(
+          "First event of the history is not  WorkflowExecutionStarted: " + startedEvent);
+    }
+    WorkflowType workflowType = started.getWorkflowType();
+    task.setWorkflowType(workflowType);
+    task.setHistory(history);
     DecisionTaskHandler.Result result = handler.handleDecisionTask(task);
     if (result.getQueryCompleted() != null) {
       RespondQueryTaskCompletedRequest r = result.getQueryCompleted();
+      if (r.getErrorMessage() != null) {
+        throw new RuntimeException(
+            "query failure for "
+                + execution
+                + ", queryType="
+                + queryType
+                + ", args="
+                + Arrays.toString(args)
+                + ", error="
+                + r.getErrorMessage());
+      }
       return r.getQueryResult();
     }
 

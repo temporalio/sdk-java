@@ -115,11 +115,12 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
   }
 
   private Result processDecision(PollForDecisionTaskResponse decisionTask) throws Throwable {
-    Decider decider =
-        stickyTaskListName == null
-            ? createDecider(decisionTask)
-            : cache.getOrCreate(decisionTask, this::createDecider);
+    Decider decider = null;
     try {
+      decider =
+          stickyTaskListName == null
+              ? createDecider(decisionTask)
+              : cache.getOrCreate(decisionTask, this::createDecider);
       List<Decision> decisions = decider.decide(decisionTask);
       if (log.isTraceEnabled()) {
         WorkflowExecution execution = decisionTask.getWorkflowExecution();
@@ -146,13 +147,13 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
                 + " new decisions");
       }
       return createCompletedRequest(decisionTask, decisions);
-    } catch (Exception e) {
+    } catch (Throwable e) {
       if (stickyTaskListName != null) {
         cache.invalidate(decisionTask);
       }
       throw e;
     } finally {
-      if (stickyTaskListName == null) {
+      if (stickyTaskListName == null && decider != null) {
         decider.close();
       }
     }
@@ -161,8 +162,9 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
   private Result processQuery(PollForDecisionTaskResponse decisionTask) {
     RespondQueryTaskCompletedRequest queryCompletedRequest = new RespondQueryTaskCompletedRequest();
     queryCompletedRequest.setTaskToken(decisionTask.getTaskToken());
+    Decider decider = null;
     try {
-      Decider decider =
+      decider =
           stickyTaskListName == null
               ? createDecider(decisionTask)
               : cache.getOrCreate(decisionTask, this::createDecider);
@@ -176,6 +178,10 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
       e.printStackTrace(pw);
       queryCompletedRequest.setErrorMessage(sw.toString());
       queryCompletedRequest.setCompletedType(QueryTaskCompletedType.FAILED);
+    } finally {
+      if (stickyTaskListName == null && decider != null) {
+        decider.close();
+      }
     }
     return new Result(null, null, queryCompletedRequest, null);
   }

@@ -595,8 +595,7 @@ public final class Worker {
 
   public static class FactoryOptions {
     public static class Builder {
-      // TODO: Enable by default as soon the service is released
-      private boolean disableStickyExecution = true;
+      private boolean disableStickyExecution;
       private int stickyDecisionScheduleToStartTimeoutInSeconds = 5;
       private int cacheMaximumSize = 600;
       private int maxWorkflowThreadCount = 600;
