@@ -17,7 +17,6 @@
 
 package com.uber.cadence.internal.replay;
 
-import com.uber.cadence.ChildPolicy;
 import java.nio.charset.StandardCharsets;
 
 public final class ContinueAsNewWorkflowExecutionParameters {
@@ -26,7 +25,6 @@ public final class ContinueAsNewWorkflowExecutionParameters {
   private byte[] input;
   private String taskList;
   private int taskStartToCloseTimeoutSeconds;
-  private ChildPolicy childPolicy;
   private String workflowType;
 
   public void setWorkflowType(String workflowType) {
@@ -83,19 +81,6 @@ public final class ContinueAsNewWorkflowExecutionParameters {
 
   public void setTaskStartToCloseTimeoutSeconds(int taskStartToCloseTimeoutSeconds) {
     this.taskStartToCloseTimeoutSeconds = taskStartToCloseTimeoutSeconds;
-  }
-
-  public ChildPolicy getChildPolicy() {
-    return childPolicy;
-  }
-
-  public void setChildPolicy(ChildPolicy childPolicy) {
-    this.childPolicy = childPolicy;
-  }
-
-  public ContinueAsNewWorkflowExecutionParameters withChildPolicy(ChildPolicy childPolicy) {
-    this.childPolicy = childPolicy;
-    return this;
   }
 
   public ContinueAsNewWorkflowExecutionParameters withTaskStartToCloseTimeoutSeconds(

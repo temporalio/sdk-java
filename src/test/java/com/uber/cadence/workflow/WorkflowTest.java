@@ -26,10 +26,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.util.concurrent.UncheckedExecutionException;
-import com.uber.cadence.SignalExternalWorkflowExecutionFailedCause;
-import com.uber.cadence.TimeoutType;
-import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.WorkflowIdReusePolicy;
+import com.uber.cadence.*;
 import com.uber.cadence.activity.Activity;
 import com.uber.cadence.activity.ActivityMethod;
 import com.uber.cadence.activity.ActivityOptions;
@@ -804,29 +801,42 @@ public class WorkflowTest {
   public interface TestContinueAsNew {
 
     @WorkflowMethod
-    int execute(int count);
+    int execute(int count, String continueAsNewTaskList);
   }
 
   public static class TestContinueAsNewImpl implements TestContinueAsNew {
 
     @Override
-    public int execute(int count) {
+    public int execute(int count, String continueAsNewTaskList) {
+      String taskList = Workflow.getWorkflowInfo().getTaskList();
       if (count == 0) {
+        assertEquals(continueAsNewTaskList, taskList);
         return 111;
       }
-      TestContinueAsNew next = Workflow.newContinueAsNewStub(TestContinueAsNew.class, null);
-      next.execute(count - 1);
+      ContinueAsNewOptions options =
+          new ContinueAsNewOptions.Builder().setTaskList(continueAsNewTaskList).build();
+      TestContinueAsNew next = Workflow.newContinueAsNewStub(TestContinueAsNew.class, options);
+      next.execute(count - 1, continueAsNewTaskList);
       throw new RuntimeException("unreachable");
     }
   }
 
   @Test
   public void testContinueAsNew() {
+    Worker w2;
+    String continuedTaskList = this.taskList + "_continued";
+    if (useExternalService) {
+      w2 = workerFactory.newWorker(continuedTaskList);
+    } else {
+      w2 = testEnvironment.newWorker(continuedTaskList);
+    }
+    w2.registerWorkflowImplementationTypes(TestContinueAsNewImpl.class);
     startWorkerFor(TestContinueAsNewImpl.class);
+
     TestContinueAsNew client =
         workflowClient.newWorkflowStub(
-            TestContinueAsNew.class, newWorkflowOptionsBuilder(taskList).build());
-    int result = client.execute(4);
+            TestContinueAsNew.class, newWorkflowOptionsBuilder(this.taskList).build());
+    int result = client.execute(4, continuedTaskList);
     assertEquals(111, result);
     tracer.setExpected("continueAsNew", "continueAsNew", "continueAsNew", "continueAsNew");
   }
@@ -1984,6 +1994,7 @@ public class WorkflowTest {
         () -> {
           assertEquals("initial", client.query("QueryableWorkflow::getState", String.class));
           client.signal("testSignal", "Hello ");
+          sleep(Duration.ofMillis(500));
           while (!"Hello ".equals(client.query("QueryableWorkflow::getState", String.class))) {}
           assertEquals("Hello ", client.query("QueryableWorkflow::getState", String.class));
           client.signal("testSignal", "World!");

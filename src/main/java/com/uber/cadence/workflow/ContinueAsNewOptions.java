@@ -17,7 +17,6 @@
 
 package com.uber.cadence.workflow;
 
-import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.internal.common.OptionsUtils;
 import java.time.Duration;
 
@@ -28,7 +27,6 @@ public final class ContinueAsNewOptions {
     private Duration executionStartToCloseTimeout;
     private String taskList;
     private Duration taskStartToCloseTimeout;
-    private ChildPolicy childPolicy;
 
     public Builder setExecutionStartToCloseTimeout(Duration executionStartToCloseTimeout) {
       this.executionStartToCloseTimeout = executionStartToCloseTimeout;
@@ -45,34 +43,23 @@ public final class ContinueAsNewOptions {
       return this;
     }
 
-    public Builder setChildPolicy(ChildPolicy childPolicy) {
-      this.childPolicy = childPolicy;
-      return this;
-    }
-
     public ContinueAsNewOptions build() {
       return new ContinueAsNewOptions(
           OptionsUtils.roundUpToSeconds(executionStartToCloseTimeout),
           taskList,
-          OptionsUtils.roundUpToSeconds(taskStartToCloseTimeout),
-          childPolicy);
+          OptionsUtils.roundUpToSeconds(taskStartToCloseTimeout));
     }
   }
 
   private final Duration executionStartToCloseTimeout;
   private final String taskList;
   private final Duration taskStartToCloseTimeout;
-  private final ChildPolicy childPolicy;
 
   public ContinueAsNewOptions(
-      Duration executionStartToCloseTimeout,
-      String taskList,
-      Duration taskStartToCloseTimeout,
-      ChildPolicy childPolicy) {
+      Duration executionStartToCloseTimeout, String taskList, Duration taskStartToCloseTimeout) {
     this.executionStartToCloseTimeout = executionStartToCloseTimeout;
     this.taskList = taskList;
     this.taskStartToCloseTimeout = taskStartToCloseTimeout;
-    this.childPolicy = childPolicy;
   }
 
   public Duration getExecutionStartToCloseTimeout() {
@@ -85,9 +72,5 @@ public final class ContinueAsNewOptions {
 
   public Duration getTaskStartToCloseTimeout() {
     return taskStartToCloseTimeout;
-  }
-
-  public ChildPolicy getChildPolicy() {
-    return childPolicy;
   }
 }

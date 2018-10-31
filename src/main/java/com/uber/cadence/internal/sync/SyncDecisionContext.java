@@ -526,10 +526,12 @@ final class SyncDecisionContext implements WorkflowInterceptor {
       parameters.setWorkflowType(workflowType.get());
     }
     if (options.isPresent()) {
+      ContinueAsNewOptions ops = options.get();
       parameters.setExecutionStartToCloseTimeoutSeconds(
-          (int) options.get().getExecutionStartToCloseTimeout().getSeconds());
+          (int) ops.getExecutionStartToCloseTimeout().getSeconds());
       parameters.setTaskStartToCloseTimeoutSeconds(
-          (int) options.get().getTaskStartToCloseTimeout().getSeconds());
+          (int) ops.getTaskStartToCloseTimeout().getSeconds());
+      parameters.setTaskList(ops.getTaskList());
     }
     parameters.setInput(getDataConverter().toData(args));
     context.continueAsNewOnCompletion(parameters);

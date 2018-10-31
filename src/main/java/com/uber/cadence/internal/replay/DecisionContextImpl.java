@@ -17,12 +17,7 @@
 
 package com.uber.cadence.internal.replay;
 
-import com.uber.cadence.HistoryEvent;
-import com.uber.cadence.PollForDecisionTaskResponse;
-import com.uber.cadence.TimerFiredEventAttributes;
-import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
-import com.uber.cadence.WorkflowType;
+import com.uber.cadence.*;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.metrics.ReplayAwareScope;
 import com.uber.cadence.workflow.Functions.Func;
@@ -126,6 +121,11 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   @Override
   public Duration getDecisionTaskTimeout() {
     return Duration.ofSeconds(workflowContext.getDecisionTaskTimeoutSeconds());
+  }
+
+  @Override
+  public ChildPolicy getChildPolicy() {
+    return workflowContext.getChildPolicy();
   }
 
   @Override

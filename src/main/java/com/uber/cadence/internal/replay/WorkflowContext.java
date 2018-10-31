@@ -17,6 +17,7 @@
 
 package com.uber.cadence.internal.replay;
 
+import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
 
@@ -115,5 +116,9 @@ final class WorkflowContext {
 
   private WorkflowExecutionStartedEventAttributes getWorkflowStartedEventAttributes() {
     return startedAttributes;
+  }
+
+  public ChildPolicy getChildPolicy() {
+    return startedAttributes.getChildPolicy();
   }
 }
