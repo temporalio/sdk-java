@@ -743,6 +743,9 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetLimitExceededError()) {
         throw result.getLimitExceededError();
       }
+      if (result.isSetEntityNotExistError()) {
+        throw result.getEntityNotExistError();
+      }
       throw new TException("StartWorkflowExecution failed with unknown error:" + result);
     } finally {
       if (response != null) {
@@ -784,6 +787,9 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetServiceBusyError()) {
         throw result.getServiceBusyError();
+      }
+      if (result.isSetEntityNotExistError()) {
+        throw result.getEntityNotExistError();
       }
       throw new TException("GetWorkflowExecutionHistory failed with unknown error:" + result);
     } finally {
@@ -830,6 +836,9 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetLimitExceededError()) {
         throw result.getLimitExceededError();
       }
+      if (result.isSetEntityNotExistError()) {
+        throw result.getEntityNotExistError();
+      }
       throw new TException("PollForDecisionTask failed with unknown error:" + result);
     } finally {
       if (response != null) {
@@ -875,6 +884,9 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetLimitExceededError()) {
         throw result.getLimitExceededError();
+      }
+      if (result.isSetEntityNotExistError()) {
+        throw result.getEntityNotExistError();
       }
       throw new TException("RespondDecisionTaskCompleted failed with unknown error:" + result);
     } finally {
@@ -923,6 +935,9 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetLimitExceededError()) {
         throw result.getLimitExceededError();
       }
+      if (result.isSetEntityNotExistError()) {
+        throw result.getEntityNotExistError();
+      }
       throw new TException("RespondDecisionTaskFailed failed with unknown error:" + result);
     } finally {
       if (response != null) {
@@ -961,6 +976,9 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetServiceBusyError()) {
         throw result.getServiceBusyError();
+      }
+      if (result.isSetEntityNotExistError()) {
+        throw result.getEntityNotExistError();
       }
       if (result.isSetDomainNotActiveError()) {
         throw result.getDomainNotActiveError();
