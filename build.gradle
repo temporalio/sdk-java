@@ -68,6 +68,25 @@ compileJava {
             ".*/generated-sources/.*" << "-Werror"
 }
 
+// Generation version.properties for value to be included into the request header
+task createProperties(dependsOn: processResources) {
+    doLast {
+        def subdir = new File("$buildDir/resources/main/com/uber/cadence/")
+        if( !subdir.exists() ) {
+            subdir.mkdirs()
+        }
+        new File("$buildDir/resources/main/com/uber/cadence/version.properties").withWriter { w ->
+            Properties p = new Properties()
+            p['cadence-client-version'] = project.version.toString()
+            p.store w, null
+        }
+    }
+}
+
+classes {
+    dependsOn createProperties
+}
+
 compileTestJava {
     options.encoding = 'UTF-8'
     options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation" << "-XepExcludedPaths:" +

@@ -210,6 +210,18 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
 
   private Decider createDecider(PollForDecisionTaskResponse decisionTask) throws Exception {
     WorkflowType workflowType = decisionTask.getWorkflowType();
+    List<HistoryEvent> events = decisionTask.getHistory().getEvents();
+    // Sticky decision task with partial history
+    if (events.isEmpty() || events.get(0).getEventId() > 1) {
+      GetWorkflowExecutionHistoryRequest getHistoryRequest =
+          new GetWorkflowExecutionHistoryRequest()
+              .setDomain(domain)
+              .setExecution(decisionTask.getWorkflowExecution());
+      GetWorkflowExecutionHistoryResponse getHistoryResponse =
+          service.GetWorkflowExecutionHistory(getHistoryRequest);
+      decisionTask.setHistory(getHistoryResponse.getHistory());
+      decisionTask.setNextPageToken(getHistoryResponse.getNextPageToken());
+    }
     DecisionsHelper decisionsHelper = new DecisionsHelper(decisionTask);
     ReplayWorkflow workflow = workflowFactory.getWorkflow(workflowType);
     return new ReplayDecider(

@@ -18,9 +18,12 @@
 package com.uber.cadence.internal.replay;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.util.concurrent.ExecutionError;
+import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.internal.common.ThrowableFunc1;
 import com.uber.cadence.internal.metrics.MetricsType;
@@ -30,6 +33,7 @@ import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
@@ -75,18 +79,26 @@ public final class DeciderCache {
       invalidate(decisionTask);
       return cache.get(runId, () -> createReplayDecider.apply(decisionTask));
     }
-    return getUnchecked(runId);
-  }
-
-  public Decider getUnchecked(String runId) throws Exception {
+    AtomicBoolean miss = new AtomicBoolean();
+    Decider result = null;
     try {
-      Decider cachedDecider = cache.getUnchecked(runId);
-      metricsScope.counter(MetricsType.STICKY_CACHE_HIT).inc(1);
-      return cachedDecider;
-    } catch (CacheLoader.InvalidCacheLoadException e) {
-      metricsScope.counter(MetricsType.STICKY_CACHE_MISS).inc(1);
-      throw new EvictedException(runId);
+      result =
+          cache.get(
+              runId,
+              () -> {
+                miss.set(true);
+                return createReplayDecider.apply(decisionTask);
+              });
+    } catch (UncheckedExecutionException | ExecutionError e) {
+      Throwables.throwIfUnchecked(e.getCause());
+    } finally {
+      if (miss.get()) {
+        metricsScope.counter(MetricsType.STICKY_CACHE_MISS).inc(1);
+      } else {
+        metricsScope.counter(MetricsType.STICKY_CACHE_HIT).inc(1);
+      }
     }
+    return result;
   }
 
   public void evictAny(String runId) throws InterruptedException {

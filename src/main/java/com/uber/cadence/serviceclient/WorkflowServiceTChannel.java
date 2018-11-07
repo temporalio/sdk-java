@@ -74,6 +74,7 @@ import com.uber.cadence.UpdateDomainResponse;
 import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
 import com.uber.cadence.WorkflowService;
 import com.uber.cadence.WorkflowService.GetWorkflowExecutionHistory_result;
+import com.uber.cadence.internal.Version;
 import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.internal.metrics.NoopScope;
@@ -164,7 +165,7 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       this.metricsScope = builder.metricsScope;
       if (builder.transportHeaders != null) {
-        this.transportHeaders = builder.transportHeaders;
+        this.transportHeaders = ImmutableMap.copyOf(builder.transportHeaders);
       } else {
         this.transportHeaders = ImmutableMap.of();
       }
@@ -358,7 +359,13 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       ArrayList<InetSocketAddress> peers = new ArrayList<>();
       peers.add(new InetSocketAddress(address, port));
       this.subChannel = tChannel.makeSubChannel(options.getServiceName()).setPeers(peers);
-      log.info("Initialized TChannel for service " + this.subChannel.getServiceName());
+      log.info(
+          "Initialized TChannel for service "
+              + this.subChannel.getServiceName()
+              + ", LibraryVersion: "
+              + Version.LIBRARY_VERSION
+              + ", FeatureVersion: "
+              + Version.FEATURE_VERSION);
     } catch (UnknownHostException e) {
       tChannel.shutdown();
       throw new RuntimeException("Unable to get name of host " + host, e);
@@ -391,6 +398,8 @@ public class WorkflowServiceTChannel implements IWorkflowService {
     return ImmutableMap.<String, String>builder()
         .put("user-name", envUserName)
         .put("host-name", envHostname)
+        .put("cadence-client-library-version", Version.LIBRARY_VERSION)
+        .put("cadence-client-feature-version", Version.FEATURE_VERSION)
         .build();
   }
 

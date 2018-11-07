@@ -18,14 +18,14 @@
 package com.uber.cadence.internal.replay;
 
 import static junit.framework.TestCase.assertEquals;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.*;
 
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.PollForDecisionTaskResponse;
+import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowQuery;
 import com.uber.cadence.internal.metrics.MetricsTag;
 import com.uber.cadence.internal.metrics.MetricsType;
@@ -61,29 +61,39 @@ public class ReplayDeciderCacheTests {
     Decider decider = replayDeciderCache.getOrCreate(decisionTask, this::createFakeDecider);
 
     // Assert
-    assertEquals(decider, replayDeciderCache.getUnchecked(runId));
+    assertNotEquals(decider, replayDeciderCache.getOrCreate(decisionTask, this::createFakeDecider));
   }
 
   @Test
   public void whenHistoryIsFullNewReplayDeciderIsReturned_InitiallyCached() throws Exception {
+    TestWorkflowService service = new TestWorkflowService();
+
     // Arrange
     DeciderCache replayDeciderCache = new DeciderCache(10, NoopScope.getInstance());
-    PollForDecisionTaskResponse decisionTask =
-        HistoryUtils.generateDecisionTaskWithInitialHistory();
+    PollForDecisionTaskResponse decisionTask1 =
+        HistoryUtils.generateDecisionTaskWithInitialHistory(
+            "domain", "taskList", "workflowType", service);
 
-    String runId = decisionTask.getWorkflowExecution().getRunId();
-    Decider decider = replayDeciderCache.getOrCreate(decisionTask, this::createFakeDecider);
-    assertEquals(decider, replayDeciderCache.getUnchecked(runId));
+    String runId = decisionTask1.getWorkflowExecution().getRunId();
+    Decider decider = replayDeciderCache.getOrCreate(decisionTask1, this::createFakeDecider);
+
+    PollForDecisionTaskResponse decisionTask2 =
+        HistoryUtils.generateDecisionTaskWithPartialHistoryFromExistingTask(
+            decisionTask1, "domain", "stickyTaskList", service);
+
+    assertEquals(
+        decider, replayDeciderCache.getOrCreate(decisionTask2, this::doNotCreateFakeDecider));
 
     // Act
-    Decider decider2 = replayDeciderCache.getOrCreate(decisionTask, this::createFakeDecider);
+    Decider decider2 = replayDeciderCache.getOrCreate(decisionTask2, this::createFakeDecider);
 
     // Assert
-    assertEquals(decider2, replayDeciderCache.getUnchecked(runId));
-    assertNotSame(decider2, decider);
+    assertEquals(decider2, replayDeciderCache.getOrCreate(decisionTask2, this::createFakeDecider));
+    assertSame(decider2, decider);
+    service.close();
   }
 
-  @Test
+  @Test(timeout = 2000)
   public void whenHistoryIsPartialCachedEntryIsReturned() throws Exception {
     // Arrange
     Map<String, String> tags =
@@ -97,31 +107,30 @@ public class ReplayDeciderCacheTests {
 
     DeciderCache replayDeciderCache = new DeciderCache(10, scope);
     TestWorkflowService service = new TestWorkflowService();
+    service.lockTimeSkipping("test");
     PollForDecisionTaskResponse decisionTask =
         HistoryUtils.generateDecisionTaskWithInitialHistory(
             "domain", "taskList", "workflowType", service);
 
     String runId = decisionTask.getWorkflowExecution().getRunId();
     Decider decider = replayDeciderCache.getOrCreate(decisionTask, this::createFakeDecider);
-    assertEquals(decider, replayDeciderCache.getUnchecked(runId));
 
     // Act
     PollForDecisionTaskResponse decisionTask2 =
         HistoryUtils.generateDecisionTaskWithPartialHistoryFromExistingTask(
             decisionTask, "domain", "stickyTaskList", service);
-    Decider decider2 = replayDeciderCache.getOrCreate(decisionTask2, this::createFakeDecider);
+    Decider decider2 = replayDeciderCache.getOrCreate(decisionTask2, this::doNotCreateFakeDecider);
 
     // Assert
     // Wait for reporter
-    Thread.sleep(1000);
-    verify(reporter, times(1)).reportCounter(MetricsType.STICKY_CACHE_HIT, tags, 2);
-    assertEquals(decider2, replayDeciderCache.getUnchecked(runId));
-    assertEquals(decider2, decider);
+    Thread.sleep(500);
+    verify(reporter, times(1)).reportCounter(MetricsType.STICKY_CACHE_HIT, tags, 1);
+    assertEquals(decider, decider2);
+    service.close();
   }
 
   @Test
-  public void whenHistoryIsPartialAndCacheIsEmptyThenCacheEvictedExceptionIsThrown()
-      throws Exception {
+  public void whenHistoryIsPartialAndCacheIsEmptyThenExceptionIsThrown() throws Exception {
     // Arrange
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
@@ -139,7 +148,7 @@ public class ReplayDeciderCacheTests {
 
     try {
       replayDeciderCache.getOrCreate(decisionTask, this::createFakeDecider);
-    } catch (DeciderCache.EvictedException ex) {
+    } catch (IllegalArgumentException ex) {
 
       // Wait for reporter
       Thread.sleep(600);
@@ -148,7 +157,7 @@ public class ReplayDeciderCacheTests {
     }
 
     fail(
-        "Expected replayDeciderCache.getOrCreate to throw ReplayDeciderCache.EvictedException but no exception was thrown");
+        "Expected replayDeciderCache.getOrCreate to throw IllegalArgumentException but no exception was thrown");
   }
 
   @Test
@@ -208,13 +217,21 @@ public class ReplayDeciderCacheTests {
   }
 
   private void assertCacheIsEmpty(DeciderCache cache, String runId) throws Exception {
-    DeciderCache.EvictedException ex = null;
+    Throwable ex = null;
     try {
-      cache.getUnchecked(runId);
-    } catch (DeciderCache.EvictedException e) {
+      PollForDecisionTaskResponse decisionTask =
+          new PollForDecisionTaskResponse()
+              .setWorkflowExecution(new WorkflowExecution().setRunId(runId));
+      cache.getOrCreate(decisionTask, this::doNotCreateFakeDecider);
+    } catch (AssertionError e) {
       ex = e;
     }
     TestCase.assertNotNull(ex);
+  }
+
+  private ReplayDecider doNotCreateFakeDecider(PollForDecisionTaskResponse response) {
+    fail("should not be called");
+    return null;
   }
 
   private ReplayDecider createFakeDecider(PollForDecisionTaskResponse response) {
