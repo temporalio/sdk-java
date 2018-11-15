@@ -19,3 +19,7 @@
 to disable use FactoryOptions.disableStickyExecution property.
 - Updated Thrift to expose new types of service exceptions: ServiceBusyError, DomainNotActiveError, LimitExceededError
 - Added metric for corrupted signal as well as metrics related to caching and evictions.
+
+## v2.1.3
+- Added RPC headers needed to enable sticky queries. Before this change
+queries did not used cached workflows.
