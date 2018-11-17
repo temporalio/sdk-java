@@ -70,6 +70,7 @@ import com.uber.cadence.StartWorkflowExecutionRequest;
 import com.uber.cadence.StickyExecutionAttributes;
 import com.uber.cadence.TimeoutType;
 import com.uber.cadence.WorkflowExecutionCloseStatus;
+import com.uber.cadence.WorkflowExecutionContinuedAsNewEventAttributes;
 import com.uber.cadence.WorkflowExecutionSignaledEventAttributes;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.testservice.StateMachines.Action;
@@ -98,6 +99,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.LongSupplier;
@@ -116,7 +118,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   private static final Logger log = LoggerFactory.getLogger(TestWorkflowMutableStateImpl.class);
 
-  private static final int MILLISECONDS_IN_SECOND = 1000;
   private final Lock lock = new ReentrantLock();
   private final SelfAdvancingTimer selfAdvancingTimer;
   private final LongSupplier clock;
@@ -140,9 +141,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private final Map<String, PollForDecisionTaskResponse> queryRequests = new ConcurrentHashMap<>();
   public StickyExecutionAttributes stickyExecutionAttributes;
 
-  /** @param parentChildInitiatedEventId id of the child initiated event in the parent history */
+  /**
+   * @param retryState present if workflow is a retry
+   * @param parentChildInitiatedEventId id of the child initiated event in the parent history
+   */
   TestWorkflowMutableStateImpl(
       StartWorkflowExecutionRequest startRequest,
+      Optional<RetryState> retryState,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
       TestWorkflowService service,
@@ -158,6 +163,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     selfAdvancingTimer = store.getTimer();
     this.clock = selfAdvancingTimer.getClock();
     this.workflow = StateMachines.newWorkflowStateMachine();
+    WorkflowData data = this.workflow.getData();
+    data.retryState = retryState;
   }
 
   private void update(UpdateProcedure updater)
@@ -337,7 +344,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         break;
       case FailWorkflowExecution:
         processFailWorkflowExecution(
-            ctx, d.getFailWorkflowExecutionDecisionAttributes(), decisionTaskCompletedId);
+            ctx, d.getFailWorkflowExecutionDecisionAttributes(), decisionTaskCompletedId, identity);
         break;
       case CancelWorkflowExecution:
         processCancelWorkflowExecution(
@@ -735,8 +742,46 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   private void processFailWorkflowExecution(
-      RequestContext ctx, FailWorkflowExecutionDecisionAttributes d, long decisionTaskCompletedId)
+      RequestContext ctx,
+      FailWorkflowExecutionDecisionAttributes d,
+      long decisionTaskCompletedId,
+      String identity)
       throws InternalServiceError, BadRequestError {
+    WorkflowData data = workflow.getData();
+    if (data.retryState.isPresent()) {
+      RetryState rs = data.retryState.get();
+      int backoffIntervalSeconds =
+          rs.getBackoffIntervalInSeconds(d.getReason(), store.currentTimeMillis());
+      if (backoffIntervalSeconds > 0) {
+        ContinueAsNewWorkflowExecutionDecisionAttributes continueAsNewAttr =
+            new ContinueAsNewWorkflowExecutionDecisionAttributes()
+                .setInput(startRequest.getInput())
+                .setWorkflowType(startRequest.getWorkflowType())
+                .setExecutionStartToCloseTimeoutSeconds(
+                    startRequest.getExecutionStartToCloseTimeoutSeconds())
+                .setTaskStartToCloseTimeoutSeconds(startRequest.getTaskStartToCloseTimeoutSeconds())
+                .setTaskList(startRequest.getTaskList())
+                .setBackoffStartIntervalInSeconds(backoffIntervalSeconds)
+                .setRetryPolicy(startRequest.getRetryPolicy());
+        workflow.action(Action.CONTINUE_AS_NEW, ctx, continueAsNewAttr, decisionTaskCompletedId);
+        HistoryEvent event = ctx.getEvents().get(ctx.getEvents().size() - 1);
+        WorkflowExecutionContinuedAsNewEventAttributes continuedAsNewEventAttributes =
+            event.getWorkflowExecutionContinuedAsNewEventAttributes();
+
+        Optional<RetryState> continuedRetryState = Optional.of(rs.getNextAttempt());
+        String runId =
+            service.continueAsNew(
+                startRequest,
+                continuedAsNewEventAttributes,
+                continuedRetryState,
+                identity,
+                getExecutionId(),
+                parent,
+                parentChildInitiatedEventId);
+        continuedAsNewEventAttributes.setNewExecutionRunId(runId);
+        return;
+      }
+    }
     workflow.action(StateMachines.Action.FAIL, ctx, d, decisionTaskCompletedId);
     if (parent.isPresent()) {
       ctx.lockTimer(); // unlocked by the parent
@@ -838,6 +883,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         service.continueAsNew(
             startRequest,
             event.getWorkflowExecutionContinuedAsNewEventAttributes(),
+            workflow.getData().retryState,
             identity,
             getExecutionId(),
             parent,
@@ -1074,9 +1120,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             }
             if (timeoutType == TimeoutType.HEARTBEAT) {
               // Deal with timers which are never cancelled
-              if (clock.getAsLong() - activity.getData().lastHeartbeatTime
-                  < activity.getData().scheduledEvent.getHeartbeatTimeoutSeconds()
-                      * MILLISECONDS_IN_SECOND) {
+              long heartbeatTimeout =
+                  TimeUnit.SECONDS.toMillis(
+                      activity.getData().scheduledEvent.getHeartbeatTimeoutSeconds());
+              if (clock.getAsLong() - activity.getData().lastHeartbeatTime < heartbeatTimeout) {
                 return;
               }
             }

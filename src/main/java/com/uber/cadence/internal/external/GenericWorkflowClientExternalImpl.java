@@ -17,18 +17,9 @@
 
 package com.uber.cadence.internal.external;
 
-import com.uber.cadence.QueryWorkflowRequest;
-import com.uber.cadence.QueryWorkflowResponse;
-import com.uber.cadence.RequestCancelWorkflowExecutionRequest;
-import com.uber.cadence.SignalWorkflowExecutionRequest;
-import com.uber.cadence.StartWorkflowExecutionRequest;
-import com.uber.cadence.StartWorkflowExecutionResponse;
-import com.uber.cadence.TaskList;
-import com.uber.cadence.TerminateWorkflowExecutionRequest;
-import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
-import com.uber.cadence.WorkflowQuery;
+import com.uber.cadence.*;
 import com.uber.cadence.internal.common.CheckedExceptionWrapper;
+import com.uber.cadence.internal.common.RetryParameters;
 import com.uber.cadence.internal.common.StartWorkflowExecutionParameters;
 import com.uber.cadence.internal.common.TerminateWorkflowExecutionParameters;
 import com.uber.cadence.internal.metrics.MetricsTag;
@@ -106,6 +97,18 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     }
     request.setWorkflowId(workflowId);
     request.setWorkflowType(startParameters.getWorkflowType());
+    RetryParameters retryParameters = startParameters.getRetryParameters();
+    if (retryParameters != null) {
+      RetryPolicy retryPolicy =
+          new RetryPolicy()
+              .setBackoffCoefficient(retryParameters.getBackoffCoefficient())
+              .setExpirationIntervalInSeconds(retryParameters.getExpirationIntervalInSeconds())
+              .setInitialIntervalInSeconds(retryParameters.getInitialIntervalInSeconds())
+              .setMaximumAttempts(retryParameters.getMaximumAttempts())
+              .setMaximumIntervalInSeconds(retryParameters.getMaximumIntervalInSeconds())
+              .setNonRetriableErrorReasons(retryParameters.getNonRetriableErrorReasons());
+      request.setRetryPolicy(retryPolicy);
+    }
 
     //        if(startParameters.getChildPolicy() != null) {
     //            request.setChildPolicy(startParameters.getChildPolicy());

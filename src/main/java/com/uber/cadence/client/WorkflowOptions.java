@@ -21,13 +21,17 @@ import static com.uber.cadence.internal.common.OptionsUtils.roundUpToSeconds;
 
 import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.WorkflowIdReusePolicy;
+import com.uber.cadence.common.MethodRetry;
+import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.internal.common.OptionsUtils;
 import com.uber.cadence.workflow.WorkflowMethod;
 import java.time.Duration;
+import java.util.Objects;
 
 public final class WorkflowOptions {
 
-  public static WorkflowOptions merge(WorkflowMethod a, WorkflowOptions o) {
+  public static WorkflowOptions merge(
+      WorkflowMethod a, MethodRetry methodRetry, WorkflowOptions o) {
     if (a == null) {
       return new WorkflowOptions.Builder(o).validateBuildWithDefaults();
     }
@@ -48,6 +52,7 @@ public final class WorkflowOptions {
                 a.executionStartToCloseTimeoutSeconds(), o.getExecutionStartToCloseTimeout()))
         .setTaskList(OptionsUtils.merge(a.taskList(), o.getTaskList(), String.class))
         .setChildPolicy(o.getChildPolicy())
+        .setRetryOptions(RetryOptions.merge(methodRetry, o.getRetryOptions()))
         .validateBuildWithDefaults();
   }
 
@@ -65,6 +70,8 @@ public final class WorkflowOptions {
 
     private ChildPolicy childPolicy;
 
+    private RetryOptions retryOptions;
+
     public Builder() {}
 
     public Builder(WorkflowOptions o) {
@@ -77,6 +84,7 @@ public final class WorkflowOptions {
       this.executionStartToCloseTimeout = o.executionStartToCloseTimeout;
       this.taskList = o.taskList;
       this.childPolicy = o.childPolicy;
+      this.retryOptions = o.retryOptions;
     }
 
     /**
@@ -151,6 +159,11 @@ public final class WorkflowOptions {
       return this;
     }
 
+    public Builder setRetryOptions(RetryOptions retryOptions) {
+      this.retryOptions = retryOptions;
+      return this;
+    }
+
     public WorkflowOptions build() {
       return new WorkflowOptions(
           workflowId,
@@ -158,7 +171,8 @@ public final class WorkflowOptions {
           executionStartToCloseTimeout,
           taskStartToCloseTimeout,
           taskList,
-          childPolicy);
+          childPolicy,
+          retryOptions);
     }
 
     /**
@@ -170,11 +184,21 @@ public final class WorkflowOptions {
             "Required property executionStartToCloseTimeout is not set");
       }
       if (taskList == null) {
-        throw new IllegalStateException("Required property taskList is not set");
+        throw new IllegalArgumentException("Required property taskList is not set");
       }
       WorkflowIdReusePolicy policy = workflowIdReusePolicy;
       if (policy == null) {
         policy = WorkflowIdReusePolicy.AllowDuplicateFailedOnly;
+      }
+      if (retryOptions != null) {
+        if (retryOptions.getInitialInterval() == null) {
+          throw new IllegalArgumentException(
+              "RetryOptions missing required initialInterval property");
+        }
+        if (retryOptions.getExpiration() == null && retryOptions.getMaximumAttempts() == 0) {
+          throw new IllegalArgumentException(
+              "RetryOptions must specify either expiration or maximum attempts");
+        }
       }
       return new WorkflowOptions(
           workflowId,
@@ -183,7 +207,8 @@ public final class WorkflowOptions {
           roundUpToSeconds(
               taskStartToCloseTimeout, OptionsUtils.DEFAULT_TASK_START_TO_CLOSE_TIMEOUT),
           taskList,
-          childPolicy);
+          childPolicy,
+          retryOptions);
     }
   }
 
@@ -199,19 +224,23 @@ public final class WorkflowOptions {
 
   private final ChildPolicy childPolicy;
 
+  private RetryOptions retryOptions;
+
   private WorkflowOptions(
       String workflowId,
       WorkflowIdReusePolicy workflowIdReusePolicy,
       Duration executionStartToCloseTimeout,
       Duration taskStartToCloseTimeout,
       String taskList,
-      ChildPolicy childPolicy) {
+      ChildPolicy childPolicy,
+      RetryOptions retryOptions) {
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
     this.executionStartToCloseTimeout = executionStartToCloseTimeout;
     this.taskStartToCloseTimeout = taskStartToCloseTimeout;
     this.taskList = taskList;
     this.childPolicy = childPolicy;
+    this.retryOptions = retryOptions;
   }
 
   public String getWorkflowId() {
@@ -238,38 +267,34 @@ public final class WorkflowOptions {
     return childPolicy;
   }
 
+  public RetryOptions getRetryOptions() {
+    return retryOptions;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
-
     WorkflowOptions that = (WorkflowOptions) o;
-
-    if (workflowId != null ? !workflowId.equals(that.workflowId) : that.workflowId != null)
-      return false;
-    if (workflowIdReusePolicy != that.workflowIdReusePolicy) return false;
-    if (executionStartToCloseTimeout != null
-        ? !executionStartToCloseTimeout.equals(that.executionStartToCloseTimeout)
-        : that.executionStartToCloseTimeout != null) return false;
-    if (taskStartToCloseTimeout != null
-        ? !taskStartToCloseTimeout.equals(that.taskStartToCloseTimeout)
-        : that.taskStartToCloseTimeout != null) return false;
-    if (taskList != null ? !taskList.equals(that.taskList) : that.taskList != null) return false;
-    return childPolicy == that.childPolicy;
+    return Objects.equals(workflowId, that.workflowId)
+        && workflowIdReusePolicy == that.workflowIdReusePolicy
+        && Objects.equals(executionStartToCloseTimeout, that.executionStartToCloseTimeout)
+        && Objects.equals(taskStartToCloseTimeout, that.taskStartToCloseTimeout)
+        && Objects.equals(taskList, that.taskList)
+        && childPolicy == that.childPolicy
+        && Objects.equals(retryOptions, that.retryOptions);
   }
 
   @Override
   public int hashCode() {
-    int result = workflowId != null ? workflowId.hashCode() : 0;
-    result = 31 * result + (workflowIdReusePolicy != null ? workflowIdReusePolicy.hashCode() : 0);
-    result =
-        31 * result
-            + (executionStartToCloseTimeout != null ? executionStartToCloseTimeout.hashCode() : 0);
-    result =
-        31 * result + (taskStartToCloseTimeout != null ? taskStartToCloseTimeout.hashCode() : 0);
-    result = 31 * result + (taskList != null ? taskList.hashCode() : 0);
-    result = 31 * result + (childPolicy != null ? childPolicy.hashCode() : 0);
-    return result;
+    return Objects.hash(
+        workflowId,
+        workflowIdReusePolicy,
+        executionStartToCloseTimeout,
+        taskStartToCloseTimeout,
+        taskList,
+        childPolicy,
+        retryOptions);
   }
 
   @Override
@@ -289,6 +314,8 @@ public final class WorkflowOptions {
         + '\''
         + ", childPolicy="
         + childPolicy
+        + ", retryOptions="
+        + retryOptions
         + '}';
   }
 }

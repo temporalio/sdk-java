@@ -106,8 +106,7 @@ public final class Retryer {
         }
         long elapsed = System.currentTimeMillis() - startTime;
         if (attempt >= options.getMaximumAttempts()
-            || (elapsed >= options.getExpiration().toMillis()
-                && attempt >= options.getMinimumAttempts())) {
+            || elapsed >= options.getExpiration().toMillis()) {
           rethrow(e);
         }
         log.warn("Retrying after failure", e);
@@ -214,8 +213,7 @@ public final class Retryer {
     }
     int maxAttempts = options.getMaximumAttempts();
     if ((maxAttempts > 0 && attempt >= maxAttempts)
-        || ((options.getExpiration() != null && elapsed >= options.getExpiration().toMillis())
-            && attempt >= options.getMinimumAttempts())) {
+        || (options.getExpiration() != null && elapsed >= options.getExpiration().toMillis())) {
       return new ValueExceptionPair<>(null, e);
     }
     log.debug("Retrying after failure", e);

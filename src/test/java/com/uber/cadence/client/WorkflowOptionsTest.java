@@ -18,6 +18,8 @@
 package com.uber.cadence.client;
 
 import com.uber.cadence.WorkflowIdReusePolicy;
+import com.uber.cadence.common.MethodRetry;
+import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.workflow.WorkflowMethod;
 import java.lang.reflect.Method;
 import java.time.Duration;
@@ -42,7 +44,7 @@ public class WorkflowOptionsTest {
         WorkflowOptionsTest.class
             .getMethod("defaultWorkflowOptions")
             .getAnnotation(WorkflowMethod.class);
-    Assert.assertEquals(o, WorkflowOptions.merge(a, o));
+    Assert.assertEquals(o, WorkflowOptions.merge(a, null, o));
   }
 
   @Test
@@ -58,7 +60,7 @@ public class WorkflowOptionsTest {
         WorkflowOptionsTest.class
             .getMethod("defaultWorkflowOptions")
             .getAnnotation(WorkflowMethod.class);
-    Assert.assertEquals(o, WorkflowOptions.merge(a, o));
+    Assert.assertEquals(o, WorkflowOptions.merge(a, null, o));
   }
 
   @WorkflowMethod(
@@ -68,6 +70,14 @@ public class WorkflowOptionsTest {
     workflowId = "foo",
     workflowIdReusePolicy = WorkflowIdReusePolicy.AllowDuplicate
   )
+  @MethodRetry(
+    initialIntervalSeconds = 12,
+    backoffCoefficient = 1.97,
+    expirationSeconds = 1231423,
+    maximumAttempts = 234567,
+    maximumIntervalSeconds = 22,
+    doNotRetry = {NullPointerException.class, UnsupportedOperationException.class}
+  )
   public void workflowOptions() {}
 
   @Test
@@ -75,7 +85,7 @@ public class WorkflowOptionsTest {
     Method method = WorkflowOptionsTest.class.getMethod("workflowOptions");
     WorkflowMethod a = method.getAnnotation(WorkflowMethod.class);
     WorkflowOptions o = new WorkflowOptions.Builder().build();
-    WorkflowOptions merged = WorkflowOptions.merge(a, o);
+    WorkflowOptions merged = WorkflowOptions.merge(a, null, o);
     Assert.assertEquals(a.taskList(), merged.getTaskList());
     Assert.assertEquals(
         a.executionStartToCloseTimeoutSeconds(),
@@ -95,9 +105,19 @@ public class WorkflowOptionsTest {
             .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
             .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
             .setWorkflowId("bar")
+            .setRetryOptions(
+                new RetryOptions.Builder()
+                    .setDoNotRetry(IllegalArgumentException.class)
+                    .setMaximumAttempts(11111)
+                    .setBackoffCoefficient(1.55)
+                    .setMaximumInterval(Duration.ofDays(3))
+                    .setExpiration(Duration.ofDays(365))
+                    .setInitialInterval(Duration.ofMinutes(12))
+                    .build())
             .build();
-    WorkflowMethod a =
-        WorkflowOptionsTest.class.getMethod("workflowOptions").getAnnotation(WorkflowMethod.class);
-    Assert.assertEquals(o, WorkflowOptions.merge(a, o));
+    Method method = WorkflowOptionsTest.class.getMethod("workflowOptions");
+    WorkflowMethod a = method.getAnnotation(WorkflowMethod.class);
+    MethodRetry r = method.getAnnotation(MethodRetry.class);
+    Assert.assertEquals(o, WorkflowOptions.merge(a, r, o));
   }
 }

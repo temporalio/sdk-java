@@ -153,9 +153,7 @@ final class WorkflowRetryerInternal {
       return true;
     }
     Duration expiration = options.getExpiration();
-    return expiration != null
-        && elapsed + sleepTime >= expiration.toMillis()
-        && (attempt > options.getMinimumAttempts());
+    return expiration != null && elapsed + sleepTime >= expiration.toMillis();
   }
 
   private static long calculateSleepTime(long attempt, RetryOptions options) {

@@ -60,6 +60,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
@@ -124,7 +125,7 @@ public class WorkflowTest {
 
   @Rule
   public Timeout globalTimeout =
-      Timeout.seconds(DEBUGGER_TIMEOUTS ? 500 : skipDockerService ? 10 : 30);
+      Timeout.seconds(DEBUGGER_TIMEOUTS ? 500 : skipDockerService ? 20 : 30);
 
   @Rule
   public TestWatcher watchman =
@@ -379,7 +380,6 @@ public class WorkflowTest {
               .setStartToCloseTimeout(Duration.ofSeconds(10))
               .setRetryOptions(
                   new RetryOptions.Builder()
-                      .setMinimumAttempts(2)
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
                       .setMaximumAttempts(3)
@@ -421,17 +421,17 @@ public class WorkflowTest {
       if (Workflow.isReplaying()) {
         retryOptions =
             new RetryOptions.Builder()
-                .setMinimumAttempts(1)
                 .setMaximumInterval(Duration.ofSeconds(1))
                 .setInitialInterval(Duration.ofSeconds(1))
+                .setExpiration(Duration.ofDays(1))
                 .setMaximumAttempts(3)
                 .build();
       } else {
         retryOptions =
             new RetryOptions.Builder()
-                .setMinimumAttempts(2)
                 .setMaximumInterval(Duration.ofSeconds(1))
                 .setInitialInterval(Duration.ofSeconds(1))
+                .setExpiration(Duration.ofDays(1))
                 .setMaximumAttempts(2)
                 .build();
       }
@@ -469,7 +469,6 @@ public class WorkflowTest {
               .setStartToCloseTimeout(Duration.ofSeconds(10))
               .setRetryOptions(
                   new RetryOptions.Builder()
-                      .setMinimumAttempts(2)
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
                       .setMaximumAttempts(3)
@@ -541,7 +540,6 @@ public class WorkflowTest {
               .setStartToCloseTimeout(Duration.ofSeconds(10))
               .setRetryOptions(
                   new RetryOptions.Builder()
-                      .setMinimumAttempts(2)
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
                       .setMaximumAttempts(3)
@@ -584,7 +582,6 @@ public class WorkflowTest {
       if (Workflow.isReplaying()) {
         options.setRetryOptions(
             new RetryOptions.Builder()
-                .setMinimumAttempts(1)
                 .setMaximumInterval(Duration.ofSeconds(1))
                 .setInitialInterval(Duration.ofSeconds(1))
                 .setDoNotRetry(NullPointerException.class)
@@ -593,7 +590,6 @@ public class WorkflowTest {
       } else {
         options.setRetryOptions(
             new RetryOptions.Builder()
-                .setMinimumAttempts(2)
                 .setMaximumInterval(Duration.ofSeconds(1))
                 .setInitialInterval(Duration.ofSeconds(1))
                 .setMaximumAttempts(2)
@@ -1230,7 +1226,7 @@ public class WorkflowTest {
     }
   }
 
-  @Test(timeout = 20000)
+  @Test
   public void testChildAsyncWorkflow() {
     startWorkerFor(TestChildAsyncWorkflow.class, TestMultiargsWorkflowsImpl.class);
 
@@ -1668,7 +1664,6 @@ public class WorkflowTest {
       if (Workflow.isReplaying()) {
         retryOptions =
             new RetryOptions.Builder()
-                .setMinimumAttempts(1)
                 .setMaximumInterval(Duration.ofSeconds(1))
                 .setInitialInterval(Duration.ofSeconds(1))
                 .setMaximumAttempts(3)
@@ -1676,7 +1671,6 @@ public class WorkflowTest {
       } else {
         retryOptions =
             new RetryOptions.Builder()
-                .setMinimumAttempts(2)
                 .setMaximumInterval(Duration.ofSeconds(1))
                 .setInitialInterval(Duration.ofSeconds(1))
                 .setMaximumAttempts(2)
@@ -2264,10 +2258,10 @@ public class WorkflowTest {
               .setTaskList(taskList)
               .setRetryOptions(
                   new RetryOptions.Builder()
-                      .setMinimumAttempts(2)
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
                       .setMaximumAttempts(3)
+                      .setExpiration(Duration.ofDays(1))
                       .build())
               .build();
       child = Workflow.newChildWorkflowStub(ITestChild.class, options);
@@ -2532,9 +2526,9 @@ public class WorkflowTest {
               .setTaskList(taskList)
               .setRetryOptions(
                   new RetryOptions.Builder()
-                      .setMinimumAttempts(2)
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
+                      .setExpiration(Duration.ofDays(1))
                       .setMaximumAttempts(3)
                       .build())
               .build();
@@ -2633,6 +2627,138 @@ public class WorkflowTest {
     assertEquals(" awoken i=1 loop i=1 awoken i=2 loop i=2", result);
   }
 
+  private static Map<String, AtomicInteger> retryCount = new ConcurrentHashMap<>();
+
+  public interface TestWorkflowRetry {
+
+    @WorkflowMethod
+    String execute(String testName);
+  }
+
+  public static class TestWorkflowRetryImpl implements TestWorkflowRetry {
+
+    @Override
+    public String execute(String testName) {
+      AtomicInteger count = retryCount.get(testName);
+      if (count == null) {
+        count = new AtomicInteger();
+        retryCount.put(testName, count);
+      }
+      throw new IllegalStateException("simulated " + count.incrementAndGet());
+    }
+  }
+
+  @Test
+  public void testWorkflowRetry() {
+    startWorkerFor(TestWorkflowRetryImpl.class);
+    RetryOptions workflowRetryOptions =
+        new RetryOptions.Builder()
+            .setInitialInterval(Duration.ofSeconds(1))
+            .setExpiration(Duration.ofSeconds(10))
+            .setMaximumAttempts(3)
+            .setBackoffCoefficient(1.0)
+            .build();
+    TestWorkflowRetry workflowStub =
+        workflowClient.newWorkflowStub(
+            TestWorkflowRetry.class,
+            newWorkflowOptionsBuilder(taskList).setRetryOptions(workflowRetryOptions).build());
+    try {
+      workflowStub.execute(testName.getMethodName());
+      fail("unreachable");
+    } catch (WorkflowException e) {
+      assertEquals("simulated 3", e.getCause().getMessage());
+    }
+  }
+
+  public static class TestWorkflowRetryDoNotRetryException implements TestWorkflowRetry {
+
+    @Override
+    public String execute(String testName) {
+      AtomicInteger count = retryCount.get(testName);
+      if (count == null) {
+        count = new AtomicInteger();
+        retryCount.put(testName, count);
+      }
+      int c = count.incrementAndGet();
+      if (c < 3) {
+        throw new IllegalStateException("simulated " + c);
+      } else {
+        throw new IllegalArgumentException("simulated " + c);
+      }
+    }
+  }
+
+  @Test
+  public void testWorkflowRetryDoNotRetryException() {
+    startWorkerFor(TestWorkflowRetryDoNotRetryException.class);
+    RetryOptions workflowRetryOptions =
+        new RetryOptions.Builder()
+            .setInitialInterval(Duration.ofSeconds(1))
+            .setExpiration(Duration.ofSeconds(10))
+            .setDoNotRetry(IllegalArgumentException.class)
+            .setMaximumAttempts(100)
+            .setBackoffCoefficient(1.0)
+            .build();
+    TestWorkflowRetry workflowStub =
+        workflowClient.newWorkflowStub(
+            TestWorkflowRetry.class,
+            newWorkflowOptionsBuilder(taskList).setRetryOptions(workflowRetryOptions).build());
+    try {
+      workflowStub.execute(testName.getMethodName());
+      fail("unreachable");
+    } catch (WorkflowException e) {
+      assertTrue(e.getCause() instanceof IllegalArgumentException);
+      assertEquals("simulated 3", e.getCause().getMessage());
+    }
+  }
+
+  public interface TestWorkflowRetryWithMethodRetry {
+
+    @WorkflowMethod
+    @MethodRetry(
+      initialIntervalSeconds = 1,
+      maximumIntervalSeconds = 1,
+      maximumAttempts = 30,
+      expirationSeconds = 100,
+      doNotRetry = IllegalArgumentException.class
+    )
+    String execute(String testName);
+  }
+
+  public static class TestWorkflowRetryWithMethodRetryImpl
+      implements TestWorkflowRetryWithMethodRetry {
+
+    @Override
+    public String execute(String testName) {
+      AtomicInteger count = retryCount.get(testName);
+      if (count == null) {
+        count = new AtomicInteger();
+        retryCount.put(testName, count);
+      }
+      int c = count.incrementAndGet();
+      if (c < 3) {
+        throw new IllegalStateException("simulated " + c);
+      } else {
+        throw new IllegalArgumentException("simulated " + c);
+      }
+    }
+  }
+
+  @Test
+  public void testWorkflowRetryWithMethodRetryDoNotRetryException() {
+    startWorkerFor(TestWorkflowRetryWithMethodRetryImpl.class);
+    TestWorkflowRetryWithMethodRetry workflowStub =
+        workflowClient.newWorkflowStub(
+            TestWorkflowRetryWithMethodRetry.class, newWorkflowOptionsBuilder(taskList).build());
+    try {
+      workflowStub.execute(testName.getMethodName());
+      fail("unreachable");
+    } catch (WorkflowException e) {
+      assertTrue(e.getCause().toString(), e.getCause() instanceof IllegalArgumentException);
+      assertEquals("simulated 3", e.getCause().getMessage());
+    }
+  }
+
   public interface TestActivities {
 
     String activityWithDelay(long milliseconds, boolean heartbeatMoreThanOnce);
@@ -2677,8 +2803,8 @@ public class WorkflowTest {
     @MethodRetry(
       initialIntervalSeconds = 1,
       maximumIntervalSeconds = 1,
-      minimumAttempts = 2,
-      maximumAttempts = 3
+      maximumAttempts = 3,
+      expirationSeconds = 100
     )
     void throwIOAnnotated();
 

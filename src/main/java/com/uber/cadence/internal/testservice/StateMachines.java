@@ -142,7 +142,9 @@ class StateMachines {
     CONTINUE_AS_NEW
   }
 
-  static final class WorkflowData {}
+  static final class WorkflowData {
+    Optional<RetryState> retryState = Optional.empty();
+  }
 
   static final class DecisionTaskData {
 
@@ -541,6 +543,7 @@ class StateMachines {
       a.setTaskStartToCloseTimeoutSeconds(sr.getTaskStartToCloseTimeoutSeconds());
     }
     a.setDecisionTaskCompletedEventId(decisionTaskCompletedEventId);
+    a.setBackoffStartIntervalInSeconds(d.getBackoffStartIntervalInSeconds());
     HistoryEvent event =
         new HistoryEvent()
             .setEventType(EventType.WorkflowExecutionContinuedAsNew)

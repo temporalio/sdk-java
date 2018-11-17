@@ -37,15 +37,16 @@ import java.time.Duration;
 public @interface MethodRetry {
 
   /**
-   * Interval of the first retry. If coefficient is 1.0 then it is used for all retries. Required.
-   * Can be overridden through {@link
+   * Interval of the first retry. If coefficient is 1.0 then it is used for all retries. If not
+   * specified here must be provided through {@link
    * com.uber.cadence.common.RetryOptions.Builder#setInitialInterval(Duration)}.
    */
-  long initialIntervalSeconds();
+  long initialIntervalSeconds() default 0;
 
   /**
-   * Maximum time to retry. Default is forever. When exceeded the retries stop even if maximum
-   * retries is not reached yet.
+   * Maximum time to retry. When exceeded the retries stop even if maximum retries is not reached
+   * yet. If not specified here must be provided through {@link
+   * com.uber.cadence.common.RetryOptions.Builder#setExpiration(Duration)}.
    */
   long expirationSeconds() default 0;
 
@@ -60,12 +61,6 @@ public @interface MethodRetry {
    * or bigger. Default is unlimited.
    */
   int maximumAttempts() default 0;
-
-  /**
-   * Minimum number of retries. Even if expired will retry until this number is reached. Must be 1
-   * or bigger. Default is 0.
-   */
-  int minimumAttempts() default 0;
 
   /**
    * Maximum interval between retries. Exponential backoff leads to interval increase. This value is

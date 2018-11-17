@@ -21,9 +21,14 @@ import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.WorkflowIdReusePolicy;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.client.WorkflowOptions;
-import java.nio.charset.StandardCharsets;
+import com.uber.cadence.common.RetryOptions;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 
-public class StartWorkflowExecutionParameters {
+public final class StartWorkflowExecutionParameters {
 
   private String workflowId;
 
@@ -40,6 +45,8 @@ public class StartWorkflowExecutionParameters {
   private ChildPolicy childPolicy;
 
   private WorkflowIdReusePolicy workflowIdReusePolicy;
+
+  private RetryParameters retryParameters;
 
   /**
    * Returns the value of the WorkflowId property for this object.
@@ -267,36 +274,112 @@ public class StartWorkflowExecutionParameters {
     return this;
   }
 
+  public RetryParameters getRetryParameters() {
+    return retryParameters;
+  }
+
+  public void setRetryParameters(RetryParameters retryParameters) {
+    this.retryParameters = retryParameters;
+  }
+
+  public StartWorkflowExecutionParameters withRetryParameters(RetryParameters retryParameters) {
+    this.retryParameters = retryParameters;
+    return this;
+  }
+
   public static StartWorkflowExecutionParameters createStartWorkflowExecutionParametersFromOptions(
       WorkflowOptions options) {
     StartWorkflowExecutionParameters parameters = new StartWorkflowExecutionParameters();
     parameters.setExecutionStartToCloseTimeoutSeconds(
-        (int) options.getExecutionStartToCloseTimeout().getSeconds());
-    parameters.setTaskStartToCloseTimeoutSeconds(
-        (int) options.getTaskStartToCloseTimeout().getSeconds());
+        getSeconds(options.getExecutionStartToCloseTimeout()));
+    parameters.setTaskStartToCloseTimeoutSeconds(getSeconds(options.getTaskStartToCloseTimeout()));
     parameters.setTaskList(options.getTaskList());
     parameters.setChildPolicy(options.getChildPolicy());
+    RetryOptions retryOptions = options.getRetryOptions();
+    if (retryOptions != null) {
+      RetryParameters rp = new RetryParameters();
+      rp.setBackoffCoefficient(retryOptions.getBackoffCoefficient());
+      rp.setExpirationIntervalInSeconds(getSeconds(retryOptions.getExpiration()));
+      rp.setInitialIntervalInSeconds(getSeconds(retryOptions.getInitialInterval()));
+      rp.setMaximumIntervalInSeconds(getSeconds(retryOptions.getMaximumInterval()));
+      rp.setMaximumAttempts(retryOptions.getMaximumAttempts());
+      List<String> reasons = new ArrayList<>();
+      // Use exception type name as the reason
+      List<Class<? extends Throwable>> doNotRetry = retryOptions.getDoNotRetry();
+      if (doNotRetry != null) {
+        for (Class<? extends Throwable> r : doNotRetry) {
+          reasons.add(r.getName());
+        }
+        rp.setNonRetriableErrorReasons(reasons);
+      }
+      parameters.setRetryParameters(rp);
+    }
     return parameters;
   }
 
-  /**
-   * Returns a string representation of this object; useful for testing and debugging.
-   *
-   * @return A string representation of this object.
-   * @see java.lang.Object#toString()
-   */
+  private static int getSeconds(Duration expiration) {
+    if (expiration == null) {
+      return 0;
+    }
+    return (int) expiration.getSeconds();
+  }
+
   @Override
   public String toString() {
-    StringBuilder sb = new StringBuilder();
-    sb.append("{");
-    sb.append("WorkflowId: " + workflowId + ", ");
-    sb.append("WorkflowType: " + workflowType + ", ");
-    sb.append("TaskList: " + taskList + ", ");
-    sb.append("Input: " + new String(input, 0, 512, StandardCharsets.UTF_8) + ", ");
-    sb.append("StartToCloseTimeout: " + executionStartToCloseTimeoutSeconds + ", ");
-    sb.append("ChildPolicy: " + childPolicy + ", ");
-    sb.append("}");
-    return sb.toString();
+    return "StartWorkflowExecutionParameters{"
+        + "workflowId='"
+        + workflowId
+        + '\''
+        + ", workflowType="
+        + workflowType
+        + ", taskList='"
+        + taskList
+        + '\''
+        + ", input="
+        + Arrays.toString(input)
+        + ", executionStartToCloseTimeoutSeconds="
+        + executionStartToCloseTimeoutSeconds
+        + ", taskStartToCloseTimeoutSeconds="
+        + taskStartToCloseTimeoutSeconds
+        + ", childPolicy="
+        + childPolicy
+        + ", workflowIdReusePolicy="
+        + workflowIdReusePolicy
+        + ", retryParameters="
+        + retryParameters
+        + '}';
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    StartWorkflowExecutionParameters that = (StartWorkflowExecutionParameters) o;
+    return executionStartToCloseTimeoutSeconds == that.executionStartToCloseTimeoutSeconds
+        && taskStartToCloseTimeoutSeconds == that.taskStartToCloseTimeoutSeconds
+        && Objects.equals(workflowId, that.workflowId)
+        && Objects.equals(workflowType, that.workflowType)
+        && Objects.equals(taskList, that.taskList)
+        && Arrays.equals(input, that.input)
+        && childPolicy == that.childPolicy
+        && workflowIdReusePolicy == that.workflowIdReusePolicy
+        && Objects.equals(retryParameters, that.retryParameters);
+  }
+
+  @Override
+  public int hashCode() {
+    int result =
+        Objects.hash(
+            workflowId,
+            workflowType,
+            taskList,
+            executionStartToCloseTimeoutSeconds,
+            taskStartToCloseTimeoutSeconds,
+            childPolicy,
+            workflowIdReusePolicy,
+            retryParameters);
+    result = 31 * result + Arrays.hashCode(input);
+    return result;
   }
 
   public StartWorkflowExecutionParameters copy() {
@@ -308,6 +391,7 @@ public class StartWorkflowExecutionParameters {
     result.setWorkflowId(workflowId);
     result.setWorkflowType(workflowType);
     result.setChildPolicy(childPolicy);
+    result.setRetryParameters(retryParameters.copy());
     return result;
   }
 }
