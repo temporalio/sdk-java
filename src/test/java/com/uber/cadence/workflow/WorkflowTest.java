@@ -48,6 +48,7 @@ import com.uber.cadence.internal.sync.DeterministicRunnerTest;
 import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
 import com.uber.cadence.testing.TestEnvironmentOptions;
 import com.uber.cadence.testing.TestWorkflowEnvironment;
+import com.uber.cadence.testing.WorkflowReplayer;
 import com.uber.cadence.worker.Worker;
 import com.uber.cadence.worker.WorkerOptions;
 import com.uber.cadence.workflow.Functions.Func;
@@ -125,7 +126,7 @@ public class WorkflowTest {
 
   @Rule
   public Timeout globalTimeout =
-      Timeout.seconds(DEBUGGER_TIMEOUTS ? 500 : skipDockerService ? 20 : 30);
+      Timeout.seconds(DEBUGGER_TIMEOUTS ? 500 : skipDockerService ? 15 : 30);
 
   @Rule
   public TestWatcher watchman =
@@ -658,12 +659,12 @@ public class WorkflowTest {
             "TestWorkflow1::execute", newWorkflowOptionsBuilder(taskList).build());
     WorkflowExecution execution = workflowStub.start(taskList);
     sleep(Duration.ofMillis(500));
-    String stackTrace = workflowStub.query(WorkflowClient.QUERY_TYPE_STACK_TRCE, String.class);
+    String stackTrace = workflowStub.query(WorkflowClient.QUERY_TYPE_STACK_TRACE, String.class);
     assertTrue(stackTrace, stackTrace.contains("WorkflowTest$TestSyncWorkflowImpl.execute"));
     assertTrue(stackTrace, stackTrace.contains("activityWithDelay"));
     // Test stub created from workflow execution.
     workflowStub = workflowClient.newUntypedWorkflowStub(execution, workflowStub.getWorkflowType());
-    stackTrace = workflowStub.query(WorkflowClient.QUERY_TYPE_STACK_TRCE, String.class);
+    stackTrace = workflowStub.query(WorkflowClient.QUERY_TYPE_STACK_TRACE, String.class);
     assertTrue(stackTrace, stackTrace.contains("WorkflowTest$TestSyncWorkflowImpl.execute"));
     assertTrue(stackTrace, stackTrace.contains("activityWithDelay"));
     String result = workflowStub.getResult(String.class);
@@ -1917,10 +1918,6 @@ public class WorkflowTest {
             QueryableWorkflow.class, execution.getWorkflowId(), Optional.of(execution.getRunId()));
     assertEquals("Hello ", client2.getState());
 
-    String queryResult = null;
-    queryResult =
-        queryWorker.queryWorkflowExecution(execution, "QueryableWorkflow::getState", String.class);
-    assertEquals("Hello ", queryResult);
     sleep(Duration.ofMillis(500));
     client2.mySignal("World!");
     sleep(Duration.ofMillis(500));
@@ -2344,6 +2341,19 @@ public class WorkflowTest {
     }
     assertEquals("TestWorkflow1::execute", capturedWorkflowType.get());
     assertEquals(3, angryChildActivity.getInvocationCount());
+  }
+
+  /**
+   * Tests that history that was created before server side retry was supported is backwards
+   * compatible with the client that supports the server side retry.
+   */
+  @Test
+  public void testChildWorkflowRetryReplay() throws Exception {
+    if (!testName.getMethodName().equals("testChildWorkflowRetryReplay[Docker Sticky OFF]")) {
+      return;
+    }
+    WorkflowReplayer.replayWorkflowExecutionFromResource(
+        "testChildWorkflowRetryHistory.json", TestChildWorkflowRetryWorkflow.class);
   }
 
   public static class TestSignalExternalWorkflow implements TestWorkflowSignaled {

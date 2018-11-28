@@ -168,6 +168,11 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   }
 
   @Override
+  public boolean isServerSideChildWorkflowRetry() {
+    return workflowClient.isChildWorkflowExecutionStartedWithRetryOptions();
+  }
+
+  @Override
   public Consumer<Exception> signalWorkflowExecution(
       SignalExternalWorkflowParameters signalParameters, BiConsumer<Void, Exception> callback) {
     return workflowClient.signalWorkflowExecution(signalParameters, callback);

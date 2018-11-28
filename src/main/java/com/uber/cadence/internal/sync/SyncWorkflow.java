@@ -123,7 +123,10 @@ class SyncWorkflow implements ReplayWorkflow {
 
   @Override
   public byte[] query(WorkflowQuery query) {
-    if (WorkflowClient.QUERY_TYPE_STACK_TRCE.equals(query.getQueryType())) {
+    if (WorkflowClient.QUERY_TYPE_REPLAY_ONLY.equals(query.getQueryType())) {
+      return new byte[] {};
+    }
+    if (WorkflowClient.QUERY_TYPE_STACK_TRACE.equals(query.getQueryType())) {
       return dataConverter.toData(runner.stackTrace());
     }
     return workflowProc.query(query.getQueryType(), query.getQueryArgs());

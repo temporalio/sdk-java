@@ -22,8 +22,8 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.uber.cadence.PollForDecisionTaskResponse;
-import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.client.WorkflowClient;
+import com.uber.cadence.common.WorkflowExecutionHistory;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.metrics.MetricsTag;
 import com.uber.cadence.internal.metrics.NoopScope;
@@ -42,7 +42,6 @@ import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.WorkflowMethod;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
-import java.lang.reflect.Type;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Duration;
@@ -277,58 +276,35 @@ public final class Worker {
   }
 
   /**
-   * This is an utility method to query a workflow execution using this particular instance of a
-   * worker. It gets a history from a Cadence service, replays a workflow code and then runs the
-   * query. This method is useful to troubleshoot workflows by running them in a debugger. To work
-   * the workflow implementation type must be registered with this worker. In most cases using
-   * {@link WorkflowClient} to query workflows is preferable, as it doesn't require workflow
-   * implementation code to be available. There is no need to call {@link #start()} to be able to
-   * call this method.
+   * This is an utility method to replay a workflow execution using this particular instance of a
+   * worker. This method is useful to troubleshoot workflows by running them in a debugger. To work
+   * the workflow implementation type must be registered with this worker. There is no need to call
+   * {@link #start()} to be able to call this method.
    *
-   * @param execution workflow execution to replay and then query locally
-   * @param queryType query type to execute
-   * @param returnType return type of the query result
-   * @param args query arguments
-   * @param <R> type of the query result
-   * @return query result
+   * @param history workflow execution history to replay
    * @throws Exception if replay failed for any reason
    */
-  public <R> R queryWorkflowExecution(
-      WorkflowExecution execution, String queryType, Class<R> returnType, Object... args)
-      throws Exception {
-    return queryWorkflowExecution(execution, queryType, returnType, returnType, args);
+  public void replayWorkflowExecution(WorkflowExecutionHistory history) throws Exception {
+    workflowWorker.queryWorkflowExecution(
+        history,
+        WorkflowClient.QUERY_TYPE_REPLAY_ONLY,
+        String.class,
+        String.class,
+        new Object[] {});
   }
 
   /**
-   * This is an utility method to query a workflow execution using this particular instance of a
-   * worker. It gets a history from a Cadence service, replays a workflow code and then runs the
-   * query. This method is useful to troubleshoot workflows by running them in a debugger. To work
-   * the workflow implementation type must be registered with this worker. In most cases using
-   * {@link WorkflowClient} to query workflows is preferable, as it doesn't require workflow
-   * implementation code to be available. There is no need to call {@link #start()} to be able to
-   * call this method.
+   * This is an utility method to replay a workflow execution using this particular instance of a
+   * worker. This method is useful to troubleshoot workflows by running them in a debugger. To work
+   * the workflow implementation type must be registered with this worker. There is no need to call
+   * {@link #start()} to be able to call this method.
    *
-   * @param execution workflow execution to replay and then query locally
-   * @param queryType query type to execute
-   * @param resultClass return class of the query result
-   * @param resultType return type of the query result. Useful when resultClass is a generic type.
-   * @param args query arguments
-   * @param <R> type of the query result
-   * @return query result
+   * @param jsonSerializedHistory workflow execution history in JSON format to replay
    * @throws Exception if replay failed for any reason
    */
-  public <R> R queryWorkflowExecution(
-      WorkflowExecution execution,
-      String queryType,
-      Class<R> resultClass,
-      Type resultType,
-      Object... args)
-      throws Exception {
-    if (workflowWorker == null) {
-      throw new IllegalStateException("disableWorkflowWorker is set in worker options");
-    }
-    return workflowWorker.queryWorkflowExecution(
-        execution, queryType, resultClass, resultType, args);
+  public void replayWorkflowExecution(String jsonSerializedHistory) throws Exception {
+    WorkflowExecutionHistory history = WorkflowExecutionHistory.fromJson(jsonSerializedHistory);
+    replayWorkflowExecution(history);
   }
 
   public String getTaskList() {

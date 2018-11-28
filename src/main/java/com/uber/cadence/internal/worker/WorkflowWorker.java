@@ -19,6 +19,7 @@ package com.uber.cadence.internal.worker;
 
 import com.uber.cadence.*;
 import com.uber.cadence.common.RetryOptions;
+import com.uber.cadence.common.WorkflowExecutionHistory;
 import com.uber.cadence.internal.common.Retryer;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.logging.LoggerTag;
@@ -100,25 +101,41 @@ public final class WorkflowWorker
     }
   }
 
-  public byte[] queryWorkflowExecution(WorkflowExecution execution, String queryType, byte[] args)
+  public byte[] queryWorkflowExecution(WorkflowExecution exec, String queryType, byte[] args)
       throws Exception {
+    GetWorkflowExecutionHistoryResponse historyResponse =
+        WorkflowExecutionUtils.getHistoryPage(null, service, domain, exec);
+    History history = historyResponse.getHistory();
+    WorkflowExecutionHistory workflowExecutionHistory =
+        new WorkflowExecutionHistory(exec.getWorkflowId(), exec.getRunId(), history.getEvents());
+    return queryWorkflowExecution(
+        queryType, args, workflowExecutionHistory, historyResponse.getNextPageToken());
+  }
 
+  public byte[] queryWorkflowExecution(String jsonSerializedHistory, String queryType, byte[] args)
+      throws Exception {
+    WorkflowExecutionHistory history = WorkflowExecutionHistory.fromJson(jsonSerializedHistory);
+    return queryWorkflowExecution(queryType, args, history, null);
+  }
+
+  public byte[] queryWorkflowExecution(
+      WorkflowExecutionHistory history, String queryType, byte[] args) throws Exception {
+    return queryWorkflowExecution(queryType, args, history, null);
+  }
+
+  private byte[] queryWorkflowExecution(
+      String queryType, byte[] args, WorkflowExecutionHistory history, byte[] nextPageToken)
+      throws Exception {
     PollForDecisionTaskResponse task;
     task = new PollForDecisionTaskResponse();
-    task.setWorkflowExecution(execution);
+    task.setWorkflowExecution(history.getWorkflowExecution());
     task.setStartedEventId(Long.MAX_VALUE);
     task.setPreviousStartedEventId(Long.MAX_VALUE);
+    task.setNextPageToken(nextPageToken);
     WorkflowQuery query = new WorkflowQuery();
     query.setQueryType(queryType).setQueryArgs(args);
     task.setQuery(query);
-    GetWorkflowExecutionHistoryResponse historyResponse =
-        WorkflowExecutionUtils.getHistoryPage(null, service, domain, execution);
-    History history = historyResponse.getHistory();
-
     List<HistoryEvent> events = history.getEvents();
-    if (events == null || events.isEmpty()) {
-      throw new IllegalStateException("Empty history for " + execution);
-    }
     HistoryEvent startedEvent = events.get(0);
     WorkflowExecutionStartedEventAttributes started =
         startedEvent.getWorkflowExecutionStartedEventAttributes();
@@ -128,14 +145,14 @@ public final class WorkflowWorker
     }
     WorkflowType workflowType = started.getWorkflowType();
     task.setWorkflowType(workflowType);
-    task.setHistory(history);
+    task.setHistory(new History().setEvents(events));
     DecisionTaskHandler.Result result = handler.handleDecisionTask(task);
     if (result.getQueryCompleted() != null) {
       RespondQueryTaskCompletedRequest r = result.getQueryCompleted();
       if (r.getErrorMessage() != null) {
         throw new RuntimeException(
             "query failure for "
-                + execution
+                + history.getWorkflowExecution()
                 + ", queryType="
                 + queryType
                 + ", args="
@@ -145,7 +162,6 @@ public final class WorkflowWorker
       }
       return r.getQueryResult();
     }
-
     throw new RuntimeException("Query returned wrong response: " + result);
   }
 

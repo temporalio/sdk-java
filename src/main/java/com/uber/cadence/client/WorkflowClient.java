@@ -103,7 +103,9 @@ import java.util.concurrent.CompletableFuture;
 public interface WorkflowClient {
 
   /** Use this constant as a query type to get a workflow stack trace. */
-  String QUERY_TYPE_STACK_TRCE = "__stack_trace";
+  String QUERY_TYPE_STACK_TRACE = "__stack_trace";
+  /** Replays workflow to the current state and returns empty result or error if replay failed. */
+  String QUERY_TYPE_REPLAY_ONLY = "__replay_only";
 
   /**
    * Creates worker that connects to the local instance of the Cadence Service that listens on a

@@ -17,6 +17,9 @@
 
 package com.uber.cadence.internal.common;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+import com.google.common.io.CharStreams;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
@@ -49,11 +52,15 @@ import com.uber.cadence.WorkflowType;
 import com.uber.cadence.client.WorkflowTerminatedException;
 import com.uber.cadence.client.WorkflowTimedOutException;
 import com.uber.cadence.common.RetryOptions;
+import com.uber.cadence.common.WorkflowExecutionHistory;
 import com.uber.cadence.serviceclient.IWorkflowService;
+import java.io.File;
+import java.io.IOException;
+import java.io.Reader;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Date;
@@ -141,7 +148,7 @@ public class WorkflowExecutionUtils {
         return closeEvent.getWorkflowExecutionCompletedEventAttributes().getResult();
       case WorkflowExecutionCanceled:
         byte[] details = closeEvent.getWorkflowExecutionCanceledEventAttributes().getDetails();
-        String message = details != null ? new String(details, StandardCharsets.UTF_8) : null;
+        String message = details != null ? new String(details, UTF_8) : null;
         throw new CancellationException(message);
       case WorkflowExecutionFailed:
         WorkflowExecutionFailedEventAttributes failed =
@@ -754,7 +761,7 @@ public class WorkflowExecutionUtils {
       return (String) object;
     }
     if (clz.equals(byte[].class)) {
-      return new String((byte[]) object, StandardCharsets.UTF_8);
+      return new String((byte[]) object, UTF_8);
     }
 
     if (clz.equals(Date.class)) {
@@ -833,7 +840,7 @@ public class WorkflowExecutionUtils {
         result.append(" = ");
         // Pretty print JSON serialized exceptions.
         if (name.equals("getDetails") && value instanceof byte[]) {
-          String details = new String((byte[]) value, StandardCharsets.UTF_8);
+          String details = new String((byte[]) value, UTF_8);
           details = prettyPrintJson(details, INDENTATION + INDENTATION);
           // GSON pretty prints, but doesn't let to set an initial indentation.
           // Thus indenting the pretty printed JSON through regexp :(.
@@ -960,5 +967,20 @@ public class WorkflowExecutionUtils {
         return EventType.SignalExternalWorkflowExecutionInitiated;
     }
     throw new IllegalArgumentException("Unknown decisionType");
+  }
+
+  public static WorkflowExecutionHistory readHistoryFromResource(String resourceFileName)
+      throws IOException {
+    ClassLoader classLoader = WorkflowExecutionUtils.class.getClassLoader();
+    String historyUrl = classLoader.getResource(resourceFileName).getFile();
+    File historyFile = new File(historyUrl);
+    return readHistory(historyFile);
+  }
+
+  public static WorkflowExecutionHistory readHistory(File historyFile) throws IOException {
+    try (Reader reader = Files.newBufferedReader(historyFile.toPath(), UTF_8)) {
+      String jsonHistory = CharStreams.toString(reader);
+      return WorkflowExecutionHistory.fromJson(jsonHistory);
+    }
   }
 }

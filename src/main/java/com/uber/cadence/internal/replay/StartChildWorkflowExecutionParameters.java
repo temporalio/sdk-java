@@ -20,7 +20,9 @@ package com.uber.cadence.internal.replay;
 import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.WorkflowIdReusePolicy;
 import com.uber.cadence.WorkflowType;
+import com.uber.cadence.internal.common.RetryParameters;
 import java.util.Arrays;
+import java.util.Objects;
 
 public final class StartChildWorkflowExecutionParameters {
 
@@ -45,6 +47,8 @@ public final class StartChildWorkflowExecutionParameters {
     private ChildPolicy childPolicy;
 
     private WorkflowIdReusePolicy workflowIdReusePolicy;
+
+    private RetryParameters retryParameters;
 
     public Builder setDomain(String domain) {
       this.domain = domain;
@@ -97,6 +101,11 @@ public final class StartChildWorkflowExecutionParameters {
       return this;
     }
 
+    public Builder setRetryParameters(RetryParameters retryParameters) {
+      this.retryParameters = retryParameters;
+      return this;
+    }
+
     public StartChildWorkflowExecutionParameters build() {
       return new StartChildWorkflowExecutionParameters(
           domain,
@@ -108,7 +117,8 @@ public final class StartChildWorkflowExecutionParameters {
           workflowId,
           workflowType,
           childPolicy,
-          workflowIdReusePolicy);
+          workflowIdReusePolicy,
+          retryParameters);
     }
   }
 
@@ -132,6 +142,8 @@ public final class StartChildWorkflowExecutionParameters {
 
   private final WorkflowIdReusePolicy workflowIdReusePolicy;
 
+  private final RetryParameters retryParameters;
+
   private StartChildWorkflowExecutionParameters(
       String domain,
       byte[] input,
@@ -142,7 +154,8 @@ public final class StartChildWorkflowExecutionParameters {
       String workflowId,
       WorkflowType workflowType,
       ChildPolicy childPolicy,
-      WorkflowIdReusePolicy workflowIdReusePolicy) {
+      WorkflowIdReusePolicy workflowIdReusePolicy,
+      RetryParameters retryParameters) {
     this.domain = domain;
     this.input = input;
     this.control = control;
@@ -153,6 +166,7 @@ public final class StartChildWorkflowExecutionParameters {
     this.workflowType = workflowType;
     this.childPolicy = childPolicy;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
+    this.retryParameters = retryParameters;
   }
 
   public String getDomain() {
@@ -195,6 +209,46 @@ public final class StartChildWorkflowExecutionParameters {
     return workflowIdReusePolicy;
   }
 
+  public RetryParameters getRetryParameters() {
+    return retryParameters;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    StartChildWorkflowExecutionParameters that = (StartChildWorkflowExecutionParameters) o;
+    return executionStartToCloseTimeoutSeconds == that.executionStartToCloseTimeoutSeconds
+        && taskStartToCloseTimeoutSeconds == that.taskStartToCloseTimeoutSeconds
+        && Objects.equals(domain, that.domain)
+        && Objects.equals(control, that.control)
+        && Arrays.equals(input, that.input)
+        && Objects.equals(taskList, that.taskList)
+        && Objects.equals(workflowId, that.workflowId)
+        && Objects.equals(workflowType, that.workflowType)
+        && childPolicy == that.childPolicy
+        && workflowIdReusePolicy == that.workflowIdReusePolicy
+        && Objects.equals(retryParameters, that.retryParameters);
+  }
+
+  @Override
+  public int hashCode() {
+    int result =
+        Objects.hash(
+            domain,
+            control,
+            executionStartToCloseTimeoutSeconds,
+            taskList,
+            taskStartToCloseTimeoutSeconds,
+            workflowId,
+            workflowType,
+            childPolicy,
+            workflowIdReusePolicy,
+            retryParameters);
+    result = 31 * result + Arrays.hashCode(input);
+    return result;
+  }
+
   @Override
   public String toString() {
     return "StartChildWorkflowExecutionParameters{"
@@ -222,6 +276,8 @@ public final class StartChildWorkflowExecutionParameters {
         + childPolicy
         + ", workflowIdReusePolicy="
         + workflowIdReusePolicy
+        + ", retryParameters="
+        + retryParameters
         + '}';
   }
 }

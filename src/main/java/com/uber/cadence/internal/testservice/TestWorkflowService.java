@@ -63,6 +63,7 @@ import com.uber.cadence.RespondDecisionTaskCompletedRequest;
 import com.uber.cadence.RespondDecisionTaskCompletedResponse;
 import com.uber.cadence.RespondDecisionTaskFailedRequest;
 import com.uber.cadence.RespondQueryTaskCompletedRequest;
+import com.uber.cadence.RetryPolicy;
 import com.uber.cadence.ServiceBusyError;
 import com.uber.cadence.SignalExternalWorkflowExecutionDecisionAttributes;
 import com.uber.cadence.SignalExternalWorkflowExecutionFailedCause;
@@ -221,21 +222,23 @@ public final class TestWorkflowService implements IWorkflowService {
           return throwDuplicatedWorkflow(startRequest, existing);
         }
       }
-      Optional<RetryState> retryState;
-      if (startRequest.getRetryPolicy() != null) {
-        long expirationInterval =
-            TimeUnit.SECONDS.toMillis(
-                startRequest.getRetryPolicy().getExpirationIntervalInSeconds());
-        long expirationTime = store.currentTimeMillis() + expirationInterval;
-        retryState = Optional.of(new RetryState(startRequest.getRetryPolicy(), expirationTime));
-      } else {
-        retryState = Optional.empty();
-      }
+      RetryPolicy retryPolicy = startRequest.getRetryPolicy();
+      Optional<RetryState> retryState = newRetryStateLocked(retryPolicy);
       return startWorkflowExecutionNoRunningCheckLocked(
           startRequest, retryState, parent, parentChildInitiatedEventId, workflowId);
     } finally {
       lock.unlock();
     }
+  }
+
+  private Optional<RetryState> newRetryStateLocked(RetryPolicy retryPolicy) throws BadRequestError {
+    if (retryPolicy == null) {
+      return Optional.empty();
+    }
+    long expirationInterval =
+        TimeUnit.SECONDS.toMillis(retryPolicy.getExpirationIntervalInSeconds());
+    long expirationTime = store.currentTimeMillis() + expirationInterval;
+    return Optional.of(new RetryState(retryPolicy, expirationTime));
   }
 
   private StartWorkflowExecutionResponse throwDuplicatedWorkflow(

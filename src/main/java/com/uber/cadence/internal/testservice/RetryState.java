@@ -103,7 +103,7 @@ final class RetryState {
     return (int) TimeUnit.MILLISECONDS.toSeconds((long) Math.ceil((double) backoffInterval));
   }
 
-  private static RetryPolicy validateRetryPolicy(RetryPolicy policy) throws BadRequestError {
+  static RetryPolicy validateRetryPolicy(RetryPolicy policy) throws BadRequestError {
     if (policy.getInitialIntervalInSeconds() <= 0) {
       throw new BadRequestError("InitialIntervalInSeconds must be greater than 0 on retry policy.");
     }

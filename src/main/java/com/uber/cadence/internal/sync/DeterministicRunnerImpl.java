@@ -549,6 +549,11 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
 
     @Override
+    public boolean isServerSideChildWorkflowRetry() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
     public Consumer<Exception> signalWorkflowExecution(
         SignalExternalWorkflowParameters signalParameters, BiConsumer<Void, Exception> callback) {
       throw new UnsupportedOperationException("not implemented");

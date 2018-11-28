@@ -28,6 +28,7 @@ import com.uber.cadence.ChildWorkflowExecutionTimedOutEventAttributes;
 import com.uber.cadence.ExternalWorkflowExecutionSignaledEventAttributes;
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.RequestCancelExternalWorkflowExecutionDecisionAttributes;
+import com.uber.cadence.RetryPolicy;
 import com.uber.cadence.SignalExternalWorkflowExecutionDecisionAttributes;
 import com.uber.cadence.SignalExternalWorkflowExecutionFailedEventAttributes;
 import com.uber.cadence.StartChildWorkflowExecutionDecisionAttributes;
@@ -35,6 +36,7 @@ import com.uber.cadence.StartChildWorkflowExecutionFailedEventAttributes;
 import com.uber.cadence.TaskList;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
+import com.uber.cadence.internal.common.RetryParameters;
 import com.uber.cadence.workflow.ChildWorkflowTerminatedException;
 import com.uber.cadence.workflow.ChildWorkflowTimedOutException;
 import com.uber.cadence.workflow.SignalExternalWorkflowException;
@@ -142,12 +144,28 @@ final class WorkflowDecisionContext {
     }
     attributes.setTaskList(tl);
     attributes.setWorkflowIdReusePolicy(parameters.getWorkflowIdReusePolicy());
+    RetryParameters retryParameters = parameters.getRetryParameters();
+    if (retryParameters != null) {
+      RetryPolicy retryPolicy =
+          new RetryPolicy()
+              .setNonRetriableErrorReasons(retryParameters.getNonRetriableErrorReasons())
+              .setMaximumAttempts(retryParameters.getMaximumAttempts())
+              .setInitialIntervalInSeconds(retryParameters.getInitialIntervalInSeconds())
+              .setExpirationIntervalInSeconds(retryParameters.getExpirationIntervalInSeconds())
+              .setBackoffCoefficient(retryParameters.getBackoffCoefficient())
+              .setMaximumIntervalInSeconds(retryParameters.getMaximumIntervalInSeconds());
+      attributes.setRetryPolicy(retryPolicy);
+    }
     long initiatedEventId = decisions.startChildWorkflowExecution(attributes);
     final OpenChildWorkflowRequestInfo context =
         new OpenChildWorkflowRequestInfo(executionCallback);
     context.setCompletionHandle(callback);
     scheduledExternalWorkflows.put(initiatedEventId, context);
     return new ChildWorkflowCancellationHandler(initiatedEventId, attributes.getWorkflowId());
+  }
+
+  boolean isChildWorkflowExecutionStartedWithRetryOptions() {
+    return decisions.isChildWorkflowExecutionStartedWithRetryOptions();
   }
 
   Consumer<Exception> signalWorkflowExecution(
