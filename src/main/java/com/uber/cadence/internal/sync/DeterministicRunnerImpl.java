@@ -211,7 +211,6 @@ class DeterministicRunnerImpl implements DeterministicRunner {
           // Otherwise signal might be never processed if it was received
           // after workflow decided to close.
           threads.addFirst(thread);
-          thread.start();
         }
         toExecuteInWorkflowThread.clear();
         progress = false;

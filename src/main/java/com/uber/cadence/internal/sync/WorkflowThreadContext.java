@@ -49,8 +49,12 @@ class WorkflowThreadContext {
   }
 
   public void initialYield() {
-    if (getStatus() != Status.RUNNING) {
-      throw new IllegalStateException("not in RUNNING but in " + getStatus() + " state");
+    Status status = getStatus();
+    if (status == Status.DONE) {
+      throw new DestroyWorkflowThreadError("done in initialYield");
+    }
+    if (status != Status.RUNNING) {
+      throw new IllegalStateException("not in RUNNING but in " + status + " state");
     }
     yield("created", () -> true);
   }

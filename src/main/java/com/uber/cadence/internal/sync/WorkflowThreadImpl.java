@@ -300,8 +300,7 @@ class WorkflowThreadImpl implements WorkflowThread {
   @Override
   public boolean runUntilBlocked() {
     if (taskFuture == null) {
-      // Thread is not yet started
-      return false;
+      start();
     }
     return context.runUntilBlocked();
   }

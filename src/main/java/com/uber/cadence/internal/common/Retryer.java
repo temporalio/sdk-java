@@ -20,6 +20,7 @@ package com.uber.cadence.internal.common;
 import static com.uber.cadence.internal.common.CheckedExceptionWrapper.unwrap;
 
 import com.uber.cadence.common.RetryOptions;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.BiFunction;
@@ -105,8 +106,10 @@ public final class Retryer {
           }
         }
         long elapsed = System.currentTimeMillis() - startTime;
-        if (attempt >= options.getMaximumAttempts()
-            || elapsed >= options.getExpiration().toMillis()) {
+        int maxAttempts = options.getMaximumAttempts();
+        Duration expiration = options.getExpiration();
+        if ((maxAttempts > 0 && attempt >= maxAttempts)
+            || (expiration != null && elapsed >= expiration.toMillis())) {
           rethrow(e);
         }
         log.warn("Retrying after failure", e);

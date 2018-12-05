@@ -45,6 +45,7 @@ import com.uber.cadence.common.MethodRetry;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.converter.JsonDataConverter;
 import com.uber.cadence.internal.sync.DeterministicRunnerTest;
+import com.uber.cadence.internal.worker.PollerOptions;
 import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
 import com.uber.cadence.testing.TestEnvironmentOptions;
 import com.uber.cadence.testing.TestWorkflowEnvironment;
@@ -78,6 +79,7 @@ import java.util.function.Supplier;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -186,18 +188,18 @@ public class WorkflowTest {
     if (DEBUGGER_TIMEOUTS) {
       return new ActivityOptions.Builder()
           .setTaskList(taskList)
-          .setScheduleToCloseTimeout(Duration.ofSeconds(5))
-          .setHeartbeatTimeout(Duration.ofSeconds(5))
-          .setScheduleToStartTimeout(Duration.ofSeconds(5))
-          .setStartToCloseTimeout(Duration.ofSeconds(10))
-          .build();
-    } else {
-      return new ActivityOptions.Builder()
-          .setTaskList(taskList)
           .setScheduleToCloseTimeout(Duration.ofSeconds(1000))
           .setHeartbeatTimeout(Duration.ofSeconds(1000))
           .setScheduleToStartTimeout(Duration.ofSeconds(1000))
           .setStartToCloseTimeout(Duration.ofSeconds(10000))
+          .build();
+    } else {
+      return new ActivityOptions.Builder()
+          .setTaskList(taskList)
+          .setScheduleToCloseTimeout(Duration.ofSeconds(5))
+          .setHeartbeatTimeout(Duration.ofSeconds(5))
+          .setScheduleToStartTimeout(Duration.ofSeconds(5))
+          .setStartToCloseTimeout(Duration.ofSeconds(10))
           .build();
     }
   }
@@ -223,7 +225,11 @@ public class WorkflowTest {
               .build();
       workerFactory = new Worker.Factory(service, DOMAIN, factoryOptions);
       WorkerOptions workerOptions =
-          new WorkerOptions.Builder().setInterceptorFactory(tracer).build();
+          new WorkerOptions.Builder()
+              .setActivityPollerOptions(new PollerOptions.Builder().setPollThreadCount(5).build())
+              .setMaxConcurrentActivityExecutionSize(1000)
+              .setInterceptorFactory(tracer)
+              .build();
       worker = workerFactory.newWorker(taskList, workerOptions);
       workflowClient = WorkflowClient.newInstance(service, DOMAIN);
       WorkflowClientOptions clientOptions =
@@ -3643,6 +3649,56 @@ public class WorkflowTest {
     result.sort(UUID::compareTo);
     expectedResult.sort(UUID::compareTo);
     assertEquals(expectedResult, result);
+  }
+
+  public interface TestLargeWorkflow {
+
+    @WorkflowMethod
+    String execute(int activityCount, String taskList);
+  }
+
+  public interface TestLargeWorkflowActivity {
+    String activity();
+  }
+
+  public static class TestLargeWorkflowActivityImpl implements TestLargeWorkflowActivity {
+
+    @Override
+    public String activity() {
+      return "done";
+    }
+  }
+
+  public static class TestLargeHistory implements TestLargeWorkflow {
+
+    @Override
+    public String execute(int activityCount, String taskList) {
+      TestLargeWorkflowActivity activities =
+          Workflow.newActivityStub(TestLargeWorkflowActivity.class, newActivityOptions1(taskList));
+      List<Promise<String>> results = new ArrayList<>();
+      for (int i = 0; i < activityCount; i++) {
+        Promise<String> result = Async.function(activities::activity);
+        results.add(result);
+      }
+      Promise.allOf(results).get();
+      return "done";
+    }
+  }
+
+  @Test
+  @Ignore // Requires DEBUG_TIMEOUTS=true
+  public void testLargeHistory() {
+    final int activityCount = 1000;
+    worker.registerActivitiesImplementations(new TestLargeWorkflowActivityImpl());
+    startWorkerFor(TestLargeHistory.class);
+    TestLargeWorkflow workflowStub =
+        workflowClient.newWorkflowStub(
+            TestLargeWorkflow.class, newWorkflowOptionsBuilder(taskList).build());
+    long start = System.currentTimeMillis();
+    String result = workflowStub.execute(activityCount, taskList);
+    long duration = System.currentTimeMillis() - start;
+    log.info(testName.toString() + " duration is " + duration);
+    assertEquals("done", result);
   }
 
   private static class FilteredTrace {

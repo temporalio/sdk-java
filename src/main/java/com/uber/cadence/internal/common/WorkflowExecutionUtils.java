@@ -94,7 +94,7 @@ public class WorkflowExecutionUtils {
       new RetryOptions.Builder()
           .setBackoffCoefficient(2)
           .setInitialInterval(Duration.ofMillis(500))
-          .setMaximumInterval(Duration.ofSeconds(30))
+          .setMaximumInterval(Duration.ofSeconds(10))
           .setDoNotRetry(BadRequestError.class, EntityNotExistsError.class)
           .build();
 
