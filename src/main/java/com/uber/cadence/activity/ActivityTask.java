@@ -56,4 +56,6 @@ public interface ActivityTask {
   Duration getStartToCloseTimeout();
 
   Duration getHeartbeatTimeout();
+
+  byte[] getHeartbeatDetails();
 }

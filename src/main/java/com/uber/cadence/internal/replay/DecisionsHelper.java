@@ -19,6 +19,7 @@ package com.uber.cadence.internal.replay;
 
 import com.uber.cadence.ActivityTaskCancelRequestedEventAttributes;
 import com.uber.cadence.ActivityTaskCanceledEventAttributes;
+import com.uber.cadence.ActivityTaskScheduledEventAttributes;
 import com.uber.cadence.ActivityTaskStartedEventAttributes;
 import com.uber.cadence.CancelWorkflowExecutionDecisionAttributes;
 import com.uber.cadence.ChildWorkflowExecutionCanceledEventAttributes;
@@ -202,7 +203,7 @@ class DecisionsHelper {
    * @return true if it is not replay or retryOptions are present in the
    *     StartChildWorkflowExecutionInitiated event.
    */
-  boolean isChildWorkflowExecutionStartedWithRetryOptions() {
+  boolean isChildWorkflowExecutionInitiatedWithRetryOptions() {
     Optional<HistoryEvent> optionalEvent = getOptionalDecisionEvent(nextDecisionEventId);
     if (!optionalEvent.isPresent()) {
       return true;
@@ -213,6 +214,26 @@ class DecisionsHelper {
     }
     StartChildWorkflowExecutionInitiatedEventAttributes attr =
         event.getStartChildWorkflowExecutionInitiatedEventAttributes();
+    if (attr == null) {
+      throw new Error("Corrupted event: " + event);
+    }
+    return attr.getRetryPolicy() != null;
+  }
+
+  /**
+   * @return true if it is not replay or retryOptions are present in the ActivityTaskScheduled
+   *     event. false is only for the legacy code that used client side retry.
+   */
+  boolean isActivityScheduledWithRetryOptions() {
+    Optional<HistoryEvent> optionalEvent = getOptionalDecisionEvent(nextDecisionEventId);
+    if (!optionalEvent.isPresent()) {
+      return true;
+    }
+    HistoryEvent event = optionalEvent.get();
+    if (event.getEventType() != EventType.ActivityTaskScheduled) {
+      return false;
+    }
+    ActivityTaskScheduledEventAttributes attr = event.getActivityTaskScheduledEventAttributes();
     if (attr == null) {
       throw new Error("Corrupted event: " + event);
     }

@@ -191,11 +191,12 @@ public final class TestWorkflowService implements IWorkflowService {
       StartWorkflowExecutionRequest startRequest)
       throws BadRequestError, InternalServiceError, WorkflowExecutionAlreadyStartedError,
           ServiceBusyError, TException {
-    return startWorkflowExecutionImpl(startRequest, Optional.empty(), OptionalLong.empty());
+    return startWorkflowExecutionImpl(startRequest, 0, Optional.empty(), OptionalLong.empty());
   }
 
   StartWorkflowExecutionResponse startWorkflowExecutionImpl(
       StartWorkflowExecutionRequest startRequest,
+      int backoffStartIntervalInSeconds,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId)
       throws BadRequestError, WorkflowExecutionAlreadyStartedError, InternalServiceError {
@@ -225,7 +226,12 @@ public final class TestWorkflowService implements IWorkflowService {
       RetryPolicy retryPolicy = startRequest.getRetryPolicy();
       Optional<RetryState> retryState = newRetryStateLocked(retryPolicy);
       return startWorkflowExecutionNoRunningCheckLocked(
-          startRequest, retryState, parent, parentChildInitiatedEventId, workflowId);
+          startRequest,
+          retryState,
+          backoffStartIntervalInSeconds,
+          parent,
+          parentChildInitiatedEventId,
+          workflowId);
     } finally {
       lock.unlock();
     }
@@ -257,6 +263,7 @@ public final class TestWorkflowService implements IWorkflowService {
   private StartWorkflowExecutionResponse startWorkflowExecutionNoRunningCheckLocked(
       StartWorkflowExecutionRequest startRequest,
       Optional<RetryState> retryState,
+      int backoffStartIntervalInSeconds,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
       WorkflowId workflowId)
@@ -264,7 +271,13 @@ public final class TestWorkflowService implements IWorkflowService {
     String domain = startRequest.getDomain();
     TestWorkflowMutableState result =
         new TestWorkflowMutableStateImpl(
-            startRequest, retryState, parent, parentChildInitiatedEventId, this, store);
+            startRequest,
+            retryState,
+            backoffStartIntervalInSeconds,
+            parent,
+            parentChildInitiatedEventId,
+            this,
+            store);
     WorkflowExecution execution = result.getExecutionId().getExecution();
     ExecutionId executionId = new ExecutionId(domain, execution);
     executionsByWorkflowId.put(workflowId, result);
@@ -532,6 +545,7 @@ public final class TestWorkflowService implements IWorkflowService {
           startWorkflowExecutionNoRunningCheckLocked(
               startRequest,
               retryState,
+              a.getBackoffStartIntervalInSeconds(),
               parent,
               parentChildInitiatedEventId,
               executionId.getWorkflowId());

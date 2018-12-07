@@ -17,6 +17,7 @@
 
 package com.uber.cadence.internal.testservice;
 
+import com.uber.cadence.BadRequestError;
 import com.uber.cadence.EntityNotExistsError;
 import com.uber.cadence.EventType;
 import com.uber.cadence.GetWorkflowExecutionHistoryRequest;
@@ -90,7 +91,10 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
                   + WorkflowExecutionUtils.prettyPrintHistoryEvent(event));
         }
         event.setEventId(history.size() + 1L);
-        event.setTimestamp(timeInNanos);
+        // It can be set in StateMachines.startActivityTask
+        if (!event.isSetTimestamp()) {
+          event.setTimestamp(timeInNanos);
+        }
         history.add(event);
         completed = completed || WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(event);
       }
@@ -168,7 +172,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   }
 
   @Override
-  public long save(RequestContext ctx) throws InternalServiceError, EntityNotExistsError {
+  public long save(RequestContext ctx)
+      throws InternalServiceError, EntityNotExistsError, BadRequestError {
     long result;
     lock.lock();
     boolean historiesEmpty = histories.isEmpty();
@@ -394,7 +399,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       lock.unlock();
     }
     // Uncomment to troubleshoot time skipping issues.
-    //    timerService.getDiagnostics(result);
+    timerService.getDiagnostics(result);
   }
 
   @Override

@@ -71,6 +71,11 @@ final class ActivityTaskImpl implements ActivityTask {
     return Duration.ofSeconds(response.getHeartbeatTimeoutSeconds());
   }
 
+  @Override
+  public byte[] getHeartbeatDetails() {
+    return response.getHeartbeatDetails();
+  }
+
   public byte[] getInput() {
     return response.getInput();
   }

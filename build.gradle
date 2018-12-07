@@ -182,7 +182,7 @@ test {
         events "passed", "skipped", "failed"
         exceptionFormat "full"
         // Uncomment the following line if you want to see test logs in gradlew run.
-        // showStandardStreams true
+        showStandardStreams true
     }
 }
 

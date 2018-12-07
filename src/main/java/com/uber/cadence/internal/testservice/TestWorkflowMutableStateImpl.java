@@ -18,6 +18,7 @@
 package com.uber.cadence.internal.testservice;
 
 import com.google.common.base.Throwables;
+import com.uber.cadence.ActivityTaskScheduledEventAttributes;
 import com.uber.cadence.BadRequestError;
 import com.uber.cadence.CancelTimerDecisionAttributes;
 import com.uber.cadence.CancelTimerFailedEventAttributes;
@@ -144,11 +145,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   /**
    * @param retryState present if workflow is a retry
+   * @param backoffStartIntervalInSeconds
    * @param parentChildInitiatedEventId id of the child initiated event in the parent history
    */
   TestWorkflowMutableStateImpl(
       StartWorkflowExecutionRequest startRequest,
       Optional<RetryState> retryState,
+      int backoffStartIntervalInSeconds,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
       TestWorkflowService service,
@@ -166,6 +169,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     this.workflow = StateMachines.newWorkflowStateMachine();
     WorkflowData data = this.workflow.getData();
     data.retryState = retryState;
+    data.backoffStartIntervalInSeconds = backoffStartIntervalInSeconds;
   }
 
   private void update(UpdateProcedure updater)
@@ -468,15 +472,16 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     if (activity != null) {
       throw new BadRequestError("Already open activity with " + activityId);
     }
-    activity = StateMachines.newActivityStateMachine();
+    activity = StateMachines.newActivityStateMachine(store, this.startRequest);
     activities.put(activityId, activity);
     activity.action(StateMachines.Action.INITIATE, ctx, a, decisionTaskCompletedId);
+    ActivityTaskScheduledEventAttributes scheduledEvent = activity.getData().scheduledEvent;
     ctx.addTimer(
-        a.getScheduleToCloseTimeoutSeconds(),
+        scheduledEvent.getScheduleToCloseTimeoutSeconds(),
         () -> timeoutActivity(activityId, TimeoutType.SCHEDULE_TO_CLOSE),
         "Activity ScheduleToCloseTimeout");
     ctx.addTimer(
-        a.getScheduleToStartTimeoutSeconds(),
+        scheduledEvent.getScheduleToStartTimeoutSeconds(),
         () -> timeoutActivity(activityId, TimeoutType.SCHEDULE_TO_START),
         "Activity ScheduleToStartTimeout");
     ctx.lockTimer();
@@ -939,7 +944,24 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       update(
           ctx -> {
             workflow.action(StateMachines.Action.START, ctx, startRequest, 0);
-            scheduleDecision(ctx);
+            int backoffStartIntervalInSeconds = workflow.getData().backoffStartIntervalInSeconds;
+            if (backoffStartIntervalInSeconds > 0) {
+              ctx.addTimer(
+                  backoffStartIntervalInSeconds,
+                  () -> {
+                    try {
+                      update(ctx1 -> scheduleDecision(ctx1));
+                    } catch (EntityNotExistsError e) {
+                      // Expected as timers are not removed
+                    } catch (Exception e) {
+                      // Cannot fail to timer threads
+                      log.error("Failure trying to add task for an delayed workflow retry", e);
+                    }
+                  },
+                  "delayedFirstDecision");
+            } else {
+              scheduleDecision(ctx);
+            }
             ctx.addTimer(
                 startRequest.getExecutionStartToCloseTimeoutSeconds(),
                 this::timeoutWorkflow,
@@ -1025,7 +1047,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     return workflowState == State.COMPLETED
         || workflowState == State.TIMED_OUT
         || workflowState == State.FAILED
-        || workflowState == State.CANCELED;
+        || workflowState == State.CANCELED
+        || workflowState == State.CONTINUED_AS_NEW;
   }
 
   private void updateHeartbeatTimer(
@@ -1075,12 +1098,50 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       throws InternalServiceError, EntityNotExistsError, BadRequestError {
     update(
         ctx -> {
-          StateMachine<?> activity = getActivity(activityId);
+          StateMachine<ActivityTaskData> activity = getActivity(activityId);
           activity.action(StateMachines.Action.FAIL, ctx, request, 0);
-          activities.remove(activityId);
+          if (isTerminalState(activity.getState())) {
+            activities.remove(activityId);
+            scheduleDecision(ctx);
+          } else {
+            addActivityRetryTimer(ctx, activity);
+          }
+          // Allow time skipping when waiting for retry
           ctx.unlockTimer();
-          scheduleDecision(ctx);
         });
+  }
+
+  private void addActivityRetryTimer(RequestContext ctx, StateMachine<ActivityTaskData> activity) {
+    ActivityTaskData data = activity.getData();
+    int attempt = data.retryState.getAttempt();
+    ctx.addTimer(
+        data.nextBackoffIntervalSeconds,
+        () -> {
+          // Timers are not removed, so skip if it is not for this attempt.
+          if (activity.getState() != State.INITIATED && data.retryState.getAttempt() != attempt) {
+            return;
+          }
+          selfAdvancingTimer.lockTimeSkipping(
+              "activityRetryTimer " + activity.getData().scheduledEvent.getActivityId());
+          boolean unlockTimer = false;
+          try {
+            update(ctx1 -> ctx1.addActivityTask(data.activityTask));
+          } catch (EntityNotExistsError e) {
+            unlockTimer = true;
+            // Expected as timers are not removed
+          } catch (Exception e) {
+            unlockTimer = true;
+            // Cannot fail to timer threads
+            log.error("Failure trying to add task for an activity retry", e);
+          } finally {
+            if (unlockTimer) {
+              // Allow time skipping when waiting for an activity retry
+              selfAdvancingTimer.unlockTimeSkipping(
+                  "activityRetryTimer " + activity.getData().scheduledEvent.getActivityId());
+            }
+          }
+        },
+        "Activity Retry");
   }
 
   @Override
@@ -1088,10 +1149,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       throws EntityNotExistsError, InternalServiceError, BadRequestError {
     update(
         ctx -> {
-          StateMachine<?> activity = getActivity(activityId);
+          StateMachine<ActivityTaskData> activity = getActivity(activityId);
           activity.action(StateMachines.Action.FAIL, ctx, request, 0);
-          activities.remove(activityId);
-          scheduleDecision(ctx);
+          if (isTerminalState(activity.getState())) {
+            activities.remove(activityId);
+            scheduleDecision(ctx);
+          } else {
+            addActivityRetryTimer(ctx, activity);
+          }
           ctx.unlockTimer();
         });
   }
@@ -1158,7 +1223,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             StateMachine<ActivityTaskData> activity = getActivity(activityId);
             if (timeoutType == TimeoutType.SCHEDULE_TO_START
                 && activity.getState() != StateMachines.State.INITIATED) {
-              return;
+              throw new EntityNotExistsError("Not in INITIATED");
             }
             if (timeoutType == TimeoutType.HEARTBEAT) {
               // Deal with timers which are never cancelled
@@ -1166,12 +1231,16 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   TimeUnit.SECONDS.toMillis(
                       activity.getData().scheduledEvent.getHeartbeatTimeoutSeconds());
               if (clock.getAsLong() - activity.getData().lastHeartbeatTime < heartbeatTimeout) {
-                return;
+                throw new EntityNotExistsError("Not heartbeat timeout");
               }
             }
             activity.action(StateMachines.Action.TIME_OUT, ctx, timeoutType, 0);
-            activities.remove(activityId);
-            scheduleDecision(ctx);
+            if (isTerminalState(activity.getState())) {
+              activities.remove(activityId);
+              scheduleDecision(ctx);
+            } else {
+              addActivityRetryTimer(ctx, activity);
+            }
           });
     } catch (EntityNotExistsError e) {
       // Expected as timers are not removed
@@ -1203,9 +1272,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             if (isTerminalState(workflow.getState())) {
               return;
             }
-            log.info("Workflow timed out before action");
             workflow.action(StateMachines.Action.TIME_OUT, ctx, TimeoutType.START_TO_CLOSE, 0);
-            log.info("Workflow timed out after action");
             if (parent != null) {
               ctx.lockTimer(); // unlocked by the parent
             }
@@ -1215,7 +1282,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       // Cannot fail to timer threads
       log.error("Failure trying to timeout a workflow", e);
     }
-    log.info("Workflow timed out done");
   }
 
   private void reportWorkflowTimeoutToParent(RequestContext ctx) {

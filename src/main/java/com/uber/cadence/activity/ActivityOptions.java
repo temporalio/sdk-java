@@ -175,13 +175,17 @@ public final class ActivityOptions {
       if (heartbeatTimeout == null) {
         heartbeat = scheduleToClose;
       }
+      RetryOptions ro = null;
+      if (retryOptions != null) {
+        ro = new RetryOptions.Builder(retryOptions).validateBuildWithDefaults();
+      }
       return new ActivityOptions(
           roundUpToSeconds(heartbeat),
           roundUpToSeconds(scheduleToClose),
           roundUpToSeconds(scheduleToStart),
           roundUpToSeconds(startToClose),
           taskList,
-          retryOptions);
+          ro);
     }
   }
 

@@ -28,7 +28,6 @@ import com.uber.cadence.ChildWorkflowExecutionTimedOutEventAttributes;
 import com.uber.cadence.ExternalWorkflowExecutionSignaledEventAttributes;
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.RequestCancelExternalWorkflowExecutionDecisionAttributes;
-import com.uber.cadence.RetryPolicy;
 import com.uber.cadence.SignalExternalWorkflowExecutionDecisionAttributes;
 import com.uber.cadence.SignalExternalWorkflowExecutionFailedEventAttributes;
 import com.uber.cadence.StartChildWorkflowExecutionDecisionAttributes;
@@ -146,15 +145,7 @@ final class WorkflowDecisionContext {
     attributes.setWorkflowIdReusePolicy(parameters.getWorkflowIdReusePolicy());
     RetryParameters retryParameters = parameters.getRetryParameters();
     if (retryParameters != null) {
-      RetryPolicy retryPolicy =
-          new RetryPolicy()
-              .setNonRetriableErrorReasons(retryParameters.getNonRetriableErrorReasons())
-              .setMaximumAttempts(retryParameters.getMaximumAttempts())
-              .setInitialIntervalInSeconds(retryParameters.getInitialIntervalInSeconds())
-              .setExpirationIntervalInSeconds(retryParameters.getExpirationIntervalInSeconds())
-              .setBackoffCoefficient(retryParameters.getBackoffCoefficient())
-              .setMaximumIntervalInSeconds(retryParameters.getMaximumIntervalInSeconds());
-      attributes.setRetryPolicy(retryPolicy);
+      attributes.setRetryPolicy(retryParameters.toRetryPolicy());
     }
     long initiatedEventId = decisions.startChildWorkflowExecution(attributes);
     final OpenChildWorkflowRequestInfo context =
@@ -165,7 +156,7 @@ final class WorkflowDecisionContext {
   }
 
   boolean isChildWorkflowExecutionStartedWithRetryOptions() {
-    return decisions.isChildWorkflowExecutionStartedWithRetryOptions();
+    return decisions.isChildWorkflowExecutionInitiatedWithRetryOptions();
   }
 
   Consumer<Exception> signalWorkflowExecution(

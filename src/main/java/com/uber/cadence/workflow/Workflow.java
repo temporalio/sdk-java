@@ -378,7 +378,7 @@ public final class Workflow {
   }
 
   /**
-   * Creates client stub to activities that implement given interface.
+   * Creates client stub to activities that implement given interface. `
    *
    * @param activityInterface interface type implemented by activities
    */

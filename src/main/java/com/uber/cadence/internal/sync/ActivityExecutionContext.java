@@ -20,6 +20,8 @@ package com.uber.cadence.internal.sync;
 import com.uber.cadence.activity.ActivityTask;
 import com.uber.cadence.client.ActivityCompletionException;
 import com.uber.cadence.serviceclient.IWorkflowService;
+import java.lang.reflect.Type;
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 
 /**
@@ -50,7 +52,9 @@ public interface ActivityExecutionContext {
    *     workflow.Should be rethrown from activity implementation to indicate successful
    *     cancellation.
    */
-  void recordActivityHeartbeat(Object details) throws ActivityCompletionException;
+  <V> void recordActivityHeartbeat(V details) throws ActivityCompletionException;
+
+  <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsType);
 
   /**
    * If this method is called during an activity execution then activity is not going to complete

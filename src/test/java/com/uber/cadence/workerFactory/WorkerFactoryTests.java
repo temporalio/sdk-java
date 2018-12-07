@@ -21,9 +21,19 @@ import static org.junit.Assert.assertTrue;
 
 import com.uber.cadence.worker.Worker;
 import java.time.Duration;
+import org.junit.Assume;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class WorkerFactoryTests {
+
+  private static final boolean skipDockerService =
+      Boolean.parseBoolean(System.getenv("SKIP_DOCKER_SERVICE"));
+
+  @BeforeClass
+  public static void beforeClass() throws Exception {
+    Assume.assumeTrue(!skipDockerService);
+  }
 
   @Test
   public void whenAFactoryIsStartedAllWorkersStart() {
@@ -34,6 +44,7 @@ public class WorkerFactoryTests {
     factory.start();
     assertTrue(worker1.isStarted());
     assertTrue(worker2.isStarted());
+    factory.shutdown(Duration.ofSeconds(1));
   }
 
   @Test
@@ -47,6 +58,7 @@ public class WorkerFactoryTests {
 
     assertTrue(worker1.isClosed());
     assertTrue(worker2.isClosed());
+    factory.shutdown(Duration.ofSeconds(1));
   }
 
   @Test
@@ -55,6 +67,7 @@ public class WorkerFactoryTests {
 
     factory.start();
     factory.start();
+    factory.shutdown(Duration.ofSeconds(1));
   }
 
   @Test(expected = IllegalStateException.class)
@@ -73,7 +86,11 @@ public class WorkerFactoryTests {
 
     factory.start();
 
-    Worker worker2 = factory.newWorker("task2");
+    try {
+      Worker worker2 = factory.newWorker("task2");
+    } finally {
+      factory.shutdown(Duration.ofSeconds(1));
+    }
   }
 
   @Test(expected = IllegalStateException.class)
@@ -82,8 +99,11 @@ public class WorkerFactoryTests {
     Worker worker1 = factory.newWorker("task1");
 
     factory.shutdown(Duration.ofMillis(1));
-
-    Worker worker2 = factory.newWorker("task2");
+    try {
+      Worker worker2 = factory.newWorker("task2");
+    } finally {
+      factory.shutdown(Duration.ofSeconds(1));
+    }
   }
 
   @Test

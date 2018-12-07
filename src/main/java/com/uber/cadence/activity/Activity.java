@@ -22,6 +22,8 @@ import com.uber.cadence.internal.sync.WorkflowInternal;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.cadence.workflow.ActivityException;
 import com.uber.cadence.workflow.ActivityTimeoutException;
+import java.lang.reflect.Type;
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 
 /**
@@ -236,6 +238,32 @@ public final class Activity {
    */
   public static void heartbeat(Object details) throws CancellationException {
     ActivityInternal.recordActivityHeartbeat(details);
+  }
+
+  /**
+   * Extracts heartbeat details from the last failed attempt. This is used in combination with retry
+   * options. An activity could be scheduled with an optional {@link
+   * com.uber.cadence.common.RetryOptions} on {@link ActivityOptions}. If an activity failed then
+   * the server would attempt to dispatch another activity task to retry according to the retry
+   * options. If there was heartbeat details reported by the activity from the failed attempt, the
+   * details would be delivered along with the activity task for the retry attempt. The activity
+   * could extract the details by {@link #getHeartbeatDetails(Class)}() and resume from the
+   * progress.
+   *
+   * @param detailsClass type of the heartbeat details
+   */
+  public static <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass) {
+    return ActivityInternal.getHeartbeatDetails(detailsClass, detailsClass);
+  }
+
+  /**
+   * Similar to {@link #getHeartbeatDetails(Class)}. Use when details is of a generic type.
+   *
+   * @param detailsClass type of the heartbeat details
+   * @param detailsType type including generic information of the heartbeat details.
+   */
+  public static <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsType) {
+    return ActivityInternal.getHeartbeatDetails(detailsClass, detailsType);
   }
 
   /**

@@ -208,35 +208,15 @@ public final class RetryOptions {
 
     /** Validates property values and builds RetryOptions with default values. */
     public RetryOptions validateBuildWithDefaults() {
-      validate();
       double backoff = backoffCoefficient;
       if (backoff == 0d) {
         backoff = DEFAULT_BACKOFF_COEFFICIENT;
       }
-      return new RetryOptions(
-          initialInterval, backoff, expiration, maximumAttempts, maximumInterval, doNotRetry);
-    }
-
-    private void validate() {
-      if (initialInterval == null) {
-        throw new IllegalArgumentException("required property initialInterval not set");
-      }
-      if (expiration == null) {
-        throw new IllegalArgumentException("required property expiration is not set");
-      }
-      if (maximumInterval != null && maximumInterval.compareTo(initialInterval) == -1) {
-        throw new IllegalStateException(
-            "maximumInterval("
-                + maximumInterval
-                + ") cannot be smaller than initialInterval("
-                + initialInterval);
-      }
-      if (backoffCoefficient != 0d && backoffCoefficient < 1d) {
-        throw new IllegalArgumentException("coefficient less than 1: " + backoffCoefficient);
-      }
-      if (maximumAttempts != 0 && maximumAttempts < 0) {
-        throw new IllegalArgumentException("negative maximum attempts");
-      }
+      RetryOptions result =
+          new RetryOptions(
+              initialInterval, backoff, expiration, maximumAttempts, maximumInterval, doNotRetry);
+      result.validate();
+      return result;
     }
   }
 
@@ -290,6 +270,10 @@ public final class RetryOptions {
   public void validate() {
     if (initialInterval == null) {
       throw new IllegalStateException("required property initialInterval not set");
+    }
+    if (expiration == null && maximumAttempts <= 0) {
+      throw new IllegalArgumentException(
+          "both MaximumAttempts and Expiration on retry policy are not set, at least one of them must be set");
     }
     if (maximumInterval != null && maximumInterval.compareTo(initialInterval) == -1) {
       throw new IllegalStateException(

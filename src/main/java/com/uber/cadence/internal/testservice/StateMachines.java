@@ -81,6 +81,7 @@ import com.uber.cadence.RespondActivityTaskFailedByIDRequest;
 import com.uber.cadence.RespondActivityTaskFailedRequest;
 import com.uber.cadence.RespondDecisionTaskCompletedRequest;
 import com.uber.cadence.RespondDecisionTaskFailedRequest;
+import com.uber.cadence.RetryPolicy;
 import com.uber.cadence.ScheduleActivityTaskDecisionAttributes;
 import com.uber.cadence.SignalExternalWorkflowExecutionDecisionAttributes;
 import com.uber.cadence.SignalExternalWorkflowExecutionFailedCause;
@@ -111,12 +112,16 @@ import java.util.List;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class StateMachines {
 
   private static final Logger log = LoggerFactory.getLogger(StateMachines.class);
+
+  private static final int NO_EVENT_ID = -1;
+  private static final String TIMEOUT_ERROR_REASON = "cadenceInternal:Timeout";
 
   enum State {
     NONE,
@@ -144,6 +149,7 @@ class StateMachines {
 
   static final class WorkflowData {
     Optional<RetryState> retryState = Optional.empty();
+    int backoffStartIntervalInSeconds;
   }
 
   static final class DecisionTaskData {
@@ -152,11 +158,11 @@ class StateMachines {
 
     final TestWorkflowStore store;
 
-    long startedEventId = -1;
+    long startedEventId = NO_EVENT_ID;
 
     PollForDecisionTaskResponse decisionTask;
 
-    long scheduledEventId = -1;
+    long scheduledEventId = NO_EVENT_ID;
 
     int attempt;
 
@@ -168,18 +174,30 @@ class StateMachines {
 
   static final class ActivityTaskData {
 
+    StartWorkflowExecutionRequest startWorkflowExecutionRequest;
     ActivityTaskScheduledEventAttributes scheduledEvent;
-    PollForActivityTaskResponse activityTask;
+    ActivityTask activityTask;
 
-    long scheduledEventId = -1;
-    long startedEventId = -1;
+    final TestWorkflowStore store;
+
+    long scheduledEventId = NO_EVENT_ID;
+    long startedEventId = NO_EVENT_ID;
+    public HistoryEvent startedEvent;
     byte[] heartbeatDetails;
     long lastHeartbeatTime;
+    RetryState retryState;
+    long nextBackoffIntervalSeconds;
+
+    ActivityTaskData(
+        TestWorkflowStore store, StartWorkflowExecutionRequest startWorkflowExecutionRequest) {
+      this.store = store;
+      this.startWorkflowExecutionRequest = startWorkflowExecutionRequest;
+    }
   }
 
   static final class SignalExternalData {
 
-    long initiatedEventId = -1;
+    long initiatedEventId = NO_EVENT_ID;
     public SignalExternalWorkflowExecutionInitiatedEventAttributes initiatedEvent;
   }
 
@@ -232,8 +250,9 @@ class StateMachines {
         .add(FAILED, INITIATE, INITIATED, StateMachines::scheduleDecisionTask);
   }
 
-  public static StateMachine<ActivityTaskData> newActivityStateMachine() {
-    return new StateMachine<>(new ActivityTaskData())
+  public static StateMachine<ActivityTaskData> newActivityStateMachine(
+      TestWorkflowStore store, StartWorkflowExecutionRequest workflowStartedEvent) {
+    return new StateMachine<>(new ActivityTaskData(store, workflowStartedEvent))
         .add(NONE, INITIATE, INITIATED, StateMachines::scheduleActivityTask)
         .add(INITIATED, START, STARTED, StateMachines::startActivityTask)
         .add(INITIATED, TIME_OUT, TIMED_OUT, StateMachines::timeoutActivityTask)
@@ -243,8 +262,14 @@ class StateMachines {
             CANCELLATION_REQUESTED,
             StateMachines::requestActivityCancellation)
         .add(STARTED, COMPLETE, COMPLETED, StateMachines::completeActivityTask)
-        .add(STARTED, FAIL, FAILED, StateMachines::failActivityTask)
-        .add(STARTED, TIME_OUT, TIMED_OUT, StateMachines::timeoutActivityTask)
+        // Transitions to initiated in case of the a retry
+        .add(STARTED, FAIL, new State[] {FAILED, INITIATED}, StateMachines::failActivityTask)
+        // Transitions to initiated in case of a retry
+        .add(
+            STARTED,
+            TIME_OUT,
+            new State[] {TIMED_OUT, INITIATED},
+            StateMachines::timeoutActivityTask)
         .add(STARTED, UPDATE, STARTED, StateMachines::heartbeatActivityTask)
         .add(
             STARTED,
@@ -447,6 +472,7 @@ class StateMachines {
               try {
                 data.service.startWorkflowExecutionImpl(
                     startChild,
+                    0,
                     Optional.of(ctx.getWorkflowMutableState()),
                     OptionalLong.of(data.initiatedEventId));
               } catch (WorkflowExecutionAlreadyStartedError workflowExecutionAlreadyStartedError) {
@@ -491,6 +517,9 @@ class StateMachines {
     a.setExecutionStartToCloseTimeoutSeconds(request.getExecutionStartToCloseTimeoutSeconds());
     if (request.isSetInput()) {
       a.setInput(request.getInput());
+    }
+    if (data.retryState.isPresent()) {
+      a.setAttempt(data.retryState.get().getAttempt());
     }
     HistoryEvent event =
         new HistoryEvent()
@@ -616,7 +645,31 @@ class StateMachines {
       RequestContext ctx,
       ActivityTaskData data,
       ScheduleActivityTaskDecisionAttributes d,
-      long decisionTaskCompletedEventId) {
+      long decisionTaskCompletedEventId)
+      throws BadRequestError {
+    int scheduleToCloseTimeoutSeconds = d.getScheduleToCloseTimeoutSeconds();
+    int scheduleToStartTimeoutSeconds = d.getScheduleToStartTimeoutSeconds();
+    RetryState retryState;
+    RetryPolicy retryPolicy = d.getRetryPolicy();
+    if (retryPolicy != null) {
+      long expirationInterval =
+          TimeUnit.SECONDS.toMillis(retryPolicy.getExpirationIntervalInSeconds());
+      long expirationTime = data.store.currentTimeMillis() + expirationInterval;
+      retryState = new RetryState(retryPolicy, expirationTime);
+      // Override activity timeouts to allow retry policy to run up to its expiration.
+      int overriddenTimeout;
+      if (retryPolicy.getExpirationIntervalInSeconds() > 0) {
+        overriddenTimeout = retryPolicy.getExpirationIntervalInSeconds();
+      } else {
+        overriddenTimeout =
+            data.startWorkflowExecutionRequest.getExecutionStartToCloseTimeoutSeconds();
+      }
+      scheduleToCloseTimeoutSeconds = overriddenTimeout;
+      scheduleToStartTimeoutSeconds = overriddenTimeout;
+    } else {
+      retryState = null;
+    }
+
     ActivityTaskScheduledEventAttributes a =
         new ActivityTaskScheduledEventAttributes()
             .setInput(d.getInput())
@@ -624,11 +677,14 @@ class StateMachines {
             .setActivityType(d.getActivityType())
             .setDomain(d.getDomain() == null ? ctx.getDomain() : d.getDomain())
             .setHeartbeatTimeoutSeconds(d.getHeartbeatTimeoutSeconds())
-            .setScheduleToCloseTimeoutSeconds(d.getScheduleToCloseTimeoutSeconds())
-            .setScheduleToStartTimeoutSeconds(d.getScheduleToStartTimeoutSeconds())
+            .setScheduleToCloseTimeoutSeconds(scheduleToCloseTimeoutSeconds)
+            .setScheduleToStartTimeoutSeconds(scheduleToStartTimeoutSeconds)
             .setStartToCloseTimeoutSeconds(d.getStartToCloseTimeoutSeconds())
             .setTaskList(d.getTaskList())
+            .setRetryPolicy(retryPolicy)
             .setDecisionTaskCompletedEventId(decisionTaskCompletedEventId);
+    data.scheduledEvent =
+        a; // Cannot set it in onCommit as it is used in the processScheduleActivityTask
     HistoryEvent event =
         new HistoryEvent()
             .setEventType(EventType.ActivityTaskScheduled)
@@ -642,18 +698,19 @@ class StateMachines {
             .setActivityId(d.getActivityId())
             .setInput(d.getInput())
             .setHeartbeatTimeoutSeconds(d.getHeartbeatTimeoutSeconds())
-            .setScheduleToCloseTimeoutSeconds(d.getScheduleToCloseTimeoutSeconds())
+            .setScheduleToCloseTimeoutSeconds(scheduleToCloseTimeoutSeconds)
             .setStartToCloseTimeoutSeconds(d.getStartToCloseTimeoutSeconds())
-            .setScheduledTimestamp(ctx.currentTimeInNanoseconds());
+            .setScheduledTimestamp(ctx.currentTimeInNanoseconds())
+            .setAttempt(0);
 
     TaskListId taskListId = new TaskListId(ctx.getDomain(), d.getTaskList().getName());
     ActivityTask activityTask = new ActivityTask(taskListId, taskResponse);
     ctx.addActivityTask(activityTask);
     ctx.onCommit(
         (historySize) -> {
-          data.scheduledEvent = a;
           data.scheduledEventId = scheduledEventId;
-          data.activityTask = taskResponse;
+          data.activityTask = activityTask;
+          data.retryState = retryState;
         });
   }
 
@@ -752,17 +809,30 @@ class StateMachines {
         new ActivityTaskStartedEventAttributes()
             .setIdentity(request.getIdentity())
             .setScheduledEventId(data.scheduledEventId);
+    if (data.retryState != null) {
+      a.setAttempt(data.retryState.getAttempt());
+    }
+    // Setting timestamp here as the default logic will set it to the time when it is added to the
+    // history. But in the case of retry it happens only after an activity completion.
+    long timestamp = TimeUnit.MILLISECONDS.toNanos(data.store.currentTimeMillis());
     HistoryEvent event =
         new HistoryEvent()
             .setEventType(EventType.ActivityTaskStarted)
+            .setTimestamp(timestamp)
             .setActivityTaskStartedEventAttributes(a);
-    long startedEventId = ctx.addEvent(event);
+    long startedEventId;
+    if (data.retryState == null) {
+      startedEventId = ctx.addEvent(event);
+    } else {
+      startedEventId = NO_EVENT_ID;
+    }
     ctx.onCommit(
         (historySize) -> {
           data.startedEventId = startedEventId;
-          data.activityTask.setTaskToken(
-              new ActivityId(ctx.getExecutionId(), data.activityTask.getActivityId()).toBytes());
-          data.activityTask.setStartedTimestamp(ctx.currentTimeInNanoseconds());
+          data.startedEvent = event;
+          PollForActivityTaskResponse task = data.activityTask.getTask();
+          task.setTaskToken(new ActivityId(ctx.getExecutionId(), task.getActivityId()).toBytes());
+          task.setStartedTimestamp(timestamp);
         });
   }
 
@@ -818,10 +888,15 @@ class StateMachines {
 
   private static void completeActivityTask(
       RequestContext ctx, ActivityTaskData data, Object request, long notUsed) {
+    if (data.retryState != null) {
+      ctx.addEvent(data.startedEvent);
+    }
     if (request instanceof RespondActivityTaskCompletedRequest) {
       completeActivityTaskByTaskToken(ctx, data, (RespondActivityTaskCompletedRequest) request);
     } else if (request instanceof RespondActivityTaskCompletedByIDRequest) {
       completeActivityTaskById(ctx, data, (RespondActivityTaskCompletedByIDRequest) request);
+    } else {
+      throw new IllegalArgumentException("Unknown request: " + request);
     }
   }
 
@@ -857,17 +932,22 @@ class StateMachines {
     ctx.addEvent(event);
   }
 
-  private static void failActivityTask(
+  private static State failActivityTask(
       RequestContext ctx, ActivityTaskData data, Object request, long notUsed) {
     if (request instanceof RespondActivityTaskFailedRequest) {
-      failActivityTaskByTaskToken(ctx, data, (RespondActivityTaskFailedRequest) request);
+      return failActivityTaskByTaskToken(ctx, data, (RespondActivityTaskFailedRequest) request);
     } else if (request instanceof RespondActivityTaskFailedByIDRequest) {
-      failActivityTaskById(ctx, data, (RespondActivityTaskFailedByIDRequest) request);
+      return failActivityTaskById(ctx, data, (RespondActivityTaskFailedByIDRequest) request);
+    } else {
+      throw new IllegalArgumentException("Unknown request: " + request);
     }
   }
 
-  private static void failActivityTaskByTaskToken(
+  private static State failActivityTaskByTaskToken(
       RequestContext ctx, ActivityTaskData data, RespondActivityTaskFailedRequest request) {
+    if (attemptActivityRetry(ctx, request.getReason(), data)) {
+      return INITIATED;
+    }
     ActivityTaskFailedEventAttributes a =
         new ActivityTaskFailedEventAttributes()
             .setIdentity(request.getIdentity())
@@ -881,10 +961,14 @@ class StateMachines {
             .setEventType(EventType.ActivityTaskFailed)
             .setActivityTaskFailedEventAttributes(a);
     ctx.addEvent(event);
+    return FAILED;
   }
 
-  private static void failActivityTaskById(
+  private static State failActivityTaskById(
       RequestContext ctx, ActivityTaskData data, RespondActivityTaskFailedByIDRequest request) {
+    if (attemptActivityRetry(ctx, request.getReason(), data)) {
+      return INITIATED;
+    }
     ActivityTaskFailedEventAttributes a =
         new ActivityTaskFailedEventAttributes()
             .setIdentity(request.getIdentity())
@@ -898,10 +982,17 @@ class StateMachines {
             .setEventType(EventType.ActivityTaskFailed)
             .setActivityTaskFailedEventAttributes(a);
     ctx.addEvent(event);
+    return FAILED;
   }
 
-  private static void timeoutActivityTask(
+  private static State timeoutActivityTask(
       RequestContext ctx, ActivityTaskData data, TimeoutType timeoutType, long notUsed) {
+    // ScheduleToStart (queue timeout) is not retriable. Instead of the retry, a customer should set
+    // a larger ScheduleToStart timeout.
+    if (timeoutType != TimeoutType.SCHEDULE_TO_START
+        && attemptActivityRetry(ctx, TIMEOUT_ERROR_REASON, data)) {
+      return INITIATED;
+    }
     ActivityTaskTimedOutEventAttributes a =
         new ActivityTaskTimedOutEventAttributes()
             .setScheduledEventId(data.scheduledEventId)
@@ -913,6 +1004,28 @@ class StateMachines {
             .setEventType(EventType.ActivityTaskTimedOut)
             .setActivityTaskTimedOutEventAttributes(a);
     ctx.addEvent(event);
+    return TIMED_OUT;
+  }
+
+  private static boolean attemptActivityRetry(
+      RequestContext ctx, String errorReason, ActivityTaskData data) {
+    if (data.retryState != null) {
+      RetryState nextAttempt = data.retryState.getNextAttempt();
+      data.nextBackoffIntervalSeconds =
+          data.retryState.getBackoffIntervalInSeconds(errorReason, data.store.currentTimeMillis());
+      if (data.nextBackoffIntervalSeconds > 0) {
+        data.activityTask.getTask().setHeartbeatDetails(data.heartbeatDetails);
+        ctx.onCommit(
+            (historySize) -> {
+              data.retryState = nextAttempt;
+              data.activityTask.getTask().setAttempt(nextAttempt.getAttempt());
+            });
+        return true;
+      } else {
+        data.startedEventId = ctx.addEvent(data.startedEvent);
+      }
+    }
+    return false;
   }
 
   private static void reportActivityTaskCancellation(

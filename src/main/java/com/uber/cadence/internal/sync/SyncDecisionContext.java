@@ -53,9 +53,7 @@ import com.uber.cadence.workflow.WorkflowInterceptor;
 import com.uber.m3.tally.Scope;
 import java.lang.reflect.Type;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -120,7 +118,8 @@ final class SyncDecisionContext implements WorkflowInterceptor {
       Object[] args,
       ActivityOptions options) {
     RetryOptions retryOptions = options.getRetryOptions();
-    if (retryOptions != null) {
+    // Replays a legacy history that used the client side retry correctly
+    if (retryOptions != null && !context.isServerSideActivityRetry()) {
       return WorkflowRetryerInternal.retryAsync(
           retryOptions,
           () -> executeActivityOnce(activityName, options, args, resultClass, resultType));
@@ -154,6 +153,10 @@ final class SyncDecisionContext implements WorkflowInterceptor {
         .withStartToCloseTimeoutSeconds(options.getStartToCloseTimeout().getSeconds())
         .withScheduleToCloseTimeoutSeconds(options.getScheduleToCloseTimeout().getSeconds())
         .setHeartbeatTimeoutSeconds(options.getHeartbeatTimeout().getSeconds());
+    RetryOptions retryOptions = options.getRetryOptions();
+    if (retryOptions != null) {
+      parameters.setRetryParameters(new RetryParameters(retryOptions));
+    }
     Consumer<Exception> cancellationCallback =
         context.scheduleActivityTask(
             parameters,
@@ -275,25 +278,7 @@ final class SyncDecisionContext implements WorkflowInterceptor {
     RetryParameters retryParameters = null;
     RetryOptions retryOptions = options.getRetryOptions();
     if (retryOptions != null) {
-      retryParameters = new RetryParameters();
-      retryParameters.setBackoffCoefficient(retryOptions.getBackoffCoefficient());
-      retryParameters.setExpirationIntervalInSeconds(
-          (int) roundUpToSeconds(retryOptions.getExpiration()).getSeconds());
-      retryParameters.setMaximumAttempts(retryOptions.getMaximumAttempts());
-      retryParameters.setInitialIntervalInSeconds(
-          (int) roundUpToSeconds(retryOptions.getInitialInterval()).getSeconds());
-      retryParameters.setMaximumIntervalInSeconds(
-          (int) roundUpToSeconds(retryOptions.getMaximumInterval()).getSeconds());
-      // Use exception type name as the reason
-      List<String> reasons = new ArrayList<>();
-      // Use exception type name as the reason
-      List<Class<? extends Throwable>> doNotRetry = retryOptions.getDoNotRetry();
-      if (doNotRetry != null) {
-        for (Class<? extends Throwable> r : doNotRetry) {
-          reasons.add(r.getName());
-        }
-        retryParameters.setNonRetriableErrorReasons(reasons);
-      }
+      retryParameters = new RetryParameters(retryOptions);
     }
     StartChildWorkflowExecutionParameters parameters =
         new StartChildWorkflowExecutionParameters.Builder()

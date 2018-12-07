@@ -29,6 +29,7 @@ import com.uber.cadence.client.ActivityCompletionFailureException;
 import com.uber.cadence.client.ActivityNotExistsException;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.serviceclient.IWorkflowService;
+import java.lang.reflect.Type;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -58,6 +59,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   private boolean doNotCompleteOnReturn;
   private final long heartbeatIntervalMillis;
   private Optional<Object> lastDetails;
+  private boolean hasOutstandingHeartbeat;
   private final ScheduledExecutorService heartbeatExecutor;
   private Lock lock = new ReentrantLock();
   private ScheduledFuture future;
@@ -82,20 +84,38 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
 
   /** @see ActivityExecutionContext#recordActivityHeartbeat(Object) */
   @Override
-  public void recordActivityHeartbeat(Object details) throws ActivityCompletionException {
+  public <V> void recordActivityHeartbeat(V details) throws ActivityCompletionException {
     lock.lock();
     try {
       // always set lastDetail. Successful heartbeat will clear it.
-      lastDetails = details == null ? Optional.empty() : Optional.of(details);
-
+      lastDetails = Optional.ofNullable(details);
+      hasOutstandingHeartbeat = true;
       // Only do sync heartbeat if there is no such call scheduled.
       if (future == null) {
         doHeartBeat(details);
       }
-
       if (lastException != null) {
         throw lastException;
       }
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  @Override
+  public <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsType) {
+    lock.lock();
+    try {
+      if (lastDetails != null) {
+        @SuppressWarnings("unchecked")
+        Optional<V> result = (Optional<V>) this.lastDetails;
+        return result;
+      }
+      byte[] details = task.getHeartbeatDetails();
+      if (details == null) {
+        return Optional.empty();
+      }
+      return Optional.of(dataConverter.fromData(details, detailsClass, detailsType));
     } finally {
       lock.unlock();
     }
@@ -105,8 +125,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
     long nextHeartbeatDelay;
     try {
       sendHeartbeatRequest(details);
-      // Clear lastDetails only if heartbeat succeeds.
-      lastDetails = null;
+      hasOutstandingHeartbeat = false;
       nextHeartbeatDelay = heartbeatIntervalMillis;
     } catch (TException e) {
       // Not rethrowing to not fail activity implementation on intermittent connection or Cadence
@@ -124,7 +143,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
             () -> {
               lock.lock();
               try {
-                if (lastDetails != null) {
+                if (hasOutstandingHeartbeat) {
                   Object details = lastDetails.orElse(null);
                   doHeartBeat(details);
                 } else {

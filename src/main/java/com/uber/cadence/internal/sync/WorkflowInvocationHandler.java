@@ -154,6 +154,18 @@ class WorkflowInvocationHandler implements InvocationHandler {
 
   @Override
   public Object invoke(Object proxy, Method method, Object[] args) {
+    try {
+      if (method.equals(Object.class.getMethod("toString"))) {
+        // TODO: workflow info
+        return "WorkflowInvocationHandler";
+      }
+    } catch (NoSuchMethodException e) {
+      throw new Error("unexpected", e);
+    }
+    if (!method.getDeclaringClass().isInterface()) {
+      throw new IllegalArgumentException(
+          "Interface type is expected: " + method.getDeclaringClass());
+    }
     WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
     QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);
     SignalMethod signalMethod = method.getAnnotation(SignalMethod.class);

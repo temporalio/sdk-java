@@ -17,10 +17,15 @@
 
 package com.uber.cadence.internal.common;
 
+import static com.uber.cadence.internal.common.OptionsUtils.roundUpToSeconds;
+
+import com.uber.cadence.RetryPolicy;
+import com.uber.cadence.common.RetryOptions;
 import com.uber.m3.util.ImmutableList;
+import java.util.ArrayList;
 import java.util.List;
 
-public class RetryParameters {
+public final class RetryParameters {
 
   public int initialIntervalInSeconds;
   public double backoffCoefficient;
@@ -28,6 +33,29 @@ public class RetryParameters {
   public int maximumAttempts;
   public List<String> nonRetriableErrorReasons;
   public int expirationIntervalInSeconds;
+
+  public RetryParameters(RetryOptions retryOptions) {
+    setBackoffCoefficient(retryOptions.getBackoffCoefficient());
+    setExpirationIntervalInSeconds(
+        (int) roundUpToSeconds(retryOptions.getExpiration()).getSeconds());
+    setMaximumAttempts(retryOptions.getMaximumAttempts());
+    setInitialIntervalInSeconds(
+        (int) roundUpToSeconds(retryOptions.getInitialInterval()).getSeconds());
+    setMaximumIntervalInSeconds(
+        (int) roundUpToSeconds(retryOptions.getMaximumInterval()).getSeconds());
+    // Use exception type name as the reason
+    List<String> reasons = new ArrayList<>();
+    // Use exception type name as the reason
+    List<Class<? extends Throwable>> doNotRetry = retryOptions.getDoNotRetry();
+    if (doNotRetry != null) {
+      for (Class<? extends Throwable> r : doNotRetry) {
+        reasons.add(r.getName());
+      }
+      setNonRetriableErrorReasons(reasons);
+    }
+  }
+
+  public RetryParameters() {}
 
   public int getInitialIntervalInSeconds() {
     return initialIntervalInSeconds;
@@ -86,5 +114,33 @@ public class RetryParameters {
     result.setExpirationIntervalInSeconds(expirationIntervalInSeconds);
     result.setBackoffCoefficient(backoffCoefficient);
     return result;
+  }
+
+  public RetryPolicy toRetryPolicy() {
+    return new RetryPolicy()
+        .setNonRetriableErrorReasons(getNonRetriableErrorReasons())
+        .setMaximumAttempts(getMaximumAttempts())
+        .setInitialIntervalInSeconds(getInitialIntervalInSeconds())
+        .setExpirationIntervalInSeconds(getExpirationIntervalInSeconds())
+        .setBackoffCoefficient(getBackoffCoefficient())
+        .setMaximumIntervalInSeconds(getMaximumIntervalInSeconds());
+  }
+
+  @Override
+  public String toString() {
+    return "RetryParameters{"
+        + "initialIntervalInSeconds="
+        + initialIntervalInSeconds
+        + ", backoffCoefficient="
+        + backoffCoefficient
+        + ", maximumIntervalInSeconds="
+        + maximumIntervalInSeconds
+        + ", maximumAttempts="
+        + maximumAttempts
+        + ", nonRetriableErrorReasons="
+        + nonRetriableErrorReasons
+        + ", expirationIntervalInSeconds="
+        + expirationIntervalInSeconds
+        + '}';
   }
 }

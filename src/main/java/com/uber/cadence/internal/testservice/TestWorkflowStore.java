@@ -17,6 +17,7 @@
 
 package com.uber.cadence.internal.testservice;
 
+import com.uber.cadence.BadRequestError;
 import com.uber.cadence.EntityNotExistsError;
 import com.uber.cadence.GetWorkflowExecutionHistoryRequest;
 import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
@@ -136,7 +137,8 @@ interface TestWorkflowStore {
 
   long currentTimeMillis();
 
-  long save(RequestContext requestContext) throws InternalServiceError, EntityNotExistsError;
+  long save(RequestContext requestContext)
+      throws InternalServiceError, EntityNotExistsError, BadRequestError;
 
   void applyTimersAndLocks(RequestContext ctx);
 

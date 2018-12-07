@@ -18,7 +18,8 @@
 package com.uber.cadence.internal.replay;
 
 import com.uber.cadence.ActivityType;
-import java.nio.charset.StandardCharsets;
+import com.uber.cadence.internal.common.RetryParameters;
+import java.util.Arrays;
 
 public class ExecuteActivityParameters implements Cloneable {
 
@@ -31,6 +32,7 @@ public class ExecuteActivityParameters implements Cloneable {
   private long scheduleToStartTimeoutSeconds;
   private long startToCloseTimeoutSeconds;
   private String taskList;
+  private RetryParameters retryParameters;
   //    private int taskPriority;
 
   public ExecuteActivityParameters() {}
@@ -331,28 +333,43 @@ public class ExecuteActivityParameters implements Cloneable {
     return this;
   }
 
-  /**
-   * Returns a string representation of this object; useful for testing and debugging.
-   *
-   * @return A string representation of this object.
-   * @see java.lang.Object#toString()
-   */
+  public RetryParameters getRetryParameters() {
+    return retryParameters;
+  }
+
+  public void setRetryParameters(RetryParameters retryParameters) {
+    this.retryParameters = retryParameters;
+  }
+
+  public ExecuteActivityParameters withRetryParameters(RetryParameters retryParameters) {
+    this.retryParameters = retryParameters;
+    return this;
+  }
+
   @Override
   public String toString() {
-    StringBuilder sb = new StringBuilder();
-    sb.append("{");
-    sb.append("ActivityType: " + activityType + ", ");
-    sb.append("ActivityId: " + activityId + ", ");
-    sb.append("Input: " + new String(input, 0, 512, StandardCharsets.UTF_8) + ", ");
-    //        sb.append("Control: " + control + ", ");
-    sb.append("HeartbeatTimeout: " + heartbeatTimeoutSeconds + ", ");
-    sb.append("ScheduleToStartTimeout: " + scheduleToStartTimeoutSeconds + ", ");
-    sb.append("ScheduleToCloseTimeout: " + scheduleToCloseTimeoutSeconds + ", ");
-    sb.append("StartToCloseTimeout: " + startToCloseTimeoutSeconds + ", ");
-    sb.append("TaskList: " + taskList + ", ");
-    //        sb.append("TaskPriority: " + taskPriority);
-    sb.append("}");
-    return sb.toString();
+    return "ExecuteActivityParameters{"
+        + "activityId='"
+        + activityId
+        + '\''
+        + ", activityType="
+        + activityType
+        + ", heartbeatTimeoutSeconds="
+        + heartbeatTimeoutSeconds
+        + ", input="
+        + Arrays.toString(input)
+        + ", scheduleToCloseTimeoutSeconds="
+        + scheduleToCloseTimeoutSeconds
+        + ", scheduleToStartTimeoutSeconds="
+        + scheduleToStartTimeoutSeconds
+        + ", startToCloseTimeoutSeconds="
+        + startToCloseTimeoutSeconds
+        + ", taskList='"
+        + taskList
+        + '\''
+        + ", retryParameters="
+        + retryParameters
+        + '}';
   }
 
   public ExecuteActivityParameters copy() {
@@ -366,6 +383,7 @@ public class ExecuteActivityParameters implements Cloneable {
     result.setScheduleToCloseTimeoutSeconds(scheduleToCloseTimeoutSeconds);
     result.setStartToCloseTimeoutSeconds(startToCloseTimeoutSeconds);
     result.setTaskList(taskList);
+    result.setRetryParameters(retryParameters.copy());
     //        result.setTaskPriority(taskPriority);
     return result;
   }

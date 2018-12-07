@@ -26,6 +26,7 @@ import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.ScheduleActivityTaskDecisionAttributes;
 import com.uber.cadence.TaskList;
 import com.uber.cadence.TimeoutType;
+import com.uber.cadence.internal.common.RetryParameters;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
@@ -81,6 +82,10 @@ final class ActivityDecisionContext {
     this.decisions = decisions;
   }
 
+  public boolean isActivityScheduledWithRetryOptions() {
+    return decisions.isActivityScheduledWithRetryOptions();
+  }
+
   Consumer<Exception> scheduleActivityTask(
       ExecuteActivityParameters parameters, BiConsumer<byte[], Exception> callback) {
     final OpenRequestInfo<byte[], ActivityType> context =
@@ -111,6 +116,11 @@ final class ActivityDecisionContext {
       tl.setName(taskList);
       attributes.setTaskList(tl);
     }
+    RetryParameters retryParameters = parameters.getRetryParameters();
+    if (retryParameters != null) {
+      attributes.setRetryPolicy(retryParameters.toRetryPolicy());
+    }
+
     long scheduledEventId = decisions.scheduleActivityTask(attributes);
     context.setCompletionHandle(callback);
     scheduledActivities.put(scheduledEventId, context);
