@@ -20,6 +20,7 @@ package com.uber.cadence.internal.replay;
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.WorkflowQuery;
 import com.uber.cadence.internal.worker.WorkflowExecutionException;
+import com.uber.cadence.worker.WorkflowImplementationOptions;
 
 public interface ReplayWorkflow {
 
@@ -60,4 +61,8 @@ public interface ReplayWorkflow {
    * @return Serialized failure
    */
   WorkflowExecutionException mapUnexpectedException(Exception failure);
+
+  WorkflowExecutionException mapError(Error failure);
+
+  WorkflowImplementationOptions getWorkflowImplementationOptions();
 }

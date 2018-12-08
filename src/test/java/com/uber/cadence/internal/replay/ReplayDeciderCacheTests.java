@@ -34,6 +34,7 @@ import com.uber.cadence.internal.testservice.TestWorkflowService;
 import com.uber.cadence.internal.worker.WorkflowExecutionException;
 import com.uber.cadence.testUtils.HistoryUtils;
 import com.uber.cadence.worker.WorkerOptions;
+import com.uber.cadence.worker.WorkflowImplementationOptions;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.StatsReporter;
@@ -274,6 +275,16 @@ public class ReplayDeciderCacheTests {
           @Override
           public WorkflowExecutionException mapUnexpectedException(Exception failure) {
             return null;
+          }
+
+          @Override
+          public WorkflowExecutionException mapError(Error failure) {
+            return null;
+          }
+
+          @Override
+          public WorkflowImplementationOptions getWorkflowImplementationOptions() {
+            return new WorkflowImplementationOptions.Builder().build();
           }
         },
         new DecisionsHelper(response),

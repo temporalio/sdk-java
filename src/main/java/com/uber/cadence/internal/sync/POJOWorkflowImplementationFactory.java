@@ -17,6 +17,8 @@
 
 package com.uber.cadence.internal.sync;
 
+import static com.uber.cadence.worker.NonDeterministicWorkflowPolicy.FailWorkflow;
+
 import com.google.common.reflect.TypeToken;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.converter.DataConverter;
@@ -29,6 +31,7 @@ import com.uber.cadence.internal.replay.ReplayWorkflow;
 import com.uber.cadence.internal.replay.ReplayWorkflowFactory;
 import com.uber.cadence.internal.worker.WorkflowExecutionException;
 import com.uber.cadence.testing.SimulatedTimeoutException;
+import com.uber.cadence.worker.WorkflowImplementationOptions;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.QueryMethod;
@@ -62,6 +65,9 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   private final Map<String, Functions.Func<SyncWorkflowDefinition>> workflowDefinitions =
       Collections.synchronizedMap(new HashMap<>());
 
+  private Map<String, WorkflowImplementationOptions> implementationOptions =
+      Collections.synchronizedMap(new HashMap<>());
+
   private final Map<Class<?>, Functions.Func<?>> workflowImplementationFactories =
       Collections.synchronizedMap(new HashMap<>());
 
@@ -79,19 +85,25 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     this.cache = cache;
   }
 
-  void setWorkflowImplementationTypes(Class<?>[] workflowImplementationTypes) {
+  void setWorkflowImplementationTypes(
+      WorkflowImplementationOptions options, Class<?>[] workflowImplementationTypes) {
     workflowDefinitions.clear();
     for (Class<?> type : workflowImplementationTypes) {
-      addWorkflowImplementationType(type);
+      addWorkflowImplementationType(options, type);
     }
   }
 
   <R> void addWorkflowImplementationFactory(Class<R> clazz, Functions.Func<R> factory) {
     workflowImplementationFactories.put(clazz, factory);
-    addWorkflowImplementationType(clazz);
+    WorkflowImplementationOptions unitTestingOptions =
+        new WorkflowImplementationOptions.Builder()
+            .setNonDeterministicWorkflowPolicy(FailWorkflow)
+            .build();
+    addWorkflowImplementationType(unitTestingOptions, clazz);
   }
 
-  private void addWorkflowImplementationType(Class<?> workflowImplementationClass) {
+  private void addWorkflowImplementationType(
+      WorkflowImplementationOptions options, Class<?> workflowImplementationClass) {
     TypeToken<?>.TypeSet interfaces =
         TypeToken.of(workflowImplementationClass).getTypes().interfaces();
     if (interfaces.isEmpty()) {
@@ -129,6 +141,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
                 workflowName + " workflow type is already registered with the worker");
           }
           workflowDefinitions.put(workflowName, factory);
+          implementationOptions.put(workflowName, options);
           hasWorkflowMethod = true;
         }
         if (signalMethod != null) {
@@ -183,7 +196,9 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   @Override
   public ReplayWorkflow getWorkflow(WorkflowType workflowType) {
     SyncWorkflowDefinition workflow = getWorkflowDefinition(workflowType);
-    return new SyncWorkflow(workflow, dataConverter, threadPool, interceptorFactory, cache);
+    WorkflowImplementationOptions options = implementationOptions.get(workflowType.getName());
+    return new SyncWorkflow(
+        workflow, options, dataConverter, threadPool, interceptorFactory, cache);
   }
 
   @Override
@@ -238,6 +253,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
                   + context.getWorkflowType(),
               targetException);
         }
+        // Cast to Exception is safe as Error is handled above.
         throw mapToWorkflowExecutionException((Exception) targetException, dataConverter);
       }
     }
@@ -331,6 +347,11 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
               dataConverter.toData(timeoutException.getDetails()));
     }
 
+    return new WorkflowExecutionException(
+        failure.getClass().getName(), dataConverter.toData(failure));
+  }
+
+  static WorkflowExecutionException mapError(Error failure, DataConverter dataConverter) {
     return new WorkflowExecutionException(
         failure.getClass().getName(), dataConverter.toData(failure));
   }

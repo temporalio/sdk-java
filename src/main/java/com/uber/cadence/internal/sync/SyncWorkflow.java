@@ -27,6 +27,7 @@ import com.uber.cadence.internal.replay.DeciderCache;
 import com.uber.cadence.internal.replay.DecisionContext;
 import com.uber.cadence.internal.replay.ReplayWorkflow;
 import com.uber.cadence.internal.worker.WorkflowExecutionException;
+import com.uber.cadence.worker.WorkflowImplementationOptions;
 import com.uber.cadence.workflow.WorkflowInterceptor;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
@@ -41,6 +42,7 @@ class SyncWorkflow implements ReplayWorkflow {
   private final DataConverter dataConverter;
   private final ExecutorService threadPool;
   private final SyncWorkflowDefinition workflow;
+  WorkflowImplementationOptions workflowImplementationOptions;
   private final Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory;
   private DeciderCache cache;
   private WorkflowRunnable workflowProc;
@@ -48,15 +50,25 @@ class SyncWorkflow implements ReplayWorkflow {
 
   public SyncWorkflow(
       SyncWorkflowDefinition workflow,
+      WorkflowImplementationOptions workflowImplementationOptions,
       DataConverter dataConverter,
       ExecutorService threadPool,
       Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
       DeciderCache cache) {
     this.workflow = Objects.requireNonNull(workflow);
+    this.workflowImplementationOptions =
+        workflowImplementationOptions == null
+            ? new WorkflowImplementationOptions.Builder().build()
+            : workflowImplementationOptions;
     this.dataConverter = Objects.requireNonNull(dataConverter);
     this.threadPool = Objects.requireNonNull(threadPool);
     this.interceptorFactory = Objects.requireNonNull(interceptorFactory);
     this.cache = cache;
+  }
+
+  @Override
+  public WorkflowImplementationOptions getWorkflowImplementationOptions() {
+    return workflowImplementationOptions;
   }
 
   @Override
@@ -136,5 +148,10 @@ class SyncWorkflow implements ReplayWorkflow {
   public WorkflowExecutionException mapUnexpectedException(Exception failure) {
     return POJOWorkflowImplementationFactory.mapToWorkflowExecutionException(
         failure, dataConverter);
+  }
+
+  @Override
+  public WorkflowExecutionException mapError(Error failure) {
+    return POJOWorkflowImplementationFactory.mapError(failure, dataConverter);
   }
 }

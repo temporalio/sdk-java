@@ -185,7 +185,31 @@ public final class Worker {
         !started.get(),
         "registerWorkflowImplementationTypes is not allowed after worker has started");
 
-    workflowWorker.setWorkflowImplementationTypes(workflowImplementationClasses);
+    workflowWorker.setWorkflowImplementationTypes(
+        new WorkflowImplementationOptions.Builder().build(), workflowImplementationClasses);
+  }
+
+  /**
+   * Register workflow implementation classes with a worker. Overwrites previously registered types.
+   * A workflow implementation class must implement at least one interface with a method annotated
+   * with {@link WorkflowMethod}. That method becomes a workflow type that this worker supports.
+   *
+   * <p>Implementations that share a worker must implement different interfaces as a workflow type
+   * is identified by the workflow interface, not by the implementation.
+   *
+   * <p>The reason for registration accepting workflow class, but not the workflow instance is that
+   * workflows are stateful and a new instance is created for each workflow execution.
+   */
+  public void registerWorkflowImplementationTypes(
+      WorkflowImplementationOptions options, Class<?>... workflowImplementationClasses) {
+    Preconditions.checkState(
+        workflowWorker != null,
+        "registerWorkflowImplementationTypes is not allowed when disableWorkflowWorker is set in worker options");
+    Preconditions.checkState(
+        !started.get(),
+        "registerWorkflowImplementationTypes is not allowed after worker has started");
+
+    workflowWorker.setWorkflowImplementationTypes(options, workflowImplementationClasses);
   }
 
   /**

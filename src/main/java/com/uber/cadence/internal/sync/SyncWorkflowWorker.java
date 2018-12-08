@@ -27,6 +27,7 @@ import com.uber.cadence.internal.worker.DecisionTaskHandler;
 import com.uber.cadence.internal.worker.SingleWorkerOptions;
 import com.uber.cadence.internal.worker.WorkflowWorker;
 import com.uber.cadence.serviceclient.IWorkflowService;
+import com.uber.cadence.worker.WorkflowImplementationOptions;
 import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.WorkflowInterceptor;
 import java.lang.reflect.Type;
@@ -74,8 +75,9 @@ public class SyncWorkflowWorker implements Consumer<PollForDecisionTaskResponse>
     worker = new WorkflowWorker(service, domain, taskList, this.options, taskHandler);
   }
 
-  public void setWorkflowImplementationTypes(Class<?>[] workflowImplementationTypes) {
-    factory.setWorkflowImplementationTypes(workflowImplementationTypes);
+  public void setWorkflowImplementationTypes(
+      WorkflowImplementationOptions options, Class<?>[] workflowImplementationTypes) {
+    factory.setWorkflowImplementationTypes(options, workflowImplementationTypes);
   }
 
   public <R> void addWorkflowImplementationFactory(Class<R> clazz, Func<R> factory) {

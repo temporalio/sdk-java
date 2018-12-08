@@ -17,6 +17,8 @@
 
 package com.uber.cadence.internal.replay;
 
+import static com.uber.cadence.worker.NonDeterministicWorkflowPolicy.FailWorkflow;
+
 import com.uber.cadence.Decision;
 import com.uber.cadence.EventType;
 import com.uber.cadence.GetWorkflowExecutionHistoryRequest;
@@ -246,7 +248,7 @@ class ReplayDecider implements Decider {
     try {
       completed = workflow.eventLoop();
     } catch (Error e) {
-      throw e; // errors fail decision, not a workflow
+      throw e;
     } catch (WorkflowExecutionException e) {
       failure = e;
       completed = true;
@@ -418,8 +420,17 @@ class ReplayDecider implements Decider {
         decisionsHelper.handleDecisionTaskStartedEvent(decision);
       }
     } catch (Error e) {
-      metricsScope.counter(MetricsType.DECISION_TASK_ERROR_COUNTER).inc(1);
-      throw e;
+      if (this.workflow.getWorkflowImplementationOptions().getNonDeterministicWorkflowPolicy()
+          == FailWorkflow) {
+        // fail workflow
+        failure = workflow.mapError(e);
+        completed = true;
+        completeWorkflow();
+      } else {
+        metricsScope.counter(MetricsType.DECISION_TASK_ERROR_COUNTER).inc(1);
+        // fail decision, not a workflow
+        throw e;
+      }
     } finally {
       if (query != null) {
         query.apply();

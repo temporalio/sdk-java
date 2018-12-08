@@ -109,7 +109,6 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     if (decisionTask.isSetQuery()) {
       return processQuery(decisionTask);
     } else {
-
       return processDecision(decisionTask);
     }
   }
