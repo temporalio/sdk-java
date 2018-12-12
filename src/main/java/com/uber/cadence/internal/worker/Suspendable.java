@@ -27,4 +27,6 @@ public interface Suspendable {
 
   /** Allow new poll requests. */
   void resumePolling();
+
+  boolean isSuspended();
 }

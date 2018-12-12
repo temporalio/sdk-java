@@ -18,12 +18,12 @@
 package com.uber.cadence.internal.worker;
 
 import com.uber.cadence.internal.common.BackoffThrottler;
+import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.m3.tally.Scope;
 import java.util.Objects;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +39,7 @@ public final class Poller<T> implements SuspendableWorker {
   }
 
   private final String identity;
-  private final Consumer<T> consumer;
+  private final ShutdownableTaskExecutor<T> taskExecutor;
   private final PollTask<T> pollTask;
   private final PollerOptions pollerOptions;
   private static final Logger log = LoggerFactory.getLogger(Poller.class);
@@ -57,18 +57,18 @@ public final class Poller<T> implements SuspendableWorker {
   public Poller(
       String identity,
       PollTask<T> pollTask,
-      Consumer<T> consumer,
+      ShutdownableTaskExecutor<T> taskExecutor,
       PollerOptions pollerOptions,
       Scope metricsScope) {
     Objects.requireNonNull(identity, "identity cannot be null");
     Objects.requireNonNull(pollTask, "poll service should not be null");
-    Objects.requireNonNull(consumer, "consumer should not be null");
+    Objects.requireNonNull(taskExecutor, "taskExecutor should not be null");
     Objects.requireNonNull(pollerOptions, "pollerOptions should not be null");
     Objects.requireNonNull(metricsScope, "metricsScope should not be null");
 
     this.identity = identity;
     this.pollTask = pollTask;
-    this.consumer = consumer;
+    this.taskExecutor = taskExecutor;
     this.pollerOptions = pollerOptions;
     this.metricsScope = metricsScope;
   }
@@ -111,8 +111,19 @@ public final class Poller<T> implements SuspendableWorker {
     }
   }
 
-  private boolean isStarted() {
+  @Override
+  public boolean isStarted() {
     return pollExecutor != null;
+  }
+
+  @Override
+  public boolean isShutdown() {
+    return pollExecutor.isShutdown();
+  }
+
+  @Override
+  public boolean isTerminated() {
+    return pollExecutor.isTerminated();
   }
 
   @Override
@@ -121,7 +132,14 @@ public final class Poller<T> implements SuspendableWorker {
     if (!isStarted()) {
       return;
     }
-    pollExecutor.shutdown();
+    // shutdownNow and then await to stop long polling and ensure that no new tasks
+    // are dispatched to the taskExecutor.
+    pollExecutor.shutdownNow();
+    try {
+      pollExecutor.awaitTermination(1, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+    }
+    taskExecutor.shutdown();
   }
 
   @Override
@@ -131,30 +149,17 @@ public final class Poller<T> implements SuspendableWorker {
       return;
     }
     pollExecutor.shutdownNow();
+    taskExecutor.shutdownNow();
   }
 
   @Override
-  public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-    if (pollExecutor == null) {
-      // not started yet.
-      return true;
-    }
-    return pollExecutor.awaitTermination(timeout, unit);
-  }
-
-  @Override
-  public boolean shutdownAndAwaitTermination(long timeout, TimeUnit unit)
-      throws InterruptedException {
+  public void awaitTermination(long timeout, TimeUnit unit) {
     if (!isStarted()) {
-      return true;
+      return;
     }
-    pollExecutor.shutdownNow();
-    return pollExecutor.awaitTermination(timeout, unit);
-  }
-
-  @Override
-  public boolean isRunning() {
-    return isStarted() && !pollExecutor.isTerminated();
+    long timeoutMillis = unit.toMillis(timeout);
+    timeoutMillis = InternalUtils.awaitTermination(pollExecutor, timeoutMillis);
+    InternalUtils.awaitTermination(taskExecutor, timeoutMillis);
   }
 
   @Override
@@ -170,6 +175,11 @@ public final class Poller<T> implements SuspendableWorker {
     if (existing != null) {
       existing.countDown();
     }
+  }
+
+  @Override
+  public boolean isSuspended() {
+    return suspendLatch.get() != null;
   }
 
   @Override
@@ -243,7 +253,7 @@ public final class Poller<T> implements SuspendableWorker {
         if (task == null) {
           return;
         }
-        consumer.accept(task);
+        taskExecutor.process(task);
       } finally {
         pollSemaphore.release();
       }

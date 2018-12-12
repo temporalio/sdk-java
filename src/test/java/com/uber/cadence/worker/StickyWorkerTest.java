@@ -17,6 +17,7 @@
 
 package com.uber.cadence.worker;
 
+import static com.uber.cadence.workflow.WorkflowTest.DOMAIN;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -57,6 +58,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 import org.junit.*;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
@@ -66,7 +68,6 @@ import org.slf4j.LoggerFactory;
 
 @RunWith(Parameterized.class)
 public class StickyWorkerTest {
-  public static final String DOMAIN = "UnitTest";
 
   private static final boolean skipDockerService =
       Boolean.parseBoolean(System.getenv("SKIP_DOCKER_SERVICE"));
@@ -520,7 +521,8 @@ public class StickyWorkerTest {
 
     private void close() {
       if (useExternalService) {
-        factory.shutdown(Duration.ofSeconds(1));
+        factory.shutdown();
+        factory.awaitTermination(1, TimeUnit.SECONDS);
       } else {
         testEnv.close();
       }

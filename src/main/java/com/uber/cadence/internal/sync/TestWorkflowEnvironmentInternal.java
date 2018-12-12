@@ -197,13 +197,44 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
 
   @Override
   public void close() {
-    workerFactory.shutdown(Duration.ofMillis(10));
+    workerFactory.shutdownNow();
+    workerFactory.awaitTermination(10, TimeUnit.SECONDS);
     service.close();
   }
 
   @Override
   public void start() {
     workerFactory.start();
+  }
+
+  @Override
+  public boolean isStarted() {
+    return workerFactory.isStarted();
+  }
+
+  @Override
+  public boolean isShutdown() {
+    return workerFactory.isShutdown();
+  }
+
+  @Override
+  public boolean isTerminated() {
+    return workerFactory.isTerminated();
+  }
+
+  @Override
+  public void shutdown() {
+    workerFactory.shutdown();
+  }
+
+  @Override
+  public void shutdownNow() {
+    workerFactory.shutdownNow();
+  }
+
+  @Override
+  public void awaitTermination(long timeout, TimeUnit unit) {
+    workerFactory.awaitTermination(timeout, unit);
   }
 
   @Override
@@ -638,6 +669,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
       impl.getDiagnostics(result);
     }
 
+    @Override
     public void close() {
       impl.close();
     }

@@ -25,6 +25,7 @@ import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.cadence.worker.Worker;
 import com.uber.cadence.worker.WorkerOptions;
 import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 /**
@@ -99,16 +100,14 @@ public interface TestWorkflowEnvironment {
   }
 
   /**
-   * Creates a new Worker instance that is connected to the in-memory test Cadence service. {@link
-   * #close()} calls {@link Worker#shutdown(Duration)} for all workers created through this method.
+   * Creates a new Worker instance that is connected to the in-memory test Cadence service.
    *
    * @param taskList task list to poll.
    */
   Worker newWorker(String taskList);
 
   /**
-   * Creates a new Worker instance that is connected to the in-memory test Cadence service. {@link
-   * #close()} calls {@link Worker#shutdown(Duration)} for all workers created through this method.
+   * Creates a new Worker instance that is connected to the in-memory test Cadence service.
    *
    * @param taskList task list to poll.
    * @param overrideOptions is used to override the default worker options.
@@ -170,15 +169,47 @@ public interface TestWorkflowEnvironment {
    */
   String getDiagnostics();
 
-  /**
-   * Performs the final validation of the service state and calls {@link Worker#shutdown(Duration)}
-   * on all workers created through {@link #newWorker(String)} and closes the in-memory Cadence
-   * service.
-   */
+  /** Calls {@link #shutdownNow()} and {@link#awaitTermination(long, TimeUnit)}. */
   void close();
 
-  /** Starts all the workers created by the test environment instance */
+  Worker.Factory getWorkerFactory();
+
+  /** Start all workers created by this factory. */
   void start();
 
-  Worker.Factory getWorkerFactory();
+  /** Was {@link #start()} called? */
+  boolean isStarted();
+
+  /** Was {@link #shutdownNow()} or {@link #shutdown()} called? */
+  boolean isShutdown();
+
+  /** Are all tasks done after {@link #shutdownNow()} or {@link #shutdown()}? */
+  boolean isTerminated();
+
+  /**
+   * Initiates an orderly shutdown in which polls are stopped and already received decision and
+   * activity tasks are executed. After the shutdown calls to {@link
+   * com.uber.cadence.activity.Activity#heartbeat(Object)} start throwing {@link
+   * com.uber.cadence.client.ActivityWorkerShutdownException}. Invocation has no additional effect
+   * if already shut down. This method does not wait for previously received tasks to complete
+   * execution. Use {@link #awaitTermination(long, TimeUnit)} to do that.
+   */
+  void shutdown();
+
+  /**
+   * Initiates an orderly shutdown in which polls are stopped and already received decision and
+   * activity tasks are attempted to be stopped. This implementation cancels tasks via
+   * Thread.interrupt(), so any task that fails to respond to interrupts may never terminate. Also
+   * after the shutdownNow calls to {@link com.uber.cadence.activity.Activity#heartbeat(Object)}
+   * start throwing {@link com.uber.cadence.client.ActivityWorkerShutdownException}. Invocation has
+   * no additional effect if already shut down. This method does not wait for previously received
+   * tasks to complete execution. Use {@link #awaitTermination(long, TimeUnit)} to do that.
+   */
+  void shutdownNow();
+
+  /**
+   * Blocks until all tasks have completed execution after a shutdown request, or the timeout
+   * occurs, or the current thread is interrupted, whichever happens first.
+   */
+  void awaitTermination(long timeout, TimeUnit unit);
 }

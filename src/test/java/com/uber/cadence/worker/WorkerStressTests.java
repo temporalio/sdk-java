@@ -17,6 +17,7 @@
 
 package com.uber.cadence.worker;
 
+import static com.uber.cadence.workflow.WorkflowTest.DOMAIN;
 import static org.junit.Assert.assertNotNull;
 
 import com.uber.cadence.activity.ActivityMethod;
@@ -35,6 +36,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -46,7 +48,6 @@ import org.slf4j.LoggerFactory;
 
 @RunWith(Parameterized.class)
 public class WorkerStressTests {
-  public static final String DOMAIN = "UnitTest";
 
   private static final boolean skipDockerService =
       Boolean.parseBoolean(System.getenv("SKIP_DOCKER_SERVICE"));
@@ -184,11 +185,14 @@ public class WorkerStressTests {
     }
 
     private WorkflowClient getWorkflowClient() {
-      return useExternalService ? WorkflowClient.newInstance(DOMAIN) : testEnv.newWorkflowClient();
+      return useExternalService
+          ? WorkflowClient.newInstance(factory.getWorkflowService(), DOMAIN)
+          : testEnv.newWorkflowClient();
     }
 
     private void close() {
-      factory.shutdown(Duration.ofSeconds(1));
+      factory.shutdown();
+      factory.awaitTermination(10, TimeUnit.SECONDS);
       testEnv.close();
     }
   }

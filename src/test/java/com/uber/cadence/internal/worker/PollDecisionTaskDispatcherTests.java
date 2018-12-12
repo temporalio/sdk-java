@@ -53,7 +53,7 @@ public class PollDecisionTaskDispatcherTests {
 
     // Act
     PollForDecisionTaskResponse response = CreatePollForDecisionTaskResponse("tasklist1");
-    dispatcher.accept(response);
+    dispatcher.process(response);
 
     // Assert
     assertTrue(handled.get());
@@ -76,7 +76,7 @@ public class PollDecisionTaskDispatcherTests {
 
     // Act
     PollForDecisionTaskResponse response = CreatePollForDecisionTaskResponse("tasklist1");
-    dispatcher.accept(response);
+    dispatcher.process(response);
 
     // Assert
     assertTrue(handled.get());
@@ -100,7 +100,7 @@ public class PollDecisionTaskDispatcherTests {
 
     // Act
     PollForDecisionTaskResponse response = CreatePollForDecisionTaskResponse("tasklist1");
-    dispatcher.accept(response);
+    dispatcher.process(response);
 
     // Assert
     assertTrue(handled2.get());
@@ -128,7 +128,7 @@ public class PollDecisionTaskDispatcherTests {
     // Act
     PollForDecisionTaskResponse response =
         CreatePollForDecisionTaskResponse("I Don't Exist TaskList");
-    dispatcher.accept(response);
+    dispatcher.process(response);
 
     // Assert
     verify(mockService, times(1)).RespondDecisionTaskFailed(any());

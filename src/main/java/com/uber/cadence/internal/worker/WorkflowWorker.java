@@ -20,6 +20,7 @@ package com.uber.cadence.internal.worker;
 import com.uber.cadence.*;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.common.WorkflowExecutionHistory;
+import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.common.Retryer;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.logging.LoggerTag;
@@ -43,7 +44,7 @@ public final class WorkflowWorker
 
   private static final String POLL_THREAD_NAME_PREFIX = "Workflow Poller taskList=";
 
-  private Poller poller;
+  private SuspendableWorker poller = new NoopSuspendableWorker();
   private final PollTaskExecutor<PollForDecisionTaskResponse> pollTaskExecutor;
   private final DecisionTaskHandler handler;
   private final IWorkflowService service;
@@ -99,6 +100,21 @@ public final class WorkflowWorker
       poller.start();
       options.getMetricsScope().counter(MetricsType.WORKER_START_COUNTER).inc(1);
     }
+  }
+
+  @Override
+  public boolean isStarted() {
+    return poller.isStarted();
+  }
+
+  @Override
+  public boolean isShutdown() {
+    return poller.isShutdown();
+  }
+
+  @Override
+  public boolean isTerminated() {
+    return pollTaskExecutor.isTerminated() && poller.isTerminated();
   }
 
   public byte[] queryWorkflowExecution(WorkflowExecution exec, String queryType, byte[] args)
@@ -167,60 +183,39 @@ public final class WorkflowWorker
 
   @Override
   public void shutdown() {
-    if (poller != null) {
-      poller.shutdown();
-    }
+    poller.shutdown();
   }
 
   @Override
   public void shutdownNow() {
-    if (poller != null) {
-      poller.shutdownNow();
-    }
+    poller.shutdownNow();
   }
 
   @Override
-  public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-    if (poller == null) {
-      return true;
-    }
-    return poller.awaitTermination(timeout, unit);
-  }
-
-  @Override
-  public boolean shutdownAndAwaitTermination(long timeout, TimeUnit unit)
-      throws InterruptedException {
-    if (poller == null) {
-      return true;
-    }
-    return poller.shutdownAndAwaitTermination(timeout, unit);
-  }
-
-  @Override
-  public boolean isRunning() {
-    if (poller == null) {
-      return false;
-    }
-    return poller.isRunning();
+  public void awaitTermination(long timeout, TimeUnit unit) {
+    long timeoutMillis = unit.toMillis(timeout);
+    timeoutMillis = InternalUtils.awaitTermination(poller, timeoutMillis);
+    InternalUtils.awaitTermination(pollTaskExecutor, timeoutMillis);
   }
 
   @Override
   public void suspendPolling() {
-    if (poller != null) {
-      poller.suspendPolling();
-    }
+    poller.suspendPolling();
   }
 
   @Override
   public void resumePolling() {
-    if (poller != null) {
-      poller.resumePolling();
-    }
+    poller.resumePolling();
+  }
+
+  @Override
+  public boolean isSuspended() {
+    return poller.isSuspended();
   }
 
   @Override
   public void accept(PollForDecisionTaskResponse pollForDecisionTaskResponse) {
-    pollTaskExecutor.accept(pollForDecisionTaskResponse);
+    pollTaskExecutor.process(pollForDecisionTaskResponse);
   }
 
   private class TaskHandlerImpl

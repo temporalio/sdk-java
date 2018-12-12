@@ -29,6 +29,8 @@ import com.uber.cadence.internal.testservice.TestWorkflowService;
 import com.uber.cadence.testUtils.TestServiceUtils;
 import java.time.Duration;
 import java.util.List;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 public class WorkflowStickynessTest {
@@ -39,12 +41,22 @@ public class WorkflowStickynessTest {
   private final String WORKFLOW_TYPE = "wfType";
   private final String CALLER = "WorkflowStickynessTest";
 
+  private TestWorkflowService service;
+
+  @Before
+  public void setUp() {
+    service = new TestWorkflowService();
+    service.lockTimeSkipping(CALLER);
+  }
+
+  @After
+  public void tearDown() {
+    service.close();
+  }
+
   @Test
   public void taskCompletionWithStickyExecutionAttributesWillScheduleDecisionsOnStickyTaskList()
       throws Exception {
-
-    TestWorkflowService service = new TestWorkflowService();
-    service.lockTimeSkipping(CALLER);
 
     TestServiceUtils.startWorkflowExecution(DOMAIN, TASK_LIST, WORKFLOW_TYPE, service);
     PollForDecisionTaskResponse response =
@@ -67,10 +79,6 @@ public class WorkflowStickynessTest {
 
   @Test
   public void taskFailureWillRescheduleTheTaskOnTheGlobalList() throws Exception {
-
-    TestWorkflowService service = new TestWorkflowService();
-    service.lockTimeSkipping(CALLER);
-
     TestServiceUtils.startWorkflowExecution(DOMAIN, TASK_LIST, WORKFLOW_TYPE, service);
     PollForDecisionTaskResponse response =
         TestServiceUtils.pollForDecisionTask(DOMAIN, createNormalTaskList(TASK_LIST), service);
@@ -93,9 +101,6 @@ public class WorkflowStickynessTest {
 
   @Test
   public void taskTimeoutWillRescheduleTheTaskOnTheGlobalList() throws Exception {
-
-    TestWorkflowService service = new TestWorkflowService();
-    service.lockTimeSkipping(CALLER);
     TestServiceUtils.startWorkflowExecution(DOMAIN, TASK_LIST, WORKFLOW_TYPE, 10, 2, service);
     PollForDecisionTaskResponse response =
         TestServiceUtils.pollForDecisionTask(DOMAIN, createNormalTaskList(TASK_LIST), service);

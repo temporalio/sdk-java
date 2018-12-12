@@ -17,6 +17,7 @@
 
 package com.uber.cadence.activity;
 
+import com.uber.cadence.client.ActivityCompletionException;
 import com.uber.cadence.internal.sync.ActivityInternal;
 import com.uber.cadence.internal.sync.WorkflowInternal;
 import com.uber.cadence.serviceclient.IWorkflowService;
@@ -24,7 +25,6 @@ import com.uber.cadence.workflow.ActivityException;
 import com.uber.cadence.workflow.ActivityTimeoutException;
 import java.lang.reflect.Type;
 import java.util.Optional;
-import java.util.concurrent.CancellationException;
 
 /**
  * An activity is the implementation of a particular task in the business logic.
@@ -232,11 +232,11 @@ public final class Activity {
    *
    * @param details In case of activity timeout can be accessed through {@link
    *     ActivityTimeoutException#getDetails(Class)} method.
-   * @throws CancellationException Indicates that activity cancellation was requested by the
-   *     workflow.Should be rethrown from activity implementation to indicate successful
-   *     cancellation.
+   * @throws ActivityCompletionException Indicates that activity execution is expected to be
+   *     interrupted. The reason for interruption is indicated by a type of subclass of the
+   *     exception.
    */
-  public static void heartbeat(Object details) throws CancellationException {
+  public static <V> void heartbeat(V details) throws ActivityCompletionException {
     ActivityInternal.recordActivityHeartbeat(details);
   }
 

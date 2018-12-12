@@ -25,6 +25,7 @@ import com.uber.cadence.internal.replay.DeciderCache;
 import com.uber.cadence.internal.replay.ReplayDecisionTaskHandler;
 import com.uber.cadence.internal.worker.DecisionTaskHandler;
 import com.uber.cadence.internal.worker.SingleWorkerOptions;
+import com.uber.cadence.internal.worker.SuspendableWorker;
 import com.uber.cadence.internal.worker.WorkflowWorker;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.cadence.worker.WorkflowImplementationOptions;
@@ -39,7 +40,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /** Workflow worker that supports POJO workflow implementations. */
-public class SyncWorkflowWorker implements Consumer<PollForDecisionTaskResponse> {
+public class SyncWorkflowWorker
+    implements SuspendableWorker, Consumer<PollForDecisionTaskResponse> {
 
   private final WorkflowWorker worker;
   private final POJOWorkflowImplementationFactory factory;
@@ -84,37 +86,54 @@ public class SyncWorkflowWorker implements Consumer<PollForDecisionTaskResponse>
     this.factory.addWorkflowImplementationFactory(clazz, factory);
   }
 
+  @Override
   public void start() {
     worker.start();
   }
 
+  @Override
+  public boolean isStarted() {
+    return worker.isStarted();
+  }
+
+  @Override
+  public boolean isShutdown() {
+    return worker.isShutdown();
+  }
+
+  @Override
+  public boolean isTerminated() {
+    return worker.isTerminated();
+  }
+
+  @Override
   public void shutdown() {
     worker.shutdown();
   }
 
+  @Override
   public void shutdownNow() {
     worker.shutdownNow();
   }
 
-  public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-    return worker.awaitTermination(timeout, unit);
+  @Override
+  public void awaitTermination(long timeout, TimeUnit unit) {
+    worker.awaitTermination(timeout, unit);
   }
 
-  public boolean shutdownAndAwaitTermination(long timeout, TimeUnit unit)
-      throws InterruptedException {
-    return worker.shutdownAndAwaitTermination(timeout, unit);
-  }
-
-  public boolean isRunning() {
-    return worker.isRunning();
-  }
-
+  @Override
   public void suspendPolling() {
     worker.suspendPolling();
   }
 
+  @Override
   public void resumePolling() {
     worker.resumePolling();
+  }
+
+  @Override
+  public boolean isSuspended() {
+    return worker.isSuspended();
   }
 
   public <R> R queryWorkflowExecution(

@@ -17,4 +17,4 @@
 
 package com.uber.cadence.internal.worker;
 
-public interface SuspendableWorker extends Suspendable, WorkerLifecycle {}
+public interface SuspendableWorker extends Lifecycle, Suspendable {}

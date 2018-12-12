@@ -45,7 +45,7 @@ public final class ActivityWorker implements SuspendableWorker {
 
   private static final String POLL_THREAD_NAME_PREFIX = "Poller taskList=";
 
-  private Poller poller;
+  private SuspendableWorker poller = new NoopSuspendableWorker();
   private final ActivityTaskHandler handler;
   private final IWorkflowService service;
   private final String domain;
@@ -97,56 +97,48 @@ public final class ActivityWorker implements SuspendableWorker {
   }
 
   @Override
+  public boolean isStarted() {
+    return poller.isStarted();
+  }
+
+  @Override
+  public boolean isShutdown() {
+    return poller.isShutdown();
+  }
+
+  @Override
+  public boolean isTerminated() {
+    return poller.isTerminated();
+  }
+
+  @Override
   public void shutdown() {
-    if (poller != null) {
-      poller.shutdown();
-    }
+    poller.shutdown();
   }
 
   @Override
   public void shutdownNow() {
-    if (poller != null) {
-      poller.shutdownNow();
-    }
+    poller.shutdownNow();
   }
 
   @Override
-  public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-    if (poller == null) {
-      return true;
-    }
-    return poller.awaitTermination(timeout, unit);
-  }
-
-  @Override
-  public boolean shutdownAndAwaitTermination(long timeout, TimeUnit unit)
-      throws InterruptedException {
-    if (poller == null) {
-      return true;
-    }
-    return poller.shutdownAndAwaitTermination(timeout, unit);
-  }
-
-  @Override
-  public boolean isRunning() {
-    if (poller == null) {
-      return false;
-    }
-    return poller.isRunning();
+  public void awaitTermination(long timeout, TimeUnit unit) {
+    poller.awaitTermination(timeout, unit);
   }
 
   @Override
   public void suspendPolling() {
-    if (poller != null) {
-      poller.suspendPolling();
-    }
+    poller.suspendPolling();
   }
 
   @Override
   public void resumePolling() {
-    if (poller != null) {
-      poller.resumePolling();
-    }
+    poller.resumePolling();
+  }
+
+  @Override
+  public boolean isSuspended() {
+    return poller.isSuspended();
   }
 
   static class MeasurableActivityTask {

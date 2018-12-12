@@ -30,7 +30,7 @@ public final class ActivityInternal {
     return CurrentActivityExecutionContext.get();
   }
 
-  public static void recordActivityHeartbeat(Object details) {
+  public static <V> void recordActivityHeartbeat(V details) {
     getContext().recordActivityHeartbeat(details);
   }
 

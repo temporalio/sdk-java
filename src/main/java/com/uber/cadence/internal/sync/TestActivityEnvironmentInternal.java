@@ -791,5 +791,10 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         throws BadRequestError, InternalServiceError, ServiceBusyError, TException {
       return impl.PollForActivityTask(pollRequest);
     }
+
+    @Override
+    public void close() {
+      impl.close();
+    }
   }
 }

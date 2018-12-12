@@ -120,6 +120,7 @@ public final class TestWorkflowService implements IWorkflowService {
 
   private final ForkJoinPool forkJoinPool = new ForkJoinPool(4);
 
+  @Override
   public void close() {
     store.close();
   }

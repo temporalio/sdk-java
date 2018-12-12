@@ -18,14 +18,14 @@
 package com.uber.cadence.internal.worker;
 
 import com.google.common.base.Preconditions;
+import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.logging.LoggerTag;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 import org.slf4j.MDC;
 
-final class PollTaskExecutor<T> implements Consumer<T> {
+final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
 
   public interface TaskHandler<TT> {
     void handle(TT task) throws Exception;
@@ -62,7 +62,7 @@ final class PollTaskExecutor<T> implements Consumer<T> {
   }
 
   @Override
-  public void accept(T task) {
+  public void process(T task) {
     taskExecutor.execute(
         () -> {
           MDC.put(LoggerTag.DOMAIN, domain);
@@ -79,5 +79,30 @@ final class PollTaskExecutor<T> implements Consumer<T> {
             MDC.remove(LoggerTag.TASK_LIST);
           }
         });
+  }
+
+  @Override
+  public boolean isShutdown() {
+    return taskExecutor.isShutdown();
+  }
+
+  @Override
+  public boolean isTerminated() {
+    return taskExecutor.isTerminated();
+  }
+
+  @Override
+  public void shutdown() {
+    taskExecutor.shutdown();
+  }
+
+  @Override
+  public void shutdownNow() {
+    taskExecutor.shutdownNow();
+  }
+
+  @Override
+  public void awaitTermination(long timeout, TimeUnit unit) {
+    InternalUtils.awaitTermination(taskExecutor, unit.toMillis(timeout));
   }
 }

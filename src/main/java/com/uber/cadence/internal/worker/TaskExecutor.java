@@ -15,6 +15,8 @@
  *  permissions and limitations under the License.
  */
 
-package com.uber.cadence.workflow;
+package com.uber.cadence.internal.worker;
 
-public class ExecutorShutdownTest {}
+interface TaskExecutor<T> {
+  void process(T task);
+}

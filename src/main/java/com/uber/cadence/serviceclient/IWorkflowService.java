@@ -20,4 +20,6 @@ package com.uber.cadence.serviceclient;
 import com.uber.cadence.WorkflowService.AsyncIface;
 import com.uber.cadence.WorkflowService.Iface;
 
-public interface IWorkflowService extends Iface, AsyncIface {}
+public interface IWorkflowService extends Iface, AsyncIface {
+  void close();
+}

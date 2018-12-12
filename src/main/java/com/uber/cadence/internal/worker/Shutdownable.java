@@ -17,6 +17,17 @@
 
 package com.uber.cadence.internal.worker;
 
-public interface DispatcherFactory<TTopic, TMessage> {
-  Dispatcher<TTopic, TMessage> create();
+import java.util.concurrent.TimeUnit;
+
+public interface Shutdownable {
+
+  boolean isShutdown();
+
+  boolean isTerminated();
+
+  void shutdown();
+
+  void shutdownNow();
+
+  void awaitTermination(long timeout, TimeUnit unit);
 }

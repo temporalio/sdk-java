@@ -17,7 +17,9 @@
 
 package com.uber.cadence.internal.sync;
 
+import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.worker.ActivityWorker;
+import com.uber.cadence.internal.worker.Lifecycle;
 import com.uber.cadence.internal.worker.SingleWorkerOptions;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import java.util.concurrent.Executors;
@@ -25,7 +27,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /** Activity worker that supports POJO activity implementations. */
-public class SyncActivityWorker {
+public class SyncActivityWorker implements Lifecycle {
 
   private final ActivityWorker worker;
   private final POJOActivityTaskHandler taskHandler;
@@ -41,34 +43,43 @@ public class SyncActivityWorker {
     taskHandler.setActivitiesImplementation(activitiesImplementation);
   }
 
+  @Override
   public void start() {
     worker.start();
   }
 
+  @Override
+  public boolean isStarted() {
+    return worker.isStarted();
+  }
+
+  @Override
+  public boolean isShutdown() {
+    return worker.isShutdown();
+  }
+
+  @Override
+  public boolean isTerminated() {
+    return worker.isTerminated() && heartbeatExecutor.isTerminated();
+  }
+
+  @Override
   public void shutdown() {
     worker.shutdown();
     heartbeatExecutor.shutdown();
   }
 
+  @Override
   public void shutdownNow() {
     worker.shutdownNow();
     heartbeatExecutor.shutdownNow();
   }
 
-  public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-    return worker.awaitTermination(timeout, unit)
-        && heartbeatExecutor.awaitTermination(timeout, unit);
-  }
-
-  public boolean shutdownAndAwaitTermination(long timeout, TimeUnit unit)
-      throws InterruptedException {
-    heartbeatExecutor.shutdownNow();
-    return worker.shutdownAndAwaitTermination(timeout, unit)
-        && heartbeatExecutor.awaitTermination(timeout, unit);
-  }
-
-  public boolean isRunning() {
-    return worker.isRunning();
+  @Override
+  public void awaitTermination(long timeout, TimeUnit unit) {
+    long timeoutMillis = unit.toMillis(timeout);
+    timeoutMillis = InternalUtils.awaitTermination(worker, timeoutMillis);
+    InternalUtils.awaitTermination(heartbeatExecutor, timeoutMillis);
   }
 
   public void suspendPolling() {

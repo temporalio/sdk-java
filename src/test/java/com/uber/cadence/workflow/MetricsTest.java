@@ -216,6 +216,7 @@ public class MetricsTest {
     assertTrue(
         sleepDuration.toString(),
         sleepDuration.compareTo(com.uber.m3.util.Duration.ofMillis(3100)) < 0);
+    testEnvironment.close();
   }
 
   @Test
@@ -252,6 +253,7 @@ public class MetricsTest {
             .put(MetricsTag.TASK_LIST, taskList)
             .build();
     verify(reporter, times(1)).reportCounter(MetricsType.CORRUPTED_SIGNALS_COUNTER, tags, 1);
+    testEnvironment.close();
   }
 
   private static class CorruptedSignalWorkflowInterceptorFactory

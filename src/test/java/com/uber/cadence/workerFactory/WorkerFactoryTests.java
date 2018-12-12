@@ -17,10 +17,11 @@
 
 package com.uber.cadence.workerFactory;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.uber.cadence.worker.Worker;
-import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -42,9 +43,9 @@ public class WorkerFactoryTests {
     Worker worker2 = factory.newWorker("task2");
 
     factory.start();
-    assertTrue(worker1.isStarted());
-    assertTrue(worker2.isStarted());
-    factory.shutdown(Duration.ofSeconds(1));
+    assertTrue(factory.isStarted());
+    factory.shutdown();
+    factory.awaitTermination(1, TimeUnit.SECONDS);
   }
 
   @Test
@@ -53,12 +54,17 @@ public class WorkerFactoryTests {
     Worker worker1 = factory.newWorker("task1");
     Worker worker2 = factory.newWorker("task2");
 
+    assertFalse(factory.isStarted());
     factory.start();
-    factory.shutdown(Duration.ofMillis(1));
+    assertTrue(factory.isStarted());
+    assertFalse(factory.isShutdown());
+    factory.shutdown();
+    factory.awaitTermination(1, TimeUnit.MILLISECONDS);
 
-    assertTrue(worker1.isClosed());
-    assertTrue(worker2.isClosed());
-    factory.shutdown(Duration.ofSeconds(1));
+    assertTrue(factory.isShutdown());
+    factory.shutdown();
+    assertTrue(factory.isShutdown());
+    factory.awaitTermination(1, TimeUnit.SECONDS);
   }
 
   @Test
@@ -67,7 +73,8 @@ public class WorkerFactoryTests {
 
     factory.start();
     factory.start();
-    factory.shutdown(Duration.ofSeconds(1));
+    factory.shutdown();
+    factory.awaitTermination(1, TimeUnit.SECONDS);
   }
 
   @Test(expected = IllegalStateException.class)
@@ -75,7 +82,8 @@ public class WorkerFactoryTests {
     Worker.Factory factory = new Worker.Factory("domain");
     Worker worker1 = factory.newWorker("task1");
 
-    factory.shutdown(Duration.ofMillis(1));
+    factory.shutdown();
+    factory.awaitTermination(1, TimeUnit.MILLISECONDS);
     factory.start();
   }
 
@@ -89,7 +97,8 @@ public class WorkerFactoryTests {
     try {
       Worker worker2 = factory.newWorker("task2");
     } finally {
-      factory.shutdown(Duration.ofSeconds(1));
+      factory.shutdown();
+      factory.awaitTermination(1, TimeUnit.SECONDS);
     }
   }
 
@@ -98,11 +107,13 @@ public class WorkerFactoryTests {
     Worker.Factory factory = new Worker.Factory("domain");
     Worker worker1 = factory.newWorker("task1");
 
-    factory.shutdown(Duration.ofMillis(1));
+    factory.shutdown();
+    factory.awaitTermination(1, TimeUnit.MILLISECONDS);
     try {
       Worker worker2 = factory.newWorker("task2");
     } finally {
-      factory.shutdown(Duration.ofSeconds(1));
+      factory.shutdown();
+      factory.awaitTermination(1, TimeUnit.SECONDS);
     }
   }
 
@@ -111,7 +122,9 @@ public class WorkerFactoryTests {
     Worker.Factory factory = new Worker.Factory("domain");
     Worker worker1 = factory.newWorker("task1");
 
-    factory.shutdown(Duration.ofMillis(1));
-    factory.shutdown(Duration.ofMillis(1));
+    factory.shutdown();
+    factory.awaitTermination(1, TimeUnit.MILLISECONDS);
+    factory.shutdown();
+    factory.awaitTermination(1, TimeUnit.MILLISECONDS);
   }
 }

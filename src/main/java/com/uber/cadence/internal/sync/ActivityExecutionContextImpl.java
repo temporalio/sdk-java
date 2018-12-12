@@ -27,6 +27,7 @@ import com.uber.cadence.client.ActivityCancelledException;
 import com.uber.cadence.client.ActivityCompletionException;
 import com.uber.cadence.client.ActivityCompletionFailureException;
 import com.uber.cadence.client.ActivityNotExistsException;
+import com.uber.cadence.client.ActivityWorkerShutdownException;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import java.lang.reflect.Type;
@@ -85,6 +86,9 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   /** @see ActivityExecutionContext#recordActivityHeartbeat(Object) */
   @Override
   public <V> void recordActivityHeartbeat(V details) throws ActivityCompletionException {
+    if (heartbeatExecutor.isShutdown()) {
+      throw new ActivityWorkerShutdownException(task);
+    }
     lock.lock();
     try {
       // always set lastDetail. Successful heartbeat will clear it.

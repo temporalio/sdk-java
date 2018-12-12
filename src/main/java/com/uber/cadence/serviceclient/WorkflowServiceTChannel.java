@@ -473,6 +473,7 @@ public class WorkflowServiceTChannel implements IWorkflowService {
     }
   }
 
+  @Override
   public void close() {
     if (tChannel != null) {
       tChannel.shutdown();
