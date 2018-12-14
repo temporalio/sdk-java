@@ -57,8 +57,11 @@ import com.uber.cadence.worker.WorkerOptions;
 import com.uber.cadence.worker.WorkflowImplementationOptions;
 import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.Functions.Func1;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -3849,6 +3852,103 @@ public class WorkflowTest {
     result.sort(UUID::compareTo);
     expectedResult.sort(UUID::compareTo);
     assertEquals(expectedResult, result);
+  }
+
+  public static class NonSerializableException extends RuntimeException {
+    private final InputStream file; // gson chokes on this field
+
+    public NonSerializableException() {
+      try {
+        file = new FileInputStream(File.createTempFile("foo", "bar"));
+      } catch (IOException e) {
+        throw Activity.wrap(e);
+      }
+    }
+  }
+
+  public interface NonSerializableExceptionActivity {
+
+    @ActivityMethod(scheduleToCloseTimeoutSeconds = 5)
+    void execute();
+  }
+
+  public static class NonSerializableExceptionActivityImpl
+      implements NonSerializableExceptionActivity {
+
+    @Override
+    public void execute() {
+      throw new NonSerializableException();
+    }
+  }
+
+  public static class TestNonSerializableExceptionInActivityWorkflow implements TestWorkflow1 {
+
+    @Override
+    public String execute(String taskList) {
+      NonSerializableExceptionActivity activity =
+          Workflow.newActivityStub(NonSerializableExceptionActivity.class);
+      try {
+        activity.execute();
+      } catch (ActivityFailureException e) {
+        return e.getMessage();
+      }
+      return "done";
+    }
+  }
+
+  @Test
+  public void testNonSerializableExceptionInActivity() {
+    worker.registerActivitiesImplementations(new NonSerializableExceptionActivityImpl());
+    startWorkerFor(TestNonSerializableExceptionInActivityWorkflow.class);
+    TestWorkflow1 workflowStub =
+        workflowClient.newWorkflowStub(
+            TestWorkflow1.class, newWorkflowOptionsBuilder(taskList).build());
+
+    String result = workflowStub.execute(taskList);
+    assertTrue(result.contains("NonSerializableException"));
+  }
+
+  public interface NonSerializableExceptionChildWorkflow {
+
+    @WorkflowMethod
+    String execute(String taskList);
+  }
+
+  public static class NonSerializableExceptionChildWorkflowImpl
+      implements NonSerializableExceptionChildWorkflow {
+
+    @Override
+    public String execute(String taskList) {
+      throw new NonSerializableException();
+    }
+  }
+
+  public static class TestNonSerializableExceptionInChildWorkflow implements TestWorkflow1 {
+
+    @Override
+    public String execute(String taskList) {
+      NonSerializableExceptionChildWorkflow child =
+          Workflow.newChildWorkflowStub(NonSerializableExceptionChildWorkflow.class);
+      try {
+        child.execute(taskList);
+      } catch (ChildWorkflowFailureException e) {
+        return e.getMessage();
+      }
+      return "done";
+    }
+  }
+
+  @Test
+  public void testNonSerializableExceptionInChildWorkflow() {
+    startWorkerFor(
+        TestNonSerializableExceptionInChildWorkflow.class,
+        NonSerializableExceptionChildWorkflowImpl.class);
+    TestWorkflow1 workflowStub =
+        workflowClient.newWorkflowStub(
+            TestWorkflow1.class, newWorkflowOptionsBuilder(taskList).build());
+
+    String result = workflowStub.execute(taskList);
+    assertTrue(result.contains("NonSerializableException"));
   }
 
   public interface TestLargeWorkflow {

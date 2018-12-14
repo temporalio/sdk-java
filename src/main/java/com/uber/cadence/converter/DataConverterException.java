@@ -32,8 +32,12 @@ public class DataConverterException extends RuntimeException {
     super(toMessage(null, content, valueTypes), cause);
   }
 
-  public DataConverterException(Exception cause) {
+  public DataConverterException(Throwable cause) {
     super(cause);
+  }
+
+  public DataConverterException(String message, Throwable cause) {
+    super(message, cause);
   }
 
   public DataConverterException(String message, byte[] content, Type[] valueTypes) {

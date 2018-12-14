@@ -120,12 +120,27 @@ public final class JsonDataConverter implements DataConverter {
         if (value instanceof TBase) {
           return newThriftSerializer().toString((TBase) value).getBytes(StandardCharsets.UTF_8);
         }
-        String json = gson.toJson(value);
-        return json.getBytes(StandardCharsets.UTF_8);
+        try {
+          String json = gson.toJson(value);
+          return json.getBytes(StandardCharsets.UTF_8);
+        } catch (Throwable e) {
+          if (value instanceof Throwable) {
+            // Keep original exception stack trace, but replace it with a DataConverterException
+            // which is guaranteed to be serializable.
+            DataConverterException ee =
+                new DataConverterException("Failure serializing exception: " + value.toString(), e);
+            ee.setStackTrace(((Throwable) value).getStackTrace());
+            String json = gson.toJson(ee);
+            return json.getBytes(StandardCharsets.UTF_8);
+          }
+          throw e;
+        }
       }
       String json = gson.toJson(values);
       return json.getBytes(StandardCharsets.UTF_8);
-    } catch (Exception e) {
+    } catch (DataConverterException e) {
+      throw e;
+    } catch (Throwable e) {
       throw new DataConverterException(e);
     }
   }
