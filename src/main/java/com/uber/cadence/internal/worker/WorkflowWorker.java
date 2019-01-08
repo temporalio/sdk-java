@@ -193,6 +193,9 @@ public final class WorkflowWorker
 
   @Override
   public void awaitTermination(long timeout, TimeUnit unit) {
+    if (!poller.isStarted()) {
+      return;
+    }
     long timeoutMillis = unit.toMillis(timeout);
     timeoutMillis = InternalUtils.awaitTermination(poller, timeoutMillis);
     InternalUtils.awaitTermination(pollTaskExecutor, timeoutMillis);

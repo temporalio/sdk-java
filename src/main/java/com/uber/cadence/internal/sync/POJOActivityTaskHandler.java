@@ -60,6 +60,9 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
   }
 
   public void addActivityImplementation(Object activity) {
+    if (activity instanceof Class) {
+      throw new IllegalArgumentException("Activity object instance expected, not the class");
+    }
     Class<?> cls = activity.getClass();
     for (Method method : cls.getMethods()) {
       if (method.getAnnotation(ActivityMethod.class) != null) {
