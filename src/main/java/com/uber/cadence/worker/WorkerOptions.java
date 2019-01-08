@@ -38,7 +38,7 @@ public final class WorkerOptions {
     private String identity;
     private DataConverter dataConverter = JsonDataConverter.getInstance();
     private int maxConcurrentActivityExecutionSize = 100;
-    private int maxConcurrentWorklfowExecutionSize = 50;
+    private int maxConcurrentWorkflowExecutionSize = 50;
     private PollerOptions activityPollerOptions;
     private PollerOptions workflowPollerOptions;
     private RetryOptions reportActivityCompletionRetryOptions;
@@ -111,12 +111,12 @@ public final class WorkerOptions {
     }
 
     /** Maximum number of parallely executed decision tasks. */
-    public Builder setMaxConcurrentWorklfowExecutionSize(int maxConcurrentWorklfowExecutionSize) {
-      if (maxConcurrentWorklfowExecutionSize <= 0) {
+    public Builder setMaxConcurrentWorkflowExecutionSize(int maxConcurrentWorkflowExecutionSize) {
+      if (maxConcurrentWorkflowExecutionSize <= 0) {
         throw new IllegalArgumentException(
-            "Negative or zero: " + maxConcurrentWorklfowExecutionSize);
+            "Negative or zero: " + maxConcurrentWorkflowExecutionSize);
       }
-      this.maxConcurrentWorklfowExecutionSize = maxConcurrentWorklfowExecutionSize;
+      this.maxConcurrentWorkflowExecutionSize = maxConcurrentWorkflowExecutionSize;
       return this;
     }
 
@@ -190,7 +190,7 @@ public final class WorkerOptions {
           identity,
           dataConverter,
           maxConcurrentActivityExecutionSize,
-          maxConcurrentWorklfowExecutionSize,
+          maxConcurrentWorkflowExecutionSize,
           activityPollerOptions,
           workflowPollerOptions,
           reportActivityCompletionRetryOptions,
@@ -209,7 +209,7 @@ public final class WorkerOptions {
   private final String identity;
   private final DataConverter dataConverter;
   private final int maxConcurrentActivityExecutionSize;
-  private final int maxConcurrentWorklfowExecutionSize;
+  private final int maxConcurrentWorkflowExecutionSize;
   private final PollerOptions activityPollerOptions;
   private final PollerOptions workflowPollerOptions;
   private final RetryOptions reportActivityCompletionRetryOptions;
@@ -227,7 +227,7 @@ public final class WorkerOptions {
       String identity,
       DataConverter dataConverter,
       int maxConcurrentActivityExecutionSize,
-      int maxConcurrentWorklfowExecutionSize,
+      int maxConcurrentWorkflowExecutionSize,
       PollerOptions activityPollerOptions,
       PollerOptions workflowPollerOptions,
       RetryOptions reportActivityCompletionRetryOptions,
@@ -243,7 +243,7 @@ public final class WorkerOptions {
     this.identity = identity;
     this.dataConverter = dataConverter;
     this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
-    this.maxConcurrentWorklfowExecutionSize = maxConcurrentWorklfowExecutionSize;
+    this.maxConcurrentWorkflowExecutionSize = maxConcurrentWorkflowExecutionSize;
     this.activityPollerOptions = activityPollerOptions;
     this.workflowPollerOptions = workflowPollerOptions;
     this.reportActivityCompletionRetryOptions = reportActivityCompletionRetryOptions;
@@ -279,8 +279,8 @@ public final class WorkerOptions {
     return maxConcurrentActivityExecutionSize;
   }
 
-  public int getMaxConcurrentWorklfowExecutionSize() {
-    return maxConcurrentWorklfowExecutionSize;
+  public int getMaxConcurrentWorkflowExecutionSize() {
+    return maxConcurrentWorkflowExecutionSize;
   }
 
   public PollerOptions getActivityPollerOptions() {

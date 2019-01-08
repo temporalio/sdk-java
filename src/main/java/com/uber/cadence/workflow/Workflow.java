@@ -739,7 +739,7 @@ public final class Workflow {
    * failure. The decision task after timeout is rescheduled and re-executed giving SideEffect
    * another chance to succeed.
    *
-   * <p>Caution: do not use sideEffect function to modify any worklfow sate. Only use the
+   * <p>Caution: do not use sideEffect function to modify any workflow sate. Only use the
    * SideEffect's return value. For example this code is BROKEN:
    *
    * <pre><code>
@@ -793,7 +793,7 @@ public final class Workflow {
    * failure. The decision task after timeout is rescheduled and re-executed giving SideEffect
    * another chance to succeed.
    *
-   * <p>Caution: do not use sideEffect function to modify any worklfow sate. Only use the
+   * <p>Caution: do not use sideEffect function to modify any workflow sate. Only use the
    * SideEffect's return value. For example this code is BROKEN:
    *
    * <pre><code>

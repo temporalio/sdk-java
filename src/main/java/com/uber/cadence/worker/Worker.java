@@ -160,7 +160,7 @@ public final class Worker {
         .setPollerOptions(options.getWorkflowPollerOptions())
         .setReportCompletionRetryOptions(options.getReportWorkflowCompletionRetryOptions())
         .setReportFailureRetryOptions(options.getReportWorkflowFailureRetryOptions())
-        .setTaskExecutorThreadPoolSize(options.getMaxConcurrentWorklfowExecutionSize())
+        .setTaskExecutorThreadPoolSize(options.getMaxConcurrentWorkflowExecutionSize())
         .setMetricsScope(options.getMetricsScope().tagged(tags))
         .setEnableLoggingInReplay(options.getEnableLoggingInReplay())
         .build();

@@ -253,7 +253,7 @@ class WorkflowThreadImpl implements WorkflowThread {
     } catch (RejectedExecutionException e) {
       throw new Error(
           "Not enough threads to execute workflows. "
-              + "If this message appears consistently either WorkerOptions.maxConcurrentWorklfowExecutionSize "
+              + "If this message appears consistently either WorkerOptions.maxConcurrentWorkflowExecutionSize "
               + "should be decreased or WorkerOptions.maxWorkflowThreads increased.");
     }
   }

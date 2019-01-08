@@ -81,10 +81,10 @@ interface TestWorkflowMutableState {
   void childWorkflowStarted(ChildWorkflowExecutionStartedEventAttributes a)
       throws InternalServiceError, EntityNotExistsError, BadRequestError;
 
-  void childWorklfowFailed(String workflowId, ChildWorkflowExecutionFailedEventAttributes a)
+  void childWorkflowFailed(String workflowId, ChildWorkflowExecutionFailedEventAttributes a)
       throws InternalServiceError, EntityNotExistsError, BadRequestError;
 
-  void childWorklfowTimedOut(String activityId, ChildWorkflowExecutionTimedOutEventAttributes a)
+  void childWorkflowTimedOut(String activityId, ChildWorkflowExecutionTimedOutEventAttributes a)
       throws InternalServiceError, EntityNotExistsError, BadRequestError;
 
   void failStartChildWorkflow(String workflowId, StartChildWorkflowExecutionFailedEventAttributes a)

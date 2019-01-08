@@ -608,7 +608,7 @@ public class WorkflowTestingTest {
     String workflow(String input, String parentId);
   }
 
-  public static class ChildWorklfowImpl implements ChildWorkflow {
+  public static class ChildWorkflowImpl implements ChildWorkflow {
 
     @Override
     public String workflow(String input, String parentId) {
@@ -622,7 +622,7 @@ public class WorkflowTestingTest {
   @Test
   public void testChild() {
     Worker worker = testEnvironment.newWorker(TASK_LIST);
-    worker.registerWorkflowImplementationTypes(ChildWorklfowImpl.class, ParentWorkflowImpl.class);
+    worker.registerWorkflowImplementationTypes(ChildWorkflowImpl.class, ParentWorkflowImpl.class);
     testEnvironment.start();
     WorkflowClient client = testEnvironment.newWorkflowClient();
     WorkflowOptions options = new WorkflowOptions.Builder().setWorkflowId("parent1").build();
@@ -645,7 +645,7 @@ public class WorkflowTestingTest {
     public void signal(String value) {}
   }
 
-  public static class SimulatedTimeoutChildWorklfow implements ChildWorkflow {
+  public static class SimulatedTimeoutChildWorkflow implements ChildWorkflow {
 
     @Override
     public String workflow(String input, String parentId) {
@@ -658,7 +658,7 @@ public class WorkflowTestingTest {
   public void testChildSimulatedTimeout() throws Throwable {
     Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(
-        SimulatedTimeoutParentWorkflow.class, SimulatedTimeoutChildWorklfow.class);
+        SimulatedTimeoutParentWorkflow.class, SimulatedTimeoutChildWorkflow.class);
     testEnvironment.start();
     WorkflowClient client = testEnvironment.newWorkflowClient();
     WorkflowOptions options = new WorkflowOptions.Builder().setWorkflowId("parent1").build();
