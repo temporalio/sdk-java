@@ -17,6 +17,8 @@
 
 package com.uber.cadence.internal.sync;
 
+import static com.uber.cadence.internal.common.InternalUtils.getValueOrDefault;
+
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.workflow.ExternalWorkflowStub;
@@ -62,7 +64,7 @@ class ExternalWorkflowInvocationHandler implements InvocationHandler {
               + "created through Workflow.newExternalWorkflowStub");
     }
     if (queryMethod != null) {
-      return queryWorkflow(method, queryMethod, args);
+      return getValueOrDefault(queryWorkflow(method, queryMethod, args), method.getReturnType());
     }
     if (signalMethod != null) {
       signalWorkflow(method, signalMethod, args);

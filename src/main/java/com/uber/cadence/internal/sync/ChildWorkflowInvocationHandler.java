@@ -17,6 +17,7 @@
 
 package com.uber.cadence.internal.sync;
 
+import static com.uber.cadence.internal.common.InternalUtils.getValueOrDefault;
 import static com.uber.cadence.internal.common.InternalUtils.getWorkflowMethod;
 import static com.uber.cadence.internal.common.InternalUtils.getWorkflowType;
 
@@ -70,7 +71,9 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
               + "from @WorkflowMethod, @QueryMethod or @SignalMethod");
     }
     if (workflowMethod != null) {
-      return stub.execute(method.getReturnType(), method.getGenericReturnType(), args);
+      return getValueOrDefault(
+          stub.execute(method.getReturnType(), method.getGenericReturnType(), args),
+          method.getReturnType());
     }
     if (queryMethod != null) {
       throw new UnsupportedOperationException(

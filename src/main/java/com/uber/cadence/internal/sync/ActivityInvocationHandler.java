@@ -17,6 +17,8 @@
 
 package com.uber.cadence.internal.sync;
 
+import static com.uber.cadence.internal.common.InternalUtils.getValueOrDefault;
+
 import com.uber.cadence.activity.ActivityMethod;
 import com.uber.cadence.activity.ActivityOptions;
 import com.uber.cadence.common.MethodRetry;
@@ -91,6 +93,6 @@ class ActivityInvocationHandler implements InvocationHandler {
         throw Workflow.wrap(e);
       }
     }
-    return function.apply(args);
+    return getValueOrDefault(function.apply(args), method.getReturnType());
   }
 }

@@ -17,6 +17,8 @@
 
 package com.uber.cadence.internal.sync;
 
+import static com.uber.cadence.internal.common.InternalUtils.getValueOrDefault;
+
 import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.workflow.ContinueAsNewOptions;
 import com.uber.cadence.workflow.QueryMethod;
@@ -60,6 +62,6 @@ class ContinueAsNewWorkflowInvocationHandler implements InvocationHandler {
     String workflowType = InternalUtils.getWorkflowType(method, workflowMethod);
     WorkflowInternal.continueAsNew(
         Optional.of(workflowType), Optional.of(options), args, decisionContext);
-    return null;
+    return getValueOrDefault(null, method.getReturnType());
   }
 }

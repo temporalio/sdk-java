@@ -17,6 +17,7 @@
 
 package com.uber.cadence.internal.common;
 
+import com.google.common.base.Defaults;
 import com.uber.cadence.TaskList;
 import com.uber.cadence.TaskListKind;
 import com.uber.cadence.internal.worker.Shutdownable;
@@ -116,6 +117,13 @@ public final class InternalUtils {
       remainingTimeout = 0;
     }
     return remainingTimeout;
+  }
+
+  public static Object getValueOrDefault(Object value, Class<?> valueClass) {
+    if (value != null) {
+      return value;
+    }
+    return Defaults.defaultValue(valueClass);
   }
 
   /** Prohibit instantiation */

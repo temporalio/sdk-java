@@ -866,8 +866,7 @@ public class WorkflowTest {
         testActivities.activityWithDelay(100000, true);
         fail("unreachable");
       } catch (CancellationException e) {
-        Workflow.newDetachedCancellationScope(
-            () -> assertEquals("a1", testActivities.activity1("a1")));
+        Workflow.newDetachedCancellationScope(() -> assertEquals(1, testActivities.activity1(1)));
       }
       try {
         Workflow.sleep(Duration.ofHours(1));
@@ -954,14 +953,14 @@ public class WorkflowTest {
       TestActivities testActivities =
           Workflow.newActivityStub(TestActivities.class, newActivityOptions2());
       Promise<String> a = Async.function(testActivities::activity);
-      Promise<String> a1 = Async.function(testActivities::activity1, "1");
+      Promise<Integer> a1 = Async.function(testActivities::activity1, 1);
       Promise<String> a2 = Async.function(testActivities::activity2, "1", 2);
       Promise<String> a3 = Async.function(testActivities::activity3, "1", 2, 3);
       Promise<String> a4 = Async.function(testActivities::activity4, "1", 2, 3, 4);
       Promise<String> a5 = Async.function(testActivities::activity5, "1", 2, 3, 4, 5);
       Promise<String> a6 = Async.function(testActivities::activity6, "1", 2, 3, 4, 5, 6);
       assertEquals("activity", a.get());
-      assertEquals("1", a1.get());
+      assertEquals(1, (int) a1.get());
       assertEquals("12", a2.get());
       assertEquals("123", a3.get());
       assertEquals("1234", a4.get());
@@ -1133,6 +1132,12 @@ public class WorkflowTest {
     assertEquals(expected, result);
   }
 
+  private void assertResult(int expected, WorkflowExecution execution) {
+    int result =
+        workflowClient.newUntypedWorkflowStub(execution, Optional.empty()).getResult(int.class);
+    assertEquals(expected, result);
+  }
+
   private void waitForProc(WorkflowExecution execution) {
     workflowClient.newUntypedWorkflowStub(execution, Optional.empty()).getResult(Void.class);
   }
@@ -1150,8 +1155,8 @@ public class WorkflowTest {
 
     if (!useExternalService) {
       // Use worker that polls on a task list configured through @WorkflowMethod annotation of func1
-      assertResult("1", WorkflowClient.start(stubF1::func1, "1"));
-      assertEquals("1", stubF1.func1("1")); // Check that duplicated start just returns the result.
+      assertResult(1, WorkflowClient.start(stubF1::func1, 1));
+      assertEquals(1, stubF1.func1(1)); // Check that duplicated start just returns the result.
     }
     // Check that duplicated start is not allowed for AllowDuplicate IdReusePolicy
     TestMultiargsWorkflowsFunc2 stubF2 =
@@ -1227,8 +1232,8 @@ public class WorkflowTest {
     assertEquals("func", WorkflowClient.execute(stubF::func).get());
     TestMultiargsWorkflowsFunc1 stubF1 =
         workflowClient.newWorkflowStub(TestMultiargsWorkflowsFunc1.class, workflowOptions);
-    assertEquals("1", WorkflowClient.execute(stubF1::func1, "1").get());
-    assertEquals("1", stubF1.func1("1")); // Check that duplicated start just returns the result.
+    assertEquals(1, (int) WorkflowClient.execute(stubF1::func1, 1).get());
+    assertEquals(1, stubF1.func1(1)); // Check that duplicated start just returns the result.
     TestMultiargsWorkflowsFunc2 stubF2 =
         workflowClient.newWorkflowStub(TestMultiargsWorkflowsFunc2.class, workflowOptions);
     assertEquals("12", WorkflowClient.execute(stubF2::func2, "1", 2).get());
@@ -1294,7 +1299,7 @@ public class WorkflowTest {
       assertEquals("func", Async.function(stubF::func).get());
       TestMultiargsWorkflowsFunc1 stubF1 =
           Workflow.newChildWorkflowStub(TestMultiargsWorkflowsFunc1.class, workflowOptions);
-      assertEquals("1", Async.function(stubF1::func1, "1").get());
+      assertEquals(1, (int) Async.function(stubF1::func1, 1).get());
       TestMultiargsWorkflowsFunc2 stubF2 =
           Workflow.newChildWorkflowStub(TestMultiargsWorkflowsFunc2.class, workflowOptions);
       assertEquals("12", Async.function(stubF2::func2, "1", 2).get());
@@ -2889,7 +2894,7 @@ public class WorkflowTest {
     String activity();
 
     @ActivityMethod(name = "customActivity1")
-    String activity1(String input);
+    int activity1(int input);
 
     String activity2(String a1, int a2);
 
@@ -2994,7 +2999,7 @@ public class WorkflowTest {
     }
 
     @Override
-    public String activity1(String a1) {
+    public int activity1(int a1) {
       invocations.add("activity1");
       return a1;
     }
@@ -3150,7 +3155,7 @@ public class WorkflowTest {
       workflowIdReusePolicy = WorkflowIdReusePolicy.RejectDuplicate,
       executionStartToCloseTimeoutSeconds = 10
     )
-    String func1(String input);
+    int func1(int input);
   }
 
   public interface TestMultiargsWorkflowsFunc2 {
@@ -3249,7 +3254,7 @@ public class WorkflowTest {
     }
 
     @Override
-    public String func1(String a1) {
+    public int func1(int a1) {
       return a1;
     }
 
@@ -3375,7 +3380,7 @@ public class WorkflowTest {
       Workflow.sleep(Duration.ofSeconds(1));
       String result;
       if (workflowTime == time) {
-        result = testActivities.activity1("activity1");
+        result = "activity" + testActivities.activity1(1);
       } else {
         result = testActivities.activity2("activity2", 2);
       }
@@ -3452,7 +3457,7 @@ public class WorkflowTest {
       int version = Workflow.getVersion("test_change", Workflow.DEFAULT_VERSION, 1);
       String result = "";
       if (version == Workflow.DEFAULT_VERSION) {
-        result += testActivities.activity1("activity1");
+        result += "activity" + testActivities.activity1(1);
       } else {
         result += testActivities.activity2("activity2", 2); // This is executed.
       }
@@ -3460,19 +3465,19 @@ public class WorkflowTest {
       // Test version change in non-replay code.
       version = Workflow.getVersion("test_change", 1, 2);
       if (version == 1) {
-        result += testActivities.activity1("activity1"); // This is executed.
+        result += "activity" + testActivities.activity1(1); // This is executed.
       } else {
         result += testActivities.activity2("activity2", 2);
       }
 
       // Test adding a version check in replay code.
       if (!getVersionExecuted.contains(taskList + "-test_change_2")) {
-        result += testActivities.activity1("activity1"); // This is executed in non-replay mode.
+        result += "activity" + testActivities.activity1(1); // This is executed in non-replay mode.
         getVersionExecuted.add(taskList + "-test_change_2");
       } else {
         int version2 = Workflow.getVersion("test_change_2", Workflow.DEFAULT_VERSION, 1);
         if (version2 == Workflow.DEFAULT_VERSION) {
-          result += testActivities.activity1("activity1"); // This is executed in replay mode.
+          result += "activity" + testActivities.activity1(1); // This is executed in replay mode.
         } else {
           result += testActivities.activity2("activity2", 2);
         }
@@ -3482,7 +3487,7 @@ public class WorkflowTest {
       Workflow.sleep(1000);
       version = Workflow.getVersion("test_change", 1, 2);
       if (version == 1) {
-        result += testActivities.activity1("activity1"); // This is executed.
+        result += "activity" + testActivities.activity1(1); // This is executed.
       } else {
         result += testActivities.activity2("activity2", 2);
       }
@@ -3523,7 +3528,7 @@ public class WorkflowTest {
       if (!getVersionExecuted.contains(taskList)) {
         int version = Workflow.getVersion("test_change", Workflow.DEFAULT_VERSION, 1);
         if (version == Workflow.DEFAULT_VERSION) {
-          result = testActivities.activity1("activity1");
+          result = "activity" + testActivities.activity1(1);
         } else {
           result = testActivities.activity2("activity2", 2); // This is executed in non-replay mode.
         }
@@ -3594,7 +3599,7 @@ public class WorkflowTest {
       int version = Workflow.getVersion("test_change", Workflow.DEFAULT_VERSION, 1);
       String result = "";
       if (version == Workflow.DEFAULT_VERSION) {
-        result += testActivities.activity1("activity1");
+        result += "activity" + testActivities.activity1(1);
       } else {
         result += testActivities.activity2("activity2", 2); // This is executed.
       }
@@ -3638,7 +3643,7 @@ public class WorkflowTest {
       TestActivities activities =
           Workflow.newActivityStub(TestActivities.class, newActivityOptions1(taskList));
       if (!Workflow.isReplaying()) {
-        activities.activity1("foo");
+        activities.activity1(1);
       }
     }
   }

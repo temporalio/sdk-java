@@ -17,6 +17,7 @@
 
 package com.uber.cadence.internal.sync;
 
+import static com.uber.cadence.internal.common.InternalUtils.getValueOrDefault;
 import static com.uber.cadence.internal.common.InternalUtils.getWorkflowMethod;
 import static com.uber.cadence.internal.common.InternalUtils.getWorkflowType;
 
@@ -179,18 +180,20 @@ class WorkflowInvocationHandler implements InvocationHandler {
               + " must contain at most one annotation "
               + "from @WorkflowMethod, @QueryMethod or @SignalMethod");
     }
+    Object result;
     if (workflowMethod != null) {
-      return startWorkflow(method, args);
-    }
-    if (queryMethod != null) {
-      return queryWorkflow(method, queryMethod, args);
-    }
-    if (signalMethod != null) {
+      result = startWorkflow(method, args);
+    } else if (queryMethod != null) {
+      result = queryWorkflow(method, queryMethod, args);
+    } else if (signalMethod != null) {
       signalWorkflow(method, signalMethod, args);
-      return null;
+      result = null;
+    } else {
+      throw new IllegalArgumentException(
+          method + " is not annotated with @WorkflowMethod or @QueryMethod");
     }
-    throw new IllegalArgumentException(
-        method + " is not annotated with @WorkflowMethod or @QueryMethod");
+    // Returning null for a built in type leads to NullPointerException
+    return getValueOrDefault(result, method.getReturnType());
   }
 
   private void signalWorkflow(Method method, SignalMethod signalMethod, Object[] args) {
