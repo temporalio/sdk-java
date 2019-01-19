@@ -19,8 +19,15 @@ package com.uber.cadence.client;
 
 import static com.uber.cadence.internal.common.OptionsUtils.roundUpToSeconds;
 
+import com.cronutils.model.Cron;
+import com.cronutils.model.CronType;
+import com.cronutils.model.definition.CronDefinition;
+import com.cronutils.model.definition.CronDefinitionBuilder;
+import com.cronutils.parser.CronParser;
+import com.google.common.base.Strings;
 import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.WorkflowIdReusePolicy;
+import com.uber.cadence.common.CronSchedule;
 import com.uber.cadence.common.MethodRetry;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.internal.common.OptionsUtils;
@@ -31,13 +38,14 @@ import java.util.Objects;
 public final class WorkflowOptions {
 
   public static WorkflowOptions merge(
-      WorkflowMethod a, MethodRetry methodRetry, WorkflowOptions o) {
+      WorkflowMethod a, MethodRetry methodRetry, CronSchedule cronSchedule, WorkflowOptions o) {
     if (a == null) {
       return new WorkflowOptions.Builder(o).validateBuildWithDefaults();
     }
     if (o == null) {
       o = new WorkflowOptions.Builder().build();
     }
+    String cronAnnotation = cronSchedule == null ? "" : cronSchedule.value();
     return new WorkflowOptions.Builder()
         .setWorkflowIdReusePolicy(
             OptionsUtils.merge(
@@ -53,6 +61,7 @@ public final class WorkflowOptions {
         .setTaskList(OptionsUtils.merge(a.taskList(), o.getTaskList(), String.class))
         .setChildPolicy(o.getChildPolicy())
         .setRetryOptions(RetryOptions.merge(methodRetry, o.getRetryOptions()))
+        .setCronSchedule(OptionsUtils.merge(cronAnnotation, o.getCronSchedule(), String.class))
         .validateBuildWithDefaults();
   }
 
@@ -72,6 +81,8 @@ public final class WorkflowOptions {
 
     private RetryOptions retryOptions;
 
+    private String cronSchedule;
+
     public Builder() {}
 
     public Builder(WorkflowOptions o) {
@@ -85,6 +96,7 @@ public final class WorkflowOptions {
       this.taskList = o.taskList;
       this.childPolicy = o.childPolicy;
       this.retryOptions = o.retryOptions;
+      this.cronSchedule = o.cronSchedule;
     }
 
     /**
@@ -164,6 +176,11 @@ public final class WorkflowOptions {
       return this;
     }
 
+    public Builder setCronSchedule(String cronSchedule) {
+      this.cronSchedule = cronSchedule;
+      return this;
+    }
+
     public WorkflowOptions build() {
       return new WorkflowOptions(
           workflowId,
@@ -172,7 +189,8 @@ public final class WorkflowOptions {
           taskStartToCloseTimeout,
           taskList,
           childPolicy,
-          retryOptions);
+          retryOptions,
+          cronSchedule);
     }
 
     /**
@@ -200,6 +218,14 @@ public final class WorkflowOptions {
               "RetryOptions must specify either expiration or maximum attempts");
         }
       }
+
+      if (!Strings.isNullOrEmpty(cronSchedule)) {
+        CronDefinition cronDefinition = CronDefinitionBuilder.instanceDefinitionFor(CronType.UNIX);
+        CronParser parser = new CronParser(cronDefinition);
+        Cron cron = parser.parse(cronSchedule);
+        cron.validate();
+      }
+
       return new WorkflowOptions(
           workflowId,
           policy,
@@ -208,7 +234,8 @@ public final class WorkflowOptions {
               taskStartToCloseTimeout, OptionsUtils.DEFAULT_TASK_START_TO_CLOSE_TIMEOUT),
           taskList,
           childPolicy,
-          retryOptions);
+          retryOptions,
+          cronSchedule);
     }
   }
 
@@ -226,6 +253,8 @@ public final class WorkflowOptions {
 
   private RetryOptions retryOptions;
 
+  private String cronSchedule;
+
   private WorkflowOptions(
       String workflowId,
       WorkflowIdReusePolicy workflowIdReusePolicy,
@@ -233,7 +262,8 @@ public final class WorkflowOptions {
       Duration taskStartToCloseTimeout,
       String taskList,
       ChildPolicy childPolicy,
-      RetryOptions retryOptions) {
+      RetryOptions retryOptions,
+      String cronSchedule) {
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
     this.executionStartToCloseTimeout = executionStartToCloseTimeout;
@@ -241,6 +271,7 @@ public final class WorkflowOptions {
     this.taskList = taskList;
     this.childPolicy = childPolicy;
     this.retryOptions = retryOptions;
+    this.cronSchedule = cronSchedule;
   }
 
   public String getWorkflowId() {
@@ -271,6 +302,10 @@ public final class WorkflowOptions {
     return retryOptions;
   }
 
+  public String getCronSchedule() {
+    return cronSchedule;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -282,7 +317,8 @@ public final class WorkflowOptions {
         && Objects.equals(taskStartToCloseTimeout, that.taskStartToCloseTimeout)
         && Objects.equals(taskList, that.taskList)
         && childPolicy == that.childPolicy
-        && Objects.equals(retryOptions, that.retryOptions);
+        && Objects.equals(retryOptions, that.retryOptions)
+        && Objects.equals(cronSchedule, that.cronSchedule);
   }
 
   @Override
@@ -294,7 +330,8 @@ public final class WorkflowOptions {
         taskStartToCloseTimeout,
         taskList,
         childPolicy,
-        retryOptions);
+        retryOptions,
+        cronSchedule);
   }
 
   @Override
@@ -316,6 +353,9 @@ public final class WorkflowOptions {
         + childPolicy
         + ", retryOptions="
         + retryOptions
+        + ", cronSchedule='"
+        + cronSchedule
+        + '\''
         + '}';
   }
 }

@@ -359,4 +359,8 @@ public final class WorkflowInternal {
     return new ReplayAwareLogger(
         logger, WorkflowInternal::isReplaying, WorkflowInternal::isLoggingEnabledInReplay);
   }
+
+  public static <R> R getLastCompletionResult(Class<R> resultClass, Type resultType) {
+    return getRootDecisionContext().getLastCompletionResult(resultClass, resultType);
+  }
 }

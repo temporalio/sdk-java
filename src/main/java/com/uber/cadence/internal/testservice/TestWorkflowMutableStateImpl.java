@@ -17,63 +17,15 @@
 
 package com.uber.cadence.internal.testservice;
 
+import com.cronutils.model.Cron;
+import com.cronutils.model.CronType;
+import com.cronutils.model.definition.CronDefinition;
+import com.cronutils.model.definition.CronDefinitionBuilder;
+import com.cronutils.model.time.ExecutionTime;
+import com.cronutils.parser.CronParser;
+import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
-import com.uber.cadence.ActivityTaskScheduledEventAttributes;
-import com.uber.cadence.BadRequestError;
-import com.uber.cadence.CancelTimerDecisionAttributes;
-import com.uber.cadence.CancelTimerFailedEventAttributes;
-import com.uber.cadence.CancelWorkflowExecutionDecisionAttributes;
-import com.uber.cadence.ChildWorkflowExecutionCanceledEventAttributes;
-import com.uber.cadence.ChildWorkflowExecutionCompletedEventAttributes;
-import com.uber.cadence.ChildWorkflowExecutionFailedEventAttributes;
-import com.uber.cadence.ChildWorkflowExecutionStartedEventAttributes;
-import com.uber.cadence.ChildWorkflowExecutionTimedOutEventAttributes;
-import com.uber.cadence.CompleteWorkflowExecutionDecisionAttributes;
-import com.uber.cadence.ContinueAsNewWorkflowExecutionDecisionAttributes;
-import com.uber.cadence.Decision;
-import com.uber.cadence.DecisionTaskFailedCause;
-import com.uber.cadence.EntityNotExistsError;
-import com.uber.cadence.EventType;
-import com.uber.cadence.FailWorkflowExecutionDecisionAttributes;
-import com.uber.cadence.HistoryEvent;
-import com.uber.cadence.InternalServiceError;
-import com.uber.cadence.MarkerRecordedEventAttributes;
-import com.uber.cadence.PollForActivityTaskRequest;
-import com.uber.cadence.PollForActivityTaskResponse;
-import com.uber.cadence.PollForDecisionTaskRequest;
-import com.uber.cadence.PollForDecisionTaskResponse;
-import com.uber.cadence.QueryFailedError;
-import com.uber.cadence.QueryTaskCompletedType;
-import com.uber.cadence.QueryWorkflowRequest;
-import com.uber.cadence.QueryWorkflowResponse;
-import com.uber.cadence.RecordActivityTaskHeartbeatResponse;
-import com.uber.cadence.RecordMarkerDecisionAttributes;
-import com.uber.cadence.RequestCancelActivityTaskDecisionAttributes;
-import com.uber.cadence.RequestCancelActivityTaskFailedEventAttributes;
-import com.uber.cadence.RequestCancelWorkflowExecutionRequest;
-import com.uber.cadence.RespondActivityTaskCanceledByIDRequest;
-import com.uber.cadence.RespondActivityTaskCanceledRequest;
-import com.uber.cadence.RespondActivityTaskCompletedByIDRequest;
-import com.uber.cadence.RespondActivityTaskCompletedRequest;
-import com.uber.cadence.RespondActivityTaskFailedByIDRequest;
-import com.uber.cadence.RespondActivityTaskFailedRequest;
-import com.uber.cadence.RespondDecisionTaskCompletedRequest;
-import com.uber.cadence.RespondDecisionTaskFailedRequest;
-import com.uber.cadence.RespondQueryTaskCompletedRequest;
-import com.uber.cadence.RetryPolicy;
-import com.uber.cadence.ScheduleActivityTaskDecisionAttributes;
-import com.uber.cadence.SignalExternalWorkflowExecutionDecisionAttributes;
-import com.uber.cadence.SignalExternalWorkflowExecutionFailedCause;
-import com.uber.cadence.SignalWorkflowExecutionRequest;
-import com.uber.cadence.StartChildWorkflowExecutionDecisionAttributes;
-import com.uber.cadence.StartChildWorkflowExecutionFailedEventAttributes;
-import com.uber.cadence.StartTimerDecisionAttributes;
-import com.uber.cadence.StartWorkflowExecutionRequest;
-import com.uber.cadence.StickyExecutionAttributes;
-import com.uber.cadence.TimeoutType;
-import com.uber.cadence.WorkflowExecutionCloseStatus;
-import com.uber.cadence.WorkflowExecutionContinuedAsNewEventAttributes;
-import com.uber.cadence.WorkflowExecutionSignaledEventAttributes;
+import com.uber.cadence.*;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.testservice.StateMachines.Action;
 import com.uber.cadence.internal.testservice.StateMachines.ActivityTaskData;
@@ -89,14 +41,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.OptionalLong;
-import java.util.UUID;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -152,6 +101,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       StartWorkflowExecutionRequest startRequest,
       Optional<RetryState> retryState,
       int backoffStartIntervalInSeconds,
+      byte[] lastCompletionResult,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
       TestWorkflowService service,
@@ -166,10 +116,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     this.store = store;
     selfAdvancingTimer = store.getTimer();
     this.clock = selfAdvancingTimer.getClock();
-    this.workflow = StateMachines.newWorkflowStateMachine();
-    WorkflowData data = this.workflow.getData();
-    data.retryState = retryState;
-    data.backoffStartIntervalInSeconds = backoffStartIntervalInSeconds;
+    WorkflowData data =
+        new WorkflowData(
+            retryState,
+            backoffStartIntervalInSeconds,
+            startRequest.getCronSchedule(),
+            lastCompletionResult);
+    this.workflow = StateMachines.newWorkflowStateMachine(data);
   }
 
   private void update(UpdateProcedure updater)
@@ -341,11 +294,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   private void processDecision(
       RequestContext ctx, Decision d, String identity, long decisionTaskCompletedId)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError {
+      throws BadRequestError, InternalServiceError {
     switch (d.getDecisionType()) {
       case CompleteWorkflowExecution:
         processCompleteWorkflowExecution(
-            ctx, d.getCompleteWorkflowExecutionDecisionAttributes(), decisionTaskCompletedId);
+            ctx,
+            d.getCompleteWorkflowExecutionDecisionAttributes(),
+            decisionTaskCompletedId,
+            identity);
         break;
       case FailWorkflowExecution:
         processFailWorkflowExecution(
@@ -829,6 +785,12 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         return;
       }
     }
+
+    if (!Strings.isNullOrEmpty(data.cronSchedule)) {
+      startNewCronRun(ctx, decisionTaskCompletedId, identity, data, data.lastCompletionResult);
+      return;
+    }
+
     workflow.action(StateMachines.Action.FAIL, ctx, d, decisionTaskCompletedId);
     if (parent.isPresent()) {
       ctx.lockTimer(); // unlocked by the parent
@@ -859,8 +821,15 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private void processCompleteWorkflowExecution(
       RequestContext ctx,
       CompleteWorkflowExecutionDecisionAttributes d,
-      long decisionTaskCompletedId)
+      long decisionTaskCompletedId,
+      String identity)
       throws InternalServiceError, BadRequestError {
+    WorkflowData data = workflow.getData();
+    if (!Strings.isNullOrEmpty(data.cronSchedule)) {
+      startNewCronRun(ctx, decisionTaskCompletedId, identity, data, d.getResult());
+      return;
+    }
+
     workflow.action(StateMachines.Action.COMPLETE, ctx, d, decisionTaskCompletedId);
     if (parent.isPresent()) {
       ctx.lockTimer(); // unlocked by the parent
@@ -886,6 +855,57 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 }
               });
     }
+  }
+
+  private void startNewCronRun(
+      RequestContext ctx,
+      long decisionTaskCompletedId,
+      String identity,
+      WorkflowData data,
+      byte[] lastCompletionResult)
+      throws InternalServiceError, BadRequestError {
+    CronDefinition cronDefinition = CronDefinitionBuilder.instanceDefinitionFor(CronType.UNIX);
+    CronParser parser = new CronParser(cronDefinition);
+    Cron cron = parser.parse(data.cronSchedule);
+
+    Instant i = Instant.ofEpochMilli(store.currentTimeMillis());
+    ZonedDateTime now = ZonedDateTime.ofInstant(i, ZoneOffset.UTC);
+
+    ExecutionTime executionTime = ExecutionTime.forCron(cron);
+    Optional<Duration> backoff = executionTime.timeToNextExecution(now);
+    int backoffIntervalSeconds = (int) backoff.get().getSeconds();
+
+    if (backoffIntervalSeconds == 0) {
+      backoff = executionTime.timeToNextExecution(now.plusSeconds(1));
+      backoffIntervalSeconds = (int) backoff.get().getSeconds() + 1;
+    }
+
+    ContinueAsNewWorkflowExecutionDecisionAttributes continueAsNewAttr =
+        new ContinueAsNewWorkflowExecutionDecisionAttributes()
+            .setInput(startRequest.getInput())
+            .setWorkflowType(startRequest.getWorkflowType())
+            .setExecutionStartToCloseTimeoutSeconds(
+                startRequest.getExecutionStartToCloseTimeoutSeconds())
+            .setTaskStartToCloseTimeoutSeconds(startRequest.getTaskStartToCloseTimeoutSeconds())
+            .setTaskList(startRequest.getTaskList())
+            .setBackoffStartIntervalInSeconds(backoffIntervalSeconds)
+            .setRetryPolicy(startRequest.getRetryPolicy())
+            .setLastCompletionResult(lastCompletionResult);
+    workflow.action(Action.CONTINUE_AS_NEW, ctx, continueAsNewAttr, decisionTaskCompletedId);
+    HistoryEvent event = ctx.getEvents().get(ctx.getEvents().size() - 1);
+    WorkflowExecutionContinuedAsNewEventAttributes continuedAsNewEventAttributes =
+        event.getWorkflowExecutionContinuedAsNewEventAttributes();
+
+    String runId =
+        service.continueAsNew(
+            startRequest,
+            continuedAsNewEventAttributes,
+            Optional.empty(),
+            identity,
+            getExecutionId(),
+            parent,
+            parentChildInitiatedEventId);
+    continuedAsNewEventAttributes.setNewExecutionRunId(runId);
   }
 
   private void processCancelWorkflowExecution(
@@ -962,10 +982,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             } else {
               scheduleDecision(ctx);
             }
+
+            int executionTimeoutTimerDelay = startRequest.getExecutionStartToCloseTimeoutSeconds();
+            if (backoffStartIntervalInSeconds > 0) {
+              executionTimeoutTimerDelay =
+                  executionTimeoutTimerDelay + backoffStartIntervalInSeconds;
+            }
             ctx.addTimer(
-                startRequest.getExecutionStartToCloseTimeoutSeconds(),
-                this::timeoutWorkflow,
-                "workflow execution timeout");
+                executionTimeoutTimerDelay, this::timeoutWorkflow, "workflow execution timeout");
           });
     } catch (EntityNotExistsError entityNotExistsError) {
       throw new InternalServiceError(Throwables.getStackTraceAsString(entityNotExistsError));

@@ -27,6 +27,7 @@ import com.uber.cadence.client.DuplicateWorkflowException;
 import com.uber.cadence.client.WorkflowClientInterceptor;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.client.WorkflowStub;
+import com.uber.cadence.common.CronSchedule;
 import com.uber.cadence.common.MethodRetry;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.common.InternalUtils;
@@ -142,9 +143,11 @@ class WorkflowInvocationHandler implements InvocationHandler {
       WorkflowClientInterceptor[] interceptors) {
     Method workflowMethod = getWorkflowMethod(workflowInterface);
     MethodRetry methodRetry = workflowMethod.getAnnotation(MethodRetry.class);
+    CronSchedule cronSchedule = workflowMethod.getAnnotation(CronSchedule.class);
     WorkflowMethod annotation = workflowMethod.getAnnotation(WorkflowMethod.class);
     String workflowType = getWorkflowType(workflowMethod, annotation);
-    WorkflowOptions mergedOptions = WorkflowOptions.merge(annotation, methodRetry, options);
+    WorkflowOptions mergedOptions =
+        WorkflowOptions.merge(annotation, methodRetry, cronSchedule, options);
     WorkflowStub stub =
         new WorkflowStubImpl(genericClient, dataConverter, workflowType, mergedOptions);
     for (WorkflowClientInterceptor i : interceptors) {

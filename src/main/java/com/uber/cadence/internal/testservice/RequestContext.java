@@ -64,8 +64,6 @@ final class RequestContext {
     }
   }
 
-  private static final long NANOS_PER_MILLIS = 1_000_000;
-
   private final LongSupplier clock;
 
   private final ExecutionId executionId;
@@ -169,7 +167,7 @@ final class RequestContext {
     this.needDecision = needDecision;
   }
 
-  boolean isNeedDecision() throws EntityNotExistsError {
+  boolean isNeedDecision() {
     return needDecision;
   }
 

@@ -17,6 +17,7 @@
 
 package com.uber.cadence.internal.external;
 
+import com.google.common.base.Strings;
 import com.uber.cadence.*;
 import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.internal.common.RetryParameters;
@@ -108,6 +109,9 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
               .setMaximumIntervalInSeconds(retryParameters.getMaximumIntervalInSeconds())
               .setNonRetriableErrorReasons(retryParameters.getNonRetriableErrorReasons());
       request.setRetryPolicy(retryPolicy);
+    }
+    if (!Strings.isNullOrEmpty(startParameters.getCronSchedule())) {
+      request.setCronSchedule(startParameters.getCronSchedule());
     }
 
     //        if(startParameters.getChildPolicy() != null) {

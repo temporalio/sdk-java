@@ -110,8 +110,7 @@ class WorkflowStubImpl implements WorkflowStub {
           "Cannot reuse a stub instance to start more than one workflow execution. The stub "
               + "points to already started execution.");
     }
-    StartWorkflowExecutionParameters p =
-        StartWorkflowExecutionParameters.createStartWorkflowExecutionParametersFromOptions(o);
+    StartWorkflowExecutionParameters p = StartWorkflowExecutionParameters.fromWorkflowOptions(o);
     if (o.getWorkflowId() == null) {
       p.setWorkflowId(UUID.randomUUID().toString());
     } else {
@@ -138,7 +137,7 @@ class WorkflowStubImpl implements WorkflowStub {
     if (!options.isPresent()) {
       throw new IllegalStateException("Required parameter WorkflowOptions is missing");
     }
-    return startWithOptions(WorkflowOptions.merge(null, null, options.get()), args);
+    return startWithOptions(WorkflowOptions.merge(null, null, null, options.get()), args);
   }
 
   @Override
@@ -309,7 +308,11 @@ class WorkflowStubImpl implements WorkflowStub {
     if (execution.get() == null || execution.get().getWorkflowId() == null) {
       return;
     }
-    genericClient.requestCancelWorkflowExecution(execution.get());
+
+    // RunId can change if workflow does ContinueAsNew. So we do not set it here and
+    // let the server figure out the current run.
+    genericClient.requestCancelWorkflowExecution(
+        new WorkflowExecution().setWorkflowId(execution.get().getWorkflowId()));
   }
 
   @Override

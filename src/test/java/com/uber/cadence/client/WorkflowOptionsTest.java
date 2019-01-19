@@ -18,6 +18,7 @@
 package com.uber.cadence.client;
 
 import com.uber.cadence.WorkflowIdReusePolicy;
+import com.uber.cadence.common.CronSchedule;
 import com.uber.cadence.common.MethodRetry;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.workflow.WorkflowMethod;
@@ -32,22 +33,6 @@ public class WorkflowOptionsTest {
   public void defaultWorkflowOptions() {}
 
   @Test
-  public void testOnlyOptionsPresent() throws NoSuchMethodException {
-    WorkflowOptions o =
-        new WorkflowOptions.Builder()
-            .setTaskList("foo")
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(321))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(45))
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.AllowDuplicate)
-            .build();
-    WorkflowMethod a =
-        WorkflowOptionsTest.class
-            .getMethod("defaultWorkflowOptions")
-            .getAnnotation(WorkflowMethod.class);
-    Assert.assertEquals(o, WorkflowOptions.merge(a, null, o));
-  }
-
-  @Test
   public void testOnlyOptionsAndEmptyAnnotationsPresent() throws NoSuchMethodException {
     WorkflowOptions o =
         new WorkflowOptions.Builder()
@@ -60,7 +45,7 @@ public class WorkflowOptionsTest {
         WorkflowOptionsTest.class
             .getMethod("defaultWorkflowOptions")
             .getAnnotation(WorkflowMethod.class);
-    Assert.assertEquals(o, WorkflowOptions.merge(a, null, o));
+    Assert.assertEquals(o, WorkflowOptions.merge(a, null, null, o));
   }
 
   @WorkflowMethod(
@@ -78,14 +63,17 @@ public class WorkflowOptionsTest {
     maximumIntervalSeconds = 22,
     doNotRetry = {NullPointerException.class, UnsupportedOperationException.class}
   )
+  @CronSchedule("0 * * * *" /* hourly */)
   public void workflowOptions() {}
 
   @Test
   public void testOnlyAnnotationsPresent() throws NoSuchMethodException {
     Method method = WorkflowOptionsTest.class.getMethod("workflowOptions");
     WorkflowMethod a = method.getAnnotation(WorkflowMethod.class);
+    MethodRetry r = method.getAnnotation(MethodRetry.class);
+    CronSchedule c = method.getAnnotation(CronSchedule.class);
     WorkflowOptions o = new WorkflowOptions.Builder().build();
-    WorkflowOptions merged = WorkflowOptions.merge(a, null, o);
+    WorkflowOptions merged = WorkflowOptions.merge(a, r, c, o);
     Assert.assertEquals(a.taskList(), merged.getTaskList());
     Assert.assertEquals(
         a.executionStartToCloseTimeoutSeconds(),
@@ -94,10 +82,21 @@ public class WorkflowOptionsTest {
         a.taskStartToCloseTimeoutSeconds(), merged.getTaskStartToCloseTimeout().getSeconds());
     Assert.assertEquals(a.workflowId(), merged.getWorkflowId());
     Assert.assertEquals(a.workflowIdReusePolicy(), merged.getWorkflowIdReusePolicy());
+    Assert.assertEquals("0 * * * *", merged.getCronSchedule());
   }
 
   @Test
   public void testBothPresent() throws NoSuchMethodException {
+    RetryOptions retryOptions =
+        new RetryOptions.Builder()
+            .setDoNotRetry(IllegalArgumentException.class)
+            .setMaximumAttempts(11111)
+            .setBackoffCoefficient(1.55)
+            .setMaximumInterval(Duration.ofDays(3))
+            .setExpiration(Duration.ofDays(365))
+            .setInitialInterval(Duration.ofMinutes(12))
+            .build();
+
     WorkflowOptions o =
         new WorkflowOptions.Builder()
             .setTaskList("foo")
@@ -105,19 +104,41 @@ public class WorkflowOptionsTest {
             .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
             .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
             .setWorkflowId("bar")
-            .setRetryOptions(
-                new RetryOptions.Builder()
-                    .setDoNotRetry(IllegalArgumentException.class)
-                    .setMaximumAttempts(11111)
-                    .setBackoffCoefficient(1.55)
-                    .setMaximumInterval(Duration.ofDays(3))
-                    .setExpiration(Duration.ofDays(365))
-                    .setInitialInterval(Duration.ofMinutes(12))
-                    .build())
+            .setRetryOptions(retryOptions)
+            .setCronSchedule("* 1 * * *")
             .build();
     Method method = WorkflowOptionsTest.class.getMethod("workflowOptions");
     WorkflowMethod a = method.getAnnotation(WorkflowMethod.class);
     MethodRetry r = method.getAnnotation(MethodRetry.class);
-    Assert.assertEquals(o, WorkflowOptions.merge(a, r, o));
+    CronSchedule c = method.getAnnotation(CronSchedule.class);
+    WorkflowOptions merged = WorkflowOptions.merge(a, r, c, o);
+    Assert.assertEquals(retryOptions, merged.getRetryOptions());
+    Assert.assertEquals("* 1 * * *", merged.getCronSchedule());
+  }
+
+  @WorkflowMethod
+  @CronSchedule("asdf * * * *")
+  public void invalidCronScheduleAnnotation() {}
+
+  @Test
+  public void testInvalidCronScheduleAnnotation() throws NoSuchMethodException {
+    WorkflowOptions o =
+        new WorkflowOptions.Builder()
+            .setTaskList("foo")
+            .setExecutionStartToCloseTimeout(Duration.ofSeconds(321))
+            .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
+            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
+            .build();
+    Method method = WorkflowOptionsTest.class.getMethod("invalidCronScheduleAnnotation");
+    WorkflowMethod a = method.getAnnotation(WorkflowMethod.class);
+    CronSchedule c = method.getAnnotation(CronSchedule.class);
+
+    try {
+      WorkflowOptions.merge(a, null, c, o);
+    } catch (IllegalArgumentException e) {
+      return;
+    }
+
+    Assert.fail("invalid cron schedule not caught");
   }
 }

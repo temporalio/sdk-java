@@ -189,9 +189,7 @@ public final class TestWorkflowService implements IWorkflowService {
 
   @Override
   public StartWorkflowExecutionResponse StartWorkflowExecution(
-      StartWorkflowExecutionRequest startRequest)
-      throws BadRequestError, InternalServiceError, WorkflowExecutionAlreadyStartedError,
-          ServiceBusyError, TException {
+      StartWorkflowExecutionRequest startRequest) throws TException {
     return startWorkflowExecutionImpl(startRequest, 0, Optional.empty(), OptionalLong.empty());
   }
 
@@ -230,6 +228,7 @@ public final class TestWorkflowService implements IWorkflowService {
           startRequest,
           retryState,
           backoffStartIntervalInSeconds,
+          null,
           parent,
           parentChildInitiatedEventId,
           workflowId);
@@ -265,6 +264,7 @@ public final class TestWorkflowService implements IWorkflowService {
       StartWorkflowExecutionRequest startRequest,
       Optional<RetryState> retryState,
       int backoffStartIntervalInSeconds,
+      byte[] lastCompletionResult,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
       WorkflowId workflowId)
@@ -275,6 +275,7 @@ public final class TestWorkflowService implements IWorkflowService {
             startRequest,
             retryState,
             backoffStartIntervalInSeconds,
+            lastCompletionResult,
             parent,
             parentChildInitiatedEventId,
             this,
@@ -536,6 +537,7 @@ public final class TestWorkflowService implements IWorkflowService {
             .setWorkflowIdReusePolicy(previousRunStartRequest.getWorkflowIdReusePolicy())
             .setIdentity(identity)
             .setRetryPolicy(previousRunStartRequest.getRetryPolicy())
+            .setCronSchedule(previousRunStartRequest.getCronSchedule())
             .setChildPolicy(previousRunStartRequest.getChildPolicy());
     if (a.isSetInput()) {
       startRequest.setInput(a.getInput());
@@ -547,6 +549,7 @@ public final class TestWorkflowService implements IWorkflowService {
               startRequest,
               retryState,
               a.getBackoffStartIntervalInSeconds(),
+              a.getLastCompletionResult(),
               parent,
               parentChildInitiatedEventId,
               executionId.getWorkflowId());

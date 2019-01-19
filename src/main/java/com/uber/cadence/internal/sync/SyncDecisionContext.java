@@ -79,11 +79,13 @@ final class SyncDecisionContext implements WorkflowInterceptor {
   private final WorkflowInterceptor headInterceptor;
   private final WorkflowTimers timers = new WorkflowTimers();
   private final Map<String, Functions.Func1<byte[], byte[]>> queryCallbacks = new HashMap<>();
+  private final byte[] lastCompletionResult;
 
   public SyncDecisionContext(
       DecisionContext context,
       DataConverter converter,
-      Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory) {
+      Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
+      byte[] lastCompletionResult) {
     this.context = context;
     this.converter = converter;
     WorkflowInterceptor interceptor = interceptorFactory.apply(this);
@@ -92,6 +94,7 @@ final class SyncDecisionContext implements WorkflowInterceptor {
       interceptor = this;
     }
     this.headInterceptor = interceptor;
+    this.lastCompletionResult = lastCompletionResult;
   }
 
   /**
@@ -592,5 +595,14 @@ final class SyncDecisionContext implements WorkflowInterceptor {
 
   public boolean isLoggingEnabledInReplay() {
     return context.getEnableLoggingInReplay();
+  }
+
+  public <R> R getLastCompletionResult(Class<R> resultClass, Type resultType) {
+    if (lastCompletionResult == null || lastCompletionResult.length == 0) {
+      return null;
+    }
+
+    DataConverter dataConverter = getDataConverter();
+    return dataConverter.fromData(lastCompletionResult, resultClass, resultType);
   }
 }

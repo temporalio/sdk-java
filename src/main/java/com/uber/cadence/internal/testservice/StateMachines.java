@@ -150,6 +150,19 @@ class StateMachines {
   static final class WorkflowData {
     Optional<RetryState> retryState = Optional.empty();
     int backoffStartIntervalInSeconds;
+    String cronSchedule;
+    byte[] lastCompletionResult;
+
+    WorkflowData(
+        Optional<RetryState> retryState,
+        int backoffStartIntervalInSeconds,
+        String cronSchedule,
+        byte[] lastCompletionResult) {
+      this.retryState = retryState;
+      this.backoffStartIntervalInSeconds = backoffStartIntervalInSeconds;
+      this.cronSchedule = cronSchedule;
+      this.lastCompletionResult = lastCompletionResult;
+    }
   }
 
   static final class DecisionTaskData {
@@ -220,8 +233,8 @@ class StateMachines {
     public long startedEventId;
   }
 
-  static StateMachine<WorkflowData> newWorkflowStateMachine() {
-    return new StateMachine<>(new WorkflowData())
+  static StateMachine<WorkflowData> newWorkflowStateMachine(WorkflowData data) {
+    return new StateMachine<>(data)
         .add(NONE, START, STARTED, StateMachines::startWorkflow)
         .add(STARTED, COMPLETE, COMPLETED, StateMachines::completeWorkflow)
         .add(STARTED, CONTINUE_AS_NEW, CONTINUED_AS_NEW, StateMachines::continueAsNewWorkflow)
@@ -521,6 +534,7 @@ class StateMachines {
     if (data.retryState.isPresent()) {
       a.setAttempt(data.retryState.get().getAttempt());
     }
+    a.setLastCompletionResult(data.lastCompletionResult);
     HistoryEvent event =
         new HistoryEvent()
             .setEventType(EventType.WorkflowExecutionStarted)
@@ -575,6 +589,7 @@ class StateMachines {
     }
     a.setDecisionTaskCompletedEventId(decisionTaskCompletedEventId);
     a.setBackoffStartIntervalInSeconds(d.getBackoffStartIntervalInSeconds());
+    a.setLastCompletionResult(d.getLastCompletionResult());
     HistoryEvent event =
         new HistoryEvent()
             .setEventType(EventType.WorkflowExecutionContinuedAsNew)

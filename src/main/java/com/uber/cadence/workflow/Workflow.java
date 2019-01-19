@@ -1029,6 +1029,34 @@ public final class Workflow {
     return WorkflowInternal.getLogger(name);
   }
 
+  /**
+   * GetLastCompletionResult extract last completion result from previous run for this cron
+   * workflow. This is used in combination with cron schedule. A workflow can be started with an
+   * optional cron schedule. If a cron workflow wants to pass some data to next schedule, it can
+   * return any data and that data will become available when next run starts.
+   *
+   * @param resultClass class of the return data from last run
+   * @return result of last run
+   */
+  public static <R> R getLastCompletionResult(Class<R> resultClass) {
+    return WorkflowInternal.getLastCompletionResult(resultClass, resultClass);
+  }
+
+  /**
+   * GetLastCompletionResult extract last completion result from previous run for this cron
+   * workflow. This is used in combination with cron schedule. A workflow can be started with an
+   * optional cron schedule. If a cron workflow wants to pass some data to next schedule, it can
+   * return any data and that data will become available when next run starts.
+   *
+   * @param resultClass class of the return data from last run
+   * @param resultType type of the return data from last run. Differs from resultClass for generic
+   *     types.
+   * @return result of last run
+   */
+  public static <R> R getLastCompletionResult(Class<R> resultClass, Type resultType) {
+    return WorkflowInternal.getLastCompletionResult(resultClass, resultType);
+  }
+
   /** Prohibit instantiation. */
   private Workflow() {}
 }

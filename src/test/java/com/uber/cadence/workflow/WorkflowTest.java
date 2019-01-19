@@ -43,6 +43,7 @@ import com.uber.cadence.client.WorkflowFailureException;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.client.WorkflowStub;
 import com.uber.cadence.client.WorkflowTimedOutException;
+import com.uber.cadence.common.CronSchedule;
 import com.uber.cadence.common.MethodRetry;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.converter.JsonDataConverter;
@@ -64,6 +65,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Type;
+import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CancellationException;
@@ -108,7 +110,7 @@ public class WorkflowTest {
    * When set to true increases test, activity and workflow timeouts to large values to support
    * stepping through code in a debugger without timing out.
    */
-  private static final boolean DEBUGGER_TIMEOUTS = true;
+  private static final boolean DEBUGGER_TIMEOUTS = false;
 
   public static final String ANNOTATION_TASK_LIST = "WorkflowTest-testExecute[Docker]";
 
@@ -2885,6 +2887,73 @@ public class WorkflowTest {
       assertTrue(e.getCause().toString(), e.getCause() instanceof IllegalArgumentException);
       assertEquals("simulated 3", e.getCause().getMessage());
     }
+  }
+
+  public interface TestWorkflowWithCronSchedule {
+    @WorkflowMethod
+    @CronSchedule("0 * * * *")
+    String execute(String testName);
+  }
+
+  static String lastCompletionResult;
+
+  public static class TestWorkflowWithCronScheduleImpl implements TestWorkflowWithCronSchedule {
+
+    @Override
+    public String execute(String testName) {
+      Logger log = Workflow.getLogger(TestWorkflowWithCronScheduleImpl.class);
+
+      if (CancellationScope.current().isCancelRequested()) {
+        log.debug("TestWorkflowWithCronScheduleImpl run cancelled.");
+        return null;
+      }
+
+      lastCompletionResult = Workflow.getLastCompletionResult(String.class);
+
+      AtomicInteger count = retryCount.get(testName);
+      if (count == null) {
+        count = new AtomicInteger();
+        retryCount.put(testName, count);
+      }
+      int c = count.incrementAndGet();
+
+      if (c == 3) {
+        throw new RuntimeException("simulated error");
+      }
+
+      SimpleDateFormat sdf = new SimpleDateFormat("MMM dd,yyyy HH:mm:ss.SSS");
+      Date now = new Date(Workflow.currentTimeMillis());
+      log.debug("TestWorkflowWithCronScheduleImpl run at " + sdf.format(now));
+      return "run " + c;
+    }
+  }
+
+  @Test
+  public void testTestWorkflowWithCronSchedule() {
+    // Min interval in cron is 1min. So we will not test it against real service in Jenkins.
+    // Feel free to uncomment the line below and test in local.
+    Assume.assumeFalse("skipping as test will timeout", useExternalService);
+
+    startWorkerFor(TestWorkflowWithCronScheduleImpl.class);
+
+    WorkflowStub client =
+        workflowClient.newUntypedWorkflowStub(
+            "TestWorkflowWithCronSchedule::execute",
+            newWorkflowOptionsBuilder(taskList)
+                .setExecutionStartToCloseTimeout(Duration.ofHours(1))
+                .setCronSchedule("0 * * * *")
+                .build());
+    registerDelayedCallback(Duration.ofHours(3), client::cancel);
+    client.start(testName.getMethodName());
+
+    try {
+      client.getResult(String.class);
+      fail("unreachable");
+    } catch (CancellationException ignored) {
+    }
+
+    // Run 3 failed. So on run 4 we get the last completion result from run 2.
+    Assert.assertEquals("run 2", lastCompletionResult);
   }
 
   public interface TestActivities {

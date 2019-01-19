@@ -48,6 +48,8 @@ public final class StartWorkflowExecutionParameters {
 
   private RetryParameters retryParameters;
 
+  private String cronSchedule;
+
   /**
    * Returns the value of the WorkflowId property for this object.
    *
@@ -282,13 +284,20 @@ public final class StartWorkflowExecutionParameters {
     this.retryParameters = retryParameters;
   }
 
+  public String getCronSchedule() {
+    return cronSchedule;
+  }
+
+  public void setCronSchedule(String cronSchedule) {
+    this.cronSchedule = cronSchedule;
+  }
+
   public StartWorkflowExecutionParameters withRetryParameters(RetryParameters retryParameters) {
     this.retryParameters = retryParameters;
     return this;
   }
 
-  public static StartWorkflowExecutionParameters createStartWorkflowExecutionParametersFromOptions(
-      WorkflowOptions options) {
+  public static StartWorkflowExecutionParameters fromWorkflowOptions(WorkflowOptions options) {
     StartWorkflowExecutionParameters parameters = new StartWorkflowExecutionParameters();
     parameters.setExecutionStartToCloseTimeoutSeconds(
         getSeconds(options.getExecutionStartToCloseTimeout()));
@@ -313,6 +322,10 @@ public final class StartWorkflowExecutionParameters {
         rp.setNonRetriableErrorReasons(reasons);
       }
       parameters.setRetryParameters(rp);
+    }
+
+    if (options.getCronSchedule() != null) {
+      parameters.setCronSchedule(options.getCronSchedule());
     }
     return parameters;
   }
@@ -347,6 +360,9 @@ public final class StartWorkflowExecutionParameters {
         + workflowIdReusePolicy
         + ", retryParameters="
         + retryParameters
+        + ", cronSchedule='"
+        + cronSchedule
+        + '\''
         + '}';
   }
 
@@ -363,7 +379,8 @@ public final class StartWorkflowExecutionParameters {
         && Arrays.equals(input, that.input)
         && childPolicy == that.childPolicy
         && workflowIdReusePolicy == that.workflowIdReusePolicy
-        && Objects.equals(retryParameters, that.retryParameters);
+        && Objects.equals(retryParameters, that.retryParameters)
+        && Objects.equals(cronSchedule, that.cronSchedule);
   }
 
   @Override
@@ -377,21 +394,9 @@ public final class StartWorkflowExecutionParameters {
             taskStartToCloseTimeoutSeconds,
             childPolicy,
             workflowIdReusePolicy,
-            retryParameters);
+            retryParameters,
+            cronSchedule);
     result = 31 * result + Arrays.hashCode(input);
-    return result;
-  }
-
-  public StartWorkflowExecutionParameters copy() {
-    StartWorkflowExecutionParameters result = new StartWorkflowExecutionParameters();
-    result.setInput(input);
-    result.setExecutionStartToCloseTimeoutSeconds(executionStartToCloseTimeoutSeconds);
-    result.setTaskStartToCloseTimeoutSeconds(taskStartToCloseTimeoutSeconds);
-    result.setTaskList(taskList);
-    result.setWorkflowId(workflowId);
-    result.setWorkflowType(workflowType);
-    result.setChildPolicy(childPolicy);
-    result.setRetryParameters(retryParameters.copy());
     return result;
   }
 }
