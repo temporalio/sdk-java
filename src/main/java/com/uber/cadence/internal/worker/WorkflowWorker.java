@@ -270,14 +270,26 @@ public final class WorkflowWorker
       RetryOptions ro = response.getRequestRetryOptions();
       RespondDecisionTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
-        ro = options.getReportCompletionRetryOptions().merge(ro);
+        ro =
+            options
+                .getReportCompletionRetryOptions()
+                .merge(ro)
+                .addDoNotRetry(
+                    BadRequestError.class, EntityNotExistsError.class, DomainNotActiveError.class);
         taskCompleted.setIdentity(options.getIdentity());
         taskCompleted.setTaskToken(taskToken);
         Retryer.retry(ro, () -> service.RespondDecisionTaskCompleted(taskCompleted));
       } else {
         RespondDecisionTaskFailedRequest taskFailed = response.getTaskFailed();
         if (taskFailed != null) {
-          ro = options.getReportFailureRetryOptions().merge(ro);
+          ro =
+              options
+                  .getReportFailureRetryOptions()
+                  .merge(ro)
+                  .addDoNotRetry(
+                      BadRequestError.class,
+                      EntityNotExistsError.class,
+                      DomainNotActiveError.class);
           taskFailed.setIdentity(options.getIdentity());
           taskFailed.setTaskToken(taskToken);
           Retryer.retry(ro, () -> service.RespondDecisionTaskFailed(taskFailed));

@@ -17,11 +17,7 @@
 
 package com.uber.cadence.internal.worker;
 
-import com.uber.cadence.PollForActivityTaskResponse;
-import com.uber.cadence.RespondActivityTaskCanceledRequest;
-import com.uber.cadence.RespondActivityTaskCompletedRequest;
-import com.uber.cadence.RespondActivityTaskFailedRequest;
-import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.*;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.internal.common.Retryer;
 import com.uber.cadence.internal.logging.LoggerTag;
@@ -224,7 +220,12 @@ public final class ActivityWorker implements SuspendableWorker {
       RetryOptions ro = response.getRequestRetryOptions();
       RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
-        ro = options.getReportCompletionRetryOptions().merge(ro);
+        ro =
+            options
+                .getReportCompletionRetryOptions()
+                .merge(ro)
+                .addDoNotRetry(
+                    BadRequestError.class, EntityNotExistsError.class, DomainNotActiveError.class);
         taskCompleted.setTaskToken(task.getTaskToken());
         taskCompleted.setIdentity(options.getIdentity());
         Retryer.retry(ro, () -> service.RespondActivityTaskCompleted(taskCompleted));
@@ -232,7 +233,14 @@ public final class ActivityWorker implements SuspendableWorker {
       } else {
         RespondActivityTaskFailedRequest taskFailed = response.getTaskFailed();
         if (taskFailed != null) {
-          ro = options.getReportFailureRetryOptions().merge(ro);
+          ro =
+              options
+                  .getReportFailureRetryOptions()
+                  .merge(ro)
+                  .addDoNotRetry(
+                      BadRequestError.class,
+                      EntityNotExistsError.class,
+                      DomainNotActiveError.class);
           taskFailed.setTaskToken(task.getTaskToken());
           taskFailed.setIdentity(options.getIdentity());
           Retryer.retry(ro, () -> service.RespondActivityTaskFailed(taskFailed));
@@ -242,7 +250,14 @@ public final class ActivityWorker implements SuspendableWorker {
           if (taskCancelled != null) {
             taskCancelled.setTaskToken(task.getTaskToken());
             taskCancelled.setIdentity(options.getIdentity());
-            ro = options.getReportFailureRetryOptions().merge(ro);
+            ro =
+                options
+                    .getReportFailureRetryOptions()
+                    .merge(ro)
+                    .addDoNotRetry(
+                        BadRequestError.class,
+                        EntityNotExistsError.class,
+                        DomainNotActiveError.class);
             Retryer.retry(ro, () -> service.RespondActivityTaskCanceled(taskCancelled));
             options.getMetricsScope().counter(MetricsType.ACTIVITY_TASK_CANCELED_COUNTER).inc(1);
           }

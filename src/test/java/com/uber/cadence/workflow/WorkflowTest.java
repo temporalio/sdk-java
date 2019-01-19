@@ -4075,6 +4075,43 @@ public class WorkflowTest {
     assertEquals("done", result);
   }
 
+  public interface DecisionTimeoutWorkflow {
+    @WorkflowMethod(executionStartToCloseTimeoutSeconds = 10000)
+    String execute(String testName) throws InterruptedException;
+  }
+
+  public static class DecisionTimeoutWorkflowImpl implements DecisionTimeoutWorkflow {
+
+    @Override
+    public String execute(String testName) throws InterruptedException {
+
+      AtomicInteger count = retryCount.get(testName);
+      if (count == null) {
+        count = new AtomicInteger();
+        retryCount.put(testName, count);
+        Thread.sleep(2000);
+      }
+
+      return "some result";
+    }
+  }
+
+  @Test
+  public void testDecisionTimeoutWorkflow() throws InterruptedException {
+    startWorkerFor(DecisionTimeoutWorkflowImpl.class);
+
+    WorkflowOptions options =
+        new WorkflowOptions.Builder()
+            .setTaskList(taskList)
+            .setTaskStartToCloseTimeout(Duration.ofSeconds(1))
+            .build();
+
+    DecisionTimeoutWorkflow stub =
+        workflowClient.newWorkflowStub(DecisionTimeoutWorkflow.class, options);
+    String result = stub.execute(testName.getMethodName());
+    Assert.assertEquals("some result", result);
+  }
+
   private static class FilteredTrace {
 
     private final List<String> impl = Collections.synchronizedList(new ArrayList<>());

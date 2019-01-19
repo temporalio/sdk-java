@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.3.0
+- Added cron schedule support.
+- Fix infinite retryer in activity and workflow worker due to non-retryable error.
+- Fixed hanging on testEnv.close when testEnv was not started.
+- Fix for NPE when method has base type return type like int.
+- Fixed JsonDataConverter to correctly report non serializable exceptions.
+
 ## v2.2.0
 - Added support for workflow and activity server side retries.
 - Clean worker shutdown. Replaced Worker shutdown(Duration) with Worker shutdown, shutdownNow and awaitTermination.

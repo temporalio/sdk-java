@@ -83,6 +83,31 @@ public final class RetryOptions {
         .validateBuildWithDefaults();
   }
 
+  @SafeVarargs
+  public final RetryOptions addDoNotRetry(Class<? extends Throwable>... doNotRetry) {
+    if (doNotRetry == null) {
+      return this;
+    }
+
+    double backoffCoefficient = getBackoffCoefficient();
+    if (backoffCoefficient == 0) {
+      backoffCoefficient = DEFAULT_BACKOFF_COEFFICIENT;
+    }
+
+    RetryOptions.Builder builder =
+        new RetryOptions.Builder()
+            .setInitialInterval(getInitialInterval())
+            .setExpiration(getExpiration())
+            .setMaximumInterval(getMaximumInterval())
+            .setBackoffCoefficient(backoffCoefficient)
+            .setDoNotRetry(merge(getDoNotRetry(), Arrays.asList(doNotRetry)));
+
+    if (getMaximumAttempts() > 0) {
+      builder.setMaximumAttempts(getMaximumAttempts());
+    }
+    return builder.validateBuildWithDefaults();
+  }
+
   public static final class Builder {
 
     private Duration initialInterval;
