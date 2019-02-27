@@ -21,6 +21,7 @@ import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.client.ActivityCompletionClient;
+import com.uber.cadence.client.BatchRequest;
 import com.uber.cadence.client.WorkflowClient;
 import com.uber.cadence.client.WorkflowClientInterceptor;
 import com.uber.cadence.client.WorkflowClientOptions;
@@ -249,6 +250,16 @@ public final class WorkflowClientInternal implements WorkflowClient {
       result = i.newActivityCompletionClient(result);
     }
     return result;
+  }
+
+  @Override
+  public BatchRequest newSignalWithStartRequest() {
+    return new SignalWithStartBatchRequest();
+  }
+
+  @Override
+  public WorkflowExecution signalWithStart(BatchRequest signalWithStartBatch) {
+    return ((SignalWithStartBatchRequest) signalWithStartBatch).invoke();
   }
 
   public static WorkflowExecution start(Functions.Proc workflow) {

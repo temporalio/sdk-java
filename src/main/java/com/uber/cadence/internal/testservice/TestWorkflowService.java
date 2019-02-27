@@ -127,13 +127,18 @@ public final class TestWorkflowService implements IWorkflowService {
 
   private TestWorkflowMutableState getMutableState(ExecutionId executionId)
       throws InternalServiceError, EntityNotExistsError {
+    return getMutableState(executionId, true);
+  }
+
+  private TestWorkflowMutableState getMutableState(ExecutionId executionId, boolean failNotExists)
+      throws InternalServiceError, EntityNotExistsError {
     lock.lock();
     try {
       if (executionId.getExecution().getRunId() == null) {
-        return getMutableState(executionId.getWorkflowId());
+        return getMutableState(executionId.getWorkflowId(), failNotExists);
       }
       TestWorkflowMutableState mutableState = executions.get(executionId);
-      if (mutableState == null) {
+      if (mutableState == null && failNotExists) {
         throw new InternalServiceError("Execution not found in mutable state: " + executionId);
       }
       return mutableState;
@@ -144,10 +149,15 @@ public final class TestWorkflowService implements IWorkflowService {
 
   private TestWorkflowMutableState getMutableState(WorkflowId workflowId)
       throws EntityNotExistsError {
+    return getMutableState(workflowId, true);
+  }
+
+  private TestWorkflowMutableState getMutableState(WorkflowId workflowId, boolean failNotExists)
+      throws EntityNotExistsError {
     lock.lock();
     try {
       TestWorkflowMutableState mutableState = executionsByWorkflowId.get(workflowId);
-      if (mutableState == null) {
+      if (mutableState == null && failNotExists) {
         throw new EntityNotExistsError("Execution not found in mutable state: " + workflowId);
       }
       return mutableState;
@@ -190,14 +200,16 @@ public final class TestWorkflowService implements IWorkflowService {
   @Override
   public StartWorkflowExecutionResponse StartWorkflowExecution(
       StartWorkflowExecutionRequest startRequest) throws TException {
-    return startWorkflowExecutionImpl(startRequest, 0, Optional.empty(), OptionalLong.empty());
+    return startWorkflowExecutionImpl(
+        startRequest, 0, Optional.empty(), OptionalLong.empty(), Optional.empty());
   }
 
   StartWorkflowExecutionResponse startWorkflowExecutionImpl(
       StartWorkflowExecutionRequest startRequest,
       int backoffStartIntervalInSeconds,
       Optional<TestWorkflowMutableState> parent,
-      OptionalLong parentChildInitiatedEventId)
+      OptionalLong parentChildInitiatedEventId,
+      Optional<SignalWorkflowExecutionRequest> signalWithStartSignal)
       throws BadRequestError, WorkflowExecutionAlreadyStartedError, InternalServiceError {
     String requestWorkflowId = requireNotNull("WorkflowId", startRequest.getWorkflowId());
     String domain = requireNotNull("Domain", startRequest.getDomain());
@@ -231,6 +243,7 @@ public final class TestWorkflowService implements IWorkflowService {
           null,
           parent,
           parentChildInitiatedEventId,
+          signalWithStartSignal,
           workflowId);
     } finally {
       lock.unlock();
@@ -267,10 +280,11 @@ public final class TestWorkflowService implements IWorkflowService {
       byte[] lastCompletionResult,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
+      Optional<SignalWorkflowExecutionRequest> signalWithStartSignal,
       WorkflowId workflowId)
       throws InternalServiceError, BadRequestError {
     String domain = startRequest.getDomain();
-    TestWorkflowMutableState result =
+    TestWorkflowMutableState mutableState =
         new TestWorkflowMutableStateImpl(
             startRequest,
             retryState,
@@ -280,11 +294,11 @@ public final class TestWorkflowService implements IWorkflowService {
             parentChildInitiatedEventId,
             this,
             store);
-    WorkflowExecution execution = result.getExecutionId().getExecution();
+    WorkflowExecution execution = mutableState.getExecutionId().getExecution();
     ExecutionId executionId = new ExecutionId(domain, execution);
-    executionsByWorkflowId.put(workflowId, result);
-    executions.put(executionId, result);
-    result.startWorkflow();
+    executionsByWorkflowId.put(workflowId, mutableState);
+    executions.put(executionId, mutableState);
+    mutableState.startWorkflow(signalWithStartSignal);
     return new StartWorkflowExecutionResponse().setRunId(execution.getRunId());
   }
 
@@ -480,11 +494,42 @@ public final class TestWorkflowService implements IWorkflowService {
 
   @Override
   public StartWorkflowExecutionResponse SignalWithStartWorkflowExecution(
-      SignalWithStartWorkflowExecutionRequest signalWithStartRequest)
+      SignalWithStartWorkflowExecutionRequest r)
       throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
           DomainNotActiveError, LimitExceededError, WorkflowExecutionAlreadyStartedError,
           TException {
-    throw new UnsupportedOperationException("not implemented");
+    ExecutionId executionId = new ExecutionId(r.getDomain(), r.getWorkflowId(), null);
+    TestWorkflowMutableState mutableState = getMutableState(executionId, false);
+    SignalWorkflowExecutionRequest signalRequest =
+        new SignalWorkflowExecutionRequest()
+            .setInput(r.getSignalInput())
+            .setSignalName(r.getSignalName())
+            .setControl(r.getControl())
+            .setDomain(r.getDomain())
+            .setWorkflowExecution(executionId.getExecution())
+            .setRequestId(r.getRequestId())
+            .setIdentity(r.getIdentity());
+    if (mutableState != null) {
+      mutableState.signal(signalRequest);
+      return new StartWorkflowExecutionResponse()
+          .setRunId(mutableState.getExecutionId().getExecution().getRunId());
+    }
+    StartWorkflowExecutionRequest startRequest =
+        new StartWorkflowExecutionRequest()
+            .setInput(r.getInput())
+            .setExecutionStartToCloseTimeoutSeconds(r.getExecutionStartToCloseTimeoutSeconds())
+            .setTaskStartToCloseTimeoutSeconds(r.getTaskStartToCloseTimeoutSeconds())
+            .setDomain(r.getDomain())
+            .setRetryPolicy(r.getRetryPolicy())
+            .setTaskList(r.getTaskList())
+            .setWorkflowId(r.getWorkflowId())
+            .setWorkflowIdReusePolicy(r.getWorkflowIdReusePolicy())
+            .setWorkflowType(r.getWorkflowType())
+            .setCronSchedule(r.getCronSchedule())
+            .setRequestId(r.getRequestId())
+            .setIdentity(r.getIdentity());
+    return startWorkflowExecutionImpl(
+        startRequest, 0, Optional.empty(), OptionalLong.empty(), Optional.of(signalRequest));
   }
 
   public void signalExternalWorkflowExecution(
@@ -552,6 +597,7 @@ public final class TestWorkflowService implements IWorkflowService {
               a.getLastCompletionResult(),
               parent,
               parentChildInitiatedEventId,
+              Optional.empty(),
               executionId.getWorkflowId());
       return response.getRunId();
     } finally {
@@ -888,7 +934,6 @@ public final class TestWorkflowService implements IWorkflowService {
    * block at all due to time skipping.
    */
   public void sleep(Duration duration) {
-    long start = store.currentTimeMillis();
     CompletableFuture<Void> result = new CompletableFuture<>();
     store
         .getTimer()

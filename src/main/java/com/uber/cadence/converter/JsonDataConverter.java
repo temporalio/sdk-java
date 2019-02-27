@@ -73,7 +73,6 @@ public final class JsonDataConverter implements DataConverter {
           "com.uber.cadence.internal.sync.POJODecisionTaskHandler$POJOWorkflowImplementation.execute");
 
   private static final DataConverter INSTANCE = new JsonDataConverter();
-  private static final byte[] EMPTY_BLOB = new byte[0];
   private static final Object[] EMPTY_OBJECT_ARRAY = new Object[0];
   public static final String TYPE_FIELD_NAME = "type";
   public static final String JSON_CONVERTER_TYPE = "JSON";

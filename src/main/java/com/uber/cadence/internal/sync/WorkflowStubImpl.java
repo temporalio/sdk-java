@@ -33,6 +33,7 @@ import com.uber.cadence.client.WorkflowServiceException;
 import com.uber.cadence.client.WorkflowStub;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.common.CheckedExceptionWrapper;
+import com.uber.cadence.internal.common.SignalWithStartWorkflowExecutionParameters;
 import com.uber.cadence.internal.common.StartWorkflowExecutionParameters;
 import com.uber.cadence.internal.common.WorkflowExecutionFailedException;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
@@ -103,6 +104,23 @@ class WorkflowStubImpl implements WorkflowStub {
   }
 
   private WorkflowExecution startWithOptions(WorkflowOptions o, Object... args) {
+    StartWorkflowExecutionParameters p = getStartWorkflowExecutionParameters(o, args);
+    try {
+      execution.set(genericClient.startWorkflow(p));
+    } catch (WorkflowExecutionAlreadyStartedError e) {
+      execution.set(
+          new WorkflowExecution().setWorkflowId(p.getWorkflowId()).setRunId(e.getRunId()));
+      WorkflowExecution execution =
+          new WorkflowExecution().setWorkflowId(p.getWorkflowId()).setRunId(e.getRunId());
+      throw new DuplicateWorkflowException(execution, workflowType.get(), e.getMessage());
+    } catch (Exception e) {
+      throw new WorkflowServiceException(execution.get(), workflowType, e);
+    }
+    return execution.get();
+  }
+
+  private StartWorkflowExecutionParameters getStartWorkflowExecutionParameters(
+      WorkflowOptions o, Object[] args) {
     if (execution.get() != null) {
       throw new DuplicateWorkflowException(
           execution.get(),
@@ -118,18 +136,7 @@ class WorkflowStubImpl implements WorkflowStub {
     }
     p.setInput(dataConverter.toData(args));
     p.setWorkflowType(new WorkflowType().setName(workflowType.get()));
-    try {
-      execution.set(genericClient.startWorkflow(p));
-    } catch (WorkflowExecutionAlreadyStartedError e) {
-      execution.set(
-          new WorkflowExecution().setWorkflowId(p.getWorkflowId()).setRunId(e.getRunId()));
-      WorkflowExecution execution =
-          new WorkflowExecution().setWorkflowId(p.getWorkflowId()).setRunId(e.getRunId());
-      throw new DuplicateWorkflowException(execution, workflowType.get(), e.getMessage());
-    } catch (Exception e) {
-      throw new WorkflowServiceException(execution.get(), workflowType, e);
-    }
-    return execution.get();
+    return p;
   }
 
   @Override
@@ -138,6 +145,31 @@ class WorkflowStubImpl implements WorkflowStub {
       throw new IllegalStateException("Required parameter WorkflowOptions is missing");
     }
     return startWithOptions(WorkflowOptions.merge(null, null, null, options.get()), args);
+  }
+
+  private WorkflowExecution signalWithStartWithOptions(
+      WorkflowOptions options, String signalName, Object[] signalArgs, Object[] startArgs) {
+    StartWorkflowExecutionParameters sp = getStartWorkflowExecutionParameters(options, startArgs);
+
+    byte[] signalInput = dataConverter.toData(signalArgs);
+    SignalWithStartWorkflowExecutionParameters p =
+        new SignalWithStartWorkflowExecutionParameters(sp, signalName, signalInput);
+    try {
+      execution.set(genericClient.signalWithStartWorkflowExecution(p));
+    } catch (Exception e) {
+      throw new WorkflowServiceException(execution.get(), workflowType, e);
+    }
+    return execution.get();
+  }
+
+  @Override
+  public WorkflowExecution signalWithStart(
+      String signalName, Object[] signalArgs, Object[] startArgs) {
+    if (!options.isPresent()) {
+      throw new IllegalStateException("Required parameter WorkflowOptions is missing");
+    }
+    return signalWithStartWithOptions(
+        WorkflowOptions.merge(null, null, null, options.get()), signalName, signalArgs, startArgs);
   }
 
   @Override
@@ -240,7 +272,8 @@ class WorkflowStubImpl implements WorkflowStub {
             });
   }
 
-  private <R> R mapToWorkflowFailureException(Exception failure, Class<R> returnType) {
+  private <R> R mapToWorkflowFailureException(
+      Exception failure, @SuppressWarnings("unused") Class<R> returnType) {
     failure = CheckedExceptionWrapper.unwrap(failure);
     Class<Throwable> detailsClass;
     if (failure instanceof WorkflowExecutionFailedException) {

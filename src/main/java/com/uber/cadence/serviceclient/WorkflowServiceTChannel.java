@@ -1497,6 +1497,7 @@ public class WorkflowServiceTChannel implements IWorkflowService {
 
   private StartWorkflowExecutionResponse signalWithStartWorkflowExecution(
       SignalWithStartWorkflowExecutionRequest signalWithStartRequest) throws TException {
+    signalWithStartRequest.setRequestId(UUID.randomUUID().toString());
     ThriftResponse<WorkflowService.SignalWithStartWorkflowExecution_result> response = null;
     try {
       ThriftRequest<WorkflowService.SignalWithStartWorkflowExecution_args> request =

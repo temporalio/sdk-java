@@ -269,6 +269,23 @@ public interface WorkflowClient {
   ActivityCompletionClient newActivityCompletionClient();
 
   /**
+   * Creates BatchRequest that can be used to signal an existing workflow or start a new one if not
+   * running. The batch before invocation must contain exactly two operations. One annotated
+   * with @WorkflowMethod and another with @SignalMethod.
+   *
+   * @return batch request used to call {@link #signalWithStart(BatchRequest)}
+   */
+  BatchRequest newSignalWithStartRequest();
+
+  /**
+   * Invoke SignalWithStart operation.
+   *
+   * @param signalWithStartBatch Must be created with {@link #newSignalWithStartRequest()}
+   * @return workflowID and runId of the signaled or started workflow.
+   */
+  WorkflowExecution signalWithStart(BatchRequest signalWithStartBatch);
+
+  /**
    * Executes zero argument workflow with void return type
    *
    * @param workflow The only supported value is method reference to a proxy created through {@link
@@ -336,7 +353,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Executes zero argument workflow with void return type
+   * Executes five argument workflow with void return type
    *
    * @param workflow The only supported value is method reference to a proxy created through {@link
    *     #newWorkflowStub(Class, WorkflowOptions)}.
@@ -353,7 +370,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Executes zero argument workflow with void return type
+   * Executes six argument workflow with void return type
    *
    * @param workflow The only supported value is method reference to a proxy created through {@link
    *     #newWorkflowStub(Class, WorkflowOptions)}.
@@ -414,7 +431,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Executes two argument workflow asynchronously.
+   * Executes three argument workflow asynchronously.
    *
    * @param workflow The only supported value is method reference to a proxy created through {@link
    *     #newWorkflowStub(Class, WorkflowOptions)}.
@@ -429,7 +446,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Executes two argument workflow asynchronously.
+   * Executes four argument workflow asynchronously.
    *
    * @param workflow The only supported value is method reference to a proxy created through {@link
    *     #newWorkflowStub(Class, WorkflowOptions)}.
@@ -445,7 +462,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Executes two argument workflow asynchronously.
+   * Executes five argument workflow asynchronously.
    *
    * @param workflow The only supported value is method reference to a proxy created through {@link
    *     #newWorkflowStub(Class, WorkflowOptions)}.
@@ -467,7 +484,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Executes two argument workflow asynchronously.
+   * Executes six argument workflow asynchronously.
    *
    * @param workflow The only supported value is method reference to a proxy created through {@link
    *     #newWorkflowStub(Class, WorkflowOptions)}.
@@ -558,7 +575,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Executes zero argument workflow with void return type
+   * Executes five argument workflow with void return type
    *
    * @param workflow The only supported value is method reference to a proxy created through {@link
    *     #newWorkflowStub(Class, WorkflowOptions)}.
@@ -575,7 +592,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Executes zero argument workflow with void return type
+   * Executes six argument workflow with void return type
    *
    * @param workflow The only supported value is method reference to a proxy created through {@link
    *     #newWorkflowStub(Class, WorkflowOptions)}.
@@ -636,7 +653,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Executes two argument workflow asynchronously.
+   * Executes three argument workflow asynchronously.
    *
    * @param workflow The only supported value is method reference to a proxy created through {@link
    *     #newWorkflowStub(Class, WorkflowOptions)}.
@@ -651,7 +668,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Executes two argument workflow asynchronously.
+   * Executes four argument workflow asynchronously.
    *
    * @param workflow The only supported value is method reference to a proxy created through {@link
    *     #newWorkflowStub(Class, WorkflowOptions)}.
@@ -667,7 +684,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Executes two argument workflow asynchronously.
+   * Executes five argument workflow asynchronously.
    *
    * @param workflow The only supported value is method reference to a proxy created through {@link
    *     #newWorkflowStub(Class, WorkflowOptions)}.
@@ -689,7 +706,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Executes two argument workflow asynchronously.
+   * Executes six argument workflow asynchronously.
    *
    * @param workflow The only supported value is method reference to a proxy created through {@link
    *     #newWorkflowStub(Class, WorkflowOptions)}.

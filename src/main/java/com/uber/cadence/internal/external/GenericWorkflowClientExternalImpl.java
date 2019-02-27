@@ -21,6 +21,7 @@ import com.google.common.base.Strings;
 import com.uber.cadence.*;
 import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.internal.common.RetryParameters;
+import com.uber.cadence.internal.common.SignalWithStartWorkflowExecutionParameters;
 import com.uber.cadence.internal.common.StartWorkflowExecutionParameters;
 import com.uber.cadence.internal.common.TerminateWorkflowExecutionParameters;
 import com.uber.cadence.internal.metrics.MetricsTag;
@@ -100,14 +101,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     request.setWorkflowType(startParameters.getWorkflowType());
     RetryParameters retryParameters = startParameters.getRetryParameters();
     if (retryParameters != null) {
-      RetryPolicy retryPolicy =
-          new RetryPolicy()
-              .setBackoffCoefficient(retryParameters.getBackoffCoefficient())
-              .setExpirationIntervalInSeconds(retryParameters.getExpirationIntervalInSeconds())
-              .setInitialIntervalInSeconds(retryParameters.getInitialIntervalInSeconds())
-              .setMaximumAttempts(retryParameters.getMaximumAttempts())
-              .setMaximumIntervalInSeconds(retryParameters.getMaximumIntervalInSeconds())
-              .setNonRetriableErrorReasons(retryParameters.getNonRetriableErrorReasons());
+      RetryPolicy retryPolicy = toRetryPolicy(retryParameters);
       request.setRetryPolicy(retryPolicy);
     }
     if (!Strings.isNullOrEmpty(startParameters.getCronSchedule())) {
@@ -133,6 +127,16 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     return execution;
   }
 
+  private RetryPolicy toRetryPolicy(RetryParameters retryParameters) {
+    return new RetryPolicy()
+        .setBackoffCoefficient(retryParameters.getBackoffCoefficient())
+        .setExpirationIntervalInSeconds(retryParameters.getExpirationIntervalInSeconds())
+        .setInitialIntervalInSeconds(retryParameters.getInitialIntervalInSeconds())
+        .setMaximumAttempts(retryParameters.getMaximumAttempts())
+        .setMaximumIntervalInSeconds(retryParameters.getMaximumIntervalInSeconds())
+        .setNonRetriableErrorReasons(retryParameters.getNonRetriableErrorReasons());
+  }
+
   @Override
   public void signalWorkflowExecution(SignalExternalWorkflowParameters signalParameters) {
     SignalWorkflowExecutionRequest request = new SignalWorkflowExecutionRequest();
@@ -149,6 +153,56 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     } catch (TException e) {
       throw CheckedExceptionWrapper.wrap(e);
     }
+  }
+
+  @Override
+  public WorkflowExecution signalWithStartWorkflowExecution(
+      SignalWithStartWorkflowExecutionParameters parameters) {
+    SignalWithStartWorkflowExecutionRequest request = new SignalWithStartWorkflowExecutionRequest();
+    request.setDomain(domain);
+    StartWorkflowExecutionParameters startParameters = parameters.getStartParameters();
+    request.setSignalName(parameters.getSignalName());
+    request.setSignalInput(parameters.getSignalInput());
+    // TODO        request.setIdentity()
+
+    if (startParameters.getInput() != null) {
+      request.setInput(startParameters.getInput());
+    }
+    request.setExecutionStartToCloseTimeoutSeconds(
+        (int) startParameters.getExecutionStartToCloseTimeoutSeconds());
+    request.setTaskStartToCloseTimeoutSeconds(
+        (int) startParameters.getTaskStartToCloseTimeoutSeconds());
+    request.setWorkflowIdReusePolicy(startParameters.getWorkflowIdReusePolicy());
+    String taskList = startParameters.getTaskList();
+    if (taskList != null && !taskList.isEmpty()) {
+      TaskList tl = new TaskList();
+      tl.setName(taskList);
+      request.setTaskList(tl);
+    }
+    String workflowId = startParameters.getWorkflowId();
+    if (workflowId == null) {
+      workflowId = UUID.randomUUID().toString();
+    }
+    request.setWorkflowId(workflowId);
+    request.setWorkflowType(startParameters.getWorkflowType());
+    RetryParameters retryParameters = startParameters.getRetryParameters();
+    if (retryParameters != null) {
+      RetryPolicy retryPolicy = toRetryPolicy(retryParameters);
+      request.setRetryPolicy(retryPolicy);
+    }
+    if (!Strings.isNullOrEmpty(startParameters.getCronSchedule())) {
+      request.setCronSchedule(startParameters.getCronSchedule());
+    }
+    StartWorkflowExecutionResponse result;
+    try {
+      result = service.SignalWithStartWorkflowExecution(request);
+    } catch (TException e) {
+      throw CheckedExceptionWrapper.wrap(e);
+    }
+    WorkflowExecution execution = new WorkflowExecution();
+    execution.setRunId(result.getRunId());
+    execution.setWorkflowId(request.getWorkflowId());
+    return execution;
   }
 
   @Override
@@ -191,7 +245,6 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   @Override
   public void terminateWorkflowExecution(TerminateWorkflowExecutionParameters terminateParameters) {
     TerminateWorkflowExecutionRequest request = new TerminateWorkflowExecutionRequest();
-    WorkflowExecution workflowExecution = terminateParameters.getWorkflowExecution();
     request.setWorkflowExecution(terminateParameters.getWorkflowExecution());
     request.setDomain(domain);
     request.setDetails(terminateParameters.getDetails());

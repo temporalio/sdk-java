@@ -487,7 +487,8 @@ class StateMachines {
                     startChild,
                     0,
                     Optional.of(ctx.getWorkflowMutableState()),
-                    OptionalLong.of(data.initiatedEventId));
+                    OptionalLong.of(data.initiatedEventId),
+                    Optional.empty());
               } catch (WorkflowExecutionAlreadyStartedError workflowExecutionAlreadyStartedError) {
                 StartChildWorkflowExecutionFailedEventAttributes failRequest =
                     new StartChildWorkflowExecutionFailedEventAttributes()

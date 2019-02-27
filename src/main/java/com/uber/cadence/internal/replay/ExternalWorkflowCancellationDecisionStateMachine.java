@@ -26,8 +26,6 @@ final class ExternalWorkflowCancellationDecisionStateMachine extends DecisionSta
 
   private RequestCancelExternalWorkflowExecutionDecisionAttributes attributes;
 
-  private boolean canceled;
-
   ExternalWorkflowCancellationDecisionStateMachine(
       DecisionId decisionId, RequestCancelExternalWorkflowExecutionDecisionAttributes attributes) {
     super(decisionId);

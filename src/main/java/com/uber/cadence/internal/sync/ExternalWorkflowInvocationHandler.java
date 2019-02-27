@@ -42,22 +42,13 @@ class ExternalWorkflowInvocationHandler implements InvocationHandler {
   @Override
   public Object invoke(Object proxy, Method method, Object[] args) {
     // Implement WorkflowStub
-    if (method.getName().equals(WorkflowStub.GET_EXECUTION_METHOD_NAME)) {
+    if (method.getName().equals(WorkflowStubMarker.GET_EXECUTION_METHOD_NAME)) {
       return stub.getExecution();
     }
     WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
     QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);
     SignalMethod signalMethod = method.getAnnotation(SignalMethod.class);
-    int count =
-        (workflowMethod == null ? 0 : 1)
-            + (queryMethod == null ? 0 : 1)
-            + (signalMethod == null ? 0 : 1);
-    if (count > 1) {
-      throw new IllegalArgumentException(
-          method
-              + " must contain at most one annotation "
-              + "from @WorkflowMethod, @QueryMethod or @SignalMethod");
-    }
+    WorkflowInvocationHandler.checkAnnotations(method, workflowMethod, queryMethod, signalMethod);
     if (workflowMethod != null) {
       throw new IllegalStateException(
           "Cannot start a workflow with an external workflow stub "
@@ -82,6 +73,7 @@ class ExternalWorkflowInvocationHandler implements InvocationHandler {
     stub.signal(signalName, args);
   }
 
+  @SuppressWarnings("unused")
   private Object queryWorkflow(Method method, QueryMethod queryMethod, Object[] args) {
     throw new UnsupportedOperationException(
         "Query is not supported from workflow to workflow. "

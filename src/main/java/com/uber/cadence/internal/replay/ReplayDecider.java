@@ -51,16 +51,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import org.apache.thrift.TException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Implements decider that relies on replay of a workflow code. An instance of this class is created
  * per decision.
  */
 class ReplayDecider implements Decider {
-
-  private static final Logger log = LoggerFactory.getLogger(ReplayDecider.class);
 
   private static final int MAXIMUM_PAGE_SIZE = 10000;
 

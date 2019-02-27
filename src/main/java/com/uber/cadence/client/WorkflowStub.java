@@ -23,6 +23,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 
 /**
  * WorkflowStub is a client side stub to a single workflow instance. It can be used to start,
@@ -32,9 +33,29 @@ import java.util.concurrent.TimeoutException;
  */
 public interface WorkflowStub {
 
+  /**
+   * Extracts untyped WorkflowStub from a typed workflow stub created through {@link
+   * WorkflowClient#newWorkflowStub(Class)}.
+   *
+   * @param typed typed workflow stub
+   * @param <T> type of the workflow stub interface
+   * @return untyped workflow stub for the same workflow instance.
+   */
+  static <T> WorkflowStub fromTyped(T typed) {
+    if (!(typed instanceof Supplier)) {
+      throw new IllegalArgumentException(
+          "arguments must be created through WorkflowClient.newWorkflowStub");
+    }
+    @SuppressWarnings("unchecked")
+    Supplier<WorkflowStub> supplier = (Supplier<WorkflowStub>) typed;
+    return supplier.get();
+  }
+
   void signal(String signalName, Object... args);
 
   WorkflowExecution start(Object... args);
+
+  WorkflowExecution signalWithStart(String signalName, Object[] signalArgs, Object[] startArgs);
 
   Optional<String> getWorkflowType();
 

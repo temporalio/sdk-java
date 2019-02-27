@@ -105,7 +105,7 @@ public final class AsyncBackoffThrottler {
     }
     CompletableFuture<Void> result = new CompletableFuture<>();
     long delay = calculateSleepTime();
-    @SuppressWarnings("FutureReturnValueIgnored")
+    @SuppressWarnings({"FutureReturnValueIgnored", "unused"})
     ScheduledFuture<?> ignored =
         executor.schedule(() -> result.complete(null), delay, TimeUnit.MILLISECONDS);
     return result;

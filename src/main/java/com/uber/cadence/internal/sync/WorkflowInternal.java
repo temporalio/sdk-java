@@ -161,7 +161,7 @@ public final class WorkflowInternal {
     return (T)
         Proxy.newProxyInstance(
             WorkflowInternal.class.getClassLoader(),
-            new Class<?>[] {workflowInterface, WorkflowStub.class, AsyncMarker.class},
+            new Class<?>[] {workflowInterface, WorkflowStubMarker.class, AsyncMarker.class},
             new ChildWorkflowInvocationHandler(
                 workflowInterface, options, getWorkflowInterceptor()));
   }
@@ -172,13 +172,13 @@ public final class WorkflowInternal {
     return (T)
         Proxy.newProxyInstance(
             WorkflowInternal.class.getClassLoader(),
-            new Class<?>[] {workflowInterface, WorkflowStub.class, AsyncMarker.class},
+            new Class<?>[] {workflowInterface, WorkflowStubMarker.class, AsyncMarker.class},
             new ExternalWorkflowInvocationHandler(execution, getWorkflowInterceptor()));
   }
 
   public static Promise<WorkflowExecution> getWorkflowExecution(Object workflowStub) {
-    if (workflowStub instanceof WorkflowStub) {
-      return ((WorkflowStub) workflowStub).__getWorkflowExecution();
+    if (workflowStub instanceof WorkflowStubMarker) {
+      return ((WorkflowStubMarker) workflowStub).__getWorkflowExecution();
     }
     throw new IllegalArgumentException(
         "Not a workflow stub created through Workflow.newChildWorkflowStub: " + workflowStub);

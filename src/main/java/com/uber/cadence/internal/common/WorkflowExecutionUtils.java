@@ -258,7 +258,6 @@ public class WorkflowExecutionUtils {
       TimeUnit unit) {
     // TODO: Interrupt service long poll call on timeout and on interrupt
     long start = System.currentTimeMillis();
-    CompletableFuture<HistoryEvent> result = new CompletableFuture<>();
     GetWorkflowExecutionHistoryRequest request = new GetWorkflowExecutionHistoryRequest();
     request.setDomain(domain);
     request.setExecution(workflowExecution);

@@ -213,7 +213,6 @@ public class WorkerStressTests {
   }
 
   public static class ActivitiesWorkflowImpl implements ActivitiesWorkflow {
-    private static final Logger log = LoggerFactory.getLogger(ActivitiesWorkflowImpl.class);
 
     @Override
     public String execute(WorkflowParams params) {

@@ -17,10 +17,10 @@
 
 package com.uber.cadence.internal.sync;
 
-import static com.uber.cadence.internal.common.InternalUtils.getValueOrDefault;
 import static com.uber.cadence.internal.common.InternalUtils.getWorkflowMethod;
 import static com.uber.cadence.internal.common.InternalUtils.getWorkflowType;
 
+import com.google.common.base.Defaults;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowIdReusePolicy;
 import com.uber.cadence.client.DuplicateWorkflowException;
@@ -38,9 +38,6 @@ import com.uber.cadence.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Dynamic implementation of a strongly typed workflow interface that can be used to start, signal
@@ -48,74 +45,62 @@ import org.slf4j.LoggerFactory;
  */
 class WorkflowInvocationHandler implements InvocationHandler {
 
-  private static final Logger log = LoggerFactory.getLogger(WorkflowInvocationHandler.class);
-
   public enum InvocationType {
+    SYNC,
     START,
-    EXECUTE
+    EXECUTE,
+    SIGNAL_WITH_START,
   }
 
-  private static class AsyncInvocation {
+  interface SpecificInvocationHandler {
+    InvocationType getInvocationType();
 
-    private final InvocationType type;
-    // Holds either WorkflowExecution or CompletableFuture to workflow result.
-    private final AtomicReference<Object> result = new AtomicReference<>();
+    void invoke(WorkflowStub untyped, Method method, Object[] args) throws Throwable;
 
-    AsyncInvocation(InvocationType type) {
-      this.type = type;
-    }
+    <R> R getResult(Class<R> resultClass);
   }
 
-  private static final ThreadLocal<AsyncInvocation> asyncInvocation = new ThreadLocal<>();
-
-  private final WorkflowStub untyped;
+  private static final ThreadLocal<SpecificInvocationHandler> invocationContext =
+      new ThreadLocal<>();
 
   /** Must call {@link #closeAsyncInvocation()} if this one was called. */
   static void initAsyncInvocation(InvocationType type) {
-    if (asyncInvocation.get() != null) {
+    initAsyncInvocation(type, null);
+  }
+
+  /** Must call {@link #closeAsyncInvocation()} if this one was called. */
+  static <T> void initAsyncInvocation(InvocationType type, T value) {
+    if (invocationContext.get() != null) {
       throw new IllegalStateException("already in start invocation");
     }
-    asyncInvocation.set(new AsyncInvocation(type));
+    if (type == InvocationType.START) {
+      invocationContext.set(new StartWorkflowInvocationHandler());
+    } else if (type == InvocationType.EXECUTE) {
+      invocationContext.set(new ExecuteWorkflowInvocationHandler());
+    } else if (type == InvocationType.SIGNAL_WITH_START) {
+      @SuppressWarnings("unchecked")
+      SignalWithStartBatchRequest batch = (SignalWithStartBatchRequest) value;
+      invocationContext.set(new SignalWithStartWorkflowInvocationHandler(batch));
+    } else {
+      throw new IllegalArgumentException("Unexpected InvocationType: " + type);
+    }
   }
 
   @SuppressWarnings("unchecked")
   static <R> R getAsyncInvocationResult(Class<R> resultClass) {
-    AsyncInvocation reference = asyncInvocation.get();
-    if (reference == null) {
+    SpecificInvocationHandler invocation = invocationContext.get();
+    if (invocation == null) {
       throw new IllegalStateException("initAsyncInvocation wasn't called");
     }
-    Object result = reference.result.get();
-    if (result == null) {
-      throw new IllegalStateException(
-          "Only methods of a stub created through WorkflowClient.newWorkflowStub "
-              + "can be used as a parameter to the start.");
-    }
-    if (reference.type == InvocationType.START) {
-      if (!resultClass.equals(WorkflowExecution.class)) {
-        throw new IllegalArgumentException(
-            "Only WorkflowExecution type is allowed with START " + "InvocationThype");
-      }
-      return (R) result;
-    }
-    if (reference.type == InvocationType.EXECUTE) {
-      if (!resultClass.isAssignableFrom(result.getClass())) {
-        throw new IllegalArgumentException(
-            "Result type \""
-                + result.getClass().getName()
-                + "\" "
-                + "doesn't match expected type \""
-                + resultClass.getName()
-                + "\"");
-      }
-      return (R) result;
-    }
-    throw new Error("Unknown invocation type: " + reference.type);
+    return invocation.getResult(resultClass);
   }
 
   /** Closes async invocation created through {@link #initAsyncInvocation(InvocationType)} */
   static void closeAsyncInvocation() {
-    asyncInvocation.remove();
+    invocationContext.remove();
   }
+
+  private final WorkflowStub untyped;
 
   WorkflowInvocationHandler(
       Class<?> workflowInterface,
@@ -157,7 +142,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
   }
 
   @Override
-  public Object invoke(Object proxy, Method method, Object[] args) {
+  public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
     try {
       if (method.equals(Object.class.getMethod("toString"))) {
         // TODO: workflow info
@@ -170,60 +155,18 @@ class WorkflowInvocationHandler implements InvocationHandler {
       throw new IllegalArgumentException(
           "Interface type is expected: " + method.getDeclaringClass());
     }
-    WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
-    QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);
-    SignalMethod signalMethod = method.getAnnotation(SignalMethod.class);
-    int count =
-        (workflowMethod == null ? 0 : 1)
-            + (queryMethod == null ? 0 : 1)
-            + (signalMethod == null ? 0 : 1);
-    if (count > 1) {
-      throw new IllegalArgumentException(
-          method
-              + " must contain at most one annotation "
-              + "from @WorkflowMethod, @QueryMethod or @SignalMethod");
+    SpecificInvocationHandler handler = invocationContext.get();
+    if (handler == null) {
+      handler = new SyncWorkflowInvocationHandler();
     }
-    Object result;
-    if (workflowMethod != null) {
-      result = startWorkflow(method, args);
-    } else if (queryMethod != null) {
-      result = queryWorkflow(method, queryMethod, args);
-    } else if (signalMethod != null) {
-      signalWorkflow(method, signalMethod, args);
-      result = null;
-    } else {
-      throw new IllegalArgumentException(
-          method + " is not annotated with @WorkflowMethod or @QueryMethod");
+    handler.invoke(untyped, method, args);
+    if (handler.getInvocationType() == InvocationType.SYNC) {
+      return handler.getResult(method.getReturnType());
     }
-    // Returning null for a built in type leads to NullPointerException
-    return getValueOrDefault(result, method.getReturnType());
+    return Defaults.defaultValue(method.getReturnType());
   }
 
-  private void signalWorkflow(Method method, SignalMethod signalMethod, Object[] args) {
-    if (method.getReturnType() != Void.TYPE) {
-      throw new IllegalArgumentException("Signal method must have void return type: " + method);
-    }
-
-    String signalName = signalMethod.name();
-    if (signalName.isEmpty()) {
-      signalName = InternalUtils.getSimpleName(method);
-    }
-    untyped.signal(signalName, args);
-  }
-
-  private Object queryWorkflow(Method method, QueryMethod queryMethod, Object[] args) {
-    if (method.getReturnType() == Void.TYPE) {
-      throw new IllegalArgumentException("Query method cannot have void return type: " + method);
-    }
-    String queryType = queryMethod.name();
-    if (queryType.isEmpty()) {
-      queryType = InternalUtils.getSimpleName(method);
-    }
-
-    return untyped.query(queryType, method.getReturnType(), method.getGenericReturnType(), args);
-  }
-
-  private Object startWorkflow(Method method, Object[] args) {
+  private static void startWorkflow(WorkflowStub untyped, Object[] args) {
     Optional<WorkflowOptions> options = untyped.getOptions();
     if (untyped.getExecution() == null
         || (options.isPresent()
@@ -239,16 +182,185 @@ class WorkflowInvocationHandler implements InvocationHandler {
         }
       }
     }
-    AsyncInvocation async = asyncInvocation.get();
-    if (async != null) {
-      if (async.type == InvocationType.START) {
-        async.result.set(untyped.getExecution());
-      } else {
-        async.result.set(
-            untyped.getResultAsync(method.getReturnType(), method.getGenericReturnType()));
-      }
-      return null;
+  }
+
+  static void checkAnnotations(
+      Method method,
+      WorkflowMethod workflowMethod,
+      QueryMethod queryMethod,
+      SignalMethod signalMethod) {
+    int count =
+        (workflowMethod == null ? 0 : 1)
+            + (queryMethod == null ? 0 : 1)
+            + (signalMethod == null ? 0 : 1);
+    if (count > 1) {
+      throw new IllegalArgumentException(
+          method
+              + " must contain at most one annotation "
+              + "from @WorkflowMethod, @QueryMethod or @SignalMethod");
     }
-    return untyped.getResult(method.getReturnType(), method.getGenericReturnType());
+  }
+
+  private static class StartWorkflowInvocationHandler implements SpecificInvocationHandler {
+
+    private Object result;
+
+    @Override
+    public InvocationType getInvocationType() {
+      return InvocationType.START;
+    }
+
+    @Override
+    public void invoke(WorkflowStub untyped, Method method, Object[] args) {
+      WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
+      if (workflowMethod == null) {
+        throw new IllegalArgumentException(
+            "WorkflowClient.start can be called only on a method annotated with @WorkflowMethod");
+      }
+      result = untyped.start(args);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <R> R getResult(Class<R> resultClass) {
+      return (R) result;
+    }
+  }
+
+  private static class SyncWorkflowInvocationHandler implements SpecificInvocationHandler {
+
+    private Object result;
+
+    @Override
+    public InvocationType getInvocationType() {
+      return InvocationType.SYNC;
+    }
+
+    @Override
+    public void invoke(WorkflowStub untyped, Method method, Object[] args) {
+      WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
+      QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);
+      SignalMethod signalMethod = method.getAnnotation(SignalMethod.class);
+      checkAnnotations(method, workflowMethod, queryMethod, signalMethod);
+      if (workflowMethod != null) {
+        result = startWorkflow(untyped, method, args);
+      } else if (queryMethod != null) {
+        result = queryWorkflow(untyped, method, queryMethod, args);
+      } else if (signalMethod != null) {
+        signalWorkflow(untyped, method, signalMethod, args);
+        result = null;
+      } else {
+        throw new IllegalArgumentException(
+            method + " is not annotated with @WorkflowMethod or @QueryMethod");
+      }
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <R> R getResult(Class<R> resultClass) {
+      return (R) result;
+    }
+
+    private void signalWorkflow(
+        WorkflowStub untyped, Method method, SignalMethod signalMethod, Object[] args) {
+      if (method.getReturnType() != Void.TYPE) {
+        throw new IllegalArgumentException("Signal method must have void return type: " + method);
+      }
+
+      String signalName = nameFromMethodAndAnnotation(method, signalMethod.name());
+      untyped.signal(signalName, args);
+    }
+
+    private Object queryWorkflow(
+        WorkflowStub untyped, Method method, QueryMethod queryMethod, Object[] args) {
+      if (method.getReturnType() == Void.TYPE) {
+        throw new IllegalArgumentException("Query method cannot have void return type: " + method);
+      }
+      String queryType = nameFromMethodAndAnnotation(method, queryMethod.name());
+
+      return untyped.query(queryType, method.getReturnType(), method.getGenericReturnType(), args);
+    }
+
+    @SuppressWarnings("FutureReturnValueIgnored")
+    private Object startWorkflow(WorkflowStub untyped, Method method, Object[] args) {
+      WorkflowInvocationHandler.startWorkflow(untyped, args);
+      return untyped.getResult(method.getReturnType(), method.getGenericReturnType());
+    }
+  }
+
+  private static String nameFromMethodAndAnnotation(Method method, String name) {
+    String signalName = name;
+    if (signalName.isEmpty()) {
+      signalName = InternalUtils.getSimpleName(method);
+    }
+    return signalName;
+  }
+
+  private static class ExecuteWorkflowInvocationHandler implements SpecificInvocationHandler {
+
+    private Object result;
+
+    @Override
+    public InvocationType getInvocationType() {
+      return InvocationType.EXECUTE;
+    }
+
+    @Override
+    public void invoke(WorkflowStub untyped, Method method, Object[] args) {
+      WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
+      if (workflowMethod == null) {
+        throw new IllegalArgumentException(
+            "WorkflowClient.execute can be called only on a method annotated with @WorkflowMethod");
+      }
+      WorkflowInvocationHandler.startWorkflow(untyped, args);
+      result = untyped.getResultAsync(method.getReturnType(), method.getGenericReturnType());
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <R> R getResult(Class<R> resultClass) {
+      return (R) result;
+    }
+  }
+
+  private static class SignalWithStartWorkflowInvocationHandler
+      implements SpecificInvocationHandler {
+
+    private final SignalWithStartBatchRequest batch;
+
+    public SignalWithStartWorkflowInvocationHandler(SignalWithStartBatchRequest batch) {
+      this.batch = batch;
+    }
+
+    @Override
+    public InvocationType getInvocationType() {
+      return InvocationType.SIGNAL_WITH_START;
+    }
+
+    @Override
+    public void invoke(WorkflowStub untyped, Method method, Object[] args) throws Throwable {
+      QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);
+      SignalMethod signalMethod = method.getAnnotation(SignalMethod.class);
+      WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
+      checkAnnotations(method, workflowMethod, queryMethod, signalMethod);
+      if (queryMethod != null) {
+        throw new IllegalArgumentException(
+            "SignalWithStart batch doesn't accept methods annotated with @QueryMethod");
+      }
+      if (workflowMethod != null) {
+        batch.start(untyped, args);
+      } else if (signalMethod != null) {
+        String signalName = nameFromMethodAndAnnotation(method, signalMethod.name());
+        batch.signal(untyped, signalName, args);
+      } else {
+        throw new IllegalArgumentException(
+            method + " is not annotated with @WorkflowMethod or @SignalMethod");
+      }
+    }
+
+    @Override
+    public <R> R getResult(Class<R> resultClass) {
+      throw new IllegalStateException("No result is expected");
+    }
   }
 }

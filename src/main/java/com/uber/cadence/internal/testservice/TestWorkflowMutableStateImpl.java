@@ -959,11 +959,15 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public void startWorkflow() throws InternalServiceError, BadRequestError {
+  public void startWorkflow(Optional<SignalWorkflowExecutionRequest> signalWithStartSignal)
+      throws InternalServiceError, BadRequestError {
     try {
       update(
           ctx -> {
             workflow.action(StateMachines.Action.START, ctx, startRequest, 0);
+            if (signalWithStartSignal.isPresent()) {
+              addExecutionSignaledEvent(ctx, signalWithStartSignal.get());
+            }
             int backoffStartIntervalInSeconds = workflow.getData().backoffStartIntervalInSeconds;
             if (backoffStartIntervalInSeconds > 0) {
               ctx.addTimer(

@@ -130,7 +130,7 @@ public final class Retryer {
     CompletableFuture<R> unwrappedExceptionResult = new CompletableFuture<>();
     CompletableFuture<R> result =
         retryWithResultAsync(options, function, attempt + 1, startTime, throttler);
-    @SuppressWarnings("FutureReturnValueIgnored")
+    @SuppressWarnings({"FutureReturnValueIgnored", "unused"})
     CompletableFuture<Void> ignored =
         result.handle(
             (r, e) -> {

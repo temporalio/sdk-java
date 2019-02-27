@@ -76,7 +76,6 @@ import com.uber.cadence.UpdateDomainResponse;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
 import com.uber.cadence.activity.ActivityOptions;
-import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.internal.metrics.NoopScope;
 import com.uber.cadence.internal.worker.ActivityTaskHandler;
 import com.uber.cadence.internal.worker.ActivityTaskHandler.Result;
@@ -296,10 +295,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         ActivityTaskHandler.Result response,
         Class<T> resultClass,
         Type resultType) {
-      RetryOptions ro = response.getRequestRetryOptions();
       RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
-
         return testEnvironmentOptions
             .getDataConverter()
             .fromData(taskCompleted.getResult(), resultClass, resultType);

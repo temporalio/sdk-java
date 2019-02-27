@@ -33,14 +33,10 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.apache.thrift.TException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 public final class WorkflowWorker
     implements SuspendableWorker, Consumer<PollForDecisionTaskResponse> {
-
-  private static final Logger log = LoggerFactory.getLogger(WorkflowWorker.class);
 
   private static final String POLL_THREAD_NAME_PREFIX = "Workflow Poller taskList=";
 

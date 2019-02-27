@@ -39,8 +39,8 @@ public class WorkerFactoryTests {
   @Test
   public void whenAFactoryIsStartedAllWorkersStart() {
     Worker.Factory factory = new Worker.Factory("domain");
-    Worker worker1 = factory.newWorker("task1");
-    Worker worker2 = factory.newWorker("task2");
+    factory.newWorker("task1");
+    factory.newWorker("task2");
 
     factory.start();
     assertTrue(factory.isStarted());
@@ -51,8 +51,8 @@ public class WorkerFactoryTests {
   @Test
   public void whenAFactoryIsShutdownAllWorkersAreShutdown() {
     Worker.Factory factory = new Worker.Factory("domain");
-    Worker worker1 = factory.newWorker("task1");
-    Worker worker2 = factory.newWorker("task2");
+    factory.newWorker("task1");
+    factory.newWorker("task2");
 
     assertFalse(factory.isStarted());
     factory.start();
@@ -80,7 +80,7 @@ public class WorkerFactoryTests {
   @Test(expected = IllegalStateException.class)
   public void aFactoryCannotBeStartedAfterShutdown() {
     Worker.Factory factory = new Worker.Factory("domain");
-    Worker worker1 = factory.newWorker("task1");
+    factory.newWorker("task1");
 
     factory.shutdown();
     factory.awaitTermination(1, TimeUnit.MILLISECONDS);
@@ -90,12 +90,12 @@ public class WorkerFactoryTests {
   @Test(expected = IllegalStateException.class)
   public void workersCannotBeCreatedAfterFactoryHasStarted() {
     Worker.Factory factory = new Worker.Factory("domain");
-    Worker worker1 = factory.newWorker("task1");
+    factory.newWorker("task1");
 
     factory.start();
 
     try {
-      Worker worker2 = factory.newWorker("task2");
+      factory.newWorker("task2");
     } finally {
       factory.shutdown();
       factory.awaitTermination(1, TimeUnit.SECONDS);
@@ -105,12 +105,12 @@ public class WorkerFactoryTests {
   @Test(expected = IllegalStateException.class)
   public void workersCannotBeCreatedAfterFactoryIsShutdown() {
     Worker.Factory factory = new Worker.Factory("domain");
-    Worker worker1 = factory.newWorker("task1");
+    factory.newWorker("task1");
 
     factory.shutdown();
     factory.awaitTermination(1, TimeUnit.MILLISECONDS);
     try {
-      Worker worker2 = factory.newWorker("task2");
+      factory.newWorker("task2");
     } finally {
       factory.shutdown();
       factory.awaitTermination(1, TimeUnit.SECONDS);
@@ -120,7 +120,7 @@ public class WorkerFactoryTests {
   @Test
   public void factoryCanOnlyBeShutdownMoreThanOnce() {
     Worker.Factory factory = new Worker.Factory("domain");
-    Worker worker1 = factory.newWorker("task1");
+    factory.newWorker("task1");
 
     factory.shutdown();
     factory.awaitTermination(1, TimeUnit.MILLISECONDS);

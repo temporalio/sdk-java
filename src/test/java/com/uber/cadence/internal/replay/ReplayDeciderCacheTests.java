@@ -75,7 +75,6 @@ public class ReplayDeciderCacheTests {
         HistoryUtils.generateDecisionTaskWithInitialHistory(
             "domain", "taskList", "workflowType", service);
 
-    String runId = decisionTask1.getWorkflowExecution().getRunId();
     Decider decider = replayDeciderCache.getOrCreate(decisionTask1, this::createFakeDecider);
 
     PollForDecisionTaskResponse decisionTask2 =
@@ -113,7 +112,6 @@ public class ReplayDeciderCacheTests {
         HistoryUtils.generateDecisionTaskWithInitialHistory(
             "domain", "taskList", "workflowType", service);
 
-    String runId = decisionTask.getWorkflowExecution().getRunId();
     Decider decider = replayDeciderCache.getOrCreate(decisionTask, this::createFakeDecider);
 
     // Act
@@ -182,9 +180,9 @@ public class ReplayDeciderCacheTests {
         HistoryUtils.generateDecisionTaskWithInitialHistory();
 
     // Act
-    Decider decider1 = replayDeciderCache.getOrCreate(decisionTask1, this::createFakeDecider);
-    Decider decider2 = replayDeciderCache.getOrCreate(decisionTask2, this::createFakeDecider);
-    Decider decider3 = replayDeciderCache.getOrCreate(decisionTask3, this::createFakeDecider);
+    replayDeciderCache.getOrCreate(decisionTask1, this::createFakeDecider);
+    replayDeciderCache.getOrCreate(decisionTask2, this::createFakeDecider);
+    replayDeciderCache.getOrCreate(decisionTask3, this::createFakeDecider);
 
     assertEquals(3, replayDeciderCache.size());
 
@@ -207,7 +205,7 @@ public class ReplayDeciderCacheTests {
         HistoryUtils.generateDecisionTaskWithInitialHistory();
 
     // Act
-    Decider decider1 = replayDeciderCache.getOrCreate(decisionTask1, this::createFakeDecider);
+    replayDeciderCache.getOrCreate(decisionTask1, this::createFakeDecider);
 
     assertEquals(1, replayDeciderCache.size());
 

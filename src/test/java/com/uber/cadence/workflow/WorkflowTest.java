@@ -34,6 +34,7 @@ import com.uber.cadence.activity.ActivityOptions;
 import com.uber.cadence.client.ActivityCancelledException;
 import com.uber.cadence.client.ActivityCompletionClient;
 import com.uber.cadence.client.ActivityNotExistsException;
+import com.uber.cadence.client.BatchRequest;
 import com.uber.cadence.client.DuplicateWorkflowException;
 import com.uber.cadence.client.WorkflowClient;
 import com.uber.cadence.client.WorkflowClientInterceptorBase;
@@ -786,16 +787,14 @@ public class WorkflowTest {
 
     @Override
     public String execute(String taskList) {
-      Promise<String> failedPromise =
-          Async.function(
-              () -> {
-                throw new UncheckedExecutionException(new Exception("Oh noo!"));
-              });
-      Promise<String> failedPromise2 =
-          Async.function(
-              () -> {
-                throw new UncheckedExecutionException(new Exception("Oh noo again!"));
-              });
+      Async.function(
+          () -> {
+            throw new UncheckedExecutionException(new Exception("Oh noo!"));
+          });
+      Async.function(
+          () -> {
+            throw new UncheckedExecutionException(new Exception("Oh noo again!"));
+          });
       Workflow.await(() -> false);
       fail("unreachable");
       return "done";
@@ -2044,6 +2043,76 @@ public class WorkflowTest {
     client2.execute();
   }
 
+  public static class TestSignalWithStartWorkflowImpl implements QueryableWorkflow {
+
+    String state = "initial";
+    List<String> signals = new ArrayList<>();
+    CompletablePromise<Void> promise = Workflow.newPromise();
+
+    @Override
+    public String execute() {
+      promise.get();
+      return signals.get(0) + signals.get(1);
+    }
+
+    @Override
+    public String getState() {
+      return state;
+    }
+
+    @Override
+    public void mySignal(String value) {
+      log.info("TestSignalWorkflowImpl.mySignal value=" + value);
+      state = value;
+      signals.add(value);
+      if (signals.size() == 2) {
+        promise.complete(null);
+      }
+    }
+  }
+
+  @Test
+  public void testSignalWithStart() throws Exception {
+    // Test getTrace through replay by a local worker.
+    Worker queryWorker;
+    if (useExternalService) {
+      Worker.Factory workerFactory = new Worker.Factory(service, DOMAIN);
+      queryWorker = workerFactory.newWorker(taskList);
+    } else {
+      queryWorker = testEnvironment.newWorker(taskList);
+    }
+    queryWorker.registerWorkflowImplementationTypes(TestSignalWithStartWorkflowImpl.class);
+    startWorkerFor(TestSignalWorkflowImpl.class);
+    WorkflowOptions.Builder optionsBuilder = newWorkflowOptionsBuilder(taskList);
+    String workflowId = UUID.randomUUID().toString();
+    optionsBuilder.setWorkflowId(workflowId);
+    QueryableWorkflow client =
+        workflowClient.newWorkflowStub(QueryableWorkflow.class, optionsBuilder.build());
+
+    // SignalWithStart starts a workflow and delivers the signal to it.
+    BatchRequest batch = workflowClient.newSignalWithStartRequest();
+    batch.add(client::mySignal, "Hello ");
+    batch.add(client::execute);
+    WorkflowExecution execution = workflowClient.signalWithStart(batch);
+    sleep(Duration.ofSeconds(1));
+
+    // Test client created using WorkflowExecution
+    QueryableWorkflow client2 =
+        workflowClient.newWorkflowStub(QueryableWorkflow.class, optionsBuilder.build());
+    // SignalWithStart delivers the signal to the already running workflow.
+    BatchRequest batch2 = workflowClient.newSignalWithStartRequest();
+    batch2.add(client2::mySignal, "World!");
+    batch2.add(client2::execute);
+    WorkflowExecution execution2 = workflowClient.signalWithStart(batch2);
+    assertEquals(execution, execution2);
+
+    sleep(Duration.ofMillis(500));
+    assertEquals("World!", client2.getState());
+    assertEquals(
+        "Hello World!",
+        workflowClient.newUntypedWorkflowStub(execution, Optional.empty()).getResult(String.class));
+  }
+
   public static class TestNoQueryWorkflowImpl implements QueryableWorkflow {
 
     CompletablePromise<Void> promise = Workflow.newPromise();
@@ -2451,8 +2520,8 @@ public class WorkflowTest {
       client.execute(taskList);
       fail("unreachable");
     } catch (WorkflowException e) {
-      assertTrue(e.getCause() instanceof ChildWorkflowFailureException);
-      assertTrue(e.getCause().getCause() instanceof UnsupportedOperationException);
+      assertTrue(e.toString(), e.getCause() instanceof ChildWorkflowFailureException);
+      assertTrue(e.toString(), e.getCause().getCause() instanceof UnsupportedOperationException);
       assertEquals("simulated failure", e.getCause().getCause().getMessage());
     }
     assertEquals("TestWorkflow1::execute", capturedWorkflowType.get());
@@ -3929,6 +3998,7 @@ public class WorkflowTest {
   }
 
   public static class NonSerializableException extends RuntimeException {
+    @SuppressWarnings("unused")
     private final InputStream file; // gson chokes on this field
 
     public NonSerializableException() {

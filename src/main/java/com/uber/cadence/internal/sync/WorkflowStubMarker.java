@@ -27,7 +27,7 @@ import com.uber.cadence.workflow.Promise;
  * com.uber.cadence.workflow.Workflow#getWorkflowExecution(Object)} to access {@link
  * WorkflowExecution} out of a workflow stub.
  */
-public interface WorkflowStub {
+public interface WorkflowStubMarker {
   String GET_EXECUTION_METHOD_NAME = "__getWorkflowExecution";
 
   Promise<WorkflowExecution> __getWorkflowExecution();

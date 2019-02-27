@@ -300,7 +300,7 @@ public final class RetryOptions {
       throw new IllegalArgumentException(
           "both MaximumAttempts and Expiration on retry policy are not set, at least one of them must be set");
     }
-    if (maximumInterval != null && maximumInterval.compareTo(initialInterval) == -1) {
+    if (maximumInterval != null && maximumInterval.compareTo(initialInterval) < 0) {
       throw new IllegalStateException(
           "maximumInterval("
               + maximumInterval

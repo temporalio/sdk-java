@@ -312,10 +312,6 @@ public final class AsyncInternal {
             && lambda.getImplMethodKind() == MethodHandleInfo.REF_invokeInterface);
   }
 
-  private static boolean hasAsyncResult() {
-    return asyncResult.get().get() != null;
-  }
-
   public static boolean isAsync() {
     return asyncResult.get() != null;
   }
