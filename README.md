@@ -330,7 +330,7 @@ timeouts are not specified through the @ActivityMethod annotation.
 Calling a method on this interface invokes an activity that implements this method.
 An activity invocation synchronously blocks until the activity completes, fails, or times out. Even if activity
 execution takes a few months, the workflow code still sees it as a single synchronous invocation.
-Isn't it great? I doesn't matter what happens to the processes that host the workflow. The business logic code
+Isn't it great? It doesn't matter what happens to the processes that host the workflow. The business logic code
 just sees a single method call.
 ```java
 public class FileProcessingWorkflowImpl implements FileProcessingWorkflow {
