@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.3.1
+- Added support for SignalWithStart Service API
+- Expose methods in TChannel service to allow user to add headers in Thrift request
+
 ## v2.3.0
 - Added cron schedule support.
 - Fix infinite retryer in activity and workflow worker due to non-retryable error.

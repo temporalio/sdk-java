@@ -146,6 +146,9 @@ public class WorkflowServiceTChannel implements IWorkflowService {
     /** Optional TChannel transport headers */
     private final Map<String, String> transportHeaders;
 
+    /** Optional TChannel headers */
+    private final Map<String, String> headers;
+
     private ClientOptions(Builder builder) {
       this.rpcTimeoutMillis = builder.rpcTimeoutMillis;
       if (builder.clientAppName == null) {
@@ -168,6 +171,12 @@ public class WorkflowServiceTChannel implements IWorkflowService {
         this.transportHeaders = ImmutableMap.copyOf(builder.transportHeaders);
       } else {
         this.transportHeaders = ImmutableMap.of();
+      }
+
+      if (builder.headers != null) {
+        this.headers = ImmutableMap.copyOf(builder.headers);
+      } else {
+        this.headers = ImmutableMap.of();
       }
     }
 
@@ -203,6 +212,10 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       return transportHeaders;
     }
 
+    public Map<String, String> getHeaders() {
+      return headers;
+    }
+
     /**
      * Builder is the builder for ClientOptions.
      *
@@ -218,6 +231,7 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       public String serviceName;
       private Scope metricsScope;
       private Map<String, String> transportHeaders;
+      private Map<String, String> headers;
 
       /**
        * Sets the rpc timeout value for non query and non long poll calls. Default is 1000.
@@ -298,6 +312,11 @@ public class WorkflowServiceTChannel implements IWorkflowService {
         return this;
       }
 
+      public Builder setHeaders(Map<String, String> headers) {
+        this.headers = headers;
+        return this;
+      }
+
       /**
        * Builds and returns a ClientOptions object.
        *
@@ -349,7 +368,7 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       throw new IllegalArgumentException("0 or negative port");
     }
     this.options = options;
-    this.thriftHeaders = getThriftHeaders();
+    this.thriftHeaders = getThriftHeaders(options);
     // this.metricsReporter = new MetricsReporter(options.getMetricsClient());
     // Need to create tChannel last in order to prevent leaking when an exception is thrown
     this.tChannel = new TChannel.Builder(options.getClientAppName()).build();
@@ -380,13 +399,13 @@ public class WorkflowServiceTChannel implements IWorkflowService {
    */
   public WorkflowServiceTChannel(SubChannel subChannel, ClientOptions options) {
     this.options = options;
-    this.thriftHeaders = getThriftHeaders();
+    this.thriftHeaders = getThriftHeaders(options);
     // this.metricsReporter = new MetricsReporter(options.getMetricsClient());
     this.tChannel = null;
     this.subChannel = subChannel;
   }
 
-  private static Map<String, String> getThriftHeaders() {
+  private static Map<String, String> getThriftHeaders(ClientOptions options) {
     String envUserName = System.getenv("USER");
     String envHostname;
     try {
@@ -395,12 +414,20 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       envHostname = "localhost";
     }
 
-    return ImmutableMap.<String, String>builder()
-        .put("user-name", envUserName)
-        .put("host-name", envHostname)
-        .put("cadence-client-library-version", Version.LIBRARY_VERSION)
-        .put("cadence-client-feature-version", Version.FEATURE_VERSION)
-        .build();
+    ImmutableMap.Builder<String, String> builder =
+        ImmutableMap.<String, String>builder()
+            .put("user-name", envUserName)
+            .put("host-name", envHostname)
+            .put("cadence-client-library-version", Version.LIBRARY_VERSION)
+            .put("cadence-client-feature-version", Version.FEATURE_VERSION);
+
+    if (options.headers != null) {
+      for (Map.Entry<String, String> entry : options.headers.entrySet()) {
+        builder.put(entry.getKey(), entry.getValue());
+      }
+    }
+
+    return builder.build();
   }
 
   /** Returns the endpoint in the format service::method" */
