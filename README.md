@@ -534,7 +534,7 @@ executed one thread at a time and under a global lock.
   - Call `WorkflowThread.sleep` instead of `Thread.sleep`.
   - Use `Promise` and `CompletablePromise` instead of `Future` and `CompletableFuture`.
   - Use `WorkflowQueue` instead of `BlockingQueue`.
-- Don't change workflow code when there are open workflows. The ability to do updates through visioning is TBD.
+- Don't change workflow code when there are open workflows. The ability to do updates through versioning is TBD.
 - Don’t access configuration APIs directly from a workflow because changes in the configuration might affect a workflow execution path.
 Pass it as an argument to a workflow function or use an activity to load it.
 
