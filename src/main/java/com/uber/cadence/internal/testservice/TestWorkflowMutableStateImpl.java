@@ -959,7 +959,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public void startWorkflow(Optional<SignalWorkflowExecutionRequest> signalWithStartSignal)
+  public void startWorkflow(
+      boolean continuedAsNew, Optional<SignalWorkflowExecutionRequest> signalWithStartSignal)
       throws InternalServiceError, BadRequestError {
     try {
       update(
@@ -998,7 +999,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     } catch (EntityNotExistsError entityNotExistsError) {
       throw new InternalServiceError(Throwables.getStackTraceAsString(entityNotExistsError));
     }
-    if (parent.isPresent()) {
+    if (!continuedAsNew && parent.isPresent()) {
       ChildWorkflowExecutionStartedEventAttributes a =
           new ChildWorkflowExecutionStartedEventAttributes()
               .setInitiatedEventId(parentChildInitiatedEventId.getAsLong())

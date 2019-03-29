@@ -96,7 +96,8 @@ interface TestWorkflowMutableState {
   void childWorkflowCanceled(String workflowId, ChildWorkflowExecutionCanceledEventAttributes a)
       throws InternalServiceError, EntityNotExistsError, BadRequestError;
 
-  void startWorkflow(Optional<SignalWorkflowExecutionRequest> signalWithStartSignal)
+  void startWorkflow(
+      boolean continuedAsNew, Optional<SignalWorkflowExecutionRequest> signalWithStartSignal)
       throws InternalServiceError, BadRequestError;
 
   void startActivityTask(PollForActivityTaskResponse task, PollForActivityTaskRequest pollRequest)

@@ -238,6 +238,7 @@ public final class TestWorkflowService implements IWorkflowService {
       Optional<RetryState> retryState = newRetryStateLocked(retryPolicy);
       return startWorkflowExecutionNoRunningCheckLocked(
           startRequest,
+          false,
           retryState,
           backoffStartIntervalInSeconds,
           null,
@@ -275,6 +276,7 @@ public final class TestWorkflowService implements IWorkflowService {
 
   private StartWorkflowExecutionResponse startWorkflowExecutionNoRunningCheckLocked(
       StartWorkflowExecutionRequest startRequest,
+      boolean continuedAsNew,
       Optional<RetryState> retryState,
       int backoffStartIntervalInSeconds,
       byte[] lastCompletionResult,
@@ -298,7 +300,7 @@ public final class TestWorkflowService implements IWorkflowService {
     ExecutionId executionId = new ExecutionId(domain, execution);
     executionsByWorkflowId.put(workflowId, mutableState);
     executions.put(executionId, mutableState);
-    mutableState.startWorkflow(signalWithStartSignal);
+    mutableState.startWorkflow(continuedAsNew, signalWithStartSignal);
     return new StartWorkflowExecutionResponse().setRunId(execution.getRunId());
   }
 
@@ -592,6 +594,7 @@ public final class TestWorkflowService implements IWorkflowService {
       StartWorkflowExecutionResponse response =
           startWorkflowExecutionNoRunningCheckLocked(
               startRequest,
+              true,
               retryState,
               a.getBackoffStartIntervalInSeconds(),
               a.getLastCompletionResult(),
