@@ -79,7 +79,7 @@ class ReplayDecider implements Decider {
 
   private final Scope metricsScope;
 
-  private long wfStartTime = -1;
+  private final long wfStartTimeNanos;
 
   private final WorkflowExecutionStartedEventAttributes startedEvent;
 
@@ -102,6 +102,7 @@ class ReplayDecider implements Decider {
       throw new IllegalArgumentException(
           "First event in the history is not WorkflowExecutionStarted");
     }
+    wfStartTimeNanos = decisionTask.getHistory().getEvents().get(0).getTimestamp();
 
     context =
         new DecisionContextImpl(
@@ -288,12 +289,10 @@ class ReplayDecider implements Decider {
       }
     }
 
-    if (wfStartTime != -1) {
-      long nanoTime =
-          TimeUnit.NANOSECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
-      com.uber.m3.util.Duration d = com.uber.m3.util.Duration.ofNanos(nanoTime - wfStartTime);
-      metricsScope.timer(MetricsType.WORKFLOW_E2E_LATENCY).record(d);
-    }
+    long nanoTime =
+        TimeUnit.NANOSECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
+    com.uber.m3.util.Duration d = com.uber.m3.util.Duration.ofNanos(nanoTime - wfStartTimeNanos);
+    metricsScope.timer(MetricsType.WORKFLOW_E2E_LATENCY).record(d);
   }
 
   private void updateTimers() {
