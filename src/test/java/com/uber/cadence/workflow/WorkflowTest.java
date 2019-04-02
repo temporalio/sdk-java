@@ -867,21 +867,26 @@ public class WorkflowTest {
         testActivities.activityWithDelay(100000, true);
         fail("unreachable");
       } catch (CancellationException e) {
-        Workflow.newDetachedCancellationScope(() -> assertEquals(1, testActivities.activity1(1)));
+        Workflow.newDetachedCancellationScope(() -> assertEquals(1, testActivities.activity1(1)))
+            .run();
       }
       try {
         Workflow.sleep(Duration.ofHours(1));
         fail("unreachable");
       } catch (CancellationException e) {
         Workflow.newDetachedCancellationScope(
-            () -> assertEquals("a12", testActivities.activity2("a1", 2)));
+                () -> assertEquals("a12", testActivities.activity2("a1", 2)))
+            .run();
+        ;
       }
       try {
         Workflow.newTimer(Duration.ofHours(1)).get();
         fail("unreachable");
       } catch (CancellationException e) {
         Workflow.newDetachedCancellationScope(
-            () -> assertEquals("a123", testActivities.activity3("a1", 2, 3)));
+                () -> assertEquals("a123", testActivities.activity3("a1", 2, 3)))
+            .run();
+        ;
       }
       return "result";
     }
@@ -2680,6 +2685,7 @@ public class WorkflowTest {
       CancellationScope scope =
           Workflow.newCancellationScope(
               () -> signal.completeFrom(Async.procedure(workflow::signal1, "World")));
+      scope.run();
       scope.cancel();
       try {
         signal.get();

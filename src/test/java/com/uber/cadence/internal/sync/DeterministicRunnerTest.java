@@ -344,6 +344,7 @@ public class DeterministicRunnerTest {
                         var.completeFrom(newTimer(300));
                         trace.add("scope done");
                       });
+              scope.run();
               trace.add("root before cancel");
               scope.cancel("from root");
               try {
@@ -385,6 +386,7 @@ public class DeterministicRunnerTest {
                         var.completeFrom(newTimer(300));
                         trace.add("scope done");
                       });
+              scope.run();
               trace.add("root before cancel");
               scope.cancel("from root");
               try {
@@ -446,6 +448,7 @@ public class DeterministicRunnerTest {
                               trace.add("thread done: " + cancellation.get());
                             });
                       });
+              scope.run();
               trace.add("root before cancel");
               scope.cancel("from root");
               threadDone.get();
@@ -475,21 +478,23 @@ public class DeterministicRunnerTest {
               trace.add("root started");
               CompletablePromise<Void> done = Workflow.newPromise();
               Workflow.newDetachedCancellationScope(
-                  () -> {
-                    Async.procedure(
-                        () -> {
-                          trace.add("thread started");
-                          WorkflowThread.await(
-                              "reason1",
-                              () -> unblock1 || CancellationScope.current().isCancelRequested());
-                          if (CancellationScope.current().isCancelRequested()) {
-                            done.completeExceptionally(new CancellationException());
-                          } else {
-                            done.complete(null);
-                          }
-                          trace.add("await done");
-                        });
-                  });
+                      () -> {
+                        Async.procedure(
+                            () -> {
+                              trace.add("thread started");
+                              WorkflowThread.await(
+                                  "reason1",
+                                  () ->
+                                      unblock1 || CancellationScope.current().isCancelRequested());
+                              if (CancellationScope.current().isCancelRequested()) {
+                                done.completeExceptionally(new CancellationException());
+                              } else {
+                                done.complete(null);
+                              }
+                              trace.add("await done");
+                            });
+                      })
+                  .run();
               try {
                 done.get();
               } catch (CancellationException e) {

@@ -279,9 +279,7 @@ public final class WorkflowInternal {
   }
 
   public static CancellationScope newCancellationScope(boolean detached, Runnable runnable) {
-    CancellationScopeImpl result = new CancellationScopeImpl(detached, runnable);
-    result.run();
-    return result;
+    return new CancellationScopeImpl(detached, runnable);
   }
 
   public static CancellationScopeImpl currentCancellationScope() {

@@ -87,7 +87,8 @@ class CancellationScopeImpl implements CancellationScope {
     }
   }
 
-  void run() {
+  @Override
+  public void run() {
     try {
       pushCurrent(this);
       runnable.run();

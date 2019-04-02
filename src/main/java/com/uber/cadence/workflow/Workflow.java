@@ -537,10 +537,38 @@ public final class Workflow {
     return WorkflowInternal.getWorkflowInfo();
   }
 
-  public static <R> CancellationScope newCancellationScope(Runnable runnable) {
+  /**
+   * Wraps the Runnable method argument in a {@link CancellationScope}. The {@link
+   * CancellationScope#run()} calls {@link Runnable#run()} on the wrapped Runnable. The returned
+   * CancellationScope can be used to cancel the wrapped code. The cancellation semantic depends on
+   * the operation the code is blocked on. For example activity or child workflow is first cancelled
+   * then throws a {@link CancellationException}. The same applies for {@link Workflow#sleep(long)}
+   * operation. When an activity or a child workflow is invoked asynchronously then they get
+   * cancelled and a {@link Promise} that contains their result will throw CancellationException
+   * when {@link Promise#get()} is called.
+   *
+   * <p>The new cancellation scope is linked to the parent one (available as {@link
+   * CancellationScope#current()}. If the parent one is cancelled then all the children scopes are
+   * cancelled automatically. The main workflow function (annotated with @{@link WorkflowMethod} is
+   * wrapped within a root cancellation scope which gets cancelled when a workflow is cancelled
+   * through the Cadence CancelWorkflowExecution API. To perform cleanup operations that require
+   * blocking after the current scope is cancelled use a scope created through {@link
+   * #newDetachedCancellationScope(Runnable)}.
+   *
+   * @param runnable parameter to wrap in a cancellation scope.
+   * @return wrapped parameter.
+   */
+  public static CancellationScope newCancellationScope(Runnable runnable) {
     return WorkflowInternal.newCancellationScope(false, runnable);
   }
 
+  /**
+   * Creates a CancellationScope that is not linked to a parent scope.
+   *
+   * @param runnable parameter to wrap in a cancellation scope.
+   * @return wrapped parameter.
+   * @see #newCancellationScope(Runnable)
+   */
   public static CancellationScope newDetachedCancellationScope(Runnable runnable) {
     return WorkflowInternal.newCancellationScope(true, runnable);
   }

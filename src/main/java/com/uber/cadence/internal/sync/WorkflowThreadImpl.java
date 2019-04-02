@@ -190,6 +190,11 @@ class WorkflowThreadImpl implements WorkflowThread {
   }
 
   @Override
+  public void run() {
+    throw new UnsupportedOperationException("not used");
+  }
+
+  @Override
   public boolean isDetached() {
     return task.cancellationScope.isDetached();
   }

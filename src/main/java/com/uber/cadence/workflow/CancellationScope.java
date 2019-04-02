@@ -25,7 +25,7 @@ import java.util.concurrent.CancellationException;
  * {@link Workflow#newDetachedCancellationScope(Runnable)}. Supports explicit cancelling of the code
  * a cancellation scope wraps.
  */
-public interface CancellationScope {
+public interface CancellationScope extends Runnable {
 
   /**
    * When set to false parent thread cancellation causes this one to get cancelled automatically.
