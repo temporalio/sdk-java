@@ -289,8 +289,7 @@ class ReplayDecider implements Decider {
       }
     }
 
-    long nanoTime =
-        TimeUnit.NANOSECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
+    long nanoTime = TimeUnit.NANOSECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
     com.uber.m3.util.Duration d = com.uber.m3.util.Duration.ofNanos(nanoTime - wfStartTimeNanos);
     metricsScope.timer(MetricsType.WORKFLOW_E2E_LATENCY).record(d);
   }

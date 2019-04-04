@@ -39,9 +39,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.apache.thrift.TBase;
-import org.apache.thrift.TDeserializer;
-import org.apache.thrift.TSerializer;
 import org.apache.thrift.protocol.TJSONProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,7 +94,9 @@ public final class JsonDataConverter implements DataConverter {
     GsonBuilder gsonBuilder =
         new GsonBuilder()
             .serializeNulls()
-            .registerTypeAdapterFactory(new ThrowableTypeAdapterFactory());
+            .registerTypeAdapterFactory(new ThrowableTypeAdapterFactory())
+            .registerTypeAdapterFactory(new TBaseTypeAdapterFactory())
+            .registerTypeAdapterFactory(new TEnumTypeAdapterFactory());
     GsonBuilder intercepted = builderInterceptor.apply(gsonBuilder);
     gson = intercepted.create();
   }
@@ -115,10 +114,6 @@ public final class JsonDataConverter implements DataConverter {
     try {
       if (values.length == 1) {
         Object value = values[0];
-        // Serialize thrift objects using Thrift serializer
-        if (value instanceof TBase) {
-          return newThriftSerializer().toString((TBase) value).getBytes(StandardCharsets.UTF_8);
-        }
         try {
           String json = gson.toJson(value);
           return json.getBytes(StandardCharsets.UTF_8);
@@ -151,12 +146,6 @@ public final class JsonDataConverter implements DataConverter {
       return null;
     }
     try {
-      // Deserialize thrift values.
-      if (TBase.class.isAssignableFrom(valueClass)) {
-        T instance = valueClass.getConstructor().newInstance();
-        newThriftDeserializer().deserialize((TBase) instance, content);
-        return instance;
-      }
       return gson.fromJson(new String(content, StandardCharsets.UTF_8), valueType);
     } catch (Exception e) {
       throw new DataConverterException(content, new Type[] {valueType}, e);
@@ -388,13 +377,5 @@ public final class JsonDataConverter implements DataConverter {
       }
     }
     return new StackTraceElement(declaringClass, methodName, fileName, lineNumber);
-  }
-
-  private static TSerializer newThriftSerializer() {
-    return new TSerializer(new TJSONProtocol.Factory());
-  }
-
-  private static TDeserializer newThriftDeserializer() {
-    return new TDeserializer(new TJSONProtocol.Factory());
   }
 }
