@@ -344,9 +344,29 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         processRecordMarker(ctx, d.getRecordMarkerDecisionAttributes(), decisionTaskCompletedId);
         break;
       case RequestCancelExternalWorkflowExecution:
-        throw new InternalServiceError(
-            "Decision " + d.getDecisionType() + " is not yet " + "implemented");
+        processRequestCancelExternalWorkflowExecution(
+            ctx, d.getRequestCancelExternalWorkflowExecutionDecisionAttributes());
+        break;
     }
+  }
+
+  private void processRequestCancelExternalWorkflowExecution(
+      RequestContext ctx, RequestCancelExternalWorkflowExecutionDecisionAttributes attr) {
+    ForkJoinPool.commonPool()
+        .execute(
+            () -> {
+              RequestCancelWorkflowExecutionRequest request =
+                  new RequestCancelWorkflowExecutionRequest();
+              WorkflowExecution workflowExecution = new WorkflowExecution();
+              workflowExecution.setWorkflowId(attr.workflowId);
+              request.setWorkflowExecution(workflowExecution);
+              request.setDomain(ctx.getDomain());
+              try {
+                service.RequestCancelWorkflowExecution(request);
+              } catch (Exception e) {
+                log.error("Failure to request cancel external workflow", e);
+              }
+            });
   }
 
   private void processRecordMarker(

@@ -446,7 +446,8 @@ class StateMachines {
             .setWorkflowId(d.getWorkflowId())
             .setWorkflowIdReusePolicy(d.getWorkflowIdReusePolicy())
             .setWorkflowType(d.getWorkflowType())
-            .setRetryPolicy(d.getRetryPolicy());
+            .setRetryPolicy(d.getRetryPolicy())
+            .setCronSchedule(d.getCronSchedule());
     HistoryEvent event =
         new HistoryEvent()
             .setEventType(EventType.StartChildWorkflowExecutionInitiated)
@@ -466,7 +467,8 @@ class StateMachines {
                   .setWorkflowId(d.getWorkflowId())
                   .setWorkflowIdReusePolicy(d.getWorkflowIdReusePolicy())
                   .setWorkflowType(d.getWorkflowType())
-                  .setRetryPolicy(d.getRetryPolicy());
+                  .setRetryPolicy(d.getRetryPolicy())
+                  .setCronSchedule(d.getCronSchedule());
           if (d.isSetInput()) {
             startChild.setInput(d.getInput());
           }

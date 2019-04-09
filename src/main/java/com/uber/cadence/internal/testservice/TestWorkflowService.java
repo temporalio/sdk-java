@@ -18,7 +18,6 @@
 package com.uber.cadence.internal.testservice;
 
 import com.uber.cadence.BadRequestError;
-import com.uber.cadence.CancellationAlreadyRequestedError;
 import com.uber.cadence.DeprecateDomainRequest;
 import com.uber.cadence.DescribeDomainRequest;
 import com.uber.cadence.DescribeDomainResponse;
@@ -476,8 +475,7 @@ public final class TestWorkflowService implements IWorkflowService {
 
   @Override
   public void RequestCancelWorkflowExecution(RequestCancelWorkflowExecutionRequest cancelRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError,
-          CancellationAlreadyRequestedError, ServiceBusyError, TException {
+      throws TException {
     ExecutionId executionId =
         new ExecutionId(cancelRequest.getDomain(), cancelRequest.getWorkflowExecution());
     TestWorkflowMutableState mutableState = getMutableState(executionId);
@@ -486,8 +484,7 @@ public final class TestWorkflowService implements IWorkflowService {
 
   @Override
   public void SignalWorkflowExecution(SignalWorkflowExecutionRequest signalRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
-          TException {
+      throws TException {
     ExecutionId executionId =
         new ExecutionId(signalRequest.getDomain(), signalRequest.getWorkflowExecution());
     TestWorkflowMutableState mutableState = getMutableState(executionId);

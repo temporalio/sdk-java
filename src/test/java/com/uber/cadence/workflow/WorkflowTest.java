@@ -3004,7 +3004,7 @@ public class WorkflowTest {
   }
 
   @Test
-  public void testTestWorkflowWithCronSchedule() {
+  public void testWorkflowWithCronSchedule() {
     // Min interval in cron is 1min. So we will not test it against real service in Jenkins.
     // Feel free to uncomment the line below and test in local.
     Assume.assumeFalse("skipping as test will timeout", useExternalService);
@@ -3020,6 +3020,45 @@ public class WorkflowTest {
                 .build());
     registerDelayedCallback(Duration.ofHours(3), client::cancel);
     client.start(testName.getMethodName());
+
+    try {
+      client.getResult(String.class);
+      fail("unreachable");
+    } catch (CancellationException ignored) {
+    }
+
+    // Run 3 failed. So on run 4 we get the last completion result from run 2.
+    Assert.assertEquals("run 2", lastCompletionResult);
+  }
+
+  public static class TestCronParentWorkflow implements TestWorkflow1 {
+
+    private final TestWorkflowWithCronSchedule cronChild =
+        Workflow.newChildWorkflowStub(TestWorkflowWithCronSchedule.class);
+
+    @Override
+    public String execute(String taskList) {
+      return cronChild.execute(taskList);
+    }
+  }
+
+  @Test
+  public void testChildWorkflowWithCronSchedule() {
+    // Min interval in cron is 1min. So we will not test it against real service in Jenkins.
+    // Feel free to uncomment the line below and test in local.
+    Assume.assumeFalse("skipping as test will timeout", useExternalService);
+
+    startWorkerFor(TestCronParentWorkflow.class, TestWorkflowWithCronScheduleImpl.class);
+
+    WorkflowStub client =
+        workflowClient.newUntypedWorkflowStub(
+            "TestWorkflow1::execute",
+            newWorkflowOptionsBuilder(taskList)
+                .setExecutionStartToCloseTimeout(Duration.ofHours(10))
+                .build());
+    client.start(testName.getMethodName());
+    testEnvironment.sleep(Duration.ofHours(3));
+    client.cancel();
 
     try {
       client.getResult(String.class);

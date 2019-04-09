@@ -50,6 +50,8 @@ public final class StartChildWorkflowExecutionParameters {
 
     private RetryParameters retryParameters;
 
+    private String cronSchedule;
+
     public Builder setDomain(String domain) {
       this.domain = domain;
       return this;
@@ -106,6 +108,11 @@ public final class StartChildWorkflowExecutionParameters {
       return this;
     }
 
+    public Builder setCronSchedule(String cronSchedule) {
+      this.cronSchedule = cronSchedule;
+      return this;
+    }
+
     public StartChildWorkflowExecutionParameters build() {
       return new StartChildWorkflowExecutionParameters(
           domain,
@@ -118,7 +125,8 @@ public final class StartChildWorkflowExecutionParameters {
           workflowType,
           childPolicy,
           workflowIdReusePolicy,
-          retryParameters);
+          retryParameters,
+          cronSchedule);
     }
   }
 
@@ -144,6 +152,8 @@ public final class StartChildWorkflowExecutionParameters {
 
   private final RetryParameters retryParameters;
 
+  private final String cronSchedule;
+
   private StartChildWorkflowExecutionParameters(
       String domain,
       byte[] input,
@@ -155,7 +165,8 @@ public final class StartChildWorkflowExecutionParameters {
       WorkflowType workflowType,
       ChildPolicy childPolicy,
       WorkflowIdReusePolicy workflowIdReusePolicy,
-      RetryParameters retryParameters) {
+      RetryParameters retryParameters,
+      String cronSchedule) {
     this.domain = domain;
     this.input = input;
     this.control = control;
@@ -167,6 +178,7 @@ public final class StartChildWorkflowExecutionParameters {
     this.childPolicy = childPolicy;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
     this.retryParameters = retryParameters;
+    this.cronSchedule = cronSchedule;
   }
 
   public String getDomain() {
@@ -213,6 +225,10 @@ public final class StartChildWorkflowExecutionParameters {
     return retryParameters;
   }
 
+  public String getCronSchedule() {
+    return cronSchedule;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -228,7 +244,8 @@ public final class StartChildWorkflowExecutionParameters {
         && Objects.equals(workflowType, that.workflowType)
         && childPolicy == that.childPolicy
         && workflowIdReusePolicy == that.workflowIdReusePolicy
-        && Objects.equals(retryParameters, that.retryParameters);
+        && Objects.equals(retryParameters, that.retryParameters)
+        && Objects.equals(cronSchedule, that.cronSchedule);
   }
 
   @Override
@@ -244,7 +261,8 @@ public final class StartChildWorkflowExecutionParameters {
             workflowType,
             childPolicy,
             workflowIdReusePolicy,
-            retryParameters);
+            retryParameters,
+            cronSchedule);
     result = 31 * result + Arrays.hashCode(input);
     return result;
   }
@@ -278,6 +296,8 @@ public final class StartChildWorkflowExecutionParameters {
         + workflowIdReusePolicy
         + ", retryParameters="
         + retryParameters
+        + ", cronSchedule="
+        + cronSchedule
         + '}';
   }
 }

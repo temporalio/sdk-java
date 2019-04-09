@@ -17,6 +17,7 @@
 
 package com.uber.cadence.internal.replay;
 
+import com.google.common.base.Strings;
 import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.ChildWorkflowExecutionCanceledEventAttributes;
 import com.uber.cadence.ChildWorkflowExecutionCompletedEventAttributes;
@@ -147,6 +148,11 @@ final class WorkflowDecisionContext {
     if (retryParameters != null) {
       attributes.setRetryPolicy(retryParameters.toRetryPolicy());
     }
+
+    if (!Strings.isNullOrEmpty(parameters.getCronSchedule())) {
+      attributes.setCronSchedule(parameters.getCronSchedule());
+    }
+
     long initiatedEventId = decisions.startChildWorkflowExecution(attributes);
     final OpenChildWorkflowRequestInfo context =
         new OpenChildWorkflowRequestInfo(executionCallback);

@@ -296,6 +296,7 @@ final class SyncDecisionContext implements WorkflowInterceptor {
             .setTaskStartToCloseTimeoutSeconds(options.getTaskStartToCloseTimeout().getSeconds())
             .setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy())
             .setRetryParameters(retryParameters)
+            .setCronSchedule(options.getCronSchedule())
             .build();
     CompletablePromise<byte[]> result = Workflow.newPromise();
     Consumer<Exception> cancellationCallback =

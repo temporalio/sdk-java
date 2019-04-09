@@ -93,17 +93,17 @@ public class JsonDataConverterTest {
   public void testThriftArray() {
     List<HistoryEvent> events = new ArrayList<>();
     WorkflowExecutionStartedEventAttributes started =
-            new WorkflowExecutionStartedEventAttributes()
-                    .setExecutionStartToCloseTimeoutSeconds(11)
-                    .setIdentity("testIdentity")
-                    .setInput("input".getBytes(StandardCharsets.UTF_8))
-                    .setWorkflowType(new WorkflowType().setName("workflowType1"))
-                    .setTaskList(new TaskList().setName("taskList1"));
+        new WorkflowExecutionStartedEventAttributes()
+            .setExecutionStartToCloseTimeoutSeconds(11)
+            .setIdentity("testIdentity")
+            .setInput("input".getBytes(StandardCharsets.UTF_8))
+            .setWorkflowType(new WorkflowType().setName("workflowType1"))
+            .setTaskList(new TaskList().setName("taskList1"));
     events.add(
-            new HistoryEvent()
-                    .setTimestamp(1234567)
-                    .setEventId(321)
-                    .setWorkflowExecutionStartedEventAttributes(started));
+        new HistoryEvent()
+            .setTimestamp(1234567)
+            .setEventId(321)
+            .setWorkflowExecutionStartedEventAttributes(started));
     History history = new History().setEvents(events);
     byte[] converted = converter.toData("abc", history);
     Object[] fromConverted = converter.fromDataArray(converted, String.class, History.class);
@@ -137,18 +137,18 @@ public class JsonDataConverterTest {
   @Test
   public void testThriftFieldsInPOJOArray() {
     WorkflowExecutionStartedEventAttributes started =
-            new WorkflowExecutionStartedEventAttributes()
-                    .setExecutionStartToCloseTimeoutSeconds(11)
-                    .setIdentity("testIdentity")
-                    .setInput("input".getBytes(StandardCharsets.UTF_8))
-                    .setWorkflowType(new WorkflowType().setName("workflowType1"))
-                    .setTaskList(new TaskList().setName("taskList1"));
+        new WorkflowExecutionStartedEventAttributes()
+            .setExecutionStartToCloseTimeoutSeconds(11)
+            .setIdentity("testIdentity")
+            .setInput("input".getBytes(StandardCharsets.UTF_8))
+            .setWorkflowType(new WorkflowType().setName("workflowType1"))
+            .setTaskList(new TaskList().setName("taskList1"));
 
     HistoryEvent historyEvent =
-            new HistoryEvent()
-                    .setTimestamp(1234567)
-                    .setEventId(321)
-                    .setWorkflowExecutionStartedEventAttributes(started);
+        new HistoryEvent()
+            .setTimestamp(1234567)
+            .setEventId(321)
+            .setWorkflowExecutionStartedEventAttributes(started);
 
     TestData testData = new TestData("test-thrift", historyEvent, EventType.ActivityTaskCompleted);
 
@@ -157,7 +157,6 @@ public class JsonDataConverterTest {
     assertEquals(new String(converted, StandardCharsets.UTF_8), "abc", fromConverted[0]);
     assertEquals(new String(converted, StandardCharsets.UTF_8), testData, fromConverted[1]);
   }
-
 
   public static void foo(List<UUID> arg) {}
 

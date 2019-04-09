@@ -107,14 +107,6 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
 
   private ActivityTaskHandler.Result mapToActivityFailure(
       String activityType, Throwable failure, Scope metricsScope) {
-    if (failure instanceof Error) {
-      Map<String, String> tags =
-          new ImmutableMap.Builder<String, String>(1)
-              .put(MetricsTag.ACTIVITY_TYPE, activityType)
-              .build();
-      metricsScope.tagged(tags).counter(MetricsType.ACTIVITY_TASK_ERROR_COUNTER).inc(1);
-      throw (Error) failure;
-    }
 
     if (failure instanceof ActivityCancelledException) {
       throw new CancellationException(failure.getMessage());
@@ -129,7 +121,16 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
               dataConverter.toData(timeoutException.getDetails()));
     }
 
-    metricsScope.counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
+    Map<String, String> activityTypeTag =
+        new ImmutableMap.Builder<String, String>(1)
+            .put(MetricsTag.ACTIVITY_TYPE, activityType)
+            .build();
+    if (failure instanceof Error) {
+      metricsScope.tagged(activityTypeTag).counter(MetricsType.ACTIVITY_TASK_ERROR_COUNTER).inc(1);
+      throw (Error) failure;
+    }
+
+    metricsScope.tagged(activityTypeTag).counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
     RespondActivityTaskFailedRequest result = new RespondActivityTaskFailedRequest();
     failure = CheckedExceptionWrapper.unwrap(failure);
     result.setReason(failure.getClass().getName());

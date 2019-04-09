@@ -21,6 +21,7 @@ import static com.uber.cadence.internal.common.InternalUtils.getValueOrDefault;
 import static com.uber.cadence.internal.common.InternalUtils.getWorkflowMethod;
 import static com.uber.cadence.internal.common.InternalUtils.getWorkflowType;
 
+import com.uber.cadence.common.CronSchedule;
 import com.uber.cadence.common.MethodRetry;
 import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.workflow.ChildWorkflowOptions;
@@ -45,9 +46,10 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
     WorkflowMethod workflowAnnotation = workflowMethod.getAnnotation(WorkflowMethod.class);
     String workflowType = getWorkflowType(workflowMethod, workflowAnnotation);
     MethodRetry retryAnnotation = workflowMethod.getAnnotation(MethodRetry.class);
+    CronSchedule cronSchedule = workflowMethod.getAnnotation(CronSchedule.class);
 
     ChildWorkflowOptions merged =
-        ChildWorkflowOptions.merge(workflowAnnotation, retryAnnotation, options);
+        ChildWorkflowOptions.merge(workflowAnnotation, retryAnnotation, cronSchedule, options);
     this.stub = new ChildWorkflowStubImpl(workflowType, merged, decisionContext);
   }
 

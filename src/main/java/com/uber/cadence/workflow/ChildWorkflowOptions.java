@@ -21,18 +21,22 @@ import static com.uber.cadence.internal.common.OptionsUtils.roundUpToSeconds;
 
 import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.WorkflowIdReusePolicy;
+import com.uber.cadence.common.CronSchedule;
 import com.uber.cadence.common.MethodRetry;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.internal.common.OptionsUtils;
 import java.time.Duration;
+import java.util.Objects;
 
 public final class ChildWorkflowOptions {
 
   public static ChildWorkflowOptions merge(
-      WorkflowMethod a, MethodRetry r, ChildWorkflowOptions o) {
+      WorkflowMethod a, MethodRetry r, CronSchedule cronSchedule, ChildWorkflowOptions o) {
     if (o == null) {
       o = new ChildWorkflowOptions.Builder().build();
     }
+
+    String cronAnnotation = cronSchedule == null ? "" : cronSchedule.value();
     return new ChildWorkflowOptions.Builder()
         .setDomain(o.getDomain())
         .setWorkflowIdReusePolicy(
@@ -48,6 +52,7 @@ public final class ChildWorkflowOptions {
                 a.executionStartToCloseTimeoutSeconds(), o.getExecutionStartToCloseTimeout()))
         .setTaskList(OptionsUtils.merge(a.taskList(), o.getTaskList(), String.class))
         .setRetryOptions(RetryOptions.merge(r, o.getRetryOptions()))
+        .setCronSchedule(cronAnnotation)
         .validateAndBuildWithDefaults();
   }
 
@@ -69,6 +74,8 @@ public final class ChildWorkflowOptions {
 
     private RetryOptions retryOptions;
 
+    private String cronSchedule;
+
     public Builder() {}
 
     public Builder(ChildWorkflowOptions source) {
@@ -83,6 +90,7 @@ public final class ChildWorkflowOptions {
       this.taskList = source.getTaskList();
       this.childPolicy = source.getChildPolicy();
       this.retryOptions = source.getRetryOptions();
+      this.cronSchedule = source.getCronSchedule();
     }
 
     /**
@@ -176,6 +184,11 @@ public final class ChildWorkflowOptions {
       return this;
     }
 
+    public Builder setCronSchedule(String cronSchedule) {
+      this.cronSchedule = cronSchedule;
+      return this;
+    }
+
     public ChildWorkflowOptions build() {
       return new ChildWorkflowOptions(
           domain,
@@ -185,7 +198,8 @@ public final class ChildWorkflowOptions {
           taskStartToCloseTimeout,
           taskList,
           retryOptions,
-          childPolicy);
+          childPolicy,
+          cronSchedule);
     }
 
     public ChildWorkflowOptions validateAndBuildWithDefaults() {
@@ -197,7 +211,8 @@ public final class ChildWorkflowOptions {
           roundUpToSeconds(taskStartToCloseTimeout),
           taskList,
           retryOptions,
-          childPolicy);
+          childPolicy,
+          cronSchedule);
     }
   }
 
@@ -217,6 +232,8 @@ public final class ChildWorkflowOptions {
 
   private final ChildPolicy childPolicy;
 
+  private final String cronSchedule;
+
   private ChildWorkflowOptions(
       String domain,
       String workflowId,
@@ -225,7 +242,8 @@ public final class ChildWorkflowOptions {
       Duration taskStartToCloseTimeout,
       String taskList,
       RetryOptions retryOptions,
-      ChildPolicy childPolicy) {
+      ChildPolicy childPolicy,
+      String cronSchedule) {
     this.domain = domain;
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
@@ -234,6 +252,7 @@ public final class ChildWorkflowOptions {
     this.taskList = taskList;
     this.retryOptions = retryOptions;
     this.childPolicy = childPolicy;
+    this.cronSchedule = cronSchedule;
   }
 
   public String getDomain() {
@@ -268,43 +287,39 @@ public final class ChildWorkflowOptions {
     return retryOptions;
   }
 
+  public String getCronSchedule() {
+    return cronSchedule;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
 
     ChildWorkflowOptions that = (ChildWorkflowOptions) o;
-
-    if (domain != null ? !domain.equals(that.domain) : that.domain != null) return false;
-    if (workflowId != null ? !workflowId.equals(that.workflowId) : that.workflowId != null)
-      return false;
-    if (workflowIdReusePolicy != that.workflowIdReusePolicy) return false;
-    if (executionStartToCloseTimeout != null
-        ? !executionStartToCloseTimeout.equals(that.executionStartToCloseTimeout)
-        : that.executionStartToCloseTimeout != null) return false;
-    if (taskStartToCloseTimeout != null
-        ? !taskStartToCloseTimeout.equals(that.taskStartToCloseTimeout)
-        : that.taskStartToCloseTimeout != null) return false;
-    if (taskList != null ? !taskList.equals(that.taskList) : that.taskList != null) return false;
-    if (retryOptions != null ? !retryOptions.equals(that.retryOptions) : that.retryOptions != null)
-      return false;
-    return childPolicy == that.childPolicy;
+    return Objects.equals(domain, that.domain)
+        && Objects.equals(workflowId, that.workflowId)
+        && workflowIdReusePolicy == that.workflowIdReusePolicy
+        && Objects.equals(executionStartToCloseTimeout, that.executionStartToCloseTimeout)
+        && Objects.equals(taskStartToCloseTimeout, that.taskStartToCloseTimeout)
+        && Objects.equals(taskList, that.taskList)
+        && Objects.equals(retryOptions, that.retryOptions)
+        && childPolicy == that.childPolicy
+        && Objects.equals(cronSchedule, that.cronSchedule);
   }
 
   @Override
   public int hashCode() {
-    int result = domain != null ? domain.hashCode() : 0;
-    result = 31 * result + (workflowId != null ? workflowId.hashCode() : 0);
-    result = 31 * result + (workflowIdReusePolicy != null ? workflowIdReusePolicy.hashCode() : 0);
-    result =
-        31 * result
-            + (executionStartToCloseTimeout != null ? executionStartToCloseTimeout.hashCode() : 0);
-    result =
-        31 * result + (taskStartToCloseTimeout != null ? taskStartToCloseTimeout.hashCode() : 0);
-    result = 31 * result + (taskList != null ? taskList.hashCode() : 0);
-    result = 31 * result + (retryOptions != null ? retryOptions.hashCode() : 0);
-    result = 31 * result + (childPolicy != null ? childPolicy.hashCode() : 0);
-    return result;
+    return Objects.hash(
+        domain,
+        workflowId,
+        workflowIdReusePolicy,
+        executionStartToCloseTimeout,
+        taskStartToCloseTimeout,
+        taskList,
+        retryOptions,
+        childPolicy,
+        cronSchedule);
   }
 
   @Override
@@ -329,6 +344,8 @@ public final class ChildWorkflowOptions {
         + retryOptions
         + ", childPolicy="
         + childPolicy
+        + ", cronSchedule="
+        + cronSchedule
         + '}';
   }
 }
