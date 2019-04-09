@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.4.0
+- Fixed InternalServiceError Error message on continue_as_new
+- Correctly calculate workflow e2e latency
+- Exposing CancellationScope.run method
+- Add TBase and TEnum type adapter for JsonDataConverter
+- Cron child workflow
+
 ## v2.3.1
 - Added support for SignalWithStart Service API
 - Expose methods in TChannel service to allow user to add headers in Thrift request
