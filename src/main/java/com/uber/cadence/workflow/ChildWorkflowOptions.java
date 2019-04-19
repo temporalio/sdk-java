@@ -52,7 +52,7 @@ public final class ChildWorkflowOptions {
                 a.executionStartToCloseTimeoutSeconds(), o.getExecutionStartToCloseTimeout()))
         .setTaskList(OptionsUtils.merge(a.taskList(), o.getTaskList(), String.class))
         .setRetryOptions(RetryOptions.merge(r, o.getRetryOptions()))
-        .setCronSchedule(cronAnnotation)
+        .setCronSchedule(OptionsUtils.merge(cronAnnotation, o.getCronSchedule(), String.class))
         .validateAndBuildWithDefaults();
   }
 

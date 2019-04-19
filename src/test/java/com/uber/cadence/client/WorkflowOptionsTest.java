@@ -21,6 +21,7 @@ import com.uber.cadence.WorkflowIdReusePolicy;
 import com.uber.cadence.common.CronSchedule;
 import com.uber.cadence.common.MethodRetry;
 import com.uber.cadence.common.RetryOptions;
+import com.uber.cadence.workflow.ChildWorkflowOptions;
 import com.uber.cadence.workflow.WorkflowMethod;
 import java.lang.reflect.Method;
 import java.time.Duration;
@@ -112,6 +113,37 @@ public class WorkflowOptionsTest {
     MethodRetry r = method.getAnnotation(MethodRetry.class);
     CronSchedule c = method.getAnnotation(CronSchedule.class);
     WorkflowOptions merged = WorkflowOptions.merge(a, r, c, o);
+    Assert.assertEquals(retryOptions, merged.getRetryOptions());
+    Assert.assertEquals("* 1 * * *", merged.getCronSchedule());
+  }
+
+  @Test
+  public void testChildWorkflowOptionMerge() throws NoSuchMethodException {
+    RetryOptions retryOptions =
+        new RetryOptions.Builder()
+            .setDoNotRetry(IllegalArgumentException.class)
+            .setMaximumAttempts(11111)
+            .setBackoffCoefficient(1.55)
+            .setMaximumInterval(Duration.ofDays(3))
+            .setExpiration(Duration.ofDays(365))
+            .setInitialInterval(Duration.ofMinutes(12))
+            .build();
+
+    ChildWorkflowOptions o =
+        new ChildWorkflowOptions.Builder()
+            .setTaskList("foo")
+            .setExecutionStartToCloseTimeout(Duration.ofSeconds(321))
+            .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
+            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
+            .setWorkflowId("bar")
+            .setRetryOptions(retryOptions)
+            .setCronSchedule("* 1 * * *")
+            .build();
+    Method method = WorkflowOptionsTest.class.getMethod("defaultWorkflowOptions");
+    WorkflowMethod a = method.getAnnotation(WorkflowMethod.class);
+    MethodRetry r = method.getAnnotation(MethodRetry.class);
+    CronSchedule c = method.getAnnotation(CronSchedule.class);
+    ChildWorkflowOptions merged = ChildWorkflowOptions.merge(a, r, c, o);
     Assert.assertEquals(retryOptions, merged.getRetryOptions());
     Assert.assertEquals("* 1 * * *", merged.getCronSchedule());
   }
