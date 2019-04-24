@@ -155,7 +155,7 @@ public final class ActivityOptions {
       if (scheduleToCloseTimeout == null
           && (scheduleToStartTimeout == null || startToCloseTimeout == null)) {
         throw new IllegalStateException(
-            "Either ScheduleToClose or both ScheduleToStart and StarToClose "
+            "Either ScheduleToClose or both ScheduleToStart and StartToClose "
                 + "timeouts are required: ");
       }
       Duration scheduleToClose = scheduleToCloseTimeout;
