@@ -22,7 +22,7 @@ If this does not work, see instructions for running the Cadence Server at https:
 
 ## Get CLI
 
-    TODO
+[CLI is avaialable as an executable or as a docker image](https://github.com/uber/cadence/blob/master/tools/cli/README.md)
 
 # Build a configuration
 
@@ -31,12 +31,12 @@ Add *cadence-client* as a dependency to your *pom.xml*:
     <dependency>
       <groupId>com.uber.cadence</groupId>
       <artifactId>cadence-client</artifactId>
-      <version>2.0.0</version>
+      <version>2.4.0</version>
     </dependency>
     
 or to *build.gradle*:
 
-    compile group: 'com.uber.cadence', name: 'cadence-client', version: '1.0.5'
+    compile group: 'com.uber.cadence', name: 'cadence-client', version: '2.4.0'
     
 # Overview
 
@@ -113,8 +113,9 @@ public interface FileProcessingActivities {
 
     void deleteLocalFile(String fileName);
 }
-
 ```
+It is recommended to use a single value type argument for activity methods. This way adding new arguments as fields to the value type is a backwards compatible change.
+
 An optional @ActivityMethod annotation can be used to specify activity options like timeouts or a task list. Required options
 that are not specified through the annotation must be specified at run time.
 
@@ -272,6 +273,8 @@ public interface FileProcessingWorkflow {
     void retryNow();
 }
 ```
+It is recommended to use a single value type argument for workflow methods. This way adding new arguments as fields to the value type is a backwards compatible change.
+
 ## Starting workflow executions
 
 Given a workflow interface executing a workflow requires initializing a `WorkflowClient` instance, creating
@@ -296,7 +299,7 @@ String result = workflow.processFile(workflowArgs);
 Asynchronous:
 ```java
 // Returns as soon as the workflow starts.
-WorkflowExecution workflowExecution = WorkflowClient.asyncStart(workflow::processFile, workflowArgs);
+WorkflowExecution workflowExecution = WorkflowClient.start(workflow::processFile, workflowArgs);
 
 System.out.println("Started process file workflow with workflowId=\"" + workflowExecution.getWorkflowId()
                     + "\" and runId=\"" + workflowExecution.getRunId() + "\"");
