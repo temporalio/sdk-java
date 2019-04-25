@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.4.1
+- Update default long poll timeout to 2min to match server side config
+- Fix deadlock in sticky decider cache eviction
+- Fix cron schedule merge issue in child workflow option
+
 ## v2.4.0
 - Fixed InternalServiceError Error message on continue_as_new
 - Correctly calculate workflow e2e latency
