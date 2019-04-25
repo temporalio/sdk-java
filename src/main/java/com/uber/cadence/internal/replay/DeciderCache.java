@@ -18,34 +18,22 @@
 package com.uber.cadence.internal.replay;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.util.concurrent.ExecutionError;
-import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.uber.cadence.PollForDecisionTaskResponse;
-import com.uber.cadence.internal.common.ThrowableFunc1;
 import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.m3.tally.Scope;
-import java.util.Iterator;
-import java.util.Objects;
-import java.util.Random;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.*;
+import java.util.concurrent.Callable;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public final class DeciderCache {
   private final Scope metricsScope;
   private LoadingCache<String, Decider> cache;
-  private Lock evictionLock = new ReentrantLock();
-  Random rand = new Random();
-
-  private static final Logger log = LoggerFactory.getLogger(DeciderCache.class);
+  private Lock cacheLock = new ReentrantLock();
+  private Set<String> inProcessing = new HashSet<>();
 
   public DeciderCache(int maxCacheSize, Scope scope) {
     Preconditions.checkArgument(maxCacheSize > 0, "Max cache size must be greater than 0");
@@ -70,83 +58,79 @@ public final class DeciderCache {
   }
 
   public Decider getOrCreate(
-      PollForDecisionTaskResponse decisionTask,
-      ThrowableFunc1<PollForDecisionTaskResponse, Decider, Exception> createReplayDecider)
-      throws Exception {
+      PollForDecisionTaskResponse decisionTask, Callable<Decider> deciderFunc) throws Exception {
     String runId = decisionTask.getWorkflowExecution().getRunId();
-    metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
     if (isFullHistory(decisionTask)) {
-      invalidate(decisionTask);
-      return cache.get(runId, () -> createReplayDecider.apply(decisionTask));
+      invalidate(runId);
+      return deciderFunc.call();
     }
-    AtomicBoolean miss = new AtomicBoolean();
-    Decider result = null;
-    try {
-      result =
-          cache.get(
-              runId,
-              () -> {
-                miss.set(true);
-                return createReplayDecider.apply(decisionTask);
-              });
-    } catch (UncheckedExecutionException | ExecutionError e) {
-      Throwables.throwIfUnchecked(e.getCause());
-    } finally {
-      if (miss.get()) {
-        metricsScope.counter(MetricsType.STICKY_CACHE_MISS).inc(1);
-      } else {
-        metricsScope.counter(MetricsType.STICKY_CACHE_HIT).inc(1);
-      }
+
+    Decider decider = getForProcessing(runId);
+    if (decider != null) {
+      return decider;
     }
-    return result;
+    return deciderFunc.call();
   }
 
-  public void evictAny(String runId) throws InterruptedException {
-    // Timeout is to guard against workflows trying to evict each other.
-    if (!evictionLock.tryLock(rand.nextInt(4), TimeUnit.SECONDS)) {
-      return;
+  private Decider getForProcessing(String runId) throws Exception {
+    cacheLock.lock();
+    try {
+      Decider decider = cache.get(runId);
+      inProcessing.add(runId);
+      metricsScope.counter(MetricsType.STICKY_CACHE_HIT).inc(1);
+      return decider;
+    } catch (CacheLoader.InvalidCacheLoadException e) {
+      // We don't have a default loader and don't want to have one. So it's ok to get null value.
+      metricsScope.counter(MetricsType.STICKY_CACHE_MISS).inc(1);
+      return null;
+    } finally {
+      cacheLock.unlock();
     }
+  }
+
+  void markProcessingDone(PollForDecisionTaskResponse decisionTask) {
+    String runId = decisionTask.getWorkflowExecution().getRunId();
+
+    cacheLock.lock();
+    try {
+      inProcessing.remove(runId);
+    } finally {
+      cacheLock.unlock();
+    }
+  }
+
+  public void addToCache(PollForDecisionTaskResponse decisionTask, Decider decider) {
+    String runId = decisionTask.getWorkflowExecution().getRunId();
+    cache.put(runId, decider);
+  }
+
+  public boolean evictAnyNotInProcessing(String runId) {
+    cacheLock.lock();
     try {
       metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
-      Set<String> set = cache.asMap().keySet();
-      if (set.isEmpty()) {
-        return;
-      }
-      Iterator<String> iter = cache.asMap().keySet().iterator();
-      String key = "";
-      while (iter.hasNext()) {
-        key = iter.next();
-        if (!key.equals(runId)) {
-          break;
+      for (String key : cache.asMap().keySet()) {
+        if (!key.equals(runId) && !inProcessing.contains(key)) {
+          cache.invalidate(key);
+          metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
+          metricsScope.counter(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION).inc(1);
+          return true;
         }
       }
 
-      if (key.equals(runId)) {
-        log.warn(String.format("%s attempted to self evict. Ignoring eviction", runId));
-        return;
-      }
-      cache.invalidate(key);
-      metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
-      metricsScope.counter(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION).inc(1);
+      return false;
     } finally {
-      evictionLock.unlock();
+      cacheLock.unlock();
     }
   }
 
-  public void invalidate(PollForDecisionTaskResponse decisionTask) throws InterruptedException {
-    String runId = decisionTask.getWorkflowExecution().getRunId();
-    invalidate(runId);
-  }
-
-  private void invalidate(String runId) throws InterruptedException {
-    if (!evictionLock.tryLock(rand.nextInt(4), TimeUnit.SECONDS)) {
-      return;
-    }
+  void invalidate(String runId) {
+    cacheLock.lock();
     try {
       cache.invalidate(runId);
+      inProcessing.remove(runId);
       metricsScope.counter(MetricsType.STICKY_CACHE_TOTAL_FORCED_EVICTION).inc(1);
     } finally {
-      evictionLock.unlock();
+      cacheLock.unlock();
     }
   }
 
@@ -162,12 +146,5 @@ public final class DeciderCache {
 
   public void invalidateAll() {
     cache.invalidateAll();
-  }
-
-  public static class EvictedException extends Exception {
-
-    public EvictedException(String runId) {
-      super(String.format("cache was evicted for the decisionTask. RunId: %s", runId));
-    }
   }
 }

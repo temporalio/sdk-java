@@ -236,30 +236,26 @@ class WorkflowThreadImpl implements WorkflowThread {
         .gauge(MetricsType.WORKFLOW_ACTIVE_THREAD_COUNT)
         .update(((ThreadPoolExecutor) threadPool).getActiveCount());
 
-    try {
-      taskFuture = threadPool.submit(task);
-      return;
-    } catch (RejectedExecutionException e) {
-      getDecisionContext()
-          .getMetricsScope()
-          .counter(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION)
-          .inc(1);
+    while (true) {
       try {
+        taskFuture = threadPool.submit(task);
+        return;
+      } catch (RejectedExecutionException e) {
+        getDecisionContext()
+            .getMetricsScope()
+            .counter(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION)
+            .inc(1);
         if (cache != null) {
-          cache.evictAny(this.runner.getDecisionContext().getContext().getRunId());
+          boolean evicted =
+              cache.evictAnyNotInProcessing(
+                  this.runner.getDecisionContext().getContext().getRunId());
+          if (!evicted) {
+            throw e;
+          }
+        } else {
+          throw e;
         }
-      } catch (InterruptedException e1) {
-        log.warn("Unable to evict cache", e1);
       }
-    }
-
-    try {
-      taskFuture = threadPool.submit(task);
-    } catch (RejectedExecutionException e) {
-      throw new Error(
-          "Not enough threads to execute workflows. "
-              + "If this message appears consistently either WorkerOptions.maxConcurrentWorkflowExecutionSize "
-              + "should be decreased or WorkerOptions.maxWorkflowThreads increased.");
     }
   }
 

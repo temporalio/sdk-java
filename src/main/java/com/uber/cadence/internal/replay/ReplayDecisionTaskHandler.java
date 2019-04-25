@@ -32,6 +32,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -115,12 +116,26 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
 
   private Result processDecision(PollForDecisionTaskResponse decisionTask) throws Throwable {
     Decider decider = null;
+    AtomicBoolean createdNew = new AtomicBoolean();
     try {
-      decider =
-          stickyTaskListName == null
-              ? createDecider(decisionTask)
-              : cache.getOrCreate(decisionTask, this::createDecider);
+      if (stickyTaskListName == null) {
+        decider = createDecider(decisionTask);
+      } else {
+        decider =
+            cache.getOrCreate(
+                decisionTask,
+                () -> {
+                  createdNew.set(true);
+                  return createDecider(decisionTask);
+                });
+      }
+
       List<Decision> decisions = decider.decide(decisionTask);
+
+      if (stickyTaskListName != null && createdNew.get()) {
+        cache.addToCache(decisionTask, decider);
+      }
+
       if (log.isTraceEnabled()) {
         WorkflowExecution execution = decisionTask.getWorkflowExecution();
         log.trace(
@@ -148,12 +163,14 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
       return createCompletedRequest(decisionTask, decisions);
     } catch (Throwable e) {
       if (stickyTaskListName != null) {
-        cache.invalidate(decisionTask);
+        cache.invalidate(decisionTask.getWorkflowExecution().getRunId());
       }
       throw e;
     } finally {
       if (stickyTaskListName == null && decider != null) {
         decider.close();
+      } else {
+        cache.markProcessingDone(decisionTask);
       }
     }
   }
@@ -162,12 +179,24 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     RespondQueryTaskCompletedRequest queryCompletedRequest = new RespondQueryTaskCompletedRequest();
     queryCompletedRequest.setTaskToken(decisionTask.getTaskToken());
     Decider decider = null;
+    AtomicBoolean createdNew = new AtomicBoolean();
     try {
-      decider =
-          stickyTaskListName == null
-              ? createDecider(decisionTask)
-              : cache.getOrCreate(decisionTask, this::createDecider);
+      if (stickyTaskListName == null) {
+        decider = createDecider(decisionTask);
+      } else {
+        decider =
+            cache.getOrCreate(
+                decisionTask,
+                () -> {
+                  createdNew.set(true);
+                  return createDecider(decisionTask);
+                });
+      }
+
       byte[] queryResult = decider.query(decisionTask, decisionTask.getQuery());
+      if (stickyTaskListName != null && createdNew.get()) {
+        cache.addToCache(decisionTask, decider);
+      }
       queryCompletedRequest.setQueryResult(queryResult);
       queryCompletedRequest.setCompletedType(QueryTaskCompletedType.COMPLETED);
     } catch (Throwable e) {
@@ -180,6 +209,8 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     } finally {
       if (stickyTaskListName == null && decider != null) {
         decider.close();
+      } else {
+        cache.markProcessingDone(decisionTask);
       }
     }
     return new Result(null, null, queryCompletedRequest, null);
