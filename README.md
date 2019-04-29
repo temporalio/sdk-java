@@ -341,7 +341,7 @@ public class FileProcessingWorkflowImpl implements FileProcessingWorkflow {
     private final FileProcessingActivities activities;
 
     public FileProcessingWorkflowImpl() {
-        this.store = Workflow.newActivityStub(FileProcessingActivities.class);
+        this.activities = Workflow.newActivityStub(FileProcessingActivities.class);
     }
 
     @Override
