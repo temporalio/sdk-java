@@ -537,7 +537,8 @@ executed one thread at a time and under a global lock.
   - Call `WorkflowThread.sleep` instead of `Thread.sleep`.
   - Use `Promise` and `CompletablePromise` instead of `Future` and `CompletableFuture`.
   - Use `WorkflowQueue` instead of `BlockingQueue`.
-- Don't change workflow code when there are open workflows. The ability to do updates through versioning is TBD.
+- Use `Workflow.getVersion` when doing any changes to the workflow code. Without this, any deployment of an updated workfow code 
+might break already open workflows.  
 - Don’t access configuration APIs directly from a workflow because changes in the configuration might affect a workflow execution path.
 Pass it as an argument to a workflow function or use an activity to load it.
 
@@ -550,3 +551,85 @@ The entire execution history is transferred from the Cadence service to workflow
 A large execution history can thus adversely impact the performance of your workflow.
 Therefore, be mindful of the amount of data that you transfer via activity invocation parameters or return values.
 Other than that, no additional limitations exist on activity implementations.
+
+# Updating Workflow Definition Deterministically
+
+As outlined in the _Workflow Implementation Constraints_ section the workflow code has to be deterministic by taking the same
+code path when replaying history events. Any workflow code change that affects the order in which decisions are generated breaks
+this assumption. The solution that allows updating code of already running workflows is to keep both the old and new code.
+When replaying, use the code version that the events were generated with and when executing a new code path always take the 
+new code.
+
+Use the `Workflow.getVersion` function to return a version of code that should be executed and then use the returned value to 
+pick a correct branch. Let's look at an example.
+
+    public void processFile(Arguments args) {
+        String localName = null;
+        String processedName = null;
+        try {
+            localName = activities.download(args.getSourceBucketName(), args.getSourceFilename());
+            processedName = activities.processFile(localName);
+            activities.upload(args.getTargetBucketName(), args.getTargetFilename(), processedName);
+        } finally {
+            if (localName != null) { // File was downloaded.
+                activities.deleteLocalFile(localName);
+            }
+            if (processedName != null) { // File was processed.
+                activities.deleteLocalFile(processedName);
+            }
+        }
+    }
+
+Now we decide to calculate the processed file checksum and pass it to upload.
+The correct way to implement this change is:
+
+    public void processFile(Arguments args) {
+        String localName = null;
+        String processedName = null;
+        try {
+            localName = activities.download(args.getSourceBucketName(), args.getSourceFilename());
+            processedName = activities.processFile(localName);
+            int version = Workflow.getVersion("checksumAdded", Workflow.DEFAULT_VERSION, 1);
+            if (version == Workflow.DEFAULT_VERSION) {
+                activities.upload(args.getTargetBucketName(), args.getTargetFilename(), processedName);
+            } else {
+                long checksum = activities.calculateChecksum(processedName);
+                activities.uploadWithChecksum(
+                    args.getTargetBucketName(), args.getTargetFilename(), processedName, checksum);
+            }
+        } finally {
+            if (localName != null) { // File was downloaded.
+                activities.deleteLocalFile(localName);
+            }
+        if (processedName != null) { // File was processed.
+            activities.deleteLocalFile(processedName);
+        }
+    }
+ 
+ Later, when all workflows that use the old version are completed, the old branch can be removed.
+ 
+    public void processFile(Arguments args) {
+        String localName = null;
+        String processedName = null;
+        try {
+            localName = activities.download(args.getSourceBucketName(), args.getSourceFilename());
+            processedName = activities.processFile(localName);
+            // getVersion call is left here to ensure that any attempt to replay history
+            // for a different version fails. It can be removed later when there is no possiblity
+            // of this happening.
+            Workflow.getVersion("checksumAdded", 1, 1);
+            long checksum = activities.calculateChecksum(processedName);
+            activities.uploadWithChecksum(
+                args.getTargetBucketName(), args.getTargetFilename(), processedName, checksum);
+        } finally {
+            if (localName != null) { // File was downloaded.
+                activities.deleteLocalFile(localName);
+            }
+        if (processedName != null) { // File was processed.
+            activities.deleteLocalFile(processedName);
+        }
+    }
+ 
+ The ID that is passed to `getVersion` call identifies the change. Each change is expected to have its own ID. But if 
+ a change spawns multiple places in the workflow code and the new code should be either executed in all of them or 
+ in none them, then they have to share the ID.
