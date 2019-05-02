@@ -17,7 +17,7 @@
 
 package com.uber.cadence.converter;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 import com.uber.cadence.EventType;
 import com.uber.cadence.History;
@@ -25,6 +25,11 @@ import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.TaskList;
 import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
 import com.uber.cadence.WorkflowType;
+import com.uber.cadence.activity.Activity;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
@@ -223,5 +228,43 @@ public class JsonDataConverterTest {
     @SuppressWarnings("unchecked")
     Class result = converter.fromData(data, Class.class, Class.class);
     assertEquals(result.toString(), this.getClass(), result);
+  }
+
+  public static class NonSerializableException extends RuntimeException {
+    @SuppressWarnings("unused")
+    private final InputStream file; // gson chokes on this field
+
+    public NonSerializableException(Throwable cause) {
+      super(cause);
+      try {
+        file = new FileInputStream(File.createTempFile("foo", "bar"));
+      } catch (IOException e) {
+        throw Activity.wrap(e);
+      }
+    }
+  }
+
+  @Test
+  public void testException() {
+    RuntimeException rootException = new RuntimeException("root exception");
+    NonSerializableException nonSerializableCause = new NonSerializableException(rootException);
+    RuntimeException e = new RuntimeException("application exception", nonSerializableCause);
+
+    byte[] converted = converter.toData(e);
+    RuntimeException fromConverted =
+        converter.fromData(converted, RuntimeException.class, RuntimeException.class);
+    assertEquals(RuntimeException.class, fromConverted.getClass());
+    assertEquals("application exception", fromConverted.getMessage());
+
+    Throwable causeFromConverted = fromConverted.getCause();
+    assertNotNull(causeFromConverted);
+    assertEquals(DataConverterException.class, causeFromConverted.getClass());
+    assertNotNull(causeFromConverted.getCause());
+    assertEquals(StackOverflowError.class, causeFromConverted.getCause().getClass());
+
+    assertNotNull(causeFromConverted.getSuppressed());
+    assertEquals(1, causeFromConverted.getSuppressed().length);
+
+    assertEquals("root exception", causeFromConverted.getSuppressed()[0].getMessage());
   }
 }

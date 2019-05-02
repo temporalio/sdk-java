@@ -18,30 +18,21 @@
 package com.uber.cadence.converter;
 
 import com.google.common.base.Defaults;
-import com.google.common.collect.ImmutableSet;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.google.gson.JsonPrimitive;
 import com.google.gson.TypeAdapter;
 import com.google.gson.TypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.function.Function;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.apache.thrift.protocol.TJSONProtocol;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Implements conversion through GSON JSON processor. To extend use {@link
@@ -52,28 +43,11 @@ import org.slf4j.LoggerFactory;
  */
 public final class JsonDataConverter implements DataConverter {
 
-  private static final Logger log = LoggerFactory.getLogger(JsonDataConverter.class);
-
-  /** Used to parse a stack trace line. */
-  private static final String TRACE_ELEMENT_REGEXP =
-      "((?<className>.*)\\.(?<methodName>.*))\\(((?<fileName>.*?)(:(?<lineNumber>\\d+))?)\\)";
-
-  private static final Pattern TRACE_ELEMENT_PATTERN = Pattern.compile(TRACE_ELEMENT_REGEXP);
-
-  /**
-   * Stop emitting stack trace after this line. Makes serialized stack traces more readable and
-   * compact as it omits most of framework level code.
-   */
-  private static final ImmutableSet<String> CUTOFF_METHOD_NAMES =
-      ImmutableSet.of(
-          "com.uber.cadence.internal.worker.POJOActivityImplementationFactory$POJOActivityImplementation.execute",
-          "com.uber.cadence.internal.sync.POJODecisionTaskHandler$POJOWorkflowImplementation.execute");
-
   private static final DataConverter INSTANCE = new JsonDataConverter();
   private static final Object[] EMPTY_OBJECT_ARRAY = new Object[0];
-  public static final String TYPE_FIELD_NAME = "type";
-  public static final String JSON_CONVERTER_TYPE = "JSON";
-  public static final String CLASS_NAME_FIELD_NAME = "className";
+  private static final String TYPE_FIELD_NAME = "type";
+  private static final String JSON_CONVERTER_TYPE = "JSON";
+  private static final String CLASS_NAME_FIELD_NAME = "className";
   private final Gson gson;
   private final JsonParser parser = new JsonParser();
 
@@ -114,21 +88,8 @@ public final class JsonDataConverter implements DataConverter {
     try {
       if (values.length == 1) {
         Object value = values[0];
-        try {
-          String json = gson.toJson(value);
-          return json.getBytes(StandardCharsets.UTF_8);
-        } catch (Throwable e) {
-          if (value instanceof Throwable) {
-            // Keep original exception stack trace, but replace it with a DataConverterException
-            // which is guaranteed to be serializable.
-            DataConverterException ee =
-                new DataConverterException("Failure serializing exception: " + value.toString(), e);
-            ee.setStackTrace(((Throwable) value).getStackTrace());
-            String json = gson.toJson(ee);
-            return json.getBytes(StandardCharsets.UTF_8);
-          }
-          throw e;
-        }
+        String json = gson.toJson(value);
+        return json.getBytes(StandardCharsets.UTF_8);
       }
       String json = gson.toJson(values);
       return json.getBytes(StandardCharsets.UTF_8);
@@ -208,6 +169,7 @@ public final class JsonDataConverter implements DataConverter {
   private static class ThrowableTypeAdapterFactory implements TypeAdapterFactory {
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> typeToken) {
       // Special handling of fields of DataConverter type.
       // Needed to serialize exceptions like ActivityTimeoutException.
@@ -270,112 +232,7 @@ public final class JsonDataConverter implements DataConverter {
         return null; // this class only serializes 'Throwable' and its subtypes
       }
 
-      final TypeAdapter<T> exceptionTypeAdapter = gson.getDelegateAdapter(this, typeToken);
-      final TypeAdapter<JsonElement> elementAdapter = gson.getAdapter(JsonElement.class);
-      TypeAdapter<T> result =
-          new TypeAdapter<T>() {
-            @Override
-            public void write(JsonWriter jsonWriter, T value) throws IOException {
-              StringWriter sw = new StringWriter();
-              PrintWriter pw = new PrintWriter(sw);
-              Throwable throwable = (Throwable) value;
-              StackTraceElement[] trace = throwable.getStackTrace();
-              for (int i = 0; i < trace.length; i++) {
-                StackTraceElement element = trace[i];
-                pw.println(element);
-                String fullMethodName = element.getClassName() + "." + element.getMethodName();
-                if (CUTOFF_METHOD_NAMES.contains(fullMethodName)) {
-                  break;
-                }
-              }
-              JsonObject object = exceptionTypeAdapter.toJsonTree(value).getAsJsonObject();
-              object.add("class", new JsonPrimitive(throwable.getClass().getName()));
-              object.add("stackTrace", new JsonPrimitive(sw.toString()));
-              elementAdapter.write(jsonWriter, object);
-            }
-
-            @Override
-            public T read(JsonReader jsonReader) throws IOException {
-              JsonObject object = elementAdapter.read(jsonReader).getAsJsonObject();
-              JsonElement classElement = object.get("class");
-              if (classElement != null) {
-                String className = classElement.getAsString();
-                Class<?> classType;
-                try {
-                  classType = Class.forName(className);
-                } catch (ClassNotFoundException e) {
-                  throw new IOException("Cannot deserialize " + className + " exception", e);
-                }
-                if (!Throwable.class.isAssignableFrom(classType)) {
-                  throw new IOException("Expected type that extends Throwable: " + className);
-                }
-                final TypeAdapter<?> adapter =
-                    gson.getDelegateAdapter(
-                        ThrowableTypeAdapterFactory.this, TypeToken.get(classType));
-                StackTraceElement[] stackTrace = parseStackTrace(object);
-                // This is important. Initially I tried configuring ExclusionStrategy to not
-                // deserialize the stackTrace field.
-                // But it left it null, which caused Thread.setStackTrace implementation to become
-                // silent noop.
-                object.add("stackTrace", new JsonArray());
-                Throwable result = (Throwable) adapter.fromJsonTree(object);
-                result.setStackTrace(stackTrace);
-                @SuppressWarnings("unchecked")
-                T typedResult = (T) result;
-                return typedResult;
-              }
-              return exceptionTypeAdapter.fromJsonTree(object);
-            }
-          }.nullSafe();
-      return result;
+      return new CustomThrowableTypeAdapter(gson, this).nullSafe();
     }
-
-    private StackTraceElement[] parseStackTrace(JsonObject object) {
-      JsonElement jsonStackTrace = object.get("stackTrace");
-      if (jsonStackTrace == null) {
-        return new StackTraceElement[0];
-      }
-      String stackTrace = jsonStackTrace.getAsString();
-      if (stackTrace == null || stackTrace.isEmpty()) {
-        return new StackTraceElement[0];
-      }
-      try {
-        @SuppressWarnings("StringSplitter")
-        String[] lines = stackTrace.split("\n");
-        StackTraceElement[] result = new StackTraceElement[lines.length];
-        for (int i = 0; i < lines.length; i++) {
-          result[i] = parseStackTraceElement(lines[i]);
-        }
-        return result;
-      } catch (Exception e) {
-        log.warn("Failed to parse stack trace: " + stackTrace);
-        return new StackTraceElement[0];
-      }
-    }
-  }
-
-  /**
-   * See {@link StackTraceElement#toString()} for input specification.
-   *
-   * @param line line of stack trace.
-   * @return StackTraceElement that contains data from that line.
-   */
-  private static StackTraceElement parseStackTraceElement(String line) {
-    Matcher matcher = TRACE_ELEMENT_PATTERN.matcher(line);
-    if (!matcher.matches()) {
-      return null;
-    }
-    String declaringClass = matcher.group("className");
-    String methodName = matcher.group("methodName");
-    String fileName = matcher.group("fileName");
-    int lineNumber = 0;
-    String lns = matcher.group("lineNumber");
-    if (lns != null && lns.length() > 0) {
-      try {
-        lineNumber = Integer.parseInt(matcher.group("lineNumber"));
-      } catch (NumberFormatException e) {
-      }
-    }
-    return new StackTraceElement(declaringClass, methodName, fileName, lineNumber);
   }
 }
