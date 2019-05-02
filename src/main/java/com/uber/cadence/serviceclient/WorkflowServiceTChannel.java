@@ -17,6 +17,7 @@
 
 package com.uber.cadence.serviceclient;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.uber.cadence.BadRequestError;
 import com.uber.cadence.DeprecateDomainRequest;
@@ -340,7 +341,12 @@ public class WorkflowServiceTChannel implements IWorkflowService {
    * on a default port (7933).
    */
   public WorkflowServiceTChannel() {
-    this(LOCALHOST, DEFAULT_LOCAL_CADENCE_SERVER_PORT, new ClientOptions.Builder().build());
+    this(
+        Strings.isNullOrEmpty(System.getenv("CADENCE_SEEDS"))
+            ? LOCALHOST
+            : System.getenv("CADENCE_SEEDS"),
+        DEFAULT_LOCAL_CADENCE_SERVER_PORT,
+        new ClientOptions.Builder().build());
   }
 
   /**

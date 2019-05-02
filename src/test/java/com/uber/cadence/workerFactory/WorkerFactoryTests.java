@@ -28,12 +28,12 @@ import org.junit.Test;
 
 public class WorkerFactoryTests {
 
-  private static final boolean skipDockerService =
-      Boolean.parseBoolean(System.getenv("SKIP_DOCKER_SERVICE"));
+  private static final boolean useDockerService =
+      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
 
   @BeforeClass
-  public static void beforeClass() throws Exception {
-    Assume.assumeTrue(!skipDockerService);
+  public static void beforeClass() {
+    Assume.assumeTrue(useDockerService);
   }
 
   @Test

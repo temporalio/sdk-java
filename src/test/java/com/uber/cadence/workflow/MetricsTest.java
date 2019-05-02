@@ -212,7 +212,7 @@ public class MetricsTest {
     com.uber.m3.util.Duration sleepDuration = sleepDurationCaptor.getValue();
     assertTrue(
         sleepDuration.toString(),
-        sleepDuration.compareTo(com.uber.m3.util.Duration.ofSeconds(3)) > 0);
+        sleepDuration.compareTo(com.uber.m3.util.Duration.ofSeconds(3)) >= 0);
     assertTrue(
         sleepDuration.toString(),
         sleepDuration.compareTo(com.uber.m3.util.Duration.ofMillis(3100)) < 0);

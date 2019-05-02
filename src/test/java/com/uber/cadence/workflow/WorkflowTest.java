@@ -116,21 +116,20 @@ public class WorkflowTest {
   public static final String ANNOTATION_TASK_LIST = "WorkflowTest-testExecute[Docker]";
 
   private TracingWorkflowInterceptorFactory tracer;
-  private static final boolean skipDockerService =
-      Boolean.parseBoolean(System.getenv("SKIP_DOCKER_SERVICE"));
+  private static final boolean useDockerService =
+      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+
+  private static final boolean stickyOff = Boolean.parseBoolean(System.getenv("STICKY_OFF"));
 
   @Parameters(name = "{1}")
   public static Object[] data() {
-    if (skipDockerService) {
+    if (!useDockerService) {
       return new Object[][] {
         {false, "TestService Sticky Off", true}, {false, "TestService Sticky On", false}
       };
     } else {
       return new Object[][] {
-        {true, "Docker Sticky OFF", true},
-        {true, "Docker Sticky ON", false},
-        {false, "TestService Sticky OFF", true},
-        {false, "TestService Sticky ON", false}
+        {true, "Docker Sticky " + (stickyOff ? "OFF" : "ON"), stickyOff},
       };
     }
   }
@@ -139,7 +138,7 @@ public class WorkflowTest {
 
   @Rule
   public Timeout globalTimeout =
-      Timeout.seconds(DEBUGGER_TIMEOUTS ? 500 : skipDockerService ? 15 : 30);
+      Timeout.seconds(DEBUGGER_TIMEOUTS ? 500 : !useDockerService ? 15 : 30);
 
   @Rule
   public TestWatcher watchman =
@@ -2140,7 +2139,7 @@ public class WorkflowTest {
   }
 
   @Test
-  public void testNoQueryThreadLeak() {
+  public void testNoQueryThreadLeak() throws InterruptedException {
     startWorkerFor(TestNoQueryWorkflowImpl.class);
     int threadCount = ManagementFactory.getThreadMXBean().getThreadCount();
     WorkflowOptions.Builder optionsBuilder = newWorkflowOptionsBuilder(taskList);
@@ -2152,6 +2151,10 @@ public class WorkflowTest {
     int queryCount = 100;
     for (int i = 0; i < queryCount; i++) {
       assertEquals("some state", client.getState());
+      if (useDockerService) {
+        // Sleep a little bit to avoid server throttling error.
+        Thread.sleep(50);
+      }
     }
     client.mySignal("Hello ");
     client.execute();

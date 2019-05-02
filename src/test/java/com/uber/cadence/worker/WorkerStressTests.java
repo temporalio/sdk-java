@@ -49,17 +49,17 @@ import org.slf4j.LoggerFactory;
 @RunWith(Parameterized.class)
 public class WorkerStressTests {
 
-  private static final boolean skipDockerService =
-      Boolean.parseBoolean(System.getenv("SKIP_DOCKER_SERVICE"));
+  private static final boolean useDockerService =
+      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
 
   @Parameterized.Parameter public boolean useExternalService;
 
   @Parameterized.Parameters(name = "{1}")
   public static Object[] data() {
-    if (skipDockerService) {
+    if (!useDockerService) {
       return new Object[][] {{false, "TestService"}};
     } else {
-      return new Object[][] {{true, "Docker"}, {false, "TestService"}};
+      return new Object[][] {{true, "Docker"}};
     }
   }
 

@@ -178,7 +178,13 @@ publishing {
     }
 }
 
+task registerDomain(type:JavaExec) {
+    main = 'com.uber.cadence.RegisterTestDomain'
+    classpath = sourceSets.test.runtimeClasspath
+}
+
 test {
+    dependsOn 'registerDomain'
     testLogging {
         events "passed", "skipped", "failed"
         exceptionFormat "full"
