@@ -171,7 +171,7 @@ class CustomThrowableTypeAdapter<T extends Throwable> extends TypeAdapter<T> {
     }
     try {
       @SuppressWarnings("StringSplitter")
-      String[] lines = stackTrace.split("\n");
+      String[] lines = stackTrace.split("\r\n|\n");
       StackTraceElement[] result = new StackTraceElement[lines.length];
       for (int i = 0; i < lines.length; i++) {
         result[i] = parseStackTraceElement(lines[i]);

@@ -412,7 +412,7 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   private static Map<String, String> getThriftHeaders(ClientOptions options) {
-    String envUserName = System.getenv("USER");
+    String envUserName = System.getProperty("user.name");
     String envHostname;
     try {
       envHostname = InetAddress.getLocalHost().getHostName();

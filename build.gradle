@@ -102,6 +102,10 @@ if (JavaVersion.current().isJava8Compatible()) {
     }
 }
 
+javadoc {
+    options.encoding = 'UTF-8'
+}
+
 task javadocJar(type: Jar) {
     classifier = 'javadoc'
     from javadoc
