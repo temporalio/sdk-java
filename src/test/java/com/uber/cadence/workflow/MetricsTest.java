@@ -22,8 +22,10 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.*;
 
+import com.uber.cadence.activity.ActivityOptions;
 import com.uber.cadence.client.WorkflowClient;
 import com.uber.cadence.client.WorkflowOptions;
+import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.internal.metrics.MetricsTag;
 import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.testing.TestEnvironmentOptions;
@@ -73,12 +75,39 @@ public class MetricsTest {
     public void execute() {
       Workflow.getMetricsScope().counter("test-started").inc(1);
 
+      ActivityOptions activityOptions =
+          new ActivityOptions.Builder()
+              .setTaskList(taskList)
+              .setScheduleToCloseTimeout(Duration.ofSeconds(1))
+              .setRetryOptions(
+                  new RetryOptions.Builder()
+                      .setExpiration(Duration.ofSeconds(100))
+                      .setMaximumInterval(Duration.ofSeconds(1))
+                      .setInitialInterval(Duration.ofSeconds(1))
+                      .setMaximumAttempts(3)
+                      .setDoNotRetry(AssertionError.class)
+                      .build())
+              .build();
+      TestActivity activity = Workflow.newActivityStub(TestActivity.class, activityOptions);
+      activity.runActivity(1);
+
       ChildWorkflowOptions options =
           new ChildWorkflowOptions.Builder().setTaskList(taskList).build();
       TestChildWorkflow workflow = Workflow.newChildWorkflowStub(TestChildWorkflow.class, options);
       workflow.executeChild();
 
       Workflow.getMetricsScope().counter("test-done").inc(1);
+    }
+  }
+
+  public interface TestActivity {
+    int runActivity(int input);
+  }
+
+  static class TestActivityImpl implements TestActivity {
+    @Override
+    public int runActivity(int input) {
+      return input;
     }
   }
 
@@ -181,6 +210,7 @@ public class MetricsTest {
     Worker worker = testEnvironment.newWorker(taskList);
     worker.registerWorkflowImplementationTypes(
         TestMetricsInWorkflow.class, TestMetricsInChildWorkflow.class);
+    worker.registerActivitiesImplementations(new TestActivityImpl());
     testEnvironment.start();
 
     WorkflowClient workflowClient = testEnvironment.newWorkflowClient();
@@ -216,6 +246,16 @@ public class MetricsTest {
     assertTrue(
         sleepDuration.toString(),
         sleepDuration.compareTo(com.uber.m3.util.Duration.ofMillis(3100)) < 0);
+
+    Map<String, String> activityCompletionTags =
+        new ImmutableMap.Builder<String, String>(2)
+            .put(MetricsTag.DOMAIN, WorkflowTest.DOMAIN)
+            .put(MetricsTag.TASK_LIST, taskList)
+            .put(MetricsTag.ACTIVITY_TYPE, "TestActivity::runActivity")
+            .build();
+    verify(reporter, times(1))
+        .reportCounter("cadence-activity-task-completed", activityCompletionTags, 1);
+
     testEnvironment.close();
   }
 

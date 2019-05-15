@@ -24,9 +24,12 @@ import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.common.Retryer;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.logging.LoggerTag;
+import com.uber.cadence.internal.metrics.MetricsTag;
 import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.serviceclient.IWorkflowService;
+import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
+import com.uber.m3.util.ImmutableMap;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -228,20 +231,24 @@ public final class WorkflowWorker
 
     @Override
     public void handle(PollForDecisionTaskResponse task) throws Exception {
+      Scope metricsScope =
+          options
+              .getMetricsScope()
+              .tagged(ImmutableMap.of(MetricsTag.WORKFLOW_TYPE, task.getWorkflowType().getName()));
+
       MDC.put(LoggerTag.WORKFLOW_ID, task.getWorkflowExecution().getWorkflowId());
       MDC.put(LoggerTag.WORKFLOW_TYPE, task.getWorkflowType().getName());
       MDC.put(LoggerTag.RUN_ID, task.getWorkflowExecution().getRunId());
       try {
-        Stopwatch sw =
-            options.getMetricsScope().timer(MetricsType.DECISION_EXECUTION_LATENCY).start();
+        Stopwatch sw = metricsScope.timer(MetricsType.DECISION_EXECUTION_LATENCY).start();
         DecisionTaskHandler.Result response = handler.handleDecisionTask(task);
         sw.stop();
 
-        sw = options.getMetricsScope().timer(MetricsType.DECISION_RESPONSE_LATENCY).start();
+        sw = metricsScope.timer(MetricsType.DECISION_RESPONSE_LATENCY).start();
         sendReply(service, task.getTaskToken(), response);
         sw.stop();
 
-        options.getMetricsScope().counter(MetricsType.DECISION_TASK_COMPLETED_COUNTER).inc(1);
+        metricsScope.counter(MetricsType.DECISION_TASK_COMPLETED_COUNTER).inc(1);
       } finally {
         MDC.remove(LoggerTag.WORKFLOW_ID);
         MDC.remove(LoggerTag.WORKFLOW_TYPE);
