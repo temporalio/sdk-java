@@ -1293,6 +1293,35 @@ public class WorkflowTest {
     assertEquals("123456", stubP6.query());
   }
 
+  @Test
+  public void testWorkflowIdResuePolicy() {
+    startWorkerFor(TestMultiargsWorkflowsImpl.class);
+
+    // Without setting WorkflowIdReusePolicy, the semantics is to get result for the previous run.
+    String workflowID = UUID.randomUUID().toString();
+    WorkflowOptions workflowOptions =
+        newWorkflowOptionsBuilder(taskList).setWorkflowId(workflowID).build();
+    TestMultiargsWorkflowsFunc1 stubF1_1 =
+        workflowClient.newWorkflowStub(TestMultiargsWorkflowsFunc1.class, workflowOptions);
+    assertEquals(1, stubF1_1.func1(1));
+    TestMultiargsWorkflowsFunc1 stubF1_2 =
+        workflowClient.newWorkflowStub(TestMultiargsWorkflowsFunc1.class, workflowOptions);
+    assertEquals(1, stubF1_2.func1(2));
+
+    // Setting WorkflowIdReusePolicy to AllowDuplicate will trigger new run.
+    workflowOptions =
+        newWorkflowOptionsBuilder(taskList)
+            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.AllowDuplicate)
+            .setWorkflowId(workflowID)
+            .build();
+    TestMultiargsWorkflowsFunc1 stubF1_3 =
+        workflowClient.newWorkflowStub(TestMultiargsWorkflowsFunc1.class, workflowOptions);
+    assertEquals(2, stubF1_3.func1(2));
+
+    // Setting WorkflowIdReusePolicy to RejectDuplicate or AllowDuplicateFailedOnly does not work as
+    // expected. See https://github.com/uber/cadence-java-client/issues/295.
+  }
+
   public static class TestChildAsyncWorkflow implements TestWorkflow1 {
 
     @Override
