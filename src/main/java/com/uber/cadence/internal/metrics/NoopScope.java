@@ -20,63 +20,92 @@ package com.uber.cadence.internal.metrics;
 import com.uber.m3.tally.Buckets;
 import com.uber.m3.tally.Capabilities;
 import com.uber.m3.tally.CapableOf;
-import com.uber.m3.tally.RootScopeBuilder;
+import com.uber.m3.tally.Counter;
+import com.uber.m3.tally.Gauge;
+import com.uber.m3.tally.Histogram;
 import com.uber.m3.tally.Scope;
-import com.uber.m3.tally.StatsReporter;
+import com.uber.m3.tally.Stopwatch;
+import com.uber.m3.tally.Timer;
 import com.uber.m3.util.Duration;
 import java.util.Map;
 
-public final class NoopScope {
-  private static class NoopReporter implements StatsReporter {
+public final class NoopScope implements Scope {
+  private static Scope noopScope;
+  private static Counter noopCounter;
+  private static Gauge noopGauge;
+  private static Timer noopTimer;
+  private static Histogram noopHistogram;
 
-    @Override
-    public void reportCounter(String name, Map<String, String> tags, long value) {}
-
-    @Override
-    public void reportGauge(String name, Map<String, String> tags, double value) {}
-
-    @Override
-    public void reportTimer(String name, Map<String, String> tags, Duration interval) {}
-
-    @Override
-    public void reportHistogramValueSamples(
-        String name,
-        Map<String, String> tags,
-        Buckets buckets,
-        double bucketLowerBound,
-        double bucketUpperBound,
-        long samples) {}
-
-    @Override
-    public void reportHistogramDurationSamples(
-        String name,
-        Map<String, String> tags,
-        Buckets buckets,
-        Duration bucketLowerBound,
-        Duration bucketUpperBound,
-        long samples) {}
-
-    @Override
-    public Capabilities capabilities() {
-      return CapableOf.REPORTING_TAGGING;
-    }
-
-    @Override
-    public void flush() {}
-
-    @Override
-    public void close() {}
+  @Override
+  public Counter counter(String name) {
+    return noopCounter;
   }
+
+  @Override
+  public Gauge gauge(String name) {
+    return noopGauge;
+  }
+
+  @Override
+  public Timer timer(String name) {
+    return noopTimer;
+  }
+
+  @Override
+  public Histogram histogram(String name, Buckets buckets) {
+    return noopHistogram;
+  }
+
+  @Override
+  public Scope tagged(Map<String, String> tags) {
+    return this;
+  }
+
+  @Override
+  public Scope subScope(String name) {
+    return this;
+  }
+
+  @Override
+  public Capabilities capabilities() {
+    return CapableOf.NONE;
+  }
+
+  @Override
+  public void close() {}
 
   private NoopScope() {}
 
-  private static Scope instance;
-
   public static synchronized Scope getInstance() {
-    if (instance == null) {
-      instance =
-          new RootScopeBuilder().reporter(new NoopReporter()).reportEvery(Duration.ofMinutes(1));
+    if (noopScope == null) {
+      noopCounter = delta -> {};
+      noopGauge = value -> {};
+      noopTimer =
+          new Timer() {
+            @Override
+            public void record(Duration interval) {}
+
+            @Override
+            public Stopwatch start() {
+              return new Stopwatch(0, stopwatchStart -> {});
+            }
+          };
+      noopHistogram =
+          new Histogram() {
+            @Override
+            public void recordValue(double value) {}
+
+            @Override
+            public void recordDuration(Duration value) {}
+
+            @Override
+            public Stopwatch start() {
+              return new Stopwatch(0, stopwatchStart -> {});
+            }
+          };
+
+      noopScope = new NoopScope();
     }
-    return instance;
+    return noopScope;
   }
 }
