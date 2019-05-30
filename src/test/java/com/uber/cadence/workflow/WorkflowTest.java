@@ -114,7 +114,7 @@ public class WorkflowTest {
    */
   private static final boolean DEBUGGER_TIMEOUTS = false;
 
-  public static final String ANNOTATION_TASK_LIST = "WorkflowTest-testExecute[Docker]";
+  private static final String ANNOTATION_TASK_LIST = "WorkflowTest-testExecute[Docker]";
 
   private TracingWorkflowInterceptorFactory tracer;
   private static final boolean useDockerService =
@@ -3731,6 +3731,58 @@ public class WorkflowTest {
         "sleep PT1S",
         "getVersion",
         "executeActivity customActivity1");
+  }
+
+  static CompletableFuture<Boolean> executionStarted = new CompletableFuture<>();
+  public static class TestGetVersionWithoutDecisionEventWorkflowImpl implements TestWorkflowSignaled {
+
+    CompletablePromise<Boolean> signalReceived = Workflow.newPromise();
+
+    @Override
+    public String execute() {
+      try {
+        if (!getVersionExecuted.contains("getVersionWithoutDecisionEvent")) {
+          // Execute getVersion in non-replay mode.
+          getVersionExecuted.add("getVersionWithoutDecisionEvent");
+          executionStarted.complete(true);
+          signalReceived.get();
+        } else {
+          // Execute getVersion in replay mode. In this case we have no decision event, only a signal.
+          int version = Workflow.getVersion("test_change", Workflow.DEFAULT_VERSION, 1);
+          if (version == Workflow.DEFAULT_VERSION) {
+            signalReceived.get();
+            return "result 1";
+          } else {
+            return "result 2";
+          }
+        }
+      } catch (Exception e) {
+        throw new RuntimeException("failed to get from signal");
+      }
+
+      throw new RuntimeException("unreachable");
+    }
+
+    @Override
+    public void signal1(String arg) {
+      signalReceived.complete(true);
+    }
+  }
+
+  @Test
+  public void testGetVersionWithoutDecisionEvent() throws Exception {
+    Assume.assumeTrue("skipping as there will be no replay", disableStickyExecution);
+    executionStarted = new CompletableFuture<>();
+    getVersionExecuted.remove("getVersionWithoutDecisionEvent");
+    startWorkerFor(TestGetVersionWithoutDecisionEventWorkflowImpl.class);
+    TestWorkflowSignaled workflowStub =
+        workflowClient.newWorkflowStub(
+            TestWorkflowSignaled.class, newWorkflowOptionsBuilder(taskList).build());
+    WorkflowClient.start(workflowStub::execute);
+    executionStarted.get();
+    workflowStub.signal1("test signal");
+    String result = workflowStub.execute();
+    assertEquals("result 1", result);
   }
 
   // The following test covers the scenario where getVersion call is removed before a

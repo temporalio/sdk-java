@@ -701,10 +701,6 @@ class DecisionsHelper {
     return String.valueOf(idCounter++);
   }
 
-  HistoryEvent getDecisionEvent(long eventId) {
-    return decisionEvents.getDecisionEvent(eventId);
-  }
-
   Optional<HistoryEvent> getOptionalDecisionEvent(long eventId) {
     return decisionEvents.getOptionalDecisionEvent(eventId);
   }

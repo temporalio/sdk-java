@@ -78,16 +78,8 @@ class HistoryHelper {
       return events;
     }
 
-    public List<HistoryEvent> getDecisionEvents() {
+    List<HistoryEvent> getDecisionEvents() {
       return decisionEvents;
-    }
-
-    HistoryEvent getDecisionEvent(long eventId) {
-      int index = (int) (eventId - nextDecisionEventId);
-      if (index < 0 || index >= decisionEvents.size()) {
-        throw new IllegalArgumentException("No decision event found at eventId=" + eventId);
-      }
-      return decisionEvents.get(index);
     }
 
     Optional<HistoryEvent> getOptionalDecisionEvent(long eventId) {

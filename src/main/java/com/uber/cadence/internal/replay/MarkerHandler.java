@@ -134,11 +134,12 @@ class MarkerHandler {
 
   private Optional<byte[]> getMarkerDataFromHistory(
       long eventId, String markerId, int expectedAcccessCount, DataConverter converter) {
-    HistoryEvent event = decisions.getDecisionEvent(eventId);
-    if (event.getEventType() != EventType.MarkerRecorded) {
+    Optional<HistoryEvent> event = decisions.getOptionalDecisionEvent(eventId);
+    if (!event.isPresent() || event.get().getEventType() != EventType.MarkerRecorded) {
       return Optional.empty();
     }
-    MarkerRecordedEventAttributes attributes = event.getMarkerRecordedEventAttributes();
+
+    MarkerRecordedEventAttributes attributes = event.get().getMarkerRecordedEventAttributes();
     String name = attributes.getMarkerName();
     if (!markerName.equals(name)) {
       return Optional.empty();
