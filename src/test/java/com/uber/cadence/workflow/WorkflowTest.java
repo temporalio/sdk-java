@@ -31,6 +31,7 @@ import com.uber.cadence.*;
 import com.uber.cadence.activity.Activity;
 import com.uber.cadence.activity.ActivityMethod;
 import com.uber.cadence.activity.ActivityOptions;
+import com.uber.cadence.activity.ActivityTask;
 import com.uber.cadence.client.ActivityCancelledException;
 import com.uber.cadence.client.ActivityCompletionClient;
 import com.uber.cadence.client.ActivityNotExistsException;
@@ -3306,6 +3307,8 @@ public class WorkflowTest {
 
     @Override
     public void heartbeatAndThrowIO() {
+      ActivityTask task = Activity.getTask();
+      assertEquals(task.getAttempt(), heartbeatCounter.get());
       invocations.add("throwIO");
       Optional<Integer> heartbeatDetails = Activity.getHeartbeatDetails(int.class);
       assertEquals(heartbeatCounter.get(), (int) heartbeatDetails.orElse(0));

@@ -59,7 +59,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     return dataConverter;
   }
 
-  public void addActivityImplementation(Object activity) {
+  void addActivityImplementation(Object activity) {
     if (activity instanceof Class) {
       throw new IllegalArgumentException("Activity object instance expected, not the class");
     }
@@ -143,7 +143,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     return !activities.isEmpty();
   }
 
-  public void setActivitiesImplementation(Object[] activitiesImplementation) {
+  void setActivitiesImplementation(Object[] activitiesImplementation) {
     activities.clear();
     for (Object activity : activitiesImplementation) {
       addActivityImplementation(activity);
@@ -154,10 +154,11 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
   public Result handle(
       IWorkflowService service,
       String domain,
+      String taskList,
       PollForActivityTaskResponse pollResponse,
       Scope metricsScope) {
     String activityType = pollResponse.getActivityType().getName();
-    ActivityTaskImpl activityTask = new ActivityTaskImpl(pollResponse);
+    ActivityTaskImpl activityTask = new ActivityTaskImpl(pollResponse, taskList);
     POJOActivityImplementation activity = activities.get(activityType);
     if (activity == null) {
       String knownTypes = Joiner.on(", ").join(activities.keySet());

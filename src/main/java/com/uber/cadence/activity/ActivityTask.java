@@ -18,6 +18,7 @@
 package com.uber.cadence.activity;
 
 import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowType;
 import java.time.Duration;
 
 /**
@@ -58,4 +59,12 @@ public interface ActivityTask {
   Duration getHeartbeatTimeout();
 
   byte[] getHeartbeatDetails();
+
+  WorkflowType getWorkflowType();
+
+  String getWorkflowDomain();
+
+  String getTaskList();
+
+  int getAttempt();
 }

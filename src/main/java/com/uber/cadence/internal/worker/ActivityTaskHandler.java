@@ -83,6 +83,7 @@ public interface ActivityTaskHandler {
   Result handle(
       IWorkflowService service,
       String domain,
+      String taskList,
       PollForActivityTaskResponse activityTask,
       Scope metricsScope);
 

@@ -180,7 +180,7 @@ public final class ActivityWorker implements SuspendableWorker {
       try {
         Stopwatch sw = metricsScope.timer(MetricsType.ACTIVITY_EXEC_LATENCY).start();
         ActivityTaskHandler.Result response =
-            handler.handle(service, domain, task.task, metricsScope);
+            handler.handle(service, domain, taskList, task.task, metricsScope);
         sw.stop();
 
         sw = metricsScope.timer(MetricsType.ACTIVITY_RESP_LATENCY).start();

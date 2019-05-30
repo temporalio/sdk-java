@@ -19,15 +19,18 @@ package com.uber.cadence.internal.sync;
 
 import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowType;
 import com.uber.cadence.activity.ActivityTask;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 final class ActivityTaskImpl implements ActivityTask {
   private final PollForActivityTaskResponse response;
+  private final String taskList;
 
-  public ActivityTaskImpl(PollForActivityTaskResponse response) {
+  ActivityTaskImpl(PollForActivityTaskResponse response, String taskList) {
     this.response = response;
+    this.taskList = taskList;
   }
 
   @Override
@@ -74,6 +77,26 @@ final class ActivityTaskImpl implements ActivityTask {
   @Override
   public byte[] getHeartbeatDetails() {
     return response.getHeartbeatDetails();
+  }
+
+  @Override
+  public WorkflowType getWorkflowType() {
+    return response.getWorkflowType();
+  }
+
+  @Override
+  public String getWorkflowDomain() {
+    return response.getWorkflowDomain();
+  }
+
+  @Override
+  public String getTaskList() {
+    return taskList;
+  }
+
+  @Override
+  public int getAttempt() {
+    return response.getAttempt();
   }
 
   public byte[] getInput() {
