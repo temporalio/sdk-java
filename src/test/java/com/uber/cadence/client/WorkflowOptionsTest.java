@@ -25,6 +25,8 @@ import com.uber.cadence.workflow.ChildWorkflowOptions;
 import com.uber.cadence.workflow.WorkflowMethod;
 import java.lang.reflect.Method;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -41,6 +43,7 @@ public class WorkflowOptionsTest {
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(321))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
             .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
+            .setMemo(getTestMemo())
             .build();
     WorkflowMethod a =
         WorkflowOptionsTest.class
@@ -98,6 +101,7 @@ public class WorkflowOptionsTest {
             .setInitialInterval(Duration.ofMinutes(12))
             .build();
 
+    Map<String, Object> memo = getTestMemo();
     WorkflowOptions o =
         new WorkflowOptions.Builder()
             .setTaskList("foo")
@@ -107,6 +111,7 @@ public class WorkflowOptionsTest {
             .setWorkflowId("bar")
             .setRetryOptions(retryOptions)
             .setCronSchedule("* 1 * * *")
+            .setMemo(memo)
             .build();
     Method method = WorkflowOptionsTest.class.getMethod("workflowOptions");
     WorkflowMethod a = method.getAnnotation(WorkflowMethod.class);
@@ -115,6 +120,7 @@ public class WorkflowOptionsTest {
     WorkflowOptions merged = WorkflowOptions.merge(a, r, c, o);
     Assert.assertEquals(retryOptions, merged.getRetryOptions());
     Assert.assertEquals("* 1 * * *", merged.getCronSchedule());
+    Assert.assertEquals(memo, merged.getMemo());
   }
 
   @Test
@@ -129,6 +135,7 @@ public class WorkflowOptionsTest {
             .setInitialInterval(Duration.ofMinutes(12))
             .build();
 
+    Map<String, Object> memo = getTestMemo();
     ChildWorkflowOptions o =
         new ChildWorkflowOptions.Builder()
             .setTaskList("foo")
@@ -138,6 +145,7 @@ public class WorkflowOptionsTest {
             .setWorkflowId("bar")
             .setRetryOptions(retryOptions)
             .setCronSchedule("* 1 * * *")
+            .setMemo(memo)
             .build();
     Method method = WorkflowOptionsTest.class.getMethod("defaultWorkflowOptions");
     WorkflowMethod a = method.getAnnotation(WorkflowMethod.class);
@@ -146,6 +154,7 @@ public class WorkflowOptionsTest {
     ChildWorkflowOptions merged = ChildWorkflowOptions.merge(a, r, c, o);
     Assert.assertEquals(retryOptions, merged.getRetryOptions());
     Assert.assertEquals("* 1 * * *", merged.getCronSchedule());
+    Assert.assertEquals(memo, merged.getMemo());
   }
 
   @WorkflowMethod
@@ -172,5 +181,11 @@ public class WorkflowOptionsTest {
     }
 
     Assert.fail("invalid cron schedule not caught");
+  }
+
+  private Map<String, Object> getTestMemo() {
+    Map<String, Object> memo = new HashMap<>();
+    memo.put("testKey", "testObject");
+    return memo;
   }
 }

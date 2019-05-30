@@ -538,6 +538,7 @@ class StateMachines {
       a.setAttempt(data.retryState.get().getAttempt());
     }
     a.setLastCompletionResult(data.lastCompletionResult);
+    a.setMemo(request.getMemo());
     HistoryEvent event =
         new HistoryEvent()
             .setEventType(EventType.WorkflowExecutionStarted)

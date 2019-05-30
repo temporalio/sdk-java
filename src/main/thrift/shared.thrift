@@ -71,6 +71,10 @@ exception AccessDeniedError {
 
 exception RetryTaskError {
   1: required string message
+  2: optional string domainId
+  3: optional string workflowId
+  4: optional string runId
+  5: optional i64 (js.type = "Long") nextEventId
 }
 
 enum WorkflowIdReusePolicy {
@@ -187,6 +191,7 @@ enum DecisionTaskFailedCause {
   FORCE_CLOSE_DECISION,
   FAILOVER_CLOSE_DECISION,
   BAD_SIGNAL_INPUT_SIZE,
+  RESET_WORKFLOW,
 }
 
 enum CancelExternalWorkflowExecutionFailedCause {
@@ -237,6 +242,11 @@ enum TaskListKind {
   STICKY,
 }
 
+enum ArchivalStatus {
+  DISABLED,
+  ENABLED,
+}
+
 struct Header {
     10: optional map<string, binary> fields
 }
@@ -254,6 +264,20 @@ struct TaskList {
   20: optional TaskListKind kind
 }
 
+enum EncodingType {
+  ThriftRW,
+}
+
+struct DataBlob {
+  10: optional EncodingType EncodingType
+  20: optional binary Data
+}
+
+struct ReplicationInfo {
+  10: optional i64 (js.type = "Long") version
+  20: optional i64 (js.type = "Long") lastEventId
+}
+
 struct TaskListMetadata {
   10: optional double maxTasksPerSecond
 }
@@ -263,6 +287,10 @@ struct WorkflowExecution {
   20: optional string runId
 }
 
+struct Memo {
+  10: optional map<string,binary> fields
+}
+
 struct WorkflowExecutionInfo {
   10: optional WorkflowExecution execution
   20: optional WorkflowType type
@@ -270,6 +298,10 @@ struct WorkflowExecutionInfo {
   40: optional i64 (js.type = "Long") closeTime
   50: optional WorkflowExecutionCloseStatus closeStatus
   60: optional i64 (js.type = "Long") historyLength
+  70: optional string parentDomainId
+  80: optional WorkflowExecution parentExecution
+  90: optional i64 (js.type = "Long") executionTime
+  100: optional Memo memo
 }
 
 struct WorkflowExecutionConfiguration {
@@ -413,6 +445,7 @@ struct WorkflowExecutionStartedEventAttributes {
   90: optional i64 (js.type = "Long") expirationTimestamp
   100: optional string cronSchedule
   110: optional i32 firstDecisionTaskBackoffSeconds
+  120: optional Memo memo
 }
 
 struct WorkflowExecutionCompletedEventAttributes {
@@ -483,6 +516,11 @@ struct DecisionTaskFailedEventAttributes {
   30: optional DecisionTaskFailedCause cause
   35: optional binary details
   40: optional string identity
+  50: optional string reason
+  // for reset workflow
+  60: optional string baseRunId
+  70: optional string newRunId
+  80: optional i64 (js.type = "Long") forkEventVersion
 }
 
 struct ActivityTaskScheduledEventAttributes {
@@ -735,6 +773,7 @@ struct HistoryEvent {
   20:  optional i64 (js.type = "Long") timestamp
   30:  optional EventType eventType
   35:  optional i64 (js.type = "Long") version
+  36:  optional i64 (js.type = "Long") taskId
   40:  optional WorkflowExecutionStartedEventAttributes workflowExecutionStartedEventAttributes
   50:  optional WorkflowExecutionCompletedEventAttributes workflowExecutionCompletedEventAttributes
   60:  optional WorkflowExecutionFailedEventAttributes workflowExecutionFailedEventAttributes
@@ -802,11 +841,16 @@ struct DomainInfo {
   40: optional string ownerEmail
   // A key-value map for any customized purpose
   50: optional map<string,string> data
+  60: optional string uuid
 }
 
 struct DomainConfiguration {
   10: optional i32 workflowExecutionRetentionPeriodInDays
   20: optional bool emitMetric
+  30: optional string archivalBucketName
+  40: optional i32 archivalRetentionPeriodInDays
+  50: optional ArchivalStatus archivalStatus
+  60: optional string archivalBucketOwner
 }
 
 struct UpdateDomainInfo {
@@ -836,6 +880,8 @@ struct RegisterDomainRequest {
   // A key-value map for any customized purpose
   80: optional map<string,string> data
   90: optional string securityToken
+  100: optional ArchivalStatus archivalStatus
+  110: optional string archivalBucketName
 }
 
 struct ListDomainsRequest {
@@ -850,6 +896,7 @@ struct ListDomainsResponse {
 
 struct DescribeDomainRequest {
   10: optional string name
+  20: optional string uuid
 }
 
 struct DescribeDomainResponse {
@@ -895,6 +942,7 @@ struct StartWorkflowExecutionRequest {
   110: optional ChildPolicy childPolicy
   120: optional RetryPolicy retryPolicy
   130: optional string cronSchedule
+  140: optional Memo memo
 }
 
 struct StartWorkflowExecutionResponse {
@@ -1058,6 +1106,7 @@ struct GetWorkflowExecutionHistoryRequest {
 struct GetWorkflowExecutionHistoryResponse {
   10: optional History history
   20: optional binary nextPageToken
+  30: optional bool archived
 }
 
 struct SignalWorkflowExecutionRequest {
@@ -1086,6 +1135,7 @@ struct SignalWithStartWorkflowExecutionRequest {
   130: optional binary control
   140: optional RetryPolicy retryPolicy
   150: optional string cronSchedule
+  160: optional Memo memo
 }
 
 struct TerminateWorkflowExecutionRequest {
@@ -1094,6 +1144,18 @@ struct TerminateWorkflowExecutionRequest {
   30: optional string reason
   40: optional binary details
   50: optional string identity
+}
+
+struct ResetWorkflowExecutionRequest {
+  10: optional string domain
+  20: optional WorkflowExecution workflowExecution
+  30: optional string reason
+  40: optional i64 (js.type = "Long") decisionFinishEventId
+  50: optional string requestId
+}
+
+struct ResetWorkflowExecutionResponse {
+  10: optional string runId
 }
 
 struct ListOpenWorkflowExecutionsRequest {
@@ -1170,6 +1232,9 @@ struct PendingActivityInfo {
   50: optional i64 (js.type = "Long") lastHeartbeatTimestamp
   60: optional i64 (js.type = "Long") lastStartedTimestamp
   70: optional i32 attempt
+  80: optional i32 maximumAttempts
+  90: optional i64 (js.type = "Long") scheduledTimestamp
+  100: optional i64 (js.type = "Long") expirationTimestamp
 }
 
 struct DescribeWorkflowExecutionResponse {
@@ -1182,10 +1247,25 @@ struct DescribeTaskListRequest {
   10: optional string domain
   20: optional TaskList taskList
   30: optional TaskListType taskListType
+  40: optional bool includeTaskListStatus
 }
 
 struct DescribeTaskListResponse {
   10: optional list<PollerInfo> pollers
+  20: optional TaskListStatus taskListStatus
+}
+
+struct TaskListStatus {
+  10: optional i64 (js.type = "Long") backlogCountHint
+  20: optional i64 (js.type = "Long") readLevel
+  30: optional i64 (js.type = "Long") ackLevel
+  35: optional double ratePerSecond
+  40: optional TaskIDBlock taskIDBlock
+}
+
+struct TaskIDBlock {
+  10: optional i64 (js.type = "Long")  startID
+  20: optional i64 (js.type = "Long")  endID
 }
 
 //At least one of the parameters needs to be provided
@@ -1223,6 +1303,7 @@ struct PollerInfo {
   // Unix Nano
   10: optional i64 (js.type = "Long")  lastAccessTime
   20: optional string identity
+  30: optional double ratePerSecond
 }
 
 struct RetryPolicy {

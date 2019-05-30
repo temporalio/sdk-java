@@ -49,6 +49,7 @@ import com.uber.cadence.common.CronSchedule;
 import com.uber.cadence.common.MethodRetry;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.converter.JsonDataConverter;
+import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.sync.DeterministicRunnerTest;
 import com.uber.cadence.internal.worker.PollerOptions;
 import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
@@ -1227,6 +1228,32 @@ public class WorkflowTest {
     assertEquals("1234", stubP4.query());
     assertEquals("12345", stubP5.query());
     assertEquals("123456", stubP6.query());
+  }
+
+  @Test
+  public void testMemo() {
+    if (testEnvironment != null) {
+      String testMemoKey = "testKey";
+      String testMemoValue = "testValue";
+      Map<String, Object> memo = new HashMap<>();
+      memo.put(testMemoKey, testMemoValue);
+
+      startWorkerFor(TestMultiargsWorkflowsImpl.class);
+      WorkflowOptions workflowOptions = newWorkflowOptionsBuilder(taskList).setMemo(memo).build();
+      TestMultiargsWorkflowsFunc stubF =
+              workflowClient.newWorkflowStub(TestMultiargsWorkflowsFunc.class, workflowOptions);
+      WorkflowExecution executionF = WorkflowClient.start(stubF::func);
+
+      GetWorkflowExecutionHistoryResponse historyResp =
+              WorkflowExecutionUtils.getHistoryPage(
+                      new byte[] {}, testEnvironment.getWorkflowService(), DOMAIN, executionF);
+      HistoryEvent startEvent = historyResp.history.getEvents().get(0);
+      Memo memoFromEvent = startEvent.workflowExecutionStartedEventAttributes.getMemo();
+      byte[] memoBytes = memoFromEvent.getFields().get(testMemoKey).array();
+      String memoRetrieved =
+              JsonDataConverter.getInstance().fromData(memoBytes, String.class, String.class);
+      assertEquals(testMemoValue, memoRetrieved);
+    }
   }
 
   @Test

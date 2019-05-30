@@ -31,6 +31,8 @@ import com.uber.cadence.internal.replay.SignalExternalWorkflowParameters;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
+import java.nio.ByteBuffer;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.thrift.TException;
@@ -107,6 +109,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     if (!Strings.isNullOrEmpty(startParameters.getCronSchedule())) {
       request.setCronSchedule(startParameters.getCronSchedule());
     }
+    request.setMemo(toMemoThrift(startParameters.getMemo()));
 
     //        if(startParameters.getChildPolicy() != null) {
     //            request.setChildPolicy(startParameters.getChildPolicy());
@@ -125,6 +128,20 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     execution.setWorkflowId(request.getWorkflowId());
 
     return execution;
+  }
+
+  private Memo toMemoThrift(Map<String, byte[]> memo) {
+    if (memo == null || memo.isEmpty()) {
+      return null;
+    }
+
+    Map<String, ByteBuffer> fields = new HashMap<>();
+    for (Map.Entry<String, byte[]> item : memo.entrySet()) {
+      fields.put(item.getKey(), ByteBuffer.wrap(item.getValue()));
+    }
+    Memo memoThrift = new Memo();
+    memoThrift.setFields(fields);
+    return memoThrift;
   }
 
   private RetryPolicy toRetryPolicy(RetryParameters retryParameters) {

@@ -26,6 +26,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 public final class StartWorkflowExecutionParameters {
@@ -49,6 +50,8 @@ public final class StartWorkflowExecutionParameters {
   private RetryParameters retryParameters;
 
   private String cronSchedule;
+
+  private Map<String, byte[]> memo;
 
   /**
    * Returns the value of the WorkflowId property for this object.
@@ -292,6 +295,14 @@ public final class StartWorkflowExecutionParameters {
     this.cronSchedule = cronSchedule;
   }
 
+  public Map<String, byte[]> getMemo() {
+    return memo;
+  }
+
+  public void setMemo(Map<String, byte[]> memo) {
+    this.memo = memo;
+  }
+
   public StartWorkflowExecutionParameters withRetryParameters(RetryParameters retryParameters) {
     this.retryParameters = retryParameters;
     return this;
@@ -364,6 +375,9 @@ public final class StartWorkflowExecutionParameters {
         + ", cronSchedule='"
         + cronSchedule
         + '\''
+        + ", memo='"
+        + memo
+        + '\''
         + '}';
   }
 
@@ -381,7 +395,8 @@ public final class StartWorkflowExecutionParameters {
         && childPolicy == that.childPolicy
         && workflowIdReusePolicy == that.workflowIdReusePolicy
         && Objects.equals(retryParameters, that.retryParameters)
-        && Objects.equals(cronSchedule, that.cronSchedule);
+        && Objects.equals(cronSchedule, that.cronSchedule)
+        && Objects.equals(memo, that.memo);
   }
 
   @Override
@@ -396,7 +411,8 @@ public final class StartWorkflowExecutionParameters {
             childPolicy,
             workflowIdReusePolicy,
             retryParameters,
-            cronSchedule);
+            cronSchedule,
+            memo);
     result = 31 * result + Arrays.hashCode(input);
     return result;
   }

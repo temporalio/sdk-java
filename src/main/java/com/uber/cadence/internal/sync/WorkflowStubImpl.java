@@ -32,6 +32,7 @@ import com.uber.cadence.client.WorkflowQueryException;
 import com.uber.cadence.client.WorkflowServiceException;
 import com.uber.cadence.client.WorkflowStub;
 import com.uber.cadence.converter.DataConverter;
+import com.uber.cadence.converter.DataConverterException;
 import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.internal.common.SignalWithStartWorkflowExecutionParameters;
 import com.uber.cadence.internal.common.StartWorkflowExecutionParameters;
@@ -41,6 +42,8 @@ import com.uber.cadence.internal.external.GenericWorkflowClientExternal;
 import com.uber.cadence.internal.replay.QueryWorkflowParameters;
 import com.uber.cadence.internal.replay.SignalExternalWorkflowParameters;
 import java.lang.reflect.Type;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
@@ -136,7 +139,24 @@ class WorkflowStubImpl implements WorkflowStub {
     }
     p.setInput(dataConverter.toData(args));
     p.setWorkflowType(new WorkflowType().setName(workflowType.get()));
+    p.setMemo(convertMemoFromObjectToBytes(o.getMemo()));
     return p;
+  }
+
+  private Map<String, byte[]> convertMemoFromObjectToBytes(Map<String, Object> memoFromOption) {
+    if (memoFromOption == null) {
+      return null;
+    }
+    Map<String, byte[]> memo = new HashMap<>();
+    for (Map.Entry<String, Object> item : memoFromOption.entrySet()) {
+      try {
+        memo.put(item.getKey(), dataConverter.toData(item.getValue()));
+      } catch (DataConverterException e) {
+        throw new DataConverterException(
+            "Cannot serialize memo for key " + item.getKey(), e.getCause());
+      }
+    }
+    return memo;
   }
 
   @Override
