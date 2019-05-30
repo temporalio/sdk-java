@@ -1,4 +1,4 @@
-# Java framework for Cadence [![Build Status](https://travis-ci.com/uber-java/cadence-client.svg?branch=master)](https://travis-ci.com/uber-java/cadence-client) [![Javadocs](https://www.javadoc.io/badge/com.uber.cadence/cadence-client.svg)](https://www.javadoc.io/doc/com.uber.cadence/cadence-client)
+# Java framework for Cadence [![Build Status](https://badge.buildkite.com/0c96b8b74c0921208e898c10a602e2fe9ecb7641c2befee0e7.svg?theme=github&branch=master)](https://buildkite.com/uberopensource/cadence-java-client) [![Javadocs](https://www.javadoc.io/badge/com.uber.cadence/cadence-client.svg)](https://www.javadoc.io/doc/com.uber.cadence/cadence-client)
 
 
 [Cadence](https://github.com/uber/cadence) is a distributed, scalable, durable, and highly available orchestration engine we developed at Uber Engineering to execute asynchronous long-running business logic in a scalable and resilient way.
