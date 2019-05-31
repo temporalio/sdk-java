@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.4.2
+- Support Memo in visibility
+- Fix getVersion without decision event
+- Make NoopScope metric scope really a no-op operation
+- Add some more fields in activity info
+- Wire workflow id reuse policy in start workflow execution params
+- Add missing metrics tags for activity and decision task processing
+- Multiple fixes to get build and unit-tests passing when building cadence-java-client from Windows.
+- Allow data converter to handle non-serializable throwables in the cause chain
+
 ## v2.4.1
 - Update default long poll timeout to 2min to match server side config
 - Fix deadlock in sticky decider cache eviction
