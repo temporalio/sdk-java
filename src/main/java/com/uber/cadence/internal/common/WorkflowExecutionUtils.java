@@ -39,6 +39,7 @@ import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
 import com.uber.cadence.History;
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.HistoryEventFilterType;
+import com.uber.cadence.MarkerRecordedEventAttributes;
 import com.uber.cadence.StartWorkflowExecutionRequest;
 import com.uber.cadence.TaskList;
 import com.uber.cadence.WorkflowExecution;
@@ -60,6 +61,7 @@ import java.io.Reader;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Collection;
@@ -711,9 +713,28 @@ public class WorkflowExecutionUtils {
       result.append(String.format(" [%s ms]", timestamp));
     }
     result.append(" ");
-    result.append(
-        prettyPrintObject(
-            getEventAttributes(event), "getFieldValue", true, INDENTATION, false, false));
+
+    if (event.getEventType() == EventType.MarkerRecorded) {
+      MarkerRecordedEventAttributes markerAttributes = event.getMarkerRecordedEventAttributes();
+      result
+          .append("{\n")
+          .append("    MarkerName = ")
+          .append(markerAttributes.getMarkerName())
+          .append(";\n");
+      result
+          .append("    DecisionTaskCompletedEventId = ")
+          .append(markerAttributes.getDecisionTaskCompletedEventId())
+          .append(";\n");
+      result
+          .append("    Details = ")
+          .append(new String(markerAttributes.getDetails(), Charset.defaultCharset()))
+          .append(";\n  }");
+    } else {
+      result.append(
+          prettyPrintObject(
+              getEventAttributes(event), "getFieldValue", true, INDENTATION, false, false));
+    }
+
     return result.toString();
   }
 

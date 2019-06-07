@@ -39,7 +39,7 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
   private final String taskList;
   private final TaskHandler<T> handler;
 
-  public PollTaskExecutor(
+  PollTaskExecutor(
       String domain, String taskList, SingleWorkerOptions options, TaskHandler<T> handler) {
     this.domain = domain;
     this.taskList = taskList;

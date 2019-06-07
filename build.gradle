@@ -189,6 +189,7 @@ task registerDomain(type:JavaExec) {
 
 test {
     dependsOn 'registerDomain'
+    dependsOn 'checkLicenseMain'
     testLogging {
         events "passed", "skipped", "failed"
         exceptionFormat "full"

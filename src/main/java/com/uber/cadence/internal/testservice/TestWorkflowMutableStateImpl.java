@@ -274,7 +274,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               workflow.getState() == StateMachines.State.COMPLETED
                   || workflow.getState() == StateMachines.State.FAILED
                   || workflow.getState() == StateMachines.State.CANCELED;
-          if (!completed && (ctx.isNeedDecision() || !this.concurrentToDecision.isEmpty())) {
+          if (!completed
+              && ((ctx.isNeedDecision() || !this.concurrentToDecision.isEmpty())
+                  || request.isForceCreateNewDecisionTask())) {
             scheduleDecision(ctx);
           }
           this.concurrentToDecision.clear();

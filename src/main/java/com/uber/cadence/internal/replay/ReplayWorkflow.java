@@ -24,7 +24,7 @@ import com.uber.cadence.worker.WorkflowImplementationOptions;
 
 public interface ReplayWorkflow {
 
-  void start(HistoryEvent event, DecisionContext context) throws Exception;
+  void start(HistoryEvent event, DecisionContext context);
 
   /** Handle an external signal event. */
   void handleSignal(String signalName, byte[] input, long eventId);

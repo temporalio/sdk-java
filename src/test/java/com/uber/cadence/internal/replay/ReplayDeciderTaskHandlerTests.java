@@ -49,7 +49,8 @@ public class ReplayDeciderTaskHandlerTests {
             new SingleWorkerOptions.Builder().build(),
             null,
             Duration.ofSeconds(5),
-            new TestWorkflowService());
+            new TestWorkflowService(),
+            null);
 
     // Act
     DecisionTaskHandler.Result result =
@@ -73,7 +74,8 @@ public class ReplayDeciderTaskHandlerTests {
             new SingleWorkerOptions.Builder().build(),
             "sticky",
             Duration.ofSeconds(5),
-            new TestWorkflowService());
+            new TestWorkflowService(),
+            null);
 
     PollForDecisionTaskResponse decisionTask =
         HistoryUtils.generateDecisionTaskWithInitialHistory();
@@ -104,7 +106,8 @@ public class ReplayDeciderTaskHandlerTests {
             new SingleWorkerOptions.Builder().build(),
             "sticky",
             Duration.ofSeconds(5),
-            new TestWorkflowService());
+            new TestWorkflowService(),
+            null);
 
     // Act
     DecisionTaskHandler.Result result =

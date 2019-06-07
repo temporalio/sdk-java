@@ -24,9 +24,27 @@ import java.util.List;
 
 public interface Decider {
 
-  List<Decision> decide(PollForDecisionTaskResponse decisionTask) throws Throwable;
+  DecisionResult decide(PollForDecisionTaskResponse decisionTask) throws Throwable;
 
   byte[] query(PollForDecisionTaskResponse decisionTask, WorkflowQuery query) throws Throwable;
 
   void close();
+
+  class DecisionResult {
+    private final List<Decision> decisions;
+    private final boolean forceCreateNewDecisionTask;
+
+    public DecisionResult(List<Decision> decisions, boolean forceCreateNewDecisionTask) {
+      this.decisions = decisions;
+      this.forceCreateNewDecisionTask = forceCreateNewDecisionTask;
+    }
+
+    public List<Decision> getDecisions() {
+      return decisions;
+    }
+
+    public boolean getForceCreateNewDecisionTask() {
+      return forceCreateNewDecisionTask;
+    }
+  }
 }

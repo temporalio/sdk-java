@@ -28,6 +28,7 @@ import com.uber.cadence.internal.replay.ContinueAsNewWorkflowExecutionParameters
 import com.uber.cadence.internal.replay.DeciderCache;
 import com.uber.cadence.internal.replay.DecisionContext;
 import com.uber.cadence.internal.replay.ExecuteActivityParameters;
+import com.uber.cadence.internal.replay.ExecuteLocalActivityParameters;
 import com.uber.cadence.internal.replay.SignalExternalWorkflowParameters;
 import com.uber.cadence.internal.replay.StartChildWorkflowExecutionParameters;
 import com.uber.cadence.workflow.Functions.Func;
@@ -48,7 +49,13 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
@@ -536,6 +543,12 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     @Override
     public Consumer<Exception> scheduleActivityTask(
         ExecuteActivityParameters parameters, BiConsumer<byte[], Exception> callback) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public Consumer<Exception> scheduleLocalActivityTask(
+        ExecuteLocalActivityParameters parameters, BiConsumer<byte[], Exception> callback) {
       throw new UnsupportedOperationException("not implemented");
     }
 

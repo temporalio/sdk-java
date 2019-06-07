@@ -22,6 +22,7 @@ import static com.uber.cadence.internal.sync.AsyncInternal.AsyncMarker;
 import com.google.common.reflect.TypeToken;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.activity.ActivityOptions;
+import com.uber.cadence.activity.LocalActivityOptions;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.internal.common.InternalUtils;
@@ -148,7 +149,20 @@ public final class WorkflowInternal {
     WorkflowInterceptor decisionContext = WorkflowInternal.getWorkflowInterceptor();
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(options, decisionContext);
-    return ActivityInvocationHandler.newProxy(activityInterface, invocationHandler);
+    return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
+  }
+
+  /**
+   * Creates client stub to local activities that implement given interface.
+   *
+   * @param activityInterface interface type implemented by activities
+   */
+  public static <T> T newLocalActivityStub(
+      Class<T> activityInterface, LocalActivityOptions options) {
+    WorkflowInterceptor decisionContext = WorkflowInternal.getWorkflowInterceptor();
+    InvocationHandler invocationHandler =
+        LocalActivityInvocationHandler.newInstance(options, decisionContext);
+    return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
 
   public static ActivityStub newUntypedActivityStub(ActivityOptions options) {

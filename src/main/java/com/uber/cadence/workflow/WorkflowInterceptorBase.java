@@ -19,6 +19,7 @@ package com.uber.cadence.workflow;
 
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.activity.ActivityOptions;
+import com.uber.cadence.activity.LocalActivityOptions;
 import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.Functions.Func1;
 import java.lang.reflect.Type;
@@ -46,6 +47,16 @@ public class WorkflowInterceptorBase implements WorkflowInterceptor {
       Object[] args,
       ActivityOptions options) {
     return next.executeActivity(activityName, resultClass, resultType, args, options);
+  }
+
+  @Override
+  public <R> Promise<R> executeLocalActivity(
+      String activityName,
+      Class<R> resultClass,
+      Type resultType,
+      Object[] args,
+      LocalActivityOptions options) {
+    return next.executeLocalActivity(activityName, resultClass, resultType, args, options);
   }
 
   @Override

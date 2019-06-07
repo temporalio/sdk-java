@@ -76,6 +76,7 @@ import com.uber.cadence.UpdateDomainResponse;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
 import com.uber.cadence.activity.ActivityOptions;
+import com.uber.cadence.activity.LocalActivityOptions;
 import com.uber.cadence.internal.metrics.NoopScope;
 import com.uber.cadence.internal.worker.ActivityTaskHandler;
 import com.uber.cadence.internal.worker.ActivityTaskHandler.Result;
@@ -126,7 +127,11 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
       this.testEnvironmentOptions = options;
     }
     activityTaskHandler =
-        new POJOActivityTaskHandler(testEnvironmentOptions.getDataConverter(), heartbeatExecutor);
+        new POJOActivityTaskHandler(
+            new WorkflowServiceWrapper(workflowService),
+            testEnvironmentOptions.getDomain(),
+            testEnvironmentOptions.getDataConverter(),
+            heartbeatExecutor);
   }
 
   /**
@@ -156,7 +161,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(options, new TestActivityExecutor(workflowService));
     invocationHandler = new DeterministicRunnerWrapper(invocationHandler);
-    return ActivityInvocationHandler.newProxy(activityInterface, invocationHandler);
+    return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
 
   @Override
@@ -173,11 +178,14 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
 
   @Override
   public void setWorkflowService(IWorkflowService workflowService) {
-    this.workflowService = workflowService;
+    IWorkflowService service = new WorkflowServiceWrapper(workflowService);
+    this.workflowService = service;
+    this.activityTaskHandler.setWorkflowService(service);
   }
 
   private class TestActivityExecutor implements WorkflowInterceptor {
 
+    @SuppressWarnings("UnusedVariable")
     private final IWorkflowService workflowService;
 
     TestActivityExecutor(IWorkflowService workflowService) {
@@ -205,15 +213,19 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
               .setWorkflowId("test-workflow-id")
               .setRunId(UUID.randomUUID().toString()));
       task.setActivityType(new ActivityType().setName(activityType));
-      IWorkflowService service = new WorkflowServiceWrapper(workflowService);
       Result taskResult =
-          activityTaskHandler.handle(
-              service,
-              testEnvironmentOptions.getDomain(),
-              options.getTaskList(),
-              task,
-              NoopScope.getInstance());
+          activityTaskHandler.handle(options.getTaskList(), task, NoopScope.getInstance());
       return Workflow.newPromise(getReply(task, taskResult, resultClass, resultType));
+    }
+
+    @Override
+    public <R> Promise<R> executeLocalActivity(
+        String activityName,
+        Class<R> resultClass,
+        Type resultType,
+        Object[] args,
+        LocalActivityOptions options) {
+      throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
@@ -305,7 +317,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
             .getDataConverter()
             .fromData(taskCompleted.getResult(), resultClass, resultType);
       } else {
-        RespondActivityTaskFailedRequest taskFailed = response.getTaskFailed();
+        RespondActivityTaskFailedRequest taskFailed =
+            response.getTaskFailedResult().getTaskFailedRequest();
         if (taskFailed != null) {
           String causeClassName = taskFailed.getReason();
           Class<? extends Exception> causeClass;

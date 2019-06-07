@@ -19,7 +19,6 @@ package com.uber.cadence.internal.sync;
 
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.workflow.ActivityFailureException;
-import com.uber.cadence.workflow.ChildWorkflowFailureException;
 import com.uber.cadence.workflow.CompletablePromise;
 import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.Promise;
@@ -32,9 +31,6 @@ import java.time.Duration;
  * Functions.Func)} or Async{@link #retry(RetryOptions, Functions.Func)}.
  */
 final class WorkflowRetryerInternal {
-
-  private static final double DEFAULT_COEFFICIENT = 2.0;
-  public static final int DEFAULT_MAXIMUM_MULTIPLIER = 100;
 
   /**
    * Retry procedure synchronously.
@@ -72,12 +68,12 @@ final class WorkflowRetryerInternal {
         WorkflowInternal.mutableSideEffect(
             retryId, RetryOptions.class, RetryOptions.class, Object::equals, () -> options);
     while (true) {
-      long nextSleepTime = calculateSleepTime(attempt, retryOptions);
+      long nextSleepTime = retryOptions.calculateSleepTime(attempt);
       try {
         return func.apply();
       } catch (Exception e) {
         long elapsed = WorkflowInternal.currentTimeMillis() - startTime;
-        if (shouldRethrow(e, retryOptions, attempt, elapsed, nextSleepTime)) {
+        if (retryOptions.shouldRethrow(e, attempt, elapsed, nextSleepTime)) {
           throw WorkflowInternal.wrap(e);
         }
       }
@@ -123,8 +119,8 @@ final class WorkflowRetryerInternal {
                 return WorkflowInternal.newPromise(r);
               }
               long elapsed = WorkflowInternal.currentTimeMillis() - startTime;
-              long sleepTime = calculateSleepTime(attempt, retryOptions);
-              if (shouldRethrow(e, retryOptions, attempt, elapsed, sleepTime)) {
+              long sleepTime = retryOptions.calculateSleepTime(attempt);
+              if (retryOptions.shouldRethrow(e, attempt, elapsed, sleepTime)) {
                 throw e;
               }
               // newTimer runs in a separate thread, so it performs trampolining eliminating tail
@@ -136,40 +132,40 @@ final class WorkflowRetryerInternal {
         .thenCompose((r) -> r);
   }
 
-  private static boolean shouldRethrow(
-      Throwable e, RetryOptions options, long attempt, long elapsed, long sleepTime) {
-    if (e instanceof ActivityFailureException || e instanceof ChildWorkflowFailureException) {
-      e = e.getCause();
-    }
-    if (options.getDoNotRetry() != null) {
-      for (Class<? extends Throwable> doNotRetry : options.getDoNotRetry()) {
-        if (doNotRetry.equals(e.getClass())) {
-          return true;
-        }
-      }
-    }
-    // Attempt that failed.
-    if (options.getMaximumAttempts() != 0 && attempt >= options.getMaximumAttempts()) {
-      return true;
-    }
-    Duration expiration = options.getExpiration();
-    return expiration != null && elapsed + sleepTime >= expiration.toMillis();
-  }
+  static <R> Promise<R> retryAsync(
+      Functions.Func2<Integer, Long, Promise<R>> func, int attempt, long startTime) {
 
-  private static long calculateSleepTime(long attempt, RetryOptions options) {
-    double backoffCoefficient =
-        options.getBackoffCoefficient() == 0d
-            ? DEFAULT_COEFFICIENT
-            : options.getBackoffCoefficient();
-    double sleepMillis =
-        Math.pow(backoffCoefficient, attempt - 1) * options.getInitialInterval().toMillis();
-    Duration maximumInterval = options.getMaximumInterval();
-    if (maximumInterval == null) {
-      return (long)
-          Math.min(
-              sleepMillis, options.getInitialInterval().toMillis() * DEFAULT_MAXIMUM_MULTIPLIER);
+    CompletablePromise<R> funcResult = WorkflowInternal.newCompletablePromise();
+    try {
+      funcResult.completeFrom(func.apply(attempt, startTime));
+    } catch (RuntimeException e) {
+      funcResult.completeExceptionally(e);
     }
-    return Math.min((long) sleepMillis, maximumInterval.toMillis());
+
+    return funcResult
+        .handle(
+            (r, e) -> {
+              if (e == null) {
+                return WorkflowInternal.newPromise(r);
+              }
+
+              if (!(e instanceof ActivityFailureException)) {
+                throw e;
+              }
+
+              ActivityFailureException afe = (ActivityFailureException) e;
+
+              if (afe.getBackoff() == null) {
+                throw e;
+              }
+
+              // newTimer runs in a separate thread, so it performs trampolining eliminating tail
+              // recursion.
+              long nextStart = WorkflowInternal.currentTimeMillis() + afe.getBackoff().toMillis();
+              return WorkflowInternal.newTimer(afe.getBackoff())
+                  .thenCompose((nil) -> retryAsync(func, afe.getAttempt() + 1, nextStart));
+            })
+        .thenCompose((r) -> r);
   }
 
   private WorkflowRetryerInternal() {}

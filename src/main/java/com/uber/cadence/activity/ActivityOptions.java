@@ -22,6 +22,7 @@ import static com.uber.cadence.internal.common.OptionsUtils.roundUpToSeconds;
 import com.uber.cadence.common.MethodRetry;
 import com.uber.cadence.common.RetryOptions;
 import java.time.Duration;
+import java.util.Objects;
 
 /** Options used to configure how an activity is invoked. */
 public final class ActivityOptions {
@@ -43,11 +44,12 @@ public final class ActivityOptions {
     }
     return new ActivityOptions.Builder()
         .setScheduleToCloseTimeout(
-            merge(a.scheduleToCloseTimeoutSeconds(), o.getScheduleToCloseTimeout()))
+            mergeDuration(a.scheduleToCloseTimeoutSeconds(), o.getScheduleToCloseTimeout()))
         .setScheduleToStartTimeout(
-            merge(a.scheduleToStartTimeoutSeconds(), o.getScheduleToStartTimeout()))
-        .setStartToCloseTimeout(merge(a.startToCloseTimeoutSeconds(), o.getStartToCloseTimeout()))
-        .setHeartbeatTimeout(merge(a.heartbeatTimeoutSeconds(), o.getHeartbeatTimeout()))
+            mergeDuration(a.scheduleToStartTimeoutSeconds(), o.getScheduleToStartTimeout()))
+        .setStartToCloseTimeout(
+            mergeDuration(a.startToCloseTimeoutSeconds(), o.getStartToCloseTimeout()))
+        .setHeartbeatTimeout(mergeDuration(a.heartbeatTimeoutSeconds(), o.getHeartbeatTimeout()))
         .setTaskList(
             o.getTaskList() != null
                 ? o.getTaskList()
@@ -278,37 +280,26 @@ public final class ActivityOptions {
     if (o == null || getClass() != o.getClass()) return false;
 
     ActivityOptions that = (ActivityOptions) o;
-
-    if (heartbeatTimeout != null
-        ? !heartbeatTimeout.equals(that.heartbeatTimeout)
-        : that.heartbeatTimeout != null) return false;
-    if (scheduleToCloseTimeout != null
-        ? !scheduleToCloseTimeout.equals(that.scheduleToCloseTimeout)
-        : that.scheduleToCloseTimeout != null) return false;
-    if (scheduleToStartTimeout != null
-        ? !scheduleToStartTimeout.equals(that.scheduleToStartTimeout)
-        : that.scheduleToStartTimeout != null) return false;
-    if (startToCloseTimeout != null
-        ? !startToCloseTimeout.equals(that.startToCloseTimeout)
-        : that.startToCloseTimeout != null) return false;
-    if (taskList != null ? !taskList.equals(that.taskList) : that.taskList != null) return false;
-    return retryOptions != null
-        ? retryOptions.equals(that.retryOptions)
-        : that.retryOptions == null;
+    return Objects.equals(heartbeatTimeout, that.heartbeatTimeout)
+        && Objects.equals(scheduleToCloseTimeout, that.scheduleToCloseTimeout)
+        && Objects.equals(scheduleToStartTimeout, that.scheduleToStartTimeout)
+        && Objects.equals(startToCloseTimeout, that.startToCloseTimeout)
+        && Objects.equals(taskList, that.taskList)
+        && Objects.equals(retryOptions, that.retryOptions);
   }
 
   @Override
   public int hashCode() {
-    int result = heartbeatTimeout != null ? heartbeatTimeout.hashCode() : 0;
-    result = 31 * result + (scheduleToCloseTimeout != null ? scheduleToCloseTimeout.hashCode() : 0);
-    result = 31 * result + (scheduleToStartTimeout != null ? scheduleToStartTimeout.hashCode() : 0);
-    result = 31 * result + (startToCloseTimeout != null ? startToCloseTimeout.hashCode() : 0);
-    result = 31 * result + (taskList != null ? taskList.hashCode() : 0);
-    result = 31 * result + (retryOptions != null ? retryOptions.hashCode() : 0);
-    return result;
+    return Objects.hash(
+        heartbeatTimeout,
+        scheduleToCloseTimeout,
+        scheduleToStartTimeout,
+        startToCloseTimeout,
+        taskList,
+        retryOptions);
   }
 
-  private static Duration merge(int annotationSeconds, Duration options) {
+  static Duration mergeDuration(int annotationSeconds, Duration options) {
     if (options == null) {
       if (annotationSeconds == 0) {
         return null;

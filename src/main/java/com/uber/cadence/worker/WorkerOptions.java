@@ -39,6 +39,7 @@ public final class WorkerOptions {
     private DataConverter dataConverter = JsonDataConverter.getInstance();
     private int maxConcurrentActivityExecutionSize = 100;
     private int maxConcurrentWorkflowExecutionSize = 50;
+    private int maxConcurrentLocalActivityExecutionSize = 100;
     private PollerOptions activityPollerOptions;
     private PollerOptions workflowPollerOptions;
     private RetryOptions reportActivityCompletionRetryOptions;
@@ -120,6 +121,17 @@ public final class WorkerOptions {
       return this;
     }
 
+    /** Maximum number of parallely executed local activities. */
+    public Builder setMaxConcurrentLocalActivityExecutionSize(
+        int maxConcurrentLocalActivityExecutionSize) {
+      if (maxConcurrentLocalActivityExecutionSize <= 0) {
+        throw new IllegalArgumentException(
+            "Negative or zero: " + maxConcurrentLocalActivityExecutionSize);
+      }
+      this.maxConcurrentLocalActivityExecutionSize = maxConcurrentLocalActivityExecutionSize;
+      return this;
+    }
+
     public Builder setActivityPollerOptions(PollerOptions activityPollerOptions) {
       this.activityPollerOptions = Objects.requireNonNull(activityPollerOptions);
       return this;
@@ -191,6 +203,7 @@ public final class WorkerOptions {
           dataConverter,
           maxConcurrentActivityExecutionSize,
           maxConcurrentWorkflowExecutionSize,
+          maxConcurrentLocalActivityExecutionSize,
           activityPollerOptions,
           workflowPollerOptions,
           reportActivityCompletionRetryOptions,
@@ -210,6 +223,7 @@ public final class WorkerOptions {
   private final DataConverter dataConverter;
   private final int maxConcurrentActivityExecutionSize;
   private final int maxConcurrentWorkflowExecutionSize;
+  private final int maxConcurrentLocalActivityExecutionSize;
   private final PollerOptions activityPollerOptions;
   private final PollerOptions workflowPollerOptions;
   private final RetryOptions reportActivityCompletionRetryOptions;
@@ -228,6 +242,7 @@ public final class WorkerOptions {
       DataConverter dataConverter,
       int maxConcurrentActivityExecutionSize,
       int maxConcurrentWorkflowExecutionSize,
+      int maxConcurrentLocalActivityExecutionSize,
       PollerOptions activityPollerOptions,
       PollerOptions workflowPollerOptions,
       RetryOptions reportActivityCompletionRetryOptions,
@@ -244,6 +259,7 @@ public final class WorkerOptions {
     this.dataConverter = dataConverter;
     this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
     this.maxConcurrentWorkflowExecutionSize = maxConcurrentWorkflowExecutionSize;
+    this.maxConcurrentLocalActivityExecutionSize = maxConcurrentLocalActivityExecutionSize;
     this.activityPollerOptions = activityPollerOptions;
     this.workflowPollerOptions = workflowPollerOptions;
     this.reportActivityCompletionRetryOptions = reportActivityCompletionRetryOptions;
@@ -281,6 +297,10 @@ public final class WorkerOptions {
 
   public int getMaxConcurrentWorkflowExecutionSize() {
     return maxConcurrentWorkflowExecutionSize;
+  }
+
+  public int getMaxConcurrentLocalActivityExecutionSize() {
+    return maxConcurrentLocalActivityExecutionSize;
   }
 
   public PollerOptions getActivityPollerOptions() {
@@ -335,6 +355,10 @@ public final class WorkerOptions {
         + dataConverter
         + ", maxConcurrentActivityExecutionSize="
         + maxConcurrentActivityExecutionSize
+        + ", maxConcurrentWorkflowExecutionSize="
+        + maxConcurrentWorkflowExecutionSize
+        + ", maxConcurrentLocalActivityExecutionSize="
+        + maxConcurrentLocalActivityExecutionSize
         + ", activityPollerOptions="
         + activityPollerOptions
         + ", workflowPollerOptions="

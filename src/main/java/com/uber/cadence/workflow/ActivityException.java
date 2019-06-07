@@ -32,7 +32,7 @@ public abstract class ActivityException extends WorkflowOperationException {
         message
             + ", ActivityType=\""
             + activityType.getName()
-            + "\" ActivityID=\""
+            + "\", ActivityID=\""
             + activityId
             + "\", EventID="
             + eventId,

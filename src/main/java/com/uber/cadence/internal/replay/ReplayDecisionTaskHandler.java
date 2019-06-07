@@ -23,6 +23,7 @@ import com.uber.cadence.*;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.internal.worker.DecisionTaskHandler;
+import com.uber.cadence.internal.worker.LocalActivityWorker;
 import com.uber.cadence.internal.worker.SingleWorkerOptions;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.m3.tally.Scope;
@@ -33,6 +34,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,6 +50,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
   private final Duration stickyTaskListScheduleToStartTimeout;
   private IWorkflowService service;
   private String stickyTaskListName;
+  private final BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller;
 
   public ReplayDecisionTaskHandler(
       String domain,
@@ -56,7 +59,8 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
       SingleWorkerOptions options,
       String stickyTaskListName,
       Duration stickyTaskListScheduleToStartTimeout,
-      IWorkflowService service) {
+      IWorkflowService service,
+      BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller) {
     this.domain = domain;
     this.workflowFactory = asyncWorkflowFactory;
     this.cache = cache;
@@ -65,6 +69,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     this.stickyTaskListName = stickyTaskListName;
     this.stickyTaskListScheduleToStartTimeout = stickyTaskListScheduleToStartTimeout;
     this.service = Objects.requireNonNull(service);
+    this.laTaskPoller = laTaskPoller;
   }
 
   @Override
@@ -130,7 +135,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
                 });
       }
 
-      List<Decision> decisions = decider.decide(decisionTask);
+      Decider.DecisionResult result = decider.decide(decisionTask);
 
       if (stickyTaskListName != null && createdNew.get()) {
         cache.addToCache(decisionTask, decider);
@@ -146,7 +151,9 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
                 + ", RunID="
                 + execution.getRunId()
                 + " completed with "
-                + WorkflowExecutionUtils.prettyPrintDecisions(decisions));
+                + WorkflowExecutionUtils.prettyPrintDecisions(result.getDecisions())
+                + " forceCreateNewDecisionTask "
+                + result.getForceCreateNewDecisionTask());
       } else if (log.isDebugEnabled()) {
         WorkflowExecution execution = decisionTask.getWorkflowExecution();
         log.debug(
@@ -157,10 +164,12 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
                 + ", RunID="
                 + execution.getRunId()
                 + " completed with "
-                + decisions.size()
-                + " new decisions");
+                + result.getDecisions().size()
+                + " new decisions"
+                + " forceCreateNewDecisionTask "
+                + result.getForceCreateNewDecisionTask());
       }
-      return createCompletedRequest(decisionTask, decisions);
+      return createCompletedRequest(decisionTask, result);
     } catch (Throwable e) {
       if (stickyTaskListName != null) {
         cache.invalidate(decisionTask.getWorkflowExecution().getRunId());
@@ -217,11 +226,12 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
   }
 
   private Result createCompletedRequest(
-      PollForDecisionTaskResponse decisionTask, List<Decision> decisions) {
+      PollForDecisionTaskResponse decisionTask, Decider.DecisionResult result) {
     RespondDecisionTaskCompletedRequest completedRequest =
         new RespondDecisionTaskCompletedRequest();
     completedRequest.setTaskToken(decisionTask.getTaskToken());
-    completedRequest.setDecisions(decisions);
+    completedRequest.setDecisions(result.getDecisions());
+    completedRequest.setForceCreateNewDecisionTask(result.getForceCreateNewDecisionTask());
 
     if (stickyTaskListName != null) {
       StickyExecutionAttributes attributes = new StickyExecutionAttributes();
@@ -255,6 +265,12 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     DecisionsHelper decisionsHelper = new DecisionsHelper(decisionTask);
     ReplayWorkflow workflow = workflowFactory.getWorkflow(workflowType);
     return new ReplayDecider(
-        service, domain, workflow, decisionsHelper, metricsScope, enableLoggingInReplay);
+        service,
+        domain,
+        workflow,
+        decisionsHelper,
+        metricsScope,
+        enableLoggingInReplay,
+        laTaskPoller);
   }
 }

@@ -17,35 +17,47 @@
 
 package com.uber.cadence.internal.replay;
 
+import com.google.common.base.Strings;
+import com.uber.cadence.ActivityType;
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.MarkerRecordedEventAttributes;
 import com.uber.cadence.StartTimerDecisionAttributes;
 import com.uber.cadence.TimerCanceledEventAttributes;
 import com.uber.cadence.TimerFiredEventAttributes;
 import com.uber.cadence.converter.DataConverter;
+import com.uber.cadence.converter.JsonDataConverter;
+import com.uber.cadence.internal.common.LocalActivityMarkerData;
 import com.uber.cadence.internal.replay.MarkerHandler.MarkerData;
 import com.uber.cadence.internal.sync.WorkflowInternal;
+import com.uber.cadence.internal.worker.LocalActivityWorker;
+import com.uber.cadence.workflow.ActivityFailureException;
 import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.Functions.Func1;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Clock that must be used inside workflow definition code to ensure replay determinism. */
-final class ClockDecisionContext {
+public final class ClockDecisionContext {
 
   private static final String SIDE_EFFECT_MARKER_NAME = "SideEffect";
   private static final String MUTABLE_SIDE_EFFECT_MARKER_NAME = "MutableSideEffect";
   public static final String VERSION_MARKER_NAME = "Version";
+  public static final String LOCAL_ACTIVITY_MARKER_NAME = "LocalActivity";
 
-  private static final Logger log = LoggerFactory.getLogger(ReplayDecider.class);
+  private static final Logger log = LoggerFactory.getLogger(ClockDecisionContext.class);
 
   private final class TimerCancellationHandler implements Consumer<Exception> {
 
@@ -62,33 +74,47 @@ final class ClockDecisionContext {
   }
 
   private final DecisionsHelper decisions;
-
   // key is startedEventId
   private final Map<Long, OpenRequestInfo<?, Long>> scheduledTimers = new HashMap<>();
-
   private long replayCurrentTimeMilliseconds = -1;
-
+  // Local time when replayCurrentTimeMilliseconds was updated.
+  private long replayTimeUpdatedAtMillis = -1;
   private boolean replaying = true;
-
   // Key is side effect marker eventId
   private final Map<Long, byte[]> sideEffectResults = new HashMap<>();
-
   private final MarkerHandler mutableSideEffectHandler;
   private final MarkerHandler versionHandler;
+  private final BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller;
+  private final Map<String, OpenRequestInfo<byte[], ActivityType>> pendingLaTasks = new HashMap<>();
+  private final Map<String, ExecuteLocalActivityParameters> unstartedLaTasks = new HashMap<>();
+  private final ReplayDecider replayDecider;
+  private final Lock laTaskLock = new ReentrantLock();
+  private final Condition taskCondition = laTaskLock.newCondition();
+  private boolean taskCompleted = false;
 
-  ClockDecisionContext(DecisionsHelper decisions) {
+  ClockDecisionContext(
+      DecisionsHelper decisions,
+      BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller,
+      ReplayDecider replayDecider) {
     this.decisions = decisions;
     mutableSideEffectHandler =
         new MarkerHandler(decisions, MUTABLE_SIDE_EFFECT_MARKER_NAME, () -> replaying);
     versionHandler = new MarkerHandler(decisions, VERSION_MARKER_NAME, () -> replaying);
+    this.laTaskPoller = laTaskPoller;
+    this.replayDecider = replayDecider;
   }
 
-  long currentTimeMillis() {
+  public long currentTimeMillis() {
     return replayCurrentTimeMilliseconds;
+  }
+
+  private long replayTimeUpdatedAtMillis() {
+    return replayTimeUpdatedAtMillis;
   }
 
   void setReplayCurrentTimeMilliseconds(long replayCurrentTimeMilliseconds) {
     this.replayCurrentTimeMilliseconds = replayCurrentTimeMilliseconds;
+    this.replayTimeUpdatedAtMillis = System.currentTimeMillis();
   }
 
   boolean isReplaying() {
@@ -187,8 +213,60 @@ final class ClockDecisionContext {
     String name = attributes.getMarkerName();
     if (SIDE_EFFECT_MARKER_NAME.equals(name)) {
       sideEffectResults.put(event.getEventId(), attributes.getDetails());
+    } else if (LOCAL_ACTIVITY_MARKER_NAME.equals(name)) {
+      handleLocalActivityMarker(attributes);
     } else if (!MUTABLE_SIDE_EFFECT_MARKER_NAME.equals(name) && !VERSION_MARKER_NAME.equals(name)) {
       log.warn("Unexpected marker: " + event);
+    }
+  }
+
+  private void handleLocalActivityMarker(MarkerRecordedEventAttributes attributes) {
+    LocalActivityMarkerData marker =
+        JsonDataConverter.getInstance()
+            .fromData(
+                attributes.getDetails(),
+                LocalActivityMarkerData.class,
+                LocalActivityMarkerData.class);
+
+    if (pendingLaTasks.containsKey(marker.getActivityId())) {
+      log.debug("Handle LocalActivityMarker for activity " + marker.getActivityId());
+
+      decisions.recordMarker(LOCAL_ACTIVITY_MARKER_NAME, attributes.getDetails());
+
+      OpenRequestInfo<byte[], ActivityType> scheduled =
+          pendingLaTasks.remove(marker.getActivityId());
+      unstartedLaTasks.remove(marker.getActivityId());
+
+      Exception failure = null;
+      if (marker.getIsCancelled()) {
+        failure = new CancellationException(marker.getErrReason());
+      } else if (marker.getErrJson() != null) {
+        Throwable cause =
+            JsonDataConverter.getInstance()
+                .fromData(marker.getErrJson(), Throwable.class, Throwable.class);
+        ActivityType activityType = new ActivityType();
+        activityType.setName(marker.getActivityType());
+        failure =
+            new ActivityFailureException(
+                attributes.getDecisionTaskCompletedEventId(),
+                activityType,
+                marker.getActivityId(),
+                cause,
+                marker.getAttempt(),
+                marker.getBackoff());
+      }
+
+      BiConsumer<byte[], Exception> completionHandle = scheduled.getCompletionCallback();
+      completionHandle.accept(marker.getResult(), failure);
+      setReplayCurrentTimeMilliseconds(marker.getReplayTimeMillis());
+
+      laTaskLock.lock();
+      try {
+        taskCompleted = true;
+        taskCondition.signal();
+      } finally {
+        laTaskLock.unlock();
+      }
     }
   }
 
@@ -226,6 +304,57 @@ final class ClockDecisionContext {
           String.format(
               "Version %d of changeID %s is not supported. Supported version is between %d and %d.",
               version, changeID, minSupported, maxSupported));
+    }
+  }
+
+  Consumer<Exception> scheduleLocalActivityTask(
+      ExecuteLocalActivityParameters params, BiConsumer<byte[], Exception> callback) {
+    final OpenRequestInfo<byte[], ActivityType> context =
+        new OpenRequestInfo<>(params.getActivityType());
+    context.setCompletionHandle(callback);
+    if (Strings.isNullOrEmpty(params.getActivityId())) {
+      params.setActivityId(decisions.getAndIncrementNextId());
+    }
+    pendingLaTasks.put(params.getActivityId(), context);
+    unstartedLaTasks.put(params.getActivityId(), params);
+    return null;
+  }
+
+  boolean startUnstartedLaTasks(Duration maxWaitAllowed) {
+    long startTime = System.currentTimeMillis();
+    for (ExecuteLocalActivityParameters params : unstartedLaTasks.values()) {
+      long currTime = System.currentTimeMillis();
+      maxWaitAllowed = maxWaitAllowed.minus(Duration.ofMillis(currTime - startTime));
+      boolean applied =
+          laTaskPoller.apply(
+              new LocalActivityWorker.Task(
+                  params,
+                  replayDecider,
+                  replayDecider.getDecisionTimeoutSeconds(),
+                  this::currentTimeMillis,
+                  this::replayTimeUpdatedAtMillis),
+              maxWaitAllowed);
+      if (!applied) {
+        return false;
+      }
+    }
+    unstartedLaTasks.clear();
+    return true;
+  }
+
+  int numPendingLaTasks() {
+    return pendingLaTasks.size();
+  }
+
+  void awaitTaskCompletion(Duration duration) throws InterruptedException {
+    laTaskLock.lock();
+    try {
+      while (!taskCompleted) {
+        taskCondition.awaitNanos(duration.toNanos());
+      }
+      taskCompleted = false;
+    } finally {
+      laTaskLock.unlock();
     }
   }
 }

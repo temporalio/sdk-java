@@ -35,7 +35,8 @@ public class SyncActivityWorker implements Lifecycle {
 
   public SyncActivityWorker(
       IWorkflowService service, String domain, String taskList, SingleWorkerOptions options) {
-    taskHandler = new POJOActivityTaskHandler(options.getDataConverter(), heartbeatExecutor);
+    taskHandler =
+        new POJOActivityTaskHandler(service, domain, options.getDataConverter(), heartbeatExecutor);
     worker = new ActivityWorker(service, domain, taskList, options, taskHandler);
   }
 

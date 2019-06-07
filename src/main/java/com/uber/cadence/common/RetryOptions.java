@@ -18,6 +18,8 @@
 package com.uber.cadence.common;
 
 import com.google.common.base.Defaults;
+import com.uber.cadence.workflow.ActivityFailureException;
+import com.uber.cadence.workflow.ChildWorkflowFailureException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
@@ -27,6 +29,7 @@ import java.util.Objects;
 public final class RetryOptions {
 
   private static final double DEFAULT_BACKOFF_COEFFICIENT = 2.0;
+  private static final int DEFAULT_MAXIMUM_MULTIPLIER = 100;
 
   /**
    * Merges annotation with explicitly provided RetryOptions. If there is conflict RetryOptions
@@ -402,5 +405,33 @@ public final class RetryOptions {
       return o1.toArray(result);
     }
     return null;
+  }
+
+  public long calculateSleepTime(long attempt) {
+    double coefficient =
+        backoffCoefficient == 0d ? DEFAULT_BACKOFF_COEFFICIENT : backoffCoefficient;
+    double sleepMillis = Math.pow(coefficient, attempt - 1) * initialInterval.toMillis();
+    if (maximumInterval == null) {
+      return (long) Math.min(sleepMillis, initialInterval.toMillis() * DEFAULT_MAXIMUM_MULTIPLIER);
+    }
+    return Math.min((long) sleepMillis, maximumInterval.toMillis());
+  }
+
+  public boolean shouldRethrow(Throwable e, long attempt, long elapsed, long sleepTime) {
+    if (e instanceof ActivityFailureException || e instanceof ChildWorkflowFailureException) {
+      e = e.getCause();
+    }
+    if (doNotRetry != null) {
+      for (Class<? extends Throwable> doNotRetry : doNotRetry) {
+        if (doNotRetry.equals(e.getClass())) {
+          return true;
+        }
+      }
+    }
+    // Attempt that failed.
+    if (maximumAttempts != 0 && attempt >= maximumAttempts) {
+      return true;
+    }
+    return expiration != null && elapsed + sleepTime >= expiration.toMillis();
   }
 }

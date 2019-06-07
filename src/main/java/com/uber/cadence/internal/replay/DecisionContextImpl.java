@@ -20,6 +20,7 @@ package com.uber.cadence.internal.replay;
 import com.uber.cadence.*;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.metrics.ReplayAwareScope;
+import com.uber.cadence.internal.worker.LocalActivityWorker;
 import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.Functions.Func1;
 import com.uber.cadence.workflow.Promise;
@@ -30,20 +31,16 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 final class DecisionContextImpl implements DecisionContext, HistoryEventHandler {
 
   private final ActivityDecisionContext activityClient;
-
   private final WorkflowDecisionContext workflowClient;
-
   private final ClockDecisionContext workflowClock;
-
   private final WorkflowContext workflowContext;
-
-  private Scope metricsScope;
-
+  private final Scope metricsScope;
   private final boolean enableLoggingInReplay;
 
   DecisionContextImpl(
@@ -51,15 +48,15 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
       String domain,
       PollForDecisionTaskResponse decisionTask,
       WorkflowExecutionStartedEventAttributes startedAttributes,
-      boolean enableLoggingInReplay) {
+      boolean enableLoggingInReplay,
+      Scope metricsScope,
+      BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller,
+      ReplayDecider replayDecider) {
     this.activityClient = new ActivityDecisionContext(decisionsHelper);
     this.workflowContext = new WorkflowContext(domain, decisionTask, startedAttributes);
     this.workflowClient = new WorkflowDecisionContext(decisionsHelper, workflowContext);
-    this.workflowClock = new ClockDecisionContext(decisionsHelper);
+    this.workflowClock = new ClockDecisionContext(decisionsHelper, laTaskPoller, replayDecider);
     this.enableLoggingInReplay = enableLoggingInReplay;
-  }
-
-  public void setMetricsScope(Scope metricsScope) {
     this.metricsScope = new ReplayAwareScope(metricsScope, this, workflowClock::currentTimeMillis);
   }
 
@@ -157,6 +154,12 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   public Consumer<Exception> scheduleActivityTask(
       ExecuteActivityParameters parameters, BiConsumer<byte[], Exception> callback) {
     return activityClient.scheduleActivityTask(parameters, callback);
+  }
+
+  @Override
+  public Consumer<Exception> scheduleLocalActivityTask(
+      ExecuteLocalActivityParameters parameters, BiConsumer<byte[], Exception> callback) {
+    return workflowClock.scheduleLocalActivityTask(parameters, callback);
   }
 
   @Override
@@ -322,5 +325,17 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   @Override
   public void handleMarkerRecorded(HistoryEvent event) {
     workflowClock.handleMarkerRecorded(event);
+  }
+
+  boolean startUnstartedLaTasks(Duration maxWaitAllowed) {
+    return workflowClock.startUnstartedLaTasks(maxWaitAllowed);
+  }
+
+  int numPendingLaTasks() {
+    return workflowClock.numPendingLaTasks();
+  }
+
+  void awaitTaskCompletion(Duration duration) throws InterruptedException {
+    workflowClock.awaitTaskCompletion(duration);
   }
 }

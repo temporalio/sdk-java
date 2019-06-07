@@ -32,7 +32,7 @@ public class ActivityTaskFailedException extends RuntimeException {
   private final byte[] details;
   private final String reason;
 
-  public ActivityTaskFailedException(
+  ActivityTaskFailedException(
       long eventId, ActivityType activityType, String activityId, String reason, byte[] details) {
     super(reason);
     this.eventId = eventId;

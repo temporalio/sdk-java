@@ -24,7 +24,6 @@ import static junit.framework.TestCase.fail;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.Mockito.*;
 
-import com.uber.cadence.Decision;
 import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.WorkflowQuery;
 import com.uber.cadence.WorkflowType;
@@ -795,8 +794,8 @@ public class DeterministicRunnerTest {
     }
 
     @Override
-    public List<Decision> decide(PollForDecisionTaskResponse decisionTask) throws Throwable {
-      return new ArrayList<>();
+    public DecisionResult decide(PollForDecisionTaskResponse decisionTask) throws Throwable {
+      return new DecisionResult(new ArrayList<>(), false);
     }
 
     @Override

@@ -23,6 +23,7 @@ import com.uber.cadence.ActivityType;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.activity.ActivityOptions;
+import com.uber.cadence.activity.LocalActivityOptions;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.common.RetryParameters;
@@ -32,6 +33,7 @@ import com.uber.cadence.internal.replay.ChildWorkflowTaskFailedException;
 import com.uber.cadence.internal.replay.ContinueAsNewWorkflowExecutionParameters;
 import com.uber.cadence.internal.replay.DecisionContext;
 import com.uber.cadence.internal.replay.ExecuteActivityParameters;
+import com.uber.cadence.internal.replay.ExecuteLocalActivityParameters;
 import com.uber.cadence.internal.replay.SignalExternalWorkflowParameters;
 import com.uber.cadence.internal.replay.StartChildWorkflowExecutionParameters;
 import com.uber.cadence.workflow.ActivityException;
@@ -141,38 +143,10 @@ final class SyncDecisionContext implements WorkflowInterceptor {
   }
 
   private Promise<byte[]> executeActivityOnce(String name, ActivityOptions options, byte[] input) {
-    CompletablePromise<byte[]> result = Workflow.newPromise();
-    ExecuteActivityParameters parameters = new ExecuteActivityParameters();
-    // TODO: Real task list
-    String taskList = options.getTaskList();
-    if (taskList == null) {
-      taskList = context.getTaskList();
-    }
-    parameters
-        .withActivityType(new ActivityType().setName(name))
-        .withInput(input)
-        .withTaskList(taskList)
-        .withScheduleToStartTimeoutSeconds(options.getScheduleToStartTimeout().getSeconds())
-        .withStartToCloseTimeoutSeconds(options.getStartToCloseTimeout().getSeconds())
-        .withScheduleToCloseTimeoutSeconds(options.getScheduleToCloseTimeout().getSeconds())
-        .setHeartbeatTimeoutSeconds(options.getHeartbeatTimeout().getSeconds());
-    RetryOptions retryOptions = options.getRetryOptions();
-    if (retryOptions != null) {
-      parameters.setRetryParameters(new RetryParameters(retryOptions));
-    }
+    ActivityCallback callback = new ActivityCallback();
+    ExecuteActivityParameters params = constructExecuteActivityParameters(name, options, input);
     Consumer<Exception> cancellationCallback =
-        context.scheduleActivityTask(
-            parameters,
-            (output, failure) -> {
-              if (failure != null) {
-                runner.executeInWorkflowThread(
-                    "activity failure callback",
-                    () -> result.completeExceptionally(mapActivityException(failure)));
-              } else {
-                runner.executeInWorkflowThread(
-                    "activity completion callback", () -> result.complete(output));
-              }
-            });
+        context.scheduleActivityTask(params, callback::invoke);
     CancellationScope.current()
         .getCancellationRequest()
         .thenApply(
@@ -180,7 +154,22 @@ final class SyncDecisionContext implements WorkflowInterceptor {
               cancellationCallback.accept(new CancellationException(reason));
               return null;
             });
-    return result;
+    return callback.result;
+  }
+
+  private class ActivityCallback {
+    private CompletablePromise<byte[]> result = Workflow.newPromise();
+
+    public void invoke(byte[] output, Exception failure) {
+      if (failure != null) {
+        runner.executeInWorkflowThread(
+            "activity failure callback",
+            () -> result.completeExceptionally(mapActivityException(failure)));
+      } else {
+        runner.executeInWorkflowThread(
+            "activity completion callback", () -> result.complete(output));
+      }
+    }
   }
 
   private RuntimeException mapActivityException(Exception failure) {
@@ -232,6 +221,104 @@ final class SyncDecisionContext implements WorkflowInterceptor {
     }
     throw new IllegalArgumentException(
         "Unexpected exception type: " + failure.getClass().getName(), failure);
+  }
+
+  @Override
+  public <R> Promise<R> executeLocalActivity(
+      String activityName,
+      Class<R> resultClass,
+      Type resultType,
+      Object[] args,
+      LocalActivityOptions options) {
+    if (options.getRetryOptions() != null) {
+      options.getRetryOptions().validate();
+    }
+
+    long startTime = WorkflowInternal.currentTimeMillis();
+    return WorkflowRetryerInternal.retryAsync(
+        (attempt, currentStart) ->
+            executeLocalActivityOnce(
+                activityName,
+                options,
+                args,
+                resultClass,
+                resultType,
+                currentStart - startTime,
+                attempt),
+        1,
+        startTime);
+  }
+
+  private <T> Promise<T> executeLocalActivityOnce(
+      String name,
+      LocalActivityOptions options,
+      Object[] args,
+      Class<T> returnClass,
+      Type returnType,
+      long elapsed,
+      int attempt) {
+    byte[] input = converter.toData(args);
+    Promise<byte[]> binaryResult = executeLocalActivityOnce(name, options, input, elapsed, attempt);
+    if (returnClass == Void.TYPE) {
+      return binaryResult.thenApply((r) -> null);
+    }
+    return binaryResult.thenApply((r) -> converter.fromData(r, returnClass, returnType));
+  }
+
+  private Promise<byte[]> executeLocalActivityOnce(
+      String name, LocalActivityOptions options, byte[] input, long elapsed, int attempt) {
+    ActivityCallback callback = new ActivityCallback();
+    ExecuteLocalActivityParameters params =
+        constructExecuteLocalActivityParameters(name, options, input, elapsed, attempt);
+    Consumer<Exception> cancellationCallback =
+        context.scheduleLocalActivityTask(params, callback::invoke);
+    CancellationScope.current()
+        .getCancellationRequest()
+        .thenApply(
+            (reason) -> {
+              cancellationCallback.accept(new CancellationException(reason));
+              return null;
+            });
+    return callback.result;
+  }
+
+  private ExecuteActivityParameters constructExecuteActivityParameters(
+      String name, ActivityOptions options, byte[] input) {
+    ExecuteActivityParameters parameters = new ExecuteActivityParameters();
+    // TODO: Real task list
+    String taskList = options.getTaskList();
+    if (taskList == null) {
+      taskList = context.getTaskList();
+    }
+    parameters
+        .withActivityType(new ActivityType().setName(name))
+        .withInput(input)
+        .withTaskList(taskList)
+        .withScheduleToStartTimeoutSeconds(options.getScheduleToStartTimeout().getSeconds())
+        .withStartToCloseTimeoutSeconds(options.getStartToCloseTimeout().getSeconds())
+        .withScheduleToCloseTimeoutSeconds(options.getScheduleToCloseTimeout().getSeconds())
+        .setHeartbeatTimeoutSeconds(options.getHeartbeatTimeout().getSeconds());
+    RetryOptions retryOptions = options.getRetryOptions();
+    if (retryOptions != null) {
+      parameters.setRetryParameters(new RetryParameters(retryOptions));
+    }
+    return parameters;
+  }
+
+  private ExecuteLocalActivityParameters constructExecuteLocalActivityParameters(
+      String name, LocalActivityOptions options, byte[] input, long elapsed, int attempt) {
+    ExecuteLocalActivityParameters parameters = new ExecuteLocalActivityParameters();
+    parameters
+        .withActivityType(new ActivityType().setName(name))
+        .withInput(input)
+        .withScheduleToCloseTimeoutSeconds(options.getScheduleToCloseTimeout().getSeconds());
+    RetryOptions retryOptions = options.getRetryOptions();
+    if (retryOptions != null) {
+      parameters.setRetryOptions(retryOptions);
+    }
+    parameters.setAttempt(attempt);
+    parameters.setElapsedTime(elapsed);
+    return parameters;
   }
 
   @Override

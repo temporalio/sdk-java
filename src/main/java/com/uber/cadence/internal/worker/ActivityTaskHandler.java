@@ -22,8 +22,8 @@ import com.uber.cadence.RespondActivityTaskCanceledRequest;
 import com.uber.cadence.RespondActivityTaskCompletedRequest;
 import com.uber.cadence.RespondActivityTaskFailedRequest;
 import com.uber.cadence.common.RetryOptions;
-import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.m3.tally.Scope;
+import java.time.Duration;
 
 /**
  * Interface of an activity task handler.
@@ -35,9 +35,30 @@ public interface ActivityTaskHandler {
   final class Result {
 
     private final RespondActivityTaskCompletedRequest taskCompleted;
-    private final RespondActivityTaskFailedRequest taskFailed;
+    private final TaskFailedResult taskFailed;
     private final RespondActivityTaskCanceledRequest taskCancelled;
     private final RetryOptions requestRetryOptions;
+    private int attempt;
+    private Duration backoff;
+
+    public static class TaskFailedResult {
+      private final RespondActivityTaskFailedRequest taskFailedRequest;
+      private final Throwable failure;
+
+      public TaskFailedResult(
+          RespondActivityTaskFailedRequest taskFailedRequest, Throwable failure) {
+        this.taskFailedRequest = taskFailedRequest;
+        this.failure = failure;
+      }
+
+      public RespondActivityTaskFailedRequest getTaskFailedRequest() {
+        return taskFailedRequest;
+      }
+
+      public Throwable getFailure() {
+        return failure;
+      }
+    }
 
     /**
      * Only zero (manual activity completion) or one request is allowed. Task token and identity
@@ -46,7 +67,7 @@ public interface ActivityTaskHandler {
      */
     public Result(
         RespondActivityTaskCompletedRequest taskCompleted,
-        RespondActivityTaskFailedRequest taskFailed,
+        TaskFailedResult taskFailed,
         RespondActivityTaskCanceledRequest taskCancelled,
         RetryOptions requestRetryOptions) {
       this.taskCompleted = taskCompleted;
@@ -59,7 +80,7 @@ public interface ActivityTaskHandler {
       return taskCompleted;
     }
 
-    public RespondActivityTaskFailedRequest getTaskFailed() {
+    public TaskFailedResult getTaskFailedResult() {
       return taskFailed;
     }
 
@@ -69,6 +90,22 @@ public interface ActivityTaskHandler {
 
     public RetryOptions getRequestRetryOptions() {
       return requestRetryOptions;
+    }
+
+    public void setAttempt(int attempt) {
+      this.attempt = attempt;
+    }
+
+    public int getAttempt() {
+      return attempt;
+    }
+
+    public void setBackoff(Duration backoff) {
+      this.backoff = backoff;
+    }
+
+    public Duration getBackoff() {
+      return backoff;
     }
   }
 
@@ -80,12 +117,7 @@ public interface ActivityTaskHandler {
    * @param activityTask activity task which is response to PollForActivityTask call.
    * @return One of the possible decision task replies.
    */
-  Result handle(
-      IWorkflowService service,
-      String domain,
-      String taskList,
-      PollForActivityTaskResponse activityTask,
-      Scope metricsScope);
+  Result handle(String taskList, PollForActivityTaskResponse activityTask, Scope metricsScope);
 
   /** True if this handler handles at least one activity type. */
   boolean isAnyTypeSupported();
