@@ -235,7 +235,9 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
 
     @Override
     public ActivityTaskHandler.Result execute(ActivityTaskImpl task, Scope metricsScope) {
-
+      ActivityExecutionContext context =
+          new LocalActivityExecutionContextImpl(service, domain, task);
+      CurrentActivityExecutionContext.set(context);
       byte[] input = task.getInput();
       Object[] args = dataConverter.fromDataArray(input, method.getGenericParameterTypes());
       try {
@@ -249,6 +251,8 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
         return mapToActivityFailure(task.getActivityType(), e, metricsScope);
       } catch (InvocationTargetException e) {
         return mapToActivityFailure(task.getActivityType(), e.getTargetException(), metricsScope);
+      } finally {
+        CurrentActivityExecutionContext.unset();
       }
     }
   }

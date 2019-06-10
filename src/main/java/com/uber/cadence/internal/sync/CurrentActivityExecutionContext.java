@@ -25,8 +25,7 @@ package com.uber.cadence.internal.sync;
  */
 final class CurrentActivityExecutionContext {
 
-  private static final ThreadLocal<ActivityExecutionContext> CURRENT =
-      new ThreadLocal<ActivityExecutionContext>();
+  private static final ThreadLocal<ActivityExecutionContext> CURRENT = new ThreadLocal<>();
 
   /**
    * This is used by activity implementation to get access to the current ActivityExecutionContext
@@ -39,7 +38,7 @@ final class CurrentActivityExecutionContext {
               + "implementation methods and in the same thread that invoked an activity.");
     }
     return result;
-  };
+  }
 
   public static boolean isSet() {
     return CURRENT.get() != null;

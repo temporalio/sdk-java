@@ -542,6 +542,7 @@ public class WorkflowTest {
       assertTrue(e.getCause().getCause() instanceof IOException);
     }
     assertEquals(activitiesImpl.toString(), 5, activitiesImpl.invocations.size());
+    assertEquals("last attempt", 5, activitiesImpl.getLastAttempt());
   }
 
   public static class TestActivityRetryOnTimeout implements TestWorkflow1 {
@@ -3292,6 +3293,7 @@ public class WorkflowTest {
     final AtomicInteger heartbeatCounter = new AtomicInteger();
     private final ThreadPoolExecutor executor =
         new ThreadPoolExecutor(0, 100, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
+    int lastAttempt;
 
     private TestActivitiesImpl(ActivityCompletionClient completionClient) {
       this.completionClient = completionClient;
@@ -3459,6 +3461,7 @@ public class WorkflowTest {
 
     @Override
     public void throwIO() {
+      lastAttempt = Activity.getTask().getAttempt();
       invocations.add("throwIO");
       try {
         throw new IOException("simulated IO problem");
@@ -3486,6 +3489,10 @@ public class WorkflowTest {
     @Override
     public List<UUID> activityUUIDList(List<UUID> arg) {
       return arg;
+    }
+
+    public int getLastAttempt() {
+      return lastAttempt;
     }
   }
 
