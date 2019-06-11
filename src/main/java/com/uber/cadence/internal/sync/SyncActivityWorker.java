@@ -19,15 +19,15 @@ package com.uber.cadence.internal.sync;
 
 import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.worker.ActivityWorker;
-import com.uber.cadence.internal.worker.Lifecycle;
 import com.uber.cadence.internal.worker.SingleWorkerOptions;
+import com.uber.cadence.internal.worker.SuspendableWorker;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /** Activity worker that supports POJO activity implementations. */
-public class SyncActivityWorker implements Lifecycle {
+public class SyncActivityWorker implements SuspendableWorker {
 
   private final ActivityWorker worker;
   private final POJOActivityTaskHandler taskHandler;
@@ -83,11 +83,18 @@ public class SyncActivityWorker implements Lifecycle {
     InternalUtils.awaitTermination(heartbeatExecutor, timeoutMillis);
   }
 
+  @Override
   public void suspendPolling() {
     worker.suspendPolling();
   }
 
+  @Override
   public void resumePolling() {
     worker.resumePolling();
+  }
+
+  @Override
+  public boolean isSuspended() {
+    return worker.isSuspended();
   }
 }

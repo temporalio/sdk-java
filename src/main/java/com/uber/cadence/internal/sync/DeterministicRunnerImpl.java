@@ -202,23 +202,34 @@ class DeterministicRunnerImpl implements DeterministicRunner {
       outerLoop:
       do {
         threadsToAdd.clear();
-        for (NamedRunnable nr : toExecuteInWorkflowThread) {
-          WorkflowThread thread =
-              new WorkflowThreadImpl(
-                  false,
-                  threadPool,
-                  this,
-                  nr.name,
-                  false,
-                  runnerCancellationScope,
-                  nr.runnable,
-                  cache);
+
+        if (!toExecuteInWorkflowThread.isEmpty()) {
+          List<WorkflowThread> callbackThreads = new ArrayList<>(toExecuteInWorkflowThread.size());
+          for (NamedRunnable nr : toExecuteInWorkflowThread) {
+            WorkflowThread thread =
+                new WorkflowThreadImpl(
+                    false,
+                    threadPool,
+                    this,
+                    nr.name,
+                    false,
+                    runnerCancellationScope,
+                    nr.runnable,
+                    cache);
+            callbackThreads.add(thread);
+          }
+
           // It is important to prepend threads as there are callbacks
           // like signals that have to run before any other threads.
           // Otherwise signal might be never processed if it was received
           // after workflow decided to close.
-          threads.addFirst(thread);
+          // Adding the callbacks in the same order as they appear in history.
+
+          for (int i = callbackThreads.size() - 1; i >= 0; i--) {
+            threads.addFirst(callbackThreads.get(i));
+          }
         }
+
         toExecuteInWorkflowThread.clear();
         progress = false;
         Iterator<WorkflowThread> ci = threads.iterator();

@@ -35,6 +35,7 @@ import com.uber.cadence.internal.worker.PollDecisionTaskDispatcher;
 import com.uber.cadence.internal.worker.Poller;
 import com.uber.cadence.internal.worker.PollerOptions;
 import com.uber.cadence.internal.worker.SingleWorkerOptions;
+import com.uber.cadence.internal.worker.Suspendable;
 import com.uber.cadence.internal.worker.WorkflowPollTaskFactory;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.cadence.serviceclient.WorkflowServiceTChannel;
@@ -63,7 +64,7 @@ import org.slf4j.LoggerFactory;
  * Hosts activity and workflow implementations. Uses long poll to receive activity and decision
  * tasks and processes them in a correspondent thread pool.
  */
-public final class Worker {
+public final class Worker implements Suspendable {
 
   private final WorkerOptions options;
   private final String taskList;
@@ -362,6 +363,43 @@ public final class Worker {
 
   public String getTaskList() {
     return taskList;
+  }
+
+  @Override
+  public void suspendPolling() {
+    if (workflowWorker != null) {
+      workflowWorker.suspendPolling();
+    }
+
+    if (activityWorker != null) {
+      activityWorker.suspendPolling();
+    }
+  }
+
+  @Override
+  public void resumePolling() {
+    if (workflowWorker != null) {
+      workflowWorker.resumePolling();
+    }
+
+    if (activityWorker != null) {
+      activityWorker.resumePolling();
+    }
+  }
+
+  @Override
+  public boolean isSuspended() {
+    boolean workflowWorkerSuspended = true;
+    if (workflowWorker != null) {
+      workflowWorkerSuspended = workflowWorker.isSuspended();
+    }
+
+    boolean activityWorkerSuspended = activityWorker.isSuspended();
+    if (activityWorker != null) {
+      activityWorker.resumePolling();
+    }
+
+    return workflowWorkerSuspended && activityWorkerSuspended;
   }
 
   /** Maintains worker creation and lifecycle. */
@@ -712,9 +750,40 @@ public final class Worker {
           : String.format("%s:%s", getHostName(), id);
     }
 
+    public synchronized void suspendPolling() {
+      if (state != State.Started) {
+        return;
+      }
+
+      log.info("suspendPolling");
+      state = State.Suspended;
+      if (stickyPoller != null) {
+        stickyPoller.suspendPolling();
+      }
+      for (Worker worker : workers) {
+        worker.suspendPolling();
+      }
+    }
+
+    public synchronized void resumePolling() {
+      if (state != State.Suspended) {
+        return;
+      }
+
+      log.info("resumePolling");
+      state = State.Started;
+      if (stickyPoller != null) {
+        stickyPoller.resumePolling();
+      }
+      for (Worker worker : workers) {
+        worker.resumePolling();
+      }
+    }
+
     enum State {
       Initial,
       Started,
+      Suspended,
       Shutdown
     }
   }

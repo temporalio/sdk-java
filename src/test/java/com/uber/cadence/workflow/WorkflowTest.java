@@ -4569,6 +4569,64 @@ public class WorkflowTest {
         result);
   }
 
+  public interface SignalOrderingWorkflow {
+    @WorkflowMethod
+    List<String> run();
+
+    @SignalMethod(name = "testSignal")
+    void signal(String s);
+  }
+
+  public static class SignalOrderingWorkflowImpl implements SignalOrderingWorkflow {
+    private List<String> signals = new ArrayList<>();
+
+    @Override
+    public List<String> run() {
+      Workflow.await(() -> signals.size() == 3);
+      return signals;
+    }
+
+    @Override
+    public void signal(String s) {
+      signals.add(s);
+    }
+  }
+
+  @Test
+  public void testSignalOrderingWorkflow() {
+    startWorkerFor(SignalOrderingWorkflowImpl.class);
+    WorkflowOptions options =
+        new WorkflowOptions.Builder()
+            .setExecutionStartToCloseTimeout(Duration.ofMinutes(1))
+            .setTaskStartToCloseTimeout(Duration.ofSeconds(10))
+            .setTaskList(taskList)
+            .build();
+    SignalOrderingWorkflow workflowStub =
+        workflowClient.newWorkflowStub(SignalOrderingWorkflow.class, options);
+    WorkflowClient.start(workflowStub::run);
+
+    // Suspend polling so that all the signals will be received in the same decision task.
+    if (useExternalService) {
+      workerFactory.suspendPolling();
+    } else {
+      testEnvironment.getWorkerFactory().suspendPolling();
+    }
+
+    workflowStub.signal("test1");
+    workflowStub.signal("test2");
+    workflowStub.signal("test3");
+
+    if (useExternalService) {
+      workerFactory.resumePolling();
+    } else {
+      testEnvironment.getWorkerFactory().resumePolling();
+    }
+
+    List<String> result = workflowStub.run();
+    List<String> expected = Arrays.asList("test1", "test2", "test3");
+    assertEquals(expected, result);
+  }
+
   private static class FilteredTrace {
 
     private final List<String> impl = Collections.synchronizedList(new ArrayList<>());
