@@ -162,14 +162,14 @@ import org.slf4j.Logger;
  * <p>To convert a synchronous call
  *
  * <pre><code>
- * String localName = activities.download(surceBucket, sourceFile);
+ * String localName = activities.download(sourceBucket, sourceFile);
  * </code></pre>
  *
  * to asynchronous style, the method reference is passed to {@link Async#function(Func)} or {@link
  * Async#procedure(Proc)} followed by activity arguments:
  *
  * <pre><code>
- * Promise<String> localNamePromise = Async.function(activities::download, surceBucket, sourceFile);
+ * Promise<String> localNamePromise = Async.function(activities::download, sourceBucket, sourceFile);
  * </code></pre>
  *
  * Then to wait synchronously for the result:
