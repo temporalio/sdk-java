@@ -70,7 +70,7 @@ import java.util.concurrent.CompletableFuture;
  *
  * <pre><code>
  * // Returns as soon as the workflow starts.
- * WorkflowExecution workflowExecution = WorkflowClient.asyncStart(workflow::processFile, workflowArgs);
+ * WorkflowExecution workflowExecution = WorkflowClient.start(workflow::processFile, workflowArgs);
  *
  * System.out.println("Started process file workflow with workflowId=\"" + workflowExecution.getWorkflowId()
  *                     + "\" and runId=\"" + workflowExecution.getRunId() + "\"");
