@@ -27,6 +27,7 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
+import com.google.gson.reflect.TypeToken;
 import com.uber.cadence.EventType;
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.WorkflowExecution;
@@ -37,20 +38,9 @@ import java.util.List;
 
 /** Contains workflow execution ids and the history */
 public final class WorkflowExecutionHistory {
-  private final String workflowId;
-  private final String runId;
   private final List<HistoryEvent> events;
 
-  public WorkflowExecutionHistory(String workflowId, String runId, List<HistoryEvent> events) {
-    this.workflowId = workflowId;
-    this.runId = runId;
-    checkHistory(events);
-    this.events = ImmutableList.copyOf(events);
-  }
-
-  public WorkflowExecutionHistory(WorkflowExecution workflowExecution, List<HistoryEvent> events) {
-    this.workflowId = workflowExecution.getWorkflowId();
-    this.runId = workflowExecution.getRunId();
+  public WorkflowExecutionHistory(List<HistoryEvent> events) {
     checkHistory(events);
     this.events = ImmutableList.copyOf(events);
   }
@@ -59,9 +49,10 @@ public final class WorkflowExecutionHistory {
     GsonBuilder gsonBuilder = new GsonBuilder();
     gsonBuilder.registerTypeAdapter(ByteBuffer.class, new ByteBufferJsonDeserializer());
     Gson gson = gsonBuilder.create();
-    WorkflowExecutionHistory result = gson.fromJson(serialized, WorkflowExecutionHistory.class);
-    checkHistory(result.getEvents());
-    return result;
+    Type eventsType = new TypeToken<List<HistoryEvent>>() {}.getType();
+    List<HistoryEvent> events = gson.fromJson(serialized, eventsType);
+    checkHistory(events);
+    return new WorkflowExecutionHistory(events);
   }
 
   private static void checkHistory(List<HistoryEvent> events) {
@@ -84,16 +75,10 @@ public final class WorkflowExecutionHistory {
     return gson.toJson(this);
   }
 
-  public String getWorkflowId() {
-    return workflowId;
-  }
-
-  public String getRunId() {
-    return runId;
-  }
-
   public WorkflowExecution getWorkflowExecution() {
-    return new WorkflowExecution().setWorkflowId(workflowId).setRunId(runId);
+    return new WorkflowExecution()
+        .setWorkflowId("workflow_id_in_replay")
+        .setRunId("run_id_in_replay");
   }
 
   public List<HistoryEvent> getEvents() {

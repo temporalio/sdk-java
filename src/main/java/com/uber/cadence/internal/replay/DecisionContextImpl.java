@@ -327,6 +327,13 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
     workflowClock.handleMarkerRecorded(event);
   }
 
+  public void handleDecisionTaskFailed(HistoryEvent event) {
+    DecisionTaskFailedEventAttributes attr = event.getDecisionTaskFailedEventAttributes();
+    if (attr != null && attr.getCause() == DecisionTaskFailedCause.RESET_WORKFLOW) {
+      workflowContext.setCurrentRunId(attr.getNewRunId());
+    }
+  }
+
   boolean startUnstartedLaTasks(Duration maxWaitAllowed) {
     return workflowClock.startUnstartedLaTasks(maxWaitAllowed);
   }

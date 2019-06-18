@@ -127,7 +127,7 @@ public class WorkflowTest {
   @Parameters(name = "{1}")
   public static Object[] data() {
     if (!useDockerService) {
-      return new Object[][] {{false, "TestService Sticky Off", true}};
+      return new Object[][] {{false, "TestService Sticky OFF", true}};
     } else {
       return new Object[][] {
         {true, "Docker Sticky " + (stickyOff ? "OFF" : "ON"), stickyOff},
@@ -768,9 +768,9 @@ public class WorkflowTest {
   @Test
   public void testAsyncActivityRetryReplay() throws Exception {
     // Avoid executing 4 times
-    if (!testName.getMethodName().equals("testAsyncActivityRetryReplay[Docker Sticky OFF]")) {
-      return;
-    }
+    Assume.assumeFalse("skipping for docker tests", useExternalService);
+    Assume.assumeFalse("skipping for sticky off", stickyOff);
+
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "testAsyncActivityRetryHistory.json", TestAsyncActivityRetry.class);
   }
@@ -2696,9 +2696,9 @@ public class WorkflowTest {
    */
   @Test
   public void testChildWorkflowRetryReplay() throws Exception {
-    if (!testName.getMethodName().equals("testChildWorkflowRetryReplay[Docker Sticky OFF]")) {
-      return;
-    }
+    Assume.assumeFalse("skipping for docker tests", useExternalService);
+    Assume.assumeFalse("skipping for sticky off", stickyOff);
+
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "testChildWorkflowRetryHistory.json", TestChildWorkflowRetryWorkflow.class);
   }
@@ -4625,6 +4625,68 @@ public class WorkflowTest {
     List<String> result = workflowStub.run();
     List<String> expected = Arrays.asList("test1", "test2", "test3");
     assertEquals(expected, result);
+  }
+
+  public static class TestWorkflowResetReplayWorkflow implements TestWorkflow1 {
+    @Override
+    public String execute(String taskList) {
+      ChildWorkflowOptions workflowOptions =
+          new ChildWorkflowOptions.Builder()
+              .setTaskList(taskList)
+              .setRetryOptions(
+                  new RetryOptions.Builder()
+                      .setMaximumAttempts(3)
+                      .setInitialInterval(Duration.ofSeconds(1))
+                      .build())
+              .build();
+
+      ActivityOptions options =
+          new ActivityOptions.Builder()
+              .setTaskList(taskList)
+              .setHeartbeatTimeout(Duration.ofSeconds(5))
+              .setScheduleToCloseTimeout(Duration.ofSeconds(5))
+              .setScheduleToStartTimeout(Duration.ofSeconds(5))
+              .setStartToCloseTimeout(Duration.ofSeconds(10))
+              .build();
+
+      for (int i = 0; i < 10; i++) {
+        if (Workflow.newRandom().nextDouble() > 0.5) {
+          Workflow.getLogger("test").info("Execute child workflow");
+          TestMultiargsWorkflowsFunc stubF =
+              Workflow.newChildWorkflowStub(TestMultiargsWorkflowsFunc.class, workflowOptions);
+          stubF.func();
+        } else {
+          Workflow.getLogger("test").info("Execute activity");
+          TestActivities activities = Workflow.newActivityStub(TestActivities.class, options);
+          activities.activity();
+        }
+      }
+
+      return "done";
+    }
+  }
+
+  @Test
+  public void testWorkflowReset() throws Exception {
+    // Leave the following code to generate history.
+    //    startWorkerFor(TestWorkflowResetReplayWorkflow.class, TestMultiargsWorkflowsImpl.class);
+    //    TestWorkflow1 workflowStub =
+    //        workflowClient.newWorkflowStub(
+    //            TestWorkflow1.class, newWorkflowOptionsBuilder(taskList).build());
+    //    workflowStub.execute(taskList);
+    //
+    //    try {
+    //      Thread.sleep(60000000);
+    //    } catch (InterruptedException e) {
+    //      e.printStackTrace();
+    //    }
+
+    // Avoid executing 4 times
+    Assume.assumeFalse("skipping for docker tests", useExternalService);
+    Assume.assumeFalse("skipping for sticky off", stickyOff);
+
+    WorkflowReplayer.replayWorkflowExecutionFromResource(
+        "resetWorkflowHistory.json", TestWorkflowResetReplayWorkflow.class);
   }
 
   private static class FilteredTrace {

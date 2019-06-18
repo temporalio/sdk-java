@@ -17,9 +17,7 @@
 
 package com.uber.cadence.internal.replay;
 
-import com.uber.cadence.ChildPolicy;
-import com.uber.cadence.PollForDecisionTaskResponse;
-import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
+import com.uber.cadence.*;
 
 final class WorkflowContext {
 
@@ -28,6 +26,9 @@ final class WorkflowContext {
   private ContinueAsNewWorkflowExecutionParameters continueAsNewOnCompletion;
   private WorkflowExecutionStartedEventAttributes startedAttributes;
   private final String domain;
+  // RunId can change when reset happens. This remembers the actual runId that is used
+  // as in this particular part of the history.
+  private String currentRunId;
 
   WorkflowContext(
       String domain,
@@ -36,13 +37,14 @@ final class WorkflowContext {
     this.domain = domain;
     this.decisionTask = decisionTask;
     this.startedAttributes = startedAttributes;
+    this.currentRunId = startedAttributes.getOriginalExecutionRunId();
   }
 
-  com.uber.cadence.WorkflowExecution getWorkflowExecution() {
+  WorkflowExecution getWorkflowExecution() {
     return decisionTask.getWorkflowExecution();
   }
 
-  com.uber.cadence.WorkflowType getWorkflowType() {
+  WorkflowType getWorkflowType() {
     return decisionTask.getWorkflowType();
   }
 
@@ -120,5 +122,13 @@ final class WorkflowContext {
 
   public ChildPolicy getChildPolicy() {
     return startedAttributes.getChildPolicy();
+  }
+
+  void setCurrentRunId(String currentRunId) {
+    this.currentRunId = currentRunId;
+  }
+
+  String getCurrentRunId() {
+    return currentRunId;
   }
 }

@@ -219,8 +219,7 @@ final class WorkflowDecisionContext {
 
   /** Replay safe UUID */
   UUID randomUUID() {
-    WorkflowExecution workflowExecution = workflowContext.getWorkflowExecution();
-    String runId = workflowExecution.getRunId();
+    String runId = workflowContext.getCurrentRunId();
     String id = runId + ":" + decisions.getAndIncrementNextId();
     byte[] bytes = id.getBytes(StandardCharsets.UTF_8);
     return UUID.nameUUIDFromBytes(bytes);

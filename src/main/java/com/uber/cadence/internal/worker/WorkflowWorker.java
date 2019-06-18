@@ -122,7 +122,7 @@ public final class WorkflowWorker
         WorkflowExecutionUtils.getHistoryPage(null, service, domain, exec);
     History history = historyResponse.getHistory();
     WorkflowExecutionHistory workflowExecutionHistory =
-        new WorkflowExecutionHistory(exec.getWorkflowId(), exec.getRunId(), history.getEvents());
+        new WorkflowExecutionHistory(history.getEvents());
     return queryWorkflowExecution(
         queryType, args, workflowExecutionHistory, historyResponse.getNextPageToken());
   }
