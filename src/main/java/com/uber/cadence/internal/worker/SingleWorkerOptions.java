@@ -20,6 +20,7 @@ package com.uber.cadence.internal.worker;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.converter.JsonDataConverter;
+import com.uber.cadence.internal.common.Retryer;
 import com.uber.cadence.internal.metrics.NoopScope;
 import com.uber.m3.tally.Scope;
 import java.time.Duration;
@@ -90,21 +91,11 @@ public final class SingleWorkerOptions {
 
     public SingleWorkerOptions build() {
       if (reportCompletionRetryOptions == null) {
-        reportCompletionRetryOptions =
-            new RetryOptions.Builder()
-                .setInitialInterval(Duration.ofMillis(50))
-                .setMaximumInterval(Duration.ofSeconds(10))
-                .setExpiration(Duration.ofMinutes(1))
-                .build();
+        reportCompletionRetryOptions = Retryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS;
       }
 
       if (reportFailureRetryOptions == null) {
-        reportFailureRetryOptions =
-            new RetryOptions.Builder()
-                .setInitialInterval(Duration.ofMillis(50))
-                .setMaximumInterval(Duration.ofSeconds(10))
-                .setExpiration(Duration.ofMinutes(1))
-                .build();
+        reportFailureRetryOptions = Retryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS;
       }
 
       if (pollerOptions == null) {

@@ -19,6 +19,7 @@ package com.uber.cadence.internal.common;
 
 import static com.uber.cadence.internal.common.CheckedExceptionWrapper.unwrap;
 
+import com.uber.cadence.*;
 import com.uber.cadence.common.RetryOptions;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -30,6 +31,34 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class Retryer {
+  public static final RetryOptions DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS;
+
+  private static final Duration RETRY_SERVICE_OPERATION_INITIAL_INTERVAL = Duration.ofMillis(20);
+  private static final Duration RETRY_SERVICE_OPERATION_EXPIRATION_INTERVAL = Duration.ofMinutes(1);
+  private static final double RETRY_SERVICE_OPERATION_BACKOFF = 1.2;
+
+  static {
+    RetryOptions.Builder roBuilder =
+        new RetryOptions.Builder()
+            .setInitialInterval(RETRY_SERVICE_OPERATION_INITIAL_INTERVAL)
+            .setExpiration(RETRY_SERVICE_OPERATION_EXPIRATION_INTERVAL)
+            .setBackoffCoefficient(RETRY_SERVICE_OPERATION_BACKOFF);
+
+    Duration maxInterval = RETRY_SERVICE_OPERATION_EXPIRATION_INTERVAL.dividedBy(10);
+    if (maxInterval.compareTo(RETRY_SERVICE_OPERATION_INITIAL_INTERVAL) < 0) {
+      maxInterval = RETRY_SERVICE_OPERATION_INITIAL_INTERVAL;
+    }
+    roBuilder.setMaximumInterval(maxInterval);
+    roBuilder.setDoNotRetry(
+        BadRequestError.class,
+        EntityNotExistsError.class,
+        WorkflowExecutionAlreadyStartedError.class,
+        DomainAlreadyExistsError.class,
+        QueryFailedError.class,
+        DomainNotActiveError.class,
+        CancellationAlreadyRequestedError.class);
+    DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS = roBuilder.validateBuildWithDefaults();
+  }
 
   public interface RetryableProc<E extends Throwable> {
 

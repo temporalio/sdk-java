@@ -18,12 +18,21 @@
 package com.uber.cadence.internal.external;
 
 import com.google.common.base.Strings;
-import com.uber.cadence.*;
-import com.uber.cadence.internal.common.CheckedExceptionWrapper;
-import com.uber.cadence.internal.common.RetryParameters;
-import com.uber.cadence.internal.common.SignalWithStartWorkflowExecutionParameters;
-import com.uber.cadence.internal.common.StartWorkflowExecutionParameters;
-import com.uber.cadence.internal.common.TerminateWorkflowExecutionParameters;
+import com.uber.cadence.Memo;
+import com.uber.cadence.QueryWorkflowRequest;
+import com.uber.cadence.QueryWorkflowResponse;
+import com.uber.cadence.RequestCancelWorkflowExecutionRequest;
+import com.uber.cadence.RetryPolicy;
+import com.uber.cadence.SignalWithStartWorkflowExecutionRequest;
+import com.uber.cadence.SignalWorkflowExecutionRequest;
+import com.uber.cadence.StartWorkflowExecutionRequest;
+import com.uber.cadence.StartWorkflowExecutionResponse;
+import com.uber.cadence.TaskList;
+import com.uber.cadence.TerminateWorkflowExecutionRequest;
+import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
+import com.uber.cadence.WorkflowQuery;
+import com.uber.cadence.internal.common.*;
 import com.uber.cadence.internal.metrics.MetricsTag;
 import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.internal.replay.QueryWorkflowParameters;
@@ -40,9 +49,7 @@ import org.apache.thrift.TException;
 public final class GenericWorkflowClientExternalImpl implements GenericWorkflowClientExternal {
 
   private final String domain;
-
   private final IWorkflowService service;
-
   private final Scope metricsScope;
 
   public GenericWorkflowClientExternalImpl(
@@ -117,7 +124,10 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
 
     StartWorkflowExecutionResponse result;
     try {
-      result = service.StartWorkflowExecution(request);
+      result =
+          Retryer.retryWithResult(
+              Retryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
+              () -> service.StartWorkflowExecution(request));
     } catch (WorkflowExecutionAlreadyStartedError e) {
       throw e;
     } catch (TException e) {
@@ -166,7 +176,9 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     execution.setWorkflowId(signalParameters.getWorkflowId());
     request.setWorkflowExecution(execution);
     try {
-      service.SignalWorkflowExecution(request);
+      Retryer.retry(
+          Retryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
+          () -> service.SignalWorkflowExecution(request));
     } catch (TException e) {
       throw CheckedExceptionWrapper.wrap(e);
     }
@@ -212,7 +224,10 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     }
     StartWorkflowExecutionResponse result;
     try {
-      result = service.SignalWithStartWorkflowExecution(request);
+      result =
+          Retryer.retryWithResult(
+              Retryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
+              () -> service.SignalWithStartWorkflowExecution(request));
     } catch (TException e) {
       throw CheckedExceptionWrapper.wrap(e);
     }
@@ -228,7 +243,9 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     request.setDomain(domain);
     request.setWorkflowExecution(execution);
     try {
-      service.RequestCancelWorkflowExecution(request);
+      Retryer.retry(
+          Retryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
+          () -> service.RequestCancelWorkflowExecution(request));
     } catch (TException e) {
       throw CheckedExceptionWrapper.wrap(e);
     }
@@ -246,7 +263,10 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     query.setQueryType(queryParameters.getQueryType());
     request.setQuery(query);
     try {
-      QueryWorkflowResponse response = service.QueryWorkflow(request);
+      QueryWorkflowResponse response =
+          Retryer.retryWithResult(
+              Retryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
+              () -> service.QueryWorkflow(request));
       return response.getQueryResult();
     } catch (TException e) {
       throw CheckedExceptionWrapper.wrap(e);
@@ -268,7 +288,9 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     request.setReason(terminateParameters.getReason());
     //        request.setChildPolicy(terminateParameters.getChildPolicy());
     try {
-      service.TerminateWorkflowExecution(request);
+      Retryer.retry(
+          Retryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
+          () -> service.TerminateWorkflowExecution(request));
     } catch (TException e) {
       throw CheckedExceptionWrapper.wrap(e);
     }

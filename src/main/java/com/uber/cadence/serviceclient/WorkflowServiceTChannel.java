@@ -105,7 +105,7 @@ import org.slf4j.LoggerFactory;
 
 public class WorkflowServiceTChannel implements IWorkflowService {
 
-  public static final int DEFAULT_LOCAL_CADENCE_SERVER_PORT = 7933;
+  private static final int DEFAULT_LOCAL_CADENCE_SERVER_PORT = 7933;
 
   private static final String LOCALHOST = "127.0.0.1";
 
@@ -117,10 +117,10 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   /** Default RPC timeout for QueryWorkflow */
   private static final long DEFAULT_QUERY_RPC_TIMEOUT_MILLIS = 10000;
 
-  public static final String DEFAULT_CLIENT_APP_NAME = "cadence-client";
+  private static final String DEFAULT_CLIENT_APP_NAME = "cadence-client";
 
   /** Name of the Cadence service front end as required by TChannel. */
-  public static final String DEFAULT_SERVICE_NAME = "cadence-frontend";
+  private static final String DEFAULT_SERVICE_NAME = "cadence-frontend";
 
   private static final Logger log = LoggerFactory.getLogger(WorkflowServiceTChannel.class);
 
@@ -811,8 +811,7 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       ThriftRequest<WorkflowService.GetWorkflowExecutionHistory_args> request =
           buildThriftRequest(
               "GetWorkflowExecutionHistory",
-              new WorkflowService.GetWorkflowExecutionHistory_args(getRequest),
-              options.getRpcLongPollTimeoutMillis());
+              new WorkflowService.GetWorkflowExecutionHistory_args(getRequest));
       response = doRemoteCall(request);
       WorkflowService.GetWorkflowExecutionHistory_result result =
           response.getBody(WorkflowService.GetWorkflowExecutionHistory_result.class);
@@ -905,8 +904,7 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       ThriftRequest<WorkflowService.RespondDecisionTaskCompleted_args> request =
           buildThriftRequest(
               "RespondDecisionTaskCompleted",
-              new WorkflowService.RespondDecisionTaskCompleted_args(completedRequest),
-              options.getRpcLongPollTimeoutMillis());
+              new WorkflowService.RespondDecisionTaskCompleted_args(completedRequest));
       response = doRemoteCall(request);
       WorkflowService.RespondDecisionTaskCompleted_result result =
           response.getBody(WorkflowService.RespondDecisionTaskCompleted_result.class);
@@ -1519,10 +1517,7 @@ public class WorkflowServiceTChannel implements IWorkflowService {
 
   @Override
   public StartWorkflowExecutionResponse SignalWithStartWorkflowExecution(
-      SignalWithStartWorkflowExecutionRequest signalWithStartRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
-          DomainNotActiveError, LimitExceededError, WorkflowExecutionAlreadyStartedError,
-          TException {
+      SignalWithStartWorkflowExecutionRequest signalWithStartRequest) throws TException {
     return measureRemoteCall(
         ServiceMethod.SIGNAL_WITH_START_WORKFLOW_EXECUTION,
         () -> signalWithStartWorkflowExecution(signalWithStartRequest));
@@ -1536,8 +1531,7 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       ThriftRequest<WorkflowService.SignalWithStartWorkflowExecution_args> request =
           buildThriftRequest(
               "SignalWithStartWorkflowExecution",
-              new WorkflowService.SignalWithStartWorkflowExecution_args(signalWithStartRequest),
-              options.getRpcLongPollTimeoutMillis());
+              new WorkflowService.SignalWithStartWorkflowExecution_args(signalWithStartRequest));
       response = doRemoteCall(request);
       WorkflowService.SignalWithStartWorkflowExecution_result result =
           response.getBody(WorkflowService.SignalWithStartWorkflowExecution_result.class);
@@ -1943,8 +1937,7 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       ThriftRequest<WorkflowService.GetWorkflowExecutionHistory_args> request =
           buildThriftRequest(
               "GetWorkflowExecutionHistory",
-              new WorkflowService.GetWorkflowExecutionHistory_args(getRequest),
-              options.getRpcLongPollTimeoutMillis());
+              new WorkflowService.GetWorkflowExecutionHistory_args(getRequest));
       response = doRemoteCallAsync(request);
 
       response
