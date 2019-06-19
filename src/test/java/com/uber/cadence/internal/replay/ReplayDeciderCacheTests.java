@@ -31,9 +31,9 @@ import com.uber.cadence.internal.metrics.MetricsTag;
 import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.internal.metrics.NoopScope;
 import com.uber.cadence.internal.testservice.TestWorkflowService;
+import com.uber.cadence.internal.worker.SingleWorkerOptions;
 import com.uber.cadence.internal.worker.WorkflowExecutionException;
 import com.uber.cadence.testUtils.HistoryUtils;
-import com.uber.cadence.worker.WorkerOptions;
 import com.uber.cadence.worker.WorkflowImplementationOptions;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
@@ -305,8 +305,7 @@ public class ReplayDeciderCacheTests {
           }
         },
         new DecisionsHelper(response),
-        new WorkerOptions.Builder().build().getMetricsScope(),
-        false,
+        new SingleWorkerOptions.Builder().build(),
         (a, d) -> true);
   }
 }

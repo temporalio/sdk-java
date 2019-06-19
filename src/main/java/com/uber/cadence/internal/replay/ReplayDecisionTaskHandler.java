@@ -26,7 +26,6 @@ import com.uber.cadence.internal.worker.DecisionTaskHandler;
 import com.uber.cadence.internal.worker.LocalActivityWorker;
 import com.uber.cadence.internal.worker.SingleWorkerOptions;
 import com.uber.cadence.serviceclient.IWorkflowService;
-import com.uber.m3.tally.Scope;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
@@ -45,8 +44,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
   private final ReplayWorkflowFactory workflowFactory;
   private final String domain;
   private final DeciderCache cache;
-  private final Scope metricsScope;
-  private final boolean enableLoggingInReplay;
+  private final SingleWorkerOptions options;
   private final Duration stickyTaskListScheduleToStartTimeout;
   private IWorkflowService service;
   private String stickyTaskListName;
@@ -64,8 +62,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     this.domain = domain;
     this.workflowFactory = asyncWorkflowFactory;
     this.cache = cache;
-    this.metricsScope = options.getMetricsScope();
-    this.enableLoggingInReplay = options.getEnableLoggingInReplay();
+    this.options = options;
     this.stickyTaskListName = stickyTaskListName;
     this.stickyTaskListScheduleToStartTimeout = stickyTaskListScheduleToStartTimeout;
     this.service = Objects.requireNonNull(service);
@@ -78,7 +75,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     try {
       return handleDecisionTaskImpl(decisionTask);
     } catch (Throwable e) {
-      metricsScope.counter(MetricsType.DECISION_EXECUTION_FAILED_COUNTER).inc(1);
+      options.getMetricsScope().counter(MetricsType.DECISION_EXECUTION_FAILED_COUNTER).inc(1);
       // Only fail decision on first attempt, subsequent failure on the same decision task will
       // timeout. This is to avoid spin on the failed decision task.
       if (decisionTask.getAttempt() > 0) {
@@ -264,13 +261,6 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     }
     DecisionsHelper decisionsHelper = new DecisionsHelper(decisionTask);
     ReplayWorkflow workflow = workflowFactory.getWorkflow(workflowType);
-    return new ReplayDecider(
-        service,
-        domain,
-        workflow,
-        decisionsHelper,
-        metricsScope,
-        enableLoggingInReplay,
-        laTaskPoller);
+    return new ReplayDecider(service, domain, workflow, decisionsHelper, options, laTaskPoller);
   }
 }

@@ -17,18 +17,25 @@
 
 package com.uber.cadence.internal.common;
 
+import com.google.common.base.Strings;
 import com.uber.cadence.ActivityType;
+import com.uber.cadence.Header;
+import com.uber.cadence.MarkerRecordedEventAttributes;
 import com.uber.cadence.RespondActivityTaskCanceledRequest;
 import com.uber.cadence.RespondActivityTaskFailedRequest;
+import com.uber.cadence.converter.DataConverter;
+import com.uber.m3.util.ImmutableMap;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 public final class LocalActivityMarkerData {
+  private static final String LOCAL_ACTIVITY_HEADER_KEY = "LocalActivityHeader";
+
   public static final class Builder {
     private String activityId;
     private String activityType;
     private String errReason;
-    private byte[] errJson;
     private byte[] result;
     private long replayTimeMillis;
     private int attempt;
@@ -47,13 +54,13 @@ public final class LocalActivityMarkerData {
 
     public Builder setTaskFailedRequest(RespondActivityTaskFailedRequest request) {
       this.errReason = request.getReason();
-      this.errJson = request.getDetails();
+      this.result = request.getDetails();
       return this;
     }
 
     public Builder setTaskCancelledRequest(RespondActivityTaskCanceledRequest request) {
       this.errReason = new String(request.getDetails(), StandardCharsets.UTF_8);
-      this.errJson = request.getDetails();
+      this.result = request.getDetails();
       this.isCancelled = true;
       return this;
     }
@@ -85,22 +92,41 @@ public final class LocalActivityMarkerData {
           replayTimeMillis,
           result,
           errReason,
-          errJson,
           attempt,
           backoff,
           isCancelled);
     }
   }
 
-  private final String activityId;
-  private final String activityType;
-  private final String errReason;
-  private final byte[] errJson;
+  private static class LocalActivityMarkerHeader {
+    private final String activityId;
+    private final String activityType;
+    private final String errReason;
+    private final long replayTimeMillis;
+    private final int attempt;
+    private final Duration backoff;
+    private final boolean isCancelled;
+
+    LocalActivityMarkerHeader(
+        String activityId,
+        String activityType,
+        long replayTimeMillis,
+        String errReason,
+        int attempt,
+        Duration backoff,
+        boolean isCancelled) {
+      this.activityId = activityId;
+      this.activityType = activityType;
+      this.replayTimeMillis = replayTimeMillis;
+      this.errReason = errReason;
+      this.attempt = attempt;
+      this.backoff = backoff;
+      this.isCancelled = isCancelled;
+    }
+  }
+
+  private final LocalActivityMarkerHeader headers;
   private final byte[] result;
-  private final long replayTimeMillis;
-  private final int attempt;
-  private final Duration backoff;
-  private final boolean isCancelled;
 
   private LocalActivityMarkerData(
       String activityId,
@@ -108,35 +134,37 @@ public final class LocalActivityMarkerData {
       long replayTimeMillis,
       byte[] result,
       String errReason,
-      byte[] errJson,
       int attempt,
       Duration backoff,
       boolean isCancelled) {
-    this.activityId = activityId;
-    this.activityType = activityType;
-    this.replayTimeMillis = replayTimeMillis;
+    this.headers =
+        new LocalActivityMarkerHeader(
+            activityId, activityType, replayTimeMillis, errReason, attempt, backoff, isCancelled);
     this.result = result;
-    this.errReason = errReason;
-    this.errJson = errJson;
-    this.attempt = attempt;
-    this.backoff = backoff;
-    this.isCancelled = isCancelled;
+  }
+
+  private LocalActivityMarkerData(LocalActivityMarkerHeader headers, byte[] result) {
+    this.headers = headers;
+    this.result = result;
+    if (headers == null) {
+      System.out.println("test");
+    }
   }
 
   public String getActivityId() {
-    return activityId;
+    return headers.activityId;
   }
 
   public String getActivityType() {
-    return activityType;
+    return headers.activityType;
   }
 
   public String getErrReason() {
-    return errReason;
+    return headers.errReason;
   }
 
   public byte[] getErrJson() {
-    return errJson;
+    return Strings.isNullOrEmpty(headers.errReason) ? null : result;
   }
 
   public byte[] getResult() {
@@ -144,18 +172,34 @@ public final class LocalActivityMarkerData {
   }
 
   public long getReplayTimeMillis() {
-    return replayTimeMillis;
+    return headers.replayTimeMillis;
   }
 
   public int getAttempt() {
-    return attempt;
+    return headers.attempt;
   }
 
   public Duration getBackoff() {
-    return backoff;
+    return headers.backoff;
   }
 
   public boolean getIsCancelled() {
-    return isCancelled;
+    return headers.isCancelled;
+  }
+
+  public Header getHeader(DataConverter converter) {
+    byte[] headerData = converter.toData(headers);
+    Header header = new Header();
+    header.setFields(ImmutableMap.of(LOCAL_ACTIVITY_HEADER_KEY, ByteBuffer.wrap(headerData)));
+    return header;
+  }
+
+  public static LocalActivityMarkerData fromEventAttributes(
+      MarkerRecordedEventAttributes attributes, DataConverter converter) {
+    ByteBuffer byteBuffer = attributes.getHeader().getFields().get(LOCAL_ACTIVITY_HEADER_KEY);
+    byte[] bytes = org.apache.thrift.TBaseHelper.byteBufferToByteArray(byteBuffer);
+    LocalActivityMarkerHeader header =
+        converter.fromData(bytes, LocalActivityMarkerHeader.class, LocalActivityMarkerHeader.class);
+    return new LocalActivityMarkerData(header, attributes.getDetails());
   }
 }

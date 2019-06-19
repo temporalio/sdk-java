@@ -37,6 +37,7 @@ import com.uber.cadence.internal.replay.HistoryHelper.DecisionEvents;
 import com.uber.cadence.internal.replay.HistoryHelper.DecisionEventsIterator;
 import com.uber.cadence.internal.worker.DecisionTaskWithHistoryIterator;
 import com.uber.cadence.internal.worker.LocalActivityWorker;
+import com.uber.cadence.internal.worker.SingleWorkerOptions;
 import com.uber.cadence.internal.worker.WorkflowExecutionException;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.cadence.workflow.Functions;
@@ -80,13 +81,12 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
       String domain,
       ReplayWorkflow workflow,
       DecisionsHelper decisionsHelper,
-      Scope metricsScope,
-      boolean enableLoggingInReplay,
+      SingleWorkerOptions options,
       BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller) {
     this.service = service;
     this.workflow = workflow;
     this.decisionsHelper = decisionsHelper;
-    this.metricsScope = metricsScope;
+    this.metricsScope = options.getMetricsScope();
     PollForDecisionTaskResponse decisionTask = decisionsHelper.getTask();
 
     startedEvent =
@@ -99,14 +99,7 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
 
     context =
         new DecisionContextImpl(
-            decisionsHelper,
-            domain,
-            decisionTask,
-            startedEvent,
-            enableLoggingInReplay,
-            metricsScope,
-            laTaskPoller,
-            this);
+            decisionsHelper, domain, decisionTask, startedEvent, options, laTaskPoller, this);
   }
 
   private void handleWorkflowExecutionStarted(HistoryEvent event) {

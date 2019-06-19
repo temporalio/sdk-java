@@ -18,15 +18,21 @@
 package com.uber.cadence.internal.replay;
 
 import com.uber.cadence.EventType;
+import com.uber.cadence.Header;
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.MarkerRecordedEventAttributes;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.workflow.Functions.Func1;
+import com.uber.m3.util.ImmutableMap;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
 class MarkerHandler {
+  // Including mutable side effect and version marker.
+  private static final String MUTABLE_MARKER_HEADER_KEY = "MutableMarkerHeader";
+
   private static final class MarkerResult {
 
     private final byte[] data;
@@ -52,32 +58,117 @@ class MarkerHandler {
     }
   }
 
-  static final class MarkerData {
+  interface MarkerInterface {
+    String getId();
+
+    long getEventId();
+
+    int getAccessCount();
+
+    byte[] getData();
+
+    static MarkerInterface fromEventAttributes(
+        MarkerRecordedEventAttributes attributes, DataConverter converter) {
+      if (attributes.getHeader() != null
+          && attributes.getHeader().getFields() != null
+          && attributes.getHeader().getFields().containsKey(MUTABLE_MARKER_HEADER_KEY)) {
+        ByteBuffer byteBuffer = attributes.getHeader().getFields().get(MUTABLE_MARKER_HEADER_KEY);
+        byte[] bytes = org.apache.thrift.TBaseHelper.byteBufferToByteArray(byteBuffer);
+        MarkerData.MarkerHeader header =
+            converter.fromData(bytes, MarkerData.MarkerHeader.class, MarkerData.MarkerHeader.class);
+        return new MarkerData(header, attributes.getDetails());
+      }
+
+      return converter.fromData(
+          attributes.getDetails(), PlainMarkerData.class, PlainMarkerData.class);
+    }
+  }
+
+  static final class MarkerData implements MarkerInterface {
+
+    private static final class MarkerHeader {
+      private final String id;
+      private final long eventId;
+      private final int accessCount;
+
+      MarkerHeader(String id, long eventId, int accessCount) {
+        this.id = id;
+        this.eventId = eventId;
+        this.accessCount = accessCount;
+      }
+    }
+
+    private final MarkerHeader header;
+    private final byte[] data;
+
+    MarkerData(String id, long eventId, byte[] data, int accessCount) {
+      this.header = new MarkerHeader(id, eventId, accessCount);
+      this.data = data;
+    }
+
+    MarkerData(MarkerHeader header, byte[] data) {
+      this.header = header;
+      this.data = data;
+    }
+
+    @Override
+    public String getId() {
+      return header.id;
+    }
+
+    @Override
+    public long getEventId() {
+      return header.eventId;
+    }
+
+    @Override
+    public byte[] getData() {
+      return data;
+    }
+
+    @Override
+    public int getAccessCount() {
+      return header.accessCount;
+    }
+
+    Header getHeader(DataConverter converter) {
+      byte[] headerData = converter.toData(header);
+      Header header = new Header();
+      header.setFields(ImmutableMap.of(MUTABLE_MARKER_HEADER_KEY, ByteBuffer.wrap(headerData)));
+      return header;
+    }
+  }
+
+  static final class PlainMarkerData implements MarkerInterface {
 
     private final String id;
     private final long eventId;
     private final byte[] data;
     private final int accessCount;
 
-    MarkerData(String id, long eventId, byte[] data, int accessCount) {
+    PlainMarkerData(String id, long eventId, byte[] data, int accessCount) {
       this.id = id;
       this.eventId = eventId;
       this.data = data;
       this.accessCount = accessCount;
     }
 
+    @Override
     public String getId() {
       return id;
     }
 
+    @Override
     public long getEventId() {
       return eventId;
     }
 
+    @Override
     public byte[] getData() {
       return data;
     }
 
+    @Override
     public int getAccessCount() {
       return accessCount;
     }
@@ -144,8 +235,8 @@ class MarkerHandler {
     if (!markerName.equals(name)) {
       return Optional.empty();
     }
-    MarkerData markerData =
-        converter.fromData(attributes.getDetails(), MarkerData.class, MarkerData.class);
+
+    MarkerInterface markerData = MarkerInterface.fromEventAttributes(attributes, converter);
     // access count is used to not return data from the marker before the recorded number of calls
     if (!markerId.equals(markerData.getId())
         || markerData.getAccessCount() > expectedAcccessCount) {
@@ -156,9 +247,8 @@ class MarkerHandler {
 
   private void recordMutableMarker(
       String id, long eventId, byte[] data, int accessCount, DataConverter converter) {
-    MarkerData dataObject = new MarkerData(id, eventId, data, accessCount);
-    byte[] details = converter.toData(dataObject);
+    MarkerData marker = new MarkerData(id, eventId, data, accessCount);
     mutableMarkerResults.put(id, new MarkerResult(data));
-    decisions.recordMarker(markerName, details);
+    decisions.recordMarker(markerName, marker.getHeader(converter), data);
   }
 }

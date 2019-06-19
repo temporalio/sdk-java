@@ -39,7 +39,6 @@ import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
 import com.uber.cadence.History;
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.HistoryEventFilterType;
-import com.uber.cadence.MarkerRecordedEventAttributes;
 import com.uber.cadence.StartWorkflowExecutionRequest;
 import com.uber.cadence.TaskList;
 import com.uber.cadence.WorkflowExecution;
@@ -61,7 +60,7 @@ import java.io.Reader;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.nio.charset.Charset;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Collection;
@@ -713,27 +712,9 @@ public class WorkflowExecutionUtils {
       result.append(String.format(" [%s ms]", timestamp));
     }
     result.append(" ");
-
-    if (event.getEventType() == EventType.MarkerRecorded) {
-      MarkerRecordedEventAttributes markerAttributes = event.getMarkerRecordedEventAttributes();
-      result
-          .append("{\n")
-          .append("    MarkerName = ")
-          .append(markerAttributes.getMarkerName())
-          .append(";\n");
-      result
-          .append("    DecisionTaskCompletedEventId = ")
-          .append(markerAttributes.getDecisionTaskCompletedEventId())
-          .append(";\n");
-      result
-          .append("    Details = ")
-          .append(new String(markerAttributes.getDetails(), Charset.defaultCharset()))
-          .append(";\n  }");
-    } else {
-      result.append(
-          prettyPrintObject(
-              getEventAttributes(event), "getFieldValue", true, INDENTATION, false, false));
-    }
+    result.append(
+        prettyPrintObject(
+            getEventAttributes(event), "getFieldValue", true, INDENTATION, false, false));
 
     return result.toString();
   }
@@ -784,7 +765,9 @@ public class WorkflowExecutionUtils {
     if (clz.equals(byte[].class)) {
       return new String((byte[]) object, UTF_8);
     }
-
+    if (ByteBuffer.class.isAssignableFrom(clz)) {
+      return new String(((ByteBuffer) object).array(), UTF_8);
+    }
     if (clz.equals(Date.class)) {
       return String.valueOf(object);
     }
@@ -797,9 +780,40 @@ public class WorkflowExecutionUtils {
     if (clz.equals(WorkflowType.class)) {
       return String.valueOf(((WorkflowType) object).getName());
     }
-
+    if (Map.Entry.class.isAssignableFrom(clz)) {
+      result.append(
+          prettyPrintObject(
+              ((Map.Entry) object).getKey(),
+              methodToSkip,
+              skipNullsAndEmptyCollections,
+              "",
+              skipLevel,
+              printTypeName));
+      result.append("=");
+      result.append(
+          prettyPrintObject(
+              ((Map.Entry) object).getValue(),
+              methodToSkip,
+              skipNullsAndEmptyCollections,
+              "",
+              skipLevel,
+              printTypeName));
+      return result.toString();
+    }
     if (Map.class.isAssignableFrom(clz)) {
-      return String.valueOf(object);
+      result.append("{ ");
+
+      String prefix = "";
+      for (Object entry : ((Map) object).entrySet()) {
+        result.append(prefix);
+        prefix = ", ";
+        result.append(
+            prettyPrintObject(
+                entry, methodToSkip, skipNullsAndEmptyCollections, "", skipLevel, printTypeName));
+      }
+
+      result.append(" }");
+      return result.toString();
     }
     if (Collection.class.isAssignableFrom(clz)) {
       return String.valueOf(object);

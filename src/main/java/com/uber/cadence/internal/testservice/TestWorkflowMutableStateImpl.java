@@ -374,15 +374,16 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private void processRecordMarker(
       RequestContext ctx, RecordMarkerDecisionAttributes attr, long decisionTaskCompletedId)
       throws BadRequestError {
-    MarkerRecordedEventAttributes marker = new MarkerRecordedEventAttributes();
-    if (attr.isSetDetails()) {
-      marker.setDetails(attr.getDetails());
-    }
     if (!attr.isSetMarkerName()) {
       throw new BadRequestError("marker name is required");
     }
-    marker.setMarkerName(attr.getMarkerName());
-    marker.setDecisionTaskCompletedEventId(decisionTaskCompletedId);
+
+    MarkerRecordedEventAttributes marker =
+        new MarkerRecordedEventAttributes()
+            .setMarkerName(attr.getMarkerName())
+            .setHeader(attr.getHeader())
+            .setDetails(attr.getDetails())
+            .setDecisionTaskCompletedEventId(decisionTaskCompletedId);
     HistoryEvent event =
         new HistoryEvent()
             .setEventType(EventType.MarkerRecorded)

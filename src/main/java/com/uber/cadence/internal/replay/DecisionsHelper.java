@@ -35,7 +35,9 @@ import com.uber.cadence.DecisionType;
 import com.uber.cadence.EventType;
 import com.uber.cadence.ExternalWorkflowExecutionCancelRequestedEventAttributes;
 import com.uber.cadence.FailWorkflowExecutionDecisionAttributes;
+import com.uber.cadence.Header;
 import com.uber.cadence.HistoryEvent;
+import com.uber.cadence.MarkerRecordedEventAttributes;
 import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.RecordMarkerDecisionAttributes;
 import com.uber.cadence.RequestCancelActivityTaskFailedEventAttributes;
@@ -526,11 +528,14 @@ class DecisionsHelper {
     addDecision(decisionId, new CompleteWorkflowStateMachine(decisionId, decision));
   }
 
-  void recordMarker(String markerName, byte[] details) {
+  void recordMarker(String markerName, Header header, byte[] details) {
     // no need to call addAllMissingVersionMarker here as all the callers are already doing it.
 
     RecordMarkerDecisionAttributes marker =
-        new RecordMarkerDecisionAttributes().setMarkerName(markerName).setDetails(details);
+        new RecordMarkerDecisionAttributes()
+            .setMarkerName(markerName)
+            .setHeader(header)
+            .setDetails(details);
     Decision decision =
         new Decision()
             .setDecisionType(DecisionType.RecordMarker)
@@ -639,7 +644,8 @@ class DecisionsHelper {
   // This is to support the case where a getVersion call presents during workflow execution but
   // is removed in replay.
   void addAllMissingVersionMarker(
-      boolean isNextDecisionVersionMarker, Optional<Predicate<byte[]>> isDifferentChange) {
+      boolean isNextDecisionVersionMarker,
+      Optional<Predicate<MarkerRecordedEventAttributes>> isDifferentChange) {
     boolean added;
     do {
       added = addMissingVersionMarker(isNextDecisionVersionMarker, isDifferentChange);
@@ -647,7 +653,8 @@ class DecisionsHelper {
   }
 
   private boolean addMissingVersionMarker(
-      boolean isNextDecisionVersionMarker, Optional<Predicate<byte[]>> changeIdEquals) {
+      boolean isNextDecisionVersionMarker,
+      Optional<Predicate<MarkerRecordedEventAttributes>> changeIdEquals) {
     Optional<HistoryEvent> optionalEvent = getOptionalDecisionEvent(nextDecisionEventId);
     if (!optionalEvent.isPresent()) {
       return false;
@@ -666,9 +673,9 @@ class DecisionsHelper {
     }
 
     // Next decision is for version marker and the event is for the same.
-    byte[] markerDetailsFromEvent = event.getMarkerRecordedEventAttributes().getDetails();
     if (isNextDecisionVersionMarker
-        && (!changeIdEquals.isPresent() || changeIdEquals.get().test(markerDetailsFromEvent))) {
+        && (!changeIdEquals.isPresent()
+            || changeIdEquals.get().test(event.getMarkerRecordedEventAttributes()))) {
       return false;
     }
 
@@ -676,7 +683,8 @@ class DecisionsHelper {
     RecordMarkerDecisionAttributes marker =
         new RecordMarkerDecisionAttributes()
             .setMarkerName(ClockDecisionContext.VERSION_MARKER_NAME)
-            .setDetails(markerDetailsFromEvent);
+            .setHeader(event.getMarkerRecordedEventAttributes().getHeader())
+            .setDetails(event.getMarkerRecordedEventAttributes().getDetails());
     Decision markerDecision =
         new Decision()
             .setDecisionType(DecisionType.RecordMarker)

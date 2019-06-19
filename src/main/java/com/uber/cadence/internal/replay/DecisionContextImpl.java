@@ -21,6 +21,7 @@ import com.uber.cadence.*;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.metrics.ReplayAwareScope;
 import com.uber.cadence.internal.worker.LocalActivityWorker;
+import com.uber.cadence.internal.worker.SingleWorkerOptions;
 import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.Functions.Func1;
 import com.uber.cadence.workflow.Promise;
@@ -48,16 +49,18 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
       String domain,
       PollForDecisionTaskResponse decisionTask,
       WorkflowExecutionStartedEventAttributes startedAttributes,
-      boolean enableLoggingInReplay,
-      Scope metricsScope,
+      SingleWorkerOptions options,
       BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller,
       ReplayDecider replayDecider) {
     this.activityClient = new ActivityDecisionContext(decisionsHelper);
     this.workflowContext = new WorkflowContext(domain, decisionTask, startedAttributes);
     this.workflowClient = new WorkflowDecisionContext(decisionsHelper, workflowContext);
-    this.workflowClock = new ClockDecisionContext(decisionsHelper, laTaskPoller, replayDecider);
-    this.enableLoggingInReplay = enableLoggingInReplay;
-    this.metricsScope = new ReplayAwareScope(metricsScope, this, workflowClock::currentTimeMillis);
+    this.workflowClock =
+        new ClockDecisionContext(
+            decisionsHelper, laTaskPoller, replayDecider, options.getDataConverter());
+    this.enableLoggingInReplay = options.getEnableLoggingInReplay();
+    this.metricsScope =
+        new ReplayAwareScope(options.getMetricsScope(), this, workflowClock::currentTimeMillis);
   }
 
   @Override

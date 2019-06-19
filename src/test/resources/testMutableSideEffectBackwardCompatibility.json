@@ -1,0 +1,149 @@
+{
+  "workflowId": "e9bd92cd-0444-4933-b938-5b63b0926eb4",
+  "runId": "38b3ce8d-ef71-4c07-8be8-8471a8cc4044",
+  "events": [
+    {
+      "eventId": 1,
+      "timestamp": 1560557607849677200,
+      "eventType": "WorkflowExecutionStarted",
+      "version": -24,
+      "workflowExecutionStartedEventAttributes": {
+        "workflowType": {
+          "name": "TestWorkflow1::execute"
+        },
+        "taskList": {
+          "name": "WorkflowTest-testMutableSideEffect[Docker Sticky ON]-53e839aa-7dab-4cb0-9e65-a73c97a53815"
+        },
+        "input": "IldvcmtmbG93VGVzdC10ZXN0TXV0YWJsZVNpZGVFZmZlY3RbRG9ja2VyIFN0aWNreSBPTl0tNTNlODM5YWEtN2RhYi00Y2IwLTllNjUtYTczYzk3YTUzODE1Ig==",
+        "executionStartToCloseTimeoutSeconds": 30,
+        "taskStartToCloseTimeoutSeconds": 5,
+        "identity": "",
+        "attempt": 0,
+        "firstDecisionTaskBackoffSeconds": 0
+      }
+    },
+    {
+      "eventId": 2,
+      "timestamp": 1560557607849882000,
+      "eventType": "DecisionTaskScheduled",
+      "version": -24,
+      "decisionTaskScheduledEventAttributes": {
+        "taskList": {
+          "name": "WorkflowTest-testMutableSideEffect[Docker Sticky ON]-53e839aa-7dab-4cb0-9e65-a73c97a53815"
+        },
+        "startToCloseTimeoutSeconds": 5,
+        "attempt": 0
+      }
+    },
+    {
+      "eventId": 3,
+      "timestamp": 1560557607900135200,
+      "eventType": "DecisionTaskStarted",
+      "version": -24,
+      "decisionTaskStartedEventAttributes": {
+        "scheduledEventId": 2,
+        "identity": "81097@meiliang-C02XQ1JRJGH6",
+        "requestId": "f0add1e4-0e82-4353-817e-a6d626e82300"
+      }
+    },
+    {
+      "eventId": 4,
+      "timestamp": 1560557608175621600,
+      "eventType": "DecisionTaskCompleted",
+      "version": -24,
+      "decisionTaskCompletedEventAttributes": {
+        "scheduledEventId": 2,
+        "startedEventId": 3,
+        "identity": "81097@meiliang-C02XQ1JRJGH6"
+      }
+    },
+    {
+      "eventId": 5,
+      "timestamp": 1560557608175663500,
+      "eventType": "MarkerRecorded",
+      "version": -24,
+      "markerRecordedEventAttributes": {
+        "markerName": "MutableSideEffect",
+        "details": "eyJpZCI6ImlkMSIsImV2ZW50SWQiOjUsImRhdGEiOls0OSw1MCw1MSw1Ml0sImFjY2Vzc0NvdW50IjowfQ==",
+        "decisionTaskCompletedEventId": 4
+      }
+    },
+    {
+      "eventId": 6,
+      "timestamp": 1560557608175679500,
+      "eventType": "MarkerRecorded",
+      "version": -24,
+      "markerRecordedEventAttributes": {
+        "markerName": "MutableSideEffect",
+        "details": "eyJpZCI6ImlkMSIsImV2ZW50SWQiOjYsImRhdGEiOls1MSw1Miw1Myw1NF0sImFjY2Vzc0NvdW50IjozfQ==",
+        "decisionTaskCompletedEventId": 4
+      }
+    },
+    {
+      "eventId": 7,
+      "timestamp": 1560557608175697000,
+      "eventType": "TimerStarted",
+      "version": -24,
+      "timerStartedEventAttributes": {
+        "timerId": "0",
+        "startToFireTimeoutSeconds": 1,
+        "decisionTaskCompletedEventId": 4
+      }
+    },
+    {
+      "eventId": 8,
+      "timestamp": 1560557609191752300,
+      "eventType": "TimerFired",
+      "version": -24,
+      "timerFiredEventAttributes": {
+        "timerId": "0",
+        "startedEventId": 7
+      }
+    },
+    {
+      "eventId": 9,
+      "timestamp": 1560557609191771400,
+      "eventType": "DecisionTaskScheduled",
+      "version": -24,
+      "decisionTaskScheduledEventAttributes": {
+        "taskList": {
+          "name": "meiliang-C02XQ1JRJGH6:961580f3-35aa-48e9-b577-1813bc9e8313"
+        },
+        "startToCloseTimeoutSeconds": 5,
+        "attempt": 0
+      }
+    },
+    {
+      "eventId": 10,
+      "timestamp": 1560557609209000400,
+      "eventType": "DecisionTaskStarted",
+      "version": -24,
+      "decisionTaskStartedEventAttributes": {
+        "scheduledEventId": 9,
+        "identity": "961580f3-35aa-48e9-b577-1813bc9e8313",
+        "requestId": "04a3ad37-9c89-4dd4-85eb-038450ca3675"
+      }
+    },
+    {
+      "eventId": 11,
+      "timestamp": 1560557609248248400,
+      "eventType": "DecisionTaskCompleted",
+      "version": -24,
+      "decisionTaskCompletedEventAttributes": {
+        "scheduledEventId": 9,
+        "startedEventId": 10,
+        "identity": "81097@meiliang-C02XQ1JRJGH6"
+      }
+    },
+    {
+      "eventId": 12,
+      "timestamp": 1560557609248274400,
+      "eventType": "WorkflowExecutionCompleted",
+      "version": -24,
+      "workflowExecutionCompletedEventAttributes": {
+        "result": "IjEyMzQsIDEyMzQsIDEyMzQsIDM0NTYi",
+        "decisionTaskCompletedEventId": 11
+      }
+    }
+  ]
+}

@@ -22,7 +22,6 @@ import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.MarkerRecordedEventAttributes;
 import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.common.RetryOptions;
-import com.uber.cadence.converter.JsonDataConverter;
 import com.uber.cadence.internal.common.LocalActivityMarkerData;
 import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.internal.replay.ClockDecisionContext;
@@ -184,13 +183,15 @@ public final class LocalActivityWorker implements SuspendableWorker {
         markerBuilder.setTaskCancelledRequest(result.getTaskCancelled());
       }
 
-      byte[] markerData = JsonDataConverter.getInstance().toData(markerBuilder.build());
+      LocalActivityMarkerData marker = markerBuilder.build();
 
       HistoryEvent event = new HistoryEvent();
       event.setEventType(EventType.MarkerRecorded);
-      MarkerRecordedEventAttributes attributes = new MarkerRecordedEventAttributes();
-      attributes.setMarkerName(ClockDecisionContext.LOCAL_ACTIVITY_MARKER_NAME);
-      attributes.setDetails(markerData);
+      MarkerRecordedEventAttributes attributes =
+          new MarkerRecordedEventAttributes()
+              .setMarkerName(ClockDecisionContext.LOCAL_ACTIVITY_MARKER_NAME)
+              .setHeader(marker.getHeader(options.getDataConverter()))
+              .setDetails(marker.getResult());
       event.setMarkerRecordedEventAttributes(attributes);
       task.eventConsumer.accept(event);
     }

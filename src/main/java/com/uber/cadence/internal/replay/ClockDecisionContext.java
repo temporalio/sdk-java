@@ -25,9 +25,7 @@ import com.uber.cadence.StartTimerDecisionAttributes;
 import com.uber.cadence.TimerCanceledEventAttributes;
 import com.uber.cadence.TimerFiredEventAttributes;
 import com.uber.cadence.converter.DataConverter;
-import com.uber.cadence.converter.JsonDataConverter;
 import com.uber.cadence.internal.common.LocalActivityMarkerData;
-import com.uber.cadence.internal.replay.MarkerHandler.MarkerData;
 import com.uber.cadence.internal.sync.WorkflowInternal;
 import com.uber.cadence.internal.worker.LocalActivityWorker;
 import com.uber.cadence.workflow.ActivityFailureException;
@@ -88,6 +86,7 @@ public final class ClockDecisionContext {
   private final Map<String, OpenRequestInfo<byte[], ActivityType>> pendingLaTasks = new HashMap<>();
   private final Map<String, ExecuteLocalActivityParameters> unstartedLaTasks = new HashMap<>();
   private final ReplayDecider replayDecider;
+  private final DataConverter dataConverter;
   private final Lock laTaskLock = new ReentrantLock();
   private final Condition taskCondition = laTaskLock.newCondition();
   private boolean taskCompleted = false;
@@ -95,13 +94,15 @@ public final class ClockDecisionContext {
   ClockDecisionContext(
       DecisionsHelper decisions,
       BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller,
-      ReplayDecider replayDecider) {
+      ReplayDecider replayDecider,
+      DataConverter dataConverter) {
     this.decisions = decisions;
     mutableSideEffectHandler =
         new MarkerHandler(decisions, MUTABLE_SIDE_EFFECT_MARKER_NAME, () -> replaying);
     versionHandler = new MarkerHandler(decisions, VERSION_MARKER_NAME, () -> replaying);
     this.laTaskPoller = laTaskPoller;
     this.replayDecider = replayDecider;
+    this.dataConverter = dataConverter;
   }
 
   public long currentTimeMillis() {
@@ -192,7 +193,7 @@ public final class ClockDecisionContext {
         throw new Error("sideEffect function failed", e);
       }
     }
-    decisions.recordMarker(SIDE_EFFECT_MARKER_NAME, result);
+    decisions.recordMarker(SIDE_EFFECT_MARKER_NAME, null, result);
     return result;
   }
 
@@ -222,16 +223,13 @@ public final class ClockDecisionContext {
 
   private void handleLocalActivityMarker(MarkerRecordedEventAttributes attributes) {
     LocalActivityMarkerData marker =
-        JsonDataConverter.getInstance()
-            .fromData(
-                attributes.getDetails(),
-                LocalActivityMarkerData.class,
-                LocalActivityMarkerData.class);
+        LocalActivityMarkerData.fromEventAttributes(attributes, dataConverter);
 
     if (pendingLaTasks.containsKey(marker.getActivityId())) {
       log.debug("Handle LocalActivityMarker for activity " + marker.getActivityId());
 
-      decisions.recordMarker(LOCAL_ACTIVITY_MARKER_NAME, attributes.getDetails());
+      decisions.recordMarker(
+          LOCAL_ACTIVITY_MARKER_NAME, marker.getHeader(dataConverter), attributes.getDetails());
 
       OpenRequestInfo<byte[], ActivityType> scheduled =
           pendingLaTasks.remove(marker.getActivityId());
@@ -242,8 +240,7 @@ public final class ClockDecisionContext {
         failure = new CancellationException(marker.getErrReason());
       } else if (marker.getErrJson() != null) {
         Throwable cause =
-            JsonDataConverter.getInstance()
-                .fromData(marker.getErrJson(), Throwable.class, Throwable.class);
+            dataConverter.fromData(marker.getErrJson(), Throwable.class, Throwable.class);
         ActivityType activityType = new ActivityType();
         activityType.setName(marker.getActivityType());
         failure =
@@ -271,10 +268,10 @@ public final class ClockDecisionContext {
   }
 
   int getVersion(String changeId, DataConverter converter, int minSupported, int maxSupported) {
-    Predicate<byte[]> changeIdEquals =
-        (bytesInEvent) -> {
-          MarkerData markerData =
-              converter.fromData(bytesInEvent, MarkerData.class, MarkerData.class);
+    Predicate<MarkerRecordedEventAttributes> changeIdEquals =
+        (attributes) -> {
+          MarkerHandler.MarkerInterface markerData =
+              MarkerHandler.MarkerInterface.fromEventAttributes(attributes, converter);
           return markerData.getId().equals(changeId);
         };
     decisions.addAllMissingVersionMarker(true, Optional.of(changeIdEquals));
