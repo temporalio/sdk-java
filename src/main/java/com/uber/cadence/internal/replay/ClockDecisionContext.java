@@ -217,7 +217,9 @@ public final class ClockDecisionContext {
     } else if (LOCAL_ACTIVITY_MARKER_NAME.equals(name)) {
       handleLocalActivityMarker(attributes);
     } else if (!MUTABLE_SIDE_EFFECT_MARKER_NAME.equals(name) && !VERSION_MARKER_NAME.equals(name)) {
-      log.warn("Unexpected marker: " + event);
+      if (log.isWarnEnabled()) {
+        log.warn("Unexpected marker: " + event);
+      }
     }
   }
 

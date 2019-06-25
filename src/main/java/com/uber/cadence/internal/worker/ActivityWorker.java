@@ -38,7 +38,7 @@ import org.slf4j.MDC;
 
 public final class ActivityWorker implements SuspendableWorker {
 
-  private static final String POLL_THREAD_NAME_PREFIX = "Poller taskList=";
+  private static final String POLL_THREAD_NAME_PREFIX = "Activity Poller taskList=";
 
   private SuspendableWorker poller = new NoopSuspendableWorker();
   private final ActivityTaskHandler handler;
@@ -53,38 +53,31 @@ public final class ActivityWorker implements SuspendableWorker {
       String taskList,
       SingleWorkerOptions options,
       ActivityTaskHandler handler) {
-    Objects.requireNonNull(service);
-    Objects.requireNonNull(domain);
-    Objects.requireNonNull(taskList);
-    this.service = service;
-    this.domain = domain;
-    this.taskList = taskList;
-    this.options = options;
+    this.service = Objects.requireNonNull(service);
+    this.domain = Objects.requireNonNull(domain);
+    this.taskList = Objects.requireNonNull(taskList);
     this.handler = handler;
+
+    PollerOptions pollerOptions = options.getPollerOptions();
+    if (pollerOptions.getPollThreadNamePrefix() == null) {
+      pollerOptions =
+          new PollerOptions.Builder(pollerOptions)
+              .setPollThreadNamePrefix(
+                  POLL_THREAD_NAME_PREFIX + "\"" + taskList + "\", domain=\"" + domain + "\"")
+              .build();
+    }
+    this.options = new SingleWorkerOptions.Builder(options).setPollerOptions(pollerOptions).build();
   }
 
   @Override
   public void start() {
     if (handler.isAnyTypeSupported()) {
-      PollerOptions pollerOptions = options.getPollerOptions();
-      if (pollerOptions.getPollThreadNamePrefix() == null) {
-        pollerOptions =
-            new PollerOptions.Builder(pollerOptions)
-                .setPollThreadNamePrefix(
-                    POLL_THREAD_NAME_PREFIX
-                        + "\""
-                        + taskList
-                        + "\", domain=\""
-                        + domain
-                        + "\", type=\"activity\"")
-                .build();
-      }
       poller =
           new Poller<>(
               options.getIdentity(),
               new ActivityPollTask(service, domain, taskList, options),
               new PollTaskExecutor<>(domain, taskList, options, new TaskHandlerImpl(handler)),
-              pollerOptions,
+              options.getPollerOptions(),
               options.getMetricsScope());
       poller.start();
       options.getMetricsScope().counter(MetricsType.WORKER_START_COUNTER).inc(1);

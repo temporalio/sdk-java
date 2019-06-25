@@ -17,6 +17,7 @@
 
 package com.uber.cadence.internal.sync;
 
+import com.google.common.util.concurrent.RateLimiter;
 import com.uber.cadence.internal.logging.LoggerTag;
 import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.internal.replay.DeciderCache;
@@ -35,6 +36,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 class WorkflowThreadImpl implements WorkflowThread {
+  private static final RateLimiter metricsRateLimiter = RateLimiter.create(1);
 
   /**
    * Runnable passed to the thread that wraps a runnable passed to the WorkflowThreadImpl
@@ -100,7 +102,9 @@ class WorkflowThreadImpl implements WorkflowThread {
         if (!isCancelRequested()) {
           threadContext.setUnhandledException(e);
         }
-        log.debug(String.format("Workflow thread \"%s\" run cancelled", name));
+        if (log.isDebugEnabled()) {
+          log.debug(String.format("Workflow thread \"%s\" run cancelled", name));
+        }
       } catch (Throwable e) {
         if (log.isWarnEnabled() && !root) {
           StringWriter sw = new StringWriter();
@@ -231,10 +235,12 @@ class WorkflowThreadImpl implements WorkflowThread {
     }
     context.setStatus(Status.RUNNING);
 
-    getDecisionContext()
-        .getMetricsScope()
-        .gauge(MetricsType.WORKFLOW_ACTIVE_THREAD_COUNT)
-        .update(((ThreadPoolExecutor) threadPool).getActiveCount());
+    if (metricsRateLimiter.tryAcquire(1)) {
+      getDecisionContext()
+          .getMetricsScope()
+          .gauge(MetricsType.WORKFLOW_ACTIVE_THREAD_COUNT)
+          .update(((ThreadPoolExecutor) threadPool).getActiveCount());
+    }
 
     while (true) {
       try {

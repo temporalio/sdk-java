@@ -178,7 +178,9 @@ class CustomThrowableTypeAdapter<T extends Throwable> extends TypeAdapter<T> {
       }
       return result;
     } catch (Exception e) {
-      log.warn("Failed to parse stack trace: " + stackTrace);
+      if (log.isWarnEnabled()) {
+        log.warn("Failed to parse stack trace: " + stackTrace);
+      }
       return new StackTraceElement[0];
     }
   }

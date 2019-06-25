@@ -48,33 +48,29 @@ public final class LocalActivityWorker implements SuspendableWorker {
       String domain, String taskList, SingleWorkerOptions options, ActivityTaskHandler handler) {
     this.domain = Objects.requireNonNull(domain);
     this.taskList = Objects.requireNonNull(taskList);
-    this.options = options;
     this.handler = handler;
     this.laPollTask = new LocalActivityPollTask();
+
+    PollerOptions pollerOptions = options.getPollerOptions();
+    if (pollerOptions.getPollThreadNamePrefix() == null) {
+      pollerOptions =
+          new PollerOptions.Builder(pollerOptions)
+              .setPollThreadNamePrefix(
+                  POLL_THREAD_NAME_PREFIX + "\"" + taskList + "\", domain=\"" + domain + "\"")
+              .build();
+    }
+    this.options = new SingleWorkerOptions.Builder(options).setPollerOptions(pollerOptions).build();
   }
 
   @Override
   public void start() {
     if (handler.isAnyTypeSupported()) {
-      PollerOptions pollerOptions = options.getPollerOptions();
-      if (pollerOptions.getPollThreadNamePrefix() == null) {
-        pollerOptions =
-            new PollerOptions.Builder(pollerOptions)
-                .setPollThreadNamePrefix(
-                    POLL_THREAD_NAME_PREFIX
-                        + "\""
-                        + taskList
-                        + "\", domain=\""
-                        + domain
-                        + "\", type=\"activity\"")
-                .build();
-      }
       poller =
           new Poller<>(
               options.getIdentity(),
               laPollTask,
               new PollTaskExecutor<>(domain, taskList, options, new TaskHandlerImpl(handler)),
-              pollerOptions,
+              options.getPollerOptions(),
               options.getMetricsScope());
       poller.start();
       options.getMetricsScope().counter(MetricsType.WORKER_START_COUNTER).inc(1);

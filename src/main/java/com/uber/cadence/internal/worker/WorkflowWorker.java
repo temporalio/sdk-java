@@ -17,10 +17,22 @@
 
 package com.uber.cadence.internal.worker;
 
-import com.uber.cadence.*;
+import com.uber.cadence.BadRequestError;
+import com.uber.cadence.DomainNotActiveError;
+import com.uber.cadence.EntityNotExistsError;
+import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
+import com.uber.cadence.History;
+import com.uber.cadence.HistoryEvent;
+import com.uber.cadence.PollForDecisionTaskResponse;
+import com.uber.cadence.RespondDecisionTaskCompletedRequest;
+import com.uber.cadence.RespondDecisionTaskFailedRequest;
+import com.uber.cadence.RespondQueryTaskCompletedRequest;
+import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
+import com.uber.cadence.WorkflowQuery;
+import com.uber.cadence.WorkflowType;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.common.WorkflowExecutionHistory;
-import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.common.Retryer;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.logging.LoggerTag;
@@ -44,7 +56,7 @@ public final class WorkflowWorker
   private static final String POLL_THREAD_NAME_PREFIX = "Workflow Poller taskList=";
 
   private SuspendableWorker poller = new NoopSuspendableWorker();
-  private final PollTaskExecutor<PollForDecisionTaskResponse> pollTaskExecutor;
+  private PollTaskExecutor<PollForDecisionTaskResponse> pollTaskExecutor;
   private final DecisionTaskHandler handler;
   private final IWorkflowService service;
   private final String domain;
@@ -57,45 +69,35 @@ public final class WorkflowWorker
       String taskList,
       SingleWorkerOptions options,
       DecisionTaskHandler handler) {
-    Objects.requireNonNull(service);
-    Objects.requireNonNull(domain);
-    Objects.requireNonNull(taskList);
-    this.service = service;
-    this.domain = domain;
-    this.taskList = taskList;
-    this.options = options;
+    this.service = Objects.requireNonNull(service);
+    this.domain = Objects.requireNonNull(domain);
+    this.taskList = Objects.requireNonNull(taskList);
     this.handler = handler;
-    pollTaskExecutor =
-        new PollTaskExecutor<>(domain, taskList, options, new TaskHandlerImpl(handler));
+
+    PollerOptions pollerOptions = options.getPollerOptions();
+    if (pollerOptions.getPollThreadNamePrefix() == null) {
+      pollerOptions =
+          new PollerOptions.Builder(pollerOptions)
+              .setPollThreadNamePrefix(
+                  POLL_THREAD_NAME_PREFIX + "\"" + taskList + "\", domain=\"" + domain + "\"")
+              .build();
+    }
+    this.options = new SingleWorkerOptions.Builder(options).setPollerOptions(pollerOptions).build();
   }
 
   @Override
   public void start() {
     if (handler.isAnyTypeSupported()) {
-      PollerOptions pollerOptions = options.getPollerOptions();
-      if (pollerOptions.getPollThreadNamePrefix() == null) {
-        pollerOptions =
-            new PollerOptions.Builder(pollerOptions)
-                .setPollThreadNamePrefix(
-                    POLL_THREAD_NAME_PREFIX
-                        + "\""
-                        + taskList
-                        + "\", domain=\""
-                        + domain
-                        + "\", type=\"workflow\"")
-                .build();
-      }
-      SingleWorkerOptions workerOptions =
-          new SingleWorkerOptions.Builder(options).setPollerOptions(pollerOptions).build();
-
+      pollTaskExecutor =
+          new PollTaskExecutor<>(domain, taskList, options, new TaskHandlerImpl(handler));
       poller =
           new Poller<>(
               options.getIdentity(),
               new WorkflowPollTask(
                   service, domain, taskList, options.getMetricsScope(), options.getIdentity()),
               pollTaskExecutor,
-              pollerOptions,
-              workerOptions.getMetricsScope());
+              options.getPollerOptions(),
+              options.getMetricsScope());
       poller.start();
       options.getMetricsScope().counter(MetricsType.WORKER_START_COUNTER).inc(1);
     }
@@ -113,7 +115,7 @@ public final class WorkflowWorker
 
   @Override
   public boolean isTerminated() {
-    return pollTaskExecutor.isTerminated() && poller.isTerminated();
+    return poller.isTerminated();
   }
 
   public byte[] queryWorkflowExecution(WorkflowExecution exec, String queryType, byte[] args)
@@ -195,9 +197,8 @@ public final class WorkflowWorker
     if (!poller.isStarted()) {
       return;
     }
-    long timeoutMillis = unit.toMillis(timeout);
-    timeoutMillis = InternalUtils.awaitTermination(poller, timeoutMillis);
-    InternalUtils.awaitTermination(pollTaskExecutor, timeoutMillis);
+
+    poller.awaitTermination(timeout, unit);
   }
 
   @Override

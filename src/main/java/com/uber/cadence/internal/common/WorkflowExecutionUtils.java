@@ -766,7 +766,8 @@ public class WorkflowExecutionUtils {
       return new String((byte[]) object, UTF_8);
     }
     if (ByteBuffer.class.isAssignableFrom(clz)) {
-      return new String(((ByteBuffer) object).array(), UTF_8);
+      byte[] bytes = org.apache.thrift.TBaseHelper.byteBufferToByteArray((ByteBuffer) object);
+      return new String(bytes, UTF_8);
     }
     if (clz.equals(Date.class)) {
       return String.valueOf(object);
