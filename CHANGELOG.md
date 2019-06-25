@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.5.0
+- Local activities
+- Make sure signals are applied in the same order as they appear in history
+- Fix retry option without expiration in test env
+- Maintain correct runID during reset for random ID generation
+- Default retry policy for Cadence service API calls
+- Change markers to use headers to serialize internal fields
+- Miscellaneous stability and debuggability fixes
+
 ## v2.4.2
 - Support Memo in visibility
 - Fix getVersion without decision event
