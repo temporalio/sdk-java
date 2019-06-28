@@ -88,7 +88,9 @@ public class SyncWorkflowWorker
             service,
             laWorker.getLocalActivityTaskPoller());
 
-    workflowWorker = new WorkflowWorker(service, domain, taskList, workflowOptions, taskHandler);
+    workflowWorker =
+        new WorkflowWorker(
+            service, domain, taskList, workflowOptions, taskHandler, stickyTaskListName);
   }
 
   public void setWorkflowImplementationTypes(

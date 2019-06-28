@@ -17,6 +17,7 @@
 
 package com.uber.cadence.internal.worker;
 
+import com.google.common.base.Strings;
 import com.uber.cadence.BadRequestError;
 import com.uber.cadence.DomainNotActiveError;
 import com.uber.cadence.EntityNotExistsError;
@@ -46,6 +47,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
 import java.util.function.Consumer;
 import org.apache.thrift.TException;
 import org.slf4j.MDC;
@@ -62,17 +64,21 @@ public final class WorkflowWorker
   private final String domain;
   private final String taskList;
   private final SingleWorkerOptions options;
+  private final String stickyTaskListName;
+  private final WorkflowRunLockManager runLocks = new WorkflowRunLockManager();
 
   public WorkflowWorker(
       IWorkflowService service,
       String domain,
       String taskList,
       SingleWorkerOptions options,
-      DecisionTaskHandler handler) {
+      DecisionTaskHandler handler,
+      String stickyTaskListName) {
     this.service = Objects.requireNonNull(service);
     this.domain = Objects.requireNonNull(domain);
     this.taskList = Objects.requireNonNull(taskList);
     this.handler = handler;
+    this.stickyTaskListName = stickyTaskListName;
 
     PollerOptions pollerOptions = options.getPollerOptions();
     if (pollerOptions.getPollThreadNamePrefix() == null) {
@@ -240,6 +246,13 @@ public final class WorkflowWorker
       MDC.put(LoggerTag.WORKFLOW_ID, task.getWorkflowExecution().getWorkflowId());
       MDC.put(LoggerTag.WORKFLOW_TYPE, task.getWorkflowType().getName());
       MDC.put(LoggerTag.RUN_ID, task.getWorkflowExecution().getRunId());
+
+      Lock runLock = null;
+      if (!Strings.isNullOrEmpty(stickyTaskListName)) {
+        runLock = runLocks.getLockForLocking(task.getWorkflowExecution().getRunId());
+        runLock.lock();
+      }
+
       try {
         Stopwatch sw = metricsScope.timer(MetricsType.DECISION_EXECUTION_LATENCY).start();
         DecisionTaskHandler.Result response = handler.handleDecisionTask(task);
@@ -254,6 +267,10 @@ public final class WorkflowWorker
         MDC.remove(LoggerTag.WORKFLOW_ID);
         MDC.remove(LoggerTag.WORKFLOW_TYPE);
         MDC.remove(LoggerTag.RUN_ID);
+
+        if (runLock != null) {
+          runLocks.unlock(task.getWorkflowExecution().getRunId());
+        }
       }
     }
 

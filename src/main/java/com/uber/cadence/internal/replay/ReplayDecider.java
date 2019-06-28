@@ -405,7 +405,11 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
         }
 
         forceCreateNewDecisionTask =
-            processEventLoop(startTime, startedEvent.getTaskStartToCloseTimeoutSeconds(), decision);
+            processEventLoop(
+                startTime,
+                startedEvent.getTaskStartToCloseTimeoutSeconds(),
+                decision,
+                decisionTask.getQuery() != null);
 
         mayBeCompleteWorkflow();
         if (decision.isReplay()) {
@@ -443,11 +447,12 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
     }
   }
 
-  private boolean processEventLoop(long startTime, int decisionTimeoutSecs, DecisionEvents decision)
+  private boolean processEventLoop(
+      long startTime, int decisionTimeoutSecs, DecisionEvents decision, boolean isQuery)
       throws Throwable {
     eventLoop();
 
-    if (decision.isReplay()) {
+    if (decision.isReplay() || isQuery) {
       return replayLocalActivities(decision);
     } else {
       return executeLocalActivities(startTime, decisionTimeoutSecs);

@@ -27,7 +27,13 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.util.concurrent.UncheckedExecutionException;
-import com.uber.cadence.*;
+import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
+import com.uber.cadence.HistoryEvent;
+import com.uber.cadence.Memo;
+import com.uber.cadence.SignalExternalWorkflowExecutionFailedCause;
+import com.uber.cadence.TimeoutType;
+import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowIdReusePolicy;
 import com.uber.cadence.activity.Activity;
 import com.uber.cadence.activity.ActivityMethod;
 import com.uber.cadence.activity.ActivityOptions;
@@ -71,7 +77,21 @@ import java.lang.management.ManagementFactory;
 import java.lang.reflect.Type;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Queue;
+import java.util.Random;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -127,7 +147,9 @@ public class WorkflowTest {
   @Parameters(name = "{1}")
   public static Object[] data() {
     if (!useDockerService) {
-      return new Object[][] {{false, "TestService Sticky OFF", true}};
+      return new Object[][] {
+        {false, "TestService Sticky OFF", true}, {false, "TestService Sticky ON", false}
+      };
     } else {
       return new Object[][] {
         {true, "Docker Sticky " + (stickyOff ? "OFF" : "ON"), stickyOff},
@@ -769,7 +791,7 @@ public class WorkflowTest {
   public void testAsyncActivityRetryReplay() throws Exception {
     // Avoid executing 4 times
     Assume.assumeFalse("skipping for docker tests", useExternalService);
-    Assume.assumeFalse("skipping for sticky off", stickyOff);
+    Assume.assumeFalse("skipping for sticky off", disableStickyExecution);
 
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "testAsyncActivityRetryHistory.json", TestAsyncActivityRetry.class);
@@ -2711,7 +2733,7 @@ public class WorkflowTest {
   @Test
   public void testChildWorkflowRetryReplay() throws Exception {
     Assume.assumeFalse("skipping for docker tests", useExternalService);
-    Assume.assumeFalse("skipping for sticky off", stickyOff);
+    Assume.assumeFalse("skipping for sticky off", disableStickyExecution);
 
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "testChildWorkflowRetryHistory.json", TestChildWorkflowRetryWorkflow.class);
@@ -4583,6 +4605,126 @@ public class WorkflowTest {
         result);
   }
 
+  public interface TestWorkflowQuery {
+
+    @WorkflowMethod()
+    String execute(String taskList);
+
+    @QueryMethod()
+    String query();
+  }
+
+  public static final class TestLocalActivityAndQueryWorkflow implements TestWorkflowQuery {
+
+    String message = "initial value";
+
+    @Override
+    public String execute(String taskList) {
+
+      // Make sure decider is in the cache when we execute local activities.
+      TestActivities activities =
+          Workflow.newActivityStub(TestActivities.class, newActivityOptions1(taskList));
+      activities.activity();
+
+      TestActivities localActivities =
+          Workflow.newLocalActivityStub(TestActivities.class, newLocalActivityOptions1());
+      for (int i = 0; i < 5; i++) {
+        localActivities.sleepActivity(2000, i);
+        message = "run" + i;
+      }
+      return "done";
+    }
+
+    @Override
+    public String query() {
+      return message;
+    }
+  }
+
+  @Test
+  public void testLocalActivityAndQuery() throws InterruptedException {
+    Assume.assumeFalse("test for sticky on", disableStickyExecution);
+
+    startWorkerFor(TestLocalActivityAndQueryWorkflow.class);
+    WorkflowOptions options =
+        new WorkflowOptions.Builder()
+            .setExecutionStartToCloseTimeout(Duration.ofMinutes(5))
+            .setTaskStartToCloseTimeout(Duration.ofSeconds(5))
+            .setTaskList(taskList)
+            .build();
+    TestWorkflowQuery workflowStub =
+        workflowClient.newWorkflowStub(TestWorkflowQuery.class, options);
+    WorkflowClient.start(workflowStub::execute, taskList);
+
+    // Sleep for a while before querying, so that the first decision task is processed and cache is
+    // populated.
+    // This also makes sure that the query lands when the local activities are executing.
+    Thread.sleep(500);
+
+    // When sticky is on, query will block until the first batch completes (in 4sec),
+    // and the progress will be reflected in query result.
+    String queryResult = workflowStub.query();
+    assertEquals("run1", queryResult);
+
+    // By the time the next query processes, the next decision batch is complete.
+    // Again the progress will be reflected in query result.
+    assertEquals("run3", workflowStub.query());
+
+    String result = workflowStub.execute(taskList);
+    assertEquals("done", result);
+    assertEquals("run4", workflowStub.query());
+    activitiesImpl.assertInvocations(
+        "activity",
+        "sleepActivity",
+        "sleepActivity",
+        "sleepActivity",
+        "sleepActivity",
+        "sleepActivity");
+  }
+
+  @Test
+  public void testLocalActivityAndQueryStickyOff() throws InterruptedException {
+    Assume.assumeTrue("test for sticky off", disableStickyExecution);
+
+    startWorkerFor(TestLocalActivityAndQueryWorkflow.class);
+    WorkflowOptions options =
+        new WorkflowOptions.Builder()
+            .setExecutionStartToCloseTimeout(Duration.ofMinutes(5))
+            .setTaskStartToCloseTimeout(Duration.ofSeconds(5))
+            .setTaskList(taskList)
+            .build();
+    TestWorkflowQuery workflowStub =
+        workflowClient.newWorkflowStub(TestWorkflowQuery.class, options);
+    WorkflowClient.start(workflowStub::execute, taskList);
+
+    // Sleep for a while before querying, so that query is received while local activity is running.
+    Thread.sleep(500);
+
+    // When sticky is off, query is independent of the ongoing decision task, and it will neither
+    // block
+    // or see the current progress.
+    String queryResult = workflowStub.query();
+    assertEquals("initial value", queryResult);
+
+    // Sleep more to make sure the next query lands while we process the next batch of local
+    // activities.
+    // In this case only the progress from the first batch is reflected in the query.
+    Thread.sleep(4000);
+    queryResult = workflowStub.query();
+    assertEquals("run1", queryResult);
+
+    String result = workflowStub.execute(taskList);
+    assertEquals("done", result);
+    assertEquals("run4", workflowStub.query());
+    activitiesImpl.assertInvocations(
+        "activity",
+        "sleepActivity",
+        "sleepActivity",
+        "sleepActivity",
+        "sleepActivity",
+        "sleepActivity");
+  }
+
   public interface SignalOrderingWorkflow {
     @WorkflowMethod
     List<String> run();
@@ -4697,7 +4839,7 @@ public class WorkflowTest {
 
     // Avoid executing 4 times
     Assume.assumeFalse("skipping for docker tests", useExternalService);
-    Assume.assumeFalse("skipping for sticky off", stickyOff);
+    Assume.assumeFalse("skipping for sticky off", disableStickyExecution);
 
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "resetWorkflowHistory.json", TestWorkflowResetReplayWorkflow.class);
