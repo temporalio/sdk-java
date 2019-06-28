@@ -17,7 +17,15 @@
 
 package com.uber.cadence.internal.replay;
 
-import com.uber.cadence.*;
+import com.uber.cadence.ChildPolicy;
+import com.uber.cadence.DecisionTaskFailedCause;
+import com.uber.cadence.DecisionTaskFailedEventAttributes;
+import com.uber.cadence.HistoryEvent;
+import com.uber.cadence.PollForDecisionTaskResponse;
+import com.uber.cadence.TimerFiredEventAttributes;
+import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
+import com.uber.cadence.WorkflowType;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.metrics.ReplayAwareScope;
 import com.uber.cadence.internal.worker.LocalActivityWorker;
@@ -34,8 +42,12 @@ import java.util.UUID;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 final class DecisionContextImpl implements DecisionContext, HistoryEventHandler {
+
+  private static final Logger log = LoggerFactory.getLogger(DecisionContextImpl.class);
 
   private final ActivityDecisionContext activityClient;
   private final WorkflowDecisionContext workflowClient;
@@ -203,7 +215,15 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
 
   void setReplayCurrentTimeMilliseconds(long replayCurrentTimeMilliseconds) {
     if (replayCurrentTimeMilliseconds < workflowClock.currentTimeMillis()) {
-      throw new IllegalArgumentException("workflow clock moved back");
+      if (log.isWarnEnabled()) {
+        log.warn(
+            "Trying to set workflow clock back from "
+                + workflowClock.currentTimeMillis()
+                + " to "
+                + replayCurrentTimeMilliseconds
+                + ". This will be a no-op.");
+      }
+      return;
     }
     workflowClock.setReplayCurrentTimeMilliseconds(replayCurrentTimeMilliseconds);
   }

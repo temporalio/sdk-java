@@ -4703,6 +4703,65 @@ public class WorkflowTest {
         "resetWorkflowHistory.json", TestWorkflowResetReplayWorkflow.class);
   }
 
+  public interface GreetingWorkflow {
+
+    @WorkflowMethod
+    void createGreeting(String name);
+  }
+
+  public interface GreetingActivities {
+    @ActivityMethod(scheduleToCloseTimeoutSeconds = 60)
+    String composeGreeting(String string);
+  }
+
+  static class GreetingActivitiesImpl implements GreetingActivities {
+    @Override
+    public String composeGreeting(String string) {
+      try {
+        Thread.sleep(10000);
+      } catch (Exception e) {
+        System.out.println("Exception");
+      }
+      return "greetings: " + string;
+    }
+  }
+
+  /** GreetingWorkflow implementation that updates greeting after sleeping for 5 seconds. */
+  public static class TimerFiringWorkflowImpl implements GreetingWorkflow {
+
+    private final GreetingActivities activities =
+        Workflow.newActivityStub(GreetingActivities.class);
+
+    @Override
+    public void createGreeting(String name) {
+      Promise<String> promiseString1 = Async.function(() -> activities.composeGreeting("1"));
+      Promise<String> promiseString2 = Async.function(() -> "aString2");
+
+      Set<Promise<String>> promiseSet = new HashSet<>();
+      promiseSet.add(promiseString1);
+      promiseSet.add(promiseString2);
+      Workflow.await(
+          Duration.ofSeconds(30), () -> promiseSet.stream().anyMatch(Promise::isCompleted));
+
+      promiseString1.get();
+      Workflow.sleep(Duration.ofSeconds(20));
+      promiseString2.get();
+    }
+  }
+
+  // Server doesn't guarantee that the timer fire timestamp is larger or equal of the
+  // expected fire time. This test ensures that client still fires timer in this case.
+  @Test
+  public void testTimerFiringTimestampEarlierThanExpected() throws Exception {
+
+    // Avoid executing 4 times
+    Assume.assumeFalse("skipping for docker tests", useExternalService);
+    Assume.assumeFalse("skipping for sticky off", stickyOff);
+
+    WorkflowReplayer.replayWorkflowExecutionFromResource(
+        "timerfiring.json", TimerFiringWorkflowImpl.class);
+  }
+
   private static class FilteredTrace {
 
     private final List<String> impl = Collections.synchronizedList(new ArrayList<>());
