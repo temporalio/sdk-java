@@ -196,6 +196,7 @@ public class WorkflowExecutionUtils {
       r.setExecution(workflowExecution);
       r.setHistoryEventFilterType(HistoryEventFilterType.CLOSE_EVENT);
       r.setNextPageToken(pageToken);
+      r.setWaitForNewEvent(true);
       try {
         response =
             Retryer.retryWithResult(retryParameters, () -> service.GetWorkflowExecutionHistory(r));

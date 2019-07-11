@@ -33,7 +33,11 @@ final class LocalActivityPollTask
 
   @Override
   public LocalActivityWorker.Task poll() throws TException {
-    return pendingTasks.poll();
+    try {
+      return pendingTasks.take();
+    } catch (InterruptedException e) {
+      throw new RuntimeException("local activity poll task interrupted", e);
+    }
   }
 
   @Override
