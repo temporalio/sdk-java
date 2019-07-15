@@ -22,6 +22,7 @@ import com.uber.cadence.PollForActivityTaskRequest;
 import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.ServiceBusyError;
 import com.uber.cadence.TaskList;
+import com.uber.cadence.TaskListMetadata;
 import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.m3.tally.Stopwatch;
@@ -56,6 +57,13 @@ final class ActivityPollTask implements Poller.PollTask<ActivityWorker.Measurabl
     pollRequest.setDomain(domain);
     pollRequest.setIdentity(options.getIdentity());
     pollRequest.setTaskList(new TaskList().setName(taskList));
+
+    if (options.getTaskListActivitiesPerSecond() > 0) {
+      TaskListMetadata metadata = new TaskListMetadata();
+      metadata.setMaxTasksPerSecond(options.getTaskListActivitiesPerSecond());
+      pollRequest.setTaskListMetadata(metadata);
+    }
+
     if (log.isDebugEnabled()) {
       log.debug("poll request begin: " + pollRequest);
     }

@@ -40,6 +40,7 @@ public final class WorkerOptions {
     private int maxConcurrentActivityExecutionSize = 100;
     private int maxConcurrentWorkflowExecutionSize = 50;
     private int maxConcurrentLocalActivityExecutionSize = 100;
+    private double taskListActivitiesPerSecond = 100000;
     private PollerOptions activityPollerOptions;
     private PollerOptions workflowPollerOptions;
     private RetryOptions reportActivityCompletionRetryOptions;
@@ -186,6 +187,19 @@ public final class WorkerOptions {
       return this;
     }
 
+    /**
+     * Optional: Sets the rate limiting on number of activities that can be executed per second.
+     * This is managed by the server and controls activities per second for your entire tasklist.
+     * Notice that the number is represented in double, so that you can set it to less than 1 if
+     * needed. For example, set the number to 0.1 means you want your activity to be executed once
+     * every 10 seconds. This can be used to protect down stream services from flooding. The zero
+     * value of this uses the default value. Default: 100k
+     */
+    public Builder setTaskListActivitiesPerSecond(double taskListActivitiesPerSecond) {
+      this.taskListActivitiesPerSecond = taskListActivitiesPerSecond;
+      return this;
+    }
+
     public WorkerOptions build() {
       if (identity == null) {
         identity = ManagementFactory.getRuntimeMXBean().getName();
@@ -204,6 +218,7 @@ public final class WorkerOptions {
           maxConcurrentActivityExecutionSize,
           maxConcurrentWorkflowExecutionSize,
           maxConcurrentLocalActivityExecutionSize,
+          taskListActivitiesPerSecond,
           activityPollerOptions,
           workflowPollerOptions,
           reportActivityCompletionRetryOptions,
@@ -224,6 +239,7 @@ public final class WorkerOptions {
   private final int maxConcurrentActivityExecutionSize;
   private final int maxConcurrentWorkflowExecutionSize;
   private final int maxConcurrentLocalActivityExecutionSize;
+  private final double taskListActivitiesPerSecond;
   private final PollerOptions activityPollerOptions;
   private final PollerOptions workflowPollerOptions;
   private final RetryOptions reportActivityCompletionRetryOptions;
@@ -243,6 +259,7 @@ public final class WorkerOptions {
       int maxConcurrentActivityExecutionSize,
       int maxConcurrentWorkflowExecutionSize,
       int maxConcurrentLocalActivityExecutionSize,
+      double taskListActivitiesPerSecond,
       PollerOptions activityPollerOptions,
       PollerOptions workflowPollerOptions,
       RetryOptions reportActivityCompletionRetryOptions,
@@ -260,6 +277,7 @@ public final class WorkerOptions {
     this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
     this.maxConcurrentWorkflowExecutionSize = maxConcurrentWorkflowExecutionSize;
     this.maxConcurrentLocalActivityExecutionSize = maxConcurrentLocalActivityExecutionSize;
+    this.taskListActivitiesPerSecond = taskListActivitiesPerSecond;
     this.activityPollerOptions = activityPollerOptions;
     this.workflowPollerOptions = workflowPollerOptions;
     this.reportActivityCompletionRetryOptions = reportActivityCompletionRetryOptions;
@@ -359,6 +377,8 @@ public final class WorkerOptions {
         + maxConcurrentWorkflowExecutionSize
         + ", maxConcurrentLocalActivityExecutionSize="
         + maxConcurrentLocalActivityExecutionSize
+        + ", taskListActivitiesPerSecond="
+        + taskListActivitiesPerSecond
         + ", activityPollerOptions="
         + activityPollerOptions
         + ", workflowPollerOptions="
