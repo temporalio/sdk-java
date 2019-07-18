@@ -4921,6 +4921,99 @@ public class WorkflowTest {
     }
   }
 
+  public interface TestCompensationWorkflow {
+    @WorkflowMethod
+    void compensate();
+  }
+
+  public static class TestMultiargsWorkflowsFuncImpl implements TestMultiargsWorkflowsFunc {
+
+    @Override
+    public String func() {
+      return "done";
+    }
+  }
+
+  public static class TestCompensationWorkflowImpl implements TestCompensationWorkflow {
+    @Override
+    public void compensate() {}
+  }
+
+  public interface TestSagaWorkflow {
+    @WorkflowMethod
+    String execute(String taskList, boolean parallelCompensation);
+  }
+
+  public static class TestSagaWorkflowImpl implements TestSagaWorkflow {
+
+    @Override
+    public String execute(String taskList, boolean parallelCompensation) {
+      TestActivities testActivities =
+          Workflow.newActivityStub(TestActivities.class, newActivityOptions1(taskList));
+
+      ChildWorkflowOptions workflowOptions =
+          new ChildWorkflowOptions.Builder().setTaskList(taskList).build();
+      TestMultiargsWorkflowsFunc stubF1 =
+          Workflow.newChildWorkflowStub(TestMultiargsWorkflowsFunc.class, workflowOptions);
+
+      Saga saga =
+          new Saga(
+              new Saga.Options.Builder().setParallelCompensation(parallelCompensation).build());
+      try {
+        testActivities.activity1(10);
+        saga.addCompensation(testActivities::activity2, "compensate", -10);
+
+        stubF1.func();
+
+        TestCompensationWorkflow compensationWorkflow =
+            Workflow.newChildWorkflowStub(TestCompensationWorkflow.class, workflowOptions);
+        saga.addCompensation(compensationWorkflow::compensate);
+
+        testActivities.throwIO();
+        saga.addCompensation(
+            () -> {
+              throw new RuntimeException("unreachable");
+            });
+      } catch (Exception e) {
+        saga.compensate();
+      }
+      return "done";
+    }
+  }
+
+  @Test
+  public void testSaga() {
+    startWorkerFor(
+        TestSagaWorkflowImpl.class,
+        TestMultiargsWorkflowsFuncImpl.class,
+        TestCompensationWorkflowImpl.class);
+    TestSagaWorkflow sagaWorkflow =
+        workflowClient.newWorkflowStub(
+            TestSagaWorkflow.class, newWorkflowOptionsBuilder(taskList).build());
+    sagaWorkflow.execute(taskList, false);
+    tracer.setExpected(
+        "executeActivity customActivity1",
+        "executeChildWorkflow TestMultiargsWorkflowsFunc::func",
+        "executeActivity TestActivities::throwIO",
+        "executeChildWorkflow TestCompensationWorkflow::compensate",
+        "executeActivity TestActivities::activity2");
+  }
+
+  @Test
+  public void testSagaParallelCompensation() {
+    startWorkerFor(
+        TestSagaWorkflowImpl.class,
+        TestMultiargsWorkflowsFuncImpl.class,
+        TestCompensationWorkflowImpl.class);
+    TestSagaWorkflow sagaWorkflow =
+        workflowClient.newWorkflowStub(
+            TestSagaWorkflow.class, newWorkflowOptionsBuilder(taskList).build());
+    sagaWorkflow.execute(taskList, true);
+    assertTrue(
+        tracer.getTrace().contains("executeChildWorkflow TestCompensationWorkflow::compensate"));
+    assertTrue(tracer.getTrace().contains("executeActivity TestActivities::activity2"));
+  }
+
   private static class TracingWorkflowInterceptor implements WorkflowInterceptor {
 
     private final FilteredTrace trace;
