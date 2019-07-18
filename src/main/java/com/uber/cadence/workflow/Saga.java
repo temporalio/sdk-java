@@ -20,6 +20,27 @@ package com.uber.cadence.workflow;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * This class implements the logic to execute <a
+ * href="https://en.wikipedia.org/wiki/Compensating_transaction">compensation operations</a> that is
+ * often required in Saga applications. The following is a skeleton to show of how it is supposed to
+ * be used in workflow code:
+ *
+ * <pre><code>
+ * Saga saga = new Saga(options);
+ * try {
+ *   String r = activity.foo();
+ *   saga.addCompensation(activity::cleanupFoo, arg2, r);
+ *   Promise<String> r2 = Async.function(activity::bar);
+ *   r2.thenApply(r->saga.addCompensation(activity.cleanupBar(r));
+ *   ...
+ *   useR2(r2.get());
+ * } catch (Exception e) {
+ *    saga.compensate();
+ *    // Other error handling if needed.
+ * }
+ * </code></pre>
+ */
 public final class Saga {
   private final Options options;
   private final List<Functions.Func<Promise>> compensationOps = new ArrayList<>();
@@ -119,8 +140,7 @@ public final class Saga {
   }
 
   /**
-   * Add compensation operation for saga, which will be executed in the reverse order if {@link
-   * Saga#compensate()} is called.
+   * Add compensation operation for saga.
    *
    * @param operation to be executed during compensation.
    */
@@ -129,8 +149,7 @@ public final class Saga {
   }
 
   /**
-   * Add compensation operation for saga, which will be executed in the reverse order if {@link
-   * Saga#compensate()} is called.
+   * Add compensation operation for saga.
    *
    * @param operation to be executed during compensation.
    * @param arg1 first operation function parameter
@@ -140,8 +159,7 @@ public final class Saga {
   }
 
   /**
-   * Add compensation operation for saga, which will be executed in the reverse order if {@link
-   * Saga#compensate()} is called.
+   * Add compensation operation for saga.
    *
    * @param operation to be executed during compensation.
    * @param arg1 first operation function parameter
@@ -152,8 +170,7 @@ public final class Saga {
   }
 
   /**
-   * Add compensation operation for saga, which will be executed in the reverse order if {@link
-   * Saga#compensate()} is called.
+   * Add compensation operation for saga.
    *
    * @param operation to be executed during compensation.
    * @param arg1 first operation function parameter
@@ -166,8 +183,7 @@ public final class Saga {
   }
 
   /**
-   * Add compensation operation for saga, which will be executed in the reverse order if {@link
-   * Saga#compensate()} is called.
+   * Add compensation operation for saga.
    *
    * @param operation to be executed during compensation.
    * @param arg1 first operation function parameter
@@ -181,8 +197,7 @@ public final class Saga {
   }
 
   /**
-   * Add compensation operation for saga, which will be executed in the reverse order if {@link
-   * Saga#compensate()} is called.
+   * Add compensation operation for saga.
    *
    * @param operation to be executed during compensation.
    * @param arg1 first operation function parameter
@@ -197,8 +212,7 @@ public final class Saga {
   }
 
   /**
-   * Add compensation operation for saga, which will be executed in the reverse order if {@link
-   * Saga#compensate()} is called.
+   * Add compensation operation for saga.
    *
    * @param operation to be executed during compensation.
    * @param arg1 first operation function parameter
@@ -220,8 +234,7 @@ public final class Saga {
   }
 
   /**
-   * Add compensation operation for saga, which will be executed in the reverse order if {@link
-   * Saga#compensate()} is called.
+   * Add compensation operation for saga.
    *
    * @param operation to be executed during compensation.
    */
@@ -230,8 +243,7 @@ public final class Saga {
   }
 
   /**
-   * Add compensation operation for saga, which will be executed in the reverse order if {@link
-   * Saga#compensate()} is called.
+   * Add compensation operation for saga.
    *
    * @param operation to be executed during compensation.
    * @param arg1 first operation function parameter
@@ -241,8 +253,7 @@ public final class Saga {
   }
 
   /**
-   * Add compensation operation for saga, which will be executed in the reverse order if {@link
-   * Saga#compensate()} is called.
+   * Add compensation operation for saga.
    *
    * @param operation to be executed during compensation.
    * @param arg1 first operation function parameter
@@ -253,8 +264,7 @@ public final class Saga {
   }
 
   /**
-   * Add compensation operation for saga, which will be executed in the reverse order if {@link
-   * Saga#compensate()} is called.
+   * Add compensation operation for saga.
    *
    * @param operation to be executed during compensation.
    * @param operation to be executed during compensation.
@@ -268,8 +278,7 @@ public final class Saga {
   }
 
   /**
-   * Add compensation operation for saga, which will be executed in the reverse order if {@link
-   * Saga#compensate()} is called.
+   * Add compensation operation for saga.
    *
    * @param operation to be executed during compensation.
    * @param operation to be executed during compensation.
@@ -284,8 +293,7 @@ public final class Saga {
   }
 
   /**
-   * Add compensation operation for saga, which will be executed in the reverse order if {@link
-   * Saga#compensate()} is called.
+   * Add compensation operation for saga.
    *
    * @param operation to be executed during compensation.
    * @param operation to be executed during compensation.
@@ -306,8 +314,7 @@ public final class Saga {
   }
 
   /**
-   * Add compensation operation for saga, which will be executed in the reverse order if {@link
-   * Saga#compensate()} is called.
+   * Add compensation operation for saga.
    *
    * @param operation to be executed during compensation.
    * @param arg1 first operation function parameter
