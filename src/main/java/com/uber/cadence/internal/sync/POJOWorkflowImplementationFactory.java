@@ -94,12 +94,17 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   }
 
   <R> void addWorkflowImplementationFactory(Class<R> clazz, Functions.Func<R> factory) {
-    workflowImplementationFactories.put(clazz, factory);
     WorkflowImplementationOptions unitTestingOptions =
         new WorkflowImplementationOptions.Builder()
             .setNonDeterministicWorkflowPolicy(FailWorkflow)
             .build();
-    addWorkflowImplementationType(unitTestingOptions, clazz);
+    addWorkflowImplementationFactory(unitTestingOptions, clazz, factory);
+  }
+
+  <R> void addWorkflowImplementationFactory(
+      WorkflowImplementationOptions options, Class<R> clazz, Functions.Func<R> factory) {
+    workflowImplementationFactories.put(clazz, factory);
+    addWorkflowImplementationType(options, clazz);
   }
 
   private void addWorkflowImplementationType(

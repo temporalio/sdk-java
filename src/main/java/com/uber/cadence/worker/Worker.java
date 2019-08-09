@@ -236,6 +236,23 @@ public final class Worker implements Suspendable {
   }
 
   /**
+   * Configures a factory to use when an instance of a workflow implementation is created.
+   * !IMPORTANT to provide newly created instances, each time factory is applied.
+   *
+   * <p>Unless mocking a workflow execution use {@link
+   * #registerWorkflowImplementationTypes(Class[])}.
+   *
+   * @param workflowInterface Workflow interface that this factory implements
+   * @param factory factory that when called creates a new instance of the workflow implementation
+   *     object.
+   * @param <R> type of the workflow object to create.
+   */
+  public <R> void addWorkflowImplementationFactory(
+      WorkflowImplementationOptions options, Class<R> workflowInterface, Func<R> factory) {
+    workflowWorker.addWorkflowImplementationFactory(options, workflowInterface, factory);
+  }
+
+  /**
    * Configures a factory to use when an instance of a workflow implementation is created. The only
    * valid use for this method is unit testing, specifically to instantiate mocks that implement
    * child workflows. An example of mocking a child workflow:
