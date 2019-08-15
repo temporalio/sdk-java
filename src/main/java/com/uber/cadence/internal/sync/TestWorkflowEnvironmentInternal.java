@@ -367,31 +367,31 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
 
     @Override
     public ListWorkflowExecutionsResponse ListWorkflowExecutions(
-            ListWorkflowExecutionsRequest listRequest)
-            throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
+        ListWorkflowExecutionsRequest listRequest)
+        throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
             ClientVersionNotSupportedError, TException {
       return impl.ListWorkflowExecutions(listRequest);
     }
 
     @Override
     public ListWorkflowExecutionsResponse ScanWorkflowExecutions(
-            ListWorkflowExecutionsRequest listRequest)
-            throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
+        ListWorkflowExecutionsRequest listRequest)
+        throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
             ClientVersionNotSupportedError, TException {
       return impl.ScanWorkflowExecutions(listRequest);
     }
 
     @Override
     public CountWorkflowExecutionsResponse CountWorkflowExecutions(
-            CountWorkflowExecutionsRequest countRequest)
-            throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
+        CountWorkflowExecutionsRequest countRequest)
+        throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
             ClientVersionNotSupportedError, TException {
       return impl.CountWorkflowExecutions(countRequest);
     }
 
     @Override
     public GetSearchAttributesResponse GetSearchAttributes()
-            throws InternalServiceError, ServiceBusyError, ClientVersionNotSupportedError, TException {
+        throws InternalServiceError, ServiceBusyError, ClientVersionNotSupportedError, TException {
       return impl.GetSearchAttributes();
     }
 
@@ -631,9 +631,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     }
 
     @Override
-    public void GetSearchAttributes(
-        AsyncMethodCallback resultHandler)
-        throws TException {
+    public void GetSearchAttributes(AsyncMethodCallback resultHandler) throws TException {
       impl.GetSearchAttributes();
     }
 

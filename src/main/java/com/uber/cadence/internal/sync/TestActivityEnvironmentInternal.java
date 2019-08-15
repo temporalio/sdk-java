@@ -482,7 +482,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     @Override
     public ResetWorkflowExecutionResponse ResetWorkflowExecution(
         ResetWorkflowExecutionRequest resetRequest)
-        throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError, DomainNotActiveError, LimitExceededError, ClientVersionNotSupportedError, TException {
+        throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
+            DomainNotActiveError, LimitExceededError, ClientVersionNotSupportedError, TException {
       return impl.ResetWorkflowExecution(resetRequest);
     }
 
@@ -512,21 +513,24 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     @Override
     public ListWorkflowExecutionsResponse ListWorkflowExecutions(
         ListWorkflowExecutionsRequest listRequest)
-        throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError, ClientVersionNotSupportedError, TException {
+        throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
+            ClientVersionNotSupportedError, TException {
       return impl.ListWorkflowExecutions(listRequest);
     }
 
     @Override
     public ListWorkflowExecutionsResponse ScanWorkflowExecutions(
         ListWorkflowExecutionsRequest listRequest)
-        throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError, ClientVersionNotSupportedError, TException {
+        throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
+            ClientVersionNotSupportedError, TException {
       return impl.ScanWorkflowExecutions(listRequest);
     }
 
     @Override
     public CountWorkflowExecutionsResponse CountWorkflowExecutions(
         CountWorkflowExecutionsRequest countRequest)
-        throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError, ClientVersionNotSupportedError, TException {
+        throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
+            ClientVersionNotSupportedError, TException {
       return impl.CountWorkflowExecutions(countRequest);
     }
 
@@ -772,9 +776,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
-    public void GetSearchAttributes(
-        AsyncMethodCallback resultHandler)
-        throws TException {
+    public void GetSearchAttributes(AsyncMethodCallback resultHandler) throws TException {
       impl.GetSearchAttributes(resultHandler);
     }
 

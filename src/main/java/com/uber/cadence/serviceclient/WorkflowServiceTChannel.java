@@ -1545,8 +1545,8 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   @Override
   public ResetWorkflowExecutionResponse ResetWorkflowExecution(
       ResetWorkflowExecutionRequest resetRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError, DomainNotActiveError,
-          LimitExceededError, ClientVersionNotSupportedError, TException {
+      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
+          DomainNotActiveError, LimitExceededError, ClientVersionNotSupportedError, TException {
     return null;
   }
 
@@ -1731,7 +1731,8 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       ListWorkflowExecutionsRequest request)
       throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
           ClientVersionNotSupportedError, TException {
-    return measureRemoteCall(ServiceMethod.LIST_WORKFLOW_EXECUTIONS, () -> listWorkflowExecutions(request));
+    return measureRemoteCall(
+        ServiceMethod.LIST_WORKFLOW_EXECUTIONS, () -> listWorkflowExecutions(request));
   }
 
   private ListWorkflowExecutionsResponse listWorkflowExecutions(
@@ -1739,12 +1740,12 @@ public class WorkflowServiceTChannel implements IWorkflowService {
     ThriftResponse<WorkflowService.ListWorkflowExecutions_result> response = null;
     try {
       ThriftRequest<WorkflowService.ListWorkflowExecutions_args> request =
-              buildThriftRequest(
-                      "ListWorkflowExecutions",
-                      new WorkflowService.ListWorkflowExecutions_args(listRequest));
+          buildThriftRequest(
+              "ListWorkflowExecutions",
+              new WorkflowService.ListWorkflowExecutions_args(listRequest));
       response = doRemoteCall(request);
       WorkflowService.ListWorkflowExecutions_result result =
-              response.getBody(WorkflowService.ListWorkflowExecutions_result.class);
+          response.getBody(WorkflowService.ListWorkflowExecutions_result.class);
       if (response.getResponseCode() == ResponseCode.OK) {
         return result.getSuccess();
       }
@@ -1776,20 +1777,21 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       ListWorkflowExecutionsRequest request)
       throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
           ClientVersionNotSupportedError, TException {
-    return measureRemoteCall(ServiceMethod.SCAN_WORKFLOW_EXECUTIONS, () -> scanWorkflowExecutions(request));
+    return measureRemoteCall(
+        ServiceMethod.SCAN_WORKFLOW_EXECUTIONS, () -> scanWorkflowExecutions(request));
   }
 
   private ListWorkflowExecutionsResponse scanWorkflowExecutions(
-          ListWorkflowExecutionsRequest listRequest) throws TException {
+      ListWorkflowExecutionsRequest listRequest) throws TException {
     ThriftResponse<WorkflowService.ScanWorkflowExecutions_result> response = null;
     try {
       ThriftRequest<WorkflowService.ScanWorkflowExecutions_args> request =
-              buildThriftRequest(
-                      "ScanWorkflowExecutions",
-                      new WorkflowService.ScanWorkflowExecutions_args(listRequest));
+          buildThriftRequest(
+              "ScanWorkflowExecutions",
+              new WorkflowService.ScanWorkflowExecutions_args(listRequest));
       response = doRemoteCall(request);
       WorkflowService.ScanWorkflowExecutions_result result =
-              response.getBody(WorkflowService.ScanWorkflowExecutions_result.class);
+          response.getBody(WorkflowService.ScanWorkflowExecutions_result.class);
       if (response.getResponseCode() == ResponseCode.OK) {
         return result.getSuccess();
       }
@@ -1821,20 +1823,21 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       CountWorkflowExecutionsRequest countRequest)
       throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
           ClientVersionNotSupportedError, TException {
-    return measureRemoteCall(ServiceMethod.COUNT_WORKFLOW_EXECUTIONS, () -> countWorkflowExecutions(countRequest));
+    return measureRemoteCall(
+        ServiceMethod.COUNT_WORKFLOW_EXECUTIONS, () -> countWorkflowExecutions(countRequest));
   }
 
   private CountWorkflowExecutionsResponse countWorkflowExecutions(
-          CountWorkflowExecutionsRequest countRequest) throws TException {
+      CountWorkflowExecutionsRequest countRequest) throws TException {
     ThriftResponse<WorkflowService.CountWorkflowExecutions_result> response = null;
     try {
       ThriftRequest<WorkflowService.CountWorkflowExecutions_args> request =
-              buildThriftRequest(
-                      "CountWorkflowExecutions",
-                      new WorkflowService.CountWorkflowExecutions_args(countRequest));
+          buildThriftRequest(
+              "CountWorkflowExecutions",
+              new WorkflowService.CountWorkflowExecutions_args(countRequest));
       response = doRemoteCall(request);
       WorkflowService.CountWorkflowExecutions_result result =
-              response.getBody(WorkflowService.CountWorkflowExecutions_result.class);
+          response.getBody(WorkflowService.CountWorkflowExecutions_result.class);
       if (response.getResponseCode() == ResponseCode.OK) {
         return result.getSuccess();
       }
@@ -1871,12 +1874,10 @@ public class WorkflowServiceTChannel implements IWorkflowService {
     ThriftResponse<WorkflowService.GetSearchAttributes_result> response = null;
     try {
       ThriftRequest<WorkflowService.GetSearchAttributes_args> request =
-              buildThriftRequest(
-                      "GetSearchAttributes",
-                      new WorkflowService.GetSearchAttributes_args());
+          buildThriftRequest("GetSearchAttributes", new WorkflowService.GetSearchAttributes_args());
       response = doRemoteCall(request);
       WorkflowService.GetSearchAttributes_result result =
-              response.getBody(WorkflowService.GetSearchAttributes_result.class);
+          response.getBody(WorkflowService.GetSearchAttributes_result.class);
       if (response.getResponseCode() == ResponseCode.OK) {
         return result.getSuccess();
       }
@@ -1896,7 +1897,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
     }
   }
-
 
   @Override
   public void RespondQueryTaskCompleted(RespondQueryTaskCompletedRequest request)
@@ -2291,9 +2291,9 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
-  public void ResetWorkflowExecution(ResetWorkflowExecutionRequest resetRequest, AsyncMethodCallback resultHandler) throws TException {
-
-  }
+  public void ResetWorkflowExecution(
+      ResetWorkflowExecutionRequest resetRequest, AsyncMethodCallback resultHandler)
+      throws TException {}
 
   @Override
   public void TerminateWorkflowExecution(
@@ -2338,8 +2338,7 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
-  public void GetSearchAttributes(AsyncMethodCallback resultHandler)
-      throws TException {
+  public void GetSearchAttributes(AsyncMethodCallback resultHandler) throws TException {
     throw new UnsupportedOperationException("not implemented");
   }
 

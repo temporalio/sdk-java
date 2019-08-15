@@ -1002,6 +1002,8 @@ public class WorkflowExecutionUtils {
         return EventType.StartChildWorkflowExecutionInitiated;
       case SignalExternalWorkflowExecution:
         return EventType.SignalExternalWorkflowExecutionInitiated;
+      case UpsertWorkflowSearchAttributes:
+        return EventType.UpsertWorkflowSearchAttributes;
     }
     throw new IllegalArgumentException("Unknown decisionType");
   }

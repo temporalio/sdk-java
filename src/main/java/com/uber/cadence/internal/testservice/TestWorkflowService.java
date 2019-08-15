@@ -541,7 +541,10 @@ public final class TestWorkflowService implements IWorkflowService {
 
   // TODO: https://github.com/uber/cadence-java-client/issues/359
   @Override
-  public ResetWorkflowExecutionResponse ResetWorkflowExecution(ResetWorkflowExecutionRequest resetRequest) throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError, DomainNotActiveError, LimitExceededError, ClientVersionNotSupportedError, TException {
+  public ResetWorkflowExecutionResponse ResetWorkflowExecution(
+      ResetWorkflowExecutionRequest resetRequest)
+      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
+          DomainNotActiveError, LimitExceededError, ClientVersionNotSupportedError, TException {
     return null;
   }
 
@@ -883,9 +886,9 @@ public final class TestWorkflowService implements IWorkflowService {
   }
 
   @Override
-  public void ResetWorkflowExecution(ResetWorkflowExecutionRequest resetRequest, AsyncMethodCallback resultHandler) throws TException {
-
-  }
+  public void ResetWorkflowExecution(
+      ResetWorkflowExecutionRequest resetRequest, AsyncMethodCallback resultHandler)
+      throws TException {}
 
   @Override
   public void TerminateWorkflowExecution(
@@ -930,8 +933,7 @@ public final class TestWorkflowService implements IWorkflowService {
   }
 
   @Override
-  public void GetSearchAttributes(
-      AsyncMethodCallback resultHandler) throws TException {
+  public void GetSearchAttributes(AsyncMethodCallback resultHandler) throws TException {
     throw new UnsupportedOperationException("not implemented");
   }
 

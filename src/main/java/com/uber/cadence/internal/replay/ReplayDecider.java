@@ -228,6 +228,9 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
       case DecisionTaskFailed:
         context.handleDecisionTaskFailed(event);
         break;
+      case UpsertWorkflowSearchAttributes:
+        // TODO: https://github.com/uber/cadence-java-client/issues/360
+        break;
     }
   }
 
