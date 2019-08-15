@@ -21,6 +21,9 @@ import com.google.common.base.Defaults;
 import com.uber.cadence.ActivityType;
 import com.uber.cadence.BadRequestError;
 import com.uber.cadence.CancellationAlreadyRequestedError;
+import com.uber.cadence.ClientVersionNotSupportedError;
+import com.uber.cadence.CountWorkflowExecutionsRequest;
+import com.uber.cadence.CountWorkflowExecutionsResponse;
 import com.uber.cadence.DeprecateDomainRequest;
 import com.uber.cadence.DescribeDomainRequest;
 import com.uber.cadence.DescribeDomainResponse;
@@ -31,6 +34,7 @@ import com.uber.cadence.DescribeWorkflowExecutionResponse;
 import com.uber.cadence.DomainAlreadyExistsError;
 import com.uber.cadence.DomainNotActiveError;
 import com.uber.cadence.EntityNotExistsError;
+import com.uber.cadence.GetSearchAttributesResponse;
 import com.uber.cadence.GetWorkflowExecutionHistoryRequest;
 import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
 import com.uber.cadence.InternalServiceError;
@@ -41,6 +45,8 @@ import com.uber.cadence.ListDomainsRequest;
 import com.uber.cadence.ListDomainsResponse;
 import com.uber.cadence.ListOpenWorkflowExecutionsRequest;
 import com.uber.cadence.ListOpenWorkflowExecutionsResponse;
+import com.uber.cadence.ListWorkflowExecutionsRequest;
+import com.uber.cadence.ListWorkflowExecutionsResponse;
 import com.uber.cadence.PollForActivityTaskRequest;
 import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.PollForDecisionTaskRequest;
@@ -55,6 +61,8 @@ import com.uber.cadence.RegisterDomainRequest;
 import com.uber.cadence.RequestCancelWorkflowExecutionRequest;
 import com.uber.cadence.ResetStickyTaskListRequest;
 import com.uber.cadence.ResetStickyTaskListResponse;
+import com.uber.cadence.ResetWorkflowExecutionRequest;
+import com.uber.cadence.ResetWorkflowExecutionResponse;
 import com.uber.cadence.RespondActivityTaskCanceledByIDRequest;
 import com.uber.cadence.RespondActivityTaskCanceledRequest;
 import com.uber.cadence.RespondActivityTaskCompletedByIDRequest;
@@ -472,6 +480,13 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
+    public ResetWorkflowExecutionResponse ResetWorkflowExecution(
+        ResetWorkflowExecutionRequest resetRequest)
+        throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError, DomainNotActiveError, LimitExceededError, ClientVersionNotSupportedError, TException {
+      return impl.ResetWorkflowExecution(resetRequest);
+    }
+
+    @Override
     public void TerminateWorkflowExecution(TerminateWorkflowExecutionRequest terminateRequest)
         throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
             TException {
@@ -492,6 +507,33 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
             TException {
       return impl.ListClosedWorkflowExecutions(listRequest);
+    }
+
+    @Override
+    public ListWorkflowExecutionsResponse ListWorkflowExecutions(
+        ListWorkflowExecutionsRequest listRequest)
+        throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError, ClientVersionNotSupportedError, TException {
+      return impl.ListWorkflowExecutions(listRequest);
+    }
+
+    @Override
+    public ListWorkflowExecutionsResponse ScanWorkflowExecutions(
+        ListWorkflowExecutionsRequest listRequest)
+        throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError, ClientVersionNotSupportedError, TException {
+      return impl.ScanWorkflowExecutions(listRequest);
+    }
+
+    @Override
+    public CountWorkflowExecutionsResponse CountWorkflowExecutions(
+        CountWorkflowExecutionsRequest countRequest)
+        throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError, ClientVersionNotSupportedError, TException {
+      return impl.CountWorkflowExecutions(countRequest);
+    }
+
+    @Override
+    public GetSearchAttributesResponse GetSearchAttributes()
+        throws InternalServiceError, ServiceBusyError, ClientVersionNotSupportedError, TException {
+      return impl.GetSearchAttributes();
     }
 
     @Override
@@ -681,6 +723,13 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
+    public void ResetWorkflowExecution(
+        ResetWorkflowExecutionRequest resetRequest, AsyncMethodCallback resultHandler)
+        throws TException {
+      impl.ResetWorkflowExecution(resetRequest, resultHandler);
+    }
+
+    @Override
     public void TerminateWorkflowExecution(
         TerminateWorkflowExecutionRequest terminateRequest, AsyncMethodCallback resultHandler)
         throws TException {
@@ -699,6 +748,34 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         ListClosedWorkflowExecutionsRequest listRequest, AsyncMethodCallback resultHandler)
         throws TException {
       impl.ListClosedWorkflowExecutions(listRequest, resultHandler);
+    }
+
+    @Override
+    public void ListWorkflowExecutions(
+        ListWorkflowExecutionsRequest listRequest, AsyncMethodCallback resultHandler)
+        throws TException {
+      impl.ListWorkflowExecutions(listRequest, resultHandler);
+    }
+
+    @Override
+    public void ScanWorkflowExecutions(
+        ListWorkflowExecutionsRequest listRequest, AsyncMethodCallback resultHandler)
+        throws TException {
+      impl.ScanWorkflowExecutions(listRequest, resultHandler);
+    }
+
+    @Override
+    public void CountWorkflowExecutions(
+        CountWorkflowExecutionsRequest countRequest, AsyncMethodCallback resultHandler)
+        throws TException {
+      impl.CountWorkflowExecutions(countRequest, resultHandler);
+    }
+
+    @Override
+    public void GetSearchAttributes(
+        AsyncMethodCallback resultHandler)
+        throws TException {
+      impl.GetSearchAttributes(resultHandler);
     }
 
     @Override

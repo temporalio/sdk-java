@@ -20,6 +20,9 @@ package com.uber.cadence.serviceclient;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.uber.cadence.BadRequestError;
+import com.uber.cadence.ClientVersionNotSupportedError;
+import com.uber.cadence.CountWorkflowExecutionsRequest;
+import com.uber.cadence.CountWorkflowExecutionsResponse;
 import com.uber.cadence.DeprecateDomainRequest;
 import com.uber.cadence.DescribeDomainRequest;
 import com.uber.cadence.DescribeDomainResponse;
@@ -30,6 +33,7 @@ import com.uber.cadence.DescribeWorkflowExecutionResponse;
 import com.uber.cadence.DomainAlreadyExistsError;
 import com.uber.cadence.DomainNotActiveError;
 import com.uber.cadence.EntityNotExistsError;
+import com.uber.cadence.GetSearchAttributesResponse;
 import com.uber.cadence.GetWorkflowExecutionHistoryRequest;
 import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
 import com.uber.cadence.InternalServiceError;
@@ -40,6 +44,8 @@ import com.uber.cadence.ListDomainsRequest;
 import com.uber.cadence.ListDomainsResponse;
 import com.uber.cadence.ListOpenWorkflowExecutionsRequest;
 import com.uber.cadence.ListOpenWorkflowExecutionsResponse;
+import com.uber.cadence.ListWorkflowExecutionsRequest;
+import com.uber.cadence.ListWorkflowExecutionsResponse;
 import com.uber.cadence.PollForActivityTaskRequest;
 import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.PollForDecisionTaskRequest;
@@ -54,6 +60,8 @@ import com.uber.cadence.RegisterDomainRequest;
 import com.uber.cadence.RequestCancelWorkflowExecutionRequest;
 import com.uber.cadence.ResetStickyTaskListRequest;
 import com.uber.cadence.ResetStickyTaskListResponse;
+import com.uber.cadence.ResetWorkflowExecutionRequest;
+import com.uber.cadence.ResetWorkflowExecutionResponse;
 import com.uber.cadence.RespondActivityTaskCanceledByIDRequest;
 import com.uber.cadence.RespondActivityTaskCanceledRequest;
 import com.uber.cadence.RespondActivityTaskCompletedByIDRequest;
@@ -1533,6 +1541,15 @@ public class WorkflowServiceTChannel implements IWorkflowService {
         () -> signalWithStartWorkflowExecution(signalWithStartRequest));
   }
 
+  // TODO: https://github.com/uber/cadence-java-client/issues/359
+  @Override
+  public ResetWorkflowExecutionResponse ResetWorkflowExecution(
+      ResetWorkflowExecutionRequest resetRequest)
+      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError, DomainNotActiveError,
+          LimitExceededError, ClientVersionNotSupportedError, TException {
+    return null;
+  }
+
   private StartWorkflowExecutionResponse signalWithStartWorkflowExecution(
       SignalWithStartWorkflowExecutionRequest signalWithStartRequest) throws TException {
     signalWithStartRequest.setRequestId(UUID.randomUUID().toString());
@@ -1708,6 +1725,178 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
     }
   }
+
+  @Override
+  public ListWorkflowExecutionsResponse ListWorkflowExecutions(
+      ListWorkflowExecutionsRequest request)
+      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
+          ClientVersionNotSupportedError, TException {
+    return measureRemoteCall(ServiceMethod.LIST_WORKFLOW_EXECUTIONS, () -> listWorkflowExecutions(request));
+  }
+
+  private ListWorkflowExecutionsResponse listWorkflowExecutions(
+      ListWorkflowExecutionsRequest listRequest) throws TException {
+    ThriftResponse<WorkflowService.ListWorkflowExecutions_result> response = null;
+    try {
+      ThriftRequest<WorkflowService.ListWorkflowExecutions_args> request =
+              buildThriftRequest(
+                      "ListWorkflowExecutions",
+                      new WorkflowService.ListWorkflowExecutions_args(listRequest));
+      response = doRemoteCall(request);
+      WorkflowService.ListWorkflowExecutions_result result =
+              response.getBody(WorkflowService.ListWorkflowExecutions_result.class);
+      if (response.getResponseCode() == ResponseCode.OK) {
+        return result.getSuccess();
+      }
+      if (result.isSetBadRequestError()) {
+        throw result.getBadRequestError();
+      }
+      if (result.isSetInternalServiceError()) {
+        throw result.getInternalServiceError();
+      }
+      if (result.isSetEntityNotExistError()) {
+        throw result.getEntityNotExistError();
+      }
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
+      if (result.isSetClientVersionNotSupportedError()) {
+        throw result.getClientVersionNotSupportedError();
+      }
+      throw new TException("ListWorkflowExecutions failed with unknown error:" + result);
+    } finally {
+      if (response != null) {
+        response.release();
+      }
+    }
+  }
+
+  @Override
+  public ListWorkflowExecutionsResponse ScanWorkflowExecutions(
+      ListWorkflowExecutionsRequest request)
+      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
+          ClientVersionNotSupportedError, TException {
+    return measureRemoteCall(ServiceMethod.SCAN_WORKFLOW_EXECUTIONS, () -> scanWorkflowExecutions(request));
+  }
+
+  private ListWorkflowExecutionsResponse scanWorkflowExecutions(
+          ListWorkflowExecutionsRequest listRequest) throws TException {
+    ThriftResponse<WorkflowService.ScanWorkflowExecutions_result> response = null;
+    try {
+      ThriftRequest<WorkflowService.ScanWorkflowExecutions_args> request =
+              buildThriftRequest(
+                      "ScanWorkflowExecutions",
+                      new WorkflowService.ScanWorkflowExecutions_args(listRequest));
+      response = doRemoteCall(request);
+      WorkflowService.ScanWorkflowExecutions_result result =
+              response.getBody(WorkflowService.ScanWorkflowExecutions_result.class);
+      if (response.getResponseCode() == ResponseCode.OK) {
+        return result.getSuccess();
+      }
+      if (result.isSetBadRequestError()) {
+        throw result.getBadRequestError();
+      }
+      if (result.isSetInternalServiceError()) {
+        throw result.getInternalServiceError();
+      }
+      if (result.isSetEntityNotExistError()) {
+        throw result.getEntityNotExistError();
+      }
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
+      if (result.isSetClientVersionNotSupportedError()) {
+        throw result.getClientVersionNotSupportedError();
+      }
+      throw new TException("ScanWorkflowExecutions failed with unknown error:" + result);
+    } finally {
+      if (response != null) {
+        response.release();
+      }
+    }
+  }
+
+  @Override
+  public CountWorkflowExecutionsResponse CountWorkflowExecutions(
+      CountWorkflowExecutionsRequest countRequest)
+      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
+          ClientVersionNotSupportedError, TException {
+    return measureRemoteCall(ServiceMethod.COUNT_WORKFLOW_EXECUTIONS, () -> countWorkflowExecutions(countRequest));
+  }
+
+  private CountWorkflowExecutionsResponse countWorkflowExecutions(
+          CountWorkflowExecutionsRequest countRequest) throws TException {
+    ThriftResponse<WorkflowService.CountWorkflowExecutions_result> response = null;
+    try {
+      ThriftRequest<WorkflowService.CountWorkflowExecutions_args> request =
+              buildThriftRequest(
+                      "CountWorkflowExecutions",
+                      new WorkflowService.CountWorkflowExecutions_args(countRequest));
+      response = doRemoteCall(request);
+      WorkflowService.CountWorkflowExecutions_result result =
+              response.getBody(WorkflowService.CountWorkflowExecutions_result.class);
+      if (response.getResponseCode() == ResponseCode.OK) {
+        return result.getSuccess();
+      }
+      if (result.isSetBadRequestError()) {
+        throw result.getBadRequestError();
+      }
+      if (result.isSetInternalServiceError()) {
+        throw result.getInternalServiceError();
+      }
+      if (result.isSetEntityNotExistError()) {
+        throw result.getEntityNotExistError();
+      }
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
+      if (result.isSetClientVersionNotSupportedError()) {
+        throw result.getClientVersionNotSupportedError();
+      }
+      throw new TException("CountWorkflowExecutions failed with unknown error:" + result);
+    } finally {
+      if (response != null) {
+        response.release();
+      }
+    }
+  }
+
+  @Override
+  public GetSearchAttributesResponse GetSearchAttributes()
+      throws InternalServiceError, ServiceBusyError, ClientVersionNotSupportedError, TException {
+    return measureRemoteCall(ServiceMethod.GET_SEARCH_ATTRIBUTES, () -> getSearchAttributes());
+  }
+
+  private GetSearchAttributesResponse getSearchAttributes() throws TException {
+    ThriftResponse<WorkflowService.GetSearchAttributes_result> response = null;
+    try {
+      ThriftRequest<WorkflowService.GetSearchAttributes_args> request =
+              buildThriftRequest(
+                      "GetSearchAttributes",
+                      new WorkflowService.GetSearchAttributes_args());
+      response = doRemoteCall(request);
+      WorkflowService.GetSearchAttributes_result result =
+              response.getBody(WorkflowService.GetSearchAttributes_result.class);
+      if (response.getResponseCode() == ResponseCode.OK) {
+        return result.getSuccess();
+      }
+      if (result.isSetInternalServiceError()) {
+        throw result.getInternalServiceError();
+      }
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
+      if (result.isSetClientVersionNotSupportedError()) {
+        throw result.getClientVersionNotSupportedError();
+      }
+      throw new TException("GetSearchAttributes failed with unknown error:" + result);
+    } finally {
+      if (response != null) {
+        response.release();
+      }
+    }
+  }
+
 
   @Override
   public void RespondQueryTaskCompleted(RespondQueryTaskCompletedRequest request)
@@ -2102,6 +2291,11 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
+  public void ResetWorkflowExecution(ResetWorkflowExecutionRequest resetRequest, AsyncMethodCallback resultHandler) throws TException {
+
+  }
+
+  @Override
   public void TerminateWorkflowExecution(
       TerminateWorkflowExecutionRequest terminateRequest, AsyncMethodCallback resultHandler)
       throws TException {
@@ -2118,6 +2312,33 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   @Override
   public void ListClosedWorkflowExecutions(
       ListClosedWorkflowExecutionsRequest listRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void ListWorkflowExecutions(
+      ListWorkflowExecutionsRequest listRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void ScanWorkflowExecutions(
+      ListWorkflowExecutionsRequest listRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void CountWorkflowExecutions(
+      CountWorkflowExecutionsRequest countRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void GetSearchAttributes(AsyncMethodCallback resultHandler)
       throws TException {
     throw new UnsupportedOperationException("not implemented");
   }
