@@ -7,7 +7,7 @@ buildscript {
 plugins {
     id 'net.minecrell.licenser' version '0.3'
     id "com.github.sherter.google-java-format" version "0.6"
-    id "net.ltgt.errorprone" version "0.0.13"
+    id "net.ltgt.errorprone" version "0.6"
 }
 
 repositories {
@@ -45,6 +45,8 @@ sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
 dependencies {
+    errorproneJavac("com.google.errorprone:javac:9+181-r4173-1")
+    errorprone("com.google.errorprone:error_prone_core:2.3.1")
     compile group: 'com.uber.tchannel', name: 'tchannel-core', version: '0.8.5'
     compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
     compile group: 'org.apache.thrift', name: 'libthrift', version: '0.9.3'
@@ -65,8 +67,8 @@ license {
 compileJava {
     dependsOn 'googleJavaFormat'
     options.encoding = 'UTF-8'
-    options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation" << "-XepExcludedPaths:" +
-            ".*/generated-sources/.*" << "-Werror"
+    options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation" << "-Werror"
+    options.errorprone.errorproneArgs << "-XepExcludedPaths:.*/generated-sources/.*"
 }
 
 // Generation version.properties for value to be included into the request header
@@ -90,8 +92,8 @@ classes {
 
 compileTestJava {
     options.encoding = 'UTF-8'
-    options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation" << "-XepExcludedPaths:" +
-            ".*/generated-sources/.*" << "-Werror"
+    options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation" << "-Werror"
+    options.errorprone.errorproneArgs << "-XepExcludedPaths:.*/generated-sources/.*"
 }
 
 if (JavaVersion.current().isJava8Compatible()) {

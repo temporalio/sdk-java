@@ -1,4 +1,4 @@
-FROM openjdk:8-jre
+FROM openjdk:8
 
 ENV APACHE_THRIFT_VERSION=0.9.3
 
