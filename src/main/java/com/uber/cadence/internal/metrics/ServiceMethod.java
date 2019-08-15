@@ -29,6 +29,14 @@ public class ServiceMethod {
       MetricsType.CADENCE_METRICS_PREFIX + "ListClosedWorkflowExecutions";
   public static final String LIST_OPEN_WORKFLOW_EXECUTIONS =
       MetricsType.CADENCE_METRICS_PREFIX + "ListOpenWorkflowExecutions";
+  public static final String LIST_WORKFLOW_EXECUTIONS =
+      MetricsType.CADENCE_METRICS_PREFIX + "ListWorkflowExecutions";
+  public static final String SCAN_WORKFLOW_EXECUTIONS =
+      MetricsType.CADENCE_METRICS_PREFIX + "ScanWorkflowExecutions";
+  public static final String COUNT_WORKFLOW_EXECUTIONS =
+      MetricsType.CADENCE_METRICS_PREFIX + "CountWorkflowExecutions";
+  public static final String GET_SEARCH_ATTRIBUTES =
+      MetricsType.CADENCE_METRICS_PREFIX + "GetSearchAttributes";
   public static final String POLL_FOR_ACTIVITY_TASK =
       MetricsType.CADENCE_METRICS_PREFIX + "PollForActivityTask";
   public static final String POLL_FOR_DECISION_TASK =

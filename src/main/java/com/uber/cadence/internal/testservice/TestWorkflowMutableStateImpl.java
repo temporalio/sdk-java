@@ -347,6 +347,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         processRequestCancelExternalWorkflowExecution(
             ctx, d.getRequestCancelExternalWorkflowExecutionDecisionAttributes());
         break;
+      case UpsertWorkflowSearchAttributes:
+        // TODO: https://github.com/uber/cadence-java-client/issues/360
+        break;
     }
   }
 

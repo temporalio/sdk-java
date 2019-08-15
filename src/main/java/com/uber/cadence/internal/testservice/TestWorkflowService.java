@@ -18,6 +18,9 @@
 package com.uber.cadence.internal.testservice;
 
 import com.uber.cadence.BadRequestError;
+import com.uber.cadence.ClientVersionNotSupportedError;
+import com.uber.cadence.CountWorkflowExecutionsRequest;
+import com.uber.cadence.CountWorkflowExecutionsResponse;
 import com.uber.cadence.DeprecateDomainRequest;
 import com.uber.cadence.DescribeDomainRequest;
 import com.uber.cadence.DescribeDomainResponse;
@@ -28,6 +31,7 @@ import com.uber.cadence.DescribeWorkflowExecutionResponse;
 import com.uber.cadence.DomainAlreadyExistsError;
 import com.uber.cadence.DomainNotActiveError;
 import com.uber.cadence.EntityNotExistsError;
+import com.uber.cadence.GetSearchAttributesResponse;
 import com.uber.cadence.GetWorkflowExecutionHistoryRequest;
 import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
 import com.uber.cadence.InternalServiceError;
@@ -38,6 +42,8 @@ import com.uber.cadence.ListDomainsRequest;
 import com.uber.cadence.ListDomainsResponse;
 import com.uber.cadence.ListOpenWorkflowExecutionsRequest;
 import com.uber.cadence.ListOpenWorkflowExecutionsResponse;
+import com.uber.cadence.ListWorkflowExecutionsRequest;
+import com.uber.cadence.ListWorkflowExecutionsResponse;
 import com.uber.cadence.PollForActivityTaskRequest;
 import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.PollForDecisionTaskRequest;
@@ -52,6 +58,8 @@ import com.uber.cadence.RegisterDomainRequest;
 import com.uber.cadence.RequestCancelWorkflowExecutionRequest;
 import com.uber.cadence.ResetStickyTaskListRequest;
 import com.uber.cadence.ResetStickyTaskListResponse;
+import com.uber.cadence.ResetWorkflowExecutionRequest;
+import com.uber.cadence.ResetWorkflowExecutionResponse;
 import com.uber.cadence.RespondActivityTaskCanceledByIDRequest;
 import com.uber.cadence.RespondActivityTaskCanceledRequest;
 import com.uber.cadence.RespondActivityTaskCompletedByIDRequest;
@@ -531,6 +539,15 @@ public final class TestWorkflowService implements IWorkflowService {
         startRequest, 0, Optional.empty(), OptionalLong.empty(), Optional.of(signalRequest));
   }
 
+  // TODO: https://github.com/uber/cadence-java-client/issues/359
+  @Override
+  public ResetWorkflowExecutionResponse ResetWorkflowExecution(
+      ResetWorkflowExecutionRequest resetRequest)
+      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
+          DomainNotActiveError, LimitExceededError, ClientVersionNotSupportedError, TException {
+    return null;
+  }
+
   public void signalExternalWorkflowExecution(
       String signalId,
       SignalExternalWorkflowExecutionDecisionAttributes a,
@@ -640,6 +657,36 @@ public final class TestWorkflowService implements IWorkflowService {
     List<WorkflowExecutionInfo> result =
         store.listWorkflows(WorkflowState.CLOSED, workflowIdFilter);
     return new ListClosedWorkflowExecutionsResponse().setExecutions(result);
+  }
+
+  @Override
+  public ListWorkflowExecutionsResponse ListWorkflowExecutions(
+      ListWorkflowExecutionsRequest listRequest)
+      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
+          ClientVersionNotSupportedError, TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public ListWorkflowExecutionsResponse ScanWorkflowExecutions(
+      ListWorkflowExecutionsRequest listRequest)
+      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
+          ClientVersionNotSupportedError, TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public CountWorkflowExecutionsResponse CountWorkflowExecutions(
+      CountWorkflowExecutionsRequest countRequest)
+      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
+          ClientVersionNotSupportedError, TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public GetSearchAttributesResponse GetSearchAttributes()
+      throws InternalServiceError, ServiceBusyError, ClientVersionNotSupportedError, TException {
+    throw new UnsupportedOperationException("not implemented");
   }
 
   @Override
@@ -839,6 +886,11 @@ public final class TestWorkflowService implements IWorkflowService {
   }
 
   @Override
+  public void ResetWorkflowExecution(
+      ResetWorkflowExecutionRequest resetRequest, AsyncMethodCallback resultHandler)
+      throws TException {}
+
+  @Override
   public void TerminateWorkflowExecution(
       TerminateWorkflowExecutionRequest terminateRequest, AsyncMethodCallback resultHandler)
       throws TException {
@@ -856,6 +908,32 @@ public final class TestWorkflowService implements IWorkflowService {
   public void ListClosedWorkflowExecutions(
       ListClosedWorkflowExecutionsRequest listRequest, AsyncMethodCallback resultHandler)
       throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void ListWorkflowExecutions(
+      ListWorkflowExecutionsRequest listRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void ScanWorkflowExecutions(
+      ListWorkflowExecutionsRequest listRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void CountWorkflowExecutions(
+      CountWorkflowExecutionsRequest countRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public void GetSearchAttributes(AsyncMethodCallback resultHandler) throws TException {
     throw new UnsupportedOperationException("not implemented");
   }
 
