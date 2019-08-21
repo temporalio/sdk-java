@@ -139,24 +139,24 @@ class WorkflowStubImpl implements WorkflowStub {
     }
     p.setInput(dataConverter.toData(args));
     p.setWorkflowType(new WorkflowType().setName(workflowType.get()));
-    p.setMemo(convertMemoFromObjectToBytes(o.getMemo()));
+    p.setMemo(convertMapFromObjectToBytes(o.getMemo()));
+    p.setSearchAttributes(convertMapFromObjectToBytes(o.getSearchAttributes()));
     return p;
   }
 
-  private Map<String, byte[]> convertMemoFromObjectToBytes(Map<String, Object> memoFromOption) {
-    if (memoFromOption == null) {
+  private Map<String, byte[]> convertMapFromObjectToBytes(Map<String, Object> map) {
+    if (map == null) {
       return null;
     }
-    Map<String, byte[]> memo = new HashMap<>();
-    for (Map.Entry<String, Object> item : memoFromOption.entrySet()) {
+    Map<String, byte[]> result = new HashMap<>();
+    for (Map.Entry<String, Object> item : map.entrySet()) {
       try {
-        memo.put(item.getKey(), dataConverter.toData(item.getValue()));
+        result.put(item.getKey(), dataConverter.toData(item.getValue()));
       } catch (DataConverterException e) {
-        throw new DataConverterException(
-            "Cannot serialize memo for key " + item.getKey(), e.getCause());
+        throw new DataConverterException("Cannot serialize key " + item.getKey(), e.getCause());
       }
     }
-    return memo;
+    return result;
   }
 
   @Override

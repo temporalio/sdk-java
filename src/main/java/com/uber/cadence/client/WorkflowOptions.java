@@ -64,6 +64,7 @@ public final class WorkflowOptions {
         .setRetryOptions(RetryOptions.merge(methodRetry, o.getRetryOptions()))
         .setCronSchedule(OptionsUtils.merge(cronAnnotation, o.getCronSchedule(), String.class))
         .setMemo(o.getMemo())
+        .setSearchAttributes(o.getSearchAttributes())
         .validateBuildWithDefaults();
   }
 
@@ -87,6 +88,8 @@ public final class WorkflowOptions {
 
     private Map<String, Object> memo;
 
+    private Map<String, Object> searchAttributes;
+
     public Builder() {}
 
     public Builder(WorkflowOptions o) {
@@ -102,6 +105,7 @@ public final class WorkflowOptions {
       this.retryOptions = o.retryOptions;
       this.cronSchedule = o.cronSchedule;
       this.memo = o.memo;
+      this.searchAttributes = o.searchAttributes;
     }
 
     /**
@@ -192,6 +196,12 @@ public final class WorkflowOptions {
       return this;
     }
 
+    /** Specifies additional indexed information in result of list workflow. */
+    public Builder setSearchAttributes(Map<String, Object> searchAttributes) {
+      this.searchAttributes = searchAttributes;
+      return this;
+    }
+
     public WorkflowOptions build() {
       return new WorkflowOptions(
           workflowId,
@@ -202,7 +212,8 @@ public final class WorkflowOptions {
           childPolicy,
           retryOptions,
           cronSchedule,
-          memo);
+          memo,
+          searchAttributes);
     }
 
     /**
@@ -248,7 +259,8 @@ public final class WorkflowOptions {
           childPolicy,
           retryOptions,
           cronSchedule,
-          memo);
+          memo,
+          searchAttributes);
     }
   }
 
@@ -270,6 +282,8 @@ public final class WorkflowOptions {
 
   private Map<String, Object> memo;
 
+  private Map<String, Object> searchAttributes;
+
   private WorkflowOptions(
       String workflowId,
       WorkflowIdReusePolicy workflowIdReusePolicy,
@@ -279,7 +293,8 @@ public final class WorkflowOptions {
       ChildPolicy childPolicy,
       RetryOptions retryOptions,
       String cronSchedule,
-      Map<String, Object> memo) {
+      Map<String, Object> memo,
+      Map<String, Object> searchAttributes) {
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
     this.executionStartToCloseTimeout = executionStartToCloseTimeout;
@@ -289,6 +304,7 @@ public final class WorkflowOptions {
     this.retryOptions = retryOptions;
     this.cronSchedule = cronSchedule;
     this.memo = memo;
+    this.searchAttributes = searchAttributes;
   }
 
   public String getWorkflowId() {
@@ -327,6 +343,10 @@ public final class WorkflowOptions {
     return memo;
   }
 
+  public Map<String, Object> getSearchAttributes() {
+    return searchAttributes;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -340,7 +360,8 @@ public final class WorkflowOptions {
         && childPolicy == that.childPolicy
         && Objects.equals(retryOptions, that.retryOptions)
         && Objects.equals(cronSchedule, that.cronSchedule)
-        && Objects.equals(memo, that.memo);
+        && Objects.equals(memo, that.memo)
+        && Objects.equals(searchAttributes, that.searchAttributes);
   }
 
   @Override
@@ -354,7 +375,8 @@ public final class WorkflowOptions {
         childPolicy,
         retryOptions,
         cronSchedule,
-        memo);
+        memo,
+        searchAttributes);
   }
 
   @Override
@@ -381,6 +403,9 @@ public final class WorkflowOptions {
         + '\''
         + ", memo='"
         + memo
+        + '\''
+        + ", searchAttributes='"
+        + searchAttributes
         + '\''
         + '}';
   }

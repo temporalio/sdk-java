@@ -30,6 +30,7 @@ import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.Memo;
+import com.uber.cadence.SearchAttributes;
 import com.uber.cadence.SignalExternalWorkflowExecutionFailedCause;
 import com.uber.cadence.TimeoutType;
 import com.uber.cadence.WorkflowExecution;
@@ -1386,6 +1387,34 @@ public class WorkflowTest {
       String memoRetrieved =
           JsonDataConverter.getInstance().fromData(memoBytes, String.class, String.class);
       assertEquals(testMemoValue, memoRetrieved);
+    }
+  }
+
+  @Test
+  public void testSearchAttributes() {
+    if (testEnvironment != null) {
+      String testKey = "CustomKeywordField";
+      String testValue = "testKeyword";
+      Map<String, Object> searchAttr = new HashMap<>();
+      searchAttr.put(testKey, testValue);
+
+      startWorkerFor(TestMultiargsWorkflowsImpl.class);
+      WorkflowOptions workflowOptions =
+          newWorkflowOptionsBuilder(taskList).setSearchAttributes(searchAttr).build();
+      TestMultiargsWorkflowsFunc stubF =
+          workflowClient.newWorkflowStub(TestMultiargsWorkflowsFunc.class, workflowOptions);
+      WorkflowExecution executionF = WorkflowClient.start(stubF::func);
+
+      GetWorkflowExecutionHistoryResponse historyResp =
+          WorkflowExecutionUtils.getHistoryPage(
+              new byte[] {}, testEnvironment.getWorkflowService(), DOMAIN, executionF);
+      HistoryEvent startEvent = historyResp.history.getEvents().get(0);
+      SearchAttributes searchAttrFromEvent =
+          startEvent.workflowExecutionStartedEventAttributes.getSearchAttributes();
+      byte[] searchAttrBytes = searchAttrFromEvent.getIndexedFields().get(testKey).array();
+      String searchAttrRetrieved =
+          JsonDataConverter.getInstance().fromData(searchAttrBytes, String.class, String.class);
+      assertEquals(testValue, searchAttrRetrieved);
     }
   }
 
