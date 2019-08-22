@@ -68,7 +68,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
    * default port (7933).
    *
    * @param domain domain that worker uses to poll.
-   * @param options Options (like {@link com.uber.cadence.converter.DataConverter}er override) for
+   * @param options Options (like {@link com.uber.cadence.converter.DataConverter} override) for
    *     configuring client.
    */
   public static WorkflowClient newInstance(String domain, WorkflowClientOptions options) {
@@ -95,7 +95,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
    * @param host of the Cadence Service endpoint
    * @param port of the Cadence Service endpoint
    * @param domain domain that worker uses to poll.
-   * @param options Options (like {@link com.uber.cadence.converter.DataConverter}er override) for
+   * @param options Options (like {@link com.uber.cadence.converter.DataConverter} override) for
    *     configuring client.
    */
   public static WorkflowClient newInstance(
@@ -118,7 +118,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
    *
    * @param service client to the Cadence Service endpoint.
    * @param domain domain that worker uses to poll.
-   * @param options Options (like {@link com.uber.cadence.converter.DataConverter}er override) for
+   * @param options Options (like {@link com.uber.cadence.converter.DataConverter} override) for
    *     configuring client.
    */
   public static WorkflowClient newInstance(

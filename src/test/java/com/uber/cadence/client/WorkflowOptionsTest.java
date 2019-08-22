@@ -25,6 +25,7 @@ import com.uber.cadence.workflow.ChildWorkflowOptions;
 import com.uber.cadence.workflow.WorkflowMethod;
 import java.lang.reflect.Method;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Assert;
@@ -44,6 +45,7 @@ public class WorkflowOptionsTest {
             .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
             .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
             .setMemo(getTestMemo())
+            .setSearchAttributes(getTestSearchAttributes())
             .build();
     WorkflowMethod a =
         WorkflowOptionsTest.class
@@ -102,6 +104,8 @@ public class WorkflowOptionsTest {
             .build();
 
     Map<String, Object> memo = getTestMemo();
+    Map<String, Object> searchAttributes = getTestSearchAttributes();
+
     WorkflowOptions o =
         new WorkflowOptions.Builder()
             .setTaskList("foo")
@@ -112,6 +116,7 @@ public class WorkflowOptionsTest {
             .setRetryOptions(retryOptions)
             .setCronSchedule("* 1 * * *")
             .setMemo(memo)
+            .setSearchAttributes(searchAttributes)
             .build();
     Method method = WorkflowOptionsTest.class.getMethod("workflowOptions");
     WorkflowMethod a = method.getAnnotation(WorkflowMethod.class);
@@ -121,6 +126,7 @@ public class WorkflowOptionsTest {
     Assert.assertEquals(retryOptions, merged.getRetryOptions());
     Assert.assertEquals("* 1 * * *", merged.getCronSchedule());
     Assert.assertEquals(memo, merged.getMemo());
+    Assert.assertEquals(searchAttributes, merged.getSearchAttributes());
   }
 
   @Test
@@ -136,6 +142,7 @@ public class WorkflowOptionsTest {
             .build();
 
     Map<String, Object> memo = getTestMemo();
+    Map<String, Object> searchAttributes = getTestSearchAttributes();
     ChildWorkflowOptions o =
         new ChildWorkflowOptions.Builder()
             .setTaskList("foo")
@@ -146,6 +153,7 @@ public class WorkflowOptionsTest {
             .setRetryOptions(retryOptions)
             .setCronSchedule("* 1 * * *")
             .setMemo(memo)
+            .setSearchAttributes(searchAttributes)
             .build();
     Method method = WorkflowOptionsTest.class.getMethod("defaultWorkflowOptions");
     WorkflowMethod a = method.getAnnotation(WorkflowMethod.class);
@@ -155,10 +163,11 @@ public class WorkflowOptionsTest {
     Assert.assertEquals(retryOptions, merged.getRetryOptions());
     Assert.assertEquals("* 1 * * *", merged.getCronSchedule());
     Assert.assertEquals(memo, merged.getMemo());
+    Assert.assertEquals(searchAttributes, merged.getSearchAttributes());
   }
 
   @WorkflowMethod
-  @CronSchedule("asdf * * * *")
+  @CronSchedule("invalid * * * *")
   public void invalidCronScheduleAnnotation() {}
 
   @Test
@@ -186,6 +195,17 @@ public class WorkflowOptionsTest {
   private Map<String, Object> getTestMemo() {
     Map<String, Object> memo = new HashMap<>();
     memo.put("testKey", "testObject");
+    memo.put("objectKey", new WorkflowOptions.Builder().build());
     return memo;
+  }
+
+  private Map<String, Object> getTestSearchAttributes() {
+    Map<String, Object> searchAttr = new HashMap<>();
+    searchAttr.put("CustomKeywordField", "testKey");
+    searchAttr.put("CustomIntField", 1);
+    searchAttr.put("CustomDoubleField", 1.23);
+    searchAttr.put("CustomBoolField", false);
+    searchAttr.put("CustomDatetimeField", LocalDateTime.now());
+    return searchAttr;
   }
 }

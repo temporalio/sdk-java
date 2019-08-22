@@ -23,6 +23,7 @@ import com.uber.cadence.QueryWorkflowRequest;
 import com.uber.cadence.QueryWorkflowResponse;
 import com.uber.cadence.RequestCancelWorkflowExecutionRequest;
 import com.uber.cadence.RetryPolicy;
+import com.uber.cadence.SearchAttributes;
 import com.uber.cadence.SignalWithStartWorkflowExecutionRequest;
 import com.uber.cadence.SignalWorkflowExecutionRequest;
 import com.uber.cadence.StartWorkflowExecutionRequest;
@@ -117,6 +118,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
       request.setCronSchedule(startParameters.getCronSchedule());
     }
     request.setMemo(toMemoThrift(startParameters.getMemo()));
+    request.setSearchAttributes(toSearchAttributesThrift(startParameters.getSearchAttributes()));
 
     //        if(startParameters.getChildPolicy() != null) {
     //            request.setChildPolicy(startParameters.getChildPolicy());
@@ -152,6 +154,20 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     Memo memoThrift = new Memo();
     memoThrift.setFields(fields);
     return memoThrift;
+  }
+
+  private SearchAttributes toSearchAttributesThrift(Map<String, byte[]> searchAttributes) {
+    if (searchAttributes == null || searchAttributes.isEmpty()) {
+      return null;
+    }
+
+    Map<String, ByteBuffer> fields = new HashMap<>();
+    for (Map.Entry<String, byte[]> item : searchAttributes.entrySet()) {
+      fields.put(item.getKey(), ByteBuffer.wrap(item.getValue()));
+    }
+    SearchAttributes searchAttrThrift = new SearchAttributes();
+    searchAttrThrift.setIndexedFields(fields);
+    return searchAttrThrift;
   }
 
   private RetryPolicy toRetryPolicy(RetryParameters retryParameters) {

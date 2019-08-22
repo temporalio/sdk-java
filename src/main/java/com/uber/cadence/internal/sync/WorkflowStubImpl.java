@@ -33,6 +33,7 @@ import com.uber.cadence.client.WorkflowServiceException;
 import com.uber.cadence.client.WorkflowStub;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.converter.DataConverterException;
+import com.uber.cadence.converter.JsonDataConverter;
 import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.internal.common.SignalWithStartWorkflowExecutionParameters;
 import com.uber.cadence.internal.common.StartWorkflowExecutionParameters;
@@ -140,23 +141,32 @@ class WorkflowStubImpl implements WorkflowStub {
     p.setInput(dataConverter.toData(args));
     p.setWorkflowType(new WorkflowType().setName(workflowType.get()));
     p.setMemo(convertMemoFromObjectToBytes(o.getMemo()));
+    p.setSearchAttributes(convertSearchAttributesFromObjectToBytes(o.getSearchAttributes()));
     return p;
   }
 
-  private Map<String, byte[]> convertMemoFromObjectToBytes(Map<String, Object> memoFromOption) {
-    if (memoFromOption == null) {
+  private Map<String, byte[]> convertMapFromObjectToBytes(
+      Map<String, Object> map, DataConverter dataConverter) {
+    if (map == null) {
       return null;
     }
-    Map<String, byte[]> memo = new HashMap<>();
-    for (Map.Entry<String, Object> item : memoFromOption.entrySet()) {
+    Map<String, byte[]> result = new HashMap<>();
+    for (Map.Entry<String, Object> item : map.entrySet()) {
       try {
-        memo.put(item.getKey(), dataConverter.toData(item.getValue()));
+        result.put(item.getKey(), dataConverter.toData(item.getValue()));
       } catch (DataConverterException e) {
-        throw new DataConverterException(
-            "Cannot serialize memo for key " + item.getKey(), e.getCause());
+        throw new DataConverterException("Cannot serialize key " + item.getKey(), e.getCause());
       }
     }
-    return memo;
+    return result;
+  }
+
+  private Map<String, byte[]> convertMemoFromObjectToBytes(Map<String, Object> map) {
+    return convertMapFromObjectToBytes(map, dataConverter);
+  }
+
+  private Map<String, byte[]> convertSearchAttributesFromObjectToBytes(Map<String, Object> map) {
+    return convertMapFromObjectToBytes(map, JsonDataConverter.getInstance());
   }
 
   @Override
