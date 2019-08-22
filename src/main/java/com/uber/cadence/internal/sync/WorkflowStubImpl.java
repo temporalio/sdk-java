@@ -33,6 +33,7 @@ import com.uber.cadence.client.WorkflowServiceException;
 import com.uber.cadence.client.WorkflowStub;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.converter.DataConverterException;
+import com.uber.cadence.converter.JsonDataConverter;
 import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.internal.common.SignalWithStartWorkflowExecutionParameters;
 import com.uber.cadence.internal.common.StartWorkflowExecutionParameters;
@@ -139,12 +140,13 @@ class WorkflowStubImpl implements WorkflowStub {
     }
     p.setInput(dataConverter.toData(args));
     p.setWorkflowType(new WorkflowType().setName(workflowType.get()));
-    p.setMemo(convertMapFromObjectToBytes(o.getMemo()));
-    p.setSearchAttributes(convertMapFromObjectToBytes(o.getSearchAttributes()));
+    p.setMemo(convertMemoFromObjectToBytes(o.getMemo()));
+    p.setSearchAttributes(convertSearchAttributesFromObjectToBytes(o.getSearchAttributes()));
     return p;
   }
 
-  private Map<String, byte[]> convertMapFromObjectToBytes(Map<String, Object> map) {
+  private Map<String, byte[]> convertMapFromObjectToBytes(
+      Map<String, Object> map, DataConverter dataConverter) {
     if (map == null) {
       return null;
     }
@@ -157,6 +159,14 @@ class WorkflowStubImpl implements WorkflowStub {
       }
     }
     return result;
+  }
+
+  private Map<String, byte[]> convertMemoFromObjectToBytes(Map<String, Object> map) {
+    return convertMapFromObjectToBytes(map, dataConverter);
+  }
+
+  private Map<String, byte[]> convertSearchAttributesFromObjectToBytes(Map<String, Object> map) {
+    return convertMapFromObjectToBytes(map, JsonDataConverter.getInstance());
   }
 
   @Override

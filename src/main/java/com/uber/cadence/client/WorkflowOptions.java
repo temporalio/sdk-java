@@ -190,13 +190,19 @@ public final class WorkflowOptions {
       return this;
     }
 
-    /** Specifies additional non-indexed information in result of list workflow. */
+    /**
+     * Specifies additional non-indexed information in result of list workflow. The type of value
+     * can be any object that are serializable by {@link com.uber.cadence.converter.DataConverter}
+     */
     public Builder setMemo(Map<String, Object> memo) {
       this.memo = memo;
       return this;
     }
 
-    /** Specifies additional indexed information in result of list workflow. */
+    /**
+     * Specifies additional indexed information in result of list workflow. The type of value should
+     * be basic type such as: String, Integer, Boolean, Double，LocalDateTime
+     */
     public Builder setSearchAttributes(Map<String, Object> searchAttributes) {
       this.searchAttributes = searchAttributes;
       return this;

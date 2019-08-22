@@ -25,6 +25,7 @@ import com.uber.cadence.workflow.ChildWorkflowOptions;
 import com.uber.cadence.workflow.WorkflowMethod;
 import java.lang.reflect.Method;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Assert;
@@ -194,12 +195,17 @@ public class WorkflowOptionsTest {
   private Map<String, Object> getTestMemo() {
     Map<String, Object> memo = new HashMap<>();
     memo.put("testKey", "testObject");
+    memo.put("objectKey", new WorkflowOptions.Builder().build());
     return memo;
   }
 
   private Map<String, Object> getTestSearchAttributes() {
     Map<String, Object> searchAttr = new HashMap<>();
     searchAttr.put("CustomKeywordField", "testKey");
+    searchAttr.put("CustomIntField", 1);
+    searchAttr.put("CustomDoubleField", 1.23);
+    searchAttr.put("CustomBoolField", false);
+    searchAttr.put("CustomDatetimeField", LocalDateTime.now());
     return searchAttr;
   }
 }
