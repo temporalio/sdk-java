@@ -256,10 +256,13 @@ class WorkflowThreadImpl implements WorkflowThread {
               cache.evictAnyNotInProcessing(
                   this.runner.getDecisionContext().getContext().getRunId());
           if (!evicted) {
-            throw e;
+            // Note here we need to throw error, not exception. Otherwise it will be
+            // translated to workflow execution exception and instead of failing the
+            // decision we will be failing the workflow.
+            throw new WorkflowRejectedExecutionError(e);
           }
         } else {
-          throw e;
+          throw new WorkflowRejectedExecutionError(e);
         }
       }
     }

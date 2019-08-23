@@ -168,6 +168,13 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
       }
       return createCompletedRequest(decisionTask, result);
     } catch (Throwable e) {
+      // Note here that the decider might not be in the cache, even sticky is on. In that case we
+      // need to close the decider explicitly.
+      // For items in the cache, invalidation callback will try to close again, which should be ok.
+      if (decider != null) {
+        decider.close();
+      }
+
       if (stickyTaskListName != null) {
         cache.invalidate(decisionTask.getWorkflowExecution().getRunId());
       }

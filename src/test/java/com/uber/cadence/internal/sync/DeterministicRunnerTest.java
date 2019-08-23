@@ -809,4 +809,28 @@ public class DeterministicRunnerTest {
       runner.close();
     }
   }
+
+  @Test
+  public void testRejectedExecutionError() {
+    ThreadPoolExecutor threadPool =
+        new ThreadPoolExecutor(0, 1, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
+
+    DeterministicRunner d =
+        new DeterministicRunnerImpl(
+            threadPool,
+            null,
+            System::currentTimeMillis,
+            () -> {
+              Promise<Void> async = Async.procedure(() -> status = "started");
+              async.get();
+            });
+
+    assertEquals("initial", status);
+
+    try {
+      d.runUntilAllBlocked();
+    } catch (Throwable t) {
+      assertTrue(t instanceof WorkflowRejectedExecutionError);
+    }
+  }
 }
