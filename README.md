@@ -40,7 +40,7 @@ or to *build.gradle*:
 
 ## Documentation
 
-The documentation on how to use the Cadence Java client is [here](https://cadenceworkflow.io/docs/04_javaclient/).
+The documentation on how to use the Cadence Java client is [here](https://cadenceworkflow.io/docs/06_javaclient/).
 
 Javadocs for the client API are located [here](https://www.javadoc.io/doc/com.uber.cadence/cadence-client).
 
