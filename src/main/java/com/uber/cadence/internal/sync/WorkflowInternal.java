@@ -296,6 +296,11 @@ public final class WorkflowInternal {
     return new CancellationScopeImpl(detached, runnable);
   }
 
+  public static CancellationScope newCancellationScope(
+      boolean detached, Functions.Proc1<CancellationScope> proc) {
+    return new CancellationScopeImpl(detached, proc);
+  }
+
   public static CancellationScopeImpl currentCancellationScope() {
     return CancellationScopeImpl.current();
   }

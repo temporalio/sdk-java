@@ -19,6 +19,7 @@ package com.uber.cadence.internal.sync;
 
 import com.uber.cadence.workflow.CancellationScope;
 import com.uber.cadence.workflow.CompletablePromise;
+import com.uber.cadence.workflow.Functions;
 import com.uber.cadence.workflow.Workflow;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -71,6 +72,13 @@ class CancellationScopeImpl implements CancellationScope {
     this.detached = detached;
     this.runnable = runnable;
     setParent(parent);
+  }
+
+  public CancellationScopeImpl(
+      boolean ignoreParentCancellation, Functions.Proc1<CancellationScope> proc) {
+    this.detached = ignoreParentCancellation;
+    this.runnable = () -> proc.apply(this);
+    setParent(current());
   }
 
   private void setParent(CancellationScopeImpl parent) {

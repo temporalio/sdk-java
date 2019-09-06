@@ -469,6 +469,64 @@ public class DeterministicRunnerTest {
   }
 
   @Test
+  public void testExplicitCancellationOnFailure() throws Throwable {
+    trace.add("init");
+    DeterministicRunner d =
+        new DeterministicRunnerImpl(
+            () -> {
+              trace.add("root started");
+              Workflow.newCancellationScope(
+                      (scope) -> {
+                        Promise<Void> p1 =
+                            Async.procedure(
+                                () -> {
+                                  trace.add("thread1 started");
+                                  try {
+                                    Workflow.sleep(Duration.ofHours(1));
+                                  } catch (Exception e) {
+                                    trace.add("thread1 exception: " + e.getClass().getSimpleName());
+                                  } finally {
+                                    trace.add("thread1 done");
+                                  }
+                                });
+                        Promise<Void> p2 =
+                            Async.procedure(
+                                    () -> {
+                                      trace.add("thread2 started");
+                                      try {
+                                        throw new RuntimeException("simulated");
+                                      } finally {
+                                        trace.add("thread2 done");
+                                      }
+                                    })
+                                .exceptionally(
+                                    ex -> {
+                                      scope.cancel();
+                                      return null;
+                                    });
+                        Promise.allOf(p1, p2).get();
+                      })
+                  .run();
+              trace.add("root done");
+            });
+
+    d.runUntilAllBlocked();
+    assertTrue(d.stackTrace(), d.isDone());
+    String[] expected =
+        new String[] {
+          "init",
+          "root started",
+          "thread1 started",
+          "thread2 started",
+          "thread2 done",
+          "thread1 exception: CancellationException",
+          "thread1 done",
+          "root done"
+        };
+    trace.setExpected(expected);
+  }
+
+  @Test
   public void testDetachedCancellation() throws Throwable {
     trace.add("init");
     DeterministicRunner d =
