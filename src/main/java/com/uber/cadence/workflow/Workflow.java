@@ -389,7 +389,7 @@ public final class Workflow {
   }
 
   /**
-   * Creates client stub to activities that implement given interface.
+   * Creates non typed client stub to activities. Allows executing activities by their string name.
    *
    * @param options specify the activity invocation parameters.
    */
@@ -420,6 +420,16 @@ public final class Workflow {
    */
   public static <T> T newLocalActivityStub(Class<T> activityInterface) {
     return WorkflowInternal.newLocalActivityStub(activityInterface, null);
+  }
+
+  /**
+   * Creates non typed client stub to local activities. Allows executing activities by their string
+   * name.
+   *
+   * @param options specify the local activity invocation parameters.
+   */
+  public static ActivityStub newUntypedLocalActivityStub(LocalActivityOptions options) {
+    return WorkflowInternal.newUntypedLocalActivityStub(options);
   }
 
   /**

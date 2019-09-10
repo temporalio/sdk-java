@@ -169,6 +169,10 @@ public final class WorkflowInternal {
     return ActivityStubImpl.newInstance(options, getWorkflowInterceptor());
   }
 
+  public static ActivityStub newUntypedLocalActivityStub(LocalActivityOptions options) {
+    return LocalActivityStubImpl.newInstance(options, getWorkflowInterceptor());
+  }
+
   @SuppressWarnings("unchecked")
   public static <T> T newChildWorkflowStub(
       Class<T> workflowInterface, ChildWorkflowOptions options) {

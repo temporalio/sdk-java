@@ -202,9 +202,9 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
       ActivityExecutionContext context =
           new ActivityExecutionContextImpl(service, domain, task, dataConverter, heartbeatExecutor);
       byte[] input = task.getInput();
-      Object[] args = dataConverter.fromDataArray(input, method.getGenericParameterTypes());
       CurrentActivityExecutionContext.set(context);
       try {
+        Object[] args = dataConverter.fromDataArray(input, method.getGenericParameterTypes());
         Object result = method.invoke(activity, args);
         RespondActivityTaskCompletedRequest request = new RespondActivityTaskCompletedRequest();
         if (context.isDoNotCompleteOnReturn()) {
@@ -239,8 +239,8 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
           new LocalActivityExecutionContextImpl(service, domain, task);
       CurrentActivityExecutionContext.set(context);
       byte[] input = task.getInput();
-      Object[] args = dataConverter.fromDataArray(input, method.getGenericParameterTypes());
       try {
+        Object[] args = dataConverter.fromDataArray(input, method.getGenericParameterTypes());
         Object result = method.invoke(activity, args);
         RespondActivityTaskCompletedRequest request = new RespondActivityTaskCompletedRequest();
         if (method.getReturnType() != Void.TYPE) {

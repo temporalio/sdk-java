@@ -4447,6 +4447,61 @@ public class WorkflowTest {
     assertTrue(result.contains("NonSerializableException"));
   }
 
+  public interface NonDeserializableArgumentsActivity {
+
+    @ActivityMethod(scheduleToCloseTimeoutSeconds = 5)
+    void execute(int arg);
+  }
+
+  public static class NonDeserializableExceptionActivityImpl
+      implements NonDeserializableArgumentsActivity {
+
+    @Override
+    public void execute(int arg) {}
+  }
+
+  public static class TestNonSerializableArgumentsInActivityWorkflow implements TestWorkflow1 {
+
+    @Override
+    public String execute(String taskList) {
+      StringBuilder result = new StringBuilder();
+      ActivityStub activity =
+          Workflow.newUntypedActivityStub(
+              new ActivityOptions.Builder()
+                  .setScheduleToCloseTimeout(Duration.ofSeconds(5))
+                  .build());
+      ActivityStub localActivity =
+          Workflow.newUntypedLocalActivityStub(
+              new LocalActivityOptions.Builder()
+                  .setScheduleToCloseTimeout(Duration.ofSeconds(5))
+                  .build());
+      try {
+        activity.execute("NonDeserializableArgumentsActivity::execute", Void.class, "boo");
+      } catch (ActivityFailureException e) {
+        result.append(e.getCause().getClass().getSimpleName());
+      }
+      result.append("-");
+      try {
+        localActivity.execute("NonDeserializableArgumentsActivity::execute", Void.class, "boo");
+      } catch (ActivityFailureException e) {
+        result.append(e.getCause().getClass().getSimpleName());
+      }
+      return result.toString();
+    }
+  }
+
+  @Test
+  public void testNonSerializableArgumentsInActivity() {
+    worker.registerActivitiesImplementations(new NonDeserializableExceptionActivityImpl());
+    startWorkerFor(TestNonSerializableArgumentsInActivityWorkflow.class);
+    TestWorkflow1 workflowStub =
+        workflowClient.newWorkflowStub(
+            TestWorkflow1.class, newWorkflowOptionsBuilder(taskList).build());
+
+    String result = workflowStub.execute(taskList);
+    assertEquals("DataConverterException-DataConverterException", result);
+  }
+
   public interface NonSerializableExceptionChildWorkflow {
 
     @WorkflowMethod
