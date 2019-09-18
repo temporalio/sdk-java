@@ -17,7 +17,6 @@
 
 package com.uber.cadence.workflow;
 
-import com.uber.cadence.ChildPolicy;
 import java.time.Duration;
 
 public interface WorkflowInfo {
@@ -33,6 +32,4 @@ public interface WorkflowInfo {
   String getTaskList();
 
   Duration getExecutionStartToCloseTimeout();
-
-  ChildPolicy getChildPolicy();
 }

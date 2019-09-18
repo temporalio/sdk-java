@@ -17,7 +17,6 @@
 
 package com.uber.cadence.internal.replay;
 
-import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.converter.DataConverter;
@@ -68,8 +67,6 @@ public interface DecisionContext extends ReplayAware {
   Duration getExecutionStartToCloseTimeout();
 
   Duration getDecisionTaskTimeout();
-
-  ChildPolicy getChildPolicy();
 
   /**
    * Used to dynamically schedule an activity for execution
