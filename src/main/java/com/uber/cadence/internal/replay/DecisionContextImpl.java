@@ -17,7 +17,6 @@
 
 package com.uber.cadence.internal.replay;
 
-import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.DecisionTaskFailedCause;
 import com.uber.cadence.DecisionTaskFailedEventAttributes;
 import com.uber.cadence.HistoryEvent;
@@ -133,11 +132,6 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   @Override
   public Duration getDecisionTaskTimeout() {
     return Duration.ofSeconds(workflowContext.getDecisionTaskTimeoutSeconds());
-  }
-
-  @Override
-  public ChildPolicy getChildPolicy() {
-    return workflowContext.getChildPolicy();
   }
 
   @Override

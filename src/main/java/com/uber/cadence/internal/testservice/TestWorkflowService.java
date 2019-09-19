@@ -598,8 +598,7 @@ public final class TestWorkflowService implements IWorkflowService {
             .setWorkflowIdReusePolicy(previousRunStartRequest.getWorkflowIdReusePolicy())
             .setIdentity(identity)
             .setRetryPolicy(previousRunStartRequest.getRetryPolicy())
-            .setCronSchedule(previousRunStartRequest.getCronSchedule())
-            .setChildPolicy(previousRunStartRequest.getChildPolicy());
+            .setCronSchedule(previousRunStartRequest.getCronSchedule());
     if (a.isSetInput()) {
       startRequest.setInput(a.getInput());
     }

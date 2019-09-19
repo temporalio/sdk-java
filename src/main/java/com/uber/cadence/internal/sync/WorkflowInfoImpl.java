@@ -17,7 +17,6 @@
 
 package com.uber.cadence.internal.sync;
 
-import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.internal.replay.DecisionContext;
 import com.uber.cadence.workflow.WorkflowInfo;
 import java.time.Duration;
@@ -58,10 +57,5 @@ final class WorkflowInfoImpl implements WorkflowInfo {
   @Override
   public Duration getExecutionStartToCloseTimeout() {
     return context.getExecutionStartToCloseTimeout();
-  }
-
-  @Override
-  public ChildPolicy getChildPolicy() {
-    return context.getChildPolicy();
   }
 }

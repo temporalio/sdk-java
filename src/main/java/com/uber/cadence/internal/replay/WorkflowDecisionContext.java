@@ -18,7 +18,6 @@
 package com.uber.cadence.internal.replay;
 
 import com.google.common.base.Strings;
-import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.ChildWorkflowExecutionCanceledEventAttributes;
 import com.uber.cadence.ChildWorkflowExecutionCompletedEventAttributes;
 import com.uber.cadence.ChildWorkflowExecutionFailedCause;
@@ -125,15 +124,6 @@ final class WorkflowDecisionContext {
     } else {
       attributes.setTaskStartToCloseTimeoutSeconds(
           (int) parameters.getTaskStartToCloseTimeoutSeconds());
-    }
-    if (parameters.getChildPolicy() == null) {
-      // TODO: Child policy from a parent as soon as it is available in the WorkflowExecutionStarted
-      // event
-      // Or when server accepts null
-      //            attributes.setChildPolicy(workflowContext.getChildPolicy());
-      attributes.setChildPolicy(ChildPolicy.TERMINATE);
-    } else {
-      attributes.setChildPolicy(parameters.getChildPolicy());
     }
     String taskList = parameters.getTaskList();
     TaskList tl = new TaskList();
