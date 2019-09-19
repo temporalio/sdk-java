@@ -19,7 +19,6 @@ package com.uber.cadence.workflow;
 
 import static com.uber.cadence.internal.common.OptionsUtils.roundUpToSeconds;
 
-import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.WorkflowIdReusePolicy;
 import com.uber.cadence.common.CronSchedule;
 import com.uber.cadence.common.MethodRetry;
@@ -73,8 +72,6 @@ public final class ChildWorkflowOptions {
 
     private String taskList;
 
-    private ChildPolicy childPolicy;
-
     private RetryOptions retryOptions;
 
     private String cronSchedule;
@@ -95,7 +92,6 @@ public final class ChildWorkflowOptions {
       this.executionStartToCloseTimeout = source.getExecutionStartToCloseTimeout();
       this.taskStartToCloseTimeout = source.getTaskStartToCloseTimeout();
       this.taskList = source.getTaskList();
-      this.childPolicy = source.getChildPolicy();
       this.retryOptions = source.getRetryOptions();
       this.cronSchedule = source.getCronSchedule();
       this.memo = source.getMemo();
@@ -178,12 +174,6 @@ public final class ChildWorkflowOptions {
       return this;
     }
 
-    /** Specifies how children of this workflow react to this workflow death. */
-    public Builder setChildPolicy(ChildPolicy childPolicy) {
-      this.childPolicy = childPolicy;
-      return this;
-    }
-
     /**
      * RetryOptions that define how child workflow is retried in case of failure. Default is null
      * which is no reties.
@@ -219,7 +209,6 @@ public final class ChildWorkflowOptions {
           taskStartToCloseTimeout,
           taskList,
           retryOptions,
-          childPolicy,
           cronSchedule,
           memo,
           searchAttributes);
@@ -234,7 +223,6 @@ public final class ChildWorkflowOptions {
           roundUpToSeconds(taskStartToCloseTimeout),
           taskList,
           retryOptions,
-          childPolicy,
           cronSchedule,
           memo,
           searchAttributes);
@@ -255,8 +243,6 @@ public final class ChildWorkflowOptions {
 
   private final RetryOptions retryOptions;
 
-  private final ChildPolicy childPolicy;
-
   private final String cronSchedule;
 
   private final Map<String, Object> memo;
@@ -271,7 +257,6 @@ public final class ChildWorkflowOptions {
       Duration taskStartToCloseTimeout,
       String taskList,
       RetryOptions retryOptions,
-      ChildPolicy childPolicy,
       String cronSchedule,
       Map<String, Object> memo,
       Map<String, Object> searchAttributes) {
@@ -282,7 +267,6 @@ public final class ChildWorkflowOptions {
     this.taskStartToCloseTimeout = taskStartToCloseTimeout;
     this.taskList = taskList;
     this.retryOptions = retryOptions;
-    this.childPolicy = childPolicy;
     this.cronSchedule = cronSchedule;
     this.memo = memo;
     this.searchAttributes = searchAttributes;
@@ -310,10 +294,6 @@ public final class ChildWorkflowOptions {
 
   public String getTaskList() {
     return taskList;
-  }
-
-  public ChildPolicy getChildPolicy() {
-    return childPolicy;
   }
 
   public RetryOptions getRetryOptions() {
@@ -345,7 +325,6 @@ public final class ChildWorkflowOptions {
         && Objects.equals(taskStartToCloseTimeout, that.taskStartToCloseTimeout)
         && Objects.equals(taskList, that.taskList)
         && Objects.equals(retryOptions, that.retryOptions)
-        && childPolicy == that.childPolicy
         && Objects.equals(cronSchedule, that.cronSchedule)
         && Objects.equals(memo, that.memo)
         && Objects.equals(searchAttributes, that.searchAttributes);
@@ -361,7 +340,6 @@ public final class ChildWorkflowOptions {
         taskStartToCloseTimeout,
         taskList,
         retryOptions,
-        childPolicy,
         cronSchedule,
         memo,
         searchAttributes);
@@ -387,8 +365,6 @@ public final class ChildWorkflowOptions {
         + '\''
         + ", retryOptions="
         + retryOptions
-        + ", childPolicy="
-        + childPolicy
         + ", cronSchedule="
         + cronSchedule
         + ", memo='"
