@@ -17,11 +17,14 @@
 
 package com.uber.cadence.internal.common;
 
+import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.WorkflowExecution;
 
 public class TerminateWorkflowExecutionParameters {
 
   private WorkflowExecution workflowExecution;
+
+  private ChildPolicy childPolicy;
 
   private String reason;
 
@@ -30,8 +33,9 @@ public class TerminateWorkflowExecutionParameters {
   public TerminateWorkflowExecutionParameters() {}
 
   public TerminateWorkflowExecutionParameters(
-      WorkflowExecution workflowExecution, String reason, byte[] details) {
+      WorkflowExecution workflowExecution, ChildPolicy childPolicy, String reason, byte[] details) {
     this.workflowExecution = workflowExecution;
+    this.childPolicy = childPolicy;
     this.reason = reason;
     this.details = details;
   }
@@ -47,6 +51,19 @@ public class TerminateWorkflowExecutionParameters {
   public TerminateWorkflowExecutionParameters withWorkflowExecution(
       WorkflowExecution workflowExecution) {
     this.workflowExecution = workflowExecution;
+    return this;
+  }
+
+  public ChildPolicy getChildPolicy() {
+    return childPolicy;
+  }
+
+  public void setChildPolicy(ChildPolicy childPolicy) {
+    this.childPolicy = childPolicy;
+  }
+
+  public TerminateWorkflowExecutionParameters withChildPolicy(ChildPolicy childPolicy) {
+    this.childPolicy = childPolicy;
     return this;
   }
 

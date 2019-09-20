@@ -526,6 +526,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       throw new BadRequestError("Required field WorkflowType is not set on decision.");
     }
 
+    if (a.getChildPolicy() == null) {
+      throw new BadRequestError("Required field ChildPolicy is not set on decision.");
+    }
+
     // Inherit tasklist from parent workflow execution if not provided on decision
     if (a.getTaskList() == null || a.getTaskList().getName().isEmpty()) {
       a.setTaskList(startRequest.getTaskList());

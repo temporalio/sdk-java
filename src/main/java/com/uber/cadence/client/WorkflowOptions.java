@@ -25,6 +25,7 @@ import com.cronutils.model.definition.CronDefinition;
 import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.cronutils.parser.CronParser;
 import com.google.common.base.Strings;
+import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.WorkflowIdReusePolicy;
 import com.uber.cadence.common.CronSchedule;
 import com.uber.cadence.common.MethodRetry;
@@ -59,6 +60,7 @@ public final class WorkflowOptions {
             OptionsUtils.merge(
                 a.executionStartToCloseTimeoutSeconds(), o.getExecutionStartToCloseTimeout()))
         .setTaskList(OptionsUtils.merge(a.taskList(), o.getTaskList(), String.class))
+        .setChildPolicy(o.getChildPolicy())
         .setRetryOptions(RetryOptions.merge(methodRetry, o.getRetryOptions()))
         .setCronSchedule(OptionsUtils.merge(cronAnnotation, o.getCronSchedule(), String.class))
         .setMemo(o.getMemo())
@@ -77,6 +79,8 @@ public final class WorkflowOptions {
     private Duration taskStartToCloseTimeout;
 
     private String taskList;
+
+    private ChildPolicy childPolicy;
 
     private RetryOptions retryOptions;
 
@@ -97,6 +101,7 @@ public final class WorkflowOptions {
       this.taskStartToCloseTimeout = o.taskStartToCloseTimeout;
       this.executionStartToCloseTimeout = o.executionStartToCloseTimeout;
       this.taskList = o.taskList;
+      this.childPolicy = o.childPolicy;
       this.retryOptions = o.retryOptions;
       this.cronSchedule = o.cronSchedule;
       this.memo = o.memo;
@@ -169,6 +174,12 @@ public final class WorkflowOptions {
       return this;
     }
 
+    /** Specifies how children of this workflow react to this workflow death. */
+    public Builder setChildPolicy(ChildPolicy childPolicy) {
+      this.childPolicy = childPolicy;
+      return this;
+    }
+
     public Builder setRetryOptions(RetryOptions retryOptions) {
       this.retryOptions = retryOptions;
       return this;
@@ -204,6 +215,7 @@ public final class WorkflowOptions {
           executionStartToCloseTimeout,
           taskStartToCloseTimeout,
           taskList,
+          childPolicy,
           retryOptions,
           cronSchedule,
           memo,
@@ -250,6 +262,7 @@ public final class WorkflowOptions {
           roundUpToSeconds(
               taskStartToCloseTimeout, OptionsUtils.DEFAULT_TASK_START_TO_CLOSE_TIMEOUT),
           taskList,
+          childPolicy,
           retryOptions,
           cronSchedule,
           memo,
@@ -267,6 +280,8 @@ public final class WorkflowOptions {
 
   private final String taskList;
 
+  private final ChildPolicy childPolicy;
+
   private RetryOptions retryOptions;
 
   private String cronSchedule;
@@ -281,6 +296,7 @@ public final class WorkflowOptions {
       Duration executionStartToCloseTimeout,
       Duration taskStartToCloseTimeout,
       String taskList,
+      ChildPolicy childPolicy,
       RetryOptions retryOptions,
       String cronSchedule,
       Map<String, Object> memo,
@@ -290,6 +306,7 @@ public final class WorkflowOptions {
     this.executionStartToCloseTimeout = executionStartToCloseTimeout;
     this.taskStartToCloseTimeout = taskStartToCloseTimeout;
     this.taskList = taskList;
+    this.childPolicy = childPolicy;
     this.retryOptions = retryOptions;
     this.cronSchedule = cronSchedule;
     this.memo = memo;
@@ -314,6 +331,10 @@ public final class WorkflowOptions {
 
   public String getTaskList() {
     return taskList;
+  }
+
+  public ChildPolicy getChildPolicy() {
+    return childPolicy;
   }
 
   public RetryOptions getRetryOptions() {
@@ -342,6 +363,7 @@ public final class WorkflowOptions {
         && Objects.equals(executionStartToCloseTimeout, that.executionStartToCloseTimeout)
         && Objects.equals(taskStartToCloseTimeout, that.taskStartToCloseTimeout)
         && Objects.equals(taskList, that.taskList)
+        && childPolicy == that.childPolicy
         && Objects.equals(retryOptions, that.retryOptions)
         && Objects.equals(cronSchedule, that.cronSchedule)
         && Objects.equals(memo, that.memo)
@@ -356,6 +378,7 @@ public final class WorkflowOptions {
         executionStartToCloseTimeout,
         taskStartToCloseTimeout,
         taskList,
+        childPolicy,
         retryOptions,
         cronSchedule,
         memo,
@@ -377,6 +400,8 @@ public final class WorkflowOptions {
         + ", taskList='"
         + taskList
         + '\''
+        + ", childPolicy="
+        + childPolicy
         + ", retryOptions="
         + retryOptions
         + ", cronSchedule='"

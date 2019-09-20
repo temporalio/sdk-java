@@ -120,6 +120,10 @@ final class WorkflowContext {
     return startedAttributes;
   }
 
+  public ChildPolicy getChildPolicy() {
+    return startedAttributes.getChildPolicy();
+  }
+
   void setCurrentRunId(String currentRunId) {
     this.currentRunId = currentRunId;
   }
