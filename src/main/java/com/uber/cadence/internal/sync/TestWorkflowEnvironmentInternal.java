@@ -50,6 +50,7 @@ import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.PollForDecisionTaskRequest;
 import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.QueryFailedError;
+import com.uber.cadence.QueryRejectCondition;
 import com.uber.cadence.QueryWorkflowRequest;
 import com.uber.cadence.QueryWorkflowResponse;
 import com.uber.cadence.RecordActivityTaskHeartbeatByIDRequest;
@@ -87,6 +88,7 @@ import com.uber.cadence.client.WorkflowClientInterceptor;
 import com.uber.cadence.client.WorkflowClientOptions;
 import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.client.WorkflowStub;
+import com.uber.cadence.internal.common.QueryResponse;
 import com.uber.cadence.internal.testservice.TestWorkflowService;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.cadence.testing.TestEnvironmentOptions;
@@ -899,6 +901,25 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
       @Override
       public <R> R query(String queryType, Class<R> resultClass, Type resultType, Object... args) {
         return next.query(queryType, resultClass, resultType, args);
+      }
+
+      @Override
+      public <R> QueryResponse<R> query(
+          String queryType,
+          Class<R> resultClass,
+          QueryRejectCondition queryRejectCondition,
+          Object... args) {
+        return next.query(queryType, resultClass, queryRejectCondition, args);
+      }
+
+      @Override
+      public <R> QueryResponse<R> query(
+          String queryType,
+          Class<R> resultClass,
+          Type resultType,
+          QueryRejectCondition queryRejectCondition,
+          Object... args) {
+        return next.query(queryType, resultClass, resultType, queryRejectCondition, args);
       }
 
       @Override

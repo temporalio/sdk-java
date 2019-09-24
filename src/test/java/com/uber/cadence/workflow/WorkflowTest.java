@@ -30,10 +30,12 @@ import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.Memo;
+import com.uber.cadence.QueryRejectCondition;
 import com.uber.cadence.SearchAttributes;
 import com.uber.cadence.SignalExternalWorkflowExecutionFailedCause;
 import com.uber.cadence.TimeoutType;
 import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowExecutionCloseStatus;
 import com.uber.cadence.WorkflowIdReusePolicy;
 import com.uber.cadence.activity.Activity;
 import com.uber.cadence.activity.ActivityMethod;
@@ -57,6 +59,7 @@ import com.uber.cadence.common.CronSchedule;
 import com.uber.cadence.common.MethodRetry;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.converter.JsonDataConverter;
+import com.uber.cadence.internal.common.QueryResponse;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
 import com.uber.cadence.internal.sync.DeterministicRunnerTest;
 import com.uber.cadence.internal.worker.PollerOptions;
@@ -2453,6 +2456,12 @@ public class WorkflowTest {
         });
     execution.set(client.start());
     assertEquals("Hello World!", client.getResult(String.class));
+    assertEquals("World!", client.query("QueryableWorkflow::getState", String.class));
+    QueryResponse<String> queryResponse =
+        client.query("QueryableWorkflow::getState", String.class, QueryRejectCondition.NOT_OPEN);
+    assertNull(queryResponse.getResult());
+    assertEquals(
+        WorkflowExecutionCloseStatus.COMPLETED, queryResponse.getQueryRejected().closeStatus);
   }
 
   static final AtomicInteger decisionCount = new AtomicInteger();

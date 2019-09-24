@@ -17,6 +17,7 @@
 
 package com.uber.cadence.internal.replay;
 
+import com.uber.cadence.QueryRejectCondition;
 import java.nio.charset.StandardCharsets;
 
 public class QueryWorkflowParameters implements Cloneable {
@@ -28,6 +29,8 @@ public class QueryWorkflowParameters implements Cloneable {
   private String queryType;
 
   private String workflowId;
+
+  private QueryRejectCondition queryRejectCondition;
 
   public QueryWorkflowParameters() {}
 
@@ -83,6 +86,20 @@ public class QueryWorkflowParameters implements Cloneable {
     return this;
   }
 
+  public QueryRejectCondition getQueryRejectCondition() {
+    return queryRejectCondition;
+  }
+
+  public void setQueryRejectCondition(QueryRejectCondition queryRejectCondition) {
+    this.queryRejectCondition = queryRejectCondition;
+  }
+
+  public QueryWorkflowParameters withQueryRejectCondition(
+      QueryRejectCondition queryRejectCondition) {
+    this.queryRejectCondition = queryRejectCondition;
+    return this;
+  }
+
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
@@ -91,6 +108,7 @@ public class QueryWorkflowParameters implements Cloneable {
     sb.append("Input: " + new String(input, 0, 512, StandardCharsets.UTF_8) + ", ");
     sb.append("WorkflowId: " + workflowId + ", ");
     sb.append("RunId: " + runId + ", ");
+    sb.append("QueryRejectCondition: " + queryRejectCondition + ", ");
     sb.append("}");
     return sb.toString();
   }
@@ -101,6 +119,7 @@ public class QueryWorkflowParameters implements Cloneable {
     result.setRunId(runId);
     result.setQueryType(queryType);
     result.setWorkflowId(workflowId);
+    result.setQueryRejectCondition(queryRejectCondition);
     return result;
   }
 }

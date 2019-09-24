@@ -17,6 +17,7 @@
 
 package com.uber.cadence.internal.external;
 
+import com.uber.cadence.QueryWorkflowResponse;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
 import com.uber.cadence.internal.common.SignalWithStartWorkflowExecutionParameters;
@@ -38,7 +39,7 @@ public interface GenericWorkflowClientExternal {
 
   void requestCancelWorkflowExecution(WorkflowExecution execution);
 
-  byte[] queryWorkflow(QueryWorkflowParameters queryParameters);
+  QueryWorkflowResponse queryWorkflow(QueryWorkflowParameters queryParameters);
 
   void terminateWorkflowExecution(TerminateWorkflowExecutionParameters terminateParameters);
 

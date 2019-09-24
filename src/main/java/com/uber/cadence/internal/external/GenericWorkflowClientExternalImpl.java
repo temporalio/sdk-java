@@ -268,7 +268,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   }
 
   @Override
-  public byte[] queryWorkflow(QueryWorkflowParameters queryParameters) {
+  public QueryWorkflowResponse queryWorkflow(QueryWorkflowParameters queryParameters) {
     QueryWorkflowRequest request = new QueryWorkflowRequest();
     request.setDomain(domain);
     WorkflowExecution execution = new WorkflowExecution();
@@ -278,12 +278,13 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     query.setQueryArgs(queryParameters.getInput());
     query.setQueryType(queryParameters.getQueryType());
     request.setQuery(query);
+    request.setQueryRejectCondition(queryParameters.getQueryRejectCondition());
     try {
       QueryWorkflowResponse response =
           Retryer.retryWithResult(
               Retryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
               () -> service.QueryWorkflow(request));
-      return response.getQueryResult();
+      return response;
     } catch (TException e) {
       throw CheckedExceptionWrapper.wrap(e);
     }
