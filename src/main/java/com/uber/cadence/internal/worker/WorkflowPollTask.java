@@ -26,6 +26,7 @@ import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
+import com.uber.m3.util.Duration;
 import java.util.Objects;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
@@ -101,6 +102,9 @@ final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskRespo
     }
 
     metricScope.counter(MetricsType.DECISION_POLL_SUCCEED_COUNTER).inc(1);
+    metricScope
+        .timer(MetricsType.DECISION_SCHEDULED_TO_START_LATENCY)
+        .record(Duration.ofNanos(result.getStartedTimestamp() - result.getScheduledTimestamp()));
     sw.stop();
     return result;
   }
