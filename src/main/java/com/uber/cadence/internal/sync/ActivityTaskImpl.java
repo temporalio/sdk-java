@@ -26,11 +26,9 @@ import java.util.concurrent.TimeUnit;
 
 final class ActivityTaskImpl implements ActivityTask {
   private final PollForActivityTaskResponse response;
-  private final String taskList;
 
-  ActivityTaskImpl(PollForActivityTaskResponse response, String taskList) {
+  ActivityTaskImpl(PollForActivityTaskResponse response) {
     this.response = response;
-    this.taskList = taskList;
   }
 
   @Override
@@ -87,11 +85,6 @@ final class ActivityTaskImpl implements ActivityTask {
   @Override
   public String getWorkflowDomain() {
     return response.getWorkflowDomain();
-  }
-
-  @Override
-  public String getTaskList() {
-    return taskList;
   }
 
   @Override

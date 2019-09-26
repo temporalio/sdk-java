@@ -19,8 +19,11 @@ package com.uber.cadence.internal.external;
 
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.converter.DataConverter;
+import com.uber.cadence.internal.metrics.MetricsTag;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.m3.tally.Scope;
+import com.uber.m3.util.ImmutableMap;
+import java.util.Map;
 
 public class ManualActivityCompletionClientFactoryImpl
     extends ManualActivityCompletionClientFactory {
@@ -35,7 +38,10 @@ public class ManualActivityCompletionClientFactoryImpl
     this.service = service;
     this.domain = domain;
     this.dataConverter = dataConverter;
-    this.metricsScope = metricsScope;
+
+    Map<String, String> tags =
+        new ImmutableMap.Builder<String, String>(1).put(MetricsTag.DOMAIN, domain).build();
+    this.metricsScope = metricsScope.tagged(tags);
   }
 
   public IWorkflowService getService() {

@@ -35,9 +35,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 public class ReplayAwareScope implements Scope {
-  private Scope scope;
-  private ReplayAware context;
-  private Supplier<Long> clock;
+  private final Scope scope;
+  private final ReplayAware context;
+  private final Supplier<Long> clock;
 
   public ReplayAwareScope(Scope scope, ReplayAware context, Supplier<Long> clock) {
     this.scope = Objects.requireNonNull(scope);

@@ -248,7 +248,7 @@ public class MetricsTest {
         sleepDuration.compareTo(com.uber.m3.util.Duration.ofMillis(3100)) < 0);
 
     Map<String, String> activityCompletionTags =
-        new ImmutableMap.Builder<String, String>(2)
+        new ImmutableMap.Builder<String, String>(3)
             .put(MetricsTag.DOMAIN, WorkflowTest.DOMAIN)
             .put(MetricsTag.TASK_LIST, taskList)
             .put(MetricsTag.ACTIVITY_TYPE, "TestActivity::runActivity")

@@ -23,10 +23,15 @@ import com.uber.cadence.MarkerRecordedEventAttributes;
 import com.uber.cadence.PollForActivityTaskResponse;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.internal.common.LocalActivityMarkerData;
+import com.uber.cadence.internal.metrics.MetricsTag;
 import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.internal.replay.ClockDecisionContext;
 import com.uber.cadence.internal.replay.ExecuteLocalActivityParameters;
+import com.uber.m3.tally.Scope;
+import com.uber.m3.tally.Stopwatch;
+import com.uber.m3.util.ImmutableMap;
 import java.time.Duration;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
@@ -198,13 +203,22 @@ public final class LocalActivityWorker implements SuspendableWorker {
     }
 
     private ActivityTaskHandler.Result handleLocalActivity(Task task) throws InterruptedException {
+      Map<String, String> activityTypeTag =
+          new ImmutableMap.Builder<String, String>(1)
+              .put(MetricsTag.ACTIVITY_TYPE, task.params.getActivityType().getName())
+              .build();
+
+      Scope metricsScope = options.getMetricsScope().tagged(activityTypeTag);
+      metricsScope.counter(MetricsType.LOCAL_ACTIVITY_TOTAL_COUNTER).inc(1);
+
       PollForActivityTaskResponse pollTask = new PollForActivityTaskResponse();
       pollTask.setActivityType(task.params.getActivityType());
       pollTask.setInput(task.params.getInput());
       pollTask.setAttempt(task.params.getAttempt());
 
-      ActivityTaskHandler.Result result =
-          handler.handle("local-activity", pollTask, options.getMetricsScope());
+      Stopwatch sw = metricsScope.timer(MetricsType.LOCAL_ACTIVITY_EXECUTION_LATENCY).start();
+      ActivityTaskHandler.Result result = handler.handle(pollTask, metricsScope, true);
+      sw.stop();
       result.setAttempt(task.params.getAttempt());
 
       if (result.getTaskCompleted() != null

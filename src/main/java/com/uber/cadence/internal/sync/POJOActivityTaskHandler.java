@@ -28,13 +28,11 @@ import com.uber.cadence.common.MethodRetry;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.common.CheckedExceptionWrapper;
 import com.uber.cadence.internal.common.InternalUtils;
-import com.uber.cadence.internal.metrics.MetricsTag;
 import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.internal.worker.ActivityTaskHandler;
 import com.uber.cadence.serviceclient.IWorkflowService;
 import com.uber.cadence.testing.SimulatedTimeoutException;
 import com.uber.m3.tally.Scope;
-import com.uber.m3.util.ImmutableMap;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -112,9 +110,12 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
   }
 
   private ActivityTaskHandler.Result mapToActivityFailure(
-      String activityType, Throwable failure, Scope metricsScope) {
+      Throwable failure, Scope metricsScope, boolean isLocalActivity) {
 
     if (failure instanceof ActivityCancelledException) {
+      if (isLocalActivity) {
+        metricsScope.counter(MetricsType.LOCAL_ACTIVITY_CANCELED_COUNTER).inc(1);
+      }
       throw new CancellationException(failure.getMessage());
     }
 
@@ -127,16 +128,21 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
               dataConverter.toData(timeoutException.getDetails()));
     }
 
-    Map<String, String> activityTypeTag =
-        new ImmutableMap.Builder<String, String>(1)
-            .put(MetricsTag.ACTIVITY_TYPE, activityType)
-            .build();
     if (failure instanceof Error) {
-      metricsScope.tagged(activityTypeTag).counter(MetricsType.ACTIVITY_TASK_ERROR_COUNTER).inc(1);
+      if (isLocalActivity) {
+        metricsScope.counter(MetricsType.LOCAL_ACTIVITY_ERROR_COUNTER).inc(1);
+      } else {
+        metricsScope.counter(MetricsType.ACTIVITY_TASK_ERROR_COUNTER).inc(1);
+      }
       throw (Error) failure;
     }
 
-    metricsScope.tagged(activityTypeTag).counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
+    if (isLocalActivity) {
+      metricsScope.counter(MetricsType.LOCAL_ACTIVITY_FAILED_COUNTER).inc(1);
+    } else {
+      metricsScope.counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
+    }
+
     RespondActivityTaskFailedRequest result = new RespondActivityTaskFailedRequest();
     failure = CheckedExceptionWrapper.unwrap(failure);
     result.setReason(failure.getClass().getName());
@@ -166,20 +172,20 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
 
   @Override
   public Result handle(
-      String taskList, PollForActivityTaskResponse pollResponse, Scope metricsScope) {
+      PollForActivityTaskResponse pollResponse, Scope metricsScope, boolean isLocalActivity) {
     String activityType = pollResponse.getActivityType().getName();
-    ActivityTaskImpl activityTask = new ActivityTaskImpl(pollResponse, taskList);
+    ActivityTaskImpl activityTask = new ActivityTaskImpl(pollResponse);
     ActivityTaskExecutor activity = activities.get(activityType);
     if (activity == null) {
       String knownTypes = Joiner.on(", ").join(activities.keySet());
       return mapToActivityFailure(
-          activityType,
           new IllegalArgumentException(
               "Activity Type \""
                   + activityType
                   + "\" is not registered with a worker. Known types are: "
                   + knownTypes),
-          metricsScope);
+          metricsScope,
+          isLocalActivity);
     }
     return activity.execute(activityTask, metricsScope);
   }
@@ -215,9 +221,9 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
         }
         return new ActivityTaskHandler.Result(request, null, null, null);
       } catch (RuntimeException | IllegalAccessException e) {
-        return mapToActivityFailure(task.getActivityType(), e, metricsScope);
+        return mapToActivityFailure(e, metricsScope, false);
       } catch (InvocationTargetException e) {
-        return mapToActivityFailure(task.getActivityType(), e.getTargetException(), metricsScope);
+        return mapToActivityFailure(e.getTargetException(), metricsScope, false);
       } finally {
         CurrentActivityExecutionContext.unset();
       }
@@ -248,9 +254,9 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
         }
         return new ActivityTaskHandler.Result(request, null, null, null);
       } catch (RuntimeException | IllegalAccessException e) {
-        return mapToActivityFailure(task.getActivityType(), e, metricsScope);
+        return mapToActivityFailure(e, metricsScope, true);
       } catch (InvocationTargetException e) {
-        return mapToActivityFailure(task.getActivityType(), e.getTargetException(), metricsScope);
+        return mapToActivityFailure(e.getTargetException(), metricsScope, true);
       } finally {
         CurrentActivityExecutionContext.unset();
       }

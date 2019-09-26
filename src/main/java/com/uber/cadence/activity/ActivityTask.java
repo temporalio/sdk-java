@@ -64,7 +64,5 @@ public interface ActivityTask {
 
   String getWorkflowDomain();
 
-  String getTaskList();
-
   int getAttempt();
 }

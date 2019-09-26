@@ -113,7 +113,7 @@ public class MetricsType {
       CADENCE_METRICS_PREFIX + "local-activity-canceled";
   public static final String LOCAL_ACTIVITY_FAILED_COUNTER =
       CADENCE_METRICS_PREFIX + "local-activity-failed";
-  public static final String LOCAL_ACTIVITY_PANIC_COUNTER =
+  public static final String LOCAL_ACTIVITY_ERROR_COUNTER =
       CADENCE_METRICS_PREFIX + "local-activity-panic";
   public static final String LOCAL_ACTIVITY_EXECUTION_LATENCY =
       CADENCE_METRICS_PREFIX + "local-activity-execution-latency";
