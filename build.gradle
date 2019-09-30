@@ -37,7 +37,7 @@ googleJavaFormat {
 }
 
 group = 'com.uber.cadence'
-version = '2.6.0'
+version = '2.6.1'
 
 description = """Uber Cadence Java Client"""
 

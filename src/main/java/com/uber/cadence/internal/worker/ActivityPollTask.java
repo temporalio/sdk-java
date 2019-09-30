@@ -95,7 +95,9 @@ final class ActivityPollTask implements Poller.PollTask<ActivityWorker.Measurabl
     options
         .getMetricsScope()
         .timer(MetricsType.ACTIVITY_SCHEDULED_TO_START_LATENCY)
-        .record(Duration.ofNanos(result.getStartedTimestamp() - result.getScheduledTimestampOfThisAttempt()));
+        .record(
+            Duration.ofNanos(
+                result.getStartedTimestamp() - result.getScheduledTimestampOfThisAttempt()));
     sw.stop();
     return new ActivityWorker.MeasurableActivityTask(result, e2eSW);
   }
