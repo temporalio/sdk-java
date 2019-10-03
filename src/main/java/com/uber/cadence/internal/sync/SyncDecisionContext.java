@@ -418,10 +418,10 @@ final class SyncDecisionContext implements WorkflowInterceptor {
       return (CancellationException) failure;
     }
     if (failure instanceof ChildWorkflowException) {
-      throw (ChildWorkflowException) failure;
+      return (ChildWorkflowException) failure;
     }
     if (!(failure instanceof ChildWorkflowTaskFailedException)) {
-      throw new IllegalArgumentException("Unexpected exception type: ", failure);
+      return new IllegalArgumentException("Unexpected exception type: ", failure);
     }
     ChildWorkflowTaskFailedException taskFailed = (ChildWorkflowTaskFailedException) failure;
     String causeClassName = taskFailed.getReason();
@@ -672,7 +672,7 @@ final class SyncDecisionContext implements WorkflowInterceptor {
     }
 
     if (!(failure instanceof SignalExternalWorkflowException)) {
-      throw new IllegalArgumentException("Unexpected exception type: ", failure);
+      return new IllegalArgumentException("Unexpected exception type: ", failure);
     }
     return (SignalExternalWorkflowException) failure;
   }

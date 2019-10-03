@@ -2557,7 +2557,7 @@ public class WorkflowTest {
   public interface ITestChild {
 
     @WorkflowMethod
-    String execute(String arg);
+    String execute(String arg, int delay);
   }
 
   public interface ITestNamedChild {
@@ -2581,17 +2581,39 @@ public class WorkflowTest {
 
     @Override
     public String execute(String taskList) {
-      Promise<String> r1 = Async.function(child1::execute, "Hello ");
+      Promise<String> r1 = Async.function(child1::execute, "Hello ", 0);
       String r2 = child2.execute("World!");
       assertEquals(child2Id, Workflow.getWorkflowExecution(child2).get().getWorkflowId());
       return r1.get() + r2;
     }
   }
 
+  public static class TestParentWorkflowWithChildTimeout implements TestWorkflow1 {
+
+    private final ITestChild child;
+
+    public TestParentWorkflowWithChildTimeout() {
+      ChildWorkflowOptions.Builder options = new ChildWorkflowOptions.Builder();
+      options.setExecutionStartToCloseTimeout(Duration.ofSeconds(1));
+      child = Workflow.newChildWorkflowStub(ITestChild.class, options.build());
+    }
+
+    @Override
+    public String execute(String taskList) {
+      try {
+        child.execute("Hello ", (int) Duration.ofDays(1).toMillis());
+      } catch (Exception e) {
+        return e.getClass().getSimpleName();
+      }
+      throw new RuntimeException("not reachable");
+    }
+  }
+
   public static class TestChild implements ITestChild {
 
     @Override
-    public String execute(String arg) {
+    public String execute(String arg, int delay) {
+      Workflow.sleep(delay);
       return arg.toUpperCase();
     }
   }
@@ -2615,6 +2637,19 @@ public class WorkflowTest {
     options.setTaskList(taskList);
     TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
     assertEquals("HELLO WORLD!", client.execute(taskList));
+  }
+
+  @Test
+  public void testChildWorkflowTimeout() {
+    child2Id = UUID.randomUUID().toString();
+    startWorkerFor(TestParentWorkflowWithChildTimeout.class, TestChild.class);
+
+    WorkflowOptions.Builder options = new WorkflowOptions.Builder();
+    options.setExecutionStartToCloseTimeout(Duration.ofSeconds(200));
+    options.setTaskStartToCloseTimeout(Duration.ofSeconds(60));
+    options.setTaskList(taskList);
+    TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
+    assertEquals("ChildWorkflowTimedOutException", client.execute(taskList));
   }
 
   private static String childReexecuteId = UUID.randomUUID().toString();
@@ -2726,7 +2761,7 @@ public class WorkflowTest {
               .build();
       child = Workflow.newChildWorkflowStub(ITestChild.class, options);
 
-      return child.execute(taskList);
+      return child.execute(taskList, 0);
     }
   }
 
@@ -2753,7 +2788,7 @@ public class WorkflowTest {
   public static class AngryChild implements ITestChild {
 
     @Override
-    public String execute(String taskList) {
+    public String execute(String taskList, int delay) {
       AngryChildActivity activity =
           Workflow.newActivityStub(
               AngryChildActivity.class,
@@ -3007,7 +3042,7 @@ public class WorkflowTest {
                       .build())
               .build();
       child = Workflow.newChildWorkflowStub(ITestChild.class, options);
-      return Async.function(child::execute, taskList).get();
+      return Async.function(child::execute, taskList, 0).get();
     }
   }
 
