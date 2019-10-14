@@ -5194,6 +5194,63 @@ public class WorkflowTest {
     assertTrue(tracer.getTrace().contains("executeActivity TestActivities::activity2"));
   }
 
+  public static class TestSignalExceptionWorkflowImpl implements TestWorkflowSignaled {
+    private boolean signaled = false;
+
+    @Override
+    public String execute() {
+      Workflow.await(() -> signaled);
+      return null;
+    }
+
+    @Override
+    public void signal1(String arg) {
+      for (int i = 0; i < 100; i++) {
+        Async.procedure(() -> System.out.println("test"));
+      }
+
+      throw new RuntimeException("exception in signal method");
+    }
+  }
+
+  @Test
+  public void testExceptionInSignal() throws InterruptedException {
+    startWorkerFor(TestSignalExceptionWorkflowImpl.class);
+    TestWorkflowSignaled signalWorkflow =
+        workflowClient.newWorkflowStub(
+            TestWorkflowSignaled.class, newWorkflowOptionsBuilder(taskList).build());
+    CompletableFuture<String> result = WorkflowClient.execute(signalWorkflow::execute);
+    signalWorkflow.signal1("test");
+    try {
+      result.get(1, TimeUnit.SECONDS);
+      fail("not reachable");
+    } catch (Exception e) {
+      // exception expected here.
+    }
+
+    // Suspend polling so that decision tasks are not retried. Otherwise it will affect our thread
+    // count.
+    if (useExternalService) {
+      workerFactory.suspendPolling();
+    } else {
+      testEnvironment.getWorkerFactory().suspendPolling();
+    }
+
+    // Wait for decision task retry to finish.
+    Thread.sleep(10000);
+
+    int workflowThreads = 0;
+    ThreadInfo[] threads = ManagementFactory.getThreadMXBean().dumpAllThreads(false, false);
+    for (ThreadInfo thread : threads) {
+      if (thread.getThreadName().startsWith("workflow")) {
+        workflowThreads++;
+      }
+    }
+
+    assertTrue(
+        "workflow threads might leak, #workflowThreads = " + workflowThreads, workflowThreads < 20);
+  }
+
   private static class TracingWorkflowInterceptor implements WorkflowInterceptor {
 
     private final FilteredTrace trace;
