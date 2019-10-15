@@ -1,5 +1,20 @@
 # Changelog
 
+## v2.6.2
+- Cleanup threads created in signal method on decider close
+- Fixed exception propagation from child workflows
+
+## v2.6.1
+- Add missing metrics and tags
+- Add metrics for SCHEDULED_TO_STAR latency
+- Support filtering query based on close status
+- Documentation improvements
+
+## v2.6.0
+- Fix thread leak on non-deterministic error
+- Support Search Attributes on Start workflow
+- Make Worker.addWorkflowImplementationFactory method support 'options'
+
 ## v2.5.2
 - Add saga class that helps user to implement saga pattern in Cadence
 - Add activity tasklist rate limiter option to worker options
