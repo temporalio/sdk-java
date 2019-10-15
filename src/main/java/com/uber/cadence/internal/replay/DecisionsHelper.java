@@ -44,6 +44,7 @@ import com.uber.cadence.RequestCancelActivityTaskFailedEventAttributes;
 import com.uber.cadence.RequestCancelExternalWorkflowExecutionDecisionAttributes;
 import com.uber.cadence.RequestCancelExternalWorkflowExecutionFailedEventAttributes;
 import com.uber.cadence.ScheduleActivityTaskDecisionAttributes;
+import com.uber.cadence.SearchAttributes;
 import com.uber.cadence.SignalExternalWorkflowExecutionDecisionAttributes;
 import com.uber.cadence.StartChildWorkflowExecutionDecisionAttributes;
 import com.uber.cadence.StartChildWorkflowExecutionFailedEventAttributes;
@@ -52,6 +53,7 @@ import com.uber.cadence.StartTimerDecisionAttributes;
 import com.uber.cadence.TaskList;
 import com.uber.cadence.TimerCanceledEventAttributes;
 import com.uber.cadence.TimerFiredEventAttributes;
+import com.uber.cadence.UpsertWorkflowSearchAttributesDecisionAttributes;
 import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.internal.common.WorkflowExecutionUtils;
@@ -543,6 +545,20 @@ class DecisionsHelper {
     long nextDecisionEventId = getNextDecisionEventId();
     DecisionId decisionId = new DecisionId(DecisionTarget.MARKER, nextDecisionEventId);
     addDecision(decisionId, new MarkerDecisionStateMachine(decisionId, decision));
+  }
+
+  void upsertSearchAttributes(SearchAttributes searchAttributes) {
+    UpsertWorkflowSearchAttributesDecisionAttributes decisionAttr =
+        new UpsertWorkflowSearchAttributesDecisionAttributes()
+            .setSearchAttributes(searchAttributes);
+    Decision decision =
+        new Decision()
+            .setDecisionType(DecisionType.UpsertWorkflowSearchAttributes)
+            .setUpsertWorkflowSearchAttributesDecisionAttributes(decisionAttr);
+    long nextDecisionEventId = getNextDecisionEventId();
+    DecisionId decisionId =
+        new DecisionId(DecisionTarget.UPSERT_SEARCH_ATTRIBUTES, nextDecisionEventId);
+    addDecision(decisionId, new UpsertSearchAttributesDecisionStateMachine(decisionId, decision));
   }
 
   List<Decision> getDecisions() {

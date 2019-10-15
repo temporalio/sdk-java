@@ -22,6 +22,7 @@ import com.uber.cadence.DecisionTaskFailedCause;
 import com.uber.cadence.DecisionTaskFailedEventAttributes;
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.PollForDecisionTaskResponse;
+import com.uber.cadence.SearchAttributes;
 import com.uber.cadence.TimerFiredEventAttributes;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
@@ -367,5 +368,15 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
 
   void awaitTaskCompletion(Duration duration) throws InterruptedException {
     workflowClock.awaitTaskCompletion(duration);
+  }
+
+  @Override
+  public void upsertSearchAttributes(SearchAttributes searchAttributes) {
+    workflowClock.upsertSearchAttributes(searchAttributes);
+  }
+
+  @Override
+  public void handleUpsertSearchAttributes(HistoryEvent event) {
+    workflowClock.handleUpsertSearchAttributesEvent(event);
   }
 }

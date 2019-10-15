@@ -21,6 +21,7 @@ import com.google.common.base.Strings;
 import com.uber.cadence.ActivityType;
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.MarkerRecordedEventAttributes;
+import com.uber.cadence.SearchAttributes;
 import com.uber.cadence.StartTimerDecisionAttributes;
 import com.uber.cadence.TimerCanceledEventAttributes;
 import com.uber.cadence.TimerFiredEventAttributes;
@@ -215,6 +216,14 @@ public final class ClockDecisionContext {
       String id, DataConverter converter, Func1<Optional<byte[]>, Optional<byte[]>> func) {
     decisions.addAllMissingVersionMarker(false, Optional.empty());
     return mutableSideEffectHandler.handle(id, converter, func);
+  }
+
+  void upsertSearchAttributes(SearchAttributes searchAttributes) {
+    decisions.upsertSearchAttributes(searchAttributes);
+  }
+
+  void handleUpsertSearchAttributesEvent(HistoryEvent event) {
+    // todo: update workflow info
   }
 
   void handleMarkerRecorded(HistoryEvent event) {

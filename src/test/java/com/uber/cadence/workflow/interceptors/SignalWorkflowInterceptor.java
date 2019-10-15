@@ -23,6 +23,7 @@ import com.uber.cadence.activity.LocalActivityOptions;
 import com.uber.cadence.workflow.*;
 import java.lang.reflect.Type;
 import java.time.Duration;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
@@ -151,5 +152,10 @@ public class SignalWorkflowInterceptor implements WorkflowInterceptor {
   @Override
   public UUID randomUUID() {
     return next.randomUUID();
+  }
+
+  @Override
+  public void upsertSearchAttributes(Map<String, Object> searchAttributes) {
+    next.upsertSearchAttributes(searchAttributes);
   }
 }

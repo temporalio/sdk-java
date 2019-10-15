@@ -17,13 +17,22 @@
 
 package com.uber.cadence.internal.replay;
 
-enum DecisionTarget {
-  ACTIVITY,
-  CHILD_WORKFLOW,
-  CANCEL_EXTERNAL_WORKFLOW,
-  SIGNAL_EXTERNAL_WORKFLOW,
-  TIMER,
-  MARKER,
-  UPSERT_SEARCH_ATTRIBUTES,
-  SELF
+import com.uber.cadence.Decision;
+
+public class UpsertSearchAttributesDecisionStateMachine extends DecisionStateMachineBase {
+
+  private final Decision decision;
+
+  UpsertSearchAttributesDecisionStateMachine(DecisionId id, Decision decision) {
+    super(id);
+    this.decision = decision;
+  }
+
+  @Override
+  public Decision getDecision() {
+    if (state == DecisionState.CREATED) {
+      return decision;
+    }
+    return null;
+  }
 }

@@ -24,6 +24,7 @@ import com.uber.cadence.workflow.Functions.Func;
 import com.uber.cadence.workflow.Functions.Func1;
 import java.lang.reflect.Type;
 import java.time.Duration;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
@@ -135,5 +136,10 @@ public class WorkflowInterceptorBase implements WorkflowInterceptor {
   @Override
   public UUID randomUUID() {
     return next.randomUUID();
+  }
+
+  @Override
+  public void upsertSearchAttributes(Map<String, Object> searchAttributes) {
+    next.upsertSearchAttributes(searchAttributes);
   }
 }

@@ -104,6 +104,7 @@ import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
@@ -310,6 +311,11 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
 
     @Override
     public UUID randomUUID() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public void upsertSearchAttributes(Map<String, Object> searchAttributes) {
       throw new UnsupportedOperationException("not implemented");
     }
 

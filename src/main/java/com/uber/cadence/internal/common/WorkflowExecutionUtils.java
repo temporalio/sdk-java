@@ -972,7 +972,8 @@ public class WorkflowExecutionUtils {
                 || eventType == EventType.CancelTimerFailed
                 || eventType == EventType.RequestCancelExternalWorkflowExecutionInitiated
                 || eventType == EventType.MarkerRecorded
-                || eventType == EventType.SignalExternalWorkflowExecutionInitiated));
+                || eventType == EventType.SignalExternalWorkflowExecutionInitiated
+                || eventType == EventType.UpsertWorkflowSearchAttributes));
     return result;
   }
 

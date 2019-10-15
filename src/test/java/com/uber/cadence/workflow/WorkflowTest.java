@@ -5251,6 +5251,33 @@ public class WorkflowTest {
         "workflow threads might leak, #workflowThreads = " + workflowThreads, workflowThreads < 20);
   }
 
+  public interface TestUpsertSearchAttributes {
+    @WorkflowMethod
+    String execute(String keyword);
+  }
+
+  public static class TestUpsertSearchAttributesImpl implements TestUpsertSearchAttributes {
+
+    @Override
+    public String execute(String keyword) {
+      Map<String, Object> searchAttr = new HashMap<>();
+      searchAttr.put("CustomKeywordField", keyword);
+      Workflow.upsertSearchAttributes(searchAttr);
+      return "done";
+    }
+  }
+
+  @Test
+  public void testUpsertSearchAttributes() {
+    startWorkerFor(TestUpsertSearchAttributesImpl.class);
+    TestUpsertSearchAttributes testWorkflow =
+        workflowClient.newWorkflowStub(
+            TestUpsertSearchAttributes.class, newWorkflowOptionsBuilder(taskList).build());
+    String result = testWorkflow.execute("testKey");
+    assertEquals("done", result);
+    tracer.setExpected("upsertSearchAttributes");
+  }
+
   private static class TracingWorkflowInterceptor implements WorkflowInterceptor {
 
     private final FilteredTrace trace;
@@ -5373,6 +5400,12 @@ public class WorkflowTest {
     public UUID randomUUID() {
       trace.add("randomUUID");
       return next.randomUUID();
+    }
+
+    @Override
+    public void upsertSearchAttributes(Map<String, Object> searchAttributes) {
+      trace.add("upsertSearchAttributes");
+      next.upsertSearchAttributes(searchAttributes);
     }
   }
 }

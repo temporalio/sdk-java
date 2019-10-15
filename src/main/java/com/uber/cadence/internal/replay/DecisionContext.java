@@ -18,6 +18,7 @@
 package com.uber.cadence.internal.replay;
 
 import com.uber.cadence.ChildPolicy;
+import com.uber.cadence.SearchAttributes;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.converter.DataConverter;
@@ -179,4 +180,6 @@ public interface DecisionContext extends ReplayAware {
 
   /** @return replay safe UUID */
   UUID randomUUID();
+
+  void upsertSearchAttributes(SearchAttributes searchAttributes);
 }

@@ -30,6 +30,7 @@ import com.uber.cadence.workflow.Functions.Proc;
 import com.uber.m3.tally.Scope;
 import java.lang.reflect.Type;
 import java.time.Duration;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
@@ -864,7 +865,7 @@ public final class Workflow {
    * failure. The decision task after timeout is rescheduled and re-executed giving SideEffect
    * another chance to succeed.
    *
-   * <p>Caution: do not use sideEffect function to modify any workflow sate. Only use the
+   * <p>Caution: do not use sideEffect function to modify any workflow state. Only use the
    * SideEffect's return value. For example this code is BROKEN:
    *
    * <pre><code>
@@ -880,7 +881,7 @@ public final class Workflow {
    *  } else {
    *         ....
    *  }
-   *  </code></pre>
+   * </code></pre>
    *
    * On replay the provided function is not executed, the random will always be 0, and the workflow
    * could takes a different path breaking the determinism.
@@ -895,7 +896,7 @@ public final class Workflow {
    *  } else {
    *         ....
    *  }
-   *  </code></pre>
+   * </code></pre>
    *
    * If function throws any exception it is not delivered to the workflow code. It is wrapped in
    * {@link Error} causing failure of the current decision.
@@ -918,7 +919,7 @@ public final class Workflow {
    * failure. The decision task after timeout is rescheduled and re-executed giving SideEffect
    * another chance to succeed.
    *
-   * <p>Caution: do not use sideEffect function to modify any workflow sate. Only use the
+   * <p>Caution: do not use sideEffect function to modify any workflow state. Only use the
    * SideEffect's return value. For example this code is BROKEN:
    *
    * <pre><code>
@@ -934,7 +935,7 @@ public final class Workflow {
    *  } else {
    *         ....
    *  }
-   *  </code></pre>
+   * </code></pre>
    *
    * On replay the provided function is not executed, the random will always be 0, and the workflow
    * could takes a different path breaking the determinism.
@@ -949,7 +950,7 @@ public final class Workflow {
    *  } else {
    *         ....
    *  }
-   *  </code></pre>
+   * </code></pre>
    *
    * If function throws any exception it is not delivered to the workflow code. It is wrapped in
    * {@link Error} causing failure of the current decision.
@@ -1180,6 +1181,39 @@ public final class Workflow {
    */
   public static <R> R getLastCompletionResult(Class<R> resultClass, Type resultType) {
     return WorkflowInternal.getLastCompletionResult(resultClass, resultType);
+  }
+
+  /**
+   * {@code upsertSearchAttributes} is used to add or update workflow search attributes. The search
+   * attributes can be used in query of List/Scan/Count workflow APIs. The key and value type must
+   * be registered on cadence server side; The value has to be Json serializable.
+   * UpsertSearchAttributes will merge attributes to existing map in workflow, for example workflow
+   * code:
+   *
+   * <pre><code>
+   *     Map<String, Object> attr1 = new HashMap<>();
+   *     attr1.put("CustomIntField", 1);
+   *     attr1.put("CustomBoolField", true);
+   *     Workflow.upsertSearchAttributes(attr1);
+   *
+   *     Map<String, Object> attr2 = new HashMap<>();
+   *     attr2.put("CustomIntField", 2);
+   *     attr2.put("CustomKeywordField", "Seattle");
+   *     Workflow.upsertSearchAttributes(attr2);
+   * </pre></code> will eventually have search attributes as:
+   *
+   * <pre><code>
+   *     {
+   *       "CustomIntField": 2,
+   *       "CustomBoolField": true,
+   *       "CustomKeywordField": "Seattle",
+   *     }
+   * </pre></code>
+   *
+   * @param searchAttributes map of String to Object value that can be used to search in list APIs
+   */
+  public static void upsertSearchAttributes(Map<String, Object> searchAttributes) {
+    WorkflowInternal.upsertSearchAttributes(searchAttributes);
   }
 
   /** Prohibit instantiation. */

@@ -53,4 +53,6 @@ interface HistoryEventHandler {
   void handleExternalWorkflowExecutionSignaled(HistoryEvent event);
 
   void handleMarkerRecorded(HistoryEvent event);
+
+  void handleUpsertSearchAttributes(HistoryEvent event);
 }

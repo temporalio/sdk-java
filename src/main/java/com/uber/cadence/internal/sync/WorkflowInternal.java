@@ -50,6 +50,7 @@ import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
@@ -383,5 +384,9 @@ public final class WorkflowInternal {
 
   public static <R> R getLastCompletionResult(Class<R> resultClass, Type resultType) {
     return getRootDecisionContext().getLastCompletionResult(resultClass, resultType);
+  }
+
+  public static void upsertSearchAttributes(Map<String, Object> searchAttributes) {
+    getWorkflowInterceptor().upsertSearchAttributes(searchAttributes);
   }
 }

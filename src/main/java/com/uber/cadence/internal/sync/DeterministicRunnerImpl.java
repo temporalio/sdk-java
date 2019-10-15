@@ -18,6 +18,7 @@
 package com.uber.cadence.internal.sync;
 
 import com.uber.cadence.ChildPolicy;
+import com.uber.cadence.SearchAttributes;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.converter.DataConverter;
@@ -652,6 +653,11 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     @Override
     public UUID randomUUID() {
       return UUID.randomUUID();
+    }
+
+    @Override
+    public void upsertSearchAttributes(SearchAttributes searchAttributes) {
+      throw new UnsupportedOperationException("not implemented");
     }
   }
 }
