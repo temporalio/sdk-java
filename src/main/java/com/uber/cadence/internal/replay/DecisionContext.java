@@ -73,6 +73,14 @@ public interface DecisionContext extends ReplayAware {
   ChildPolicy getChildPolicy();
 
   /**
+   * Used to retrieve search attributes.
+   *
+   * @return SearchAttribute object which can be used by {@code
+   *     WorkflowUtils.getValueFromSearchAttributes} to retrieve concrete value.
+   */
+  SearchAttributes getSearchAttributes();
+
+  /**
    * Used to dynamically schedule an activity for execution
    *
    * @param parameters An object which encapsulates all the information required to schedule an

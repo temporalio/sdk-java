@@ -18,6 +18,9 @@
 package com.uber.cadence.internal.replay;
 
 import com.uber.cadence.*;
+import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.Map;
 
 final class WorkflowContext {
 
@@ -29,6 +32,7 @@ final class WorkflowContext {
   // RunId can change when reset happens. This remembers the actual runId that is used
   // as in this particular part of the history.
   private String currentRunId;
+  private SearchAttributes searchAttributes;
 
   WorkflowContext(
       String domain,
@@ -38,6 +42,7 @@ final class WorkflowContext {
     this.decisionTask = decisionTask;
     this.startedAttributes = startedAttributes;
     this.currentRunId = startedAttributes.getOriginalExecutionRunId();
+    this.searchAttributes = startedAttributes.getSearchAttributes();
   }
 
   WorkflowExecution getWorkflowExecution() {
@@ -130,5 +135,31 @@ final class WorkflowContext {
 
   String getCurrentRunId() {
     return currentRunId;
+  }
+
+  SearchAttributes getSearchAttributes() {
+    return searchAttributes;
+  }
+
+  void mergeSearchAttributes(SearchAttributes searchAttributes) {
+    if (searchAttributes == null) {
+      return;
+    }
+    if (this.searchAttributes == null) {
+      this.searchAttributes = newSearchAttributes();
+    }
+    Map<String, ByteBuffer> current = this.searchAttributes.getIndexedFields();
+    searchAttributes
+        .getIndexedFields()
+        .forEach(
+            (k, v) -> {
+              current.put(k, v);
+            });
+  }
+
+  private SearchAttributes newSearchAttributes() {
+    SearchAttributes result = new SearchAttributes();
+    result.setIndexedFields(new HashMap<String, ByteBuffer>());
+    return result;
   }
 }

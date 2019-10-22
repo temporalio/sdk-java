@@ -5260,9 +5260,19 @@ public class WorkflowTest {
 
     @Override
     public String execute(String keyword) {
-      Map<String, Object> searchAttr = new HashMap<>();
-      searchAttr.put("CustomKeywordField", keyword);
-      Workflow.upsertSearchAttributes(searchAttr);
+      SearchAttributes searchAttributes = Workflow.getWorkflowInfo().getSearchAttributes();
+      assertNull(searchAttributes);
+
+      Map<String, Object> searchAttrMap = new HashMap<>();
+      searchAttrMap.put("CustomKeywordField", keyword);
+      Workflow.upsertSearchAttributes(searchAttrMap);
+
+      searchAttributes = Workflow.getWorkflowInfo().getSearchAttributes();
+      assertEquals(
+          "testKey",
+          WorkflowUtils.getValueFromSearchAttributes(
+              searchAttributes, "CustomKeywordField", String.class));
+
       return "done";
     }
   }

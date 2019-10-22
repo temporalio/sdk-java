@@ -27,7 +27,7 @@ import com.uber.cadence.activity.ActivityOptions;
 import com.uber.cadence.activity.LocalActivityOptions;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.converter.DataConverter;
-import com.uber.cadence.converter.JsonDataConverter;
+import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.common.RetryParameters;
 import com.uber.cadence.internal.replay.ActivityTaskFailedException;
 import com.uber.cadence.internal.replay.ActivityTaskTimeoutException;
@@ -56,7 +56,6 @@ import com.uber.cadence.workflow.Workflow;
 import com.uber.cadence.workflow.WorkflowInterceptor;
 import com.uber.m3.tally.Scope;
 import java.lang.reflect.Type;
-import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -703,17 +702,7 @@ final class SyncDecisionContext implements WorkflowInterceptor {
       throw new IllegalArgumentException("Empty search attributes");
     }
 
-    SearchAttributes attr = convertMapToSearchAttributes(searchAttributes);
+    SearchAttributes attr = InternalUtils.convertMapToSearchAttributes(searchAttributes);
     context.upsertSearchAttributes(attr);
-  }
-
-  protected SearchAttributes convertMapToSearchAttributes(Map<String, Object> searchAttributes) {
-    DataConverter converter = JsonDataConverter.getInstance();
-    Map<String, ByteBuffer> mapOfByteBuffer = new HashMap<>();
-    searchAttributes.forEach(
-        (key, value) -> {
-          mapOfByteBuffer.put(key, ByteBuffer.wrap(converter.toData(value)));
-        });
-    return new SearchAttributes().setIndexedFields(mapOfByteBuffer);
   }
 }

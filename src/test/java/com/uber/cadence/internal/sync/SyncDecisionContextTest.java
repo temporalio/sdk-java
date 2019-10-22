@@ -17,18 +17,14 @@
 
 package com.uber.cadence.internal.sync;
 
-import static junit.framework.TestCase.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.uber.cadence.SearchAttributes;
-import com.uber.cadence.converter.DataConverter;
-import com.uber.cadence.converter.DataConverterException;
 import com.uber.cadence.converter.JsonDataConverter;
+import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.replay.DecisionContext;
-import java.io.FileOutputStream;
-import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Before;
@@ -49,7 +45,7 @@ public class SyncDecisionContextTest {
   public void testUpsertSearchAttributes() throws Throwable {
     Map<String, Object> attr = new HashMap<>();
     attr.put("CustomKeywordField", "keyword");
-    SearchAttributes serializedAttr = context.convertMapToSearchAttributes(attr);
+    SearchAttributes serializedAttr = InternalUtils.convertMapToSearchAttributes(attr);
 
     context.upsertSearchAttributes(attr);
     verify(mockDecisionContext, times(1)).upsertSearchAttributes(serializedAttr);
@@ -59,31 +55,5 @@ public class SyncDecisionContextTest {
   public void testUpsertSearchAttributesException() throws Throwable {
     Map<String, Object> attr = new HashMap<>();
     context.upsertSearchAttributes(attr);
-  }
-
-  @Test
-  public void testConvertMapToSearchAttributes() throws Throwable {
-    Map<String, Object> attr = new HashMap<>();
-    String value = "keyword";
-    attr.put("CustomKeywordField", value);
-
-    SearchAttributes result = context.convertMapToSearchAttributes(attr);
-    assertEquals(value, getKeywordFromSearchAttribute(result));
-  }
-
-  @Test(expected = DataConverterException.class)
-  public void testConvertMapToSearchAttributesException() throws Throwable {
-    Map<String, Object> attr = new HashMap<>();
-    attr.put("InvalidValue", new FileOutputStream("dummy"));
-    context.convertMapToSearchAttributes(attr);
-  }
-
-  private static String getKeywordFromSearchAttribute(SearchAttributes searchAttributes) {
-    Map<String, ByteBuffer> map = searchAttributes.getIndexedFields();
-    ByteBuffer byteBuffer = map.get("CustomKeywordField");
-    DataConverter dataConverter = JsonDataConverter.getInstance();
-    final byte[] valueBytes = new byte[byteBuffer.limit() - byteBuffer.position()];
-    byteBuffer.get(valueBytes, 0, valueBytes.length);
-    return dataConverter.fromData(valueBytes, String.class, String.class);
   }
 }
