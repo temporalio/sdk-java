@@ -222,10 +222,6 @@ public final class ClockDecisionContext {
     decisions.upsertSearchAttributes(searchAttributes);
   }
 
-  void handleUpsertSearchAttributesEvent(HistoryEvent event) {
-    // todo: update workflow info
-  }
-
   void handleMarkerRecorded(HistoryEvent event) {
     MarkerRecordedEventAttributes attributes = event.getMarkerRecordedEventAttributes();
     String name = attributes.getMarkerName();

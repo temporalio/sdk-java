@@ -18,6 +18,7 @@
 package com.uber.cadence.workflow;
 
 import com.uber.cadence.ChildPolicy;
+import com.uber.cadence.SearchAttributes;
 import java.time.Duration;
 
 public interface WorkflowInfo {
@@ -35,4 +36,6 @@ public interface WorkflowInfo {
   Duration getExecutionStartToCloseTimeout();
 
   ChildPolicy getChildPolicy();
+
+  SearchAttributes getSearchAttributes();
 }
