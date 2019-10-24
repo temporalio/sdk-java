@@ -18,7 +18,6 @@
 package com.uber.cadence.workflow;
 
 import com.uber.cadence.internal.sync.WorkflowInternal;
-import com.uber.cadence.workflow.Functions.Func2;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -40,8 +39,8 @@ import java.util.concurrent.TimeoutException;
  *   <li>Promise doesn't directly supports cancellation. Use {@link CancellationScope} to cancel and
  *       handle cancellations. The pattern is that a cancelled operation completes its Promise with
  *       {@link java.util.concurrent.CancellationException} when cancelled.
- *   <li>{@link #handle(Func2)} and similar callback operations do not allow blocking calls inside
- *       functions
+ *   <li>{@link #handle(Functions.Func2)} and similar callback operations do not allow blocking
+ *       calls inside functions
  * </ul>
  */
 public interface Promise<V> {

@@ -169,7 +169,7 @@ public interface TestWorkflowEnvironment {
    */
   String getDiagnostics();
 
-  /** Calls {@link #shutdownNow()} and {@link#awaitTermination(long, TimeUnit)}. */
+  /** Calls {@link #shutdownNow()} and {@link #awaitTermination(long, TimeUnit)}. */
   void close();
 
   Worker.Factory getWorkerFactory();

@@ -36,7 +36,7 @@ import org.apache.thrift.protocol.TJSONProtocol;
 
 /**
  * Implements conversion through GSON JSON processor. To extend use {@link
- * JsonDataConverter(Function)} constructor. Thrift structures are converted using {@link
+ * #JsonDataConverter(Function)} constructor. Thrift structures are converted using {@link
  * TJSONProtocol}. When using thrift only one argument of a method is expected.
  *
  * @author fateev
