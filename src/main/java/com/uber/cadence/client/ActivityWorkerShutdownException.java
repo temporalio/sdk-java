@@ -18,12 +18,12 @@
 package com.uber.cadence.client;
 
 import com.uber.cadence.activity.ActivityTask;
-import com.uber.cadence.worker.Worker;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Indicates that {@link Worker.Factory#shutdown()} or {@link Worker.Factory#shutdownNow()} was
- * called. It is OK to ignore the exception to let activity to complete. It assumes that {@link
+ * Indicates that {@link com.uber.cadence.worker.Worker.Factory#shutdown()} or {@link
+ * com.uber.cadence.worker.Worker.Factory#shutdownNow()} was called. It is OK to ignore the
+ * exception to let activity to complete. It assumes that {@link
  * com.uber.cadence.worker.Worker.Factory#awaitTermination(long, TimeUnit)} is called with a timeout
  * larger than the activity execution time.
  */

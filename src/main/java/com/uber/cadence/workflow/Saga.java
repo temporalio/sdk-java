@@ -267,7 +267,6 @@ public final class Saga {
    * Add compensation operation for saga.
    *
    * @param operation to be executed during compensation.
-   * @param operation to be executed during compensation.
    * @param arg1 first operation function parameter
    * @param arg2 second operation function parameter
    * @param arg3 third operation function parameter
@@ -280,7 +279,6 @@ public final class Saga {
   /**
    * Add compensation operation for saga.
    *
-   * @param operation to be executed during compensation.
    * @param operation to be executed during compensation.
    * @param arg1 first operation function parameter
    * @param arg2 second operation function parameter
@@ -295,7 +293,6 @@ public final class Saga {
   /**
    * Add compensation operation for saga.
    *
-   * @param operation to be executed during compensation.
    * @param operation to be executed during compensation.
    * @param arg1 first operation function parameter
    * @param arg2 second operation function parameter

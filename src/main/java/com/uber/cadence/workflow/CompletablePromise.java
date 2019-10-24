@@ -56,7 +56,7 @@ public interface CompletablePromise<V> extends Promise<V> {
    * </code></pre>
    *
    * @param source promise that is being watched.
-   * @return
+   * @return false if source already completed, otherwise return true or null
    */
   boolean completeFrom(Promise<V> source);
 }

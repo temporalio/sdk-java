@@ -643,7 +643,7 @@ public class WorkflowExecutionUtils {
    *
    * @param showWorkflowTasks when set to false workflow task events (decider events) are not
    *     included
-   * @history Workflow instance history
+   * @param history Workflow instance history
    */
   public static String prettyPrintHistory(History history, boolean showWorkflowTasks) {
     return prettyPrintHistory(history.getEvents().iterator(), showWorkflowTasks);

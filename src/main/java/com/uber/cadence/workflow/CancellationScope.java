@@ -50,7 +50,7 @@ public interface CancellationScope extends Runnable {
   /**
    * Is scope was asked to cancel through {@link #cancel()} or by a parent scope.
    *
-   * @return
+   * @return whether request is cancelled or not.
    */
   boolean isCancelRequested();
 
