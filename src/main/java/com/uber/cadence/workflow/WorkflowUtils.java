@@ -36,8 +36,10 @@ public class WorkflowUtils {
 
   private static byte[] getValueBytes(SearchAttributes searchAttributes, String key) {
     ByteBuffer byteBuffer = searchAttributes.getIndexedFields().get(key);
-    final byte[] valueBytes = new byte[byteBuffer.limit() - byteBuffer.position()];
-    byteBuffer.get(valueBytes, 0, valueBytes.length);
+    final byte[] valueBytes = new byte[byteBuffer.remaining()];
+    byteBuffer.mark();
+    byteBuffer.get(valueBytes);
+    byteBuffer.reset();
     return valueBytes;
   }
 }
