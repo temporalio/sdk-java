@@ -61,4 +61,20 @@ public class WorkflowUtilsTest {
         WorkflowUtils.getValueFromSearchAttributes(
             searchAttributes, "CustomBooleanField", Boolean.class));
   }
+
+  @Test
+  public void TestGetValueFromSearchAttributesRepeated() {
+    Map<String, Object> attr = new HashMap<>();
+    String stringVal = "keyword";
+    attr.put("CustomKeywordField", stringVal);
+    SearchAttributes searchAttributes = InternalUtils.convertMapToSearchAttributes(attr);
+    assertEquals(
+        stringVal,
+        WorkflowUtils.getValueFromSearchAttributes(
+            searchAttributes, "CustomKeywordField", String.class));
+    assertEquals(
+        stringVal,
+        WorkflowUtils.getValueFromSearchAttributes(
+            searchAttributes, "CustomKeywordField", String.class));
+  }
 }
