@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.6.3
+- Add Upsert Search Attributes
+- Support get search attributes inside workflow
+
 ## v2.6.2
 - Cleanup threads created in signal method on decider close
 - Fixed exception propagation from child workflows
