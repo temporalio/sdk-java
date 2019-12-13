@@ -433,7 +433,8 @@ public class WorkflowServiceTChannel implements IWorkflowService {
             .put("user-name", envUserName)
             .put("host-name", envHostname)
             .put("cadence-client-library-version", Version.LIBRARY_VERSION)
-            .put("cadence-client-feature-version", Version.FEATURE_VERSION);
+            .put("cadence-client-feature-version", Version.FEATURE_VERSION)
+            .put("cadence-client-name", "uber-java");
 
     if (options.headers != null) {
       for (Map.Entry<String, String> entry : options.headers.entrySet()) {
