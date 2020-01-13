@@ -927,9 +927,8 @@ public class WorkflowExecutionUtils {
    * serialized exceptions.
    */
   private static String prettyPrintJson(String jsonValue, String stackIndentation) {
-    JsonParser parser = new JsonParser();
     try {
-      JsonObject json = parser.parse(jsonValue).getAsJsonObject();
+      JsonObject json = JsonParser.parseString(jsonValue).getAsJsonObject();
       fixStackTrace(json, stackIndentation);
       Gson gson = new GsonBuilder().setPrettyPrinting().create();
       return gson.toJson(json);

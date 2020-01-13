@@ -3,7 +3,7 @@ steps:
     agents:
       queue: "workers"
       docker: "*"
-    command: "./gradlew test"
+    command: "./gradlew --no-daemon test"
     plugins:
       - docker-compose#v3.0.0:
           run: unit-test-test-service
@@ -13,7 +13,7 @@ steps:
     agents:
       queue: "workers"
       docker: "*"
-    command: "./gradlew test"
+    command: "./gradlew --no-daemon test"
     plugins:
       - docker-compose#v3.0.0:
           run: unit-test-docker-sticky-on
@@ -23,7 +23,7 @@ steps:
     agents:
       queue: "workers"
       docker: "*"
-    command: "./gradlew test"
+    command: "./gradlew --no-daemon test"
     plugins:
       - docker-compose#v3.0.0:
           run: unit-test-docker-sticky-off
