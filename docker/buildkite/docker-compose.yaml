@@ -3,6 +3,8 @@ version: '3.5'
 services:
   cassandra:
     image: cassandra:3.11
+    logging:
+      driver: none
     ports:
       - "9042:9042"
     networks:
@@ -12,6 +14,8 @@ services:
 
   statsd:
     image: hopsoft/graphite-statsd
+    logging:
+      driver: none
     ports:
       - "8080:80"
       - "2003:2003"
@@ -24,6 +28,8 @@ services:
 
   cadence:
     image: ubercadence/server:master-auto-setup
+    logging:
+      driver: none
     ports:
       - "7933:7933"
       - "7934:7934"
@@ -44,7 +50,7 @@ services:
     build:
       context: ../../
       dockerfile: ./docker/buildkite/Dockerfile
-    command: "./gradlew test"
+    command: "./gradlew --no-daemon test"
     environment:
       - "USER=unittest"
       - "CADENCE_SEEDS=cadence"
@@ -63,7 +69,7 @@ services:
     build:
       context: ../../
       dockerfile: ./docker/buildkite/Dockerfile
-    command: "./gradlew test"
+    command: "./gradlew --no-daemon test"
     environment:
       - "USER=unittest"
       - "CADENCE_SEEDS=cadence"
@@ -82,7 +88,7 @@ services:
     build:
       context: ../../
       dockerfile: ./docker/buildkite/Dockerfile
-    command: "./gradlew test"
+    command: "./gradlew --no-daemon test"
     environment:
       - "USER=unittest"
       - "USE_DOCKER_SERVICE=false"

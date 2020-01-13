@@ -44,7 +44,7 @@ services:
     build:
       context: ../../
       dockerfile: ./docker/buildkite/Dockerfile-local
-    command: "./gradlew test"
+    command: "./gradlew --no-daemon test"
     environment:
       - "USER=unittest"
       - "CADENCE_SEEDS=cadence"
@@ -63,7 +63,7 @@ services:
     build:
       context: ../../
       dockerfile: ./docker/buildkite/Dockerfile-local
-    command: "./gradlew test"
+    command: "./gradlew --no-daemon test"
     environment:
       - "USER=unittest"
       - "CADENCE_SEEDS=cadence"
@@ -82,7 +82,7 @@ services:
     build:
       context: ../../
       dockerfile: ./docker/buildkite/Dockerfile-local
-    command: "./gradlew test"
+    command: "./gradlew --no-daemon test"
     environment:
       - "USER=unittest"
       - "USE_DOCKER_SERVICE=false"
