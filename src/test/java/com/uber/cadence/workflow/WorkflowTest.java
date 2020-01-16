@@ -1662,7 +1662,7 @@ public class WorkflowTest {
 
       WaitOnSignalWorkflow child =
           Workflow.newChildWorkflowStub(WaitOnSignalWorkflow.class, workflowOptions);
-      Promise<Void> promise = Async.procedure(() -> child.execute());
+      Promise<Void> promise = Async.procedure(child::execute);
       Promise<WorkflowExecution> executionPromise = Workflow.getWorkflowExecution(child);
       assertNotNull(executionPromise);
       WorkflowExecution execution = executionPromise.get();
@@ -2852,6 +2852,48 @@ public class WorkflowTest {
 
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "testChildWorkflowRetryHistory.json", TestChildWorkflowRetryWorkflow.class);
+  }
+
+  public static class TestChildWorkflowExecutionPromiseHandler implements TestWorkflow1 {
+
+    private ITestNamedChild child;
+
+    @Override
+    public String execute(String taskList) {
+      child = Workflow.newChildWorkflowStub(ITestNamedChild.class);
+      Promise<String> childResult = Async.function(child::execute, "foo");
+      Promise<WorkflowExecution> executionPromise = Workflow.getWorkflowExecution(child);
+      CompletablePromise<String> result = Workflow.newPromise();
+      // Ensure that the callback can execute Workflow.* functions.
+      executionPromise.thenApply(
+          (we) -> {
+            Workflow.sleep(Duration.ofSeconds(1));
+            result.complete(childResult.get());
+            return null;
+          });
+      return result.get();
+    }
+  }
+
+  /** Tests that handler of the WorkflowExecution promise is executed in a workflow thread. */
+  @Test
+  public void testChildWorkflowExecutionPromiseHandler() {
+    startWorkerFor(TestChildWorkflowExecutionPromiseHandler.class, TestNamedChild.class);
+
+    WorkflowOptions.Builder options = new WorkflowOptions.Builder();
+    options.setExecutionStartToCloseTimeout(Duration.ofSeconds(20));
+    options.setTaskStartToCloseTimeout(Duration.ofSeconds(2));
+    options.setTaskList(taskList);
+    WorkflowClient wc;
+    if (useExternalService) {
+      wc = WorkflowClient.newInstance(service, DOMAIN);
+    } else {
+      wc = testEnvironment.newWorkflowClient();
+    }
+
+    TestWorkflow1 client = wc.newWorkflowStub(TestWorkflow1.class, options.build());
+    String result = client.execute(taskList);
+    assertEquals("FOO", result);
   }
 
   public static class TestSignalExternalWorkflow implements TestWorkflowSignaled {
