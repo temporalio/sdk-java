@@ -21,6 +21,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.uber.cadence.BadRequestError;
 import com.uber.cadence.ClientVersionNotSupportedError;
+import com.uber.cadence.ClusterInfo;
 import com.uber.cadence.CountWorkflowExecutionsRequest;
 import com.uber.cadence.CountWorkflowExecutionsResponse;
 import com.uber.cadence.DeprecateDomainRequest;
@@ -38,12 +39,16 @@ import com.uber.cadence.GetWorkflowExecutionHistoryRequest;
 import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
 import com.uber.cadence.InternalServiceError;
 import com.uber.cadence.LimitExceededError;
+import com.uber.cadence.ListArchivedWorkflowExecutionsRequest;
+import com.uber.cadence.ListArchivedWorkflowExecutionsResponse;
 import com.uber.cadence.ListClosedWorkflowExecutionsRequest;
 import com.uber.cadence.ListClosedWorkflowExecutionsResponse;
 import com.uber.cadence.ListDomainsRequest;
 import com.uber.cadence.ListDomainsResponse;
 import com.uber.cadence.ListOpenWorkflowExecutionsRequest;
 import com.uber.cadence.ListOpenWorkflowExecutionsResponse;
+import com.uber.cadence.ListTaskListPartitionsRequest;
+import com.uber.cadence.ListTaskListPartitionsResponse;
 import com.uber.cadence.ListWorkflowExecutionsRequest;
 import com.uber.cadence.ListWorkflowExecutionsResponse;
 import com.uber.cadence.PollForActivityTaskRequest;
@@ -582,9 +587,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
       }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
-      }
       if (result.isSetDomainExistsError()) {
         throw result.getDomainExistsError();
       }
@@ -621,9 +623,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
       }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
-      }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
       }
@@ -659,9 +658,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
       }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
-      }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
       }
@@ -694,9 +690,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
-      }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
       }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
@@ -734,9 +727,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
-      }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
       }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
@@ -779,9 +769,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
-      }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
       }
       if (result.isSetSessionAlreadyExistError()) {
         throw result.getSessionAlreadyExistError();
@@ -840,9 +827,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
       }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
-      }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
       }
@@ -884,9 +868,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
-      }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
       }
       if (result.isSetServiceBusyError()) {
         throw result.getServiceBusyError();
@@ -933,9 +914,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
       }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
-      }
       if (result.isSetServiceBusyError()) {
         throw result.getServiceBusyError();
       }
@@ -979,9 +957,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
-      }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
       }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
@@ -1031,9 +1006,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
       }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
-      }
       if (result.isSetServiceBusyError()) {
         throw result.getServiceBusyError();
       }
@@ -1077,9 +1049,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
-      }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
       }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
@@ -1128,9 +1097,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
       }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
-      }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
       }
@@ -1174,9 +1140,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
-      }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
       }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
@@ -1223,9 +1186,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
       }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
-      }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
       }
@@ -1269,9 +1229,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
-      }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
       }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
@@ -1318,9 +1275,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
       }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
-      }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
       }
@@ -1364,9 +1318,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
-      }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
       }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
@@ -1412,9 +1363,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
-      }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
       }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
@@ -1462,9 +1410,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
       }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
-      }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
       }
@@ -1510,9 +1455,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
-      }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
       }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
@@ -1569,9 +1511,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
       }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
-      }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
       }
@@ -1619,9 +1558,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
       }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
-      }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
       }
@@ -1666,9 +1602,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
       }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
-      }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
       }
@@ -1710,9 +1643,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
       }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
-      }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
       }
@@ -1753,9 +1683,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
       }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
-      }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
       }
@@ -1766,6 +1693,50 @@ public class WorkflowServiceTChannel implements IWorkflowService {
         throw result.getClientVersionNotSupportedError();
       }
       throw new TException("ListWorkflowExecutions failed with unknown error:" + result);
+    } finally {
+      if (response != null) {
+        response.release();
+      }
+    }
+  }
+
+  @Override
+  public ListArchivedWorkflowExecutionsResponse ListArchivedWorkflowExecutions(
+      ListArchivedWorkflowExecutionsRequest listRequest)
+      throws BadRequestError, EntityNotExistsError, ServiceBusyError,
+          ClientVersionNotSupportedError, TException {
+    return measureRemoteCall(
+        ServiceMethod.LIST_ARCHIVED_WORKFLOW_EXECUTIONS,
+        () -> listArchivedWorkflowExecutions(listRequest));
+  }
+
+  private ListArchivedWorkflowExecutionsResponse listArchivedWorkflowExecutions(
+      ListArchivedWorkflowExecutionsRequest listRequest) throws TException {
+    ThriftResponse<WorkflowService.ListArchivedWorkflowExecutions_result> response = null;
+    try {
+      ThriftRequest<WorkflowService.ListArchivedWorkflowExecutions_args> request =
+          buildThriftRequest(
+              "ListArchivedWorkflowExecutions",
+              new WorkflowService.ListArchivedWorkflowExecutions_args(listRequest));
+      response = doRemoteCall(request);
+      WorkflowService.ListArchivedWorkflowExecutions_result result =
+          response.getBody(WorkflowService.ListArchivedWorkflowExecutions_result.class);
+      if (response.getResponseCode() == ResponseCode.OK) {
+        return result.getSuccess();
+      }
+      if (result.isSetBadRequestError()) {
+        throw result.getBadRequestError();
+      }
+      if (result.isSetEntityNotExistError()) {
+        throw result.getEntityNotExistError();
+      }
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
+      if (result.isSetClientVersionNotSupportedError()) {
+        throw result.getClientVersionNotSupportedError();
+      }
+      throw new TException("ListArchivedWorkflowExecutions failed with unknown error:" + result);
     } finally {
       if (response != null) {
         response.release();
@@ -1798,9 +1769,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
-      }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
       }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
@@ -1845,9 +1813,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
       }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
-      }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
       }
@@ -1881,9 +1846,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
           response.getBody(WorkflowService.GetSearchAttributes_result.class);
       if (response.getResponseCode() == ResponseCode.OK) {
         return result.getSuccess();
-      }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
       }
       if (result.isSetServiceBusyError()) {
         throw result.getServiceBusyError();
@@ -1922,9 +1884,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
-      }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
       }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
@@ -1968,9 +1927,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
       }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
-      }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
       }
@@ -2011,9 +1967,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
-      }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
       }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
@@ -2059,9 +2012,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
       }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
-      }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
       }
@@ -2101,9 +2051,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       if (result.isSetBadRequestError()) {
         throw result.getBadRequestError();
       }
-      if (result.isSetInternalServiceError()) {
-        throw result.getInternalServiceError();
-      }
       if (result.isSetEntityNotExistError()) {
         throw result.getEntityNotExistError();
       }
@@ -2114,6 +2061,76 @@ public class WorkflowServiceTChannel implements IWorkflowService {
         throw result.getLimitExceededError();
       }
       throw new TException("DescribeTaskList failed with unknown error:" + result);
+    } finally {
+      if (response != null) {
+        response.release();
+      }
+    }
+  }
+
+  @Override
+  public ClusterInfo GetClusterInfo() throws InternalServiceError, ServiceBusyError, TException {
+    return measureRemoteCall(ServiceMethod.GET_CLUSTER_INFO, () -> getClusterInfo());
+  }
+
+  private ClusterInfo getClusterInfo() throws TException {
+    ThriftResponse<WorkflowService.GetClusterInfo_result> response = null;
+    try {
+      ThriftRequest<WorkflowService.GetClusterInfo_args> request =
+          buildThriftRequest("GetClusterInfo", new WorkflowService.GetClusterInfo_args());
+      response = doRemoteCall(request);
+      WorkflowService.GetClusterInfo_result result =
+          response.getBody(WorkflowService.GetClusterInfo_result.class);
+      if (response.getResponseCode() == ResponseCode.OK) {
+        return result.getSuccess();
+      }
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
+      throw new TException("GetClusterInfo failed with unknown error:" + result);
+    } finally {
+      if (response != null) {
+        response.release();
+      }
+    }
+  }
+
+  @Override
+  public ListTaskListPartitionsResponse ListTaskListPartitions(
+      ListTaskListPartitionsRequest request)
+      throws BadRequestError, EntityNotExistsError, LimitExceededError, ServiceBusyError,
+          TException {
+    return measureRemoteCall(
+        ServiceMethod.LIST_TASK_LIST_PARTITIONS, () -> listTaskListPartitions(request));
+  }
+
+  private ListTaskListPartitionsResponse listTaskListPartitions(
+      ListTaskListPartitionsRequest listRequest) throws TException {
+    ThriftResponse<WorkflowService.ListTaskListPartitions_result> response = null;
+    try {
+      ThriftRequest<WorkflowService.ListTaskListPartitions_args> request =
+          buildThriftRequest(
+              "ListTaskListPartitions",
+              new WorkflowService.ListTaskListPartitions_args(listRequest));
+      response = doRemoteCall(request);
+      WorkflowService.ListTaskListPartitions_result result =
+          response.getBody(WorkflowService.ListTaskListPartitions_result.class);
+      if (response.getResponseCode() == ResponseCode.OK) {
+        return result.getSuccess();
+      }
+      if (result.isSetBadRequestError()) {
+        throw result.getBadRequestError();
+      }
+      if (result.isSetEntityNotExistError()) {
+        throw result.getEntityNotExistError();
+      }
+      if (result.isSetServiceBusyError()) {
+        throw result.getServiceBusyError();
+      }
+      if (result.isSetLimitExceededError()) {
+        throw result.getLimitExceededError();
+      }
+      throw new TException("ListTaskListPartitions failed with unknown error:" + result);
     } finally {
       if (response != null) {
         response.release();
@@ -2156,10 +2173,6 @@ public class WorkflowServiceTChannel implements IWorkflowService {
                 }
                 if (result.isSetBadRequestError()) {
                   resultHandler.onError(result.getBadRequestError());
-                  return;
-                }
-                if (result.isSetInternalServiceError()) {
-                  resultHandler.onError(result.getInternalServiceError());
                   return;
                 }
                 if (result.isSetEntityNotExistError()) {
@@ -2325,6 +2338,11 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
+  public void ListArchivedWorkflowExecutions(
+      ListArchivedWorkflowExecutionsRequest listRequest, AsyncMethodCallback resultHandler)
+      throws TException {}
+
+  @Override
   public void ScanWorkflowExecutions(
       ListWorkflowExecutionsRequest listRequest, AsyncMethodCallback resultHandler)
       throws TException {
@@ -2375,6 +2393,13 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       throws TException {
     throw new UnsupportedOperationException("not implemented");
   }
+
+  @Override
+  public void GetClusterInfo(AsyncMethodCallback resultHandler) throws TException {}
+
+  @Override
+  public void ListTaskListPartitions(
+      ListTaskListPartitionsRequest request, AsyncMethodCallback resultHandler) throws TException {}
 
   @Override
   public void RegisterDomain(

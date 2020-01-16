@@ -437,7 +437,6 @@ class StateMachines {
         new StartChildWorkflowExecutionInitiatedEventAttributes()
             .setControl(d.getControl())
             .setInput(d.getInput())
-            .setChildPolicy(d.getChildPolicy())
             .setDecisionTaskCompletedEventId(decisionTaskCompletedEventId)
             .setDomain(d.getDomain() == null ? ctx.getDomain() : d.getDomain())
             .setExecutionStartToCloseTimeoutSeconds(d.getExecutionStartToCloseTimeoutSeconds())
