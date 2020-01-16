@@ -389,7 +389,9 @@ final class SyncDecisionContext implements WorkflowInterceptor {
     Consumer<Exception> cancellationCallback =
         context.startChildWorkflow(
             parameters,
-            executionResult::complete,
+            (we) ->
+                runner.executeInWorkflowThread(
+                    "child workflow completion callback", () -> executionResult.complete(we)),
             (output, failure) -> {
               if (failure != null) {
                 runner.executeInWorkflowThread(
