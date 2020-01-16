@@ -31,6 +31,10 @@ public class ServiceMethod {
       MetricsType.CADENCE_METRICS_PREFIX + "ListOpenWorkflowExecutions";
   public static final String LIST_WORKFLOW_EXECUTIONS =
       MetricsType.CADENCE_METRICS_PREFIX + "ListWorkflowExecutions";
+  public static final String LIST_ARCHIVED_WORKFLOW_EXECUTIONS =
+      MetricsType.CADENCE_METRICS_PREFIX + "ListArchivedWorkflowExecutions";
+  public static final String LIST_TASK_LIST_PARTITIONS =
+      MetricsType.CADENCE_METRICS_PREFIX + "ListTaskListPartitions";
   public static final String SCAN_WORKFLOW_EXECUTIONS =
       MetricsType.CADENCE_METRICS_PREFIX + "ScanWorkflowExecutions";
   public static final String COUNT_WORKFLOW_EXECUTIONS =
@@ -77,6 +81,8 @@ public class ServiceMethod {
   public static final String QUERY_WORKFLOW = MetricsType.CADENCE_METRICS_PREFIX + "QueryWorkflow";
   public static final String DESCRIBE_TASK_LIST =
       MetricsType.CADENCE_METRICS_PREFIX + "DescribeTaskList";
+  public static final String GET_CLUSTER_INFO =
+      MetricsType.CADENCE_METRICS_PREFIX + "GetClusterInfo";
   public static final String RESPOND_QUERY_TASK_COMPLETED =
       MetricsType.CADENCE_METRICS_PREFIX + "RespondQueryTaskCompleted";
   public static final String DESCRIBE_WORKFLOW_EXECUTION =

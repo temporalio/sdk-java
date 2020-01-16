@@ -1,6 +1,6 @@
 buildscript {
     dependencies {
-        classpath 'gradle.plugin.org.jruyi.gradle:thrift-gradle-plugin:0.4.1'
+        classpath "gradle.plugin.org.jruyi.gradle:thrift-gradle-plugin:0.4.1"
     }
 }
 
@@ -67,6 +67,12 @@ dependencies {
 license {
     header rootProject.file('license-header.txt')
     exclude 'com/uber/cadence/*.java' // generated code
+}
+
+compileThrift {
+    sourceItems "src/main/idls/thrift/cadence.thrift","src/main/idls/thrift/shared.thrift"
+
+    nowarn true
 }
 
 compileJava {

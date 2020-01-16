@@ -17,7 +17,6 @@
 
 package com.uber.cadence.internal.replay;
 
-import com.uber.cadence.ChildPolicy;
 import com.uber.cadence.SearchAttributes;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowType;
@@ -69,8 +68,6 @@ public interface DecisionContext extends ReplayAware {
   Duration getExecutionStartToCloseTimeout();
 
   Duration getDecisionTaskTimeout();
-
-  ChildPolicy getChildPolicy();
 
   /**
    * Used to retrieve search attributes.
