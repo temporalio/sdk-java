@@ -54,6 +54,7 @@ public final class ChildWorkflowOptions {
         .setTaskList(OptionsUtils.merge(a.taskList(), o.getTaskList(), String.class))
         .setRetryOptions(RetryOptions.merge(r, o.getRetryOptions()))
         .setCronSchedule(OptionsUtils.merge(cronAnnotation, o.getCronSchedule(), String.class))
+        .setParentClosePolicy(o.getParentClosePolicy())
         .setMemo(o.getMemo())
         .setSearchAttributes(o.getSearchAttributes())
         .validateAndBuildWithDefaults();
