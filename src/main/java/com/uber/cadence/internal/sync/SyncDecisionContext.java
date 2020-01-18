@@ -353,6 +353,7 @@ final class SyncDecisionContext implements WorkflowInterceptor {
               .setTaskStartToCloseTimeout(options.getTaskStartToCloseTimeout())
               .setWorkflowId(options.getWorkflowId())
               .setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy())
+              .setParentClosePolicy(options.getParentClosePolicy())
               .build();
       return WorkflowRetryerInternal.retryAsync(
           retryOptions, () -> executeChildWorkflowOnce(name, o1, input, executionResult));
@@ -384,6 +385,7 @@ final class SyncDecisionContext implements WorkflowInterceptor {
             .setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy())
             .setRetryParameters(retryParameters)
             .setCronSchedule(options.getCronSchedule())
+            .setParentClosePolicy(options.getParentClosePolicy())
             .build();
     CompletablePromise<byte[]> result = Workflow.newPromise();
     Consumer<Exception> cancellationCallback =
