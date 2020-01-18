@@ -81,7 +81,7 @@
       "input": "IldvcmtmbG93VGVzdC10ZXN0Q2hpbGRXb3JrZmxvd1JldHJ5W0RvY2tlciBTdGlja3kgT05dLTdmMTY0MmE5LTkwOTItNGFiMS05ODIwLWZmZGY5ZWVjOTVjZSI=",
       "executionStartToCloseTimeoutSeconds": 500,
       "taskStartToCloseTimeoutSeconds": 2,
-      "childPolicy": "TERMINATE",
+      "parentClosePolicy": "TERMINATE",
       "decisionTaskCompletedEventId": 4,
       "workflowIdReusePolicy": "AllowDuplicateFailedOnly"
     }
@@ -277,7 +277,7 @@
       "input": "IldvcmtmbG93VGVzdC10ZXN0Q2hpbGRXb3JrZmxvd1JldHJ5W0RvY2tlciBTdGlja3kgT05dLTdmMTY0MmE5LTkwOTItNGFiMS05ODIwLWZmZGY5ZWVjOTVjZSI=",
       "executionStartToCloseTimeoutSeconds": 500,
       "taskStartToCloseTimeoutSeconds": 2,
-      "childPolicy": "TERMINATE",
+      "parentClosePolicy": "TERMINATE",
       "decisionTaskCompletedEventId": 19,
       "workflowIdReusePolicy": "AllowDuplicateFailedOnly"
     }
@@ -473,7 +473,7 @@
       "input": "IldvcmtmbG93VGVzdC10ZXN0Q2hpbGRXb3JrZmxvd1JldHJ5W0RvY2tlciBTdGlja3kgT05dLTdmMTY0MmE5LTkwOTItNGFiMS05ODIwLWZmZGY5ZWVjOTVjZSI=",
       "executionStartToCloseTimeoutSeconds": 500,
       "taskStartToCloseTimeoutSeconds": 2,
-      "childPolicy": "TERMINATE",
+      "parentClosePolicy": "TERMINATE",
       "decisionTaskCompletedEventId": 34,
       "workflowIdReusePolicy": "AllowDuplicateFailedOnly"
     }

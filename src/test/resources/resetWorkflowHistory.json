@@ -161,7 +161,7 @@
       },
       "executionStartToCloseTimeoutSeconds": 1000,
       "taskStartToCloseTimeoutSeconds": 10,
-      "childPolicy": "TERMINATE",
+      "parentClosePolicy": "TERMINATE",
       "decisionTaskCompletedEventId": 10,
       "workflowIdReusePolicy": "AllowDuplicateFailedOnly",
       "retryPolicy": {
@@ -432,7 +432,7 @@
       },
       "executionStartToCloseTimeoutSeconds": 1000,
       "taskStartToCloseTimeoutSeconds": 10,
-      "childPolicy": "TERMINATE",
+      "parentClosePolicy": "TERMINATE",
       "decisionTaskCompletedEventId": 28,
       "workflowIdReusePolicy": "AllowDuplicateFailedOnly",
       "retryPolicy": {
@@ -622,7 +622,7 @@
       },
       "executionStartToCloseTimeoutSeconds": 1000,
       "taskStartToCloseTimeoutSeconds": 10,
-      "childPolicy": "TERMINATE",
+      "parentClosePolicy": "TERMINATE",
       "decisionTaskCompletedEventId": 40,
       "workflowIdReusePolicy": "AllowDuplicateFailedOnly",
       "retryPolicy": {
@@ -1063,7 +1063,7 @@
       },
       "executionStartToCloseTimeoutSeconds": 1000,
       "taskStartToCloseTimeoutSeconds": 10,
-      "childPolicy": "TERMINATE",
+      "parentClosePolicy": "TERMINATE",
       "decisionTaskCompletedEventId": 70,
       "workflowIdReusePolicy": "AllowDuplicateFailedOnly",
       "retryPolicy": {
