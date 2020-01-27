@@ -32,7 +32,7 @@ import java.util.List;
  *   String r = activity.foo();
  *   saga.addCompensation(activity::cleanupFoo, arg2, r);
  *   Promise<String> r2 = Async.function(activity::bar);
- *   r2.thenApply(r->saga.addCompensation(activity.cleanupBar(r));
+ *   r2.thenApply(r-&gt;saga.addCompensation(activity.cleanupBar(r));
  *   ...
  *   useR2(r2.get());
  * } catch (Exception e) {

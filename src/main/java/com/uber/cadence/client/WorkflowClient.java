@@ -264,7 +264,7 @@ public interface WorkflowClient {
    * asynchronously. Only relevant for activity implementations that called {@link
    * Activity#doNotCompleteOnReturn()}.
    *
-   * <p>TODO: Activity completion options with retries and timeouts. <
+   * <p>TODO: Activity completion options with retries and timeouts. </p>
    */
   ActivityCompletionClient newActivityCompletionClient();
 

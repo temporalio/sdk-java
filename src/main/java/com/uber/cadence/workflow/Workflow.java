@@ -594,8 +594,8 @@ public final class Workflow {
    * <p>Example of running activities in parallel and cancelling them after a specified timeout.
    *
    * <pre><code>
-   *     List<Promise<String>> results = new ArrayList<>();
-   *     CancellationScope scope = Workflow.newDetachedCancellationScope(() -> {
+   *     List&lt;Promise&lt;String&gt;&gt; results = new ArrayList&lt;&gt;();
+   *     CancellationScope scope = Workflow.newDetachedCancellationScope(() -&gt; {
    *        Async.function(activities::a1);
    *        Async.function(activities::a2);
    *     });
@@ -620,14 +620,14 @@ public final class Workflow {
    *
    * <pre><code>
    *               Workflow.newCancellationScope(
-   *                   (scope) -> {
-   *                     Promise<Void> p1 = Async.proc(activities::a1).exceptionally(ex->
+   *                   (scope) -&gt; {
+   *                     Promise<Void> p1 = Async.proc(activities::a1).exceptionally(ex-&gt;
    *                        {
    *                           scope.cancel("a1 failed");
    *                           return null;
    *                        });
    *
-   *                     Promise<Void> p2 = Async.proc(activities::a2).exceptionally(ex->
+   *                     Promise<Void> p2 = Async.proc(activities::a2).exceptionally(ex-&gt;
    *                        {
    *                           scope.cancel("a2 failed");
    *                           return null;
@@ -654,7 +654,7 @@ public final class Workflow {
    *  try {
    *     // workflow logic
    *  } catch (CancellationException e) {
-   *     CancellationScope detached = Workflow.newDetachedCancellationScope(() -> {
+   *     CancellationScope detached = Workflow.newDetachedCancellationScope(() -&gt; {
    *         // cleanup logic
    *     });
    *     detached.run();
@@ -869,12 +869,12 @@ public final class Workflow {
    * <pre><code>
    *  // Bad example:
    *  AtomicInteger random = new AtomicInteger();
-   *  Workflow.sideEffect(() -> {
+   *  Workflow.sideEffect(() -&gt; {
    *         random.set(random.nextInt(100));
    *         return null;
    *  });
    *  // random will always be 0 in replay, thus this code is non-deterministic
-   *  if random.get() < 50 {
+   *  if random.get() &lt; 50 {
    *         ....
    *  } else {
    *         ....
@@ -888,8 +888,8 @@ public final class Workflow {
    *
    * <pre><code>
    *  // Good example:
-   *  int random = Workflow.sideEffect(Integer.class, () -> random.nextInt(100));
-   *  if random < 50 {
+   *  int random = Workflow.sideEffect(Integer.class, () -&gt; random.nextInt(100));
+   *  if random &lt; 50 {
    *         ....
    *  } else {
    *         ....
@@ -923,12 +923,12 @@ public final class Workflow {
    * <pre><code>
    *  // Bad example:
    *  AtomicInteger random = new AtomicInteger();
-   *  Workflow.sideEffect(() -> {
+   *  Workflow.sideEffect(() -&gt; {
    *         random.set(random.nextInt(100));
    *         return null;
    *  });
    *  // random will always be 0 in replay, thus this code is non-deterministic
-   *  if random.get() < 50 {
+   *  if random.get() &lt; 50 {
    *         ....
    *  } else {
    *         ....
@@ -942,8 +942,8 @@ public final class Workflow {
    *
    * <pre><code>
    *  // Good example:
-   *  int random = Workflow.sideEffect(Integer.class, () -> random.nextInt(100));
-   *  if random < 50 {
+   *  int random = Workflow.sideEffect(Integer.class, () -&gt; random.nextInt(100));
+   *  if random &lt; 50 {
    *         ....
    *  } else {
    *         ....
@@ -1191,12 +1191,12 @@ public final class Workflow {
    * code:
    *
    * <pre><code>
-   *     Map<String, Object> attr1 = new HashMap<>();
+   *     Map&lt;String, Object&gt; attr1 = new HashMap&lt;&gt;();
    *     attr1.put("CustomIntField", 1);
    *     attr1.put("CustomBoolField", true);
    *     Workflow.upsertSearchAttributes(attr1);
    *
-   *     Map<String, Object> attr2 = new HashMap<>();
+   *     Map&lt;String, Object&gt; attr2 = new HashMap&lt;&gt;();
    *     attr2.put("CustomIntField", 2);
    *     attr2.put("CustomKeywordField", "Seattle");
    *     Workflow.upsertSearchAttributes(attr2);
