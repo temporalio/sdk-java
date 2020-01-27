@@ -145,7 +145,7 @@ final class WorkflowDecisionContext {
     }
 
     ParentClosePolicy parentClosePolicy = parameters.getParentClosePolicy();
-    if(parentClosePolicy != null) {
+    if (parentClosePolicy != null) {
       attributes.setParentClosePolicy(parentClosePolicy);
     }
 
