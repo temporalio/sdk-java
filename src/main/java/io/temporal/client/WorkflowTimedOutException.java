@@ -23,7 +23,7 @@ import java.util.Optional;
 
 /**
  * Indicates that a workflow exceeded its execution timeout and was forcefully terminated by the
- * Cadence service.
+ * Temporal service.
  */
 public final class WorkflowTimedOutException extends WorkflowException {
 

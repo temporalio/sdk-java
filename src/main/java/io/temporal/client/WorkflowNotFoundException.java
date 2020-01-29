@@ -21,7 +21,7 @@ import io.temporal.WorkflowExecution;
 import java.util.Optional;
 
 /**
- * Thrown when workflow with the given id is not known to the cadence service. It could be because
+ * Thrown when workflow with the given id is not known to the Temporal service. It could be because
  * id is not correct or workflow was purged from the service after reaching its retention limit.
  */
 public final class WorkflowNotFoundException extends WorkflowException {

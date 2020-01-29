@@ -109,7 +109,7 @@ public class WorkflowExecutionUtils {
    * @throws CancellationException if workflow was cancelled
    * @throws WorkflowExecutionFailedException if workflow execution failed
    * @throws WorkflowTimedOutException if workflow execution exceeded its execution timeout and was
-   *     forcefully terminated by the Cadence server.
+   *     forcefully terminated by the Temporal server.
    * @throws WorkflowTerminatedException if workflow execution was terminated through an external
    *     terminate command.
    */

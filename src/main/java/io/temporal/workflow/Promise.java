@@ -28,7 +28,7 @@ import java.util.concurrent.TimeoutException;
  * with the following differences:
  *
  * <ul>
- *   <li>Can be used only inside a Cadence workflow code. Use {@link java.util.concurrent.Future}
+ *   <li>Can be used only inside a Temporal workflow code. Use {@link java.util.concurrent.Future}
  *       and its derivatives to implement activities and workflow starting and querying code.
  *   <li>{@link #get()} doesn't throw InterruptedException. The only way to unblock {@link #get()}
  *       is to complete the Promise

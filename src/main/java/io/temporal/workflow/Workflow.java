@@ -307,7 +307,7 @@ import org.slf4j.Logger;
  *     public String getGreeting(String name) {
  *         GreetingChild child = Workflow.newChildWorkflowStub(GreetingChild.class);
  *         Promise<String> greeting = Async.function(child::composeGreeting, "Hello", name);
- *         child.updateName("Cadence");
+ *         child.updateName("Temporal");
  *         return greeting.get();
  *     }
  * }
@@ -318,7 +318,7 @@ import org.slf4j.Logger;
  *
  * <h3>Workflow Implementation Constraints</h3>
  *
- * Cadence uses <a
+ * Temporal uses <a
  * href="https://docs.microsoft.com/en-us/azure/architecture/patterns/event-sourcing">event
  * sourcing</a> to recover the state of a workflow object including its threads and local variable
  * values. In essence, every time a workflow state has to be restored, its code is re-executed from
@@ -359,7 +359,7 @@ import org.slf4j.Logger;
  *
  * <p>The values passed to workflows through invocation parameters or returned through a result
  * value are recorded in the execution history. The entire execution history is transferred from the
- * Cadence service to workflow workers with every event that the workflow logic needs to process. A
+ * Temporal service to workflow workers with every event that the workflow logic needs to process. A
  * large execution history can thus adversely impact the performance of your workflow. Therefore, be
  * mindful of the amount of data that you transfer via activity invocation parameters or return
  * values. Other than that, no additional limitations exist on activity implementations.
@@ -399,7 +399,7 @@ public final class Workflow {
   /**
    * Creates client stub to local activities that implement given interface. A local activity is
    * similar to a regular activity, but with some key differences: 1. Local activity is scheduled
-   * and run by the workflow worker locally. 2. Local activity does not need Cadence server to
+   * and run by the workflow worker locally. 2. Local activity does not need Temporal server to
    * schedule activity task and does not rely on activity worker. 3. Local activity is for short
    * living activities (usually finishes within seconds). 4. Local activity cannot heartbeat.
    *
@@ -587,7 +587,7 @@ public final class Workflow {
    * CancellationScope#current()}. If the parent one is cancelled then all the children scopes are
    * cancelled automatically. The main workflow function (annotated with @{@link WorkflowMethod} is
    * wrapped within a root cancellation scope which gets cancelled when a workflow is cancelled
-   * through the Cadence CancelWorkflowExecution API. To perform cleanup operations that require
+   * through the Temporal CancelWorkflowExecution API. To perform cleanup operations that require
    * blocking after the current scope is cancelled use a scope created through {@link
    * #newDetachedCancellationScope(Runnable)}.
    *
@@ -670,8 +670,8 @@ public final class Workflow {
   }
 
   /**
-   * Create new timer. Note that Cadence service time resolution is in seconds. So all durations are
-   * rounded <b>up</b> to the nearest second.
+   * Create new timer. Note that Temporal service time resolution is in seconds. So all durations
+   * are rounded <b>up</b> to the nearest second.
    *
    * @return feature that becomes ready when at least specified number of seconds passes. promise is
    *     failed with {@link java.util.concurrent.CancellationException} if enclosing scope is
@@ -1186,7 +1186,7 @@ public final class Workflow {
   /**
    * {@code upsertSearchAttributes} is used to add or update workflow search attributes. The search
    * attributes can be used in query of List/Scan/Count workflow APIs. The key and value type must
-   * be registered on cadence server side; The value has to be Json serializable.
+   * be registered on Temporal server side; The value has to be Json serializable.
    * UpsertSearchAttributes will merge attributes to existing map in workflow, for example workflow
    * code:
    *

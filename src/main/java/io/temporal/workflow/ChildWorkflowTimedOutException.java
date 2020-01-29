@@ -22,7 +22,7 @@ import io.temporal.WorkflowType;
 
 /**
  * Indicates that a child workflow exceeded its execution timeout and was forcefully terminated by
- * the Cadence service.
+ * the Temporal service.
  */
 @SuppressWarnings("serial")
 public final class ChildWorkflowTimedOutException extends ChildWorkflowException {

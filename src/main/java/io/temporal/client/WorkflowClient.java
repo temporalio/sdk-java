@@ -36,7 +36,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Client to the Cadence service used to start and query workflows by external processes. Also it
+ * Client to the Temporal service used to start and query workflows by external processes. Also it
  * supports creation of {@link ActivityCompletionClient} instances used to complete activities
  * asynchronously. Do not create this object for each request, keep it for the duration of the
  * process.
@@ -46,7 +46,7 @@ import java.util.concurrent.CompletableFuture;
  * then calling a method annotated with {@literal @}{@link WorkflowMethod}.
  *
  * <pre><code>
- * WorkflowClient workflowClient = WorkflowClient.newInstance(cadenceServiceHost, cadenceServicePort, domain);
+ * WorkflowClient workflowClient = WorkflowClient.newInstance(temporalServiceHost, temporalServicePort, domain);
  * // Create a workflow stub.
  * FileProcessingWorkflow workflow = workflowClient.newWorkflowStub(FileProcessingWorkflow.class);
  * </code></pre>
@@ -108,7 +108,7 @@ public interface WorkflowClient {
   String QUERY_TYPE_REPLAY_ONLY = "__replay_only";
 
   /**
-   * Creates worker that connects to the local instance of the Cadence Service that listens on a
+   * Creates worker that connects to the local instance of the Temporal Service that listens on a
    * default port (7933).
    *
    * @param domain domain that worker uses to poll.
@@ -118,7 +118,7 @@ public interface WorkflowClient {
   }
 
   /**
-   * Creates worker that connects to the local instance of the Cadence Service that listens on a
+   * Creates worker that connects to the local instance of the Temporal Service that listens on a
    * default port (7933).
    *
    * @param domain domain that worker uses to poll.
@@ -130,10 +130,10 @@ public interface WorkflowClient {
   }
 
   /**
-   * Creates client that connects to an instance of the Cadence Service.
+   * Creates client that connects to an instance of the Temporal Service.
    *
-   * @param host of the Cadence Service endpoint
-   * @param port of the Cadence Service endpoint
+   * @param host of the Temporal Service endpoint
+   * @param port of the Temporal Service endpoint
    * @param domain domain that worker uses to poll.
    */
   static WorkflowClient newInstance(String host, int port, String domain) {
@@ -141,10 +141,10 @@ public interface WorkflowClient {
   }
 
   /**
-   * Creates client that connects to an instance of the Cadence Service.
+   * Creates client that connects to an instance of the Temporal Service.
    *
-   * @param host of the Cadence Service endpoint
-   * @param port of the Cadence Service endpoint
+   * @param host of the Temporal Service endpoint
+   * @param port of the Temporal Service endpoint
    * @param domain domain that worker uses to poll.
    * @param options Options (like {@link io.temporal.converter.DataConverter}er override) for
    *     configuring client.
@@ -155,9 +155,9 @@ public interface WorkflowClient {
   }
 
   /**
-   * Creates client that connects to an instance of the Cadence Service.
+   * Creates client that connects to an instance of the Temporal Service.
    *
-   * @param service client to the Cadence Service endpoint.
+   * @param service client to the Temporal Service endpoint.
    * @param domain domain that worker uses to poll.
    */
   static WorkflowClient newInstance(IWorkflowService service, String domain) {
@@ -165,9 +165,9 @@ public interface WorkflowClient {
   }
 
   /**
-   * Creates client that connects to an instance of the Cadence Service.
+   * Creates client that connects to an instance of the Temporal Service.
    *
-   * @param service client to the Cadence Service endpoint.
+   * @param service client to the Temporal Service endpoint.
    * @param domain domain that worker uses to poll.
    * @param options Options (like {@link io.temporal.converter.DataConverter}er override) for
    *     configuring client.

@@ -40,7 +40,7 @@ public interface DecisionContext extends ReplayAware {
 
   WorkflowExecution getWorkflowExecution();
 
-  // TODO: Add to Cadence
+  // TODO: Add to Temporal
   //    io.temporal.WorkflowExecution getParentWorkflowExecution();
 
   WorkflowType getWorkflowType();

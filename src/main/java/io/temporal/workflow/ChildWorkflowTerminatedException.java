@@ -21,7 +21,7 @@ import io.temporal.WorkflowExecution;
 import io.temporal.WorkflowType;
 
 /**
- * Indicates that child workflow was forcefully terminated by an external command to Cadence
+ * Indicates that child workflow was forcefully terminated by an external command to Temporal
  * service.
  */
 @SuppressWarnings("serial")

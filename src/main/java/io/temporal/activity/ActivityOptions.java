@@ -172,7 +172,7 @@ public final class ActivityOptions {
       if (scheduleToStartTimeout == null) {
         scheduleToStart = scheduleToClose;
       }
-      // Cadence still requires it.
+      // Temporal still requires it.
       Duration heartbeat = heartbeatTimeout;
       if (heartbeatTimeout == null) {
         heartbeat = scheduleToClose;

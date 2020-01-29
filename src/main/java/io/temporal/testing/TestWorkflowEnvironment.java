@@ -32,7 +32,7 @@ import java.util.function.Function;
  * TestWorkflowEnvironment provides workflow unit testing capabilities.
  *
  * <p>Testing the workflow code is hard as it might be potentially very long running. The included
- * in-memory implementation of the Cadence service supports <b>an automatic time skipping</b>.
+ * in-memory implementation of the Temporal service supports <b>an automatic time skipping</b>.
  * Anytime a workflow under the test as well as the unit test code are waiting on a timer (or sleep)
  * the internal service time is automatically advanced to the nearest time that unblocks one of the
  * waiting threads. This way a workflow that runs in production for months is unit tested in
@@ -100,14 +100,14 @@ public interface TestWorkflowEnvironment {
   }
 
   /**
-   * Creates a new Worker instance that is connected to the in-memory test Cadence service.
+   * Creates a new Worker instance that is connected to the in-memory test Temporal service.
    *
    * @param taskList task list to poll.
    */
   Worker newWorker(String taskList);
 
   /**
-   * Creates a new Worker instance that is connected to the in-memory test Cadence service.
+   * Creates a new Worker instance that is connected to the in-memory test Temporal service.
    *
    * @param taskList task list to poll.
    * @param overrideOptions is used to override the default worker options.
@@ -115,36 +115,36 @@ public interface TestWorkflowEnvironment {
   Worker newWorker(
       String taskList, Function<WorkerOptions.Builder, WorkerOptions.Builder> overrideOptions);
 
-  /** Creates a WorkflowClient that is connected to the in-memory test Cadence service. */
+  /** Creates a WorkflowClient that is connected to the in-memory test Temporal service. */
   WorkflowClient newWorkflowClient();
 
   /**
-   * Creates a WorkflowClient that is connected to the in-memory test Cadence service.
+   * Creates a WorkflowClient that is connected to the in-memory test Temporal service.
    *
    * @param clientOptions options used to configure the client.
    */
   WorkflowClient newWorkflowClient(WorkflowClientOptions clientOptions);
 
   /**
-   * Returns the current in-memory test Cadence service time in milliseconds. This time might not be
-   * equal to {@link System#currentTimeMillis()} due to time skipping.
+   * Returns the current in-memory test Temporal service time in milliseconds. This time might not
+   * be equal to {@link System#currentTimeMillis()} due to time skipping.
    */
   long currentTimeMillis();
 
   /**
-   * Wait until internal test Cadence service time passes the specified duration. This call also
+   * Wait until internal test Temporal service time passes the specified duration. This call also
    * indicates that workflow time might jump forward (if none of the activities are running) up to
    * the specified duration.
    */
   void sleep(Duration duration);
 
   /**
-   * Registers a callback to run after the specified delay according to the test Cadence service
+   * Registers a callback to run after the specified delay according to the test Temporal service
    * internal clock.
    */
   void registerDelayedCallback(Duration delay, Runnable r);
 
-  /** Returns the in-memory test Cadence service that is owned by this. */
+  /** Returns the in-memory test Temporal service that is owned by this. */
   IWorkflowService getWorkflowService();
 
   String getDomain();

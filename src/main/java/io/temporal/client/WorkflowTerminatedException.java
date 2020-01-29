@@ -21,7 +21,7 @@ import io.temporal.WorkflowExecution;
 import java.util.Optional;
 
 /**
- * Indicates that a workflow was forcefully terminated by an external command to Cadence service.
+ * Indicates that a workflow was forcefully terminated by an external command to Temporal service.
  */
 public final class WorkflowTerminatedException extends WorkflowException {
 

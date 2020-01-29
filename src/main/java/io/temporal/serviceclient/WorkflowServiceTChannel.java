@@ -132,7 +132,7 @@ public class WorkflowServiceTChannel implements IWorkflowService {
 
   private static final String DEFAULT_CLIENT_APP_NAME = "temporal-client";
 
-  /** Name of the Cadence service front end as required by TChannel. */
+  /** Name of the Temporal service front end as required by TChannel. */
   private static final String DEFAULT_SERVICE_NAME = "temporal-frontend";
 
   private static final Logger log = LoggerFactory.getLogger(WorkflowServiceTChannel.class);
@@ -148,10 +148,10 @@ public class WorkflowServiceTChannel implements IWorkflowService {
     /** The tChannel timeout for query workflow call in milliseconds */
     private final long rpcQueryTimeoutMillis;
 
-    /** TChannel service name that the Cadence service was started with. */
+    /** TChannel service name that the Temporal service was started with. */
     private final String serviceName;
 
-    /** Name of the service using the cadence-client. */
+    /** Name of the service using the temporal-client. */
     private final String clientAppName;
 
     /** Client for metrics reporting. */
@@ -294,7 +294,7 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
 
       /**
-       * Sets the service name that Cadence service was started with.
+       * Sets the service name that Temporal service was started with.
        *
        * @param serviceName String representing the service name
        * @return Builder for ClentOptions
@@ -350,8 +350,8 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   private final SubChannel subChannel;
 
   /**
-   * Creates Cadence client that connects to the local instance of the Cadence Service that listens
-   * on a default port (7933).
+   * Creates Temporal client that connects to the local instance of the Temporal Service that
+   * listens on a default port (7933).
    */
   public WorkflowServiceTChannel() {
     this(
@@ -363,7 +363,7 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   /**
-   * Creates Cadence client that connects to the specified host and port using default options.
+   * Creates Temporal client that connects to the specified host and port using default options.
    *
    * @param host host to connect
    * @param port port to connect
@@ -373,7 +373,7 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   /**
-   * Creates Cadence client that connects to the specified host and port using specified options.
+   * Creates Temporal client that connects to the specified host and port using specified options.
    *
    * @param host host to connect
    * @param port port to connect
@@ -411,9 +411,9 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   /**
-   * Creates Cadence client with specified sub channel and options.
+   * Creates Temporal client with specified sub channel and options.
    *
-   * @param subChannel sub channel for communicating with cadence frontend service.
+   * @param subChannel sub channel for communicating with Temporal frontend service.
    * @param options configuration options like rpc timeouts.
    */
   public WorkflowServiceTChannel(SubChannel subChannel, ClientOptions options) {

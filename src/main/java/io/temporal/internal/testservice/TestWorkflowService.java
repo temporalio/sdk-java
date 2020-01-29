@@ -39,8 +39,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * In memory implementation of the Cadence service. To be used for testing purposes only. Do not use
- * directly. Instead use {@link io.temporal.testing.TestWorkflowEnvironment}.
+ * In memory implementation of the Temporal service. To be used for testing purposes only. Do not
+ * use directly. Instead use {@link io.temporal.testing.TestWorkflowEnvironment}.
  */
 public final class TestWorkflowService implements IWorkflowService {
 

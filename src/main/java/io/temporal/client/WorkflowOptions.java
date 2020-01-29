@@ -115,7 +115,7 @@ public final class WorkflowOptions {
 
     /**
      * Specifies server behavior if a completed workflow with the same id exists. Note that under no
-     * conditions Cadence allows two workflows with the same domain and workflow id run
+     * conditions Temporal allows two workflows with the same domain and workflow id run
      * simultaneously.
      * <li>
      *
@@ -138,7 +138,7 @@ public final class WorkflowOptions {
     }
 
     /**
-     * The time after which workflow execution is automatically terminated by Cadence service. Do
+     * The time after which workflow execution is automatically terminated by Temporal service. Do
      * not rely on execution timeout for business level timeouts. It is preferred to use in workflow
      * timers for this purpose.
      */

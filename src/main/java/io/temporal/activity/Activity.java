@@ -67,7 +67,7 @@ import java.util.Optional;
  *
  * <p>The values passed to activities through invocation parameters or returned through a result
  * value are recorded in the execution history. The entire execution history is transferred from the
- * Cadence service to workflow workers when a workflow state needs to recover. A large execution
+ * Temporal service to workflow workers when a workflow state needs to recover. A large execution
  * history can thus adversely impact the performance of your workflow. Therefore, be mindful of the
  * amount of data you transfer via activity invocation parameters or return values. Other than that,
  * no additional limitations exist on activity implementations.
@@ -129,7 +129,7 @@ import java.util.Optional;
  *
  * <p>Sometimes an activity lifecycle goes beyond a synchronous method invocation. For example, a
  * request can be put in a queue and later a reply comes and is picked up by a different worker
- * process. The whole request-reply interaction can be modeled as a single Cadence activity.
+ * process. The whole request-reply interaction can be modeled as a single Temporal activity.
  *
  * <p>To indicate that an activity should not be completed upon its method return, call {@link
  * Activity#doNotCompleteOnReturn()} from the original activity thread. Then later, when replies
@@ -166,7 +166,7 @@ import java.util.Optional;
  * <h3>Activity Heartbeating</h3>
  *
  * <p>Some activities are long running. To react to their crashes quickly, use a heartbeat
- * mechanism. Use the {@link Activity#heartbeat(Object)} function to let the Cadence service know
+ * mechanism. Use the {@link Activity#heartbeat(Object)} function to let the Temporal service know
  * that the activity is still alive. You can piggyback `details` on an activity heartbeat. If an
  * activity times out, the last value of `details` is included in the ActivityTimeoutException
  * delivered to a workflow. Then the workflow can pass the details to the next activity invocation.
@@ -228,7 +228,7 @@ public final class Activity {
   }
 
   /**
-   * Use to notify Cadence service that activity execution is alive.
+   * Use to notify Temporal service that activity execution is alive.
    *
    * @param details In case of activity timeout can be accessed through {@link
    *     ActivityTimeoutException#getDetails(Class)} method.

@@ -74,8 +74,8 @@ class DecisionsHelper {
   //  private static final Logger log = LoggerFactory.getLogger(DecisionsHelper.class);
 
   /**
-   * TODO: Update constant once Cadence introduces the limit of decision per completion. Or remove
-   * code path if Cadence deals with this problem differently like paginating through decisions.
+   * TODO: Update constant once Temporal introduces the limit of decision per completion. Or remove
+   * code path if Temporal deals with this problem differently like paginating through decisions.
    */
   private static final int MAXIMUM_DECISIONS_PER_COMPLETION = 10000;
 

@@ -76,9 +76,9 @@ public final class Worker implements Suspendable {
   private ThreadPoolExecutor threadPoolExecutor;
 
   /**
-   * Creates worker that connects to an instance of the Cadence Service.
+   * Creates worker that connects to an instance of the Temporal Service.
    *
-   * @param service client to the Cadence Service endpoint.
+   * @param service client to the Temporal Service endpoint.
    * @param domain domain that worker uses to poll.
    * @param taskList task list name worker uses to poll. It uses this name for both decision and
    *     activity task list polls.
@@ -443,7 +443,7 @@ public final class Worker implements Suspendable {
         "attempted to %s while in %s state. Acceptable States: %s";
     private static final Logger log = LoggerFactory.getLogger(Factory.class);
     /**
-     * Creates a factory. Workers will be connected to a local deployment of cadence-server
+     * Creates a factory. Workers will be connected to a local deployment of temporal-server
      *
      * @param domain Domain used by workers to poll for workflows.
      */
@@ -452,7 +452,7 @@ public final class Worker implements Suspendable {
     }
 
     /**
-     * Creates a factory. Workers will be connected to the cadence-server at the specific host and
+     * Creates a factory. Workers will be connected to the temporal-server at the specific host and
      * port.
      *
      * @param host host used by the underlying workflowServiceClient to connect to.
@@ -464,7 +464,7 @@ public final class Worker implements Suspendable {
     }
 
     /**
-     * Creates a factory connected to a local deployment of cadence-server.
+     * Creates a factory connected to a local deployment of temporal-server.
      *
      * @param domain Domain used by workers to poll for workflows.
      * @param factoryOptions Options used to configure factory settings
@@ -474,7 +474,7 @@ public final class Worker implements Suspendable {
     }
 
     /**
-     * Creates a factory. Workers will be connected to the cadence-server at the specific host and
+     * Creates a factory. Workers will be connected to the temporal-server at the specific host and
      * port.
      *
      * @param host host used by the underlying workflowServiceClient to connect to.
@@ -487,10 +487,10 @@ public final class Worker implements Suspendable {
     }
 
     /**
-     * Creates a factory. Workers will be connect to the cadence-server using the workflowService
+     * Creates a factory. Workers will be connect to the temporal-server using the workflowService
      * client passed in.
      *
-     * @param workflowService client to the Cadence Service endpoint.
+     * @param workflowService client to the Temporal Service endpoint.
      * @param domain Domain used by workers to poll for workflows.
      */
     public Factory(IWorkflowService workflowService, String domain) {
@@ -498,10 +498,10 @@ public final class Worker implements Suspendable {
     }
 
     /**
-     * Creates a factory. Workers will be connect to the cadence-server using the workflowService
+     * Creates a factory. Workers will be connect to the temporal-server using the workflowService
      * client passed in.
      *
-     * @param workflowService client to the Cadence Service endpoint.
+     * @param workflowService client to the Temporal Service endpoint.
      * @param domain Domain used by workers to poll for workflows.
      * @param factoryOptions Options used to configure factory settings
      */
@@ -561,7 +561,7 @@ public final class Worker implements Suspendable {
     }
 
     /**
-     * Creates worker that connects to an instance of the Cadence Service. It uses the domain
+     * Creates worker that connects to an instance of the Temporal Service. It uses the domain
      * configured at the Factory level. New workers cannot be created after the start() has been
      * called
      *
@@ -574,7 +574,7 @@ public final class Worker implements Suspendable {
     }
 
     /**
-     * Creates worker that connects to an instance of the Cadence Service. It uses the domain
+     * Creates worker that connects to an instance of the Temporal Service. It uses the domain
      * configured at the Factory level. New workers cannot be created after the start() has been
      * called
      *
@@ -662,7 +662,7 @@ public final class Worker implements Suspendable {
       return true;
     }
 
-    /** @return instance of the cadence client that this worker uses. */
+    /** @return instance of the Temporal client that this worker uses. */
     public IWorkflowService getWorkflowService() {
       return workflowService;
     }
@@ -690,7 +690,7 @@ public final class Worker implements Suspendable {
     }
 
     /**
-     * Closes Cadence client object. It should be closed only after all tasks have completed
+     * Closes Temporal client object. It should be closed only after all tasks have completed
      * execution as tasks use it to report completion.
      */
     private void closeServiceWhenTerminated() {

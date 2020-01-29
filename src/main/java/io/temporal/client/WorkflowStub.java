@@ -65,7 +65,7 @@ public interface WorkflowStub {
 
   /**
    * Returns workflow result potentially waiting for workflow to complete. Behind the scene this
-   * call performs long poll on Cadence service waiting for workflow completion notification.
+   * call performs long poll on Temporal service waiting for workflow completion notification.
    *
    * @param resultClass class of the workflow return value
    * @param resultType type of the workflow return value. Differs from resultClass for generic
@@ -79,7 +79,7 @@ public interface WorkflowStub {
 
   /**
    * Returns workflow result potentially waiting for workflow to complete. Behind the scene this
-   * call performs long poll on Cadence service waiting for workflow completion notification.
+   * call performs long poll on Temporal service waiting for workflow completion notification.
    *
    * @param resultClass class of the workflow return value
    * @param <R> type of the workflow return value
@@ -91,7 +91,7 @@ public interface WorkflowStub {
 
   /**
    * Returns workflow result potentially waiting for workflow to complete. Behind the scene this
-   * call performs long poll on Cadence service waiting for workflow completion notification.
+   * call performs long poll on Temporal service waiting for workflow completion notification.
    *
    * @param timeout maximum time to wait
    * @param unit unit of timeout
@@ -106,7 +106,7 @@ public interface WorkflowStub {
 
   /**
    * Returns workflow result potentially waiting for workflow to complete. Behind the scene this
-   * call performs long poll on Cadence service waiting for workflow completion notification.
+   * call performs long poll on Temporal service waiting for workflow completion notification.
    *
    * @param timeout maximum time to wait
    * @param unit unit of timeout

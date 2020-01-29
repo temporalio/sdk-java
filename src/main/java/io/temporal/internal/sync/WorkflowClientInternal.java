@@ -53,7 +53,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
   private final IWorkflowService workflowService;
 
   /**
-   * Creates worker that connects to the local instance of the Cadence Service that listens on a
+   * Creates worker that connects to the local instance of the Temporal Service that listens on a
    * default port (7933).
    *
    * @param domain domain that worker uses to poll.
@@ -64,7 +64,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
   }
 
   /**
-   * Creates worker that connects to the local instance of the Cadence Service that listens on a
+   * Creates worker that connects to the local instance of the Temporal Service that listens on a
    * default port (7933).
    *
    * @param domain domain that worker uses to poll.
@@ -76,10 +76,10 @@ public final class WorkflowClientInternal implements WorkflowClient {
   }
 
   /**
-   * Creates client that connects to an instance of the Cadence Service.
+   * Creates client that connects to an instance of the Temporal Service.
    *
-   * @param host of the Cadence Service endpoint
-   * @param port of the Cadence Service endpoint
+   * @param host of the Temporal Service endpoint
+   * @param port of the Temporal Service endpoint
    * @param domain domain that worker uses to poll.
    */
   public static WorkflowClient newInstance(String host, int port, String domain) {
@@ -90,10 +90,10 @@ public final class WorkflowClientInternal implements WorkflowClient {
   }
 
   /**
-   * Creates client that connects to an instance of the Cadence Service.
+   * Creates client that connects to an instance of the Temporal Service.
    *
-   * @param host of the Cadence Service endpoint
-   * @param port of the Cadence Service endpoint
+   * @param host of the Temporal Service endpoint
+   * @param port of the Temporal Service endpoint
    * @param domain domain that worker uses to poll.
    * @param options Options (like {@link io.temporal.converter.DataConverter} override) for
    *     configuring client.
@@ -104,9 +104,9 @@ public final class WorkflowClientInternal implements WorkflowClient {
   }
 
   /**
-   * Creates client that connects to an instance of the Cadence Service.
+   * Creates client that connects to an instance of the Temporal Service.
    *
-   * @param service client to the Cadence Service endpoint.
+   * @param service client to the Temporal Service endpoint.
    * @param domain domain that worker uses to poll.
    */
   public static WorkflowClient newInstance(IWorkflowService service, String domain) {
@@ -114,9 +114,9 @@ public final class WorkflowClientInternal implements WorkflowClient {
   }
 
   /**
-   * Creates client that connects to an instance of the Cadence Service.
+   * Creates client that connects to an instance of the Temporal Service.
    *
-   * @param service client to the Cadence Service endpoint.
+   * @param service client to the Temporal Service endpoint.
    * @param domain domain that worker uses to poll.
    * @param options Options (like {@link io.temporal.converter.DataConverter} override) for
    *     configuring client.

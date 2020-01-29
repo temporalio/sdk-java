@@ -132,7 +132,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
       hasOutstandingHeartbeat = false;
       nextHeartbeatDelay = heartbeatIntervalMillis;
     } catch (TException e) {
-      // Not rethrowing to not fail activity implementation on intermittent connection or Cadence
+      // Not rethrowing to not fail activity implementation on intermittent connection or Temporal
       // errors.
       log.warn("Heartbeat failed.", e);
       nextHeartbeatDelay = HEARTBEAT_RETRY_WAIT_MILLIS;
