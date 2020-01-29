@@ -118,7 +118,7 @@ import org.slf4j.LoggerFactory;
 
 public class WorkflowServiceTChannel implements IWorkflowService {
 
-  private static final int DEFAULT_LOCAL_CADENCE_SERVER_PORT = 7933;
+  private static final int DEFAULT_LOCAL_TEMPORAL_SERVER_PORT = 7933;
 
   private static final String LOCALHOST = "127.0.0.1";
 
@@ -130,10 +130,10 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   /** Default RPC timeout for QueryWorkflow */
   private static final long DEFAULT_QUERY_RPC_TIMEOUT_MILLIS = 10000;
 
-  private static final String DEFAULT_CLIENT_APP_NAME = "cadence-client";
+  private static final String DEFAULT_CLIENT_APP_NAME = "temporal-client";
 
   /** Name of the Cadence service front end as required by TChannel. */
-  private static final String DEFAULT_SERVICE_NAME = "cadence-frontend";
+  private static final String DEFAULT_SERVICE_NAME = "temporal-frontend";
 
   private static final Logger log = LoggerFactory.getLogger(WorkflowServiceTChannel.class);
 
@@ -355,10 +355,10 @@ public class WorkflowServiceTChannel implements IWorkflowService {
    */
   public WorkflowServiceTChannel() {
     this(
-        Strings.isNullOrEmpty(System.getenv("CADENCE_SEEDS"))
+        Strings.isNullOrEmpty(System.getenv("TEMPORAL_SEEDS"))
             ? LOCALHOST
-            : System.getenv("CADENCE_SEEDS"),
-        DEFAULT_LOCAL_CADENCE_SERVER_PORT,
+            : System.getenv("TEMPORAL_SEEDS"),
+        DEFAULT_LOCAL_TEMPORAL_SERVER_PORT,
         new ClientOptions.Builder().build());
   }
 
@@ -437,9 +437,9 @@ public class WorkflowServiceTChannel implements IWorkflowService {
         ImmutableMap.<String, String>builder()
             .put("user-name", envUserName)
             .put("host-name", envHostname)
-            .put("cadence-client-library-version", Version.LIBRARY_VERSION)
-            .put("cadence-client-feature-version", Version.FEATURE_VERSION)
-            .put("cadence-client-name", "uber-java");
+            .put("temporal-client-library-version", Version.LIBRARY_VERSION)
+            .put("temporal-client-feature-version", Version.FEATURE_VERSION)
+            .put("temporal-client-name", "uber-java");
 
     if (options.headers != null) {
       for (Map.Entry<String, String> entry : options.headers.entrySet()) {
@@ -533,8 +533,8 @@ public class WorkflowServiceTChannel implements IWorkflowService {
 
   private <T> T measureRemoteCall(String scopeName, RemoteCall<T> call) throws TException {
     Scope scope = options.getMetricsScope().subScope(scopeName);
-    scope.counter(MetricsType.CADENCE_REQUEST).inc(1);
-    Stopwatch sw = scope.timer(MetricsType.CADENCE_LATENCY).start();
+    scope.counter(MetricsType.TEMPORAL_REQUEST).inc(1);
+    Stopwatch sw = scope.timer(MetricsType.TEMPORAL_LATENCY).start();
     try {
       T resp = call.apply();
       sw.stop();
@@ -545,11 +545,11 @@ public class WorkflowServiceTChannel implements IWorkflowService {
         | WorkflowExecutionAlreadyStartedError
         | QueryFailedError e) {
       sw.stop();
-      scope.counter(MetricsType.CADENCE_INVALID_REQUEST).inc(1);
+      scope.counter(MetricsType.TEMPORAL_INVALID_REQUEST).inc(1);
       throw e;
     } catch (TException e) {
       sw.stop();
-      scope.counter(MetricsType.CADENCE_ERROR).inc(1);
+      scope.counter(MetricsType.TEMPORAL_ERROR).inc(1);
       throw e;
     }
   }

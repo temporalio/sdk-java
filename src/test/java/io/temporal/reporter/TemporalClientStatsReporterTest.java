@@ -32,15 +32,16 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-public class CadenceClientStatsReporterTest {
+public class TemporalClientStatsReporterTest {
 
-  private static final String DEFAULT_REPORT_NAME = "cadence_workflow_start";
+  private static final String DEFAULT_REPORT_NAME = "temporal_workflow_start";
   private static final Map<String, String> DEFAULT_REPORT_TAGS =
       ImmutableMap.of("Domain", "domain_name", "TaskList", "task_list");
   private static final long DEFAULT_COUNT = 10;
   private static final Duration DEFAULT_DURATION = Duration.ofSeconds(10);
 
-  private CadenceClientStatsReporter cadenceClientStatsReporter = new CadenceClientStatsReporter();
+  private TemporalClientStatsReporter temporalClientStatsReporter =
+      new TemporalClientStatsReporter();
 
   @Before
   public void init() {
@@ -54,11 +55,11 @@ public class CadenceClientStatsReporterTest {
 
   @Test
   public void testReporterCapabilitiesShouldReturnReporting() {
-    assertEquals(CapableOf.REPORTING, cadenceClientStatsReporter.capabilities());
+    assertEquals(CapableOf.REPORTING, temporalClientStatsReporter.capabilities());
   }
 
   @Test
-  public void testCounterShouldCallMetricRegistryForMonitoredCounterCadenceAction() {
+  public void testCounterShouldCallMetricRegistryForMonitoredCounterTemporalAction() {
     callDefaultCounter();
 
     assertEquals(
@@ -68,7 +69,7 @@ public class CadenceClientStatsReporterTest {
   }
 
   @Test
-  public void testTimerShouldCallMetricRegistryForMonitoredCounterCadenceAction() {
+  public void testTimerShouldCallMetricRegistryForMonitoredCounterTemporalAction() {
     callDefaultTimer();
 
     assertEquals(
@@ -79,12 +80,12 @@ public class CadenceClientStatsReporterTest {
   }
 
   private void callDefaultCounter() {
-    cadenceClientStatsReporter.reportCounter(
+    temporalClientStatsReporter.reportCounter(
         DEFAULT_REPORT_NAME, DEFAULT_REPORT_TAGS, DEFAULT_COUNT);
   }
 
   private void callDefaultTimer() {
-    cadenceClientStatsReporter.reportTimer(
+    temporalClientStatsReporter.reportTimer(
         DEFAULT_REPORT_NAME, DEFAULT_REPORT_TAGS, DEFAULT_DURATION);
   }
 }

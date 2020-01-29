@@ -254,7 +254,7 @@ public class MetricsTest {
             .put(MetricsTag.ACTIVITY_TYPE, "TestActivity::runActivity")
             .build();
     verify(reporter, times(1))
-        .reportCounter("cadence-activity-task-completed", activityCompletionTags, 1);
+        .reportCounter("temporal-activity-task-completed", activityCompletionTags, 1);
 
     testEnvironment.close();
   }

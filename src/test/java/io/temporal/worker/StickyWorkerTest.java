@@ -200,7 +200,7 @@ public class StickyWorkerTest {
     int count = 100;
     ActivitiesWorkflow[] workflows = new ActivitiesWorkflow[count];
     WorkflowParams w = new WorkflowParams();
-    w.CadenceSleep = Duration.ofSeconds(1);
+    w.TemporalSleep = Duration.ofSeconds(1);
     w.ChainSequence = 2;
     w.ConcurrentCount = 1;
     w.PayloadSizeBytes = 10;
@@ -254,7 +254,7 @@ public class StickyWorkerTest {
 
     // Act
     WorkflowParams w = new WorkflowParams();
-    w.CadenceSleep = Duration.ofSeconds(1);
+    w.TemporalSleep = Duration.ofSeconds(1);
     w.ChainSequence = 2;
     w.ConcurrentCount = 1;
     w.PayloadSizeBytes = 10;
@@ -593,7 +593,7 @@ public class StickyWorkerTest {
     public int ConcurrentCount;
     public String TaskListName;
     public int PayloadSizeBytes;
-    public Duration CadenceSleep; // nano
+    public Duration TemporalSleep; // nano
   }
 
   public interface GreetingSignalWorkflow {
@@ -703,7 +703,7 @@ public class StickyWorkerTest {
           promise.get();
         }
 
-        Workflow.sleep(params.CadenceSleep);
+        Workflow.sleep(params.TemporalSleep);
       }
     }
   }

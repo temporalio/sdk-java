@@ -28,7 +28,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-public class CadenceClientStatsReporter implements StatsReporter {
+public class TemporalClientStatsReporter implements StatsReporter {
 
   @Override
   public Capabilities capabilities() {

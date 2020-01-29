@@ -56,7 +56,7 @@ public class Version {
       try {
         try {
           prop.load(in);
-          version = prop.getProperty("cadence-client-version");
+          version = prop.getProperty("temporal-client-version");
         } finally {
           in.close();
         }

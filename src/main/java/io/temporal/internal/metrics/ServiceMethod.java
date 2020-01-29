@@ -19,74 +19,74 @@ package io.temporal.internal.metrics;
 
 public class ServiceMethod {
   public static final String DEPRECATE_DOMAIN =
-      MetricsType.CADENCE_METRICS_PREFIX + "DeprecateDomain";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "DeprecateDomain";
   public static final String DESCRIBE_DOMAIN =
-      MetricsType.CADENCE_METRICS_PREFIX + "DescribeDomain";
-  public static final String LIST_DOMAINS = MetricsType.CADENCE_METRICS_PREFIX + "ListDomains";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "DescribeDomain";
+  public static final String LIST_DOMAINS = MetricsType.TEMPORAL_METRICS_PREFIX + "ListDomains";
   public static final String GET_WORKFLOW_EXECUTION_HISTORY =
-      MetricsType.CADENCE_METRICS_PREFIX + "GetWorkflowExecutionHistory";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "GetWorkflowExecutionHistory";
   public static final String LIST_CLOSED_WORKFLOW_EXECUTIONS =
-      MetricsType.CADENCE_METRICS_PREFIX + "ListClosedWorkflowExecutions";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "ListClosedWorkflowExecutions";
   public static final String LIST_OPEN_WORKFLOW_EXECUTIONS =
-      MetricsType.CADENCE_METRICS_PREFIX + "ListOpenWorkflowExecutions";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "ListOpenWorkflowExecutions";
   public static final String LIST_WORKFLOW_EXECUTIONS =
-      MetricsType.CADENCE_METRICS_PREFIX + "ListWorkflowExecutions";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "ListWorkflowExecutions";
   public static final String LIST_ARCHIVED_WORKFLOW_EXECUTIONS =
-      MetricsType.CADENCE_METRICS_PREFIX + "ListArchivedWorkflowExecutions";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "ListArchivedWorkflowExecutions";
   public static final String LIST_TASK_LIST_PARTITIONS =
-      MetricsType.CADENCE_METRICS_PREFIX + "ListTaskListPartitions";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "ListTaskListPartitions";
   public static final String SCAN_WORKFLOW_EXECUTIONS =
-      MetricsType.CADENCE_METRICS_PREFIX + "ScanWorkflowExecutions";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "ScanWorkflowExecutions";
   public static final String COUNT_WORKFLOW_EXECUTIONS =
-      MetricsType.CADENCE_METRICS_PREFIX + "CountWorkflowExecutions";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "CountWorkflowExecutions";
   public static final String GET_SEARCH_ATTRIBUTES =
-      MetricsType.CADENCE_METRICS_PREFIX + "GetSearchAttributes";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "GetSearchAttributes";
   public static final String POLL_FOR_ACTIVITY_TASK =
-      MetricsType.CADENCE_METRICS_PREFIX + "PollForActivityTask";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "PollForActivityTask";
   public static final String POLL_FOR_DECISION_TASK =
-      MetricsType.CADENCE_METRICS_PREFIX + "PollForDecisionTask";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "PollForDecisionTask";
   public static final String RECORD_ACTIVITY_TASK_HEARTBEAT =
-      MetricsType.CADENCE_METRICS_PREFIX + "RecordActivityTaskHeartbeat";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "RecordActivityTaskHeartbeat";
   public static final String RECORD_ACTIVITY_TASK_HEARTBEAT_BY_ID =
-      MetricsType.CADENCE_METRICS_PREFIX + "RecordActivityTaskHeartbeatByID";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "RecordActivityTaskHeartbeatByID";
   public static final String REGISTER_DOMAIN =
-      MetricsType.CADENCE_METRICS_PREFIX + "RegisterDomain";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "RegisterDomain";
   public static final String REQUEST_CANCEL_WORKFLOW_EXECUTION =
-      MetricsType.CADENCE_METRICS_PREFIX + "RequestCancelWorkflowExecution";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "RequestCancelWorkflowExecution";
   public static final String RESPOND_ACTIVITY_TASK_CANCELED =
-      MetricsType.CADENCE_METRICS_PREFIX + "RespondActivityTaskCanceled";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "RespondActivityTaskCanceled";
   public static final String RESPOND_ACTIVITY_TASK_COMPLETED =
-      MetricsType.CADENCE_METRICS_PREFIX + "RespondActivityTaskCompleted";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "RespondActivityTaskCompleted";
   public static final String RESPOND_ACTIVITY_TASK_FAILED =
-      MetricsType.CADENCE_METRICS_PREFIX + "RespondActivityTaskFailed";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "RespondActivityTaskFailed";
   public static final String RESPOND_ACTIVITY_TASK_CANCELED_BY_ID =
-      MetricsType.CADENCE_METRICS_PREFIX + "RespondActivityTaskCanceledByID";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "RespondActivityTaskCanceledByID";
   public static final String RESPOND_ACTIVITY_TASK_COMPLETED_BY_ID =
-      MetricsType.CADENCE_METRICS_PREFIX + "RespondActivityTaskCompletedByID";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "RespondActivityTaskCompletedByID";
   public static final String RESPOND_ACTIVITY_TASK_FAILED_BY_ID =
-      MetricsType.CADENCE_METRICS_PREFIX + "RespondActivityTaskFailedByID";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "RespondActivityTaskFailedByID";
   public static final String RESPOND_DECISION_TASK_COMPLETED =
-      MetricsType.CADENCE_METRICS_PREFIX + "RespondDecisionTaskCompleted";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "RespondDecisionTaskCompleted";
   public static final String RESPOND_DECISION_TASK_FAILED =
-      MetricsType.CADENCE_METRICS_PREFIX + "RespondDecisionTaskFailed";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "RespondDecisionTaskFailed";
   public static final String SIGNAL_WORKFLOW_EXECUTION =
-      MetricsType.CADENCE_METRICS_PREFIX + "SignalWorkflowExecution";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "SignalWorkflowExecution";
   public static final String SIGNAL_WITH_START_WORKFLOW_EXECUTION =
-      MetricsType.CADENCE_METRICS_PREFIX + "SignalWithStartWorkflowExecution";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "SignalWithStartWorkflowExecution";
   public static final String START_WORKFLOW_EXECUTION =
-      MetricsType.CADENCE_METRICS_PREFIX + "StartWorkflowExecution";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "StartWorkflowExecution";
   public static final String TERMINATE_WORKFLOW_EXECUTION =
-      MetricsType.CADENCE_METRICS_PREFIX + "TerminateWorkflowExecution";
-  public static final String UPDATE_DOMAIN = MetricsType.CADENCE_METRICS_PREFIX + "UpdateDomain";
-  public static final String QUERY_WORKFLOW = MetricsType.CADENCE_METRICS_PREFIX + "QueryWorkflow";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "TerminateWorkflowExecution";
+  public static final String UPDATE_DOMAIN = MetricsType.TEMPORAL_METRICS_PREFIX + "UpdateDomain";
+  public static final String QUERY_WORKFLOW = MetricsType.TEMPORAL_METRICS_PREFIX + "QueryWorkflow";
   public static final String DESCRIBE_TASK_LIST =
-      MetricsType.CADENCE_METRICS_PREFIX + "DescribeTaskList";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "DescribeTaskList";
   public static final String GET_CLUSTER_INFO =
-      MetricsType.CADENCE_METRICS_PREFIX + "GetClusterInfo";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "GetClusterInfo";
   public static final String RESPOND_QUERY_TASK_COMPLETED =
-      MetricsType.CADENCE_METRICS_PREFIX + "RespondQueryTaskCompleted";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "RespondQueryTaskCompleted";
   public static final String DESCRIBE_WORKFLOW_EXECUTION =
-      MetricsType.CADENCE_METRICS_PREFIX + "DescribeWorkflowExecution";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "DescribeWorkflowExecution";
   public static final String RESET_STICKY_TASK_LIST =
-      MetricsType.CADENCE_METRICS_PREFIX + "ResetStickyTaskList";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "ResetStickyTaskList";
 }

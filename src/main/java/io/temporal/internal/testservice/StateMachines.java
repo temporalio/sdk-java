@@ -121,7 +121,7 @@ class StateMachines {
   private static final Logger log = LoggerFactory.getLogger(StateMachines.class);
 
   private static final int NO_EVENT_ID = -1;
-  private static final String TIMEOUT_ERROR_REASON = "cadenceInternal:Timeout";
+  private static final String TIMEOUT_ERROR_REASON = "temporalInternal:Timeout";
 
   enum State {
     NONE,

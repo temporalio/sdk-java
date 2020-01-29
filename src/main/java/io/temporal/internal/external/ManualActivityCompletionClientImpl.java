@@ -183,7 +183,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
       }
     } else {
       throw new UnsupportedOperationException(
-          "Heartbeating by id is not implemented by Cadence service yet.");
+          "Heartbeating by id is not implemented by Temporal service yet.");
     }
   }
 
