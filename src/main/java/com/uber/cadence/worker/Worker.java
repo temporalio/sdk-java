@@ -258,7 +258,7 @@ public final class Worker implements Suspendable {
    * child workflows. An example of mocking a child workflow:
    *
    * <pre><code>
-   *   worker.addWorkflowImplementationFactory(ChildWorkflow.class, () -> {
+   *   worker.addWorkflowImplementationFactory(ChildWorkflow.class, () -&gt; {
    *     ChildWorkflow child = mock(ChildWorkflow.class);
    *     when(child.workflow(anyString(), anyString())).thenReturn("result1");
    *     return child;

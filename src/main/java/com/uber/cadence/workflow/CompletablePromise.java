@@ -45,7 +45,7 @@ public interface CompletablePromise<V> extends Promise<V> {
    * Is shortcut to:
    *
    * <pre><code>
-   * source.handle((value, failure) -> {
+   * source.handle((value, failure) -&gt; {
    *    if (failure != null) {
    *       destination.completeExceptionally(failure);
    *    } else {

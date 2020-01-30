@@ -46,7 +46,7 @@ import java.util.function.Function;
  *    {@literal @}Override
  *     public String workflow1(String input) {
  *       Workflow.sleep(Duration.ofHours(1));
- *       Workflow.await(() -> signalInput != null);
+ *       Workflow.await(() -&gt; signalInput != null);
  *       Workflow.sleep(Duration.ofHours(1));
  *       return signalInput + "-" + input;
  *     }
