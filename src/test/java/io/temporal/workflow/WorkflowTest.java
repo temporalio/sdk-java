@@ -1554,7 +1554,7 @@ public class WorkflowTest {
     assertEquals(2, stubF1_3.func1(2));
 
     // Setting WorkflowIdReusePolicy to RejectDuplicate or AllowDuplicateFailedOnly does not work as
-    // expected. See https://github.io.temporal-java-client/issues/295.
+    // expected. See https://github.com/uber/cadence-java-client/issues/295.
   }
 
   public static class TestChildAsyncWorkflow implements TestWorkflow1 {

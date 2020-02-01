@@ -133,7 +133,7 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   private static final String DEFAULT_CLIENT_APP_NAME = "temporal-client";
 
   /** Name of the Temporal service front end as required by TChannel. */
-  private static final String DEFAULT_SERVICE_NAME = "temporal-frontend";
+  private static final String DEFAULT_SERVICE_NAME = "cadence-frontend";
 
   private static final Logger log = LoggerFactory.getLogger(WorkflowServiceTChannel.class);
 
@@ -437,9 +437,9 @@ public class WorkflowServiceTChannel implements IWorkflowService {
         ImmutableMap.<String, String>builder()
             .put("user-name", envUserName)
             .put("host-name", envHostname)
-            .put("temporal-client-library-version", Version.LIBRARY_VERSION)
-            .put("temporal-client-feature-version", Version.FEATURE_VERSION)
-            .put("temporal-client-name", "uber-java");
+            .put("cadence-client-library-version", Version.LIBRARY_VERSION)
+            .put("cadence-client-feature-version", Version.FEATURE_VERSION)
+            .put("cadence-client-name", "uber-java");
 
     if (options.headers != null) {
       for (Map.Entry<String, String> entry : options.headers.entrySet()) {
