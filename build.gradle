@@ -66,12 +66,10 @@ dependencies {
 
 license {
     header rootProject.file('license-header.txt')
-    // exclude 'io/temporal/*.java' // generated code
-    exclude '**/*.java' // generated code
+    exclude 'io/temporal/*.java' // generated code
 }
 
 compileThrift {
-    sourceDir "src/main/thrift/"
     sourceItems "src/main/thrift/temporal.thrift", "src/main/thrift/shared.thrift"
 
     nowarn true
