@@ -1,7 +1,7 @@
 FROM openjdk:8-alpine
 
 # Apache Thrift version
-ENV APACHE_THRIFT_VERSION=0.13.0
+ENV APACHE_THRIFT_VERSION=0.9.3
 
 # Install dependencies using apk
 RUN apk update && apk add --virtual wget ca-certificates wget && apk add --virtual build-dependencies build-base gcc
@@ -19,5 +19,5 @@ RUN set -ex ;\
 # Cleanup packages and remove cache
 RUN apk del build-dependencies wget && rm -rf /var/cache/apk/*
 
-RUN mkdir /cadence-java-client
-WORKDIR /cadence-java-client
+RUN mkdir /temporal-java-client
+WORKDIR /temporal-java-client

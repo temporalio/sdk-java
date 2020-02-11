@@ -1,16 +1,14 @@
 FROM openjdk:8-alpine
 
-# Apache Thrift version
-ENV APACHE_THRIFT_VERSION=0.13.0
-
 # Install dependencies using apk
 RUN apk update && apk add --virtual build-dependencies build-base gcc
 
 # Compile source
-COPY --from=thrift:${APACHE_THRIFT_VERSION} /usr/local/bin/thrift /usr/local/bin/thrift
+# Note that environment variables are not supported in --from, so hardcoding the Thrift version
+COPY --from=thrift:0.9.3 /usr/local/bin/thrift /usr/local/bin/thrift
 
 # Cleanup packages and remove cache
 RUN apk del build-dependencies wget && rm -rf /var/cache/apk/*
 
-RUN mkdir /cadence-java-client
-WORKDIR /cadence-java-client
+RUN mkdir /temporal-java-client
+WORKDIR /temporal-java-client

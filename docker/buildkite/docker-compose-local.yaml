@@ -22,8 +22,8 @@ services:
         aliases:
           - statsd
 
-  cadence:
-    image: ubercadence/server:master-auto-setup
+  temporal:
+    image: temporalio/temporal:0.0.1.alpha-auto-setup
     ports:
       - "7933:7933"
       - "7934:7934"
@@ -38,7 +38,7 @@ services:
     networks:
       services-network:
         aliases:
-          - cadence
+          - temporal
 
   unit-test-docker-sticky-off:
     build:
@@ -47,13 +47,13 @@ services:
     command: "./gradlew --no-daemon test"
     environment:
       - "USER=unittest"
-      - "CADENCE_SEEDS=cadence"
+      - "TEMPORAL_SEEDS=temporal"
       - "USE_DOCKER_SERVICE=true"
       - "STICKY_OFF=true"
     depends_on:
-      - cadence
+      - temporal
     volumes:
-      - "../../:/cadence-java-client"
+      - "../../:/temporal-java-client"
     networks:
       services-network:
         aliases:
@@ -66,13 +66,13 @@ services:
     command: "./gradlew --no-daemon test"
     environment:
       - "USER=unittest"
-      - "CADENCE_SEEDS=cadence"
+      - "TEMPORAL_SEEDS=temporal"
       - "USE_DOCKER_SERVICE=true"
       - "STICKY_OFF=false"
     depends_on:
-      - cadence
+      - temporal
     volumes:
-      - "../../:/cadence-java-client"
+      - "../../:/temporal-java-client"
     networks:
       services-network:
         aliases:
@@ -87,7 +87,7 @@ services:
       - "USER=unittest"
       - "USE_DOCKER_SERVICE=false"
     volumes:
-      - "../../:/cadence-java-client"
+      - "../../:/temporal-java-client"
     networks:
       services-network:
         aliases:
