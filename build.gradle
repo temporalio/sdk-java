@@ -69,7 +69,19 @@ license {
     exclude 'com/uber/cadence/*.java' // generated code
 }
 
+task initDlsSubmodule(type: Exec) {
+    description = 'Initializes src/main/idls submodule'
+    commandLine 'git', 'submodule', 'init'
+}
+
+task updateDlsSubmodule(type: Exec) {
+    dependsOn initDlsSubmodule
+    description = 'Updates src/main/idls submodule'
+    commandLine 'git', 'submodule', 'update'
+}
+
 compileThrift {
+    dependsOn updateDlsSubmodule
     sourceItems "src/main/idls/thrift/cadence.thrift","src/main/idls/thrift/shared.thrift"
 
     nowarn true

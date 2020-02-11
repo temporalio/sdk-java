@@ -9,3 +9,4 @@ target
 /out
 dummy
 $buildDir
+src/main/idls/*
