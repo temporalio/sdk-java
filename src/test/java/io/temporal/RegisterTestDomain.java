@@ -2,30 +2,40 @@ package io.temporal;
 
 import static io.temporal.workflow.WorkflowTest.DOMAIN;
 
-import io.temporal.serviceclient.IWorkflowService;
-import io.temporal.serviceclient.WorkflowServiceTChannel;
-import org.apache.thrift.TException;
+import io.grpc.StatusRuntimeException;
+import io.temporal.RequestResponse.RegisterDomainRequest;
+import io.temporal.serviceclient.WorkflowServiceClient;
 
 /** Waits for local service to become available and registers UnitTest domain. */
 public class RegisterTestDomain {
   private static final boolean useDockerService =
       Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
 
-  public static void main(String[] args) throws TException, InterruptedException {
+  public static void main(String[] args) throws InterruptedException {
     if (!useDockerService) {
       return;
     }
 
-    IWorkflowService service = new WorkflowServiceTChannel();
+    WorkflowServiceClient service = new WorkflowServiceClient();
     RegisterDomainRequest request =
-        new RegisterDomainRequest().setName(DOMAIN).setWorkflowExecutionRetentionPeriodInDays(1);
+        RegisterDomainRequest.newBuilder()
+            .setName(DOMAIN)
+            .setWorkflowExecutionRetentionPeriodInDays(1)
+            .build();
     while (true) {
       try {
-        service.RegisterDomain(request);
+        service.blockingStub().registerDomain(request);
         break;
-      } catch (DomainAlreadyExistsError e) {
-        break;
-      } catch (TException e) {
+        // TODO: Figure out exception handling.
+        // TODO: GRPC gets StatusException or StatusRuntimeException with a status
+        // TODO: That status needs to be looked at to determine the error.
+      } catch (StatusRuntimeException e) {
+        if (e.getTrailers().containsKey("?")) {
+          // TODO: How is DomainAlreadyExistsError expressed? There is nothing similar in the proto.
+          break;
+        }
+
+      } catch (RuntimeException e) {
         String message = e.getMessage();
         if (message != null
             && !message.contains("Failed to connect to the host")

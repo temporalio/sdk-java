@@ -13,34 +13,34 @@ Build the container for
 
 unit tests:
 ```bash
-docker-compose -f docker/buildkite/docker-compose-local.yml build unit-test-test-service
+docker-compose -f docker/buildkite/docker-compose-local.yaml build unit-test-test-service
 ```
 
 unit tests with docker sticky on:
 ```bash
-docker-compose -f docker/buildkite/docker-compose-local.yml build unit-test-docker-sticky-on
+docker-compose -f docker/buildkite/docker-compose-local.yaml build unit-test-docker-sticky-on
 ```
 
 unit tests with docker sticky off:
 ```bash
-docker-compose -f docker/buildkite/docker-compose-local.yml build unit-test-docker-sticky-off
+docker-compose -f docker/buildkite/docker-compose-local.yaml build unit-test-docker-sticky-off
 ```
 
 Run the integration tests:
 
 unit tests:
 ```bash
-docker-compose -f docker/buildkite/docker-compose-local.yml run unit-test-test-service
+docker-compose -f docker/buildkite/docker-compose-local.yaml run unit-test-test-service
 ```
 
 unit tests with docker sticky on:
 ```bash
-docker-compose -f docker/buildkite/docker-compose-local.yml run unit-test-docker-sticky-on
+docker-compose -f docker/buildkite/docker-compose-local.yaml run unit-test-docker-sticky-on
 ```
 
 unit tests with docker sticky off:
 ```bash
-docker-compose -f docker/buildkite/docker-compose-local.yml run unit-test-docker-sticky-off
+docker-compose -f docker/buildkite/docker-compose-local.yaml run unit-test-docker-sticky-off
 ```
 
 Note that BuildKite will run basically the same commands.

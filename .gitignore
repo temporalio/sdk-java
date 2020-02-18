@@ -6,6 +6,7 @@ target
 .idea
 .gradle
 /build
+/src/generated
 /out
 dummy
 $buildDir
