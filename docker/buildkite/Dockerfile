@@ -16,6 +16,14 @@ RUN set -ex ;\
 	make -j2 && make install ;\
 	cd .. && rm -rf thrift-${APACHE_THRIFT_VERSION}
 
+# Build protobuf
+ENV PROTOBUF_REVISION 3.6.0
+RUN curl -sLO https://github.com/google/protobuf/releases/download/v${PROTOBUF_REVISION}/protoc-${PROTOBUF_REVISION}-linux-x86_64.zip \
+  && unzip protoc-${PROTOBUF_REVISION}-linux-x86_64.zip -d ./usr/local \
+  && chmod +x /usr/local/bin/protoc \
+  && chmod -R 755 /usr/local/include/ \
+  && rm protoc-${PROTOBUF_REVISION}-linux-x86_64.zip
+
 # Cleanup packages and remove cache
 RUN apk del build-dependencies wget && rm -rf /var/cache/apk/*
 

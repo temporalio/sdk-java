@@ -25,28 +25,28 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class WorkflowServiceClient implements AutoCloseable {
+public class GRPCWorkflowServiceFactory implements AutoCloseable {
   private static final int DEFAULT_LOCAL_TEMPORAL_SERVER_PORT = 7933;
   private static final String LOCALHOST = "127.0.0.1";
   private static final long DEFAULT_RPC_TIMEOUT_MILLIS = 1000;
-  private static final Logger log = LoggerFactory.getLogger(WorkflowServiceClient.class);
+  private static final Logger log = LoggerFactory.getLogger(GRPCWorkflowServiceFactory.class);
 
   private final ManagedChannel channel;
   private final WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub;
   private final WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub;
 
-  public WorkflowServiceClient(ManagedChannel channel) {
+  public GRPCWorkflowServiceFactory(ManagedChannel channel) {
     this.channel = channel;
     blockingStub = WorkflowServiceGrpc.newBlockingStub(channel);
     futureStub = WorkflowServiceGrpc.newFutureStub(channel);
   }
 
-  public WorkflowServiceClient(String host, int port) {
+  public GRPCWorkflowServiceFactory(String host, int port) {
     // Remove usePlaintext if the service supports TLS
     this(ManagedChannelBuilder.forAddress(host, port).usePlaintext().build());
   }
 
-  public WorkflowServiceClient() {
+  public GRPCWorkflowServiceFactory() {
     this(
         Strings.isNullOrEmpty(System.getenv("TEMPORAL_SEEDS"))
             ? LOCALHOST

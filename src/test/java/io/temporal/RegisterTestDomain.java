@@ -4,7 +4,7 @@ import static io.temporal.workflow.WorkflowTest.DOMAIN;
 
 import io.grpc.StatusRuntimeException;
 import io.temporal.RequestResponse.RegisterDomainRequest;
-import io.temporal.serviceclient.WorkflowServiceClient;
+import io.temporal.serviceclient.GRPCWorkflowServiceFactory;
 
 /** Waits for local service to become available and registers UnitTest domain. */
 public class RegisterTestDomain {
@@ -16,7 +16,7 @@ public class RegisterTestDomain {
       return;
     }
 
-    WorkflowServiceClient service = new WorkflowServiceClient();
+    GRPCWorkflowServiceFactory service = new GRPCWorkflowServiceFactory();
     RegisterDomainRequest request =
         RegisterDomainRequest.newBuilder()
             .setName(DOMAIN)
@@ -30,11 +30,13 @@ public class RegisterTestDomain {
         // TODO: GRPC gets StatusException or StatusRuntimeException with a status
         // TODO: That status needs to be looked at to determine the error.
       } catch (StatusRuntimeException e) {
+        /*
         if (e.getTrailers().containsKey("?")) {
           // TODO: How is DomainAlreadyExistsError expressed? There is nothing similar in the proto.
           break;
         }
-
+        */
+        break;
       } catch (RuntimeException e) {
         String message = e.getMessage();
         if (message != null
