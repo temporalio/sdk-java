@@ -82,7 +82,11 @@ license {
 
 protobuf {
     protoc {
-        artifact = "com.google.protobuf:protoc:3.11.0"
+        if (hasProperty('alpine')) {
+            path = '/usr/bin/protoc'
+        } else {
+            artifact = "com.google.protobuf:protoc:3.11.0"
+        }
     }
     plugins {
         grpc {
