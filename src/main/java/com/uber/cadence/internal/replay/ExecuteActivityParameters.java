@@ -20,6 +20,7 @@ package com.uber.cadence.internal.replay;
 import com.uber.cadence.ActivityType;
 import com.uber.cadence.internal.common.RetryParameters;
 import java.util.Arrays;
+import java.util.Map;
 
 public class ExecuteActivityParameters implements Cloneable {
 
@@ -33,6 +34,7 @@ public class ExecuteActivityParameters implements Cloneable {
   private long startToCloseTimeoutSeconds;
   private String taskList;
   private RetryParameters retryParameters;
+  private Map<String, byte[]> context;
   //    private int taskPriority;
 
   public ExecuteActivityParameters() {}
@@ -346,6 +348,19 @@ public class ExecuteActivityParameters implements Cloneable {
     return this;
   }
 
+  public Map<String, byte[]> getContext() {
+    return context;
+  }
+
+  public void setContext(Map<String, byte[]> context) {
+    this.context = context;
+  }
+
+  public ExecuteActivityParameters withContext(Map<String, byte[]> context) {
+    this.context = context;
+    return this;
+  }
+
   @Override
   public String toString() {
     return "ExecuteActivityParameters{"
@@ -369,6 +384,8 @@ public class ExecuteActivityParameters implements Cloneable {
         + '\''
         + ", retryParameters="
         + retryParameters
+        + ", context='"
+        + context
         + '}';
   }
 
@@ -384,6 +401,7 @@ public class ExecuteActivityParameters implements Cloneable {
     result.setStartToCloseTimeoutSeconds(startToCloseTimeoutSeconds);
     result.setTaskList(taskList);
     result.setRetryParameters(retryParameters.copy());
+    result.setContext(context);
     //        result.setTaskPriority(taskPriority);
     return result;
   }

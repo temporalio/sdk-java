@@ -27,6 +27,7 @@ import com.uber.cadence.UpsertWorkflowSearchAttributesEventAttributes;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
 import com.uber.cadence.WorkflowType;
+import com.uber.cadence.context.ContextPropagator;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.metrics.ReplayAwareScope;
 import com.uber.cadence.internal.worker.LocalActivityWorker;
@@ -37,6 +38,8 @@ import com.uber.cadence.workflow.Promise;
 import com.uber.cadence.workflow.Workflow;
 import com.uber.m3.tally.Scope;
 import java.time.Duration;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
@@ -66,7 +69,9 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
       BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller,
       ReplayDecider replayDecider) {
     this.activityClient = new ActivityDecisionContext(decisionsHelper);
-    this.workflowContext = new WorkflowContext(domain, decisionTask, startedAttributes);
+    this.workflowContext =
+        new WorkflowContext(
+            domain, decisionTask, startedAttributes, options.getContextPropagators());
     this.workflowClient = new WorkflowDecisionContext(decisionsHelper, workflowContext);
     this.workflowClock =
         new ClockDecisionContext(
@@ -164,6 +169,16 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   @Override
   public SearchAttributes getSearchAttributes() {
     return workflowContext.getSearchAttributes();
+  }
+
+  @Override
+  public List<ContextPropagator> getContextPropagators() {
+    return workflowContext.getContextPropagators();
+  }
+
+  @Override
+  public Map<String, Object> getPropagatedContexts() {
+    return workflowContext.getPropagatedContexts();
   }
 
   @Override

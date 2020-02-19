@@ -33,6 +33,7 @@ import com.uber.cadence.client.WorkflowOptions;
 import com.uber.cadence.client.WorkflowQueryException;
 import com.uber.cadence.client.WorkflowServiceException;
 import com.uber.cadence.client.WorkflowStub;
+import com.uber.cadence.context.ContextPropagator;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.converter.DataConverterException;
 import com.uber.cadence.converter.JsonDataConverter;
@@ -47,6 +48,7 @@ import com.uber.cadence.internal.replay.QueryWorkflowParameters;
 import com.uber.cadence.internal.replay.SignalExternalWorkflowParameters;
 import java.lang.reflect.Type;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -145,6 +147,7 @@ class WorkflowStubImpl implements WorkflowStub {
     p.setWorkflowType(new WorkflowType().setName(workflowType.get()));
     p.setMemo(convertMemoFromObjectToBytes(o.getMemo()));
     p.setSearchAttributes(convertSearchAttributesFromObjectToBytes(o.getSearchAttributes()));
+    p.setContext(extractContextsAndConvertToBytes(o.getContextPropagators()));
     return p;
   }
 
@@ -170,6 +173,18 @@ class WorkflowStubImpl implements WorkflowStub {
 
   private Map<String, byte[]> convertSearchAttributesFromObjectToBytes(Map<String, Object> map) {
     return convertMapFromObjectToBytes(map, JsonDataConverter.getInstance());
+  }
+
+  private Map<String, byte[]> extractContextsAndConvertToBytes(
+      List<ContextPropagator> contextPropagators) {
+    if (contextPropagators == null) {
+      return null;
+    }
+    Map<String, byte[]> result = new HashMap<>();
+    for (ContextPropagator propagator : contextPropagators) {
+      result.putAll(propagator.serializeContext(propagator.getCurrentContext()));
+    }
+    return result;
   }
 
   @Override

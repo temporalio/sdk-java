@@ -18,6 +18,8 @@
 package com.uber.cadence.internal.sync;
 
 import com.google.common.util.concurrent.RateLimiter;
+import com.uber.cadence.context.ContextPropagator;
+import com.uber.cadence.internal.context.ContextThreadLocal;
 import com.uber.cadence.internal.logging.LoggerTag;
 import com.uber.cadence.internal.metrics.MetricsType;
 import com.uber.cadence.internal.replay.DeciderCache;
@@ -26,6 +28,7 @@ import com.uber.cadence.workflow.Promise;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.*;
@@ -49,6 +52,8 @@ class WorkflowThreadImpl implements WorkflowThread {
     private String originalName;
     private String name;
     private CancellationScopeImpl cancellationScope;
+    private List<ContextPropagator> contextPropagators;
+    private Map<String, Object> propagatedContexts;
 
     RunnableWrapper(
         WorkflowThreadContext threadContext,
@@ -56,7 +61,9 @@ class WorkflowThreadImpl implements WorkflowThread {
         String name,
         boolean detached,
         CancellationScopeImpl parent,
-        Runnable runnable) {
+        Runnable runnable,
+        List<ContextPropagator> contextPropagators,
+        Map<String, Object> propagatedContexts) {
       this.threadContext = threadContext;
       this.decisionContext = decisionContext;
       this.name = name;
@@ -64,6 +71,8 @@ class WorkflowThreadImpl implements WorkflowThread {
       if (context.getStatus() != Status.CREATED) {
         throw new IllegalStateException("threadContext not in CREATED state");
       }
+      this.contextPropagators = contextPropagators;
+      this.propagatedContexts = propagatedContexts;
     }
 
     @Override
@@ -78,6 +87,11 @@ class WorkflowThreadImpl implements WorkflowThread {
       MDC.put(LoggerTag.RUN_ID, decisionContext.getRunId());
       MDC.put(LoggerTag.TASK_LIST, decisionContext.getTaskList());
       MDC.put(LoggerTag.DOMAIN, decisionContext.getDomain());
+
+      // Repopulate the context(s)
+      ContextThreadLocal.setContextPropagators(this.contextPropagators);
+      ContextThreadLocal.propagateContextToCurrentThread(this.propagatedContexts);
+
       try {
         // initialYield blocks thread until the first runUntilBlocked is called.
         // Otherwise r starts executing without control of the sync.
@@ -173,7 +187,9 @@ class WorkflowThreadImpl implements WorkflowThread {
       boolean detached,
       CancellationScopeImpl parentCancellationScope,
       Runnable runnable,
-      DeciderCache cache) {
+      DeciderCache cache,
+      List<ContextPropagator> contextPropagators,
+      Map<String, Object> propagatedContexts) {
     this.root = root;
     this.threadPool = threadPool;
     this.runner = runner;
@@ -183,6 +199,7 @@ class WorkflowThreadImpl implements WorkflowThread {
     if (name == null) {
       name = "workflow-" + super.hashCode();
     }
+
     this.task =
         new RunnableWrapper(
             context,
@@ -190,7 +207,9 @@ class WorkflowThreadImpl implements WorkflowThread {
             name,
             detached,
             parentCancellationScope,
-            runnable);
+            runnable,
+            contextPropagators,
+            propagatedContexts);
   }
 
   @Override

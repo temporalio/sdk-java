@@ -447,6 +447,7 @@ class StateMachines {
             .setWorkflowType(d.getWorkflowType())
             .setRetryPolicy(d.getRetryPolicy())
             .setCronSchedule(d.getCronSchedule())
+            .setHeader(d.getHeader())
             .setParentClosePolicy(d.getParentClosePolicy());
     HistoryEvent event =
         new HistoryEvent()
@@ -468,7 +469,8 @@ class StateMachines {
                   .setWorkflowIdReusePolicy(d.getWorkflowIdReusePolicy())
                   .setWorkflowType(d.getWorkflowType())
                   .setRetryPolicy(d.getRetryPolicy())
-                  .setCronSchedule(d.getCronSchedule());
+                  .setCronSchedule(d.getCronSchedule())
+                  .setHeader(d.getHeader());
           if (d.isSetInput()) {
             startChild.setInput(d.getInput());
           }
@@ -540,6 +542,7 @@ class StateMachines {
     a.setLastCompletionResult(data.lastCompletionResult);
     a.setMemo(request.getMemo());
     a.setSearchAttributes((request.getSearchAttributes()));
+    a.setHeader(request.getHeader());
     HistoryEvent event =
         new HistoryEvent()
             .setEventType(EventType.WorkflowExecutionStarted)
@@ -702,6 +705,7 @@ class StateMachines {
             .setStartToCloseTimeoutSeconds(d.getStartToCloseTimeoutSeconds())
             .setTaskList(d.getTaskList())
             .setRetryPolicy(retryPolicy)
+            .setHeader(d.getHeader())
             .setDecisionTaskCompletedEventId(decisionTaskCompletedEventId);
     data.scheduledEvent =
         a; // Cannot set it in onCommit as it is used in the processScheduleActivityTask
@@ -721,6 +725,7 @@ class StateMachines {
             .setScheduleToCloseTimeoutSeconds(scheduleToCloseTimeoutSeconds)
             .setStartToCloseTimeoutSeconds(d.getStartToCloseTimeoutSeconds())
             .setScheduledTimestamp(ctx.currentTimeInNanoseconds())
+            .setHeader(d.getHeader())
             .setAttempt(0);
 
     TaskListId taskListId = new TaskListId(ctx.getDomain(), d.getTaskList().getName());

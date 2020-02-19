@@ -24,6 +24,7 @@ import com.google.common.base.Strings;
 import com.uber.cadence.PollForDecisionTaskResponse;
 import com.uber.cadence.client.WorkflowClient;
 import com.uber.cadence.common.WorkflowExecutionHistory;
+import com.uber.cadence.context.ContextPropagator;
 import com.uber.cadence.converter.DataConverter;
 import com.uber.cadence.internal.common.InternalUtils;
 import com.uber.cadence.internal.metrics.MetricsTag;
@@ -74,6 +75,7 @@ public final class Worker implements Suspendable {
   private final DeciderCache cache;
   private final String stickyTaskListName;
   private ThreadPoolExecutor threadPoolExecutor;
+  private List<ContextPropagator> contextPropagators;
 
   /**
    * Creates worker that connects to an instance of the Cadence Service.
@@ -93,7 +95,8 @@ public final class Worker implements Suspendable {
       DeciderCache cache,
       String stickyTaskListName,
       Duration stickyDecisionScheduleToStartTimeout,
-      ThreadPoolExecutor threadPoolExecutor) {
+      ThreadPoolExecutor threadPoolExecutor,
+      List<ContextPropagator> contextPropagators) {
 
     Objects.requireNonNull(service, "service should not be null");
     Preconditions.checkArgument(
@@ -106,16 +109,19 @@ public final class Worker implements Suspendable {
 
     this.taskList = taskList;
     this.options = MoreObjects.firstNonNull(options, new WorkerOptions.Builder().build());
+    this.contextPropagators = contextPropagators;
 
-    SingleWorkerOptions activityOptions = toActivityOptions(this.options, domain, taskList);
+    SingleWorkerOptions activityOptions =
+        toActivityOptions(this.options, domain, taskList, contextPropagators);
     activityWorker =
         this.options.isDisableActivityWorker()
             ? null
             : new SyncActivityWorker(service, domain, taskList, activityOptions);
 
-    SingleWorkerOptions workflowOptions = toWorkflowOptions(this.options, domain, taskList);
+    SingleWorkerOptions workflowOptions =
+        toWorkflowOptions(this.options, domain, taskList, contextPropagators);
     SingleWorkerOptions localActivityOptions =
-        toLocalActivityOptions(this.options, domain, taskList);
+        toLocalActivityOptions(this.options, domain, taskList, contextPropagators);
     workflowWorker =
         this.options.isDisableWorkflowWorker()
             ? null
@@ -133,7 +139,10 @@ public final class Worker implements Suspendable {
   }
 
   private static SingleWorkerOptions toActivityOptions(
-      WorkerOptions options, String domain, String taskList) {
+      WorkerOptions options,
+      String domain,
+      String taskList,
+      List<ContextPropagator> contextPropagators) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.DOMAIN, domain)
@@ -148,11 +157,15 @@ public final class Worker implements Suspendable {
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentActivityExecutionSize())
         .setMetricsScope(options.getMetricsScope().tagged(tags))
         .setEnableLoggingInReplay(options.getEnableLoggingInReplay())
+        .setContextPropagators(contextPropagators)
         .build();
   }
 
   private static SingleWorkerOptions toWorkflowOptions(
-      WorkerOptions options, String domain, String taskList) {
+      WorkerOptions options,
+      String domain,
+      String taskList,
+      List<ContextPropagator> contextPropagators) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.DOMAIN, domain)
@@ -167,11 +180,15 @@ public final class Worker implements Suspendable {
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentWorkflowExecutionSize())
         .setMetricsScope(options.getMetricsScope().tagged(tags))
         .setEnableLoggingInReplay(options.getEnableLoggingInReplay())
+        .setContextPropagators(contextPropagators)
         .build();
   }
 
   private static SingleWorkerOptions toLocalActivityOptions(
-      WorkerOptions options, String domain, String taskList) {
+      WorkerOptions options,
+      String domain,
+      String taskList,
+      List<ContextPropagator> contextPropagators) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.DOMAIN, domain)
@@ -186,6 +203,7 @@ public final class Worker implements Suspendable {
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentLocalActivityExecutionSize())
         .setMetricsScope(options.getMetricsScope().tagged(tags))
         .setEnableLoggingInReplay(options.getEnableLoggingInReplay())
+        .setContextPropagators(contextPropagators)
         .build();
   }
 
@@ -599,7 +617,8 @@ public final class Worker implements Suspendable {
               cache,
               getStickyTaskListName(),
               Duration.ofSeconds(factoryOptions.stickyDecisionScheduleToStartTimeoutInSeconds),
-              workflowThreadPool);
+              workflowThreadPool,
+              factoryOptions.contextPropagators);
       workers.add(worker);
 
       if (!this.factoryOptions.disableStickyExecution) {
@@ -813,6 +832,7 @@ public final class Worker implements Suspendable {
       private int maxWorkflowThreadCount = 600;
       private PollerOptions stickyWorkflowPollerOptions;
       private Scope metricScope;
+      private List<ContextPropagator> contextPropagators;
 
       /**
        * When set to false it will create an affinity between the worker and the workflow run it's
@@ -867,6 +887,11 @@ public final class Worker implements Suspendable {
         return this;
       }
 
+      public Builder setContextPropagators(List<ContextPropagator> contextPropagators) {
+        this.contextPropagators = contextPropagators;
+        return this;
+      }
+
       public FactoryOptions build() {
         return new FactoryOptions(
             disableStickyExecution,
@@ -874,7 +899,8 @@ public final class Worker implements Suspendable {
             maxWorkflowThreadCount,
             stickyDecisionScheduleToStartTimeoutInSeconds,
             stickyWorkflowPollerOptions,
-            metricScope);
+            metricScope,
+            contextPropagators);
       }
     }
 
@@ -884,6 +910,7 @@ public final class Worker implements Suspendable {
     private final int stickyDecisionScheduleToStartTimeoutInSeconds;
     private final PollerOptions stickyWorkflowPollerOptions;
     private final Scope metricsScope;
+    private List<ContextPropagator> contextPropagators;
 
     private FactoryOptions(
         boolean disableStickyExecution,
@@ -891,7 +918,8 @@ public final class Worker implements Suspendable {
         int maxWorkflowThreadCount,
         int stickyDecisionScheduleToStartTimeoutInSeconds,
         PollerOptions stickyWorkflowPollerOptions,
-        Scope metricsScope) {
+        Scope metricsScope,
+        List<ContextPropagator> contextPropagators) {
       Preconditions.checkArgument(
           cacheMaximumSize > 0, "cacheMaximumSize should be greater than 0");
       Preconditions.checkArgument(
@@ -921,6 +949,12 @@ public final class Worker implements Suspendable {
         this.metricsScope = NoopScope.getInstance();
       } else {
         this.metricsScope = metricsScope;
+      }
+
+      if (contextPropagators != null) {
+        this.contextPropagators = contextPropagators;
+      } else {
+        this.contextPropagators = new ArrayList<>();
       }
     }
   }

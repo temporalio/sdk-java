@@ -19,6 +19,7 @@ package com.uber.cadence.internal.worker;
 
 import com.uber.cadence.*;
 import com.uber.cadence.common.RetryOptions;
+import com.uber.cadence.context.ContextPropagator;
 import com.uber.cadence.internal.common.Retryer;
 import com.uber.cadence.internal.logging.LoggerTag;
 import com.uber.cadence.internal.metrics.MetricsTag;
@@ -30,6 +31,8 @@ import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
@@ -170,6 +173,8 @@ public final class ActivityWorker implements SuspendableWorker {
       MDC.put(LoggerTag.WORKFLOW_ID, task.task.getWorkflowExecution().getWorkflowId());
       MDC.put(LoggerTag.RUN_ID, task.task.getWorkflowExecution().getRunId());
 
+      propagateContext(task.task);
+
       try {
         Stopwatch sw = metricsScope.timer(MetricsType.ACTIVITY_EXEC_LATENCY).start();
         ActivityTaskHandler.Result response = handler.handle(task.task, metricsScope, false);
@@ -193,6 +198,29 @@ public final class ActivityWorker implements SuspendableWorker {
         MDC.remove(LoggerTag.ACTIVITY_TYPE);
         MDC.remove(LoggerTag.WORKFLOW_ID);
         MDC.remove(LoggerTag.RUN_ID);
+      }
+    }
+
+    void propagateContext(PollForActivityTaskResponse response) {
+      if (options.getContextPropagators() == null || options.getContextPropagators().isEmpty()) {
+        return;
+      }
+
+      Header headers = response.getHeader();
+      if (headers == null) {
+        return;
+      }
+
+      Map<String, byte[]> headerData = new HashMap<>();
+      headers
+          .getFields()
+          .forEach(
+              (k, v) -> {
+                headerData.put(k, org.apache.thrift.TBaseHelper.byteBufferToByteArray(v));
+              });
+
+      for (ContextPropagator propagator : options.getContextPropagators()) {
+        propagator.setCurrentContext(propagator.deserializeContext(headerData));
       }
     }
 

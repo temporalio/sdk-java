@@ -727,7 +727,7 @@ public class DeterministicRunnerTest {
         new DeterministicRunnerImpl(
             threadPool,
             new SyncDecisionContext(
-                decisionContext, JsonDataConverter.getInstance(), next -> next, null),
+                decisionContext, JsonDataConverter.getInstance(), null, next -> next, null),
             () -> 0L, // clock override
             () -> {
               Promise<Void> thread =
@@ -752,7 +752,7 @@ public class DeterministicRunnerTest {
         new DeterministicRunnerImpl(
             threadPool,
             new SyncDecisionContext(
-                decisionContext, JsonDataConverter.getInstance(), next -> next, null),
+                decisionContext, JsonDataConverter.getInstance(), null, next -> next, null),
             () -> 0L, // clock override
             () -> {
               Promise<Void> thread =

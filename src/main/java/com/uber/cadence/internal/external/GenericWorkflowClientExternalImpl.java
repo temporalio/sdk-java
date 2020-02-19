@@ -18,6 +18,7 @@
 package com.uber.cadence.internal.external;
 
 import com.google.common.base.Strings;
+import com.uber.cadence.Header;
 import com.uber.cadence.Memo;
 import com.uber.cadence.QueryWorkflowRequest;
 import com.uber.cadence.QueryWorkflowResponse;
@@ -121,6 +122,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     }
     request.setMemo(toMemoThrift(startParameters.getMemo()));
     request.setSearchAttributes(toSearchAttributesThrift(startParameters.getSearchAttributes()));
+    request.setHeader(toHeaderThrift(startParameters.getContext()));
 
     //        if(startParameters.getChildPolicy() != null) {
     //            request.setChildPolicy(startParameters.getChildPolicy());
@@ -170,6 +172,19 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     SearchAttributes searchAttrThrift = new SearchAttributes();
     searchAttrThrift.setIndexedFields(fields);
     return searchAttrThrift;
+  }
+
+  private Header toHeaderThrift(Map<String, byte[]> headers) {
+    if (headers == null || headers.isEmpty()) {
+      return null;
+    }
+    Map<String, ByteBuffer> fields = new HashMap<>();
+    for (Map.Entry<String, byte[]> item : headers.entrySet()) {
+      fields.put(item.getKey(), ByteBuffer.wrap(item.getValue()));
+    }
+    Header headerThrift = new Header();
+    headerThrift.setFields(fields);
+    return headerThrift;
   }
 
   private RetryPolicy toRetryPolicy(RetryParameters retryParameters) {

@@ -22,6 +22,7 @@ import com.uber.cadence.WorkflowIdReusePolicy;
 import com.uber.cadence.WorkflowType;
 import com.uber.cadence.internal.common.RetryParameters;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Objects;
 
 public final class StartChildWorkflowExecutionParameters {
@@ -49,6 +50,8 @@ public final class StartChildWorkflowExecutionParameters {
     private RetryParameters retryParameters;
 
     private String cronSchedule;
+
+    private Map<String, byte[]> context;
 
     private ParentClosePolicy parentClosePolicy;
 
@@ -108,6 +111,11 @@ public final class StartChildWorkflowExecutionParameters {
       return this;
     }
 
+    public Builder setContext(Map<String, byte[]> context) {
+      this.context = context;
+      return this;
+    }
+
     public Builder setParentClosePolicy(ParentClosePolicy parentClosePolicy) {
       this.parentClosePolicy = parentClosePolicy;
       return this;
@@ -126,6 +134,7 @@ public final class StartChildWorkflowExecutionParameters {
           workflowIdReusePolicy,
           retryParameters,
           cronSchedule,
+          context,
           parentClosePolicy);
     }
   }
@@ -152,6 +161,8 @@ public final class StartChildWorkflowExecutionParameters {
 
   private final String cronSchedule;
 
+  private Map<String, byte[]> context;
+
   private final ParentClosePolicy parentClosePolicy;
 
   private StartChildWorkflowExecutionParameters(
@@ -166,6 +177,7 @@ public final class StartChildWorkflowExecutionParameters {
       WorkflowIdReusePolicy workflowIdReusePolicy,
       RetryParameters retryParameters,
       String cronSchedule,
+      Map<String, byte[]> context,
       ParentClosePolicy parentClosePolicy) {
     this.domain = domain;
     this.input = input;
@@ -178,6 +190,7 @@ public final class StartChildWorkflowExecutionParameters {
     this.workflowIdReusePolicy = workflowIdReusePolicy;
     this.retryParameters = retryParameters;
     this.cronSchedule = cronSchedule;
+    this.context = context;
     this.parentClosePolicy = parentClosePolicy;
   }
 
@@ -225,6 +238,10 @@ public final class StartChildWorkflowExecutionParameters {
     return cronSchedule;
   }
 
+  public Map<String, byte[]> getContext() {
+    return context;
+  }
+
   public ParentClosePolicy getParentClosePolicy() {
     return parentClosePolicy;
   }
@@ -245,6 +262,7 @@ public final class StartChildWorkflowExecutionParameters {
         && workflowIdReusePolicy == that.workflowIdReusePolicy
         && Objects.equals(retryParameters, that.retryParameters)
         && Objects.equals(cronSchedule, that.cronSchedule)
+        && Objects.equals(context, that.context)
         && Objects.equals(parentClosePolicy, that.parentClosePolicy);
   }
 
@@ -262,6 +280,7 @@ public final class StartChildWorkflowExecutionParameters {
             workflowIdReusePolicy,
             retryParameters,
             cronSchedule,
+            context,
             parentClosePolicy);
     result = 31 * result + Arrays.hashCode(input);
     return result;
@@ -296,6 +315,8 @@ public final class StartChildWorkflowExecutionParameters {
         + retryParameters
         + ", cronSchedule="
         + cronSchedule
+        + ", context='"
+        + context
         + ", parentClosePolicy="
         + parentClosePolicy
         + '}';

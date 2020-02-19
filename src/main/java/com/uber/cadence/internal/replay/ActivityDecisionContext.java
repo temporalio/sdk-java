@@ -22,11 +22,13 @@ import com.uber.cadence.ActivityTaskCompletedEventAttributes;
 import com.uber.cadence.ActivityTaskFailedEventAttributes;
 import com.uber.cadence.ActivityTaskTimedOutEventAttributes;
 import com.uber.cadence.ActivityType;
+import com.uber.cadence.Header;
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.ScheduleActivityTaskDecisionAttributes;
 import com.uber.cadence.TaskList;
 import com.uber.cadence.TimeoutType;
 import com.uber.cadence.internal.common.RetryParameters;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
@@ -121,6 +123,8 @@ final class ActivityDecisionContext {
       attributes.setRetryPolicy(retryParameters.toRetryPolicy());
     }
 
+    attributes.setHeader(toHeaderThrift(parameters.getContext()));
+
     long scheduledEventId = decisions.scheduleActivityTask(attributes);
     context.setCompletionHandle(callback);
     scheduledActivities.put(scheduledEventId, context);
@@ -195,5 +199,18 @@ final class ActivityDecisionContext {
         completionHandle.accept(null, failure);
       }
     }
+  }
+
+  private Header toHeaderThrift(Map<String, byte[]> headers) {
+    if (headers == null || headers.isEmpty()) {
+      return null;
+    }
+    Map<String, ByteBuffer> fields = new HashMap<>();
+    for (Map.Entry<String, byte[]> item : headers.entrySet()) {
+      fields.put(item.getKey(), ByteBuffer.wrap(item.getValue()));
+    }
+    Header headerThrift = new Header();
+    headerThrift.setFields(fields);
+    return headerThrift;
   }
 }
