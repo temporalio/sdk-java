@@ -1,10 +1,10 @@
 FROM openjdk:8-alpine
 
 # Apache Thrift version
-ENV APACHE_THRIFT_VERSION=0.9.3
+ENV APACHE_THRIFT_VERSION=0.13.0
 
 # Install dependencies using apk
-RUN apk update && apk add --virtual wget ca-certificates wget && apk add --virtual build-dependencies build-base gcc
+RUN apk update && apk add --virtual wget ca-certificates wget && apk add --virtual build-dependencies build-base gcc && apk add protobuf
 
 # Compile source
 RUN set -ex ;\

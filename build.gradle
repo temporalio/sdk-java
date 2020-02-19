@@ -1,14 +1,20 @@
 buildscript {
+    repositories {
+        mavenCentral()
+    }
     dependencies {
-        classpath "gradle.plugin.org.jruyi.gradle:thrift-gradle-plugin:0.4.1"
+        classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.11'
+        classpath 'gradle.plugin.org.jruyi.gradle:thrift-gradle-plugin:0.4.1'
     }
 }
 
 plugins {
-    id 'net.minecrell.licenser' version '0.4.1'
-    id 'com.github.sherter.google-java-format' version '0.8'
-    id 'net.ltgt.errorprone' version '1.1.1'
     id 'java-library'
+
+    id 'com.github.sherter.google-java-format' version '0.8'
+    id 'com.google.protobuf' version '0.8.11'
+    id 'net.ltgt.errorprone' version '1.1.1'
+    id 'net.minecrell.licenser' version '0.4.1'
 }
 
 repositories {
@@ -19,8 +25,10 @@ repositories {
 }
 
 apply plugin: 'maven'
-apply plugin: 'org.jruyi.thrift'
 apply plugin: 'maven-publish'
+
+apply plugin: 'org.jruyi.thrift'
+apply plugin: 'com.google.protobuf'
 apply plugin: 'com.github.sherter.google-java-format'
 
 if (hasProperty('signing.keyId')) {
@@ -56,8 +64,11 @@ dependencies {
     compile group: 'com.uber.m3', name: 'tally-core', version: '0.4.0'
     compile group: 'com.uber.tchannel', name: 'tchannel-core', version: '0.8.5'
     compile group: 'io.micrometer', name: 'micrometer-core', version: '1.1.2'
-    compile group: 'org.apache.thrift', name: 'libthrift', version: '0.9.3'
     compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
+
+    implementation 'io.grpc:grpc-netty-shaded:1.26.0'
+    implementation 'io.grpc:grpc-protobuf:1.26.0'
+    implementation 'io.grpc:grpc-stub:1.26.0'
 
     testCompile group: 'junit', name: 'junit', version: '4.12'
     testCompile group: 'com.googlecode.junit-toolbox', name: 'junit-toolbox', version: '2.4'
@@ -69,10 +80,22 @@ license {
     exclude 'io/temporal/*.java' // generated code
 }
 
-compileThrift {
-    sourceItems "src/main/thrift/temporal.thrift", "src/main/thrift/shared.thrift"
-
-    nowarn true
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:3.11.0"
+    }
+    plugins {
+        grpc {
+            artifact = 'io.grpc:protoc-gen-grpc-java:1.26.0'
+        }
+    }
+    generateProtoTasks {
+        all()*.plugins {
+            grpc {
+                outputSubDir = 'java'
+            }
+        }
+    }
 }
 
 compileJava {
