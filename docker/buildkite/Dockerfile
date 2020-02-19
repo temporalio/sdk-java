@@ -3,9 +3,8 @@ FROM openjdk:8
 # Apache Thrift version
 ENV APACHE_THRIFT_VERSION=0.9.3
 
-# Install dependencies using apk
-RUN apk update && apk add --virtual wget ca-certificates wget && apk add --virtual build-dependencies build-base gcc
- # && apk add protobuf
+# Install dependencies using apt-get
+RUN apt-get update && apt-get add --virtual wget ca-certificates wget && apt-get add --virtual build-dependencies build-base gcc && apt-get add protobuf
 
 # Compile source
 RUN set -ex ;\
@@ -18,7 +17,8 @@ RUN set -ex ;\
 	cd .. && rm -rf thrift-${APACHE_THRIFT_VERSION}
 
 # Cleanup packages and remove cache
-RUN apk del build-dependencies wget && rm -rf /var/cache/apk/*
+RUN apt-get del build-dependencies wget
+#&& rm -rf /var/cache/apk/*
 
 RUN mkdir /temporal-java-client
 WORKDIR /temporal-java-client

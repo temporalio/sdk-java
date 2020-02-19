@@ -17,41 +17,100 @@
 
 package io.temporal.serviceclient;
 
+import com.google.auto.value.AutoValue;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.temporal.WorkflowServiceGrpc;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+@AutoValue
+abstract class FactoryOptions {
+  /** The timeout in milliseconds */
+  abstract long rpcTimeoutMillis();
+  /** The timeout for long poll calls in milliseconds */
+  abstract long rpcLongPollTimeoutMillis();
+  /** The timeout for query workflow call in milliseconds */
+  abstract long rpcQueryTimeoutMillis();
+  /** Optional headers */
+  abstract Map<String, String> headers();
+
+  static Builder builder() {
+    return new AutoValue_FactoryOptions.Builder()
+        .setRpcTimeoutMillis(1000)
+        .setRpcLongPollTimeoutMillis(121 * 1000)
+        .setRpcQueryTimeoutMillis(10000);
+  }
+
+  @AutoValue.Builder
+  abstract static class Builder {
+    abstract Builder setRpcTimeoutMillis(long value);
+
+    abstract Builder setRpcLongPollTimeoutMillis(long value);
+
+    abstract Builder setRpcQueryTimeoutMillis(long value);
+
+    abstract Builder setHeaders(Map<String, String> value);
+
+    abstract FactoryOptions build();
+  }
+}
 
 public class GRPCWorkflowServiceFactory implements AutoCloseable {
-  private static final int DEFAULT_LOCAL_TEMPORAL_SERVER_PORT = 7933;
-  private static final String LOCALHOST = "127.0.0.1";
-  private static final long DEFAULT_RPC_TIMEOUT_MILLIS = 1000;
-  private static final Logger log = LoggerFactory.getLogger(GRPCWorkflowServiceFactory.class);
 
+  private static final String LOCALHOST = "127.0.0.1";
+  private static final int DEFAULT_LOCAL_TEMPORAL_SERVER_PORT = 7933;
+
+  private final FactoryOptions options;
   private final ManagedChannel channel;
   private final WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub;
   private final WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub;
 
-  public GRPCWorkflowServiceFactory(ManagedChannel channel) {
-    this.channel = channel;
-    blockingStub = WorkflowServiceGrpc.newBlockingStub(channel);
-    futureStub = WorkflowServiceGrpc.newFutureStub(channel);
-  }
-
-  public GRPCWorkflowServiceFactory(String host, int port) {
-    // Remove usePlaintext if the service supports TLS
-    this(ManagedChannelBuilder.forAddress(host, port).usePlaintext().build());
-  }
-
+  /**
+   * Creates Temporal client that connects to the local instance of the Temporal Service that
+   * listens on a default port (7933).
+   */
   public GRPCWorkflowServiceFactory() {
     this(
         Strings.isNullOrEmpty(System.getenv("TEMPORAL_SEEDS"))
             ? LOCALHOST
             : System.getenv("TEMPORAL_SEEDS"),
         DEFAULT_LOCAL_TEMPORAL_SERVER_PORT);
+  }
+
+  public GRPCWorkflowServiceFactory(ManagedChannel channel, FactoryOptions options) {
+    this.channel = channel;
+    this.options = options;
+    blockingStub = WorkflowServiceGrpc.newBlockingStub(channel);
+    futureStub = WorkflowServiceGrpc.newFutureStub(channel);
+  }
+
+  /**
+   * Creates Temporal client that connects to the specified host and port using default options.
+   *
+   * @param host host to connect
+   * @param port port to connect
+   */
+  public GRPCWorkflowServiceFactory(String host, int port) {
+    this(host, port, FactoryOptions.builder().build());
+  }
+
+  /**
+   * Creates Temporal client that connects to the specified host and port using specified options.
+   *
+   * @param host host to connect
+   * @param port port to connect
+   * @param options configuration options like rpc timeouts.
+   */
+  public GRPCWorkflowServiceFactory(String host, int port, FactoryOptions options) {
+    this(
+        ManagedChannelBuilder.forAddress(
+                Preconditions.checkNotNull(host, "host must not be null"), validatePort(port))
+            .usePlaintext()
+            .build(),
+        options);
   }
 
   /** @return Blocking (synchronous) stub that allows direct calls to service. */
@@ -66,6 +125,13 @@ public class GRPCWorkflowServiceFactory implements AutoCloseable {
     return futureStub;
   }
 
+  /** Simple port validation */
+  private static int validatePort(int port) {
+    if (port < 0) {
+      throw new IllegalArgumentException("0 or negative port");
+    }
+    return port;
+  }
   /**
    * This closes the underlying channel. Channels are expensive to create, so if multiple instances
    * of this class are created and closed frequently, it may make sense to move to a shared channel
