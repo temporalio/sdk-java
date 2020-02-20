@@ -10,3 +10,7 @@ target
 dummy
 $buildDir
 src/main/idls/*
+/bin
+.classpath
+.project
+.settings

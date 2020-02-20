@@ -128,7 +128,10 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   private static final long DEFAULT_POLL_RPC_TIMEOUT_MILLIS = 121 * 1000;
 
   /** Default RPC timeout for QueryWorkflow */
-  private static final long DEFAULT_QUERY_RPC_TIMEOUT_MILLIS = 10000;
+  private static final long DEFAULT_QUERY_RPC_TIMEOUT_MILLIS = 10 * 1000;
+
+  /** Default RPC timeout for ListArchivedWorkflow */
+  private static final long DEFAULT_LIST_ARCHIVED_WORKFLOW_TIMEOUT_MILLIS = 180 * 1000;
 
   private static final String DEFAULT_CLIENT_APP_NAME = "cadence-client";
 
@@ -147,6 +150,9 @@ public class WorkflowServiceTChannel implements IWorkflowService {
 
     /** The tChannel timeout for query workflow call in milliseconds */
     private final long rpcQueryTimeoutMillis;
+
+    /** The tChannel timeout for list archived workflow call in milliseconds */
+    private final long rpcListArchivedWorkflowTimeoutMillis;
 
     /** TChannel service name that the Cadence service was started with. */
     private final String serviceName;
@@ -177,6 +183,7 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       }
       this.rpcLongPollTimeoutMillis = builder.rpcLongPollTimeoutMillis;
       this.rpcQueryTimeoutMillis = builder.rpcQueryTimeoutMillis;
+      this.rpcListArchivedWorkflowTimeoutMillis = builder.rpcListArchivedWorkflowTimeoutMillis;
       if (builder.metricsScope == null) {
         builder.metricsScope = NoopScope.getInstance();
       }
@@ -207,6 +214,11 @@ public class WorkflowServiceTChannel implements IWorkflowService {
     /** @return Returns the rpc timout for query workflow requests in millis. */
     public long getRpcQueryTimeoutMillis() {
       return rpcQueryTimeoutMillis;
+    }
+
+    /** @return Returns the rpc timout for list archived workflow requests in millis. */
+    public long getRpcListArchivedWorkflowTimeoutMillis() {
+      return rpcListArchivedWorkflowTimeoutMillis;
     }
 
     /** Returns the client application name. */
@@ -242,6 +254,8 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       private long rpcTimeoutMillis = DEFAULT_RPC_TIMEOUT_MILLIS;
       private long rpcLongPollTimeoutMillis = DEFAULT_POLL_RPC_TIMEOUT_MILLIS;
       public long rpcQueryTimeoutMillis = DEFAULT_QUERY_RPC_TIMEOUT_MILLIS;
+      public long rpcListArchivedWorkflowTimeoutMillis =
+          DEFAULT_LIST_ARCHIVED_WORKFLOW_TIMEOUT_MILLIS;
       public String serviceName;
       private Scope metricsScope;
       private Map<String, String> transportHeaders;
@@ -276,6 +290,16 @@ public class WorkflowServiceTChannel implements IWorkflowService {
        */
       public Builder setQueryRpcTimeout(long timeoutMillis) {
         this.rpcQueryTimeoutMillis = timeoutMillis;
+        return this;
+      }
+
+      /**
+       * Sets the rpc timeout value for query calls. Default is 180000.
+       *
+       * @param timeoutMillis timeout, in millis.
+       */
+      public Builder setListArchivedWorkflowRpcTimeout(long timeoutMillis) {
+        this.rpcListArchivedWorkflowTimeoutMillis = timeoutMillis;
         return this;
       }
 
@@ -1717,7 +1741,8 @@ public class WorkflowServiceTChannel implements IWorkflowService {
       ThriftRequest<WorkflowService.ListArchivedWorkflowExecutions_args> request =
           buildThriftRequest(
               "ListArchivedWorkflowExecutions",
-              new WorkflowService.ListArchivedWorkflowExecutions_args(listRequest));
+              new WorkflowService.ListArchivedWorkflowExecutions_args(listRequest),
+              options.getRpcListArchivedWorkflowTimeoutMillis());
       response = doRemoteCall(request);
       WorkflowService.ListArchivedWorkflowExecutions_result result =
           response.getBody(WorkflowService.ListArchivedWorkflowExecutions_result.class);
@@ -2340,7 +2365,9 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   @Override
   public void ListArchivedWorkflowExecutions(
       ListArchivedWorkflowExecutionsRequest listRequest, AsyncMethodCallback resultHandler)
-      throws TException {}
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
 
   @Override
   public void ScanWorkflowExecutions(

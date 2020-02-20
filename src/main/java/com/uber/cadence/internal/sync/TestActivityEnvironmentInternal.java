@@ -726,7 +726,9 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     @Override
     public void ListArchivedWorkflowExecutions(
         ListArchivedWorkflowExecutionsRequest listRequest, AsyncMethodCallback resultHandler)
-        throws TException {}
+        throws TException {
+      impl.ListArchivedWorkflowExecutions(listRequest, resultHandler);
+    }
 
     @Override
     public void ScanWorkflowExecutions(
