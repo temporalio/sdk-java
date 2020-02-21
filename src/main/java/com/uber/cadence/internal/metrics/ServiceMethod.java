@@ -71,6 +71,8 @@ public class ServiceMethod {
       MetricsType.CADENCE_METRICS_PREFIX + "RespondDecisionTaskFailed";
   public static final String SIGNAL_WORKFLOW_EXECUTION =
       MetricsType.CADENCE_METRICS_PREFIX + "SignalWorkflowExecution";
+  public static final String RESET_WORKFLOW_EXECUTION =
+      MetricsType.CADENCE_METRICS_PREFIX + "ResetWorkflowExecution";
   public static final String SIGNAL_WITH_START_WORKFLOW_EXECUTION =
       MetricsType.CADENCE_METRICS_PREFIX + "SignalWithStartWorkflowExecution";
   public static final String START_WORKFLOW_EXECUTION =
