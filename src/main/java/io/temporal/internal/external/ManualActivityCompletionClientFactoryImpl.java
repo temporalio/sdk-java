@@ -22,19 +22,22 @@ import com.uber.m3.util.ImmutableMap;
 import io.temporal.WorkflowExecution;
 import io.temporal.converter.DataConverter;
 import io.temporal.internal.metrics.MetricsTag;
-import io.temporal.serviceclient.IWorkflowService;
+import io.temporal.serviceclient.GRPCWorkflowServiceFactory;
 import java.util.Map;
 
 public class ManualActivityCompletionClientFactoryImpl
     extends ManualActivityCompletionClientFactory {
 
-  private final IWorkflowService service;
+  private final GRPCWorkflowServiceFactory service;
   private final DataConverter dataConverter;
   private final String domain;
   private final Scope metricsScope;
 
   public ManualActivityCompletionClientFactoryImpl(
-      IWorkflowService service, String domain, DataConverter dataConverter, Scope metricsScope) {
+      GRPCWorkflowServiceFactory service,
+      String domain,
+      DataConverter dataConverter,
+      Scope metricsScope) {
     this.service = service;
     this.domain = domain;
     this.dataConverter = dataConverter;
@@ -44,7 +47,7 @@ public class ManualActivityCompletionClientFactoryImpl
     this.metricsScope = metricsScope.tagged(tags);
   }
 
-  public IWorkflowService getService() {
+  public GRPCWorkflowServiceFactory getService() {
     return service;
   }
 

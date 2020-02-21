@@ -41,7 +41,7 @@ import io.temporal.internal.worker.DecisionTaskWithHistoryIterator;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.WorkflowExecutionException;
-import io.temporal.serviceclient.IWorkflowService;
+import io.temporal.serviceclient.GRPCWorkflowServiceFactory;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -65,7 +65,7 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
 
   private final DecisionsHelper decisionsHelper;
   private final DecisionContextImpl context;
-  private final IWorkflowService service;
+  private final GRPCWorkflowServiceFactory service;
   private final ReplayWorkflow workflow;
   private boolean cancelRequested;
   private boolean completed;
@@ -77,7 +77,7 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
   private final WorkflowExecutionStartedEventAttributes startedEvent;
 
   ReplayDecider(
-      IWorkflowService service,
+      GRPCWorkflowServiceFactory service,
       String domain,
       ReplayWorkflow workflow,
       DecisionsHelper decisionsHelper,

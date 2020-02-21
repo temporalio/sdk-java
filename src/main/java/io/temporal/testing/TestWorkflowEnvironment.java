@@ -21,7 +21,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.internal.sync.TestWorkflowEnvironmentInternal;
-import io.temporal.serviceclient.IWorkflowService;
+import io.temporal.serviceclient.GRPCWorkflowServiceFactory;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerOptions;
 import java.time.Duration;
@@ -145,7 +145,7 @@ public interface TestWorkflowEnvironment {
   void registerDelayedCallback(Duration delay, Runnable r);
 
   /** Returns the in-memory test Temporal service that is owned by this. */
-  IWorkflowService getWorkflowService();
+  GRPCWorkflowServiceFactory getWorkflowService();
 
   String getDomain();
 

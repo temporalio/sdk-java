@@ -29,7 +29,7 @@ import io.temporal.client.ActivityCompletionFailureException;
 import io.temporal.client.ActivityNotExistsException;
 import io.temporal.client.ActivityWorkerShutdownException;
 import io.temporal.converter.DataConverter;
-import io.temporal.serviceclient.IWorkflowService;
+import io.temporal.serviceclient.GRPCWorkflowServiceFactory;
 import java.lang.reflect.Type;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
@@ -53,7 +53,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   private static final long HEARTBEAT_RETRY_WAIT_MILLIS = 1000;
   private static final long MAX_HEARTBEAT_INTERVAL_MILLIS = 30000;
 
-  private final IWorkflowService service;
+  private final GRPCWorkflowServiceFactory service;
   private final String domain;
   private final ActivityTask task;
   private final DataConverter dataConverter;
@@ -68,7 +68,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
 
   /** Create an ActivityExecutionContextImpl with the given attributes. */
   ActivityExecutionContextImpl(
-      IWorkflowService service,
+      GRPCWorkflowServiceFactory service,
       String domain,
       ActivityTask task,
       DataConverter dataConverter,
@@ -199,7 +199,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
 
   /** @see ActivityExecutionContext#getService() */
   @Override
-  public IWorkflowService getService() {
+  public GRPCWorkflowServiceFactory getService() {
     return service;
   }
 

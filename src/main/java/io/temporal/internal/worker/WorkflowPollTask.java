@@ -26,7 +26,7 @@ import io.temporal.PollForDecisionTaskResponse;
 import io.temporal.ServiceBusyError;
 import io.temporal.TaskList;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.serviceclient.IWorkflowService;
+import io.temporal.serviceclient.GRPCWorkflowServiceFactory;
 import java.util.Objects;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
@@ -35,14 +35,14 @@ import org.slf4j.LoggerFactory;
 final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskResponse> {
 
   private final Scope metricScope;
-  private final IWorkflowService service;
+  private final GRPCWorkflowServiceFactory service;
   private final String domain;
   private final String taskList;
   private final String identity;
   private static final Logger log = LoggerFactory.getLogger(WorkflowWorker.class);
 
   WorkflowPollTask(
-      IWorkflowService service,
+      GRPCWorkflowServiceFactory service,
       String domain,
       String taskList,
       Scope metricScope,

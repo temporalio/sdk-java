@@ -24,7 +24,7 @@ import io.temporal.activity.LocalActivityOptions;
 import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
-import io.temporal.serviceclient.IWorkflowService;
+import io.temporal.serviceclient.GRPCWorkflowServiceFactory;
 import io.temporal.testing.TestActivityEnvironment;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.workflow.ActivityFailureException;
@@ -63,7 +63,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   private ClassConsumerPair<Object> activityHeartbetListener;
   private static final ScheduledExecutorService heartbeatExecutor =
       Executors.newScheduledThreadPool(20);
-  private IWorkflowService workflowService;
+  private GRPCWorkflowServiceFactory workflowService;
 
   public TestActivityEnvironmentInternal(TestEnvironmentOptions options) {
     if (options == null) {
@@ -122,8 +122,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   }
 
   @Override
-  public void setWorkflowService(IWorkflowService workflowService) {
-    IWorkflowService service = new WorkflowServiceWrapper(workflowService);
+  public void setWorkflowService(GRPCWorkflowServiceFactory workflowService) {
+    GRPCWorkflowServiceFactory service = new WorkflowServiceWrapper(workflowService);
     this.workflowService = service;
     this.activityTaskHandler.setWorkflowService(service);
   }
@@ -131,9 +131,9 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   private class TestActivityExecutor implements WorkflowInterceptor {
 
     @SuppressWarnings("UnusedVariable")
-    private final IWorkflowService workflowService;
+    private final GRPCWorkflowServiceFactory workflowService;
 
-    TestActivityExecutor(IWorkflowService workflowService) {
+    TestActivityExecutor(GRPCWorkflowServiceFactory workflowService) {
       this.workflowService = workflowService;
     }
 
@@ -312,18 +312,18 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
   }
 
-  private class WorkflowServiceWrapper implements IWorkflowService {
+  private class WorkflowServiceWrapper implements GRPCWorkflowServiceFactory {
 
-    private final IWorkflowService impl;
+    private final GRPCWorkflowServiceFactory impl;
 
-    private WorkflowServiceWrapper(IWorkflowService impl) {
+    private WorkflowServiceWrapper(GRPCWorkflowServiceFactory impl) {
       if (impl == null) {
         // Create empty implementation that just ignores all requests.
         this.impl =
-            (IWorkflowService)
+            (GRPCWorkflowServiceFactory)
                 Proxy.newProxyInstance(
                     WorkflowServiceWrapper.class.getClassLoader(),
-                    new Class<?>[] {IWorkflowService.class},
+                    new Class<?>[] {GRPCWorkflowServiceFactory.class},
                     (proxy, method, args) -> {
                       // noop
                       return method.getReturnType().getDeclaredConstructor().newInstance();

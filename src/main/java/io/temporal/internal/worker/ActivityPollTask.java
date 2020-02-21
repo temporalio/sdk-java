@@ -26,21 +26,24 @@ import io.temporal.ServiceBusyError;
 import io.temporal.TaskList;
 import io.temporal.TaskListMetadata;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.serviceclient.IWorkflowService;
+import io.temporal.serviceclient.GRPCWorkflowServiceFactory;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 final class ActivityPollTask implements Poller.PollTask<ActivityWorker.MeasurableActivityTask> {
 
-  private final IWorkflowService service;
+  private final GRPCWorkflowServiceFactory service;
   private final String domain;
   private final String taskList;
   private final SingleWorkerOptions options;
   private static final Logger log = LoggerFactory.getLogger(ActivityPollTask.class);
 
   public ActivityPollTask(
-      IWorkflowService service, String domain, String taskList, SingleWorkerOptions options) {
+      GRPCWorkflowServiceFactory service,
+      String domain,
+      String taskList,
+      SingleWorkerOptions options) {
 
     this.service = service;
     this.domain = domain;

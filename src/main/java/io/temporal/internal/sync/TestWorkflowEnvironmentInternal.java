@@ -26,7 +26,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.internal.common.QueryResponse;
 import io.temporal.internal.testservice.TestWorkflowService;
-import io.temporal.serviceclient.IWorkflowService;
+import io.temporal.serviceclient.GRPCWorkflowServiceFactory;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
@@ -121,7 +121,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   }
 
   @Override
-  public IWorkflowService getWorkflowService() {
+  public GRPCWorkflowServiceFactory getWorkflowService() {
     return service;
   }
 
@@ -184,7 +184,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     return workerFactory;
   }
 
-  private static class WorkflowServiceWrapper implements IWorkflowService {
+  private static class WorkflowServiceWrapper implements GRPCWorkflowServiceFactory {
 
     private final TestWorkflowService impl;
 

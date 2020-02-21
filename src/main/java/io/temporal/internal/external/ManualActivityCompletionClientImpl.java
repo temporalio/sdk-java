@@ -34,7 +34,7 @@ import io.temporal.client.ActivityNotExistsException;
 import io.temporal.converter.DataConverter;
 import io.temporal.internal.common.Retryer;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.serviceclient.IWorkflowService;
+import io.temporal.serviceclient.GRPCWorkflowServiceFactory;
 import java.util.concurrent.CancellationException;
 import org.apache.thrift.TException;
 import org.slf4j.Logger;
@@ -46,7 +46,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
   private static final Logger log =
       LoggerFactory.getLogger(ManualActivityCompletionClientImpl.class);
 
-  private final IWorkflowService service;
+  private final GRPCWorkflowServiceFactory service;
 
   private final byte[] taskToken;
 
@@ -57,7 +57,10 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
   private final Scope metricsScope;
 
   ManualActivityCompletionClientImpl(
-      IWorkflowService service, byte[] taskToken, DataConverter dataConverter, Scope metricsScope) {
+      GRPCWorkflowServiceFactory service,
+      byte[] taskToken,
+      DataConverter dataConverter,
+      Scope metricsScope) {
     this.service = service;
     this.taskToken = taskToken;
     this.dataConverter = dataConverter;
@@ -68,7 +71,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
   }
 
   ManualActivityCompletionClientImpl(
-      IWorkflowService service,
+      GRPCWorkflowServiceFactory service,
       String domain,
       WorkflowExecution execution,
       String activityId,

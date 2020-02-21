@@ -42,7 +42,7 @@ import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.serviceclient.IWorkflowService;
+import io.temporal.serviceclient.GRPCWorkflowServiceFactory;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -60,7 +60,7 @@ public final class WorkflowWorker
   private SuspendableWorker poller = new NoopSuspendableWorker();
   private PollTaskExecutor<PollForDecisionTaskResponse> pollTaskExecutor;
   private final DecisionTaskHandler handler;
-  private final IWorkflowService service;
+  private final GRPCWorkflowServiceFactory service;
   private final String domain;
   private final String taskList;
   private final SingleWorkerOptions options;
@@ -68,7 +68,7 @@ public final class WorkflowWorker
   private final WorkflowRunLockManager runLocks = new WorkflowRunLockManager();
 
   public WorkflowWorker(
-      IWorkflowService service,
+      GRPCWorkflowServiceFactory service,
       String domain,
       String taskList,
       SingleWorkerOptions options,
@@ -285,7 +285,7 @@ public final class WorkflowWorker
     }
 
     private void sendReply(
-        IWorkflowService service, byte[] taskToken, DecisionTaskHandler.Result response)
+        GRPCWorkflowServiceFactory service, byte[] taskToken, DecisionTaskHandler.Result response)
         throws TException {
       RetryOptions ro = response.getRequestRetryOptions();
       RespondDecisionTaskCompletedRequest taskCompleted = response.getTaskCompleted();

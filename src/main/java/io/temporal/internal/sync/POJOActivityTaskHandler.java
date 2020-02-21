@@ -31,7 +31,7 @@ import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.ActivityTaskHandler;
-import io.temporal.serviceclient.IWorkflowService;
+import io.temporal.serviceclient.GRPCWorkflowServiceFactory;
 import io.temporal.testing.SimulatedTimeoutException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -48,11 +48,11 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
   private final ScheduledExecutorService heartbeatExecutor;
   private final Map<String, ActivityTaskExecutor> activities =
       Collections.synchronizedMap(new HashMap<>());
-  private IWorkflowService service;
+  private GRPCWorkflowServiceFactory service;
   private final String domain;
 
   POJOActivityTaskHandler(
-      IWorkflowService service,
+      GRPCWorkflowServiceFactory service,
       String domain,
       DataConverter dataConverter,
       ScheduledExecutorService heartbeatExecutor) {
@@ -264,7 +264,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
   }
 
   // This is only for unit test to mock service and set expectations.
-  void setWorkflowService(IWorkflowService service) {
+  void setWorkflowService(GRPCWorkflowServiceFactory service) {
     this.service = service;
   }
 }

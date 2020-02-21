@@ -29,7 +29,7 @@ import io.temporal.RecordActivityTaskHeartbeatResponse;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.client.ActivityCancelledException;
-import io.temporal.serviceclient.IWorkflowService;
+import io.temporal.serviceclient.GRPCWorkflowServiceFactory;
 import io.temporal.testing.TestActivityEnvironment;
 import io.temporal.workflow.ActivityFailureException;
 import java.io.IOException;
@@ -182,7 +182,7 @@ public class ActivityTestingTest {
   @Test
   public void testHeartbeatCancellation() throws InterruptedException, TException {
     testEnvironment.registerActivitiesImplementations(new HeartbeatCancellationActivityImpl());
-    IWorkflowService workflowService = mock(IWorkflowService.class);
+    GRPCWorkflowServiceFactory workflowService = mock(GRPCWorkflowServiceFactory.class);
     RecordActivityTaskHeartbeatResponse resp = new RecordActivityTaskHeartbeatResponse();
     resp.setCancelRequested(true);
     when(workflowService.RecordActivityTaskHeartbeat(any())).thenReturn(resp);
@@ -214,7 +214,7 @@ public class ActivityTestingTest {
   public void testCancellationOnNextHeartbeat() throws InterruptedException, TException {
     testEnvironment.registerActivitiesImplementations(
         new CancellationOnNextHeartbeatActivityImpl());
-    IWorkflowService workflowService = mock(IWorkflowService.class);
+    GRPCWorkflowServiceFactory workflowService = mock(GRPCWorkflowServiceFactory.class);
     RecordActivityTaskHeartbeatResponse resp = new RecordActivityTaskHeartbeatResponse();
     resp.setCancelRequested(true);
     when(workflowService.RecordActivityTaskHeartbeat(any()))
@@ -239,7 +239,7 @@ public class ActivityTestingTest {
   @Test
   public void testHeartbeatIntermittentError() throws TException, InterruptedException {
     testEnvironment.registerActivitiesImplementations(new SimpleHeartbeatActivityImpl());
-    IWorkflowService workflowService = mock(IWorkflowService.class);
+    GRPCWorkflowServiceFactory workflowService = mock(GRPCWorkflowServiceFactory.class);
     when(workflowService.RecordActivityTaskHeartbeat(any()))
         .thenThrow(new TException("intermittent error"))
         .thenThrow(new TException("intermittent error"))

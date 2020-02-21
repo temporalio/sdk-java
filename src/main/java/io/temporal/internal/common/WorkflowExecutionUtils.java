@@ -27,12 +27,10 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 import io.temporal.ActivityType;
-import io.temporal.BadRequestError;
 import io.temporal.Decision;
 import io.temporal.DecisionType;
 import io.temporal.DescribeWorkflowExecutionRequest;
 import io.temporal.DescribeWorkflowExecutionResponse;
-import io.temporal.EntityNotExistsError;
 import io.temporal.EventType;
 import io.temporal.GetWorkflowExecutionHistoryRequest;
 import io.temporal.GetWorkflowExecutionHistoryResponse;
@@ -53,7 +51,7 @@ import io.temporal.client.WorkflowTerminatedException;
 import io.temporal.client.WorkflowTimedOutException;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.WorkflowExecutionHistory;
-import io.temporal.serviceclient.IWorkflowService;
+import io.temporal.serviceclient.GRPCWorkflowServiceFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
@@ -74,8 +72,6 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import org.apache.thrift.TException;
-import org.apache.thrift.async.AsyncMethodCallback;
 
 /**
  * Convenience methods to be used by unit tests and during development.
@@ -97,7 +93,8 @@ public class WorkflowExecutionUtils {
           .setInitialInterval(Duration.ofMillis(500))
           .setMaximumInterval(Duration.ofSeconds(30))
           .setMaximumAttempts(Integer.MAX_VALUE)
-          .setDoNotRetry(BadRequestError.class, EntityNotExistsError.class)
+          // TODO: modify RetryOptions for gRPC status codes
+          // .setDoNotRetry(BadRequestError.class, EntityNotExistsError.class)
           .build();
 
   /**
@@ -114,14 +111,14 @@ public class WorkflowExecutionUtils {
    *     terminate command.
    */
   public static byte[] getWorkflowExecutionResult(
-      IWorkflowService service,
+      GRPCWorkflowServiceFactory service,
       String domain,
       WorkflowExecution workflowExecution,
       Optional<String> workflowType,
       long timeout,
       TimeUnit unit)
       throws TimeoutException, CancellationException, WorkflowExecutionFailedException,
-          WorkflowTerminatedException, WorkflowTimedOutException, EntityNotExistsError {
+          WorkflowTerminatedException, WorkflowTimedOutException {
     // getIntanceCloseEvent waits for workflow completion including new runs.
     HistoryEvent closeEvent =
         getInstanceCloseEvent(service, domain, workflowExecution, timeout, unit);
@@ -129,7 +126,7 @@ public class WorkflowExecutionUtils {
   }
 
   public static CompletableFuture<byte[]> getWorkflowExecutionResultAsync(
-      IWorkflowService service,
+      GRPCWorkflowServiceFactory service,
       String domain,
       WorkflowExecution workflowExecution,
       Optional<String> workflowType,
@@ -179,12 +176,12 @@ public class WorkflowExecutionUtils {
 
   /** Returns an instance closing event, potentially waiting for workflow to complete. */
   public static HistoryEvent getInstanceCloseEvent(
-      IWorkflowService service,
+      GRPCWorkflowServiceFactory service,
       String domain,
       WorkflowExecution workflowExecution,
       long timeout,
       TimeUnit unit)
-      throws TimeoutException, EntityNotExistsError {
+      throws TimeoutException {
     byte[] pageToken = null;
     GetWorkflowExecutionHistoryResponse response;
     // TODO: Interrupt service long poll call on timeout and on interrupt
@@ -197,14 +194,8 @@ public class WorkflowExecutionUtils {
       r.setHistoryEventFilterType(HistoryEventFilterType.CLOSE_EVENT);
       r.setNextPageToken(pageToken);
       r.setWaitForNewEvent(true);
-      try {
-        response =
-            Retryer.retryWithResult(retryParameters, () -> service.GetWorkflowExecutionHistory(r));
-      } catch (EntityNotExistsError e) {
-        throw e;
-      } catch (TException e) {
-        throw CheckedExceptionWrapper.wrap(e);
-      }
+      response =
+          Retryer.retryWithResult(retryParameters, () -> service.GetWorkflowExecutionHistory(r));
       if (timeout != 0 && System.currentTimeMillis() - start > unit.toMillis(timeout)) {
         throw new TimeoutException(
             "WorkflowId="
@@ -243,7 +234,7 @@ public class WorkflowExecutionUtils {
 
   /** Returns an instance closing event, potentially waiting for workflow to complete. */
   private static CompletableFuture<HistoryEvent> getInstanceCloseEventAsync(
-      IWorkflowService service,
+      GRPCWorkflowServiceFactory service,
       String domain,
       final WorkflowExecution workflowExecution,
       long timeout,
@@ -252,7 +243,7 @@ public class WorkflowExecutionUtils {
   }
 
   private static CompletableFuture<HistoryEvent> getInstanceCloseEventAsync(
-      IWorkflowService service,
+      GRPCWorkflowServiceFactory service,
       String domain,
       final WorkflowExecution workflowExecution,
       byte[] pageToken,
@@ -309,7 +300,7 @@ public class WorkflowExecutionUtils {
 
   private static CompletableFuture<GetWorkflowExecutionHistoryResponse>
       getWorkflowExecutionHistoryAsync(
-          IWorkflowService service, GetWorkflowExecutionHistoryRequest r) {
+          GRPCWorkflowServiceFactory service, GetWorkflowExecutionHistoryRequest r) {
     return Retryer.retryWithResultAsync(
         retryParameters,
         () -> {
@@ -409,10 +400,6 @@ public class WorkflowExecutionUtils {
                 .getStartChildWorkflowExecutionFailedEventAttributes()
                 .getCause()
                 .toString();
-        //            } else if (historyEvent.getEventType() ==
-        // EventType.SignalExternalWorkflowExecutionFailed) {
-        //                failureCause =
-        // historyEvent.getSignalExternalWorkflowExecutionFailedEventAttributes().getCause();
       } else {
         failureCause = "Cannot extract failure cause from " + historyEvent.getEventType();
       }
@@ -426,12 +413,11 @@ public class WorkflowExecutionUtils {
    * polling for worklow instance status is an expensive operation.
    *
    * @param workflowExecution result of {@link
-   *     IWorkflowService#StartWorkflowExecution(StartWorkflowExecutionRequest)}
+   *     WorkflowServiceGrpc#StartWorkflowExecution(StartWorkflowExecutionRequest)}
    * @return instance close status
    */
   public static WorkflowExecutionCloseStatus waitForWorkflowInstanceCompletion(
-      IWorkflowService service, String domain, WorkflowExecution workflowExecution)
-      throws EntityNotExistsError {
+      GRPCWorkflowServiceFactory service, String domain, WorkflowExecution workflowExecution) {
     try {
       return waitForWorkflowInstanceCompletion(
           service, domain, workflowExecution, 0, TimeUnit.MILLISECONDS);
@@ -445,17 +431,17 @@ public class WorkflowExecutionUtils {
    * production setting as polling for worklow instance status is an expensive operation.
    *
    * @param workflowExecution result of {@link
-   *     IWorkflowService#StartWorkflowExecution(StartWorkflowExecutionRequest)}
+   *     WorkflowServiceGrpc#StartWorkflowExecution(StartWorkflowExecutionRequest)}
    * @param timeout maximum time to wait for completion. 0 means wait forever.
    * @return instance close status
    */
   public static WorkflowExecutionCloseStatus waitForWorkflowInstanceCompletion(
-      IWorkflowService service,
+      GRPCWorkflowServiceFactory service,
       String domain,
       WorkflowExecution workflowExecution,
       long timeout,
       TimeUnit unit)
-      throws TimeoutException, EntityNotExistsError {
+      throws TimeoutException {
     HistoryEvent closeEvent =
         getInstanceCloseEvent(service, domain, workflowExecution, timeout, unit);
     return getCloseStatus(closeEvent);
@@ -481,20 +467,20 @@ public class WorkflowExecutionUtils {
   }
 
   /**
-   * Like {@link #waitForWorkflowInstanceCompletion(IWorkflowService, String, WorkflowExecution,
-   * long, TimeUnit)} , except will wait for continued generations of the original workflow
-   * execution too.
+   * Like {@link #waitForWorkflowInstanceCompletion(GRPCWorkflowServiceFactory, String,
+   * WorkflowExecution, long, TimeUnit)} , except will wait for continued generations of the
+   * original workflow execution too.
    *
-   * @see #waitForWorkflowInstanceCompletion(IWorkflowService, String, WorkflowExecution, long,
-   *     TimeUnit)
+   * @see #waitForWorkflowInstanceCompletion(GRPCWorkflowServiceFactory, String, WorkflowExecution,
+   *     long, TimeUnit)
    */
   public static WorkflowExecutionCloseStatus waitForWorkflowInstanceCompletionAcrossGenerations(
-      IWorkflowService service,
+      GRPCWorkflowServiceFactory service,
       String domain,
       WorkflowExecution workflowExecution,
       long timeout,
       TimeUnit unit)
-      throws TimeoutException, EntityNotExistsError {
+      throws TimeoutException {
 
     WorkflowExecution lastExecutionToRun = workflowExecution;
     long millisecondsAtFirstWait = System.currentTimeMillis();
@@ -533,12 +519,12 @@ public class WorkflowExecutionUtils {
   }
 
   /**
-   * Like {@link #waitForWorkflowInstanceCompletion(IWorkflowService, String, WorkflowExecution,
-   * long, TimeUnit)} , but with no timeout.*
+   * Like {@link #waitForWorkflowInstanceCompletion(GRPCWorkflowServiceFactory, String,
+   * WorkflowExecution, long, TimeUnit)} , but with no timeout.*
    */
   public static WorkflowExecutionCloseStatus waitForWorkflowInstanceCompletionAcrossGenerations(
-      IWorkflowService service, String domain, WorkflowExecution workflowExecution)
-      throws InterruptedException, EntityNotExistsError {
+      GRPCWorkflowServiceFactory service, String domain, WorkflowExecution workflowExecution)
+      throws InterruptedException {
     try {
       return waitForWorkflowInstanceCompletionAcrossGenerations(
           service, domain, workflowExecution, 0L, TimeUnit.MILLISECONDS);
@@ -548,7 +534,7 @@ public class WorkflowExecutionUtils {
   }
 
   public static WorkflowExecutionInfo describeWorkflowInstance(
-      IWorkflowService service, String domain, WorkflowExecution workflowExecution) {
+      GRPCWorkflowServiceFactory service, String domain, WorkflowExecution workflowExecution) {
     DescribeWorkflowExecutionRequest describeRequest = new DescribeWorkflowExecutionRequest();
     describeRequest.setDomain(domain);
     describeRequest.setExecution(workflowExecution);
@@ -564,7 +550,7 @@ public class WorkflowExecutionUtils {
 
   public static GetWorkflowExecutionHistoryResponse getHistoryPage(
       byte[] nextPageToken,
-      IWorkflowService service,
+      GRPCWorkflowServiceFactory service,
       String domain,
       WorkflowExecution workflowExecution) {
 
@@ -587,7 +573,7 @@ public class WorkflowExecutionUtils {
 
   /** Returns workflow instance history in a human readable format. */
   public static String prettyPrintHistory(
-      IWorkflowService service, String domain, WorkflowExecution workflowExecution) {
+      GRPCWorkflowServiceFactory service, String domain, WorkflowExecution workflowExecution) {
     return prettyPrintHistory(service, domain, workflowExecution, true);
   }
   /**
@@ -597,7 +583,7 @@ public class WorkflowExecutionUtils {
    *     included
    */
   public static String prettyPrintHistory(
-      IWorkflowService service,
+      GRPCWorkflowServiceFactory service,
       String domain,
       WorkflowExecution workflowExecution,
       boolean showWorkflowTasks) {
@@ -606,7 +592,7 @@ public class WorkflowExecutionUtils {
   }
 
   public static Iterator<HistoryEvent> getHistory(
-      IWorkflowService service, String domain, WorkflowExecution workflowExecution) {
+      GRPCWorkflowServiceFactory service, String domain, WorkflowExecution workflowExecution) {
     return new Iterator<HistoryEvent>() {
       byte[] nextPageToken;
       Iterator<HistoryEvent> current;

@@ -40,7 +40,7 @@ import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.QueryWorkflowParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
-import io.temporal.serviceclient.IWorkflowService;
+import io.temporal.serviceclient.GRPCWorkflowServiceFactory;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
@@ -50,11 +50,11 @@ import org.apache.thrift.TException;
 public final class GenericWorkflowClientExternalImpl implements GenericWorkflowClientExternal {
 
   private final String domain;
-  private final IWorkflowService service;
+  private final GRPCWorkflowServiceFactory service;
   private final Scope metricsScope;
 
   public GenericWorkflowClientExternalImpl(
-      IWorkflowService service, String domain, Scope metricsScope) {
+      GRPCWorkflowServiceFactory service, String domain, Scope metricsScope) {
     this.service = service;
     this.domain = domain;
     this.metricsScope = metricsScope;
@@ -66,7 +66,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   }
 
   @Override
-  public IWorkflowService getService() {
+  public GRPCWorkflowServiceFactory getService() {
     return service;
   }
 
