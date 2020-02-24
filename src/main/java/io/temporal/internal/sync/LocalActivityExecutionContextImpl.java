@@ -20,17 +20,17 @@ package io.temporal.internal.sync;
 import io.temporal.WorkflowExecution;
 import io.temporal.activity.ActivityTask;
 import io.temporal.client.ActivityCompletionException;
-import io.temporal.serviceclient.GRPCWorkflowServiceFactory;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
 class LocalActivityExecutionContextImpl implements ActivityExecutionContext {
-  private final GRPCWorkflowServiceFactory service;
+  private final GrpcWorkflowServiceFactory service;
   private final String domain;
   private final ActivityTask task;
 
   LocalActivityExecutionContextImpl(
-      GRPCWorkflowServiceFactory service, String domain, ActivityTask task) {
+      GrpcWorkflowServiceFactory service, String domain, ActivityTask task) {
     this.domain = domain;
     this.service = service;
     this.task = task;
@@ -76,7 +76,7 @@ class LocalActivityExecutionContextImpl implements ActivityExecutionContext {
   }
 
   @Override
-  public GRPCWorkflowServiceFactory getService() {
+  public GrpcWorkflowServiceFactory getService() {
     return service;
   }
 

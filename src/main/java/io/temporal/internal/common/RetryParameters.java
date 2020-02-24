@@ -20,6 +20,7 @@ package io.temporal.internal.common;
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
 import com.uber.m3.util.ImmutableList;
+import io.grpc.Status;
 import io.temporal.RetryPolicy;
 import io.temporal.common.RetryOptions;
 import java.util.ArrayList;
@@ -46,10 +47,10 @@ public final class RetryParameters {
     // Use exception type name as the reason
     List<String> reasons = new ArrayList<>();
     // Use exception type name as the reason
-    List<Class<? extends Throwable>> doNotRetry = retryOptions.getDoNotRetry();
+    List<Status.Code> doNotRetry = retryOptions.getDoNotRetry();
     if (doNotRetry != null) {
-      for (Class<? extends Throwable> r : doNotRetry) {
-        reasons.add(r.getName());
+      for (Status.Code r : doNotRetry) {
+        reasons.add(r.name());
       }
       setNonRetriableErrorReasons(reasons);
     }
@@ -117,13 +118,14 @@ public final class RetryParameters {
   }
 
   public RetryPolicy toRetryPolicy() {
-    return new RetryPolicy()
-        .setNonRetriableErrorReasons(getNonRetriableErrorReasons())
+    return RetryPolicy.newBuilder()
+        .addAllNonRetriableErrorReasons(getNonRetriableErrorReasons())
         .setMaximumAttempts(getMaximumAttempts())
         .setInitialIntervalInSeconds(getInitialIntervalInSeconds())
         .setExpirationIntervalInSeconds(getExpirationIntervalInSeconds())
         .setBackoffCoefficient(getBackoffCoefficient())
-        .setMaximumIntervalInSeconds(getMaximumIntervalInSeconds());
+        .setMaximumIntervalInSeconds(getMaximumIntervalInSeconds())
+            .build();
   }
 
   @Override

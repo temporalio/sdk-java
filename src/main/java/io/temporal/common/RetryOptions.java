@@ -18,6 +18,8 @@
 package io.temporal.common;
 
 import com.google.common.base.Defaults;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.workflow.ActivityFailureException;
 import io.temporal.workflow.ChildWorkflowFailureException;
 import java.time.Duration;
@@ -66,7 +68,7 @@ public final class RetryOptions {
     }
     return builder
         .setMaximumAttempts(merge(r.maximumAttempts(), o.getMaximumAttempts(), int.class))
-        .setDoNotRetry(merge(r.doNotRetry(), o.getDoNotRetry()))
+        .setDoNotRetry(merge(r.doNotRetry(), o.getDoNotRetry())) // TODO: figure out the merge, it's weird
         .validateBuildWithDefaults();
   }
 
@@ -87,7 +89,7 @@ public final class RetryOptions {
   }
 
   @SafeVarargs
-  public final RetryOptions addDoNotRetry(Class<? extends Throwable>... doNotRetry) {
+  public final RetryOptions addDoNotRetry(Status.Code... doNotRetry) {
     if (doNotRetry == null) {
       return this;
     }
@@ -123,7 +125,7 @@ public final class RetryOptions {
 
     private Duration maximumInterval;
 
-    private List<Class<? extends Throwable>> doNotRetry;
+    private List<Status.Code> doNotRetry;
 
     public Builder() {}
 
@@ -209,11 +211,14 @@ public final class RetryOptions {
      * {@link io.temporal.workflow.ActivityFailureException} and {@link
      * io.temporal.workflow.ChildWorkflowFailureException} is looked at.
      *
+     *  TODO: (vkoby) Multiple errors fall under the same Status Code. Need to look at failures as
+     *  TODO: well if need to retry for one, but not the other.
+     *
      * <p>{@link Error} and {@link java.util.concurrent.CancellationException} are never retried and
      * are not even passed to this filter.
      */
     @SafeVarargs
-    public final Builder setDoNotRetry(Class<? extends Throwable>... doNotRetry) {
+    public final Builder setDoNotRetry(Status.Code... doNotRetry) {
       if (doNotRetry != null) {
         this.doNotRetry = Arrays.asList(doNotRetry);
       }
@@ -258,7 +263,7 @@ public final class RetryOptions {
 
   private final Duration maximumInterval;
 
-  private final List<Class<? extends Throwable>> doNotRetry;
+  private final List<Status.Code> doNotRetry;
 
   private RetryOptions(
       Duration initialInterval,
@@ -266,7 +271,7 @@ public final class RetryOptions {
       Duration expiration,
       int maximumAttempts,
       Duration maximumInterval,
-      List<Class<? extends Throwable>> doNotRetry) {
+      List<Status.Code> doNotRetry) {
     this.initialInterval = initialInterval;
     this.backoffCoefficient = backoffCoefficient;
     this.expiration = expiration;
@@ -322,7 +327,7 @@ public final class RetryOptions {
    * @return null if not configured. When merging with annotation it makes a difference. null means
    *     use values from an annotation. Empty list means do not retry on anything.
    */
-  public List<Class<? extends Throwable>> getDoNotRetry() {
+  public List<Status.Code> getDoNotRetry() {
     return doNotRetry;
   }
 
@@ -382,26 +387,28 @@ public final class RetryOptions {
     return aSeconds == 0 ? null : Duration.ofSeconds(aSeconds);
   }
 
-  private static Class<? extends Throwable>[] merge(
-      Class<? extends Throwable>[] a, List<Class<? extends Throwable>> o) {
+  // TODO: (vkoby) Rewritten for Status Codes, but not sure what it was doing originally.
+  private static Status.Code[] merge(
+      Status.Code[] a, List<Status.Code> o) {
     if (o != null) {
       @SuppressWarnings("unchecked")
-      Class<? extends Throwable>[] result = new Class[o.size()];
+      Status.Code[] result = new Status.Code[o.size()];
       return o.toArray(result);
     }
     return a.length == 0 ? null : a;
   }
 
-  private Class<? extends Throwable>[] merge(
-      List<Class<? extends Throwable>> o1, List<Class<? extends Throwable>> o2) {
+  // TODO: (vkoby) Rewritten for Status Codes, but not sure what it was doing originally.
+  private Status.Code[] merge(
+      List<Status.Code> o1, List<Status.Code> o2) {
     if (o2 != null) {
       @SuppressWarnings("unchecked")
-      Class<? extends Throwable>[] result = new Class[o2.size()];
+      Status.Code[] result = new Status.Code[o2.size()];
       return o2.toArray(result);
     }
     if (o1.size() > 0) {
       @SuppressWarnings("unchecked")
-      Class<? extends Throwable>[] result = new Class[o1.size()];
+      Status.Code[] result = new Status.Code[o1.size()];
       return o1.toArray(result);
     }
     return null;
@@ -417,13 +424,10 @@ public final class RetryOptions {
     return Math.min((long) sleepMillis, maximumInterval.toMillis());
   }
 
-  public boolean shouldRethrow(Throwable e, long attempt, long elapsed, long sleepTime) {
-    if (e instanceof ActivityFailureException || e instanceof ChildWorkflowFailureException) {
-      e = e.getCause();
-    }
+  public boolean shouldRethrow(StatusRuntimeException e, long attempt, long elapsed, long sleepTime) {
     if (doNotRetry != null) {
-      for (Class<? extends Throwable> doNotRetry : doNotRetry) {
-        if (doNotRetry.equals(e.getClass())) {
+      for (Status.Code doNotRetry : doNotRetry) {
+        if (doNotRetry.equals(e.getStatus().getCode())) {
           return true;
         }
       }

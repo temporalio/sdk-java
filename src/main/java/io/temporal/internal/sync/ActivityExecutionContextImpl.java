@@ -17,8 +17,9 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.BadRequestError;
-import io.temporal.EntityNotExistsError;
+import com.google.protobuf.ByteString;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.RecordActivityTaskHeartbeatRequest;
 import io.temporal.RecordActivityTaskHeartbeatResponse;
 import io.temporal.WorkflowExecution;
@@ -29,7 +30,7 @@ import io.temporal.client.ActivityCompletionFailureException;
 import io.temporal.client.ActivityNotExistsException;
 import io.temporal.client.ActivityWorkerShutdownException;
 import io.temporal.converter.DataConverter;
-import io.temporal.serviceclient.GRPCWorkflowServiceFactory;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import java.lang.reflect.Type;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
@@ -37,7 +38,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +53,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   private static final long HEARTBEAT_RETRY_WAIT_MILLIS = 1000;
   private static final long MAX_HEARTBEAT_INTERVAL_MILLIS = 30000;
 
-  private final GRPCWorkflowServiceFactory service;
+  private final GrpcWorkflowServiceFactory service;
   private final String domain;
   private final ActivityTask task;
   private final DataConverter dataConverter;
@@ -68,7 +68,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
 
   /** Create an ActivityExecutionContextImpl with the given attributes. */
   ActivityExecutionContextImpl(
-      GRPCWorkflowServiceFactory service,
+      GrpcWorkflowServiceFactory service,
       String domain,
       ActivityTask task,
       DataConverter dataConverter,
@@ -131,7 +131,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
       sendHeartbeatRequest(details);
       hasOutstandingHeartbeat = false;
       nextHeartbeatDelay = heartbeatIntervalMillis;
-    } catch (TException e) {
+    } catch (StatusRuntimeException e) {
       // Not rethrowing to not fail activity implementation on intermittent connection or Temporal
       // errors.
       log.warn("Heartbeat failed.", e);
@@ -161,23 +161,27 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
             TimeUnit.MILLISECONDS);
   }
 
-  private void sendHeartbeatRequest(Object details) throws TException {
-    RecordActivityTaskHeartbeatRequest r = new RecordActivityTaskHeartbeatRequest();
-    r.setTaskToken(task.getTaskToken());
+  private void sendHeartbeatRequest(Object details) {
     byte[] serialized = dataConverter.toData(details);
-    r.setDetails(serialized);
+    RecordActivityTaskHeartbeatRequest r =
+        RecordActivityTaskHeartbeatRequest.newBuilder()
+            .setTaskToken(ByteString.copyFrom(task.getTaskToken()))
+            .setDetails(ByteString.copyFrom(serialized))
+            .build();
     RecordActivityTaskHeartbeatResponse status;
     try {
-      status = service.RecordActivityTaskHeartbeat(r);
-      if (status.isCancelRequested()) {
+      status = service.blockingStub().recordActivityTaskHeartbeat(r);
+      if (status.getCancelRequested()) {
         lastException = new ActivityCancelledException(task);
       } else {
         lastException = null;
       }
-    } catch (EntityNotExistsError e) {
-      lastException = new ActivityNotExistsException(task, e);
-    } catch (BadRequestError e) {
-      lastException = new ActivityCompletionFailureException(task, e);
+    } catch (StatusRuntimeException e) {
+      if (e.getStatus().getCode().equals(Status.Code.NOT_FOUND)) {
+        lastException = new ActivityNotExistsException(task, e);
+      } else if (e.getStatus().getCode().equals(Status.Code.INVALID_ARGUMENT)) {
+        lastException = new ActivityCompletionFailureException(task, e);
+      }
     }
   }
 
@@ -199,7 +203,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
 
   /** @see ActivityExecutionContext#getService() */
   @Override
-  public GRPCWorkflowServiceFactory getService() {
+  public GrpcWorkflowServiceFactory getService() {
     return service;
   }
 

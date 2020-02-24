@@ -32,8 +32,7 @@ import io.temporal.internal.external.GenericWorkflowClientExternalImpl;
 import io.temporal.internal.external.ManualActivityCompletionClientFactory;
 import io.temporal.internal.external.ManualActivityCompletionClientFactoryImpl;
 import io.temporal.internal.sync.WorkflowInvocationHandler.InvocationType;
-import io.temporal.serviceclient.GRPCWorkflowServiceFactory;
-import io.temporal.serviceclient.WorkflowServiceTChannel;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.WorkflowMethod;
@@ -50,7 +49,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
   private final ManualActivityCompletionClientFactory manualActivityCompletionClientFactory;
   private final DataConverter dataConverter;
   private final WorkflowClientInterceptor[] interceptors;
-  private final GRPCWorkflowServiceFactory workflowService;
+  private final GrpcWorkflowServiceFactory workflowService;
 
   /**
    * Creates worker that connects to the local instance of the Temporal Service that listens on a
@@ -60,7 +59,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
    */
   public static WorkflowClient newInstance(String domain) {
     return new WorkflowClientInternal(
-        new WorkflowServiceTChannel(), domain, new WorkflowClientOptions.Builder().build());
+        new GrpcWorkflowServiceFactory(), domain, new WorkflowClientOptions.Builder().build());
   }
 
   /**
@@ -72,7 +71,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
    *     configuring client.
    */
   public static WorkflowClient newInstance(String domain, WorkflowClientOptions options) {
-    return new WorkflowClientInternal(new WorkflowServiceTChannel(), domain, options);
+    return new WorkflowClientInternal(new GrpcWorkflowServiceFactory(), domain, options);
   }
 
   /**
@@ -84,7 +83,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
    */
   public static WorkflowClient newInstance(String host, int port, String domain) {
     return new WorkflowClientInternal(
-        new WorkflowServiceTChannel(host, port),
+        new GrpcWorkflowServiceFactory(host, port),
         domain,
         new WorkflowClientOptions.Builder().build());
   }
@@ -100,7 +99,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
    */
   public static WorkflowClient newInstance(
       String host, int port, String domain, WorkflowClientOptions options) {
-    return new WorkflowClientInternal(new WorkflowServiceTChannel(host, port), domain, options);
+    return new WorkflowClientInternal(new GrpcWorkflowServiceFactory(host, port), domain, options);
   }
 
   /**
@@ -109,7 +108,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
    * @param service client to the Temporal Service endpoint.
    * @param domain domain that worker uses to poll.
    */
-  public static WorkflowClient newInstance(GRPCWorkflowServiceFactory service, String domain) {
+  public static WorkflowClient newInstance(GrpcWorkflowServiceFactory service, String domain) {
     return new WorkflowClientInternal(service, domain, null);
   }
 
@@ -122,12 +121,12 @@ public final class WorkflowClientInternal implements WorkflowClient {
    *     configuring client.
    */
   public static WorkflowClient newInstance(
-      GRPCWorkflowServiceFactory service, String domain, WorkflowClientOptions options) {
+      GrpcWorkflowServiceFactory service, String domain, WorkflowClientOptions options) {
     return new WorkflowClientInternal(service, domain, options);
   }
 
   private WorkflowClientInternal(
-      GRPCWorkflowServiceFactory service, String domain, WorkflowClientOptions options) {
+      GrpcWorkflowServiceFactory service, String domain, WorkflowClientOptions options) {
     if (options == null) {
       options = new WorkflowClientOptions.Builder().build();
     }
@@ -201,14 +200,13 @@ public final class WorkflowClientInternal implements WorkflowClient {
     if (Strings.isNullOrEmpty(workflowId)) {
       throw new IllegalArgumentException("workflowId is null or empty");
     }
-    WorkflowExecution execution = new WorkflowExecution();
-    execution.setWorkflowId(workflowId);
+    WorkflowExecution.Builder execution = WorkflowExecution.newBuilder().setWorkflowId(workflowId);
     if (runId.isPresent()) {
       execution.setRunId(runId.get());
     }
     WorkflowInvocationHandler invocationHandler =
         new WorkflowInvocationHandler(
-            workflowInterface, genericClient, execution, dataConverter, interceptors);
+            workflowInterface, genericClient, execution.build(), dataConverter, interceptors);
     @SuppressWarnings("unchecked")
     T result =
         (T)
@@ -231,11 +229,11 @@ public final class WorkflowClientInternal implements WorkflowClient {
   @Override
   public WorkflowStub newUntypedWorkflowStub(
       String workflowId, Optional<String> runId, Optional<String> workflowType) {
-    WorkflowExecution execution = new WorkflowExecution().setWorkflowId(workflowId);
+    WorkflowExecution.Builder execution = WorkflowExecution.newBuilder().setWorkflowId(workflowId);
     if (runId.isPresent()) {
       execution.setRunId(runId.get());
     }
-    return newUntypedWorkflowStub(execution, workflowType);
+    return newUntypedWorkflowStub(execution.build(), workflowType);
   }
 
   @Override

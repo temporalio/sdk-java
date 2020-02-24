@@ -19,7 +19,7 @@ package io.temporal.testing;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.temporal.internal.sync.TestActivityEnvironmentInternal;
-import io.temporal.serviceclient.GRPCWorkflowServiceFactory;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import java.lang.reflect.Type;
 import java.util.function.Consumer;
 
@@ -101,5 +101,5 @@ public interface TestActivityEnvironment {
   <T> void setActivityHeartbeatListener(
       Class<T> detailsClass, Type detailsType, Consumer<T> listener);
 
-  void setWorkflowService(GRPCWorkflowServiceFactory workflowService);
+  void setWorkflowService(GrpcWorkflowServiceFactory workflowService);
 }

@@ -19,21 +19,21 @@ package io.temporal.internal.worker;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.PollForDecisionTaskResponse;
-import io.temporal.serviceclient.GRPCWorkflowServiceFactory;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import java.util.Objects;
 import java.util.function.Supplier;
 
 public class WorkflowPollTaskFactory
     implements Supplier<Poller.PollTask<PollForDecisionTaskResponse>> {
 
-  private final GRPCWorkflowServiceFactory service;
+  private final GrpcWorkflowServiceFactory service;
   private final String domain;
   private final String taskList;
   private final Scope metricScope;
   private final String identity;
 
   public WorkflowPollTaskFactory(
-      GRPCWorkflowServiceFactory service,
+      GrpcWorkflowServiceFactory service,
       String domain,
       String taskList,
       Scope metricScope,

@@ -29,7 +29,7 @@ import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.SuspendableWorker;
 import io.temporal.internal.worker.WorkflowWorker;
-import io.temporal.serviceclient.GRPCWorkflowServiceFactory;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.WorkflowInterceptor;
@@ -55,7 +55,7 @@ public class SyncWorkflowWorker
   private final ScheduledExecutorService heartbeatExecutor = Executors.newScheduledThreadPool(4);
 
   public SyncWorkflowWorker(
-      GRPCWorkflowServiceFactory service,
+      GrpcWorkflowServiceFactory service,
       String domain,
       String taskList,
       Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,

@@ -24,7 +24,7 @@ import io.temporal.internal.common.StartWorkflowExecutionParameters;
 import io.temporal.internal.common.TerminateWorkflowExecutionParameters;
 import io.temporal.internal.replay.QueryWorkflowParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
-import io.temporal.serviceclient.GRPCWorkflowServiceFactory;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 
 public interface GenericWorkflowClientExternal {
 
@@ -43,7 +43,7 @@ public interface GenericWorkflowClientExternal {
 
   String generateUniqueId();
 
-  GRPCWorkflowServiceFactory getService();
+  GrpcWorkflowServiceFactory getService();
 
   String getDomain();
 }

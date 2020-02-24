@@ -60,7 +60,6 @@ import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import org.apache.thrift.TException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -216,7 +215,7 @@ public class WorkflowTestingTest {
 
     @Override
     public String activity1(String input) {
-      throw new SimulatedTimeoutException(TimeoutType.HEARTBEAT, "progress1");
+      throw new SimulatedTimeoutException(TimeoutType.TimeoutTypeHeartbeat, "progress1");
     }
   }
 
@@ -234,7 +233,7 @@ public class WorkflowTestingTest {
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ActivityTimeoutException);
       ActivityTimeoutException te = (ActivityTimeoutException) e.getCause();
-      assertEquals(TimeoutType.HEARTBEAT, te.getTimeoutType());
+      assertEquals(TimeoutType.TimeoutTypeHeartbeat, te.getTimeoutType());
       assertEquals("progress1", te.getDetails(String.class));
     }
   }
@@ -293,7 +292,8 @@ public class WorkflowTestingTest {
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ActivityTimeoutException);
       assertEquals(
-          TimeoutType.START_TO_CLOSE, ((ActivityTimeoutException) e.getCause()).getTimeoutType());
+          TimeoutType.TimeoutTypeStartToClose,
+          ((ActivityTimeoutException) e.getCause()).getTimeoutType());
     }
   }
 
@@ -311,7 +311,7 @@ public class WorkflowTestingTest {
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ActivityTimeoutException);
       assertEquals(
-          TimeoutType.SCHEDULE_TO_START,
+          TimeoutType.TimeoutTypeScheduleToStart,
           ((ActivityTimeoutException) e.getCause()).getTimeoutType());
     }
   }
@@ -331,7 +331,7 @@ public class WorkflowTestingTest {
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ActivityTimeoutException);
       assertEquals(
-          TimeoutType.SCHEDULE_TO_CLOSE,
+          TimeoutType.TimeoutTypeScheduleToClose,
           ((ActivityTimeoutException) e.getCause()).getTimeoutType());
     }
   }
@@ -361,7 +361,8 @@ public class WorkflowTestingTest {
       fail("unreacheable");
     } catch (WorkflowException e) {
       assertTrue(e instanceof WorkflowTimedOutException);
-      assertEquals(TimeoutType.START_TO_CLOSE, ((WorkflowTimedOutException) e).getTimeoutType());
+      assertEquals(
+          TimeoutType.TimeoutTypeStartToClose, ((WorkflowTimedOutException) e).getTimeoutType());
     }
   }
 
@@ -544,7 +545,7 @@ public class WorkflowTestingTest {
   }
 
   @Test
-  public void testTimerCancellation() throws TException {
+  public void testTimerCancellation() {
     Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(TestTimerCancellationWorkflow.class);
     worker.registerActivitiesImplementations(new ActivityImpl());
@@ -563,15 +564,17 @@ public class WorkflowTestingTest {
     History history =
         testEnvironment
             .getWorkflowService()
-            .GetWorkflowExecutionHistory(
-                new GetWorkflowExecutionHistoryRequest()
+            .blockingStub()
+            .getWorkflowExecutionHistory(
+                GetWorkflowExecutionHistoryRequest.newBuilder()
                     .setExecution(execution)
-                    .setDomain(client.getDomain()))
+                    .setDomain(client.getDomain())
+                    .build())
             .getHistory();
-    List<HistoryEvent> historyEvents = history.getEvents();
+    List<HistoryEvent> historyEvents = history.getEventsList();
     assertTrue(
         WorkflowExecutionUtils.prettyPrintHistory(history, false),
-        WorkflowExecutionUtils.containsEvent(historyEvents, EventType.TimerCanceled));
+        WorkflowExecutionUtils.containsEvent(historyEvents, EventType.EventTypeTimerCanceled));
   }
 
   public interface ParentWorkflow {
@@ -669,10 +672,15 @@ public class WorkflowTestingTest {
 
       // List open workflows and validate their types
       ListOpenWorkflowExecutionsRequest listRequest =
-          new ListOpenWorkflowExecutionsRequest().setDomain(testEnvironment.getDomain());
+          ListOpenWorkflowExecutionsRequest.newBuilder()
+              .setDomain(testEnvironment.getDomain())
+              .build();
       ListOpenWorkflowExecutionsResponse listResponse =
-          testEnvironment.getWorkflowService().ListOpenWorkflowExecutions(listRequest);
-      List<WorkflowExecutionInfo> executions = listResponse.getExecutions();
+          testEnvironment
+              .getWorkflowService()
+              .blockingStub()
+              .listOpenWorkflowExecutions(listRequest);
+      List<WorkflowExecutionInfo> executions = listResponse.getExecutionsList();
       assertEquals(2, executions.size());
       String name0 = executions.get(0).getType().getName();
       assertTrue(
@@ -694,10 +702,15 @@ public class WorkflowTestingTest {
     }
     // List closed workflows and validate their types
     ListClosedWorkflowExecutionsRequest listRequest =
-        new ListClosedWorkflowExecutionsRequest().setDomain(testEnvironment.getDomain());
+        ListClosedWorkflowExecutionsRequest.newBuilder()
+            .setDomain(testEnvironment.getDomain())
+            .build();
     ListClosedWorkflowExecutionsResponse listResponse =
-        testEnvironment.getWorkflowService().ListClosedWorkflowExecutions(listRequest);
-    List<WorkflowExecutionInfo> executions = listResponse.getExecutions();
+        testEnvironment
+            .getWorkflowService()
+            .blockingStub()
+            .listClosedWorkflowExecutions(listRequest);
+    List<WorkflowExecutionInfo> executions = listResponse.getExecutionsList();
     assertEquals(2, executions.size());
     String name0 = executions.get(0).getType().getName();
     assertTrue(

@@ -58,7 +58,8 @@ abstract class FactoryOptions {
   }
 }
 
-public class GRPCWorkflowServiceFactory implements AutoCloseable {
+/** TODO: (vkoby) Add metrics. */
+public class GrpcWorkflowServiceFactory implements AutoCloseable {
 
   private static final String LOCALHOST = "127.0.0.1";
   private static final int DEFAULT_LOCAL_TEMPORAL_SERVER_PORT = 7933;
@@ -72,7 +73,7 @@ public class GRPCWorkflowServiceFactory implements AutoCloseable {
    * Creates Temporal client that connects to the local instance of the Temporal Service that
    * listens on a default port (7933).
    */
-  public GRPCWorkflowServiceFactory() {
+  public GrpcWorkflowServiceFactory() {
     this(
         Strings.isNullOrEmpty(System.getenv("TEMPORAL_SEEDS"))
             ? LOCALHOST
@@ -80,11 +81,15 @@ public class GRPCWorkflowServiceFactory implements AutoCloseable {
         DEFAULT_LOCAL_TEMPORAL_SERVER_PORT);
   }
 
-  public GRPCWorkflowServiceFactory(ManagedChannel channel, FactoryOptions options) {
+  public GrpcWorkflowServiceFactory(ManagedChannel channel, FactoryOptions options) {
     this.channel = channel;
     this.options = options;
     blockingStub = WorkflowServiceGrpc.newBlockingStub(channel);
     futureStub = WorkflowServiceGrpc.newFutureStub(channel);
+  }
+
+  public GrpcWorkflowServiceFactory(ManagedChannel channel) {
+    this(channel, FactoryOptions.builder().build());
   }
 
   /**
@@ -93,7 +98,7 @@ public class GRPCWorkflowServiceFactory implements AutoCloseable {
    * @param host host to connect
    * @param port port to connect
    */
-  public GRPCWorkflowServiceFactory(String host, int port) {
+  public GrpcWorkflowServiceFactory(String host, int port) {
     this(host, port, FactoryOptions.builder().build());
   }
 
@@ -104,7 +109,7 @@ public class GRPCWorkflowServiceFactory implements AutoCloseable {
    * @param port port to connect
    * @param options configuration options like rpc timeouts.
    */
-  public GRPCWorkflowServiceFactory(String host, int port, FactoryOptions options) {
+  public GrpcWorkflowServiceFactory(String host, int port, FactoryOptions options) {
     this(
         ManagedChannelBuilder.forAddress(
                 Preconditions.checkNotNull(host, "host must not be null"), validatePort(port))

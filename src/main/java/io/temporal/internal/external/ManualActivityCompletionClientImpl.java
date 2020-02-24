@@ -17,8 +17,10 @@
 
 package io.temporal.internal.external;
 
+import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
-import io.temporal.EntityNotExistsError;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.RecordActivityTaskHeartbeatRequest;
 import io.temporal.RecordActivityTaskHeartbeatResponse;
 import io.temporal.RespondActivityTaskCanceledByIDRequest;
@@ -34,9 +36,8 @@ import io.temporal.client.ActivityNotExistsException;
 import io.temporal.converter.DataConverter;
 import io.temporal.internal.common.Retryer;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.serviceclient.GRPCWorkflowServiceFactory;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import java.util.concurrent.CancellationException;
-import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +47,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
   private static final Logger log =
       LoggerFactory.getLogger(ManualActivityCompletionClientImpl.class);
 
-  private final GRPCWorkflowServiceFactory service;
+  private final GrpcWorkflowServiceFactory service;
 
   private final byte[] taskToken;
 
@@ -57,7 +58,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
   private final Scope metricsScope;
 
   ManualActivityCompletionClientImpl(
-      GRPCWorkflowServiceFactory service,
+      GrpcWorkflowServiceFactory service,
       byte[] taskToken,
       DataConverter dataConverter,
       Scope metricsScope) {
@@ -71,7 +72,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
   }
 
   ManualActivityCompletionClientImpl(
-      GRPCWorkflowServiceFactory service,
+      GrpcWorkflowServiceFactory service,
       String domain,
       WorkflowExecution execution,
       String activityId,
@@ -89,39 +90,46 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
   @Override
   public void complete(Object result) {
     if (taskToken != null) {
-      RespondActivityTaskCompletedRequest request = new RespondActivityTaskCompletedRequest();
       byte[] convertedResult = dataConverter.toData(result);
-      request.setResult(convertedResult);
-      request.setTaskToken(taskToken);
+      RespondActivityTaskCompletedRequest request =
+          RespondActivityTaskCompletedRequest.newBuilder()
+              .setResult(ByteString.copyFrom(convertedResult))
+              .setTaskToken(ByteString.copyFrom(taskToken))
+              .build();
       try {
         Retryer.retry(
             Retryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
-            () -> service.RespondActivityTaskCompleted(request));
+            () -> service.blockingStub().respondActivityTaskCompleted(request));
         metricsScope.counter(MetricsType.ACTIVITY_TASK_COMPLETED_COUNTER).inc(1);
-      } catch (EntityNotExistsError e) {
-        throw new ActivityNotExistsException(e);
-      } catch (TException e) {
-        throw new ActivityCompletionFailureException(e);
+      } catch (StatusRuntimeException e) {
+        if (e.getStatus().getCode().equals(Status.Code.NOT_FOUND)) {
+          throw new ActivityNotExistsException(e);
+        } else {
+          throw new ActivityCompletionFailureException(e);
+        }
       }
     } else {
       if (activityId == null) {
         throw new IllegalArgumentException("Either activity id or task token are required");
       }
-      RespondActivityTaskCompletedByIDRequest request =
-          new RespondActivityTaskCompletedByIDRequest();
-      request.setActivityID(activityId);
       byte[] convertedResult = dataConverter.toData(result);
-      request.setResult(convertedResult);
-      request.setDomain(domain);
-      request.setWorkflowID(execution.getWorkflowId());
-      request.setRunID(execution.getRunId());
+      RespondActivityTaskCompletedByIDRequest request =
+          RespondActivityTaskCompletedByIDRequest.newBuilder()
+              .setActivityID(activityId)
+              .setResult(ByteString.copyFrom(convertedResult))
+              .setDomain(domain)
+              .setWorkflowID(execution.getWorkflowId())
+              .setRunID(execution.getRunId())
+              .build();
       try {
-        service.RespondActivityTaskCompletedByID(request);
+        service.blockingStub().respondActivityTaskCompletedByID(request);
         metricsScope.counter(MetricsType.ACTIVITY_TASK_COMPLETED_BY_ID_COUNTER).inc(1);
-      } catch (EntityNotExistsError e) {
-        throw new ActivityNotExistsException(e);
-      } catch (TException e) {
-        throw new ActivityCompletionFailureException(activityId, e);
+      } catch (StatusRuntimeException e) {
+        if (e.getStatus().getCode().equals(Status.Code.NOT_FOUND)) {
+          throw new ActivityNotExistsException(e);
+        } else {
+          throw new ActivityCompletionFailureException(activityId, e);
+        }
       }
     }
   }
@@ -133,36 +141,44 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
     }
     // When converting failures reason is class name, details are serialized exception.
     if (taskToken != null) {
-      RespondActivityTaskFailedRequest request = new RespondActivityTaskFailedRequest();
-      request.setReason(failure.getClass().getName());
-      request.setDetails(dataConverter.toData(failure));
-      request.setTaskToken(taskToken);
+      RespondActivityTaskFailedRequest request =
+          RespondActivityTaskFailedRequest.newBuilder()
+              .setReason(failure.getClass().getName())
+              .setDetails(ByteString.copyFrom(dataConverter.toData(failure)))
+              .setTaskToken(ByteString.copyFrom(taskToken))
+              .build();
       try {
         Retryer.retry(
             Retryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
-            () -> service.RespondActivityTaskFailed(request));
+            () -> service.blockingStub().respondActivityTaskFailed(request));
         metricsScope.counter(MetricsType.ACTIVITY_TASK_FAILED_COUNTER).inc(1);
-      } catch (EntityNotExistsError e) {
-        throw new ActivityNotExistsException(e);
-      } catch (TException e) {
-        throw new ActivityCompletionFailureException(e);
+      } catch (StatusRuntimeException e) {
+        if (e.getStatus().getCode().equals(Status.Code.NOT_FOUND)) {
+          throw new ActivityNotExistsException(e);
+        } else {
+          throw new ActivityCompletionFailureException(e);
+        }
       }
     } else {
-      RespondActivityTaskFailedByIDRequest request = new RespondActivityTaskFailedByIDRequest();
-      request.setReason(failure.getClass().getName());
-      request.setDetails(dataConverter.toData(failure));
-      request.setDomain(domain);
-      request.setWorkflowID(execution.getWorkflowId());
-      request.setRunID(execution.getRunId());
+      RespondActivityTaskFailedByIDRequest request =
+          RespondActivityTaskFailedByIDRequest.newBuilder()
+              .setReason(failure.getClass().getName())
+              .setDetails(ByteString.copyFrom(dataConverter.toData(failure)))
+              .setDomain(domain)
+              .setWorkflowID(execution.getWorkflowId())
+              .setRunID(execution.getRunId())
+              .build();
       try {
         Retryer.retry(
             Retryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
-            () -> service.RespondActivityTaskFailedByID(request));
+            () -> service.blockingStub().respondActivityTaskFailedByID(request));
         metricsScope.counter(MetricsType.ACTIVITY_TASK_FAILED_BY_ID_COUNTER).inc(1);
-      } catch (EntityNotExistsError e) {
-        throw new ActivityNotExistsException(e);
-      } catch (TException e) {
-        throw new ActivityCompletionFailureException(activityId, e);
+      } catch (StatusRuntimeException e) {
+        if (e.getStatus().getCode().equals(Status.Code.NOT_FOUND)) {
+          throw new ActivityNotExistsException(e);
+        } else {
+          throw new ActivityCompletionFailureException(activityId, e);
+        }
       }
     }
   }
@@ -170,19 +186,23 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
   @Override
   public void recordHeartbeat(Object details) throws CancellationException {
     if (taskToken != null) {
-      RecordActivityTaskHeartbeatRequest request = new RecordActivityTaskHeartbeatRequest();
-      request.setDetails(dataConverter.toData(details));
-      request.setTaskToken(taskToken);
+      RecordActivityTaskHeartbeatRequest request =
+          RecordActivityTaskHeartbeatRequest.newBuilder()
+              .setDetails(ByteString.copyFrom(dataConverter.toData(details)))
+              .setTaskToken(ByteString.copyFrom(taskToken))
+              .build();
       RecordActivityTaskHeartbeatResponse status = null;
       try {
-        status = service.RecordActivityTaskHeartbeat(request);
-        if (status.isCancelRequested()) {
+        status = service.blockingStub().recordActivityTaskHeartbeat(request);
+        if (status.getCancelRequested()) {
           throw new ActivityCancelledException();
         }
-      } catch (EntityNotExistsError e) {
-        throw new ActivityNotExistsException(e);
-      } catch (TException e) {
-        throw new ActivityCompletionFailureException(e);
+      } catch (StatusRuntimeException e) {
+        if (e.getStatus().getCode().equals(Status.Code.NOT_FOUND)) {
+          throw new ActivityNotExistsException(e);
+        } else {
+          throw new ActivityCompletionFailureException(e);
+        }
       }
     } else {
       throw new UnsupportedOperationException(
@@ -193,27 +213,31 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
   @Override
   public void reportCancellation(Object details) {
     if (taskToken != null) {
-      RespondActivityTaskCanceledRequest request = new RespondActivityTaskCanceledRequest();
-      request.setDetails(dataConverter.toData(details));
-      request.setTaskToken(taskToken);
+      RespondActivityTaskCanceledRequest request =
+          RespondActivityTaskCanceledRequest.newBuilder()
+              .setDetails(ByteString.copyFrom(dataConverter.toData(details)))
+              .setTaskToken(ByteString.copyFrom(taskToken))
+              .build();
       try {
-        service.RespondActivityTaskCanceled(request);
+        service.blockingStub().respondActivityTaskCanceled(request);
         metricsScope.counter(MetricsType.ACTIVITY_TASK_CANCELED_COUNTER).inc(1);
-      } catch (TException e) {
+      } catch (StatusRuntimeException e) {
         // There is nothing that can be done at this point.
         // so let's just ignore.
         log.info("reportCancellation", e);
       }
     } else {
-      RespondActivityTaskCanceledByIDRequest request = new RespondActivityTaskCanceledByIDRequest();
-      request.setDetails(dataConverter.toData(details));
-      request.setDomain(domain);
-      request.setWorkflowID(execution.getWorkflowId());
-      request.setRunID(execution.getRunId());
+      RespondActivityTaskCanceledByIDRequest request =
+          RespondActivityTaskCanceledByIDRequest.newBuilder()
+              .setDetails(ByteString.copyFrom(dataConverter.toData(details)))
+              .setDomain(domain)
+              .setWorkflowID(execution.getWorkflowId())
+              .setRunID(execution.getRunId())
+              .build();
       try {
-        service.RespondActivityTaskCanceledByID(request);
+        service.blockingStub().respondActivityTaskCanceledByID(request);
         metricsScope.counter(MetricsType.ACTIVITY_TASK_CANCELED_BY_ID_COUNTER).inc(1);
-      } catch (TException e) {
+      } catch (StatusRuntimeException e) {
         // There is nothing that can be done at this point.
         // so let's just ignore.
         log.info("reportCancellation", e);

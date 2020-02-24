@@ -33,28 +33,26 @@ import io.temporal.StartWorkflowExecutionResponse;
 import io.temporal.TaskList;
 import io.temporal.TerminateWorkflowExecutionRequest;
 import io.temporal.WorkflowExecution;
-import io.temporal.WorkflowExecutionAlreadyStartedError;
 import io.temporal.WorkflowQuery;
 import io.temporal.internal.common.*;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.QueryWorkflowParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
-import io.temporal.serviceclient.GRPCWorkflowServiceFactory;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import org.apache.thrift.TException;
 
 public final class GenericWorkflowClientExternalImpl implements GenericWorkflowClientExternal {
 
   private final String domain;
-  private final GRPCWorkflowServiceFactory service;
+  private final GrpcWorkflowServiceFactory service;
   private final Scope metricsScope;
 
   public GenericWorkflowClientExternalImpl(
-      GRPCWorkflowServiceFactory service, String domain, Scope metricsScope) {
+      GrpcWorkflowServiceFactory service, String domain, Scope metricsScope) {
     this.service = service;
     this.domain = domain;
     this.metricsScope = metricsScope;

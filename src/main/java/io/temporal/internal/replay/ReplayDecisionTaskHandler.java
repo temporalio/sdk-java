@@ -19,6 +19,7 @@ package io.temporal.internal.replay;
 
 import static io.temporal.internal.common.InternalUtils.createStickyTaskList;
 
+import com.google.protobuf.ByteString;
 import io.temporal.GetWorkflowExecutionHistoryRequest;
 import io.temporal.GetWorkflowExecutionHistoryResponse;
 import io.temporal.HistoryEvent;
@@ -35,7 +36,7 @@ import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.DecisionTaskHandler;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
-import io.temporal.serviceclient.GRPCWorkflowServiceFactory;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
@@ -56,7 +57,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
   private final DeciderCache cache;
   private final SingleWorkerOptions options;
   private final Duration stickyTaskListScheduleToStartTimeout;
-  private GRPCWorkflowServiceFactory service;
+  private GrpcWorkflowServiceFactory service;
   private String stickyTaskListName;
   private final BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller;
 
@@ -67,7 +68,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
       SingleWorkerOptions options,
       String stickyTaskListName,
       Duration stickyTaskListScheduleToStartTimeout,
-      GRPCWorkflowServiceFactory service,
+      GrpcWorkflowServiceFactory service,
       BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller) {
     this.domain = domain;
     this.workflowFactory = asyncWorkflowFactory;
@@ -106,20 +107,22 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
                 + ". If see continuously the workflow might be stuck.",
             e);
       }
-      RespondDecisionTaskFailedRequest failedRequest = new RespondDecisionTaskFailedRequest();
-      failedRequest.setTaskToken(decisionTask.getTaskToken());
       StringWriter sw = new StringWriter();
       PrintWriter pw = new PrintWriter(sw);
       e.printStackTrace(pw);
       String stackTrace = sw.toString();
-      failedRequest.setDetails(stackTrace.getBytes(StandardCharsets.UTF_8));
+      RespondDecisionTaskFailedRequest failedRequest =
+          RespondDecisionTaskFailedRequest.newBuilder()
+              .setTaskToken(decisionTask.getTaskToken())
+              .setDetails(ByteString.copyFrom(stackTrace.getBytes(StandardCharsets.UTF_8)))
+              .build();
       return new DecisionTaskHandler.Result(null, failedRequest, null, null);
     }
   }
 
   private Result handleDecisionTaskImpl(PollForDecisionTaskResponse decisionTask) throws Throwable {
 
-    if (decisionTask.isSetQuery()) {
+    if (decisionTask.hasQuery()) {
       return processQuery(decisionTask);
     } else {
       return processDecision(decisionTask);
@@ -199,8 +202,8 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
   }
 
   private Result processQuery(PollForDecisionTaskResponse decisionTask) {
-    RespondQueryTaskCompletedRequest queryCompletedRequest = new RespondQueryTaskCompletedRequest();
-    queryCompletedRequest.setTaskToken(decisionTask.getTaskToken());
+    RespondQueryTaskCompletedRequest.Builder requestBuilder =
+        RespondQueryTaskCompletedRequest.newBuilder().setTaskToken(decisionTask.getTaskToken());
     Decider decider = null;
     AtomicBoolean createdNew = new AtomicBoolean();
     try {
@@ -220,15 +223,17 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
       if (stickyTaskListName != null && createdNew.get()) {
         cache.addToCache(decisionTask, decider);
       }
-      queryCompletedRequest.setQueryResult(queryResult);
-      queryCompletedRequest.setCompletedType(QueryTaskCompletedType.COMPLETED);
+      requestBuilder
+          .setQueryResult(ByteString.copyFrom(queryResult))
+          .setCompletedType(QueryTaskCompletedType.QueryTaskCompletedTypeCompleted);
     } catch (Throwable e) {
       // TODO: Appropriate exception serialization.
       StringWriter sw = new StringWriter();
       PrintWriter pw = new PrintWriter(sw);
       e.printStackTrace(pw);
-      queryCompletedRequest.setErrorMessage(sw.toString());
-      queryCompletedRequest.setCompletedType(QueryTaskCompletedType.FAILED);
+      requestBuilder
+          .setErrorMessage(sw.toString())
+          .setCompletedType(QueryTaskCompletedType.QueryTaskCompletedTypeFailed);
     } finally {
       if (stickyTaskListName == null && decider != null) {
         decider.close();
@@ -236,25 +241,27 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
         cache.markProcessingDone(decisionTask);
       }
     }
-    return new Result(null, null, queryCompletedRequest, null);
+    return new Result(null, null, requestBuilder.build(), null);
   }
 
   private Result createCompletedRequest(
       PollForDecisionTaskResponse decisionTask, Decider.DecisionResult result) {
-    RespondDecisionTaskCompletedRequest completedRequest =
-        new RespondDecisionTaskCompletedRequest();
-    completedRequest.setTaskToken(decisionTask.getTaskToken());
-    completedRequest.setDecisions(result.getDecisions());
-    completedRequest.setForceCreateNewDecisionTask(result.getForceCreateNewDecisionTask());
+    RespondDecisionTaskCompletedRequest.Builder requestBuilder =
+        RespondDecisionTaskCompletedRequest.newBuilder()
+            .setTaskToken(decisionTask.getTaskToken())
+            .addAllDecisions(result.getDecisions())
+            .setForceCreateNewDecisionTask(result.getForceCreateNewDecisionTask());
 
     if (stickyTaskListName != null) {
-      StickyExecutionAttributes attributes = new StickyExecutionAttributes();
-      attributes.setWorkerTaskList(createStickyTaskList(stickyTaskListName));
-      attributes.setScheduleToStartTimeoutSeconds(
-          (int) stickyTaskListScheduleToStartTimeout.getSeconds());
-      completedRequest.setStickyAttributes(attributes);
+      StickyExecutionAttributes attributes =
+          StickyExecutionAttributes.newBuilder()
+              .setWorkerTaskList(createStickyTaskList(stickyTaskListName))
+              .setScheduleToStartTimeoutSeconds(
+                  (int) stickyTaskListScheduleToStartTimeout.getSeconds())
+              .build();
+      requestBuilder.setStickyAttributes(attributes);
     }
-    return new Result(completedRequest, null, null, null);
+    return new Result(requestBuilder.build(), null, null, null);
   }
 
   @Override
@@ -264,17 +271,21 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
 
   private Decider createDecider(PollForDecisionTaskResponse decisionTask) throws Exception {
     WorkflowType workflowType = decisionTask.getWorkflowType();
-    List<HistoryEvent> events = decisionTask.getHistory().getEvents();
+    List<HistoryEvent> events = decisionTask.getHistory().getEventsList();
     // Sticky decision task with partial history
     if (events.isEmpty() || events.get(0).getEventId() > 1) {
       GetWorkflowExecutionHistoryRequest getHistoryRequest =
-          new GetWorkflowExecutionHistoryRequest()
+          GetWorkflowExecutionHistoryRequest.newBuilder()
               .setDomain(domain)
-              .setExecution(decisionTask.getWorkflowExecution());
+              .setExecution(decisionTask.getWorkflowExecution())
+              .build();
       GetWorkflowExecutionHistoryResponse getHistoryResponse =
-          service.GetWorkflowExecutionHistory(getHistoryRequest);
-      decisionTask.setHistory(getHistoryResponse.getHistory());
-      decisionTask.setNextPageToken(getHistoryResponse.getNextPageToken());
+          service.blockingStub().getWorkflowExecutionHistory(getHistoryRequest);
+      decisionTask
+          .toBuilder()
+          .setHistory(getHistoryResponse.getHistory())
+          .setNextPageToken(getHistoryResponse.getNextPageToken())
+          .build();
     }
     DecisionsHelper decisionsHelper = new DecisionsHelper(decisionTask);
     ReplayWorkflow workflow = workflowFactory.getWorkflow(workflowType);

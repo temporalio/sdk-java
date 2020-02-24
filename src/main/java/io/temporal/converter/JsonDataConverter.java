@@ -32,12 +32,10 @@ import java.io.IOException;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.function.Function;
-import org.apache.thrift.protocol.TJSONProtocol;
 
 /**
  * Implements conversion through GSON JSON processor. To extend use {@link
- * #JsonDataConverter(Function)} constructor. Thrift structures are converted using {@link
- * TJSONProtocol}. When using thrift only one argument of a method is expected.
+ * #JsonDataConverter(Function)} constructor.
  *
  * @author fateev
  */
@@ -67,9 +65,7 @@ public final class JsonDataConverter implements DataConverter {
     GsonBuilder gsonBuilder =
         new GsonBuilder()
             .serializeNulls()
-            .registerTypeAdapterFactory(new ThrowableTypeAdapterFactory())
-            .registerTypeAdapterFactory(new TBaseTypeAdapterFactory())
-            .registerTypeAdapterFactory(new TEnumTypeAdapterFactory());
+            .registerTypeAdapterFactory(new ThrowableTypeAdapterFactory());
     GsonBuilder intercepted = builderInterceptor.apply(gsonBuilder);
     gson = intercepted.create();
   }

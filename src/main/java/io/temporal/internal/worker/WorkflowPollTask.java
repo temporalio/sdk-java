@@ -20,29 +20,28 @@ package io.temporal.internal.worker;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
-import io.temporal.InternalServiceError;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.PollForDecisionTaskRequest;
 import io.temporal.PollForDecisionTaskResponse;
-import io.temporal.ServiceBusyError;
 import io.temporal.TaskList;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.serviceclient.GRPCWorkflowServiceFactory;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import java.util.Objects;
-import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskResponse> {
 
   private final Scope metricScope;
-  private final GRPCWorkflowServiceFactory service;
+  private final GrpcWorkflowServiceFactory service;
   private final String domain;
   private final String taskList;
   private final String identity;
   private static final Logger log = LoggerFactory.getLogger(WorkflowWorker.class);
 
   WorkflowPollTask(
-      GRPCWorkflowServiceFactory service,
+      GrpcWorkflowServiceFactory service,
       String domain,
       String taskList,
       Scope metricScope,
@@ -55,30 +54,32 @@ final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskRespo
   }
 
   @Override
-  public PollForDecisionTaskResponse poll() throws TException {
+  public PollForDecisionTaskResponse poll() {
     metricScope.counter(MetricsType.DECISION_POLL_COUNTER).inc(1);
     Stopwatch sw = metricScope.timer(MetricsType.DECISION_POLL_LATENCY).start();
 
-    PollForDecisionTaskRequest pollRequest = new PollForDecisionTaskRequest();
-    pollRequest.setDomain(domain);
-    pollRequest.setIdentity(identity);
-
-    TaskList tl = new TaskList();
-    tl.setName(taskList);
-    pollRequest.setTaskList(tl);
+    PollForDecisionTaskRequest pollRequest =
+        PollForDecisionTaskRequest.newBuilder()
+            .setDomain(domain)
+            .setIdentity(identity)
+            .setTaskList(TaskList.newBuilder().setName(taskList).build())
+            .build();
 
     if (log.isDebugEnabled()) {
       log.debug("poll request begin: " + pollRequest);
     }
     PollForDecisionTaskResponse result;
     try {
-      result = service.PollForDecisionTask(pollRequest);
-    } catch (InternalServiceError | ServiceBusyError e) {
-      metricScope.counter(MetricsType.DECISION_POLL_TRANSIENT_FAILED_COUNTER).inc(1);
-      throw e;
-    } catch (TException e) {
-      metricScope.counter(MetricsType.DECISION_POLL_FAILED_COUNTER).inc(1);
-      throw e;
+      result = service.blockingStub().pollForDecisionTask(pollRequest);
+    } catch (StatusRuntimeException e) {
+      if (e.getStatus().getCode().equals(Status.Code.INTERNAL)
+          || e.getStatus().getCode().equals(Status.Code.RESOURCE_EXHAUSTED)) {
+        metricScope.counter(MetricsType.DECISION_POLL_TRANSIENT_FAILED_COUNTER).inc(1);
+        throw e;
+      } else {
+        metricScope.counter(MetricsType.DECISION_POLL_FAILED_COUNTER).inc(1);
+        throw e;
+      }
     }
 
     if (log.isDebugEnabled()) {
