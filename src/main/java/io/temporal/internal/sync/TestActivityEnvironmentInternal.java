@@ -145,7 +145,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
 
   private GrpcWorkflowServiceFactory getSpyService(GrpcWorkflowServiceFactory service) {
     GrpcWorkflowServiceFactory spyService = spy(service);
-    // TODO: intercept recordActivityTaskHeartbeat (and possibly several methods with empty bodies)
+    // TODO: (vkoby) intercept recordActivityTaskHeartbeat (and possibly several methods with empty
+    // bodies)
     return spyService;
   }
   /**

@@ -17,13 +17,11 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.EntityNotExistsError;
-import io.temporal.InternalServiceError;
-import io.temporal.QueryFailedError;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.QueryRejectCondition;
 import io.temporal.QueryWorkflowResponse;
 import io.temporal.WorkflowExecution;
-import io.temporal.WorkflowExecutionAlreadyStartedError;
 import io.temporal.WorkflowType;
 import io.temporal.client.DuplicateWorkflowException;
 import io.temporal.client.WorkflowException;
@@ -45,6 +43,8 @@ import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.external.GenericWorkflowClientExternal;
 import io.temporal.internal.replay.QueryWorkflowParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
+import io.temporal.serviceclient.GrpcFailure;
+import io.temporal.serviceclient.GrpcStatusUtils;
 import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
@@ -114,14 +114,24 @@ class WorkflowStubImpl implements WorkflowStub {
     StartWorkflowExecutionParameters p = getStartWorkflowExecutionParameters(o, args);
     try {
       execution.set(genericClient.startWorkflow(p));
-    } catch (WorkflowExecutionAlreadyStartedError e) {
-      execution.set(
-          new WorkflowExecution().setWorkflowId(p.getWorkflowId()).setRunId(e.getRunId()));
-      WorkflowExecution execution =
-          new WorkflowExecution().setWorkflowId(p.getWorkflowId()).setRunId(e.getRunId());
-      throw new DuplicateWorkflowException(execution, workflowType.get(), e.getMessage());
-    } catch (Exception e) {
-      throw new WorkflowServiceException(execution.get(), workflowType, e);
+    } catch (StatusRuntimeException e) {
+      if (e.getStatus().getCode().equals(Status.Code.ALREADY_EXISTS)
+          && GrpcStatusUtils.hasFailure(
+              e, GrpcFailure.WORKFLOW_EXECUTION_ALREADY_STARTED_FAILURE)) {
+        execution.set(
+            WorkflowExecution.newBuilder()
+                .setWorkflowId(p.getWorkflowId())
+                .setRunId(e.getTrailers().toString()) // TODO: (vkoby) How do I get runID
+                .build());
+        WorkflowExecution execution =
+            WorkflowExecution.newBuilder()
+                .setWorkflowId(p.getWorkflowId())
+                .setRunId(e.getTrailers().toString())
+                .build();
+        throw new DuplicateWorkflowException(execution, workflowType.get(), e.getMessage());
+      } else {
+        throw new WorkflowServiceException(execution.get(), workflowType, e);
+      }
     }
     return execution.get();
   }
@@ -142,7 +152,7 @@ class WorkflowStubImpl implements WorkflowStub {
       p.setWorkflowId(o.getWorkflowId());
     }
     p.setInput(dataConverter.toData(args));
-    p.setWorkflowType(new WorkflowType().setName(workflowType.get()));
+    p.setWorkflowType(WorkflowType.newBuilder().setName(workflowType.get()).build());
     p.setMemo(convertMemoFromObjectToBytes(o.getMemo()));
     p.setSearchAttributes(convertSearchAttributesFromObjectToBytes(o.getSearchAttributes()));
     return p;
@@ -305,37 +315,50 @@ class WorkflowStubImpl implements WorkflowStub {
             });
   }
 
+  // TODO: (vkoby) Revisit
   private <R> R mapToWorkflowFailureException(
-      Exception failure, @SuppressWarnings("unused") Class<R> returnType) {
-    failure = CheckedExceptionWrapper.unwrap(failure);
-    Class<Throwable> detailsClass;
-    if (failure instanceof WorkflowExecutionFailedException) {
-      WorkflowExecutionFailedException executionFailed = (WorkflowExecutionFailedException) failure;
-      try {
-        @SuppressWarnings("unchecked")
-        Class<Throwable> dc = (Class<Throwable>) Class.forName(executionFailed.getReason());
-        detailsClass = dc;
-      } catch (Exception e) {
-        RuntimeException ee =
-            new RuntimeException(
-                "Couldn't deserialize failure cause "
-                    + "as the reason field is expected to contain an exception class name",
-                executionFailed);
-        throw new WorkflowFailureException(
-            execution.get(), workflowType, executionFailed.getDecisionTaskCompletedEventId(), ee);
+      Exception exception, @SuppressWarnings("unused") Class<R> returnType) {
+    if (exception instanceof StatusRuntimeException) {
+      StatusRuntimeException gRPCException = (StatusRuntimeException) exception;
+      if (gRPCException.getStatus().getCode().equals(Status.Code.NOT_FOUND)) {
+        throw new WorkflowNotFoundException(
+            execution.get(), workflowType, gRPCException.getMessage());
+      } else {
+        throw new WorkflowServiceException(execution.get(), workflowType, gRPCException);
       }
-      Throwable cause =
-          dataConverter.fromData(executionFailed.getDetails(), detailsClass, detailsClass);
-      throw new WorkflowFailureException(
-          execution.get(), workflowType, executionFailed.getDecisionTaskCompletedEventId(), cause);
-    } else if (failure instanceof EntityNotExistsError) {
-      throw new WorkflowNotFoundException(execution.get(), workflowType, failure.getMessage());
-    } else if (failure instanceof CancellationException) {
-      throw (CancellationException) failure;
-    } else if (failure instanceof WorkflowException) {
-      throw (WorkflowException) failure;
     } else {
-      throw new WorkflowServiceException(execution.get(), workflowType, failure);
+      exception = CheckedExceptionWrapper.unwrap(exception);
+      Class<Throwable> detailsClass;
+      if (exception instanceof WorkflowExecutionFailedException) {
+        WorkflowExecutionFailedException executionFailed =
+            (WorkflowExecutionFailedException) exception;
+        try {
+          @SuppressWarnings("unchecked")
+          Class<Throwable> dc = (Class<Throwable>) Class.forName(executionFailed.getReason());
+          detailsClass = dc;
+        } catch (Exception e) {
+          RuntimeException ee =
+              new RuntimeException(
+                  "Couldn't deserialize failure cause "
+                      + "as the reason field is expected to contain an exception class name",
+                  executionFailed);
+          throw new WorkflowFailureException(
+              execution.get(), workflowType, executionFailed.getDecisionTaskCompletedEventId(), ee);
+        }
+        Throwable cause =
+            dataConverter.fromData(executionFailed.getDetails(), detailsClass, detailsClass);
+        throw new WorkflowFailureException(
+            execution.get(),
+            workflowType,
+            executionFailed.getDecisionTaskCompletedEventId(),
+            cause);
+      } else if (exception instanceof CancellationException) {
+        throw (CancellationException) exception;
+      } else if (exception instanceof WorkflowException) {
+        throw (WorkflowException) exception;
+      } else {
+        throw new WorkflowServiceException(execution.get(), workflowType, exception);
+      }
     }
   }
 
@@ -373,23 +396,23 @@ class WorkflowStubImpl implements WorkflowStub {
     p.setQueryRejectCondition(queryRejectCondition);
     try {
       QueryWorkflowResponse result = genericClient.queryWorkflow(p);
-      if (result.queryRejected == null) {
-        return new QueryResponse<>(
-            null, dataConverter.fromData(result.getQueryResult(), resultClass, resultType));
+      if (result.getQueryRejected() == null) {
+        return new QueryResponse(
+            null, dataConverter.fromData(result.getQueryResult().toByteArray(), resultClass, resultType));
       } else {
         return new QueryResponse<>(result.getQueryRejected(), null);
       }
-
-    } catch (RuntimeException e) {
-      Exception unwrapped = CheckedExceptionWrapper.unwrap(e);
-      if (unwrapped instanceof EntityNotExistsError) {
+      // TODO: (vkoby) Revisit
+    } catch (StatusRuntimeException e) {
+      if (e.getStatus().getCode().equals(Status.Code.NOT_FOUND)) {
         throw new WorkflowNotFoundException(execution.get(), workflowType, e.getMessage());
       }
-      if (unwrapped instanceof QueryFailedError) {
-        throw new WorkflowQueryException(execution.get(), unwrapped.getMessage());
+      if (e.getStatus().getCode().equals(Status.Code.INVALID_ARGUMENT)
+          && GrpcStatusUtils.hasFailure(e, GrpcFailure.QUERY_FAILED)) {
+        throw new WorkflowQueryException(execution.get(), e.getMessage());
       }
-      if (unwrapped instanceof InternalServiceError) {
-        throw new WorkflowServiceException(execution.get(), workflowType, unwrapped);
+      if (e.getStatus().getCode().equals(Status.Code.INTERNAL)) {
+        throw new WorkflowServiceException(execution.get(), workflowType, e);
       }
       throw e;
     }
@@ -404,7 +427,7 @@ class WorkflowStubImpl implements WorkflowStub {
     // RunId can change if workflow does ContinueAsNew. So we do not set it here and
     // let the server figure out the current run.
     genericClient.requestCancelWorkflowExecution(
-        new WorkflowExecution().setWorkflowId(execution.get().getWorkflowId()));
+        WorkflowExecution.newBuilder().setWorkflowId(execution.get().getWorkflowId()).build());
   }
 
   @Override

@@ -17,54 +17,28 @@
 
 package io.temporal.serviceclient;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.temporal.WorkflowServiceGrpc;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-@AutoValue
-abstract class FactoryOptions {
-  /** The timeout in milliseconds */
-  abstract long rpcTimeoutMillis();
-  /** The timeout for long poll calls in milliseconds */
-  abstract long rpcLongPollTimeoutMillis();
-  /** The timeout for query workflow call in milliseconds */
-  abstract long rpcQueryTimeoutMillis();
-  /** Optional headers */
-  abstract Map<String, String> headers();
-
-  static Builder builder() {
-    return new AutoValue_FactoryOptions.Builder()
-        .setRpcTimeoutMillis(1000)
-        .setRpcLongPollTimeoutMillis(121 * 1000)
-        .setRpcQueryTimeoutMillis(10000);
-  }
-
-  @AutoValue.Builder
-  abstract static class Builder {
-    abstract Builder setRpcTimeoutMillis(long value);
-
-    abstract Builder setRpcLongPollTimeoutMillis(long value);
-
-    abstract Builder setRpcQueryTimeoutMillis(long value);
-
-    abstract Builder setHeaders(Map<String, String> value);
-
-    abstract FactoryOptions build();
-  }
-}
-
 /** TODO: (vkoby) Add metrics. */
 public class GrpcWorkflowServiceFactory implements AutoCloseable {
 
   private static final String LOCALHOST = "127.0.0.1";
   private static final int DEFAULT_LOCAL_TEMPORAL_SERVER_PORT = 7933;
+  /** Default RPC timeout used for all non long poll calls. */
+  private static final long DEFAULT_RPC_TIMEOUT_MILLIS = 1000;
+  /** Default RPC timeout used for all long poll calls. */
+  private static final long DEFAULT_POLL_RPC_TIMEOUT_MILLIS = 121 * 1000;
+  /** Default RPC timeout for QueryWorkflow */
+  private static final long DEFAULT_QUERY_RPC_TIMEOUT_MILLIS = 10000;
 
-  private final FactoryOptions options;
+  private final ServiceFactoryOptions options;
   private final ManagedChannel channel;
   private final WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub;
   private final WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub;
@@ -81,7 +55,7 @@ public class GrpcWorkflowServiceFactory implements AutoCloseable {
         DEFAULT_LOCAL_TEMPORAL_SERVER_PORT);
   }
 
-  public GrpcWorkflowServiceFactory(ManagedChannel channel, FactoryOptions options) {
+  public GrpcWorkflowServiceFactory(ManagedChannel channel, ServiceFactoryOptions options) {
     this.channel = channel;
     this.options = options;
     blockingStub = WorkflowServiceGrpc.newBlockingStub(channel);
@@ -89,7 +63,7 @@ public class GrpcWorkflowServiceFactory implements AutoCloseable {
   }
 
   public GrpcWorkflowServiceFactory(ManagedChannel channel) {
-    this(channel, FactoryOptions.builder().build());
+    this(channel, new ServiceFactoryOptions.Builder().build());
   }
 
   /**
@@ -99,7 +73,7 @@ public class GrpcWorkflowServiceFactory implements AutoCloseable {
    * @param port port to connect
    */
   public GrpcWorkflowServiceFactory(String host, int port) {
-    this(host, port, FactoryOptions.builder().build());
+    this(host, port, new ServiceFactoryOptions.Builder().build());
   }
 
   /**
@@ -109,7 +83,7 @@ public class GrpcWorkflowServiceFactory implements AutoCloseable {
    * @param port port to connect
    * @param options configuration options like rpc timeouts.
    */
-  public GrpcWorkflowServiceFactory(String host, int port, FactoryOptions options) {
+  public GrpcWorkflowServiceFactory(String host, int port, ServiceFactoryOptions options) {
     this(
         ManagedChannelBuilder.forAddress(
                 Preconditions.checkNotNull(host, "host must not be null"), validatePort(port))
@@ -149,6 +123,112 @@ public class GrpcWorkflowServiceFactory implements AutoCloseable {
       channel.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
     } catch (InterruptedException ignore) {
       /* Safe to ignore. */
+    }
+  }
+
+  // TODO (vkoby): Figure out why AutoValue didn't work and re-implement this
+  public static class ServiceFactoryOptions {
+
+    /** The tChannel timeout in milliseconds */
+    private final long rpcTimeoutMillis;
+
+    /** The tChannel timeout for long poll calls in milliseconds */
+    private final long rpcLongPollTimeoutMillis;
+
+    /** The tChannel timeout for query workflow call in milliseconds */
+    private final long rpcQueryTimeoutMillis;
+
+    /** Optional TChannel headers */
+    private final Map<String, String> headers;
+
+    private ServiceFactoryOptions(ServiceFactoryOptions.Builder builder) {
+
+      this.rpcLongPollTimeoutMillis = builder.rpcLongPollTimeoutMillis;
+      this.rpcQueryTimeoutMillis = builder.rpcQueryTimeoutMillis;
+      this.rpcTimeoutMillis = builder.rpcTimeoutMillis;
+
+      if (builder.headers != null) {
+        this.headers = ImmutableMap.copyOf(builder.headers);
+      } else {
+        this.headers = ImmutableMap.of();
+      }
+    }
+
+    /** @return Returns the rpc timeout value in millis. */
+    public long getRpcTimeoutMillis() {
+      return rpcTimeoutMillis;
+    }
+
+    /** @return Returns the rpc timout for long poll requests in millis. */
+    public long getRpcLongPollTimeoutMillis() {
+      return rpcLongPollTimeoutMillis;
+    }
+
+    /** @return Returns the rpc timout for query workflow requests in millis. */
+    public long getRpcQueryTimeoutMillis() {
+      return rpcQueryTimeoutMillis;
+    }
+
+    public Map<String, String> getHeaders() {
+      return headers;
+    }
+
+    /**
+     * Builder is the builder for ClientOptions.
+     *
+     * @author venkat
+     */
+    public static class Builder {
+      private long rpcTimeoutMillis = DEFAULT_RPC_TIMEOUT_MILLIS;
+      private long rpcLongPollTimeoutMillis = DEFAULT_POLL_RPC_TIMEOUT_MILLIS;
+      public long rpcQueryTimeoutMillis = DEFAULT_QUERY_RPC_TIMEOUT_MILLIS;
+      private Map<String, String> headers;
+
+      /**
+       * Sets the rpc timeout value for non query and non long poll calls. Default is 1000.
+       *
+       * @param timeoutMillis timeout, in millis.
+       */
+      public ServiceFactoryOptions.Builder setRpcTimeout(long timeoutMillis) {
+        this.rpcTimeoutMillis = timeoutMillis;
+        return this;
+      }
+
+      /**
+       * Sets the rpc timeout value for the following long poll based operations:
+       * PollForDecisionTask, PollForActivityTask, GetWorkflowExecutionHistory. Should never be
+       * below 60000 as this is server side timeout for the long poll. Default is 61000.
+       *
+       * @param timeoutMillis timeout, in millis.
+       */
+      public ServiceFactoryOptions.Builder setRpcLongPollTimeout(long timeoutMillis) {
+        this.rpcLongPollTimeoutMillis = timeoutMillis;
+        return this;
+      }
+
+      /**
+       * Sets the rpc timeout value for query calls. Default is 10000.
+       *
+       * @param timeoutMillis timeout, in millis.
+       */
+      public ServiceFactoryOptions.Builder setQueryRpcTimeout(long timeoutMillis) {
+        this.rpcQueryTimeoutMillis = timeoutMillis;
+        return this;
+      }
+
+      public ServiceFactoryOptions.Builder setHeaders(Map<String, String> headers) {
+        this.headers = headers;
+        return this;
+      }
+
+      /**
+       * Builds and returns a ClientOptions object.
+       *
+       * @return ClientOptions object with the specified params.
+       */
+      public ServiceFactoryOptions build() {
+        return new ServiceFactoryOptions(this);
+      }
     }
   }
 }

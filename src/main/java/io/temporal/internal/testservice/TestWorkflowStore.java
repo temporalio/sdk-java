@@ -17,11 +17,8 @@
 
 package io.temporal.internal.testservice;
 
-import io.temporal.BadRequestError;
-import io.temporal.EntityNotExistsError;
 import io.temporal.GetWorkflowExecutionHistoryRequest;
 import io.temporal.GetWorkflowExecutionHistoryResponse;
-import io.temporal.InternalServiceError;
 import io.temporal.PollForActivityTaskRequest;
 import io.temporal.PollForActivityTaskResponse;
 import io.temporal.PollForDecisionTaskRequest;
@@ -117,9 +114,9 @@ interface TestWorkflowStore {
   class ActivityTask {
 
     private final TaskListId taskListId;
-    private final PollForActivityTaskResponse task;
+    private final PollForActivityTaskResponse.Builder task;
 
-    public ActivityTask(TaskListId taskListId, PollForActivityTaskResponse task) {
+    public ActivityTask(TaskListId taskListId, PollForActivityTaskResponse.Builder task) {
       this.taskListId = taskListId;
       this.task = task;
     }
@@ -128,7 +125,7 @@ interface TestWorkflowStore {
       return taskListId;
     }
 
-    public PollForActivityTaskResponse getTask() {
+    public PollForActivityTaskResponse.Builder getTask() {
       return task;
     }
   }
@@ -137,8 +134,7 @@ interface TestWorkflowStore {
 
   long currentTimeMillis();
 
-  long save(RequestContext requestContext)
-      throws InternalServiceError, EntityNotExistsError, BadRequestError;
+  long save(RequestContext requestContext);
 
   void applyTimersAndLocks(RequestContext ctx);
 
@@ -151,12 +147,11 @@ interface TestWorkflowStore {
       throws InterruptedException;
 
   /** @return queryId */
-  void sendQueryTask(ExecutionId executionId, TaskListId taskList, PollForDecisionTaskResponse task)
-      throws EntityNotExistsError;
+  void sendQueryTask(
+      ExecutionId executionId, TaskListId taskList, PollForDecisionTaskResponse task);
 
   GetWorkflowExecutionHistoryResponse getWorkflowExecutionHistory(
-      ExecutionId executionId, GetWorkflowExecutionHistoryRequest getRequest)
-      throws EntityNotExistsError;
+      ExecutionId executionId, GetWorkflowExecutionHistoryRequest getRequest);
 
   void getDiagnostics(StringBuilder result);
 

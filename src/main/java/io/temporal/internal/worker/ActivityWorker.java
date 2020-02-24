@@ -224,7 +224,11 @@ public final class ActivityWorker implements SuspendableWorker {
                     Status.Code.INVALID_ARGUMENT,
                     Status.Code.NOT_FOUND,
                     Status.Code.FAILED_PRECONDITION);
-        taskCompleted.toBuilder().setTaskToken(task.getTaskToken()).setIdentity(options.getIdentity()).build();
+        taskCompleted
+            .toBuilder()
+            .setTaskToken(task.getTaskToken())
+            .setIdentity(options.getIdentity())
+            .build();
         Retryer.retry(ro, () -> service.blockingStub().respondActivityTaskCompleted(taskCompleted));
         metricsScope.counter(MetricsType.ACTIVITY_TASK_COMPLETED_COUNTER).inc(1);
       } else {
@@ -239,19 +243,23 @@ public final class ActivityWorker implements SuspendableWorker {
                       Status.Code.FAILED_PRECONDITION);
 
           RespondActivityTaskFailedRequest taskFailed =
-                  response.getTaskFailedResult().getTaskFailedRequest().toBuilder()
-                          .setTaskToken(task.getTaskToken())
-                          .setIdentity(options.getIdentity())
-                          .build();
+              response
+                  .getTaskFailedResult()
+                  .getTaskFailedRequest()
+                  .toBuilder()
+                  .setTaskToken(task.getTaskToken())
+                  .setIdentity(options.getIdentity())
+                  .build();
           Retryer.retry(ro, () -> service.blockingStub().respondActivityTaskFailed(taskFailed));
           metricsScope.counter(MetricsType.ACTIVITY_TASK_FAILED_COUNTER).inc(1);
         } else {
           RespondActivityTaskCanceledRequest taskCancelled = response.getTaskCancelled();
           if (taskCancelled != null) {
-            taskCancelled.toBuilder()
-                    .setTaskToken(task.getTaskToken())
-                    .setIdentity(options.getIdentity())
-                    .build();
+            taskCancelled
+                .toBuilder()
+                .setTaskToken(task.getTaskToken())
+                .setIdentity(options.getIdentity())
+                .build();
             ro =
                 options
                     .getReportFailureRetryOptions()

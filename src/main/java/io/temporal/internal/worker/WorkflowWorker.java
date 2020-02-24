@@ -301,10 +301,11 @@ public final class WorkflowWorker
                     Status.Code.INVALID_ARGUMENT,
                     Status.Code.NOT_FOUND,
                     Status.Code.FAILED_PRECONDITION);
-        taskCompleted.toBuilder()
-                .setIdentity(options.getIdentity())
-                .setTaskToken(ByteString.copyFrom(taskToken))
-                .build();
+        taskCompleted
+            .toBuilder()
+            .setIdentity(options.getIdentity())
+            .setTaskToken(ByteString.copyFrom(taskToken))
+            .build();
         Retryer.retry(ro, () -> service.blockingStub().respondDecisionTaskCompleted(taskCompleted));
       } else {
         RespondDecisionTaskFailedRequest taskFailed = response.getTaskFailed();
@@ -317,10 +318,11 @@ public final class WorkflowWorker
                       Status.Code.INVALID_ARGUMENT,
                       Status.Code.NOT_FOUND,
                       Status.Code.FAILED_PRECONDITION);
-          taskFailed.toBuilder()
-                  .setIdentity(options.getIdentity())
-                  .setTaskToken(ByteString.copyFrom(taskToken))
-                  .build();
+          taskFailed
+              .toBuilder()
+              .setIdentity(options.getIdentity())
+              .setTaskToken(ByteString.copyFrom(taskToken))
+              .build();
           Retryer.retry(ro, () -> service.blockingStub().respondDecisionTaskFailed(taskFailed));
         } else {
           RespondQueryTaskCompletedRequest queryCompleted = response.getQueryCompleted();

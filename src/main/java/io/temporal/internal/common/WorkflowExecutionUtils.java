@@ -299,11 +299,6 @@ public class WorkflowExecutionUtils {
     return Retryer.retryWithResultAsync(
         retryParameters,
         () -> {
-          // TODO: Translating GRPC's ListenableFuture to Java-native CompletableFuture to preserve
-          // TODO: the old API surface. We use an Apache-licensed library from Spotify to do that.
-          // TODO: Maybe move everything from CompletableFutures to ListenableFutures all? That will
-          // TODO: remove the need for translations (and maybe the need to have *Async methods here
-          // TODO: as well -- users can just use the futureStub() methods directly.
           return ListenableFuturesExtra.toCompletableFuture(
               service.futureStub().getWorkflowExecutionHistory(r));
         });

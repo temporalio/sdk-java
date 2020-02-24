@@ -232,7 +232,7 @@ public final class Retryer {
     e = unwrap((Exception) e);
     long elapsed = System.currentTimeMillis() - startTime;
     if (e instanceof StatusRuntimeException) {
-      StatusRuntimeException sre = (StatusRuntimeException)e;
+      StatusRuntimeException sre = (StatusRuntimeException) e;
       if (options.getDoNotRetry() != null) {
         for (Status.Code exceptionToNotRetry : options.getDoNotRetry()) {
           if (exceptionToNotRetry.equals(sre.getStatus().getCode())) {
