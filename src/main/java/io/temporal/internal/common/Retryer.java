@@ -19,6 +19,8 @@ package io.temporal.internal.common;
 
 import static io.temporal.internal.common.CheckedExceptionWrapper.unwrap;
 
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.*;
 import io.temporal.common.RetryOptions;
 import java.time.Duration;
@@ -50,13 +52,10 @@ public final class Retryer {
     }
     roBuilder.setMaximumInterval(maxInterval);
     roBuilder.setDoNotRetry(
-        BadRequestError.class,
-        EntityNotExistsError.class,
-        WorkflowExecutionAlreadyStartedError.class,
-        DomainAlreadyExistsError.class,
-        QueryFailedError.class,
-        DomainNotActiveError.class,
-        CancellationAlreadyRequestedError.class);
+        Status.Code.INVALID_ARGUMENT,
+        Status.Code.NOT_FOUND,
+        Status.Code.ALREADY_EXISTS,
+        Status.Code.FAILED_PRECONDITION);
     DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS = roBuilder.validateBuildWithDefaults();
   }
 
@@ -125,11 +124,11 @@ public final class Retryer {
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         return null;
-      } catch (Exception e) {
+      } catch (StatusRuntimeException e) {
         throttler.failure();
         if (options.getDoNotRetry() != null) {
-          for (Class<?> exceptionToNotRetry : options.getDoNotRetry()) {
-            if (exceptionToNotRetry.isAssignableFrom(e.getClass())) {
+          for (Status.Code codeToNotRetry : options.getDoNotRetry()) {
+            if (codeToNotRetry.equals(e.getStatus().getCode())) {
               rethrow(e);
             }
           }
@@ -230,16 +229,15 @@ public final class Retryer {
     if (e instanceof CompletionException) {
       e = e.getCause();
     }
-    // Do not retry Error
-    if (e instanceof Error) {
-      return new ValueExceptionPair<>(null, e);
-    }
     e = unwrap((Exception) e);
     long elapsed = System.currentTimeMillis() - startTime;
-    if (options.getDoNotRetry() != null) {
-      for (Class<?> exceptionToNotRetry : options.getDoNotRetry()) {
-        if (exceptionToNotRetry.isAssignableFrom(e.getClass())) {
-          return new ValueExceptionPair<>(null, e);
+    if (e instanceof StatusRuntimeException) {
+      StatusRuntimeException sre = (StatusRuntimeException)e;
+      if (options.getDoNotRetry() != null) {
+        for (Status.Code exceptionToNotRetry : options.getDoNotRetry()) {
+          if (exceptionToNotRetry.equals(sre.getStatus().getCode())) {
+            return new ValueExceptionPair<>(null, e);
+          }
         }
       }
     }

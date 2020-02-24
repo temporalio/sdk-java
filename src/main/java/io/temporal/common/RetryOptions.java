@@ -20,8 +20,6 @@ package io.temporal.common;
 import com.google.common.base.Defaults;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.temporal.workflow.ActivityFailureException;
-import io.temporal.workflow.ChildWorkflowFailureException;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
@@ -68,7 +66,8 @@ public final class RetryOptions {
     }
     return builder
         .setMaximumAttempts(merge(r.maximumAttempts(), o.getMaximumAttempts(), int.class))
-        .setDoNotRetry(merge(r.doNotRetry(), o.getDoNotRetry())) // TODO: figure out the merge, it's weird
+        .setDoNotRetry(
+            merge(r.doNotRetry(), o.getDoNotRetry())) // TODO: figure out the merge, it's weird
         .validateBuildWithDefaults();
   }
 
@@ -211,8 +210,8 @@ public final class RetryOptions {
      * {@link io.temporal.workflow.ActivityFailureException} and {@link
      * io.temporal.workflow.ChildWorkflowFailureException} is looked at.
      *
-     *  TODO: (vkoby) Multiple errors fall under the same Status Code. Need to look at failures as
-     *  TODO: well if need to retry for one, but not the other.
+     * <p>TODO: (vkoby) Multiple errors fall under the same Status Code. Need to look at failures as
+     * TODO: well if need to retry for one, but not the other.
      *
      * <p>{@link Error} and {@link java.util.concurrent.CancellationException} are never retried and
      * are not even passed to this filter.
@@ -388,8 +387,7 @@ public final class RetryOptions {
   }
 
   // TODO: (vkoby) Rewritten for Status Codes, but not sure what it was doing originally.
-  private static Status.Code[] merge(
-      Status.Code[] a, List<Status.Code> o) {
+  private static Status.Code[] merge(Status.Code[] a, List<Status.Code> o) {
     if (o != null) {
       @SuppressWarnings("unchecked")
       Status.Code[] result = new Status.Code[o.size()];
@@ -399,8 +397,7 @@ public final class RetryOptions {
   }
 
   // TODO: (vkoby) Rewritten for Status Codes, but not sure what it was doing originally.
-  private Status.Code[] merge(
-      List<Status.Code> o1, List<Status.Code> o2) {
+  private Status.Code[] merge(List<Status.Code> o1, List<Status.Code> o2) {
     if (o2 != null) {
       @SuppressWarnings("unchecked")
       Status.Code[] result = new Status.Code[o2.size()];
@@ -424,7 +421,8 @@ public final class RetryOptions {
     return Math.min((long) sleepMillis, maximumInterval.toMillis());
   }
 
-  public boolean shouldRethrow(StatusRuntimeException e, long attempt, long elapsed, long sleepTime) {
+  public boolean shouldRethrow(
+      StatusRuntimeException e, long attempt, long elapsed, long sleepTime) {
     if (doNotRetry != null) {
       for (Status.Code doNotRetry : doNotRetry) {
         if (doNotRetry.equals(e.getStatus().getCode())) {

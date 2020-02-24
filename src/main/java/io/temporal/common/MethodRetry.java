@@ -70,9 +70,8 @@ public @interface MethodRetry {
   long maximumIntervalSeconds() default 0;
 
   /**
-   * List of GRPC Status Codes to retry.
-   * Note that sometimes multiple failures map to the same GRPC code.
-   * In case this mechanism is too coarse we will need to handle per-failure retries as well.
+   * List of GRPC Status Codes to retry. Note that sometimes multiple failures map to the same GRPC
+   * code. In case this mechanism is too coarse we will need to handle per-failure retries as well.
    */
   Status.Code[] doNotRetry() default {};
 }

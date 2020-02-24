@@ -125,7 +125,7 @@ public final class RetryParameters {
         .setExpirationIntervalInSeconds(getExpirationIntervalInSeconds())
         .setBackoffCoefficient(getBackoffCoefficient())
         .setMaximumIntervalInSeconds(getMaximumIntervalInSeconds())
-            .build();
+        .build();
   }
 
   @Override
