@@ -51,7 +51,7 @@ public final class SimulatedTimeoutException extends RuntimeException {
    * simulate a child workflow timeout.
    */
   public SimulatedTimeoutException() {
-    this.timeoutType = TimeoutType.START_TO_CLOSE;
+    this.timeoutType = TimeoutType.TimeoutTypeStartToClose;
     this.details = null;
   }
 

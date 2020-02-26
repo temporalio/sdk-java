@@ -49,7 +49,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
 
   private final GrpcWorkflowServiceFactory service;
 
-  private final byte[] taskToken;
+  private final ByteString taskToken;
 
   private final DataConverter dataConverter;
   private final String domain;
@@ -59,7 +59,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
 
   ManualActivityCompletionClientImpl(
       GrpcWorkflowServiceFactory service,
-      byte[] taskToken,
+      ByteString taskToken,
       DataConverter dataConverter,
       Scope metricsScope) {
     this.service = service;
@@ -94,7 +94,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
       RespondActivityTaskCompletedRequest request =
           RespondActivityTaskCompletedRequest.newBuilder()
               .setResult(ByteString.copyFrom(convertedResult))
-              .setTaskToken(ByteString.copyFrom(taskToken))
+              .setTaskToken(taskToken)
               .build();
       try {
         Retryer.retry(
@@ -145,7 +145,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
           RespondActivityTaskFailedRequest.newBuilder()
               .setReason(failure.getClass().getName())
               .setDetails(ByteString.copyFrom(dataConverter.toData(failure)))
-              .setTaskToken(ByteString.copyFrom(taskToken))
+              .setTaskToken(taskToken)
               .build();
       try {
         Retryer.retry(
@@ -189,7 +189,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
       RecordActivityTaskHeartbeatRequest request =
           RecordActivityTaskHeartbeatRequest.newBuilder()
               .setDetails(ByteString.copyFrom(dataConverter.toData(details)))
-              .setTaskToken(ByteString.copyFrom(taskToken))
+              .setTaskToken(taskToken)
               .build();
       RecordActivityTaskHeartbeatResponse status = null;
       try {
@@ -216,7 +216,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
       RespondActivityTaskCanceledRequest request =
           RespondActivityTaskCanceledRequest.newBuilder()
               .setDetails(ByteString.copyFrom(dataConverter.toData(details)))
-              .setTaskToken(ByteString.copyFrom(taskToken))
+              .setTaskToken(taskToken)
               .build();
       try {
         service.blockingStub().respondActivityTaskCanceled(request);

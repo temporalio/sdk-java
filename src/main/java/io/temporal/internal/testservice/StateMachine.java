@@ -17,8 +17,8 @@
 
 package io.temporal.internal.testservice;
 
-import io.temporal.BadRequestError;
-import io.temporal.InternalServiceError;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.internal.testservice.StateMachines.Action;
 import io.temporal.internal.testservice.StateMachines.State;
 import java.util.ArrayList;
@@ -43,9 +43,7 @@ final class StateMachine<Data> {
   /** Function invoked when an action happens in a given state */
   @FunctionalInterface
   interface Callback<D, R> {
-
-    void apply(RequestContext ctx, D data, R request, long referenceId)
-        throws InternalServiceError, BadRequestError;
+    void apply(RequestContext ctx, D data, R request, long referenceId);
   }
 
   /**
@@ -56,8 +54,7 @@ final class StateMachine<Data> {
   interface DynamicCallback<D, R> {
 
     /** @return state after the action */
-    State apply(RequestContext ctx, D data, R request, long referenceId)
-        throws InternalServiceError, BadRequestError;
+    State apply(RequestContext ctx, D data, R request, long referenceId);
   }
 
   private static class Transition {
@@ -109,8 +106,7 @@ final class StateMachine<Data> {
   }
 
   private interface TransitionDestination<Data, R> {
-    State apply(RequestContext ctx, Data data, R request, long referenceId)
-        throws InternalServiceError, BadRequestError;
+    State apply(RequestContext ctx, Data data, R request, long referenceId);
   }
 
   private static class FixedTransitionDestination<Data, R>
@@ -131,8 +127,7 @@ final class StateMachine<Data> {
     }
 
     @Override
-    public State apply(RequestContext ctx, Data data, R request, long referenceId)
-        throws InternalServiceError, BadRequestError {
+    public State apply(RequestContext ctx, Data data, R request, long referenceId) {
       callback.apply(ctx, data, request, referenceId);
       return state;
     }
@@ -157,8 +152,7 @@ final class StateMachine<Data> {
     }
 
     @Override
-    public State apply(RequestContext ctx, Data data, R request, long referenceId)
-        throws InternalServiceError, BadRequestError {
+    public State apply(RequestContext ctx, Data data, R request, long referenceId) {
       state = callback.apply(ctx, data, request, referenceId);
       for (State s : expectedStates) {
         if (s == state) {
@@ -220,14 +214,15 @@ final class StateMachine<Data> {
     return this;
   }
 
-  <R> void action(Action action, RequestContext context, R request, long referenceId)
-      throws InternalServiceError, BadRequestError {
+  <R> void action(Action action, RequestContext context, R request, long referenceId) {
     Transition transition = new Transition(state, action);
     @SuppressWarnings("unchecked")
     TransitionDestination<Data, R> destination =
         (TransitionDestination<Data, R>) transitions.get(transition);
     if (destination == null) {
-      throw new InternalServiceError("Invalid " + transition + ", history: " + transitionHistory);
+      throw new StatusRuntimeException(
+          Status.INTERNAL.withDescription(
+              "Invalid " + transition + ", history: " + transitionHistory));
     }
     state = destination.apply(context, data, request, referenceId);
     transitionHistory.add(transition);

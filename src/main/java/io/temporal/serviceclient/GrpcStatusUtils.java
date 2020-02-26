@@ -75,12 +75,22 @@ public class GrpcStatusUtils {
   }
 
   /** @return a failure of a given type from the StatusRuntimeException object */
-  public static Object getFailure(StatusRuntimeException exception, String failureName) {
+  public static Object getFailure(StatusRuntimeException exception, Enum failureName) {
     Preconditions.checkNotNull(exception, "Exception cannot be null");
     Preconditions.checkArgument(
         KEY_MAP.containsKey(failureName), "Unknown failure name: %s", failureName);
 
     Metadata metadata = exception.getTrailers();
     return metadata.get(KEY_MAP.get(failureName));
+  }
+  /** @return a failure of a given type from the StatusRuntimeException object */
+  public static <T> void setFailure(
+      StatusRuntimeException exception, GrpcFailure failureName, T value) {
+    Preconditions.checkNotNull(exception, "Exception cannot be null");
+    Preconditions.checkArgument(
+        KEY_MAP.containsKey(failureName), "Unknown failure name: %s", failureName);
+
+    Metadata metadata = exception.getTrailers();
+    metadata.<T>put(KEY_MAP.get(failureName), value);
   }
 }

@@ -568,7 +568,7 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
 
     private final PollForDecisionTaskResponse task;
     private Iterator<HistoryEvent> current;
-    private byte[] nextPageToken;
+    private ByteString nextPageToken;
 
     DecisionTaskWithHistoryIteratorImpl(
         PollForDecisionTaskResponse task, Duration decisionTaskStartToCloseTimeout) {
@@ -578,7 +578,7 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
 
       History history = task.getHistory();
       current = history.getEventsList().iterator();
-      nextPageToken = task.getNextPageToken().toByteArray();
+      nextPageToken = task.getNextPageToken();
     }
 
     @Override
@@ -614,7 +614,7 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
                   .setDomain(context.getDomain())
                   .setExecution(task.getWorkflowExecution())
                   .setMaximumPageSize(MAXIMUM_PAGE_SIZE)
-                  .setNextPageToken(ByteString.copyFrom(nextPageToken))
+                  .setNextPageToken(nextPageToken)
                   .build();
 
           try {
@@ -623,7 +623,7 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
                     retryOptions,
                     () -> service.blockingStub().getWorkflowExecutionHistory(request));
             current = r.getHistory().getEventsList().iterator();
-            nextPageToken = r.getNextPageToken().toByteArray();
+            nextPageToken = r.getNextPageToken();
             metricsScope.counter(MetricsType.WORKFLOW_GET_HISTORY_SUCCEED_COUNTER).inc(1);
             sw.stop();
           } catch (StatusRuntimeException e) {

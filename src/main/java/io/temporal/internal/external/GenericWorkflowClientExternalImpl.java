@@ -32,8 +32,6 @@ import io.temporal.internal.replay.SignalExternalWorkflowParameters;
 import io.temporal.serviceclient.GrpcFailure;
 import io.temporal.serviceclient.GrpcStatusUtils;
 import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
-
-import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -141,31 +139,30 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   }
 
   // TODO: (vkoby) Refactor
-    private Memo toMemoProto(Map<String, byte[]> memo) {
-      if (memo == null || memo.isEmpty()) {
-        return null;
-      }
-      Map<String, ByteString> fields = new HashMap<>();
-      for (Map.Entry<String, byte[]> item : memo.entrySet()) {
-        fields.put(item.getKey(), ByteString.copyFrom(item.getValue()));
-      }
-      Memo memoProto = Memo.newBuilder().putAllFields(fields).build();
-      return memoProto;
+  private Memo toMemoProto(Map<String, byte[]> memo) {
+    if (memo == null || memo.isEmpty()) {
+      return null;
     }
+    Map<String, ByteString> fields = new HashMap<>();
+    for (Map.Entry<String, byte[]> item : memo.entrySet()) {
+      fields.put(item.getKey(), ByteString.copyFrom(item.getValue()));
+    }
+    Memo memoProto = Memo.newBuilder().putAllFields(fields).build();
+    return memoProto;
+  }
 
-    private SearchAttributes toSearchAttributesProto(Map<String, byte[]> searchAttributes) {
-      if (searchAttributes == null || searchAttributes.isEmpty()) {
-        return null;
-      }
-      Map<String, ByteString> fields = new HashMap<>();
-      for (Map.Entry<String, byte[]> item : searchAttributes.entrySet()) {
-        fields.put(item.getKey(), ByteString.copyFrom(item.getValue()));
-      }
-      SearchAttributes searchAttrThrift = SearchAttributes.newBuilder()
-              .putAllIndexedFields(fields)
-              .build();
-      return searchAttrThrift;
+  private SearchAttributes toSearchAttributesProto(Map<String, byte[]> searchAttributes) {
+    if (searchAttributes == null || searchAttributes.isEmpty()) {
+      return null;
     }
+    Map<String, ByteString> fields = new HashMap<>();
+    for (Map.Entry<String, byte[]> item : searchAttributes.entrySet()) {
+      fields.put(item.getKey(), ByteString.copyFrom(item.getValue()));
+    }
+    SearchAttributes searchAttrProto =
+        SearchAttributes.newBuilder().putAllIndexedFields(fields).build();
+    return searchAttrProto;
+  }
 
   private RetryPolicy toRetryPolicy(RetryParameters retryParameters) {
     return RetryPolicy.newBuilder()

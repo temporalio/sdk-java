@@ -130,10 +130,7 @@ public final class WorkflowWorker
     WorkflowExecutionHistory workflowExecutionHistory =
         new WorkflowExecutionHistory(history.getEventsList());
     return queryWorkflowExecution(
-        queryType,
-        args,
-        workflowExecutionHistory,
-        historyResponse.getNextPageToken().toByteArray());
+        queryType, args, workflowExecutionHistory, historyResponse.getNextPageToken());
   }
 
   public byte[] queryWorkflowExecution(String jsonSerializedHistory, String queryType, byte[] args)
@@ -148,14 +145,14 @@ public final class WorkflowWorker
   }
 
   private byte[] queryWorkflowExecution(
-      String queryType, byte[] args, WorkflowExecutionHistory history, byte[] nextPageToken)
+      String queryType, byte[] args, WorkflowExecutionHistory history, ByteString nextPageToken)
       throws Exception {
     PollForDecisionTaskResponse.Builder task =
         PollForDecisionTaskResponse.newBuilder()
             .setWorkflowExecution(history.getWorkflowExecution())
             .setStartedEventId(Long.MAX_VALUE)
             .setPreviousStartedEventId(Long.MAX_VALUE)
-            .setNextPageToken(ByteString.copyFrom(nextPageToken))
+            .setNextPageToken(nextPageToken)
             .setQuery(
                 WorkflowQuery.newBuilder()
                     .setQueryType(queryType)
@@ -262,7 +259,7 @@ public final class WorkflowWorker
         sw.stop();
 
         sw = metricsScope.timer(MetricsType.DECISION_RESPONSE_LATENCY).start();
-        sendReply(service, task.getTaskToken().toByteArray(), response);
+        sendReply(service, task.getTaskToken(), response);
         sw.stop();
 
         metricsScope.counter(MetricsType.DECISION_TASK_COMPLETED_COUNTER).inc(1);
@@ -289,7 +286,9 @@ public final class WorkflowWorker
     }
 
     private void sendReply(
-        GrpcWorkflowServiceFactory service, byte[] taskToken, DecisionTaskHandler.Result response) {
+        GrpcWorkflowServiceFactory service,
+        ByteString taskToken,
+        DecisionTaskHandler.Result response) {
       RetryOptions ro = response.getRequestRetryOptions();
       RespondDecisionTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
@@ -304,7 +303,7 @@ public final class WorkflowWorker
         taskCompleted
             .toBuilder()
             .setIdentity(options.getIdentity())
-            .setTaskToken(ByteString.copyFrom(taskToken))
+            .setTaskToken(taskToken)
             .build();
         Retryer.retry(ro, () -> service.blockingStub().respondDecisionTaskCompleted(taskCompleted));
       } else {
@@ -318,16 +317,12 @@ public final class WorkflowWorker
                       Status.Code.INVALID_ARGUMENT,
                       Status.Code.NOT_FOUND,
                       Status.Code.FAILED_PRECONDITION);
-          taskFailed
-              .toBuilder()
-              .setIdentity(options.getIdentity())
-              .setTaskToken(ByteString.copyFrom(taskToken))
-              .build();
+          taskFailed.toBuilder().setIdentity(options.getIdentity()).setTaskToken(taskToken).build();
           Retryer.retry(ro, () -> service.blockingStub().respondDecisionTaskFailed(taskFailed));
         } else {
           RespondQueryTaskCompletedRequest queryCompleted = response.getQueryCompleted();
           if (queryCompleted != null) {
-            queryCompleted.toBuilder().setTaskToken(ByteString.copyFrom(taskToken)).build();
+            queryCompleted.toBuilder().setTaskToken(taskToken).build();
             // Do not retry query response.
             service.blockingStub().respondQueryTaskCompleted(queryCompleted);
           }

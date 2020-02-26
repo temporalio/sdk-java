@@ -17,6 +17,7 @@
 
 package io.temporal.internal.common;
 
+import io.grpc.Status;
 import io.temporal.WorkflowIdReusePolicy;
 import io.temporal.WorkflowType;
 import io.temporal.client.WorkflowOptions;
@@ -319,10 +320,10 @@ public final class StartWorkflowExecutionParameters {
       rp.setMaximumAttempts(retryOptions.getMaximumAttempts());
       List<String> reasons = new ArrayList<>();
       // Use exception type name as the reason
-      List<Class<? extends Throwable>> doNotRetry = retryOptions.getDoNotRetry();
+      List<Status.Code> doNotRetry = retryOptions.getDoNotRetry();
       if (doNotRetry != null) {
-        for (Class<? extends Throwable> r : doNotRetry) {
-          reasons.add(r.getName());
+        for (Status.Code r : doNotRetry) {
+          reasons.add(r.name());
         }
         rp.setNonRetriableErrorReasons(reasons);
       }

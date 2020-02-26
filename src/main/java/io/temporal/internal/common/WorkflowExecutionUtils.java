@@ -165,7 +165,7 @@ public class WorkflowExecutionUtils {
       long timeout,
       TimeUnit unit)
       throws TimeoutException {
-    byte[] pageToken = null;
+    ByteString pageToken = null;
     GetWorkflowExecutionHistoryResponse response;
     // TODO: Interrupt service long poll call on timeout and on interrupt
     long start = System.currentTimeMillis();
@@ -176,7 +176,7 @@ public class WorkflowExecutionUtils {
               .setDomain(domain)
               .setExecution(workflowExecution)
               .setHistoryEventFilterType(HistoryEventFilterType.HistoryEventFilterTypeCloseEvent)
-              .setNextPageToken(ByteString.copyFrom(pageToken))
+              .setNextPageToken(pageToken)
               .setWaitForNewEvent(true)
               .build();
       response =
@@ -193,7 +193,7 @@ public class WorkflowExecutionUtils {
                 + ", unit="
                 + unit);
       }
-      pageToken = response.getNextPageToken().toByteArray();
+      pageToken = response.getNextPageToken();
       History history = response.getHistory();
       if (history != null && history.getEventsCount() > 0) {
         event = history.getEvents(0);
@@ -233,7 +233,7 @@ public class WorkflowExecutionUtils {
       GrpcWorkflowServiceFactory service,
       String domain,
       final WorkflowExecution workflowExecution,
-      byte[] pageToken,
+      ByteString pageToken,
       long timeout,
       TimeUnit unit) {
     // TODO: Interrupt service long poll call on timeout and on interrupt
@@ -243,7 +243,7 @@ public class WorkflowExecutionUtils {
             .setDomain(domain)
             .setExecution(workflowExecution)
             .setHistoryEventFilterType(HistoryEventFilterType.HistoryEventFilterTypeCloseEvent)
-            .setNextPageToken(ByteString.copyFrom(pageToken))
+            .setNextPageToken(pageToken)
             .build();
     CompletableFuture<GetWorkflowExecutionHistoryResponse> response =
         getWorkflowExecutionHistoryAsync(service, request);
@@ -282,12 +282,7 @@ public class WorkflowExecutionUtils {
                             .getNewExecutionRunId())
                     .build();
             return getInstanceCloseEventAsync(
-                service,
-                domain,
-                nextWorkflowExecution,
-                r.getNextPageToken().toByteArray(),
-                timeout,
-                unit);
+                service, domain, nextWorkflowExecution, r.getNextPageToken(), timeout, unit);
           }
           return CompletableFuture.completedFuture(event);
         });
@@ -533,7 +528,7 @@ public class WorkflowExecutionUtils {
   }
 
   public static GetWorkflowExecutionHistoryResponse getHistoryPage(
-      byte[] nextPageToken,
+      ByteString nextPageToken,
       GrpcWorkflowServiceFactory service,
       String domain,
       WorkflowExecution workflowExecution) {
@@ -542,7 +537,7 @@ public class WorkflowExecutionUtils {
         GetWorkflowExecutionHistoryRequest.newBuilder()
             .setDomain(domain)
             .setExecution(workflowExecution)
-            .setNextPageToken(ByteString.copyFrom(nextPageToken))
+            .setNextPageToken(nextPageToken)
             .build();
 
     GetWorkflowExecutionHistoryResponse history;
@@ -580,7 +575,7 @@ public class WorkflowExecutionUtils {
   public static Iterator<HistoryEvent> getHistory(
       GrpcWorkflowServiceFactory service, String domain, WorkflowExecution workflowExecution) {
     return new Iterator<HistoryEvent>() {
-      byte[] nextPageToken;
+      ByteString nextPageToken;
       Iterator<HistoryEvent> current;
 
       {
@@ -605,7 +600,7 @@ public class WorkflowExecutionUtils {
         GetWorkflowExecutionHistoryResponse history =
             getHistoryPage(nextPageToken, service, domain, workflowExecution);
         current = history.getHistory().getEventsList().iterator();
-        nextPageToken = history.getNextPageToken().toByteArray();
+        nextPageToken = history.getNextPageToken();
       }
     };
   }
