@@ -18,13 +18,7 @@
 package com.uber.cadence.workflow;
 
 import static com.uber.cadence.worker.NonDeterministicWorkflowPolicy.FailWorkflow;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.uber.cadence.GetWorkflowExecutionHistoryResponse;
@@ -2650,6 +2644,40 @@ public class WorkflowTest {
     options.setTaskList(taskList);
     TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
     assertEquals("ChildWorkflowTimedOutException", client.execute(taskList));
+  }
+
+  public static class TestParentWorkflowContinueAsNew implements TestWorkflow1 {
+
+    private final ITestChild child1 =
+        Workflow.newChildWorkflowStub(
+            ITestChild.class,
+            new ChildWorkflowOptions.Builder()
+                .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
+                .build());
+    private final TestWorkflow1 self = Workflow.newContinueAsNewStub(TestWorkflow1.class);
+
+    @Override
+    public String execute(String arg) {
+      child1.execute("Hello", 0);
+      if (arg.length() > 0) {
+        self.execute(""); // continue as new
+      }
+      return "foo";
+    }
+  }
+
+  /** Reproduction of a bug when a child of continued as new workflow has the same UUID ID. */
+  @Test
+  public void testParentContinueAsNew() {
+    child2Id = UUID.randomUUID().toString();
+    startWorkerFor(TestParentWorkflowContinueAsNew.class, TestChild.class);
+
+    WorkflowOptions.Builder options = new WorkflowOptions.Builder();
+    options.setExecutionStartToCloseTimeout(Duration.ofSeconds(200));
+    options.setTaskStartToCloseTimeout(Duration.ofSeconds(60));
+    options.setTaskList(taskList);
+    TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
+    assertEquals("foo", client.execute("not empty"));
   }
 
   private static String childReexecuteId = UUID.randomUUID().toString();

@@ -87,11 +87,7 @@ public interface DecisionContext extends ReplayAware {
    */
   Map<String, Object> getPropagatedContexts();
 
-  /**
-   * Returns the set of configured context propagators
-   *
-   * @return
-   */
+  /** Returns the set of configured context propagators */
   List<ContextPropagator> getContextPropagators();
 
   /**

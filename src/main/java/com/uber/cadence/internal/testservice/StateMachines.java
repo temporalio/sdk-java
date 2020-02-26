@@ -152,16 +152,22 @@ class StateMachines {
     int backoffStartIntervalInSeconds;
     String cronSchedule;
     byte[] lastCompletionResult;
+    String originalExecutionRunId;
+    Optional<String> continuedExecutionRunId;
 
     WorkflowData(
         Optional<RetryState> retryState,
         int backoffStartIntervalInSeconds,
         String cronSchedule,
-        byte[] lastCompletionResult) {
+        byte[] lastCompletionResult,
+        String originalExecutionRunId,
+        Optional<String> continuedExecutionRunId) {
       this.retryState = retryState;
       this.backoffStartIntervalInSeconds = backoffStartIntervalInSeconds;
       this.cronSchedule = cronSchedule;
       this.lastCompletionResult = lastCompletionResult;
+      this.originalExecutionRunId = originalExecutionRunId;
+      this.continuedExecutionRunId = continuedExecutionRunId;
     }
   }
 
@@ -538,6 +544,10 @@ class StateMachines {
     }
     if (data.retryState.isPresent()) {
       a.setAttempt(data.retryState.get().getAttempt());
+    }
+    a.setOriginalExecutionRunId(data.originalExecutionRunId);
+    if (data.continuedExecutionRunId.isPresent()) {
+      a.setContinuedExecutionRunId(data.continuedExecutionRunId.get());
     }
     a.setLastCompletionResult(data.lastCompletionResult);
     a.setMemo(request.getMemo());
