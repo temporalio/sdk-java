@@ -17,8 +17,8 @@
 
 package io.temporal.internal.replay;
 
+import com.google.protobuf.ByteString;
 import io.temporal.*;
-import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -144,9 +144,9 @@ final class WorkflowContext {
     if (this.searchAttributes == null) {
       this.searchAttributes = newSearchAttributes();
     }
-    Map<String, ByteBuffer> current = this.searchAttributes.getIndexedFields();
+    Map<String, ByteString> current = this.searchAttributes.getIndexedFieldsMap();
     searchAttributes
-        .getIndexedFields()
+        .getIndexedFieldsMap()
         .forEach(
             (k, v) -> {
               current.put(k, v);
@@ -154,8 +154,10 @@ final class WorkflowContext {
   }
 
   private SearchAttributes newSearchAttributes() {
-    SearchAttributes result = new SearchAttributes();
-    result.setIndexedFields(new HashMap<String, ByteBuffer>());
+    SearchAttributes result =
+        SearchAttributes.newBuilder()
+            .putAllIndexedFields(new HashMap<String, ByteString>())
+            .build();
     return result;
   }
 }

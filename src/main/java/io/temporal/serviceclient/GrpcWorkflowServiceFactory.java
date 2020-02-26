@@ -38,10 +38,10 @@ public class GrpcWorkflowServiceFactory implements AutoCloseable {
   /** Default RPC timeout for QueryWorkflow */
   private static final long DEFAULT_QUERY_RPC_TIMEOUT_MILLIS = 10000;
 
-  private final ServiceFactoryOptions options;
-  private final ManagedChannel channel;
-  private final WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub;
-  private final WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub;
+  protected ServiceFactoryOptions options;
+  protected ManagedChannel channel;
+  protected WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub;
+  protected WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub;
 
   /**
    * Creates Temporal client that connects to the local instance of the Temporal Service that
@@ -88,6 +88,8 @@ public class GrpcWorkflowServiceFactory implements AutoCloseable {
         ManagedChannelBuilder.forAddress(
                 Preconditions.checkNotNull(host, "host must not be null"), validatePort(port))
             .usePlaintext()
+            // TODO: add .defaultServiceConfig or .enableRetry here if custom retry policy is
+            // desired
             .build(),
         options);
   }

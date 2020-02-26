@@ -17,6 +17,7 @@
 
 package io.temporal.internal.replay;
 
+import com.google.protobuf.ByteString;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.EventType;
 import io.temporal.Header;
@@ -24,7 +25,6 @@ import io.temporal.HistoryEvent;
 import io.temporal.MarkerRecordedEventAttributes;
 import io.temporal.converter.DataConverter;
 import io.temporal.workflow.Functions.Func1;
-import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -70,17 +70,17 @@ class MarkerHandler {
     static MarkerInterface fromEventAttributes(
         MarkerRecordedEventAttributes attributes, DataConverter converter) {
       if (attributes.getHeader() != null
-          && attributes.getHeader().getFields() != null
-          && attributes.getHeader().getFields().containsKey(MUTABLE_MARKER_HEADER_KEY)) {
-        ByteBuffer byteBuffer = attributes.getHeader().getFields().get(MUTABLE_MARKER_HEADER_KEY);
-        byte[] bytes = org.apache.thrift.TBaseHelper.byteBufferToByteArray(byteBuffer);
+          && attributes.getHeader().getFieldsMap() != null
+          && attributes.getHeader().getFieldsMap().containsKey(MUTABLE_MARKER_HEADER_KEY)) {
+        byte[] bytes =
+            attributes.getHeader().getFieldsOrThrow(MUTABLE_MARKER_HEADER_KEY).toByteArray();
         MarkerData.MarkerHeader header =
             converter.fromData(bytes, MarkerData.MarkerHeader.class, MarkerData.MarkerHeader.class);
-        return new MarkerData(header, attributes.getDetails());
+        return new MarkerData(header, attributes.getDetails().toByteArray());
       }
 
       return converter.fromData(
-          attributes.getDetails(), PlainMarkerData.class, PlainMarkerData.class);
+          attributes.getDetails().toByteArray(), PlainMarkerData.class, PlainMarkerData.class);
     }
   }
 
@@ -133,8 +133,11 @@ class MarkerHandler {
 
     Header getHeader(DataConverter converter) {
       byte[] headerData = converter.toData(header);
-      Header header = new Header();
-      header.setFields(ImmutableMap.of(MUTABLE_MARKER_HEADER_KEY, ByteBuffer.wrap(headerData)));
+      Header header =
+          Header.newBuilder()
+              .putAllFields(
+                  ImmutableMap.of(MUTABLE_MARKER_HEADER_KEY, ByteString.copyFrom(headerData)))
+              .build();
       return header;
     }
   }
@@ -226,7 +229,7 @@ class MarkerHandler {
   private Optional<byte[]> getMarkerDataFromHistory(
       long eventId, String markerId, int expectedAcccessCount, DataConverter converter) {
     Optional<HistoryEvent> event = decisions.getOptionalDecisionEvent(eventId);
-    if (!event.isPresent() || event.get().getEventType() != EventType.MarkerRecorded) {
+    if (!event.isPresent() || event.get().getEventType() != EventType.EventTypeMarkerRecorded) {
       return Optional.empty();
     }
 

@@ -17,6 +17,7 @@
 
 package io.temporal.internal.replay;
 
+import com.google.protobuf.ByteString;
 import io.temporal.ActivityTaskCanceledEventAttributes;
 import io.temporal.ActivityTaskCompletedEventAttributes;
 import io.temporal.ActivityTaskFailedEventAttributes;
@@ -90,38 +91,33 @@ final class ActivityDecisionContext {
       ExecuteActivityParameters parameters, BiConsumer<byte[], Exception> callback) {
     final OpenRequestInfo<byte[], ActivityType> context =
         new OpenRequestInfo<>(parameters.getActivityType());
-    final ScheduleActivityTaskDecisionAttributes attributes =
-        new ScheduleActivityTaskDecisionAttributes();
-    attributes.setActivityType(parameters.getActivityType());
-    attributes.setInput(parameters.getInput());
+    final ScheduleActivityTaskDecisionAttributes.Builder attributes =
+        ScheduleActivityTaskDecisionAttributes.newBuilder();
     if (parameters.getHeartbeatTimeoutSeconds() > 0) {
       attributes.setHeartbeatTimeoutSeconds((int) parameters.getHeartbeatTimeoutSeconds());
     }
-    attributes.setScheduleToCloseTimeoutSeconds(
-        (int) parameters.getScheduleToCloseTimeoutSeconds());
-    attributes.setScheduleToStartTimeoutSeconds(
-        (int) parameters.getScheduleToStartTimeoutSeconds());
-    attributes.setStartToCloseTimeoutSeconds((int) parameters.getStartToCloseTimeoutSeconds());
-
     // attributes.setTaskPriority(InternalUtils.taskPriorityToString(parameters.getTaskPriority()));
     String activityId = parameters.getActivityId();
     if (activityId == null) {
       activityId = String.valueOf(decisions.getAndIncrementNextId());
     }
-    attributes.setActivityId(activityId);
-
     String taskList = parameters.getTaskList();
     if (taskList != null && !taskList.isEmpty()) {
-      TaskList tl = new TaskList();
-      tl.setName(taskList);
+      TaskList tl = TaskList.newBuilder().setName(taskList).build();
       attributes.setTaskList(tl);
     }
     RetryParameters retryParameters = parameters.getRetryParameters();
     if (retryParameters != null) {
       attributes.setRetryPolicy(retryParameters.toRetryPolicy());
     }
-
-    long scheduledEventId = decisions.scheduleActivityTask(attributes);
+    attributes
+        .setActivityType(parameters.getActivityType())
+        .setInput(ByteString.copyFrom(parameters.getInput()))
+        .setActivityId(activityId)
+        .setScheduleToCloseTimeoutSeconds((int) parameters.getScheduleToCloseTimeoutSeconds())
+        .setScheduleToStartTimeoutSeconds((int) parameters.getScheduleToStartTimeoutSeconds())
+        .setStartToCloseTimeoutSeconds((int) parameters.getStartToCloseTimeoutSeconds());
+    long scheduledEventId = decisions.scheduleActivityTask(attributes.build());
     context.setCompletionHandle(callback);
     scheduledActivities.put(scheduledEventId, context);
     return new ActivityDecisionContext.ActivityCancellationHandler(
@@ -151,7 +147,7 @@ final class ActivityDecisionContext {
       OpenRequestInfo<byte[], ActivityType> scheduled =
           scheduledActivities.remove(attributes.getScheduledEventId());
       if (scheduled != null) {
-        byte[] result = attributes.getResult();
+        byte[] result = attributes.getResult().toByteArray();
         BiConsumer<byte[], Exception> completionHandle = scheduled.getCompletionCallback();
         completionHandle.accept(result, null);
       } else {
@@ -170,7 +166,7 @@ final class ActivityDecisionContext {
           scheduledActivities.remove(attributes.getScheduledEventId());
       if (scheduled != null) {
         String reason = attributes.getReason();
-        byte[] details = attributes.getDetails();
+        byte[] details = attributes.getDetails().toByteArray();
         ActivityTaskFailedException failure =
             new ActivityTaskFailedException(
                 event.getEventId(), scheduled.getUserContext(), null, reason, details);
@@ -187,7 +183,7 @@ final class ActivityDecisionContext {
           scheduledActivities.remove(attributes.getScheduledEventId());
       if (scheduled != null) {
         TimeoutType timeoutType = attributes.getTimeoutType();
-        byte[] details = attributes.getDetails();
+        byte[] details = attributes.getDetails().toByteArray();
         ActivityTaskTimeoutException failure =
             new ActivityTaskTimeoutException(
                 event.getEventId(), scheduled.getUserContext(), null, timeoutType, details);

@@ -43,7 +43,7 @@ class WorkflowRunnable implements Runnable {
   @Override
   public void run() {
     try {
-      output = workflow.execute(attributes.getInput());
+      output = workflow.execute(attributes.getInput().toByteArray());
     } finally {
       done = true;
     }

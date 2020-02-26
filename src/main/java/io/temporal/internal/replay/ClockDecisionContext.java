@@ -135,9 +135,11 @@ public final class ClockDecisionContext {
     }
     long firingTime = currentTimeMillis() + TimeUnit.SECONDS.toMillis(delaySeconds);
     final OpenRequestInfo<?, Long> context = new OpenRequestInfo<>(firingTime);
-    final StartTimerDecisionAttributes timer = new StartTimerDecisionAttributes();
-    timer.setStartToFireTimeoutSeconds(delaySeconds);
-    timer.setTimerId(String.valueOf(decisions.getAndIncrementNextId()));
+    final StartTimerDecisionAttributes timer =
+        StartTimerDecisionAttributes.newBuilder()
+            .setStartToFireTimeoutSeconds(delaySeconds)
+            .setTimerId(String.valueOf(decisions.getAndIncrementNextId()))
+            .build();
     long startEventId = decisions.startTimer(timer);
     context.setCompletionHandle((ctx, e) -> callback.accept(e));
     scheduledTimers.put(startEventId, context);
@@ -226,7 +228,7 @@ public final class ClockDecisionContext {
     MarkerRecordedEventAttributes attributes = event.getMarkerRecordedEventAttributes();
     String name = attributes.getMarkerName();
     if (SIDE_EFFECT_MARKER_NAME.equals(name)) {
-      sideEffectResults.put(event.getEventId(), attributes.getDetails());
+      sideEffectResults.put(event.getEventId(), attributes.getDetails().toByteArray());
     } else if (LOCAL_ACTIVITY_MARKER_NAME.equals(name)) {
       handleLocalActivityMarker(attributes);
     } else if (!MUTABLE_SIDE_EFFECT_MARKER_NAME.equals(name) && !VERSION_MARKER_NAME.equals(name)) {
@@ -244,7 +246,9 @@ public final class ClockDecisionContext {
       log.debug("Handle LocalActivityMarker for activity " + marker.getActivityId());
 
       decisions.recordMarker(
-          LOCAL_ACTIVITY_MARKER_NAME, marker.getHeader(dataConverter), attributes.getDetails());
+          LOCAL_ACTIVITY_MARKER_NAME,
+          marker.getHeader(dataConverter),
+          attributes.getDetails().toByteArray());
 
       OpenRequestInfo<byte[], ActivityType> scheduled =
           pendingLaTasks.remove(marker.getActivityId());
@@ -256,8 +260,8 @@ public final class ClockDecisionContext {
       } else if (marker.getErrJson() != null) {
         Throwable cause =
             dataConverter.fromData(marker.getErrJson(), Throwable.class, Throwable.class);
-        ActivityType activityType = new ActivityType();
-        activityType.setName(marker.getActivityType());
+        ActivityType activityType =
+            ActivityType.newBuilder().setName(marker.getActivityType()).build();
         failure =
             new ActivityFailureException(
                 attributes.getDecisionTaskCompletedEventId(),

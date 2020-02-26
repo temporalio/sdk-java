@@ -167,7 +167,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         throw e;
       } else {
         throw new StatusRuntimeException(
-            Status.INTERNAL.withDescription(e.getStackTrace().toString()));
+            Status.INTERNAL.withDescription(Throwables.getStackTraceAsString(e)));
       }
     } finally {
       lockHandle.unlock();
@@ -301,59 +301,59 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   private void processDecision(
       RequestContext ctx, Decision d, String identity, long decisionTaskCompletedId) {
-    switch (d.getAttributesCase()) {
-      case COMPLETEWORKFLOWEXECUTIONDECISIONATTRIBUTES:
+    switch (d.getDecisionType()) {
+      case DecisionTypeCompleteWorkflowExecution:
         processCompleteWorkflowExecution(
             ctx,
             d.getCompleteWorkflowExecutionDecisionAttributes(),
             decisionTaskCompletedId,
             identity);
         break;
-      case FAILWORKFLOWEXECUTIONDECISIONATTRIBUTES:
+      case DecisionTypeFailWorkflowExecution:
         processFailWorkflowExecution(
             ctx, d.getFailWorkflowExecutionDecisionAttributes(), decisionTaskCompletedId, identity);
         break;
-      case CANCELWORKFLOWEXECUTIONDECISIONATTRIBUTES:
+      case DecisionTypeCancelWorkflowExecution:
         processCancelWorkflowExecution(
             ctx, d.getCancelWorkflowExecutionDecisionAttributes(), decisionTaskCompletedId);
         break;
-      case CONTINUEASNEWWORKFLOWEXECUTIONDECISIONATTRIBUTES:
+      case DecisionTypeContinueAsNewWorkflowExecution:
         processContinueAsNewWorkflowExecution(
             ctx,
             d.getContinueAsNewWorkflowExecutionDecisionAttributes(),
             decisionTaskCompletedId,
             identity);
         break;
-      case SCHEDULEACTIVITYTASKDECISIONATTRIBUTES:
+      case DecisionTypeScheduleActivityTask:
         processScheduleActivityTask(
             ctx, d.getScheduleActivityTaskDecisionAttributes(), decisionTaskCompletedId);
         break;
-      case REQUESTCANCELACTIVITYTASKDECISIONATTRIBUTES:
+      case DecisionTypeRequestCancelActivityTask:
         processRequestCancelActivityTask(
             ctx, d.getRequestCancelActivityTaskDecisionAttributes(), decisionTaskCompletedId);
         break;
-      case STARTTIMERDECISIONATTRIBUTES:
+      case DecisionTypeStartTimer:
         processStartTimer(ctx, d.getStartTimerDecisionAttributes(), decisionTaskCompletedId);
         break;
-      case CANCELTIMERDECISIONATTRIBUTES:
+      case DecisionTypeCancelTimer:
         processCancelTimer(ctx, d.getCancelTimerDecisionAttributes(), decisionTaskCompletedId);
         break;
-      case STARTCHILDWORKFLOWEXECUTIONDECISIONATTRIBUTES:
+      case DecisionTypeStartChildWorkflowExecution:
         processStartChildWorkflow(
             ctx, d.getStartChildWorkflowExecutionDecisionAttributes(), decisionTaskCompletedId);
         break;
-      case SIGNALEXTERNALWORKFLOWEXECUTIONDECISIONATTRIBUTES:
+      case DecisionTypeSignalExternalWorkflowExecution:
         processSignalExternalWorkflowExecution(
             ctx, d.getSignalExternalWorkflowExecutionDecisionAttributes(), decisionTaskCompletedId);
         break;
-      case RECORDMARKERDECISIONATTRIBUTES:
+      case DecisionTypeRecordMarker:
         processRecordMarker(ctx, d.getRecordMarkerDecisionAttributes(), decisionTaskCompletedId);
         break;
-      case REQUESTCANCELEXTERNALWORKFLOWEXECUTIONDECISIONATTRIBUTES:
+      case DecisionTypeRequestCancelExternalWorkflowExecution:
         processRequestCancelExternalWorkflowExecution(
             ctx, d.getRequestCancelExternalWorkflowExecutionDecisionAttributes());
         break;
-      case UPSERTWORKFLOWSEARCHATTRIBUTESDECISIONATTRIBUTES:
+      case DecisionTypeUpsertWorkflowSearchAttributes:
         // TODO: https://github.io.temporal-java-client/issues/360
         break;
     }
@@ -372,7 +372,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                       .setDomain(ctx.getDomain())
                       .build();
               try {
-                service.RequestCancelWorkflowExecution(request);
+                service.getMockService().requestCancelWorkflowExecution(request, null);
               } catch (StatusRuntimeException e) {
                 log.error("Failure to request cancel external workflow", e);
               }
@@ -589,7 +589,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         .execute(
             () -> {
               try {
-                service.signalExternalWorkflowExecution(signalId, a, this);
+                service.getMockService().signalExternalWorkflowExecution(signalId, a, this);
               } catch (Exception e) {
                 log.error("Failure signalling an external workflow execution", e);
               }
@@ -822,14 +822,16 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
         Optional<RetryState> continuedRetryState = Optional.of(rs.getNextAttempt());
         String runId =
-            service.continueAsNew(
-                startRequest,
-                continuedAsNewEventAttributes,
-                continuedRetryState,
-                identity,
-                getExecutionId(),
-                parent,
-                parentChildInitiatedEventId);
+            service
+                .getMockService()
+                .continueAsNew(
+                    startRequest,
+                    continuedAsNewEventAttributes,
+                    continuedRetryState,
+                    identity,
+                    getExecutionId(),
+                    parent,
+                    parentChildInitiatedEventId);
         continuedAsNewEventAttributes.toBuilder().setNewExecutionRunId(runId).build();
         return;
       }
@@ -953,14 +955,16 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         event.getWorkflowExecutionContinuedAsNewEventAttributes();
 
     String runId =
-        service.continueAsNew(
-            startRequest,
-            continuedAsNewEventAttributes,
-            Optional.empty(),
-            identity,
-            getExecutionId(),
-            parent,
-            parentChildInitiatedEventId);
+        service
+            .getMockService()
+            .continueAsNew(
+                startRequest,
+                continuedAsNewEventAttributes,
+                Optional.empty(),
+                identity,
+                getExecutionId(),
+                parent,
+                parentChildInitiatedEventId);
     continuedAsNewEventAttributes.toBuilder().setNewExecutionRunId(runId).build();
   }
 
@@ -1007,14 +1011,16 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     workflow.action(Action.CONTINUE_AS_NEW, ctx, d, decisionTaskCompletedId);
     HistoryEvent event = ctx.getEvents().get(ctx.getEvents().size() - 1);
     String runId =
-        service.continueAsNew(
-            startRequest,
-            event.getWorkflowExecutionContinuedAsNewEventAttributes(),
-            workflow.getData().retryState,
-            identity,
-            getExecutionId(),
-            parent,
-            parentChildInitiatedEventId);
+        service
+            .getMockService()
+            .continueAsNew(
+                startRequest,
+                event.getWorkflowExecutionContinuedAsNewEventAttributes(),
+                workflow.getData().retryState,
+                identity,
+                getExecutionId(),
+                parent,
+                parentChildInitiatedEventId);
     event
         .getWorkflowExecutionContinuedAsNewEventAttributes()
         .toBuilder()
@@ -1064,7 +1070,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode().equals(Status.Code.NOT_FOUND)) {
         throw new StatusRuntimeException(
-            Status.INTERNAL.withDescription(e.getStackTrace().toString()));
+            Status.INTERNAL.withDescription(Throwables.getStackTraceAsString(e)));
       }
     }
     if (!continuedAsNew && parent.isPresent()) {
@@ -1313,7 +1319,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         throw e;
       } else {
         throw new StatusRuntimeException(
-            Status.INTERNAL.withDescription(e.getStackTrace().toString()));
+            Status.INTERNAL.withDescription(Throwables.getStackTraceAsString(e)));
       }
     }
     return result.build();
@@ -1523,12 +1529,12 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           new TaskListId(startRequest.getDomain(), startRequest.getTaskList().getName());
       store.sendQueryTask(executionId, taskListId, task);
     } else {
-      StatusRuntimeException error =
+      StatusRuntimeException e =
           new StatusRuntimeException(
               Status.INVALID_ARGUMENT.withDescription(completeRequest.getErrorMessage()));
       GrpcStatusUtils.setFailure(
-          error, GrpcFailure.QUERY_FAILED, QueryFailedFailure.getDefaultInstance());
-      result.completeExceptionally(error);
+          e, GrpcFailure.QUERY_FAILED, QueryFailedFailure.getDefaultInstance());
+      result.completeExceptionally(e);
     }
   }
 

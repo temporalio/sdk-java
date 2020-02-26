@@ -494,12 +494,14 @@ class StateMachines {
         .execute(
             () -> {
               try {
-                data.service.startWorkflowExecutionImpl(
-                    startChild,
-                    0,
-                    Optional.of(ctx.getWorkflowMutableState()),
-                    OptionalLong.of(data.initiatedEventId),
-                    Optional.empty());
+                data.service
+                    .getMockService()
+                    .startWorkflowExecutionImpl(
+                        startChild,
+                        0,
+                        Optional.of(ctx.getWorkflowMutableState()),
+                        OptionalLong.of(data.initiatedEventId),
+                        Optional.empty());
               } catch (StatusRuntimeException sre) {
                 // TODO: (vkoby) need to check failure as well? This was Thrift's
                 // workflowExecutionAlreadyStartedError

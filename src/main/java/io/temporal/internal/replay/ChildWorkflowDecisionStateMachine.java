@@ -137,19 +137,20 @@ final class ChildWorkflowDecisionStateMachine extends DecisionStateMachineBase {
 
   private Decision createRequestCancelExternalWorkflowExecutionDecision() {
     RequestCancelExternalWorkflowExecutionDecisionAttributes tryCancel =
-        new RequestCancelExternalWorkflowExecutionDecisionAttributes();
-    tryCancel.setWorkflowId(startAttributes.getWorkflowId());
-    tryCancel.setRunId(runId);
-    Decision decision = new Decision();
-    decision.setRequestCancelExternalWorkflowExecutionDecisionAttributes(tryCancel);
-    decision.setDecisionType(DecisionType.RequestCancelExternalWorkflowExecution);
-    return decision;
+        RequestCancelExternalWorkflowExecutionDecisionAttributes.newBuilder()
+            .setWorkflowId(startAttributes.getWorkflowId())
+            .setRunId(runId)
+            .build();
+    return Decision.newBuilder()
+        .setRequestCancelExternalWorkflowExecutionDecisionAttributes(tryCancel)
+        .setDecisionType(DecisionType.DecisionTypeRequestCancelExternalWorkflowExecution)
+        .build();
   }
 
   private Decision createStartChildWorkflowExecutionDecision() {
-    Decision decision = new Decision();
-    decision.setStartChildWorkflowExecutionDecisionAttributes(startAttributes);
-    decision.setDecisionType(DecisionType.StartChildWorkflowExecution);
-    return decision;
+    return Decision.newBuilder()
+        .setStartChildWorkflowExecutionDecisionAttributes(startAttributes)
+        .setDecisionType(DecisionType.DecisionTypeStartChildWorkflowExecution)
+        .build();
   }
 }

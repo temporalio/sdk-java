@@ -388,55 +388,55 @@ public final class RetryOptions {
     return aSeconds == 0 ? null : Duration.ofSeconds(aSeconds);
   }
 
-  private static Class<? extends Throwable>[] merge(
-      Class<? extends Throwable>[] a, List<Class<? extends Throwable>> o) {
-    if (o != null) {
-      @SuppressWarnings("unchecked")
-      Class<? extends Throwable>[] result = new Class[o.size()];
-      return o.toArray(result);
-    }
-    return a.length == 0 ? null : a;
-  }
-
-  private Class<? extends Throwable>[] merge(
-      List<Class<? extends Throwable>> o1, List<Class<? extends Throwable>> o2) {
-    if (o2 != null) {
-      @SuppressWarnings("unchecked")
-      Class<? extends Throwable>[] result = new Class[o2.size()];
-      return o2.toArray(result);
-    }
-    if (o1.size() > 0) {
-      @SuppressWarnings("unchecked")
-      Class<? extends Throwable>[] result = new Class[o1.size()];
-      return o1.toArray(result);
-    }
-    return null;
-  }
-
-  //  // TODO: (vkoby) Create a new grpc retry policy for rpc in internal/worker, keep the old one
-  // for activity/client/internal/workflow.
-  //  private static Status.Code[] merge(Status.Code[] a, List<Status.Code> o) {
+  //  private static Class<? extends Throwable>[] merge(
+  //      Class<? extends Throwable>[] a, List<Class<? extends Throwable>> o) {
   //    if (o != null) {
   //      @SuppressWarnings("unchecked")
-  //      Status.Code[] result = new Status.Code[o.size()];
+  //      Class<? extends Throwable>[] result = new Class[o.size()];
   //      return o.toArray(result);
   //    }
   //    return a.length == 0 ? null : a;
   //  }
-  //  // TODO: (vkoby) Rewritten for Status Codes, but not sure what it was doing originally.
-  // private Status.Code[] merge(List<Status.Code> o1, List<Status.Code> o2) {
-  //  if (o2 != null) {
-  //    @SuppressWarnings("unchecked")
-  //    Status.Code[] result = new Status.Code[o2.size()];
-  //    return o2.toArray(result);
+  //
+  //  private Class<? extends Throwable>[] merge(
+  //      List<Class<? extends Throwable>> o1, List<Class<? extends Throwable>> o2) {
+  //    if (o2 != null) {
+  //      @SuppressWarnings("unchecked")
+  //      Class<? extends Throwable>[] result = new Class[o2.size()];
+  //      return o2.toArray(result);
+  //    }
+  //    if (o1.size() > 0) {
+  //      @SuppressWarnings("unchecked")
+  //      Class<? extends Throwable>[] result = new Class[o1.size()];
+  //      return o1.toArray(result);
+  //    }
+  //    return null;
   //  }
-  //  if (o1.size() > 0) {
-  //    @SuppressWarnings("unchecked")
-  //    Status.Code[] result = new Status.Code[o1.size()];
-  //    return o1.toArray(result);
-  //  }
-  //  return null;
-  // }
+
+  // TODO: (vkoby) Create a new grpc retry policy for rpc in internal/worker, keep the old one
+  // TODO: for activity/client/internal/workflow.
+  private static Status.Code[] merge(Status.Code[] a, List<Status.Code> o) {
+    if (o != null) {
+      @SuppressWarnings("unchecked")
+      Status.Code[] result = new Status.Code[o.size()];
+      return o.toArray(result);
+    }
+    return a.length == 0 ? null : a;
+  }
+  // TODO: (vkoby) Rewritten for Status Codes, but not sure what it was doing originally.
+  private Status.Code[] merge(List<Status.Code> o1, List<Status.Code> o2) {
+    if (o2 != null) {
+      @SuppressWarnings("unchecked")
+      Status.Code[] result = new Status.Code[o2.size()];
+      return o2.toArray(result);
+    }
+    if (o1.size() > 0) {
+      @SuppressWarnings("unchecked")
+      Status.Code[] result = new Status.Code[o1.size()];
+      return o1.toArray(result);
+    }
+    return null;
+  }
 
   public long calculateSleepTime(long attempt) {
     double coefficient =

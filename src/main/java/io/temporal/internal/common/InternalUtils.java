@@ -18,6 +18,7 @@
 package io.temporal.internal.common;
 
 import com.google.common.base.Defaults;
+import com.google.protobuf.ByteString;
 import io.temporal.SearchAttributes;
 import io.temporal.TaskList;
 import io.temporal.TaskListKind;
@@ -26,7 +27,6 @@ import io.temporal.converter.JsonDataConverter;
 import io.temporal.internal.worker.Shutdownable;
 import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.Method;
-import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -77,16 +77,20 @@ public final class InternalUtils {
   }
 
   public static TaskList createStickyTaskList(String taskListName) {
-    TaskList tl = new TaskList();
-    tl.setName(taskListName);
-    tl.setKind(TaskListKind.STICKY);
+    TaskList tl =
+        TaskList.newBuilder()
+            .setName(taskListName)
+            .setKind(TaskListKind.TaskListKindSticky)
+            .build();
     return tl;
   }
 
   public static TaskList createNormalTaskList(String taskListName) {
-    TaskList tl = new TaskList();
-    tl.setName(taskListName);
-    tl.setKind(TaskListKind.NORMAL);
+    TaskList tl =
+        TaskList.newBuilder()
+            .setName(taskListName)
+            .setKind(TaskListKind.TaskListKindNormal)
+            .build();
     return tl;
   }
 
@@ -135,12 +139,12 @@ public final class InternalUtils {
   public static SearchAttributes convertMapToSearchAttributes(
       Map<String, Object> searchAttributes) {
     DataConverter converter = JsonDataConverter.getInstance();
-    Map<String, ByteBuffer> mapOfByteBuffer = new HashMap<>();
+    Map<String, ByteString> mapOfByteBuffer = new HashMap<>();
     searchAttributes.forEach(
         (key, value) -> {
-          mapOfByteBuffer.put(key, ByteBuffer.wrap(converter.toData(value)));
+          mapOfByteBuffer.put(key, ByteString.copyFrom(converter.toData(value)));
         });
-    return new SearchAttributes().setIndexedFields(mapOfByteBuffer);
+    return SearchAttributes.newBuilder().putAllIndexedFields(mapOfByteBuffer).build();
   }
 
   /** Prohibit instantiation */

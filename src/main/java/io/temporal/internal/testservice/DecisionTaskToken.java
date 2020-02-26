@@ -20,7 +20,6 @@ package io.temporal.internal.testservice;
 import com.google.common.base.Throwables;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -54,7 +53,7 @@ final class DecisionTaskToken {
       addBytes(out);
     } catch (IOException e) {
       throw new StatusRuntimeException(
-              Status.INTERNAL.withDescription(Throwables.getStackTraceAsString(e)));
+          Status.INTERNAL.withDescription(Throwables.getStackTraceAsString(e)));
     }
     return bout.toByteArray();
   }
@@ -73,7 +72,7 @@ final class DecisionTaskToken {
       return new DecisionTaskToken(executionId, historySize);
     } catch (IOException e) {
       throw new StatusRuntimeException(
-              Status.INTERNAL.withDescription(Throwables.getStackTraceAsString(e)));
+          Status.INTERNAL.withDescription(Throwables.getStackTraceAsString(e)));
     }
   }
 }

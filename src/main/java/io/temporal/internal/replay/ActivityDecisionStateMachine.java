@@ -82,18 +82,23 @@ final class ActivityDecisionStateMachine extends DecisionStateMachineBase {
 
   private Decision createRequestCancelActivityTaskDecision() {
     RequestCancelActivityTaskDecisionAttributes tryCancel =
-        new RequestCancelActivityTaskDecisionAttributes();
-    tryCancel.setActivityId(scheduleAttributes.getActivityId());
-    Decision decision = new Decision();
-    decision.setRequestCancelActivityTaskDecisionAttributes(tryCancel);
-    decision.setDecisionType(DecisionType.RequestCancelActivityTask);
+        RequestCancelActivityTaskDecisionAttributes.newBuilder()
+            .setActivityId(scheduleAttributes.getActivityId())
+            .build();
+    Decision decision =
+        Decision.newBuilder()
+            .setRequestCancelActivityTaskDecisionAttributes(tryCancel)
+            .setDecisionType(DecisionType.DecisionTypeRequestCancelActivityTask)
+            .build();
     return decision;
   }
 
   private Decision createScheduleActivityTaskDecision() {
-    Decision decision = new Decision();
-    decision.setScheduleActivityTaskDecisionAttributes(scheduleAttributes);
-    decision.setDecisionType(DecisionType.ScheduleActivityTask);
+    Decision decision =
+        Decision.newBuilder()
+            .setScheduleActivityTaskDecisionAttributes(scheduleAttributes)
+            .setDecisionType(DecisionType.DecisionTypeScheduleActivityTask)
+            .build();
     return decision;
   }
 }

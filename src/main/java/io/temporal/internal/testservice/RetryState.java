@@ -17,7 +17,8 @@
 
 package io.temporal.internal.testservice;
 
-import io.temporal.BadRequestError;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.RetryPolicy;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -28,7 +29,7 @@ final class RetryState {
   private final long expirationTime;
   private final int attempt;
 
-  RetryState(RetryPolicy retryPolicy, long expirationTime) throws BadRequestError {
+  RetryState(RetryPolicy retryPolicy, long expirationTime) {
     this(validateRetryPolicy(retryPolicy), expirationTime, 0);
   }
 
@@ -93,7 +94,7 @@ final class RetryState {
     }
 
     // check if error is non-retriable
-    List<String> nonRetriableErrorReasons = retryPolicy.getNonRetriableErrorReasons();
+    List<String> nonRetriableErrorReasons = retryPolicy.getNonRetriableErrorReasonsList();
     if (nonRetriableErrorReasons != null) {
       for (String err : nonRetriableErrorReasons) {
         if (errReason.equals(err)) {
@@ -104,27 +105,37 @@ final class RetryState {
     return (int) TimeUnit.MILLISECONDS.toSeconds((long) Math.ceil((double) backoffInterval));
   }
 
-  static RetryPolicy validateRetryPolicy(RetryPolicy policy) throws BadRequestError {
+  static RetryPolicy validateRetryPolicy(RetryPolicy policy) {
     if (policy.getInitialIntervalInSeconds() <= 0) {
-      throw new BadRequestError("InitialIntervalInSeconds must be greater than 0 on retry policy.");
+      throw new StatusRuntimeException(
+          Status.INVALID_ARGUMENT.withDescription(
+              "InitialIntervalInSeconds must be greater than 0 on retry policy."));
     }
     if (policy.getBackoffCoefficient() < 1) {
-      throw new BadRequestError("BackoffCoefficient cannot be less than 1 on retry policy.");
+      throw new StatusRuntimeException(
+          Status.INVALID_ARGUMENT.withDescription(
+              "BackoffCoefficient cannot be less than 1 on retry policy."));
     }
     if (policy.getMaximumIntervalInSeconds() < 0) {
-      throw new BadRequestError("MaximumIntervalInSeconds cannot be less than 0 on retry policy.");
+      throw new StatusRuntimeException(
+          Status.INVALID_ARGUMENT.withDescription(
+              "MaximumIntervalInSeconds cannot be less than 0 on retry policy."));
     }
     if (policy.getMaximumIntervalInSeconds() > 0
         && policy.getMaximumIntervalInSeconds() < policy.getInitialIntervalInSeconds()) {
-      throw new BadRequestError(
-          "MaximumIntervalInSeconds cannot be less than InitialIntervalInSeconds on retry policy.");
+      throw new StatusRuntimeException(
+          Status.INVALID_ARGUMENT.withDescription(
+              "MaximumIntervalInSeconds cannot be less than InitialIntervalInSeconds on retry policy."));
     }
     if (policy.getMaximumAttempts() < 0) {
-      throw new BadRequestError("MaximumAttempts cannot be less than 0 on retry policy.");
+      throw new StatusRuntimeException(
+          Status.INVALID_ARGUMENT.withDescription(
+              "MaximumAttempts cannot be less than 0 on retry policy."));
     }
     if (policy.getMaximumAttempts() == 0 && policy.getExpirationIntervalInSeconds() == 0) {
-      throw new BadRequestError(
-          "MaximumAttempts and ExpirationIntervalInSeconds are both 0. At least one of them must be specified.");
+      throw new StatusRuntimeException(
+          Status.INVALID_ARGUMENT.withDescription(
+              "MaximumAttempts and ExpirationIntervalInSeconds are both 0. At least one of them must be specified."));
     }
     return policy;
   }

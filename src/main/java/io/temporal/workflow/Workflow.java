@@ -463,7 +463,7 @@ public final class Workflow {
    */
   public static <R> R newExternalWorkflowStub(
       Class<? extends R> workflowInterface, String workflowId) {
-    WorkflowExecution execution = new WorkflowExecution().setWorkflowId(workflowId);
+    WorkflowExecution execution = WorkflowExecution.newBuilder().setWorkflowId(workflowId).build();
     return WorkflowInternal.newExternalWorkflowStub(workflowInterface, execution);
   }
 
@@ -523,7 +523,7 @@ public final class Workflow {
    * @param workflowId id of the workflow to communicate with.
    */
   public static ExternalWorkflowStub newUntypedExternalWorkflowStub(String workflowId) {
-    WorkflowExecution execution = new WorkflowExecution().setWorkflowId(workflowId);
+    WorkflowExecution execution = WorkflowExecution.newBuilder().setWorkflowId(workflowId).build();
     return Workflow.newUntypedExternalWorkflowStub(execution);
   }
 

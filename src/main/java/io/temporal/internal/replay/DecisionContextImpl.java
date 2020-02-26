@@ -353,7 +353,8 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
 
   public void handleDecisionTaskFailed(HistoryEvent event) {
     DecisionTaskFailedEventAttributes attr = event.getDecisionTaskFailedEventAttributes();
-    if (attr != null && attr.getCause() == DecisionTaskFailedCause.RESET_WORKFLOW) {
+    if (attr != null
+        && attr.getCause() == DecisionTaskFailedCause.DecisionTaskFailedCauseResetWorkflow) {
       workflowContext.setCurrentRunId(attr.getNewRunId());
     }
   }

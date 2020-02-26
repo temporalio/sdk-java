@@ -33,7 +33,7 @@ final class ActivityTaskImpl implements ActivityTask {
 
   @Override
   public byte[] getTaskToken() {
-    return response.getTaskToken();
+    return response.getTaskToken().toByteArray();
   }
 
   @Override
@@ -74,7 +74,7 @@ final class ActivityTaskImpl implements ActivityTask {
 
   @Override
   public byte[] getHeartbeatDetails() {
-    return response.getHeartbeatDetails();
+    return response.getHeartbeatDetails().toByteArray();
   }
 
   @Override
@@ -93,6 +93,6 @@ final class ActivityTaskImpl implements ActivityTask {
   }
 
   public byte[] getInput() {
-    return response.getInput();
+    return response.getInput().toByteArray();
   }
 }

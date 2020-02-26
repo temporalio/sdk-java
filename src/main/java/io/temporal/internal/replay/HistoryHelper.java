@@ -61,7 +61,7 @@ class HistoryHelper {
       this.events = events;
       this.decisionEvents = decisionEvents;
       for (HistoryEvent event : decisionEvents) {
-        if (event.getEventType() == EventType.MarkerRecorded) {
+        if (event.getEventType() == EventType.EventTypeMarkerRecorded) {
           markers.add(event);
         }
       }
@@ -194,12 +194,12 @@ class HistoryHelper {
         EventType eventType = event.getEventType();
 
         // Sticky workers receive an event history that starts with DecisionTaskCompleted
-        if (eventType == EventType.DecisionTaskCompleted && nextDecisionEventId == -1) {
+        if (eventType == EventType.EventTypeDecisionTaskCompleted && nextDecisionEventId == -1) {
           nextDecisionEventId = event.getEventId() + 1;
           break;
         }
 
-        if (eventType == EventType.DecisionTaskStarted || !events.hasNext()) {
+        if (eventType == EventType.EventTypeDecisionTaskStarted || !events.hasNext()) {
           replayCurrentTimeMilliseconds = TimeUnit.NANOSECONDS.toMillis(event.getTimestamp());
           if (!events.hasNext()) {
             replay = false;
@@ -208,10 +208,10 @@ class HistoryHelper {
           }
           HistoryEvent peeked = events.peek();
           EventType peekedType = peeked.getEventType();
-          if (peekedType == EventType.DecisionTaskTimedOut
-              || peekedType == EventType.DecisionTaskFailed) {
+          if (peekedType == EventType.EventTypeDecisionTaskTimedOut
+              || peekedType == EventType.EventTypeDecisionTaskFailed) {
             continue;
-          } else if (peekedType == EventType.DecisionTaskCompleted) {
+          } else if (peekedType == EventType.EventTypeDecisionTaskCompleted) {
             events.next(); // consume DecisionTaskCompleted
             nextDecisionEventId = peeked.getEventId() + 1; // +1 for next and skip over completed
             break;
@@ -261,7 +261,7 @@ class HistoryHelper {
   @Override
   public String toString() {
     return WorkflowExecutionUtils.prettyPrintHistory(
-        decisionTaskWithHistoryIterator.getDecisionTask().getHistory().getEvents().iterator(),
+        decisionTaskWithHistoryIterator.getDecisionTask().getHistory().getEventsList().iterator(),
         true);
   }
 

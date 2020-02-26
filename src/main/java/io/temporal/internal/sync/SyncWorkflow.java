@@ -78,7 +78,7 @@ class SyncWorkflow implements ReplayWorkflow {
     if (workflow == null) {
       throw new IllegalArgumentException("Unknown workflow type: " + workflowType);
     }
-    if (event.getEventType() != EventType.WorkflowExecutionStarted) {
+    if (event.getEventType() != EventType.EventTypeWorkflowExecutionStarted) {
       throw new IllegalArgumentException(
           "first event is not WorkflowExecutionStarted, but " + event.getEventType());
     }
@@ -88,7 +88,10 @@ class SyncWorkflow implements ReplayWorkflow {
             context,
             dataConverter,
             interceptorFactory,
-            event.getWorkflowExecutionStartedEventAttributes().getLastCompletionResult());
+            event
+                .getWorkflowExecutionStartedEventAttributes()
+                .getLastCompletionResult()
+                .toByteArray());
 
     workflowProc =
         new WorkflowRunnable(
@@ -146,7 +149,7 @@ class SyncWorkflow implements ReplayWorkflow {
     if (WorkflowClient.QUERY_TYPE_STACK_TRACE.equals(query.getQueryType())) {
       return dataConverter.toData(runner.stackTrace());
     }
-    return workflowProc.query(query.getQueryType(), query.getQueryArgs());
+    return workflowProc.query(query.getQueryType(), query.getQueryArgs().toByteArray());
   }
 
   @Override

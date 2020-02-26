@@ -60,7 +60,7 @@ public final class WorkflowExecutionHistory {
       throw new IllegalArgumentException("Empty history");
     }
     HistoryEvent startedEvent = events.get(0);
-    if (startedEvent.getEventType() != EventType.WorkflowExecutionStarted) {
+    if (startedEvent.getEventType() != EventType.EventTypeWorkflowExecutionStarted) {
       throw new IllegalArgumentException(
           "First event is not WorkflowExecutionStarted but " + startedEvent);
     }
@@ -76,9 +76,10 @@ public final class WorkflowExecutionHistory {
   }
 
   public WorkflowExecution getWorkflowExecution() {
-    return new WorkflowExecution()
+    return WorkflowExecution.newBuilder()
         .setWorkflowId("workflow_id_in_replay")
-        .setRunId("run_id_in_replay");
+        .setRunId("run_id_in_replay")
+        .build();
   }
 
   public List<HistoryEvent> getEvents() {

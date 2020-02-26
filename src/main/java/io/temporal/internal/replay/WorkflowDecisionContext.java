@@ -18,6 +18,7 @@
 package io.temporal.internal.replay;
 
 import com.google.common.base.Strings;
+import com.google.protobuf.ByteString;
 import io.temporal.ChildWorkflowExecutionCanceledEventAttributes;
 import io.temporal.ChildWorkflowExecutionCompletedEventAttributes;
 import io.temporal.ChildWorkflowExecutionFailedCause;
@@ -70,9 +71,10 @@ final class WorkflowDecisionContext {
         return;
       }
       RequestCancelExternalWorkflowExecutionDecisionAttributes cancelAttributes =
-          new RequestCancelExternalWorkflowExecutionDecisionAttributes();
-      cancelAttributes.setWorkflowId(workflowId);
-      cancelAttributes.setChildWorkflowOnly(true);
+          RequestCancelExternalWorkflowExecutionDecisionAttributes.newBuilder()
+              .setWorkflowId(workflowId)
+              .setChildWorkflowOnly(true)
+              .build();
       decisions.requestCancelExternalWorkflowExecution(cancelAttributes);
     }
   }
@@ -97,21 +99,18 @@ final class WorkflowDecisionContext {
       StartChildWorkflowExecutionParameters parameters,
       Consumer<WorkflowExecution> executionCallback,
       BiConsumer<byte[], Exception> callback) {
-    final StartChildWorkflowExecutionDecisionAttributes attributes =
-        new StartChildWorkflowExecutionDecisionAttributes();
-    attributes.setWorkflowType(parameters.getWorkflowType());
+    final StartChildWorkflowExecutionDecisionAttributes.Builder attributes =
+        StartChildWorkflowExecutionDecisionAttributes.newBuilder();
     String workflowId = parameters.getWorkflowId();
     if (workflowId == null) {
       workflowId = randomUUID().toString();
     }
-    attributes.setWorkflowId(workflowId);
     if (parameters.getDomain() == null) {
       // Could be removed as soon as server allows null for domain.
       attributes.setDomain(workflowContext.getDomain());
     } else {
       attributes.setDomain(parameters.getDomain());
     }
-    attributes.setInput(parameters.getInput());
     if (parameters.getExecutionStartToCloseTimeoutSeconds() == 0) {
       // TODO: Substract time passed since the parent start
       attributes.setExecutionStartToCloseTimeoutSeconds(
@@ -127,14 +126,18 @@ final class WorkflowDecisionContext {
           (int) parameters.getTaskStartToCloseTimeoutSeconds());
     }
     String taskList = parameters.getTaskList();
-    TaskList tl = new TaskList();
+    TaskList.Builder tl = TaskList.newBuilder();
     if (taskList != null && !taskList.isEmpty()) {
       tl.setName(taskList);
     } else {
       tl.setName(workflowContext.getTaskList());
     }
-    attributes.setTaskList(tl);
-    attributes.setWorkflowIdReusePolicy(parameters.getWorkflowIdReusePolicy());
+    attributes
+        .setWorkflowType(parameters.getWorkflowType())
+        .setInput(ByteString.copyFrom(parameters.getInput()))
+        .setWorkflowId(workflowId)
+        .setTaskList(tl.build())
+        .setWorkflowIdReusePolicy(parameters.getWorkflowIdReusePolicy());
     RetryParameters retryParameters = parameters.getRetryParameters();
     if (retryParameters != null) {
       attributes.setRetryPolicy(retryParameters.toRetryPolicy());
@@ -149,7 +152,7 @@ final class WorkflowDecisionContext {
       attributes.setParentClosePolicy(parentClosePolicy);
     }
 
-    long initiatedEventId = decisions.startChildWorkflowExecution(attributes);
+    long initiatedEventId = decisions.startChildWorkflowExecution(attributes.build());
     final OpenChildWorkflowRequestInfo context =
         new OpenChildWorkflowRequestInfo(executionCallback);
     context.setCompletionHandle(callback);
@@ -164,22 +167,25 @@ final class WorkflowDecisionContext {
   Consumer<Exception> signalWorkflowExecution(
       final SignalExternalWorkflowParameters parameters, BiConsumer<Void, Exception> callback) {
     final OpenRequestInfo<Void, Void> context = new OpenRequestInfo<>();
-    final SignalExternalWorkflowExecutionDecisionAttributes attributes =
-        new SignalExternalWorkflowExecutionDecisionAttributes();
+    final SignalExternalWorkflowExecutionDecisionAttributes.Builder attributes =
+        SignalExternalWorkflowExecutionDecisionAttributes.newBuilder();
     if (parameters.getDomain() == null) {
       attributes.setDomain(workflowContext.getDomain());
     } else {
       attributes.setDomain(parameters.getDomain());
     }
     String signalId = decisions.getAndIncrementNextId();
-    attributes.setControl(signalId.getBytes(StandardCharsets.UTF_8));
-    attributes.setSignalName(parameters.getSignalName());
-    attributes.setInput(parameters.getInput());
-    WorkflowExecution execution = new WorkflowExecution();
-    execution.setRunId(parameters.getRunId());
-    execution.setWorkflowId(parameters.getWorkflowId());
-    attributes.setExecution(execution);
-    final long finalSignalId = decisions.signalExternalWorkflowExecution(attributes);
+    WorkflowExecution execution =
+        WorkflowExecution.newBuilder()
+            .setRunId(parameters.getRunId())
+            .setWorkflowId(parameters.getWorkflowId())
+            .build();
+    attributes
+        .setControl(ByteString.copyFrom(signalId.getBytes(StandardCharsets.UTF_8)))
+        .setSignalName(parameters.getSignalName())
+        .setInput(ByteString.copyFrom(parameters.getInput()))
+        .setExecution(execution);
+    final long finalSignalId = decisions.signalExternalWorkflowExecution(attributes.build());
     context.setCompletionHandle(callback);
     scheduledSignals.put(finalSignalId, context);
     return (e) -> {
@@ -197,14 +203,14 @@ final class WorkflowDecisionContext {
   }
 
   void requestCancelWorkflowExecution(WorkflowExecution execution) {
-    RequestCancelExternalWorkflowExecutionDecisionAttributes attributes =
-        new RequestCancelExternalWorkflowExecutionDecisionAttributes();
     String workflowId = execution.getWorkflowId();
-    attributes.setWorkflowId(workflowId);
-    if (execution.isSetRunId()) {
+    RequestCancelExternalWorkflowExecutionDecisionAttributes.Builder attributes =
+        RequestCancelExternalWorkflowExecutionDecisionAttributes.newBuilder()
+            .setWorkflowId(workflowId);
+    if (Strings.isNullOrEmpty(execution.getRunId())) {
       attributes.setRunId(execution.getRunId());
     }
-    decisions.requestCancelExternalWorkflowExecution(attributes);
+    decisions.requestCancelExternalWorkflowExecution(attributes.build());
   }
 
   void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionParameters continueParameters) {
@@ -292,8 +298,8 @@ final class WorkflowDecisionContext {
       OpenChildWorkflowRequestInfo scheduled =
           scheduledExternalWorkflows.remove(attributes.getInitiatedEventId());
       if (scheduled != null) {
-        WorkflowExecution workflowExecution = new WorkflowExecution();
-        workflowExecution.setWorkflowId(attributes.getWorkflowId());
+        WorkflowExecution workflowExecution =
+            WorkflowExecution.newBuilder().setWorkflowId(attributes.getWorkflowId()).build();
         WorkflowType workflowType = attributes.getWorkflowType();
         ChildWorkflowExecutionFailedCause cause = attributes.getCause();
         RuntimeException failure =
@@ -313,7 +319,7 @@ final class WorkflowDecisionContext {
           scheduledExternalWorkflows.remove(attributes.getInitiatedEventId());
       if (scheduled != null) {
         String reason = attributes.getReason();
-        byte[] details = attributes.getDetails();
+        byte[] details = attributes.getDetails().toByteArray();
         RuntimeException failure =
             new ChildWorkflowTaskFailedException(
                 event.getEventId(),
@@ -335,7 +341,7 @@ final class WorkflowDecisionContext {
           scheduledExternalWorkflows.remove(attributes.getInitiatedEventId());
       if (scheduled != null) {
         BiConsumer<byte[], Exception> completionCallback = scheduled.getCompletionCallback();
-        byte[] result = attributes.getResult();
+        byte[] result = attributes.getResult().toByteArray();
         completionCallback.accept(result, null);
       }
     }
@@ -349,9 +355,11 @@ final class WorkflowDecisionContext {
       OpenRequestInfo<Void, Void> signalContextAndResult =
           scheduledSignals.remove(initiatedEventId);
       if (signalContextAndResult != null) {
-        WorkflowExecution signaledExecution = new WorkflowExecution();
-        signaledExecution.setWorkflowId(attributes.getWorkflowExecution().getWorkflowId());
-        signaledExecution.setRunId(attributes.getWorkflowExecution().getRunId());
+        WorkflowExecution signaledExecution =
+            WorkflowExecution.newBuilder()
+                .setWorkflowId(attributes.getWorkflowExecution().getWorkflowId())
+                .setRunId(attributes.getWorkflowExecution().getRunId())
+                .build();
         RuntimeException failure =
             new SignalExternalWorkflowException(
                 event.getEventId(), signaledExecution, attributes.getCause());

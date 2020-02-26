@@ -102,9 +102,9 @@ final class ExternalWorkflowCancellationDecisionStateMachine extends DecisionSta
   }
 
   private Decision createRequestCancelExternalWorkflowExecutionDecision() {
-    Decision decision = new Decision();
-    decision.setRequestCancelExternalWorkflowExecutionDecisionAttributes(attributes);
-    decision.setDecisionType(DecisionType.RequestCancelExternalWorkflowExecution);
-    return decision;
+    return Decision.newBuilder()
+        .setRequestCancelExternalWorkflowExecutionDecisionAttributes(attributes)
+        .setDecisionType(DecisionType.DecisionTypeRequestCancelExternalWorkflowExecution)
+        .build();
   }
 }

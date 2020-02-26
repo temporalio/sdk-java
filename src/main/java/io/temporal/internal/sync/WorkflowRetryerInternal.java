@@ -17,6 +17,7 @@
 
 package io.temporal.internal.sync;
 
+import io.grpc.StatusRuntimeException;
 import io.temporal.common.RetryOptions;
 import io.temporal.workflow.ActivityFailureException;
 import io.temporal.workflow.CompletablePromise;
@@ -71,7 +72,7 @@ final class WorkflowRetryerInternal {
       long nextSleepTime = retryOptions.calculateSleepTime(attempt);
       try {
         return func.apply();
-      } catch (Exception e) {
+      } catch (StatusRuntimeException e) {
         long elapsed = WorkflowInternal.currentTimeMillis() - startTime;
         if (retryOptions.shouldRethrow(e, attempt, elapsed, nextSleepTime)) {
           throw WorkflowInternal.wrap(e);
@@ -120,7 +121,8 @@ final class WorkflowRetryerInternal {
               }
               long elapsed = WorkflowInternal.currentTimeMillis() - startTime;
               long sleepTime = retryOptions.calculateSleepTime(attempt);
-              if (retryOptions.shouldRethrow(e, attempt, elapsed, sleepTime)) {
+              if (retryOptions.shouldRethrow(
+                  (StatusRuntimeException) e, attempt, elapsed, sleepTime)) {
                 throw e;
               }
               // newTimer runs in a separate thread, so it performs trampolining eliminating tail

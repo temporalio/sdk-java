@@ -223,7 +223,7 @@ public final class WorkflowOptions {
       }
       WorkflowIdReusePolicy policy = workflowIdReusePolicy;
       if (policy == null) {
-        policy = WorkflowIdReusePolicy.AllowDuplicateFailedOnly;
+        policy = WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicateFailedOnly;
       }
       if (retryOptions != null) {
         if (retryOptions.getInitialInterval() == null) {

@@ -497,7 +497,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
     @Override
     public WorkflowType getWorkflowType() {
-      return new WorkflowType().setName("dummy-workflow");
+      return WorkflowType.newBuilder().setName("dummy-workflow").build();
     }
 
     @Override

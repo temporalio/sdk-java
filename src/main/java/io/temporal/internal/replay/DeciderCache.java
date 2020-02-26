@@ -140,8 +140,8 @@ public final class DeciderCache {
 
   private boolean isFullHistory(PollForDecisionTaskResponse decisionTask) {
     return decisionTask.getHistory() != null
-        && decisionTask.getHistory().getEvents().size() > 0
-        && decisionTask.getHistory().getEvents().get(0).getEventId() == 1;
+        && decisionTask.getHistory().getEventsCount() > 0
+        && decisionTask.getHistory().getEvents(0).getEventId() == 1;
   }
 
   public void invalidateAll() {

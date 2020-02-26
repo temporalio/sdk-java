@@ -17,6 +17,7 @@
 
 package io.temporal.internal.external;
 
+import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.WorkflowExecution;
@@ -66,7 +67,8 @@ public class ManualActivityCompletionClientFactoryImpl
     if (taskToken == null || taskToken.length == 0) {
       throw new IllegalArgumentException("null or empty task token");
     }
-    return new ManualActivityCompletionClientImpl(service, taskToken, dataConverter, metricsScope);
+    return new ManualActivityCompletionClientImpl(
+        service, ByteString.copyFrom(taskToken), dataConverter, metricsScope);
   }
 
   @Override
