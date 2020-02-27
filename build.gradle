@@ -4,7 +4,7 @@ buildscript {
     }
     dependencies {
         classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.11'
-        classpath 'gradle.plugin.org.jruyi.gradle:thrift-gradle-plugin:0.4.1'
+        //classpath 'gradle.plugin.org.jruyi.gradle:thrift-gradle-plugin:0.4.1'
     }
 }
 
@@ -27,8 +27,7 @@ repositories {
 apply plugin: 'idea'
 apply plugin: 'maven'
 apply plugin: 'maven-publish'
-
-apply plugin: 'org.jruyi.thrift'
+//apply plugin: 'org.jruyi.thrift'
 apply plugin: 'com.google.protobuf'
 apply plugin: 'com.github.sherter.google-java-format'
 
@@ -64,18 +63,19 @@ dependencies {
     compile group: 'com.google.guava', name: 'guava', version: '28.1-jre'
     compile group: 'com.spotify', name: 'futures-extra', version: '4.2.2'
     compile group: 'com.uber.m3', name: 'tally-core', version: '0.4.0'
-    compile group: 'com.uber.tchannel', name: 'tchannel-core', version: '0.8.5'
+    //compile group: 'com.uber.tchannel', name: 'tchannel-core', version: '0.8.5'
     compile group: 'io.micrometer', name: 'micrometer-core', version: '1.1.2'
+    //compile group: 'org.apache.thrift', name: 'libthrift', version: '0.9.3'
     compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
     compile group: 'io.grpc', name: 'grpc-testing', version: '1.26.0'
     compile group: 'org.mockito', name: 'mockito-core', version: '3.2.4'
 
-    annotationProcessor 'com.google.auto.value:auto-value:1.7'
-
-    implementation 'com.google.auto.value:auto-value-annotations:1.7'
+    // implementation 'com.google.auto.value:auto-value-annotations:1.7'
     implementation 'io.grpc:grpc-netty-shaded:1.26.0'
     implementation 'io.grpc:grpc-protobuf:1.26.0'
     implementation 'io.grpc:grpc-stub:1.26.0'
+
+    // annotationProcessor 'com.google.auto.value:auto-value:1.7'
 
     testCompile group: 'junit', name: 'junit', version: '4.12'
     testCompile group: 'com.googlecode.junit-toolbox', name: 'junit-toolbox', version: '2.4'
@@ -88,6 +88,20 @@ license {
     header rootProject.file('license-header.txt')
     exclude 'io/temporal/*.java' // generated code
 }
+
+sourceSets {
+    main {
+        java {
+            srcDir 'src'
+            exclude '**/test/**'
+        }
+    }
+}
+
+//compileThrift {
+//    sourceItems 'src/main/thrift/temporal.thrift', 'src/main/thrift/shared.thrift'
+//    nowarn true
+//}
 
 protobuf {
     protoc {
@@ -105,6 +119,10 @@ protobuf {
             }
         }
     }
+}
+
+clean {
+    delete protobuf.generatedFilesBaseDir
 }
 
 compileJava {
