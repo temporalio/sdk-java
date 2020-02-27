@@ -146,11 +146,9 @@ class SignalDecisionStateMachine extends DecisionStateMachineBase {
   }
 
   private Decision createSignalExternalWorkflowExecutionDecision() {
-    Decision decision =
-        Decision.newBuilder()
-            .setSignalExternalWorkflowExecutionDecisionAttributes(attributes)
-            .setDecisionType(DecisionType.DecisionTypeSignalExternalWorkflowExecution)
-            .build();
-    return decision;
+    return Decision.newBuilder()
+        .setSignalExternalWorkflowExecutionDecisionAttributes(attributes)
+        .setDecisionType(DecisionType.DecisionTypeSignalExternalWorkflowExecution)
+        .build();
   }
 }

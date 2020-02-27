@@ -403,7 +403,6 @@ class WorkflowStubImpl implements WorkflowStub {
       } else {
         return new QueryResponse<>(result.getQueryRejected(), null);
       }
-      // TODO: (vkoby) Revisit
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode().equals(Status.Code.NOT_FOUND)) {
         throw new WorkflowNotFoundException(execution.get(), workflowType, e.getMessage());

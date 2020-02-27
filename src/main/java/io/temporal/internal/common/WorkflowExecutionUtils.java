@@ -179,9 +179,17 @@ public class WorkflowExecutionUtils {
               .setNextPageToken(pageToken)
               .setWaitForNewEvent(true)
               .build();
-      response =
-          Retryer.retryWithResult(
-              retryParameters, () -> service.blockingStub().getWorkflowExecutionHistory(r));
+      try {
+        response =
+            Retryer.retryWithResult(
+                retryParameters, () -> service.blockingStub().getWorkflowExecutionHistory(r));
+      } catch (StatusRuntimeException e) {
+        if (e.getStatus().getCode().equals(Status.Code.NOT_FOUND)) {
+          throw e;
+        } else {
+          throw CheckedExceptionWrapper.wrap(e);
+        }
+      }
       if (timeout != 0 && System.currentTimeMillis() - start > unit.toMillis(timeout)) {
         throw new TimeoutException(
             "WorkflowId="

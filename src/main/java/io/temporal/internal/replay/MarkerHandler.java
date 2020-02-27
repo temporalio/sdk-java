@@ -73,7 +73,7 @@ class MarkerHandler {
           && attributes.getHeader().getFieldsMap() != null
           && attributes.getHeader().getFieldsMap().containsKey(MUTABLE_MARKER_HEADER_KEY)) {
         byte[] bytes =
-            attributes.getHeader().getFieldsOrThrow(MUTABLE_MARKER_HEADER_KEY).toByteArray();
+            attributes.getHeader().getFieldsMap().get(MUTABLE_MARKER_HEADER_KEY).toByteArray();
         MarkerData.MarkerHeader header =
             converter.fromData(bytes, MarkerData.MarkerHeader.class, MarkerData.MarkerHeader.class);
         return new MarkerData(header, attributes.getDetails().toByteArray());
@@ -133,12 +133,9 @@ class MarkerHandler {
 
     Header getHeader(DataConverter converter) {
       byte[] headerData = converter.toData(header);
-      Header header =
-          Header.newBuilder()
-              .putAllFields(
-                  ImmutableMap.of(MUTABLE_MARKER_HEADER_KEY, ByteString.copyFrom(headerData)))
-              .build();
-      return header;
+      return Header.newBuilder()
+          .putAllFields(ImmutableMap.of(MUTABLE_MARKER_HEADER_KEY, ByteString.copyFrom(headerData)))
+          .build();
     }
   }
 

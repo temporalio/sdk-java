@@ -105,20 +105,16 @@ class TimerDecisionStateMachine extends DecisionStateMachineBase {
   private Decision createCancelTimerDecision() {
     CancelTimerDecisionAttributes tryCancel =
         CancelTimerDecisionAttributes.newBuilder().setTimerId(attributes.getTimerId()).build();
-    Decision decision =
-        Decision.newBuilder()
-            .setCancelTimerDecisionAttributes(tryCancel)
-            .setDecisionType(DecisionType.DecisionTypeCancelTimer)
-            .build();
-    return decision;
+    return Decision.newBuilder()
+        .setCancelTimerDecisionAttributes(tryCancel)
+        .setDecisionType(DecisionType.DecisionTypeCancelTimer)
+        .build();
   }
 
   private Decision createStartTimerDecision() {
-    Decision decision =
-        Decision.newBuilder()
-            .setStartTimerDecisionAttributes(attributes)
-            .setDecisionType(DecisionType.DecisionTypeStartTimer)
-            .build();
-    return decision;
+    return Decision.newBuilder()
+        .setStartTimerDecisionAttributes(attributes)
+        .setDecisionType(DecisionType.DecisionTypeStartTimer)
+        .build();
   }
 }
