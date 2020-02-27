@@ -5323,13 +5323,13 @@ public class WorkflowTest {
 
   public interface TestUpsertSearchAttributes {
     @WorkflowMethod
-    String execute(String keyword);
+    String execute(String taskList, String keyword);
   }
 
   public static class TestUpsertSearchAttributesImpl implements TestUpsertSearchAttributes {
 
     @Override
-    public String execute(String keyword) {
+    public String execute(String taskList, String keyword) {
       SearchAttributes searchAttributes = Workflow.getWorkflowInfo().getSearchAttributes();
       assertNull(searchAttributes);
 
@@ -5343,6 +5343,14 @@ public class WorkflowTest {
           WorkflowUtils.getValueFromSearchAttributes(
               searchAttributes, "CustomKeywordField", String.class));
 
+      // Running the activity below ensures that we have one more decision task to be executed after
+      // adding the search attributes. This helps with replaying the history one more time to check
+      // against a possible NonDeterminisicWorkflowError which could be caused by missing
+      // UpsertWorkflowSearchAttributes event in history.
+      TestActivities activities =
+          Workflow.newActivityStub(TestActivities.class, newActivityOptions1(taskList));
+      activities.activity();
+
       return "done";
     }
   }
@@ -5353,9 +5361,9 @@ public class WorkflowTest {
     TestUpsertSearchAttributes testWorkflow =
         workflowClient.newWorkflowStub(
             TestUpsertSearchAttributes.class, newWorkflowOptionsBuilder(taskList).build());
-    String result = testWorkflow.execute("testKey");
+    String result = testWorkflow.execute(taskList, "testKey");
     assertEquals("done", result);
-    tracer.setExpected("upsertSearchAttributes");
+    tracer.setExpected("upsertSearchAttributes", "executeActivity TestActivities::activity");
   }
 
   private static class TracingWorkflowInterceptor implements WorkflowInterceptor {

@@ -420,7 +420,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             ctx, d.getRequestCancelExternalWorkflowExecutionDecisionAttributes());
         break;
       case UpsertWorkflowSearchAttributes:
-        // TODO: https://github.com/uber/cadence-java-client/issues/360
+        processUpsertWorkflowSearchAttributes(
+            ctx, d.getUpsertWorkflowSearchAttributesDecisionAttributes(), decisionTaskCompletedId);
         break;
     }
   }
@@ -1048,6 +1049,22 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             parent,
             parentChildInitiatedEventId);
     event.getWorkflowExecutionContinuedAsNewEventAttributes().setNewExecutionRunId(runId);
+  }
+
+  private void processUpsertWorkflowSearchAttributes(
+      RequestContext ctx,
+      UpsertWorkflowSearchAttributesDecisionAttributes attr,
+      long decisionTaskCompletedId)
+      throws BadRequestError, InternalServiceError {
+    UpsertWorkflowSearchAttributesEventAttributes upsertEventAttr =
+        new UpsertWorkflowSearchAttributesEventAttributes()
+            .setSearchAttributes(attr.getSearchAttributes())
+            .setDecisionTaskCompletedEventId(decisionTaskCompletedId);
+    HistoryEvent event =
+        new HistoryEvent()
+            .setEventType(EventType.UpsertWorkflowSearchAttributes)
+            .setUpsertWorkflowSearchAttributesEventAttributes(upsertEventAttr);
+    ctx.addEvent(event);
   }
 
   @Override
