@@ -1,24 +1,23 @@
-FROM openjdk:8
-
-# Apache Thrift version
-ENV APACHE_THRIFT_VERSION=0.9.3
+FROM openjdk:8-jre-alpine
 
 # Install dependencies using apt-get
-RUN apt-get update && apt-get add --virtual wget ca-certificates wget && apt-get add --virtual build-dependencies build-base gcc && apt-get add protobuf
+RUN apk update && apk add --virtual wget ca-certificates wget && apk add --virtual build-dependencies build-base gcc
 
-# Compile source
-RUN set -ex ;\
-	wget http://www-us.apache.org/dist/thrift/${APACHE_THRIFT_VERSION}/thrift-${APACHE_THRIFT_VERSION}.tar.gz ;\
-	tar -xvf thrift-${APACHE_THRIFT_VERSION}.tar.gz ;\
-	rm thrift-${APACHE_THRIFT_VERSION}.tar.gz ;\
-	cd thrift-${APACHE_THRIFT_VERSION}/ ;\
-	./configure --enable-libs=no --enable-tests=no --enable-tutorial=no --with-cpp=no --with-c_glib=no --with-java=yes --with-ruby=no --with-erlang=no --with-go=no --with-nodejs=no --with-python=no ;\
-	make -j2 && make install ;\
-	cd .. && rm -rf thrift-${APACHE_THRIFT_VERSION}
+# Install protoc
+ENV PROTOBUF_URL https://github.com/google/protobuf/releases/download/v3.3.0/protobuf-cpp-3.3.0.tar.gz
+RUN curl -L -o /tmp/protobuf.tar.gz $PROTOBUF_URL
+WORKDIR /tmp/
+RUN tar xvzf protobuf.tar.gz
+WORKDIR /tmp/protobuf-3.3.0
+RUN mkdir /export
+RUN ./autogen.sh && \
+    ./configure --prefix=/export && \
+    make -j 3 && \
+    make check && \
+    make install
 
 # Cleanup packages and remove cache
-RUN apt-get del build-dependencies wget
-#&& rm -rf /var/cache/apk/*
+RUN apk del build-dependencies wget && rm -rf /var/cache/apk/*
 
 RUN mkdir /temporal-java-client
 WORKDIR /temporal-java-client

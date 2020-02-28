@@ -141,7 +141,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   // TODO: (vkoby) Refactor
   private Memo toMemoProto(Map<String, byte[]> memo) {
     if (memo == null || memo.isEmpty()) {
-      return null;
+      return Memo.getDefaultInstance();
     }
     Map<String, ByteString> fields = new HashMap<>();
     for (Map.Entry<String, byte[]> item : memo.entrySet()) {
@@ -153,7 +153,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
 
   private SearchAttributes toSearchAttributesProto(Map<String, byte[]> searchAttributes) {
     if (searchAttributes == null || searchAttributes.isEmpty()) {
-      return null;
+      return SearchAttributes.getDefaultInstance();
     }
     Map<String, ByteString> fields = new HashMap<>();
     for (Map.Entry<String, byte[]> item : searchAttributes.entrySet()) {
