@@ -17,6 +17,7 @@
 
 package io.temporal.activity;
 
+import io.grpc.Status;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import java.lang.reflect.Method;
@@ -41,7 +42,7 @@ public class ActivityOptionsTest {
             .setStartToCloseTimeout(Duration.ofSeconds(345))
             .setRetryOptions(
                 new RetryOptions.Builder()
-                    .setDoNotRetry(IllegalArgumentException.class)
+                    .setDoNotRetry(Status.Code.INVALID_ARGUMENT)
                     .setMaximumAttempts(11111)
                     .setBackoffCoefficient(1.55)
                     .setMaximumInterval(Duration.ofDays(3))
@@ -71,7 +72,7 @@ public class ActivityOptionsTest {
             .setStartToCloseTimeout(Duration.ofSeconds(345))
             .setRetryOptions(
                 new RetryOptions.Builder()
-                    .setDoNotRetry(IllegalArgumentException.class)
+                    .setDoNotRetry(Status.Code.INVALID_ARGUMENT)
                     .setMaximumAttempts(11111)
                     .setBackoffCoefficient(1.55)
                     .setMaximumInterval(Duration.ofDays(3))
@@ -92,7 +93,7 @@ public class ActivityOptionsTest {
     expirationSeconds = 1231423,
     maximumAttempts = 234567,
     maximumIntervalSeconds = 22,
-    doNotRetry = {NullPointerException.class, UnsupportedOperationException.class}
+    doNotRetry = {Status.Code.NOT_FOUND, Status.Code.INTERNAL}
   )
   @ActivityMethod(
     startToCloseTimeoutSeconds = 1135,
@@ -141,7 +142,7 @@ public class ActivityOptionsTest {
             .setStartToCloseTimeout(Duration.ofSeconds(345))
             .setRetryOptions(
                 new RetryOptions.Builder()
-                    .setDoNotRetry(IllegalArgumentException.class)
+                    .setDoNotRetry(Status.Code.INVALID_ARGUMENT)
                     .setMaximumAttempts(11111)
                     .setBackoffCoefficient(1.55)
                     .setMaximumInterval(Duration.ofDays(3))

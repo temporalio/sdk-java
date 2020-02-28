@@ -721,7 +721,7 @@ public class DeterministicRunnerTest {
     DecisionContext decisionContext = mock(DecisionContext.class);
     when(decisionContext.getMetricsScope()).thenReturn(scope);
     when(decisionContext.getDomain()).thenReturn("domain");
-    when(decisionContext.getWorkflowType()).thenReturn(new WorkflowType());
+    when(decisionContext.getWorkflowType()).thenReturn(WorkflowType.getDefaultInstance());
 
     DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(

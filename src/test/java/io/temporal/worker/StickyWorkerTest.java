@@ -21,8 +21,8 @@ import static io.temporal.workflow.WorkflowTest.DOMAIN;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -39,7 +39,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.DeciderCache;
-import io.temporal.serviceclient.WorkflowServiceTChannel;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.Async;
@@ -88,12 +88,12 @@ public class StickyWorkerTest {
 
   @Rule public TestName testName = new TestName();
 
-  private static WorkflowServiceTChannel service;
+  private static GrpcWorkflowServiceFactory service;
 
   @BeforeClass
   public static void setUp() {
     if (useDockerService) {
-      service = new WorkflowServiceTChannel();
+      service = new GrpcWorkflowServiceFactory();
     }
   }
 

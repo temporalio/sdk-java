@@ -1,6 +1,6 @@
-FROM openjdk:8-jre-alpine
+FROM openjdk:8-alpine
 
-# Install dependencies using apt-get
+# Install dependencies using apk
 RUN apk update && apk add --virtual wget ca-certificates wget && apk add --virtual build-dependencies build-base gcc
 
 # Install protoc

@@ -18,7 +18,7 @@
 package io.temporal.internal.worker;
 
 import static junit.framework.TestCase.*;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import ch.qos.logback.classic.Level;
@@ -131,7 +131,7 @@ public class PollDecisionTaskDispatcherTests {
     dispatcher.process(response);
 
     // Assert
-    verify(mockService, times(1)).RespondDecisionTaskFailed(any());
+    verify(mockService, times(1)).blockingStub().respondDecisionTaskFailed(any());
     assertFalse(handled.get());
     assertEquals(1, appender.list.size());
     ILoggingEvent event = appender.list.get(0);
@@ -144,10 +144,7 @@ public class PollDecisionTaskDispatcherTests {
   }
 
   private PollForDecisionTaskResponse CreatePollForDecisionTaskResponse(String taskListName) {
-    PollForDecisionTaskResponse response = new PollForDecisionTaskResponse();
-    TaskList tl = new TaskList();
-    tl.setName(taskListName);
-    response.setWorkflowExecutionTaskList(tl);
-    return response;
+    TaskList tl = TaskList.newBuilder().setName(taskListName).build();
+    return PollForDecisionTaskResponse.newBuilder().setWorkflowExecutionTaskList(tl).build();
   }
 }

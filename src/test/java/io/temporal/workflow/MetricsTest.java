@@ -18,8 +18,8 @@
 package io.temporal.workflow;
 
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import com.uber.m3.tally.RootScopeBuilder;
@@ -27,6 +27,7 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.StatsReporter;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
+import io.grpc.Status;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
@@ -85,7 +86,7 @@ public class MetricsTest {
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
                       .setMaximumAttempts(3)
-                      .setDoNotRetry(AssertionError.class)
+                      .setDoNotRetry(Status.Code.FAILED_PRECONDITION)
                       .build())
               .build();
       TestActivity activity = Workflow.newActivityStub(TestActivity.class, activityOptions);

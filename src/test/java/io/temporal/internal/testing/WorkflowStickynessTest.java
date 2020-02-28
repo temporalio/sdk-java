@@ -63,18 +63,18 @@ public class WorkflowStickynessTest {
         TestServiceUtils.pollForDecisionTask(DOMAIN, createNormalTaskList(TASK_LIST), service);
 
     TestServiceUtils.respondDecisionTaskCompletedWithSticky(
-        response.taskToken, HOST_TASKLIST, service);
-    TestServiceUtils.signalWorkflow(response.workflowExecution, DOMAIN, service);
+        response.getTaskToken(), HOST_TASKLIST, service);
+    TestServiceUtils.signalWorkflow(response.getWorkflowExecution(), DOMAIN, service);
     response =
         TestServiceUtils.pollForDecisionTask(DOMAIN, createStickyTaskList(HOST_TASKLIST), service);
 
-    assertEquals(4, response.history.getEventsSize());
+    assertEquals(4, response.getHistory().getEventsCount());
     assertEquals(TASK_LIST, response.getWorkflowExecutionTaskList().getName());
-    List<HistoryEvent> events = response.history.getEvents();
-    assertEquals(EventType.DecisionTaskCompleted, events.get(0).eventType);
-    assertEquals(EventType.WorkflowExecutionSignaled, events.get(1).eventType);
-    assertEquals(EventType.DecisionTaskScheduled, events.get(2).eventType);
-    assertEquals(EventType.DecisionTaskStarted, events.get(3).eventType);
+    List<HistoryEvent> events = response.getHistory().getEventsList();
+    assertEquals(EventType.EventTypeDecisionTaskCompleted, events.get(0).getEventType());
+    assertEquals(EventType.EventTypeWorkflowExecutionSignaled, events.get(1).getEventType());
+    assertEquals(EventType.EventTypeDecisionTaskScheduled, events.get(2).getEventType());
+    assertEquals(EventType.EventTypeDecisionTaskStarted, events.get(3).getEventType());
   }
 
   @Test
@@ -84,19 +84,19 @@ public class WorkflowStickynessTest {
         TestServiceUtils.pollForDecisionTask(DOMAIN, createNormalTaskList(TASK_LIST), service);
 
     TestServiceUtils.respondDecisionTaskCompletedWithSticky(
-        response.taskToken, HOST_TASKLIST, service);
-    TestServiceUtils.signalWorkflow(response.workflowExecution, DOMAIN, service);
+        response.getTaskToken(), HOST_TASKLIST, service);
+    TestServiceUtils.signalWorkflow(response.getWorkflowExecution(), DOMAIN, service);
     response =
         TestServiceUtils.pollForDecisionTask(DOMAIN, createStickyTaskList(HOST_TASKLIST), service);
-    TestServiceUtils.respondDecisionTaskFailedWithSticky(response.taskToken, service);
+    TestServiceUtils.respondDecisionTaskFailedWithSticky(response.getTaskToken(), service);
     response =
         TestServiceUtils.pollForDecisionTask(DOMAIN, createNormalTaskList(TASK_LIST), service);
 
     // Assert Full history
     // Make sure first is workflow execution started
-    assertNotNull(response.history.events.get(0).getWorkflowExecutionStartedEventAttributes());
+    assertNotNull(response.getHistory().getEvents(0).getWorkflowExecutionStartedEventAttributes());
     // 10 is the expected number of events for the full history.
-    assertEquals(10, response.history.getEventsSize());
+    assertEquals(10, response.getHistory().getEventsCount());
   }
 
   @Test
@@ -106,8 +106,8 @@ public class WorkflowStickynessTest {
         TestServiceUtils.pollForDecisionTask(DOMAIN, createNormalTaskList(TASK_LIST), service);
 
     TestServiceUtils.respondDecisionTaskCompletedWithSticky(
-        response.taskToken, HOST_TASKLIST, 1, service);
-    TestServiceUtils.signalWorkflow(response.workflowExecution, DOMAIN, service);
+        response.getTaskToken(), HOST_TASKLIST, 1, service);
+    TestServiceUtils.signalWorkflow(response.getWorkflowExecution(), DOMAIN, service);
     TestServiceUtils.pollForDecisionTask(DOMAIN, createStickyTaskList(HOST_TASKLIST), service);
     service.unlockTimeSkipping(CALLER);
     service.sleep(Duration.ofMillis(1100));
@@ -117,8 +117,8 @@ public class WorkflowStickynessTest {
 
     // Assert Full history
     // Make sure first is workflow execution started
-    assertNotNull(response.history.events.get(0).getWorkflowExecutionStartedEventAttributes());
+    assertNotNull(response.getHistory().getEvents(0).getWorkflowExecutionStartedEventAttributes());
     // 10 is the expected number of events for the full history.
-    assertEquals(10, response.history.getEventsSize());
+    assertEquals(10, response.getHistory().getEventsCount());
   }
 }

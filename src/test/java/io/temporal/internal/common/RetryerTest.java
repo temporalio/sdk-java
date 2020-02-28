@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import io.grpc.Status;
 import io.temporal.common.RetryOptions;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -86,7 +87,7 @@ public class RetryerTest {
             .setInitialInterval(Duration.ofMillis(10))
             .setMaximumInterval(Duration.ofMillis(100))
             .setExpiration(Duration.ofSeconds(100))
-            .setDoNotRetry(InterruptedException.class)
+            .setDoNotRetry(Status.Code.INTERNAL)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     try {

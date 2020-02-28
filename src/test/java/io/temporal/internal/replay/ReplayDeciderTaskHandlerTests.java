@@ -21,7 +21,7 @@ import static io.temporal.internal.common.InternalUtils.createStickyTaskList;
 import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -87,7 +87,7 @@ public class ReplayDeciderTaskHandlerTests {
     assertEquals(1, cache.size());
     assertNotNull(result.getTaskCompleted());
     StickyExecutionAttributes attributes = result.getTaskCompleted().getStickyAttributes();
-    assertEquals("sticky", attributes.getWorkerTaskList().name);
+    assertEquals("sticky", attributes.getWorkerTaskList().getName());
     assertEquals(5, attributes.getScheduleToStartTimeoutSeconds());
   }
 
@@ -96,8 +96,10 @@ public class ReplayDeciderTaskHandlerTests {
       throws Throwable {
     // Arrange
     DeciderCache cache = new DeciderCache(10, NoopScope.getInstance());
-    StickyExecutionAttributes attributes = new StickyExecutionAttributes();
-    attributes.setWorkerTaskList(createStickyTaskList("sticky"));
+    StickyExecutionAttributes attributes =
+        StickyExecutionAttributes.newBuilder()
+            .setWorkerTaskList(createStickyTaskList("sticky"))
+            .build();
     DecisionTaskHandler taskHandler =
         new ReplayDecisionTaskHandler(
             "domain",

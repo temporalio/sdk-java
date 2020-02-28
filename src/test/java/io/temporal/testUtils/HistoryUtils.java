@@ -72,8 +72,8 @@ public class HistoryUtils {
       TestWorkflowService service)
       throws Exception {
 
-    signalWorkflow(response.workflowExecution, domain, service);
-    respondDecisionTaskCompletedWithSticky(response.taskToken, stickyTaskListName, service);
+    signalWorkflow(response.getWorkflowExecution(), domain, service);
+    respondDecisionTaskCompletedWithSticky(response.getTaskToken(), stickyTaskListName, service);
     return pollForDecisionTask(domain, createStickyTaskList(stickyTaskListName), service);
   }
 }

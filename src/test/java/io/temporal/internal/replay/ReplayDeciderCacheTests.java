@@ -19,8 +19,8 @@ package io.temporal.internal.replay;
 
 import static junit.framework.TestCase.assertEquals;
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import com.uber.m3.tally.RootScopeBuilder;
@@ -202,7 +202,7 @@ public class ReplayDeciderCacheTests {
 
     assertEquals(3, replayDeciderCache.size());
 
-    replayDeciderCache.evictAnyNotInProcessing(decisionTask3.workflowExecution.runId);
+    replayDeciderCache.evictAnyNotInProcessing(decisionTask3.getWorkflowExecution().getRunId());
 
     // Assert
     assertEquals(2, replayDeciderCache.size());
@@ -227,7 +227,7 @@ public class ReplayDeciderCacheTests {
 
     assertEquals(1, replayDeciderCache.size());
 
-    replayDeciderCache.evictAnyNotInProcessing(decisionTask1.workflowExecution.runId);
+    replayDeciderCache.evictAnyNotInProcessing(decisionTask1.getWorkflowExecution().getRunId());
 
     // Assert
     assertEquals(1, replayDeciderCache.size());
@@ -237,8 +237,9 @@ public class ReplayDeciderCacheTests {
     Throwable ex = null;
     try {
       PollForDecisionTaskResponse decisionTask =
-          new PollForDecisionTaskResponse()
-              .setWorkflowExecution(new WorkflowExecution().setRunId(runId));
+          PollForDecisionTaskResponse.newBuilder()
+              .setWorkflowExecution(WorkflowExecution.newBuilder().setRunId(runId).build())
+              .build();
       cache.getOrCreate(decisionTask, () -> doNotCreateFakeDecider(decisionTask));
     } catch (AssertionError e) {
       ex = e;

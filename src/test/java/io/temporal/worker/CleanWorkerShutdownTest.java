@@ -37,7 +37,6 @@ import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowMethod;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -163,11 +162,13 @@ public class CleanWorkerShutdownTest {
       testEnvironment.shutdown();
       testEnvironment.awaitTermination(10, TimeUnit.MINUTES);
     }
-    GetWorkflowExecutionHistoryRequest request = GetWorkflowExecutionHistoryRequest.newBuilder()
+    GetWorkflowExecutionHistoryRequest request =
+        GetWorkflowExecutionHistoryRequest.newBuilder()
             .setDomain(DOMAIN)
             .setExecution(execution)
             .build();
-    GetWorkflowExecutionHistoryResponse result = service.blockingStub().getWorkflowExecutionHistory(request);
+    GetWorkflowExecutionHistoryResponse result =
+        service.blockingStub().getWorkflowExecutionHistory(request);
     List<HistoryEvent> events = result.getHistory().getEventsList();
     boolean found = false;
     for (HistoryEvent e : events) {
@@ -217,11 +218,13 @@ public class CleanWorkerShutdownTest {
       testEnvironment.shutdownNow();
       testEnvironment.awaitTermination(10, TimeUnit.MINUTES);
     }
-    GetWorkflowExecutionHistoryRequest request = GetWorkflowExecutionHistoryRequest.newBuilder()
+    GetWorkflowExecutionHistoryRequest request =
+        GetWorkflowExecutionHistoryRequest.newBuilder()
             .setDomain(DOMAIN)
             .setExecution(execution)
             .build();
-    GetWorkflowExecutionHistoryResponse result = service.blockingStub().getWorkflowExecutionHistory(request);
+    GetWorkflowExecutionHistoryResponse result =
+        service.blockingStub().getWorkflowExecutionHistory(request);
     List<HistoryEvent> events = result.getHistory().getEventsList();
     boolean found = false;
     for (HistoryEvent e : events) {
@@ -261,8 +264,7 @@ public class CleanWorkerShutdownTest {
    * Worker.Factory#shutdown()} is closed.
    */
   @Test
-  public void testShutdownHeartbeatingActivity()
-      throws ExecutionException, InterruptedException {
+  public void testShutdownHeartbeatingActivity() throws ExecutionException, InterruptedException {
     String taskList =
         "CleanWorkerShutdownTest-" + testName.getMethodName() + "-" + UUID.randomUUID().toString();
     WorkflowClient workflowClient;
@@ -298,11 +300,13 @@ public class CleanWorkerShutdownTest {
       testEnvironment.shutdown();
       testEnvironment.awaitTermination(10, TimeUnit.MINUTES);
     }
-    GetWorkflowExecutionHistoryRequest request = GetWorkflowExecutionHistoryRequest.newBuilder()
+    GetWorkflowExecutionHistoryRequest request =
+        GetWorkflowExecutionHistoryRequest.newBuilder()
             .setDomain(DOMAIN)
             .setExecution(execution)
             .build();
-    GetWorkflowExecutionHistoryResponse result = service.blockingStub().getWorkflowExecutionHistory(request);
+    GetWorkflowExecutionHistoryResponse result =
+        service.blockingStub().getWorkflowExecutionHistory(request);
     List<HistoryEvent> events = result.getHistory().getEventsList();
     boolean found = false;
     for (HistoryEvent e : events) {

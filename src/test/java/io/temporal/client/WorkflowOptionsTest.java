@@ -17,6 +17,7 @@
 
 package io.temporal.client;
 
+import io.grpc.Status;
 import io.temporal.WorkflowIdReusePolicy;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
@@ -43,7 +44,7 @@ public class WorkflowOptionsTest {
             .setTaskList("foo")
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(321))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
+            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate)
             .setMemo(getTestMemo())
             .setSearchAttributes(getTestSearchAttributes())
             .build();
@@ -59,7 +60,7 @@ public class WorkflowOptionsTest {
     taskList = "bar",
     taskStartToCloseTimeoutSeconds = 34,
     workflowId = "foo",
-    workflowIdReusePolicy = WorkflowIdReusePolicy.AllowDuplicate
+    workflowIdReusePolicy = WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicate
   )
   @MethodRetry(
     initialIntervalSeconds = 12,
@@ -67,7 +68,7 @@ public class WorkflowOptionsTest {
     expirationSeconds = 1231423,
     maximumAttempts = 234567,
     maximumIntervalSeconds = 22,
-    doNotRetry = {NullPointerException.class, UnsupportedOperationException.class}
+    doNotRetry = {Status.Code.NOT_FOUND, Status.Code.INTERNAL}
   )
   @CronSchedule("0 * * * *" /* hourly */)
   public void workflowOptions() {}
@@ -95,7 +96,7 @@ public class WorkflowOptionsTest {
   public void testBothPresent() throws NoSuchMethodException {
     RetryOptions retryOptions =
         new RetryOptions.Builder()
-            .setDoNotRetry(IllegalArgumentException.class)
+            .setDoNotRetry(Status.Code.INVALID_ARGUMENT)
             .setMaximumAttempts(11111)
             .setBackoffCoefficient(1.55)
             .setMaximumInterval(Duration.ofDays(3))
@@ -111,7 +112,7 @@ public class WorkflowOptionsTest {
             .setTaskList("foo")
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(321))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
+            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate)
             .setWorkflowId("bar")
             .setRetryOptions(retryOptions)
             .setCronSchedule("* 1 * * *")
@@ -133,7 +134,7 @@ public class WorkflowOptionsTest {
   public void testChildWorkflowOptionMerge() throws NoSuchMethodException {
     RetryOptions retryOptions =
         new RetryOptions.Builder()
-            .setDoNotRetry(IllegalArgumentException.class)
+            .setDoNotRetry(Status.Code.INVALID_ARGUMENT)
             .setMaximumAttempts(11111)
             .setBackoffCoefficient(1.55)
             .setMaximumInterval(Duration.ofDays(3))
@@ -148,7 +149,7 @@ public class WorkflowOptionsTest {
             .setTaskList("foo")
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(321))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
+            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate)
             .setWorkflowId("bar")
             .setRetryOptions(retryOptions)
             .setCronSchedule("* 1 * * *")
@@ -177,7 +178,7 @@ public class WorkflowOptionsTest {
             .setTaskList("foo")
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(321))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
+            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate)
             .build();
     Method method = WorkflowOptionsTest.class.getMethod("invalidCronScheduleAnnotation");
     WorkflowMethod a = method.getAnnotation(WorkflowMethod.class);

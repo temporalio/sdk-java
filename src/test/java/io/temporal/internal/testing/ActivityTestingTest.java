@@ -20,11 +20,12 @@ package io.temporal.internal.testing;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import io.netty.util.internal.ConcurrentSet;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.RecordActivityTaskHeartbeatResponse;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityMethod;
@@ -33,9 +34,9 @@ import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import io.temporal.testing.TestActivityEnvironment;
 import io.temporal.workflow.ActivityFailureException;
 import java.io.IOException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.thrift.TException;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -134,7 +135,9 @@ public class ActivityTestingTest {
   @Test
   public void testHeartbeatThrottling() throws InterruptedException {
     testEnvironment.registerActivitiesImplementations(new BurstHeartbeatActivityImpl());
-    ConcurrentSet<Integer> details = new ConcurrentSet<>();
+    // TODO: (vkoby)
+    // https://source.jboss.org/graph/Netty?csid=47e4a58d90fa627658f8957d2e984b108139474b
+    ConcurrentHashMap.KeySetView<Object, Boolean> details = ConcurrentHashMap.newKeySet();
     testEnvironment.setActivityHeartbeatListener(Integer.class, details::add);
     InterruptibleTestActivity activity =
         testEnvironment.newActivityStub(InterruptibleTestActivity.class);
@@ -180,12 +183,12 @@ public class ActivityTestingTest {
   }
 
   @Test
-  public void testHeartbeatCancellation() throws InterruptedException, TException {
+  public void testHeartbeatCancellation() throws InterruptedException {
     testEnvironment.registerActivitiesImplementations(new HeartbeatCancellationActivityImpl());
     GrpcWorkflowServiceFactory workflowService = mock(GrpcWorkflowServiceFactory.class);
-    RecordActivityTaskHeartbeatResponse resp = new RecordActivityTaskHeartbeatResponse();
-    resp.setCancelRequested(true);
-    when(workflowService.RecordActivityTaskHeartbeat(any())).thenReturn(resp);
+    RecordActivityTaskHeartbeatResponse resp =
+        RecordActivityTaskHeartbeatResponse.newBuilder().setCancelRequested(true).build();
+    when(workflowService.blockingStub().recordActivityTaskHeartbeat(any())).thenReturn(resp);
     testEnvironment.setWorkflowService(workflowService);
     InterruptibleTestActivity activity =
         testEnvironment.newActivityStub(InterruptibleTestActivity.class);
@@ -211,14 +214,14 @@ public class ActivityTestingTest {
   }
 
   @Test
-  public void testCancellationOnNextHeartbeat() throws InterruptedException, TException {
+  public void testCancellationOnNextHeartbeat() throws InterruptedException {
     testEnvironment.registerActivitiesImplementations(
         new CancellationOnNextHeartbeatActivityImpl());
     GrpcWorkflowServiceFactory workflowService = mock(GrpcWorkflowServiceFactory.class);
-    RecordActivityTaskHeartbeatResponse resp = new RecordActivityTaskHeartbeatResponse();
-    resp.setCancelRequested(true);
-    when(workflowService.RecordActivityTaskHeartbeat(any()))
-        .thenReturn(new RecordActivityTaskHeartbeatResponse())
+    RecordActivityTaskHeartbeatResponse resp =
+        RecordActivityTaskHeartbeatResponse.newBuilder().setCancelRequested(true).build();
+    when(workflowService.blockingStub().recordActivityTaskHeartbeat(any()))
+        .thenReturn(RecordActivityTaskHeartbeatResponse.getDefaultInstance())
         .thenReturn(resp);
     testEnvironment.setWorkflowService(workflowService);
     InterruptibleTestActivity activity =
@@ -237,13 +240,12 @@ public class ActivityTestingTest {
   }
 
   @Test
-  public void testHeartbeatIntermittentError() throws TException, InterruptedException {
+  public void testHeartbeatIntermittentError() throws InterruptedException {
     testEnvironment.registerActivitiesImplementations(new SimpleHeartbeatActivityImpl());
     GrpcWorkflowServiceFactory workflowService = mock(GrpcWorkflowServiceFactory.class);
-    when(workflowService.RecordActivityTaskHeartbeat(any()))
-        .thenThrow(new TException("intermittent error"))
-        .thenThrow(new TException("intermittent error"))
-        .thenReturn(new RecordActivityTaskHeartbeatResponse());
+    when(workflowService.blockingStub().recordActivityTaskHeartbeat(any()))
+        .thenThrow(new StatusRuntimeException(Status.UNKNOWN.withDescription("Intermittent error")))
+        .thenReturn(RecordActivityTaskHeartbeatResponse.getDefaultInstance());
     testEnvironment.setWorkflowService(workflowService);
     AtomicInteger count = new AtomicInteger();
     testEnvironment.setActivityHeartbeatListener(Void.class, i -> count.incrementAndGet());

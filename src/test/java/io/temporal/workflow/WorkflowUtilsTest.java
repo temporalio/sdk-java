@@ -31,7 +31,9 @@ public class WorkflowUtilsTest {
   public void TestGetValueFromSearchAttributes() {
     assertEquals(null, WorkflowUtils.getValueFromSearchAttributes(null, "key", String.class));
     assertEquals(
-        null, WorkflowUtils.getValueFromSearchAttributes(new SearchAttributes(), "", String.class));
+        null,
+        WorkflowUtils.getValueFromSearchAttributes(
+            SearchAttributes.getDefaultInstance(), "", String.class));
 
     Map<String, Object> attr = new HashMap<>();
     String stringVal = "keyword";
