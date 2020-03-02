@@ -18,7 +18,6 @@
 package io.temporal.internal.worker;
 
 import static junit.framework.TestCase.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import ch.qos.logback.classic.Level;
@@ -26,6 +25,7 @@ import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import io.temporal.PollForDecisionTaskResponse;
+import io.temporal.RespondDecisionTaskFailedRequest;
 import io.temporal.TaskList;
 import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
@@ -131,7 +131,9 @@ public class PollDecisionTaskDispatcherTests {
     dispatcher.process(response);
 
     // Assert
-    verify(mockService, times(1)).blockingStub().respondDecisionTaskFailed(any());
+    verify(mockService, times(1))
+        .blockingStub()
+        .respondDecisionTaskFailed(RespondDecisionTaskFailedRequest.getDefaultInstance());
     assertFalse(handled.get());
     assertEquals(1, appender.list.size());
     ILoggingEvent event = appender.list.get(0);

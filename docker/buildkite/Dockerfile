@@ -1,7 +1,7 @@
 FROM openjdk:8-alpine
 
 # Install dependencies using apk
-RUN apk update && apk add --virtual wget ca-certificates wget && apk add --virtual build-dependencies build-base gcc
+RUN apk update && apk add --virtual wget ca-certificates wget && apk add --virtual build-dependencies build-base gcc && apk add git curl build-base autoconf automake libtool
 
 # Install protoc
 ENV PROTOBUF_URL https://github.com/google/protobuf/releases/download/v3.3.0/protobuf-cpp-3.3.0.tar.gz

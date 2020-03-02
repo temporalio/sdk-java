@@ -26,11 +26,14 @@ import io.temporal.WorkflowServiceGrpc;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-/** TODO: (vkoby) Add metrics. */
+/**
+ * TODO: (vkoby) Add metrics. TODO: (vkoby) double-check auto-close. If tasks are still running, the
+ * service should still be up when they complete.
+ */
 public class GrpcWorkflowServiceFactory implements AutoCloseable {
 
   private static final String LOCALHOST = "127.0.0.1";
-  private static final int DEFAULT_LOCAL_TEMPORAL_SERVER_PORT = 7933;
+  private static final int DEFAULT_LOCAL_TEMPORAL_SERVER_PORT = 7233;
   /** Default RPC timeout used for all non long poll calls. */
   private static final long DEFAULT_RPC_TIMEOUT_MILLIS = 1000;
   /** Default RPC timeout used for all long poll calls. */
@@ -96,9 +99,7 @@ public class GrpcWorkflowServiceFactory implements AutoCloseable {
 
   /** @return Blocking (synchronous) stub that allows direct calls to service. */
   public WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub() {
-    // TODO: If timeout is needed, add .withDeadlineAfter(deadlineMs, TimeUnit.MILLISECONDS)
-    //  https://grpc.io/blog/deadlines/
-    return blockingStub;
+    return blockingStub.withDeadlineAfter(10000, TimeUnit.MILLISECONDS);
   }
 
   /** @return Future (asynchronous) stub that allows direct calls to service. */

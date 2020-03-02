@@ -196,7 +196,9 @@ public final class TestWorkflowService extends GrpcWorkflowServiceFactory {
     }
 
     private Optional<RetryState> newRetryStateLocked(RetryPolicy retryPolicy) {
-      if (retryPolicy == null) {
+      // RetryPolicy often comes from GRPC messages which don't support null, so we need to compare
+      // with default state.
+      if (retryPolicy == null || RetryPolicy.getDefaultInstance().equals(retryPolicy)) {
         return Optional.empty();
       }
       long expirationInterval =

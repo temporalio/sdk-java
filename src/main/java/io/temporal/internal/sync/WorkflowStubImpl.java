@@ -19,10 +19,7 @@ package io.temporal.internal.sync;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.temporal.QueryRejectCondition;
-import io.temporal.QueryWorkflowResponse;
-import io.temporal.WorkflowExecution;
-import io.temporal.WorkflowType;
+import io.temporal.*;
 import io.temporal.client.DuplicateWorkflowException;
 import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowFailureException;
@@ -121,7 +118,11 @@ class WorkflowStubImpl implements WorkflowStub {
         execution.set(
             WorkflowExecution.newBuilder()
                 .setWorkflowId(p.getWorkflowId())
-                .setRunId(e.getTrailers().toString()) // TODO: (vkoby) How do I get runID
+                .setRunId(
+                    ((WorkflowExecutionAlreadyStartedFailure)
+                            GrpcStatusUtils.getFailure(
+                                e, GrpcFailure.WORKFLOW_EXECUTION_ALREADY_STARTED_FAILURE))
+                        .getRunId())
                 .build());
         WorkflowExecution execution =
             WorkflowExecution.newBuilder()

@@ -91,9 +91,7 @@ public class GrpcStatusUtils {
     return metadata.containsKey(KEY_MAP.get(failureName));
   }
 
-  /**
-   * @return a failure of a given type from the StatusRuntimeException object
-   */
+  /** @return a failure of a given type from the StatusRuntimeException object */
   public static Object getFailure(StatusRuntimeException exception, Enum failureName) {
     Preconditions.checkNotNull(exception, "Exception cannot be null");
     Preconditions.checkArgument(
@@ -102,9 +100,7 @@ public class GrpcStatusUtils {
     Metadata metadata = exception.getTrailers();
     return metadata.get(KEY_MAP.get(failureName));
   }
-  /**
-   * Set a failure of a given type for the StatusRuntimeException object.
-   */
+  /** Set a failure of a given type for the StatusRuntimeException object. */
   public static <T> void setFailure(
       StatusRuntimeException exception, GrpcFailure failureName, T value) {
     Preconditions.checkNotNull(exception, "Exception cannot be null");
