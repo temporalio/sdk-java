@@ -169,6 +169,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         throw new StatusRuntimeException(
             Status.INTERNAL.withDescription(Throwables.getStackTraceAsString(e)));
       }
+    } catch (Exception e) {
+      throw new StatusRuntimeException(
+          Status.INTERNAL.withDescription(Throwables.getStackTraceAsString(e)));
     } finally {
       lockHandle.unlock();
       lock.unlock();

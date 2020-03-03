@@ -180,7 +180,10 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
       if (e.getStatus().getCode().equals(Status.Code.NOT_FOUND)) {
         lastException = new ActivityNotExistsException(task, e);
       } else if (e.getStatus().getCode().equals(Status.Code.INVALID_ARGUMENT)) {
+        // TODO: (vkoby) Figure out if this needs to also happen for other status codes
         lastException = new ActivityCompletionFailureException(task, e);
+      } else {
+        throw e;
       }
     }
   }

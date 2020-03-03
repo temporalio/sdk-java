@@ -80,7 +80,6 @@ public final class PollDecisionTaskDispatcher
 
       try {
         service.blockingStub().respondDecisionTaskFailed(request);
-
       } catch (Exception e) {
         uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), e);
       }

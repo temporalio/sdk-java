@@ -263,9 +263,17 @@ public final class TestWorkflowService extends GrpcWorkflowServiceFactory {
       ExecutionId executionId = new ExecutionId(getRequest.getDomain(), getRequest.getExecution());
       TestWorkflowMutableState mutableState = getMutableState(executionId);
 
-      streamObserver.onNext(
-          store.getWorkflowExecutionHistory(mutableState.getExecutionId(), getRequest));
-      streamObserver.onCompleted();
+      try {
+        GetWorkflowExecutionHistoryResponse resp =
+            store.getWorkflowExecutionHistory(mutableState.getExecutionId(), getRequest);
+        streamObserver.onNext(resp);
+        streamObserver.onCompleted();
+      } catch (Exception e) {
+        // Exceptions thrown inside the service by default propagate as meaningless UNKNOWN
+        // exceptions. In order to propagate a meaningful exception we need to catch it here and use
+        // onError().
+        streamObserver.onError(e);
+      }
     }
 
     @Override

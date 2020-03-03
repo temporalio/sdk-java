@@ -560,7 +560,8 @@ class StateMachines {
     if (data.retryState.isPresent()) {
       a.setAttempt(data.retryState.get().getAttempt());
     }
-    a.setLastCompletionResult(data.lastCompletionResult);
+    a.setLastCompletionResult(
+        data.lastCompletionResult == null ? ByteString.EMPTY : data.lastCompletionResult);
     a.setMemo(request.getMemo());
     a.setSearchAttributes((request.getSearchAttributes()));
     HistoryEvent event =

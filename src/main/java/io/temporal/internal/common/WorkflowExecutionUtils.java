@@ -176,7 +176,7 @@ public class WorkflowExecutionUtils {
               .setDomain(domain)
               .setExecution(workflowExecution)
               .setHistoryEventFilterType(HistoryEventFilterType.HistoryEventFilterTypeCloseEvent)
-              .setNextPageToken(pageToken)
+              .setNextPageToken(pageToken == null ? ByteString.EMPTY : pageToken)
               .setWaitForNewEvent(true)
               .build();
       try {

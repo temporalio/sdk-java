@@ -22,16 +22,21 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.inprocess.InProcessChannelBuilder;
+import io.grpc.inprocess.InProcessServerBuilder;
 import io.temporal.WorkflowServiceGrpc;
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * TODO: (vkoby) Add metrics. TODO: (vkoby) double-check auto-close. If tasks are still running, the
  * service should still be up when they complete.
  */
 public class GrpcWorkflowServiceFactory implements AutoCloseable {
-
+  private static final Logger logger = LoggerFactory.getLogger(GrpcWorkflowServiceFactory.class);
   private static final String LOCALHOST = "127.0.0.1";
   private static final int DEFAULT_LOCAL_TEMPORAL_SERVER_PORT = 7233;
   /** Default RPC timeout used for all non long poll calls. */
@@ -63,6 +68,7 @@ public class GrpcWorkflowServiceFactory implements AutoCloseable {
     this.options = options;
     blockingStub = WorkflowServiceGrpc.newBlockingStub(channel);
     futureStub = WorkflowServiceGrpc.newFutureStub(channel);
+    logger.info(String.format("Created GRPC client for channel: %s", channel));
   }
 
   public GrpcWorkflowServiceFactory(ManagedChannel channel) {
@@ -95,6 +101,28 @@ public class GrpcWorkflowServiceFactory implements AutoCloseable {
             // desired
             .build(),
         options);
+  }
+
+  /**
+   * Generates the client for an in-process service using an in-memory channel. Useful for testing,
+   * usually with mock and spy services.
+   */
+  public GrpcWorkflowServiceFactory(WorkflowServiceGrpc.WorkflowServiceImplBase serviceImpl) {
+    String serverName = InProcessServerBuilder.generateName();
+    try {
+      InProcessServerBuilder.forName(serverName)
+          .directExecutor()
+          .addService(serviceImpl)
+          .build()
+          .start();
+    } catch (IOException unexpected) {
+      throw new RuntimeException(unexpected);
+    }
+    this.channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
+    this.options = new ServiceFactoryOptions.Builder().build();
+    blockingStub = WorkflowServiceGrpc.newBlockingStub(channel);
+    futureStub = WorkflowServiceGrpc.newFutureStub(channel);
+    logger.info(String.format("Created GRPC client for channel: %s", channel));
   }
 
   /** @return Blocking (synchronous) stub that allows direct calls to service. */

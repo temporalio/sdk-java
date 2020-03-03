@@ -18,15 +18,19 @@
 package io.temporal.internal.worker;
 
 import static junit.framework.TestCase.*;
+import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Mockito.*;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import io.grpc.stub.StreamObserver;
 import io.temporal.PollForDecisionTaskResponse;
 import io.temporal.RespondDecisionTaskFailedRequest;
+import io.temporal.RespondDecisionTaskFailedResponse;
 import io.temporal.TaskList;
+import io.temporal.WorkflowServiceGrpc;
 import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -111,18 +115,31 @@ public class PollDecisionTaskDispatcherTests {
   public void aWarningIsLoggedAndDecisionTaskIsFailedWhenNoHandlerIsRegisteredForTheTaskList()
       throws Exception {
 
+    AtomicBoolean handled = new AtomicBoolean(false);
+    Consumer<PollForDecisionTaskResponse> handler = r -> handled.set(true);
+
+    WorkflowServiceGrpc.WorkflowServiceImplBase service =
+        mock(
+            WorkflowServiceGrpc.WorkflowServiceImplBase.class,
+            delegatesTo(
+                new WorkflowServiceGrpc.WorkflowServiceImplBase() {
+                  @Override
+                  public void respondDecisionTaskFailed(
+                      RespondDecisionTaskFailedRequest request,
+                      StreamObserver<RespondDecisionTaskFailedResponse> observer) {
+                    observer.onNext(RespondDecisionTaskFailedResponse.getDefaultInstance());
+                    observer.onCompleted();
+                  }
+                }));
+    GrpcWorkflowServiceFactory client = new GrpcWorkflowServiceFactory(service);
+
     // Arrange
     ListAppender<ILoggingEvent> appender = new ListAppender<>();
     appender.setContext(context);
     appender.start();
     logger.addAppender(appender);
 
-    AtomicBoolean handled = new AtomicBoolean(false);
-    Consumer<PollForDecisionTaskResponse> handler = r -> handled.set(true);
-
-    GrpcWorkflowServiceFactory mockService = mock(GrpcWorkflowServiceFactory.class);
-
-    PollDecisionTaskDispatcher dispatcher = new PollDecisionTaskDispatcher(mockService);
+    PollDecisionTaskDispatcher dispatcher = new PollDecisionTaskDispatcher(client);
     dispatcher.subscribe("tasklist1", handler);
 
     // Act
@@ -131,9 +148,7 @@ public class PollDecisionTaskDispatcherTests {
     dispatcher.process(response);
 
     // Assert
-    verify(mockService, times(1))
-        .blockingStub()
-        .respondDecisionTaskFailed(RespondDecisionTaskFailedRequest.getDefaultInstance());
+    verify(service, times(1)).respondDecisionTaskFailed(any(), any());
     assertFalse(handled.get());
     assertEquals(1, appender.list.size());
     ILoggingEvent event = appender.list.get(0);

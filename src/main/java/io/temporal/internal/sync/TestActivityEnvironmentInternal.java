@@ -18,8 +18,7 @@
 package io.temporal.internal.sync;
 
 import static org.mockito.AdditionalAnswers.delegatesTo;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.*;
 
 import com.google.common.base.Defaults;
 import com.google.protobuf.ByteString;
@@ -69,6 +68,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 
 public final class TestActivityEnvironmentInternal implements TestActivityEnvironment {
 
@@ -79,7 +79,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   private static final ScheduledExecutorService heartbeatExecutor =
       Executors.newScheduledThreadPool(20);
   private GrpcWorkflowServiceFactory workflowService;
-  private Server server;
+  private Server mockServer;
+  private Server spyServer;
 
   public TestActivityEnvironmentInternal(TestEnvironmentOptions options) {
     if (options == null) {
@@ -91,16 +92,17 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     // Initialize an in-memory mock service.
     String serverName = InProcessServerBuilder.generateName();
     try {
-      server =
+      mockServer =
           InProcessServerBuilder.forName(serverName)
               .directExecutor()
-              .addService(getMockService())
+              .addService(getMockService(null))
               .build()
               .start();
     } catch (IOException e) {
       // This should not happen with in-memory services, but rethrow just in case.
       throw new RuntimeException(e);
     }
+    // TODO: (vkoby) Ideally the channel needs to be closed after use, find a way to do that.
     workflowService =
         new GrpcWorkflowServiceFactory(
             InProcessChannelBuilder.forName(serverName).directExecutor().build());
@@ -143,12 +145,6 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
             }));
   }
 
-  private GrpcWorkflowServiceFactory getSpyService(GrpcWorkflowServiceFactory service) {
-    GrpcWorkflowServiceFactory spyService = spy(service);
-    // TODO: (vkoby) intercept recordActivityTaskHeartbeat (and possibly several methods with empty
-    // bodies)
-    return spyService;
-  }
   /**
    * Register activity implementation objects with a worker. Overwrites previously registered
    * objects. As activities are reentrant and stateless only one instance per activity type is
@@ -222,7 +218,10 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
               .setStartToCloseTimeoutSeconds((int) options.getStartToCloseTimeout().getSeconds())
               .setScheduledTimestamp(Duration.ofMillis(System.currentTimeMillis()).toNanos())
               .setStartedTimestamp(Duration.ofMillis(System.currentTimeMillis()).toNanos())
-              .setInput(ByteString.copyFrom(testEnvironmentOptions.getDataConverter().toData(args)))
+              .setInput(
+                  args != null
+                      ? ByteString.copyFrom(testEnvironmentOptions.getDataConverter().toData(args))
+                      : ByteString.EMPTY)
               .setTaskToken(ByteString.copyFrom("test-task-token".getBytes(StandardCharsets.UTF_8)))
               .setActivityId(String.valueOf(idSequencer.incrementAndGet()))
               .setWorkflowExecution(
