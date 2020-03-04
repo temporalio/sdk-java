@@ -371,8 +371,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   WorkflowExecution.newBuilder().setWorkflowId(attr.getWorkflowId()).build();
               RequestCancelWorkflowExecutionRequest request =
                   RequestCancelWorkflowExecutionRequest.newBuilder()
-                      .setWorkflowExecution(workflowExecution)
                       .setDomain(ctx.getDomain())
+                      .setRequestId(UUID.randomUUID().toString())
+                      .setWorkflowExecution(workflowExecution)
                       .build();
               try {
                 service.getMockService().requestCancelWorkflowExecution(request, null);

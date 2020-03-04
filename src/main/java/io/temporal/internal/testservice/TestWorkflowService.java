@@ -509,13 +509,13 @@ public final class TestWorkflowService extends GrpcWorkflowServiceFactory {
       TestWorkflowMutableState mutableState = getMutableState(executionId, false);
       SignalWorkflowExecutionRequest signalRequest =
           SignalWorkflowExecutionRequest.newBuilder()
-              .setInput(r.getSignalInput())
-              .setSignalName(r.getSignalName())
               .setControl(r.getControl())
               .setDomain(r.getDomain())
-              .setWorkflowExecution(executionId.getExecution())
-              .setRequestId(r.getRequestId())
               .setIdentity(r.getIdentity())
+              .setInput(r.getSignalInput())
+              .setRequestId(r.getRequestId())
+              .setSignalName(r.getSignalName())
+              .setWorkflowExecution(executionId.getExecution())
               .build();
       if (mutableState != null) {
         mutableState.signal(signalRequest);

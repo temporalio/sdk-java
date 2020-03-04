@@ -187,6 +187,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
         SignalWorkflowExecutionRequest.newBuilder()
             .setDomain(domain)
             .setInput(ByteString.copyFrom(signalParameters.getInput()))
+            .setRequestId(UUID.randomUUID().toString())
             .setSignalName(signalParameters.getSignalName())
             .setWorkflowExecution(execution)
             .build();
@@ -279,6 +280,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   public void requestCancelWorkflowExecution(WorkflowExecution execution) {
     RequestCancelWorkflowExecutionRequest request =
         RequestCancelWorkflowExecutionRequest.newBuilder()
+            .setRequestId(UUID.randomUUID().toString())
             .setDomain(domain)
             .setWorkflowExecution(execution)
             .build();
@@ -296,11 +298,14 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     WorkflowExecution execution =
         WorkflowExecution.newBuilder()
             .setWorkflowId(queryParameters.getWorkflowId())
-            .setRunId(queryParameters.getRunId())
+            .setRunId(queryParameters.getRunId() == null ? "" : queryParameters.getRunId())
             .build();
     WorkflowQuery query =
         WorkflowQuery.newBuilder()
-            .setQueryArgs(ByteString.copyFrom(queryParameters.getInput()))
+            .setQueryArgs(
+                queryParameters.getInput() == null
+                    ? ByteString.EMPTY
+                    : ByteString.copyFrom(queryParameters.getInput()))
             .setQueryType(queryParameters.getQueryType())
             .build();
     QueryWorkflowRequest request =
@@ -308,7 +313,10 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
             .setDomain(domain)
             .setExecution(execution)
             .setQuery(query)
-            .setQueryRejectCondition(queryParameters.getQueryRejectCondition())
+            .setQueryRejectCondition(
+                queryParameters.getQueryRejectCondition() == null
+                    ? QueryRejectCondition.QueryRejectConditionNone
+                    : queryParameters.getQueryRejectCondition())
             .build();
     try {
       QueryWorkflowResponse response =

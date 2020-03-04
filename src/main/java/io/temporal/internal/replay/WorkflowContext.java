@@ -69,7 +69,6 @@ final class WorkflowContext {
     if (continueParameters == null) {
       continueParameters = new ContinueAsNewWorkflowExecutionParameters();
     }
-    //            continueParameters.setChildPolicy(startedAttributes);
     if (continueParameters.getExecutionStartToCloseTimeoutSeconds() == 0) {
       continueParameters.setExecutionStartToCloseTimeoutSeconds(
           startedAttributes.getExecutionStartToCloseTimeoutSeconds());
@@ -83,25 +82,6 @@ final class WorkflowContext {
     }
     this.continueAsNewOnCompletion = continueParameters;
   }
-
-  // TODO: Implement as soon as WorkflowExecutionStartedEventAttributes have these fields added.
-  ////    WorkflowExecution getParentWorkflowExecution() {
-  //        WorkflowExecutionStartedEventAttributes attributes =
-  // getWorkflowStartedEventAttributes();
-  //        return attributes.getParentWorkflowExecution();
-  //    }
-
-  ////    io.temporal.ChildPolicy getChildPolicy() {
-  //        WorkflowExecutionStartedEventAttributes attributes =
-  // getWorkflowStartedEventAttributes();
-  //        return ChildPolicy.fromValue(attributes.getChildPolicy());
-  //    }
-
-  ////    String getContinuedExecutionRunId() {
-  //        WorkflowExecutionStartedEventAttributes attributes =
-  // getWorkflowStartedEventAttributes();
-  //        return attributes.getContinuedExecutionRunId();
-  //    }
 
   int getExecutionStartToCloseTimeoutSeconds() {
     WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
