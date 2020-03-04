@@ -21,12 +21,16 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
+import io.grpc.ManagedChannel;
 import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
+import io.grpc.inprocess.InProcessChannelBuilder;
+import io.grpc.inprocess.InProcessServerBuilder;
+import io.grpc.stub.StreamObserver;
+import io.grpc.testing.GrpcCleanupRule;
 import io.temporal.RecordActivityTaskHeartbeatResponse;
+import io.temporal.WorkflowServiceGrpc;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.client.ActivityCancelledException;
@@ -38,11 +42,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 public class ActivityTestingTest {
 
   private TestActivityEnvironment testEnvironment;
+  @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
 
   @Before
   public void setUp() {
@@ -142,6 +148,7 @@ public class ActivityTestingTest {
     InterruptibleTestActivity activity =
         testEnvironment.newActivityStub(InterruptibleTestActivity.class);
     activity.activity1();
+    Thread.sleep(100);
     assertEquals(2, details.size());
   }
 
@@ -166,6 +173,7 @@ public class ActivityTestingTest {
     InterruptibleTestActivity activity =
         testEnvironment.newActivityStub(InterruptibleTestActivity.class);
     activity.activity1();
+    Thread.sleep(100);
     assertEquals(2, count.get());
   }
 
@@ -185,11 +193,27 @@ public class ActivityTestingTest {
   @Test
   public void testHeartbeatCancellation() throws InterruptedException {
     testEnvironment.registerActivitiesImplementations(new HeartbeatCancellationActivityImpl());
-    GrpcWorkflowServiceFactory workflowService = mock(GrpcWorkflowServiceFactory.class);
+    // Create a mock service
+    WorkflowServiceGrpc.WorkflowServiceImplBase service =
+        mock(WorkflowServiceGrpc.WorkflowServiceImplBase.class);
     RecordActivityTaskHeartbeatResponse resp =
         RecordActivityTaskHeartbeatResponse.newBuilder().setCancelRequested(true).build();
-    when(workflowService.blockingStub().recordActivityTaskHeartbeat(any())).thenReturn(resp);
-    testEnvironment.setWorkflowService(workflowService);
+    // Chain two different answers to the invocation of recordActivityTaskHeartbeat.
+    // Note that we can't use thenReturn() here because Grpc generated methods return void,
+    // and the result is written to the StreamObserver parameter instead. We need to use doAnswer()
+    // instead.
+    doAnswer(
+            invocation -> {
+              StreamObserver<RecordActivityTaskHeartbeatResponse> observer =
+                  invocation.getArgument(1);
+              observer.onNext(resp);
+              observer.onCompleted();
+              return null;
+            })
+        .when(service)
+        .recordActivityTaskHeartbeat(any(), any());
+
+    testEnvironment.setWorkflowService(service);
     InterruptibleTestActivity activity =
         testEnvironment.newActivityStub(InterruptibleTestActivity.class);
     activity.activity1();
@@ -217,13 +241,35 @@ public class ActivityTestingTest {
   public void testCancellationOnNextHeartbeat() throws InterruptedException {
     testEnvironment.registerActivitiesImplementations(
         new CancellationOnNextHeartbeatActivityImpl());
-    GrpcWorkflowServiceFactory workflowService = mock(GrpcWorkflowServiceFactory.class);
+    // Create a mock service
+    WorkflowServiceGrpc.WorkflowServiceImplBase service =
+        mock(WorkflowServiceGrpc.WorkflowServiceImplBase.class);
     RecordActivityTaskHeartbeatResponse resp =
         RecordActivityTaskHeartbeatResponse.newBuilder().setCancelRequested(true).build();
-    when(workflowService.blockingStub().recordActivityTaskHeartbeat(any()))
-        .thenReturn(RecordActivityTaskHeartbeatResponse.getDefaultInstance())
-        .thenReturn(resp);
-    testEnvironment.setWorkflowService(workflowService);
+    // Chain two different answers to the invocation of recordActivityTaskHeartbeat.
+    // Note that we can't use thenReturn() here because Grpc generated methods return void,
+    // and the result is written to the StreamObserver parameter instead. We need to use doAnswer()
+    // instead.
+    doAnswer(
+            invocation -> {
+              StreamObserver<RecordActivityTaskHeartbeatResponse> observer =
+                  invocation.getArgument(1);
+              observer.onNext(RecordActivityTaskHeartbeatResponse.getDefaultInstance());
+              observer.onCompleted();
+              return null;
+            })
+        .doAnswer(
+            invocation -> {
+              StreamObserver<RecordActivityTaskHeartbeatResponse> observer =
+                  invocation.getArgument(1);
+              observer.onNext(resp);
+              observer.onCompleted();
+              return null;
+            })
+        .when(service)
+        .recordActivityTaskHeartbeat(any(), any());
+
+    testEnvironment.setWorkflowService(service);
     InterruptibleTestActivity activity =
         testEnvironment.newActivityStub(InterruptibleTestActivity.class);
     activity.activity1();
@@ -242,16 +288,70 @@ public class ActivityTestingTest {
   @Test
   public void testHeartbeatIntermittentError() throws InterruptedException {
     testEnvironment.registerActivitiesImplementations(new SimpleHeartbeatActivityImpl());
-    GrpcWorkflowServiceFactory workflowService = mock(GrpcWorkflowServiceFactory.class);
-    when(workflowService.blockingStub().recordActivityTaskHeartbeat(any()))
-        .thenThrow(new StatusRuntimeException(Status.UNKNOWN.withDescription("Intermittent error")))
-        .thenReturn(RecordActivityTaskHeartbeatResponse.getDefaultInstance());
-    testEnvironment.setWorkflowService(workflowService);
+    // Create a mock service
+    WorkflowServiceGrpc.WorkflowServiceImplBase service =
+        mock(WorkflowServiceGrpc.WorkflowServiceImplBase.class);
+    // Note that we can't use thenReturn() here because Grpc generated methods return void,
+    // and the result is written to the StreamObserver parameter instead. Using doAnswer()
+    // instead.
+    doAnswer(
+            invocation -> {
+              StreamObserver<RecordActivityTaskHeartbeatResponse> observer =
+                  invocation.getArgument(1);
+              observer.onError(
+                  Status.UNKNOWN.withDescription("Intermittent error").asRuntimeException());
+              return null;
+            })
+        .doAnswer(
+            invocation -> {
+              StreamObserver<RecordActivityTaskHeartbeatResponse> observer =
+                  invocation.getArgument(1);
+              observer.onError(
+                  Status.UNKNOWN.withDescription("Intermittent error").asRuntimeException());
+              return null;
+            })
+        .doAnswer(
+            invocation -> {
+              StreamObserver<RecordActivityTaskHeartbeatResponse> observer =
+                  invocation.getArgument(1);
+              observer.onNext(RecordActivityTaskHeartbeatResponse.getDefaultInstance());
+              observer.onCompleted();
+              return null;
+            })
+        .when(service)
+        .recordActivityTaskHeartbeat(any(), any());
+
+    testEnvironment.setWorkflowService(service);
     AtomicInteger count = new AtomicInteger();
     testEnvironment.setActivityHeartbeatListener(Void.class, i -> count.incrementAndGet());
     InterruptibleTestActivity activity =
         testEnvironment.newActivityStub(InterruptibleTestActivity.class);
     activity.activity1();
     assertEquals(3, count.get());
+  }
+
+  /**
+   * GRPC client doesn't allow direct mocking (generates a final class). The recommended approach is
+   * to mock the service and use real client code to talk to it through an in-memory channel. That's
+   * what this method does. Reference:
+   * https://github.com/grpc/grpc-java/blob/master/examples/src/test/java/io/grpc/examples/helloworld/HelloWorldClientTest.java
+   */
+  GrpcWorkflowServiceFactory mockClientForService(
+      WorkflowServiceGrpc.WorkflowServiceImplBase mockService) {
+    String serverName = InProcessServerBuilder.generateName();
+    try {
+      grpcCleanup.register(
+          InProcessServerBuilder.forName(serverName)
+              .directExecutor()
+              .addService(mockService)
+              .build()
+              .start());
+    } catch (IOException unexpected) {
+      throw new RuntimeException(unexpected);
+    }
+    ManagedChannel channel =
+        grpcCleanup.register(InProcessChannelBuilder.forName(serverName).directExecutor().build());
+
+    return new GrpcWorkflowServiceFactory(channel);
   }
 }

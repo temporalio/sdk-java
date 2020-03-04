@@ -316,50 +316,42 @@ class WorkflowStubImpl implements WorkflowStub {
             });
   }
 
-  // TODO: (vkoby) Revisit
   private <R> R mapToWorkflowFailureException(
       Exception exception, @SuppressWarnings("unused") Class<R> returnType) {
-    if (exception instanceof StatusRuntimeException) {
-      StatusRuntimeException gRPCException = (StatusRuntimeException) exception;
-      if (gRPCException.getStatus().getCode().equals(Status.Code.NOT_FOUND)) {
-        throw new WorkflowNotFoundException(
-            execution.get(), workflowType, gRPCException.getMessage());
-      } else {
-        throw new WorkflowServiceException(execution.get(), workflowType, gRPCException);
-      }
-    } else {
-      exception = CheckedExceptionWrapper.unwrap(exception);
-      Class<Throwable> detailsClass;
-      if (exception instanceof WorkflowExecutionFailedException) {
-        WorkflowExecutionFailedException executionFailed =
-            (WorkflowExecutionFailedException) exception;
-        try {
-          @SuppressWarnings("unchecked")
-          Class<Throwable> dc = (Class<Throwable>) Class.forName(executionFailed.getReason());
-          detailsClass = dc;
-        } catch (Exception e) {
-          RuntimeException ee =
-              new RuntimeException(
-                  "Couldn't deserialize failure cause "
-                      + "as the reason field is expected to contain an exception class name",
-                  executionFailed);
-          throw new WorkflowFailureException(
-              execution.get(), workflowType, executionFailed.getDecisionTaskCompletedEventId(), ee);
-        }
-        Throwable cause =
-            dataConverter.fromData(executionFailed.getDetails(), detailsClass, detailsClass);
+    exception = CheckedExceptionWrapper.unwrap(exception);
+    Class<Throwable> detailsClass;
+    if (exception instanceof WorkflowExecutionFailedException) {
+      WorkflowExecutionFailedException executionFailed =
+          (WorkflowExecutionFailedException) exception;
+      try {
+        @SuppressWarnings("unchecked")
+        Class<Throwable> dc = (Class<Throwable>) Class.forName(executionFailed.getReason());
+        detailsClass = dc;
+      } catch (Exception e) {
+        RuntimeException re =
+            new RuntimeException(
+                "Couldn't deserialize failure cause "
+                    + "as the reason field is expected to contain an exception class name",
+                executionFailed);
         throw new WorkflowFailureException(
-            execution.get(),
-            workflowType,
-            executionFailed.getDecisionTaskCompletedEventId(),
-            cause);
-      } else if (exception instanceof CancellationException) {
-        throw (CancellationException) exception;
-      } else if (exception instanceof WorkflowException) {
-        throw (WorkflowException) exception;
-      } else {
-        throw new WorkflowServiceException(execution.get(), workflowType, exception);
+            execution.get(), workflowType, executionFailed.getDecisionTaskCompletedEventId(), re);
       }
+      Throwable cause =
+          dataConverter.fromData(executionFailed.getDetails(), detailsClass, detailsClass);
+      throw new WorkflowFailureException(
+          execution.get(), workflowType, executionFailed.getDecisionTaskCompletedEventId(), cause);
+    } else if (exception instanceof CancellationException) {
+      throw (CancellationException) exception;
+    } else if (exception instanceof WorkflowException) {
+      throw (WorkflowException) exception;
+    } else if (exception instanceof StatusRuntimeException
+        && ((StatusRuntimeException) exception)
+            .getStatus()
+            .getCode()
+            .equals(Status.Code.NOT_FOUND)) {
+      throw new WorkflowNotFoundException(execution.get(), workflowType, exception.getMessage());
+    } else {
+      throw new WorkflowServiceException(execution.get(), workflowType, exception);
     }
   }
 

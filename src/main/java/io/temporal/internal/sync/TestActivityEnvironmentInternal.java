@@ -114,7 +114,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
             heartbeatExecutor);
   }
 
-  private WorkflowServiceGrpc.WorkflowServiceImplBase getMockService() {
+  private WorkflowServiceGrpc.WorkflowServiceImplBase getMockService(
+      @Nullable WorkflowServiceGrpc.WorkflowServiceImplBase redirect) {
     // Create a mock service.
     return mock(
         WorkflowServiceGrpc.WorkflowServiceImplBase.class,
@@ -141,6 +142,9 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
                 }
                 // TODO: Cancellation
                 super.recordActivityTaskHeartbeat(request, responseObserver);
+                if (redirect != null) {
+                  redirect.recordActivityTaskHeartbeat(request, responseObserver);
+                }
               }
             }));
   }
@@ -188,10 +192,32 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   }
 
   @Override
-  public void setWorkflowService(GrpcWorkflowServiceFactory workflowService) {
-    GrpcWorkflowServiceFactory service = getSpyService(workflowService);
-    this.workflowService = service;
-    this.activityTaskHandler.setWorkflowService(service);
+  public void setWorkflowService(WorkflowServiceGrpc.WorkflowServiceImplBase service) {
+    // Initialize an in-memory spy service.
+    WorkflowServiceGrpc.WorkflowServiceImplBase spyService = spy(service);
+    doAnswer(
+            invocation -> {
+              RecordActivityTaskHeartbeatRequest request = invocation.getArgument(0);
+              StreamObserver<RecordActivityTaskHeartbeatResponse> observer =
+                  invocation.getArgument(1);
+              if (activityHeartbetListener != null) {
+                Object details =
+                    testEnvironmentOptions
+                        .getDataConverter()
+                        .fromData(
+                            request.getDetails().toByteArray(),
+                            activityHeartbetListener.valueClass,
+                            activityHeartbetListener.valueType);
+                activityHeartbetListener.consumer.accept(details);
+              }
+              service.recordActivityTaskHeartbeat(request, observer);
+              return null;
+            })
+        .when(spyService)
+        .recordActivityTaskHeartbeat(any(), any());
+
+    this.workflowService = new GrpcWorkflowServiceFactory(spyService);
+    this.activityTaskHandler.setWorkflowService(this.workflowService);
   }
 
   private class TestActivityExecutor implements WorkflowInterceptor {
