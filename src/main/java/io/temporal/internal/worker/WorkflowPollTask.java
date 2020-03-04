@@ -73,7 +73,7 @@ final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskRespo
       result = service.blockingStub().pollForDecisionTask(pollRequest);
     } catch (StatusRuntimeException e) {
       Status.Code code = e.getStatus().getCode();
-      if (code.equals(Status.Code.INTERNAL) || code.equals(Status.Code.RESOURCE_EXHAUSTED)) {
+      if (code == Status.Code.INTERNAL || code == Status.Code.RESOURCE_EXHAUSTED) {
         metricScope.counter(MetricsType.DECISION_POLL_TRANSIENT_FAILED_COUNTER).inc(1);
         throw e;
       } else if (code == Status.Code.UNAVAILABLE) {
