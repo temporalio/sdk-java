@@ -82,13 +82,16 @@ final class ActivityPollTask implements Poller.PollTask<ActivityWorker.Measurabl
     try {
       result = service.blockingStub().pollForActivityTask(request);
     } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode().equals(Status.Code.INTERNAL)
-          || e.getStatus().getCode().equals(Status.Code.RESOURCE_EXHAUSTED)) {
+      Status.Code code = e.getStatus().getCode();
+      if (code == Status.Code.INTERNAL || code == Status.Code.RESOURCE_EXHAUSTED) {
         options
             .getMetricsScope()
             .counter(MetricsType.ACTIVITY_POLL_TRANSIENT_FAILED_COUNTER)
             .inc(1);
         throw e;
+      } else if (code == Status.Code.UNAVAILABLE) {
+        // Happens during shutdown. No need to log error.
+        return null;
       } else {
         options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_FAILED_COUNTER).inc(1);
         throw e;
