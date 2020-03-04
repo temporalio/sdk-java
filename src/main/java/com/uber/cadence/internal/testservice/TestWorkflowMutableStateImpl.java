@@ -81,6 +81,8 @@ import com.uber.cadence.StartTimerDecisionAttributes;
 import com.uber.cadence.StartWorkflowExecutionRequest;
 import com.uber.cadence.StickyExecutionAttributes;
 import com.uber.cadence.TimeoutType;
+import com.uber.cadence.UpsertWorkflowSearchAttributesDecisionAttributes;
+import com.uber.cadence.UpsertWorkflowSearchAttributesEventAttributes;
 import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.WorkflowExecutionCloseStatus;
 import com.uber.cadence.WorkflowExecutionContinuedAsNewEventAttributes;
