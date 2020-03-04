@@ -591,7 +591,7 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
       return new Iterator<HistoryEvent>() {
         @Override
         public boolean hasNext() {
-          return current.hasNext() || nextPageToken != null;
+          return current.hasNext() || nextPageToken.size() > 0;
         }
 
         @Override

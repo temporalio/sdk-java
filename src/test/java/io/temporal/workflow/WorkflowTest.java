@@ -148,7 +148,7 @@ public class WorkflowTest {
 
   private TracingWorkflowInterceptorFactory tracer;
   private static final boolean useDockerService =
-      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+        Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
 
   private static final boolean stickyOff = Boolean.parseBoolean(System.getenv("STICKY_OFF"));
 

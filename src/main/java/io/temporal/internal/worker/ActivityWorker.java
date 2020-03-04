@@ -224,12 +224,14 @@ public final class ActivityWorker implements SuspendableWorker {
                     Status.Code.INVALID_ARGUMENT,
                     Status.Code.NOT_FOUND,
                     Status.Code.FAILED_PRECONDITION);
-        taskCompleted
-            .toBuilder()
-            .setTaskToken(task.getTaskToken())
-            .setIdentity(options.getIdentity())
-            .build();
-        Retryer.retry(ro, () -> service.blockingStub().respondActivityTaskCompleted(taskCompleted));
+        RespondActivityTaskCompletedRequest taskCompletedHydrated =
+            taskCompleted
+                .toBuilder()
+                .setTaskToken(task.getTaskToken())
+                .setIdentity(options.getIdentity())
+                .build();
+        Retryer.retry(
+            ro, () -> service.blockingStub().respondActivityTaskCompleted(taskCompletedHydrated));
         metricsScope.counter(MetricsType.ACTIVITY_TASK_COMPLETED_COUNTER).inc(1);
       } else {
         if (response.getTaskFailedResult() != null) {
