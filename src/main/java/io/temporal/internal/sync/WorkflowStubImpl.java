@@ -119,7 +119,7 @@ class WorkflowStubImpl implements WorkflowStub {
             WorkflowExecution.newBuilder()
                 .setWorkflowId(p.getWorkflowId())
                 .setRunId(
-                    ((WorkflowExecutionAlreadyStartedFailure)
+                    ((WorkflowExecutionAlreadyStarted)
                             GrpcStatusUtils.getFailure(
                                 e, GrpcFailure.WORKFLOW_EXECUTION_ALREADY_STARTED_FAILURE))
                         .getRunId())

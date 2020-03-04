@@ -22,16 +22,17 @@ import com.google.common.collect.ImmutableMap;
 import io.grpc.Metadata;
 import io.grpc.StatusRuntimeException;
 import io.grpc.protobuf.ProtoUtils;
-import io.temporal.CancellationAlreadyRequestedFailure;
-import io.temporal.ClientVersionNotSupportedFailure;
-import io.temporal.CurrentBranchChangedFailure;
-import io.temporal.DomainAlreadyExistsFailure;
-import io.temporal.DomainNotActiveFailure;
-import io.temporal.QueryFailedFailure;
-import io.temporal.RetryTaskFailure;
-import io.temporal.RetryTaskV2Failure;
-import io.temporal.ShardOwnershipLostFailure;
-import io.temporal.WorkflowExecutionAlreadyStartedFailure;
+import io.temporal.CancellationAlreadyRequested;
+import io.temporal.ClientVersionNotSupported;
+import io.temporal.CurrentBranchChanged;
+import io.temporal.DomainAlreadyExists;
+import io.temporal.DomainNotActive;
+import io.temporal.EventAlreadyStarted;
+import io.temporal.QueryFailed;
+import io.temporal.RetryTask;
+import io.temporal.RetryTaskV2;
+import io.temporal.ShardOwnershipLost;
+import io.temporal.WorkflowExecutionAlreadyStarted;
 
 @SuppressWarnings(
     "unchecked") // Raw use of parametrized class to enable more efficient and briefer code.
@@ -43,37 +44,32 @@ public class GrpcStatusUtils {
         ImmutableMap.<GrpcFailure, Metadata.Key>builder()
             .put(
                 GrpcFailure.CANCELLATION_ALREADY_REQUESTED,
-                ProtoUtils.keyForProto(CancellationAlreadyRequestedFailure.getDefaultInstance()))
+                ProtoUtils.keyForProto(CancellationAlreadyRequested.getDefaultInstance()))
             .put(
                 GrpcFailure.CLIENT_VERSION_NOT_SUPPORTED,
-                ProtoUtils.keyForProto(ClientVersionNotSupportedFailure.getDefaultInstance()))
+                ProtoUtils.keyForProto(ClientVersionNotSupported.getDefaultInstance()))
             .put(
                 GrpcFailure.CURRENT_BRANCH_CHANGED,
-                ProtoUtils.keyForProto(CurrentBranchChangedFailure.getDefaultInstance()))
+                ProtoUtils.keyForProto(CurrentBranchChanged.getDefaultInstance()))
             .put(
                 GrpcFailure.DOMAIN_ALREADY_EXISTS_FAILURE,
-                ProtoUtils.keyForProto(DomainAlreadyExistsFailure.getDefaultInstance()))
+                ProtoUtils.keyForProto(DomainAlreadyExists.getDefaultInstance()))
             .put(
                 GrpcFailure.DOMAIN_NOT_ACTIVE,
-                ProtoUtils.keyForProto(DomainNotActiveFailure.getDefaultInstance()))
+                ProtoUtils.keyForProto(DomainNotActive.getDefaultInstance()))
             .put(
                 GrpcFailure.EVENT_ALREADY_STARTED,
-                ProtoUtils.keyForProto(DomainNotActiveFailure.getDefaultInstance()))
+                ProtoUtils.keyForProto(EventAlreadyStarted.getDefaultInstance()))
+            .put(GrpcFailure.QUERY_FAILED, ProtoUtils.keyForProto(QueryFailed.getDefaultInstance()))
+            .put(GrpcFailure.RETRY_TASK, ProtoUtils.keyForProto(RetryTask.getDefaultInstance()))
             .put(
-                GrpcFailure.QUERY_FAILED,
-                ProtoUtils.keyForProto(QueryFailedFailure.getDefaultInstance()))
-            .put(
-                GrpcFailure.RETRY_TASK,
-                ProtoUtils.keyForProto(RetryTaskFailure.getDefaultInstance()))
-            .put(
-                GrpcFailure.RETRY_TASK_V2,
-                ProtoUtils.keyForProto(RetryTaskV2Failure.getDefaultInstance()))
+                GrpcFailure.RETRY_TASK_V2, ProtoUtils.keyForProto(RetryTaskV2.getDefaultInstance()))
             .put(
                 GrpcFailure.SHARD_OWNERSHIP_LOST,
-                ProtoUtils.keyForProto(ShardOwnershipLostFailure.getDefaultInstance()))
+                ProtoUtils.keyForProto(ShardOwnershipLost.getDefaultInstance()))
             .put(
                 GrpcFailure.WORKFLOW_EXECUTION_ALREADY_STARTED_FAILURE,
-                ProtoUtils.keyForProto(WorkflowExecutionAlreadyStartedFailure.getDefaultInstance()))
+                ProtoUtils.keyForProto(WorkflowExecutionAlreadyStarted.getDefaultInstance()))
             .build();
   }
 

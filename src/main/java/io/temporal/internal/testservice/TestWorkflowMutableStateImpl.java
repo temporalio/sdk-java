@@ -1536,8 +1536,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       StatusRuntimeException e =
           new StatusRuntimeException(
               Status.INVALID_ARGUMENT.withDescription(completeRequest.getErrorMessage()));
-      GrpcStatusUtils.setFailure(
-          e, GrpcFailure.QUERY_FAILED, QueryFailedFailure.getDefaultInstance());
+      GrpcStatusUtils.setFailure(e, GrpcFailure.QUERY_FAILED, QueryFailed.getDefaultInstance());
       result.completeExceptionally(e);
     }
   }

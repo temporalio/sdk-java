@@ -17,6 +17,7 @@
 
 package io.temporal.internal.worker;
 
+import com.google.protobuf.DoubleValue;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
 import io.grpc.Status;
@@ -65,7 +66,10 @@ final class ActivityPollTask implements Poller.PollTask<ActivityWorker.Measurabl
     if (options.getTaskListActivitiesPerSecond() > 0) {
       TaskListMetadata metadata =
           TaskListMetadata.newBuilder()
-              .setMaxTasksPerSecond(options.getTaskListActivitiesPerSecond())
+              .setMaxTasksPerSecond(
+                  DoubleValue.newBuilder()
+                      .setValue(options.getTaskListActivitiesPerSecond())
+                      .build())
               .build();
       pollRequest.setTaskListMetadata(metadata);
     }

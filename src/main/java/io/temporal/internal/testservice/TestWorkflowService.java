@@ -216,7 +216,7 @@ public final class TestWorkflowService extends GrpcWorkflowServiceFactory {
       GrpcStatusUtils.setFailure(
           e,
           GrpcFailure.WORKFLOW_EXECUTION_ALREADY_STARTED_FAILURE,
-          WorkflowExecutionAlreadyStartedFailure.newBuilder()
+          WorkflowExecutionAlreadyStarted.newBuilder()
               .setRunId(execution.getRunId())
               .setStartRequestId(startRequest.getRequestId())
               .build());
