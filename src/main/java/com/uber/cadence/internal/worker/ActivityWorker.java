@@ -17,7 +17,15 @@
 
 package com.uber.cadence.internal.worker;
 
-import com.uber.cadence.*;
+import com.uber.cadence.BadRequestError;
+import com.uber.cadence.DomainNotActiveError;
+import com.uber.cadence.EntityNotExistsError;
+import com.uber.cadence.Header;
+import com.uber.cadence.PollForActivityTaskResponse;
+import com.uber.cadence.RespondActivityTaskCanceledRequest;
+import com.uber.cadence.RespondActivityTaskCompletedRequest;
+import com.uber.cadence.RespondActivityTaskFailedRequest;
+import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.common.RetryOptions;
 import com.uber.cadence.context.ContextPropagator;
 import com.uber.cadence.internal.common.Retryer;
@@ -132,21 +140,8 @@ public final class ActivityWorker implements SuspendableWorker {
     return poller.isSuspended();
   }
 
-  static class MeasurableActivityTask {
-    PollForActivityTaskResponse task;
-    Stopwatch sw;
-
-    MeasurableActivityTask(PollForActivityTaskResponse task, Stopwatch sw) {
-      this.task = Objects.requireNonNull(task);
-      this.sw = Objects.requireNonNull(sw);
-    }
-
-    void markDone() {
-      sw.stop();
-    }
-  }
-
-  private class TaskHandlerImpl implements PollTaskExecutor.TaskHandler<MeasurableActivityTask> {
+  private class TaskHandlerImpl
+      implements PollTaskExecutor.TaskHandler<PollForActivityTaskResponse> {
 
     final ActivityTaskHandler handler;
 
@@ -155,43 +150,52 @@ public final class ActivityWorker implements SuspendableWorker {
     }
 
     @Override
-    public void handle(MeasurableActivityTask task) throws Exception {
+    public void handle(PollForActivityTaskResponse task) throws Exception {
       Scope metricsScope =
           options
               .getMetricsScope()
               .tagged(
-                  ImmutableMap.of(MetricsTag.ACTIVITY_TYPE, task.task.getActivityType().getName()));
+                  ImmutableMap.of(
+                      MetricsTag.ACTIVITY_TYPE,
+                      task.getActivityType().getName(),
+                      MetricsTag.WORKFLOW_TYPE,
+                      task.getWorkflowType().getName()));
+
       metricsScope
-          .timer(MetricsType.TASK_LIST_QUEUE_LATENCY)
+          .timer(MetricsType.ACTIVITY_SCHEDULED_TO_START_LATENCY)
           .record(
               Duration.ofNanos(
-                  task.task.getStartedTimestamp() - task.task.getScheduledTimestamp()));
+                  task.getStartedTimestamp() - task.getScheduledTimestampOfThisAttempt()));
 
       // The following tags are for logging.
-      MDC.put(LoggerTag.ACTIVITY_ID, task.task.getActivityId());
-      MDC.put(LoggerTag.ACTIVITY_TYPE, task.task.getActivityType().getName());
-      MDC.put(LoggerTag.WORKFLOW_ID, task.task.getWorkflowExecution().getWorkflowId());
-      MDC.put(LoggerTag.RUN_ID, task.task.getWorkflowExecution().getRunId());
+      MDC.put(LoggerTag.ACTIVITY_ID, task.getActivityId());
+      MDC.put(LoggerTag.ACTIVITY_TYPE, task.getActivityType().getName());
+      MDC.put(LoggerTag.WORKFLOW_ID, task.getWorkflowExecution().getWorkflowId());
+      MDC.put(LoggerTag.RUN_ID, task.getWorkflowExecution().getRunId());
 
-      propagateContext(task.task);
+      propagateContext(task);
 
       try {
         Stopwatch sw = metricsScope.timer(MetricsType.ACTIVITY_EXEC_LATENCY).start();
-        ActivityTaskHandler.Result response = handler.handle(task.task, metricsScope, false);
+        ActivityTaskHandler.Result response = handler.handle(task, metricsScope, false);
         sw.stop();
 
         sw = metricsScope.timer(MetricsType.ACTIVITY_RESP_LATENCY).start();
-        sendReply(task.task, response, metricsScope);
+        sendReply(task, response, metricsScope);
         sw.stop();
 
-        task.markDone();
+        metricsScope
+            .timer(MetricsType.ACTIVITY_E2E_LATENCY)
+            .record(
+                Duration.ofNanos(System.nanoTime() - task.getScheduledTimestampOfThisAttempt()));
+
       } catch (CancellationException e) {
         RespondActivityTaskCanceledRequest cancelledRequest =
             new RespondActivityTaskCanceledRequest();
         cancelledRequest.setDetails(
             String.valueOf(e.getMessage()).getBytes(StandardCharsets.UTF_8));
         Stopwatch sw = metricsScope.timer(MetricsType.ACTIVITY_RESP_LATENCY).start();
-        sendReply(task.task, new Result(null, null, cancelledRequest, null), metricsScope);
+        sendReply(task, new Result(null, null, cancelledRequest, null), metricsScope);
         sw.stop();
       } finally {
         MDC.remove(LoggerTag.ACTIVITY_ID);
@@ -225,17 +229,17 @@ public final class ActivityWorker implements SuspendableWorker {
     }
 
     @Override
-    public Throwable wrapFailure(MeasurableActivityTask task, Throwable failure) {
-      WorkflowExecution execution = task.task.getWorkflowExecution();
+    public Throwable wrapFailure(PollForActivityTaskResponse task, Throwable failure) {
+      WorkflowExecution execution = task.getWorkflowExecution();
       return new RuntimeException(
           "Failure processing activity task. WorkflowID="
               + execution.getWorkflowId()
               + ", RunID="
               + execution.getRunId()
               + ", ActivityType="
-              + task.task.getActivityType().getName()
+              + task.getActivityType().getName()
               + ", ActivityID="
-              + task.task.getActivityId(),
+              + task.getActivityId(),
           failure);
     }
 
