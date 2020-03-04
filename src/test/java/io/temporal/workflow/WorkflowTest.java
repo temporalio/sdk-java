@@ -142,13 +142,13 @@ public class WorkflowTest {
    * When set to true increases test, activity and workflow timeouts to large values to support
    * stepping through code in a debugger without timing out.
    */
-  private static final boolean DEBUGGER_TIMEOUTS = true;
+  private static final boolean DEBUGGER_TIMEOUTS = false;
 
   private static final String ANNOTATION_TASK_LIST = "WorkflowTest-testExecute[Docker]";
 
   private TracingWorkflowInterceptorFactory tracer;
-  private static final boolean useDockerService = true;
-  //      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+  private static final boolean useDockerService =
+        Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
 
   private static final boolean stickyOff = Boolean.parseBoolean(System.getenv("STICKY_OFF"));
 
