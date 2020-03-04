@@ -251,7 +251,7 @@ public class WorkflowExecutionUtils {
             .setDomain(domain)
             .setExecution(workflowExecution)
             .setHistoryEventFilterType(HistoryEventFilterType.HistoryEventFilterTypeCloseEvent)
-            .setNextPageToken(pageToken)
+            .setNextPageToken(pageToken == null ? ByteString.EMPTY : pageToken)
             .build();
     CompletableFuture<GetWorkflowExecutionHistoryResponse> response =
         getWorkflowExecutionHistoryAsync(service, request);

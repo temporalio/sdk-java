@@ -111,6 +111,7 @@ import io.temporal.internal.testservice.TestWorkflowStore.TaskListId;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -471,6 +472,7 @@ class StateMachines {
                   .setDomain(d.getDomain() == null ? ctx.getDomain() : d.getDomain())
                   .setExecutionStartToCloseTimeoutSeconds(
                       d.getExecutionStartToCloseTimeoutSeconds())
+                  .setRequestId(UUID.randomUUID().toString())
                   .setTaskStartToCloseTimeoutSeconds(d.getTaskStartToCloseTimeoutSeconds())
                   .setTaskList(d.getTaskList())
                   .setWorkflowId(d.getWorkflowId())

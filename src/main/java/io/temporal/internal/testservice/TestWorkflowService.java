@@ -33,11 +33,7 @@ import io.temporal.serviceclient.GrpcStatusUtils;
 import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.OptionalLong;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
@@ -604,6 +600,7 @@ public final class TestWorkflowService extends GrpcWorkflowServiceFactory {
         OptionalLong parentChildInitiatedEventId) {
       StartWorkflowExecutionRequest startRequest =
           StartWorkflowExecutionRequest.newBuilder()
+              .setRequestId(UUID.randomUUID().toString())
               .setWorkflowType(a.getWorkflowType())
               .setExecutionStartToCloseTimeoutSeconds(a.getExecutionStartToCloseTimeoutSeconds())
               .setTaskStartToCloseTimeoutSeconds(a.getTaskStartToCloseTimeoutSeconds())

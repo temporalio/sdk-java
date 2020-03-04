@@ -47,6 +47,7 @@ public class TestServiceUtils {
     StartWorkflowExecutionRequest request =
         StartWorkflowExecutionRequest.newBuilder()
             .setDomain(domain)
+            .setRequestId(UUID.randomUUID().toString())
             .setWorkflowId(UUID.randomUUID().toString())
             .setTaskList(createNormalTaskList(tasklistName))
             .setExecutionStartToCloseTimeoutSeconds(executionStartToCloseTimeoutSeconds)

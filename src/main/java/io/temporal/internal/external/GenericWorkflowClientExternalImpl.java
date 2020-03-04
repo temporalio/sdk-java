@@ -103,6 +103,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     StartWorkflowExecutionRequest request =
         requestBuilder
             .setDomain(domain)
+            .setRequestId(UUID.randomUUID().toString())
             .setExecutionStartToCloseTimeoutSeconds(
                 (int) startParameters.getExecutionStartToCloseTimeoutSeconds())
             .setTaskStartToCloseTimeoutSeconds(
@@ -179,7 +180,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   public void signalWorkflowExecution(SignalExternalWorkflowParameters signalParameters) {
     WorkflowExecution execution =
         WorkflowExecution.newBuilder()
-            .setRunId(signalParameters.getRunId())
+            .setRunId(signalParameters.getRunId() == null ? "" : signalParameters.getRunId())
             .setWorkflowId(signalParameters.getWorkflowId())
             .build();
     SignalWorkflowExecutionRequest request =
@@ -245,6 +246,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     SignalWithStartWorkflowExecutionRequest request =
         requestBuilder
             .setDomain(domain)
+            .setRequestId(UUID.randomUUID().toString())
             .setSignalName(parameters.getSignalName())
             .setSignalInput(ByteString.copyFrom(parameters.getSignalInput()))
             .setExecutionStartToCloseTimeoutSeconds(
