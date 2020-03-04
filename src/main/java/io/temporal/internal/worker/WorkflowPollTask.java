@@ -72,10 +72,13 @@ final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskRespo
     try {
       result = service.blockingStub().pollForDecisionTask(pollRequest);
     } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode().equals(Status.Code.INTERNAL)
-          || e.getStatus().getCode().equals(Status.Code.RESOURCE_EXHAUSTED)) {
+      Status.Code code = e.getStatus().getCode();
+      if (code.equals(Status.Code.INTERNAL) || code.equals(Status.Code.RESOURCE_EXHAUSTED)) {
         metricScope.counter(MetricsType.DECISION_POLL_TRANSIENT_FAILED_COUNTER).inc(1);
         throw e;
+      } else if (code == Status.Code.UNAVAILABLE) {
+        // Happens during shutdown. No need to log error.
+        return null;
       } else {
         metricScope.counter(MetricsType.DECISION_POLL_FAILED_COUNTER).inc(1);
         throw e;
