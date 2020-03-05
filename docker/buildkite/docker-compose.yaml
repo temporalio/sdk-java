@@ -27,7 +27,7 @@ services:
           - statsd
 
   temporal:
-    image: temporalio/temporal:last-thrift-release-auto-setup
+    image: temporalio/temporal:master-auto-setup
     logging:
       driver: none
     ports:

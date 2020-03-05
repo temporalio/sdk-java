@@ -291,9 +291,10 @@ public final class TestWorkflowService extends GrpcWorkflowServiceFactory {
         // The task always has the original tasklist is was created on as part of the response. This
         // may different
         // then the task list it was scheduled on as in the case of sticky execution.
-        task.toBuilder()
-            .setWorkflowExecutionTaskList(mutableState.getStartRequest().getTaskList())
-            .build();
+        task =
+            task.toBuilder()
+                .setWorkflowExecutionTaskList(mutableState.getStartRequest().getTaskList())
+                .build();
         streamObserver.onNext(task);
         streamObserver.onCompleted();
       } catch (StatusRuntimeException e) {
@@ -302,9 +303,10 @@ public final class TestWorkflowService extends GrpcWorkflowServiceFactory {
         }
         // skip the task
       }
-      task.toBuilder()
-          .setWorkflowExecutionTaskList(mutableState.getStartRequest().getTaskList())
-          .build();
+      task =
+          task.toBuilder()
+              .setWorkflowExecutionTaskList(mutableState.getStartRequest().getTaskList())
+              .build();
       streamObserver.onNext(task);
       streamObserver.onCompleted();
     }
@@ -612,9 +614,8 @@ public final class TestWorkflowService extends GrpcWorkflowServiceFactory {
               .setRetryPolicy(previousRunStartRequest.getRetryPolicy())
               .setCronSchedule(previousRunStartRequest.getCronSchedule())
               .build();
-      // TODO: (vkoby) Revisit
       if (a.getInput() != null) {
-        startRequest.toBuilder().setInput(a.getInput()).build();
+        startRequest = startRequest.toBuilder().setInput(a.getInput()).build();
       }
       lock.lock();
       try {

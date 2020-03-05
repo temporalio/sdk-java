@@ -300,12 +300,14 @@ public final class WorkflowWorker
                     Status.Code.INVALID_ARGUMENT,
                     Status.Code.NOT_FOUND,
                     Status.Code.FAILED_PRECONDITION);
-        taskCompleted
-            .toBuilder()
-            .setIdentity(options.getIdentity())
-            .setTaskToken(taskToken)
-            .build();
-        Retryer.retry(ro, () -> service.blockingStub().respondDecisionTaskCompleted(taskCompleted));
+        RespondDecisionTaskCompletedRequest taskCompletedHydrated =
+            taskCompleted
+                .toBuilder()
+                .setIdentity(options.getIdentity())
+                .setTaskToken(taskToken)
+                .build();
+        Retryer.retry(
+            ro, () -> service.blockingStub().respondDecisionTaskCompleted(taskCompletedHydrated));
       } else {
         RespondDecisionTaskFailedRequest taskFailed = response.getTaskFailed();
         if (taskFailed != null) {
@@ -317,12 +319,18 @@ public final class WorkflowWorker
                       Status.Code.INVALID_ARGUMENT,
                       Status.Code.NOT_FOUND,
                       Status.Code.FAILED_PRECONDITION);
-          taskFailed.toBuilder().setIdentity(options.getIdentity()).setTaskToken(taskToken).build();
-          Retryer.retry(ro, () -> service.blockingStub().respondDecisionTaskFailed(taskFailed));
+          RespondDecisionTaskFailedRequest taskFailedHydrated =
+              taskFailed
+                  .toBuilder()
+                  .setIdentity(options.getIdentity())
+                  .setTaskToken(taskToken)
+                  .build();
+          Retryer.retry(
+              ro, () -> service.blockingStub().respondDecisionTaskFailed(taskFailedHydrated));
         } else {
           RespondQueryTaskCompletedRequest queryCompleted = response.getQueryCompleted();
           if (queryCompleted != null) {
-            queryCompleted.toBuilder().setTaskToken(taskToken).build();
+            queryCompleted = queryCompleted.toBuilder().setTaskToken(taskToken).build();
             // Do not retry query response.
             service.blockingStub().respondQueryTaskCompleted(queryCompleted);
           }

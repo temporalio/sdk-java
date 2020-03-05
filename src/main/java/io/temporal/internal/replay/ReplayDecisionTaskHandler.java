@@ -281,11 +281,12 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
               .build();
       GetWorkflowExecutionHistoryResponse getHistoryResponse =
           service.blockingStub().getWorkflowExecutionHistory(getHistoryRequest);
-      decisionTask
-          .toBuilder()
-          .setHistory(getHistoryResponse.getHistory())
-          .setNextPageToken(getHistoryResponse.getNextPageToken())
-          .build();
+      decisionTask =
+          decisionTask
+              .toBuilder()
+              .setHistory(getHistoryResponse.getHistory())
+              .setNextPageToken(getHistoryResponse.getNextPageToken())
+              .build();
     }
     DecisionsHelper decisionsHelper = new DecisionsHelper(decisionTask);
     ReplayWorkflow workflow = workflowFactory.getWorkflow(workflowType);

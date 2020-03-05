@@ -836,7 +836,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                     getExecutionId(),
                     parent,
                     parentChildInitiatedEventId);
-        continuedAsNewEventAttributes.toBuilder().setNewExecutionRunId(runId).build();
+        continuedAsNewEventAttributes =
+            continuedAsNewEventAttributes.toBuilder().setNewExecutionRunId(runId).build();
         return;
       }
     }
@@ -969,7 +970,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 getExecutionId(),
                 parent,
                 parentChildInitiatedEventId);
-    continuedAsNewEventAttributes.toBuilder().setNewExecutionRunId(runId).build();
+    continuedAsNewEventAttributes =
+        continuedAsNewEventAttributes.toBuilder().setNewExecutionRunId(runId).build();
   }
 
   private void processCancelWorkflowExecution(
@@ -1026,7 +1028,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 parent,
                 parentChildInitiatedEventId);
     event
-        .getWorkflowExecutionContinuedAsNewEventAttributes()
+        .getWorkflowExecutionContinuedAsNewEventAttributes() // TODO:
         .toBuilder()
         .setNewExecutionRunId(runId)
         .build();

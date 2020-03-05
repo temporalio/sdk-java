@@ -23,7 +23,7 @@ services:
           - statsd
 
   temporal:
-    image: temporalio/temporal:last-thrift-release-auto-setup
+    image: temporalio/temporal:master-auto-setup
     ports:
       - "7933:7933"
       - "7934:7934"

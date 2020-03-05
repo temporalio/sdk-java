@@ -257,11 +257,12 @@ public final class ActivityWorker implements SuspendableWorker {
         } else {
           RespondActivityTaskCanceledRequest taskCancelled = response.getTaskCancelled();
           if (taskCancelled != null) {
-            taskCancelled
-                .toBuilder()
-                .setTaskToken(task.getTaskToken())
-                .setIdentity(options.getIdentity())
-                .build();
+            RespondActivityTaskCanceledRequest taskCancelledHydrated =
+                taskCancelled
+                    .toBuilder()
+                    .setTaskToken(task.getTaskToken())
+                    .setIdentity(options.getIdentity())
+                    .build();
             ro =
                 options
                     .getReportFailureRetryOptions()
@@ -271,7 +272,8 @@ public final class ActivityWorker implements SuspendableWorker {
                         Status.Code.NOT_FOUND,
                         Status.Code.FAILED_PRECONDITION);
             Retryer.retry(
-                ro, () -> service.blockingStub().respondActivityTaskCanceled(taskCancelled));
+                ro,
+                () -> service.blockingStub().respondActivityTaskCanceled(taskCancelledHydrated));
             metricsScope.counter(MetricsType.ACTIVITY_TASK_CANCELED_COUNTER).inc(1);
           }
         }

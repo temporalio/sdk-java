@@ -86,10 +86,10 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
                   "Attempt to add an event after a completion event: "
                       + WorkflowExecutionUtils.prettyPrintHistoryEvent(event)));
         }
-        event.toBuilder().setEventId(history.size() + 1L).build();
+        event = event.toBuilder().setEventId(history.size() + 1L).build();
         // It can be set in StateMachines.startActivityTask
         if (event.getTimestamp() == 0) {
-          event.toBuilder().setTimestamp(timeInNanos).build();
+          event = event.toBuilder().setTimestamp(timeInNanos).build();
         }
         history.add(event);
         completed = completed || WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(event);
@@ -323,7 +323,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       } else {
         history.addAllEvents(new ArrayList<>());
       }
-      task.toBuilder().setHistory(history.build()).build();
+      task = task.toBuilder().setHistory(history.build()).build();
     } finally {
       lock.unlock();
     }
