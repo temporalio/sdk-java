@@ -15,13 +15,13 @@
  *  permissions and limitations under the License.
  */
 
-package com.uber.cadence.context;
+package io.temporal.context;
 
 import java.util.Map;
 
 /**
  * Context Propagators are used to propagate information from workflow to activity, workflow to
- * child workflow, and workflow to child thread (using {@link com.uber.cadence.workflow.Async}).
+ * child workflow, and workflow to child thread (using {@link io.temporal.workflow.Async}).
  *
  * <p>A sample <code>ContextPropagator</code> that copies all {@link org.slf4j.MDC} entries starting
  * with a given prefix along the code path looks like this:
@@ -80,7 +80,7 @@ import java.util.Map;
  * }</pre>
  *
  * <br>
- * Creating your {@link com.uber.cadence.client.WorkflowClient}:
+ * Creating your {@link io.temporal.client.WorkflowClient}:
  *
  * <pre>{@code
  * WorkflowOptions options = new WorkflowOptions.Builder()
@@ -94,7 +94,7 @@ import java.util.Map;
  *
  * <br>
  * If you want to have override the {@code ContextPropagator} instances for your activities, you can
- * specify them at the {@link com.uber.cadence.activity.ActivityOptions} level like so:
+ * specify them at the {@link io.temporal.activity.ActivityOptions} level like so:
  *
  * <pre>{@code
  * activities = Workflow.newActivityStub(Activity.class,
@@ -106,7 +106,7 @@ import java.util.Map;
  *
  * <br>
  * And similarly, if you wish to override them for child workflows, you can do so when creating a
- * {@link com.uber.cadence.workflow.ChildWorkflowStub}:
+ * {@link io.temporal.workflow.ChildWorkflowStub}:
  *
  * <pre>{@code
  * ChildWorkflow childWorkflow = Workflow.newChildWorkflowStub(ChildWorkflow.class,

@@ -26,6 +26,7 @@ import com.uber.m3.util.ImmutableMap;
 import io.temporal.PollForDecisionTaskResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.WorkflowExecutionHistory;
+import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.metrics.MetricsTag;

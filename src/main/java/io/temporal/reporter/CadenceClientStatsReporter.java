@@ -15,7 +15,7 @@
  *  permissions and limitations under the License.
  */
 
-package com.uber.cadence.reporter;
+package io.temporal.reporter;
 
 import com.uber.m3.tally.Buckets;
 import com.uber.m3.tally.Capabilities;

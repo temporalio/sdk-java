@@ -15,7 +15,7 @@
  *  permissions and limitations under the License.
  */
 
-package com.uber.cadence.reporter;
+package io.temporal.reporter;
 
 import static org.junit.Assert.assertEquals;
 

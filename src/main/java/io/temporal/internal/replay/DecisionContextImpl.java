@@ -28,6 +28,7 @@ import io.temporal.UpsertWorkflowSearchAttributesEventAttributes;
 import io.temporal.WorkflowExecution;
 import io.temporal.WorkflowExecutionStartedEventAttributes;
 import io.temporal.WorkflowType;
+import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
 import io.temporal.internal.metrics.ReplayAwareScope;
 import io.temporal.internal.worker.LocalActivityWorker;

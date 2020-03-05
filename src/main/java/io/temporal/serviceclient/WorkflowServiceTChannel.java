@@ -33,6 +33,7 @@ import io.temporal.ClientVersionNotSupportedError;
 import io.temporal.ClusterInfo;
 import io.temporal.CountWorkflowExecutionsRequest;
 import io.temporal.CountWorkflowExecutionsResponse;
+import io.temporal.CurrentBranchChangedError;
 import io.temporal.DeprecateDomainRequest;
 import io.temporal.DescribeDomainRequest;
 import io.temporal.DescribeDomainResponse;
@@ -46,6 +47,8 @@ import io.temporal.EntityNotExistsError;
 import io.temporal.GetSearchAttributesResponse;
 import io.temporal.GetWorkflowExecutionHistoryRequest;
 import io.temporal.GetWorkflowExecutionHistoryResponse;
+import io.temporal.GetWorkflowExecutionRawHistoryRequest;
+import io.temporal.GetWorkflowExecutionRawHistoryResponse;
 import io.temporal.InternalServiceError;
 import io.temporal.LimitExceededError;
 import io.temporal.ListArchivedWorkflowExecutionsRequest;
@@ -64,6 +67,8 @@ import io.temporal.PollForActivityTaskRequest;
 import io.temporal.PollForActivityTaskResponse;
 import io.temporal.PollForDecisionTaskRequest;
 import io.temporal.PollForDecisionTaskResponse;
+import io.temporal.PollForWorkflowExecutionRawHistoryRequest;
+import io.temporal.PollForWorkflowExecutionRawHistoryResponse;
 import io.temporal.QueryFailedError;
 import io.temporal.QueryWorkflowRequest;
 import io.temporal.QueryWorkflowResponse;
@@ -2032,6 +2037,14 @@ public class WorkflowServiceTChannel implements IWorkflowService {
     return measureRemoteCall(ServiceMethod.QUERY_WORKFLOW, () -> queryWorkflow(request));
   }
 
+  @Override
+  public GetWorkflowExecutionRawHistoryResponse GetWorkflowExecutionRawHistory(
+      GetWorkflowExecutionRawHistoryRequest getRequest)
+      throws BadRequestError, EntityNotExistsError, ServiceBusyError,
+          ClientVersionNotSupportedError, TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
   private QueryWorkflowResponse queryWorkflow(QueryWorkflowRequest queryRequest) throws TException {
     ThriftResponse<WorkflowService.QueryWorkflow_result> response = null;
     try {
@@ -2235,6 +2248,14 @@ public class WorkflowServiceTChannel implements IWorkflowService {
           TException {
     return measureRemoteCall(
         ServiceMethod.LIST_TASK_LIST_PARTITIONS, () -> listTaskListPartitions(request));
+  }
+
+  @Override
+  public PollForWorkflowExecutionRawHistoryResponse PollForWorkflowExecutionRawHistory(
+      PollForWorkflowExecutionRawHistoryRequest getRequest)
+      throws BadRequestError, EntityNotExistsError, ServiceBusyError,
+          ClientVersionNotSupportedError, CurrentBranchChangedError, TException {
+    throw new UnsupportedOperationException("not implemented");
   }
 
   private ListTaskListPartitionsResponse listTaskListPartitions(
@@ -2519,6 +2540,13 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   }
 
   @Override
+  public void GetWorkflowExecutionRawHistory(
+      GetWorkflowExecutionRawHistoryRequest getRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
   public void DescribeWorkflowExecution(
       DescribeWorkflowExecutionRequest describeRequest, AsyncMethodCallback resultHandler)
       throws TException {
@@ -2537,6 +2565,13 @@ public class WorkflowServiceTChannel implements IWorkflowService {
   @Override
   public void ListTaskListPartitions(
       ListTaskListPartitionsRequest request, AsyncMethodCallback resultHandler) throws TException {}
+
+  @Override
+  public void PollForWorkflowExecutionRawHistory(
+      PollForWorkflowExecutionRawHistoryRequest getRequest, AsyncMethodCallback resultHandler)
+      throws TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
 
   @Override
   public void RegisterDomain(

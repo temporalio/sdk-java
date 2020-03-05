@@ -20,6 +20,7 @@ package io.temporal.internal.external;
 import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
+import io.temporal.Header;
 import io.temporal.Memo;
 import io.temporal.QueryWorkflowRequest;
 import io.temporal.QueryWorkflowResponse;

@@ -23,6 +23,7 @@ import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.*;
 import io.temporal.common.RetryOptions;
+import io.temporal.context.ContextPropagator;
 import io.temporal.internal.common.Retryer;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsTag;

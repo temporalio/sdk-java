@@ -21,6 +21,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.SearchAttributes;
 import io.temporal.WorkflowExecution;
 import io.temporal.WorkflowType;
+import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
@@ -81,8 +82,8 @@ public interface DecisionContext extends ReplayAware {
 
   /**
    * Returns all of the current contexts being propagated by a {@link
-   * com.uber.cadence.context.ContextPropagator}. The key is the {@link ContextPropagator#getName()}
-   * and the value is the object returned by {@link ContextPropagator#getCurrentContext()}
+   * io.temporal.context.ContextPropagator}. The key is the {@link ContextPropagator#getName()} and
+   * the value is the object returned by {@link ContextPropagator#getCurrentContext()}
    */
   Map<String, Object> getPropagatedContexts();
 

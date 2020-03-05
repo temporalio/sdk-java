@@ -21,6 +21,7 @@ import static io.temporal.worker.NonDeterministicWorkflowPolicy.FailWorkflow;
 
 import com.google.common.reflect.TypeToken;
 import io.temporal.WorkflowType;
+import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
 import io.temporal.converter.DataConverterException;
 import io.temporal.internal.common.CheckedExceptionWrapper;

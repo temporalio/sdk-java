@@ -33,6 +33,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowQueryException;
 import io.temporal.client.WorkflowServiceException;
 import io.temporal.client.WorkflowStub;
+import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
 import io.temporal.converter.DataConverterException;
 import io.temporal.converter.JsonDataConverter;

@@ -19,6 +19,7 @@ package io.temporal.internal.worker;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.common.RetryOptions;
+import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
 import io.temporal.converter.JsonDataConverter;
 import io.temporal.internal.common.Retryer;

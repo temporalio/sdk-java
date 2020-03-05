@@ -15,12 +15,12 @@
  *  permissions and limitations under the License.
  */
 
-package com.uber.cadence.workflow;
+package io.temporal.workflow;
 
 import static junit.framework.TestCase.assertEquals;
 
-import com.uber.cadence.SearchAttributes;
-import com.uber.cadence.internal.common.InternalUtils;
+import io.temporal.SearchAttributes;
+import io.temporal.internal.common.InternalUtils;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Test;

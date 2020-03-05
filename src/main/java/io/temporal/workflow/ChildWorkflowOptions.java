@@ -24,6 +24,7 @@ import io.temporal.WorkflowIdReusePolicy;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
+import io.temporal.context.ContextPropagator;
 import io.temporal.internal.common.OptionsUtils;
 import java.time.Duration;
 import java.util.List;

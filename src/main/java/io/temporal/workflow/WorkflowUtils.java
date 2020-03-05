@@ -15,12 +15,12 @@
  *  permissions and limitations under the License.
  */
 
-package com.uber.cadence.workflow;
+package io.temporal.workflow;
 
 import com.cronutils.utils.StringUtils;
-import com.uber.cadence.SearchAttributes;
-import com.uber.cadence.converter.DataConverter;
-import com.uber.cadence.converter.JsonDataConverter;
+import io.temporal.SearchAttributes;
+import io.temporal.converter.DataConverter;
+import io.temporal.converter.JsonDataConverter;
 import java.nio.ByteBuffer;
 
 public class WorkflowUtils {

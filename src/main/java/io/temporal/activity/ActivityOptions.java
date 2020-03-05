@@ -21,6 +21,7 @@ import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
+import io.temporal.context.ContextPropagator;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;

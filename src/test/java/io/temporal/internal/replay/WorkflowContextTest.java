@@ -15,15 +15,15 @@
  *  permissions and limitations under the License.
  */
 
-package com.uber.cadence.internal.replay;
+package io.temporal.internal.replay;
 
 import static junit.framework.TestCase.assertEquals;
 
-import com.uber.cadence.SearchAttributes;
-import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
-import com.uber.cadence.converter.DataConverter;
-import com.uber.cadence.converter.JsonDataConverter;
-import com.uber.cadence.workflow.WorkflowUtils;
+import io.temporal.SearchAttributes;
+import io.temporal.WorkflowExecutionStartedEventAttributes;
+import io.temporal.converter.DataConverter;
+import io.temporal.converter.JsonDataConverter;
+import io.temporal.workflow.WorkflowUtils;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;

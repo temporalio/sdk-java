@@ -17,8 +17,8 @@
 
 package io.temporal.internal.replay;
 
-import com.uber.cadence.context.ContextPropagator;
 import io.temporal.*;
+import io.temporal.context.ContextPropagator;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.List;

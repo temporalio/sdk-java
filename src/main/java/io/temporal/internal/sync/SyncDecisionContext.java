@@ -27,6 +27,7 @@ import io.temporal.WorkflowType;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.RetryOptions;
+import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.RetryParameters;
