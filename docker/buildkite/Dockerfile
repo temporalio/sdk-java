@@ -5,11 +5,8 @@ ENV APACHE_THRIFT_VERSION=0.9.3
 
 # Install dependencies using apk
 RUN apk update && apk add --virtual wget ca-certificates wget && apk add --virtual build-dependencies build-base gcc
-<<<<<<< HEAD
-=======
 # Git is needed in order to update the dls submodule
 RUN apk add --virtual git
->>>>>>> cadence/master
 
 # Compile source
 RUN set -ex ;\
@@ -24,10 +21,5 @@ RUN set -ex ;\
 # Cleanup packages and remove cache
 RUN apk del build-dependencies wget && rm -rf /var/cache/apk/*
 
-<<<<<<< HEAD
 RUN mkdir /temporal-java-client
 WORKDIR /temporal-java-client
-=======
-RUN mkdir /cadence-java-client
-WORKDIR /cadence-java-client
->>>>>>> cadence/master

@@ -26,13 +26,8 @@ services:
         aliases:
           - statsd
 
-<<<<<<< HEAD
   temporal:
     image: temporalio/temporal:0.0.1.alpha-auto-setup
-=======
-  cadence:
-    image: ubercadence/server:master-auto-setup
->>>>>>> cadence/master
     logging:
       driver: none
     ports:
