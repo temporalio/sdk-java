@@ -15,7 +15,6 @@
  *  permissions and limitations under the License.
  */
 
-<<<<<<< HEAD:src/main/java/io/temporal/internal/sync/WorkflowStubImpl.java
 package io.temporal.internal.sync;
 
 import io.temporal.EntityNotExistsError;
@@ -46,39 +45,6 @@ import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.external.GenericWorkflowClientExternal;
 import io.temporal.internal.replay.QueryWorkflowParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
-=======
-package com.uber.cadence.internal.sync;
-
-import com.uber.cadence.EntityNotExistsError;
-import com.uber.cadence.InternalServiceError;
-import com.uber.cadence.QueryFailedError;
-import com.uber.cadence.QueryRejectCondition;
-import com.uber.cadence.QueryWorkflowResponse;
-import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
-import com.uber.cadence.WorkflowType;
-import com.uber.cadence.client.DuplicateWorkflowException;
-import com.uber.cadence.client.WorkflowException;
-import com.uber.cadence.client.WorkflowFailureException;
-import com.uber.cadence.client.WorkflowNotFoundException;
-import com.uber.cadence.client.WorkflowOptions;
-import com.uber.cadence.client.WorkflowQueryException;
-import com.uber.cadence.client.WorkflowServiceException;
-import com.uber.cadence.client.WorkflowStub;
-import com.uber.cadence.context.ContextPropagator;
-import com.uber.cadence.converter.DataConverter;
-import com.uber.cadence.converter.DataConverterException;
-import com.uber.cadence.converter.JsonDataConverter;
-import com.uber.cadence.internal.common.CheckedExceptionWrapper;
-import com.uber.cadence.internal.common.QueryResponse;
-import com.uber.cadence.internal.common.SignalWithStartWorkflowExecutionParameters;
-import com.uber.cadence.internal.common.StartWorkflowExecutionParameters;
-import com.uber.cadence.internal.common.WorkflowExecutionFailedException;
-import com.uber.cadence.internal.common.WorkflowExecutionUtils;
-import com.uber.cadence.internal.external.GenericWorkflowClientExternal;
-import com.uber.cadence.internal.replay.QueryWorkflowParameters;
-import com.uber.cadence.internal.replay.SignalExternalWorkflowParameters;
->>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/sync/WorkflowStubImpl.java
 import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.List;

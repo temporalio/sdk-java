@@ -15,7 +15,6 @@
  *  permissions and limitations under the License.
  */
 
-<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/ActivityDecisionContext.java
 package io.temporal.internal.replay;
 
 import io.temporal.ActivityTaskCanceledEventAttributes;
@@ -28,22 +27,6 @@ import io.temporal.ScheduleActivityTaskDecisionAttributes;
 import io.temporal.TaskList;
 import io.temporal.TimeoutType;
 import io.temporal.internal.common.RetryParameters;
-=======
-package com.uber.cadence.internal.replay;
-
-import com.uber.cadence.ActivityTaskCanceledEventAttributes;
-import com.uber.cadence.ActivityTaskCompletedEventAttributes;
-import com.uber.cadence.ActivityTaskFailedEventAttributes;
-import com.uber.cadence.ActivityTaskTimedOutEventAttributes;
-import com.uber.cadence.ActivityType;
-import com.uber.cadence.Header;
-import com.uber.cadence.HistoryEvent;
-import com.uber.cadence.ScheduleActivityTaskDecisionAttributes;
-import com.uber.cadence.TaskList;
-import com.uber.cadence.TimeoutType;
-import com.uber.cadence.internal.common.RetryParameters;
-import java.nio.ByteBuffer;
->>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/ActivityDecisionContext.java
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CancellationException;

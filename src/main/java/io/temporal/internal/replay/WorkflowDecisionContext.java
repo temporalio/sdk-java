@@ -18,7 +18,6 @@
 package io.temporal.internal.replay;
 
 import com.google.common.base.Strings;
-<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/WorkflowDecisionContext.java
 import io.temporal.ChildWorkflowExecutionCanceledEventAttributes;
 import io.temporal.ChildWorkflowExecutionCompletedEventAttributes;
 import io.temporal.ChildWorkflowExecutionFailedCause;
@@ -42,33 +41,6 @@ import io.temporal.workflow.ChildWorkflowTerminatedException;
 import io.temporal.workflow.ChildWorkflowTimedOutException;
 import io.temporal.workflow.SignalExternalWorkflowException;
 import io.temporal.workflow.StartChildWorkflowFailedException;
-=======
-import com.uber.cadence.ChildWorkflowExecutionCanceledEventAttributes;
-import com.uber.cadence.ChildWorkflowExecutionCompletedEventAttributes;
-import com.uber.cadence.ChildWorkflowExecutionFailedCause;
-import com.uber.cadence.ChildWorkflowExecutionFailedEventAttributes;
-import com.uber.cadence.ChildWorkflowExecutionStartedEventAttributes;
-import com.uber.cadence.ChildWorkflowExecutionTerminatedEventAttributes;
-import com.uber.cadence.ChildWorkflowExecutionTimedOutEventAttributes;
-import com.uber.cadence.ExternalWorkflowExecutionSignaledEventAttributes;
-import com.uber.cadence.Header;
-import com.uber.cadence.HistoryEvent;
-import com.uber.cadence.ParentClosePolicy;
-import com.uber.cadence.RequestCancelExternalWorkflowExecutionDecisionAttributes;
-import com.uber.cadence.SignalExternalWorkflowExecutionDecisionAttributes;
-import com.uber.cadence.SignalExternalWorkflowExecutionFailedEventAttributes;
-import com.uber.cadence.StartChildWorkflowExecutionDecisionAttributes;
-import com.uber.cadence.StartChildWorkflowExecutionFailedEventAttributes;
-import com.uber.cadence.TaskList;
-import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.WorkflowType;
-import com.uber.cadence.internal.common.RetryParameters;
-import com.uber.cadence.workflow.ChildWorkflowTerminatedException;
-import com.uber.cadence.workflow.ChildWorkflowTimedOutException;
-import com.uber.cadence.workflow.SignalExternalWorkflowException;
-import com.uber.cadence.workflow.StartChildWorkflowFailedException;
-import java.nio.ByteBuffer;
->>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/WorkflowDecisionContext.java
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -171,12 +143,8 @@ final class WorkflowDecisionContext {
     if (!Strings.isNullOrEmpty(parameters.getCronSchedule())) {
       attributes.setCronSchedule(parameters.getCronSchedule());
     }
-
-<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/WorkflowDecisionContext.java
-=======
     attributes.setHeader(toHeaderThrift(parameters.getContext()));
 
->>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/WorkflowDecisionContext.java
     ParentClosePolicy parentClosePolicy = parameters.getParentClosePolicy();
     if (parentClosePolicy != null) {
       attributes.setParentClosePolicy(parentClosePolicy);

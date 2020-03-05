@@ -17,17 +17,10 @@
 
 package io.temporal.internal.common;
 
-<<<<<<< HEAD:src/main/java/io/temporal/internal/common/StartWorkflowExecutionParameters.java
 import io.temporal.WorkflowIdReusePolicy;
 import io.temporal.WorkflowType;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
-=======
-import com.uber.cadence.WorkflowIdReusePolicy;
-import com.uber.cadence.WorkflowType;
-import com.uber.cadence.client.WorkflowOptions;
-import com.uber.cadence.common.RetryOptions;
->>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/common/StartWorkflowExecutionParameters.java
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;

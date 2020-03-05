@@ -17,16 +17,6 @@
 
 package io.temporal.workflow;
 
-<<<<<<< HEAD:src/main/java/io/temporal/workflow/Workflow.java
-=======
-import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.activity.ActivityOptions;
-import com.uber.cadence.activity.LocalActivityOptions;
-import com.uber.cadence.common.RetryOptions;
-import com.uber.cadence.internal.sync.WorkflowInternal;
-import com.uber.cadence.worker.WorkerOptions;
-import com.uber.cadence.workflow.Functions.Func;
->>>>>>> cadence/master:src/main/java/com/uber/cadence/workflow/Workflow.java
 import com.uber.m3.tally.Scope;
 import io.temporal.WorkflowExecution;
 import io.temporal.activity.ActivityOptions;
@@ -257,11 +247,7 @@ import org.slf4j.Logger;
  * methods annotated with {@literal @}{@link SignalMethod}. Querying a child workflow by calling
  * methods annotated with {@literal @}{@link QueryMethod} from within workflow code is not
  * supported. However, queries can be done from activities using the {@link
-<<<<<<< HEAD:src/main/java/io/temporal/workflow/Workflow.java
  * io.temporal.client.WorkflowClient} provided stub.
-=======
- * com.uber.cadence.client.WorkflowClient} provided stub.
->>>>>>> cadence/master:src/main/java/com/uber/cadence/workflow/Workflow.java
  *
  * <pre><code>
  * public interface GreetingChild {

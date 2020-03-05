@@ -15,32 +15,8 @@
  *  permissions and limitations under the License.
  */
 
-<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/DecisionContextImpl.java
 package io.temporal.internal.replay;
 
-=======
-package com.uber.cadence.internal.replay;
-
-import com.uber.cadence.DecisionTaskFailedCause;
-import com.uber.cadence.DecisionTaskFailedEventAttributes;
-import com.uber.cadence.HistoryEvent;
-import com.uber.cadence.PollForDecisionTaskResponse;
-import com.uber.cadence.SearchAttributes;
-import com.uber.cadence.TimerFiredEventAttributes;
-import com.uber.cadence.UpsertWorkflowSearchAttributesEventAttributes;
-import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
-import com.uber.cadence.WorkflowType;
-import com.uber.cadence.context.ContextPropagator;
-import com.uber.cadence.converter.DataConverter;
-import com.uber.cadence.internal.metrics.ReplayAwareScope;
-import com.uber.cadence.internal.worker.LocalActivityWorker;
-import com.uber.cadence.internal.worker.SingleWorkerOptions;
-import com.uber.cadence.workflow.Functions.Func;
-import com.uber.cadence.workflow.Functions.Func1;
-import com.uber.cadence.workflow.Promise;
-import com.uber.cadence.workflow.Workflow;
->>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/DecisionContextImpl.java
 import com.uber.m3.tally.Scope;
 import io.temporal.DecisionTaskFailedCause;
 import io.temporal.DecisionTaskFailedEventAttributes;
@@ -195,8 +171,6 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   }
 
   @Override
-<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/DecisionContextImpl.java
-=======
   public List<ContextPropagator> getContextPropagators() {
     return workflowContext.getContextPropagators();
   }
@@ -207,7 +181,6 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   }
 
   @Override
->>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/DecisionContextImpl.java
   public Consumer<Exception> scheduleActivityTask(
       ExecuteActivityParameters parameters, BiConsumer<byte[], Exception> callback) {
     return activityClient.scheduleActivityTask(parameters, callback);

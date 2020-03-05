@@ -17,26 +17,6 @@
 
 package io.temporal.internal.worker;
 
-<<<<<<< HEAD:src/main/java/io/temporal/internal/worker/ActivityWorker.java
-=======
-import com.uber.cadence.BadRequestError;
-import com.uber.cadence.DomainNotActiveError;
-import com.uber.cadence.EntityNotExistsError;
-import com.uber.cadence.Header;
-import com.uber.cadence.PollForActivityTaskResponse;
-import com.uber.cadence.RespondActivityTaskCanceledRequest;
-import com.uber.cadence.RespondActivityTaskCompletedRequest;
-import com.uber.cadence.RespondActivityTaskFailedRequest;
-import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.common.RetryOptions;
-import com.uber.cadence.context.ContextPropagator;
-import com.uber.cadence.internal.common.Retryer;
-import com.uber.cadence.internal.logging.LoggerTag;
-import com.uber.cadence.internal.metrics.MetricsTag;
-import com.uber.cadence.internal.metrics.MetricsType;
-import com.uber.cadence.internal.worker.ActivityTaskHandler.Result;
-import com.uber.cadence.serviceclient.IWorkflowService;
->>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/worker/ActivityWorker.java
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;

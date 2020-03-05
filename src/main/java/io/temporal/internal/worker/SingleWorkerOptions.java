@@ -17,15 +17,6 @@
 
 package io.temporal.internal.worker;
 
-<<<<<<< HEAD:src/main/java/io/temporal/internal/worker/SingleWorkerOptions.java
-=======
-import com.uber.cadence.common.RetryOptions;
-import com.uber.cadence.context.ContextPropagator;
-import com.uber.cadence.converter.DataConverter;
-import com.uber.cadence.converter.JsonDataConverter;
-import com.uber.cadence.internal.common.Retryer;
-import com.uber.cadence.internal.metrics.NoopScope;
->>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/worker/SingleWorkerOptions.java
 import com.uber.m3.tally.Scope;
 import io.temporal.common.RetryOptions;
 import io.temporal.converter.DataConverter;

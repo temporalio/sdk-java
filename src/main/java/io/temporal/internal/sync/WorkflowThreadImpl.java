@@ -18,21 +18,11 @@
 package io.temporal.internal.sync;
 
 import com.google.common.util.concurrent.RateLimiter;
-<<<<<<< HEAD:src/main/java/io/temporal/internal/sync/WorkflowThreadImpl.java
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.DecisionContext;
 import io.temporal.workflow.Promise;
-=======
-import com.uber.cadence.context.ContextPropagator;
-import com.uber.cadence.internal.context.ContextThreadLocal;
-import com.uber.cadence.internal.logging.LoggerTag;
-import com.uber.cadence.internal.metrics.MetricsType;
-import com.uber.cadence.internal.replay.DeciderCache;
-import com.uber.cadence.internal.replay.DecisionContext;
-import com.uber.cadence.workflow.Promise;
->>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/sync/WorkflowThreadImpl.java
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.HashMap;

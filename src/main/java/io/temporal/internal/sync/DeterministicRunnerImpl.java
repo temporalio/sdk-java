@@ -15,32 +15,8 @@
  *  permissions and limitations under the License.
  */
 
-<<<<<<< HEAD:src/main/java/io/temporal/internal/sync/DeterministicRunnerImpl.java
 package io.temporal.internal.sync;
 
-=======
-package com.uber.cadence.internal.sync;
-
-import com.uber.cadence.SearchAttributes;
-import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.WorkflowType;
-import com.uber.cadence.context.ContextPropagator;
-import com.uber.cadence.converter.DataConverter;
-import com.uber.cadence.converter.JsonDataConverter;
-import com.uber.cadence.internal.common.CheckedExceptionWrapper;
-import com.uber.cadence.internal.context.ContextThreadLocal;
-import com.uber.cadence.internal.metrics.NoopScope;
-import com.uber.cadence.internal.replay.ContinueAsNewWorkflowExecutionParameters;
-import com.uber.cadence.internal.replay.DeciderCache;
-import com.uber.cadence.internal.replay.DecisionContext;
-import com.uber.cadence.internal.replay.ExecuteActivityParameters;
-import com.uber.cadence.internal.replay.ExecuteLocalActivityParameters;
-import com.uber.cadence.internal.replay.SignalExternalWorkflowParameters;
-import com.uber.cadence.internal.replay.StartChildWorkflowExecutionParameters;
-import com.uber.cadence.workflow.Functions.Func;
-import com.uber.cadence.workflow.Functions.Func1;
-import com.uber.cadence.workflow.Promise;
->>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/sync/DeterministicRunnerImpl.java
 import com.uber.m3.tally.Scope;
 import io.temporal.SearchAttributes;
 import io.temporal.WorkflowExecution;
@@ -605,8 +581,6 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     @Override
     public SearchAttributes getSearchAttributes() {
       throw new UnsupportedOperationException("not implemented");
-<<<<<<< HEAD:src/main/java/io/temporal/internal/sync/DeterministicRunnerImpl.java
-=======
     }
 
     @Override
@@ -617,7 +591,6 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     @Override
     public List<ContextPropagator> getContextPropagators() {
       return null;
->>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/sync/DeterministicRunnerImpl.java
     }
 
     @Override

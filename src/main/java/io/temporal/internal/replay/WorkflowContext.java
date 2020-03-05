@@ -17,17 +17,11 @@
 
 package io.temporal.internal.replay;
 
-<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/WorkflowContext.java
+import com.uber.cadence.context.ContextPropagator;
 import io.temporal.*;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
-=======
-import com.uber.cadence.*;
-import com.uber.cadence.context.ContextPropagator;
-import java.nio.ByteBuffer;
-import java.util.HashMap;
 import java.util.List;
->>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/WorkflowContext.java
 import java.util.Map;
 
 final class WorkflowContext {
@@ -41,10 +35,7 @@ final class WorkflowContext {
   // as in this particular part of the history.
   private String currentRunId;
   private SearchAttributes searchAttributes;
-<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/WorkflowContext.java
-=======
   private List<ContextPropagator> contextPropagators;
->>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/WorkflowContext.java
 
   WorkflowContext(
       String domain,
@@ -56,10 +47,7 @@ final class WorkflowContext {
     this.startedAttributes = startedAttributes;
     this.currentRunId = startedAttributes.getOriginalExecutionRunId();
     this.searchAttributes = startedAttributes.getSearchAttributes();
-<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/WorkflowContext.java
-=======
     this.contextPropagators = contextPropagators;
->>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/WorkflowContext.java
   }
 
   WorkflowExecution getWorkflowExecution() {
@@ -154,8 +142,6 @@ final class WorkflowContext {
     return searchAttributes;
   }
 
-<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/WorkflowContext.java
-=======
   public List<ContextPropagator> getContextPropagators() {
     return contextPropagators;
   }
@@ -187,7 +173,6 @@ final class WorkflowContext {
     return contextData;
   }
 
->>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/WorkflowContext.java
   void mergeSearchAttributes(SearchAttributes searchAttributes) {
     if (searchAttributes == null) {
       return;

@@ -19,14 +19,8 @@ package io.temporal.activity;
 
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
-<<<<<<< HEAD:src/main/java/io/temporal/activity/ActivityOptions.java
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
-=======
-import com.uber.cadence.common.MethodRetry;
-import com.uber.cadence.common.RetryOptions;
-import com.uber.cadence.context.ContextPropagator;
->>>>>>> cadence/master:src/main/java/com/uber/cadence/activity/ActivityOptions.java
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;

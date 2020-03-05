@@ -15,53 +15,10 @@
  *  permissions and limitations under the License.
  */
 
-<<<<<<< HEAD:src/main/java/io/temporal/internal/sync/SyncDecisionContext.java
 package io.temporal.internal.sync;
 
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
-=======
-package com.uber.cadence.internal.sync;
-
-import static com.uber.cadence.internal.common.OptionsUtils.roundUpToSeconds;
-
-import com.uber.cadence.ActivityType;
-import com.uber.cadence.SearchAttributes;
-import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.WorkflowType;
-import com.uber.cadence.activity.ActivityOptions;
-import com.uber.cadence.activity.LocalActivityOptions;
-import com.uber.cadence.common.RetryOptions;
-import com.uber.cadence.context.ContextPropagator;
-import com.uber.cadence.converter.DataConverter;
-import com.uber.cadence.internal.common.InternalUtils;
-import com.uber.cadence.internal.common.RetryParameters;
-import com.uber.cadence.internal.replay.ActivityTaskFailedException;
-import com.uber.cadence.internal.replay.ActivityTaskTimeoutException;
-import com.uber.cadence.internal.replay.ChildWorkflowTaskFailedException;
-import com.uber.cadence.internal.replay.ContinueAsNewWorkflowExecutionParameters;
-import com.uber.cadence.internal.replay.DecisionContext;
-import com.uber.cadence.internal.replay.ExecuteActivityParameters;
-import com.uber.cadence.internal.replay.ExecuteLocalActivityParameters;
-import com.uber.cadence.internal.replay.SignalExternalWorkflowParameters;
-import com.uber.cadence.internal.replay.StartChildWorkflowExecutionParameters;
-import com.uber.cadence.workflow.ActivityException;
-import com.uber.cadence.workflow.ActivityFailureException;
-import com.uber.cadence.workflow.ActivityTimeoutException;
-import com.uber.cadence.workflow.CancellationScope;
-import com.uber.cadence.workflow.ChildWorkflowException;
-import com.uber.cadence.workflow.ChildWorkflowFailureException;
-import com.uber.cadence.workflow.ChildWorkflowOptions;
-import com.uber.cadence.workflow.ChildWorkflowTimedOutException;
-import com.uber.cadence.workflow.CompletablePromise;
-import com.uber.cadence.workflow.ContinueAsNewOptions;
-import com.uber.cadence.workflow.Functions;
-import com.uber.cadence.workflow.Functions.Func;
-import com.uber.cadence.workflow.Promise;
-import com.uber.cadence.workflow.SignalExternalWorkflowException;
-import com.uber.cadence.workflow.Workflow;
-import com.uber.cadence.workflow.WorkflowInterceptor;
->>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/sync/SyncDecisionContext.java
 import com.uber.m3.tally.Scope;
 import io.temporal.ActivityType;
 import io.temporal.SearchAttributes;
@@ -446,10 +403,7 @@ final class SyncDecisionContext implements WorkflowInterceptor {
             .setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy())
             .setRetryParameters(retryParameters)
             .setCronSchedule(options.getCronSchedule())
-<<<<<<< HEAD:src/main/java/io/temporal/internal/sync/SyncDecisionContext.java
-=======
             .setContext(extractContextsAndConvertToBytes(propagators))
->>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/sync/SyncDecisionContext.java
             .setParentClosePolicy(options.getParentClosePolicy())
             .build();
     CompletablePromise<byte[]> result = Workflow.newPromise();

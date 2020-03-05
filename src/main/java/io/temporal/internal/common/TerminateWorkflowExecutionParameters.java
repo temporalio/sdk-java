@@ -17,11 +17,7 @@
 
 package io.temporal.internal.common;
 
-<<<<<<< HEAD:src/main/java/io/temporal/internal/common/TerminateWorkflowExecutionParameters.java
 import io.temporal.WorkflowExecution;
-=======
-import com.uber.cadence.WorkflowExecution;
->>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/common/TerminateWorkflowExecutionParameters.java
 
 public class TerminateWorkflowExecutionParameters {
 

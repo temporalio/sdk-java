@@ -453,10 +453,7 @@ class StateMachines {
             .setWorkflowType(d.getWorkflowType())
             .setRetryPolicy(d.getRetryPolicy())
             .setCronSchedule(d.getCronSchedule())
-<<<<<<< HEAD:src/main/java/io/temporal/internal/testservice/StateMachines.java
-=======
             .setHeader(d.getHeader())
->>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/testservice/StateMachines.java
             .setParentClosePolicy(d.getParentClosePolicy());
     HistoryEvent event =
         new HistoryEvent()

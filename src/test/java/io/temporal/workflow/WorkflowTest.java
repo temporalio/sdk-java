@@ -17,7 +17,6 @@
 
 package io.temporal.workflow;
 
-<<<<<<< HEAD:src/test/java/io/temporal/workflow/WorkflowTest.java
 import static io.temporal.worker.NonDeterministicWorkflowPolicy.FailWorkflow;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -26,10 +25,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-=======
-import static com.uber.cadence.worker.NonDeterministicWorkflowPolicy.FailWorkflow;
-import static org.junit.Assert.*;
->>>>>>> cadence/master:src/test/java/com/uber/cadence/workflow/WorkflowTest.java
 
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import io.temporal.GetWorkflowExecutionHistoryResponse;
@@ -5340,11 +5335,7 @@ public class WorkflowTest {
   public static class TestUpsertSearchAttributesImpl implements TestUpsertSearchAttributes {
 
     @Override
-<<<<<<< HEAD:src/test/java/io/temporal/workflow/WorkflowTest.java
-    public String execute(String keyword) {
-=======
     public String execute(String taskList, String keyword) {
->>>>>>> cadence/master:src/test/java/com/uber/cadence/workflow/WorkflowTest.java
       SearchAttributes searchAttributes = Workflow.getWorkflowInfo().getSearchAttributes();
       assertNull(searchAttributes);
 
@@ -5358,8 +5349,6 @@ public class WorkflowTest {
           WorkflowUtils.getValueFromSearchAttributes(
               searchAttributes, "CustomKeywordField", String.class));
 
-<<<<<<< HEAD:src/test/java/io/temporal/workflow/WorkflowTest.java
-=======
       // Running the activity below ensures that we have one more decision task to be executed after
       // adding the search attributes. This helps with replaying the history one more time to check
       // against a possible NonDeterminisicWorkflowError which could be caused by missing
@@ -5368,7 +5357,6 @@ public class WorkflowTest {
           Workflow.newActivityStub(TestActivities.class, newActivityOptions1(taskList));
       activities.activity();
 
->>>>>>> cadence/master:src/test/java/com/uber/cadence/workflow/WorkflowTest.java
       return "done";
     }
   }

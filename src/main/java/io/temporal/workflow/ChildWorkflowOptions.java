@@ -19,22 +19,12 @@ package io.temporal.workflow;
 
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
-<<<<<<< HEAD:src/main/java/io/temporal/workflow/ChildWorkflowOptions.java
 import io.temporal.ParentClosePolicy;
 import io.temporal.WorkflowIdReusePolicy;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import io.temporal.internal.common.OptionsUtils;
-=======
-import com.uber.cadence.ParentClosePolicy;
-import com.uber.cadence.WorkflowIdReusePolicy;
-import com.uber.cadence.common.CronSchedule;
-import com.uber.cadence.common.MethodRetry;
-import com.uber.cadence.common.RetryOptions;
-import com.uber.cadence.context.ContextPropagator;
-import com.uber.cadence.internal.common.OptionsUtils;
->>>>>>> cadence/master:src/main/java/com/uber/cadence/workflow/ChildWorkflowOptions.java
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;

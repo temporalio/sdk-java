@@ -25,22 +25,12 @@ import com.cronutils.model.definition.CronDefinition;
 import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.cronutils.parser.CronParser;
 import com.google.common.base.Strings;
-<<<<<<< HEAD:src/main/java/io/temporal/client/WorkflowOptions.java
 import io.temporal.WorkflowIdReusePolicy;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.workflow.WorkflowMethod;
-=======
-import com.uber.cadence.WorkflowIdReusePolicy;
-import com.uber.cadence.common.CronSchedule;
-import com.uber.cadence.common.MethodRetry;
-import com.uber.cadence.common.RetryOptions;
-import com.uber.cadence.context.ContextPropagator;
-import com.uber.cadence.internal.common.OptionsUtils;
-import com.uber.cadence.workflow.WorkflowMethod;
->>>>>>> cadence/master:src/main/java/com/uber/cadence/client/WorkflowOptions.java
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;

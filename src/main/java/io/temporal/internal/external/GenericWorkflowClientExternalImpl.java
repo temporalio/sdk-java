@@ -18,31 +18,6 @@
 package io.temporal.internal.external;
 
 import com.google.common.base.Strings;
-<<<<<<< HEAD:src/main/java/io/temporal/internal/external/GenericWorkflowClientExternalImpl.java
-=======
-import com.uber.cadence.Header;
-import com.uber.cadence.Memo;
-import com.uber.cadence.QueryWorkflowRequest;
-import com.uber.cadence.QueryWorkflowResponse;
-import com.uber.cadence.RequestCancelWorkflowExecutionRequest;
-import com.uber.cadence.RetryPolicy;
-import com.uber.cadence.SearchAttributes;
-import com.uber.cadence.SignalWithStartWorkflowExecutionRequest;
-import com.uber.cadence.SignalWorkflowExecutionRequest;
-import com.uber.cadence.StartWorkflowExecutionRequest;
-import com.uber.cadence.StartWorkflowExecutionResponse;
-import com.uber.cadence.TaskList;
-import com.uber.cadence.TerminateWorkflowExecutionRequest;
-import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
-import com.uber.cadence.WorkflowQuery;
-import com.uber.cadence.internal.common.*;
-import com.uber.cadence.internal.metrics.MetricsTag;
-import com.uber.cadence.internal.metrics.MetricsType;
-import com.uber.cadence.internal.replay.QueryWorkflowParameters;
-import com.uber.cadence.internal.replay.SignalExternalWorkflowParameters;
-import com.uber.cadence.serviceclient.IWorkflowService;
->>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/external/GenericWorkflowClientExternalImpl.java
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.Memo;

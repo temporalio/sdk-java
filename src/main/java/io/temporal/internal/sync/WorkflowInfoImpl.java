@@ -17,15 +17,9 @@
 
 package io.temporal.internal.sync;
 
-<<<<<<< HEAD:src/main/java/io/temporal/internal/sync/WorkflowInfoImpl.java
 import io.temporal.SearchAttributes;
 import io.temporal.internal.replay.DecisionContext;
 import io.temporal.workflow.WorkflowInfo;
-=======
-import com.uber.cadence.SearchAttributes;
-import com.uber.cadence.internal.replay.DecisionContext;
-import com.uber.cadence.workflow.WorkflowInfo;
->>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/sync/WorkflowInfoImpl.java
 import java.time.Duration;
 
 final class WorkflowInfoImpl implements WorkflowInfo {

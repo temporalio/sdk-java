@@ -15,7 +15,6 @@
  *  permissions and limitations under the License.
  */
 
-<<<<<<< HEAD:src/main/java/io/temporal/internal/sync/SyncWorkflow.java
 package io.temporal.internal.sync;
 
 import io.temporal.EventType;
@@ -30,24 +29,6 @@ import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.WorkflowInterceptor;
-=======
-package com.uber.cadence.internal.sync;
-
-import com.uber.cadence.EventType;
-import com.uber.cadence.HistoryEvent;
-import com.uber.cadence.WorkflowQuery;
-import com.uber.cadence.WorkflowType;
-import com.uber.cadence.client.WorkflowClient;
-import com.uber.cadence.context.ContextPropagator;
-import com.uber.cadence.converter.DataConverter;
-import com.uber.cadence.internal.replay.DeciderCache;
-import com.uber.cadence.internal.replay.DecisionContext;
-import com.uber.cadence.internal.replay.ReplayWorkflow;
-import com.uber.cadence.internal.worker.WorkflowExecutionException;
-import com.uber.cadence.worker.WorkflowImplementationOptions;
-import com.uber.cadence.workflow.WorkflowInterceptor;
-import java.util.List;
->>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/sync/SyncWorkflow.java
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;

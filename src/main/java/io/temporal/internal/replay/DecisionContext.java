@@ -15,21 +15,8 @@
  *  permissions and limitations under the License.
  */
 
-<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/DecisionContext.java
 package io.temporal.internal.replay;
 
-=======
-package com.uber.cadence.internal.replay;
-
-import com.uber.cadence.SearchAttributes;
-import com.uber.cadence.WorkflowExecution;
-import com.uber.cadence.WorkflowType;
-import com.uber.cadence.context.ContextPropagator;
-import com.uber.cadence.converter.DataConverter;
-import com.uber.cadence.workflow.Functions.Func;
-import com.uber.cadence.workflow.Functions.Func1;
-import com.uber.cadence.workflow.Promise;
->>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/DecisionContext.java
 import com.uber.m3.tally.Scope;
 import io.temporal.SearchAttributes;
 import io.temporal.WorkflowExecution;
@@ -91,8 +78,6 @@ public interface DecisionContext extends ReplayAware {
    *     WorkflowUtils.getValueFromSearchAttributes} to retrieve concrete value.
    */
   SearchAttributes getSearchAttributes();
-<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/DecisionContext.java
-=======
 
   /**
    * Returns all of the current contexts being propagated by a {@link
@@ -103,7 +88,6 @@ public interface DecisionContext extends ReplayAware {
 
   /** Returns the set of configured context propagators */
   List<ContextPropagator> getContextPropagators();
->>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/DecisionContext.java
 
   /**
    * Used to dynamically schedule an activity for execution
