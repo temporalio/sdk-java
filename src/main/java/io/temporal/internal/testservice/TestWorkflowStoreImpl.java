@@ -178,7 +178,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       List<HistoryEvent> events = ctx.getEvents();
       if (history == null) {
         if (events.isEmpty()
-            || events.get(0).getEventType() != EventType.EventTypeActivityTaskStarted) {
+            || events.get(0).getEventType() != EventType.EventTypeWorkflowExecutionStarted) {
           throw new IllegalStateException("No history found for " + executionId);
         }
         history = new HistoryStore(executionId, lock);

@@ -152,8 +152,8 @@ public final class TestWorkflowService extends GrpcWorkflowServiceFactory {
         Optional<TestWorkflowMutableState> parent,
         OptionalLong parentChildInitiatedEventId,
         Optional<SignalWorkflowExecutionRequest> signalWithStartSignal) {
-      String requestWorkflowId = requireNotNull("WorkflowId", startRequest.getWorkflowId());
-      String domain = requireNotNull("Domain", startRequest.getDomain());
+      String requestWorkflowId = requireNotEmpty("WorkflowId", startRequest.getWorkflowId());
+      String domain = requireNotEmpty("Domain", startRequest.getDomain());
       WorkflowId workflowId = new WorkflowId(domain, requestWorkflowId);
       TestWorkflowMutableState existing;
       lock.lock();
@@ -174,7 +174,10 @@ public final class TestWorkflowService extends GrpcWorkflowServiceFactory {
             return throwDuplicatedWorkflow(startRequest, existing);
           }
         }
-        RetryPolicy retryPolicy = startRequest.getRetryPolicy();
+        RetryPolicy retryPolicy = null;
+        if (startRequest.hasRetryPolicy()) {
+          retryPolicy = startRequest.getRetryPolicy();
+        }
         Optional<RetryState> retryState = newRetryStateLocked(retryPolicy);
         return startWorkflowExecutionNoRunningCheckLocked(
             startRequest,
@@ -276,12 +279,13 @@ public final class TestWorkflowService extends GrpcWorkflowServiceFactory {
     public void pollForDecisionTask(
         PollForDecisionTaskRequest pollRequest,
         StreamObserver<PollForDecisionTaskResponse> streamObserver) {
-      PollForDecisionTaskResponse task = PollForDecisionTaskResponse.getDefaultInstance();
+      PollForDecisionTaskResponse task;
       try {
         task = store.pollForDecisionTask(pollRequest);
       } catch (InterruptedException e) {
         streamObserver.onNext(PollForDecisionTaskResponse.getDefaultInstance());
         streamObserver.onCompleted();
+        return;
       }
       ExecutionId executionId =
           new ExecutionId(pollRequest.getDomain(), task.getWorkflowExecution());
@@ -698,8 +702,8 @@ public final class TestWorkflowService extends GrpcWorkflowServiceFactory {
     }
   }
 
-  private <R> R requireNotNull(String fieldName, R value) {
-    if (value == null) {
+  private String requireNotEmpty(String fieldName, String value) {
+    if (value.isEmpty()) {
       throw new StatusRuntimeException(
           Status.INVALID_ARGUMENT.withDescription("Missing requried field \"" + fieldName + "\"."));
     }
