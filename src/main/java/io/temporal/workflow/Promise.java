@@ -17,7 +17,11 @@
 
 package io.temporal.workflow;
 
+<<<<<<< HEAD:src/main/java/io/temporal/workflow/Promise.java
 import io.temporal.internal.sync.WorkflowInternal;
+=======
+import com.uber.cadence.internal.sync.WorkflowInternal;
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/workflow/Promise.java
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;

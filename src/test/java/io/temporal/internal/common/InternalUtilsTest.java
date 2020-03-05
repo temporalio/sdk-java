@@ -15,13 +15,13 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.common;
+package com.uber.cadence.internal.common;
 
 import static junit.framework.TestCase.assertEquals;
 
-import io.temporal.SearchAttributes;
-import io.temporal.converter.DataConverterException;
-import io.temporal.workflow.WorkflowUtils;
+import com.uber.cadence.SearchAttributes;
+import com.uber.cadence.converter.DataConverterException;
+import com.uber.cadence.workflow.WorkflowUtils;
 import java.io.FileOutputStream;
 import java.util.HashMap;
 import java.util.Map;

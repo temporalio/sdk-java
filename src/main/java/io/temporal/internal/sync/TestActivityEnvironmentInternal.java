@@ -18,6 +18,7 @@
 package io.temporal.internal.sync;
 
 import com.google.common.base.Defaults;
+<<<<<<< HEAD:src/main/java/io/temporal/internal/sync/TestActivityEnvironmentInternal.java
 import io.temporal.*;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
@@ -35,6 +36,25 @@ import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterceptor;
+=======
+import com.uber.cadence.*;
+import com.uber.cadence.activity.ActivityOptions;
+import com.uber.cadence.activity.LocalActivityOptions;
+import com.uber.cadence.internal.metrics.NoopScope;
+import com.uber.cadence.internal.worker.ActivityTaskHandler;
+import com.uber.cadence.internal.worker.ActivityTaskHandler.Result;
+import com.uber.cadence.serviceclient.IWorkflowService;
+import com.uber.cadence.testing.TestActivityEnvironment;
+import com.uber.cadence.testing.TestEnvironmentOptions;
+import com.uber.cadence.workflow.ActivityFailureException;
+import com.uber.cadence.workflow.ChildWorkflowOptions;
+import com.uber.cadence.workflow.ContinueAsNewOptions;
+import com.uber.cadence.workflow.Functions.Func;
+import com.uber.cadence.workflow.Functions.Func1;
+import com.uber.cadence.workflow.Promise;
+import com.uber.cadence.workflow.Workflow;
+import com.uber.cadence.workflow.WorkflowInterceptor;
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/sync/TestActivityEnvironmentInternal.java
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
@@ -157,6 +177,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
           new WorkflowExecution()
               .setWorkflowId("test-workflow-id")
               .setRunId(UUID.randomUUID().toString()));
+      task.setWorkflowType(new WorkflowType().setName("test-workflow"));
       task.setActivityType(new ActivityType().setName(activityType));
       Result taskResult = activityTaskHandler.handle(task, NoopScope.getInstance(), false);
       return Workflow.newPromise(getReply(task, taskResult, resultClass, resultType));
@@ -726,7 +747,13 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     @Override
     public void ListArchivedWorkflowExecutions(
         ListArchivedWorkflowExecutionsRequest listRequest, AsyncMethodCallback resultHandler)
+<<<<<<< HEAD:src/main/java/io/temporal/internal/sync/TestActivityEnvironmentInternal.java
         throws TException {}
+=======
+        throws TException {
+      impl.ListArchivedWorkflowExecutions(listRequest, resultHandler);
+    }
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/sync/TestActivityEnvironmentInternal.java
 
     @Override
     public void ScanWorkflowExecutions(

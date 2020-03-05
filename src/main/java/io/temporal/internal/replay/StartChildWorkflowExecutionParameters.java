@@ -17,11 +17,19 @@
 
 package io.temporal.internal.replay;
 
+<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/StartChildWorkflowExecutionParameters.java
 import io.temporal.ParentClosePolicy;
 import io.temporal.WorkflowIdReusePolicy;
 import io.temporal.WorkflowType;
 import io.temporal.internal.common.RetryParameters;
+=======
+import com.uber.cadence.ParentClosePolicy;
+import com.uber.cadence.WorkflowIdReusePolicy;
+import com.uber.cadence.WorkflowType;
+import com.uber.cadence.internal.common.RetryParameters;
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/StartChildWorkflowExecutionParameters.java
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Objects;
 
 public final class StartChildWorkflowExecutionParameters {
@@ -50,6 +58,11 @@ public final class StartChildWorkflowExecutionParameters {
 
     private String cronSchedule;
 
+<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/StartChildWorkflowExecutionParameters.java
+=======
+    private Map<String, byte[]> context;
+
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/StartChildWorkflowExecutionParameters.java
     private ParentClosePolicy parentClosePolicy;
 
     public Builder setDomain(String domain) {
@@ -108,6 +121,14 @@ public final class StartChildWorkflowExecutionParameters {
       return this;
     }
 
+<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/StartChildWorkflowExecutionParameters.java
+=======
+    public Builder setContext(Map<String, byte[]> context) {
+      this.context = context;
+      return this;
+    }
+
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/StartChildWorkflowExecutionParameters.java
     public Builder setParentClosePolicy(ParentClosePolicy parentClosePolicy) {
       this.parentClosePolicy = parentClosePolicy;
       return this;
@@ -126,6 +147,10 @@ public final class StartChildWorkflowExecutionParameters {
           workflowIdReusePolicy,
           retryParameters,
           cronSchedule,
+<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/StartChildWorkflowExecutionParameters.java
+=======
+          context,
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/StartChildWorkflowExecutionParameters.java
           parentClosePolicy);
     }
   }
@@ -152,6 +177,11 @@ public final class StartChildWorkflowExecutionParameters {
 
   private final String cronSchedule;
 
+<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/StartChildWorkflowExecutionParameters.java
+=======
+  private Map<String, byte[]> context;
+
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/StartChildWorkflowExecutionParameters.java
   private final ParentClosePolicy parentClosePolicy;
 
   private StartChildWorkflowExecutionParameters(
@@ -166,6 +196,10 @@ public final class StartChildWorkflowExecutionParameters {
       WorkflowIdReusePolicy workflowIdReusePolicy,
       RetryParameters retryParameters,
       String cronSchedule,
+<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/StartChildWorkflowExecutionParameters.java
+=======
+      Map<String, byte[]> context,
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/StartChildWorkflowExecutionParameters.java
       ParentClosePolicy parentClosePolicy) {
     this.domain = domain;
     this.input = input;
@@ -178,6 +212,10 @@ public final class StartChildWorkflowExecutionParameters {
     this.workflowIdReusePolicy = workflowIdReusePolicy;
     this.retryParameters = retryParameters;
     this.cronSchedule = cronSchedule;
+<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/StartChildWorkflowExecutionParameters.java
+=======
+    this.context = context;
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/StartChildWorkflowExecutionParameters.java
     this.parentClosePolicy = parentClosePolicy;
   }
 
@@ -225,6 +263,13 @@ public final class StartChildWorkflowExecutionParameters {
     return cronSchedule;
   }
 
+<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/StartChildWorkflowExecutionParameters.java
+=======
+  public Map<String, byte[]> getContext() {
+    return context;
+  }
+
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/StartChildWorkflowExecutionParameters.java
   public ParentClosePolicy getParentClosePolicy() {
     return parentClosePolicy;
   }
@@ -245,6 +290,10 @@ public final class StartChildWorkflowExecutionParameters {
         && workflowIdReusePolicy == that.workflowIdReusePolicy
         && Objects.equals(retryParameters, that.retryParameters)
         && Objects.equals(cronSchedule, that.cronSchedule)
+<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/StartChildWorkflowExecutionParameters.java
+=======
+        && Objects.equals(context, that.context)
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/StartChildWorkflowExecutionParameters.java
         && Objects.equals(parentClosePolicy, that.parentClosePolicy);
   }
 
@@ -262,6 +311,10 @@ public final class StartChildWorkflowExecutionParameters {
             workflowIdReusePolicy,
             retryParameters,
             cronSchedule,
+<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/StartChildWorkflowExecutionParameters.java
+=======
+            context,
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/StartChildWorkflowExecutionParameters.java
             parentClosePolicy);
     result = 31 * result + Arrays.hashCode(input);
     return result;
@@ -296,6 +349,11 @@ public final class StartChildWorkflowExecutionParameters {
         + retryParameters
         + ", cronSchedule="
         + cronSchedule
+<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/StartChildWorkflowExecutionParameters.java
+=======
+        + ", context='"
+        + context
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/StartChildWorkflowExecutionParameters.java
         + ", parentClosePolicy="
         + parentClosePolicy
         + '}';

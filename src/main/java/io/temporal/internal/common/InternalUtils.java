@@ -18,6 +18,7 @@
 package io.temporal.internal.common;
 
 import com.google.common.base.Defaults;
+<<<<<<< HEAD:src/main/java/io/temporal/internal/common/InternalUtils.java
 import io.temporal.SearchAttributes;
 import io.temporal.TaskList;
 import io.temporal.TaskListKind;
@@ -25,6 +26,15 @@ import io.temporal.converter.DataConverter;
 import io.temporal.converter.JsonDataConverter;
 import io.temporal.internal.worker.Shutdownable;
 import io.temporal.workflow.WorkflowMethod;
+=======
+import com.uber.cadence.SearchAttributes;
+import com.uber.cadence.TaskList;
+import com.uber.cadence.TaskListKind;
+import com.uber.cadence.converter.DataConverter;
+import com.uber.cadence.converter.JsonDataConverter;
+import com.uber.cadence.internal.worker.Shutdownable;
+import com.uber.cadence.workflow.WorkflowMethod;
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/common/InternalUtils.java
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.HashMap;

@@ -31,7 +31,7 @@ import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class ActivityPollTask implements Poller.PollTask<ActivityWorker.MeasurableActivityTask> {
+final class ActivityPollTask implements Poller.PollTask<PollForActivityTaskResponse> {
 
   private final IWorkflowService service;
   private final String domain;
@@ -49,10 +49,9 @@ final class ActivityPollTask implements Poller.PollTask<ActivityWorker.Measurabl
   }
 
   @Override
-  public ActivityWorker.MeasurableActivityTask poll() throws TException {
+  public PollForActivityTaskResponse poll() throws TException {
     options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_COUNTER).inc(1);
     Stopwatch sw = options.getMetricsScope().timer(MetricsType.ACTIVITY_POLL_LATENCY).start();
-    Stopwatch e2eSW = options.getMetricsScope().timer(MetricsType.ACTIVITY_E2E_LATENCY).start();
 
     PollForActivityTaskRequest pollRequest = new PollForActivityTaskRequest();
     pollRequest.setDomain(domain);
@@ -99,6 +98,6 @@ final class ActivityPollTask implements Poller.PollTask<ActivityWorker.Measurabl
             Duration.ofNanos(
                 result.getStartedTimestamp() - result.getScheduledTimestampOfThisAttempt()));
     sw.stop();
-    return new ActivityWorker.MeasurableActivityTask(result, e2eSW);
+    return result;
   }
 }

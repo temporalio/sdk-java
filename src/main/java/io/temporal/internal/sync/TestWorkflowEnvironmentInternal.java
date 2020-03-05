@@ -15,6 +15,7 @@
  *  permissions and limitations under the License.
  */
 
+<<<<<<< HEAD:src/main/java/io/temporal/internal/sync/TestWorkflowEnvironmentInternal.java
 package io.temporal.internal.sync;
 
 import io.temporal.*;
@@ -31,6 +32,24 @@ import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerOptions;
+=======
+package com.uber.cadence.internal.sync;
+
+import com.uber.cadence.*;
+import com.uber.cadence.client.ActivityCompletionClient;
+import com.uber.cadence.client.WorkflowClient;
+import com.uber.cadence.client.WorkflowClientInterceptor;
+import com.uber.cadence.client.WorkflowClientOptions;
+import com.uber.cadence.client.WorkflowOptions;
+import com.uber.cadence.client.WorkflowStub;
+import com.uber.cadence.internal.common.QueryResponse;
+import com.uber.cadence.internal.testservice.TestWorkflowService;
+import com.uber.cadence.serviceclient.IWorkflowService;
+import com.uber.cadence.testing.TestEnvironmentOptions;
+import com.uber.cadence.testing.TestWorkflowEnvironment;
+import com.uber.cadence.worker.Worker;
+import com.uber.cadence.worker.WorkerOptions;
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/sync/TestWorkflowEnvironmentInternal.java
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.Optional;
@@ -578,7 +597,13 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     @Override
     public void ListArchivedWorkflowExecutions(
         ListArchivedWorkflowExecutionsRequest listRequest, AsyncMethodCallback resultHandler)
+<<<<<<< HEAD:src/main/java/io/temporal/internal/sync/TestWorkflowEnvironmentInternal.java
         throws TException {}
+=======
+        throws TException {
+      impl.ListArchivedWorkflowExecutions(listRequest, resultHandler);
+    }
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/sync/TestWorkflowEnvironmentInternal.java
 
     @Override
     public void ScanWorkflowExecutions(

@@ -17,6 +17,7 @@
 
 package io.temporal.workflow;
 
+<<<<<<< HEAD:src/test/java/io/temporal/workflow/WorkflowTest.java
 import static io.temporal.worker.NonDeterministicWorkflowPolicy.FailWorkflow;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -25,6 +26,10 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+=======
+import static com.uber.cadence.worker.NonDeterministicWorkflowPolicy.FailWorkflow;
+import static org.junit.Assert.*;
+>>>>>>> cadence/master:src/test/java/com/uber/cadence/workflow/WorkflowTest.java
 
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import io.temporal.GetWorkflowExecutionHistoryResponse;
@@ -2650,6 +2655,40 @@ public class WorkflowTest {
     options.setTaskList(taskList);
     TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
     assertEquals("ChildWorkflowTimedOutException", client.execute(taskList));
+  }
+
+  public static class TestParentWorkflowContinueAsNew implements TestWorkflow1 {
+
+    private final ITestChild child1 =
+        Workflow.newChildWorkflowStub(
+            ITestChild.class,
+            new ChildWorkflowOptions.Builder()
+                .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
+                .build());
+    private final TestWorkflow1 self = Workflow.newContinueAsNewStub(TestWorkflow1.class);
+
+    @Override
+    public String execute(String arg) {
+      child1.execute("Hello", 0);
+      if (arg.length() > 0) {
+        self.execute(""); // continue as new
+      }
+      return "foo";
+    }
+  }
+
+  /** Reproduction of a bug when a child of continued as new workflow has the same UUID ID. */
+  @Test
+  public void testParentContinueAsNew() {
+    child2Id = UUID.randomUUID().toString();
+    startWorkerFor(TestParentWorkflowContinueAsNew.class, TestChild.class);
+
+    WorkflowOptions.Builder options = new WorkflowOptions.Builder();
+    options.setExecutionStartToCloseTimeout(Duration.ofSeconds(200));
+    options.setTaskStartToCloseTimeout(Duration.ofSeconds(60));
+    options.setTaskList(taskList);
+    TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
+    assertEquals("foo", client.execute("not empty"));
   }
 
   private static String childReexecuteId = UUID.randomUUID().toString();
@@ -5295,13 +5334,17 @@ public class WorkflowTest {
 
   public interface TestUpsertSearchAttributes {
     @WorkflowMethod
-    String execute(String keyword);
+    String execute(String taskList, String keyword);
   }
 
   public static class TestUpsertSearchAttributesImpl implements TestUpsertSearchAttributes {
 
     @Override
+<<<<<<< HEAD:src/test/java/io/temporal/workflow/WorkflowTest.java
     public String execute(String keyword) {
+=======
+    public String execute(String taskList, String keyword) {
+>>>>>>> cadence/master:src/test/java/com/uber/cadence/workflow/WorkflowTest.java
       SearchAttributes searchAttributes = Workflow.getWorkflowInfo().getSearchAttributes();
       assertNull(searchAttributes);
 
@@ -5315,6 +5358,17 @@ public class WorkflowTest {
           WorkflowUtils.getValueFromSearchAttributes(
               searchAttributes, "CustomKeywordField", String.class));
 
+<<<<<<< HEAD:src/test/java/io/temporal/workflow/WorkflowTest.java
+=======
+      // Running the activity below ensures that we have one more decision task to be executed after
+      // adding the search attributes. This helps with replaying the history one more time to check
+      // against a possible NonDeterminisicWorkflowError which could be caused by missing
+      // UpsertWorkflowSearchAttributes event in history.
+      TestActivities activities =
+          Workflow.newActivityStub(TestActivities.class, newActivityOptions1(taskList));
+      activities.activity();
+
+>>>>>>> cadence/master:src/test/java/com/uber/cadence/workflow/WorkflowTest.java
       return "done";
     }
   }
@@ -5325,9 +5379,9 @@ public class WorkflowTest {
     TestUpsertSearchAttributes testWorkflow =
         workflowClient.newWorkflowStub(
             TestUpsertSearchAttributes.class, newWorkflowOptionsBuilder(taskList).build());
-    String result = testWorkflow.execute("testKey");
+    String result = testWorkflow.execute(taskList, "testKey");
     assertEquals("done", result);
-    tracer.setExpected("upsertSearchAttributes");
+    tracer.setExpected("upsertSearchAttributes", "executeActivity TestActivities::activity");
   }
 
   private static class TracingWorkflowInterceptor implements WorkflowInterceptor {

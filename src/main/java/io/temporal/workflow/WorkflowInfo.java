@@ -17,7 +17,11 @@
 
 package io.temporal.workflow;
 
+<<<<<<< HEAD:src/main/java/io/temporal/workflow/WorkflowInfo.java
 import io.temporal.SearchAttributes;
+=======
+import com.uber.cadence.SearchAttributes;
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/workflow/WorkflowInfo.java
 import java.time.Duration;
 
 public interface WorkflowInfo {

@@ -17,10 +17,17 @@
 
 package io.temporal.internal.common;
 
+<<<<<<< HEAD:src/main/java/io/temporal/internal/common/StartWorkflowExecutionParameters.java
 import io.temporal.WorkflowIdReusePolicy;
 import io.temporal.WorkflowType;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
+=======
+import com.uber.cadence.WorkflowIdReusePolicy;
+import com.uber.cadence.WorkflowType;
+import com.uber.cadence.client.WorkflowOptions;
+import com.uber.cadence.common.RetryOptions;
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/common/StartWorkflowExecutionParameters.java
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -51,6 +58,8 @@ public final class StartWorkflowExecutionParameters {
   private Map<String, byte[]> memo;
 
   private Map<String, byte[]> searchAttributes;
+
+  private Map<String, byte[]> context;
 
   /**
    * Returns the value of the WorkflowId property for this object.
@@ -297,6 +306,14 @@ public final class StartWorkflowExecutionParameters {
     this.searchAttributes = searchAttributes;
   }
 
+  public Map<String, byte[]> getContext() {
+    return context;
+  }
+
+  public void setContext(Map<String, byte[]> context) {
+    this.context = context;
+  }
+
   public StartWorkflowExecutionParameters withRetryParameters(RetryParameters retryParameters) {
     this.retryParameters = retryParameters;
     return this;
@@ -371,6 +388,8 @@ public final class StartWorkflowExecutionParameters {
         + '\''
         + ", searchAttributes='"
         + searchAttributes
+        + ", context='"
+        + context
         + '\''
         + '}';
   }
@@ -390,7 +409,8 @@ public final class StartWorkflowExecutionParameters {
         && Objects.equals(retryParameters, that.retryParameters)
         && Objects.equals(cronSchedule, that.cronSchedule)
         && Objects.equals(memo, that.memo)
-        && Objects.equals(searchAttributes, that.searchAttributes);
+        && Objects.equals(searchAttributes, that.searchAttributes)
+        && Objects.equals(context, that.context);
   }
 
   @Override
@@ -406,7 +426,8 @@ public final class StartWorkflowExecutionParameters {
             retryParameters,
             cronSchedule,
             memo,
-            searchAttributes);
+            searchAttributes,
+            context);
     result = 31 * result + Arrays.hashCode(input);
     return result;
   }

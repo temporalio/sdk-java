@@ -491,6 +491,9 @@ class DecisionsHelper {
     TaskList tl = new TaskList();
     tl.setName(taskList);
     attributes.setTaskList(tl);
+
+    attributes.setHeader(startedEvent.getHeader());
+
     Decision decision = new Decision();
     decision.setDecisionType(DecisionType.ContinueAsNewWorkflowExecution);
     decision.setContinueAsNewWorkflowExecutionDecisionAttributes(attributes);

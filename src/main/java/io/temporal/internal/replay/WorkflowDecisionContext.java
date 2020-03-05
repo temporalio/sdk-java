@@ -18,6 +18,7 @@
 package io.temporal.internal.replay;
 
 import com.google.common.base.Strings;
+<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/WorkflowDecisionContext.java
 import io.temporal.ChildWorkflowExecutionCanceledEventAttributes;
 import io.temporal.ChildWorkflowExecutionCompletedEventAttributes;
 import io.temporal.ChildWorkflowExecutionFailedCause;
@@ -41,6 +42,33 @@ import io.temporal.workflow.ChildWorkflowTerminatedException;
 import io.temporal.workflow.ChildWorkflowTimedOutException;
 import io.temporal.workflow.SignalExternalWorkflowException;
 import io.temporal.workflow.StartChildWorkflowFailedException;
+=======
+import com.uber.cadence.ChildWorkflowExecutionCanceledEventAttributes;
+import com.uber.cadence.ChildWorkflowExecutionCompletedEventAttributes;
+import com.uber.cadence.ChildWorkflowExecutionFailedCause;
+import com.uber.cadence.ChildWorkflowExecutionFailedEventAttributes;
+import com.uber.cadence.ChildWorkflowExecutionStartedEventAttributes;
+import com.uber.cadence.ChildWorkflowExecutionTerminatedEventAttributes;
+import com.uber.cadence.ChildWorkflowExecutionTimedOutEventAttributes;
+import com.uber.cadence.ExternalWorkflowExecutionSignaledEventAttributes;
+import com.uber.cadence.Header;
+import com.uber.cadence.HistoryEvent;
+import com.uber.cadence.ParentClosePolicy;
+import com.uber.cadence.RequestCancelExternalWorkflowExecutionDecisionAttributes;
+import com.uber.cadence.SignalExternalWorkflowExecutionDecisionAttributes;
+import com.uber.cadence.SignalExternalWorkflowExecutionFailedEventAttributes;
+import com.uber.cadence.StartChildWorkflowExecutionDecisionAttributes;
+import com.uber.cadence.StartChildWorkflowExecutionFailedEventAttributes;
+import com.uber.cadence.TaskList;
+import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowType;
+import com.uber.cadence.internal.common.RetryParameters;
+import com.uber.cadence.workflow.ChildWorkflowTerminatedException;
+import com.uber.cadence.workflow.ChildWorkflowTimedOutException;
+import com.uber.cadence.workflow.SignalExternalWorkflowException;
+import com.uber.cadence.workflow.StartChildWorkflowFailedException;
+import java.nio.ByteBuffer;
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/WorkflowDecisionContext.java
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -144,6 +172,11 @@ final class WorkflowDecisionContext {
       attributes.setCronSchedule(parameters.getCronSchedule());
     }
 
+<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/WorkflowDecisionContext.java
+=======
+    attributes.setHeader(toHeaderThrift(parameters.getContext()));
+
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/WorkflowDecisionContext.java
     ParentClosePolicy parentClosePolicy = parameters.getParentClosePolicy();
     if (parentClosePolicy != null) {
       attributes.setParentClosePolicy(parentClosePolicy);
@@ -155,6 +188,19 @@ final class WorkflowDecisionContext {
     context.setCompletionHandle(callback);
     scheduledExternalWorkflows.put(initiatedEventId, context);
     return new ChildWorkflowCancellationHandler(initiatedEventId, attributes.getWorkflowId());
+  }
+
+  private Header toHeaderThrift(Map<String, byte[]> headers) {
+    if (headers == null || headers.isEmpty()) {
+      return null;
+    }
+    Map<String, ByteBuffer> fields = new HashMap<>();
+    for (Map.Entry<String, byte[]> item : headers.entrySet()) {
+      fields.put(item.getKey(), ByteBuffer.wrap(item.getValue()));
+    }
+    Header headerThrift = new Header();
+    headerThrift.setFields(fields);
+    return headerThrift;
   }
 
   boolean isChildWorkflowExecutionStartedWithRetryOptions() {
@@ -216,6 +262,9 @@ final class WorkflowDecisionContext {
   /** Replay safe UUID */
   UUID randomUUID() {
     String runId = workflowContext.getCurrentRunId();
+    if (runId == null) {
+      throw new Error("null currentRunId");
+    }
     String id = runId + ":" + decisions.getAndIncrementNextId();
     byte[] bytes = id.getBytes(StandardCharsets.UTF_8);
     return UUID.nameUUIDFromBytes(bytes);

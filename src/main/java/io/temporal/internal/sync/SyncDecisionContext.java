@@ -15,10 +15,53 @@
  *  permissions and limitations under the License.
  */
 
+<<<<<<< HEAD:src/main/java/io/temporal/internal/sync/SyncDecisionContext.java
 package io.temporal.internal.sync;
 
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
+=======
+package com.uber.cadence.internal.sync;
+
+import static com.uber.cadence.internal.common.OptionsUtils.roundUpToSeconds;
+
+import com.uber.cadence.ActivityType;
+import com.uber.cadence.SearchAttributes;
+import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowType;
+import com.uber.cadence.activity.ActivityOptions;
+import com.uber.cadence.activity.LocalActivityOptions;
+import com.uber.cadence.common.RetryOptions;
+import com.uber.cadence.context.ContextPropagator;
+import com.uber.cadence.converter.DataConverter;
+import com.uber.cadence.internal.common.InternalUtils;
+import com.uber.cadence.internal.common.RetryParameters;
+import com.uber.cadence.internal.replay.ActivityTaskFailedException;
+import com.uber.cadence.internal.replay.ActivityTaskTimeoutException;
+import com.uber.cadence.internal.replay.ChildWorkflowTaskFailedException;
+import com.uber.cadence.internal.replay.ContinueAsNewWorkflowExecutionParameters;
+import com.uber.cadence.internal.replay.DecisionContext;
+import com.uber.cadence.internal.replay.ExecuteActivityParameters;
+import com.uber.cadence.internal.replay.ExecuteLocalActivityParameters;
+import com.uber.cadence.internal.replay.SignalExternalWorkflowParameters;
+import com.uber.cadence.internal.replay.StartChildWorkflowExecutionParameters;
+import com.uber.cadence.workflow.ActivityException;
+import com.uber.cadence.workflow.ActivityFailureException;
+import com.uber.cadence.workflow.ActivityTimeoutException;
+import com.uber.cadence.workflow.CancellationScope;
+import com.uber.cadence.workflow.ChildWorkflowException;
+import com.uber.cadence.workflow.ChildWorkflowFailureException;
+import com.uber.cadence.workflow.ChildWorkflowOptions;
+import com.uber.cadence.workflow.ChildWorkflowTimedOutException;
+import com.uber.cadence.workflow.CompletablePromise;
+import com.uber.cadence.workflow.ContinueAsNewOptions;
+import com.uber.cadence.workflow.Functions;
+import com.uber.cadence.workflow.Functions.Func;
+import com.uber.cadence.workflow.Promise;
+import com.uber.cadence.workflow.SignalExternalWorkflowException;
+import com.uber.cadence.workflow.Workflow;
+import com.uber.cadence.workflow.WorkflowInterceptor;
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/sync/SyncDecisionContext.java
 import com.uber.m3.tally.Scope;
 import io.temporal.ActivityType;
 import io.temporal.SearchAttributes;
@@ -58,6 +101,7 @@ import io.temporal.workflow.WorkflowInterceptor;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -80,6 +124,7 @@ final class SyncDecisionContext implements WorkflowInterceptor {
   private final DecisionContext context;
   private DeterministicRunner runner;
   private final DataConverter converter;
+  private final List<ContextPropagator> contextPropagators;
   private final WorkflowInterceptor headInterceptor;
   private final WorkflowTimers timers = new WorkflowTimers();
   private final Map<String, Functions.Func1<byte[], byte[]>> queryCallbacks = new HashMap<>();
@@ -88,10 +133,12 @@ final class SyncDecisionContext implements WorkflowInterceptor {
   public SyncDecisionContext(
       DecisionContext context,
       DataConverter converter,
+      List<ContextPropagator> contextPropagators,
       Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
       byte[] lastCompletionResult) {
     this.context = context;
     this.converter = converter;
+    this.contextPropagators = contextPropagators;
     WorkflowInterceptor interceptor = interceptorFactory.apply(this);
     if (interceptor == null) {
       log.warn("WorkflowInterceptor factory returned null interceptor");
@@ -304,6 +351,15 @@ final class SyncDecisionContext implements WorkflowInterceptor {
     if (retryOptions != null) {
       parameters.setRetryParameters(new RetryParameters(retryOptions));
     }
+
+    // Set the context value.  Use the context propagators from the ActivityOptions
+    // if present, otherwise use the ones configured on the DecisionContext
+    List<ContextPropagator> propagators = options.getContextPropagators();
+    if (propagators == null) {
+      propagators = this.contextPropagators;
+    }
+    parameters.setContext(extractContextsAndConvertToBytes(propagators));
+
     return parameters;
   }
 
@@ -372,6 +428,11 @@ final class SyncDecisionContext implements WorkflowInterceptor {
     if (retryOptions != null) {
       retryParameters = new RetryParameters(retryOptions);
     }
+    List<ContextPropagator> propagators = options.getContextPropagators();
+    if (propagators == null) {
+      propagators = this.contextPropagators;
+    }
+
     StartChildWorkflowExecutionParameters parameters =
         new StartChildWorkflowExecutionParameters.Builder()
             .setWorkflowType(new WorkflowType().setName(name))
@@ -385,6 +446,10 @@ final class SyncDecisionContext implements WorkflowInterceptor {
             .setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy())
             .setRetryParameters(retryParameters)
             .setCronSchedule(options.getCronSchedule())
+<<<<<<< HEAD:src/main/java/io/temporal/internal/sync/SyncDecisionContext.java
+=======
+            .setContext(extractContextsAndConvertToBytes(propagators))
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/sync/SyncDecisionContext.java
             .setParentClosePolicy(options.getParentClosePolicy())
             .build();
     CompletablePromise<byte[]> result = Workflow.newPromise();
@@ -411,6 +476,18 @@ final class SyncDecisionContext implements WorkflowInterceptor {
               cancellationCallback.accept(new CancellationException(reason));
               return null;
             });
+    return result;
+  }
+
+  private Map<String, byte[]> extractContextsAndConvertToBytes(
+      List<ContextPropagator> contextPropagators) {
+    if (contextPropagators == null) {
+      return null;
+    }
+    Map<String, byte[]> result = new HashMap<>();
+    for (ContextPropagator propagator : contextPropagators) {
+      result.putAll(propagator.serializeContext(propagator.getCurrentContext()));
+    }
     return result;
   }
 

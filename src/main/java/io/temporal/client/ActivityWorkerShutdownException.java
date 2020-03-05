@@ -17,6 +17,7 @@
 
 package io.temporal.client;
 
+<<<<<<< HEAD:src/main/java/io/temporal/client/ActivityWorkerShutdownException.java
 import io.temporal.activity.ActivityTask;
 import java.util.concurrent.TimeUnit;
 
@@ -25,6 +26,16 @@ import java.util.concurrent.TimeUnit;
  * io.temporal.worker.Worker.Factory#shutdownNow()} was called. It is OK to ignore the exception to
  * let activity to complete. It assumes that {@link
  * io.temporal.worker.Worker.Factory#awaitTermination(long, TimeUnit)} is called with a timeout
+=======
+import com.uber.cadence.activity.ActivityTask;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * Indicates that {@link com.uber.cadence.worker.Worker.Factory#shutdown()} or {@link
+ * com.uber.cadence.worker.Worker.Factory#shutdownNow()} was called. It is OK to ignore the
+ * exception to let activity to complete. It assumes that {@link
+ * com.uber.cadence.worker.Worker.Factory#awaitTermination(long, TimeUnit)} is called with a timeout
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/client/ActivityWorkerShutdownException.java
  * larger than the activity execution time.
  */
 public final class ActivityWorkerShutdownException extends ActivityCompletionException {

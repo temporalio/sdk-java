@@ -9,3 +9,11 @@ target
 /out
 dummy
 $buildDir
+<<<<<<< HEAD
+=======
+src/main/idls/*
+/bin
+.classpath
+.project
+.settings
+>>>>>>> cadence/master

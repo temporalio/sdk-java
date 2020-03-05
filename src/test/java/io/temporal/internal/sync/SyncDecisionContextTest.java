@@ -21,10 +21,17 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+<<<<<<< HEAD:src/test/java/io/temporal/internal/sync/SyncDecisionContextTest.java
 import io.temporal.SearchAttributes;
 import io.temporal.converter.JsonDataConverter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.replay.DecisionContext;
+=======
+import com.uber.cadence.SearchAttributes;
+import com.uber.cadence.converter.JsonDataConverter;
+import com.uber.cadence.internal.common.InternalUtils;
+import com.uber.cadence.internal.replay.DecisionContext;
+>>>>>>> cadence/master:src/test/java/com/uber/cadence/internal/sync/SyncDecisionContextTest.java
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Before;
@@ -38,7 +45,7 @@ public class SyncDecisionContextTest {
   public void setUp() {
     this.context =
         new SyncDecisionContext(
-            mockDecisionContext, JsonDataConverter.getInstance(), (next) -> next, null);
+            mockDecisionContext, JsonDataConverter.getInstance(), null, (next) -> next, null);
   }
 
   @Test

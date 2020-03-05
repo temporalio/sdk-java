@@ -19,13 +19,24 @@ package io.temporal.workflow;
 
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
+<<<<<<< HEAD:src/main/java/io/temporal/workflow/ChildWorkflowOptions.java
 import io.temporal.ParentClosePolicy;
 import io.temporal.WorkflowIdReusePolicy;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import io.temporal.internal.common.OptionsUtils;
+=======
+import com.uber.cadence.ParentClosePolicy;
+import com.uber.cadence.WorkflowIdReusePolicy;
+import com.uber.cadence.common.CronSchedule;
+import com.uber.cadence.common.MethodRetry;
+import com.uber.cadence.common.RetryOptions;
+import com.uber.cadence.context.ContextPropagator;
+import com.uber.cadence.internal.common.OptionsUtils;
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/workflow/ChildWorkflowOptions.java
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -57,6 +68,7 @@ public final class ChildWorkflowOptions {
         .setParentClosePolicy(o.getParentClosePolicy())
         .setMemo(o.getMemo())
         .setSearchAttributes(o.getSearchAttributes())
+        .setContextPropagators(o.getContextPropagators())
         .validateAndBuildWithDefaults();
   }
 
@@ -84,6 +96,8 @@ public final class ChildWorkflowOptions {
 
     private Map<String, Object> searchAttributes;
 
+    private List<ContextPropagator> contextPropagators;
+
     public Builder() {}
 
     public Builder(ChildWorkflowOptions source) {
@@ -101,6 +115,7 @@ public final class ChildWorkflowOptions {
       this.parentClosePolicy = source.getParentClosePolicy();
       this.memo = source.getMemo();
       this.searchAttributes = source.getSearchAttributes();
+      this.contextPropagators = source.getContextPropagators();
     }
 
     /**
@@ -211,6 +226,12 @@ public final class ChildWorkflowOptions {
       return this;
     }
 
+    /** Specifies the list of context propagators to use during this workflow. */
+    public Builder setContextPropagators(List<ContextPropagator> contextPropagators) {
+      this.contextPropagators = contextPropagators;
+      return this;
+    }
+
     public ChildWorkflowOptions build() {
       return new ChildWorkflowOptions(
           domain,
@@ -223,7 +244,8 @@ public final class ChildWorkflowOptions {
           cronSchedule,
           parentClosePolicy,
           memo,
-          searchAttributes);
+          searchAttributes,
+          contextPropagators);
     }
 
     public ChildWorkflowOptions validateAndBuildWithDefaults() {
@@ -238,7 +260,8 @@ public final class ChildWorkflowOptions {
           cronSchedule,
           parentClosePolicy,
           memo,
-          searchAttributes);
+          searchAttributes,
+          contextPropagators);
     }
   }
 
@@ -264,6 +287,8 @@ public final class ChildWorkflowOptions {
 
   private final Map<String, Object> searchAttributes;
 
+  private List<ContextPropagator> contextPropagators;
+
   private ChildWorkflowOptions(
       String domain,
       String workflowId,
@@ -275,7 +300,8 @@ public final class ChildWorkflowOptions {
       String cronSchedule,
       ParentClosePolicy parentClosePolicy,
       Map<String, Object> memo,
-      Map<String, Object> searchAttributes) {
+      Map<String, Object> searchAttributes,
+      List<ContextPropagator> contextPropagators) {
     this.domain = domain;
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
@@ -287,6 +313,7 @@ public final class ChildWorkflowOptions {
     this.parentClosePolicy = parentClosePolicy;
     this.memo = memo;
     this.searchAttributes = searchAttributes;
+    this.contextPropagators = contextPropagators;
   }
 
   public String getDomain() {
@@ -333,6 +360,10 @@ public final class ChildWorkflowOptions {
     return searchAttributes;
   }
 
+  public List<ContextPropagator> getContextPropagators() {
+    return contextPropagators;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -349,7 +380,8 @@ public final class ChildWorkflowOptions {
         && Objects.equals(cronSchedule, that.cronSchedule)
         && Objects.equals(parentClosePolicy, that.parentClosePolicy)
         && Objects.equals(memo, that.memo)
-        && Objects.equals(searchAttributes, that.searchAttributes);
+        && Objects.equals(searchAttributes, that.searchAttributes)
+        && Objects.equals(contextPropagators, that.contextPropagators);
   }
 
   @Override
@@ -365,7 +397,8 @@ public final class ChildWorkflowOptions {
         cronSchedule,
         parentClosePolicy,
         memo,
-        searchAttributes);
+        searchAttributes,
+        contextPropagators);
   }
 
   @Override
@@ -397,6 +430,8 @@ public final class ChildWorkflowOptions {
         + '\''
         + ", searchAttributes='"
         + searchAttributes
+        + ", contextPropagators='"
+        + contextPropagators
         + '\''
         + '}';
   }

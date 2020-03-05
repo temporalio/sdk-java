@@ -20,6 +20,7 @@ package io.temporal.internal.sync;
 import static io.temporal.worker.NonDeterministicWorkflowPolicy.FailWorkflow;
 
 import com.google.common.reflect.TypeToken;
+<<<<<<< HEAD:src/main/java/io/temporal/internal/sync/POJOWorkflowImplementationFactory.java
 import io.temporal.WorkflowType;
 import io.temporal.converter.DataConverter;
 import io.temporal.converter.DataConverterException;
@@ -40,10 +41,34 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInfo;
 import io.temporal.workflow.WorkflowInterceptor;
 import io.temporal.workflow.WorkflowMethod;
+=======
+import com.uber.cadence.WorkflowType;
+import com.uber.cadence.context.ContextPropagator;
+import com.uber.cadence.converter.DataConverter;
+import com.uber.cadence.converter.DataConverterException;
+import com.uber.cadence.internal.common.CheckedExceptionWrapper;
+import com.uber.cadence.internal.common.InternalUtils;
+import com.uber.cadence.internal.metrics.MetricsType;
+import com.uber.cadence.internal.replay.DeciderCache;
+import com.uber.cadence.internal.replay.ReplayWorkflow;
+import com.uber.cadence.internal.replay.ReplayWorkflowFactory;
+import com.uber.cadence.internal.worker.WorkflowExecutionException;
+import com.uber.cadence.testing.SimulatedTimeoutException;
+import com.uber.cadence.worker.WorkflowImplementationOptions;
+import com.uber.cadence.workflow.Functions;
+import com.uber.cadence.workflow.Functions.Func;
+import com.uber.cadence.workflow.QueryMethod;
+import com.uber.cadence.workflow.SignalMethod;
+import com.uber.cadence.workflow.Workflow;
+import com.uber.cadence.workflow.WorkflowInfo;
+import com.uber.cadence.workflow.WorkflowInterceptor;
+import com.uber.cadence.workflow.WorkflowMethod;
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/sync/POJOWorkflowImplementationFactory.java
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
@@ -60,6 +85,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   private final Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory;
 
   private DataConverter dataConverter;
+  private List<ContextPropagator> contextPropagators;
 
   /** Key: workflow type name, Value: function that creates SyncWorkflowDefinition instance. */
   private final Map<String, Functions.Func<SyncWorkflowDefinition>> workflowDefinitions =
@@ -78,11 +104,13 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       DataConverter dataConverter,
       ExecutorService threadPool,
       Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
-      DeciderCache cache) {
+      DeciderCache cache,
+      List<ContextPropagator> contextPropagators) {
     this.dataConverter = Objects.requireNonNull(dataConverter);
     this.threadPool = Objects.requireNonNull(threadPool);
     this.interceptorFactory = Objects.requireNonNull(interceptorFactory);
     this.cache = cache;
+    this.contextPropagators = contextPropagators;
   }
 
   void setWorkflowImplementationTypes(
@@ -203,7 +231,13 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     SyncWorkflowDefinition workflow = getWorkflowDefinition(workflowType);
     WorkflowImplementationOptions options = implementationOptions.get(workflowType.getName());
     return new SyncWorkflow(
-        workflow, options, dataConverter, threadPool, interceptorFactory, cache);
+        workflow,
+        options,
+        dataConverter,
+        threadPool,
+        interceptorFactory,
+        cache,
+        contextPropagators);
   }
 
   @Override

@@ -17,9 +17,17 @@
 
 package io.temporal.internal.replay;
 
+<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/WorkflowContext.java
 import io.temporal.*;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
+=======
+import com.uber.cadence.*;
+import com.uber.cadence.context.ContextPropagator;
+import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.List;
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/WorkflowContext.java
 import java.util.Map;
 
 final class WorkflowContext {
@@ -33,16 +41,25 @@ final class WorkflowContext {
   // as in this particular part of the history.
   private String currentRunId;
   private SearchAttributes searchAttributes;
+<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/WorkflowContext.java
+=======
+  private List<ContextPropagator> contextPropagators;
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/WorkflowContext.java
 
   WorkflowContext(
       String domain,
       PollForDecisionTaskResponse decisionTask,
-      WorkflowExecutionStartedEventAttributes startedAttributes) {
+      WorkflowExecutionStartedEventAttributes startedAttributes,
+      List<ContextPropagator> contextPropagators) {
     this.domain = domain;
     this.decisionTask = decisionTask;
     this.startedAttributes = startedAttributes;
     this.currentRunId = startedAttributes.getOriginalExecutionRunId();
     this.searchAttributes = startedAttributes.getSearchAttributes();
+<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/WorkflowContext.java
+=======
+    this.contextPropagators = contextPropagators;
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/WorkflowContext.java
   }
 
   WorkflowExecution getWorkflowExecution() {
@@ -137,6 +154,40 @@ final class WorkflowContext {
     return searchAttributes;
   }
 
+<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/WorkflowContext.java
+=======
+  public List<ContextPropagator> getContextPropagators() {
+    return contextPropagators;
+  }
+
+  /** Returns a map of propagated context objects, keyed by propagator name */
+  Map<String, Object> getPropagatedContexts() {
+    if (contextPropagators == null || contextPropagators.isEmpty()) {
+      return new HashMap<>();
+    }
+
+    Header headers = startedAttributes.getHeader();
+    if (headers == null) {
+      return new HashMap<>();
+    }
+
+    Map<String, byte[]> headerData = new HashMap<>();
+    headers
+        .getFields()
+        .forEach(
+            (k, v) -> {
+              headerData.put(k, org.apache.thrift.TBaseHelper.byteBufferToByteArray(v));
+            });
+
+    Map<String, Object> contextData = new HashMap<>();
+    for (ContextPropagator propagator : contextPropagators) {
+      contextData.put(propagator.getName(), propagator.deserializeContext(headerData));
+    }
+
+    return contextData;
+  }
+
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/WorkflowContext.java
   void mergeSearchAttributes(SearchAttributes searchAttributes) {
     if (searchAttributes == null) {
       return;

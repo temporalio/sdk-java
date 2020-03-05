@@ -15,8 +15,32 @@
  *  permissions and limitations under the License.
  */
 
+<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/DecisionContextImpl.java
 package io.temporal.internal.replay;
 
+=======
+package com.uber.cadence.internal.replay;
+
+import com.uber.cadence.DecisionTaskFailedCause;
+import com.uber.cadence.DecisionTaskFailedEventAttributes;
+import com.uber.cadence.HistoryEvent;
+import com.uber.cadence.PollForDecisionTaskResponse;
+import com.uber.cadence.SearchAttributes;
+import com.uber.cadence.TimerFiredEventAttributes;
+import com.uber.cadence.UpsertWorkflowSearchAttributesEventAttributes;
+import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowExecutionStartedEventAttributes;
+import com.uber.cadence.WorkflowType;
+import com.uber.cadence.context.ContextPropagator;
+import com.uber.cadence.converter.DataConverter;
+import com.uber.cadence.internal.metrics.ReplayAwareScope;
+import com.uber.cadence.internal.worker.LocalActivityWorker;
+import com.uber.cadence.internal.worker.SingleWorkerOptions;
+import com.uber.cadence.workflow.Functions.Func;
+import com.uber.cadence.workflow.Functions.Func1;
+import com.uber.cadence.workflow.Promise;
+import com.uber.cadence.workflow.Workflow;
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/DecisionContextImpl.java
 import com.uber.m3.tally.Scope;
 import io.temporal.DecisionTaskFailedCause;
 import io.temporal.DecisionTaskFailedEventAttributes;
@@ -37,6 +61,8 @@ import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import java.time.Duration;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
@@ -66,7 +92,9 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
       BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller,
       ReplayDecider replayDecider) {
     this.activityClient = new ActivityDecisionContext(decisionsHelper);
-    this.workflowContext = new WorkflowContext(domain, decisionTask, startedAttributes);
+    this.workflowContext =
+        new WorkflowContext(
+            domain, decisionTask, startedAttributes, options.getContextPropagators());
     this.workflowClient = new WorkflowDecisionContext(decisionsHelper, workflowContext);
     this.workflowClock =
         new ClockDecisionContext(
@@ -167,6 +195,19 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   }
 
   @Override
+<<<<<<< HEAD:src/main/java/io/temporal/internal/replay/DecisionContextImpl.java
+=======
+  public List<ContextPropagator> getContextPropagators() {
+    return workflowContext.getContextPropagators();
+  }
+
+  @Override
+  public Map<String, Object> getPropagatedContexts() {
+    return workflowContext.getPropagatedContexts();
+  }
+
+  @Override
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/replay/DecisionContextImpl.java
   public Consumer<Exception> scheduleActivityTask(
       ExecuteActivityParameters parameters, BiConsumer<byte[], Exception> callback) {
     return activityClient.scheduleActivityTask(parameters, callback);

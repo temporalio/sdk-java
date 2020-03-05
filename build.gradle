@@ -7,7 +7,11 @@ buildscript {
 plugins {
     id 'net.minecrell.licenser' version '0.4.1'
     id 'com.github.sherter.google-java-format' version '0.8'
+<<<<<<< HEAD
     id 'net.ltgt.errorprone' version '1.1.1'
+=======
+    id 'net.ltgt.errorprone' version  '1.1.1'
+>>>>>>> cadence/master
     id 'java-library'
 }
 
@@ -36,10 +40,17 @@ googleJavaFormat {
     exclude '**/generated-sources/*'
 }
 
+<<<<<<< HEAD
 group = 'io.temporal'
 version = '1.0.0'
 
 description = '''Temporal Java Client'''
+=======
+group = 'com.uber.cadence'
+version = '2.6.3'
+
+description = '''Uber Cadence Java Client'''
+>>>>>>> cadence/master
 
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
@@ -50,14 +61,25 @@ dependencies {
     errorproneJavac('com.google.errorprone:javac:9+181-r4173-1')
     errorprone('com.google.errorprone:error_prone_core:2.3.3')
 
+<<<<<<< HEAD
     compile group: 'com.cronutils', name: 'cron-utils', version: '9.0.0'
     compile group: 'com.google.code.gson', name: 'gson', version: '2.8.6'
     compile group: 'com.google.guava', name: 'guava', version: '28.1-jre'
     compile group: 'com.uber.m3', name: 'tally-core', version: '0.4.0'
+=======
+>>>>>>> cadence/master
     compile group: 'com.uber.tchannel', name: 'tchannel-core', version: '0.8.5'
     compile group: 'io.micrometer', name: 'micrometer-core', version: '1.1.2'
     compile group: 'org.apache.thrift', name: 'libthrift', version: '0.9.3'
+<<<<<<< HEAD
     compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
+=======
+    compile group: 'com.google.code.gson', name: 'gson', version: '2.8.6'
+    compile group: 'com.uber.m3', name: 'tally-core', version: '0.4.0'
+    compile group: 'com.google.guava', name: 'guava', version: '28.1-jre'
+    compile group: 'com.cronutils', name: 'cron-utils', version: '9.0.0'
+    compile group: 'io.micrometer', name: 'micrometer-core', version: '1.1.2'
+>>>>>>> cadence/master
 
     testCompile group: 'junit', name: 'junit', version: '4.12'
     testCompile group: 'com.googlecode.junit-toolbox', name: 'junit-toolbox', version: '2.4'
@@ -71,6 +93,24 @@ license {
 
 compileThrift {
     sourceItems "src/main/thrift/temporal.thrift", "src/main/thrift/shared.thrift"
+
+    nowarn true
+}
+
+task initDlsSubmodule(type: Exec) {
+    description = 'Initializes src/main/idls submodule'
+    commandLine 'git', 'submodule', 'init'
+}
+
+task updateDlsSubmodule(type: Exec) {
+    dependsOn initDlsSubmodule
+    description = 'Updates src/main/idls submodule'
+    commandLine 'git', 'submodule', 'update'
+}
+
+compileThrift {
+    dependsOn updateDlsSubmodule
+    sourceItems "src/main/idls/thrift/cadence.thrift","src/main/idls/thrift/shared.thrift"
 
     nowarn true
 }
@@ -91,11 +131,19 @@ compileTestJava {
 // Generation version.properties for value to be included into the request header
 task createProperties(dependsOn: processResources) {
     doLast {
+<<<<<<< HEAD
         def subdir = new File('$buildDir/resources/main/io/temporal/')
         if( !subdir.exists() ) {
             subdir.mkdirs()
         }
         new File('$buildDir/resources/main/io/temporal/version.properties').withWriter { w ->
+=======
+        def subdir = new File('$buildDir/resources/main/com/uber/cadence/')
+        if( !subdir.exists() ) {
+            subdir.mkdirs()
+        }
+        new File('$buildDir/resources/main/com/uber/cadence/version.properties').withWriter { w ->
+>>>>>>> cadence/master
             Properties p = new Properties()
             p['temporal-client-version'] = project.version.toString()
             p.store w, null
@@ -119,13 +167,20 @@ javadoc {
     options.encoding = 'UTF-8'
 }
 
+<<<<<<< HEAD
 task javadocJar(type: Jar, dependsOn: javadoc) {
     archiveClassifier = 'javadoc'
+=======
+task javadocJar(type: Jar) {
+>>>>>>> cadence/master
     from javadoc
 }
 
 task sourcesJar(type: Jar, dependsOn: classes) {
+<<<<<<< HEAD
     archiveClassifier = 'sources'
+=======
+>>>>>>> cadence/master
     from sourceSets.main.allSource
 }
 

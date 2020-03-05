@@ -18,6 +18,31 @@
 package io.temporal.internal.external;
 
 import com.google.common.base.Strings;
+<<<<<<< HEAD:src/main/java/io/temporal/internal/external/GenericWorkflowClientExternalImpl.java
+=======
+import com.uber.cadence.Header;
+import com.uber.cadence.Memo;
+import com.uber.cadence.QueryWorkflowRequest;
+import com.uber.cadence.QueryWorkflowResponse;
+import com.uber.cadence.RequestCancelWorkflowExecutionRequest;
+import com.uber.cadence.RetryPolicy;
+import com.uber.cadence.SearchAttributes;
+import com.uber.cadence.SignalWithStartWorkflowExecutionRequest;
+import com.uber.cadence.SignalWorkflowExecutionRequest;
+import com.uber.cadence.StartWorkflowExecutionRequest;
+import com.uber.cadence.StartWorkflowExecutionResponse;
+import com.uber.cadence.TaskList;
+import com.uber.cadence.TerminateWorkflowExecutionRequest;
+import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowExecutionAlreadyStartedError;
+import com.uber.cadence.WorkflowQuery;
+import com.uber.cadence.internal.common.*;
+import com.uber.cadence.internal.metrics.MetricsTag;
+import com.uber.cadence.internal.metrics.MetricsType;
+import com.uber.cadence.internal.replay.QueryWorkflowParameters;
+import com.uber.cadence.internal.replay.SignalExternalWorkflowParameters;
+import com.uber.cadence.serviceclient.IWorkflowService;
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/external/GenericWorkflowClientExternalImpl.java
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.Memo;
@@ -121,6 +146,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     }
     request.setMemo(toMemoThrift(startParameters.getMemo()));
     request.setSearchAttributes(toSearchAttributesThrift(startParameters.getSearchAttributes()));
+    request.setHeader(toHeaderThrift(startParameters.getContext()));
 
     //        if(startParameters.getChildPolicy() != null) {
     //            request.setChildPolicy(startParameters.getChildPolicy());
@@ -170,6 +196,19 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     SearchAttributes searchAttrThrift = new SearchAttributes();
     searchAttrThrift.setIndexedFields(fields);
     return searchAttrThrift;
+  }
+
+  private Header toHeaderThrift(Map<String, byte[]> headers) {
+    if (headers == null || headers.isEmpty()) {
+      return null;
+    }
+    Map<String, ByteBuffer> fields = new HashMap<>();
+    for (Map.Entry<String, byte[]> item : headers.entrySet()) {
+      fields.put(item.getKey(), ByteBuffer.wrap(item.getValue()));
+    }
+    Header headerThrift = new Header();
+    headerThrift.setFields(fields);
+    return headerThrift;
   }
 
   private RetryPolicy toRetryPolicy(RetryParameters retryParameters) {

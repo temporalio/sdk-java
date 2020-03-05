@@ -19,9 +19,16 @@ package io.temporal.activity;
 
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
+<<<<<<< HEAD:src/main/java/io/temporal/activity/ActivityOptions.java
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
+=======
+import com.uber.cadence.common.MethodRetry;
+import com.uber.cadence.common.RetryOptions;
+import com.uber.cadence.context.ContextPropagator;
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/activity/ActivityOptions.java
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 
 /** Options used to configure how an activity is invoked. */
@@ -55,6 +62,7 @@ public final class ActivityOptions {
                 ? o.getTaskList()
                 : (a.taskList().isEmpty() ? null : a.taskList()))
         .setRetryOptions(RetryOptions.merge(r, o.getRetryOptions()))
+        .setContextPropagators(o.getContextPropagators())
         .validateAndBuildWithDefaults();
   }
 
@@ -72,6 +80,8 @@ public final class ActivityOptions {
 
     private RetryOptions retryOptions;
 
+    private List<ContextPropagator> contextPropagators;
+
     public Builder() {}
 
     /** Copy Builder fields from the options. */
@@ -85,6 +95,7 @@ public final class ActivityOptions {
       this.startToCloseTimeout = options.getStartToCloseTimeout();
       this.taskList = options.taskList;
       this.retryOptions = options.retryOptions;
+      this.contextPropagators = options.contextPropagators;
     }
 
     /**
@@ -143,6 +154,12 @@ public final class ActivityOptions {
       return this;
     }
 
+    /** ContextPropagators help propagate the context from the workflow to the activities */
+    public Builder setContextPropagators(List<ContextPropagator> contextPropagators) {
+      this.contextPropagators = contextPropagators;
+      return this;
+    }
+
     public ActivityOptions build() {
       return new ActivityOptions(
           heartbeatTimeout,
@@ -150,7 +167,8 @@ public final class ActivityOptions {
           scheduleToStartTimeout,
           startToCloseTimeout,
           taskList,
-          retryOptions);
+          retryOptions,
+          contextPropagators);
     }
 
     public ActivityOptions validateAndBuildWithDefaults() {
@@ -187,7 +205,8 @@ public final class ActivityOptions {
           roundUpToSeconds(scheduleToStart),
           roundUpToSeconds(startToClose),
           taskList,
-          ro);
+          ro,
+          contextPropagators);
     }
   }
 
@@ -203,13 +222,16 @@ public final class ActivityOptions {
 
   private final RetryOptions retryOptions;
 
+  private final List<ContextPropagator> contextPropagators;
+
   private ActivityOptions(
       Duration heartbeatTimeout,
       Duration scheduleToCloseTimeout,
       Duration scheduleToStartTimeout,
       Duration startToCloseTimeout,
       String taskList,
-      RetryOptions retryOptions) {
+      RetryOptions retryOptions,
+      List<ContextPropagator> contextPropagators) {
     this.heartbeatTimeout = heartbeatTimeout;
     this.scheduleToCloseTimeout = scheduleToCloseTimeout;
     if (scheduleToCloseTimeout != null) {
@@ -229,6 +251,7 @@ public final class ActivityOptions {
     }
     this.taskList = taskList;
     this.retryOptions = retryOptions;
+    this.contextPropagators = contextPropagators;
   }
 
   public Duration getHeartbeatTimeout() {
@@ -255,6 +278,10 @@ public final class ActivityOptions {
     return retryOptions;
   }
 
+  public List<ContextPropagator> getContextPropagators() {
+    return contextPropagators;
+  }
+
   @Override
   public String toString() {
     return "ActivityOptions{"
@@ -271,6 +298,8 @@ public final class ActivityOptions {
         + '\''
         + ", retryOptions="
         + retryOptions
+        + ", contextPropagators"
+        + contextPropagators
         + '}';
   }
 
@@ -285,7 +314,8 @@ public final class ActivityOptions {
         && Objects.equals(scheduleToStartTimeout, that.scheduleToStartTimeout)
         && Objects.equals(startToCloseTimeout, that.startToCloseTimeout)
         && Objects.equals(taskList, that.taskList)
-        && Objects.equals(retryOptions, that.retryOptions);
+        && Objects.equals(retryOptions, that.retryOptions)
+        && Objects.equals(contextPropagators, that.contextPropagators);
   }
 
   @Override
@@ -296,7 +326,8 @@ public final class ActivityOptions {
         scheduleToStartTimeout,
         startToCloseTimeout,
         taskList,
-        retryOptions);
+        retryOptions,
+        contextPropagators);
   }
 
   static Duration mergeDuration(int annotationSeconds, Duration options) {

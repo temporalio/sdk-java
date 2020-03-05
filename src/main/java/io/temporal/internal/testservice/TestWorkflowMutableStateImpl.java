@@ -25,6 +25,7 @@ import com.cronutils.model.time.ExecutionTime;
 import com.cronutils.parser.CronParser;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+<<<<<<< HEAD:src/main/java/io/temporal/internal/testservice/TestWorkflowMutableStateImpl.java
 import io.temporal.*;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.StateMachines.Action;
@@ -36,6 +37,80 @@ import io.temporal.internal.testservice.StateMachines.State;
 import io.temporal.internal.testservice.StateMachines.TimerData;
 import io.temporal.internal.testservice.StateMachines.WorkflowData;
 import io.temporal.internal.testservice.TestWorkflowStore.TaskListId;
+=======
+import com.uber.cadence.ActivityTaskScheduledEventAttributes;
+import com.uber.cadence.BadRequestError;
+import com.uber.cadence.CancelTimerDecisionAttributes;
+import com.uber.cadence.CancelTimerFailedEventAttributes;
+import com.uber.cadence.CancelWorkflowExecutionDecisionAttributes;
+import com.uber.cadence.ChildWorkflowExecutionCanceledEventAttributes;
+import com.uber.cadence.ChildWorkflowExecutionCompletedEventAttributes;
+import com.uber.cadence.ChildWorkflowExecutionFailedEventAttributes;
+import com.uber.cadence.ChildWorkflowExecutionStartedEventAttributes;
+import com.uber.cadence.ChildWorkflowExecutionTimedOutEventAttributes;
+import com.uber.cadence.CompleteWorkflowExecutionDecisionAttributes;
+import com.uber.cadence.ContinueAsNewWorkflowExecutionDecisionAttributes;
+import com.uber.cadence.Decision;
+import com.uber.cadence.DecisionTaskFailedCause;
+import com.uber.cadence.EntityNotExistsError;
+import com.uber.cadence.EventType;
+import com.uber.cadence.FailWorkflowExecutionDecisionAttributes;
+import com.uber.cadence.HistoryEvent;
+import com.uber.cadence.InternalServiceError;
+import com.uber.cadence.MarkerRecordedEventAttributes;
+import com.uber.cadence.PollForActivityTaskRequest;
+import com.uber.cadence.PollForActivityTaskResponse;
+import com.uber.cadence.PollForDecisionTaskRequest;
+import com.uber.cadence.PollForDecisionTaskResponse;
+import com.uber.cadence.QueryFailedError;
+import com.uber.cadence.QueryRejectCondition;
+import com.uber.cadence.QueryRejected;
+import com.uber.cadence.QueryTaskCompletedType;
+import com.uber.cadence.QueryWorkflowRequest;
+import com.uber.cadence.QueryWorkflowResponse;
+import com.uber.cadence.RecordActivityTaskHeartbeatResponse;
+import com.uber.cadence.RecordMarkerDecisionAttributes;
+import com.uber.cadence.RequestCancelActivityTaskDecisionAttributes;
+import com.uber.cadence.RequestCancelActivityTaskFailedEventAttributes;
+import com.uber.cadence.RequestCancelExternalWorkflowExecutionDecisionAttributes;
+import com.uber.cadence.RequestCancelWorkflowExecutionRequest;
+import com.uber.cadence.RespondActivityTaskCanceledByIDRequest;
+import com.uber.cadence.RespondActivityTaskCanceledRequest;
+import com.uber.cadence.RespondActivityTaskCompletedByIDRequest;
+import com.uber.cadence.RespondActivityTaskCompletedRequest;
+import com.uber.cadence.RespondActivityTaskFailedByIDRequest;
+import com.uber.cadence.RespondActivityTaskFailedRequest;
+import com.uber.cadence.RespondDecisionTaskCompletedRequest;
+import com.uber.cadence.RespondDecisionTaskFailedRequest;
+import com.uber.cadence.RespondQueryTaskCompletedRequest;
+import com.uber.cadence.RetryPolicy;
+import com.uber.cadence.ScheduleActivityTaskDecisionAttributes;
+import com.uber.cadence.SignalExternalWorkflowExecutionDecisionAttributes;
+import com.uber.cadence.SignalExternalWorkflowExecutionFailedCause;
+import com.uber.cadence.SignalWorkflowExecutionRequest;
+import com.uber.cadence.StartChildWorkflowExecutionDecisionAttributes;
+import com.uber.cadence.StartChildWorkflowExecutionFailedEventAttributes;
+import com.uber.cadence.StartTimerDecisionAttributes;
+import com.uber.cadence.StartWorkflowExecutionRequest;
+import com.uber.cadence.StickyExecutionAttributes;
+import com.uber.cadence.TimeoutType;
+import com.uber.cadence.UpsertWorkflowSearchAttributesDecisionAttributes;
+import com.uber.cadence.UpsertWorkflowSearchAttributesEventAttributes;
+import com.uber.cadence.WorkflowExecution;
+import com.uber.cadence.WorkflowExecutionCloseStatus;
+import com.uber.cadence.WorkflowExecutionContinuedAsNewEventAttributes;
+import com.uber.cadence.WorkflowExecutionSignaledEventAttributes;
+import com.uber.cadence.internal.common.WorkflowExecutionUtils;
+import com.uber.cadence.internal.testservice.StateMachines.Action;
+import com.uber.cadence.internal.testservice.StateMachines.ActivityTaskData;
+import com.uber.cadence.internal.testservice.StateMachines.ChildWorkflowData;
+import com.uber.cadence.internal.testservice.StateMachines.DecisionTaskData;
+import com.uber.cadence.internal.testservice.StateMachines.SignalExternalData;
+import com.uber.cadence.internal.testservice.StateMachines.State;
+import com.uber.cadence.internal.testservice.StateMachines.TimerData;
+import com.uber.cadence.internal.testservice.StateMachines.WorkflowData;
+import com.uber.cadence.internal.testservice.TestWorkflowStore.TaskListId;
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/testservice/TestWorkflowMutableStateImpl.java
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -45,7 +120,14 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.OptionalLong;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -90,6 +172,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private final Map<String, CompletableFuture<QueryWorkflowResponse>> queries =
       new ConcurrentHashMap<>();
   private final Map<String, PollForDecisionTaskResponse> queryRequests = new ConcurrentHashMap<>();
+  private final Optional<String> continuedExecutionRunId;
   public StickyExecutionAttributes stickyExecutionAttributes;
 
   /**
@@ -104,11 +187,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       byte[] lastCompletionResult,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
+      Optional<String> continuedExecutionRunId,
       TestWorkflowService service,
       TestWorkflowStore store) {
     this.startRequest = startRequest;
     this.parent = parent;
     this.parentChildInitiatedEventId = parentChildInitiatedEventId;
+    this.continuedExecutionRunId = continuedExecutionRunId;
     this.service = service;
     String runId = UUID.randomUUID().toString();
     this.executionId =
@@ -121,7 +206,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             retryState,
             backoffStartIntervalInSeconds,
             startRequest.getCronSchedule(),
-            lastCompletionResult);
+            lastCompletionResult,
+            runId, // Test service doesn't support reset. Thus originalRunId is always the same as
+            // runId.
+            continuedExecutionRunId);
     this.workflow = StateMachines.newWorkflowStateMachine(data);
   }
 
@@ -348,7 +436,12 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             ctx, d.getRequestCancelExternalWorkflowExecutionDecisionAttributes());
         break;
       case UpsertWorkflowSearchAttributes:
+<<<<<<< HEAD:src/main/java/io/temporal/internal/testservice/TestWorkflowMutableStateImpl.java
         // TODO: https://github.io.temporal-java-client/issues/360
+=======
+        processUpsertWorkflowSearchAttributes(
+            ctx, d.getUpsertWorkflowSearchAttributesDecisionAttributes(), decisionTaskCompletedId);
+>>>>>>> cadence/master:src/main/java/com/uber/cadence/internal/testservice/TestWorkflowMutableStateImpl.java
         break;
     }
   }
@@ -976,6 +1069,22 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             parent,
             parentChildInitiatedEventId);
     event.getWorkflowExecutionContinuedAsNewEventAttributes().setNewExecutionRunId(runId);
+  }
+
+  private void processUpsertWorkflowSearchAttributes(
+      RequestContext ctx,
+      UpsertWorkflowSearchAttributesDecisionAttributes attr,
+      long decisionTaskCompletedId)
+      throws BadRequestError, InternalServiceError {
+    UpsertWorkflowSearchAttributesEventAttributes upsertEventAttr =
+        new UpsertWorkflowSearchAttributesEventAttributes()
+            .setSearchAttributes(attr.getSearchAttributes())
+            .setDecisionTaskCompletedEventId(decisionTaskCompletedId);
+    HistoryEvent event =
+        new HistoryEvent()
+            .setEventType(EventType.UpsertWorkflowSearchAttributes)
+            .setUpsertWorkflowSearchAttributesEventAttributes(upsertEventAttr);
+    ctx.addEvent(event);
   }
 
   @Override
