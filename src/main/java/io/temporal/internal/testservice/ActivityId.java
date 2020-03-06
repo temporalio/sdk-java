@@ -19,7 +19,7 @@ package io.temporal.internal.testservice;
 
 import com.google.common.base.Throwables;
 import io.temporal.InternalServiceError;
-import io.temporal.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecution;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;

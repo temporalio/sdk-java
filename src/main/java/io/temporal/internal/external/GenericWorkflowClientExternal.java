@@ -18,13 +18,13 @@
 package io.temporal.internal.external;
 
 import io.temporal.QueryWorkflowResponse;
-import io.temporal.WorkflowExecution;
-import io.temporal.WorkflowExecutionAlreadyStartedError;
 import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
 import io.temporal.internal.common.StartWorkflowExecutionParameters;
 import io.temporal.internal.common.TerminateWorkflowExecutionParameters;
 import io.temporal.internal.replay.QueryWorkflowParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
+import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecutionAlreadyStartedError;
 import io.temporal.serviceclient.IWorkflowService;
 
 public interface GenericWorkflowClientExternal {

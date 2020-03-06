@@ -18,7 +18,6 @@
 package io.temporal.internal.sync;
 
 import io.temporal.PollForDecisionTaskResponse;
-import io.temporal.WorkflowExecution;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.converter.DataConverter;
 import io.temporal.internal.common.InternalUtils;
@@ -29,6 +28,7 @@ import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.SuspendableWorker;
 import io.temporal.internal.worker.WorkflowWorker;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.serviceclient.IWorkflowService;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions.Func;

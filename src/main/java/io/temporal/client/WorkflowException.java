@@ -17,7 +17,7 @@
 
 package io.temporal.client;
 
-import io.temporal.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.workflow.ChildWorkflowException;
 import java.util.Optional;
 

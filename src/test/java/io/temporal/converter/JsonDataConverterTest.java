@@ -23,9 +23,9 @@ import io.temporal.EventType;
 import io.temporal.History;
 import io.temporal.HistoryEvent;
 import io.temporal.TaskList;
-import io.temporal.WorkflowExecutionStartedEventAttributes;
 import io.temporal.WorkflowType;
 import io.temporal.activity.Activity;
+import io.temporal.proto.common.WorkflowExecutionStartedEventAttributes;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -84,7 +84,7 @@ public class JsonDataConverterTest {
             .setWorkflowType(new WorkflowType().setName("workflowType1"))
             .setTaskList(new TaskList().setName("taskList1"));
     events.add(
-        new HistoryEvent()
+        HistoryEvent.newBuilder()
             .setTimestamp(1234567)
             .setEventId(321)
             .setWorkflowExecutionStartedEventAttributes(started));
@@ -105,7 +105,7 @@ public class JsonDataConverterTest {
             .setWorkflowType(new WorkflowType().setName("workflowType1"))
             .setTaskList(new TaskList().setName("taskList1"));
     events.add(
-        new HistoryEvent()
+        HistoryEvent.newBuilder()
             .setTimestamp(1234567)
             .setEventId(321)
             .setWorkflowExecutionStartedEventAttributes(started));
@@ -127,7 +127,7 @@ public class JsonDataConverterTest {
             .setTaskList(new TaskList().setName("taskList1"));
 
     HistoryEvent historyEvent =
-        new HistoryEvent()
+        HistoryEvent.newBuilder()
             .setTimestamp(1234567)
             .setEventId(321)
             .setWorkflowExecutionStartedEventAttributes(started);
@@ -150,7 +150,7 @@ public class JsonDataConverterTest {
             .setTaskList(new TaskList().setName("taskList1"));
 
     HistoryEvent historyEvent =
-        new HistoryEvent()
+        HistoryEvent.newBuilder()
             .setTimestamp(1234567)
             .setEventId(321)
             .setWorkflowExecutionStartedEventAttributes(started);

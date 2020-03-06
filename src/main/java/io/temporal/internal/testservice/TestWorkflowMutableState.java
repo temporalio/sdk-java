@@ -48,8 +48,8 @@ import io.temporal.SignalWorkflowExecutionRequest;
 import io.temporal.StartChildWorkflowExecutionFailedEventAttributes;
 import io.temporal.StartWorkflowExecutionRequest;
 import io.temporal.StickyExecutionAttributes;
-import io.temporal.WorkflowExecutionCloseStatus;
 import io.temporal.internal.testservice.TestWorkflowMutableStateImpl.QueryId;
+import io.temporal.proto.common.WorkflowExecutionCloseStatus;
 import java.util.Optional;
 import org.apache.thrift.TException;
 

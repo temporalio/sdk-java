@@ -18,8 +18,8 @@
 package io.temporal.client;
 
 import io.temporal.QueryRejectCondition;
-import io.temporal.WorkflowExecution;
 import io.temporal.internal.common.QueryResponse;
+import io.temporal.proto.common.WorkflowExecution;
 import java.lang.reflect.Type;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;

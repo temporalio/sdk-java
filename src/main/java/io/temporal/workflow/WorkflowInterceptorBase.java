@@ -17,9 +17,9 @@
 
 package io.temporal.workflow;
 
-import io.temporal.WorkflowExecution;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import java.lang.reflect.Type;

@@ -17,9 +17,9 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.WorkflowExecution;
 import io.temporal.client.BatchRequest;
 import io.temporal.client.WorkflowStub;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.workflow.Functions;
 import java.util.ArrayList;
 import java.util.List;

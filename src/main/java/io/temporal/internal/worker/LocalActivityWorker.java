@@ -186,7 +186,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
 
       LocalActivityMarkerData marker = markerBuilder.build();
 
-      HistoryEvent event = new HistoryEvent();
+      HistoryEvent event = HistoryEvent.newBuilder();
       event.setEventType(EventType.MarkerRecorded);
       MarkerRecordedEventAttributes attributes =
           new MarkerRecordedEventAttributes()

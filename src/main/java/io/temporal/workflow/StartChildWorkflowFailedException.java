@@ -18,8 +18,8 @@
 package io.temporal.workflow;
 
 import io.temporal.ChildWorkflowExecutionFailedCause;
-import io.temporal.WorkflowExecution;
 import io.temporal.WorkflowType;
+import io.temporal.proto.common.WorkflowExecution;
 
 /**
  * Indicates that child workflow failed to start. Currently the only cause is that there is already

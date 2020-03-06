@@ -30,7 +30,7 @@ import com.google.gson.JsonSerializer;
 import com.google.gson.reflect.TypeToken;
 import io.temporal.EventType;
 import io.temporal.HistoryEvent;
-import io.temporal.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecution;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
 import java.util.Base64;

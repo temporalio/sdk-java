@@ -17,7 +17,7 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.workflow.Promise;
 
 /**

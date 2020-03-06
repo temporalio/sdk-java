@@ -17,7 +17,7 @@
 
 package io.temporal.internal.external;
 
-import io.temporal.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecution;
 
 public abstract class ManualActivityCompletionClientFactory {
 

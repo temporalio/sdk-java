@@ -21,7 +21,6 @@ import static io.temporal.internal.common.InternalUtils.getWorkflowMethod;
 import static io.temporal.internal.common.InternalUtils.getWorkflowType;
 
 import com.google.common.base.Defaults;
-import io.temporal.WorkflowExecution;
 import io.temporal.WorkflowIdReusePolicy;
 import io.temporal.client.DuplicateWorkflowException;
 import io.temporal.client.WorkflowClientInterceptor;
@@ -32,6 +31,7 @@ import io.temporal.common.MethodRetry;
 import io.temporal.converter.DataConverter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.external.GenericWorkflowClientExternal;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.WorkflowMethod;

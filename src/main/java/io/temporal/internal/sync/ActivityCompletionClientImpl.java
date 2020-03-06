@@ -17,10 +17,10 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.WorkflowExecution;
 import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.internal.external.ManualActivityCompletionClientFactory;
+import io.temporal.proto.common.WorkflowExecution;
 
 class ActivityCompletionClientImpl implements ActivityCompletionClient {
 

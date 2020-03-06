@@ -20,7 +20,8 @@ package io.temporal.activity;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.internal.sync.ActivityInternal;
 import io.temporal.internal.sync.WorkflowInternal;
-import io.temporal.serviceclient.IWorkflowService;
+import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
 import io.temporal.workflow.ActivityException;
 import io.temporal.workflow.ActivityTimeoutException;
 import java.lang.reflect.Type;
@@ -218,7 +219,7 @@ public final class Activity {
   }
 
   /** @return workfow execution that requested the activity execution */
-  public static io.temporal.WorkflowExecution getWorkflowExecution() {
+  public static WorkflowExecution getWorkflowExecution() {
     return ActivityInternal.getTask().getWorkflowExecution();
   }
 
@@ -271,7 +272,7 @@ public final class Activity {
    *     operations like sending signal to its parent workflow. @TODO getWorkflowClient method to
    *     hide the service.
    */
-  public static IWorkflowService getService() {
+  public static WorkflowServiceGrpc getService() {
     return ActivityInternal.getService();
   }
 

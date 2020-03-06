@@ -17,8 +17,8 @@
 
 package io.temporal.activity;
 
-import io.temporal.WorkflowExecution;
-import io.temporal.WorkflowType;
+import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.common.WorkflowType;
 import java.time.Duration;
 
 /**

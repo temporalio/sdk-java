@@ -19,7 +19,6 @@ package io.temporal.internal.sync;
 
 import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
-import io.temporal.WorkflowExecution;
 import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.BatchRequest;
 import io.temporal.client.WorkflowClient;
@@ -32,6 +31,7 @@ import io.temporal.internal.external.GenericWorkflowClientExternalImpl;
 import io.temporal.internal.external.ManualActivityCompletionClientFactory;
 import io.temporal.internal.external.ManualActivityCompletionClientFactoryImpl;
 import io.temporal.internal.sync.WorkflowInvocationHandler.InvocationType;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.serviceclient.IWorkflowService;
 import io.temporal.serviceclient.WorkflowServiceTChannel;
 import io.temporal.workflow.Functions;

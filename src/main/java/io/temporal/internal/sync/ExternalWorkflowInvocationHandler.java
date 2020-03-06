@@ -19,8 +19,8 @@ package io.temporal.internal.sync;
 
 import static io.temporal.internal.common.InternalUtils.getValueOrDefault;
 
-import io.temporal.WorkflowExecution;
 import io.temporal.internal.common.InternalUtils;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.workflow.ExternalWorkflowStub;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;

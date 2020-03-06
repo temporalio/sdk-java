@@ -17,8 +17,8 @@
 
 package io.temporal.workflow;
 
-import io.temporal.WorkflowExecution;
 import io.temporal.WorkflowType;
+import io.temporal.proto.common.WorkflowExecution;
 
 /** Base exception for failures of a child workflow. */
 @SuppressWarnings("serial")

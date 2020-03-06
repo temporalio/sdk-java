@@ -20,9 +20,9 @@ package io.temporal.internal.replay;
 import static junit.framework.TestCase.assertEquals;
 
 import io.temporal.SearchAttributes;
-import io.temporal.WorkflowExecutionStartedEventAttributes;
 import io.temporal.converter.DataConverter;
 import io.temporal.converter.JsonDataConverter;
+import io.temporal.proto.common.WorkflowExecutionStartedEventAttributes;
 import io.temporal.workflow.WorkflowUtils;
 import java.nio.ByteBuffer;
 import java.util.HashMap;

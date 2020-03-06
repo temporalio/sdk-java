@@ -17,8 +17,8 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.WorkflowExecution;
 import io.temporal.WorkflowType;
+import io.temporal.proto.common.WorkflowExecution;
 
 /** Internal. Do not catch or throw by application level code. */
 @SuppressWarnings("serial")

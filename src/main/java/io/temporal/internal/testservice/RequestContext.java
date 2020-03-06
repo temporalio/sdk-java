@@ -17,14 +17,11 @@
 
 package io.temporal.internal.testservice;
 
-import io.temporal.BadRequestError;
-import io.temporal.EntityNotExistsError;
-import io.temporal.HistoryEvent;
-import io.temporal.InternalServiceError;
-import io.temporal.WorkflowExecution;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.TestWorkflowStore.ActivityTask;
 import io.temporal.internal.testservice.TestWorkflowStore.DecisionTask;
+import io.temporal.proto.common.HistoryEvent;
+import io.temporal.proto.common.WorkflowExecution;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;

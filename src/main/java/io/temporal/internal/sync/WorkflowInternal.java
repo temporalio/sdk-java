@@ -21,13 +21,13 @@ import static io.temporal.internal.sync.AsyncInternal.AsyncMarker;
 
 import com.google.common.reflect.TypeToken;
 import com.uber.m3.tally.Scope;
-import io.temporal.WorkflowExecution;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.logging.ReplayAwareLogger;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.workflow.ActivityStub;
 import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.ChildWorkflowOptions;

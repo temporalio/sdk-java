@@ -21,7 +21,6 @@ import io.temporal.BadRequestError;
 import io.temporal.EntityNotExistsError;
 import io.temporal.RecordActivityTaskHeartbeatRequest;
 import io.temporal.RecordActivityTaskHeartbeatResponse;
-import io.temporal.WorkflowExecution;
 import io.temporal.activity.ActivityTask;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.client.ActivityCompletionException;
@@ -29,6 +28,8 @@ import io.temporal.client.ActivityCompletionFailureException;
 import io.temporal.client.ActivityNotExistsException;
 import io.temporal.client.ActivityWorkerShutdownException;
 import io.temporal.converter.DataConverter;
+import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
 import io.temporal.serviceclient.IWorkflowService;
 import java.lang.reflect.Type;
 import java.util.Optional;
@@ -197,9 +198,12 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
     return task;
   }
 
-  /** @see ActivityExecutionContext#getService() */
+  /**
+   * @see ActivityExecutionContext#getService()
+   * @return
+   */
   @Override
-  public IWorkflowService getService() {
+  public WorkflowServiceGrpc getService() {
     return service;
   }
 

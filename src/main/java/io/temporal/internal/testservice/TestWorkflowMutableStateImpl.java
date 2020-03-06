@@ -400,7 +400,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setDetails(attr.getDetails())
             .setDecisionTaskCompletedEventId(decisionTaskCompletedId);
     HistoryEvent event =
-        new HistoryEvent()
+        HistoryEvent.newBuilder()
             .setEventType(EventType.MarkerRecorded)
             .setMarkerRecordedEventAttributes(marker);
     ctx.addEvent(event);
@@ -418,7 +418,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               .setCause("TIMER_ID_UNKNOWN")
               .setDecisionTaskCompletedEventId(decisionTaskCompletedId);
       HistoryEvent cancellationFailed =
-          new HistoryEvent()
+          HistoryEvent.newBuilder()
               .setEventType(EventType.CancelTimerFailed)
               .setCancelTimerFailedEventAttributes(failedAttr);
       ctx.addEvent(cancellationFailed);
@@ -442,7 +442,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               .setCause("ACTIVITY_ID_UNKNOWN")
               .setDecisionTaskCompletedEventId(decisionTaskCompletedId);
       HistoryEvent cancellationFailed =
-          new HistoryEvent()
+          HistoryEvent.newBuilder()
               .setEventType(EventType.RequestCancelActivityTaskFailed)
               .setRequestCancelActivityTaskFailedEventAttributes(failedAttr);
       ctx.addEvent(cancellationFailed);
@@ -1002,7 +1002,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setSearchAttributes(attr.getSearchAttributes())
             .setDecisionTaskCompletedEventId(decisionTaskCompletedId);
     HistoryEvent event =
-        new HistoryEvent()
+        HistoryEvent.newBuilder()
             .setEventType(EventType.UpsertWorkflowSearchAttributes)
             .setUpsertWorkflowSearchAttributesEventAttributes(upsertEventAttr);
     ctx.addEvent(event);
@@ -1494,7 +1494,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setInput(signalRequest.getInput())
             .setSignalName(signalRequest.getSignalName());
     HistoryEvent executionSignaled =
-        new HistoryEvent()
+        HistoryEvent.newBuilder()
             .setEventType(EventType.WorkflowExecutionSignaled)
             .setWorkflowExecutionSignaledEventAttributes(a);
     ctx.addEvent(executionSignaled);
@@ -1508,7 +1508,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setInput(d.getInput())
             .setSignalName(d.getSignalName());
     HistoryEvent executionSignaled =
-        new HistoryEvent()
+        HistoryEvent.newBuilder()
             .setEventType(EventType.WorkflowExecutionSignaled)
             .setWorkflowExecutionSignaledEventAttributes(a);
     ctx.addEvent(executionSignaled);

@@ -17,8 +17,8 @@
 
 package io.temporal.client;
 
-import io.temporal.WorkflowExecution;
 import io.temporal.activity.Activity;
+import io.temporal.proto.common.WorkflowExecution;
 import java.util.concurrent.CancellationException;
 
 /**

@@ -17,8 +17,8 @@
 
 package io.temporal.workflow;
 
-import io.temporal.WorkflowExecution;
 import io.temporal.WorkflowType;
+import io.temporal.proto.common.WorkflowExecution;
 
 /**
  * Indicates that a child workflow failed. An original cause of the child workflow failure can be

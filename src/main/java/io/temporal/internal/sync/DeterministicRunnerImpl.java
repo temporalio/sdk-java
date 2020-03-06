@@ -19,7 +19,6 @@ package io.temporal.internal.sync;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.SearchAttributes;
-import io.temporal.WorkflowExecution;
 import io.temporal.WorkflowType;
 import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
@@ -34,6 +33,7 @@ import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;

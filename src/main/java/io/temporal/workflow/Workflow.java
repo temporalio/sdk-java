@@ -18,11 +18,11 @@
 package io.temporal.workflow;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.WorkflowExecution;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.internal.sync.WorkflowInternal;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Functions.Func;
 import java.lang.reflect.Type;
