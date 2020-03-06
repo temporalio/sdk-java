@@ -100,6 +100,7 @@ import com.uber.tchannel.api.SubChannel;
 import com.uber.tchannel.api.TChannel;
 import com.uber.tchannel.api.TFuture;
 import com.uber.tchannel.api.errors.TChannelError;
+import com.uber.tchannel.errors.ErrorType;
 import com.uber.tchannel.messages.ThriftRequest;
 import com.uber.tchannel.messages.ThriftResponse;
 import java.net.InetAddress;
@@ -113,6 +114,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.apache.thrift.TException;
 import org.apache.thrift.async.AsyncMethodCallback;
+import org.apache.thrift.transport.TTransportException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -540,7 +542,12 @@ public class WorkflowServiceTChannel implements IWorkflowService {
 
   private void throwOnRpcError(ThriftResponse<?> response) throws TException {
     if (response.isError()) {
-      throw new TException("Rpc error:" + response.getError());
+      if (response.getError().getErrorType() == ErrorType.Timeout) {
+        throw new TTransportException(
+            TTransportException.TIMED_OUT, response.getError().getMessage());
+      } else {
+        throw new TException("Rpc error:" + response.getError());
+      }
     }
   }
 
