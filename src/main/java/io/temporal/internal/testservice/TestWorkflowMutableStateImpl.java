@@ -25,6 +25,7 @@ import com.cronutils.model.time.ExecutionTime;
 import com.cronutils.parser.CronParser;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.internal.common.WorkflowExecutionUtils;
@@ -94,9 +95,6 @@ import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
 import io.temporal.proto.workflowservice.RespondQueryTaskCompletedRequest;
 import io.temporal.proto.workflowservice.SignalWorkflowExecutionRequest;
 import io.temporal.proto.workflowservice.StartWorkflowExecutionRequest;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -123,6 +121,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.LongSupplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
@@ -166,7 +166,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       StartWorkflowExecutionRequest startRequest,
       Optional<RetryState> retryState,
       int backoffStartIntervalInSeconds,
-      byte[] lastCompletionResult,
+      ByteString lastCompletionResult,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
       Optional<String> continuedExecutionRunId,
@@ -188,7 +188,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             retryState,
             backoffStartIntervalInSeconds,
             startRequest.getCronSchedule(),
-            lastCompletionResult,
+            lastCompletionResult.toByteArray(),
             runId, // Test service doesn't support reset. Thus originalRunId is always the same as
             // runId.
             continuedExecutionRunId);
@@ -651,8 +651,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public void failSignalExternalWorkflowExecution(
-      String signalId, SignalExternalWorkflowExecutionFailedCause cause)
-      throws EntityNotExistsError, InternalServiceError, BadRequestError {
+      String signalId, SignalExternalWorkflowExecutionFailedCause cause) {
     update(
         ctx -> {
           StateMachine<SignalExternalData> signal = getSignal(signalId);

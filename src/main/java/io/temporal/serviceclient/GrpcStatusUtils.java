@@ -106,9 +106,7 @@ public class GrpcStatusUtils {
     metadata.<T>put(key, value);
   }
 
-  /**
-   * Create StatusRuntimeException with given details.
-   */
+  /** Create StatusRuntimeException with given details. */
   public static <T extends GeneratedMessageV3> StatusRuntimeException newException(
       Status status, T details) {
     Preconditions.checkNotNull(status, "Exception cannot be null");

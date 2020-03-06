@@ -17,13 +17,19 @@
 
 package io.temporal.internal.testservice;
 
+import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.temporal.internal.testservice.TestWorkflowMutableStateImpl.QueryId;
 import io.temporal.internal.testservice.TestWorkflowStore.WorkflowState;
 import io.temporal.proto.common.RetryPolicy;
+import io.temporal.proto.common.SignalExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecutionContinuedAsNewEventAttributes;
+import io.temporal.proto.common.WorkflowExecutionFilter;
+import io.temporal.proto.common.WorkflowExecutionInfo;
+import io.temporal.proto.enums.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.proto.enums.WorkflowExecutionCloseStatus;
 import io.temporal.proto.enums.WorkflowIdReusePolicy;
 import io.temporal.proto.failure.WorkflowExecutionAlreadyStarted;
@@ -35,6 +41,8 @@ import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.proto.workflowservice.ListDomainsRequest;
 import io.temporal.proto.workflowservice.ListDomainsResponse;
+import io.temporal.proto.workflowservice.ListOpenWorkflowExecutionsRequest;
+import io.temporal.proto.workflowservice.ListOpenWorkflowExecutionsResponse;
 import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
@@ -45,15 +53,34 @@ import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatRequest;
 import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatResponse;
 import io.temporal.proto.workflowservice.RegisterDomainRequest;
 import io.temporal.proto.workflowservice.RegisterDomainResponse;
+import io.temporal.proto.workflowservice.RequestCancelWorkflowExecutionRequest;
+import io.temporal.proto.workflowservice.RequestCancelWorkflowExecutionResponse;
+import io.temporal.proto.workflowservice.ResetWorkflowExecutionRequest;
+import io.temporal.proto.workflowservice.ResetWorkflowExecutionResponse;
+import io.temporal.proto.workflowservice.RespondActivityTaskCanceledByIDRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskCanceledByIDResponse;
+import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskCanceledResponse;
 import io.temporal.proto.workflowservice.RespondActivityTaskCompletedByIDRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskCompletedByIDResponse;
 import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskCompletedResponse;
+import io.temporal.proto.workflowservice.RespondActivityTaskFailedByIDRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskFailedByIDResponse;
+import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskFailedResponse;
 import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedResponse;
 import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskFailedResponse;
+import io.temporal.proto.workflowservice.SignalWithStartWorkflowExecutionRequest;
+import io.temporal.proto.workflowservice.SignalWithStartWorkflowExecutionResponse;
 import io.temporal.proto.workflowservice.SignalWorkflowExecutionRequest;
+import io.temporal.proto.workflowservice.SignalWorkflowExecutionResponse;
 import io.temporal.proto.workflowservice.StartWorkflowExecutionRequest;
 import io.temporal.proto.workflowservice.StartWorkflowExecutionResponse;
+import io.temporal.proto.workflowservice.TerminateWorkflowExecutionRequest;
+import io.temporal.proto.workflowservice.TerminateWorkflowExecutionResponse;
 import io.temporal.proto.workflowservice.UpdateDomainRequest;
 import io.temporal.proto.workflowservice.UpdateDomainResponse;
 import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
@@ -259,7 +286,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       Optional<String> continuedExecutionRunId,
       Optional<RetryState> retryState,
       int backoffStartIntervalInSeconds,
-      byte[] lastCompletionResult,
+      ByteString lastCompletionResult,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
       Optional<SignalWorkflowExecutionRequest> signalWithStartSignal,
@@ -283,6 +310,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     mutableState.startWorkflow(continuedExecutionRunId.isPresent(), signalWithStartSignal);
     return StartWorkflowExecutionResponse.newBuilder().setRunId(execution.getRunId()).build();
   }
+
 
   @Override
   public void getWorkflowExecutionHistory(
@@ -333,7 +361,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   public void respondDecisionTaskCompleted(
       RespondDecisionTaskCompletedRequest request,
       StreamObserver<RespondDecisionTaskCompletedResponse> responseObserver) {
-    DecisionTaskToken taskToken = DecisionTaskToken.fromBytes(request.getTaskToken().toByteArray());
+    DecisionTaskToken taskToken = DecisionTaskToken.fromBytes(request.getTaskToken());
     TestWorkflowMutableState mutableState = getMutableState(taskToken.getExecutionId());
     mutableState.completeDecisionTask(taskToken.getHistorySize(), request);
     responseObserver.onNext(RespondDecisionTaskCompletedResponse.getDefaultInstance());
@@ -344,8 +372,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   public void respondDecisionTaskFailed(
       RespondDecisionTaskFailedRequest failedRequest,
       StreamObserver<RespondDecisionTaskFailedResponse> responseObserver) {
-    DecisionTaskToken taskToken =
-        DecisionTaskToken.fromBytes(failedRequest.getTaskToken().toByteArray());
+    DecisionTaskToken taskToken = DecisionTaskToken.fromBytes(failedRequest.getTaskToken());
     TestWorkflowMutableState mutableState = getMutableState(taskToken.getExecutionId());
     mutableState.failDecisionTask(failedRequest);
     responseObserver.onNext(RespondDecisionTaskFailedResponse.getDefaultInstance());
@@ -388,11 +415,10 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   public void recordActivityTaskHeartbeat(
       RecordActivityTaskHeartbeatRequest heartbeatRequest,
       StreamObserver<RecordActivityTaskHeartbeatResponse> responseObserver) {
-    ActivityId activityId = ActivityId.fromBytes(heartbeatRequest.getTaskToken().toByteArray());
+    ActivityId activityId = ActivityId.fromBytes(heartbeatRequest.getTaskToken());
     TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
     boolean cancelRequested =
-        mutableState.heartbeatActivityTask(
-            activityId.getId(), heartbeatRequest.getDetails().toByteArray());
+        mutableState.heartbeatActivityTask(activityId.getId(), heartbeatRequest.getDetails());
     responseObserver.onNext(
         RecordActivityTaskHeartbeatResponse.newBuilder()
             .setCancelRequested(cancelRequested)
@@ -412,7 +438,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     TestWorkflowMutableState mutableState = getMutableState(execution);
     boolean cancelRequested =
         mutableState.heartbeatActivityTask(
-            heartbeatRequest.getActivityID(), heartbeatRequest.getDetails().toByteArray());
+            heartbeatRequest.getActivityID(), heartbeatRequest.getDetails());
     responseObserver.onNext(
         RecordActivityTaskHeartbeatByIDResponse.newBuilder()
             .setCancelRequested(cancelRequested)
@@ -420,17 +446,20 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   @Override
-  public void RespondActivityTaskCompleted(RespondActivityTaskCompletedRequest completeRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+  public void respondActivityTaskCompleted(
+      RespondActivityTaskCompletedRequest completeRequest,
+      StreamObserver<RespondActivityTaskCompletedResponse> responseObserver) {
     ActivityId activityId = ActivityId.fromBytes(completeRequest.getTaskToken());
     TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
     mutableState.completeActivityTask(activityId.getId(), completeRequest);
+    responseObserver.onNext(RespondActivityTaskCompletedResponse.getDefaultInstance());
+    responseObserver.onCompleted();
   }
 
   @Override
-  public void RespondActivityTaskCompletedByID(
-      RespondActivityTaskCompletedByIDRequest completeRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+  public void respondActivityTaskCompletedByID(
+      RespondActivityTaskCompletedByIDRequest completeRequest,
+      StreamObserver<RespondActivityTaskCompletedByIDResponse> responseObserver) {
     ActivityId activityId =
         new ActivityId(
             completeRequest.getDomain(),
@@ -439,19 +468,25 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             completeRequest.getActivityID());
     TestWorkflowMutableState mutableState = getMutableState(activityId.getWorkflowId());
     mutableState.completeActivityTaskById(activityId.getId(), completeRequest);
+    responseObserver.onNext(RespondActivityTaskCompletedByIDResponse.getDefaultInstance());
+    responseObserver.onCompleted();
   }
 
   @Override
-  public void RespondActivityTaskFailed(RespondActivityTaskFailedRequest failRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+  public void respondActivityTaskFailed(
+      RespondActivityTaskFailedRequest failRequest,
+      StreamObserver<RespondActivityTaskFailedResponse> responseObserver) {
     ActivityId activityId = ActivityId.fromBytes(failRequest.getTaskToken());
     TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
     mutableState.failActivityTask(activityId.getId(), failRequest);
+    responseObserver.onNext(RespondActivityTaskFailedResponse.getDefaultInstance());
+    responseObserver.onCompleted();
   }
 
   @Override
-  public void RespondActivityTaskFailedByID(RespondActivityTaskFailedByIDRequest failRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+  public void respondActivityTaskFailedByID(
+      RespondActivityTaskFailedByIDRequest failRequest,
+      StreamObserver<RespondActivityTaskFailedByIDResponse> responseObserver) {
     ActivityId activityId =
         new ActivityId(
             failRequest.getDomain(),
@@ -460,20 +495,25 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             failRequest.getActivityID());
     TestWorkflowMutableState mutableState = getMutableState(activityId.getWorkflowId());
     mutableState.failActivityTaskById(activityId.getId(), failRequest);
+    responseObserver.onNext(RespondActivityTaskFailedByIDResponse.getDefaultInstance());
+    responseObserver.onCompleted();
   }
 
   @Override
-  public void RespondActivityTaskCanceled(RespondActivityTaskCanceledRequest canceledRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+  public void respondActivityTaskCanceled(
+      RespondActivityTaskCanceledRequest canceledRequest,
+      StreamObserver<RespondActivityTaskCanceledResponse> responseObserver) {
     ActivityId activityId = ActivityId.fromBytes(canceledRequest.getTaskToken());
     TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
     mutableState.cancelActivityTask(activityId.getId(), canceledRequest);
+    responseObserver.onNext(RespondActivityTaskCanceledResponse.getDefaultInstance());
+    responseObserver.onCompleted();
   }
 
   @Override
-  public void RespondActivityTaskCanceledByID(
-      RespondActivityTaskCanceledByIDRequest canceledRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+  public void respondActivityTaskCanceledByID(
+      RespondActivityTaskCanceledByIDRequest canceledRequest,
+      StreamObserver<RespondActivityTaskCanceledByIDResponse> responseObserver) {
     ActivityId activityId =
         new ActivityId(
             canceledRequest.getDomain(),
@@ -482,50 +522,61 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             canceledRequest.getActivityID());
     TestWorkflowMutableState mutableState = getMutableState(activityId.getWorkflowId());
     mutableState.cancelActivityTaskById(activityId.getId(), canceledRequest);
+    responseObserver.onNext(RespondActivityTaskCanceledByIDResponse.getDefaultInstance());
+    responseObserver.onCompleted();
   }
 
   @Override
-  public void RequestCancelWorkflowExecution(RequestCancelWorkflowExecutionRequest cancelRequest)
-      throws TException {
+  public void requestCancelWorkflowExecution(
+      RequestCancelWorkflowExecutionRequest cancelRequest,
+      StreamObserver<RequestCancelWorkflowExecutionResponse> responseObserver) {
     ExecutionId executionId =
         new ExecutionId(cancelRequest.getDomain(), cancelRequest.getWorkflowExecution());
     TestWorkflowMutableState mutableState = getMutableState(executionId);
     mutableState.requestCancelWorkflowExecution(cancelRequest);
+    responseObserver.onNext(RequestCancelWorkflowExecutionResponse.getDefaultInstance());
+    responseObserver.onCompleted();
   }
 
   @Override
-  public void SignalWorkflowExecution(SignalWorkflowExecutionRequest signalRequest)
-      throws TException {
+  public void signalWorkflowExecution(
+      SignalWorkflowExecutionRequest signalRequest,
+      StreamObserver<SignalWorkflowExecutionResponse> responseObserver) {
     ExecutionId executionId =
         new ExecutionId(signalRequest.getDomain(), signalRequest.getWorkflowExecution());
     TestWorkflowMutableState mutableState = getMutableState(executionId);
     mutableState.signal(signalRequest);
+    responseObserver.onNext(SignalWorkflowExecutionResponse.getDefaultInstance());
+    responseObserver.onCompleted();
   }
 
   @Override
-  public StartWorkflowExecutionResponse SignalWithStartWorkflowExecution(
-      SignalWithStartWorkflowExecutionRequest r)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
-          DomainNotActiveError, LimitExceededError, WorkflowExecutionAlreadyStartedError,
-          TException {
+  public void signalWithStartWorkflowExecution(
+      SignalWithStartWorkflowExecutionRequest r,
+      StreamObserver<SignalWithStartWorkflowExecutionResponse> responseObserver) {
     ExecutionId executionId = new ExecutionId(r.getDomain(), r.getWorkflowId(), null);
     TestWorkflowMutableState mutableState = getMutableState(executionId, false);
     SignalWorkflowExecutionRequest signalRequest =
-        new SignalWorkflowExecutionRequest()
+        SignalWorkflowExecutionRequest.newBuilder()
             .setInput(r.getSignalInput())
             .setSignalName(r.getSignalName())
             .setControl(r.getControl())
             .setDomain(r.getDomain())
             .setWorkflowExecution(executionId.getExecution())
             .setRequestId(r.getRequestId())
-            .setIdentity(r.getIdentity());
+            .setIdentity(r.getIdentity())
+            .build();
     if (mutableState != null) {
       mutableState.signal(signalRequest);
-      return new StartWorkflowExecutionResponse()
-          .setRunId(mutableState.getExecutionId().getExecution().getRunId());
+      responseObserver.onNext(
+          SignalWithStartWorkflowExecutionResponse.newBuilder()
+              .setRunId(mutableState.getExecutionId().getExecution().getRunId())
+              .build());
+      responseObserver.onCompleted();
+      return;
     }
     StartWorkflowExecutionRequest startRequest =
-        new StartWorkflowExecutionRequest()
+        StartWorkflowExecutionRequest.newBuilder()
             .setInput(r.getInput())
             .setExecutionStartToCloseTimeoutSeconds(r.getExecutionStartToCloseTimeoutSeconds())
             .setTaskStartToCloseTimeoutSeconds(r.getTaskStartToCloseTimeoutSeconds())
@@ -537,25 +588,29 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             .setWorkflowType(r.getWorkflowType())
             .setCronSchedule(r.getCronSchedule())
             .setRequestId(r.getRequestId())
-            .setIdentity(r.getIdentity());
-    return startWorkflowExecutionImpl(
-        startRequest, 0, Optional.empty(), OptionalLong.empty(), Optional.of(signalRequest));
+            .setIdentity(r.getIdentity())
+            .build();
+    StartWorkflowExecutionResponse startResult =
+        startWorkflowExecutionImpl(
+            startRequest, 0, Optional.empty(), OptionalLong.empty(), Optional.of(signalRequest));
+    responseObserver.onNext(
+        SignalWithStartWorkflowExecutionResponse.newBuilder()
+            .setRunId(startResult.getRunId())
+            .build());
+    responseObserver.onCompleted();
   }
 
-  // TODO: https://github.io.temporal-java-client/issues/359
   @Override
-  public ResetWorkflowExecutionResponse ResetWorkflowExecution(
-      ResetWorkflowExecutionRequest resetRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
-          DomainNotActiveError, LimitExceededError, ClientVersionNotSupportedError, TException {
-    throw new UnsupportedOperationException("not implemented");
+  public void resetWorkflowExecution(
+      ResetWorkflowExecutionRequest request,
+      StreamObserver<ResetWorkflowExecutionResponse> responseObserver) {
+    super.resetWorkflowExecution(request, responseObserver);
   }
 
   public void signalExternalWorkflowExecution(
       String signalId,
       SignalExternalWorkflowExecutionDecisionAttributes a,
-      TestWorkflowMutableState source)
-      throws InternalServiceError, EntityNotExistsError, BadRequestError {
+      TestWorkflowMutableState source) {
     ExecutionId executionId = new ExecutionId(a.getDomain(), a.getExecution());
     TestWorkflowMutableState mutableState = null;
     try {
@@ -563,17 +618,23 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       mutableState.signalFromWorkflow(a);
       source.completeSignalExternalWorkflowExecution(
           signalId, mutableState.getExecutionId().getExecution().getRunId());
-    } catch (EntityNotExistsError entityNotExistsError) {
-      source.failSignalExternalWorkflowExecution(
-          signalId, SignalExternalWorkflowExecutionFailedCause.UNKNOWN_EXTERNAL_WORKFLOW_EXECUTION);
+    } catch (StatusRuntimeException e) {
+      if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
+        source.failSignalExternalWorkflowExecution(
+            signalId,
+            SignalExternalWorkflowExecutionFailedCause
+                .SignalExternalWorkflowExecutionFailedCauseUnknownExternalWorkflowExecution);
+      } else {
+        throw e;
+      }
     }
   }
 
   @Override
-  public void TerminateWorkflowExecution(TerminateWorkflowExecutionRequest terminateRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
-          TException {
-    throw new UnsupportedOperationException("not implemented");
+  public void terminateWorkflowExecution(
+      TerminateWorkflowExecutionRequest request,
+      StreamObserver<TerminateWorkflowExecutionResponse> responseObserver) {
+    super.terminateWorkflowExecution(request, responseObserver);
   }
 
   /**
@@ -588,10 +649,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       String identity,
       ExecutionId executionId,
       Optional<TestWorkflowMutableState> parent,
-      OptionalLong parentChildInitiatedEventId)
-      throws InternalServiceError, BadRequestError {
-    StartWorkflowExecutionRequest startRequest =
-        new StartWorkflowExecutionRequest()
+      OptionalLong parentChildInitiatedEventId) {
+    StartWorkflowExecutionRequest.Builder startRequestBuilder =
+        StartWorkflowExecutionRequest.newBuilder()
             .setWorkflowType(a.getWorkflowType())
             .setExecutionStartToCloseTimeoutSeconds(a.getExecutionStartToCloseTimeoutSeconds())
             .setTaskStartToCloseTimeoutSeconds(a.getTaskStartToCloseTimeoutSeconds())
@@ -602,9 +662,10 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             .setIdentity(identity)
             .setRetryPolicy(previousRunStartRequest.getRetryPolicy())
             .setCronSchedule(previousRunStartRequest.getCronSchedule());
-    if (a.isSetInput()) {
-      startRequest.setInput(a.getInput());
+    if (!a.getInput().isEmpty()) {
+      startRequestBuilder.setInput(a.getInput());
     }
+    StartWorkflowExecutionRequest startRequest = startRequestBuilder.build();
     lock.lock();
     try {
       StartWorkflowExecutionResponse response =
@@ -625,21 +686,16 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   @Override
-  public ListOpenWorkflowExecutionsResponse ListOpenWorkflowExecutions(
-      ListOpenWorkflowExecutionsRequest listRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
-          TException {
+  public void listOpenWorkflowExecutions(ListOpenWorkflowExecutionsRequest listRequest, StreamObserver<ListOpenWorkflowExecutionsResponse> responseObserver) {
     Optional<String> workflowIdFilter;
-    WorkflowExecutionFilter executionFilter = listRequest.getExecutionFilter();
-    if (executionFilter != null
-        && executionFilter.isSetWorkflowId()
-        && !executionFilter.getWorkflowId().isEmpty()) {
-      workflowIdFilter = Optional.of(executionFilter.getWorkflowId());
+    if (listRequest.hasExecutionFilter() && !listRequest.getExecutionFilter().getWorkflowId().isEmpty()) {
+      workflowIdFilter = Optional.of(listRequest.getExecutionFilter().getWorkflowId());
     } else {
       workflowIdFilter = Optional.empty();
     }
     List<WorkflowExecutionInfo> result = store.listWorkflows(WorkflowState.OPEN, workflowIdFilter);
-    return new ListOpenWorkflowExecutionsResponse().setExecutions(result);
+    responseObserver.onNext(ListOpenWorkflowExecutionsResponse.newBuilder().addAllExecutions(result).build());
+    responseObserver.onCompleted();
   }
 
   @Override

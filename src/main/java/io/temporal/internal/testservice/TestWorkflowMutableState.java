@@ -17,6 +17,7 @@
 
 package io.temporal.internal.testservice;
 
+import com.google.protobuf.ByteString;
 import io.temporal.internal.testservice.TestWorkflowMutableStateImpl.QueryId;
 import io.temporal.proto.common.ChildWorkflowExecutionCanceledEventAttributes;
 import io.temporal.proto.common.ChildWorkflowExecutionCompletedEventAttributes;
@@ -34,7 +35,6 @@ import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.proto.workflowservice.QueryWorkflowRequest;
 import io.temporal.proto.workflowservice.QueryWorkflowResponse;
-import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatResponse;
 import io.temporal.proto.workflowservice.RequestCancelWorkflowExecutionRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskCanceledByIDRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
@@ -58,7 +58,8 @@ interface TestWorkflowMutableState {
 
   StartWorkflowExecutionRequest getStartRequest();
 
-  void startDecisionTask(PollForDecisionTaskResponse.Builder task, PollForDecisionTaskRequest pollRequest);
+  void startDecisionTask(
+      PollForDecisionTaskResponse.Builder task, PollForDecisionTaskRequest pollRequest);
 
   void completeDecisionTask(int historySize, RespondDecisionTaskCompletedRequest request);
 
@@ -95,10 +96,8 @@ interface TestWorkflowMutableState {
 
   void failActivityTaskById(String id, RespondActivityTaskFailedByIDRequest failRequest);
 
-  /**
-   * @return is cancel requested?
-   */
-  boolean heartbeatActivityTask(String activityId, byte[] details);
+  /** @return is cancel requested? */
+  boolean heartbeatActivityTask(String activityId, ByteString details);
 
   void signal(SignalWorkflowExecutionRequest signalRequest);
 
