@@ -28,6 +28,7 @@ import io.temporal.UpsertWorkflowSearchAttributesEventAttributes;
 import io.temporal.WorkflowExecution;
 import io.temporal.WorkflowExecutionStartedEventAttributes;
 import io.temporal.WorkflowType;
+import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
 import io.temporal.internal.metrics.ReplayAwareScope;
 import io.temporal.internal.worker.LocalActivityWorker;
@@ -37,6 +38,8 @@ import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import java.time.Duration;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
@@ -66,7 +69,9 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
       BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller,
       ReplayDecider replayDecider) {
     this.activityClient = new ActivityDecisionContext(decisionsHelper);
-    this.workflowContext = new WorkflowContext(domain, decisionTask, startedAttributes);
+    this.workflowContext =
+        new WorkflowContext(
+            domain, decisionTask, startedAttributes, options.getContextPropagators());
     this.workflowClient = new WorkflowDecisionContext(decisionsHelper, workflowContext);
     this.workflowClock =
         new ClockDecisionContext(
@@ -164,6 +169,16 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   @Override
   public SearchAttributes getSearchAttributes() {
     return workflowContext.getSearchAttributes();
+  }
+
+  @Override
+  public List<ContextPropagator> getContextPropagators() {
+    return workflowContext.getContextPropagators();
+  }
+
+  @Override
+  public Map<String, Object> getPropagatedContexts() {
+    return workflowContext.getPropagatedContexts();
   }
 
   @Override

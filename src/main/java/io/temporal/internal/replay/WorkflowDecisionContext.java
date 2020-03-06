@@ -26,6 +26,7 @@ import io.temporal.ChildWorkflowExecutionStartedEventAttributes;
 import io.temporal.ChildWorkflowExecutionTerminatedEventAttributes;
 import io.temporal.ChildWorkflowExecutionTimedOutEventAttributes;
 import io.temporal.ExternalWorkflowExecutionSignaledEventAttributes;
+import io.temporal.Header;
 import io.temporal.HistoryEvent;
 import io.temporal.ParentClosePolicy;
 import io.temporal.RequestCancelExternalWorkflowExecutionDecisionAttributes;
@@ -41,6 +42,7 @@ import io.temporal.workflow.ChildWorkflowTerminatedException;
 import io.temporal.workflow.ChildWorkflowTimedOutException;
 import io.temporal.workflow.SignalExternalWorkflowException;
 import io.temporal.workflow.StartChildWorkflowFailedException;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -143,6 +145,7 @@ final class WorkflowDecisionContext {
     if (!Strings.isNullOrEmpty(parameters.getCronSchedule())) {
       attributes.setCronSchedule(parameters.getCronSchedule());
     }
+    attributes.setHeader(toHeaderThrift(parameters.getContext()));
 
     ParentClosePolicy parentClosePolicy = parameters.getParentClosePolicy();
     if (parentClosePolicy != null) {
@@ -155,6 +158,19 @@ final class WorkflowDecisionContext {
     context.setCompletionHandle(callback);
     scheduledExternalWorkflows.put(initiatedEventId, context);
     return new ChildWorkflowCancellationHandler(initiatedEventId, attributes.getWorkflowId());
+  }
+
+  private Header toHeaderThrift(Map<String, byte[]> headers) {
+    if (headers == null || headers.isEmpty()) {
+      return null;
+    }
+    Map<String, ByteBuffer> fields = new HashMap<>();
+    for (Map.Entry<String, byte[]> item : headers.entrySet()) {
+      fields.put(item.getKey(), ByteBuffer.wrap(item.getValue()));
+    }
+    Header headerThrift = new Header();
+    headerThrift.setFields(fields);
+    return headerThrift;
   }
 
   boolean isChildWorkflowExecutionStartedWithRetryOptions() {
@@ -216,6 +232,9 @@ final class WorkflowDecisionContext {
   /** Replay safe UUID */
   UUID randomUUID() {
     String runId = workflowContext.getCurrentRunId();
+    if (runId == null) {
+      throw new Error("null currentRunId");
+    }
     String id = runId + ":" + decisions.getAndIncrementNextId();
     byte[] bytes = id.getBytes(StandardCharsets.UTF_8);
     return UUID.nameUUIDFromBytes(bytes);

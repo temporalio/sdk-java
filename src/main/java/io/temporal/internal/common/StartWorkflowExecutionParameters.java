@@ -52,6 +52,8 @@ public final class StartWorkflowExecutionParameters {
 
   private Map<String, byte[]> searchAttributes;
 
+  private Map<String, byte[]> context;
+
   /**
    * Returns the value of the WorkflowId property for this object.
    *
@@ -297,6 +299,14 @@ public final class StartWorkflowExecutionParameters {
     this.searchAttributes = searchAttributes;
   }
 
+  public Map<String, byte[]> getContext() {
+    return context;
+  }
+
+  public void setContext(Map<String, byte[]> context) {
+    this.context = context;
+  }
+
   public StartWorkflowExecutionParameters withRetryParameters(RetryParameters retryParameters) {
     this.retryParameters = retryParameters;
     return this;
@@ -371,6 +381,8 @@ public final class StartWorkflowExecutionParameters {
         + '\''
         + ", searchAttributes='"
         + searchAttributes
+        + ", context='"
+        + context
         + '\''
         + '}';
   }
@@ -390,7 +402,8 @@ public final class StartWorkflowExecutionParameters {
         && Objects.equals(retryParameters, that.retryParameters)
         && Objects.equals(cronSchedule, that.cronSchedule)
         && Objects.equals(memo, that.memo)
-        && Objects.equals(searchAttributes, that.searchAttributes);
+        && Objects.equals(searchAttributes, that.searchAttributes)
+        && Objects.equals(context, that.context);
   }
 
   @Override
@@ -406,7 +419,8 @@ public final class StartWorkflowExecutionParameters {
             retryParameters,
             cronSchedule,
             memo,
-            searchAttributes);
+            searchAttributes,
+            context);
     result = 31 * result + Arrays.hashCode(input);
     return result;
   }

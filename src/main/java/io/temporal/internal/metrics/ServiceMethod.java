@@ -89,4 +89,6 @@ public class ServiceMethod {
       MetricsType.TEMPORAL_METRICS_PREFIX + "DescribeWorkflowExecution";
   public static final String RESET_STICKY_TASK_LIST =
       MetricsType.TEMPORAL_METRICS_PREFIX + "ResetStickyTaskList";
+  public static final String RESET_WORKFLOW_EXECUTION =
+      MetricsType.TEMPORAL_METRICS_PREFIX + "ResetWorkflowExecution";
 }

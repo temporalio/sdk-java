@@ -23,6 +23,7 @@ import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.*;
 import io.temporal.common.RetryOptions;
+import io.temporal.context.ContextPropagator;
 import io.temporal.internal.common.Retryer;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsTag;
@@ -30,6 +31,8 @@ import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.serviceclient.IWorkflowService;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
@@ -129,21 +132,8 @@ public final class ActivityWorker implements SuspendableWorker {
     return poller.isSuspended();
   }
 
-  static class MeasurableActivityTask {
-    PollForActivityTaskResponse task;
-    Stopwatch sw;
-
-    MeasurableActivityTask(PollForActivityTaskResponse task, Stopwatch sw) {
-      this.task = Objects.requireNonNull(task);
-      this.sw = Objects.requireNonNull(sw);
-    }
-
-    void markDone() {
-      sw.stop();
-    }
-  }
-
-  private class TaskHandlerImpl implements PollTaskExecutor.TaskHandler<MeasurableActivityTask> {
+  private class TaskHandlerImpl
+      implements PollTaskExecutor.TaskHandler<PollForActivityTaskResponse> {
 
     final ActivityTaskHandler handler;
 
@@ -152,41 +142,52 @@ public final class ActivityWorker implements SuspendableWorker {
     }
 
     @Override
-    public void handle(MeasurableActivityTask task) throws Exception {
+    public void handle(PollForActivityTaskResponse task) throws Exception {
       Scope metricsScope =
           options
               .getMetricsScope()
               .tagged(
-                  ImmutableMap.of(MetricsTag.ACTIVITY_TYPE, task.task.getActivityType().getName()));
+                  ImmutableMap.of(
+                      MetricsTag.ACTIVITY_TYPE,
+                      task.getActivityType().getName(),
+                      MetricsTag.WORKFLOW_TYPE,
+                      task.getWorkflowType().getName()));
+
       metricsScope
-          .timer(MetricsType.TASK_LIST_QUEUE_LATENCY)
+          .timer(MetricsType.ACTIVITY_SCHEDULED_TO_START_LATENCY)
           .record(
               Duration.ofNanos(
-                  task.task.getStartedTimestamp() - task.task.getScheduledTimestamp()));
+                  task.getStartedTimestamp() - task.getScheduledTimestampOfThisAttempt()));
 
       // The following tags are for logging.
-      MDC.put(LoggerTag.ACTIVITY_ID, task.task.getActivityId());
-      MDC.put(LoggerTag.ACTIVITY_TYPE, task.task.getActivityType().getName());
-      MDC.put(LoggerTag.WORKFLOW_ID, task.task.getWorkflowExecution().getWorkflowId());
-      MDC.put(LoggerTag.RUN_ID, task.task.getWorkflowExecution().getRunId());
+      MDC.put(LoggerTag.ACTIVITY_ID, task.getActivityId());
+      MDC.put(LoggerTag.ACTIVITY_TYPE, task.getActivityType().getName());
+      MDC.put(LoggerTag.WORKFLOW_ID, task.getWorkflowExecution().getWorkflowId());
+      MDC.put(LoggerTag.RUN_ID, task.getWorkflowExecution().getRunId());
+
+      propagateContext(task);
 
       try {
         Stopwatch sw = metricsScope.timer(MetricsType.ACTIVITY_EXEC_LATENCY).start();
-        ActivityTaskHandler.Result response = handler.handle(task.task, metricsScope, false);
+        ActivityTaskHandler.Result response = handler.handle(task, metricsScope, false);
         sw.stop();
 
         sw = metricsScope.timer(MetricsType.ACTIVITY_RESP_LATENCY).start();
-        sendReply(task.task, response, metricsScope);
+        sendReply(task, response, metricsScope);
         sw.stop();
 
-        task.markDone();
+        metricsScope
+            .timer(MetricsType.ACTIVITY_E2E_LATENCY)
+            .record(
+                Duration.ofNanos(System.nanoTime() - task.getScheduledTimestampOfThisAttempt()));
+
       } catch (CancellationException e) {
         RespondActivityTaskCanceledRequest cancelledRequest =
             new RespondActivityTaskCanceledRequest();
         cancelledRequest.setDetails(
             String.valueOf(e.getMessage()).getBytes(StandardCharsets.UTF_8));
         Stopwatch sw = metricsScope.timer(MetricsType.ACTIVITY_RESP_LATENCY).start();
-        sendReply(task.task, new Result(null, null, cancelledRequest, null), metricsScope);
+        sendReply(task, new Result(null, null, cancelledRequest, null), metricsScope);
         sw.stop();
       } finally {
         MDC.remove(LoggerTag.ACTIVITY_ID);
@@ -196,18 +197,41 @@ public final class ActivityWorker implements SuspendableWorker {
       }
     }
 
+    void propagateContext(PollForActivityTaskResponse response) {
+      if (options.getContextPropagators() == null || options.getContextPropagators().isEmpty()) {
+        return;
+      }
+
+      Header headers = response.getHeader();
+      if (headers == null) {
+        return;
+      }
+
+      Map<String, byte[]> headerData = new HashMap<>();
+      headers
+          .getFields()
+          .forEach(
+              (k, v) -> {
+                headerData.put(k, org.apache.thrift.TBaseHelper.byteBufferToByteArray(v));
+              });
+
+      for (ContextPropagator propagator : options.getContextPropagators()) {
+        propagator.setCurrentContext(propagator.deserializeContext(headerData));
+      }
+    }
+
     @Override
-    public Throwable wrapFailure(MeasurableActivityTask task, Throwable failure) {
-      WorkflowExecution execution = task.task.getWorkflowExecution();
+    public Throwable wrapFailure(PollForActivityTaskResponse task, Throwable failure) {
+      WorkflowExecution execution = task.getWorkflowExecution();
       return new RuntimeException(
           "Failure processing activity task. WorkflowID="
               + execution.getWorkflowId()
               + ", RunID="
               + execution.getRunId()
               + ", ActivityType="
-              + task.task.getActivityType().getName()
+              + task.getActivityType().getName()
               + ", ActivityID="
-              + task.task.getActivityId(),
+              + task.getActivityId(),
           failure);
     }
 

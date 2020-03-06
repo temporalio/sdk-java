@@ -45,7 +45,14 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.OptionalLong;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -90,6 +97,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private final Map<String, CompletableFuture<QueryWorkflowResponse>> queries =
       new ConcurrentHashMap<>();
   private final Map<String, PollForDecisionTaskResponse> queryRequests = new ConcurrentHashMap<>();
+  private final Optional<String> continuedExecutionRunId;
   public StickyExecutionAttributes stickyExecutionAttributes;
 
   /**
@@ -104,11 +112,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       byte[] lastCompletionResult,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
+      Optional<String> continuedExecutionRunId,
       TestWorkflowService service,
       TestWorkflowStore store) {
     this.startRequest = startRequest;
     this.parent = parent;
     this.parentChildInitiatedEventId = parentChildInitiatedEventId;
+    this.continuedExecutionRunId = continuedExecutionRunId;
     this.service = service;
     String runId = UUID.randomUUID().toString();
     this.executionId =
@@ -121,7 +131,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             retryState,
             backoffStartIntervalInSeconds,
             startRequest.getCronSchedule(),
-            lastCompletionResult);
+            lastCompletionResult,
+            runId, // Test service doesn't support reset. Thus originalRunId is always the same as
+            // runId.
+            continuedExecutionRunId);
     this.workflow = StateMachines.newWorkflowStateMachine(data);
   }
 
@@ -348,7 +361,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             ctx, d.getRequestCancelExternalWorkflowExecutionDecisionAttributes());
         break;
       case UpsertWorkflowSearchAttributes:
-        // TODO: https://github.io.temporal-java-client/issues/360
+        processUpsertWorkflowSearchAttributes(
+            ctx, d.getUpsertWorkflowSearchAttributesDecisionAttributes(), decisionTaskCompletedId);
         break;
     }
   }
@@ -976,6 +990,22 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             parent,
             parentChildInitiatedEventId);
     event.getWorkflowExecutionContinuedAsNewEventAttributes().setNewExecutionRunId(runId);
+  }
+
+  private void processUpsertWorkflowSearchAttributes(
+      RequestContext ctx,
+      UpsertWorkflowSearchAttributesDecisionAttributes attr,
+      long decisionTaskCompletedId)
+      throws BadRequestError, InternalServiceError {
+    UpsertWorkflowSearchAttributesEventAttributes upsertEventAttr =
+        new UpsertWorkflowSearchAttributesEventAttributes()
+            .setSearchAttributes(attr.getSearchAttributes())
+            .setDecisionTaskCompletedEventId(decisionTaskCompletedId);
+    HistoryEvent event =
+        new HistoryEvent()
+            .setEventType(EventType.UpsertWorkflowSearchAttributes)
+            .setUpsertWorkflowSearchAttributesEventAttributes(upsertEventAttr);
+    ctx.addEvent(event);
   }
 
   @Override

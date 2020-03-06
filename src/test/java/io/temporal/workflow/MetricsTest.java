@@ -252,6 +252,7 @@ public class MetricsTest {
             .put(MetricsTag.DOMAIN, WorkflowTest.DOMAIN)
             .put(MetricsTag.TASK_LIST, taskList)
             .put(MetricsTag.ACTIVITY_TYPE, "TestActivity::runActivity")
+            .put(MetricsTag.WORKFLOW_TYPE, "TestWorkflow::execute")
             .build();
     verify(reporter, times(1))
         .reportCounter("temporal-activity-task-completed", activityCompletionTags, 1);

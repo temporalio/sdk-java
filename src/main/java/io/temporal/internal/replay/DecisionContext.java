@@ -21,11 +21,14 @@ import com.uber.m3.tally.Scope;
 import io.temporal.SearchAttributes;
 import io.temporal.WorkflowExecution;
 import io.temporal.WorkflowType;
+import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
 import java.time.Duration;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
@@ -76,6 +79,16 @@ public interface DecisionContext extends ReplayAware {
    *     WorkflowUtils.getValueFromSearchAttributes} to retrieve concrete value.
    */
   SearchAttributes getSearchAttributes();
+
+  /**
+   * Returns all of the current contexts being propagated by a {@link
+   * io.temporal.context.ContextPropagator}. The key is the {@link ContextPropagator#getName()} and
+   * the value is the object returned by {@link ContextPropagator#getCurrentContext()}
+   */
+  Map<String, Object> getPropagatedContexts();
+
+  /** Returns the set of configured context propagators */
+  List<ContextPropagator> getContextPropagators();
 
   /**
    * Used to dynamically schedule an activity for execution

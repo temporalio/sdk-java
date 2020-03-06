@@ -70,7 +70,11 @@ public class SyncWorkflowWorker
 
     factory =
         new POJOWorkflowImplementationFactory(
-            workflowOptions.getDataConverter(), workflowThreadPool, interceptorFactory, cache);
+            workflowOptions.getDataConverter(),
+            workflowThreadPool,
+            interceptorFactory,
+            cache,
+            workflowOptions.getContextPropagators());
 
     laTaskHandler =
         new POJOActivityTaskHandler(

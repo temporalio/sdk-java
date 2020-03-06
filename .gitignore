@@ -7,5 +7,11 @@ target
 .gradle
 /build
 /out
+/lib
 dummy
 $buildDir
+src/main/idls/*
+/bin
+.classpath
+.project
+.settings

@@ -19,11 +19,13 @@ package io.temporal.internal.worker;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.common.RetryOptions;
+import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
 import io.temporal.converter.JsonDataConverter;
 import io.temporal.internal.common.Retryer;
 import io.temporal.internal.metrics.NoopScope;
 import java.time.Duration;
+import java.util.List;
 
 public final class SingleWorkerOptions {
 
@@ -40,6 +42,7 @@ public final class SingleWorkerOptions {
     private RetryOptions reportFailureRetryOptions;
     private Scope metricsScope;
     private boolean enableLoggingInReplay;
+    private List<ContextPropagator> contextPropagators;
 
     public Builder() {}
 
@@ -53,6 +56,7 @@ public final class SingleWorkerOptions {
       this.reportFailureRetryOptions = options.getReportFailureRetryOptions();
       this.metricsScope = options.getMetricsScope();
       this.enableLoggingInReplay = options.getEnableLoggingInReplay();
+      this.contextPropagators = options.getContextPropagators();
     }
 
     public Builder setIdentity(String identity) {
@@ -100,6 +104,12 @@ public final class SingleWorkerOptions {
       return this;
     }
 
+    /** Specifies the list of context propagators to use during this workflow. */
+    public Builder setContextPropagators(List<ContextPropagator> contextPropagators) {
+      this.contextPropagators = contextPropagators;
+      return this;
+    }
+
     public SingleWorkerOptions build() {
       if (reportCompletionRetryOptions == null) {
         reportCompletionRetryOptions = Retryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS;
@@ -135,7 +145,8 @@ public final class SingleWorkerOptions {
           reportCompletionRetryOptions,
           reportFailureRetryOptions,
           metricsScope,
-          enableLoggingInReplay);
+          enableLoggingInReplay,
+          contextPropagators);
     }
   }
 
@@ -148,6 +159,7 @@ public final class SingleWorkerOptions {
   private final RetryOptions reportFailureRetryOptions;
   private final Scope metricsScope;
   private final boolean enableLoggingInReplay;
+  private List<ContextPropagator> contextPropagators;
 
   private SingleWorkerOptions(
       String identity,
@@ -158,7 +170,8 @@ public final class SingleWorkerOptions {
       RetryOptions reportCompletionRetryOptions,
       RetryOptions reportFailureRetryOptions,
       Scope metricsScope,
-      boolean enableLoggingInReplay) {
+      boolean enableLoggingInReplay,
+      List<ContextPropagator> contextPropagators) {
     this.identity = identity;
     this.dataConverter = dataConverter;
     this.taskExecutorThreadPoolSize = taskExecutorThreadPoolSize;
@@ -168,6 +181,7 @@ public final class SingleWorkerOptions {
     this.reportFailureRetryOptions = reportFailureRetryOptions;
     this.metricsScope = metricsScope;
     this.enableLoggingInReplay = enableLoggingInReplay;
+    this.contextPropagators = contextPropagators;
   }
 
   public String getIdentity() {
@@ -204,5 +218,9 @@ public final class SingleWorkerOptions {
 
   public boolean getEnableLoggingInReplay() {
     return enableLoggingInReplay;
+  }
+
+  public List<ContextPropagator> getContextPropagators() {
+    return contextPropagators;
   }
 }

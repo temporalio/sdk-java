@@ -27,6 +27,7 @@ import io.temporal.WorkflowType;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.RetryOptions;
+import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.RetryParameters;
@@ -58,6 +59,7 @@ import io.temporal.workflow.WorkflowInterceptor;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -80,6 +82,7 @@ final class SyncDecisionContext implements WorkflowInterceptor {
   private final DecisionContext context;
   private DeterministicRunner runner;
   private final DataConverter converter;
+  private final List<ContextPropagator> contextPropagators;
   private final WorkflowInterceptor headInterceptor;
   private final WorkflowTimers timers = new WorkflowTimers();
   private final Map<String, Functions.Func1<byte[], byte[]>> queryCallbacks = new HashMap<>();
@@ -88,10 +91,12 @@ final class SyncDecisionContext implements WorkflowInterceptor {
   public SyncDecisionContext(
       DecisionContext context,
       DataConverter converter,
+      List<ContextPropagator> contextPropagators,
       Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
       byte[] lastCompletionResult) {
     this.context = context;
     this.converter = converter;
+    this.contextPropagators = contextPropagators;
     WorkflowInterceptor interceptor = interceptorFactory.apply(this);
     if (interceptor == null) {
       log.warn("WorkflowInterceptor factory returned null interceptor");
@@ -304,6 +309,15 @@ final class SyncDecisionContext implements WorkflowInterceptor {
     if (retryOptions != null) {
       parameters.setRetryParameters(new RetryParameters(retryOptions));
     }
+
+    // Set the context value.  Use the context propagators from the ActivityOptions
+    // if present, otherwise use the ones configured on the DecisionContext
+    List<ContextPropagator> propagators = options.getContextPropagators();
+    if (propagators == null) {
+      propagators = this.contextPropagators;
+    }
+    parameters.setContext(extractContextsAndConvertToBytes(propagators));
+
     return parameters;
   }
 
@@ -372,6 +386,11 @@ final class SyncDecisionContext implements WorkflowInterceptor {
     if (retryOptions != null) {
       retryParameters = new RetryParameters(retryOptions);
     }
+    List<ContextPropagator> propagators = options.getContextPropagators();
+    if (propagators == null) {
+      propagators = this.contextPropagators;
+    }
+
     StartChildWorkflowExecutionParameters parameters =
         new StartChildWorkflowExecutionParameters.Builder()
             .setWorkflowType(new WorkflowType().setName(name))
@@ -385,6 +404,7 @@ final class SyncDecisionContext implements WorkflowInterceptor {
             .setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy())
             .setRetryParameters(retryParameters)
             .setCronSchedule(options.getCronSchedule())
+            .setContext(extractContextsAndConvertToBytes(propagators))
             .setParentClosePolicy(options.getParentClosePolicy())
             .build();
     CompletablePromise<byte[]> result = Workflow.newPromise();
@@ -411,6 +431,18 @@ final class SyncDecisionContext implements WorkflowInterceptor {
               cancellationCallback.accept(new CancellationException(reason));
               return null;
             });
+    return result;
+  }
+
+  private Map<String, byte[]> extractContextsAndConvertToBytes(
+      List<ContextPropagator> contextPropagators) {
+    if (contextPropagators == null) {
+      return null;
+    }
+    Map<String, byte[]> result = new HashMap<>();
+    for (ContextPropagator propagator : contextPropagators) {
+      result.putAll(propagator.serializeContext(propagator.getCurrentContext()));
+    }
     return result;
   }
 

@@ -21,9 +21,11 @@ import com.uber.m3.tally.Scope;
 import io.temporal.SearchAttributes;
 import io.temporal.WorkflowExecution;
 import io.temporal.WorkflowType;
+import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
 import io.temporal.converter.JsonDataConverter;
 import io.temporal.internal.common.CheckedExceptionWrapper;
+import io.temporal.internal.context.ContextThreadLocal;
 import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.replay.ContinueAsNewWorkflowExecutionParameters;
 import io.temporal.internal.replay.DeciderCache;
@@ -165,6 +167,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     this.clock = clock;
     this.cache = cache;
     runnerCancellationScope = new CancellationScopeImpl(true, null, null);
+
     // TODO: workflow instance specific thread name
     rootWorkflowThread =
         new WorkflowThreadImpl(
@@ -175,14 +178,16 @@ class DeterministicRunnerImpl implements DeterministicRunner {
             false,
             runnerCancellationScope,
             root,
-            cache);
+            cache,
+            getContextPropagators(),
+            getPropagatedContexts());
     threads.addLast(rootWorkflowThread);
     rootWorkflowThread.start();
   }
 
   private static SyncDecisionContext newDummySyncDecisionContext() {
     return new SyncDecisionContext(
-        new DummyDecisionContext(), JsonDataConverter.getInstance(), (next) -> next, null);
+        new DummyDecisionContext(), JsonDataConverter.getInstance(), null, (next) -> next, null);
   }
 
   SyncDecisionContext getDecisionContext() {
@@ -215,7 +220,9 @@ class DeterministicRunnerImpl implements DeterministicRunner {
                     false,
                     runnerCancellationScope,
                     nr.runnable,
-                    cache);
+                    cache,
+                    getContextPropagators(),
+                    getPropagatedContexts());
             callbackThreads.add(thread);
           }
 
@@ -429,7 +436,9 @@ class DeterministicRunnerImpl implements DeterministicRunner {
             detached,
             CancellationScopeImpl.current(),
             runnable,
-            cache);
+            cache,
+            getContextPropagators(),
+            getPropagatedContexts());
     threadsToAdd.add(result); // This is synchronized collection.
     return result;
   }
@@ -486,6 +495,26 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
   <T> void setRunnerLocal(RunnerLocalInternal<T> key, T value) {
     runnerLocalMap.put(key, value);
+  }
+
+  /**
+   * If we're executing as part of a workflow, get the current thread's context. Otherwise get the
+   * context info from the DecisionContext
+   */
+  private Map<String, Object> getPropagatedContexts() {
+    if (currentThreadThreadLocal.get() != null) {
+      return ContextThreadLocal.getCurrentContextForPropagation();
+    } else {
+      return decisionContext.getContext().getPropagatedContexts();
+    }
+  }
+
+  private List<ContextPropagator> getContextPropagators() {
+    if (currentThreadThreadLocal.get() != null) {
+      return ContextThreadLocal.getContextPropagators();
+    } else {
+      return decisionContext.getContext().getContextPropagators();
+    }
   }
 
   private static final class DummyDecisionContext implements DecisionContext {
@@ -554,6 +583,16 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     @Override
     public SearchAttributes getSearchAttributes() {
       throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public Map<String, Object> getPropagatedContexts() {
+      return null;
+    }
+
+    @Override
+    public List<ContextPropagator> getContextPropagators() {
+      return null;
     }
 
     @Override

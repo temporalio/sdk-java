@@ -18,7 +18,82 @@
 package io.temporal.internal.sync;
 
 import com.google.common.base.Defaults;
-import io.temporal.*;
+import io.temporal.ActivityType;
+import io.temporal.BadRequestError;
+import io.temporal.CancellationAlreadyRequestedError;
+import io.temporal.ClientVersionNotSupportedError;
+import io.temporal.ClusterInfo;
+import io.temporal.CountWorkflowExecutionsRequest;
+import io.temporal.CountWorkflowExecutionsResponse;
+import io.temporal.CurrentBranchChangedError;
+import io.temporal.DeprecateDomainRequest;
+import io.temporal.DescribeDomainRequest;
+import io.temporal.DescribeDomainResponse;
+import io.temporal.DescribeTaskListRequest;
+import io.temporal.DescribeTaskListResponse;
+import io.temporal.DescribeWorkflowExecutionRequest;
+import io.temporal.DescribeWorkflowExecutionResponse;
+import io.temporal.DomainAlreadyExistsError;
+import io.temporal.DomainNotActiveError;
+import io.temporal.EntityNotExistsError;
+import io.temporal.GetSearchAttributesResponse;
+import io.temporal.GetWorkflowExecutionHistoryRequest;
+import io.temporal.GetWorkflowExecutionHistoryResponse;
+import io.temporal.GetWorkflowExecutionRawHistoryRequest;
+import io.temporal.GetWorkflowExecutionRawHistoryResponse;
+import io.temporal.InternalServiceError;
+import io.temporal.LimitExceededError;
+import io.temporal.ListArchivedWorkflowExecutionsRequest;
+import io.temporal.ListArchivedWorkflowExecutionsResponse;
+import io.temporal.ListClosedWorkflowExecutionsRequest;
+import io.temporal.ListClosedWorkflowExecutionsResponse;
+import io.temporal.ListDomainsRequest;
+import io.temporal.ListDomainsResponse;
+import io.temporal.ListOpenWorkflowExecutionsRequest;
+import io.temporal.ListOpenWorkflowExecutionsResponse;
+import io.temporal.ListTaskListPartitionsRequest;
+import io.temporal.ListTaskListPartitionsResponse;
+import io.temporal.ListWorkflowExecutionsRequest;
+import io.temporal.ListWorkflowExecutionsResponse;
+import io.temporal.PollForActivityTaskRequest;
+import io.temporal.PollForActivityTaskResponse;
+import io.temporal.PollForDecisionTaskRequest;
+import io.temporal.PollForDecisionTaskResponse;
+import io.temporal.PollForWorkflowExecutionRawHistoryRequest;
+import io.temporal.PollForWorkflowExecutionRawHistoryResponse;
+import io.temporal.QueryFailedError;
+import io.temporal.QueryWorkflowRequest;
+import io.temporal.QueryWorkflowResponse;
+import io.temporal.RecordActivityTaskHeartbeatByIDRequest;
+import io.temporal.RecordActivityTaskHeartbeatRequest;
+import io.temporal.RecordActivityTaskHeartbeatResponse;
+import io.temporal.RegisterDomainRequest;
+import io.temporal.RequestCancelWorkflowExecutionRequest;
+import io.temporal.ResetStickyTaskListRequest;
+import io.temporal.ResetStickyTaskListResponse;
+import io.temporal.ResetWorkflowExecutionRequest;
+import io.temporal.ResetWorkflowExecutionResponse;
+import io.temporal.RespondActivityTaskCanceledByIDRequest;
+import io.temporal.RespondActivityTaskCanceledRequest;
+import io.temporal.RespondActivityTaskCompletedByIDRequest;
+import io.temporal.RespondActivityTaskCompletedRequest;
+import io.temporal.RespondActivityTaskFailedByIDRequest;
+import io.temporal.RespondActivityTaskFailedRequest;
+import io.temporal.RespondDecisionTaskCompletedRequest;
+import io.temporal.RespondDecisionTaskCompletedResponse;
+import io.temporal.RespondDecisionTaskFailedRequest;
+import io.temporal.RespondQueryTaskCompletedRequest;
+import io.temporal.ServiceBusyError;
+import io.temporal.SignalWithStartWorkflowExecutionRequest;
+import io.temporal.SignalWorkflowExecutionRequest;
+import io.temporal.StartWorkflowExecutionRequest;
+import io.temporal.StartWorkflowExecutionResponse;
+import io.temporal.TerminateWorkflowExecutionRequest;
+import io.temporal.UpdateDomainRequest;
+import io.temporal.UpdateDomainResponse;
+import io.temporal.WorkflowExecution;
+import io.temporal.WorkflowExecutionAlreadyStartedError;
+import io.temporal.WorkflowType;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.internal.metrics.NoopScope;
@@ -157,6 +232,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
           new WorkflowExecution()
               .setWorkflowId("test-workflow-id")
               .setRunId(UUID.randomUUID().toString()));
+      task.setWorkflowType(new WorkflowType().setName("test-workflow"));
       task.setActivityType(new ActivityType().setName(activityType));
       Result taskResult = activityTaskHandler.handle(task, NoopScope.getInstance(), false);
       return Workflow.newPromise(getReply(task, taskResult, resultClass, resultType));
@@ -510,6 +586,14 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
+    public GetWorkflowExecutionRawHistoryResponse GetWorkflowExecutionRawHistory(
+        GetWorkflowExecutionRawHistoryRequest getRequest)
+        throws BadRequestError, EntityNotExistsError, ServiceBusyError,
+            ClientVersionNotSupportedError, TException {
+      return impl.GetWorkflowExecutionRawHistory(getRequest);
+    }
+
+    @Override
     public DescribeWorkflowExecutionResponse DescribeWorkflowExecution(
         DescribeWorkflowExecutionRequest describeRequest)
         throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
@@ -533,6 +617,14 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         throws BadRequestError, EntityNotExistsError, LimitExceededError, ServiceBusyError,
             TException {
       return impl.ListTaskListPartitions(request);
+    }
+
+    @Override
+    public PollForWorkflowExecutionRawHistoryResponse PollForWorkflowExecutionRawHistory(
+        PollForWorkflowExecutionRawHistoryRequest getRequest)
+        throws BadRequestError, EntityNotExistsError, ServiceBusyError,
+            ClientVersionNotSupportedError, CurrentBranchChangedError, TException {
+      return impl.PollForWorkflowExecutionRawHistory(getRequest);
     }
 
     @Override
@@ -726,7 +818,9 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     @Override
     public void ListArchivedWorkflowExecutions(
         ListArchivedWorkflowExecutionsRequest listRequest, AsyncMethodCallback resultHandler)
-        throws TException {}
+        throws TException {
+      impl.ListArchivedWorkflowExecutions(listRequest, resultHandler);
+    }
 
     @Override
     public void ScanWorkflowExecutions(
@@ -768,6 +862,13 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
+    public void GetWorkflowExecutionRawHistory(
+        GetWorkflowExecutionRawHistoryRequest getRequest, AsyncMethodCallback resultHandler)
+        throws TException {
+      impl.GetWorkflowExecutionRawHistory(getRequest, resultHandler);
+    }
+
+    @Override
     public void DescribeWorkflowExecution(
         DescribeWorkflowExecutionRequest describeRequest, AsyncMethodCallback resultHandler)
         throws TException {
@@ -781,12 +882,23 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
-    public void GetClusterInfo(AsyncMethodCallback resultHandler) throws TException {}
+    public void GetClusterInfo(AsyncMethodCallback resultHandler) throws TException {
+      impl.GetClusterInfo(resultHandler);
+    }
 
     @Override
     public void ListTaskListPartitions(
         ListTaskListPartitionsRequest request, AsyncMethodCallback resultHandler)
-        throws TException {}
+        throws TException {
+      impl.ListTaskListPartitions(request, resultHandler);
+    }
+
+    @Override
+    public void PollForWorkflowExecutionRawHistory(
+        PollForWorkflowExecutionRawHistoryRequest getRequest, AsyncMethodCallback resultHandler)
+        throws TException {
+      impl.PollForWorkflowExecutionRawHistory(getRequest, resultHandler);
+    }
 
     @Override
     public void RegisterDomain(RegisterDomainRequest registerRequest)

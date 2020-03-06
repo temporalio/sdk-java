@@ -22,11 +22,13 @@ import io.temporal.ActivityTaskCompletedEventAttributes;
 import io.temporal.ActivityTaskFailedEventAttributes;
 import io.temporal.ActivityTaskTimedOutEventAttributes;
 import io.temporal.ActivityType;
+import io.temporal.Header;
 import io.temporal.HistoryEvent;
 import io.temporal.ScheduleActivityTaskDecisionAttributes;
 import io.temporal.TaskList;
 import io.temporal.TimeoutType;
 import io.temporal.internal.common.RetryParameters;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
@@ -121,6 +123,8 @@ final class ActivityDecisionContext {
       attributes.setRetryPolicy(retryParameters.toRetryPolicy());
     }
 
+    attributes.setHeader(toHeaderThrift(parameters.getContext()));
+
     long scheduledEventId = decisions.scheduleActivityTask(attributes);
     context.setCompletionHandle(callback);
     scheduledActivities.put(scheduledEventId, context);
@@ -195,5 +199,18 @@ final class ActivityDecisionContext {
         completionHandle.accept(null, failure);
       }
     }
+  }
+
+  private Header toHeaderThrift(Map<String, byte[]> headers) {
+    if (headers == null || headers.isEmpty()) {
+      return null;
+    }
+    Map<String, ByteBuffer> fields = new HashMap<>();
+    for (Map.Entry<String, byte[]> item : headers.entrySet()) {
+      fields.put(item.getKey(), ByteBuffer.wrap(item.getValue()));
+    }
+    Header headerThrift = new Header();
+    headerThrift.setFields(fields);
+    return headerThrift;
   }
 }

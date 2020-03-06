@@ -33,6 +33,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowQueryException;
 import io.temporal.client.WorkflowServiceException;
 import io.temporal.client.WorkflowStub;
+import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
 import io.temporal.converter.DataConverterException;
 import io.temporal.converter.JsonDataConverter;
@@ -47,6 +48,7 @@ import io.temporal.internal.replay.QueryWorkflowParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
 import java.lang.reflect.Type;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -145,6 +147,7 @@ class WorkflowStubImpl implements WorkflowStub {
     p.setWorkflowType(new WorkflowType().setName(workflowType.get()));
     p.setMemo(convertMemoFromObjectToBytes(o.getMemo()));
     p.setSearchAttributes(convertSearchAttributesFromObjectToBytes(o.getSearchAttributes()));
+    p.setContext(extractContextsAndConvertToBytes(o.getContextPropagators()));
     return p;
   }
 
@@ -170,6 +173,18 @@ class WorkflowStubImpl implements WorkflowStub {
 
   private Map<String, byte[]> convertSearchAttributesFromObjectToBytes(Map<String, Object> map) {
     return convertMapFromObjectToBytes(map, JsonDataConverter.getInstance());
+  }
+
+  private Map<String, byte[]> extractContextsAndConvertToBytes(
+      List<ContextPropagator> contextPropagators) {
+    if (contextPropagators == null) {
+      return null;
+    }
+    Map<String, byte[]> result = new HashMap<>();
+    for (ContextPropagator propagator : contextPropagators) {
+      result.putAll(propagator.serializeContext(propagator.getCurrentContext()));
+    }
+    return result;
   }
 
   @Override

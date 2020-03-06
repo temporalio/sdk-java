@@ -175,7 +175,7 @@ public final class TestWorkflowService implements IWorkflowService {
       Optional<RetryState> retryState = newRetryStateLocked(retryPolicy);
       return startWorkflowExecutionNoRunningCheckLocked(
           startRequest,
-          false,
+          Optional.empty(),
           retryState,
           backoffStartIntervalInSeconds,
           null,
@@ -213,7 +213,7 @@ public final class TestWorkflowService implements IWorkflowService {
 
   private StartWorkflowExecutionResponse startWorkflowExecutionNoRunningCheckLocked(
       StartWorkflowExecutionRequest startRequest,
-      boolean continuedAsNew,
+      Optional<String> continuedExecutionRunId,
       Optional<RetryState> retryState,
       int backoffStartIntervalInSeconds,
       byte[] lastCompletionResult,
@@ -231,13 +231,14 @@ public final class TestWorkflowService implements IWorkflowService {
             lastCompletionResult,
             parent,
             parentChildInitiatedEventId,
+            continuedExecutionRunId,
             this,
             store);
     WorkflowExecution execution = mutableState.getExecutionId().getExecution();
     ExecutionId executionId = new ExecutionId(domain, execution);
     executionsByWorkflowId.put(workflowId, mutableState);
     executions.put(executionId, mutableState);
-    mutableState.startWorkflow(continuedAsNew, signalWithStartSignal);
+    mutableState.startWorkflow(continuedExecutionRunId.isPresent(), signalWithStartSignal);
     return new StartWorkflowExecutionResponse().setRunId(execution.getRunId());
   }
 
@@ -475,7 +476,7 @@ public final class TestWorkflowService implements IWorkflowService {
       ResetWorkflowExecutionRequest resetRequest)
       throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
           DomainNotActiveError, LimitExceededError, ClientVersionNotSupportedError, TException {
-    return null;
+    throw new UnsupportedOperationException("not implemented");
   }
 
   public void signalExternalWorkflowExecution(
@@ -537,7 +538,7 @@ public final class TestWorkflowService implements IWorkflowService {
       StartWorkflowExecutionResponse response =
           startWorkflowExecutionNoRunningCheckLocked(
               startRequest,
-              true,
+              Optional.of(executionId.getExecution().getRunId()),
               retryState,
               a.getBackoffStartIntervalInSeconds(),
               a.getLastCompletionResult(),
@@ -652,6 +653,14 @@ public final class TestWorkflowService implements IWorkflowService {
   }
 
   @Override
+  public GetWorkflowExecutionRawHistoryResponse GetWorkflowExecutionRawHistory(
+      GetWorkflowExecutionRawHistoryRequest getRequest)
+      throws BadRequestError, EntityNotExistsError, ServiceBusyError,
+          ClientVersionNotSupportedError, TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
   public DescribeWorkflowExecutionResponse DescribeWorkflowExecution(
       DescribeWorkflowExecutionRequest describeRequest)
       throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
@@ -674,6 +683,14 @@ public final class TestWorkflowService implements IWorkflowService {
       ListTaskListPartitionsRequest request)
       throws BadRequestError, EntityNotExistsError, LimitExceededError, ServiceBusyError,
           TException {
+    throw new UnsupportedOperationException("not implemented");
+  }
+
+  @Override
+  public PollForWorkflowExecutionRawHistoryResponse PollForWorkflowExecutionRawHistory(
+      PollForWorkflowExecutionRawHistoryRequest getRequest)
+      throws BadRequestError, EntityNotExistsError, ServiceBusyError,
+          ClientVersionNotSupportedError, CurrentBranchChangedError, TException {
     throw new UnsupportedOperationException("not implemented");
   }
 
@@ -913,6 +930,11 @@ public final class TestWorkflowService implements IWorkflowService {
   }
 
   @Override
+  public void GetWorkflowExecutionRawHistory(
+      GetWorkflowExecutionRawHistoryRequest getRequest, AsyncMethodCallback resultHandler)
+      throws TException {}
+
+  @Override
   public void DescribeWorkflowExecution(
       DescribeWorkflowExecutionRequest describeRequest, AsyncMethodCallback resultHandler)
       throws TException {
@@ -931,6 +953,11 @@ public final class TestWorkflowService implements IWorkflowService {
   @Override
   public void ListTaskListPartitions(
       ListTaskListPartitionsRequest request, AsyncMethodCallback resultHandler) throws TException {}
+
+  @Override
+  public void PollForWorkflowExecutionRawHistory(
+      PollForWorkflowExecutionRawHistoryRequest getRequest, AsyncMethodCallback resultHandler)
+      throws TException {}
 
   private <R> R requireNotNull(String fieldName, R value) throws BadRequestError {
     if (value == null) {

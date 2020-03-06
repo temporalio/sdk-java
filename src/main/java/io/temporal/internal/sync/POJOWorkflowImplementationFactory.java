@@ -21,6 +21,7 @@ import static io.temporal.worker.NonDeterministicWorkflowPolicy.FailWorkflow;
 
 import com.google.common.reflect.TypeToken;
 import io.temporal.WorkflowType;
+import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
 import io.temporal.converter.DataConverterException;
 import io.temporal.internal.common.CheckedExceptionWrapper;
@@ -44,6 +45,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
@@ -60,6 +62,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   private final Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory;
 
   private DataConverter dataConverter;
+  private List<ContextPropagator> contextPropagators;
 
   /** Key: workflow type name, Value: function that creates SyncWorkflowDefinition instance. */
   private final Map<String, Functions.Func<SyncWorkflowDefinition>> workflowDefinitions =
@@ -78,11 +81,13 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       DataConverter dataConverter,
       ExecutorService threadPool,
       Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
-      DeciderCache cache) {
+      DeciderCache cache,
+      List<ContextPropagator> contextPropagators) {
     this.dataConverter = Objects.requireNonNull(dataConverter);
     this.threadPool = Objects.requireNonNull(threadPool);
     this.interceptorFactory = Objects.requireNonNull(interceptorFactory);
     this.cache = cache;
+    this.contextPropagators = contextPropagators;
   }
 
   void setWorkflowImplementationTypes(
@@ -203,7 +208,13 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     SyncWorkflowDefinition workflow = getWorkflowDefinition(workflowType);
     WorkflowImplementationOptions options = implementationOptions.get(workflowType.getName());
     return new SyncWorkflow(
-        workflow, options, dataConverter, threadPool, interceptorFactory, cache);
+        workflow,
+        options,
+        dataConverter,
+        threadPool,
+        interceptorFactory,
+        cache,
+        contextPropagators);
   }
 
   @Override

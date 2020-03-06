@@ -362,6 +362,14 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     }
 
     @Override
+    public GetWorkflowExecutionRawHistoryResponse GetWorkflowExecutionRawHistory(
+        GetWorkflowExecutionRawHistoryRequest getRequest)
+        throws BadRequestError, EntityNotExistsError, ServiceBusyError,
+            ClientVersionNotSupportedError, TException {
+      return impl.GetWorkflowExecutionRawHistory(getRequest);
+    }
+
+    @Override
     public DescribeWorkflowExecutionResponse DescribeWorkflowExecution(
         DescribeWorkflowExecutionRequest describeRequest)
         throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
@@ -385,6 +393,14 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
         throws BadRequestError, EntityNotExistsError, LimitExceededError, ServiceBusyError,
             TException {
       return impl.ListTaskListPartitions(request);
+    }
+
+    @Override
+    public PollForWorkflowExecutionRawHistoryResponse PollForWorkflowExecutionRawHistory(
+        PollForWorkflowExecutionRawHistoryRequest getRequest)
+        throws BadRequestError, EntityNotExistsError, ServiceBusyError,
+            ClientVersionNotSupportedError, CurrentBranchChangedError, TException {
+      return impl.PollForWorkflowExecutionRawHistory(getRequest);
     }
 
     @Override
@@ -578,7 +594,9 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     @Override
     public void ListArchivedWorkflowExecutions(
         ListArchivedWorkflowExecutionsRequest listRequest, AsyncMethodCallback resultHandler)
-        throws TException {}
+        throws TException {
+      impl.ListArchivedWorkflowExecutions(listRequest, resultHandler);
+    }
 
     @Override
     public void ScanWorkflowExecutions(
@@ -620,6 +638,13 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     }
 
     @Override
+    public void GetWorkflowExecutionRawHistory(
+        GetWorkflowExecutionRawHistoryRequest getRequest, AsyncMethodCallback resultHandler)
+        throws TException {
+      impl.GetWorkflowExecutionRawHistory(getRequest, resultHandler);
+    }
+
+    @Override
     public void DescribeWorkflowExecution(
         DescribeWorkflowExecutionRequest describeRequest, AsyncMethodCallback resultHandler)
         throws TException {
@@ -639,6 +664,13 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     public void ListTaskListPartitions(
         ListTaskListPartitionsRequest request, AsyncMethodCallback resultHandler)
         throws TException {}
+
+    @Override
+    public void PollForWorkflowExecutionRawHistory(
+        PollForWorkflowExecutionRawHistoryRequest getRequest, AsyncMethodCallback resultHandler)
+        throws TException {
+      impl.PollForWorkflowExecutionRawHistory(getRequest, resultHandler);
+    }
 
     @Override
     public void RegisterDomain(RegisterDomainRequest registerRequest)

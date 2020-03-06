@@ -152,16 +152,22 @@ class StateMachines {
     int backoffStartIntervalInSeconds;
     String cronSchedule;
     byte[] lastCompletionResult;
+    String originalExecutionRunId;
+    Optional<String> continuedExecutionRunId;
 
     WorkflowData(
         Optional<RetryState> retryState,
         int backoffStartIntervalInSeconds,
         String cronSchedule,
-        byte[] lastCompletionResult) {
+        byte[] lastCompletionResult,
+        String originalExecutionRunId,
+        Optional<String> continuedExecutionRunId) {
       this.retryState = retryState;
       this.backoffStartIntervalInSeconds = backoffStartIntervalInSeconds;
       this.cronSchedule = cronSchedule;
       this.lastCompletionResult = lastCompletionResult;
+      this.originalExecutionRunId = originalExecutionRunId;
+      this.continuedExecutionRunId = continuedExecutionRunId;
     }
   }
 
@@ -447,6 +453,7 @@ class StateMachines {
             .setWorkflowType(d.getWorkflowType())
             .setRetryPolicy(d.getRetryPolicy())
             .setCronSchedule(d.getCronSchedule())
+            .setHeader(d.getHeader())
             .setParentClosePolicy(d.getParentClosePolicy());
     HistoryEvent event =
         new HistoryEvent()
@@ -468,7 +475,8 @@ class StateMachines {
                   .setWorkflowIdReusePolicy(d.getWorkflowIdReusePolicy())
                   .setWorkflowType(d.getWorkflowType())
                   .setRetryPolicy(d.getRetryPolicy())
-                  .setCronSchedule(d.getCronSchedule());
+                  .setCronSchedule(d.getCronSchedule())
+                  .setHeader(d.getHeader());
           if (d.isSetInput()) {
             startChild.setInput(d.getInput());
           }
@@ -537,9 +545,14 @@ class StateMachines {
     if (data.retryState.isPresent()) {
       a.setAttempt(data.retryState.get().getAttempt());
     }
+    a.setOriginalExecutionRunId(data.originalExecutionRunId);
+    if (data.continuedExecutionRunId.isPresent()) {
+      a.setContinuedExecutionRunId(data.continuedExecutionRunId.get());
+    }
     a.setLastCompletionResult(data.lastCompletionResult);
     a.setMemo(request.getMemo());
     a.setSearchAttributes((request.getSearchAttributes()));
+    a.setHeader(request.getHeader());
     HistoryEvent event =
         new HistoryEvent()
             .setEventType(EventType.WorkflowExecutionStarted)
@@ -702,6 +715,7 @@ class StateMachines {
             .setStartToCloseTimeoutSeconds(d.getStartToCloseTimeoutSeconds())
             .setTaskList(d.getTaskList())
             .setRetryPolicy(retryPolicy)
+            .setHeader(d.getHeader())
             .setDecisionTaskCompletedEventId(decisionTaskCompletedEventId);
     data.scheduledEvent =
         a; // Cannot set it in onCommit as it is used in the processScheduleActivityTask
@@ -713,6 +727,7 @@ class StateMachines {
 
     PollForActivityTaskResponse taskResponse =
         new PollForActivityTaskResponse()
+            .setWorkflowType(data.startWorkflowExecutionRequest.workflowType)
             .setActivityType(d.getActivityType())
             .setWorkflowExecution(ctx.getExecution())
             .setActivityId(d.getActivityId())
@@ -721,6 +736,7 @@ class StateMachines {
             .setScheduleToCloseTimeoutSeconds(scheduleToCloseTimeoutSeconds)
             .setStartToCloseTimeoutSeconds(d.getStartToCloseTimeoutSeconds())
             .setScheduledTimestamp(ctx.currentTimeInNanoseconds())
+            .setHeader(d.getHeader())
             .setAttempt(0);
 
     TaskListId taskListId = new TaskListId(ctx.getDomain(), d.getTaskList().getName());
