@@ -25,12 +25,12 @@ import com.cronutils.model.definition.CronDefinition;
 import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.cronutils.parser.CronParser;
 import com.google.common.base.Strings;
-import io.temporal.WorkflowIdReusePolicy;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import io.temporal.context.ContextPropagator;
 import io.temporal.internal.common.OptionsUtils;
+import io.temporal.proto.enums.WorkflowIdReusePolicy;
 import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
 import java.util.List;
@@ -236,7 +236,7 @@ public final class WorkflowOptions {
       }
       WorkflowIdReusePolicy policy = workflowIdReusePolicy;
       if (policy == null) {
-        policy = WorkflowIdReusePolicy.AllowDuplicateFailedOnly;
+        policy = WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicateFailedOnly;
       }
       if (retryOptions != null) {
         if (retryOptions.getInitialInterval() == null) {

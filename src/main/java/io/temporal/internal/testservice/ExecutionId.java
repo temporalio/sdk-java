@@ -17,8 +17,7 @@
 
 package io.temporal.internal.testservice;
 
-import com.google.common.base.Throwables;
-import io.temporal.InternalServiceError;
+import io.grpc.Status;
 import io.temporal.proto.common.WorkflowExecution;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -40,7 +39,10 @@ final class ExecutionId {
   ExecutionId(String domain, String workflowId, String runId) {
     this(
         domain,
-        new WorkflowExecution().setWorkflowId(Objects.requireNonNull(workflowId)).setRunId(runId));
+        WorkflowExecution.newBuilder()
+            .setWorkflowId(Objects.requireNonNull(workflowId))
+            .setRunId(runId)
+            .build());
   }
 
   public String getDomain() {
@@ -81,13 +83,13 @@ final class ExecutionId {
   }
 
   /** Used for task tokens. */
-  byte[] toBytes() throws InternalServiceError {
+  byte[] toBytes() {
     ByteArrayOutputStream bout = new ByteArrayOutputStream();
     DataOutputStream out = new DataOutputStream(bout);
     try {
       addBytes(out);
     } catch (IOException e) {
-      throw new InternalServiceError(Throwables.getStackTraceAsString(e));
+      throw Status.INTERNAL.withCause(e).asRuntimeException();
     }
     return bout.toByteArray();
   }
@@ -100,13 +102,13 @@ final class ExecutionId {
     }
   }
 
-  static ExecutionId fromBytes(byte[] serialized) throws InternalServiceError {
+  static ExecutionId fromBytes(byte[] serialized) {
     ByteArrayInputStream bin = new ByteArrayInputStream(serialized);
     DataInputStream in = new DataInputStream(bin);
     try {
       return readFromBytes(in);
     } catch (IOException e) {
-      throw new InternalServiceError(Throwables.getStackTraceAsString(e));
+      throw Status.INTERNAL.withCause(e).asRuntimeException();
     }
   }
 

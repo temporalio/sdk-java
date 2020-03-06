@@ -30,6 +30,7 @@ import io.temporal.client.WorkflowTerminatedException;
 import io.temporal.client.WorkflowTimedOutException;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.WorkflowExecutionHistory;
+import io.temporal.proto.common.HistoryEvent;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.proto.common.WorkflowExecutionFailedEventAttributes;

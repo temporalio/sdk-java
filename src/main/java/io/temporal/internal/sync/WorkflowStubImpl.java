@@ -17,6 +17,7 @@
 
 package io.temporal.internal.sync;
 
+import io.grpc.StatusRuntimeException;
 import io.temporal.EntityNotExistsError;
 import io.temporal.InternalServiceError;
 import io.temporal.QueryFailedError;
@@ -45,7 +46,9 @@ import io.temporal.internal.external.GenericWorkflowClientExternal;
 import io.temporal.internal.replay.QueryWorkflowParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
 import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.common.WorkflowExecutionAlreadyStartedError;
+import io.temporal.proto.common.WorkflowType;
+import io.temporal.proto.failure.WorkflowExecutionAlreadyStarted;
+import io.temporal.serviceclient.GrpcStatusUtils;
 import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.List;
@@ -116,12 +119,20 @@ class WorkflowStubImpl implements WorkflowStub {
     StartWorkflowExecutionParameters p = getStartWorkflowExecutionParameters(o, args);
     try {
       execution.set(genericClient.startWorkflow(p));
-    } catch (WorkflowExecutionAlreadyStartedError e) {
-      execution.set(
-          new WorkflowExecution().setWorkflowId(p.getWorkflowId()).setRunId(e.getRunId()));
-      WorkflowExecution execution =
-          new WorkflowExecution().setWorkflowId(p.getWorkflowId()).setRunId(e.getRunId());
-      throw new DuplicateWorkflowException(execution, workflowType.get(), e.getMessage());
+    } catch (StatusRuntimeException e) {
+      WorkflowExecutionAlreadyStarted f =
+          GrpcStatusUtils.getFailure(e, WorkflowExecutionAlreadyStarted.class);
+      if (f != null) {
+        WorkflowExecution exe =
+            WorkflowExecution.newBuilder()
+                .setWorkflowId(p.getWorkflowId())
+                .setRunId(f.getRunId())
+                .build();
+        execution.set(exe);
+        throw new DuplicateWorkflowException(exe, workflowType.get(), e.getMessage());
+      } else {
+        throw e;
+      }
     } catch (Exception e) {
       throw new WorkflowServiceException(execution.get(), workflowType, e);
     }
@@ -144,7 +155,7 @@ class WorkflowStubImpl implements WorkflowStub {
       p.setWorkflowId(o.getWorkflowId());
     }
     p.setInput(dataConverter.toData(args));
-    p.setWorkflowType(new WorkflowType().setName(workflowType.get()));
+    p.setWorkflowType(WorkflowType.newBuilder().setName(workflowType.get()).build());
     p.setMemo(convertMemoFromObjectToBytes(o.getMemo()));
     p.setSearchAttributes(convertSearchAttributesFromObjectToBytes(o.getSearchAttributes()));
     p.setContext(extractContextsAndConvertToBytes(o.getContextPropagators()));

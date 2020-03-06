@@ -326,28 +326,27 @@ class StateMachines {
             .setTimeoutType(timeoutType)
             .setInitiatedEventId(data.initiatedEventId)
             .build();
-    HistoryEvent event =
+    HistoryEvent.Builder event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EventTypeChildWorkflowExecutionTimedOut)
-            .setChildWorkflowExecutionTimedOutEventAttributes(a)
-            .build();
+            .setChildWorkflowExecutionTimedOutEventAttributes(a);
     ctx.addEvent(event);
   }
 
   private static void startChildWorkflowFailed(
       RequestContext ctx,
       ChildWorkflowData data,
-      StartChildWorkflowExecutionFailedEventAttributes a,
+      StartChildWorkflowExecutionFailedEventAttributes.Builder a,
       long notUsed) {
     a.setInitiatedEventId(data.initiatedEventId);
     a.setWorkflowType(data.initiatedEvent.getWorkflowType());
     a.setWorkflowId(data.initiatedEvent.getWorkflowId());
-    if (data.initiatedEvent.isSetDomain()) {
+    if (!data.initiatedEvent.getDomain().isEmpty()) {
       a.setDomain(data.initiatedEvent.getDomain());
     }
-    HistoryEvent event =
+    HistoryEvent.Builder event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.StartChildWorkflowExecutionFailed)
+            .setEventType(EventType.EventTypeStartChildWorkflowExecutionFailed)
             .setStartChildWorkflowExecutionFailedEventAttributes(a);
     ctx.addEvent(event);
   }
@@ -355,12 +354,12 @@ class StateMachines {
   private static void childWorkflowStarted(
       RequestContext ctx,
       ChildWorkflowData data,
-      ChildWorkflowExecutionStartedEventAttributes a,
+      ChildWorkflowExecutionStartedEventAttributes.Builder a,
       long notUsed) {
     a.setInitiatedEventId(data.initiatedEventId);
-    HistoryEvent event =
+    HistoryEvent.Builder event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.ChildWorkflowExecutionStarted)
+            .setEventType(EventType.EventTypeChildWorkflowExecutionStarted)
             .setChildWorkflowExecutionStartedEventAttributes(a);
     long startedEventId = ctx.addEvent(event);
     ctx.onCommit(
@@ -373,12 +372,12 @@ class StateMachines {
   private static void childWorkflowCompleted(
       RequestContext ctx,
       ChildWorkflowData data,
-      ChildWorkflowExecutionCompletedEventAttributes a,
+      ChildWorkflowExecutionCompletedEventAttributes.Builder a,
       long notUsed) {
     a.setInitiatedEventId(data.initiatedEventId).setStartedEventId(data.startedEventId);
-    HistoryEvent event =
+    HistoryEvent.Builder event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.ChildWorkflowExecutionCompleted)
+            .setEventType(EventType.EventTypeChildWorkflowExecutionCompleted)
             .setChildWorkflowExecutionCompletedEventAttributes(a);
     ctx.addEvent(event);
   }
@@ -386,18 +385,18 @@ class StateMachines {
   private static void childWorkflowFailed(
       RequestContext ctx,
       ChildWorkflowData data,
-      ChildWorkflowExecutionFailedEventAttributes a,
+      ChildWorkflowExecutionFailedEventAttributes.Builder a,
       long notUsed) {
     a.setInitiatedEventId(data.initiatedEventId);
     a.setStartedEventId(data.startedEventId);
     a.setWorkflowExecution(data.execution);
     a.setWorkflowType(data.initiatedEvent.getWorkflowType());
-    if (data.initiatedEvent.domain != null) {
-      a.setDomain(data.initiatedEvent.domain);
+    if (!data.initiatedEvent.getDomain().isEmpty()) {
+      a.setDomain(data.initiatedEvent.getDomain());
     }
-    HistoryEvent event =
+    HistoryEvent.Builder event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.ChildWorkflowExecutionFailed)
+            .setEventType(EventType.EventTypeChildWorkflowExecutionFailed)
             .setChildWorkflowExecutionFailedEventAttributes(a);
     ctx.addEvent(event);
   }
@@ -405,13 +404,13 @@ class StateMachines {
   private static void childWorkflowCanceled(
       RequestContext ctx,
       ChildWorkflowData data,
-      ChildWorkflowExecutionCanceledEventAttributes a,
+      ChildWorkflowExecutionCanceledEventAttributes.Builder a,
       long notUsed) {
     a.setInitiatedEventId(data.initiatedEventId);
     a.setStartedEventId(data.startedEventId);
-    HistoryEvent event =
+    HistoryEvent.Builder event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.ChildWorkflowExecutionCanceled)
+            .setEventType(EventType.EventTypeChildWorkflowExecutionCanceled)
             .setChildWorkflowExecutionCanceledEventAttributes(a);
     ctx.addEvent(event);
   }
@@ -422,7 +421,7 @@ class StateMachines {
       StartChildWorkflowExecutionDecisionAttributes d,
       long decisionTaskCompletedEventId) {
     StartChildWorkflowExecutionInitiatedEventAttributes a =
-        new StartChildWorkflowExecutionInitiatedEventAttributes()
+        StartChildWorkflowExecutionInitiatedEventAttributes.newBuilder()
             .setControl(d.getControl())
             .setInput(d.getInput())
             .setDecisionTaskCompletedEventId(decisionTaskCompletedEventId)
@@ -436,18 +435,19 @@ class StateMachines {
             .setRetryPolicy(d.getRetryPolicy())
             .setCronSchedule(d.getCronSchedule())
             .setHeader(d.getHeader())
-            .setParentClosePolicy(d.getParentClosePolicy());
-    HistoryEvent event =
+            .setParentClosePolicy(d.getParentClosePolicy())
+            .build();
+    HistoryEvent.Builder event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.StartChildWorkflowExecutionInitiated)
+            .setEventType(EventType.EventTypeStartChildWorkflowExecutionInitiated)
             .setStartChildWorkflowExecutionInitiatedEventAttributes(a);
     long initiatedEventId = ctx.addEvent(event);
     ctx.onCommit(
         (historySize) -> {
           data.initiatedEventId = initiatedEventId;
           data.initiatedEvent = a;
-          StartWorkflowExecutionRequest startChild =
-              new StartWorkflowExecutionRequest()
+          StartWorkflowExecutionRequest.Builder startChild =
+              StartWorkflowExecutionRequest.newBuilder()
                   .setDomain(d.getDomain() == null ? ctx.getDomain() : d.getDomain())
                   .setExecutionStartToCloseTimeoutSeconds(
                       d.getExecutionStartToCloseTimeoutSeconds())
@@ -459,10 +459,10 @@ class StateMachines {
                   .setRetryPolicy(d.getRetryPolicy())
                   .setCronSchedule(d.getCronSchedule())
                   .setHeader(d.getHeader());
-          if (d.isSetInput()) {
+          if (!d.getInput().isEmpty()) {
             startChild.setInput(d.getInput());
           }
-          addStartChildTask(ctx, data, initiatedEventId, startChild);
+          addStartChildTask(ctx, data, initiatedEventId, startChild.build());
         });
   }
 
@@ -483,9 +483,12 @@ class StateMachines {
                     Optional.empty());
               } catch (WorkflowExecutionAlreadyStartedError workflowExecutionAlreadyStartedError) {
                 StartChildWorkflowExecutionFailedEventAttributes failRequest =
-                    new StartChildWorkflowExecutionFailedEventAttributes()
+                    StartChildWorkflowExecutionFailedEventAttributes.newBuilder()
                         .setInitiatedEventId(initiatedEventId)
-                        .setCause(ChildWorkflowExecutionFailedCause.WORKFLOW_ALREADY_RUNNING);
+                        .setCause(
+                            ChildWorkflowExecutionFailedCause
+                                .ChildWorkflowExecutionFailedCauseWorkflowAlreadyRunning)
+                        .build();
                 try {
                   ctx.getWorkflowMutableState()
                       .failStartChildWorkflow(data.initiatedEvent.getWorkflowId(), failRequest);

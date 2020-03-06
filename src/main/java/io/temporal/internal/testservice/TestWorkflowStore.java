@@ -20,6 +20,9 @@ package io.temporal.internal.testservice;
 import io.temporal.proto.common.*;
 import io.temporal.proto.common.WorkflowExecutionInfo;
 import io.temporal.proto.failure.*;
+import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
+import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
+import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
@@ -140,7 +143,7 @@ interface TestWorkflowStore {
 
   void registerDelayedCallback(Duration delay, Runnable r);
 
-  PollForDecisionTaskResponse pollForDecisionTask(PollForDecisionTaskRequest pollRequest)
+  PollForDecisionTaskResponse.Builder pollForDecisionTask(PollForDecisionTaskRequest pollRequest)
       throws InterruptedException;
 
   PollForActivityTaskResponse pollForActivityTask(PollForActivityTaskRequest pollRequest)

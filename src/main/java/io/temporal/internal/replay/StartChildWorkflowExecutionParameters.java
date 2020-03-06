@@ -17,10 +17,10 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.ParentClosePolicy;
-import io.temporal.WorkflowIdReusePolicy;
-import io.temporal.WorkflowType;
 import io.temporal.internal.common.RetryParameters;
+import io.temporal.proto.common.WorkflowType;
+import io.temporal.proto.enums.ParentClosePolicy;
+import io.temporal.proto.enums.WorkflowIdReusePolicy;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;

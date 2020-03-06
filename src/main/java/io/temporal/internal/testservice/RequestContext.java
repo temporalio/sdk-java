@@ -123,7 +123,8 @@ final class RequestContext {
   }
 
   /** Returns eventId of the added event; */
-  long addEvent(HistoryEvent event) {
+  long addEvent(HistoryEvent.Builder eventBuilder) {
+    HistoryEvent event = eventBuilder.build();
     long eventId = initialEventId + events.size();
     if (WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(event)) {
       workflowCompletedAtEventId = eventId;
