@@ -22,6 +22,7 @@ import com.uber.cadence.Header;
 import com.uber.cadence.HistoryEvent;
 import com.uber.cadence.MarkerRecordedEventAttributes;
 import com.uber.cadence.converter.DataConverter;
+import com.uber.cadence.internal.sync.WorkflowInternal;
 import com.uber.cadence.workflow.Functions.Func1;
 import com.uber.m3.util.ImmutableMap;
 import java.nio.ByteBuffer;
@@ -212,6 +213,12 @@ class MarkerHandler {
         recordMutableMarker(id, eventId, data.get(), accessCount, converter);
         return data;
       }
+
+      if (!stored.isPresent()) {
+        mutableMarkerResults.put(
+            id, new MarkerResult(converter.toData(WorkflowInternal.DEFAULT_VERSION)));
+      }
+
       return stored;
     }
     Optional<byte[]> toStore = func.apply(stored);
