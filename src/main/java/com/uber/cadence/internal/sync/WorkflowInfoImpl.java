@@ -18,6 +18,7 @@
 package com.uber.cadence.internal.sync;
 
 import com.uber.cadence.SearchAttributes;
+import com.uber.cadence.WorkflowExecution;
 import com.uber.cadence.internal.replay.DecisionContext;
 import com.uber.cadence.workflow.WorkflowInfo;
 import java.time.Duration;
@@ -63,5 +64,17 @@ final class WorkflowInfoImpl implements WorkflowInfo {
   @Override
   public SearchAttributes getSearchAttributes() {
     return context.getSearchAttributes();
+  }
+
+  @Override
+  public String getParentWorkflowId() {
+    WorkflowExecution parentWorkflowExecution = context.getParentWorkflowExecution();
+    return parentWorkflowExecution == null ? null : parentWorkflowExecution.getWorkflowId();
+  }
+
+  @Override
+  public String getParentRunId() {
+    WorkflowExecution parentWorkflowExecution = context.getParentWorkflowExecution();
+    return parentWorkflowExecution == null ? null : parentWorkflowExecution.getRunId();
   }
 }

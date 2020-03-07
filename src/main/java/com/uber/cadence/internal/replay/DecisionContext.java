@@ -43,8 +43,7 @@ public interface DecisionContext extends ReplayAware {
 
   WorkflowExecution getWorkflowExecution();
 
-  // TODO: Add to Cadence
-  //    com.uber.cadence.WorkflowExecution getParentWorkflowExecution();
+  WorkflowExecution getParentWorkflowExecution();
 
   WorkflowType getWorkflowType();
 

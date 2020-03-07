@@ -5387,6 +5387,49 @@ public class WorkflowTest {
     tracer.setExpected("upsertSearchAttributes", "executeActivity TestActivities::activity");
   }
 
+  public static class TestMultiargsWorkflowsFuncChild implements TestMultiargsWorkflowsFunc2 {
+    @Override
+    public String func2(String s, int i) {
+      WorkflowInfo wi = Workflow.getWorkflowInfo();
+      String parentId = wi.getParentWorkflowId();
+      return parentId;
+    }
+  }
+
+  public static class TestMultiargsWorkflowsFuncParent implements TestMultiargsWorkflowsFunc {
+    @Override
+    public String func() {
+      ChildWorkflowOptions workflowOptions =
+          new ChildWorkflowOptions.Builder()
+              .setExecutionStartToCloseTimeout(Duration.ofSeconds(100))
+              .setTaskStartToCloseTimeout(Duration.ofSeconds(60))
+              .build();
+      TestMultiargsWorkflowsFunc2 child =
+          Workflow.newChildWorkflowStub(TestMultiargsWorkflowsFunc2.class, workflowOptions);
+
+      String parentWorkflowId = Workflow.getWorkflowInfo().getParentWorkflowId();
+      String childsParentWorkflowId = child.func2(null, 0);
+
+      String result = String.format("%s - %s", parentWorkflowId, childsParentWorkflowId);
+      return result;
+    }
+  }
+
+  @Test
+  public void testParentWorkflowInfoInChildWorkflows() {
+    startWorkerFor(TestMultiargsWorkflowsFuncParent.class, TestMultiargsWorkflowsFuncChild.class);
+
+    String workflowId = "testParentWorkflowInfoInChildWorkflows";
+    WorkflowOptions workflowOptions =
+        newWorkflowOptionsBuilder(taskList).setWorkflowId(workflowId).build();
+    TestMultiargsWorkflowsFunc parent =
+        workflowClient.newWorkflowStub(TestMultiargsWorkflowsFunc.class, workflowOptions);
+
+    String result = parent.func();
+    String expected = String.format("%s - %s", null, workflowId);
+    assertEquals(expected, result);
+  }
+
   private static class TracingWorkflowInterceptor implements WorkflowInterceptor {
 
     private final FilteredTrace trace;

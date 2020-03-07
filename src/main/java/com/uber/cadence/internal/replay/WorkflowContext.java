@@ -90,12 +90,6 @@ final class WorkflowContext {
   }
 
   // TODO: Implement as soon as WorkflowExecutionStartedEventAttributes have these fields added.
-  ////    WorkflowExecution getParentWorkflowExecution() {
-  //        WorkflowExecutionStartedEventAttributes attributes =
-  // getWorkflowStartedEventAttributes();
-  //        return attributes.getParentWorkflowExecution();
-  //    }
-
   ////    com.uber.cadence.ChildPolicy getChildPolicy() {
   //        WorkflowExecutionStartedEventAttributes attributes =
   // getWorkflowStartedEventAttributes();
@@ -107,6 +101,11 @@ final class WorkflowContext {
   // getWorkflowStartedEventAttributes();
   //        return attributes.getContinuedExecutionRunId();
   //    }
+
+  WorkflowExecution getParentWorkflowExecution() {
+    WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
+    return attributes.getParentWorkflowExecution();
+  }
 
   int getExecutionStartToCloseTimeoutSeconds() {
     WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();

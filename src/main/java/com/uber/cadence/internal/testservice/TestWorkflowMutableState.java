@@ -139,4 +139,6 @@ interface TestWorkflowMutableState {
       throws EntityNotExistsError;
 
   StickyExecutionAttributes getStickyExecutionAttributes();
+
+  Optional<TestWorkflowMutableState> getParent();
 }

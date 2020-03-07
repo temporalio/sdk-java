@@ -35,4 +35,8 @@ public interface WorkflowInfo {
   Duration getExecutionStartToCloseTimeout();
 
   SearchAttributes getSearchAttributes();
+
+  String getParentWorkflowId();
+
+  String getParentRunId();
 }

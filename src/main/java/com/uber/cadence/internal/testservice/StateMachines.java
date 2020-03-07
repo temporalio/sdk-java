@@ -553,6 +553,12 @@ class StateMachines {
     a.setMemo(request.getMemo());
     a.setSearchAttributes((request.getSearchAttributes()));
     a.setHeader(request.getHeader());
+    Optional<TestWorkflowMutableState> parent = ctx.getWorkflowMutableState().getParent();
+    if (parent.isPresent()) {
+      ExecutionId parentExecutionId = parent.get().getExecutionId();
+      a.setParentWorkflowDomain(parentExecutionId.getDomain());
+      a.setParentWorkflowExecution(parentExecutionId.getExecution());
+    }
     HistoryEvent event =
         new HistoryEvent()
             .setEventType(EventType.WorkflowExecutionStarted)
