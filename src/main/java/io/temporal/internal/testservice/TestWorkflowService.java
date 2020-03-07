@@ -27,26 +27,37 @@ import io.temporal.proto.common.RetryPolicy;
 import io.temporal.proto.common.SignalExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowExecutionContinuedAsNewEventAttributes;
-import io.temporal.proto.common.WorkflowExecutionFilter;
 import io.temporal.proto.common.WorkflowExecutionInfo;
 import io.temporal.proto.enums.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.proto.enums.WorkflowExecutionCloseStatus;
 import io.temporal.proto.enums.WorkflowIdReusePolicy;
 import io.temporal.proto.failure.WorkflowExecutionAlreadyStarted;
+import io.temporal.proto.workflowservice.CountWorkflowExecutionsRequest;
+import io.temporal.proto.workflowservice.CountWorkflowExecutionsResponse;
 import io.temporal.proto.workflowservice.DeprecateDomainRequest;
 import io.temporal.proto.workflowservice.DeprecateDomainResponse;
 import io.temporal.proto.workflowservice.DescribeDomainRequest;
 import io.temporal.proto.workflowservice.DescribeDomainResponse;
+import io.temporal.proto.workflowservice.GetSearchAttributesRequest;
+import io.temporal.proto.workflowservice.GetSearchAttributesResponse;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
+import io.temporal.proto.workflowservice.ListArchivedWorkflowExecutionsRequest;
+import io.temporal.proto.workflowservice.ListArchivedWorkflowExecutionsResponse;
+import io.temporal.proto.workflowservice.ListClosedWorkflowExecutionsRequest;
+import io.temporal.proto.workflowservice.ListClosedWorkflowExecutionsResponse;
 import io.temporal.proto.workflowservice.ListDomainsRequest;
 import io.temporal.proto.workflowservice.ListDomainsResponse;
 import io.temporal.proto.workflowservice.ListOpenWorkflowExecutionsRequest;
 import io.temporal.proto.workflowservice.ListOpenWorkflowExecutionsResponse;
+import io.temporal.proto.workflowservice.ListWorkflowExecutionsRequest;
+import io.temporal.proto.workflowservice.ListWorkflowExecutionsResponse;
 import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
+import io.temporal.proto.workflowservice.QueryWorkflowRequest;
+import io.temporal.proto.workflowservice.QueryWorkflowResponse;
 import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatByIDRequest;
 import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatByIDResponse;
 import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatRequest;
@@ -55,6 +66,8 @@ import io.temporal.proto.workflowservice.RegisterDomainRequest;
 import io.temporal.proto.workflowservice.RegisterDomainResponse;
 import io.temporal.proto.workflowservice.RequestCancelWorkflowExecutionRequest;
 import io.temporal.proto.workflowservice.RequestCancelWorkflowExecutionResponse;
+import io.temporal.proto.workflowservice.ResetStickyTaskListRequest;
+import io.temporal.proto.workflowservice.ResetStickyTaskListResponse;
 import io.temporal.proto.workflowservice.ResetWorkflowExecutionRequest;
 import io.temporal.proto.workflowservice.ResetWorkflowExecutionResponse;
 import io.temporal.proto.workflowservice.RespondActivityTaskCanceledByIDRequest;
@@ -73,6 +86,10 @@ import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedResponse;
 import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskFailedResponse;
+import io.temporal.proto.workflowservice.RespondQueryTaskCompletedRequest;
+import io.temporal.proto.workflowservice.RespondQueryTaskCompletedResponse;
+import io.temporal.proto.workflowservice.ScanWorkflowExecutionsRequest;
+import io.temporal.proto.workflowservice.ScanWorkflowExecutionsResponse;
 import io.temporal.proto.workflowservice.SignalWithStartWorkflowExecutionRequest;
 import io.temporal.proto.workflowservice.SignalWithStartWorkflowExecutionResponse;
 import io.temporal.proto.workflowservice.SignalWorkflowExecutionRequest;
@@ -85,9 +102,6 @@ import io.temporal.proto.workflowservice.UpdateDomainRequest;
 import io.temporal.proto.workflowservice.UpdateDomainResponse;
 import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
 import io.temporal.serviceclient.GrpcStatusUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -100,6 +114,8 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * In memory implementation of the Temporal service. To be used for testing purposes only. Do not
@@ -120,10 +136,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
 
   private final ForkJoinPool forkJoinPool = new ForkJoinPool(4);
 
-  @Override
-  public void close() {
-    store.close();
-  }
+  // TODO
+  //  @Override
+  //  public void close() {
+  //    store.close();
+  //  }
 
   private TestWorkflowMutableState getMutableState(ExecutionId executionId) {
     return getMutableState(executionId, true);
@@ -311,16 +328,22 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     return StartWorkflowExecutionResponse.newBuilder().setRunId(execution.getRunId()).build();
   }
 
-
   @Override
   public void getWorkflowExecutionHistory(
       GetWorkflowExecutionHistoryRequest getRequest,
       StreamObserver<GetWorkflowExecutionHistoryResponse> responseObserver) {
     ExecutionId executionId = new ExecutionId(getRequest.getDomain(), getRequest.getExecution());
     TestWorkflowMutableState mutableState = getMutableState(executionId);
-    responseObserver.onNext(
-        store.getWorkflowExecutionHistory(mutableState.getExecutionId(), getRequest));
-    responseObserver.onCompleted();
+    forkJoinPool.execute(
+        () -> {
+          try {
+            responseObserver.onNext(
+                store.getWorkflowExecutionHistory(mutableState.getExecutionId(), getRequest));
+            responseObserver.onCompleted();
+          } catch (Exception e) {
+            responseObserver.onError(e);
+          }
+        });
   }
 
   @Override
@@ -686,410 +709,109 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   @Override
-  public void listOpenWorkflowExecutions(ListOpenWorkflowExecutionsRequest listRequest, StreamObserver<ListOpenWorkflowExecutionsResponse> responseObserver) {
+  public void listOpenWorkflowExecutions(
+      ListOpenWorkflowExecutionsRequest listRequest,
+      StreamObserver<ListOpenWorkflowExecutionsResponse> responseObserver) {
     Optional<String> workflowIdFilter;
-    if (listRequest.hasExecutionFilter() && !listRequest.getExecutionFilter().getWorkflowId().isEmpty()) {
+    if (listRequest.hasExecutionFilter()
+        && !listRequest.getExecutionFilter().getWorkflowId().isEmpty()) {
       workflowIdFilter = Optional.of(listRequest.getExecutionFilter().getWorkflowId());
     } else {
       workflowIdFilter = Optional.empty();
     }
     List<WorkflowExecutionInfo> result = store.listWorkflows(WorkflowState.OPEN, workflowIdFilter);
-    responseObserver.onNext(ListOpenWorkflowExecutionsResponse.newBuilder().addAllExecutions(result).build());
+    responseObserver.onNext(
+        ListOpenWorkflowExecutionsResponse.newBuilder().addAllExecutions(result).build());
     responseObserver.onCompleted();
   }
 
   @Override
-  public ListClosedWorkflowExecutionsResponse ListClosedWorkflowExecutions(
-      ListClosedWorkflowExecutionsRequest listRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
-          TException {
+  public void listClosedWorkflowExecutions(
+      ListClosedWorkflowExecutionsRequest listRequest,
+      StreamObserver<ListClosedWorkflowExecutionsResponse> responseObserver) {
     Optional<String> workflowIdFilter;
-    WorkflowExecutionFilter executionFilter = listRequest.getExecutionFilter();
-    if (executionFilter != null
-        && executionFilter.isSetWorkflowId()
-        && !executionFilter.getWorkflowId().isEmpty()) {
-      workflowIdFilter = Optional.of(executionFilter.getWorkflowId());
+    if (listRequest.hasExecutionFilter()
+        && !listRequest.getExecutionFilter().getWorkflowId().isEmpty()) {
+      workflowIdFilter = Optional.of(listRequest.getExecutionFilter().getWorkflowId());
     } else {
       workflowIdFilter = Optional.empty();
     }
     List<WorkflowExecutionInfo> result =
         store.listWorkflows(WorkflowState.CLOSED, workflowIdFilter);
-    return new ListClosedWorkflowExecutionsResponse().setExecutions(result);
+    responseObserver.onNext(
+        ListClosedWorkflowExecutionsResponse.newBuilder().addAllExecutions(result).build());
+    responseObserver.onCompleted();
   }
 
   @Override
-  public ListWorkflowExecutionsResponse ListWorkflowExecutions(
-      ListWorkflowExecutionsRequest listRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
-          ClientVersionNotSupportedError, TException {
-    throw new UnsupportedOperationException("not implemented");
+  public void listWorkflowExecutions(
+      ListWorkflowExecutionsRequest request,
+      StreamObserver<ListWorkflowExecutionsResponse> responseObserver) {
+    super.listWorkflowExecutions(request, responseObserver);
   }
 
   @Override
-  public ListArchivedWorkflowExecutionsResponse ListArchivedWorkflowExecutions(
-      ListArchivedWorkflowExecutionsRequest listRequest)
-      throws BadRequestError, EntityNotExistsError, ServiceBusyError,
-          ClientVersionNotSupportedError, TException {
-    throw new UnsupportedOperationException("not implemented");
+  public void listArchivedWorkflowExecutions(
+      ListArchivedWorkflowExecutionsRequest request,
+      StreamObserver<ListArchivedWorkflowExecutionsResponse> responseObserver) {
+    super.listArchivedWorkflowExecutions(request, responseObserver);
   }
 
   @Override
-  public ListWorkflowExecutionsResponse ScanWorkflowExecutions(
-      ListWorkflowExecutionsRequest listRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
-          ClientVersionNotSupportedError, TException {
-    throw new UnsupportedOperationException("not implemented");
+  public void scanWorkflowExecutions(
+      ScanWorkflowExecutionsRequest request,
+      StreamObserver<ScanWorkflowExecutionsResponse> responseObserver) {
+    super.scanWorkflowExecutions(request, responseObserver);
   }
 
   @Override
-  public CountWorkflowExecutionsResponse CountWorkflowExecutions(
-      CountWorkflowExecutionsRequest countRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, ServiceBusyError,
-          ClientVersionNotSupportedError, TException {
-    throw new UnsupportedOperationException("not implemented");
+  public void countWorkflowExecutions(
+      CountWorkflowExecutionsRequest request,
+      StreamObserver<CountWorkflowExecutionsResponse> responseObserver) {
+    super.countWorkflowExecutions(request, responseObserver);
   }
 
   @Override
-  public GetSearchAttributesResponse GetSearchAttributes()
-      throws InternalServiceError, ServiceBusyError, ClientVersionNotSupportedError, TException {
-    throw new UnsupportedOperationException("not implemented");
+  public void getSearchAttributes(
+      GetSearchAttributesRequest request,
+      StreamObserver<GetSearchAttributesResponse> responseObserver) {
+    super.getSearchAttributes(request, responseObserver);
   }
 
   @Override
-  public void RespondQueryTaskCompleted(RespondQueryTaskCompletedRequest completeRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+  public void respondQueryTaskCompleted(
+      RespondQueryTaskCompletedRequest completeRequest,
+      StreamObserver<RespondQueryTaskCompletedResponse> responseObserver) {
     QueryId queryId = QueryId.fromBytes(completeRequest.getTaskToken());
     TestWorkflowMutableState mutableState = getMutableState(queryId.getExecutionId());
     mutableState.completeQuery(queryId, completeRequest);
+    responseObserver.onNext(RespondQueryTaskCompletedResponse.getDefaultInstance());
+    responseObserver.onCompleted();
   }
 
   @Override
-  public ResetStickyTaskListResponse ResetStickyTaskList(ResetStickyTaskListRequest resetRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, LimitExceededError,
-          ServiceBusyError, DomainNotActiveError, TException {
-    throw new UnsupportedOperationException("not implemented");
+  public void resetStickyTaskList(
+      ResetStickyTaskListRequest request,
+      StreamObserver<ResetStickyTaskListResponse> responseObserver) {
+    super.resetStickyTaskList(request, responseObserver);
   }
 
   @Override
-  public QueryWorkflowResponse QueryWorkflow(QueryWorkflowRequest queryRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, QueryFailedError,
-          TException {
+  public void queryWorkflow(
+      QueryWorkflowRequest queryRequest, StreamObserver<QueryWorkflowResponse> responseObserver) {
     ExecutionId executionId =
         new ExecutionId(queryRequest.getDomain(), queryRequest.getExecution());
     TestWorkflowMutableState mutableState = getMutableState(executionId);
-    return mutableState.query(queryRequest);
+    QueryWorkflowResponse result = mutableState.query(queryRequest);
+    responseObserver.onNext(result);
+    responseObserver.onCompleted();
   }
 
-  @Override
-  public GetWorkflowExecutionRawHistoryResponse GetWorkflowExecutionRawHistory(
-      GetWorkflowExecutionRawHistoryRequest getRequest)
-      throws BadRequestError, EntityNotExistsError, ServiceBusyError,
-          ClientVersionNotSupportedError, TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public DescribeWorkflowExecutionResponse DescribeWorkflowExecution(
-      DescribeWorkflowExecutionRequest describeRequest)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public DescribeTaskListResponse DescribeTaskList(DescribeTaskListRequest request)
-      throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public ClusterInfo GetClusterInfo() throws InternalServiceError, ServiceBusyError, TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public ListTaskListPartitionsResponse ListTaskListPartitions(
-      ListTaskListPartitionsRequest request)
-      throws BadRequestError, EntityNotExistsError, LimitExceededError, ServiceBusyError,
-          TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public PollForWorkflowExecutionRawHistoryResponse PollForWorkflowExecutionRawHistory(
-      PollForWorkflowExecutionRawHistoryRequest getRequest)
-      throws BadRequestError, EntityNotExistsError, ServiceBusyError,
-          ClientVersionNotSupportedError, CurrentBranchChangedError, TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void RegisterDomain(
-      RegisterDomainRequest registerRequest, AsyncMethodCallback resultHandler) throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void DescribeDomain(
-      DescribeDomainRequest describeRequest, AsyncMethodCallback resultHandler) throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void ListDomains(ListDomainsRequest listRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void UpdateDomain(UpdateDomainRequest updateRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void DeprecateDomain(
-      DeprecateDomainRequest deprecateRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void StartWorkflowExecution(
-      StartWorkflowExecutionRequest startRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @SuppressWarnings("unchecked") // Generator ignores that AsyncMethodCallback is generic
-  @Override
-  public void GetWorkflowExecutionHistory(
-      GetWorkflowExecutionHistoryRequest getRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    forkJoinPool.execute(
-        () -> {
-          try {
-            GetWorkflowExecutionHistoryResponse result = GetWorkflowExecutionHistory(getRequest);
-            resultHandler.onComplete(result);
-          } catch (TException e) {
-            resultHandler.onError(e);
-          }
-        });
-  }
-
-  @Override
-  public void PollForDecisionTask(
-      PollForDecisionTaskRequest pollRequest, AsyncMethodCallback resultHandler) throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void RespondDecisionTaskCompleted(
-      RespondDecisionTaskCompletedRequest completeRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void RespondDecisionTaskFailed(
-      RespondDecisionTaskFailedRequest failedRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void PollForActivityTask(
-      PollForActivityTaskRequest pollRequest, AsyncMethodCallback resultHandler) throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void RecordActivityTaskHeartbeat(
-      RecordActivityTaskHeartbeatRequest heartbeatRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void RecordActivityTaskHeartbeatByID(
-      RecordActivityTaskHeartbeatByIDRequest heartbeatRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void RespondActivityTaskCompleted(
-      RespondActivityTaskCompletedRequest completeRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void RespondActivityTaskCompletedByID(
-      RespondActivityTaskCompletedByIDRequest completeRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void RespondActivityTaskFailed(
-      RespondActivityTaskFailedRequest failRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void RespondActivityTaskFailedByID(
-      RespondActivityTaskFailedByIDRequest failRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void RespondActivityTaskCanceled(
-      RespondActivityTaskCanceledRequest canceledRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void RespondActivityTaskCanceledByID(
-      RespondActivityTaskCanceledByIDRequest canceledRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void RequestCancelWorkflowExecution(
-      RequestCancelWorkflowExecutionRequest cancelRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void SignalWorkflowExecution(
-      SignalWorkflowExecutionRequest signalRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void SignalWithStartWorkflowExecution(
-      SignalWithStartWorkflowExecutionRequest signalWithStartRequest,
-      AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void ResetWorkflowExecution(
-      ResetWorkflowExecutionRequest resetRequest, AsyncMethodCallback resultHandler)
-      throws TException {}
-
-  @Override
-  public void TerminateWorkflowExecution(
-      TerminateWorkflowExecutionRequest terminateRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void ListOpenWorkflowExecutions(
-      ListOpenWorkflowExecutionsRequest listRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void ListClosedWorkflowExecutions(
-      ListClosedWorkflowExecutionsRequest listRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void ListWorkflowExecutions(
-      ListWorkflowExecutionsRequest listRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void ListArchivedWorkflowExecutions(
-      ListArchivedWorkflowExecutionsRequest listRequest, AsyncMethodCallback resultHandler)
-      throws TException {}
-
-  @Override
-  public void ScanWorkflowExecutions(
-      ListWorkflowExecutionsRequest listRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void CountWorkflowExecutions(
-      CountWorkflowExecutionsRequest countRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void GetSearchAttributes(AsyncMethodCallback resultHandler) throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void RespondQueryTaskCompleted(
-      RespondQueryTaskCompletedRequest completeRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void ResetStickyTaskList(
-      ResetStickyTaskListRequest resetRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void QueryWorkflow(QueryWorkflowRequest queryRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void GetWorkflowExecutionRawHistory(
-      GetWorkflowExecutionRawHistoryRequest getRequest, AsyncMethodCallback resultHandler)
-      throws TException {}
-
-  @Override
-  public void DescribeWorkflowExecution(
-      DescribeWorkflowExecutionRequest describeRequest, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void DescribeTaskList(DescribeTaskListRequest request, AsyncMethodCallback resultHandler)
-      throws TException {
-    throw new UnsupportedOperationException("not implemented");
-  }
-
-  @Override
-  public void GetClusterInfo(AsyncMethodCallback resultHandler) throws TException {}
-
-  @Override
-  public void ListTaskListPartitions(
-      ListTaskListPartitionsRequest request, AsyncMethodCallback resultHandler) throws TException {}
-
-  @Override
-  public void PollForWorkflowExecutionRawHistory(
-      PollForWorkflowExecutionRawHistoryRequest getRequest, AsyncMethodCallback resultHandler)
-      throws TException {}
-
-  private <R> R requireNotNull(String fieldName, R value) throws BadRequestError {
+  private <R> R requireNotNull(String fieldName, R value) {
     if (value == null) {
-      throw new BadRequestError("Missing requried field \"" + fieldName + "\".");
+      throw Status.INVALID_ARGUMENT
+          .withDescription("Missing requried field \"" + fieldName + "\".")
+          .asRuntimeException();
     }
     return value;
   }

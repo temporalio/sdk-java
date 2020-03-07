@@ -20,7 +20,6 @@ package io.temporal.internal.testservice;
 import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.temporal.proto.common.WorkflowExecution;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -89,7 +88,7 @@ final class ActivityId {
   }
 
   /** Used for task tokens. */
-  public byte[] toBytes() {
+  public ByteString toBytes() {
     ByteArrayOutputStream bout = new ByteArrayOutputStream();
     DataOutputStream out = new DataOutputStream(bout);
     try {
@@ -98,7 +97,7 @@ final class ActivityId {
       out.writeUTF(execution.getWorkflowId());
       out.writeUTF(execution.getRunId());
       out.writeUTF(id);
-      return bout.toByteArray();
+      return ByteString.copyFrom(bout.toByteArray());
     } catch (IOException e) {
       throw Status.INTERNAL.withCause(e).asRuntimeException();
     }

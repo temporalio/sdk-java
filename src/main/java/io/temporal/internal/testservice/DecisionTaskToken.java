@@ -19,7 +19,6 @@ package io.temporal.internal.testservice;
 
 import com.google.protobuf.ByteString;
 import io.grpc.Status;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;

@@ -276,8 +276,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public void startDecisionTask(
-      PollForDecisionTaskResponse task, PollForDecisionTaskRequest pollRequest) {
-    if (task.getQuery() == null) {
+      PollForDecisionTaskResponse.Builder task, PollForDecisionTaskRequest pollRequest) {
+    if (!task.hasQuery()) {
       update(
           ctx -> {
             long scheduledEventId = decision.getData().scheduledEventId;
@@ -1547,8 +1547,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     ctx.addEvent(executionSignaled);
   }
 
-  private StateMachine<ActivityTaskData> getActivity(String activityId)
-      throws EntityNotExistsError {
+  private StateMachine<ActivityTaskData> getActivity(String activityId) {
     StateMachine<ActivityTaskData> activity = activities.get(activityId);
     if (activity == null) {
       throw new EntityNotExistsError("unknown activityId: " + activityId);
@@ -1556,11 +1555,12 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     return activity;
   }
 
-  private StateMachine<ChildWorkflowData> getChildWorkflow(long initiatedEventId)
-      throws InternalServiceError {
+  private StateMachine<ChildWorkflowData> getChildWorkflow(long initiatedEventId) {
     StateMachine<ChildWorkflowData> child = childWorkflows.get(initiatedEventId);
     if (child == null) {
-      throw new InternalServiceError("unknown initiatedEventId: " + initiatedEventId);
+      throw Status.INTERNAL
+          .withDescription("unknown initiatedEventId: " + initiatedEventId)
+          .asRuntimeException();
     }
     return child;
   }
@@ -1588,31 +1588,31 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       return queryId;
     }
 
-    byte[] toBytes() throws InternalServiceError {
+    ByteString toBytes() {
       ByteArrayOutputStream bout = new ByteArrayOutputStream();
       DataOutputStream out = new DataOutputStream(bout);
       addBytes(out);
-      return bout.toByteArray();
+      return ByteString.copyFrom(bout.toByteArray());
     }
 
-    void addBytes(DataOutputStream out) throws InternalServiceError {
+    void addBytes(DataOutputStream out) {
       try {
         executionId.addBytes(out);
         out.writeUTF(queryId);
       } catch (IOException e) {
-        throw new InternalServiceError(Throwables.getStackTraceAsString(e));
+        throw Status.INTERNAL.withCause(e).asRuntimeException();
       }
     }
 
-    static QueryId fromBytes(byte[] serialized) throws InternalServiceError {
-      ByteArrayInputStream bin = new ByteArrayInputStream(serialized);
+    static QueryId fromBytes(ByteString serialized) {
+      ByteArrayInputStream bin = new ByteArrayInputStream(serialized.toByteArray());
       DataInputStream in = new DataInputStream(bin);
       try {
         ExecutionId executionId = ExecutionId.readFromBytes(in);
         String queryId = in.readUTF();
         return new QueryId(executionId, queryId);
       } catch (IOException e) {
-        throw new InternalServiceError(Throwables.getStackTraceAsString(e));
+        throw Status.INTERNAL.withCause(e).asRuntimeException();
       }
     }
   }

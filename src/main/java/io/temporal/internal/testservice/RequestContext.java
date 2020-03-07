@@ -33,7 +33,7 @@ final class RequestContext {
   @FunctionalInterface
   interface CommitCallback {
 
-    void apply(int historySize) throws InternalServiceError, BadRequestError;
+    void apply(int historySize);
   }
 
   static final class Timer {
@@ -123,8 +123,7 @@ final class RequestContext {
   }
 
   /** Returns eventId of the added event; */
-  long addEvent(HistoryEvent.Builder eventBuilder) {
-    HistoryEvent event = eventBuilder.build();
+  long addEvent(HistoryEvent event) {
     long eventId = initialEventId + events.size();
     if (WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(event)) {
       workflowCompletedAtEventId = eventId;
@@ -203,13 +202,12 @@ final class RequestContext {
   }
 
   /** @return nextEventId */
-  long commitChanges(TestWorkflowStore store)
-      throws InternalServiceError, EntityNotExistsError, BadRequestError {
+  long commitChanges(TestWorkflowStore store) {
     return store.save(this);
   }
 
   /** Called by {@link TestWorkflowStore#save(RequestContext)} */
-  void fireCallbacks(int historySize) throws InternalServiceError, BadRequestError {
+  void fireCallbacks(int historySize) {
     for (CommitCallback callback : commitCallbacks) {
       callback.apply(historySize);
     }
