@@ -17,11 +17,11 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.CancelTimerDecisionAttributes;
-import io.temporal.Decision;
-import io.temporal.DecisionType;
-import io.temporal.HistoryEvent;
-import io.temporal.StartTimerDecisionAttributes;
+import io.temporal.proto.common.CancelTimerDecisionAttributes;
+import io.temporal.proto.common.Decision;
+import io.temporal.proto.common.HistoryEvent;
+import io.temporal.proto.common.StartTimerDecisionAttributes;
+import io.temporal.proto.enums.DecisionType;
 
 /**
  * Timer doesn't have separate initiation decision as it is started immediately. But from the state
@@ -103,18 +103,17 @@ class TimerDecisionStateMachine extends DecisionStateMachineBase {
   }
 
   private Decision createCancelTimerDecision() {
-    CancelTimerDecisionAttributes tryCancel = new CancelTimerDecisionAttributes();
-    tryCancel.setTimerId(attributes.getTimerId());
-    Decision decision = new Decision();
-    decision.setCancelTimerDecisionAttributes(tryCancel);
-    decision.setDecisionType(DecisionType.CancelTimer);
-    return decision;
+    return Decision.newBuilder()
+        .setCancelTimerDecisionAttributes(
+            CancelTimerDecisionAttributes.newBuilder().setTimerId(attributes.getTimerId()))
+        .setDecisionType(DecisionType.DecisionTypeCancelTimer)
+        .build();
   }
 
   private Decision createStartTimerDecision() {
-    Decision decision = new Decision();
-    decision.setStartTimerDecisionAttributes(attributes);
-    decision.setDecisionType(DecisionType.StartTimer);
-    return decision;
+    return Decision.newBuilder()
+        .setStartTimerDecisionAttributes(attributes)
+        .setDecisionType(DecisionType.DecisionTypeStartTimer)
+        .build();
   }
 }

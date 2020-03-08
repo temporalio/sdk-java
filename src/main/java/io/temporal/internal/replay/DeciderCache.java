@@ -22,8 +22,8 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.uber.m3.tally.Scope;
-import io.temporal.PollForDecisionTaskResponse;
 import io.temporal.internal.metrics.MetricsType;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.Lock;
@@ -140,8 +140,8 @@ public final class DeciderCache {
 
   private boolean isFullHistory(PollForDecisionTaskResponse decisionTask) {
     return decisionTask.getHistory() != null
-        && decisionTask.getHistory().getEvents().size() > 0
-        && decisionTask.getHistory().getEvents().get(0).getEventId() == 1;
+        && decisionTask.getHistory().getEventsCount() > 0
+        && decisionTask.getHistory().getEvents(0).getEventId() == 1;
   }
 
   public void invalidateAll() {

@@ -17,9 +17,12 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.*;
+import com.google.protobuf.ByteString;
 import io.temporal.context.ContextPropagator;
-import java.nio.ByteBuffer;
+import io.temporal.proto.common.*;
+import io.temporal.proto.enums.*;
+import io.temporal.proto.failure.*;
+import io.temporal.proto.workflowservice.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -158,12 +161,9 @@ final class WorkflowContext {
     }
 
     Map<String, byte[]> headerData = new HashMap<>();
-    headers
-        .getFields()
-        .forEach(
-            (k, v) -> {
-              headerData.put(k, org.apache.thrift.TBaseHelper.byteBufferToByteArray(v));
-            });
+    for (Map.Entry<String, ByteString> pair : headers.getFieldsMap().entrySet()) {
+      headerData.put(pair.getKey(), pair.getValue().toByteArray());
+    }
 
     Map<String, Object> contextData = new HashMap<>();
     for (ContextPropagator propagator : contextPropagators) {
@@ -178,20 +178,11 @@ final class WorkflowContext {
       return;
     }
     if (this.searchAttributes == null) {
-      this.searchAttributes = newSearchAttributes();
+      this.searchAttributes = SearchAttributes.getDefaultInstance();
     }
-    Map<String, ByteBuffer> current = this.searchAttributes.getIndexedFields();
-    searchAttributes
-        .getIndexedFields()
-        .forEach(
-            (k, v) -> {
-              current.put(k, v);
-            });
-  }
-
-  private SearchAttributes newSearchAttributes() {
-    SearchAttributes result = new SearchAttributes();
-    result.setIndexedFields(new HashMap<String, ByteBuffer>());
-    return result;
+    Map<String, ByteString> current = this.searchAttributes.getIndexedFieldsMap();
+    for (Map.Entry<String, ByteString> pair : searchAttributes.getIndexedFieldsMap().entrySet()) {
+      current.put(pair.getKey(), pair.getValue());
+    }
   }
 }

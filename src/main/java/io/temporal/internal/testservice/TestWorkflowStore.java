@@ -143,7 +143,7 @@ interface TestWorkflowStore {
   PollForDecisionTaskResponse.Builder pollForDecisionTask(PollForDecisionTaskRequest pollRequest)
       throws InterruptedException;
 
-  PollForActivityTaskResponse pollForActivityTask(PollForActivityTaskRequest pollRequest)
+  PollForActivityTaskResponse.Builder pollForActivityTask(PollForActivityTaskRequest pollRequest)
       throws InterruptedException;
 
   /** @return queryId */

@@ -36,6 +36,7 @@ import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.Decision;
 import io.temporal.proto.common.History;
 import io.temporal.proto.common.HistoryEvent;
+import io.temporal.proto.common.HistoryEventOrBuilder;
 import io.temporal.proto.common.TaskList;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowExecutionContinuedAsNewEventAttributes;
@@ -338,7 +339,7 @@ public class WorkflowExecutionUtils {
         });
   }
 
-  public static boolean isWorkflowExecutionCompletedEvent(HistoryEvent event) {
+  public static boolean isWorkflowExecutionCompletedEvent(HistoryEventOrBuilder event) {
     return ((event != null)
         && (event.getEventType() == EventType.EventTypeWorkflowExecutionCompleted
             || event.getEventType() == EventType.EventTypeWorkflowExecutionCanceled
@@ -698,11 +699,11 @@ public class WorkflowExecutionUtils {
    *
    * @param event event to pretty print
    */
-  public static String prettyPrintHistoryEvent(HistoryEvent event) {
+  public static String prettyPrintHistoryEvent(HistoryEventOrBuilder event) {
     return prettyPrintHistoryEvent(event, -1);
   }
 
-  private static String prettyPrintHistoryEvent(HistoryEvent event, long firstTimestamp) {
+  private static String prettyPrintHistoryEvent(HistoryEventOrBuilder event, long firstTimestamp) {
     String eventType = event.getEventType().toString();
     StringBuilder result = new StringBuilder();
     result.append(event.getEventId());
@@ -721,7 +722,7 @@ public class WorkflowExecutionUtils {
     return result.toString();
   }
 
-  private static Object getEventAttributes(HistoryEvent event) {
+  private static Object getEventAttributes(HistoryEventOrBuilder event) {
     try {
       Method m = HistoryEvent.class.getMethod("get" + event.getEventType() + "EventAttributes");
       return m.invoke(event);

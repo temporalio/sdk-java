@@ -17,7 +17,7 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.ActivityType;
+import io.temporal.proto.common.ActivityType;
 
 /**
  * Internal. Do not catch or throw in application level code. Exception used to communicate failure

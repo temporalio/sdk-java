@@ -17,7 +17,7 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.HistoryEvent;
+import io.temporal.proto.common.HistoryEvent;
 import java.util.ArrayList;
 import java.util.List;
 

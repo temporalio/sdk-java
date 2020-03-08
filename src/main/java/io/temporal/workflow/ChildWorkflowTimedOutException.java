@@ -17,8 +17,8 @@
 
 package io.temporal.workflow;
 
-import io.temporal.WorkflowType;
 import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.common.WorkflowType;
 
 /**
  * Indicates that a child workflow exceeded its execution timeout and was forcefully terminated by

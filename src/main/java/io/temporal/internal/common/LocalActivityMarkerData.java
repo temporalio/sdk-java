@@ -18,14 +18,13 @@
 package io.temporal.internal.common;
 
 import com.google.common.base.Strings;
-import com.uber.m3.util.ImmutableMap;
-import io.temporal.ActivityType;
-import io.temporal.Header;
-import io.temporal.MarkerRecordedEventAttributes;
-import io.temporal.RespondActivityTaskCanceledRequest;
-import io.temporal.RespondActivityTaskFailedRequest;
+import com.google.protobuf.ByteString;
 import io.temporal.converter.DataConverter;
-import java.nio.ByteBuffer;
+import io.temporal.proto.common.ActivityType;
+import io.temporal.proto.common.Header;
+import io.temporal.proto.common.MarkerRecordedEventAttributes;
+import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
@@ -54,13 +53,13 @@ public final class LocalActivityMarkerData {
 
     public Builder setTaskFailedRequest(RespondActivityTaskFailedRequest request) {
       this.errReason = request.getReason();
-      this.result = request.getDetails();
+      this.result = request.getDetails().toByteArray();
       return this;
     }
 
     public Builder setTaskCancelledRequest(RespondActivityTaskCanceledRequest request) {
-      this.errReason = new String(request.getDetails(), StandardCharsets.UTF_8);
-      this.result = request.getDetails();
+      this.errReason = request.getDetails().toString(StandardCharsets.UTF_8);
+      this.result = request.getDetails().toByteArray();
       this.isCancelled = true;
       return this;
     }
@@ -189,17 +188,17 @@ public final class LocalActivityMarkerData {
 
   public Header getHeader(DataConverter converter) {
     byte[] headerData = converter.toData(headers);
-    Header header = new Header();
-    header.setFields(ImmutableMap.of(LOCAL_ACTIVITY_HEADER_KEY, ByteBuffer.wrap(headerData)));
-    return header;
+    return Header.newBuilder()
+        .putFields(LOCAL_ACTIVITY_HEADER_KEY, ByteString.copyFrom(headerData))
+        .build();
   }
 
   public static LocalActivityMarkerData fromEventAttributes(
       MarkerRecordedEventAttributes attributes, DataConverter converter) {
-    ByteBuffer byteBuffer = attributes.getHeader().getFields().get(LOCAL_ACTIVITY_HEADER_KEY);
-    byte[] bytes = org.apache.thrift.TBaseHelper.byteBufferToByteArray(byteBuffer);
+    ByteString bytes = attributes.getHeader().getFieldsOrThrow(LOCAL_ACTIVITY_HEADER_KEY);
     LocalActivityMarkerHeader header =
-        converter.fromData(bytes, LocalActivityMarkerHeader.class, LocalActivityMarkerHeader.class);
-    return new LocalActivityMarkerData(header, attributes.getDetails());
+        converter.fromData(
+            bytes.toByteArray(), LocalActivityMarkerHeader.class, LocalActivityMarkerHeader.class);
+    return new LocalActivityMarkerData(header, attributes.getDetails().toByteArray());
   }
 }

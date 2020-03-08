@@ -19,23 +19,16 @@ package io.temporal.internal.replay;
 
 import static io.temporal.internal.common.InternalUtils.createStickyTaskList;
 
-import io.temporal.GetWorkflowExecutionHistoryRequest;
-import io.temporal.GetWorkflowExecutionHistoryResponse;
-import io.temporal.HistoryEvent;
-import io.temporal.PollForDecisionTaskResponse;
-import io.temporal.QueryTaskCompletedType;
-import io.temporal.RespondDecisionTaskCompletedRequest;
-import io.temporal.RespondDecisionTaskFailedRequest;
-import io.temporal.RespondQueryTaskCompletedRequest;
-import io.temporal.StickyExecutionAttributes;
-import io.temporal.WorkflowType;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.DecisionTaskHandler;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
+import io.temporal.proto.common.*;
 import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.serviceclient.IWorkflowService;
+import io.temporal.proto.enums.*;
+import io.temporal.proto.failure.*;
+import io.temporal.proto.workflowservice.*;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;

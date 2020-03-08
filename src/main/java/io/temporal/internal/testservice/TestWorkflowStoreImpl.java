@@ -17,12 +17,15 @@
 
 package io.temporal.internal.testservice;
 
+import io.grpc.Status;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.RequestContext.Timer;
 import io.temporal.proto.common.History;
 import io.temporal.proto.common.HistoryEvent;
+import io.temporal.proto.common.StickyExecutionAttributes;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowExecutionInfo;
+import io.temporal.proto.enums.EventType;
 import io.temporal.proto.enums.HistoryEventFilterType;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
@@ -74,20 +77,23 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       }
     }
 
-    void addAllLocked(List<HistoryEvent> events, long timeInNanos) throws EntityNotExistsError {
+    void addAllLocked(List<HistoryEvent> events, long timeInNanos) {
       for (HistoryEvent event : events) {
+        HistoryEvent.Builder eBuilder = event.toBuilder();
         if (completed) {
-          throw new EntityNotExistsError(
-              "Attempt to add an event after a completion event: "
-                  + WorkflowExecutionUtils.prettyPrintHistoryEvent(event));
+          throw Status.FAILED_PRECONDITION
+              .withDescription(
+                  "Attempt to add an eBuilder after a completion eBuilder: "
+                      + WorkflowExecutionUtils.prettyPrintHistoryEvent(eBuilder))
+              .asRuntimeException();
         }
-        event.setEventId(history.size() + 1L);
+        eBuilder.setEventId(history.size() + 1L);
         // It can be set in StateMachines.startActivityTask
-        if (!event.isSetTimestamp()) {
-          event.setTimestamp(timeInNanos);
+        if (eBuilder.getTimestamp() == 0) {
+          eBuilder.setTimestamp(timeInNanos);
         }
-        history.add(event);
-        completed = completed || WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(event);
+        history.add(eBuilder.build());
+        completed = completed || WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(eBuilder);
       }
       newEventsCondition.signal();
     }
@@ -106,7 +112,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       try {
         while (true) {
           if (completed || getNextEventIdLocked() > expectedNextEventId) {
-            if (filterType == HistoryEventFilterType.CLOSE_EVENT) {
+            if (filterType == HistoryEventFilterType.HistoryEventFilterTypeCloseEvent) {
               if (completed) {
                 List<HistoryEvent> result = new ArrayList<>(1);
                 result.add(history.get(history.size() - 1));
@@ -138,8 +144,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
 
   private final Map<ExecutionId, HistoryStore> histories = new HashMap<>();
 
-  private final Map<TaskListId, BlockingQueue<PollForActivityTaskResponse>> activityTaskLists =
-      new HashMap<>();
+  private final Map<TaskListId, BlockingQueue<PollForActivityTaskResponse.Builder>>
+      activityTaskLists = new HashMap<>();
 
   private final Map<TaskListId, BlockingQueue<PollForDecisionTaskResponse.Builder>>
       decisionTaskLists = new HashMap<>();
@@ -163,8 +169,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   }
 
   @Override
-  public long save(RequestContext ctx)
-      throws InternalServiceError, EntityNotExistsError, BadRequestError {
+  public long save(RequestContext ctx) {
     long result;
     lock.lock();
     boolean historiesEmpty = histories.isEmpty();
@@ -174,7 +179,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       List<HistoryEvent> events = ctx.getEvents();
       if (history == null) {
         if (events.isEmpty()
-            || events.get(0).getEventType() != EventType.WorkflowExecutionStarted) {
+            || events.get(0).getEventType() != EventType.EventTypeChildWorkflowExecutionStarted) {
           throw new IllegalStateException("No history found for " + executionId);
         }
         history = new HistoryStore(executionId, lock);
@@ -205,14 +210,15 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
                   ? decisionTask.getTaskListId().getTaskListName()
                   : attributes.getWorkerTaskList().getName());
 
-      BlockingQueue<PollForDecisionTaskResponse> decisionsQueue = getDecisionTaskListQueue(id);
+      BlockingQueue<PollForDecisionTaskResponse.Builder> decisionsQueue =
+          getDecisionTaskListQueue(id);
       decisionsQueue.add(decisionTask.getTask());
     }
 
     List<ActivityTask> activityTasks = ctx.getActivityTasks();
     if (activityTasks != null) {
       for (ActivityTask activityTask : activityTasks) {
-        BlockingQueue<PollForActivityTaskResponse> activitiesQueue =
+        BlockingQueue<PollForActivityTaskResponse.Builder> activitiesQueue =
             getActivityTaskListQueue(activityTask.getTaskListId());
         activitiesQueue.add(activityTask.getTask());
       }
@@ -253,12 +259,12 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     timerService.schedule(delay, r, "registerDelayedCallback");
   }
 
-  private BlockingQueue<PollForActivityTaskResponse> getActivityTaskListQueue(
+  private BlockingQueue<PollForActivityTaskResponse.Builder> getActivityTaskListQueue(
       TaskListId taskListId) {
     lock.lock();
     try {
       {
-        BlockingQueue<PollForActivityTaskResponse> activitiesQueue =
+        BlockingQueue<PollForActivityTaskResponse.Builder> activitiesQueue =
             activityTaskLists.get(taskListId);
         if (activitiesQueue == null) {
           activitiesQueue = new LinkedBlockingQueue<>();
@@ -298,11 +304,11 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   }
 
   @Override
-  public PollForActivityTaskResponse pollForActivityTask(PollForActivityTaskRequest pollRequest)
-      throws InterruptedException {
+  public PollForActivityTaskResponse.Builder pollForActivityTask(
+      PollForActivityTaskRequest pollRequest) throws InterruptedException {
     TaskListId taskListId =
         new TaskListId(pollRequest.getDomain(), pollRequest.getTaskList().getName());
-    BlockingQueue<PollForActivityTaskResponse> activityTaskQueue =
+    BlockingQueue<PollForActivityTaskResponse.Builder> activityTaskQueue =
         getActivityTaskListQueue(taskListId);
     return activityTaskQueue.take();
   }
@@ -366,10 +372,12 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     HistoryStore result = histories.get(executionId);
     if (result == null) {
       WorkflowExecution execution = executionId.getExecution();
-      throw new EntityNotExistsError(
-          String.format(
-              "Workflow execution result not found.  " + "WorkflowId: %s, RunId: %s",
-              execution.getWorkflowId(), execution.getRunId()));
+      throw Status.NOT_FOUND
+          .withDescription(
+              String.format(
+                  "Workflow execution result not found.  " + "WorkflowId: %s, RunId: %s",
+                  execution.getWorkflowId(), execution.getRunId()))
+          .asRuntimeException();
     }
     return result;
   }
@@ -412,12 +420,13 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
         }
         List<HistoryEvent> history = entry.getValue().getHistory();
         WorkflowExecutionInfo info =
-            new WorkflowExecutionInfo()
+            WorkflowExecutionInfo.newBuilder()
                 .setExecution(executionId.getExecution())
                 .setHistoryLength(history.size())
                 .setStartTime(history.get(0).getTimestamp())
                 .setType(
-                    history.get(0).getWorkflowExecutionStartedEventAttributes().getWorkflowType());
+                    history.get(0).getWorkflowExecutionStartedEventAttributes().getWorkflowType())
+                .build();
         result.add(info);
       } else {
         if (!entry.getValue().isCompleted()) {
@@ -430,14 +439,15 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
         }
         List<HistoryEvent> history = entry.getValue().getHistory();
         WorkflowExecutionInfo info =
-            new WorkflowExecutionInfo()
+            WorkflowExecutionInfo.newBuilder()
                 .setExecution(executionId.getExecution())
                 .setHistoryLength(history.size())
                 .setStartTime(history.get(0).getTimestamp())
                 .setType(
                     history.get(0).getWorkflowExecutionStartedEventAttributes().getWorkflowType())
                 .setCloseStatus(
-                    WorkflowExecutionUtils.getCloseStatus(history.get(history.size() - 1)));
+                    WorkflowExecutionUtils.getCloseStatus(history.get(history.size() - 1)))
+                .build();
         result.add(info);
       }
     }

@@ -17,8 +17,8 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.Decision;
-import io.temporal.HistoryEvent;
+import io.temporal.proto.common.Decision;
+import io.temporal.proto.common.HistoryEvent;
 
 final class CompleteWorkflowStateMachine implements DecisionStateMachine {
 
@@ -36,7 +36,7 @@ final class CompleteWorkflowStateMachine implements DecisionStateMachine {
   }
 
   @Override
-  public io.temporal.Decision getDecision() {
+  public Decision getDecision() {
     return decision;
   }
 
