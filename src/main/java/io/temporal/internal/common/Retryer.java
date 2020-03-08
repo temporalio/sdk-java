@@ -19,7 +19,6 @@ package io.temporal.internal.common;
 
 import static io.temporal.internal.common.CheckedExceptionWrapper.unwrap;
 
-import io.temporal.*;
 import io.temporal.common.RetryOptions;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;

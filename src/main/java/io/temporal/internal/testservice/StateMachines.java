@@ -434,7 +434,7 @@ class StateMachines {
             .setControl(d.getControl())
             .setInput(d.getInput())
             .setDecisionTaskCompletedEventId(decisionTaskCompletedEventId)
-            .setDomain(d.getDomain() == null ? ctx.getDomain() : d.getDomain())
+            .setDomain(d.getDomain().isEmpty() ? ctx.getDomain() : d.getDomain())
             .setExecutionStartToCloseTimeoutSeconds(d.getExecutionStartToCloseTimeoutSeconds())
             .setTaskStartToCloseTimeoutSeconds(d.getTaskStartToCloseTimeoutSeconds())
             .setTaskList(d.getTaskList())
@@ -458,7 +458,7 @@ class StateMachines {
           data.initiatedEvent = a;
           StartWorkflowExecutionRequest.Builder startChild =
               StartWorkflowExecutionRequest.newBuilder()
-                  .setDomain(d.getDomain() == null ? ctx.getDomain() : d.getDomain())
+                  .setDomain(d.getDomain().isEmpty() ? ctx.getDomain() : d.getDomain())
                   .setExecutionStartToCloseTimeoutSeconds(
                       d.getExecutionStartToCloseTimeoutSeconds())
                   .setTaskStartToCloseTimeoutSeconds(d.getTaskStartToCloseTimeoutSeconds())
@@ -685,8 +685,8 @@ class StateMachines {
     int scheduleToCloseTimeoutSeconds = d.getScheduleToCloseTimeoutSeconds();
     int scheduleToStartTimeoutSeconds = d.getScheduleToStartTimeoutSeconds();
     RetryState retryState;
-    RetryPolicy retryPolicy = d.getRetryPolicy();
-    if (retryPolicy != null) {
+    if (d.hasRetryPolicy()) {
+      RetryPolicy retryPolicy = d.getRetryPolicy();
       long expirationInterval =
           TimeUnit.SECONDS.toMillis(retryPolicy.getExpirationIntervalInSeconds());
       long expirationTime = data.store.currentTimeMillis() + expirationInterval;
@@ -705,23 +705,24 @@ class StateMachines {
       retryState = null;
     }
 
-    ActivityTaskScheduledEventAttributes a =
+    ActivityTaskScheduledEventAttributes.Builder a =
         ActivityTaskScheduledEventAttributes.newBuilder()
             .setInput(d.getInput())
             .setActivityId(d.getActivityId())
             .setActivityType(d.getActivityType())
-            .setDomain(d.getDomain() == null ? ctx.getDomain() : d.getDomain())
+            .setDomain(d.getDomain().isEmpty() ? ctx.getDomain() : d.getDomain())
             .setHeartbeatTimeoutSeconds(d.getHeartbeatTimeoutSeconds())
             .setScheduleToCloseTimeoutSeconds(scheduleToCloseTimeoutSeconds)
             .setScheduleToStartTimeoutSeconds(scheduleToStartTimeoutSeconds)
             .setStartToCloseTimeoutSeconds(d.getStartToCloseTimeoutSeconds())
             .setTaskList(d.getTaskList())
-            .setRetryPolicy(retryPolicy)
             .setHeader(d.getHeader())
-            .setDecisionTaskCompletedEventId(decisionTaskCompletedEventId)
-            .build();
+            .setDecisionTaskCompletedEventId(decisionTaskCompletedEventId);
+    if (d.hasRetryPolicy()) {
+      a.setRetryPolicy(d.getRetryPolicy());
+    }
     data.scheduledEvent =
-        a; // Cannot set it in onCommit as it is used in the processScheduleActivityTask
+        a.build(); // Cannot set it in onCommit as it is used in the processScheduleActivityTask
     HistoryEvent event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EventTypeActivityTaskScheduled)

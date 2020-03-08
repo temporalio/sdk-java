@@ -188,7 +188,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             retryState,
             backoffStartIntervalInSeconds,
             startRequest.getCronSchedule(),
-            lastCompletionResult.toByteArray(),
+            lastCompletionResult,
             runId, // Test service doesn't support reset. Thus originalRunId is always the same as
             // runId.
             continuedExecutionRunId);
@@ -296,21 +296,24 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     completeDecisionUpdate(
         ctx -> {
           if (ctx.getInitialEventId() != historySize + 1) {
-            throw new BadRequestError(
-                "Expired decision: expectedHistorySize="
-                    + historySize
-                    + ","
-                    + " actualHistorySize="
-                    + ctx.getInitialEventId());
+            throw Status.FAILED_PRECONDITION
+                .withDescription(
+                    "Expired decision: expectedHistorySize="
+                        + historySize
+                        + ","
+                        + " actualHistorySize="
+                        + ctx.getInitialEventId())
+                .asRuntimeException();
           }
           long decisionTaskCompletedId = ctx.getNextEventId() - 1;
           // Fail the decision if there are new events and the decision tries to complete the
           // workflow
           if (!concurrentToDecision.isEmpty() && hasCompleteDecision(request.getDecisions())) {
             RespondDecisionTaskFailedRequest failedRequest =
-                new RespondDecisionTaskFailedRequest()
-                    .setCause(DecisionTaskFailedCause.UNHANDLED_DECISION)
-                    .setIdentity(request.getIdentity());
+                RespondDecisionTaskFailedRequest.newBuilder()
+                    .setCause(DecisionTaskFailedCause.DecisionTaskFailedCauseUnhandledDecision)
+                    .setIdentity(request.getIdentity())
+                    .build();
             decision.action(Action.FAIL, ctx, failedRequest, decisionTaskCompletedId);
             for (RequestContext deferredCtx : this.concurrentToDecision) {
               ctx.add(deferredCtx);
@@ -323,7 +326,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             return;
           }
           if (decision == null) {
-            throw new EntityNotExistsError("No outstanding decision");
+            throw Status.FAILED_PRECONDITION
+                .withDescription("No outstanding decision")
+                .asRuntimeException();
           }
           decision.action(StateMachines.Action.COMPLETE, ctx, request, 0);
           for (Decision d : decisions) {
@@ -340,7 +345,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   || workflow.getState() == StateMachines.State.CANCELED;
           if (!completed
               && ((ctx.isNeedDecision() || !this.concurrentToDecision.isEmpty())
-                  || request.isForceCreateNewDecisionTask())) {
+                  || request.getForceCreateNewDecisionTask())) {
             scheduleDecision(ctx);
           }
           this.concurrentToDecision.clear();
@@ -1266,8 +1271,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public void failActivityTaskById(String activityId, RespondActivityTaskFailedByIDRequest request)
-      throws EntityNotExistsError, InternalServiceError, BadRequestError {
+  public void failActivityTaskById(
+      String activityId, RespondActivityTaskFailedByIDRequest request) {
     update(
         ctx -> {
           StateMachine<ActivityTaskData> activity = getActivity(activityId);
@@ -1283,8 +1288,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public void cancelActivityTask(String activityId, RespondActivityTaskCanceledRequest request)
-      throws EntityNotExistsError, InternalServiceError, BadRequestError {
+  public void cancelActivityTask(String activityId, RespondActivityTaskCanceledRequest request) {
     update(
         ctx -> {
           StateMachine<?> activity = getActivity(activityId);
@@ -1309,7 +1313,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public boolean heartbeatActivityTask(String activityId, byte[] details) {
+  public boolean heartbeatActivityTask(String activityId, ByteString details) {
     AtomicBoolean result = new AtomicBoolean();
     update(
         ctx -> {
