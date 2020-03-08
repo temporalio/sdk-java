@@ -148,7 +148,7 @@ interface TestWorkflowStore {
 
   /** @return queryId */
   void sendQueryTask(
-      ExecutionId executionId, TaskListId taskList, PollForDecisionTaskResponse task);
+      ExecutionId executionId, TaskListId taskList, PollForDecisionTaskResponse.Builder task);
 
   GetWorkflowExecutionHistoryResponse getWorkflowExecutionHistory(
       ExecutionId executionId, GetWorkflowExecutionHistoryRequest getRequest);

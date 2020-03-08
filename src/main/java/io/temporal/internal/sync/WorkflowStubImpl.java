@@ -17,13 +17,8 @@
 
 package io.temporal.internal.sync;
 
+import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.temporal.EntityNotExistsError;
-import io.temporal.InternalServiceError;
-import io.temporal.QueryFailedError;
-import io.temporal.QueryRejectCondition;
-import io.temporal.QueryWorkflowResponse;
-import io.temporal.WorkflowType;
 import io.temporal.client.DuplicateWorkflowException;
 import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowFailureException;
@@ -47,7 +42,10 @@ import io.temporal.internal.replay.QueryWorkflowParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
+import io.temporal.proto.enums.QueryRejectCondition;
+import io.temporal.proto.failure.QueryFailed;
 import io.temporal.proto.failure.WorkflowExecutionAlreadyStarted;
+import io.temporal.proto.workflowservice.QueryWorkflowResponse;
 import io.temporal.serviceclient.GrpcStatusUtils;
 import java.lang.reflect.Type;
 import java.util.HashMap;
@@ -354,8 +352,13 @@ class WorkflowStubImpl implements WorkflowStub {
           dataConverter.fromData(executionFailed.getDetails(), detailsClass, detailsClass);
       throw new WorkflowFailureException(
           execution.get(), workflowType, executionFailed.getDecisionTaskCompletedEventId(), cause);
-    } else if (failure instanceof EntityNotExistsError) {
-      throw new WorkflowNotFoundException(execution.get(), workflowType, failure.getMessage());
+    } else if (failure instanceof StatusRuntimeException) {
+      StatusRuntimeException sre = (StatusRuntimeException) failure;
+      if (sre.getStatus() == Status.NOT_FOUND) {
+        throw new WorkflowNotFoundException(execution.get(), workflowType, failure.getMessage());
+      } else {
+        throw new WorkflowServiceException(execution.get(), workflowType, failure);
+      }
     } else if (failure instanceof CancellationException) {
       throw (CancellationException) failure;
     } else if (failure instanceof WorkflowException) {
@@ -399,25 +402,23 @@ class WorkflowStubImpl implements WorkflowStub {
     p.setQueryRejectCondition(queryRejectCondition);
     try {
       QueryWorkflowResponse result = genericClient.queryWorkflow(p);
-      if (result.queryRejected == null) {
+      if (!result.hasQueryRejected()) {
         return new QueryResponse<>(
-            null, dataConverter.fromData(result.getQueryResult(), resultClass, resultType));
+            null,
+            dataConverter.fromData(result.getQueryResult().toByteArray(), resultClass, resultType));
       } else {
         return new QueryResponse<>(result.getQueryRejected(), null);
       }
 
-    } catch (RuntimeException e) {
-      Exception unwrapped = CheckedExceptionWrapper.unwrap(e);
-      if (unwrapped instanceof EntityNotExistsError) {
+    } catch (StatusRuntimeException e) {
+      if (e.getStatus() == Status.NOT_FOUND) {
         throw new WorkflowNotFoundException(execution.get(), workflowType, e.getMessage());
+      } else if (GrpcStatusUtils.hasFailure(e, QueryFailed.class)) {
+        throw new WorkflowQueryException(execution.get(), e.getMessage());
       }
-      if (unwrapped instanceof QueryFailedError) {
-        throw new WorkflowQueryException(execution.get(), unwrapped.getMessage());
-      }
-      if (unwrapped instanceof InternalServiceError) {
-        throw new WorkflowServiceException(execution.get(), workflowType, unwrapped);
-      }
-      throw e;
+      throw new WorkflowServiceException(execution.get(), workflowType, e);
+    } catch (Exception e) {
+      throw new WorkflowServiceException(execution.get(), workflowType, e);
     }
   }
 
@@ -430,7 +431,7 @@ class WorkflowStubImpl implements WorkflowStub {
     // RunId can change if workflow does ContinueAsNew. So we do not set it here and
     // let the server figure out the current run.
     genericClient.requestCancelWorkflowExecution(
-        new WorkflowExecution().setWorkflowId(execution.get().getWorkflowId()));
+        WorkflowExecution.newBuilder().setWorkflowId(execution.get().getWorkflowId()).build());
   }
 
   @Override

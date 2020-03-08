@@ -17,24 +17,19 @@
 
 package io.temporal.internal.testservice;
 
-import io.temporal.BadRequestError;
-import io.temporal.EntityNotExistsError;
-import io.temporal.EventType;
-import io.temporal.GetWorkflowExecutionHistoryRequest;
-import io.temporal.GetWorkflowExecutionHistoryResponse;
-import io.temporal.History;
-import io.temporal.HistoryEvent;
-import io.temporal.HistoryEventFilterType;
-import io.temporal.InternalServiceError;
-import io.temporal.PollForActivityTaskRequest;
-import io.temporal.PollForActivityTaskResponse;
-import io.temporal.PollForDecisionTaskRequest;
-import io.temporal.PollForDecisionTaskResponse;
-import io.temporal.StickyExecutionAttributes;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.RequestContext.Timer;
+import io.temporal.proto.common.History;
+import io.temporal.proto.common.HistoryEvent;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowExecutionInfo;
+import io.temporal.proto.enums.HistoryEventFilterType;
+import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
+import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
+import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
+import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
+import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -146,8 +141,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   private final Map<TaskListId, BlockingQueue<PollForActivityTaskResponse>> activityTaskLists =
       new HashMap<>();
 
-  private final Map<TaskListId, BlockingQueue<PollForDecisionTaskResponse>> decisionTaskLists =
-      new HashMap<>();
+  private final Map<TaskListId, BlockingQueue<PollForDecisionTaskResponse.Builder>>
+      decisionTaskLists = new HashMap<>();
 
   private final SelfAdvancingTimer timerService =
       new SelfAdvancingTimerImpl(System.currentTimeMillis());
@@ -276,11 +271,12 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     }
   }
 
-  private BlockingQueue<PollForDecisionTaskResponse> getDecisionTaskListQueue(
+  private BlockingQueue<PollForDecisionTaskResponse.Builder> getDecisionTaskListQueue(
       TaskListId taskListId) {
     lock.lock();
     try {
-      BlockingQueue<PollForDecisionTaskResponse> decisionsQueue = decisionTaskLists.get(taskListId);
+      BlockingQueue<PollForDecisionTaskResponse.Builder> decisionsQueue =
+          decisionTaskLists.get(taskListId);
       if (decisionsQueue == null) {
         decisionsQueue = new LinkedBlockingQueue<>();
         decisionTaskLists.put(taskListId, decisionsQueue);
@@ -292,11 +288,11 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   }
 
   @Override
-  public PollForDecisionTaskResponse pollForDecisionTask(PollForDecisionTaskRequest pollRequest)
-      throws InterruptedException {
+  public PollForDecisionTaskResponse.Builder pollForDecisionTask(
+      PollForDecisionTaskRequest pollRequest) throws InterruptedException {
     TaskListId taskListId =
         new TaskListId(pollRequest.getDomain(), pollRequest.getTaskList().getName());
-    BlockingQueue<PollForDecisionTaskResponse> decisionsQueue =
+    BlockingQueue<PollForDecisionTaskResponse.Builder> decisionsQueue =
         getDecisionTaskListQueue(taskListId);
     return decisionsQueue.take();
   }
@@ -313,43 +309,44 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
 
   @Override
   public void sendQueryTask(
-      ExecutionId executionId, TaskListId taskList, PollForDecisionTaskResponse task)
-      throws EntityNotExistsError {
+      ExecutionId executionId, TaskListId taskList, PollForDecisionTaskResponse.Builder task) {
     lock.lock();
     try {
       HistoryStore historyStore = getHistoryStore(executionId);
       List<HistoryEvent> events = new ArrayList<>(historyStore.getEventsLocked());
-      History history = new History();
+      History.Builder history = History.newBuilder();
       if (taskList.getTaskListName().equals(task.getWorkflowExecutionTaskList().getName())) {
-        history.setEvents(events);
+        history.addAllEvents(events);
       } else {
-        history.setEvents(new ArrayList<>());
+        history.addAllEvents(new ArrayList<>());
       }
       task.setHistory(history);
     } finally {
       lock.unlock();
     }
-    BlockingQueue<PollForDecisionTaskResponse> decisionsQueue = getDecisionTaskListQueue(taskList);
+    BlockingQueue<PollForDecisionTaskResponse.Builder> decisionsQueue =
+        getDecisionTaskListQueue(taskList);
     decisionsQueue.add(task);
   }
 
   @Override
   public GetWorkflowExecutionHistoryResponse getWorkflowExecutionHistory(
-      ExecutionId executionId, GetWorkflowExecutionHistoryRequest getRequest)
-      throws EntityNotExistsError {
+      ExecutionId executionId, GetWorkflowExecutionHistoryRequest getRequest) {
     HistoryStore history;
     // Used to eliminate the race condition on waitForNewEvents
     long expectedNextEventId;
     lock.lock();
     try {
       history = getHistoryStore(executionId);
-      if (!getRequest.isWaitForNewEvent()
-          && getRequest.getHistoryEventFilterType() != HistoryEventFilterType.CLOSE_EVENT) {
+      if (!getRequest.getWaitForNewEvent()
+          && getRequest.getHistoryEventFilterType()
+              != HistoryEventFilterType.HistoryEventFilterTypeCloseEvent) {
         List<HistoryEvent> events = history.getEventsLocked();
         // Copy the list as it is mutable. Individual events assumed immutable.
         ArrayList<HistoryEvent> eventsCopy = new ArrayList<>(events);
-        return new GetWorkflowExecutionHistoryResponse()
-            .setHistory(new History().setEvents(eventsCopy));
+        return GetWorkflowExecutionHistoryResponse.newBuilder()
+            .setHistory(History.newBuilder().addAllEvents(eventsCopy))
+            .build();
       }
       expectedNextEventId = history.getNextEventIdLocked();
     } finally {
@@ -357,14 +354,15 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     }
     List<HistoryEvent> events =
         history.waitForNewEvents(expectedNextEventId, getRequest.getHistoryEventFilterType());
-    GetWorkflowExecutionHistoryResponse result = new GetWorkflowExecutionHistoryResponse();
+    GetWorkflowExecutionHistoryResponse.Builder result =
+        GetWorkflowExecutionHistoryResponse.newBuilder();
     if (events != null) {
-      result.setHistory(new History().setEvents(events));
+      result.setHistory(History.newBuilder().addAllEvents(events));
     }
-    return result;
+    return result.build();
   }
 
-  private HistoryStore getHistoryStore(ExecutionId executionId) throws EntityNotExistsError {
+  private HistoryStore getHistoryStore(ExecutionId executionId) {
     HistoryStore result = histories.get(executionId);
     if (result == null) {
       WorkflowExecution execution = executionId.getExecution();

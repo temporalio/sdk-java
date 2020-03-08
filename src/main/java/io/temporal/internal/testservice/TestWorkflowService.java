@@ -108,6 +108,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
@@ -260,6 +261,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       }
       return startWorkflowExecutionNoRunningCheckLocked(
           startRequest,
+          UUID.randomUUID().toString(),
           Optional.empty(),
           retryState,
           backoffStartIntervalInSeconds,
@@ -300,6 +302,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
 
   private StartWorkflowExecutionResponse startWorkflowExecutionNoRunningCheckLocked(
       StartWorkflowExecutionRequest startRequest,
+      String runId,
       Optional<String> continuedExecutionRunId,
       Optional<RetryState> retryState,
       int backoffStartIntervalInSeconds,
@@ -312,6 +315,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     TestWorkflowMutableState mutableState =
         new TestWorkflowMutableStateImpl(
             startRequest,
+            runId,
             retryState,
             backoffStartIntervalInSeconds,
             lastCompletionResult,
@@ -553,12 +557,16 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   public void requestCancelWorkflowExecution(
       RequestCancelWorkflowExecutionRequest cancelRequest,
       StreamObserver<RequestCancelWorkflowExecutionResponse> responseObserver) {
+    requestCancelWorkflowExecution(cancelRequest);
+    responseObserver.onNext(RequestCancelWorkflowExecutionResponse.getDefaultInstance());
+    responseObserver.onCompleted();
+  }
+
+  void requestCancelWorkflowExecution(RequestCancelWorkflowExecutionRequest cancelRequest) {
     ExecutionId executionId =
         new ExecutionId(cancelRequest.getDomain(), cancelRequest.getWorkflowExecution());
     TestWorkflowMutableState mutableState = getMutableState(executionId);
     mutableState.requestCancelWorkflowExecution(cancelRequest);
-    responseObserver.onNext(RequestCancelWorkflowExecutionResponse.getDefaultInstance());
-    responseObserver.onCompleted();
   }
 
   @Override
@@ -694,6 +702,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       StartWorkflowExecutionResponse response =
           startWorkflowExecutionNoRunningCheckLocked(
               startRequest,
+              a.getNewExecutionRunId(),
               Optional.of(executionId.getExecution().getRunId()),
               retryState,
               a.getBackoffStartIntervalInSeconds(),

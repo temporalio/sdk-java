@@ -17,7 +17,7 @@
 
 package io.temporal.internal.common;
 
-import io.temporal.QueryRejected;
+import io.temporal.proto.common.QueryRejected;
 
 public final class QueryResponse<T> {
   private final QueryRejected queryRejected;

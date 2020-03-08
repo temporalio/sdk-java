@@ -17,20 +17,18 @@
 
 package io.temporal.internal.external;
 
-import io.temporal.QueryWorkflowResponse;
 import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
 import io.temporal.internal.common.StartWorkflowExecutionParameters;
 import io.temporal.internal.common.TerminateWorkflowExecutionParameters;
 import io.temporal.internal.replay.QueryWorkflowParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
 import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.common.WorkflowExecutionAlreadyStartedError;
-import io.temporal.serviceclient.IWorkflowService;
+import io.temporal.proto.workflowservice.QueryWorkflowResponse;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 
 public interface GenericWorkflowClientExternal {
 
-  WorkflowExecution startWorkflow(StartWorkflowExecutionParameters startParameters)
-      throws WorkflowExecutionAlreadyStartedError;
+  WorkflowExecution startWorkflow(StartWorkflowExecutionParameters startParameters);
 
   void signalWorkflowExecution(SignalExternalWorkflowParameters signalParameters);
 
@@ -45,7 +43,7 @@ public interface GenericWorkflowClientExternal {
 
   String generateUniqueId();
 
-  IWorkflowService getService();
+  GrpcWorkflowServiceFactory getService();
 
   String getDomain();
 }
