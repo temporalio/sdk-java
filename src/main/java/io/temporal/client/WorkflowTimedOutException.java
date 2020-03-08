@@ -17,8 +17,8 @@
 
 package io.temporal.client;
 
-import io.temporal.TimeoutType;
 import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.enums.TimeoutType;
 import java.util.Optional;
 
 /**
@@ -31,7 +31,7 @@ public final class WorkflowTimedOutException extends WorkflowException {
 
   public WorkflowTimedOutException(
       WorkflowExecution execution, Optional<String> workflowType, TimeoutType timeoutType) {
-    super(String.valueOf(timeoutType) + " timeout type", execution, workflowType, null);
+    super(timeoutType + " timeout type", execution, workflowType, null);
     this.timeoutType = timeoutType;
   }
 
