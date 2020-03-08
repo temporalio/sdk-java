@@ -39,7 +39,6 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.DeciderCache;
-import io.temporal.serviceclient.WorkflowServiceTChannel;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.Async;

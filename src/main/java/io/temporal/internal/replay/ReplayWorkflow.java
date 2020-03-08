@@ -17,9 +17,9 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.HistoryEvent;
-import io.temporal.WorkflowQuery;
 import io.temporal.internal.worker.WorkflowExecutionException;
+import io.temporal.proto.common.HistoryEvent;
+import io.temporal.proto.common.WorkflowQuery;
 import io.temporal.worker.WorkflowImplementationOptions;
 
 public interface ReplayWorkflow {

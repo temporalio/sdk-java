@@ -17,10 +17,6 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.EventType;
-import io.temporal.HistoryEvent;
-import io.temporal.WorkflowQuery;
-import io.temporal.WorkflowType;
 import io.temporal.client.WorkflowClient;
 import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
@@ -28,6 +24,10 @@ import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.DecisionContext;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.worker.WorkflowExecutionException;
+import io.temporal.proto.common.HistoryEvent;
+import io.temporal.proto.common.WorkflowQuery;
+import io.temporal.proto.common.WorkflowType;
+import io.temporal.proto.enums.EventType;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.WorkflowInterceptor;
 import java.util.List;
@@ -83,7 +83,7 @@ class SyncWorkflow implements ReplayWorkflow {
     if (workflow == null) {
       throw new IllegalArgumentException("Unknown workflow type: " + workflowType);
     }
-    if (event.getEventType() != EventType.WorkflowExecutionStarted) {
+    if (event.getEventType() != EventType.EventTypeChildWorkflowExecutionStarted) {
       throw new IllegalArgumentException(
           "first event is not WorkflowExecutionStarted, but " + event.getEventType());
     }
@@ -94,7 +94,10 @@ class SyncWorkflow implements ReplayWorkflow {
             dataConverter,
             contextPropagators,
             interceptorFactory,
-            event.getWorkflowExecutionStartedEventAttributes().getLastCompletionResult());
+            event
+                .getWorkflowExecutionStartedEventAttributes()
+                .getLastCompletionResult()
+                .toByteArray());
 
     workflowProc =
         new WorkflowRunnable(
@@ -152,7 +155,7 @@ class SyncWorkflow implements ReplayWorkflow {
     if (WorkflowClient.QUERY_TYPE_STACK_TRACE.equals(query.getQueryType())) {
       return dataConverter.toData(runner.stackTrace());
     }
-    return workflowProc.query(query.getQueryType(), query.getQueryArgs());
+    return workflowProc.query(query.getQueryType(), query.getQueryArgs().toByteArray());
   }
 
   @Override

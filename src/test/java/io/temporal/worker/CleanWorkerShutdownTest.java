@@ -31,8 +31,6 @@ import io.temporal.client.ActivityWorkerShutdownException;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.serviceclient.IWorkflowService;
-import io.temporal.serviceclient.WorkflowServiceTChannel;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.Workflow;
@@ -74,7 +72,7 @@ public class CleanWorkerShutdownTest {
 
   @Rule public TestName testName = new TestName();
 
-  private static IWorkflowService service;
+  private static GrpcWorkflowServiceFactory service;
 
   @Before
   public void setUp() {

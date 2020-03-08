@@ -18,21 +18,17 @@
 package io.temporal.internal.replay;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.DecisionTaskFailedCause;
-import io.temporal.DecisionTaskFailedEventAttributes;
-import io.temporal.HistoryEvent;
-import io.temporal.PollForDecisionTaskResponse;
-import io.temporal.SearchAttributes;
-import io.temporal.TimerFiredEventAttributes;
-import io.temporal.UpsertWorkflowSearchAttributesEventAttributes;
-import io.temporal.WorkflowType;
 import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
 import io.temporal.internal.metrics.ReplayAwareScope;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
+import io.temporal.proto.common.*;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowExecutionStartedEventAttributes;
+import io.temporal.proto.enums.*;
+import io.temporal.proto.failure.*;
+import io.temporal.proto.workflowservice.*;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
@@ -368,7 +364,8 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
 
   public void handleDecisionTaskFailed(HistoryEvent event) {
     DecisionTaskFailedEventAttributes attr = event.getDecisionTaskFailedEventAttributes();
-    if (attr != null && attr.getCause() == DecisionTaskFailedCause.RESET_WORKFLOW) {
+    if (attr != null
+        && attr.getCause() == DecisionTaskFailedCause.DecisionTaskFailedCauseResetWorkflow) {
       workflowContext.setCurrentRunId(attr.getNewRunId());
     }
   }

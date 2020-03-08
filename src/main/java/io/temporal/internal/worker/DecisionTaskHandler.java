@@ -17,11 +17,11 @@
 
 package io.temporal.internal.worker;
 
-import io.temporal.PollForDecisionTaskResponse;
-import io.temporal.RespondDecisionTaskCompletedRequest;
-import io.temporal.RespondDecisionTaskFailedRequest;
-import io.temporal.RespondQueryTaskCompletedRequest;
 import io.temporal.common.RetryOptions;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
+import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
+import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
+import io.temporal.proto.workflowservice.RespondQueryTaskCompletedRequest;
 
 /**
  * Interface of workflow task handlers.
@@ -86,7 +86,7 @@ public interface DecisionTaskHandler {
    * @return One of the possible decision task replies: RespondDecisionTaskCompletedRequest,
    *     RespondQueryTaskCompletedRequest, RespondDecisionTaskFailedRequest
    */
-  Result handleDecisionTask(PollForDecisionTaskResponse decisionTask) throws Exception;
+  Result handleDecisionTask(PollForDecisionTaskResponse.Builder decisionTask) throws Exception;
 
   /** True if this handler handles at least one workflow type. */
   boolean isAnyTypeSupported();

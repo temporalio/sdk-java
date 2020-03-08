@@ -311,8 +311,8 @@ final class WorkflowDecisionContext {
       OpenChildWorkflowRequestInfo scheduled =
           scheduledExternalWorkflows.remove(attributes.getInitiatedEventId());
       if (scheduled != null) {
-        WorkflowExecution workflowExecution = new WorkflowExecution();
-        workflowExecution.setWorkflowId(attributes.getWorkflowId());
+        WorkflowExecution workflowExecution =
+            WorkflowExecution.newBuilder().setWorkflowId(attributes.getWorkflowId()).build();
         WorkflowType workflowType = attributes.getWorkflowType();
         ChildWorkflowExecutionFailedCause cause = attributes.getCause();
         RuntimeException failure =
@@ -332,7 +332,7 @@ final class WorkflowDecisionContext {
           scheduledExternalWorkflows.remove(attributes.getInitiatedEventId());
       if (scheduled != null) {
         String reason = attributes.getReason();
-        byte[] details = attributes.getDetails();
+        byte[] details = attributes.getDetails().toByteArray();
         RuntimeException failure =
             new ChildWorkflowTaskFailedException(
                 event.getEventId(),
@@ -354,7 +354,7 @@ final class WorkflowDecisionContext {
           scheduledExternalWorkflows.remove(attributes.getInitiatedEventId());
       if (scheduled != null) {
         BiConsumer<byte[], Exception> completionCallback = scheduled.getCompletionCallback();
-        byte[] result = attributes.getResult();
+        byte[] result = attributes.getResult().toByteArray();
         completionCallback.accept(result, null);
       }
     }
@@ -368,9 +368,11 @@ final class WorkflowDecisionContext {
       OpenRequestInfo<Void, Void> signalContextAndResult =
           scheduledSignals.remove(initiatedEventId);
       if (signalContextAndResult != null) {
-        WorkflowExecution signaledExecution = new WorkflowExecution();
-        signaledExecution.setWorkflowId(attributes.getWorkflowExecution().getWorkflowId());
-        signaledExecution.setRunId(attributes.getWorkflowExecution().getRunId());
+        WorkflowExecution signaledExecution =
+            WorkflowExecution.newBuilder()
+                .setWorkflowId(attributes.getWorkflowExecution().getWorkflowId())
+                .setRunId(attributes.getWorkflowExecution().getRunId())
+                .build();
         RuntimeException failure =
             new SignalExternalWorkflowException(
                 event.getEventId(), signaledExecution, attributes.getCause());

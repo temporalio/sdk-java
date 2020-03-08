@@ -28,7 +28,6 @@ import ch.qos.logback.core.read.ListAppender;
 import io.temporal.PollForDecisionTaskResponse;
 import io.temporal.TaskList;
 import io.temporal.internal.testservice.TestWorkflowService;
-import io.temporal.serviceclient.IWorkflowService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import org.junit.Test;
@@ -120,7 +119,7 @@ public class PollDecisionTaskDispatcherTests {
     AtomicBoolean handled = new AtomicBoolean(false);
     Consumer<PollForDecisionTaskResponse> handler = r -> handled.set(true);
 
-    IWorkflowService mockService = mock(IWorkflowService.class);
+    GrpcWorkflowServiceFactory mockService = mock(GrpcWorkflowServiceFactory.class);
 
     PollDecisionTaskDispatcher dispatcher = new PollDecisionTaskDispatcher(mockService);
     dispatcher.subscribe("tasklist1", handler);

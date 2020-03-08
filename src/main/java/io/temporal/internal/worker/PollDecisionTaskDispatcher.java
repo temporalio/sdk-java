@@ -20,7 +20,6 @@ package io.temporal.internal.worker;
 import io.temporal.DecisionTaskFailedCause;
 import io.temporal.PollForDecisionTaskResponse;
 import io.temporal.RespondDecisionTaskFailedRequest;
-import io.temporal.serviceclient.IWorkflowService;
 import java.nio.charset.Charset;
 import java.util.Map;
 import java.util.Objects;
@@ -38,17 +37,17 @@ public final class PollDecisionTaskDispatcher
   private static final Logger log = LoggerFactory.getLogger(PollDecisionTaskDispatcher.class);
   private final Map<String, Consumer<PollForDecisionTaskResponse>> subscribers =
       new ConcurrentHashMap<>();
-  private IWorkflowService service;
+  private GrpcWorkflowServiceFactory service;
   private Thread.UncaughtExceptionHandler uncaughtExceptionHandler =
       (t, e) -> log.error("uncaught exception", e);
   private AtomicBoolean shutdown = new AtomicBoolean();
 
-  public PollDecisionTaskDispatcher(IWorkflowService service) {
+  public PollDecisionTaskDispatcher(GrpcWorkflowServiceFactory service) {
     this.service = Objects.requireNonNull(service);
   }
 
   public PollDecisionTaskDispatcher(
-      IWorkflowService service, Thread.UncaughtExceptionHandler exceptionHandler) {
+      GrpcWorkflowServiceFactory service, Thread.UncaughtExceptionHandler exceptionHandler) {
     this.service = Objects.requireNonNull(service);
     if (exceptionHandler != null) {
       this.uncaughtExceptionHandler = exceptionHandler;

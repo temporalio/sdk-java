@@ -18,88 +18,74 @@
 package io.temporal.internal.sync;
 
 import com.google.common.base.Defaults;
-import io.temporal.ActivityType;
-import io.temporal.BadRequestError;
-import io.temporal.CancellationAlreadyRequestedError;
-import io.temporal.ClientVersionNotSupportedError;
-import io.temporal.ClusterInfo;
-import io.temporal.CountWorkflowExecutionsRequest;
-import io.temporal.CountWorkflowExecutionsResponse;
-import io.temporal.CurrentBranchChangedError;
-import io.temporal.DeprecateDomainRequest;
-import io.temporal.DescribeDomainRequest;
-import io.temporal.DescribeDomainResponse;
-import io.temporal.DescribeTaskListRequest;
-import io.temporal.DescribeTaskListResponse;
-import io.temporal.DescribeWorkflowExecutionRequest;
-import io.temporal.DescribeWorkflowExecutionResponse;
-import io.temporal.DomainAlreadyExistsError;
-import io.temporal.DomainNotActiveError;
-import io.temporal.EntityNotExistsError;
-import io.temporal.GetSearchAttributesResponse;
-import io.temporal.GetWorkflowExecutionHistoryRequest;
-import io.temporal.GetWorkflowExecutionHistoryResponse;
-import io.temporal.GetWorkflowExecutionRawHistoryRequest;
-import io.temporal.GetWorkflowExecutionRawHistoryResponse;
-import io.temporal.InternalServiceError;
-import io.temporal.LimitExceededError;
-import io.temporal.ListArchivedWorkflowExecutionsRequest;
-import io.temporal.ListArchivedWorkflowExecutionsResponse;
-import io.temporal.ListClosedWorkflowExecutionsRequest;
-import io.temporal.ListClosedWorkflowExecutionsResponse;
-import io.temporal.ListDomainsRequest;
-import io.temporal.ListDomainsResponse;
-import io.temporal.ListOpenWorkflowExecutionsRequest;
-import io.temporal.ListOpenWorkflowExecutionsResponse;
-import io.temporal.ListTaskListPartitionsRequest;
-import io.temporal.ListTaskListPartitionsResponse;
-import io.temporal.ListWorkflowExecutionsRequest;
-import io.temporal.ListWorkflowExecutionsResponse;
-import io.temporal.PollForActivityTaskRequest;
-import io.temporal.PollForActivityTaskResponse;
-import io.temporal.PollForDecisionTaskRequest;
-import io.temporal.PollForDecisionTaskResponse;
-import io.temporal.PollForWorkflowExecutionRawHistoryRequest;
-import io.temporal.PollForWorkflowExecutionRawHistoryResponse;
-import io.temporal.QueryFailedError;
-import io.temporal.QueryWorkflowRequest;
-import io.temporal.QueryWorkflowResponse;
-import io.temporal.RecordActivityTaskHeartbeatByIDRequest;
-import io.temporal.RecordActivityTaskHeartbeatRequest;
-import io.temporal.RecordActivityTaskHeartbeatResponse;
-import io.temporal.RegisterDomainRequest;
-import io.temporal.RequestCancelWorkflowExecutionRequest;
-import io.temporal.ResetStickyTaskListRequest;
-import io.temporal.ResetStickyTaskListResponse;
-import io.temporal.ResetWorkflowExecutionRequest;
-import io.temporal.ResetWorkflowExecutionResponse;
-import io.temporal.RespondActivityTaskCanceledByIDRequest;
-import io.temporal.RespondActivityTaskCanceledRequest;
-import io.temporal.RespondActivityTaskCompletedByIDRequest;
-import io.temporal.RespondActivityTaskCompletedRequest;
-import io.temporal.RespondActivityTaskFailedByIDRequest;
-import io.temporal.RespondActivityTaskFailedRequest;
-import io.temporal.RespondDecisionTaskCompletedRequest;
-import io.temporal.RespondDecisionTaskCompletedResponse;
-import io.temporal.RespondDecisionTaskFailedRequest;
-import io.temporal.RespondQueryTaskCompletedRequest;
-import io.temporal.ServiceBusyError;
-import io.temporal.SignalWithStartWorkflowExecutionRequest;
-import io.temporal.SignalWorkflowExecutionRequest;
-import io.temporal.StartWorkflowExecutionRequest;
-import io.temporal.StartWorkflowExecutionResponse;
-import io.temporal.TerminateWorkflowExecutionRequest;
-import io.temporal.UpdateDomainRequest;
-import io.temporal.UpdateDomainResponse;
-import io.temporal.WorkflowType;
+import com.google.protobuf.ByteString;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
+import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.common.WorkflowExecutionAlreadyStartedError;
-import io.temporal.serviceclient.IWorkflowService;
+import io.temporal.proto.common.WorkflowType;
+import io.temporal.proto.workflowservice.CountWorkflowExecutionsRequest;
+import io.temporal.proto.workflowservice.CountWorkflowExecutionsResponse;
+import io.temporal.proto.workflowservice.DeprecateDomainRequest;
+import io.temporal.proto.workflowservice.DescribeDomainRequest;
+import io.temporal.proto.workflowservice.DescribeDomainResponse;
+import io.temporal.proto.workflowservice.DescribeTaskListRequest;
+import io.temporal.proto.workflowservice.DescribeTaskListResponse;
+import io.temporal.proto.workflowservice.DescribeWorkflowExecutionRequest;
+import io.temporal.proto.workflowservice.DescribeWorkflowExecutionResponse;
+import io.temporal.proto.workflowservice.GetSearchAttributesResponse;
+import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
+import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
+import io.temporal.proto.workflowservice.GetWorkflowExecutionRawHistoryRequest;
+import io.temporal.proto.workflowservice.GetWorkflowExecutionRawHistoryResponse;
+import io.temporal.proto.workflowservice.ListArchivedWorkflowExecutionsRequest;
+import io.temporal.proto.workflowservice.ListArchivedWorkflowExecutionsResponse;
+import io.temporal.proto.workflowservice.ListClosedWorkflowExecutionsRequest;
+import io.temporal.proto.workflowservice.ListClosedWorkflowExecutionsResponse;
+import io.temporal.proto.workflowservice.ListDomainsRequest;
+import io.temporal.proto.workflowservice.ListDomainsResponse;
+import io.temporal.proto.workflowservice.ListOpenWorkflowExecutionsRequest;
+import io.temporal.proto.workflowservice.ListOpenWorkflowExecutionsResponse;
+import io.temporal.proto.workflowservice.ListTaskListPartitionsRequest;
+import io.temporal.proto.workflowservice.ListTaskListPartitionsResponse;
+import io.temporal.proto.workflowservice.ListWorkflowExecutionsRequest;
+import io.temporal.proto.workflowservice.ListWorkflowExecutionsResponse;
+import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
+import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
+import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
+import io.temporal.proto.workflowservice.QueryWorkflowRequest;
+import io.temporal.proto.workflowservice.QueryWorkflowResponse;
+import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatByIDRequest;
+import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatRequest;
+import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatResponse;
+import io.temporal.proto.workflowservice.RegisterDomainRequest;
+import io.temporal.proto.workflowservice.RequestCancelWorkflowExecutionRequest;
+import io.temporal.proto.workflowservice.ResetStickyTaskListRequest;
+import io.temporal.proto.workflowservice.ResetStickyTaskListResponse;
+import io.temporal.proto.workflowservice.ResetWorkflowExecutionRequest;
+import io.temporal.proto.workflowservice.ResetWorkflowExecutionResponse;
+import io.temporal.proto.workflowservice.RespondActivityTaskCanceledByIDRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskCompletedByIDRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskFailedByIDRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
+import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
+import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedResponse;
+import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
+import io.temporal.proto.workflowservice.RespondQueryTaskCompletedRequest;
+import io.temporal.proto.workflowservice.SignalWithStartWorkflowExecutionRequest;
+import io.temporal.proto.workflowservice.SignalWorkflowExecutionRequest;
+import io.temporal.proto.workflowservice.StartWorkflowExecutionRequest;
+import io.temporal.proto.workflowservice.StartWorkflowExecutionResponse;
+import io.temporal.proto.workflowservice.TerminateWorkflowExecutionRequest;
+import io.temporal.proto.workflowservice.UpdateDomainRequest;
+import io.temporal.proto.workflowservice.UpdateDomainResponse;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import io.temporal.testing.TestActivityEnvironment;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.workflow.ActivityFailureException;
@@ -127,8 +113,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import org.apache.thrift.TException;
-import org.apache.thrift.async.AsyncMethodCallback;
 
 public final class TestActivityEnvironmentInternal implements TestActivityEnvironment {
 
@@ -138,7 +122,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   private ClassConsumerPair<Object> activityHeartbetListener;
   private static final ScheduledExecutorService heartbeatExecutor =
       Executors.newScheduledThreadPool(20);
-  private IWorkflowService workflowService;
+  private GrpcWorkflowServiceFactory workflowService;
 
   public TestActivityEnvironmentInternal(TestEnvironmentOptions options) {
     if (options == null) {
@@ -197,8 +181,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   }
 
   @Override
-  public void setWorkflowService(IWorkflowService workflowService) {
-    IWorkflowService service = new WorkflowServiceWrapper(workflowService);
+  public void setWorkflowService(GrpcWorkflowServiceFactory workflowService) {
+    GrpcWorkflowServiceFactory service = new WorkflowServiceWrapper(workflowService);
     this.workflowService = service;
     this.activityTaskHandler.setWorkflowService(service);
   }
@@ -206,9 +190,9 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   private class TestActivityExecutor implements WorkflowInterceptor {
 
     @SuppressWarnings("UnusedVariable")
-    private final IWorkflowService workflowService;
+    private final GrpcWorkflowServiceFactory workflowService;
 
-    TestActivityExecutor(IWorkflowService workflowService) {
+    TestActivityExecutor(GrpcWorkflowServiceFactory workflowService) {
       this.workflowService = workflowService;
     }
 
@@ -219,21 +203,24 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         Type resultType,
         Object[] args,
         ActivityOptions options) {
-      PollForActivityTaskResponse task = new PollForActivityTaskResponse();
-      task.setScheduleToCloseTimeoutSeconds((int) options.getScheduleToCloseTimeout().getSeconds());
-      task.setHeartbeatTimeoutSeconds((int) options.getHeartbeatTimeout().getSeconds());
-      task.setStartToCloseTimeoutSeconds((int) options.getStartToCloseTimeout().getSeconds());
-      task.setScheduledTimestamp(Duration.ofMillis(System.currentTimeMillis()).toNanos());
-      task.setStartedTimestamp(Duration.ofMillis(System.currentTimeMillis()).toNanos());
-      task.setInput(testEnvironmentOptions.getDataConverter().toData(args));
-      task.setTaskToken("test-task-token".getBytes(StandardCharsets.UTF_8));
-      task.setActivityId(String.valueOf(idSequencer.incrementAndGet()));
-      task.setWorkflowExecution(
-          new WorkflowExecution()
-              .setWorkflowId("test-workflow-id")
-              .setRunId(UUID.randomUUID().toString()));
-      task.setWorkflowType(new WorkflowType().setName("test-workflow"));
-      task.setActivityType(new ActivityType().setName(activityType));
+      PollForActivityTaskResponse task =
+          PollForActivityTaskResponse.newBuilder()
+              .setScheduleToCloseTimeoutSeconds(
+                  (int) options.getScheduleToCloseTimeout().getSeconds())
+              .setHeartbeatTimeoutSeconds((int) options.getHeartbeatTimeout().getSeconds())
+              .setStartToCloseTimeoutSeconds((int) options.getStartToCloseTimeout().getSeconds())
+              .setScheduledTimestamp(Duration.ofMillis(System.currentTimeMillis()).toNanos())
+              .setStartedTimestamp(Duration.ofMillis(System.currentTimeMillis()).toNanos())
+              .setInput(ByteString.copyFrom(testEnvironmentOptions.getDataConverter().toData(args)))
+              .setTaskToken(ByteString.copyFrom("test-task-token", StandardCharsets.UTF_8))
+              .setActivityId(String.valueOf(idSequencer.incrementAndGet()))
+              .setWorkflowExecution(
+                  WorkflowExecution.newBuilder()
+                      .setWorkflowId("test-workflow-id")
+                      .setRunId(UUID.randomUUID().toString()))
+              .setWorkflowType(WorkflowType.newBuilder().setName("test-workflow"))
+              .setActivityType(ActivityType.newBuilder().setName(activityType))
+              .build();
       Result taskResult = activityTaskHandler.handle(task, NoopScope.getInstance(), false);
       return Workflow.newPromise(getReply(task, taskResult, resultClass, resultType));
     }
@@ -340,7 +327,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
       if (taskCompleted != null) {
         return testEnvironmentOptions
             .getDataConverter()
-            .fromData(taskCompleted.getResult(), resultClass, resultType);
+            .fromData(taskCompleted.getResult().toByteArray(), resultClass, resultType);
       } else {
         RespondActivityTaskFailedRequest taskFailed =
             response.getTaskFailedResult().getTaskFailedRequest();
@@ -356,7 +343,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
             cause =
                 testEnvironmentOptions
                     .getDataConverter()
-                    .fromData(taskFailed.getDetails(), causeClass, causeClass);
+                    .fromData(taskFailed.getDetails().toByteArray(), causeClass, causeClass);
           } catch (Exception e) {
             cause = e;
           }
@@ -367,7 +354,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
           RespondActivityTaskCanceledRequest taskCancelled = response.getTaskCancelled();
           if (taskCancelled != null) {
             throw new CancellationException(
-                new String(taskCancelled.getDetails(), StandardCharsets.UTF_8));
+                taskCancelled.getDetails().toString(StandardCharsets.UTF_8));
           }
         }
       }
@@ -388,18 +375,18 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
   }
 
-  private class WorkflowServiceWrapper implements IWorkflowService {
+  private class WorkflowServiceWrapper implements GrpcWorkflowServiceFactory {
 
-    private final IWorkflowService impl;
+    private final GrpcWorkflowServiceFactory impl;
 
-    private WorkflowServiceWrapper(IWorkflowService impl) {
+    private WorkflowServiceWrapper(GrpcWorkflowServiceFactory impl) {
       if (impl == null) {
         // Create empty implementation that just ignores all requests.
         this.impl =
-            (IWorkflowService)
+            (GrpcWorkflowServiceFactory)
                 Proxy.newProxyInstance(
                     WorkflowServiceWrapper.class.getClassLoader(),
-                    new Class<?>[] {IWorkflowService.class},
+                    new Class<?>[] {GrpcWorkflowServiceFactory.class},
                     (proxy, method, args) -> {
                       // noop
                       return method.getReturnType().getDeclaredConstructor().newInstance();
@@ -411,14 +398,13 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
 
     @Override
     public RecordActivityTaskHeartbeatResponse RecordActivityTaskHeartbeat(
-        RecordActivityTaskHeartbeatRequest heartbeatRequest)
-        throws BadRequestError, InternalServiceError, EntityNotExistsError, TException {
+        RecordActivityTaskHeartbeatRequest heartbeatRequest) {
       if (activityHeartbetListener != null) {
         Object details =
             testEnvironmentOptions
                 .getDataConverter()
                 .fromData(
-                    heartbeatRequest.getDetails(),
+                    heartbeatRequest.getDetails().toByteArray(),
                     activityHeartbetListener.valueClass,
                     activityHeartbetListener.valueType);
         activityHeartbetListener.consumer.accept(details);

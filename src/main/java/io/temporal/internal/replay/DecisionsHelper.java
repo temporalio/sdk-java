@@ -60,6 +60,7 @@ import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.enums.DecisionType;
 import io.temporal.proto.enums.EventType;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -106,8 +107,8 @@ class DecisionsHelper {
   // TODO: removal of completed activities
   private final Map<String, Long> activityIdToScheduledEventId = new HashMap<>();
 
-  DecisionsHelper(PollForDecisionTaskResponse task) {
-    this.task = task;
+  DecisionsHelper(PollForDecisionTaskResponseOrBuilder task) {
+    this.task = (PollForDecisionTaskResponse) task;
   }
 
   long getNextDecisionEventId() {

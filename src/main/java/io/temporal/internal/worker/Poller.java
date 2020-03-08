@@ -24,14 +24,13 @@ import io.temporal.internal.metrics.MetricsType;
 import java.util.Objects;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class Poller<T> implements SuspendableWorker {
 
   public interface PollTask<TT> {
-    TT poll() throws TException;
+    TT poll();
   }
 
   interface ThrowingRunnable {

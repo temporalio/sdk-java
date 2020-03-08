@@ -17,7 +17,7 @@
 
 package io.temporal.workflow;
 
-import io.temporal.SearchAttributes;
+import io.temporal.proto.common.SearchAttributes;
 import java.time.Duration;
 
 public interface WorkflowInfo {

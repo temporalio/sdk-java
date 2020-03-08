@@ -17,18 +17,18 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.ActivityTaskCanceledEventAttributes;
-import io.temporal.ActivityTaskCompletedEventAttributes;
-import io.temporal.ActivityTaskFailedEventAttributes;
-import io.temporal.ActivityTaskTimedOutEventAttributes;
-import io.temporal.ActivityType;
-import io.temporal.Header;
-import io.temporal.HistoryEvent;
-import io.temporal.ScheduleActivityTaskDecisionAttributes;
-import io.temporal.TaskList;
-import io.temporal.TimeoutType;
+import com.google.protobuf.ByteString;
 import io.temporal.internal.common.RetryParameters;
-import java.nio.ByteBuffer;
+import io.temporal.proto.common.ActivityTaskCanceledEventAttributes;
+import io.temporal.proto.common.ActivityTaskCompletedEventAttributes;
+import io.temporal.proto.common.ActivityTaskFailedEventAttributes;
+import io.temporal.proto.common.ActivityTaskTimedOutEventAttributes;
+import io.temporal.proto.common.ActivityType;
+import io.temporal.proto.common.Header;
+import io.temporal.proto.common.HistoryEvent;
+import io.temporal.proto.common.ScheduleActivityTaskDecisionAttributes;
+import io.temporal.proto.common.TaskList;
+import io.temporal.proto.enums.TimeoutType;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
@@ -92,10 +92,10 @@ final class ActivityDecisionContext {
       ExecuteActivityParameters parameters, BiConsumer<byte[], Exception> callback) {
     final OpenRequestInfo<byte[], ActivityType> context =
         new OpenRequestInfo<>(parameters.getActivityType());
-    final ScheduleActivityTaskDecisionAttributes attributes =
-        new ScheduleActivityTaskDecisionAttributes();
-    attributes.setActivityType(parameters.getActivityType());
-    attributes.setInput(parameters.getInput());
+    final ScheduleActivityTaskDecisionAttributes.Builder attributes =
+        ScheduleActivityTaskDecisionAttributes.newBuilder()
+            .setActivityType(parameters.getActivityType())
+            .setInput(ByteString.copyFrom(parameters.getInput()));
     if (parameters.getHeartbeatTimeoutSeconds() > 0) {
       attributes.setHeartbeatTimeoutSeconds((int) parameters.getHeartbeatTimeoutSeconds());
     }
@@ -114,9 +114,7 @@ final class ActivityDecisionContext {
 
     String taskList = parameters.getTaskList();
     if (taskList != null && !taskList.isEmpty()) {
-      TaskList tl = new TaskList();
-      tl.setName(taskList);
-      attributes.setTaskList(tl);
+      attributes.setTaskList(TaskList.newBuilder().setName(taskList).build());
     }
     RetryParameters retryParameters = parameters.getRetryParameters();
     if (retryParameters != null) {
@@ -125,7 +123,7 @@ final class ActivityDecisionContext {
 
     attributes.setHeader(toHeaderThrift(parameters.getContext()));
 
-    long scheduledEventId = decisions.scheduleActivityTask(attributes);
+    long scheduledEventId = decisions.scheduleActivityTask(attributes.build());
     context.setCompletionHandle(callback);
     scheduledActivities.put(scheduledEventId, context);
     return new ActivityDecisionContext.ActivityCancellationHandler(
@@ -155,7 +153,7 @@ final class ActivityDecisionContext {
       OpenRequestInfo<byte[], ActivityType> scheduled =
           scheduledActivities.remove(attributes.getScheduledEventId());
       if (scheduled != null) {
-        byte[] result = attributes.getResult();
+        byte[] result = attributes.getResult().toByteArray();
         BiConsumer<byte[], Exception> completionHandle = scheduled.getCompletionCallback();
         completionHandle.accept(result, null);
       } else {
@@ -174,7 +172,7 @@ final class ActivityDecisionContext {
           scheduledActivities.remove(attributes.getScheduledEventId());
       if (scheduled != null) {
         String reason = attributes.getReason();
-        byte[] details = attributes.getDetails();
+        byte[] details = attributes.getDetails().toByteArray();
         ActivityTaskFailedException failure =
             new ActivityTaskFailedException(
                 event.getEventId(), scheduled.getUserContext(), null, reason, details);
@@ -191,7 +189,7 @@ final class ActivityDecisionContext {
           scheduledActivities.remove(attributes.getScheduledEventId());
       if (scheduled != null) {
         TimeoutType timeoutType = attributes.getTimeoutType();
-        byte[] details = attributes.getDetails();
+        byte[] details = attributes.getDetails().toByteArray();
         ActivityTaskTimeoutException failure =
             new ActivityTaskTimeoutException(
                 event.getEventId(), scheduled.getUserContext(), null, timeoutType, details);
@@ -205,12 +203,10 @@ final class ActivityDecisionContext {
     if (headers == null || headers.isEmpty()) {
       return null;
     }
-    Map<String, ByteBuffer> fields = new HashMap<>();
+    Map<String, ByteString> fields = new HashMap<>();
     for (Map.Entry<String, byte[]> item : headers.entrySet()) {
-      fields.put(item.getKey(), ByteBuffer.wrap(item.getValue()));
+      fields.put(item.getKey(), ByteString.copyFrom(item.getValue()));
     }
-    Header headerThrift = new Header();
-    headerThrift.setFields(fields);
-    return headerThrift;
+    return Header.newBuilder().putAllFields(fields).build();
   }
 }

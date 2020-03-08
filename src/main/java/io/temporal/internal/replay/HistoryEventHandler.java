@@ -17,8 +17,8 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.HistoryEvent;
-import io.temporal.TimerFiredEventAttributes;
+import io.temporal.proto.common.HistoryEvent;
+import io.temporal.proto.common.TimerFiredEventAttributes;
 
 interface HistoryEventHandler {
 

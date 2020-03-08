@@ -20,9 +20,6 @@ package io.temporal.internal.sync;
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.ActivityType;
-import io.temporal.SearchAttributes;
-import io.temporal.WorkflowType;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.RetryOptions;
@@ -40,6 +37,7 @@ import io.temporal.internal.replay.ExecuteLocalActivityParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
 import io.temporal.proto.common.ActivityType;
+import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.workflow.ActivityException;

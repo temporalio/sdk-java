@@ -2,8 +2,6 @@ package io.temporal;
 
 import static io.temporal.workflow.WorkflowTest.DOMAIN;
 
-import io.temporal.serviceclient.IWorkflowService;
-import io.temporal.serviceclient.WorkflowServiceTChannel;
 import org.apache.thrift.TException;
 
 /** Waits for local service to become available and registers UnitTest domain. */
@@ -16,7 +14,7 @@ public class RegisterTestDomain {
       return;
     }
 
-    IWorkflowService service = new WorkflowServiceTChannel();
+    GrpcWorkflowServiceFactory service = new WorkflowServiceTChannel();
     RegisterDomainRequest request =
         new RegisterDomainRequest().setName(DOMAIN).setWorkflowExecutionRetentionPeriodInDays(1);
     while (true) {

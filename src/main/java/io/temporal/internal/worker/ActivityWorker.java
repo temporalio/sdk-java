@@ -29,7 +29,6 @@ import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
-import io.temporal.serviceclient.IWorkflowService;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,13 +44,13 @@ public final class ActivityWorker implements SuspendableWorker {
 
   private SuspendableWorker poller = new NoopSuspendableWorker();
   private final ActivityTaskHandler handler;
-  private final IWorkflowService service;
+  private final GrpcWorkflowServiceFactory service;
   private final String domain;
   private final String taskList;
   private final SingleWorkerOptions options;
 
   public ActivityWorker(
-      IWorkflowService service,
+      GrpcWorkflowServiceFactory service,
       String domain,
       String taskList,
       SingleWorkerOptions options,
