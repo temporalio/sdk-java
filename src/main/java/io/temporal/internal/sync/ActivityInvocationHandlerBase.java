@@ -31,7 +31,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
-/** Dynamic implementation of a strongly typed child workflow interface. */
+/** Dynamic implementation of a strongly typed activity interface. */
 abstract class ActivityInvocationHandlerBase implements InvocationHandler {
 
   private final Map<Method, Function<Object[], Object>> methodFunctions = new HashMap<>();
