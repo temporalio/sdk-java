@@ -30,7 +30,7 @@ import io.temporal.proto.common.StickyExecutionAttributes;
 import io.temporal.proto.enums.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.proto.enums.WorkflowExecutionCloseStatus;
 import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
-import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
+import io.temporal.proto.workflowservice.PollForActivityTaskResponseOrBuilder;
 import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.proto.workflowservice.QueryWorkflowRequest;
@@ -86,7 +86,8 @@ interface TestWorkflowMutableState {
   void startWorkflow(
       boolean continuedAsNew, Optional<SignalWorkflowExecutionRequest> signalWithStartSignal);
 
-  void startActivityTask(PollForActivityTaskResponse task, PollForActivityTaskRequest pollRequest);
+  void startActivityTask(
+      PollForActivityTaskResponseOrBuilder task, PollForActivityTaskRequest pollRequest);
 
   void completeActivityTask(String activityId, RespondActivityTaskCompletedRequest request);
 

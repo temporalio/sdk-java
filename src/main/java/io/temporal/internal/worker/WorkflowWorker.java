@@ -18,37 +18,35 @@
 package io.temporal.internal.worker;
 
 import com.google.common.base.Strings;
+import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
-import io.temporal.BadRequestError;
-import io.temporal.DomainNotActiveError;
-import io.temporal.EntityNotExistsError;
-import io.temporal.GetWorkflowExecutionHistoryResponse;
-import io.temporal.History;
-import io.temporal.HistoryEvent;
-import io.temporal.PollForDecisionTaskResponse;
-import io.temporal.RespondDecisionTaskCompletedRequest;
-import io.temporal.RespondDecisionTaskFailedRequest;
-import io.temporal.RespondQueryTaskCompletedRequest;
-import io.temporal.WorkflowQuery;
-import io.temporal.common.RetryOptions;
 import io.temporal.common.WorkflowExecutionHistory;
-import io.temporal.internal.common.Retryer;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
+import io.temporal.proto.common.History;
+import io.temporal.proto.common.HistoryEvent;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowExecutionStartedEventAttributes;
+import io.temporal.proto.common.WorkflowQuery;
 import io.temporal.proto.common.WorkflowType;
+import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
+import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
+import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
+import io.temporal.proto.workflowservice.RespondQueryTaskCompletedRequest;
+import io.temporal.serviceclient.GrpcRetryOptions;
+import io.temporal.serviceclient.GrpcRetryer;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Consumer;
-import org.apache.thrift.TException;
 import org.slf4j.MDC;
 
 public final class WorkflowWorker
@@ -126,10 +124,10 @@ public final class WorkflowWorker
   public byte[] queryWorkflowExecution(WorkflowExecution exec, String queryType, byte[] args)
       throws Exception {
     GetWorkflowExecutionHistoryResponse historyResponse =
-        WorkflowExecutionUtils.getHistoryPage(null, service, domain, exec);
+        WorkflowExecutionUtils.getHistoryPage(service, domain, exec, ByteString.EMPTY);
     History history = historyResponse.getHistory();
     WorkflowExecutionHistory workflowExecutionHistory =
-        new WorkflowExecutionHistory(history.getEvents());
+        new WorkflowExecutionHistory(history.getEventsList());
     return queryWorkflowExecution(
         queryType, args, workflowExecutionHistory, historyResponse.getNextPageToken());
   }
@@ -137,25 +135,27 @@ public final class WorkflowWorker
   public byte[] queryWorkflowExecution(String jsonSerializedHistory, String queryType, byte[] args)
       throws Exception {
     WorkflowExecutionHistory history = WorkflowExecutionHistory.fromJson(jsonSerializedHistory);
-    return queryWorkflowExecution(queryType, args, history, null);
+    return queryWorkflowExecution(queryType, args, history, ByteString.EMPTY);
   }
 
   public byte[] queryWorkflowExecution(
       WorkflowExecutionHistory history, String queryType, byte[] args) throws Exception {
-    return queryWorkflowExecution(queryType, args, history, null);
+    return queryWorkflowExecution(queryType, args, history, ByteString.EMPTY);
   }
 
   private byte[] queryWorkflowExecution(
-      String queryType, byte[] args, WorkflowExecutionHistory history, byte[] nextPageToken)
+      String queryType, byte[] args, WorkflowExecutionHistory history, ByteString nextPageToken)
       throws Exception {
-    PollForDecisionTaskResponse task = new PollForDecisionTaskResponse();
-    task.setWorkflowExecution(history.getWorkflowExecution());
-    task.setStartedEventId(Long.MAX_VALUE);
-    task.setPreviousStartedEventId(Long.MAX_VALUE);
-    task.setNextPageToken(nextPageToken);
-    WorkflowQuery query = new WorkflowQuery();
-    query.setQueryType(queryType).setQueryArgs(args);
-    task.setQuery(query);
+    PollForDecisionTaskResponse.Builder task =
+        PollForDecisionTaskResponse.newBuilder()
+            .setWorkflowExecution(history.getWorkflowExecution())
+            .setStartedEventId(Long.MAX_VALUE)
+            .setPreviousStartedEventId(Long.MAX_VALUE)
+            .setNextPageToken(nextPageToken)
+            .setQuery(
+                WorkflowQuery.newBuilder()
+                    .setQueryType(queryType)
+                    .setQueryArgs(ByteString.copyFrom(args)));
     List<HistoryEvent> events = history.getEvents();
     HistoryEvent startedEvent = events.get(0);
     WorkflowExecutionStartedEventAttributes started =
@@ -166,10 +166,10 @@ public final class WorkflowWorker
     }
     WorkflowType workflowType = started.getWorkflowType();
     task.setWorkflowType(workflowType);
-    task.setHistory(new History().setEvents(events));
-    DecisionTaskHandler.Result result = handler.handleDecisionTask(task);
+    task.setHistory(History.newBuilder().addAllEvents(events));
+    DecisionTaskHandler.Result result = handler.handleDecisionTask(task.build());
     if (result.getQueryCompleted() != null) {
-      RespondQueryTaskCompletedRequest r = result.getQueryCompleted();
+      RespondQueryTaskCompletedRequest.Builder r = result.getQueryCompleted();
       if (r.getErrorMessage() != null) {
         throw new RuntimeException(
             "query failure for "
@@ -181,7 +181,7 @@ public final class WorkflowWorker
                 + ", error="
                 + r.getErrorMessage());
       }
-      return r.getQueryResult();
+      return r.getQueryResult().toByteArray();
     }
     throw new RuntimeException("Query returned wrong response: " + result);
   }
@@ -284,40 +284,31 @@ public final class WorkflowWorker
     }
 
     private void sendReply(
-        GrpcWorkflowServiceFactory service, byte[] taskToken, DecisionTaskHandler.Result response)
-        throws TException {
-      RetryOptions ro = response.getRequestRetryOptions();
-      RespondDecisionTaskCompletedRequest taskCompleted = response.getTaskCompleted();
+        GrpcWorkflowServiceFactory service,
+        ByteString taskToken,
+        DecisionTaskHandler.Result response) {
+      GrpcRetryOptions ro = response.getRequestRetryOptions();
+      RespondDecisionTaskCompletedRequest.Builder taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
-        ro =
-            options
-                .getReportCompletionRetryOptions()
-                .merge(ro)
-                .addDoNotRetry(
-                    BadRequestError.class, EntityNotExistsError.class, DomainNotActiveError.class);
+        ro = options.getReportCompletionRetryOptions().merge(ro);
         taskCompleted.setIdentity(options.getIdentity());
         taskCompleted.setTaskToken(taskToken);
-        Retryer.retry(ro, () -> service.RespondDecisionTaskCompleted(taskCompleted));
+        GrpcRetryer.retry(
+            ro, () -> service.blockingStub().respondDecisionTaskCompleted(taskCompleted.build()));
       } else {
-        RespondDecisionTaskFailedRequest taskFailed = response.getTaskFailed();
+        RespondDecisionTaskFailedRequest.Builder taskFailed = response.getTaskFailed();
         if (taskFailed != null) {
-          ro =
-              options
-                  .getReportFailureRetryOptions()
-                  .merge(ro)
-                  .addDoNotRetry(
-                      BadRequestError.class,
-                      EntityNotExistsError.class,
-                      DomainNotActiveError.class);
+          ro = options.getReportFailureRetryOptions().merge(ro);
           taskFailed.setIdentity(options.getIdentity());
           taskFailed.setTaskToken(taskToken);
-          Retryer.retry(ro, () -> service.RespondDecisionTaskFailed(taskFailed));
+          GrpcRetryer.retry(
+              ro, () -> service.blockingStub().respondDecisionTaskFailed(taskFailed.build()));
         } else {
-          RespondQueryTaskCompletedRequest queryCompleted = response.getQueryCompleted();
+          RespondQueryTaskCompletedRequest.Builder queryCompleted = response.getQueryCompleted();
           if (queryCompleted != null) {
             queryCompleted.setTaskToken(taskToken);
             // Do not retry query response.
-            service.RespondQueryTaskCompleted(queryCompleted);
+            service.blockingStub().respondQueryTaskCompleted(queryCompleted.build());
           }
         }
       }

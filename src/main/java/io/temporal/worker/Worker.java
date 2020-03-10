@@ -23,7 +23,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
-import io.temporal.PollForDecisionTaskResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.context.ContextPropagator;
@@ -40,6 +39,8 @@ import io.temporal.internal.worker.PollerOptions;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.Suspendable;
 import io.temporal.internal.worker.WorkflowPollTaskFactory;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.WorkflowMethod;
 import java.net.InetAddress;
@@ -464,7 +465,7 @@ public final class Worker implements Suspendable {
      * @param domain Domain used by workers to poll for workflows.
      */
     public Factory(String domain) {
-      this(new WorkflowServiceTChannel(), true, domain, null);
+      this(new GrpcWorkflowServiceFactory(), true, domain, null);
     }
 
     /**
@@ -476,7 +477,7 @@ public final class Worker implements Suspendable {
      * @param domain Domain used by workers to poll for workflows.
      */
     public Factory(String host, int port, String domain) {
-      this(new WorkflowServiceTChannel(host, port), true, domain, null);
+      this(new GrpcWorkflowServiceFactory(host, port), true, domain, null);
     }
 
     /**
@@ -486,7 +487,7 @@ public final class Worker implements Suspendable {
      * @param factoryOptions Options used to configure factory settings
      */
     public Factory(String domain, FactoryOptions factoryOptions) {
-      this(new WorkflowServiceTChannel(), true, domain, factoryOptions);
+      this(new GrpcWorkflowServiceFactory(), true, domain, factoryOptions);
     }
 
     /**
@@ -499,7 +500,7 @@ public final class Worker implements Suspendable {
      * @param factoryOptions Options used to configure factory settings
      */
     public Factory(String host, int port, String domain, FactoryOptions factoryOptions) {
-      this(new WorkflowServiceTChannel(host, port), true, domain, factoryOptions);
+      this(new GrpcWorkflowServiceFactory(host, port), true, domain, factoryOptions);
     }
 
     /**

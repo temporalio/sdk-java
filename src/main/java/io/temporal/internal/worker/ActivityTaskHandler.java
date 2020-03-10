@@ -18,11 +18,11 @@
 package io.temporal.internal.worker;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.common.RetryOptions;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
+import io.temporal.serviceclient.GrpcRetryOptions;
 import java.time.Duration;
 
 /**
@@ -37,7 +37,7 @@ public interface ActivityTaskHandler {
     private final RespondActivityTaskCompletedRequest taskCompleted;
     private final TaskFailedResult taskFailed;
     private final RespondActivityTaskCanceledRequest taskCancelled;
-    private final RetryOptions requestRetryOptions;
+    private final GrpcRetryOptions requestRetryOptions;
     private int attempt;
     private Duration backoff;
 
@@ -69,7 +69,7 @@ public interface ActivityTaskHandler {
         RespondActivityTaskCompletedRequest taskCompleted,
         TaskFailedResult taskFailed,
         RespondActivityTaskCanceledRequest taskCancelled,
-        RetryOptions requestRetryOptions) {
+        GrpcRetryOptions requestRetryOptions) {
       this.taskCompleted = taskCompleted;
       this.taskFailed = taskFailed;
       this.taskCancelled = taskCancelled;
@@ -88,7 +88,7 @@ public interface ActivityTaskHandler {
       return taskCancelled;
     }
 
-    public RetryOptions getRequestRetryOptions() {
+    public GrpcRetryOptions getRequestRetryOptions() {
       return requestRetryOptions;
     }
 

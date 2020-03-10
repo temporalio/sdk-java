@@ -17,10 +17,12 @@
 
 package io.temporal.internal.worker;
 
-import io.temporal.DecisionTaskFailedCause;
-import io.temporal.PollForDecisionTaskResponse;
-import io.temporal.RespondDecisionTaskFailedRequest;
-import java.nio.charset.Charset;
+import com.google.protobuf.ByteString;
+import io.temporal.proto.enums.DecisionTaskFailedCause;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
+import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -63,19 +65,20 @@ public final class PollDecisionTaskDispatcher
     if (subscribers.containsKey(taskListName)) {
       subscribers.get(taskListName).accept(t);
     } else {
-      RespondDecisionTaskFailedRequest request = new RespondDecisionTaskFailedRequest();
-      request.setTaskToken(t.taskToken);
-      request.setCause(DecisionTaskFailedCause.RESET_STICKY_TASKLIST);
       String message =
           String.format(
               "No handler is subscribed for the PollForDecisionTaskResponse.WorkflowExecutionTaskList %s",
               taskListName);
-      request.setDetails(message.getBytes(Charset.defaultCharset()));
+      RespondDecisionTaskFailedRequest request =
+          RespondDecisionTaskFailedRequest.newBuilder()
+              .setTaskToken(t.getTaskToken())
+              .setCause(DecisionTaskFailedCause.DecisionTaskFailedCauseResetStickyTasklist)
+              .setDetails(ByteString.copyFrom(message, StandardCharsets.UTF_8))
+              .build();
       log.warn(message);
 
       try {
-        service.RespondDecisionTaskFailed(request);
-
+        service.blockingStub().respondDecisionTaskFailed(request);
       } catch (Exception e) {
         uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), e);
       }

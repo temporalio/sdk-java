@@ -82,8 +82,8 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
   }
 
   @Override
-  public DecisionTaskHandler.Result handleDecisionTask(
-      PollForDecisionTaskResponse.Builder decisionTask) throws Exception {
+  public DecisionTaskHandler.Result handleDecisionTask(PollForDecisionTaskResponse decisionTask)
+      throws Exception {
     try {
       return handleDecisionTaskImpl(decisionTask);
     } catch (Throwable e) {
@@ -121,8 +121,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     }
   }
 
-  private Result handleDecisionTaskImpl(PollForDecisionTaskResponse.Builder decisionTask)
-      throws Throwable {
+  private Result handleDecisionTaskImpl(PollForDecisionTaskResponse decisionTask) throws Throwable {
 
     if (decisionTask.hasQuery()) {
       return processQuery(decisionTask);

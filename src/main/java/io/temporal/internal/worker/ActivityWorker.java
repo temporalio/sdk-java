@@ -17,25 +17,30 @@
 
 package io.temporal.internal.worker;
 
+import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
-import io.temporal.*;
-import io.temporal.common.RetryOptions;
 import io.temporal.context.ContextPropagator;
-import io.temporal.internal.common.Retryer;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
+import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
+import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
+import io.temporal.serviceclient.GrpcRetryOptions;
+import io.temporal.serviceclient.GrpcRetryer;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
-import org.apache.thrift.TException;
 import org.slf4j.MDC;
 
 public final class ActivityWorker implements SuspendableWorker {
@@ -182,9 +187,9 @@ public final class ActivityWorker implements SuspendableWorker {
 
       } catch (CancellationException e) {
         RespondActivityTaskCanceledRequest cancelledRequest =
-            new RespondActivityTaskCanceledRequest();
-        cancelledRequest.setDetails(
-            String.valueOf(e.getMessage()).getBytes(StandardCharsets.UTF_8));
+            RespondActivityTaskCanceledRequest.newBuilder()
+                .setDetails(ByteString.copyFrom(e.getMessage(), StandardCharsets.UTF_8))
+                .build();
         Stopwatch sw = metricsScope.timer(MetricsType.ACTIVITY_RESP_LATENCY).start();
         sendReply(task, new Result(null, null, cancelledRequest, null), metricsScope);
         sw.stop();
@@ -201,19 +206,13 @@ public final class ActivityWorker implements SuspendableWorker {
         return;
       }
 
-      Header headers = response.getHeader();
-      if (headers == null) {
+      if (!response.hasHeader()) {
         return;
       }
-
       Map<String, byte[]> headerData = new HashMap<>();
-      headers
-          .getFields()
-          .forEach(
-              (k, v) -> {
-                headerData.put(k, org.apache.thrift.TBaseHelper.byteBufferToByteArray(v));
-              });
-
+      for (Map.Entry<String, ByteString> entry : response.getHeader().getFieldsMap().entrySet()) {
+        headerData.put(entry.getKey(), entry.getValue().toByteArray());
+      }
       for (ContextPropagator propagator : options.getContextPropagators()) {
         propagator.setCurrentContext(propagator.deserializeContext(headerData));
       }
@@ -235,51 +234,37 @@ public final class ActivityWorker implements SuspendableWorker {
     }
 
     private void sendReply(
-        PollForActivityTaskResponse task, ActivityTaskHandler.Result response, Scope metricsScope)
-        throws TException {
-      RetryOptions ro = response.getRequestRetryOptions();
-      RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
+        PollForActivityTaskResponse task, ActivityTaskHandler.Result response, Scope metricsScope) {
+      GrpcRetryOptions ro = response.getRequestRetryOptions();
+      RespondActivityTaskCompletedRequest.Builder taskCompleted =
+          response.getTaskCompleted().toBuilder();
       if (taskCompleted != null) {
-        ro =
-            options
-                .getReportCompletionRetryOptions()
-                .merge(ro)
-                .addDoNotRetry(
-                    BadRequestError.class, EntityNotExistsError.class, DomainNotActiveError.class);
+        ro = options.getReportCompletionRetryOptions().merge(ro);
         taskCompleted.setTaskToken(task.getTaskToken());
         taskCompleted.setIdentity(options.getIdentity());
-        Retryer.retry(ro, () -> service.RespondActivityTaskCompleted(taskCompleted));
+        GrpcRetryer.retry(
+            ro, () -> service.blockingStub().respondActivityTaskCompleted(taskCompleted.build()));
         metricsScope.counter(MetricsType.ACTIVITY_TASK_COMPLETED_COUNTER).inc(1);
       } else {
         if (response.getTaskFailedResult() != null) {
-          RespondActivityTaskFailedRequest taskFailed =
-              response.getTaskFailedResult().getTaskFailedRequest();
-          ro =
-              options
-                  .getReportFailureRetryOptions()
-                  .merge(ro)
-                  .addDoNotRetry(
-                      BadRequestError.class,
-                      EntityNotExistsError.class,
-                      DomainNotActiveError.class);
+          RespondActivityTaskFailedRequest.Builder taskFailed =
+              response.getTaskFailedResult().getTaskFailedRequest().toBuilder();
+          ro = options.getReportFailureRetryOptions().merge(ro);
           taskFailed.setTaskToken(task.getTaskToken());
           taskFailed.setIdentity(options.getIdentity());
-          Retryer.retry(ro, () -> service.RespondActivityTaskFailed(taskFailed));
+          GrpcRetryer.retry(
+              ro, () -> service.blockingStub().respondActivityTaskFailed(taskFailed.build()));
           metricsScope.counter(MetricsType.ACTIVITY_TASK_FAILED_COUNTER).inc(1);
         } else {
-          RespondActivityTaskCanceledRequest taskCancelled = response.getTaskCancelled();
+          RespondActivityTaskCanceledRequest.Builder taskCancelled =
+              response.getTaskCancelled().toBuilder();
           if (taskCancelled != null) {
             taskCancelled.setTaskToken(task.getTaskToken());
             taskCancelled.setIdentity(options.getIdentity());
-            ro =
-                options
-                    .getReportFailureRetryOptions()
-                    .merge(ro)
-                    .addDoNotRetry(
-                        BadRequestError.class,
-                        EntityNotExistsError.class,
-                        DomainNotActiveError.class);
-            Retryer.retry(ro, () -> service.RespondActivityTaskCanceled(taskCancelled));
+            ro = options.getReportFailureRetryOptions().merge(ro);
+            GrpcRetryer.retry(
+                ro,
+                () -> service.blockingStub().respondActivityTaskCanceled(taskCancelled.build()));
             metricsScope.counter(MetricsType.ACTIVITY_TASK_CANCELED_COUNTER).inc(1);
           }
         }

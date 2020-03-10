@@ -77,7 +77,7 @@ import io.temporal.proto.enums.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.proto.enums.TimeoutType;
 import io.temporal.proto.enums.WorkflowExecutionCloseStatus;
 import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
-import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
+import io.temporal.proto.workflowservice.PollForActivityTaskResponseOrBuilder;
 import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.proto.workflowservice.QueryWorkflowRequest;
@@ -152,7 +152,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private long lastNonFailedDecisionStartEventId;
   private final Map<String, CompletableFuture<QueryWorkflowResponse>> queries =
       new ConcurrentHashMap<>();
-  private final Map<String, PollForDecisionTaskResponse> queryRequests = new ConcurrentHashMap<>();
+  private final Map<String, PollForDecisionTaskResponse.Builder> queryRequests =
+      new ConcurrentHashMap<>();
   private final Optional<String> continuedExecutionRunId;
   public StickyExecutionAttributes stickyExecutionAttributes;
 
@@ -1190,7 +1191,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public void startActivityTask(
-      PollForActivityTaskResponse task, PollForActivityTaskRequest pollRequest) {
+      PollForActivityTaskResponseOrBuilder task, PollForActivityTaskRequest pollRequest) {
     update(
         ctx -> {
           String activityId = task.getActivityId();
@@ -1525,14 +1526,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       }
     }
 
-    PollForDecisionTaskResponse task =
+    PollForDecisionTaskResponse.Builder task =
         PollForDecisionTaskResponse.newBuilder()
             .setTaskToken(queryId.toBytes())
             .setWorkflowExecution(executionId.getExecution())
             .setWorkflowType(startRequest.getWorkflowType())
             .setQuery(queryRequest.getQuery())
-            .setWorkflowExecutionTaskList(startRequest.getTaskList())
-            .build();
+            .setWorkflowExecutionTaskList(startRequest.getTaskList());
     TaskListId taskListId =
         new TaskListId(
             queryRequest.getDomain(),
@@ -1569,7 +1569,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       result.complete(response);
     } else if (stickyExecutionAttributes != null) {
       stickyExecutionAttributes = null;
-      PollForDecisionTaskResponse task = queryRequests.remove(queryId.getQueryId());
+      PollForDecisionTaskResponse.Builder task = queryRequests.remove(queryId.getQueryId());
 
       TaskListId taskListId =
           new TaskListId(startRequest.getDomain(), startRequest.getTaskList().getName());

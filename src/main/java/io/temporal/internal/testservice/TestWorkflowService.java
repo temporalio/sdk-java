@@ -410,7 +410,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   public void pollForActivityTask(
       PollForActivityTaskRequest pollRequest,
       StreamObserver<PollForActivityTaskResponse> responseObserver) {
-    PollForActivityTaskResponse task;
+    PollForActivityTaskResponse.Builder task;
     while (true) {
       try {
         task = store.pollForActivityTask(pollRequest);
@@ -424,7 +424,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       TestWorkflowMutableState mutableState = getMutableState(executionId);
       try {
         mutableState.startActivityTask(task, pollRequest);
-        responseObserver.onNext(task);
+        responseObserver.onNext(task.build());
       } catch (StatusRuntimeException e) {
         if (e.getStatus() == Status.NOT_FOUND) {
           if (log.isDebugEnabled()) {

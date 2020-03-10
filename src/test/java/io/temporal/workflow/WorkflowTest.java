@@ -18,22 +18,10 @@
 package io.temporal.workflow;
 
 import static io.temporal.worker.NonDeterministicWorkflowPolicy.FailWorkflow;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import com.google.common.util.concurrent.UncheckedExecutionException;
-import io.temporal.GetWorkflowExecutionHistoryResponse;
-import io.temporal.HistoryEvent;
-import io.temporal.Memo;
-import io.temporal.QueryRejectCondition;
-import io.temporal.SearchAttributes;
-import io.temporal.SignalExternalWorkflowExecutionFailedCause;
-import io.temporal.TimeoutType;
+import com.google.protobuf.ByteString;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
@@ -60,9 +48,17 @@ import io.temporal.internal.common.QueryResponse;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.sync.DeterministicRunnerTest;
 import io.temporal.internal.worker.PollerOptions;
+import io.temporal.proto.common.HistoryEvent;
+import io.temporal.proto.common.Memo;
+import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.common.WorkflowExecutionCloseStatus;
+import io.temporal.proto.enums.QueryRejectCondition;
+import io.temporal.proto.enums.SignalExternalWorkflowExecutionFailedCause;
+import io.temporal.proto.enums.TimeoutType;
+import io.temporal.proto.enums.WorkflowExecutionCloseStatus;
 import io.temporal.proto.enums.WorkflowIdReusePolicy;
+import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.WorkflowReplayer;
@@ -206,7 +202,7 @@ public class WorkflowTest {
   private TestWorkflowEnvironment testEnvironment;
   private ScheduledExecutorService scheduledExecutor;
   private List<ScheduledFuture<?>> delayedCallbacks = new ArrayList<>();
-  private static final WorkflowServiceTChannel service = new WorkflowServiceTChannel();
+  private static final GrpcWorkflowServiceFactory service = new GrpcWorkflowServiceFactory();
 
   @AfterClass
   public static void closeService() {
@@ -1384,7 +1380,7 @@ public class WorkflowTest {
 
       GetWorkflowExecutionHistoryResponse historyResp =
           WorkflowExecutionUtils.getHistoryPage(
-              new byte[] {}, testEnvironment.getWorkflowService(), DOMAIN, executionF);
+              testEnvironment.getWorkflowService(), DOMAIN, executionF, ByteString.EMPTY);
       HistoryEvent startEvent = historyResp.history.getEvents().get(0);
       Memo memoFromEvent = startEvent.workflowExecutionStartedEventAttributes.getMemo();
       byte[] memoBytes = memoFromEvent.getFields().get(testMemoKey).array();

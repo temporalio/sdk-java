@@ -33,6 +33,26 @@ public final class GrpcRetryOptions {
   private static final double DEFAULT_BACKOFF_COEFFICIENT = 2.0;
   private static final int DEFAULT_MAXIMUM_MULTIPLIER = 100;
 
+  /**
+   * The parameter options takes precedence.
+   *
+   * @return
+   */
+  public GrpcRetryOptions merge(GrpcRetryOptions o) {
+    if (o == null) {
+      return this;
+    }
+    return new GrpcRetryOptions.Builder()
+        .setInitialInterval(merge(getInitialInterval(), o.getInitialInterval(), Duration.class))
+        .setExpiration(merge(getExpiration(), o.getExpiration(), Duration.class))
+        .setMaximumInterval(merge(getMaximumInterval(), o.getMaximumInterval(), Duration.class))
+        .setBackoffCoefficient(
+            merge(getBackoffCoefficient(), o.getBackoffCoefficient(), double.class))
+        .setMaximumAttempts(merge(getMaximumAttempts(), o.getMaximumAttempts(), int.class))
+        .setDoNotRetry(merge(getDoNotRetry(), o.getDoNotRetry()))
+        .validateBuildWithDefaults();
+  }
+
   public static class DoNotRetryPair {
     private final Status.Code code;
     private final Class<? extends GeneratedMessageV3> detailsClass;
@@ -145,9 +165,14 @@ public final class GrpcRetryOptions {
      * Add {@link Status.Code} with associated details class to not retry. If detailsClass is null
      * all failures with the code are non retryable.
      */
-    public final Builder addDoNotRetry(
+    public Builder addDoNotRetry(
         Status.Code code, Class<? extends GeneratedMessageV3> detailsClass) {
       doNotRetry.add(new DoNotRetryPair(code, detailsClass));
+      return this;
+    }
+
+    Builder setDoNotRetry(List<DoNotRetryPair> pairs) {
+      doNotRetry = pairs;
       return this;
     }
 
@@ -323,17 +348,12 @@ public final class GrpcRetryOptions {
     return a.length == 0 ? null : a;
   }
 
-  private Class<? extends Throwable>[] merge(
-      List<Class<? extends Throwable>> o1, List<Class<? extends Throwable>> o2) {
+  private List<DoNotRetryPair> merge(List<DoNotRetryPair> o1, List<DoNotRetryPair> o2) {
     if (o2 != null) {
-      @SuppressWarnings("unchecked")
-      Class<? extends Throwable>[] result = new Class[o2.size()];
-      return o2.toArray(result);
+      return new ArrayList<>(o2);
     }
     if (o1.size() > 0) {
-      @SuppressWarnings("unchecked")
-      Class<? extends Throwable>[] result = new Class[o1.size()];
-      return o1.toArray(result);
+      return new ArrayList<>(o1);
     }
     return null;
   }

@@ -18,11 +18,11 @@
 package io.temporal.worker;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.common.RetryOptions;
 import io.temporal.converter.DataConverter;
 import io.temporal.converter.JsonDataConverter;
 import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.worker.PollerOptions;
+import io.temporal.serviceclient.GrpcRetryOptions;
 import io.temporal.workflow.WorkflowInterceptor;
 import java.lang.management.ManagementFactory;
 import java.util.Objects;
@@ -43,10 +43,10 @@ public final class WorkerOptions {
     private double taskListActivitiesPerSecond = 100000;
     private PollerOptions activityPollerOptions;
     private PollerOptions workflowPollerOptions;
-    private RetryOptions reportActivityCompletionRetryOptions;
-    private RetryOptions reportActivityFailureRetryOptions;
-    private RetryOptions reportWorkflowCompletionRetryOptions;
-    private RetryOptions reportWorkflowFailureRetryOptions;
+    private GrpcRetryOptions reportActivityCompletionRetryOptions;
+    private GrpcRetryOptions reportActivityFailureRetryOptions;
+    private GrpcRetryOptions reportWorkflowCompletionRetryOptions;
+    private GrpcRetryOptions reportWorkflowFailureRetryOptions;
     private Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory = (n) -> n;
     private Scope metricsScope;
     private boolean enableLoggingInReplay;
@@ -144,28 +144,28 @@ public final class WorkerOptions {
     }
 
     public Builder setReportActivityCompletionRetryOptions(
-        RetryOptions reportActivityCompletionRetryOptions) {
+        GrpcRetryOptions reportActivityCompletionRetryOptions) {
       this.reportActivityCompletionRetryOptions =
           Objects.requireNonNull(reportActivityCompletionRetryOptions);
       return this;
     }
 
     public Builder setReportActivityFailureRetryOptions(
-        RetryOptions reportActivityFailureRetryOptions) {
+        GrpcRetryOptions reportActivityFailureRetryOptions) {
       this.reportActivityFailureRetryOptions =
           Objects.requireNonNull(reportActivityFailureRetryOptions);
       return this;
     }
 
     public Builder setReportWorkflowCompletionRetryOptions(
-        RetryOptions reportWorkflowCompletionRetryOptions) {
+        GrpcRetryOptions reportWorkflowCompletionRetryOptions) {
       this.reportWorkflowCompletionRetryOptions =
           Objects.requireNonNull(reportWorkflowCompletionRetryOptions);
       return this;
     }
 
     public Builder setReportWorkflowFailureRetryOptions(
-        RetryOptions reportWorkflowFailureRetryOptions) {
+        GrpcRetryOptions reportWorkflowFailureRetryOptions) {
       this.reportWorkflowFailureRetryOptions =
           Objects.requireNonNull(reportWorkflowFailureRetryOptions);
       return this;
@@ -242,10 +242,10 @@ public final class WorkerOptions {
   private final double taskListActivitiesPerSecond;
   private final PollerOptions activityPollerOptions;
   private final PollerOptions workflowPollerOptions;
-  private final RetryOptions reportActivityCompletionRetryOptions;
-  private final RetryOptions reportActivityFailureRetryOptions;
-  private final RetryOptions reportWorkflowCompletionRetryOptions;
-  private final RetryOptions reportWorkflowFailureRetryOptions;
+  private final GrpcRetryOptions reportActivityCompletionRetryOptions;
+  private final GrpcRetryOptions reportActivityFailureRetryOptions;
+  private final GrpcRetryOptions reportWorkflowCompletionRetryOptions;
+  private final GrpcRetryOptions reportWorkflowFailureRetryOptions;
   private final Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory;
   private final Scope metricsScope;
   private final boolean enableLoggingInReplay;
@@ -262,10 +262,10 @@ public final class WorkerOptions {
       double taskListActivitiesPerSecond,
       PollerOptions activityPollerOptions,
       PollerOptions workflowPollerOptions,
-      RetryOptions reportActivityCompletionRetryOptions,
-      RetryOptions reportActivityFailureRetryOptions,
-      RetryOptions reportWorkflowCompletionRetryOptions,
-      RetryOptions reportWorkflowFailureRetryOptions,
+      GrpcRetryOptions reportActivityCompletionRetryOptions,
+      GrpcRetryOptions reportActivityFailureRetryOptions,
+      GrpcRetryOptions reportWorkflowCompletionRetryOptions,
+      GrpcRetryOptions reportWorkflowFailureRetryOptions,
       Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
       Scope metricsScope,
       boolean enableLoggingInReplay) {
@@ -329,19 +329,19 @@ public final class WorkerOptions {
     return workflowPollerOptions;
   }
 
-  public RetryOptions getReportActivityCompletionRetryOptions() {
+  public GrpcRetryOptions getReportActivityCompletionRetryOptions() {
     return reportActivityCompletionRetryOptions;
   }
 
-  public RetryOptions getReportActivityFailureRetryOptions() {
+  public GrpcRetryOptions getReportActivityFailureRetryOptions() {
     return reportActivityFailureRetryOptions;
   }
 
-  public RetryOptions getReportWorkflowCompletionRetryOptions() {
+  public GrpcRetryOptions getReportWorkflowCompletionRetryOptions() {
     return reportWorkflowCompletionRetryOptions;
   }
 
-  public RetryOptions getReportWorkflowFailureRetryOptions() {
+  public GrpcRetryOptions getReportWorkflowFailureRetryOptions() {
     return reportWorkflowFailureRetryOptions;
   }
 

@@ -17,11 +17,11 @@
 
 package io.temporal.internal.worker;
 
-import io.temporal.common.RetryOptions;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
 import io.temporal.proto.workflowservice.RespondQueryTaskCompletedRequest;
+import io.temporal.serviceclient.GrpcRetryOptions;
 
 /**
  * Interface of workflow task handlers.
@@ -31,35 +31,35 @@ import io.temporal.proto.workflowservice.RespondQueryTaskCompletedRequest;
 public interface DecisionTaskHandler {
 
   final class Result {
-    private final RespondDecisionTaskCompletedRequest taskCompleted;
-    private final RespondDecisionTaskFailedRequest taskFailed;
-    private final RespondQueryTaskCompletedRequest queryCompleted;
-    private final RetryOptions requestRetryOptions;
+    private final RespondDecisionTaskCompletedRequest.Builder taskCompleted;
+    private final RespondDecisionTaskFailedRequest.Builder taskFailed;
+    private final RespondQueryTaskCompletedRequest.Builder queryCompleted;
+    private final GrpcRetryOptions requestRetryOptions;
 
     public Result(
-        RespondDecisionTaskCompletedRequest taskCompleted,
-        RespondDecisionTaskFailedRequest taskFailed,
-        RespondQueryTaskCompletedRequest queryCompleted,
-        RetryOptions requestRetryOptions) {
+        RespondDecisionTaskCompletedRequest.Builder taskCompleted,
+        RespondDecisionTaskFailedRequest.Builder taskFailed,
+        RespondQueryTaskCompletedRequest.Builder queryCompleted,
+        GrpcRetryOptions requestRetryOptions) {
       this.taskCompleted = taskCompleted;
       this.taskFailed = taskFailed;
       this.queryCompleted = queryCompleted;
       this.requestRetryOptions = requestRetryOptions;
     }
 
-    public RespondDecisionTaskCompletedRequest getTaskCompleted() {
+    public RespondDecisionTaskCompletedRequest.Builder getTaskCompleted() {
       return taskCompleted;
     }
 
-    public RespondDecisionTaskFailedRequest getTaskFailed() {
+    public RespondDecisionTaskFailedRequest.Builder getTaskFailed() {
       return taskFailed;
     }
 
-    public RespondQueryTaskCompletedRequest getQueryCompleted() {
+    public RespondQueryTaskCompletedRequest.Builder getQueryCompleted() {
       return queryCompleted;
     }
 
-    public RetryOptions getRequestRetryOptions() {
+    public GrpcRetryOptions getRequestRetryOptions() {
       return requestRetryOptions;
     }
 
@@ -86,7 +86,7 @@ public interface DecisionTaskHandler {
    * @return One of the possible decision task replies: RespondDecisionTaskCompletedRequest,
    *     RespondQueryTaskCompletedRequest, RespondDecisionTaskFailedRequest
    */
-  Result handleDecisionTask(PollForDecisionTaskResponse.Builder decisionTask) throws Exception;
+  Result handleDecisionTask(PollForDecisionTaskResponse decisionTask) throws Exception;
 
   /** True if this handler handles at least one workflow type. */
   boolean isAnyTypeSupported();

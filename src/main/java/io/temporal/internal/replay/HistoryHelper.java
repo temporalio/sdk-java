@@ -255,7 +255,7 @@ class HistoryHelper {
     return iterator;
   }
 
-  public PollForDecisionTaskResponse getDecisionTask() {
+  public PollForDecisionTaskResponseOrBuilder getDecisionTask() {
     return decisionTaskWithHistoryIterator.getDecisionTask();
   }
 

@@ -565,7 +565,7 @@ public class WorkflowExecutionUtils {
     return instanceMetadata;
   }
 
-  private static GetWorkflowExecutionHistoryResponse getHistoryPage(
+  public static GetWorkflowExecutionHistoryResponse getHistoryPage(
       GrpcWorkflowServiceFactory service,
       String domain,
       WorkflowExecution workflowExecution,
@@ -577,14 +577,6 @@ public class WorkflowExecutionUtils {
             .setNextPageToken(nextPageToken)
             .build();
     return service.blockingStub().getWorkflowExecutionHistory(getHistoryRequest);
-  }
-
-  public static GetWorkflowExecutionHistoryResponse getHistoryPage(
-      GrpcWorkflowServiceFactory service,
-      String domain,
-      WorkflowExecution workflowExecution,
-      byte[] nextPageToken) {
-    return getHistoryPage(service, domain, workflowExecution, ByteString.copyFrom(nextPageToken));
   }
 
   /** Returns workflow instance history in a human readable format. */
@@ -610,7 +602,7 @@ public class WorkflowExecutionUtils {
   public static Iterator<HistoryEvent> getHistory(
       GrpcWorkflowServiceFactory service, String domain, WorkflowExecution workflowExecution) {
     return new Iterator<HistoryEvent>() {
-      ByteString nextPageToken;
+      ByteString nextPageToken = ByteString.EMPTY;
       Iterator<HistoryEvent> current;
 
       {
@@ -619,7 +611,7 @@ public class WorkflowExecutionUtils {
 
       @Override
       public boolean hasNext() {
-        return current.hasNext() || nextPageToken != null;
+        return current.hasNext() || !nextPageToken.isEmpty();
       }
 
       @Override

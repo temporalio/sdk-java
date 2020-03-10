@@ -21,6 +21,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.internal.sync.TestWorkflowEnvironmentInternal;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerOptions;
 import java.time.Duration;

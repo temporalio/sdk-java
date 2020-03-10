@@ -543,7 +543,8 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
   }
 
   @Override
-  public byte[] query(PollForDecisionTaskResponse response, WorkflowQuery query) throws Throwable {
+  public byte[] query(PollForDecisionTaskResponseOrBuilder response, WorkflowQuery query)
+      throws Throwable {
     AtomicReference<byte[]> result = new AtomicReference<>();
     decideImpl(response, () -> result.set(workflow.query(query)));
     return result.get();

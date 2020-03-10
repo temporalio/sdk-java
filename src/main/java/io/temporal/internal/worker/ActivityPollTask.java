@@ -17,16 +17,17 @@
 
 package io.temporal.internal.worker;
 
+import com.google.protobuf.DoubleValue;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
-import io.temporal.InternalServiceError;
-import io.temporal.PollForActivityTaskRequest;
-import io.temporal.PollForActivityTaskResponse;
-import io.temporal.ServiceBusyError;
-import io.temporal.TaskList;
-import io.temporal.TaskListMetadata;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.internal.metrics.MetricsType;
-import org.apache.thrift.TException;
+import io.temporal.proto.common.TaskList;
+import io.temporal.proto.common.TaskListMetadata;
+import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
+import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,19 +52,24 @@ final class ActivityPollTask implements Poller.PollTask<PollForActivityTaskRespo
   }
 
   @Override
-  public PollForActivityTaskResponse poll() throws TException {
+  public PollForActivityTaskResponse poll() {
     options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_COUNTER).inc(1);
     Stopwatch sw = options.getMetricsScope().timer(MetricsType.ACTIVITY_POLL_LATENCY).start();
 
-    PollForActivityTaskRequest pollRequest = new PollForActivityTaskRequest();
-    pollRequest.setDomain(domain);
-    pollRequest.setIdentity(options.getIdentity());
-    pollRequest.setTaskList(new TaskList().setName(taskList));
+    PollForActivityTaskRequest.Builder pollRequest =
+        PollForActivityTaskRequest.newBuilder()
+            .setDomain(domain)
+            .setIdentity(options.getIdentity())
+            .setTaskList(TaskList.newBuilder().setName(taskList));
 
     if (options.getTaskListActivitiesPerSecond() > 0) {
-      TaskListMetadata metadata = new TaskListMetadata();
-      metadata.setMaxTasksPerSecond(options.getTaskListActivitiesPerSecond());
-      pollRequest.setTaskListMetadata(metadata);
+      pollRequest.setTaskListMetadata(
+          TaskListMetadata.newBuilder()
+              .setMaxTasksPerSecond(
+                  DoubleValue.newBuilder()
+                      .setValue(options.getTaskListActivitiesPerSecond())
+                      .build())
+              .build());
     }
 
     if (log.isDebugEnabled()) {
@@ -71,12 +77,16 @@ final class ActivityPollTask implements Poller.PollTask<PollForActivityTaskRespo
     }
     PollForActivityTaskResponse result;
     try {
-      result = service.PollForActivityTask(pollRequest);
-    } catch (InternalServiceError | ServiceBusyError e) {
-      options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_TRANSIENT_FAILED_COUNTER).inc(1);
-      throw e;
-    } catch (TException e) {
-      options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_FAILED_COUNTER).inc(1);
+      result = service.blockingStub().pollForActivityTask(pollRequest.build());
+    } catch (StatusRuntimeException e) {
+      if (e.getStatus() == Status.INTERNAL || e.getStatus() == Status.RESOURCE_EXHAUSTED) {
+        options
+            .getMetricsScope()
+            .counter(MetricsType.ACTIVITY_POLL_TRANSIENT_FAILED_COUNTER)
+            .inc(1);
+      } else {
+        options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_FAILED_COUNTER).inc(1);
+      }
       throw e;
     }
 

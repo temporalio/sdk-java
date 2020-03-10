@@ -20,14 +20,14 @@ package io.temporal.internal.worker;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
-import io.temporal.InternalServiceError;
-import io.temporal.PollForDecisionTaskRequest;
-import io.temporal.PollForDecisionTaskResponse;
-import io.temporal.ServiceBusyError;
-import io.temporal.TaskList;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.internal.metrics.MetricsType;
+import io.temporal.proto.common.TaskList;
+import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import java.util.Objects;
-import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,32 +54,31 @@ final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskRespo
   }
 
   @Override
-  public PollForDecisionTaskResponse poll() throws TException {
+  public PollForDecisionTaskResponse poll() {
     metricScope.counter(MetricsType.DECISION_POLL_COUNTER).inc(1);
     Stopwatch sw = metricScope.timer(MetricsType.DECISION_POLL_LATENCY).start();
 
-    PollForDecisionTaskRequest pollRequest = new PollForDecisionTaskRequest();
-    pollRequest.setDomain(domain);
-    pollRequest.setIdentity(identity);
-
-    TaskList tl = new TaskList();
-    tl.setName(taskList);
-    pollRequest.setTaskList(tl);
+    PollForDecisionTaskRequest pollRequest =
+        PollForDecisionTaskRequest.newBuilder()
+            .setDomain(domain)
+            .setIdentity(identity)
+            .setTaskList(TaskList.newBuilder().setName(taskList).build())
+            .build();
 
     if (log.isDebugEnabled()) {
       log.debug("poll request begin: " + pollRequest);
     }
     PollForDecisionTaskResponse result;
     try {
-      result = service.PollForDecisionTask(pollRequest);
-    } catch (InternalServiceError | ServiceBusyError e) {
-      metricScope.counter(MetricsType.DECISION_POLL_TRANSIENT_FAILED_COUNTER).inc(1);
-      throw e;
-    } catch (TException e) {
-      metricScope.counter(MetricsType.DECISION_POLL_FAILED_COUNTER).inc(1);
+      result = service.blockingStub().pollForDecisionTask(pollRequest);
+    } catch (StatusRuntimeException e) {
+      if (e.getStatus() == Status.INTERNAL || e.getStatus() == Status.RESOURCE_EXHAUSTED) {
+        metricScope.counter(MetricsType.DECISION_POLL_TRANSIENT_FAILED_COUNTER).inc(1);
+      } else {
+        metricScope.counter(MetricsType.DECISION_POLL_FAILED_COUNTER).inc(1);
+      }
       throw e;
     }
-
     if (log.isDebugEnabled()) {
       log.debug(
           "poll request returned decision task: workflowType="
