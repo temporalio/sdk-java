@@ -351,7 +351,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           this.concurrentToDecision.clear();
           ctx.unlockTimer();
         },
-        request.getStickyAttributes());
+        request.hasStickyAttributes() ? request.getStickyAttributes() : null);
   }
 
   private boolean hasCompleteDecision(List<Decision> decisions) {

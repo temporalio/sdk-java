@@ -213,7 +213,9 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
               attributes == null
                   ? decisionTask.getTaskListId().getTaskListName()
                   : attributes.getWorkerTaskList().getName());
-
+      if (id.getTaskListName().isEmpty() || id.getDomain().isEmpty()) {
+        throw new IllegalArgumentException("Invalid TaskListId: " + id);
+      }
       BlockingQueue<PollForDecisionTaskResponse.Builder> decisionsQueue =
           getDecisionTaskListQueue(id);
       if (log.isTraceEnabled()) {
@@ -310,6 +312,10 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
         new TaskListId(pollRequest.getDomain(), pollRequest.getTaskList().getName());
     BlockingQueue<PollForDecisionTaskResponse.Builder> decisionsQueue =
         getDecisionTaskListQueue(taskListId);
+    if (log.isTraceEnabled()) {
+      log.trace(
+          "Poll request on decision task list about to block waiting for a task on " + taskListId);
+    }
     PollForDecisionTaskResponse.Builder result = decisionsQueue.take();
     if (log.isTraceEnabled()) {
       log.trace("Poll request on decision task list " + taskListId + " matchied with:\n" + result);
