@@ -177,8 +177,8 @@ public final class LocalActivityWorker implements SuspendableWorker {
 
       if (result.getTaskCompleted() != null) {
         markerBuilder.setResult(result.getTaskCompleted().getResult().toByteArray());
-      } else if (result.getTaskFailedResult() != null) {
-        markerBuilder.setTaskFailedRequest(result.getTaskFailedResult().getTaskFailedRequest());
+      } else if (result.getTaskFailed() != null) {
+        markerBuilder.setTaskFailedRequest(result.getTaskFailed().getTaskFailedRequest());
         markerBuilder.setAttempt(result.getAttempt());
         markerBuilder.setBackoff(result.getBackoff());
       } else {
@@ -236,7 +236,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
       long elapsedTask = System.currentTimeMillis() - task.taskStartTime;
       long elapsedTotal = elapsedTask + task.params.getElapsedTime();
       if (retryOptions.shouldRethrow(
-          result.getTaskFailedResult().getFailure(),
+          result.getTaskFailed().getFailure(),
           task.params.getAttempt(),
           elapsedTotal,
           sleepMillis)) {

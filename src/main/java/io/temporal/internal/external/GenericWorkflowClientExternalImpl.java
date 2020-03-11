@@ -120,9 +120,19 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     if (!Strings.isNullOrEmpty(startParameters.getCronSchedule())) {
       request.setCronSchedule(startParameters.getCronSchedule());
     }
-    request.setMemo(toMemoThrift(startParameters.getMemo()));
-    request.setSearchAttributes(toSearchAttributesThrift(startParameters.getSearchAttributes()));
-    request.setHeader(toGrpcHeader(startParameters.getContext()));
+    Memo memo = toMemoGrpc(startParameters.getMemo());
+    if (memo != null) {
+      request.setMemo(memo);
+    }
+    SearchAttributes searchAttributes =
+        toSearchAttributesGrpc(startParameters.getSearchAttributes());
+    if (searchAttributes != null) {
+      request.setSearchAttributes(searchAttributes);
+    }
+    Header header = toHeaderGrpc(startParameters.getContext());
+    if (header != null) {
+      request.setHeader(header);
+    }
 
     StartWorkflowExecutionResponse result;
     result =
@@ -136,7 +146,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
         .build();
   }
 
-  private Memo toMemoThrift(Map<String, byte[]> memo) {
+  private Memo toMemoGrpc(Map<String, byte[]> memo) {
     if (memo == null || memo.isEmpty()) {
       return null;
     }
@@ -148,7 +158,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     return Memo.newBuilder().putAllFields(fields).build();
   }
 
-  private SearchAttributes toSearchAttributesThrift(Map<String, byte[]> searchAttributes) {
+  private SearchAttributes toSearchAttributesGrpc(Map<String, byte[]> searchAttributes) {
     if (searchAttributes == null || searchAttributes.isEmpty()) {
       return null;
     }
@@ -160,7 +170,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     return SearchAttributes.newBuilder().putAllIndexedFields(fields).build();
   }
 
-  private Header toGrpcHeader(Map<String, byte[]> headers) {
+  private Header toHeaderGrpc(Map<String, byte[]> headers) {
     if (headers == null || headers.isEmpty()) {
       return null;
     }

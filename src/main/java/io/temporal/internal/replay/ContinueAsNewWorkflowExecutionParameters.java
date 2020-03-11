@@ -17,6 +17,7 @@
 
 package io.temporal.internal.replay;
 
+import io.temporal.internal.common.OptionsUtils;
 import java.nio.charset.StandardCharsets;
 
 public final class ContinueAsNewWorkflowExecutionParameters {
@@ -55,7 +56,7 @@ public final class ContinueAsNewWorkflowExecutionParameters {
   }
 
   public byte[] getInput() {
-    return input;
+    return OptionsUtils.safeGet(input);
   }
 
   public void setInput(byte[] input) {
@@ -63,7 +64,7 @@ public final class ContinueAsNewWorkflowExecutionParameters {
   }
 
   public String getTaskList() {
-    return taskList;
+    return OptionsUtils.safeGet(taskList);
   }
 
   public void setTaskList(String taskList) {

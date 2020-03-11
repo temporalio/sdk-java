@@ -45,10 +45,11 @@ public class RegisterTestDomain {
         service.blockingStub().registerDomain(request);
         break;
       } catch (StatusRuntimeException e) {
-        if (e.getStatus() == Status.ALREADY_EXISTS) {
+        if (e.getStatus().getCode() == Status.Code.ALREADY_EXISTS) {
           break;
         }
-        if (e.getStatus() == Status.DEADLINE_EXCEEDED || e.getStatus() == Status.UNAVAILABLE) {
+        if (e.getStatus().getCode() == Status.Code.DEADLINE_EXCEEDED
+            || e.getStatus().getCode() == Status.Code.UNAVAILABLE) {
           e.printStackTrace();
           Thread.sleep(500);
         }

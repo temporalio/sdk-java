@@ -338,7 +338,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
             .fromData(taskCompleted.getResult().toByteArray(), resultClass, resultType);
       } else {
         RespondActivityTaskFailedRequest taskFailed =
-            response.getTaskFailedResult().getTaskFailedRequest();
+            response.getTaskFailed().getTaskFailedRequest();
         if (taskFailed != null) {
           String causeClassName = taskFailed.getReason();
           Class<? extends Exception> causeClass;

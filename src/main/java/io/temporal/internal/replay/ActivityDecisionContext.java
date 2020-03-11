@@ -92,10 +92,16 @@ final class ActivityDecisionContext {
       ExecuteActivityParameters parameters, BiConsumer<byte[], Exception> callback) {
     final OpenRequestInfo<byte[], ActivityType> context =
         new OpenRequestInfo<>(parameters.getActivityType());
+    ByteString input;
+    if (parameters.getInput() != null) {
+      input = ByteString.copyFrom(parameters.getInput());
+    } else {
+      input = ByteString.EMPTY;
+    }
     final ScheduleActivityTaskDecisionAttributes.Builder attributes =
         ScheduleActivityTaskDecisionAttributes.newBuilder()
             .setActivityType(parameters.getActivityType())
-            .setInput(ByteString.copyFrom(parameters.getInput()));
+            .setInput(input);
     if (parameters.getHeartbeatTimeoutSeconds() > 0) {
       attributes.setHeartbeatTimeoutSeconds((int) parameters.getHeartbeatTimeoutSeconds());
     }
@@ -121,7 +127,10 @@ final class ActivityDecisionContext {
       attributes.setRetryPolicy(retryParameters.toRetryPolicy());
     }
 
-    attributes.setHeader(toHeaderThrift(parameters.getContext()));
+    Header header = toHeaderGrpc(parameters.getContext());
+    if (header != null) {
+      attributes.setHeader(header);
+    }
 
     long scheduledEventId = decisions.scheduleActivityTask(attributes.build());
     context.setCompletionHandle(callback);
@@ -199,7 +208,7 @@ final class ActivityDecisionContext {
     }
   }
 
-  private Header toHeaderThrift(Map<String, byte[]> headers) {
+  private Header toHeaderGrpc(Map<String, byte[]> headers) {
     if (headers == null || headers.isEmpty()) {
       return null;
     }

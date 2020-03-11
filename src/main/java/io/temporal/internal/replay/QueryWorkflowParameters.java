@@ -17,6 +17,7 @@
 
 package io.temporal.internal.replay;
 
+import io.temporal.internal.common.OptionsUtils;
 import io.temporal.proto.enums.QueryRejectCondition;
 import java.nio.charset.StandardCharsets;
 
@@ -35,7 +36,7 @@ public class QueryWorkflowParameters implements Cloneable {
   public QueryWorkflowParameters() {}
 
   public byte[] getInput() {
-    return input;
+    return OptionsUtils.safeGet(input);
   }
 
   public void setInput(byte[] input) {
@@ -48,7 +49,7 @@ public class QueryWorkflowParameters implements Cloneable {
   }
 
   public String getRunId() {
-    return runId;
+    return OptionsUtils.safeGet(runId);
   }
 
   public void setRunId(String runId) {
@@ -87,6 +88,9 @@ public class QueryWorkflowParameters implements Cloneable {
   }
 
   public QueryRejectCondition getQueryRejectCondition() {
+    if (queryRejectCondition == null) {
+      return QueryRejectCondition.QueryRejectConditionNone;
+    }
     return queryRejectCondition;
   }
 

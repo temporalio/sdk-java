@@ -60,11 +60,11 @@ public final class WorkflowExecutionHistory {
       throw new IllegalArgumentException("Empty history");
     }
     HistoryEvent startedEvent = events.get(0);
-    if (startedEvent.getEventType() != EventType.EventTypeChildWorkflowExecutionStarted) {
+    if (startedEvent.getEventType() != EventType.EventTypeWorkflowExecutionStarted) {
       throw new IllegalArgumentException(
           "First event is not WorkflowExecutionStarted but " + startedEvent);
     }
-    if (startedEvent.getWorkflowExecutionStartedEventAttributes() == null) {
+    if (!startedEvent.hasWorkflowExecutionStartedEventAttributes()) {
       throw new IllegalArgumentException("First event is corrupted");
     }
   }

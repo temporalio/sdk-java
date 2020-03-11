@@ -17,6 +17,7 @@
 
 package io.temporal.internal.replay;
 
+import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.RetryParameters;
 import io.temporal.proto.common.ActivityType;
 import java.util.Arrays;
@@ -161,7 +162,7 @@ public class ExecuteActivityParameters implements Cloneable {
    * @return The value of the Input property for this object.
    */
   public byte[] getInput() {
-    return input;
+    return OptionsUtils.safeGet(input);
   }
 
   /**

@@ -19,10 +19,12 @@ package io.temporal.internal.replay;
 
 import com.google.protobuf.ByteString;
 import io.temporal.context.ContextPropagator;
-import io.temporal.proto.common.*;
-import io.temporal.proto.enums.*;
-import io.temporal.proto.failure.*;
-import io.temporal.proto.workflowservice.*;
+import io.temporal.proto.common.Header;
+import io.temporal.proto.common.SearchAttributes;
+import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecutionStartedEventAttributes;
+import io.temporal.proto.common.WorkflowType;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +39,7 @@ final class WorkflowContext {
   // RunId can change when reset happens. This remembers the actual runId that is used
   // as in this particular part of the history.
   private String currentRunId;
-  private SearchAttributes searchAttributes;
+  private SearchAttributes.Builder searchAttributes;
   private List<ContextPropagator> contextPropagators;
 
   WorkflowContext(
@@ -49,7 +51,7 @@ final class WorkflowContext {
     this.decisionTask = decisionTask;
     this.startedAttributes = startedAttributes;
     this.currentRunId = startedAttributes.getOriginalExecutionRunId();
-    this.searchAttributes = startedAttributes.getSearchAttributes();
+    this.searchAttributes = startedAttributes.getSearchAttributes().toBuilder();
     this.contextPropagators = contextPropagators;
   }
 
@@ -142,7 +144,7 @@ final class WorkflowContext {
   }
 
   SearchAttributes getSearchAttributes() {
-    return searchAttributes;
+    return searchAttributes.build();
   }
 
   public List<ContextPropagator> getContextPropagators() {
@@ -178,11 +180,10 @@ final class WorkflowContext {
       return;
     }
     if (this.searchAttributes == null) {
-      this.searchAttributes = SearchAttributes.getDefaultInstance();
+      this.searchAttributes = SearchAttributes.newBuilder();
     }
-    Map<String, ByteString> current = this.searchAttributes.getIndexedFieldsMap();
     for (Map.Entry<String, ByteString> pair : searchAttributes.getIndexedFieldsMap().entrySet()) {
-      current.put(pair.getKey(), pair.getValue());
+      this.searchAttributes.putIndexedFields(pair.getKey(), pair.getValue());
     }
   }
 }

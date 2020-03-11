@@ -146,7 +146,10 @@ final class WorkflowDecisionContext {
     if (!Strings.isNullOrEmpty(parameters.getCronSchedule())) {
       attributes.setCronSchedule(parameters.getCronSchedule());
     }
-    attributes.setHeader(toHeaderThrift(parameters.getContext()));
+    Header header = toHeaderGrpc(parameters.getContext());
+    if (header != null) {
+      attributes.setHeader(header);
+    }
 
     ParentClosePolicy parentClosePolicy = parameters.getParentClosePolicy();
     if (parentClosePolicy != null) {
@@ -161,7 +164,7 @@ final class WorkflowDecisionContext {
     return new ChildWorkflowCancellationHandler(initiatedEventId, attributes.getWorkflowId());
   }
 
-  private Header toHeaderThrift(Map<String, byte[]> headers) {
+  private Header toHeaderGrpc(Map<String, byte[]> headers) {
     if (headers == null || headers.isEmpty()) {
       return null;
     }

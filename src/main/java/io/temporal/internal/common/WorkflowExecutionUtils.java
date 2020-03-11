@@ -21,30 +21,26 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.io.CharStreams;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.google.gson.JsonPrimitive;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.MessageOrBuilder;
+import com.google.protobuf.TextFormat;
+import io.grpc.Deadline;
 import io.grpc.Status;
 import io.temporal.client.WorkflowTerminatedException;
 import io.temporal.client.WorkflowTimedOutException;
 import io.temporal.common.WorkflowExecutionHistory;
-import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.Decision;
 import io.temporal.proto.common.History;
 import io.temporal.proto.common.HistoryEvent;
 import io.temporal.proto.common.HistoryEventOrBuilder;
-import io.temporal.proto.common.TaskList;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.proto.common.WorkflowExecutionFailedEventAttributes;
 import io.temporal.proto.common.WorkflowExecutionInfo;
 import io.temporal.proto.common.WorkflowExecutionTerminatedEventAttributes;
 import io.temporal.proto.common.WorkflowExecutionTimedOutEventAttributes;
-import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.enums.DecisionType;
 import io.temporal.proto.enums.EventType;
 import io.temporal.proto.enums.HistoryEventFilterType;
@@ -59,18 +55,10 @@ import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
@@ -179,7 +167,7 @@ public class WorkflowExecutionUtils {
             workflowExecution, workflowType, timedOut.getTimeoutType());
       default:
         throw new RuntimeException(
-            "Workflow end state is not completed: " + prettyPrintHistoryEvent(closeEvent));
+            "Workflow end state is not completed: " + prettyPrintObject(closeEvent));
     }
   }
 
@@ -192,7 +180,7 @@ public class WorkflowExecutionUtils {
       TimeUnit unit)
       throws TimeoutException {
     ByteString pageToken = ByteString.EMPTY;
-    GetWorkflowExecutionHistoryResponse response;
+    GetWorkflowExecutionHistoryResponse response = null;
     // TODO: Interrupt service long poll call on timeout and on interrupt
     long start = System.currentTimeMillis();
     HistoryEvent event;
@@ -205,9 +193,27 @@ public class WorkflowExecutionUtils {
               .setWaitForNewEvent(true)
               .setNextPageToken(pageToken)
               .build();
-      response =
-          GrpcRetryer.retryWithResult(
-              retryParameters, () -> service.blockingStub().getWorkflowExecutionHistory(r));
+      long elapsed = System.currentTimeMillis() - start;
+      Deadline expiration = Deadline.after(timeout - elapsed, TimeUnit.MILLISECONDS);
+      if (expiration.timeRemaining(TimeUnit.MILLISECONDS) > 0) {
+        GrpcRetryOptions retryOptions =
+            new GrpcRetryOptions.Builder()
+                .setBackoffCoefficient(1)
+                .setInitialInterval(Duration.ofMillis(1))
+                .setMaximumAttempts(Integer.MAX_VALUE)
+                .setExpiration(Duration.ofMillis(expiration.timeRemaining(TimeUnit.MILLISECONDS)))
+                .addDoNotRetry(Status.Code.INVALID_ARGUMENT, null)
+                .addDoNotRetry(Status.Code.NOT_FOUND, null)
+                .build();
+        response =
+            GrpcRetryer.retryWithResult(
+                retryOptions,
+                () ->
+                    service.blockingStub().withDeadline(expiration).getWorkflowExecutionHistory(r));
+      }
+      if (response == null || !response.hasHistory()) {
+        continue;
+      }
       if (timeout != 0 && System.currentTimeMillis() - start > unit.toMillis(timeout)) {
         throw new TimeoutException(
             "WorkflowId="
@@ -646,266 +652,31 @@ public class WorkflowExecutionUtils {
   public static String prettyPrintHistory(
       Iterator<HistoryEvent> events, boolean showWorkflowTasks) {
     StringBuilder result = new StringBuilder();
-    result.append("{");
-    boolean first = true;
-    long firstTimestamp = 0;
     while (events.hasNext()) {
       HistoryEvent event = events.next();
       if (!showWorkflowTasks && event.getEventType().toString().startsWith("WorkflowTask")) {
         continue;
       }
-      if (first) {
-        first = false;
-        firstTimestamp = event.getTimestamp();
-      } else {
-        result.append(",");
-      }
-      result.append("\n");
-      result.append(INDENTATION);
-      result.append(prettyPrintHistoryEvent(event, firstTimestamp));
+      result.append(prettyPrintObject(event));
     }
-    result.append("\n}");
     return result.toString();
   }
 
   public static String prettyPrintDecisions(Iterable<Decision> decisions) {
     StringBuilder result = new StringBuilder();
-    result.append("{");
-    boolean first = true;
     for (Decision decision : decisions) {
-      if (first) {
-        first = false;
-      } else {
-        result.append(",");
-      }
-      result.append("\n");
-      result.append(INDENTATION);
-      result.append(prettyPrintDecision(decision));
+      result.append(prettyPrintObject(decision));
     }
-    result.append("\n}");
     return result.toString();
-  }
-
-  /**
-   * Returns single event in a human readable format
-   *
-   * @param event event to pretty print
-   */
-  public static String prettyPrintHistoryEvent(HistoryEventOrBuilder event) {
-    return prettyPrintHistoryEvent(event, -1);
-  }
-
-  private static String prettyPrintHistoryEvent(HistoryEventOrBuilder event, long firstTimestamp) {
-    String eventType = event.getEventType().toString();
-    StringBuilder result = new StringBuilder();
-    result.append(event.getEventId());
-    result.append(": ");
-    result.append(eventType);
-    if (firstTimestamp > 0) {
-      // timestamp is in nanos
-      long timestamp = (event.getTimestamp() - firstTimestamp) / 1_000_000;
-      result.append(String.format(" [%s ms]", timestamp));
-    }
-    result.append(" ");
-    result.append(
-        prettyPrintObject(
-            getEventAttributes(event), "getFieldValue", true, INDENTATION, false, false));
-
-    return result.toString();
-  }
-
-  private static Object getEventAttributes(HistoryEventOrBuilder event) {
-    try {
-      Method m = HistoryEvent.class.getMethod("get" + event.getEventType() + "EventAttributes");
-      return m.invoke(event);
-    } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-      return event;
-    }
-  }
-
-  /**
-   * Returns single decision in a human readable format
-   *
-   * @param decision decision to pretty print
-   */
-  public static String prettyPrintDecision(Decision decision) {
-    return prettyPrintObject(decision, "getFieldValue", true, INDENTATION, true, true);
   }
 
   /**
    * Not really a generic method for printing random object graphs. But it works for events and
    * decisions.
    */
-  private static String prettyPrintObject(
-      Object object,
-      String methodToSkip,
-      boolean skipNullsAndEmptyCollections,
-      String indentation,
-      boolean skipLevel,
-      boolean printTypeName) {
-    StringBuilder result = new StringBuilder();
-    if (object == null) {
-      return "null";
-    }
-    Class<? extends Object> clz = object.getClass();
-    if (Number.class.isAssignableFrom(clz)) {
-      return String.valueOf(object);
-    }
-    if (Boolean.class.isAssignableFrom(clz)) {
-      return String.valueOf(object);
-    }
-    if (clz.equals(String.class)) {
-      return (String) object;
-    }
-    if (clz.equals(byte[].class)) {
-      return new String((byte[]) object, UTF_8);
-    }
-    if (ByteBuffer.class.isAssignableFrom(clz)) {
-      ByteBuffer bb = (ByteBuffer) object;
-      byte[] bytes = Arrays.copyOf(bb.array(), bb.position());
-      return new String(bytes, UTF_8);
-    }
-    if (clz.equals(Date.class)) {
-      return String.valueOf(object);
-    }
-    if (clz.equals(TaskList.class)) {
-      return String.valueOf(((TaskList) object).getName());
-    }
-    if (clz.equals(ActivityType.class)) {
-      return String.valueOf(((ActivityType) object).getName());
-    }
-    if (clz.equals(WorkflowType.class)) {
-      return String.valueOf(((WorkflowType) object).getName());
-    }
-    if (Map.Entry.class.isAssignableFrom(clz)) {
-      result.append(
-          prettyPrintObject(
-              ((Map.Entry) object).getKey(),
-              methodToSkip,
-              skipNullsAndEmptyCollections,
-              "",
-              skipLevel,
-              printTypeName));
-      result.append("=");
-      result.append(
-          prettyPrintObject(
-              ((Map.Entry) object).getValue(),
-              methodToSkip,
-              skipNullsAndEmptyCollections,
-              "",
-              skipLevel,
-              printTypeName));
-      return result.toString();
-    }
-    if (Map.class.isAssignableFrom(clz)) {
-      result.append("{ ");
-
-      String prefix = "";
-      for (Object entry : ((Map) object).entrySet()) {
-        result.append(prefix);
-        prefix = ", ";
-        result.append(
-            prettyPrintObject(
-                entry, methodToSkip, skipNullsAndEmptyCollections, "", skipLevel, printTypeName));
-      }
-
-      result.append(" }");
-      return result.toString();
-    }
-    if (Collection.class.isAssignableFrom(clz)) {
-      return String.valueOf(object);
-    }
-    if (!skipLevel) {
-      if (printTypeName) {
-        result.append(object.getClass().getSimpleName());
-        result.append(" ");
-      }
-      result.append("{");
-    }
-    Method[] eventMethods = object.getClass().getDeclaredMethods();
-    boolean first = true;
-    for (Method method : eventMethods) {
-      String name = method.getName();
-      if (!name.startsWith("get")
-          || name.equals("getDecisionType")
-          || method.getParameterCount() != 0
-          || !Modifier.isPublic(method.getModifiers())) {
-        continue;
-      }
-      if (name.equals(methodToSkip) || name.equals("getClass")) {
-        continue;
-      }
-      if (Modifier.isStatic(method.getModifiers())) {
-        continue;
-      }
-      Object value;
-      try {
-        value = method.invoke(object, (Object[]) null);
-      } catch (InvocationTargetException e) {
-        throw new RuntimeException(e.getTargetException());
-      } catch (RuntimeException e) {
-        throw e;
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-      if (skipNullsAndEmptyCollections) {
-        if (value == null) {
-          continue;
-        }
-        if (value instanceof Map && ((Map<?, ?>) value).isEmpty()) {
-          continue;
-        }
-        if (value instanceof Collection && ((Collection<?>) value).isEmpty()) {
-          continue;
-        }
-      }
-      if (!skipLevel) {
-        if (first) {
-          first = false;
-        } else {
-          result.append(";");
-        }
-        result.append("\n");
-        result.append(indentation);
-        result.append(INDENTATION);
-        result.append(name.substring(3));
-        result.append(" = ");
-        // Pretty print JSON serialized exceptions.
-        if (name.equals("getDetails") && value instanceof byte[]) {
-          String details = new String((byte[]) value, UTF_8);
-          details = prettyPrintJson(details, INDENTATION + INDENTATION);
-          // GSON pretty prints, but doesn't let to set an initial indentation.
-          // Thus indenting the pretty printed JSON through regexp :(.
-          String replacement = "\n" + indentation + INDENTATION;
-          details = details.replaceAll("\\n|\\\\n", replacement);
-          result.append(details);
-          continue;
-        }
-        result.append(
-            prettyPrintObject(
-                value,
-                methodToSkip,
-                skipNullsAndEmptyCollections,
-                indentation + INDENTATION,
-                false,
-                false));
-      } else {
-        result.append(
-            prettyPrintObject(
-                value,
-                methodToSkip,
-                skipNullsAndEmptyCollections,
-                indentation,
-                false,
-                printTypeName));
-      }
-    }
-    if (!skipLevel) {
-      result.append("\n");
-      result.append(indentation);
-      result.append("}");
-    }
-    return result.toString();
+  @SuppressWarnings("deprecation")
+  public static String prettyPrintObject(MessageOrBuilder object) {
+    return TextFormat.printToString(object);
   }
 
   public static boolean containsEvent(List<HistoryEvent> history, EventType eventType) {
@@ -915,21 +686,6 @@ public class WorkflowExecutionUtils {
       }
     }
     return false;
-  }
-
-  /**
-   * Pretty prints JSON. Not a generic utility. Used to prettify Details fields that contain
-   * serialized exceptions.
-   */
-  private static String prettyPrintJson(String jsonValue, String stackIndentation) {
-    try {
-      JsonObject json = JsonParser.parseString(jsonValue).getAsJsonObject();
-      fixStackTrace(json, stackIndentation);
-      Gson gson = new GsonBuilder().setPrettyPrinting().create();
-      return gson.toJson(json);
-    } catch (Exception e) {
-      return jsonValue;
-    }
   }
 
   private static void fixStackTrace(JsonElement json, String stackIndentation) {

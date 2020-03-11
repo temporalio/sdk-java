@@ -45,6 +45,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class TestWorkflowStoreImpl implements TestWorkflowStore {
 
@@ -84,7 +86,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
           throw Status.FAILED_PRECONDITION
               .withDescription(
                   "Attempt to add an eBuilder after a completion eBuilder: "
-                      + WorkflowExecutionUtils.prettyPrintHistoryEvent(eBuilder))
+                      + WorkflowExecutionUtils.prettyPrintObject(eBuilder))
               .asRuntimeException();
         }
         eBuilder.setEventId(history.size() + 1L);
@@ -140,6 +142,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     }
   }
 
+  private static final Logger log = LoggerFactory.getLogger(TestWorkflowStoreImpl.class);
+
   private final Lock lock = new ReentrantLock();
 
   private final Map<ExecutionId, HistoryStore> histories = new HashMap<>();
@@ -179,7 +183,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       List<HistoryEvent> events = ctx.getEvents();
       if (history == null) {
         if (events.isEmpty()
-            || events.get(0).getEventType() != EventType.EventTypeChildWorkflowExecutionStarted) {
+            || events.get(0).getEventType() != EventType.EventTypeWorkflowExecutionStarted) {
           throw new IllegalStateException("No history found for " + executionId);
         }
         history = new HistoryStore(executionId, lock);
@@ -212,6 +216,9 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
 
       BlockingQueue<PollForDecisionTaskResponse.Builder> decisionsQueue =
           getDecisionTaskListQueue(id);
+      if (log.isTraceEnabled()) {
+        log.trace("Adding decision task to task list " + id);
+      }
       decisionsQueue.add(decisionTask.getTask());
     }
 
@@ -220,6 +227,9 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       for (ActivityTask activityTask : activityTasks) {
         BlockingQueue<PollForActivityTaskResponse.Builder> activitiesQueue =
             getActivityTaskListQueue(activityTask.getTaskListId());
+        if (log.isTraceEnabled()) {
+          log.trace("Adding activity task to task list " + activityTask.getTaskListId());
+        }
         activitiesQueue.add(activityTask.getTask());
       }
     }
@@ -300,7 +310,11 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
         new TaskListId(pollRequest.getDomain(), pollRequest.getTaskList().getName());
     BlockingQueue<PollForDecisionTaskResponse.Builder> decisionsQueue =
         getDecisionTaskListQueue(taskListId);
-    return decisionsQueue.take();
+    PollForDecisionTaskResponse.Builder result = decisionsQueue.take();
+    if (log.isTraceEnabled()) {
+      log.trace("Poll request on decision task list " + taskListId + " matchied with:\n" + result);
+    }
+    return result;
   }
 
   @Override
@@ -310,7 +324,11 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
         new TaskListId(pollRequest.getDomain(), pollRequest.getTaskList().getName());
     BlockingQueue<PollForActivityTaskResponse.Builder> activityTaskQueue =
         getActivityTaskListQueue(taskListId);
-    return activityTaskQueue.take();
+    PollForActivityTaskResponse.Builder result = activityTaskQueue.take();
+    if (log.isTraceEnabled()) {
+      log.trace("Poll request on activity task list " + taskListId + " matchied with:\n" + result);
+    }
+    return result;
   }
 
   @Override

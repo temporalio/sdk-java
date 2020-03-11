@@ -20,159 +20,21 @@ package io.temporal.converter;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import com.google.protobuf.ByteString;
 import io.temporal.activity.Activity;
-import io.temporal.proto.common.History;
-import io.temporal.proto.common.HistoryEvent;
-import io.temporal.proto.common.TaskList;
-import io.temporal.proto.common.WorkflowExecutionStartedEventAttributes;
-import io.temporal.proto.common.WorkflowType;
-import io.temporal.proto.enums.EventType;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 import org.junit.Test;
 
 public class JsonDataConverterTest {
 
   private final DataConverter converter = JsonDataConverter.getInstance();
-
-  static class TestData {
-    String val1;
-    // TBase value;
-    HistoryEvent val2;
-    // TEnum value;
-    EventType val3;
-
-    public TestData(String val1, HistoryEvent val2, EventType val3) {
-      this.val1 = val1;
-      this.val2 = val2;
-      this.val3 = val3;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (!(o instanceof TestData)) return false;
-      TestData testData = (TestData) o;
-      return Objects.equals(val1, testData.val1)
-          && Objects.equals(val2, testData.val2)
-          && val3 == testData.val3;
-    }
-
-    @Override
-    public int hashCode() {
-
-      return Objects.hash(val1, val2, val3);
-    }
-  }
-
-  @Test
-  public void testThrift() {
-    List<HistoryEvent> events = new ArrayList<>();
-    WorkflowExecutionStartedEventAttributes started =
-        WorkflowExecutionStartedEventAttributes.newBuilder()
-            .setExecutionStartToCloseTimeoutSeconds(11)
-            .setIdentity("testIdentity")
-            .setInput(ByteString.copyFrom("input", StandardCharsets.UTF_8))
-            .setWorkflowType(WorkflowType.newBuilder().setName("workflowType1"))
-            .setTaskList(TaskList.newBuilder().setName("taskList1"))
-            .build();
-    events.add(
-        HistoryEvent.newBuilder()
-            .setTimestamp(1234567)
-            .setEventId(321)
-            .setWorkflowExecutionStartedEventAttributes(started)
-            .build());
-    History history = History.newBuilder().addAllEvents(events).build();
-    byte[] converted = converter.toData(history);
-    History fromConverted = converter.fromData(converted, History.class, History.class);
-    assertEquals(new String(converted, StandardCharsets.UTF_8), history, fromConverted);
-  }
-
-  @Test
-  public void testThriftArray() {
-    List<HistoryEvent> events = new ArrayList<>();
-    WorkflowExecutionStartedEventAttributes.Builder started =
-        WorkflowExecutionStartedEventAttributes.newBuilder()
-            .setExecutionStartToCloseTimeoutSeconds(11)
-            .setIdentity("testIdentity")
-            .setInput(ByteString.copyFrom("input", StandardCharsets.UTF_8))
-            .setWorkflowType(WorkflowType.newBuilder().setName("workflowType1"))
-            .setTaskList(TaskList.newBuilder().setName("taskList1"));
-    events.add(
-        HistoryEvent.newBuilder()
-            .setTimestamp(1234567)
-            .setEventId(321)
-            .setWorkflowExecutionStartedEventAttributes(started)
-            .build());
-    History history = History.newBuilder().addAllEvents(events).build();
-    byte[] converted = converter.toData("abc", history);
-    Object[] fromConverted = converter.fromDataArray(converted, String.class, History.class);
-    assertEquals(new String(converted, StandardCharsets.UTF_8), "abc", fromConverted[0]);
-    assertEquals(new String(converted, StandardCharsets.UTF_8), history, fromConverted[1]);
-  }
-
-  @Test
-  public void testThriftFieldsInPOJO() {
-    WorkflowExecutionStartedEventAttributes started =
-        WorkflowExecutionStartedEventAttributes.newBuilder()
-            .setExecutionStartToCloseTimeoutSeconds(11)
-            .setIdentity("testIdentity")
-            .setInput(ByteString.copyFrom("input", StandardCharsets.UTF_8))
-            .setWorkflowType(WorkflowType.newBuilder().setName("workflowType1"))
-            .setTaskList(TaskList.newBuilder().setName("taskList1"))
-            .build();
-
-    HistoryEvent historyEvent =
-        HistoryEvent.newBuilder()
-            .setTimestamp(1234567)
-            .setEventId(321)
-            .setWorkflowExecutionStartedEventAttributes(started)
-            .build();
-
-    TestData testData =
-        new TestData("test-thrift", historyEvent, EventType.EventTypeActivityTaskCompleted);
-
-    byte[] converted = converter.toData(testData);
-    TestData fromConverted = converter.fromData(converted, TestData.class, TestData.class);
-    assertEquals(new String(converted, StandardCharsets.UTF_8), testData, fromConverted);
-  }
-
-  @Test
-  public void testThriftFieldsInPOJOArray() {
-    WorkflowExecutionStartedEventAttributes started =
-        WorkflowExecutionStartedEventAttributes.newBuilder()
-            .setExecutionStartToCloseTimeoutSeconds(11)
-            .setIdentity("testIdentity")
-            .setInput(ByteString.copyFrom("input", StandardCharsets.UTF_8))
-            .setWorkflowType(WorkflowType.newBuilder().setName("workflowType1"))
-            .setTaskList(TaskList.newBuilder().setName("taskList1"))
-            .build();
-
-    HistoryEvent historyEvent =
-        HistoryEvent.newBuilder()
-            .setTimestamp(1234567)
-            .setEventId(321)
-            .setWorkflowExecutionStartedEventAttributes(started)
-            .build();
-
-    TestData testData =
-        new TestData("test-thrift", historyEvent, EventType.EventTypeActivityTaskCompleted);
-
-    byte[] converted = converter.toData("abc", testData);
-    Object[] fromConverted = converter.fromDataArray(converted, String.class, TestData.class);
-    assertEquals(new String(converted, StandardCharsets.UTF_8), "abc", fromConverted[0]);
-    assertEquals(new String(converted, StandardCharsets.UTF_8), testData, fromConverted[1]);
-  }
 
   public static void foo(List<UUID> arg) {}
 

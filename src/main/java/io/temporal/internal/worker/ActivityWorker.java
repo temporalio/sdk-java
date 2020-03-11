@@ -236,35 +236,43 @@ public final class ActivityWorker implements SuspendableWorker {
     private void sendReply(
         PollForActivityTaskResponse task, ActivityTaskHandler.Result response, Scope metricsScope) {
       GrpcRetryOptions ro = response.getRequestRetryOptions();
-      RespondActivityTaskCompletedRequest.Builder taskCompleted =
-          response.getTaskCompleted().toBuilder();
+      RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
         ro = options.getReportCompletionRetryOptions().merge(ro);
-        taskCompleted.setTaskToken(task.getTaskToken());
-        taskCompleted.setIdentity(options.getIdentity());
-        GrpcRetryer.retry(
-            ro, () -> service.blockingStub().respondActivityTaskCompleted(taskCompleted.build()));
+        RespondActivityTaskCompletedRequest request =
+            taskCompleted
+                .toBuilder()
+                .setTaskToken(task.getTaskToken())
+                .setIdentity(options.getIdentity())
+                .build();
+        GrpcRetryer.retry(ro, () -> service.blockingStub().respondActivityTaskCompleted(request));
         metricsScope.counter(MetricsType.ACTIVITY_TASK_COMPLETED_COUNTER).inc(1);
       } else {
-        if (response.getTaskFailedResult() != null) {
-          RespondActivityTaskFailedRequest.Builder taskFailed =
-              response.getTaskFailedResult().getTaskFailedRequest().toBuilder();
+        Result.TaskFailedResult taskFailed = response.getTaskFailed();
+
+        if (taskFailed != null) {
+          RespondActivityTaskFailedRequest request =
+              taskFailed
+                  .getTaskFailedRequest()
+                  .toBuilder()
+                  .setTaskToken(task.getTaskToken())
+                  .setIdentity(options.getIdentity())
+                  .build();
           ro = options.getReportFailureRetryOptions().merge(ro);
-          taskFailed.setTaskToken(task.getTaskToken());
-          taskFailed.setIdentity(options.getIdentity());
-          GrpcRetryer.retry(
-              ro, () -> service.blockingStub().respondActivityTaskFailed(taskFailed.build()));
+          GrpcRetryer.retry(ro, () -> service.blockingStub().respondActivityTaskFailed(request));
           metricsScope.counter(MetricsType.ACTIVITY_TASK_FAILED_COUNTER).inc(1);
         } else {
-          RespondActivityTaskCanceledRequest.Builder taskCancelled =
-              response.getTaskCancelled().toBuilder();
+          RespondActivityTaskCanceledRequest taskCancelled = response.getTaskCancelled();
           if (taskCancelled != null) {
-            taskCancelled.setTaskToken(task.getTaskToken());
-            taskCancelled.setIdentity(options.getIdentity());
+            RespondActivityTaskCanceledRequest request =
+                taskCancelled
+                    .toBuilder()
+                    .setTaskToken(task.getTaskToken())
+                    .setIdentity(options.getIdentity())
+                    .build();
             ro = options.getReportFailureRetryOptions().merge(ro);
             GrpcRetryer.retry(
-                ro,
-                () -> service.blockingStub().respondActivityTaskCanceled(taskCancelled.build()));
+                ro, () -> service.blockingStub().respondActivityTaskCanceled(request));
             metricsScope.counter(MetricsType.ACTIVITY_TASK_CANCELED_COUNTER).inc(1);
           }
         }

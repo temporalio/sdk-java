@@ -18,13 +18,13 @@
 package io.temporal.internal.worker;
 
 import io.temporal.proto.common.HistoryEvent;
-import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import java.util.Iterator;
 
 /** Contains DecisionTask and history iterator that paginates history behind the scene. */
 public interface DecisionTaskWithHistoryIterator {
 
-  PollForDecisionTaskResponseOrBuilder getDecisionTask();
+  PollForDecisionTaskResponse getDecisionTask();
 
   Iterator<HistoryEvent> getHistory();
 }

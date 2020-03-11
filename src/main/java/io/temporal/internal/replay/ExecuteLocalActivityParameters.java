@@ -18,6 +18,7 @@
 package io.temporal.internal.replay;
 
 import io.temporal.common.RetryOptions;
+import io.temporal.internal.common.OptionsUtils;
 import io.temporal.proto.common.ActivityType;
 import java.util.Arrays;
 
@@ -113,7 +114,7 @@ public class ExecuteLocalActivityParameters {
    * @return The value of the Input property for this object.
    */
   public byte[] getInput() {
-    return input;
+    return OptionsUtils.safeGet(input);
   }
 
   /**

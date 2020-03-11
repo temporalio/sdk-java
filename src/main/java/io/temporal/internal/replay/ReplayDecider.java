@@ -22,9 +22,8 @@ import static io.temporal.worker.NonDeterministicWorkflowPolicy.FailWorkflow;
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
-import io.temporal.common.RetryOptions;
+import io.grpc.Status;
 import io.temporal.internal.common.OptionsUtils;
-import io.temporal.internal.common.Retryer;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.HistoryHelper.DecisionEvents;
 import io.temporal.internal.replay.HistoryHelper.DecisionEventsIterator;
@@ -42,7 +41,8 @@ import io.temporal.proto.enums.EventType;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
-import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
+import io.temporal.serviceclient.GrpcRetryOptions;
+import io.temporal.serviceclient.GrpcRetryer;
 import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
@@ -365,8 +365,8 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
 
   // Returns boolean to indicate whether we need to force create new decision task for local
   // activity heartbeating.
-  private boolean decideImpl(
-      PollForDecisionTaskResponseOrBuilder decisionTask, Functions.Proc query) throws Throwable {
+  private boolean decideImpl(PollForDecisionTaskResponse decisionTask, Functions.Proc query)
+      throws Throwable {
     boolean forceCreateNewDecisionTask = false;
     try {
       long startTime = System.currentTimeMillis();
@@ -561,17 +561,12 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
     private final Duration paginationStart = Duration.ofMillis(System.currentTimeMillis());
     private Duration decisionTaskStartToCloseTimeout;
 
-    private final Duration retryServiceOperationExpirationInterval() {
-      Duration passed = Duration.ofMillis(System.currentTimeMillis()).minus(paginationStart);
-      return decisionTaskStartToCloseTimeout.minus(passed);
-    }
-
-    private final PollForDecisionTaskResponseOrBuilder task;
+    private final PollForDecisionTaskResponse task;
     private Iterator<HistoryEvent> current;
     private ByteString nextPageToken;
 
     DecisionTaskWithHistoryIteratorImpl(
-        PollForDecisionTaskResponseOrBuilder task, Duration decisionTaskStartToCloseTimeout) {
+        PollForDecisionTaskResponse task, Duration decisionTaskStartToCloseTimeout) {
       this.task = Objects.requireNonNull(task);
       this.decisionTaskStartToCloseTimeout =
           Objects.requireNonNull(decisionTaskStartToCloseTimeout);
@@ -582,7 +577,7 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
     }
 
     @Override
-    public PollForDecisionTaskResponseOrBuilder getDecisionTask() {
+    public PollForDecisionTaskResponse getDecisionTask() {
       return task;
     }
 
@@ -591,7 +586,7 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
       return new Iterator<HistoryEvent>() {
         @Override
         public boolean hasNext() {
-          return current.hasNext() || nextPageToken != null;
+          return current.hasNext() || !nextPageToken.isEmpty();
         }
 
         @Override
@@ -602,9 +597,17 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
 
           metricsScope.counter(MetricsType.WORKFLOW_GET_HISTORY_COUNTER).inc(1);
           Stopwatch sw = metricsScope.timer(MetricsType.WORKFLOW_GET_HISTORY_LATENCY).start();
-          RetryOptions retryOptions =
-              new RetryOptions.Builder()
-                  .setExpiration(retryServiceOperationExpirationInterval())
+          Duration passed = Duration.ofMillis(System.currentTimeMillis()).minus(paginationStart);
+          Duration expiration = decisionTaskStartToCloseTimeout.minus(passed);
+          if (expiration.isZero() || expiration.isNegative()) {
+            throw Status.DEADLINE_EXCEEDED
+                .withDescription(
+                    "getWorkflowExecutionHistory pagination took longer than decision task timeout")
+                .asRuntimeException();
+          }
+          GrpcRetryOptions retryOptions =
+              new GrpcRetryOptions.Builder()
+                  .setExpiration(expiration)
                   .setInitialInterval(retryServiceOperationInitialInterval)
                   .setMaximumInterval(retryServiceOperationMaxInterval)
                   .build();
@@ -619,7 +622,7 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
 
           try {
             GetWorkflowExecutionHistoryResponse r =
-                Retryer.retryWithResult(
+                GrpcRetryer.retryWithResult(
                     retryOptions,
                     () -> service.blockingStub().getWorkflowExecutionHistory(request));
             current = r.getHistory().getEventsList().iterator();

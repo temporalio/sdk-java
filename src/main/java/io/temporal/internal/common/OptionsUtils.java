@@ -24,6 +24,21 @@ public final class OptionsUtils {
 
   public static final Duration DEFAULT_TASK_START_TO_CLOSE_TIMEOUT = Duration.ofSeconds(10);
   public static final float SECOND = 1000f;
+  public static final byte[] EMPTY_BLOB = new byte[0];
+
+  public static byte[] safeGet(byte[] value) {
+    if (value == null) {
+      return EMPTY_BLOB;
+    }
+    return value;
+  }
+
+  public static String safeGet(String value) {
+    if (value == null) {
+      return "";
+    }
+    return value;
+  }
 
   /** Merges value from annotation and option. Option value takes precedence. */
   public static <G> G merge(G annotation, G options, Class<G> type) {

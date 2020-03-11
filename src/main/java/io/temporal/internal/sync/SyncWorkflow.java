@@ -83,7 +83,7 @@ class SyncWorkflow implements ReplayWorkflow {
     if (workflow == null) {
       throw new IllegalArgumentException("Unknown workflow type: " + workflowType);
     }
-    if (event.getEventType() != EventType.EventTypeChildWorkflowExecutionStarted) {
+    if (event.getEventType() != EventType.EventTypeWorkflowExecutionStarted) {
       throw new IllegalArgumentException(
           "first event is not WorkflowExecutionStarted, but " + event.getEventType());
     }

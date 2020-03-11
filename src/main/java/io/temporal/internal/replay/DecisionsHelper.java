@@ -218,12 +218,12 @@ class DecisionsHelper {
     if (event.getEventType() != EventType.EventTypeStartChildWorkflowExecutionInitiated) {
       return false;
     }
-    StartChildWorkflowExecutionInitiatedEventAttributes attr =
-        event.getStartChildWorkflowExecutionInitiatedEventAttributes();
-    if (attr == null) {
+    if (!event.hasStartChildWorkflowExecutionInitiatedEventAttributes()) {
       throw new Error("Corrupted event: " + event);
     }
-    return attr.getRetryPolicy() != null;
+    StartChildWorkflowExecutionInitiatedEventAttributes attr =
+        event.getStartChildWorkflowExecutionInitiatedEventAttributes();
+    return attr.hasRetryPolicy();
   }
 
   /**
@@ -239,11 +239,11 @@ class DecisionsHelper {
     if (event.getEventType() != EventType.EventTypeActivityTaskScheduled) {
       return false;
     }
-    ActivityTaskScheduledEventAttributes attr = event.getActivityTaskScheduledEventAttributes();
-    if (attr == null) {
+    if (!event.hasActivityTaskScheduledEventAttributes()) {
       throw new Error("Corrupted event: " + event);
     }
-    return attr.getRetryPolicy() != null;
+    ActivityTaskScheduledEventAttributes attr = event.getActivityTaskScheduledEventAttributes();
+    return attr.hasRetryPolicy();
   }
 
   void handleStartChildWorkflowExecutionInitiated(HistoryEvent event) {

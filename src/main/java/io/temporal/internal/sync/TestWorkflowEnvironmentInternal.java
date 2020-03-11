@@ -19,6 +19,7 @@ package io.temporal.internal.sync;
 
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
+import io.grpc.ServerInterceptors;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.temporal.client.ActivityCompletionClient;
@@ -67,7 +68,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
       Server server =
           InProcessServerBuilder.forName(serverName)
               .directExecutor()
-              .addService(service)
+              .addService(ServerInterceptors.intercept(service, new LoggingInterceptor()))
               .build()
               .start();
     } catch (IOException e) {

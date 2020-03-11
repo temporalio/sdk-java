@@ -540,7 +540,9 @@ class StateMachines {
     if (data.continuedExecutionRunId.isPresent()) {
       a.setContinuedExecutionRunId(data.continuedExecutionRunId.get());
     }
-    a.setLastCompletionResult(data.lastCompletionResult);
+    if (data.lastCompletionResult != null) {
+      a.setLastCompletionResult(data.lastCompletionResult);
+    }
     if (request.hasMemo()) {
       a.setMemo(request.getMemo());
     }
@@ -552,7 +554,7 @@ class StateMachines {
     }
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeChildWorkflowExecutionStarted)
+            .setEventType(EventType.EventTypeWorkflowExecutionStarted)
             .setWorkflowExecutionStartedEventAttributes(a)
             .build();
     ctx.addEvent(event);
@@ -569,7 +571,7 @@ class StateMachines {
             .setDecisionTaskCompletedEventId(decisionTaskCompletedEventId);
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeChildWorkflowExecutionCompleted)
+            .setEventType(EventType.EventTypeWorkflowExecutionCompleted)
             .setWorkflowExecutionCompletedEventAttributes(a)
             .build();
     ctx.addEvent(event);

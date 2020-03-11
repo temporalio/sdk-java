@@ -17,6 +17,7 @@
 
 package io.temporal.internal.replay;
 
+import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.RetryParameters;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.enums.ParentClosePolicy;
@@ -195,11 +196,11 @@ public final class StartChildWorkflowExecutionParameters {
   }
 
   public String getDomain() {
-    return domain;
+    return OptionsUtils.safeGet(domain);
   }
 
   public String getControl() {
-    return control;
+    return OptionsUtils.safeGet(control);
   }
 
   public long getExecutionStartToCloseTimeoutSeconds() {
@@ -207,11 +208,11 @@ public final class StartChildWorkflowExecutionParameters {
   }
 
   public byte[] getInput() {
-    return input;
+    return OptionsUtils.safeGet(input);
   }
 
   public String getTaskList() {
-    return taskList;
+    return OptionsUtils.safeGet(taskList);
   }
 
   public long getTaskStartToCloseTimeoutSeconds() {
@@ -219,7 +220,7 @@ public final class StartChildWorkflowExecutionParameters {
   }
 
   public String getWorkflowId() {
-    return workflowId;
+    return OptionsUtils.safeGet(workflowId);
   }
 
   public WorkflowType getWorkflowType() {
@@ -235,7 +236,7 @@ public final class StartChildWorkflowExecutionParameters {
   }
 
   public String getCronSchedule() {
-    return cronSchedule;
+    return OptionsUtils.safeGet(cronSchedule);
   }
 
   public Map<String, byte[]> getContext() {

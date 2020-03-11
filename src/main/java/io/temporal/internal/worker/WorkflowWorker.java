@@ -288,29 +288,33 @@ public final class WorkflowWorker
         ByteString taskToken,
         DecisionTaskHandler.Result response) {
       GrpcRetryOptions ro = response.getRequestRetryOptions();
-      RespondDecisionTaskCompletedRequest.Builder taskCompleted =
-          response.getTaskCompleted().toBuilder();
+      RespondDecisionTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
         ro = options.getReportCompletionRetryOptions().merge(ro);
-        taskCompleted.setIdentity(options.getIdentity());
-        taskCompleted.setTaskToken(taskToken);
-        GrpcRetryer.retry(
-            ro, () -> service.blockingStub().respondDecisionTaskCompleted(taskCompleted.build()));
+        RespondDecisionTaskCompletedRequest request =
+            taskCompleted
+                .toBuilder()
+                .setIdentity(options.getIdentity())
+                .setTaskToken(taskToken)
+                .build();
+        GrpcRetryer.retry(ro, () -> service.blockingStub().respondDecisionTaskCompleted(request));
       } else {
-        RespondDecisionTaskFailedRequest.Builder taskFailed = response.getTaskFailed().toBuilder();
+        RespondDecisionTaskFailedRequest taskFailed = response.getTaskFailed();
         if (taskFailed != null) {
           ro = options.getReportFailureRetryOptions().merge(ro);
-          taskFailed.setIdentity(options.getIdentity());
-          taskFailed.setTaskToken(taskToken);
-          GrpcRetryer.retry(
-              ro, () -> service.blockingStub().respondDecisionTaskFailed(taskFailed.build()));
+          RespondDecisionTaskFailedRequest request =
+              taskFailed
+                  .toBuilder()
+                  .setIdentity(options.getIdentity())
+                  .setTaskToken(taskToken)
+                  .build();
+          GrpcRetryer.retry(ro, () -> service.blockingStub().respondDecisionTaskFailed(request));
         } else {
-          RespondQueryTaskCompletedRequest.Builder queryCompleted =
-              response.getQueryCompleted().toBuilder();
+          RespondQueryTaskCompletedRequest queryCompleted = response.getQueryCompleted();
           if (queryCompleted != null) {
-            queryCompleted.setTaskToken(taskToken);
+            queryCompleted = queryCompleted.toBuilder().setTaskToken(taskToken).build();
             // Do not retry query response.
-            service.blockingStub().respondQueryTaskCompleted(queryCompleted.build());
+            service.blockingStub().respondQueryTaskCompleted(queryCompleted);
           }
         }
       }

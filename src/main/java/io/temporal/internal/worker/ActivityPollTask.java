@@ -79,7 +79,8 @@ final class ActivityPollTask implements Poller.PollTask<PollForActivityTaskRespo
     try {
       result = service.blockingStub().pollForActivityTask(pollRequest.build());
     } catch (StatusRuntimeException e) {
-      if (e.getStatus() == Status.INTERNAL || e.getStatus() == Status.RESOURCE_EXHAUSTED) {
+      if (e.getStatus().getCode() == Status.Code.INTERNAL
+          || e.getStatus().getCode() == Status.Code.RESOURCE_EXHAUSTED) {
         options
             .getMetricsScope()
             .counter(MetricsType.ACTIVITY_POLL_TRANSIENT_FAILED_COUNTER)
@@ -90,7 +91,7 @@ final class ActivityPollTask implements Poller.PollTask<PollForActivityTaskRespo
       throw e;
     }
 
-    if (result == null || result.getTaskToken() == null) {
+    if (result == null || result.getTaskToken().isEmpty()) {
       if (log.isDebugEnabled()) {
         log.debug("poll request returned no task");
       }
@@ -99,7 +100,7 @@ final class ActivityPollTask implements Poller.PollTask<PollForActivityTaskRespo
     }
 
     if (log.isTraceEnabled()) {
-      log.trace("poll request returned " + result);
+      log.trace("poll request returned \n" + result);
     }
 
     options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_SUCCEED_COUNTER).inc(1);

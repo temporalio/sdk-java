@@ -104,7 +104,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
             () -> service.blockingStub().respondActivityTaskCompleted(request));
         metricsScope.counter(MetricsType.ACTIVITY_TASK_COMPLETED_COUNTER).inc(1);
       } catch (StatusRuntimeException e) {
-        if (e.getStatus() == Status.NOT_FOUND) {
+        if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
           throw new ActivityNotExistsException(e);
         }
         throw new ActivityCompletionFailureException(e);
@@ -128,7 +128,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
         service.blockingStub().respondActivityTaskCompletedByID(request);
         metricsScope.counter(MetricsType.ACTIVITY_TASK_COMPLETED_BY_ID_COUNTER).inc(1);
       } catch (StatusRuntimeException e) {
-        if (e.getStatus() == Status.NOT_FOUND) {
+        if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
           throw new ActivityNotExistsException(activityId, e);
         }
         throw new ActivityCompletionFailureException(activityId, e);
@@ -157,7 +157,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
             () -> service.blockingStub().respondActivityTaskFailed(request));
         metricsScope.counter(MetricsType.ACTIVITY_TASK_FAILED_COUNTER).inc(1);
       } catch (StatusRuntimeException e) {
-        if (e.getStatus() == Status.NOT_FOUND) {
+        if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
           throw new ActivityNotExistsException(e);
         }
         throw new ActivityCompletionFailureException(e);
@@ -183,7 +183,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
             () -> service.blockingStub().respondActivityTaskFailedByID(request));
         metricsScope.counter(MetricsType.ACTIVITY_TASK_FAILED_BY_ID_COUNTER).inc(1);
       } catch (StatusRuntimeException e) {
-        if (e.getStatus() == Status.NOT_FOUND) {
+        if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
           throw new ActivityNotExistsException(activityId, e);
         }
         throw new ActivityCompletionFailureException(activityId, e);
@@ -208,7 +208,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
           throw new ActivityCancelledException();
         }
       } catch (StatusRuntimeException e) {
-        if (e.getStatus() == Status.NOT_FOUND) {
+        if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
           throw new ActivityNotExistsException(activityId, e);
         }
         throw new ActivityCompletionFailureException(activityId, e);
@@ -233,7 +233,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
           throw new ActivityCancelledException();
         }
       } catch (StatusRuntimeException e) {
-        if (e.getStatus() == Status.NOT_FOUND) {
+        if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
           throw new ActivityNotExistsException(activityId, e);
         }
         throw new ActivityCompletionFailureException(activityId, e);

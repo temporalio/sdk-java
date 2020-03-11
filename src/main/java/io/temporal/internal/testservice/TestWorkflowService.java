@@ -186,7 +186,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   private TestWorkflowMutableState getMutableState(ExecutionId executionId, boolean failNotExists) {
     lock.lock();
     try {
-      if (executionId.getExecution().getRunId() == null) {
+      if (executionId.getExecution().getRunId().isEmpty()) {
         return getMutableState(executionId.getWorkflowId(), failNotExists);
       }
       TestWorkflowMutableState mutableState = executions.get(executionId);
@@ -408,7 +408,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       task.setWorkflowExecutionTaskList(mutableState.getStartRequest().getTaskList());
       responseObserver.onNext(task.build());
     } catch (StatusRuntimeException e) {
-      if (e.getStatus() == Status.NOT_FOUND) {
+      if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
         if (log.isDebugEnabled()) {
           log.debug("Skipping outdated decision task for " + executionId, e);
         }
@@ -461,16 +461,19 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       try {
         mutableState.startActivityTask(task, pollRequest);
         responseObserver.onNext(task.build());
+        responseObserver.onCompleted();
+        return;
       } catch (StatusRuntimeException e) {
-        if (e.getStatus() == Status.NOT_FOUND) {
+        if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
           if (log.isDebugEnabled()) {
             log.debug("Skipping outdated activity task for " + executionId, e);
           }
         } else {
           responseObserver.onError(e);
+          responseObserver.onCompleted();
+          return;
         }
       }
-      responseObserver.onCompleted();
     }
   }
 

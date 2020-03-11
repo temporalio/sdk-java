@@ -97,7 +97,7 @@ final class ExecutionId {
   void addBytes(DataOutputStream out) throws IOException {
     out.writeUTF(domain);
     out.writeUTF(execution.getWorkflowId());
-    if (execution.getRunId() != null) {
+    if (!execution.getRunId().isEmpty()) {
       out.writeUTF(execution.getRunId());
     }
   }

@@ -225,7 +225,8 @@ public final class Poller<T> implements SuspendableWorker {
         pollBackoffThrottler.success();
       } catch (Throwable e) {
         pollBackoffThrottler.failure();
-        if (!(e.getCause() instanceof InterruptedException)) {
+        if (!(e.getCause() instanceof InterruptedException)
+            && !(e instanceof RejectedExecutionException)) {
           uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), e);
         }
       } finally {

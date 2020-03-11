@@ -80,7 +80,7 @@ public interface ActivityTaskHandler {
       return taskCompleted;
     }
 
-    public TaskFailedResult getTaskFailedResult() {
+    public TaskFailedResult getTaskFailed() {
       return taskFailed;
     }
 

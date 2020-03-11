@@ -546,19 +546,17 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           .asRuntimeException();
     }
 
-    if (a.getTaskList() == null || a.getTaskList().getName().isEmpty()) {
+    if (!a.hasTaskList() || a.getTaskList().getName().isEmpty()) {
       throw Status.INVALID_ARGUMENT
           .withDescription("TaskList is not set on decision")
           .asRuntimeException();
     }
-    if (a.getActivityId() == null || a.getActivityId().isEmpty()) {
+    if (a.getActivityId().isEmpty()) {
       throw Status.INVALID_ARGUMENT
           .withDescription("ActivityId is not set on decision")
           .asRuntimeException();
     }
-    if (a.getActivityType() == null
-        || a.getActivityType().getName() == null
-        || a.getActivityType().getName().isEmpty()) {
+    if (!a.hasActivityType() || a.getActivityType().getName().isEmpty()) {
       throw Status.INVALID_ARGUMENT
           .withDescription("ActivityType is not set on decision")
           .asRuntimeException();
@@ -611,7 +609,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           .asRuntimeException();
     }
 
-    if (a.getWorkflowType() == null || a.getWorkflowType().getName().isEmpty()) {
+    if (!a.hasWorkflowType() || a.getWorkflowType().getName().isEmpty()) {
       throw Status.INVALID_ARGUMENT
           .withDescription("Required field WorkflowType is not set on decision")
           .asRuntimeException();
@@ -723,7 +721,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           },
           null); // reset sticky attributes to null
     } catch (StatusRuntimeException e) {
-      if (e.getStatus() != Status.NOT_FOUND) {
+      if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
         // Cannot fail to timer threads
         log.error("Failure trying to timeout a decision scheduledEventId=" + scheduledEventId, e);
       }
@@ -924,7 +922,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                       .childWorkflowFailed(ctx.getExecutionId().getWorkflowId().getWorkflowId(), a);
                 } catch (StatusRuntimeException e) {
                   // Parent might already close
-                  if (e.getStatus() != Status.NOT_FOUND) {
+                  if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
                     log.error("Failure reporting child failure", e);
                   }
                 } catch (Throwable e) {
@@ -966,7 +964,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                           ctx.getExecutionId().getWorkflowId().getWorkflowId(), a);
                 } catch (StatusRuntimeException e) {
                   // Parent might already close
-                  if (e.getStatus() != Status.NOT_FOUND) {
+                  if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
                     log.error("Failure reporting child completion", e);
                   }
                 } catch (Throwable e) {
@@ -1050,7 +1048,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                           ctx.getExecutionId().getWorkflowId().getWorkflowId(), a);
                 } catch (StatusRuntimeException e) {
                   // Parent might already close
-                  if (e.getStatus() != Status.NOT_FOUND) {
+                  if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
                     log.error("Failure reporting child cancellation", e);
                   }
                 } catch (Throwable e) {
@@ -1113,7 +1111,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                       update(ctx1 -> scheduleDecision(ctx1));
                     } catch (StatusRuntimeException e) {
                       // NOT_FOUND is expected as timers are not removed
-                      if (e.getStatus() != Status.NOT_FOUND) {
+                      if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
                         log.error("Failure trying to add task for an delayed workflow retry", e);
                       }
                     } catch (Throwable e) {
@@ -1134,7 +1132,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 executionTimeoutTimerDelay, this::timeoutWorkflow, "workflow execution timeout");
           });
     } catch (StatusRuntimeException e) {
-      if (e.getStatus() == Status.NOT_FOUND) {
+      if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
         throw Status.INTERNAL.withCause(e).asRuntimeException();
       }
       throw e;
@@ -1154,7 +1152,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   parent.get().childWorkflowStarted(a);
                 } catch (StatusRuntimeException e) {
                   // NOT_FOUND is expected as the parent might just close by now.
-                  if (e.getStatus() != Status.NOT_FOUND) {
+                  if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
                     log.error("Failure reporting child completion", e);
                   }
                 } catch (Throwable e) {
@@ -1301,7 +1299,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             update(ctx1 -> ctx1.addActivityTask(data.activityTask));
           } catch (StatusRuntimeException e) {
             // NOT_FOUND is expected as timers are not removed
-            if (e.getStatus() != Status.NOT_FOUND) {
+            if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
               log.error("Failure trying to add task for an activity retry", e);
             }
             unlockTimer = true;
@@ -1410,7 +1408,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           });
     } catch (StatusRuntimeException e) {
       // NOT_FOUND is expected as timers are not removed
-      if (e.getStatus() != Status.NOT_FOUND) {
+      if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
         log.error("Failure trying to add task for an activity retry", e);
       }
       unlockTimer = false;
@@ -1470,7 +1468,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       parent.get().childWorkflowTimedOut(ctx.getExecutionId().getWorkflowId().getWorkflowId(), a);
     } catch (StatusRuntimeException e) {
       // NOT_FOUND is expected as parent might already close
-      if (e.getStatus() != Status.NOT_FOUND) {
+      if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
         log.error("Failure reporting child timing out", e);
       }
     } catch (Exception e) {

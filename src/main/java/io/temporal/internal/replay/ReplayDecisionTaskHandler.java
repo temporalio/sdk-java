@@ -160,9 +160,9 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
                 + execution.getWorkflowId()
                 + ", RunID="
                 + execution.getRunId()
-                + " completed with "
+                + " completed with \n"
                 + WorkflowExecutionUtils.prettyPrintDecisions(result.getDecisions())
-                + " forceCreateNewDecisionTask "
+                + "\nforceCreateNewDecisionTask "
                 + result.getForceCreateNewDecisionTask());
       } else if (log.isDebugEnabled()) {
         WorkflowExecution execution = decisionTask.getWorkflowExecution();

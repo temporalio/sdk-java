@@ -177,10 +177,10 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
         lastException = null;
       }
     } catch (StatusRuntimeException e) {
-      if (e.getStatus() == Status.NOT_FOUND) {
+      if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
         lastException = new ActivityNotExistsException(task, e);
-      } else if (e.getStatus() == Status.INVALID_ARGUMENT
-          || e.getStatus() == Status.FAILED_PRECONDITION) {
+      } else if (e.getStatus().getCode() == Status.Code.INVALID_ARGUMENT
+          || e.getStatus().getCode() == Status.Code.FAILED_PRECONDITION) {
         lastException = new ActivityCompletionFailureException(task, e);
       }
     }

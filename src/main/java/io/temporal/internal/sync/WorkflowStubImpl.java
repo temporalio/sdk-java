@@ -354,7 +354,7 @@ class WorkflowStubImpl implements WorkflowStub {
           execution.get(), workflowType, executionFailed.getDecisionTaskCompletedEventId(), cause);
     } else if (failure instanceof StatusRuntimeException) {
       StatusRuntimeException sre = (StatusRuntimeException) failure;
-      if (sre.getStatus() == Status.NOT_FOUND) {
+      if (sre.getStatus().getCode() == Status.Code.NOT_FOUND) {
         throw new WorkflowNotFoundException(execution.get(), workflowType, failure.getMessage());
       } else {
         throw new WorkflowServiceException(execution.get(), workflowType, failure);
@@ -411,7 +411,7 @@ class WorkflowStubImpl implements WorkflowStub {
       }
 
     } catch (StatusRuntimeException e) {
-      if (e.getStatus() == Status.NOT_FOUND) {
+      if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
         throw new WorkflowNotFoundException(execution.get(), workflowType, e.getMessage());
       } else if (GrpcStatusUtils.hasFailure(e, QueryFailed.class)) {
         throw new WorkflowQueryException(execution.get(), e.getMessage());
