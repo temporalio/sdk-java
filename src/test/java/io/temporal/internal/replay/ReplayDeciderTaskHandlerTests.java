@@ -25,17 +25,35 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import io.temporal.PollForDecisionTaskResponse;
-import io.temporal.StickyExecutionAttributes;
 import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.internal.worker.DecisionTaskHandler;
 import io.temporal.internal.worker.SingleWorkerOptions;
+import io.temporal.proto.common.StickyExecutionAttributes;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import io.temporal.testUtils.HistoryUtils;
 import java.time.Duration;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 public class ReplayDeciderTaskHandlerTests {
+
+  private TestWorkflowService testService;
+  private GrpcWorkflowServiceFactory service;
+
+  @Before
+  public void setUp() {
+    testService = new TestWorkflowService(true);
+    service = testService.newClientStub();
+  }
+
+  @After
+  public void tearDown() {
+    service.close();
+    testService.close();
+  }
 
   @Test
   public void ifStickyExecutionAttributesAreNotSetThenWorkflowsAreNotCached() throws Throwable {
@@ -49,7 +67,7 @@ public class ReplayDeciderTaskHandlerTests {
             new SingleWorkerOptions.Builder().build(),
             null,
             Duration.ofSeconds(5),
-            new TestWorkflowService(),
+            service,
             null);
 
     // Act
@@ -74,7 +92,7 @@ public class ReplayDeciderTaskHandlerTests {
             new SingleWorkerOptions.Builder().build(),
             "sticky",
             Duration.ofSeconds(5),
-            new TestWorkflowService(),
+            service,
             null);
 
     PollForDecisionTaskResponse decisionTask =
@@ -87,7 +105,7 @@ public class ReplayDeciderTaskHandlerTests {
     assertEquals(1, cache.size());
     assertNotNull(result.getTaskCompleted());
     StickyExecutionAttributes attributes = result.getTaskCompleted().getStickyAttributes();
-    assertEquals("sticky", attributes.getWorkerTaskList().name);
+    assertEquals("sticky", attributes.getWorkerTaskList().getName());
     assertEquals(5, attributes.getScheduleToStartTimeoutSeconds());
   }
 
@@ -96,8 +114,10 @@ public class ReplayDeciderTaskHandlerTests {
       throws Throwable {
     // Arrange
     DeciderCache cache = new DeciderCache(10, NoopScope.getInstance());
-    StickyExecutionAttributes attributes = new StickyExecutionAttributes();
-    attributes.setWorkerTaskList(createStickyTaskList("sticky"));
+    StickyExecutionAttributes attributes =
+        StickyExecutionAttributes.newBuilder()
+            .setWorkerTaskList(createStickyTaskList("sticky"))
+            .build();
     DecisionTaskHandler taskHandler =
         new ReplayDecisionTaskHandler(
             "domain",
@@ -106,7 +126,7 @@ public class ReplayDeciderTaskHandlerTests {
             new SingleWorkerOptions.Builder().build(),
             "sticky",
             Duration.ofSeconds(5),
-            new TestWorkflowService(),
+            service,
             null);
 
     // Act

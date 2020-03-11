@@ -20,9 +20,18 @@ package io.temporal.testUtils;
 import static io.temporal.internal.common.InternalUtils.createNormalTaskList;
 import static io.temporal.internal.common.InternalUtils.createStickyTaskList;
 
-import io.temporal.*;
-import io.temporal.internal.testservice.TestWorkflowService;
-import java.nio.ByteBuffer;
+import com.google.protobuf.ByteString;
+import io.temporal.proto.common.StickyExecutionAttributes;
+import io.temporal.proto.common.TaskList;
+import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.common.WorkflowType;
+import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
+import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
+import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
+import io.temporal.proto.workflowservice.SignalWorkflowExecutionRequest;
+import io.temporal.proto.workflowservice.StartWorkflowExecutionRequest;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import java.util.ArrayList;
 import java.util.UUID;
 
@@ -30,7 +39,7 @@ public class TestServiceUtils {
   private TestServiceUtils() {}
 
   public static void startWorkflowExecution(
-      String domain, String tasklistName, String workflowType, TestWorkflowService service)
+      String domain, String tasklistName, String workflowType, GrpcWorkflowServiceFactory service)
       throws Exception {
     startWorkflowExecution(domain, tasklistName, workflowType, 100, 100, service);
   }
@@ -41,64 +50,64 @@ public class TestServiceUtils {
       String workflowType,
       int executionStartToCloseTimeoutSeconds,
       int taskStartToCloseTimeoutSeconds,
-      TestWorkflowService service)
+      GrpcWorkflowServiceFactory service)
       throws Exception {
-    StartWorkflowExecutionRequest request = new StartWorkflowExecutionRequest();
-    request.domain = domain;
-    request.workflowId = UUID.randomUUID().toString();
-    request.taskList = createNormalTaskList(tasklistName);
+    StartWorkflowExecutionRequest.Builder request = StartWorkflowExecutionRequest.newBuilder();
+    request.setDomain(domain);
+    request.setWorkflowId(UUID.randomUUID().toString());
+    request.setTaskList(createNormalTaskList(tasklistName));
     request.setExecutionStartToCloseTimeoutSeconds(executionStartToCloseTimeoutSeconds);
     request.setTaskStartToCloseTimeoutSeconds(taskStartToCloseTimeoutSeconds);
-    WorkflowType type = new WorkflowType();
-    type.name = workflowType;
-    request.workflowType = type;
-    service.StartWorkflowExecution(request);
+    request.setWorkflowType(WorkflowType.newBuilder().setName(workflowType));
+    service.blockingStub().startWorkflowExecution(request.build());
   }
 
   public static void respondDecisionTaskCompletedWithSticky(
-      ByteBuffer taskToken, String stickyTasklistName, TestWorkflowService service)
+      ByteString taskToken, String stickyTasklistName, GrpcWorkflowServiceFactory service)
       throws Exception {
     respondDecisionTaskCompletedWithSticky(taskToken, stickyTasklistName, 100, service);
   }
 
   public static void respondDecisionTaskCompletedWithSticky(
-      ByteBuffer taskToken,
+      ByteString taskToken,
       String stickyTasklistName,
       int startToCloseTimeout,
-      TestWorkflowService service)
+      GrpcWorkflowServiceFactory service)
       throws Exception {
-    RespondDecisionTaskCompletedRequest request = new RespondDecisionTaskCompletedRequest();
-    StickyExecutionAttributes attributes = new StickyExecutionAttributes();
+    RespondDecisionTaskCompletedRequest.Builder request =
+        RespondDecisionTaskCompletedRequest.newBuilder();
+    StickyExecutionAttributes.Builder attributes = StickyExecutionAttributes.newBuilder();
     attributes.setWorkerTaskList(createStickyTaskList(stickyTasklistName));
     attributes.setScheduleToStartTimeoutSeconds(startToCloseTimeout);
     request.setStickyAttributes(attributes);
     request.setTaskToken(taskToken);
-    request.setDecisions(new ArrayList<>());
-    service.RespondDecisionTaskCompleted(request);
+    request.addAllDecisions(new ArrayList<>());
+    service.blockingStub().respondDecisionTaskCompleted(request.build());
   }
 
   public static void respondDecisionTaskFailedWithSticky(
-      ByteBuffer taskToken, TestWorkflowService service) throws Exception {
-    RespondDecisionTaskFailedRequest request = new RespondDecisionTaskFailedRequest();
-    request.setTaskToken(taskToken);
-    service.RespondDecisionTaskFailed(request);
+      ByteString taskToken, GrpcWorkflowServiceFactory service) throws Exception {
+    RespondDecisionTaskFailedRequest request =
+        RespondDecisionTaskFailedRequest.newBuilder().setTaskToken(taskToken).build();
+    service.blockingStub().respondDecisionTaskFailed(request);
   }
 
   public static PollForDecisionTaskResponse pollForDecisionTask(
-      String domain, TaskList tasklist, TestWorkflowService service) throws Exception {
-    PollForDecisionTaskRequest request = new PollForDecisionTaskRequest();
-    request.setDomain(domain);
-    request.setTaskList(tasklist);
-    return service.PollForDecisionTask(request);
+      String domain, TaskList tasklist, GrpcWorkflowServiceFactory service) throws Exception {
+    PollForDecisionTaskRequest request =
+        PollForDecisionTaskRequest.newBuilder().setDomain(domain).setTaskList(tasklist).build();
+    return service.blockingStub().pollForDecisionTask(request);
   }
 
   public static void signalWorkflow(
-      WorkflowExecution workflowExecution, String domain, TestWorkflowService service)
+      WorkflowExecution workflowExecution, String domain, GrpcWorkflowServiceFactory service)
       throws Exception {
-    SignalWorkflowExecutionRequest signalRequest = new SignalWorkflowExecutionRequest();
-    signalRequest.setDomain(domain);
-    signalRequest.setSignalName("my-signal");
-    signalRequest.setWorkflowExecution(workflowExecution);
-    service.SignalWorkflowExecution(signalRequest);
+    SignalWorkflowExecutionRequest signalRequest =
+        SignalWorkflowExecutionRequest.newBuilder()
+            .setDomain(domain)
+            .setSignalName("my-signal")
+            .setWorkflowExecution(workflowExecution)
+            .build();
+    service.blockingStub().signalWorkflowExecution(signalRequest);
   }
 }

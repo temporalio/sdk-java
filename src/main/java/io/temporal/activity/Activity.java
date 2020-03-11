@@ -21,7 +21,7 @@ import io.temporal.client.ActivityCompletionException;
 import io.temporal.internal.sync.ActivityInternal;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import io.temporal.workflow.ActivityException;
 import io.temporal.workflow.ActivityTimeoutException;
 import java.lang.reflect.Type;
@@ -272,7 +272,7 @@ public final class Activity {
    *     operations like sending signal to its parent workflow. @TODO getWorkflowClient method to
    *     hide the service.
    */
-  public static WorkflowServiceGrpc getService() {
+  public static GrpcWorkflowServiceFactory getService() {
     return ActivityInternal.getService();
   }
 

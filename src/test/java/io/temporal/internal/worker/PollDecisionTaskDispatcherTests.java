@@ -25,11 +25,14 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
-import io.temporal.PollForDecisionTaskResponse;
-import io.temporal.TaskList;
 import io.temporal.internal.testservice.TestWorkflowService;
+import io.temporal.proto.common.TaskList;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,15 +42,28 @@ public class PollDecisionTaskDispatcherTests {
   LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
   ch.qos.logback.classic.Logger logger = context.getLogger(Logger.ROOT_LOGGER_NAME);
 
+  private TestWorkflowService testService;
+  private GrpcWorkflowServiceFactory service;
+
+  @Before
+  public void setUp() {
+    testService = new TestWorkflowService();
+    service = testService.newClientStub();
+  }
+
+  @After
+  public void tearDown() {
+    service.close();
+    testService.close();
+  }
+
   @Test
   public void pollDecisionTasksAreDispatchedBasedOnTaskListName() {
-
     // Arrange
     AtomicBoolean handled = new AtomicBoolean(false);
     Consumer<PollForDecisionTaskResponse> handler = r -> handled.set(true);
 
-    PollDecisionTaskDispatcher dispatcher =
-        new PollDecisionTaskDispatcher(new TestWorkflowService());
+    PollDecisionTaskDispatcher dispatcher = new PollDecisionTaskDispatcher(service);
     dispatcher.subscribe("tasklist1", handler);
 
     // Act
@@ -68,8 +84,7 @@ public class PollDecisionTaskDispatcherTests {
     Consumer<PollForDecisionTaskResponse> handler = r -> handled.set(true);
     Consumer<PollForDecisionTaskResponse> handler2 = r -> handled2.set(true);
 
-    PollDecisionTaskDispatcher dispatcher =
-        new PollDecisionTaskDispatcher(new TestWorkflowService());
+    PollDecisionTaskDispatcher dispatcher = new PollDecisionTaskDispatcher(service);
     dispatcher.subscribe("tasklist1", handler);
     dispatcher.subscribe("tasklist2", handler2);
 
@@ -92,8 +107,7 @@ public class PollDecisionTaskDispatcherTests {
     Consumer<PollForDecisionTaskResponse> handler = r -> handled.set(true);
     Consumer<PollForDecisionTaskResponse> handler2 = r -> handled2.set(true);
 
-    PollDecisionTaskDispatcher dispatcher =
-        new PollDecisionTaskDispatcher(new TestWorkflowService());
+    PollDecisionTaskDispatcher dispatcher = new PollDecisionTaskDispatcher(service);
     dispatcher.subscribe("tasklist1", handler);
     dispatcher.subscribe("tasklist1", handler2);
 
@@ -130,7 +144,7 @@ public class PollDecisionTaskDispatcherTests {
     dispatcher.process(response);
 
     // Assert
-    verify(mockService, times(1)).RespondDecisionTaskFailed(any());
+    verify(mockService, times(1)).blockingStub().respondDecisionTaskFailed(any());
     assertFalse(handled.get());
     assertEquals(1, appender.list.size());
     ILoggingEvent event = appender.list.get(0);
@@ -143,10 +157,8 @@ public class PollDecisionTaskDispatcherTests {
   }
 
   private PollForDecisionTaskResponse CreatePollForDecisionTaskResponse(String taskListName) {
-    PollForDecisionTaskResponse response = new PollForDecisionTaskResponse();
-    TaskList tl = new TaskList();
-    tl.setName(taskListName);
-    response.setWorkflowExecutionTaskList(tl);
-    return response;
+    return PollForDecisionTaskResponse.newBuilder()
+        .setWorkflowExecutionTaskList(TaskList.newBuilder().setName(taskListName).build())
+        .build();
   }
 }

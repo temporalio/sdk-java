@@ -881,7 +881,7 @@ public class WorkflowTest {
         // false for second argument means to heartbeat once to set details and then stop.
         activities.activityWithDelay(5000, false);
       } catch (ActivityTimeoutException e) {
-        assertEquals(TimeoutType.HEARTBEAT, e.getTimeoutType());
+        assertEquals(TimeoutType.TimeoutTypeHeartbeat, e.getTimeoutType());
         return e.getDetails(String.class);
       }
       throw new RuntimeException("unreachable");
@@ -1304,7 +1304,7 @@ public class WorkflowTest {
         workflowClientWithOptions.newWorkflowStub(
             TestMultiargsWorkflowsFunc2.class,
             newWorkflowOptionsBuilder(taskList)
-                .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.AllowDuplicate)
+                .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicate)
                 .build());
     assertResult("12", WorkflowClient.start(stubF2::func2, "1", 2));
     try {
@@ -1381,9 +1381,9 @@ public class WorkflowTest {
       GetWorkflowExecutionHistoryResponse historyResp =
           WorkflowExecutionUtils.getHistoryPage(
               testEnvironment.getWorkflowService(), DOMAIN, executionF, ByteString.EMPTY);
-      HistoryEvent startEvent = historyResp.history.getEvents().get(0);
-      Memo memoFromEvent = startEvent.workflowExecutionStartedEventAttributes.getMemo();
-      byte[] memoBytes = memoFromEvent.getFields().get(testMemoKey).array();
+      HistoryEvent startEvent = historyResp.getHistory().getEvents(0);
+      Memo memoFromEvent = startEvent.getWorkflowExecutionStartedEventAttributes().getMemo();
+      byte[] memoBytes = memoFromEvent.getFieldsMap().get(testMemoKey).toByteArray();
       String memoRetrieved =
           JsonDataConverter.getInstance().fromData(memoBytes, String.class, String.class);
       assertEquals(testMemoValue, memoRetrieved);
@@ -1421,36 +1421,33 @@ public class WorkflowTest {
 
       GetWorkflowExecutionHistoryResponse historyResp =
           WorkflowExecutionUtils.getHistoryPage(
-              new byte[] {}, testEnvironment.getWorkflowService(), DOMAIN, executionF);
-      HistoryEvent startEvent = historyResp.history.getEvents().get(0);
+              testEnvironment.getWorkflowService(), DOMAIN, executionF, ByteString.EMPTY);
+      HistoryEvent startEvent = historyResp.getHistory().getEvents(0);
       SearchAttributes searchAttrFromEvent =
-          startEvent.workflowExecutionStartedEventAttributes.getSearchAttributes();
+          startEvent.getWorkflowExecutionStartedEventAttributes().getSearchAttributes();
 
-      byte[] searchAttrStringBytes =
-          searchAttrFromEvent.getIndexedFields().get(testKeyString).array();
+      Map<String, ByteString> fieldsMap = searchAttrFromEvent.getIndexedFieldsMap();
+      byte[] searchAttrStringBytes = fieldsMap.get(testKeyString).toByteArray();
       String retrievedString =
           JsonDataConverter.getInstance()
               .fromData(searchAttrStringBytes, String.class, String.class);
       assertEquals(testValueString, retrievedString);
-      byte[] searchAttrIntegerBytes =
-          searchAttrFromEvent.getIndexedFields().get(testKeyInteger).array();
+      byte[] searchAttrIntegerBytes = fieldsMap.get(testKeyInteger).toByteArray();
       Integer retrievedInteger =
           JsonDataConverter.getInstance()
               .fromData(searchAttrIntegerBytes, Integer.class, Integer.class);
       assertEquals(testValueInteger, retrievedInteger);
-      byte[] searchAttrDateTimeBytes =
-          searchAttrFromEvent.getIndexedFields().get(testKeyDateTime).array();
+      byte[] searchAttrDateTimeBytes = fieldsMap.get(testKeyDateTime).toByteArray();
       LocalDateTime retrievedDateTime =
           JsonDataConverter.getInstance()
               .fromData(searchAttrDateTimeBytes, LocalDateTime.class, LocalDateTime.class);
       assertEquals(testValueDateTime, retrievedDateTime);
-      byte[] searchAttrBoolBytes = searchAttrFromEvent.getIndexedFields().get(testKeyBool).array();
+      byte[] searchAttrBoolBytes = fieldsMap.get(testKeyBool).toByteArray();
       Boolean retrievedBool =
           JsonDataConverter.getInstance()
               .fromData(searchAttrBoolBytes, Boolean.class, Boolean.class);
       assertEquals(testValueBool, retrievedBool);
-      byte[] searchAttrDoubleBytes =
-          searchAttrFromEvent.getIndexedFields().get(testKeyDouble).array();
+      byte[] searchAttrDoubleBytes = fieldsMap.get(testKeyDouble).toByteArray();
       Double retrievedDouble =
           JsonDataConverter.getInstance()
               .fromData(searchAttrDoubleBytes, Double.class, Double.class);
@@ -1541,7 +1538,7 @@ public class WorkflowTest {
     // Setting WorkflowIdReusePolicy to AllowDuplicate will trigger new run.
     workflowOptions =
         newWorkflowOptionsBuilder(taskList)
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.AllowDuplicate)
+            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicate)
             .setWorkflowId(workflowID)
             .build();
     TestMultiargsWorkflowsFunc1 stubF1_3 =
@@ -2453,10 +2450,14 @@ public class WorkflowTest {
     assertEquals("Hello World!", client.getResult(String.class));
     assertEquals("World!", client.query("QueryableWorkflow::getState", String.class));
     QueryResponse<String> queryResponse =
-        client.query("QueryableWorkflow::getState", String.class, QueryRejectCondition.NOT_OPEN);
+        client.query(
+            "QueryableWorkflow::getState",
+            String.class,
+            QueryRejectCondition.QueryRejectConditionNotOpen);
     assertNull(queryResponse.getResult());
     assertEquals(
-        WorkflowExecutionCloseStatus.COMPLETED, queryResponse.getQueryRejected().closeStatus);
+        WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusCompleted,
+        queryResponse.getQueryRejected().getCloseStatus());
   }
 
   static final AtomicInteger decisionCount = new AtomicInteger();
@@ -2653,7 +2654,8 @@ public class WorkflowTest {
         Workflow.newChildWorkflowStub(
             ITestChild.class,
             new ChildWorkflowOptions.Builder()
-                .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
+                .setWorkflowIdReusePolicy(
+                    WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate)
                 .build());
     private final TestWorkflow1 self = Workflow.newContinueAsNewStub(TestWorkflow1.class);
 
@@ -2729,7 +2731,7 @@ public class WorkflowTest {
     WorkflowIdReusePolicyParent client =
         workflowClient.newWorkflowStub(WorkflowIdReusePolicyParent.class, options.build());
     try {
-      client.execute(false, WorkflowIdReusePolicy.RejectDuplicate);
+      client.execute(false, WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate);
       fail("unreachable");
     } catch (WorkflowFailureException e) {
       assertTrue(e.getCause() instanceof StartChildWorkflowFailedException);
@@ -2747,7 +2749,7 @@ public class WorkflowTest {
     WorkflowIdReusePolicyParent client =
         workflowClient.newWorkflowStub(WorkflowIdReusePolicyParent.class, options.build());
     try {
-      client.execute(true, WorkflowIdReusePolicy.RejectDuplicate);
+      client.execute(true, WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate);
       fail("unreachable");
     } catch (WorkflowFailureException e) {
       assertTrue(e.getCause() instanceof StartChildWorkflowFailedException);
@@ -2764,7 +2766,9 @@ public class WorkflowTest {
     options.setTaskList(taskList);
     WorkflowIdReusePolicyParent client =
         workflowClient.newWorkflowStub(WorkflowIdReusePolicyParent.class, options.build());
-    assertEquals("HELLO WORLD!", client.execute(false, WorkflowIdReusePolicy.AllowDuplicate));
+    assertEquals(
+        "HELLO WORLD!",
+        client.execute(false, WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicate));
   }
 
   public static class TestChildWorkflowRetryWorkflow implements TestWorkflow1 {
@@ -2954,7 +2958,8 @@ public class WorkflowTest {
 
     @Override
     public String execute(String greeting, String parentWorkflowID) {
-      WorkflowExecution parentExecution = new WorkflowExecution().setWorkflowId(parentWorkflowID);
+      WorkflowExecution parentExecution =
+          WorkflowExecution.newBuilder().setWorkflowId(parentWorkflowID).build();
       TestWorkflowSignaled parent =
           Workflow.newExternalWorkflowStub(TestWorkflowSignaled.class, parentExecution);
       parent.signal1("World");
@@ -3023,7 +3028,8 @@ public class WorkflowTest {
 
     @Override
     public String execute(String taskList) {
-      WorkflowExecution parentExecution = new WorkflowExecution().setWorkflowId("invalid id");
+      WorkflowExecution parentExecution =
+          WorkflowExecution.newBuilder().setWorkflowId("invalid id").build();
       TestWorkflowSignaled workflow =
           Workflow.newExternalWorkflowStub(TestWorkflowSignaled.class, parentExecution);
       workflow.signal1("World");
@@ -3048,7 +3054,8 @@ public class WorkflowTest {
           "invalid id",
           ((SignalExternalWorkflowException) e.getCause()).getSignaledExecution().getWorkflowId());
       assertEquals(
-          SignalExternalWorkflowExecutionFailedCause.UNKNOWN_EXTERNAL_WORKFLOW_EXECUTION,
+          SignalExternalWorkflowExecutionFailedCause
+              .SignalExternalWorkflowExecutionFailedCauseUnknownExternalWorkflowExecution,
           ((SignalExternalWorkflowException) e.getCause()).getFailureCause());
     }
   }
@@ -3057,7 +3064,8 @@ public class WorkflowTest {
 
     @Override
     public String execute(String taskList) {
-      WorkflowExecution parentExecution = new WorkflowExecution().setWorkflowId("invalid id");
+      WorkflowExecution parentExecution =
+          WorkflowExecution.newBuilder().setWorkflowId("invalid id").build();
       TestWorkflowSignaled workflow =
           Workflow.newExternalWorkflowStub(TestWorkflowSignaled.class, parentExecution);
       CompletablePromise<Void> signal = Workflow.newPromise();
@@ -3735,7 +3743,7 @@ public class WorkflowTest {
     @WorkflowMethod(
       name = "func1",
       taskList = ANNOTATION_TASK_LIST,
-      workflowIdReusePolicy = WorkflowIdReusePolicy.RejectDuplicate,
+      workflowIdReusePolicy = WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate,
       executionStartToCloseTimeoutSeconds = 10
     )
     int func1(int input);

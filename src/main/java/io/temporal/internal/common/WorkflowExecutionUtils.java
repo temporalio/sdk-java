@@ -368,7 +368,7 @@ public class WorkflowExecutionUtils {
 
   public static boolean isExternalWorkflowClosedEvent(HistoryEvent event) {
     return ((event != null)
-        && (event.getEventType() == EventType.EventTypeChildWorkflowExecutionCanceled
+        && (event.getEventType() == EventType.EventTypeChildWorkflowExecutionCompleted
             || event.getEventType() == EventType.EventTypeChildWorkflowExecutionCanceled
             || event.getEventType() == EventType.EventTypeChildWorkflowExecutionFailed
             || event.getEventType() == EventType.EventTypeChildWorkflowExecutionTerminated

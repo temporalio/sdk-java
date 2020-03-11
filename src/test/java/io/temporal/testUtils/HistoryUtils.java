@@ -21,8 +21,9 @@ import static io.temporal.internal.common.InternalUtils.createNormalTaskList;
 import static io.temporal.internal.common.InternalUtils.createStickyTaskList;
 import static io.temporal.testUtils.TestServiceUtils.*;
 
-import io.temporal.*;
 import io.temporal.internal.testservice.TestWorkflowService;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 
 public class HistoryUtils {
   private HistoryUtils() {}
@@ -31,18 +32,17 @@ public class HistoryUtils {
   private static final String TASK_LIST = "taskList";
   private static final String HOST_TASK_LIST = "stickyTaskList";
   private static final String WORKFLOW_TYPE = "workflowType";
-  private static final String CALLER = "caller";
 
   public static PollForDecisionTaskResponse generateDecisionTaskWithInitialHistory()
       throws Exception {
-    TestWorkflowService service = new TestWorkflowService();
-    service.lockTimeSkipping(CALLER);
-    return generateDecisionTaskWithInitialHistory(
-        DOMAIN, TASK_LIST, WORKFLOW_TYPE, new TestWorkflowService());
+    try (TestWorkflowService testService = new TestWorkflowService(true);
+        GrpcWorkflowServiceFactory service = testService.newClientStub(); ) {
+      return generateDecisionTaskWithInitialHistory(DOMAIN, TASK_LIST, WORKFLOW_TYPE, service);
+    }
   }
 
   public static PollForDecisionTaskResponse generateDecisionTaskWithInitialHistory(
-      String domain, String tasklistName, String workflowType, TestWorkflowService service)
+      String domain, String tasklistName, String workflowType, GrpcWorkflowServiceFactory service)
       throws Exception {
     startWorkflowExecution(domain, tasklistName, workflowType, service);
     return pollForDecisionTask(domain, createNormalTaskList(tasklistName), service);
@@ -55,25 +55,23 @@ public class HistoryUtils {
 
   public static PollForDecisionTaskResponse generateDecisionTaskWithPartialHistory(
       String domain, String tasklistName, String workflowType) throws Exception {
-
-    TestWorkflowService service = new TestWorkflowService();
-    service.lockTimeSkipping(CALLER);
-
-    PollForDecisionTaskResponse response =
-        generateDecisionTaskWithInitialHistory(domain, tasklistName, workflowType, service);
-    return generateDecisionTaskWithPartialHistoryFromExistingTask(
-        response, domain, HOST_TASK_LIST, service);
+    try (TestWorkflowService testService = new TestWorkflowService(true);
+        GrpcWorkflowServiceFactory service = testService.newClientStub(); ) {
+      PollForDecisionTaskResponse response =
+          generateDecisionTaskWithInitialHistory(domain, tasklistName, workflowType, service);
+      return generateDecisionTaskWithPartialHistoryFromExistingTask(
+          response, domain, HOST_TASK_LIST, service);
+    }
   }
 
   public static PollForDecisionTaskResponse generateDecisionTaskWithPartialHistoryFromExistingTask(
       PollForDecisionTaskResponse response,
       String domain,
       String stickyTaskListName,
-      TestWorkflowService service)
+      GrpcWorkflowServiceFactory service)
       throws Exception {
-
-    signalWorkflow(response.workflowExecution, domain, service);
-    respondDecisionTaskCompletedWithSticky(response.taskToken, stickyTaskListName, service);
+    signalWorkflow(response.getWorkflowExecution(), domain, service);
+    respondDecisionTaskCompletedWithSticky(response.getTaskToken(), stickyTaskListName, service);
     return pollForDecisionTask(domain, createStickyTaskList(stickyTaskListName), service);
   }
 }

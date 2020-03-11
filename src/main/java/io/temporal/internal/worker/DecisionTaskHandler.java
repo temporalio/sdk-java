@@ -31,15 +31,15 @@ import io.temporal.serviceclient.GrpcRetryOptions;
 public interface DecisionTaskHandler {
 
   final class Result {
-    private final RespondDecisionTaskCompletedRequest.Builder taskCompleted;
-    private final RespondDecisionTaskFailedRequest.Builder taskFailed;
-    private final RespondQueryTaskCompletedRequest.Builder queryCompleted;
+    private final RespondDecisionTaskCompletedRequest taskCompleted;
+    private final RespondDecisionTaskFailedRequest taskFailed;
+    private final RespondQueryTaskCompletedRequest queryCompleted;
     private final GrpcRetryOptions requestRetryOptions;
 
     public Result(
-        RespondDecisionTaskCompletedRequest.Builder taskCompleted,
-        RespondDecisionTaskFailedRequest.Builder taskFailed,
-        RespondQueryTaskCompletedRequest.Builder queryCompleted,
+        RespondDecisionTaskCompletedRequest taskCompleted,
+        RespondDecisionTaskFailedRequest taskFailed,
+        RespondQueryTaskCompletedRequest queryCompleted,
         GrpcRetryOptions requestRetryOptions) {
       this.taskCompleted = taskCompleted;
       this.taskFailed = taskFailed;
@@ -47,15 +47,15 @@ public interface DecisionTaskHandler {
       this.requestRetryOptions = requestRetryOptions;
     }
 
-    public RespondDecisionTaskCompletedRequest.Builder getTaskCompleted() {
+    public RespondDecisionTaskCompletedRequest getTaskCompleted() {
       return taskCompleted;
     }
 
-    public RespondDecisionTaskFailedRequest.Builder getTaskFailed() {
+    public RespondDecisionTaskFailedRequest getTaskFailed() {
       return taskFailed;
     }
 
-    public RespondQueryTaskCompletedRequest.Builder getQueryCompleted() {
+    public RespondQueryTaskCompletedRequest getQueryCompleted() {
       return queryCompleted;
     }
 

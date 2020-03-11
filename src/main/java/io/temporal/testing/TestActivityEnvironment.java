@@ -100,5 +100,11 @@ public interface TestActivityEnvironment {
   <T> void setActivityHeartbeatListener(
       Class<T> detailsClass, Type detailsType, Consumer<T> listener);
 
+  /**
+   * Requests activity cancellation. The cancellation is going to be delivered to the activity on
+   * the next heartbeat.
+   */
+  void requestCancelActivity();
+
   void close();
 }

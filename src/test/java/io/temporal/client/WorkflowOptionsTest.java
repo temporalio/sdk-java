@@ -43,7 +43,7 @@ public class WorkflowOptionsTest {
             .setTaskList("foo")
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(321))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
+            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate)
             .setMemo(getTestMemo())
             .setSearchAttributes(getTestSearchAttributes())
             .build();
@@ -59,7 +59,7 @@ public class WorkflowOptionsTest {
     taskList = "bar",
     taskStartToCloseTimeoutSeconds = 34,
     workflowId = "foo",
-    workflowIdReusePolicy = WorkflowIdReusePolicy.AllowDuplicate
+    workflowIdReusePolicy = WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicate
   )
   @MethodRetry(
     initialIntervalSeconds = 12,
@@ -111,7 +111,7 @@ public class WorkflowOptionsTest {
             .setTaskList("foo")
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(321))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
+            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate)
             .setWorkflowId("bar")
             .setRetryOptions(retryOptions)
             .setCronSchedule("* 1 * * *")
@@ -148,7 +148,7 @@ public class WorkflowOptionsTest {
             .setTaskList("foo")
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(321))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
+            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate)
             .setWorkflowId("bar")
             .setRetryOptions(retryOptions)
             .setCronSchedule("* 1 * * *")
@@ -177,7 +177,7 @@ public class WorkflowOptionsTest {
             .setTaskList("foo")
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(321))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
+            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate)
             .build();
     Method method = WorkflowOptionsTest.class.getMethod("invalidCronScheduleAnnotation");
     WorkflowMethod a = method.getAnnotation(WorkflowMethod.class);

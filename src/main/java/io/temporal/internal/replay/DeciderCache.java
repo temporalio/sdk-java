@@ -59,8 +59,7 @@ public final class DeciderCache {
   }
 
   public Decider getOrCreate(
-      PollForDecisionTaskResponse.Builder decisionTask, Callable<Decider> deciderFunc)
-      throws Exception {
+      PollForDecisionTaskResponse decisionTask, Callable<Decider> deciderFunc) throws Exception {
     String runId = decisionTask.getWorkflowExecution().getRunId();
     if (isFullHistory(decisionTask)) {
       invalidate(runId);

@@ -19,15 +19,14 @@ package io.temporal.internal.replay;
 
 import io.temporal.proto.common.Decision;
 import io.temporal.proto.common.WorkflowQuery;
-import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import java.util.List;
 
 public interface Decider {
 
-  DecisionResult decide(PollForDecisionTaskResponseOrBuilder decisionTask) throws Throwable;
+  DecisionResult decide(PollForDecisionTaskResponse decisionTask) throws Throwable;
 
-  byte[] query(PollForDecisionTaskResponseOrBuilder decisionTask, WorkflowQuery query)
-      throws Throwable;
+  byte[] query(PollForDecisionTaskResponse decisionTask, WorkflowQuery query) throws Throwable;
 
   void close();
 

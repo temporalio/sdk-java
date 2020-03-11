@@ -33,7 +33,6 @@ import io.temporal.proto.enums.QueryTaskCompletedType;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
-import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
 import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
 import io.temporal.proto.workflowservice.RespondQueryTaskCompletedRequest;
@@ -130,8 +129,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     }
   }
 
-  private Result processDecision(PollForDecisionTaskResponse.Builder decisionTask)
-      throws Throwable {
+  private Result processDecision(PollForDecisionTaskResponse decisionTask) throws Throwable {
     Decider decider = null;
     AtomicBoolean createdNew = new AtomicBoolean();
     try {
@@ -203,7 +201,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     }
   }
 
-  private Result processQuery(PollForDecisionTaskResponse.Builder decisionTask) {
+  private Result processQuery(PollForDecisionTaskResponse decisionTask) {
     RespondQueryTaskCompletedRequest.Builder queryCompletedRequest =
         RespondQueryTaskCompletedRequest.newBuilder().setTaskToken(decisionTask.getTaskToken());
     Decider decider = null;
@@ -246,7 +244,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
   }
 
   private Result createCompletedRequest(
-      PollForDecisionTaskResponseOrBuilder decisionTask, Decider.DecisionResult result) {
+      PollForDecisionTaskResponse decisionTask, Decider.DecisionResult result) {
     RespondDecisionTaskCompletedRequest.Builder completedRequest =
         RespondDecisionTaskCompletedRequest.newBuilder()
             .setTaskToken(decisionTask.getTaskToken())
@@ -269,9 +267,10 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     return workflowFactory.isAnyTypeSupported();
   }
 
-  private Decider createDecider(PollForDecisionTaskResponse.Builder decisionTask) throws Exception {
+  private Decider createDecider(PollForDecisionTaskResponse decisionTask) throws Exception {
     WorkflowType workflowType = decisionTask.getWorkflowType();
     List<HistoryEvent> events = decisionTask.getHistory().getEventsList();
+    PollForDecisionTaskResponse.Builder builder = decisionTask.toBuilder();
     // Sticky decision task with partial history
     if (events.isEmpty() || events.get(0).getEventId() > 1) {
       GetWorkflowExecutionHistoryRequest getHistoryRequest =
@@ -281,10 +280,10 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
               .build();
       GetWorkflowExecutionHistoryResponse getHistoryResponse =
           service.blockingStub().getWorkflowExecutionHistory(getHistoryRequest);
-      decisionTask.setHistory(getHistoryResponse.getHistory());
-      decisionTask.setNextPageToken(getHistoryResponse.getNextPageToken());
+      builder.setHistory(getHistoryResponse.getHistory());
+      builder.setNextPageToken(getHistoryResponse.getNextPageToken());
     }
-    DecisionsHelper decisionsHelper = new DecisionsHelper(decisionTask);
+    DecisionsHelper decisionsHelper = new DecisionsHelper(builder.build());
     ReplayWorkflow workflow = workflowFactory.getWorkflow(workflowType);
     return new ReplayDecider(service, domain, workflow, decisionsHelper, options, laTaskPoller);
   }

@@ -169,7 +169,7 @@ public final class WorkflowWorker
     task.setHistory(History.newBuilder().addAllEvents(events));
     DecisionTaskHandler.Result result = handler.handleDecisionTask(task.build());
     if (result.getQueryCompleted() != null) {
-      RespondQueryTaskCompletedRequest.Builder r = result.getQueryCompleted();
+      RespondQueryTaskCompletedRequest r = result.getQueryCompleted();
       if (r.getErrorMessage() != null) {
         throw new RuntimeException(
             "query failure for "
@@ -288,7 +288,8 @@ public final class WorkflowWorker
         ByteString taskToken,
         DecisionTaskHandler.Result response) {
       GrpcRetryOptions ro = response.getRequestRetryOptions();
-      RespondDecisionTaskCompletedRequest.Builder taskCompleted = response.getTaskCompleted();
+      RespondDecisionTaskCompletedRequest.Builder taskCompleted =
+          response.getTaskCompleted().toBuilder();
       if (taskCompleted != null) {
         ro = options.getReportCompletionRetryOptions().merge(ro);
         taskCompleted.setIdentity(options.getIdentity());
@@ -296,7 +297,7 @@ public final class WorkflowWorker
         GrpcRetryer.retry(
             ro, () -> service.blockingStub().respondDecisionTaskCompleted(taskCompleted.build()));
       } else {
-        RespondDecisionTaskFailedRequest.Builder taskFailed = response.getTaskFailed();
+        RespondDecisionTaskFailedRequest.Builder taskFailed = response.getTaskFailed().toBuilder();
         if (taskFailed != null) {
           ro = options.getReportFailureRetryOptions().merge(ro);
           taskFailed.setIdentity(options.getIdentity());
@@ -304,7 +305,8 @@ public final class WorkflowWorker
           GrpcRetryer.retry(
               ro, () -> service.blockingStub().respondDecisionTaskFailed(taskFailed.build()));
         } else {
-          RespondQueryTaskCompletedRequest.Builder queryCompleted = response.getQueryCompleted();
+          RespondQueryTaskCompletedRequest.Builder queryCompleted =
+              response.getQueryCompleted().toBuilder();
           if (queryCompleted != null) {
             queryCompleted.setTaskToken(taskToken);
             // Do not retry query response.

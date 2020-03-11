@@ -21,10 +21,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import io.temporal.SearchAttributes;
 import io.temporal.converter.JsonDataConverter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.replay.DecisionContext;
+import io.temporal.proto.common.SearchAttributes;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Before;

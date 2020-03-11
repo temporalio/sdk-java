@@ -28,8 +28,6 @@ import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.StatsReporter;
 import com.uber.m3.util.ImmutableMap;
-import io.temporal.PollForDecisionTaskResponse;
-import io.temporal.WorkflowQuery;
 import io.temporal.common.RetryOptions;
 import io.temporal.converter.JsonDataConverter;
 import io.temporal.internal.metrics.MetricsTag;
@@ -38,7 +36,9 @@ import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.replay.Decider;
 import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.DecisionContext;
+import io.temporal.proto.common.WorkflowQuery;
 import io.temporal.proto.common.WorkflowType;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.testUtils.HistoryUtils;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.CancellationScope;
@@ -721,7 +721,7 @@ public class DeterministicRunnerTest {
     DecisionContext decisionContext = mock(DecisionContext.class);
     when(decisionContext.getMetricsScope()).thenReturn(scope);
     when(decisionContext.getDomain()).thenReturn("domain");
-    when(decisionContext.getWorkflowType()).thenReturn(new WorkflowType());
+    when(decisionContext.getWorkflowType()).thenReturn(WorkflowType.getDefaultInstance());
 
     DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(

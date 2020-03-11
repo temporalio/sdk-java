@@ -62,6 +62,7 @@ import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
@@ -77,6 +78,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
       Executors.newScheduledThreadPool(20);
   private GrpcWorkflowServiceFactory workflowService;
   private Server mockServer;
+  private AtomicBoolean cancellationRequested = new AtomicBoolean();
 
   public TestActivityEnvironmentInternal(TestEnvironmentOptions options) {
     if (options == null) {
@@ -124,8 +126,12 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
                     activityHeartbetListener.valueClass,
                     activityHeartbetListener.valueType);
         activityHeartbetListener.consumer.accept(details);
-        responseObserver.onCompleted();
       }
+      responseObserver.onNext(
+          RecordActivityTaskHeartbeatResponse.newBuilder()
+              .setCancelRequested(cancellationRequested.get())
+              .build());
+      responseObserver.onCompleted();
     }
   }
 
@@ -157,6 +163,11 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         ActivityInvocationHandler.newInstance(options, new TestActivityExecutor(workflowService));
     invocationHandler = new DeterministicRunnerWrapper(invocationHandler);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
+  }
+
+  @Override
+  public void requestCancelActivity() {
+    cancellationRequested.set(true);
   }
 
   @Override

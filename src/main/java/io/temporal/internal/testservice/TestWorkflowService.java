@@ -18,8 +18,12 @@
 package io.temporal.internal.testservice;
 
 import com.google.protobuf.ByteString;
+import io.grpc.ManagedChannel;
+import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.grpc.inprocess.InProcessChannelBuilder;
+import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.temporal.internal.testservice.TestWorkflowMutableStateImpl.QueryId;
 import io.temporal.internal.testservice.TestWorkflowStore.WorkflowState;
@@ -102,6 +106,8 @@ import io.temporal.proto.workflowservice.UpdateDomainRequest;
 import io.temporal.proto.workflowservice.UpdateDomainResponse;
 import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
 import io.temporal.serviceclient.GrpcStatusUtils;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import java.io.IOException;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -122,7 +128,8 @@ import org.slf4j.LoggerFactory;
  * In memory implementation of the Temporal service. To be used for testing purposes only. Do not
  * use directly. Instead use {@link io.temporal.testing.TestWorkflowEnvironment}.
  */
-public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServiceImplBase {
+public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServiceImplBase
+    implements AutoCloseable {
 
   private static final Logger log = LoggerFactory.getLogger(TestWorkflowService.class);
 
@@ -137,11 +144,40 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
 
   private final ForkJoinPool forkJoinPool = new ForkJoinPool(4);
 
-  // TODO
+  private final String serverName;
+
+  public GrpcWorkflowServiceFactory newClientStub() {
+    ManagedChannel channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
+    return new GrpcWorkflowServiceFactory(channel);
+  }
+
+  public TestWorkflowService(boolean lockTimeSkipping) {
+    this();
+    if (lockTimeSkipping) {
+      this.lockTimeSkipping("constructor");
+    }
+  }
+
+  // TODO: Shutdown.
+  public TestWorkflowService() {
+    serverName = InProcessServerBuilder.generateName();
+    try {
+      Server server =
+          InProcessServerBuilder.forName(serverName)
+              .directExecutor()
+              .addService(this)
+              .build()
+              .start();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  // TODO(maxim): Figure out the shutdown story for Grpc
   //  @Override
-  //  public void close() {
-  //    store.close();
-  //  }
+  public void close() {
+    store.close();
+  }
 
   private TestWorkflowMutableState getMutableState(ExecutionId executionId) {
     return getMutableState(executionId, true);

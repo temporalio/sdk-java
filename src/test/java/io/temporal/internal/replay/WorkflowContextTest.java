@@ -19,12 +19,12 @@ package io.temporal.internal.replay;
 
 import static junit.framework.TestCase.assertEquals;
 
-import io.temporal.SearchAttributes;
+import com.google.protobuf.ByteString;
 import io.temporal.converter.DataConverter;
 import io.temporal.converter.JsonDataConverter;
+import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.common.WorkflowExecutionStartedEventAttributes;
 import io.temporal.workflow.WorkflowUtils;
-import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Test;
@@ -34,15 +34,15 @@ public class WorkflowContextTest {
   @Test
   public void TestMergeSearchAttributes() {
     WorkflowExecutionStartedEventAttributes startAttr =
-        new WorkflowExecutionStartedEventAttributes();
+        WorkflowExecutionStartedEventAttributes.getDefaultInstance();
     WorkflowContext workflowContext = new WorkflowContext("domain", null, startAttr, null);
 
     DataConverter converter = JsonDataConverter.getInstance();
-    Map<String, ByteBuffer> indexedFields = new HashMap<>();
-    indexedFields.put("CustomKeywordField", ByteBuffer.wrap(converter.toData("key")));
+    Map<String, ByteString> indexedFields = new HashMap<>();
+    indexedFields.put("CustomKeywordField", ByteString.copyFrom(converter.toData("key")));
 
-    SearchAttributes searchAttributes = new SearchAttributes();
-    searchAttributes.setIndexedFields(indexedFields);
+    SearchAttributes searchAttributes =
+        SearchAttributes.newBuilder().putAllIndexedFields(indexedFields).build();
 
     workflowContext.mergeSearchAttributes(searchAttributes);
 
