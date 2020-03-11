@@ -624,16 +624,26 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   public void signalWithStartWorkflowExecution(
       SignalWithStartWorkflowExecutionRequest r,
       StreamObserver<SignalWithStartWorkflowExecutionResponse> responseObserver) {
+    if (!r.hasTaskList()) {
+      throw Status.INVALID_ARGUMENT
+          .withDescription("request missing required taskList field")
+          .asRuntimeException();
+    }
+    if (!r.hasWorkflowType()) {
+      throw Status.INVALID_ARGUMENT
+          .withDescription("request missing required workflowType field")
+          .asRuntimeException();
+    }
     ExecutionId executionId = new ExecutionId(r.getDomain(), r.getWorkflowId(), null);
     TestWorkflowMutableState mutableState = getMutableState(executionId, false);
     SignalWorkflowExecutionRequest signalRequest =
         SignalWorkflowExecutionRequest.newBuilder()
             .setInput(r.getSignalInput())
             .setSignalName(r.getSignalName())
-            .setControl(r.getControl())
-            .setDomain(r.getDomain())
             .setWorkflowExecution(executionId.getExecution())
             .setRequestId(r.getRequestId())
+            .setControl(r.getControl())
+            .setDomain(r.getDomain())
             .setIdentity(r.getIdentity())
             .build();
     if (mutableState != null) {
@@ -645,24 +655,38 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       responseObserver.onCompleted();
       return;
     }
-    StartWorkflowExecutionRequest startRequest =
+    StartWorkflowExecutionRequest.Builder startRequest =
         StartWorkflowExecutionRequest.newBuilder()
             .setInput(r.getInput())
             .setExecutionStartToCloseTimeoutSeconds(r.getExecutionStartToCloseTimeoutSeconds())
             .setTaskStartToCloseTimeoutSeconds(r.getTaskStartToCloseTimeoutSeconds())
             .setDomain(r.getDomain())
-            .setRetryPolicy(r.getRetryPolicy())
             .setTaskList(r.getTaskList())
             .setWorkflowId(r.getWorkflowId())
             .setWorkflowIdReusePolicy(r.getWorkflowIdReusePolicy())
+            .setIdentity(r.getIdentity())
             .setWorkflowType(r.getWorkflowType())
             .setCronSchedule(r.getCronSchedule())
-            .setRequestId(r.getRequestId())
-            .setIdentity(r.getIdentity())
-            .build();
+            .setRequestId(r.getRequestId());
+    if (r.hasRetryPolicy()) {
+      startRequest.setRetryPolicy(r.getRetryPolicy());
+    }
+    if (r.hasHeader()) {
+      startRequest.setHeader(r.getHeader());
+    }
+    if (r.hasMemo()) {
+      startRequest.setMemo(r.getMemo());
+    }
+    if (r.hasSearchAttributes()) {
+      startRequest.setSearchAttributes(r.getSearchAttributes());
+    }
     StartWorkflowExecutionResponse startResult =
         startWorkflowExecutionImpl(
-            startRequest, 0, Optional.empty(), OptionalLong.empty(), Optional.of(signalRequest));
+            startRequest.build(),
+            0,
+            Optional.empty(),
+            OptionalLong.empty(),
+            Optional.of(signalRequest));
     responseObserver.onNext(
         SignalWithStartWorkflowExecutionResponse.newBuilder()
             .setRunId(startResult.getRunId())
@@ -681,7 +705,13 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       String signalId,
       SignalExternalWorkflowExecutionDecisionAttributes a,
       TestWorkflowMutableState source) {
-    ExecutionId executionId = new ExecutionId(a.getDomain(), a.getExecution());
+    String domain;
+    if (a.getDomain().isEmpty()) {
+      domain = source.getExecutionId().getDomain();
+    } else {
+      domain = a.getDomain();
+    }
+    ExecutionId executionId = new ExecutionId(domain, a.getExecution());
     TestWorkflowMutableState mutableState = null;
     try {
       mutableState = getMutableState(executionId);

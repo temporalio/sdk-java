@@ -425,7 +425,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       lock.unlock();
     }
     // Uncomment to troubleshoot time skipping issues.
-    timerService.getDiagnostics(result);
+    //    timerService.getDiagnostics(result);
   }
 
   @Override

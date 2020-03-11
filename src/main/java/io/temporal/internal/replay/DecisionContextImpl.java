@@ -154,7 +154,11 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
 
   @Override
   public String getRunId() {
-    return workflowContext.getWorkflowExecution().getRunId();
+    String result = workflowContext.getWorkflowExecution().getRunId();
+    if (result.isEmpty()) {
+      return null;
+    }
+    return result;
   }
 
   @Override

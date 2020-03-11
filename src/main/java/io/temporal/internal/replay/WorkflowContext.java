@@ -51,7 +51,9 @@ final class WorkflowContext {
     this.decisionTask = decisionTask;
     this.startedAttributes = startedAttributes;
     this.currentRunId = startedAttributes.getOriginalExecutionRunId();
-    this.searchAttributes = startedAttributes.getSearchAttributes().toBuilder();
+    if (startedAttributes.hasSearchAttributes()) {
+      this.searchAttributes = startedAttributes.getSearchAttributes().toBuilder();
+    }
     this.contextPropagators = contextPropagators;
   }
 
@@ -144,7 +146,9 @@ final class WorkflowContext {
   }
 
   SearchAttributes getSearchAttributes() {
-    return searchAttributes.build();
+    return searchAttributes == null || searchAttributes.getIndexedFieldsCount() == 0
+        ? null
+        : searchAttributes.build();
   }
 
   public List<ContextPropagator> getContextPropagators() {
@@ -184,6 +188,9 @@ final class WorkflowContext {
     }
     for (Map.Entry<String, ByteString> pair : searchAttributes.getIndexedFieldsMap().entrySet()) {
       this.searchAttributes.putIndexedFields(pair.getKey(), pair.getValue());
+    }
+    if (searchAttributes.getIndexedFieldsCount() == 0) {
+      this.searchAttributes = null;
     }
   }
 }

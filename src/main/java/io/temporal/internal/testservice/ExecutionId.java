@@ -18,6 +18,7 @@
 package io.temporal.internal.testservice;
 
 import io.grpc.Status;
+import io.temporal.internal.common.OptionsUtils;
 import io.temporal.proto.common.WorkflowExecution;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -41,7 +42,7 @@ final class ExecutionId {
         domain,
         WorkflowExecution.newBuilder()
             .setWorkflowId(Objects.requireNonNull(workflowId))
-            .setRunId(runId)
+            .setRunId(OptionsUtils.safeGet(runId))
             .build());
   }
 

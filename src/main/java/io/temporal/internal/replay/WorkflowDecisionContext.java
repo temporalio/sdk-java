@@ -137,7 +137,9 @@ final class WorkflowDecisionContext {
       tl.setName(workflowContext.getTaskList());
     }
     attributes.setTaskList(tl);
-    attributes.setWorkflowIdReusePolicy(parameters.getWorkflowIdReusePolicy());
+    if (parameters.getWorkflowIdReusePolicy() != null) {
+      attributes.setWorkflowIdReusePolicy(parameters.getWorkflowIdReusePolicy());
+    }
     RetryParameters retryParameters = parameters.getRetryParameters();
     if (retryParameters != null) {
       attributes.setRetryPolicy(retryParameters.toRetryPolicy());

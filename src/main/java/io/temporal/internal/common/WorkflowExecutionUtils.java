@@ -67,6 +67,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Convenience methods to be used by unit tests and during development.
@@ -81,6 +83,8 @@ public class WorkflowExecutionUtils {
    * traces.
    */
   private static final String INDENTATION = "  ";
+
+  private static final Logger log = LoggerFactory.getLogger(WorkflowExecutionUtils.class);
 
   private static GrpcRetryOptions retryParameters =
       new GrpcRetryOptions.Builder()
@@ -234,7 +238,7 @@ public class WorkflowExecutionUtils {
         }
         // Workflow called continueAsNew. Start polling the new generation with new runId.
         if (event.getEventType() == EventType.EventTypeWorkflowExecutionContinuedAsNew) {
-          pageToken = null;
+          pageToken = ByteString.EMPTY;
           workflowExecution =
               WorkflowExecution.newBuilder()
                   .setWorkflowId(workflowExecution.getWorkflowId())
@@ -346,6 +350,12 @@ public class WorkflowExecutionUtils {
   }
 
   public static boolean isWorkflowExecutionCompletedEvent(HistoryEventOrBuilder event) {
+    log.trace("isWorkflowExecutionCompletedEvent: " + event.getEventType());
+    if (event.getEventType() == EventType.EventTypeSignalExternalWorkflowExecutionFailed) {
+      log.trace(
+          "isWorkflowExecutionCompletedEvent EventTypeSignalExternalWorkflowExecutionFailed: "
+              + event.getEventType());
+    }
     return ((event != null)
         && (event.getEventType() == EventType.EventTypeWorkflowExecutionCompleted
             || event.getEventType() == EventType.EventTypeWorkflowExecutionCanceled

@@ -541,10 +541,13 @@ class DecisionsHelper {
     // no need to call addAllMissingVersionMarker here as all the callers are already doing it.
 
     RecordMarkerDecisionAttributes.Builder marker =
-        RecordMarkerDecisionAttributes.newBuilder()
-            .setMarkerName(markerName)
-            .setHeader(header)
-            .setDetails(ByteString.copyFrom(details));
+        RecordMarkerDecisionAttributes.newBuilder().setMarkerName(markerName);
+    if (details != null) {
+      marker.setDetails(ByteString.copyFrom(details));
+    }
+    if (header != null) {
+      marker.setHeader(header);
+    }
     Decision decision =
         Decision.newBuilder()
             .setDecisionType(DecisionType.DecisionTypeRecordMarker)

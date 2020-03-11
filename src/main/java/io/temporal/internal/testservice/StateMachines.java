@@ -360,32 +360,37 @@ class StateMachines {
   private static void childWorkflowStarted(
       RequestContext ctx,
       ChildWorkflowData data,
-      ChildWorkflowExecutionStartedEventAttributes.Builder a,
+      ChildWorkflowExecutionStartedEventAttributes a,
       long notUsed) {
-    a.setInitiatedEventId(data.initiatedEventId);
+    ChildWorkflowExecutionStartedEventAttributes updatedAttr =
+        a.toBuilder().setInitiatedEventId(data.initiatedEventId).build();
     HistoryEvent event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EventTypeChildWorkflowExecutionStarted)
-            .setChildWorkflowExecutionStartedEventAttributes(a)
+            .setChildWorkflowExecutionStartedEventAttributes(updatedAttr)
             .build();
     long startedEventId = ctx.addEvent(event);
     ctx.onCommit(
         (historySize) -> {
           data.startedEventId = startedEventId;
-          data.execution = a.getWorkflowExecution();
+          data.execution = updatedAttr.getWorkflowExecution();
         });
   }
 
   private static void childWorkflowCompleted(
       RequestContext ctx,
       ChildWorkflowData data,
-      ChildWorkflowExecutionCompletedEventAttributes.Builder a,
+      ChildWorkflowExecutionCompletedEventAttributes a,
       long notUsed) {
-    a.setInitiatedEventId(data.initiatedEventId).setStartedEventId(data.startedEventId);
+    ChildWorkflowExecutionCompletedEventAttributes updatedAttr =
+        a.toBuilder()
+            .setInitiatedEventId(data.initiatedEventId)
+            .setStartedEventId(data.startedEventId)
+            .build();
     HistoryEvent event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EventTypeChildWorkflowExecutionCompleted)
-            .setChildWorkflowExecutionCompletedEventAttributes(a)
+            .setChildWorkflowExecutionCompletedEventAttributes(updatedAttr)
             .build();
     ctx.addEvent(event);
   }
@@ -393,19 +398,21 @@ class StateMachines {
   private static void childWorkflowFailed(
       RequestContext ctx,
       ChildWorkflowData data,
-      ChildWorkflowExecutionFailedEventAttributes.Builder a,
+      ChildWorkflowExecutionFailedEventAttributes a,
       long notUsed) {
-    a.setInitiatedEventId(data.initiatedEventId);
-    a.setStartedEventId(data.startedEventId);
-    a.setWorkflowExecution(data.execution);
-    a.setWorkflowType(data.initiatedEvent.getWorkflowType());
+    ChildWorkflowExecutionFailedEventAttributes.Builder updatedAttr =
+        a.toBuilder()
+            .setInitiatedEventId(data.initiatedEventId)
+            .setStartedEventId(data.startedEventId)
+            .setWorkflowExecution(data.execution)
+            .setWorkflowType(data.initiatedEvent.getWorkflowType());
     if (!data.initiatedEvent.getDomain().isEmpty()) {
-      a.setDomain(data.initiatedEvent.getDomain());
+      updatedAttr.setDomain(data.initiatedEvent.getDomain());
     }
     HistoryEvent event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EventTypeChildWorkflowExecutionFailed)
-            .setChildWorkflowExecutionFailedEventAttributes(a)
+            .setChildWorkflowExecutionFailedEventAttributes(updatedAttr.build())
             .build();
     ctx.addEvent(event);
   }
@@ -413,10 +420,13 @@ class StateMachines {
   private static void childWorkflowCanceled(
       RequestContext ctx,
       ChildWorkflowData data,
-      ChildWorkflowExecutionCanceledEventAttributes.Builder a,
+      ChildWorkflowExecutionCanceledEventAttributes a,
       long notUsed) {
-    a.setInitiatedEventId(data.initiatedEventId);
-    a.setStartedEventId(data.startedEventId);
+    ChildWorkflowExecutionCanceledEventAttributes updatedAttr =
+        a.toBuilder()
+            .setInitiatedEventId(data.initiatedEventId)
+            .setStartedEventId(data.startedEventId)
+            .build();
     HistoryEvent event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EventTypeChildWorkflowExecutionCanceled)
@@ -430,7 +440,7 @@ class StateMachines {
       ChildWorkflowData data,
       StartChildWorkflowExecutionDecisionAttributes d,
       long decisionTaskCompletedEventId) {
-    StartChildWorkflowExecutionInitiatedEventAttributes a =
+    StartChildWorkflowExecutionInitiatedEventAttributes.Builder a =
         StartChildWorkflowExecutionInitiatedEventAttributes.newBuilder()
             .setControl(d.getControl())
             .setInput(d.getInput())
@@ -442,11 +452,17 @@ class StateMachines {
             .setWorkflowId(d.getWorkflowId())
             .setWorkflowIdReusePolicy(d.getWorkflowIdReusePolicy())
             .setWorkflowType(d.getWorkflowType())
-            .setRetryPolicy(d.getRetryPolicy())
             .setCronSchedule(d.getCronSchedule())
-            .setHeader(d.getHeader())
-            .setParentClosePolicy(d.getParentClosePolicy())
-            .build();
+            .setParentClosePolicy(d.getParentClosePolicy());
+    if (d.hasHeader()) {
+      a.setHeader(d.getHeader());
+    }
+    if (d.hasMemo()) {
+      a.setMemo(d.getMemo());
+    }
+    if (d.hasRetryPolicy()) {
+      a.setRetryPolicy(d.getRetryPolicy());
+    }
     HistoryEvent event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EventTypeStartChildWorkflowExecutionInitiated)
@@ -456,7 +472,7 @@ class StateMachines {
     ctx.onCommit(
         (historySize) -> {
           data.initiatedEventId = initiatedEventId;
-          data.initiatedEvent = a;
+          data.initiatedEvent = a.build();
           StartWorkflowExecutionRequest.Builder startChild =
               StartWorkflowExecutionRequest.newBuilder()
                   .setDomain(d.getDomain().isEmpty() ? ctx.getDomain() : d.getDomain())
@@ -467,9 +483,16 @@ class StateMachines {
                   .setWorkflowId(d.getWorkflowId())
                   .setWorkflowIdReusePolicy(d.getWorkflowIdReusePolicy())
                   .setWorkflowType(d.getWorkflowType())
-                  .setRetryPolicy(d.getRetryPolicy())
-                  .setCronSchedule(d.getCronSchedule())
-                  .setHeader(d.getHeader());
+                  .setCronSchedule(d.getCronSchedule());
+          if (d.hasHeader()) {
+            startChild.setHeader(d.getHeader());
+          }
+          if (d.hasMemo()) {
+            startChild.setMemo(d.getMemo());
+          }
+          if (d.hasRetryPolicy()) {
+            startChild.setRetryPolicy(d.getRetryPolicy());
+          }
           if (!d.getInput().isEmpty()) {
             startChild.setInput(d.getInput());
           }
@@ -630,7 +653,7 @@ class StateMachines {
             .setDecisionTaskCompletedEventId(decisionTaskCompletedEventId);
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeSignalExternalWorkflowExecutionFailed)
+            .setEventType(EventType.EventTypeWorkflowExecutionFailed)
             .setWorkflowExecutionFailedEventAttributes(a)
             .build();
     ctx.addEvent(event);
@@ -642,7 +665,7 @@ class StateMachines {
         WorkflowExecutionTimedOutEventAttributes.newBuilder().setTimeoutType(timeoutType);
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeChildWorkflowExecutionTimedOut)
+            .setEventType(EventType.EventTypeWorkflowExecutionTimedOut)
             .setWorkflowExecutionTimedOutEventAttributes(a)
             .build();
     ctx.addEvent(event);
@@ -659,7 +682,7 @@ class StateMachines {
             .setDecisionTaskCompletedEventId(decisionTaskCompletedEventId);
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeChildWorkflowExecutionCanceled)
+            .setEventType(EventType.EventTypeWorkflowExecutionCanceled)
             .setWorkflowExecutionCanceledEventAttributes(a)
             .build();
     ctx.addEvent(event);
@@ -675,7 +698,7 @@ class StateMachines {
             .setIdentity(cancelRequest.getIdentity());
     HistoryEvent cancelRequested =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeExternalWorkflowExecutionCancelRequested)
+            .setEventType(EventType.EventTypeWorkflowExecutionCancelRequested)
             .setWorkflowExecutionCancelRequestedEventAttributes(a)
             .build();
     ctx.addEvent(cancelRequested);
@@ -1052,9 +1075,11 @@ class StateMachines {
     ActivityTaskTimedOutEventAttributes.Builder a =
         ActivityTaskTimedOutEventAttributes.newBuilder()
             .setScheduledEventId(data.scheduledEventId)
-            .setDetails(data.heartbeatDetails)
             .setTimeoutType(timeoutType)
             .setStartedEventId(data.startedEventId);
+    if (data.heartbeatDetails != null) {
+      a.setDetails(data.heartbeatDetails);
+    }
     HistoryEvent event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EventTypeActivityTaskTimedOut)
@@ -1071,7 +1096,9 @@ class StateMachines {
       data.nextBackoffIntervalSeconds =
           data.retryState.getBackoffIntervalInSeconds(errorReason, data.store.currentTimeMillis());
       if (data.nextBackoffIntervalSeconds > 0) {
-        data.activityTask.getTask().setHeartbeatDetails(data.heartbeatDetails);
+        if (data.heartbeatDetails != null) {
+          data.activityTask.getTask().setHeartbeatDetails(data.heartbeatDetails);
+        }
         ctx.onCommit(
             (historySize) -> {
               data.retryState = nextAttempt;

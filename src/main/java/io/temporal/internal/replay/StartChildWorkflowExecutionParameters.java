@@ -220,7 +220,7 @@ public final class StartChildWorkflowExecutionParameters {
   }
 
   public String getWorkflowId() {
-    return OptionsUtils.safeGet(workflowId);
+    return workflowId;
   }
 
   public WorkflowType getWorkflowType() {

@@ -57,7 +57,6 @@ import io.temporal.proto.common.RecordMarkerDecisionAttributes;
 import io.temporal.proto.common.RequestCancelActivityTaskDecisionAttributes;
 import io.temporal.proto.common.RequestCancelActivityTaskFailedEventAttributes;
 import io.temporal.proto.common.RequestCancelExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.proto.common.RetryPolicy;
 import io.temporal.proto.common.ScheduleActivityTaskDecisionAttributes;
 import io.temporal.proto.common.SignalExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.proto.common.StartChildWorkflowExecutionDecisionAttributes;
@@ -615,7 +614,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           .asRuntimeException();
     }
 
-    StartChildWorkflowExecutionDecisionAttributes.Builder ab = a.newBuilderForType();
+    StartChildWorkflowExecutionDecisionAttributes.Builder ab = a.toBuilder();
     // Inherit tasklist from parent workflow execution if not provided on decision
     if (!ab.hasTaskList()) {
       ab.setTaskList(startRequest.getTaskList());
@@ -632,9 +631,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       ab.setTaskStartToCloseTimeoutSeconds(startRequest.getTaskStartToCloseTimeoutSeconds());
     }
 
-    RetryPolicy retryPolicy = a.getRetryPolicy();
-    if (retryPolicy != null) {
-      RetryState.validateRetryPolicy(retryPolicy);
+    if (a.hasRetryPolicy()) {
+      ab.setRetryPolicy(RetryState.validateRetryPolicy(a.getRetryPolicy()));
     }
     return ab.build();
   }
@@ -874,10 +872,21 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 .setExecutionStartToCloseTimeoutSeconds(
                     startRequest.getExecutionStartToCloseTimeoutSeconds())
                 .setTaskStartToCloseTimeoutSeconds(startRequest.getTaskStartToCloseTimeoutSeconds())
-                .setTaskList(startRequest.getTaskList())
-                .setBackoffStartIntervalInSeconds(backoffIntervalSeconds)
-                .setRetryPolicy(startRequest.getRetryPolicy());
-        workflow.action(Action.CONTINUE_AS_NEW, ctx, continueAsNewAttr, decisionTaskCompletedId);
+                .setBackoffStartIntervalInSeconds(backoffIntervalSeconds);
+        if (startRequest.hasTaskList()) {
+          continueAsNewAttr.setTaskList(startRequest.getTaskList());
+        }
+        if (startRequest.hasRetryPolicy()) {
+          continueAsNewAttr.setRetryPolicy(startRequest.getRetryPolicy());
+        }
+        if (startRequest.hasHeader()) {
+          continueAsNewAttr.setHeader(startRequest.getHeader());
+        }
+        if (startRequest.hasMemo()) {
+          continueAsNewAttr.setMemo(startRequest.getMemo());
+        }
+        workflow.action(
+            Action.CONTINUE_AS_NEW, ctx, continueAsNewAttr.build(), decisionTaskCompletedId);
         HistoryEvent event = ctx.getEvents().get(ctx.getEvents().size() - 1);
         WorkflowExecutionContinuedAsNewEventAttributes continuedAsNewEventAttributes =
             event.getWorkflowExecutionContinuedAsNewEventAttributes();
@@ -1591,7 +1600,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setSignalName(signalRequest.getSignalName());
     HistoryEvent executionSignaled =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeExternalWorkflowExecutionSignaled)
+            .setEventType(EventType.EventTypeWorkflowExecutionSignaled)
             .setWorkflowExecutionSignaledEventAttributes(a)
             .build();
     ctx.addEvent(executionSignaled);
@@ -1606,7 +1615,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setSignalName(d.getSignalName());
     HistoryEvent executionSignaled =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeExternalWorkflowExecutionSignaled)
+            .setEventType(EventType.EventTypeWorkflowExecutionSignaled)
             .setWorkflowExecutionSignaledEventAttributes(a)
             .build();
     ctx.addEvent(executionSignaled);
