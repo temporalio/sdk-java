@@ -18,13 +18,11 @@
 package io.temporal.internal.testing;
 
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.mock;
 
 import io.grpc.Status;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.client.ActivityCancelledException;
-import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import io.temporal.testing.TestActivityEnvironment;
 import io.temporal.workflow.ActivityFailureException;
 import java.io.IOException;
@@ -206,9 +204,15 @@ public class ActivityTestingTest {
   public void testCancellationOnNextHeartbeat() throws InterruptedException {
     testEnvironment.registerActivitiesImplementations(
         new CancellationOnNextHeartbeatActivityImpl());
-    // Request cancellation after the fist heartbeat
+    // Request cancellation after the second heartbeat
+    AtomicInteger count = new AtomicInteger();
     testEnvironment.setActivityHeartbeatListener(
-        Void.class, (d) -> testEnvironment.requestCancelActivity());
+        Void.class,
+        (d) -> {
+          if (count.incrementAndGet() == 2) {
+            testEnvironment.requestCancelActivity();
+          }
+        });
     InterruptibleTestActivity activity =
         testEnvironment.newActivityStub(InterruptibleTestActivity.class);
     activity.activity1();
@@ -227,7 +231,6 @@ public class ActivityTestingTest {
   @Test
   public void testHeartbeatIntermittentError() throws InterruptedException {
     testEnvironment.registerActivitiesImplementations(new SimpleHeartbeatActivityImpl());
-    GrpcWorkflowServiceFactory workflowService = mock(GrpcWorkflowServiceFactory.class);
     AtomicInteger count = new AtomicInteger();
     testEnvironment.setActivityHeartbeatListener(
         Integer.class,

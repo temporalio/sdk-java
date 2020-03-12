@@ -23,6 +23,7 @@ import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.context.ContextPropagator;
+import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
@@ -188,7 +189,9 @@ public final class ActivityWorker implements SuspendableWorker {
       } catch (CancellationException e) {
         RespondActivityTaskCanceledRequest cancelledRequest =
             RespondActivityTaskCanceledRequest.newBuilder()
-                .setDetails(ByteString.copyFrom(e.getMessage(), StandardCharsets.UTF_8))
+                .setDetails(
+                    ByteString.copyFrom(
+                        OptionsUtils.safeGet(e.getMessage()), StandardCharsets.UTF_8))
                 .build();
         Stopwatch sw = metricsScope.timer(MetricsType.ACTIVITY_RESP_LATENCY).start();
         sendReply(task, new Result(null, null, cancelledRequest, null), metricsScope);

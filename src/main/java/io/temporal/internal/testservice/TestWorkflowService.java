@@ -191,7 +191,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       }
       TestWorkflowMutableState mutableState = executions.get(executionId);
       if (mutableState == null && failNotExists) {
-        throw Status.INTERNAL
+        throw Status.NOT_FOUND
             .withDescription("Execution not found in mutable state: " + executionId)
             .asRuntimeException();
       }
@@ -210,7 +210,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     try {
       TestWorkflowMutableState mutableState = executionsByWorkflowId.get(workflowId);
       if (mutableState == null && failNotExists) {
-        throw Status.INTERNAL
+        throw Status.NOT_FOUND
             .withDescription("Execution not found in mutable state: " + workflowId)
             .asRuntimeException();
       }
@@ -407,6 +407,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       // then the task list it was scheduled on as in the case of sticky execution.
       task.setWorkflowExecutionTaskList(mutableState.getStartRequest().getTaskList());
       responseObserver.onNext(task.build());
+      responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
         if (log.isDebugEnabled()) {
@@ -417,7 +418,6 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         responseObserver.onError(e);
       }
     }
-    responseObserver.onCompleted();
   }
 
   @Override

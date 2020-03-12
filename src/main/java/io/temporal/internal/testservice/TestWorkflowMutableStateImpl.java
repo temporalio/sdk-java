@@ -1005,7 +1005,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       backoffIntervalSeconds = (int) backoff.get().getSeconds() + 1;
     }
 
-    ContinueAsNewWorkflowExecutionDecisionAttributes.Builder continueAsNewAttr =
+    ContinueAsNewWorkflowExecutionDecisionAttributes continueAsNewAttr =
         ContinueAsNewWorkflowExecutionDecisionAttributes.newBuilder()
             .setInput(startRequest.getInput())
             .setWorkflowType(startRequest.getWorkflowType())
@@ -1015,7 +1015,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setTaskList(startRequest.getTaskList())
             .setBackoffStartIntervalInSeconds(backoffIntervalSeconds)
             .setRetryPolicy(startRequest.getRetryPolicy())
-            .setLastCompletionResult(lastCompletionResult);
+            .setLastCompletionResult(lastCompletionResult)
+            .build();
     workflow.action(Action.CONTINUE_AS_NEW, ctx, continueAsNewAttr, decisionTaskCompletedId);
     HistoryEvent event = ctx.getEvents().get(ctx.getEvents().size() - 1);
     WorkflowExecutionContinuedAsNewEventAttributes continuedAsNewEventAttributes =

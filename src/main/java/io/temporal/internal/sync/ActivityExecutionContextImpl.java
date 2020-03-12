@@ -134,7 +134,10 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
     } catch (StatusRuntimeException e) {
       // Not rethrowing to not fail activity implementation on intermittent connection or Temporal
       // errors.
-      log.warn("Heartbeat failed.", e);
+      log.warn("Heartbeat failed", e);
+      nextHeartbeatDelay = HEARTBEAT_RETRY_WAIT_MILLIS;
+    } catch (Exception e) {
+      log.error("Unexpected exception", e);
       nextHeartbeatDelay = HEARTBEAT_RETRY_WAIT_MILLIS;
     }
 
@@ -142,7 +145,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   }
 
   private void scheduleNextHeartbeat(long delay) {
-    future =
+    ScheduledFuture<?> f =
         heartbeatExecutor.schedule(
             () -> {
               lock.lock();
@@ -159,18 +162,25 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
             },
             delay,
             TimeUnit.MILLISECONDS);
+    lock.lock();
+    try {
+      future = f;
+    } finally {
+      lock.unlock();
+    }
   }
 
   private void sendHeartbeatRequest(Object details) {
-    byte[] serialized = dataConverter.toData(details);
-    RecordActivityTaskHeartbeatRequest r =
+    RecordActivityTaskHeartbeatRequest.Builder r =
         RecordActivityTaskHeartbeatRequest.newBuilder()
-            .setTaskToken(ByteString.copyFrom(task.getTaskToken()))
-            .setDetails(ByteString.copyFrom(serialized))
-            .build();
+            .setTaskToken(ByteString.copyFrom(task.getTaskToken()));
+    byte[] serialized = dataConverter.toData(details);
+    if (serialized != null) {
+      r.setDetails(ByteString.copyFrom(serialized));
+    }
     RecordActivityTaskHeartbeatResponse status;
     try {
-      status = service.blockingStub().recordActivityTaskHeartbeat(r);
+      status = service.blockingStub().recordActivityTaskHeartbeat(r.build());
       if (status.getCancelRequested()) {
         lastException = new ActivityCancelledException(task);
       } else {
@@ -182,6 +192,8 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
       } else if (e.getStatus().getCode() == Status.Code.INVALID_ARGUMENT
           || e.getStatus().getCode() == Status.Code.FAILED_PRECONDITION) {
         lastException = new ActivityCompletionFailureException(task, e);
+      } else {
+        throw e;
       }
     }
   }

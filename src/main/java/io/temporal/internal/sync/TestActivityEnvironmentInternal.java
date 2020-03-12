@@ -20,6 +20,7 @@ package io.temporal.internal.sync;
 import com.google.common.base.Defaults;
 import com.google.protobuf.ByteString;
 import io.grpc.Server;
+import io.grpc.StatusRuntimeException;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -125,13 +126,17 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
                     request.getDetails().toByteArray(),
                     activityHeartbetListener.valueClass,
                     activityHeartbetListener.valueType);
-        activityHeartbetListener.consumer.accept(details);
+        try {
+          activityHeartbetListener.consumer.accept(details);
+          responseObserver.onNext(
+              RecordActivityTaskHeartbeatResponse.newBuilder()
+                  .setCancelRequested(cancellationRequested.get())
+                  .build());
+          responseObserver.onCompleted();
+        } catch (StatusRuntimeException e) {
+          responseObserver.onError(e);
+        }
       }
-      responseObserver.onNext(
-          RecordActivityTaskHeartbeatResponse.newBuilder()
-              .setCancelRequested(cancellationRequested.get())
-              .build());
-      responseObserver.onCompleted();
     }
   }
 

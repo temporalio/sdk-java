@@ -212,8 +212,6 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
           throw new ActivityNotExistsException(activityId, e);
         }
         throw new ActivityCompletionFailureException(activityId, e);
-      } catch (Exception e) {
-        throw new ActivityCompletionFailureException(activityId, e);
       }
     } else {
       if (activityId == null) {

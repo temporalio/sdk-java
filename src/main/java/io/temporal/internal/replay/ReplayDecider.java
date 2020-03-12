@@ -415,7 +415,7 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
                 startTime,
                 startedEvent.getTaskStartToCloseTimeoutSeconds(),
                 decision,
-                decisionTask.getQuery() != null);
+                decisionTask.hasQuery());
 
         mayBeCompleteWorkflow();
         if (decision.isReplay()) {
