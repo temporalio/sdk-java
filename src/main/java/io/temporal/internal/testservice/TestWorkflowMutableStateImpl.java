@@ -295,7 +295,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     completeDecisionUpdate(
         ctx -> {
           if (ctx.getInitialEventId() != historySize + 1) {
-            throw Status.FAILED_PRECONDITION
+
+            throw Status.NOT_FOUND
                 .withDescription(
                     "Expired decision: expectedHistorySize="
                         + historySize

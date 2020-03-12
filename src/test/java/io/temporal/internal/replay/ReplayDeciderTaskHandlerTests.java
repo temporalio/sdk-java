@@ -20,6 +20,7 @@ package io.temporal.internal.replay;
 import static io.temporal.internal.common.InternalUtils.createStickyTaskList;
 import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertNotNull;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -77,7 +78,7 @@ public class ReplayDeciderTaskHandlerTests {
     // Assert
     assertEquals(0, cache.size());
     assertNotNull(result.getTaskCompleted());
-    assertNull(result.getTaskCompleted().getStickyAttributes());
+    assertFalse(result.getTaskCompleted().hasStickyAttributes());
   }
 
   @Test

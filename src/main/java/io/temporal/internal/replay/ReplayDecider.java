@@ -90,13 +90,13 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
     this.metricsScope = options.getMetricsScope();
     PollForDecisionTaskResponse decisionTask = decisionsHelper.getTask();
 
-    startedEvent =
-        decisionTask.getHistory().getEvents(0).getWorkflowExecutionStartedEventAttributes();
-    if (startedEvent == null) {
+    HistoryEvent firstEvent = decisionTask.getHistory().getEvents(0);
+    if (!firstEvent.hasWorkflowExecutionStartedEventAttributes()) {
       throw new IllegalArgumentException(
           "First event in the history is not WorkflowExecutionStarted");
     }
-    wfStartTimeNanos = decisionTask.getHistory().getEvents(0).getTimestamp();
+    startedEvent = firstEvent.getWorkflowExecutionStartedEventAttributes();
+    wfStartTimeNanos = firstEvent.getTimestamp();
 
     context =
         new DecisionContextImpl(

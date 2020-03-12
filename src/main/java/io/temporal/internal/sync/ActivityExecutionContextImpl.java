@@ -119,7 +119,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
       if (details == null) {
         return Optional.empty();
       }
-      return Optional.of(dataConverter.fromData(details, detailsClass, detailsType));
+      return Optional.ofNullable(dataConverter.fromData(details, detailsClass, detailsType));
     } finally {
       lock.unlock();
     }

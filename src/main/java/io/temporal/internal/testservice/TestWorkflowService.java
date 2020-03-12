@@ -36,26 +36,12 @@ import io.temporal.proto.enums.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.proto.enums.WorkflowExecutionCloseStatus;
 import io.temporal.proto.enums.WorkflowIdReusePolicy;
 import io.temporal.proto.failure.WorkflowExecutionAlreadyStarted;
-import io.temporal.proto.workflowservice.CountWorkflowExecutionsRequest;
-import io.temporal.proto.workflowservice.CountWorkflowExecutionsResponse;
-import io.temporal.proto.workflowservice.DeprecateDomainRequest;
-import io.temporal.proto.workflowservice.DeprecateDomainResponse;
-import io.temporal.proto.workflowservice.DescribeDomainRequest;
-import io.temporal.proto.workflowservice.DescribeDomainResponse;
-import io.temporal.proto.workflowservice.GetSearchAttributesRequest;
-import io.temporal.proto.workflowservice.GetSearchAttributesResponse;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
-import io.temporal.proto.workflowservice.ListArchivedWorkflowExecutionsRequest;
-import io.temporal.proto.workflowservice.ListArchivedWorkflowExecutionsResponse;
 import io.temporal.proto.workflowservice.ListClosedWorkflowExecutionsRequest;
 import io.temporal.proto.workflowservice.ListClosedWorkflowExecutionsResponse;
-import io.temporal.proto.workflowservice.ListDomainsRequest;
-import io.temporal.proto.workflowservice.ListDomainsResponse;
 import io.temporal.proto.workflowservice.ListOpenWorkflowExecutionsRequest;
 import io.temporal.proto.workflowservice.ListOpenWorkflowExecutionsResponse;
-import io.temporal.proto.workflowservice.ListWorkflowExecutionsRequest;
-import io.temporal.proto.workflowservice.ListWorkflowExecutionsResponse;
 import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
@@ -66,14 +52,8 @@ import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatByIDRequest;
 import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatByIDResponse;
 import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatRequest;
 import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatResponse;
-import io.temporal.proto.workflowservice.RegisterDomainRequest;
-import io.temporal.proto.workflowservice.RegisterDomainResponse;
 import io.temporal.proto.workflowservice.RequestCancelWorkflowExecutionRequest;
 import io.temporal.proto.workflowservice.RequestCancelWorkflowExecutionResponse;
-import io.temporal.proto.workflowservice.ResetStickyTaskListRequest;
-import io.temporal.proto.workflowservice.ResetStickyTaskListResponse;
-import io.temporal.proto.workflowservice.ResetWorkflowExecutionRequest;
-import io.temporal.proto.workflowservice.ResetWorkflowExecutionResponse;
 import io.temporal.proto.workflowservice.RespondActivityTaskCanceledByIDRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskCanceledByIDResponse;
 import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
@@ -92,18 +72,12 @@ import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskFailedResponse;
 import io.temporal.proto.workflowservice.RespondQueryTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondQueryTaskCompletedResponse;
-import io.temporal.proto.workflowservice.ScanWorkflowExecutionsRequest;
-import io.temporal.proto.workflowservice.ScanWorkflowExecutionsResponse;
 import io.temporal.proto.workflowservice.SignalWithStartWorkflowExecutionRequest;
 import io.temporal.proto.workflowservice.SignalWithStartWorkflowExecutionResponse;
 import io.temporal.proto.workflowservice.SignalWorkflowExecutionRequest;
 import io.temporal.proto.workflowservice.SignalWorkflowExecutionResponse;
 import io.temporal.proto.workflowservice.StartWorkflowExecutionRequest;
 import io.temporal.proto.workflowservice.StartWorkflowExecutionResponse;
-import io.temporal.proto.workflowservice.TerminateWorkflowExecutionRequest;
-import io.temporal.proto.workflowservice.TerminateWorkflowExecutionResponse;
-import io.temporal.proto.workflowservice.UpdateDomainRequest;
-import io.temporal.proto.workflowservice.UpdateDomainResponse;
 import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
 import io.temporal.serviceclient.GrpcStatusUtils;
 import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
@@ -173,8 +147,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
-  // TODO(maxim): Figure out the shutdown story for Grpc
-  //  @Override
+  @Override
   public void close() {
     store.close();
   }
@@ -221,44 +194,18 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   @Override
-  public void registerDomain(
-      RegisterDomainRequest request, StreamObserver<RegisterDomainResponse> responseObserver) {
-    super.registerDomain(request, responseObserver);
-  }
-
-  @Override
-  public void describeDomain(
-      DescribeDomainRequest request, StreamObserver<DescribeDomainResponse> responseObserver) {
-    super.describeDomain(request, responseObserver);
-  }
-
-  @Override
-  public void listDomains(
-      ListDomainsRequest request, StreamObserver<ListDomainsResponse> responseObserver) {
-    super.listDomains(request, responseObserver);
-  }
-
-  @Override
-  public void updateDomain(
-      UpdateDomainRequest request, StreamObserver<UpdateDomainResponse> responseObserver) {
-    super.updateDomain(request, responseObserver);
-  }
-
-  @Override
-  public void deprecateDomain(
-      DeprecateDomainRequest request, StreamObserver<DeprecateDomainResponse> responseObserver) {
-    super.deprecateDomain(request, responseObserver);
-  }
-
-  @Override
   public void startWorkflowExecution(
       StartWorkflowExecutionRequest request,
       StreamObserver<StartWorkflowExecutionResponse> responseObserver) {
-    StartWorkflowExecutionResponse response =
-        startWorkflowExecutionImpl(
-            request, 0, Optional.empty(), OptionalLong.empty(), Optional.empty());
-    responseObserver.onNext(response);
-    responseObserver.onCompleted();
+    try {
+      StartWorkflowExecutionResponse response =
+          startWorkflowExecutionImpl(
+              request, 0, Optional.empty(), OptionalLong.empty(), Optional.empty());
+      responseObserver.onNext(response);
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      responseObserver.onError(e);
+    }
   }
 
   StartWorkflowExecutionResponse startWorkflowExecutionImpl(
@@ -413,7 +360,10 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         if (log.isDebugEnabled()) {
           log.debug("Skipping outdated decision task for " + executionId, e);
         }
-        // skip the task
+        // The real service doesn't return this call on outdated task.
+        // For simplicity we return empty result here.
+        responseObserver.onNext(PollForDecisionTaskResponse.getDefaultInstance());
+        responseObserver.onCompleted();
       } else {
         responseObserver.onError(e);
       }
@@ -424,22 +374,30 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   public void respondDecisionTaskCompleted(
       RespondDecisionTaskCompletedRequest request,
       StreamObserver<RespondDecisionTaskCompletedResponse> responseObserver) {
-    DecisionTaskToken taskToken = DecisionTaskToken.fromBytes(request.getTaskToken());
-    TestWorkflowMutableState mutableState = getMutableState(taskToken.getExecutionId());
-    mutableState.completeDecisionTask(taskToken.getHistorySize(), request);
-    responseObserver.onNext(RespondDecisionTaskCompletedResponse.getDefaultInstance());
-    responseObserver.onCompleted();
+    try {
+      DecisionTaskToken taskToken = DecisionTaskToken.fromBytes(request.getTaskToken());
+      TestWorkflowMutableState mutableState = getMutableState(taskToken.getExecutionId());
+      mutableState.completeDecisionTask(taskToken.getHistorySize(), request);
+      responseObserver.onNext(RespondDecisionTaskCompletedResponse.getDefaultInstance());
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      responseObserver.onError(e);
+    }
   }
 
   @Override
   public void respondDecisionTaskFailed(
       RespondDecisionTaskFailedRequest failedRequest,
       StreamObserver<RespondDecisionTaskFailedResponse> responseObserver) {
-    DecisionTaskToken taskToken = DecisionTaskToken.fromBytes(failedRequest.getTaskToken());
-    TestWorkflowMutableState mutableState = getMutableState(taskToken.getExecutionId());
-    mutableState.failDecisionTask(failedRequest);
-    responseObserver.onNext(RespondDecisionTaskFailedResponse.getDefaultInstance());
-    responseObserver.onCompleted();
+    try {
+      DecisionTaskToken taskToken = DecisionTaskToken.fromBytes(failedRequest.getTaskToken());
+      TestWorkflowMutableState mutableState = getMutableState(taskToken.getExecutionId());
+      mutableState.failDecisionTask(failedRequest);
+      responseObserver.onNext(RespondDecisionTaskFailedResponse.getDefaultInstance());
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      responseObserver.onError(e);
+    }
   }
 
   @Override
@@ -468,9 +426,10 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
           if (log.isDebugEnabled()) {
             log.debug("Skipping outdated activity task for " + executionId, e);
           }
+          responseObserver.onNext(PollForActivityTaskResponse.getDefaultInstance());
+          responseObserver.onCompleted();
         } else {
           responseObserver.onError(e);
-          responseObserver.onCompleted();
           return;
         }
       }
@@ -481,124 +440,161 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   public void recordActivityTaskHeartbeat(
       RecordActivityTaskHeartbeatRequest heartbeatRequest,
       StreamObserver<RecordActivityTaskHeartbeatResponse> responseObserver) {
-    ActivityId activityId = ActivityId.fromBytes(heartbeatRequest.getTaskToken());
-    TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
-    boolean cancelRequested =
-        mutableState.heartbeatActivityTask(activityId.getId(), heartbeatRequest.getDetails());
-    responseObserver.onNext(
-        RecordActivityTaskHeartbeatResponse.newBuilder()
-            .setCancelRequested(cancelRequested)
-            .build());
-    responseObserver.onCompleted();
+    try {
+      ActivityId activityId = ActivityId.fromBytes(heartbeatRequest.getTaskToken());
+      TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
+      boolean cancelRequested =
+          mutableState.heartbeatActivityTask(activityId.getId(), heartbeatRequest.getDetails());
+      responseObserver.onNext(
+          RecordActivityTaskHeartbeatResponse.newBuilder()
+              .setCancelRequested(cancelRequested)
+              .build());
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      responseObserver.onError(e);
+    }
   }
 
   @Override
   public void recordActivityTaskHeartbeatByID(
       RecordActivityTaskHeartbeatByIDRequest heartbeatRequest,
       StreamObserver<RecordActivityTaskHeartbeatByIDResponse> responseObserver) {
-    ExecutionId execution =
-        new ExecutionId(
-            heartbeatRequest.getDomain(),
-            heartbeatRequest.getWorkflowID(),
-            heartbeatRequest.getRunID());
-    TestWorkflowMutableState mutableState = getMutableState(execution);
-    boolean cancelRequested =
-        mutableState.heartbeatActivityTask(
-            heartbeatRequest.getActivityID(), heartbeatRequest.getDetails());
-    responseObserver.onNext(
-        RecordActivityTaskHeartbeatByIDResponse.newBuilder()
-            .setCancelRequested(cancelRequested)
-            .build());
+    try {
+      ExecutionId execution =
+          new ExecutionId(
+              heartbeatRequest.getDomain(),
+              heartbeatRequest.getWorkflowID(),
+              heartbeatRequest.getRunID());
+      TestWorkflowMutableState mutableState = getMutableState(execution);
+      boolean cancelRequested =
+          mutableState.heartbeatActivityTask(
+              heartbeatRequest.getActivityID(), heartbeatRequest.getDetails());
+      responseObserver.onNext(
+          RecordActivityTaskHeartbeatByIDResponse.newBuilder()
+              .setCancelRequested(cancelRequested)
+              .build());
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      responseObserver.onError(e);
+    }
   }
 
   @Override
   public void respondActivityTaskCompleted(
       RespondActivityTaskCompletedRequest completeRequest,
       StreamObserver<RespondActivityTaskCompletedResponse> responseObserver) {
-    ActivityId activityId = ActivityId.fromBytes(completeRequest.getTaskToken());
-    TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
-    mutableState.completeActivityTask(activityId.getId(), completeRequest);
-    responseObserver.onNext(RespondActivityTaskCompletedResponse.getDefaultInstance());
-    responseObserver.onCompleted();
+    try {
+      ActivityId activityId = ActivityId.fromBytes(completeRequest.getTaskToken());
+      TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
+      mutableState.completeActivityTask(activityId.getId(), completeRequest);
+      responseObserver.onNext(RespondActivityTaskCompletedResponse.getDefaultInstance());
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      responseObserver.onError(e);
+    }
   }
 
   @Override
   public void respondActivityTaskCompletedByID(
       RespondActivityTaskCompletedByIDRequest completeRequest,
       StreamObserver<RespondActivityTaskCompletedByIDResponse> responseObserver) {
-    ActivityId activityId =
-        new ActivityId(
-            completeRequest.getDomain(),
-            completeRequest.getWorkflowID(),
-            completeRequest.getRunID(),
-            completeRequest.getActivityID());
-    TestWorkflowMutableState mutableState = getMutableState(activityId.getWorkflowId());
-    mutableState.completeActivityTaskById(activityId.getId(), completeRequest);
-    responseObserver.onNext(RespondActivityTaskCompletedByIDResponse.getDefaultInstance());
-    responseObserver.onCompleted();
+    try {
+      ActivityId activityId =
+          new ActivityId(
+              completeRequest.getDomain(),
+              completeRequest.getWorkflowID(),
+              completeRequest.getRunID(),
+              completeRequest.getActivityID());
+      TestWorkflowMutableState mutableState = getMutableState(activityId.getWorkflowId());
+      mutableState.completeActivityTaskById(activityId.getId(), completeRequest);
+      responseObserver.onNext(RespondActivityTaskCompletedByIDResponse.getDefaultInstance());
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      responseObserver.onError(e);
+    }
   }
 
   @Override
   public void respondActivityTaskFailed(
       RespondActivityTaskFailedRequest failRequest,
       StreamObserver<RespondActivityTaskFailedResponse> responseObserver) {
-    ActivityId activityId = ActivityId.fromBytes(failRequest.getTaskToken());
-    TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
-    mutableState.failActivityTask(activityId.getId(), failRequest);
-    responseObserver.onNext(RespondActivityTaskFailedResponse.getDefaultInstance());
-    responseObserver.onCompleted();
+    try {
+      ActivityId activityId = ActivityId.fromBytes(failRequest.getTaskToken());
+      TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
+      mutableState.failActivityTask(activityId.getId(), failRequest);
+      responseObserver.onNext(RespondActivityTaskFailedResponse.getDefaultInstance());
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      responseObserver.onError(e);
+    }
   }
 
   @Override
   public void respondActivityTaskFailedByID(
       RespondActivityTaskFailedByIDRequest failRequest,
       StreamObserver<RespondActivityTaskFailedByIDResponse> responseObserver) {
-    ActivityId activityId =
-        new ActivityId(
-            failRequest.getDomain(),
-            failRequest.getWorkflowID(),
-            failRequest.getRunID(),
-            failRequest.getActivityID());
-    TestWorkflowMutableState mutableState = getMutableState(activityId.getWorkflowId());
-    mutableState.failActivityTaskById(activityId.getId(), failRequest);
-    responseObserver.onNext(RespondActivityTaskFailedByIDResponse.getDefaultInstance());
-    responseObserver.onCompleted();
+    try {
+      ActivityId activityId =
+          new ActivityId(
+              failRequest.getDomain(),
+              failRequest.getWorkflowID(),
+              failRequest.getRunID(),
+              failRequest.getActivityID());
+      TestWorkflowMutableState mutableState = getMutableState(activityId.getWorkflowId());
+      mutableState.failActivityTaskById(activityId.getId(), failRequest);
+      responseObserver.onNext(RespondActivityTaskFailedByIDResponse.getDefaultInstance());
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      responseObserver.onError(e);
+    }
   }
 
   @Override
   public void respondActivityTaskCanceled(
       RespondActivityTaskCanceledRequest canceledRequest,
       StreamObserver<RespondActivityTaskCanceledResponse> responseObserver) {
-    ActivityId activityId = ActivityId.fromBytes(canceledRequest.getTaskToken());
-    TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
-    mutableState.cancelActivityTask(activityId.getId(), canceledRequest);
-    responseObserver.onNext(RespondActivityTaskCanceledResponse.getDefaultInstance());
-    responseObserver.onCompleted();
+    try {
+      ActivityId activityId = ActivityId.fromBytes(canceledRequest.getTaskToken());
+      TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
+      mutableState.cancelActivityTask(activityId.getId(), canceledRequest);
+      responseObserver.onNext(RespondActivityTaskCanceledResponse.getDefaultInstance());
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      responseObserver.onError(e);
+    }
   }
 
   @Override
   public void respondActivityTaskCanceledByID(
       RespondActivityTaskCanceledByIDRequest canceledRequest,
       StreamObserver<RespondActivityTaskCanceledByIDResponse> responseObserver) {
-    ActivityId activityId =
-        new ActivityId(
-            canceledRequest.getDomain(),
-            canceledRequest.getWorkflowID(),
-            canceledRequest.getRunID(),
-            canceledRequest.getActivityID());
-    TestWorkflowMutableState mutableState = getMutableState(activityId.getWorkflowId());
-    mutableState.cancelActivityTaskById(activityId.getId(), canceledRequest);
-    responseObserver.onNext(RespondActivityTaskCanceledByIDResponse.getDefaultInstance());
-    responseObserver.onCompleted();
+    try {
+      ActivityId activityId =
+          new ActivityId(
+              canceledRequest.getDomain(),
+              canceledRequest.getWorkflowID(),
+              canceledRequest.getRunID(),
+              canceledRequest.getActivityID());
+      TestWorkflowMutableState mutableState = getMutableState(activityId.getWorkflowId());
+      mutableState.cancelActivityTaskById(activityId.getId(), canceledRequest);
+      responseObserver.onNext(RespondActivityTaskCanceledByIDResponse.getDefaultInstance());
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      responseObserver.onError(e);
+    }
   }
 
   @Override
   public void requestCancelWorkflowExecution(
       RequestCancelWorkflowExecutionRequest cancelRequest,
       StreamObserver<RequestCancelWorkflowExecutionResponse> responseObserver) {
-    requestCancelWorkflowExecution(cancelRequest);
-    responseObserver.onNext(RequestCancelWorkflowExecutionResponse.getDefaultInstance());
-    responseObserver.onCompleted();
+    try {
+      requestCancelWorkflowExecution(cancelRequest);
+      responseObserver.onNext(RequestCancelWorkflowExecutionResponse.getDefaultInstance());
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      responseObserver.onError(e);
+    }
   }
 
   void requestCancelWorkflowExecution(RequestCancelWorkflowExecutionRequest cancelRequest) {
@@ -612,93 +608,94 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   public void signalWorkflowExecution(
       SignalWorkflowExecutionRequest signalRequest,
       StreamObserver<SignalWorkflowExecutionResponse> responseObserver) {
-    ExecutionId executionId =
-        new ExecutionId(signalRequest.getDomain(), signalRequest.getWorkflowExecution());
-    TestWorkflowMutableState mutableState = getMutableState(executionId);
-    mutableState.signal(signalRequest);
-    responseObserver.onNext(SignalWorkflowExecutionResponse.getDefaultInstance());
-    responseObserver.onCompleted();
+    try {
+      ExecutionId executionId =
+          new ExecutionId(signalRequest.getDomain(), signalRequest.getWorkflowExecution());
+      TestWorkflowMutableState mutableState = getMutableState(executionId);
+      mutableState.signal(signalRequest);
+      responseObserver.onNext(SignalWorkflowExecutionResponse.getDefaultInstance());
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      responseObserver.onError(e);
+    }
   }
 
   @Override
   public void signalWithStartWorkflowExecution(
       SignalWithStartWorkflowExecutionRequest r,
       StreamObserver<SignalWithStartWorkflowExecutionResponse> responseObserver) {
-    if (!r.hasTaskList()) {
-      throw Status.INVALID_ARGUMENT
-          .withDescription("request missing required taskList field")
-          .asRuntimeException();
-    }
-    if (!r.hasWorkflowType()) {
-      throw Status.INVALID_ARGUMENT
-          .withDescription("request missing required workflowType field")
-          .asRuntimeException();
-    }
-    ExecutionId executionId = new ExecutionId(r.getDomain(), r.getWorkflowId(), null);
-    TestWorkflowMutableState mutableState = getMutableState(executionId, false);
-    SignalWorkflowExecutionRequest signalRequest =
-        SignalWorkflowExecutionRequest.newBuilder()
-            .setInput(r.getSignalInput())
-            .setSignalName(r.getSignalName())
-            .setWorkflowExecution(executionId.getExecution())
-            .setRequestId(r.getRequestId())
-            .setControl(r.getControl())
-            .setDomain(r.getDomain())
-            .setIdentity(r.getIdentity())
-            .build();
-    if (mutableState != null) {
-      mutableState.signal(signalRequest);
+    try {
+      if (!r.hasTaskList()) {
+        throw Status.INVALID_ARGUMENT
+            .withDescription("request missing required taskList field")
+            .asRuntimeException();
+      }
+      if (!r.hasWorkflowType()) {
+        throw Status.INVALID_ARGUMENT
+            .withDescription("request missing required workflowType field")
+            .asRuntimeException();
+      }
+      ExecutionId executionId = new ExecutionId(r.getDomain(), r.getWorkflowId(), null);
+      TestWorkflowMutableState mutableState = getMutableState(executionId, false);
+      SignalWorkflowExecutionRequest signalRequest =
+          SignalWorkflowExecutionRequest.newBuilder()
+              .setInput(r.getSignalInput())
+              .setSignalName(r.getSignalName())
+              .setWorkflowExecution(executionId.getExecution())
+              .setRequestId(r.getRequestId())
+              .setControl(r.getControl())
+              .setDomain(r.getDomain())
+              .setIdentity(r.getIdentity())
+              .build();
+      if (mutableState != null) {
+        mutableState.signal(signalRequest);
+        responseObserver.onNext(
+            SignalWithStartWorkflowExecutionResponse.newBuilder()
+                .setRunId(mutableState.getExecutionId().getExecution().getRunId())
+                .build());
+        responseObserver.onCompleted();
+        return;
+      }
+      StartWorkflowExecutionRequest.Builder startRequest =
+          StartWorkflowExecutionRequest.newBuilder()
+              .setInput(r.getInput())
+              .setExecutionStartToCloseTimeoutSeconds(r.getExecutionStartToCloseTimeoutSeconds())
+              .setTaskStartToCloseTimeoutSeconds(r.getTaskStartToCloseTimeoutSeconds())
+              .setDomain(r.getDomain())
+              .setTaskList(r.getTaskList())
+              .setWorkflowId(r.getWorkflowId())
+              .setWorkflowIdReusePolicy(r.getWorkflowIdReusePolicy())
+              .setIdentity(r.getIdentity())
+              .setWorkflowType(r.getWorkflowType())
+              .setCronSchedule(r.getCronSchedule())
+              .setRequestId(r.getRequestId());
+      if (r.hasRetryPolicy()) {
+        startRequest.setRetryPolicy(r.getRetryPolicy());
+      }
+      if (r.hasHeader()) {
+        startRequest.setHeader(r.getHeader());
+      }
+      if (r.hasMemo()) {
+        startRequest.setMemo(r.getMemo());
+      }
+      if (r.hasSearchAttributes()) {
+        startRequest.setSearchAttributes(r.getSearchAttributes());
+      }
+      StartWorkflowExecutionResponse startResult =
+          startWorkflowExecutionImpl(
+              startRequest.build(),
+              0,
+              Optional.empty(),
+              OptionalLong.empty(),
+              Optional.of(signalRequest));
       responseObserver.onNext(
           SignalWithStartWorkflowExecutionResponse.newBuilder()
-              .setRunId(mutableState.getExecutionId().getExecution().getRunId())
+              .setRunId(startResult.getRunId())
               .build());
       responseObserver.onCompleted();
-      return;
+    } catch (StatusRuntimeException e) {
+      responseObserver.onError(e);
     }
-    StartWorkflowExecutionRequest.Builder startRequest =
-        StartWorkflowExecutionRequest.newBuilder()
-            .setInput(r.getInput())
-            .setExecutionStartToCloseTimeoutSeconds(r.getExecutionStartToCloseTimeoutSeconds())
-            .setTaskStartToCloseTimeoutSeconds(r.getTaskStartToCloseTimeoutSeconds())
-            .setDomain(r.getDomain())
-            .setTaskList(r.getTaskList())
-            .setWorkflowId(r.getWorkflowId())
-            .setWorkflowIdReusePolicy(r.getWorkflowIdReusePolicy())
-            .setIdentity(r.getIdentity())
-            .setWorkflowType(r.getWorkflowType())
-            .setCronSchedule(r.getCronSchedule())
-            .setRequestId(r.getRequestId());
-    if (r.hasRetryPolicy()) {
-      startRequest.setRetryPolicy(r.getRetryPolicy());
-    }
-    if (r.hasHeader()) {
-      startRequest.setHeader(r.getHeader());
-    }
-    if (r.hasMemo()) {
-      startRequest.setMemo(r.getMemo());
-    }
-    if (r.hasSearchAttributes()) {
-      startRequest.setSearchAttributes(r.getSearchAttributes());
-    }
-    StartWorkflowExecutionResponse startResult =
-        startWorkflowExecutionImpl(
-            startRequest.build(),
-            0,
-            Optional.empty(),
-            OptionalLong.empty(),
-            Optional.of(signalRequest));
-    responseObserver.onNext(
-        SignalWithStartWorkflowExecutionResponse.newBuilder()
-            .setRunId(startResult.getRunId())
-            .build());
-    responseObserver.onCompleted();
-  }
-
-  @Override
-  public void resetWorkflowExecution(
-      ResetWorkflowExecutionRequest request,
-      StreamObserver<ResetWorkflowExecutionResponse> responseObserver) {
-    super.resetWorkflowExecution(request, responseObserver);
   }
 
   public void signalExternalWorkflowExecution(
@@ -728,13 +725,6 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         throw e;
       }
     }
-  }
-
-  @Override
-  public void terminateWorkflowExecution(
-      TerminateWorkflowExecutionRequest request,
-      StreamObserver<TerminateWorkflowExecutionResponse> responseObserver) {
-    super.terminateWorkflowExecution(request, responseObserver);
   }
 
   /**
@@ -790,99 +780,74 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   public void listOpenWorkflowExecutions(
       ListOpenWorkflowExecutionsRequest listRequest,
       StreamObserver<ListOpenWorkflowExecutionsResponse> responseObserver) {
-    Optional<String> workflowIdFilter;
-    if (listRequest.hasExecutionFilter()
-        && !listRequest.getExecutionFilter().getWorkflowId().isEmpty()) {
-      workflowIdFilter = Optional.of(listRequest.getExecutionFilter().getWorkflowId());
-    } else {
-      workflowIdFilter = Optional.empty();
+    try {
+      Optional<String> workflowIdFilter;
+      if (listRequest.hasExecutionFilter()
+          && !listRequest.getExecutionFilter().getWorkflowId().isEmpty()) {
+        workflowIdFilter = Optional.of(listRequest.getExecutionFilter().getWorkflowId());
+      } else {
+        workflowIdFilter = Optional.empty();
+      }
+      List<WorkflowExecutionInfo> result =
+          store.listWorkflows(WorkflowState.OPEN, workflowIdFilter);
+      responseObserver.onNext(
+          ListOpenWorkflowExecutionsResponse.newBuilder().addAllExecutions(result).build());
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      responseObserver.onError(e);
     }
-    List<WorkflowExecutionInfo> result = store.listWorkflows(WorkflowState.OPEN, workflowIdFilter);
-    responseObserver.onNext(
-        ListOpenWorkflowExecutionsResponse.newBuilder().addAllExecutions(result).build());
-    responseObserver.onCompleted();
   }
 
   @Override
   public void listClosedWorkflowExecutions(
       ListClosedWorkflowExecutionsRequest listRequest,
       StreamObserver<ListClosedWorkflowExecutionsResponse> responseObserver) {
-    Optional<String> workflowIdFilter;
-    if (listRequest.hasExecutionFilter()
-        && !listRequest.getExecutionFilter().getWorkflowId().isEmpty()) {
-      workflowIdFilter = Optional.of(listRequest.getExecutionFilter().getWorkflowId());
-    } else {
-      workflowIdFilter = Optional.empty();
+    try {
+      Optional<String> workflowIdFilter;
+      if (listRequest.hasExecutionFilter()
+          && !listRequest.getExecutionFilter().getWorkflowId().isEmpty()) {
+        workflowIdFilter = Optional.of(listRequest.getExecutionFilter().getWorkflowId());
+      } else {
+        workflowIdFilter = Optional.empty();
+      }
+      List<WorkflowExecutionInfo> result =
+          store.listWorkflows(WorkflowState.CLOSED, workflowIdFilter);
+      responseObserver.onNext(
+          ListClosedWorkflowExecutionsResponse.newBuilder().addAllExecutions(result).build());
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      responseObserver.onError(e);
     }
-    List<WorkflowExecutionInfo> result =
-        store.listWorkflows(WorkflowState.CLOSED, workflowIdFilter);
-    responseObserver.onNext(
-        ListClosedWorkflowExecutionsResponse.newBuilder().addAllExecutions(result).build());
-    responseObserver.onCompleted();
-  }
-
-  @Override
-  public void listWorkflowExecutions(
-      ListWorkflowExecutionsRequest request,
-      StreamObserver<ListWorkflowExecutionsResponse> responseObserver) {
-    super.listWorkflowExecutions(request, responseObserver);
-  }
-
-  @Override
-  public void listArchivedWorkflowExecutions(
-      ListArchivedWorkflowExecutionsRequest request,
-      StreamObserver<ListArchivedWorkflowExecutionsResponse> responseObserver) {
-    super.listArchivedWorkflowExecutions(request, responseObserver);
-  }
-
-  @Override
-  public void scanWorkflowExecutions(
-      ScanWorkflowExecutionsRequest request,
-      StreamObserver<ScanWorkflowExecutionsResponse> responseObserver) {
-    super.scanWorkflowExecutions(request, responseObserver);
-  }
-
-  @Override
-  public void countWorkflowExecutions(
-      CountWorkflowExecutionsRequest request,
-      StreamObserver<CountWorkflowExecutionsResponse> responseObserver) {
-    super.countWorkflowExecutions(request, responseObserver);
-  }
-
-  @Override
-  public void getSearchAttributes(
-      GetSearchAttributesRequest request,
-      StreamObserver<GetSearchAttributesResponse> responseObserver) {
-    super.getSearchAttributes(request, responseObserver);
   }
 
   @Override
   public void respondQueryTaskCompleted(
       RespondQueryTaskCompletedRequest completeRequest,
       StreamObserver<RespondQueryTaskCompletedResponse> responseObserver) {
-    QueryId queryId = QueryId.fromBytes(completeRequest.getTaskToken());
-    TestWorkflowMutableState mutableState = getMutableState(queryId.getExecutionId());
-    mutableState.completeQuery(queryId, completeRequest);
-    responseObserver.onNext(RespondQueryTaskCompletedResponse.getDefaultInstance());
-    responseObserver.onCompleted();
-  }
-
-  @Override
-  public void resetStickyTaskList(
-      ResetStickyTaskListRequest request,
-      StreamObserver<ResetStickyTaskListResponse> responseObserver) {
-    super.resetStickyTaskList(request, responseObserver);
+    try {
+      QueryId queryId = QueryId.fromBytes(completeRequest.getTaskToken());
+      TestWorkflowMutableState mutableState = getMutableState(queryId.getExecutionId());
+      mutableState.completeQuery(queryId, completeRequest);
+      responseObserver.onNext(RespondQueryTaskCompletedResponse.getDefaultInstance());
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      responseObserver.onError(e);
+    }
   }
 
   @Override
   public void queryWorkflow(
       QueryWorkflowRequest queryRequest, StreamObserver<QueryWorkflowResponse> responseObserver) {
-    ExecutionId executionId =
-        new ExecutionId(queryRequest.getDomain(), queryRequest.getExecution());
-    TestWorkflowMutableState mutableState = getMutableState(executionId);
-    QueryWorkflowResponse result = mutableState.query(queryRequest);
-    responseObserver.onNext(result);
-    responseObserver.onCompleted();
+    try {
+      ExecutionId executionId =
+          new ExecutionId(queryRequest.getDomain(), queryRequest.getExecution());
+      TestWorkflowMutableState mutableState = getMutableState(executionId);
+      QueryWorkflowResponse result = mutableState.query(queryRequest);
+      responseObserver.onNext(result);
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      responseObserver.onError(e);
+    }
   }
 
   private <R> R requireNotNull(String fieldName, R value) {

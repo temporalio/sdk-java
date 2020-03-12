@@ -24,10 +24,6 @@ import io.grpc.StatusRuntimeException;
 import io.temporal.internal.common.AsyncBackoffThrottler;
 import io.temporal.internal.common.BackoffThrottler;
 import io.temporal.internal.common.CheckedExceptionWrapper;
-import io.temporal.proto.failure.CancellationAlreadyRequested;
-import io.temporal.proto.failure.DomainAlreadyExists;
-import io.temporal.proto.failure.DomainNotActive;
-import io.temporal.proto.failure.WorkflowExecutionAlreadyStarted;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
@@ -58,10 +54,8 @@ public final class GrpcRetryer {
     roBuilder
         .addDoNotRetry(Status.Code.INVALID_ARGUMENT, null)
         .addDoNotRetry(Status.Code.NOT_FOUND, null)
-        .addDoNotRetry(Status.Code.ALREADY_EXISTS, WorkflowExecutionAlreadyStarted.class)
-        .addDoNotRetry(Status.Code.ALREADY_EXISTS, DomainAlreadyExists.class)
-        .addDoNotRetry(Status.Code.FAILED_PRECONDITION, DomainNotActive.class)
-        .addDoNotRetry(Status.Code.ALREADY_EXISTS, CancellationAlreadyRequested.class);
+        .addDoNotRetry(Status.Code.ALREADY_EXISTS, null)
+        .addDoNotRetry(Status.Code.FAILED_PRECONDITION, null);
     DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS = roBuilder.validateBuildWithDefaults();
   }
 

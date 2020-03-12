@@ -18,6 +18,7 @@
 package io.temporal.internal.replay;
 
 import com.google.protobuf.ByteString;
+import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.replay.HistoryHelper.DecisionEvents;
 import io.temporal.internal.worker.WorkflowExecutionException;
@@ -456,7 +457,7 @@ class DecisionsHelper {
         Decision.newBuilder()
             .setCompleteWorkflowExecutionDecisionAttributes(
                 CompleteWorkflowExecutionDecisionAttributes.newBuilder()
-                    .setResult(ByteString.copyFrom(output)))
+                    .setResult(ByteString.copyFrom(OptionsUtils.safeGet(output))))
             .setDecisionType(DecisionType.DecisionTypeCompleteWorkflowExecution)
             .build();
     DecisionId decisionId = new DecisionId(DecisionTarget.SELF, 0);
@@ -466,8 +467,13 @@ class DecisionsHelper {
   void continueAsNewWorkflowExecution(ContinueAsNewWorkflowExecutionParameters continueParameters) {
     addAllMissingVersionMarker(false, Optional.empty());
 
+    HistoryEvent firstEvent = task.getHistory().getEvents(0);
+    if (!firstEvent.hasWorkflowExecutionStartedEventAttributes()) {
+      throw new IllegalStateException(
+          "The first event is not WorkflowExecutionStarted: " + firstEvent);
+    }
     WorkflowExecutionStartedEventAttributes startedEvent =
-        task.getHistory().getEvents(0).getWorkflowExecutionStartedEventAttributes();
+        firstEvent.getWorkflowExecutionStartedEventAttributes();
     ContinueAsNewWorkflowExecutionDecisionAttributes.Builder attributes =
         ContinueAsNewWorkflowExecutionDecisionAttributes.newBuilder();
     attributes.setInput(ByteString.copyFrom(continueParameters.getInput()));

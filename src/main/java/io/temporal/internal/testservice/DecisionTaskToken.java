@@ -69,7 +69,10 @@ final class DecisionTaskToken {
       int historySize = in.readInt();
       return new DecisionTaskToken(executionId, historySize);
     } catch (IOException e) {
-      throw Status.INTERNAL.withCause(e).asRuntimeException();
+      throw Status.INVALID_ARGUMENT
+          .withDescription("Failure parsing decision task token")
+          .withCause(e)
+          .asRuntimeException();
     }
   }
 }
