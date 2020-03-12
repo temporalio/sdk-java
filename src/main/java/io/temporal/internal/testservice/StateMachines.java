@@ -341,18 +341,20 @@ class StateMachines {
   private static void startChildWorkflowFailed(
       RequestContext ctx,
       ChildWorkflowData data,
-      StartChildWorkflowExecutionFailedEventAttributes.Builder a,
+      StartChildWorkflowExecutionFailedEventAttributes a,
       long notUsed) {
-    a.setInitiatedEventId(data.initiatedEventId);
-    a.setWorkflowType(data.initiatedEvent.getWorkflowType());
-    a.setWorkflowId(data.initiatedEvent.getWorkflowId());
+    StartChildWorkflowExecutionFailedEventAttributes.Builder updatedAttr =
+        a.toBuilder()
+            .setInitiatedEventId(data.initiatedEventId)
+            .setWorkflowType(data.initiatedEvent.getWorkflowType())
+            .setWorkflowId(data.initiatedEvent.getWorkflowId());
     if (!data.initiatedEvent.getDomain().isEmpty()) {
-      a.setDomain(data.initiatedEvent.getDomain());
+      updatedAttr.setDomain(data.initiatedEvent.getDomain());
     }
     HistoryEvent event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EventTypeStartChildWorkflowExecutionFailed)
-            .setStartChildWorkflowExecutionFailedEventAttributes(a)
+            .setStartChildWorkflowExecutionFailedEventAttributes(updatedAttr.build())
             .build();
     ctx.addEvent(event);
   }

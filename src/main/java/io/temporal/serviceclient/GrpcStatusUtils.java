@@ -53,11 +53,10 @@ public class GrpcStatusUtils {
                 CurrentBranchChanged.class,
                 ProtoUtils.keyForProto(CurrentBranchChanged.getDefaultInstance()))
             .put(
-                ClientVersionNotSupported.class,
+                DomainAlreadyExists.class,
                 ProtoUtils.keyForProto(DomainAlreadyExists.getDefaultInstance()))
             .put(
-                DomainAlreadyExists.class,
-                ProtoUtils.keyForProto(DomainNotActive.getDefaultInstance()))
+                DomainNotActive.class, ProtoUtils.keyForProto(DomainNotActive.getDefaultInstance()))
             .put(
                 EventAlreadyStarted.class,
                 ProtoUtils.keyForProto(EventAlreadyStarted.getDefaultInstance()))
@@ -82,6 +81,9 @@ public class GrpcStatusUtils {
       StatusRuntimeException exception, Class<? extends GeneratedMessageV3> failureType) {
     Preconditions.checkNotNull(exception, "Exception cannot be null");
     Metadata metadata = exception.getTrailers();
+    if (metadata == null) {
+      return false;
+    }
     Metadata.Key key = KEY_MAP.get(failureType);
     Preconditions.checkNotNull(key, "Unknown failure type: %s", failureType.getName());
     return metadata.containsKey(key);
@@ -92,25 +94,19 @@ public class GrpcStatusUtils {
       StatusRuntimeException exception, Class<T> failureType) {
     Preconditions.checkNotNull(exception, "Exception cannot be null");
     Metadata metadata = exception.getTrailers();
+    if (metadata == null) {
+      return null;
+    }
     Metadata.Key key = KEY_MAP.get(failureType);
     Preconditions.checkNotNull(key, "Unknown failure type: %s", failureType.getName());
     return (T) metadata.get(key);
-  }
-  /** Set a failure of a given type for the StatusRuntimeException object. */
-  public static <T extends GeneratedMessageV3> void setFailure(
-      StatusRuntimeException exception, T value) {
-    Preconditions.checkNotNull(exception, "Exception cannot be null");
-    Metadata metadata = exception.getTrailers();
-    Metadata.Key key = KEY_MAP.get(value.getClass());
-    Preconditions.checkNotNull(key, "Unknown failure type: %s", value.getClass().getName());
-    metadata.<T>put(key, value);
   }
 
   /** Create StatusRuntimeException with given details. */
   public static <T extends GeneratedMessageV3> StatusRuntimeException newException(
       Status status, T details) {
     Preconditions.checkNotNull(status, "Exception cannot be null");
-    StatusRuntimeException result = status.asRuntimeException();
+    StatusRuntimeException result = status.asRuntimeException(new Metadata());
     Metadata metadata = result.getTrailers();
     Metadata.Key key = KEY_MAP.get(details.getClass());
     Preconditions.checkNotNull(key, "Unknown failure type: %s", details.getClass().getName());
