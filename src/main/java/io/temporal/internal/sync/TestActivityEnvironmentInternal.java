@@ -118,24 +118,24 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     public void recordActivityTaskHeartbeat(
         RecordActivityTaskHeartbeatRequest request,
         StreamObserver<RecordActivityTaskHeartbeatResponse> responseObserver) {
-      if (activityHeartbetListener != null) {
-        Object details =
-            testEnvironmentOptions
-                .getDataConverter()
-                .fromData(
-                    request.getDetails().toByteArray(),
-                    activityHeartbetListener.valueClass,
-                    activityHeartbetListener.valueType);
-        try {
+      try {
+        if (activityHeartbetListener != null) {
+          Object details =
+              testEnvironmentOptions
+                  .getDataConverter()
+                  .fromData(
+                      request.getDetails().toByteArray(),
+                      activityHeartbetListener.valueClass,
+                      activityHeartbetListener.valueType);
           activityHeartbetListener.consumer.accept(details);
-          responseObserver.onNext(
-              RecordActivityTaskHeartbeatResponse.newBuilder()
-                  .setCancelRequested(cancellationRequested.get())
-                  .build());
-          responseObserver.onCompleted();
-        } catch (StatusRuntimeException e) {
-          responseObserver.onError(e);
         }
+        responseObserver.onNext(
+            RecordActivityTaskHeartbeatResponse.newBuilder()
+                .setCancelRequested(cancellationRequested.get())
+                .build());
+        responseObserver.onCompleted();
+      } catch (StatusRuntimeException e) {
+        responseObserver.onError(e);
       }
     }
   }
