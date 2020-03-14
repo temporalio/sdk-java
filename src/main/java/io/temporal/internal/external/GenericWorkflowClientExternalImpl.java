@@ -36,6 +36,7 @@ import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.common.TaskList;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowQuery;
+import io.temporal.proto.enums.QueryConsistencyLevel;
 import io.temporal.proto.workflowservice.QueryWorkflowRequest;
 import io.temporal.proto.workflowservice.QueryWorkflowResponse;
 import io.temporal.proto.workflowservice.RequestCancelWorkflowExecutionRequest;
@@ -314,6 +315,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
                     .setQueryArgs(ByteString.copyFrom(queryParameters.getInput()))
                     .setQueryType(queryParameters.getQueryType()))
             .setQueryRejectCondition(queryParameters.getQueryRejectCondition())
+            .setQueryConsistencyLevel(QueryConsistencyLevel.QueryConsistencyLevelStrong)
             .build();
     return GrpcRetryer.retryWithResult(
         GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,

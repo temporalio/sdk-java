@@ -40,6 +40,9 @@ public class GrpcStatusUtils {
       StatusRuntimeException exception, Class<? extends GeneratedMessageV3> failureType) {
     Preconditions.checkNotNull(exception, "exception cannot be null");
     com.google.rpc.Status status = StatusProto.fromThrowable(exception);
+    if (status.getDetailsCount() == 0) {
+      return false;
+    }
     Any details = status.getDetails(0);
     return details.is(failureType);
   }

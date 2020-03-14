@@ -25,11 +25,16 @@ import io.grpc.Channel;
 import io.grpc.ClientCall;
 import io.grpc.ClientInterceptor;
 import io.grpc.Deadline;
+import io.grpc.ForwardingClientCall;
+import io.grpc.ForwardingClientCallListener;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
+import io.grpc.stub.MetadataUtils;
+import io.temporal.internal.Version;
 import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
 import java.io.IOException;
 import java.util.Map;
@@ -52,6 +57,20 @@ public class GrpcWorkflowServiceFactory implements AutoCloseable {
   /** Default RPC timeout for QueryWorkflow */
   private static final long DEFAULT_QUERY_RPC_TIMEOUT_MILLIS = 10000;
 
+  /** refers to the name of the gRPC header that contains the client library version */
+  private static final Metadata.Key<String> LIBRARY_VERSION_HEADER_KEY =
+      Metadata.Key.of("temporal-sdk-version", Metadata.ASCII_STRING_MARSHALLER);
+
+  /** refers to the name of the gRPC header that contains the client feature version */
+  private static final Metadata.Key<String> FEATURE_VERSION_HEADER_KEY =
+      Metadata.Key.of("temporal-sdk-feature-version", Metadata.ASCII_STRING_MARSHALLER);
+
+  /** refers to the name of the gRPC header that contains the client SDK name */
+  private static final Metadata.Key<String> CLIENT_IMPL_HEADER_KEY =
+      Metadata.Key.of("temporal-sdk-name", Metadata.ASCII_STRING_MARSHALLER);
+
+  private static final String CLIENT_IMPL_HEADER_VALUE = "temporal-go";
+
   protected ServiceFactoryOptions options;
   protected ManagedChannel channel;
   protected WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub;
@@ -73,9 +92,17 @@ public class GrpcWorkflowServiceFactory implements AutoCloseable {
     this.channel = channel;
     this.options = options;
     ClientInterceptor timeoutInterceptor = newTimeoutInterceptor();
+    ClientInterceptor tracingInterceptor = newTracingInterceptor();
+    Metadata headers = new Metadata();
+    headers.put(LIBRARY_VERSION_HEADER_KEY, Version.LIBRARY_VERSION);
+    headers.put(FEATURE_VERSION_HEADER_KEY, Version.FEATURE_VERSION);
+    headers.put(CLIENT_IMPL_HEADER_KEY, CLIENT_IMPL_HEADER_VALUE);
     blockingStub =
-        WorkflowServiceGrpc.newBlockingStub(channel).withInterceptors(timeoutInterceptor);
-    futureStub = WorkflowServiceGrpc.newFutureStub(channel).withInterceptors(timeoutInterceptor);
+        MetadataUtils.attachHeaders(WorkflowServiceGrpc.newBlockingStub(channel), headers)
+            .withInterceptors(timeoutInterceptor, tracingInterceptor);
+    futureStub =
+        MetadataUtils.attachHeaders(WorkflowServiceGrpc.newFutureStub(channel), headers)
+            .withInterceptors(timeoutInterceptor, tracingInterceptor);
     log.info(String.format("Created GRPC client for channel: %s", channel));
   }
 
@@ -132,6 +159,7 @@ public class GrpcWorkflowServiceFactory implements AutoCloseable {
     blockingStub =
         WorkflowServiceGrpc.newBlockingStub(channel).withInterceptors(timeoutInterceptor);
     futureStub = WorkflowServiceGrpc.newFutureStub(channel).withInterceptors(timeoutInterceptor);
+
     log.info(String.format("Created GRPC client for channel: %s", channel));
   }
 
@@ -163,6 +191,39 @@ public class GrpcWorkflowServiceFactory implements AutoCloseable {
           log.trace("TimeoutInterceptor method=" + name + ", timeoutMs=" + duration);
         }
         return next.newCall(method, callOptions.withDeadlineAfter(duration, TimeUnit.MILLISECONDS));
+      }
+    };
+  }
+
+  private ClientInterceptor newTracingInterceptor() {
+    return new ClientInterceptor() {
+
+      @Override
+      public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
+          MethodDescriptor<ReqT, RespT> method, CallOptions callOptions, Channel next) {
+        return new ForwardingClientCall.SimpleForwardingClientCall<ReqT, RespT>(
+            next.newCall(method, callOptions)) {
+          @Override
+          public void sendMessage(ReqT message) {
+            log.trace("Invoking " + method.getFullMethodName() + "with input: " + message);
+            super.sendMessage(message);
+          }
+
+          @Override
+          public void start(Listener<RespT> responseListener, Metadata headers) {
+            ClientCall.Listener<RespT> listener =
+                new ForwardingClientCallListener.SimpleForwardingClientCallListener<RespT>(
+                    responseListener) {
+                  @Override
+                  public void onMessage(RespT message) {
+                    log.trace(
+                        "Returned " + method.getFullMethodName() + " with output: " + message);
+                    super.onMessage(message);
+                  }
+                };
+            super.start(listener, headers);
+          }
+        };
       }
     };
   }
