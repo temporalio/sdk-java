@@ -24,7 +24,7 @@
             <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
-    <logger name="io.netty" level="INFO"/>
+    <logger name="io.grpc.netty" level="INFO"/>
     <root level="INFO">
         <appender-ref ref="STDOUT" />
     </root>

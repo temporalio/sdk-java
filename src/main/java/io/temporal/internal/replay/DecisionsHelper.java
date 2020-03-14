@@ -61,7 +61,6 @@ import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.enums.DecisionType;
 import io.temporal.proto.enums.EventType;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
-import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -88,7 +87,7 @@ class DecisionsHelper {
       "The possible causes are a nondeterministic workflow definition code or an incompatible "
           + "change in the workflow definition.";
 
-  private final PollForDecisionTaskResponse task;
+  private final PollForDecisionTaskResponse.Builder task;
 
   /**
    * When workflow task completes the decisions are converted to events that follow the decision
@@ -108,8 +107,8 @@ class DecisionsHelper {
   // TODO: removal of completed activities
   private final Map<String, Long> activityIdToScheduledEventId = new HashMap<>();
 
-  DecisionsHelper(PollForDecisionTaskResponseOrBuilder task) {
-    this.task = (PollForDecisionTaskResponse) task;
+  DecisionsHelper(PollForDecisionTaskResponse.Builder task) {
+    this.task = task;
   }
 
   long getNextDecisionEventId() {
@@ -660,7 +659,7 @@ class DecisionsHelper {
     return WorkflowExecutionUtils.prettyPrintDecisions(getDecisions());
   }
 
-  PollForDecisionTaskResponse getTask() {
+  PollForDecisionTaskResponse.Builder getTask() {
     return task;
   }
 

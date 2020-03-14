@@ -79,6 +79,10 @@ final class ActivityPollTask implements Poller.PollTask<PollForActivityTaskRespo
     try {
       result = service.blockingStub().pollForActivityTask(pollRequest.build());
     } catch (StatusRuntimeException e) {
+      if (e.getStatus().getCode() == Status.Code.UNAVAILABLE
+          && e.getMessage().startsWith("UNAVAILABLE: Channel shutdown")) {
+        return null;
+      }
       if (e.getStatus().getCode() == Status.Code.INTERNAL
           || e.getStatus().getCode() == Status.Code.RESOURCE_EXHAUSTED) {
         options

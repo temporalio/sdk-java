@@ -39,6 +39,7 @@ import io.temporal.internal.replay.DecisionContext;
 import io.temporal.proto.common.WorkflowQuery;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
 import io.temporal.testUtils.HistoryUtils;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.CancellationScope;
@@ -852,12 +853,13 @@ public class DeterministicRunnerTest {
     }
 
     @Override
-    public DecisionResult decide(PollForDecisionTaskResponse decisionTask) throws Throwable {
+    public DecisionResult decide(PollForDecisionTaskResponseOrBuilder decisionTask)
+        throws Throwable {
       return new DecisionResult(new ArrayList<>(), false);
     }
 
     @Override
-    public byte[] query(PollForDecisionTaskResponse decisionTask, WorkflowQuery query)
+    public byte[] query(PollForDecisionTaskResponseOrBuilder decisionTask, WorkflowQuery query)
         throws Throwable {
       return new byte[0];
     }

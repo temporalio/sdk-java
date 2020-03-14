@@ -23,7 +23,6 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.uber.m3.tally.Scope;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
 import java.util.*;
 import java.util.concurrent.Callable;
@@ -59,7 +58,8 @@ public final class DeciderCache {
   }
 
   public Decider getOrCreate(
-      PollForDecisionTaskResponse decisionTask, Callable<Decider> deciderFunc) throws Exception {
+      PollForDecisionTaskResponseOrBuilder decisionTask, Callable<Decider> deciderFunc)
+      throws Exception {
     String runId = decisionTask.getWorkflowExecution().getRunId();
     if (isFullHistory(decisionTask)) {
       invalidate(runId);

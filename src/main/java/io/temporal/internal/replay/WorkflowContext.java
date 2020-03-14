@@ -24,14 +24,14 @@ import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowExecutionStartedEventAttributes;
 import io.temporal.proto.common.WorkflowType;
-import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 final class WorkflowContext {
 
-  private final PollForDecisionTaskResponse decisionTask;
+  private final PollForDecisionTaskResponseOrBuilder decisionTask;
   private boolean cancelRequested;
   private ContinueAsNewWorkflowExecutionParameters continueAsNewOnCompletion;
   private WorkflowExecutionStartedEventAttributes startedAttributes;
@@ -44,7 +44,7 @@ final class WorkflowContext {
 
   WorkflowContext(
       String domain,
-      PollForDecisionTaskResponse decisionTask,
+      PollForDecisionTaskResponseOrBuilder decisionTask,
       WorkflowExecutionStartedEventAttributes startedAttributes,
       List<ContextPropagator> contextPropagators) {
     this.domain = domain;

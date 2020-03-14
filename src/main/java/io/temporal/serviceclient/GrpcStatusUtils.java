@@ -18,59 +18,18 @@
 package io.temporal.serviceclient;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
+import com.google.protobuf.Any;
 import com.google.protobuf.GeneratedMessageV3;
-import io.grpc.Metadata;
-import io.grpc.Status;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.rpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.grpc.protobuf.ProtoUtils;
-import io.temporal.proto.failure.CancellationAlreadyRequested;
-import io.temporal.proto.failure.ClientVersionNotSupported;
-import io.temporal.proto.failure.CurrentBranchChanged;
-import io.temporal.proto.failure.DomainAlreadyExists;
-import io.temporal.proto.failure.DomainNotActive;
-import io.temporal.proto.failure.EventAlreadyStarted;
-import io.temporal.proto.failure.QueryFailed;
-import io.temporal.proto.failure.RetryTask;
-import io.temporal.proto.failure.RetryTaskV2;
-import io.temporal.proto.failure.ShardOwnershipLost;
-import io.temporal.proto.failure.WorkflowExecutionAlreadyStarted;
+import io.grpc.protobuf.StatusProto;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class GrpcStatusUtils {
 
-  private static final ImmutableMap<Class<? extends GeneratedMessageV3>, Metadata.Key> KEY_MAP;
-
-  static {
-    KEY_MAP =
-        ImmutableMap.<Class<? extends GeneratedMessageV3>, Metadata.Key>builder()
-            .put(
-                CancellationAlreadyRequested.class,
-                ProtoUtils.keyForProto(CancellationAlreadyRequested.getDefaultInstance()))
-            .put(
-                ClientVersionNotSupported.class,
-                ProtoUtils.keyForProto(ClientVersionNotSupported.getDefaultInstance()))
-            .put(
-                CurrentBranchChanged.class,
-                ProtoUtils.keyForProto(CurrentBranchChanged.getDefaultInstance()))
-            .put(
-                DomainAlreadyExists.class,
-                ProtoUtils.keyForProto(DomainAlreadyExists.getDefaultInstance()))
-            .put(
-                DomainNotActive.class, ProtoUtils.keyForProto(DomainNotActive.getDefaultInstance()))
-            .put(
-                EventAlreadyStarted.class,
-                ProtoUtils.keyForProto(EventAlreadyStarted.getDefaultInstance()))
-            .put(QueryFailed.class, ProtoUtils.keyForProto(QueryFailed.getDefaultInstance()))
-            .put(RetryTask.class, ProtoUtils.keyForProto(RetryTask.getDefaultInstance()))
-            .put(RetryTaskV2.class, ProtoUtils.keyForProto(RetryTaskV2.getDefaultInstance()))
-            .put(
-                ShardOwnershipLost.class,
-                ProtoUtils.keyForProto(ShardOwnershipLost.getDefaultInstance()))
-            .put(
-                WorkflowExecutionAlreadyStarted.class,
-                ProtoUtils.keyForProto(WorkflowExecutionAlreadyStarted.getDefaultInstance()))
-            .build();
-  }
+  private static final Logger log = LoggerFactory.getLogger(GrpcStatusUtils.class);
 
   /**
    * Determines if a StatusRuntimeException contains a failure message of a given type.
@@ -79,38 +38,42 @@ public class GrpcStatusUtils {
    */
   public static boolean hasFailure(
       StatusRuntimeException exception, Class<? extends GeneratedMessageV3> failureType) {
-    Preconditions.checkNotNull(exception, "Exception cannot be null");
-    Metadata metadata = exception.getTrailers();
-    if (metadata == null) {
-      return false;
-    }
-    Metadata.Key key = KEY_MAP.get(failureType);
-    Preconditions.checkNotNull(key, "Unknown failure type: %s", failureType.getName());
-    return metadata.containsKey(key);
+    Preconditions.checkNotNull(exception, "exception cannot be null");
+    com.google.rpc.Status status = StatusProto.fromThrowable(exception);
+    Any details = status.getDetails(0);
+    return details.is(failureType);
   }
 
   /** @return a failure of a given type from the StatusRuntimeException object */
   public static <T extends GeneratedMessageV3> T getFailure(
       StatusRuntimeException exception, Class<T> failureType) {
-    Preconditions.checkNotNull(exception, "Exception cannot be null");
-    Metadata metadata = exception.getTrailers();
-    if (metadata == null) {
+    Preconditions.checkNotNull(exception, "exception cannot be null");
+    com.google.rpc.Status status = StatusProto.fromThrowable(exception);
+    if (status.getDetailsCount() == 0) {
       return null;
     }
-    Metadata.Key key = KEY_MAP.get(failureType);
-    Preconditions.checkNotNull(key, "Unknown failure type: %s", failureType.getName());
-    return (T) metadata.get(key);
+    Any details = status.getDetails(0);
+    try {
+      if (details.is(failureType)) {
+        return details.unpack(failureType);
+      }
+    } catch (InvalidProtocolBufferException e) {
+      throw new IllegalArgumentException(
+          "failure getting grcp failure of " + failureType + " from " + details, e);
+    }
+    return null;
   }
 
   /** Create StatusRuntimeException with given details. */
   public static <T extends GeneratedMessageV3> StatusRuntimeException newException(
-      Status status, T details) {
-    Preconditions.checkNotNull(status, "Exception cannot be null");
-    StatusRuntimeException result = status.asRuntimeException(new Metadata());
-    Metadata metadata = result.getTrailers();
-    Metadata.Key key = KEY_MAP.get(details.getClass());
-    Preconditions.checkNotNull(key, "Unknown failure type: %s", details.getClass().getName());
-    metadata.<T>put(key, details);
-    return result;
+      io.grpc.Status status, T details) {
+    Preconditions.checkNotNull(status, "status cannot be null");
+    Status protoStatus =
+        Status.newBuilder()
+            .setCode(status.getCode().value())
+            .setMessage(status.getDescription())
+            .addDetails(Any.pack(details))
+            .build();
+    return StatusProto.toStatusRuntimeException(protoStatus);
   }
 }

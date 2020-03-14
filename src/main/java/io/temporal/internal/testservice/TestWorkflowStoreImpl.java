@@ -17,6 +17,7 @@
 
 package io.temporal.internal.testservice;
 
+import com.google.protobuf.Int64Value;
 import io.grpc.Status;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.RequestContext.Timer;
@@ -447,7 +448,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
             WorkflowExecutionInfo.newBuilder()
                 .setExecution(executionId.getExecution())
                 .setHistoryLength(history.size())
-                .setStartTime(history.get(0).getTimestamp())
+                .setStartTime(
+                    Int64Value.newBuilder().setValue(history.get(0).getTimestamp()).build())
                 .setType(
                     history.get(0).getWorkflowExecutionStartedEventAttributes().getWorkflowType())
                 .build();
@@ -466,7 +468,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
             WorkflowExecutionInfo.newBuilder()
                 .setExecution(executionId.getExecution())
                 .setHistoryLength(history.size())
-                .setStartTime(history.get(0).getTimestamp())
+                .setStartTime(
+                    Int64Value.newBuilder().setValue(history.get(0).getTimestamp()).build())
                 .setType(
                     history.get(0).getWorkflowExecutionStartedEventAttributes().getWorkflowType())
                 .setCloseStatus(

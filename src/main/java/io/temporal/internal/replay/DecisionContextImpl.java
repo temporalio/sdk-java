@@ -59,7 +59,7 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   DecisionContextImpl(
       DecisionsHelper decisionsHelper,
       String domain,
-      PollForDecisionTaskResponse decisionTask,
+      PollForDecisionTaskResponseOrBuilder decisionTask,
       WorkflowExecutionStartedEventAttributes startedAttributes,
       SingleWorkerOptions options,
       BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller,

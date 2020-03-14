@@ -108,6 +108,20 @@ class WorkflowStubImpl implements WorkflowStub {
     //        p.setRunId(execution.getRunId());
     try {
       genericClient.signalWorkflowExecution(p);
+    } catch (StatusRuntimeException e) {
+      WorkflowExecutionAlreadyStarted f =
+          GrpcStatusUtils.getFailure(e, WorkflowExecutionAlreadyStarted.class);
+      if (f != null) {
+        WorkflowExecution exe =
+            WorkflowExecution.newBuilder()
+                .setWorkflowId(p.getWorkflowId())
+                .setRunId(f.getRunId())
+                .build();
+        execution.set(exe);
+        throw new DuplicateWorkflowException(exe, workflowType.get(), e.getMessage());
+      } else {
+        throw new WorkflowServiceException(execution.get(), workflowType, e);
+      }
     } catch (Exception e) {
       throw new WorkflowServiceException(execution.get(), workflowType, e);
     }
@@ -247,7 +261,8 @@ class WorkflowStubImpl implements WorkflowStub {
   @Override
   public <R> R getResult(Class<R> resultClass, Type resultType) {
     try {
-      return getResult(Long.MAX_VALUE, TimeUnit.MILLISECONDS, resultClass, resultType);
+      // int max to not overflow long
+      return getResult(Integer.MAX_VALUE, TimeUnit.MILLISECONDS, resultClass, resultType);
     } catch (TimeoutException e) {
       throw CheckedExceptionWrapper.wrap(e);
     }

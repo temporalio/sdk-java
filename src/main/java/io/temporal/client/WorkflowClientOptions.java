@@ -21,6 +21,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.converter.DataConverter;
 import io.temporal.converter.JsonDataConverter;
 import io.temporal.internal.metrics.NoopScope;
+import java.lang.management.ManagementFactory;
 import java.util.Objects;
 
 /** Options for WorkflowClient configuration. */
@@ -31,6 +32,7 @@ public final class WorkflowClientOptions {
     private DataConverter dataConverter = JsonDataConverter.getInstance();
     private WorkflowClientInterceptor[] interceptors = EMPTY_INTERCEPTOR_ARRAY;
     private Scope metricsScope;
+    private String identity;
 
     public Builder() {}
 
@@ -71,11 +73,19 @@ public final class WorkflowClientOptions {
       return this;
     }
 
+    public Builder setIdentity(String identity) {
+      this.identity = identity;
+      return this;
+    }
+
     public WorkflowClientOptions build() {
       if (metricsScope == null) {
         metricsScope = NoopScope.getInstance();
       }
-      return new WorkflowClientOptions(dataConverter, interceptors, metricsScope);
+      if (identity == null) {
+        identity = ManagementFactory.getRuntimeMXBean().getName();
+      }
+      return new WorkflowClientOptions(dataConverter, interceptors, metricsScope, identity);
     }
   }
 
@@ -87,11 +97,17 @@ public final class WorkflowClientOptions {
 
   private final Scope metricsScope;
 
+  private final String identity;
+
   private WorkflowClientOptions(
-      DataConverter dataConverter, WorkflowClientInterceptor[] interceptors, Scope metricsScope) {
+      DataConverter dataConverter,
+      WorkflowClientInterceptor[] interceptors,
+      Scope metricsScope,
+      String identity) {
     this.dataConverter = dataConverter;
     this.interceptors = interceptors;
     this.metricsScope = metricsScope;
+    this.identity = identity;
   }
 
   public DataConverter getDataConverter() {
@@ -104,5 +120,9 @@ public final class WorkflowClientOptions {
 
   public Scope getMetricsScope() {
     return metricsScope;
+  }
+
+  public String getIdentity() {
+    return identity;
   }
 }

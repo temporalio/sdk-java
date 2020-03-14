@@ -20,8 +20,14 @@ package io.temporal.serviceclient;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
+import io.grpc.CallOptions;
+import io.grpc.Channel;
+import io.grpc.ClientCall;
+import io.grpc.ClientInterceptor;
+import io.grpc.Deadline;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.MethodDescriptor;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
@@ -36,7 +42,7 @@ import org.slf4j.LoggerFactory;
  * service should still be up when they complete.
  */
 public class GrpcWorkflowServiceFactory implements AutoCloseable {
-  private static final Logger logger = LoggerFactory.getLogger(GrpcWorkflowServiceFactory.class);
+  private static final Logger log = LoggerFactory.getLogger(GrpcWorkflowServiceFactory.class);
   private static final String LOCALHOST = "127.0.0.1";
   private static final int DEFAULT_LOCAL_TEMPORAL_SERVER_PORT = 7233;
   /** Default RPC timeout used for all non long poll calls. */
@@ -66,9 +72,11 @@ public class GrpcWorkflowServiceFactory implements AutoCloseable {
   public GrpcWorkflowServiceFactory(ManagedChannel channel, ServiceFactoryOptions options) {
     this.channel = channel;
     this.options = options;
-    blockingStub = WorkflowServiceGrpc.newBlockingStub(channel);
-    futureStub = WorkflowServiceGrpc.newFutureStub(channel);
-    logger.info(String.format("Created GRPC client for channel: %s", channel));
+    ClientInterceptor timeoutInterceptor = newTimeoutInterceptor();
+    blockingStub =
+        WorkflowServiceGrpc.newBlockingStub(channel).withInterceptors(timeoutInterceptor);
+    futureStub = WorkflowServiceGrpc.newFutureStub(channel).withInterceptors(timeoutInterceptor);
+    log.info(String.format("Created GRPC client for channel: %s", channel));
   }
 
   public GrpcWorkflowServiceFactory(ManagedChannel channel) {
@@ -120,14 +128,48 @@ public class GrpcWorkflowServiceFactory implements AutoCloseable {
     }
     this.channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
     this.options = new ServiceFactoryOptions.Builder().build();
-    blockingStub = WorkflowServiceGrpc.newBlockingStub(channel);
-    futureStub = WorkflowServiceGrpc.newFutureStub(channel);
-    logger.info(String.format("Created GRPC client for channel: %s", channel));
+    ClientInterceptor timeoutInterceptor = newTimeoutInterceptor();
+    blockingStub =
+        WorkflowServiceGrpc.newBlockingStub(channel).withInterceptors(timeoutInterceptor);
+    futureStub = WorkflowServiceGrpc.newFutureStub(channel).withInterceptors(timeoutInterceptor);
+    log.info(String.format("Created GRPC client for channel: %s", channel));
+  }
+
+  private ClientInterceptor newTimeoutInterceptor() {
+    return new ClientInterceptor() {
+
+      @Override
+      public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
+          MethodDescriptor<ReqT, RespT> method, CallOptions callOptions, Channel next) {
+        long duration = options.getRpcTimeoutMillis();
+        String name = method.getFullMethodName();
+        if (name.equals("workflowservice.WorkflowService/GetWorkflowExecutionHistory")) {
+          Deadline deadline = callOptions.getDeadline();
+          if (deadline == null) {
+            duration = options.getRpcLongPollTimeoutMillis();
+          } else {
+            duration = deadline.timeRemaining(TimeUnit.MILLISECONDS);
+            if (duration > options.getRpcLongPollTimeoutMillis()) {
+              duration = options.getRpcLongPollTimeoutMillis();
+            }
+          }
+        } else if (name.equals("workflowservice.WorkflowService/PollForDecisionTask")
+            || name.equals("workflowservice.WorkflowService/PollForActivityTask")) {
+          duration = options.getRpcLongPollTimeoutMillis();
+        } else if (name.equals("workflowservice.WorkflowService/QueryWorkflow")) {
+          duration = options.getRpcQueryTimeoutMillis();
+        }
+        if (log.isTraceEnabled()) {
+          log.trace("TimeoutInterceptor method=" + name + ", timeoutMs=" + duration);
+        }
+        return next.newCall(method, callOptions.withDeadlineAfter(duration, TimeUnit.MILLISECONDS));
+      }
+    };
   }
 
   /** @return Blocking (synchronous) stub that allows direct calls to service. */
   public WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub() {
-    return blockingStub.withDeadlineAfter(10000, TimeUnit.MILLISECONDS);
+    return blockingStub;
   }
 
   /** @return Future (asynchronous) stub that allows direct calls to service. */

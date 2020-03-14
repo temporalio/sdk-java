@@ -72,6 +72,10 @@ final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskRespo
     try {
       result = service.blockingStub().pollForDecisionTask(pollRequest);
     } catch (StatusRuntimeException e) {
+      if (e.getStatus().getCode() == Status.Code.UNAVAILABLE
+          && e.getMessage().startsWith("UNAVAILABLE: Channel shutdown")) {
+        return null;
+      }
       if (e.getStatus().getCode() == Status.Code.INTERNAL
           || e.getStatus().getCode() == Status.Code.RESOURCE_EXHAUSTED) {
         metricScope.counter(MetricsType.DECISION_POLL_TRANSIENT_FAILED_COUNTER).inc(1);

@@ -33,6 +33,7 @@ import io.temporal.proto.enums.QueryTaskCompletedType;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
 import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
 import io.temporal.proto.workflowservice.RespondQueryTaskCompletedRequest;
@@ -84,7 +85,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
   public DecisionTaskHandler.Result handleDecisionTask(PollForDecisionTaskResponse decisionTask)
       throws Exception {
     try {
-      return handleDecisionTaskImpl(decisionTask);
+      return handleDecisionTaskImpl(decisionTask.toBuilder());
     } catch (Throwable e) {
       options.getMetricsScope().counter(MetricsType.DECISION_EXECUTION_FAILED_COUNTER).inc(1);
       // Only fail decision on first attempt, subsequent failure on the same decision task will
@@ -120,7 +121,8 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     }
   }
 
-  private Result handleDecisionTaskImpl(PollForDecisionTaskResponse decisionTask) throws Throwable {
+  private Result handleDecisionTaskImpl(PollForDecisionTaskResponse.Builder decisionTask)
+      throws Throwable {
 
     if (decisionTask.hasQuery()) {
       return processQuery(decisionTask);
@@ -129,7 +131,8 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     }
   }
 
-  private Result processDecision(PollForDecisionTaskResponse decisionTask) throws Throwable {
+  private Result processDecision(PollForDecisionTaskResponse.Builder decisionTask)
+      throws Throwable {
     Decider decider = null;
     AtomicBoolean createdNew = new AtomicBoolean();
     try {
@@ -201,7 +204,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     }
   }
 
-  private Result processQuery(PollForDecisionTaskResponse decisionTask) {
+  private Result processQuery(PollForDecisionTaskResponse.Builder decisionTask) {
     RespondQueryTaskCompletedRequest.Builder queryCompletedRequest =
         RespondQueryTaskCompletedRequest.newBuilder().setTaskToken(decisionTask.getTaskToken());
     Decider decider = null;
@@ -244,7 +247,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
   }
 
   private Result createCompletedRequest(
-      PollForDecisionTaskResponse decisionTask, Decider.DecisionResult result) {
+      PollForDecisionTaskResponseOrBuilder decisionTask, Decider.DecisionResult result) {
     RespondDecisionTaskCompletedRequest.Builder completedRequest =
         RespondDecisionTaskCompletedRequest.newBuilder()
             .setTaskToken(decisionTask.getTaskToken())
@@ -267,10 +270,9 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     return workflowFactory.isAnyTypeSupported();
   }
 
-  private Decider createDecider(PollForDecisionTaskResponse decisionTask) throws Exception {
+  private Decider createDecider(PollForDecisionTaskResponse.Builder decisionTask) throws Exception {
     WorkflowType workflowType = decisionTask.getWorkflowType();
     List<HistoryEvent> events = decisionTask.getHistory().getEventsList();
-    PollForDecisionTaskResponse.Builder builder = decisionTask.toBuilder();
     // Sticky decision task with partial history
     if (events.isEmpty() || events.get(0).getEventId() > 1) {
       GetWorkflowExecutionHistoryRequest getHistoryRequest =
@@ -280,10 +282,10 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
               .build();
       GetWorkflowExecutionHistoryResponse getHistoryResponse =
           service.blockingStub().getWorkflowExecutionHistory(getHistoryRequest);
-      builder.setHistory(getHistoryResponse.getHistory());
-      builder.setNextPageToken(getHistoryResponse.getNextPageToken());
+      decisionTask.setHistory(getHistoryResponse.getHistory());
+      decisionTask.setNextPageToken(getHistoryResponse.getNextPageToken());
     }
-    DecisionsHelper decisionsHelper = new DecisionsHelper(builder.build());
+    DecisionsHelper decisionsHelper = new DecisionsHelper(decisionTask);
     ReplayWorkflow workflow = workflowFactory.getWorkflow(workflowType);
     return new ReplayDecider(service, domain, workflow, decisionsHelper, options, laTaskPoller);
   }

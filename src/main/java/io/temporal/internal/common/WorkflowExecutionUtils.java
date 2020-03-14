@@ -198,7 +198,7 @@ public class WorkflowExecutionUtils {
               .setNextPageToken(pageToken)
               .build();
       long elapsed = System.currentTimeMillis() - start;
-      Deadline expiration = Deadline.after(timeout - elapsed, TimeUnit.MILLISECONDS);
+      Deadline expiration = Deadline.after(unit.toMillis(timeout) - elapsed, TimeUnit.MILLISECONDS);
       if (expiration.timeRemaining(TimeUnit.MILLISECONDS) > 0) {
         GrpcRetryOptions retryOptions =
             new GrpcRetryOptions.Builder()
@@ -212,8 +212,16 @@ public class WorkflowExecutionUtils {
         response =
             GrpcRetryer.retryWithResult(
                 retryOptions,
-                () ->
-                    service.blockingStub().withDeadline(expiration).getWorkflowExecutionHistory(r));
+                () -> {
+                  long elapsedInRetry = System.currentTimeMillis() - start;
+                  Deadline expirationInRetry =
+                      Deadline.after(
+                          unit.toMillis(timeout) - elapsedInRetry, TimeUnit.MILLISECONDS);
+                  return service
+                      .blockingStub()
+                      .withDeadline(expirationInRetry)
+                      .getWorkflowExecutionHistory(r);
+                });
       }
       if (response == null || !response.hasHistory()) {
         continue;
@@ -283,7 +291,7 @@ public class WorkflowExecutionUtils {
             .setNextPageToken(pageToken)
             .build();
     CompletableFuture<GetWorkflowExecutionHistoryResponse> response =
-        getWorkflowExecutionHistoryAsync(service, request);
+        getWorkflowExecutionHistoryAsync(service, request, timeout, unit);
     return response.thenComposeAsync(
         (r) -> {
           if (timeout != 0 && System.currentTimeMillis() - start > unit.toMillis(timeout)) {
@@ -327,13 +335,31 @@ public class WorkflowExecutionUtils {
 
   private static CompletableFuture<GetWorkflowExecutionHistoryResponse>
       getWorkflowExecutionHistoryAsync(
-          GrpcWorkflowServiceFactory service, GetWorkflowExecutionHistoryRequest r) {
+          GrpcWorkflowServiceFactory service,
+          GetWorkflowExecutionHistoryRequest r,
+          long timeout,
+          TimeUnit unit) {
+    long start = System.currentTimeMillis();
+    Deadline expiration = Deadline.after(timeout, TimeUnit.MILLISECONDS);
+    GrpcRetryOptions retryOptions =
+        new GrpcRetryOptions.Builder()
+            .setBackoffCoefficient(1)
+            .setInitialInterval(Duration.ofMillis(1))
+            .setMaximumAttempts(Integer.MAX_VALUE)
+            .setExpiration(Duration.ofMillis(expiration.timeRemaining(TimeUnit.MILLISECONDS)))
+            .addDoNotRetry(Status.Code.INVALID_ARGUMENT, null)
+            .addDoNotRetry(Status.Code.NOT_FOUND, null)
+            .build();
+
     return GrpcRetryer.retryWithResultAsync(
-        retryParameters,
+        retryOptions,
         () -> {
           CompletableFuture<GetWorkflowExecutionHistoryResponse> result = new CompletableFuture<>();
+          long elapsedInRetry = System.currentTimeMillis() - start;
+          Deadline expirationInRetry =
+              Deadline.after(unit.toMillis(timeout) - elapsedInRetry, TimeUnit.MILLISECONDS);
           ListenableFuture<GetWorkflowExecutionHistoryResponse> resultFuture =
-              service.futureStub().getWorkflowExecutionHistory(r);
+              service.futureStub().withDeadline(expirationInRetry).getWorkflowExecutionHistory(r);
           resultFuture.addListener(
               () -> {
                 try {

@@ -56,11 +56,13 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   private final String domain;
   private final GrpcWorkflowServiceFactory service;
   private final Scope metricsScope;
+  private final String identity;
 
   public GenericWorkflowClientExternalImpl(
-      GrpcWorkflowServiceFactory service, String domain, Scope metricsScope) {
+      GrpcWorkflowServiceFactory service, String domain, String identity, Scope metricsScope) {
     this.service = service;
     this.domain = domain;
+    this.identity = identity;
     this.metricsScope = metricsScope;
   }
 
@@ -93,7 +95,10 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   private WorkflowExecution startWorkflowInternal(
       StartWorkflowExecutionParameters startParameters) {
     StartWorkflowExecutionRequest.Builder request =
-        StartWorkflowExecutionRequest.newBuilder().setDomain(domain);
+        StartWorkflowExecutionRequest.newBuilder()
+            .setDomain(domain)
+            .setRequestId(UUID.randomUUID().toString())
+            .setIdentity(identity);
     if (startParameters.getInput() != null) {
       request.setInput(ByteString.copyFrom(startParameters.getInput()));
     }
@@ -196,6 +201,8 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   public void signalWorkflowExecution(SignalExternalWorkflowParameters signalParameters) {
     SignalWorkflowExecutionRequest request =
         SignalWorkflowExecutionRequest.newBuilder()
+            .setRequestId(UUID.randomUUID().toString())
+            .setIdentity(identity)
             .setDomain(domain)
             .setInput(ByteString.copyFrom(signalParameters.getInput()))
             .setSignalName(signalParameters.getSignalName())
@@ -213,7 +220,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   public WorkflowExecution signalWithStartWorkflowExecution(
       SignalWithStartWorkflowExecutionParameters parameters) {
     try {
-      return signalWithStartWorkflowInternal(parameters);
+      return signalWithStartWorkflowInternal(parameters, identity);
     } finally {
       Map<String, String> tags =
           new ImmutableMap.Builder<String, String>(3)
@@ -228,20 +235,28 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   }
 
   private WorkflowExecution signalWithStartWorkflowInternal(
-      SignalWithStartWorkflowExecutionParameters parameters) {
-    SignalWithStartWorkflowExecutionRequest.Builder request =
-        SignalWithStartWorkflowExecutionRequest.newBuilder().setDomain(domain);
+      SignalWithStartWorkflowExecutionParameters parameters, String identity) {
     StartWorkflowExecutionParameters startParameters = parameters.getStartParameters();
-    request.setSignalName(parameters.getSignalName());
-    request.setSignalInput(ByteString.copyFrom(parameters.getSignalInput()));
-    // TODO        request.setIdentity()
+
+    SignalWithStartWorkflowExecutionRequest.Builder request =
+        SignalWithStartWorkflowExecutionRequest.newBuilder()
+            .setDomain(domain)
+            .setRequestId(UUID.randomUUID().toString())
+            .setIdentity(identity)
+            .setSignalName(parameters.getSignalName())
+            .setExecutionStartToCloseTimeoutSeconds(
+                (int) startParameters.getExecutionStartToCloseTimeoutSeconds())
+            .setTaskStartToCloseTimeoutSeconds(
+                (int) startParameters.getTaskStartToCloseTimeoutSeconds())
+            .setWorkflowType(startParameters.getWorkflowType());
+
+    byte[] signalInput = parameters.getSignalInput();
+    if (signalInput != null) {
+      request.setSignalInput(ByteString.copyFrom(signalInput));
+    }
     if (startParameters.getInput() != null) {
       request.setInput(ByteString.copyFrom(startParameters.getInput()));
     }
-    request.setExecutionStartToCloseTimeoutSeconds(
-        (int) startParameters.getExecutionStartToCloseTimeoutSeconds());
-    request.setTaskStartToCloseTimeoutSeconds(
-        (int) startParameters.getTaskStartToCloseTimeoutSeconds());
     request.setWorkflowIdReusePolicy(startParameters.getWorkflowIdReusePolicy());
     String taskList = startParameters.getTaskList();
     if (taskList != null && !taskList.isEmpty()) {
@@ -252,7 +267,6 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
       workflowId = UUID.randomUUID().toString();
     }
     request.setWorkflowId(workflowId);
-    request.setWorkflowType(startParameters.getWorkflowType());
     RetryParameters retryParameters = startParameters.getRetryParameters();
     if (retryParameters != null) {
       RetryPolicy retryPolicy = toRetryPolicy(retryParameters);
@@ -276,6 +290,8 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   public void requestCancelWorkflowExecution(WorkflowExecution execution) {
     RequestCancelWorkflowExecutionRequest request =
         RequestCancelWorkflowExecutionRequest.newBuilder()
+            .setRequestId(UUID.randomUUID().toString())
+            .setIdentity(identity)
             .setDomain(domain)
             .setWorkflowExecution(execution)
             .build();
@@ -314,6 +330,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   public void terminateWorkflowExecution(TerminateWorkflowExecutionParameters terminateParameters) {
     TerminateWorkflowExecutionRequest request =
         TerminateWorkflowExecutionRequest.newBuilder()
+            .setIdentity(identity)
             .setWorkflowExecution(terminateParameters.getWorkflowExecution())
             .setDomain(domain)
             .setDetails(ByteString.copyFrom(terminateParameters.getDetails()))

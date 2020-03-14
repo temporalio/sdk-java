@@ -20,10 +20,9 @@ package io.temporal.internal.replay;
 import com.google.common.collect.PeekingIterator;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.worker.DecisionTaskWithHistoryIterator;
-import io.temporal.proto.common.*;
-import io.temporal.proto.enums.*;
-import io.temporal.proto.failure.*;
-import io.temporal.proto.workflowservice.*;
+import io.temporal.proto.common.HistoryEvent;
+import io.temporal.proto.enums.EventType;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -53,9 +52,6 @@ class HistoryHelper {
         boolean replay,
         long replayCurrentTimeMilliseconds,
         long nextDecisionEventId) {
-      if (replayCurrentTimeMilliseconds <= 0) {
-        throw new Error("replayCurrentTimeMilliseconds is not set");
-      }
       if (nextDecisionEventId <= 0) {
         throw new Error("nextDecisionEventId is not set");
       }
@@ -255,7 +251,7 @@ class HistoryHelper {
     return iterator;
   }
 
-  public PollForDecisionTaskResponse getDecisionTask() {
+  public PollForDecisionTaskResponseOrBuilder getDecisionTask() {
     return decisionTaskWithHistoryIterator.getDecisionTask();
   }
 

@@ -41,6 +41,7 @@ import io.temporal.proto.enums.EventType;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
 import io.temporal.serviceclient.GrpcRetryOptions;
 import io.temporal.serviceclient.GrpcRetryer;
 import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
@@ -55,6 +56,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Implements decider that relies on replay of a workflow code. An instance of this class is created
@@ -63,6 +66,8 @@ import java.util.function.Consumer;
 class ReplayDecider implements Decider, Consumer<HistoryEvent> {
 
   private static final int MAXIMUM_PAGE_SIZE = 10000;
+
+  private static final Logger log = LoggerFactory.getLogger(ReplayDecider.class);
 
   private final DecisionsHelper decisionsHelper;
   private final DecisionContextImpl context;
@@ -88,7 +93,7 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
     this.workflow = workflow;
     this.decisionsHelper = decisionsHelper;
     this.metricsScope = options.getMetricsScope();
-    PollForDecisionTaskResponse decisionTask = decisionsHelper.getTask();
+    PollForDecisionTaskResponse.Builder decisionTask = decisionsHelper.getTask();
 
     HistoryEvent firstEvent = decisionTask.getHistory().getEvents(0);
     if (!firstEvent.hasWorkflowExecutionStartedEventAttributes()) {
@@ -358,15 +363,27 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
   }
 
   @Override
-  public DecisionResult decide(PollForDecisionTaskResponse decisionTask) throws Throwable {
+  public DecisionResult decide(PollForDecisionTaskResponseOrBuilder decisionTask) throws Throwable {
+    if (log.isTraceEnabled()) {
+      log.trace(
+          "decide: execution="
+              + decisionTask.getWorkflowExecution()
+              + ", startedEventId="
+              + decisionTask.getStartedEventId());
+    }
     boolean forceCreateNewDecisionTask = decideImpl(decisionTask, null);
-    return new DecisionResult(decisionsHelper.getDecisions(), forceCreateNewDecisionTask);
+    DecisionResult result =
+        new DecisionResult(decisionsHelper.getDecisions(), forceCreateNewDecisionTask);
+    if (log.isTraceEnabled()) {
+      log.trace("decide done: execution=" + decisionTask.getWorkflowExecution());
+    }
+    return result;
   }
 
   // Returns boolean to indicate whether we need to force create new decision task for local
   // activity heartbeating.
-  private boolean decideImpl(PollForDecisionTaskResponse decisionTask, Functions.Proc query)
-      throws Throwable {
+  private boolean decideImpl(
+      PollForDecisionTaskResponseOrBuilder decisionTask, Functions.Proc query) throws Throwable {
     boolean forceCreateNewDecisionTask = false;
     try {
       long startTime = System.currentTimeMillis();
@@ -543,7 +560,8 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
   }
 
   @Override
-  public byte[] query(PollForDecisionTaskResponse response, WorkflowQuery query) throws Throwable {
+  public byte[] query(PollForDecisionTaskResponseOrBuilder response, WorkflowQuery query)
+      throws Throwable {
     AtomicReference<byte[]> result = new AtomicReference<>();
     decideImpl(response, () -> result.set(workflow.query(query)));
     return result.get();
@@ -561,12 +579,12 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
     private final Duration paginationStart = Duration.ofMillis(System.currentTimeMillis());
     private Duration decisionTaskStartToCloseTimeout;
 
-    private final PollForDecisionTaskResponse task;
+    private final PollForDecisionTaskResponseOrBuilder task;
     private Iterator<HistoryEvent> current;
     private ByteString nextPageToken;
 
     DecisionTaskWithHistoryIteratorImpl(
-        PollForDecisionTaskResponse task, Duration decisionTaskStartToCloseTimeout) {
+        PollForDecisionTaskResponseOrBuilder task, Duration decisionTaskStartToCloseTimeout) {
       this.task = Objects.requireNonNull(task);
       this.decisionTaskStartToCloseTimeout =
           Objects.requireNonNull(decisionTaskStartToCloseTimeout);
@@ -577,7 +595,7 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
     }
 
     @Override
-    public PollForDecisionTaskResponse getDecisionTask() {
+    public PollForDecisionTaskResponseOrBuilder getDecisionTask() {
       return task;
     }
 
