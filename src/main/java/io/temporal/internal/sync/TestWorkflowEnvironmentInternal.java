@@ -22,6 +22,7 @@ import io.grpc.Server;
 import io.grpc.ServerInterceptors;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
+import io.temporal.activity.Activity;
 import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientInterceptor;
@@ -50,7 +51,9 @@ import java.util.function.Function;
 public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnvironment {
 
   private final TestEnvironmentOptions testEnvironmentOptions;
-  private final GrpcWorkflowServiceFactory serviceStub;
+  private ManagedChannel channel;
+  private Server server;
+  private final GrpcWorkflowServiceFactory serviceFactory;
   private final TestWorkflowService service;
   private final Worker.Factory workerFactory;
 
@@ -65,7 +68,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     String serverName = InProcessServerBuilder.generateName();
     // Initialize an in-memory mock service.
     try {
-      Server server =
+      server =
           InProcessServerBuilder.forName(serverName)
               .directExecutor()
               .addService(ServerInterceptors.intercept(service, new LoggingInterceptor()))
@@ -74,11 +77,10 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    ManagedChannel channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
-    serviceStub = new GrpcWorkflowServiceFactory(channel);
-
+    channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
+    serviceFactory = new GrpcWorkflowServiceFactory(channel);
     workerFactory =
-        new Worker.Factory(serviceStub, options.getDomain(), options.getWorkerFactoryOptions());
+        new Worker.Factory(serviceFactory, options.getDomain(), options.getWorkerFactoryOptions());
   }
 
   @Override
@@ -111,7 +113,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
             .setMetricsScope(testEnvironmentOptions.getMetricsScope())
             .build();
     return WorkflowClientInternal.newInstance(
-        serviceStub, testEnvironmentOptions.getDomain(), options);
+        serviceFactory, testEnvironmentOptions.getDomain(), options);
   }
 
   @Override
@@ -124,7 +126,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     WorkflowClientOptions newOptions =
         new WorkflowClientOptions.Builder(options).setInterceptors(interceptors).build();
     return WorkflowClientInternal.newInstance(
-        serviceStub, testEnvironmentOptions.getDomain(), newOptions);
+        serviceFactory, testEnvironmentOptions.getDomain(), newOptions);
   }
 
   @Override
@@ -144,7 +146,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
 
   @Override
   public GrpcWorkflowServiceFactory getWorkflowService() {
-    return serviceStub;
+    return serviceFactory;
   }
 
   @Override
@@ -163,7 +165,19 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   public void close() {
     workerFactory.shutdownNow();
     workerFactory.awaitTermination(10, TimeUnit.SECONDS);
-    serviceStub.close();
+    serviceFactory.close();
+    channel.shutdownNow();
+    try {
+      channel.awaitTermination(100, TimeUnit.MILLISECONDS);
+    } catch (InterruptedException e) {
+    }
+    server.shutdown();
+    try {
+      server.awaitTermination();
+    } catch (InterruptedException e) {
+      throw Activity.wrap(e);
+    }
+    service.close();
   }
 
   @Override

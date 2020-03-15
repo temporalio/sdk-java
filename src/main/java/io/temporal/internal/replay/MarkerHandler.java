@@ -17,8 +17,8 @@
 
 package io.temporal.internal.replay;
 
-import com.google.protobuf.ByteString;
 import io.temporal.converter.DataConverter;
+import io.temporal.internal.common.OptionsUtils;
 import io.temporal.proto.common.Header;
 import io.temporal.proto.common.HistoryEvent;
 import io.temporal.proto.common.MarkerRecordedEventAttributes;
@@ -68,14 +68,12 @@ class MarkerHandler {
 
     static MarkerInterface fromEventAttributes(
         MarkerRecordedEventAttributes attributes, DataConverter converter) {
-      if (attributes.hasHeader() && attributes.getHeader().getFieldsCount() > 0) {
-        // TODO (maxim): Find out how to avoid getting the whole map to check a single key
-        Map<String, ByteString> fields = attributes.getHeader().getFieldsMap();
-        ByteString markerHeader = fields.get(MUTABLE_MARKER_HEADER_KEY);
-        if (markerHeader != null) {
+      if (attributes.hasHeader()) {
+        Header markerHeader = attributes.getHeader();
+        if (markerHeader.containsFields(MUTABLE_MARKER_HEADER_KEY)) {
           MarkerData.MarkerHeader header =
               converter.fromData(
-                  markerHeader.toByteArray(),
+                  markerHeader.getFieldsOrThrow(MUTABLE_MARKER_HEADER_KEY).toByteArray(),
                   MarkerData.MarkerHeader.class,
                   MarkerData.MarkerHeader.class);
           return new MarkerData(header, attributes.getDetails().toByteArray());
@@ -136,7 +134,7 @@ class MarkerHandler {
     Header getHeader(DataConverter converter) {
       byte[] headerData = converter.toData(header);
       return Header.newBuilder()
-          .putFields(MUTABLE_MARKER_HEADER_KEY, ByteString.copyFrom(headerData))
+          .putFields(MUTABLE_MARKER_HEADER_KEY, OptionsUtils.toByteString(headerData))
           .build();
     }
   }

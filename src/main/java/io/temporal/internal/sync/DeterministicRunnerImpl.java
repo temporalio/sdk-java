@@ -167,7 +167,6 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     this.clock = clock;
     this.cache = cache;
     runnerCancellationScope = new CancellationScopeImpl(true, null, null);
-
     // TODO: workflow instance specific thread name
     rootWorkflowThread =
         new WorkflowThreadImpl(

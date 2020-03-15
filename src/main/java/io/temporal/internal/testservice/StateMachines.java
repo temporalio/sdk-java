@@ -432,7 +432,7 @@ class StateMachines {
     HistoryEvent event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EventTypeChildWorkflowExecutionCanceled)
-            .setChildWorkflowExecutionCanceledEventAttributes(a)
+            .setChildWorkflowExecutionCanceledEventAttributes(updatedAttr)
             .build();
     ctx.addEvent(event);
   }
@@ -543,6 +543,17 @@ class StateMachines {
 
   private static void startWorkflow(
       RequestContext ctx, WorkflowData data, StartWorkflowExecutionRequest request, long notUsed) {
+    if (request.getExecutionStartToCloseTimeoutSeconds() <= 0) {
+      throw Status.INVALID_ARGUMENT
+          .withDescription("0 or netagive executionStartToCloseTimeoutSeconds")
+          .asRuntimeException();
+    }
+    if (request.getTaskStartToCloseTimeoutSeconds() <= 0) {
+      throw Status.INVALID_ARGUMENT
+          .withDescription("0 or netagive taskStartToCloseTimeoutSeconds")
+          .asRuntimeException();
+    }
+
     WorkflowExecutionStartedEventAttributes.Builder a =
         WorkflowExecutionStartedEventAttributes.newBuilder()
             .setIdentity(request.getIdentity())
@@ -750,8 +761,8 @@ class StateMachines {
     if (d.hasRetryPolicy()) {
       a.setRetryPolicy(d.getRetryPolicy());
     }
-    data.scheduledEvent =
-        a.build(); // Cannot set it in onCommit as it is used in the processScheduleActivityTask
+    // Cannot set it in onCommit as it is used in the processScheduleActivityTask
+    data.scheduledEvent = a.build();
     HistoryEvent event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EventTypeActivityTaskScheduled)

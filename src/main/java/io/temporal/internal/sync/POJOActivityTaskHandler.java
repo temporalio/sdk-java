@@ -19,7 +19,6 @@ package io.temporal.internal.sync;
 
 import com.google.common.base.Joiner;
 import com.google.common.reflect.TypeToken;
-import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.client.ActivityCancelledException;
@@ -27,6 +26,7 @@ import io.temporal.common.MethodRetry;
 import io.temporal.converter.DataConverter;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.common.InternalUtils;
+import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
@@ -148,7 +148,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     RespondActivityTaskFailedRequest result =
         RespondActivityTaskFailedRequest.newBuilder()
             .setReason(failure.getClass().getName())
-            .setDetails(ByteString.copyFrom(dataConverter.toData(failure)))
+            .setDetails(OptionsUtils.toByteString(dataConverter.toData(failure)))
             .build();
     return new ActivityTaskHandler.Result(
         null, new Result.TaskFailedResult(result, failure), null, null);
@@ -221,7 +221,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
         RespondActivityTaskCompletedRequest.Builder request =
             RespondActivityTaskCompletedRequest.newBuilder();
         if (method.getReturnType() != Void.TYPE) {
-          request.setResult(ByteString.copyFrom(dataConverter.toData(result)));
+          request.setResult(OptionsUtils.toByteString(dataConverter.toData(result)));
         }
         return new ActivityTaskHandler.Result(request.build(), null, null, null);
       } catch (RuntimeException | IllegalAccessException e) {
@@ -255,7 +255,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
         RespondActivityTaskCompletedRequest.Builder request =
             RespondActivityTaskCompletedRequest.newBuilder();
         if (method.getReturnType() != Void.TYPE) {
-          request.setResult(ByteString.copyFrom(dataConverter.toData(result)));
+          request.setResult(OptionsUtils.toByteString(dataConverter.toData(result)));
         }
         return new ActivityTaskHandler.Result(request.build(), null, null, null);
       } catch (RuntimeException | IllegalAccessException e) {
@@ -266,10 +266,5 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
         CurrentActivityExecutionContext.unset();
       }
     }
-  }
-
-  // This is only for unit test to mock service and set expectations.
-  void setWorkflowService(GrpcWorkflowServiceFactory service) {
-    this.service = service;
   }
 }

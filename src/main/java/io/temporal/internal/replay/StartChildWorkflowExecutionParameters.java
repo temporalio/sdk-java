@@ -17,7 +17,6 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.RetryParameters;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.enums.ParentClosePolicy;
@@ -31,8 +30,6 @@ public final class StartChildWorkflowExecutionParameters {
   public static final class Builder {
 
     private String domain;
-
-    private String control;
 
     private long executionStartToCloseTimeoutSeconds;
 
@@ -58,11 +55,6 @@ public final class StartChildWorkflowExecutionParameters {
 
     public Builder setDomain(String domain) {
       this.domain = domain;
-      return this;
-    }
-
-    public Builder setControl(String control) {
-      this.control = control;
       return this;
     }
 
@@ -126,7 +118,6 @@ public final class StartChildWorkflowExecutionParameters {
       return new StartChildWorkflowExecutionParameters(
           domain,
           input,
-          control,
           executionStartToCloseTimeoutSeconds,
           taskList,
           taskStartToCloseTimeoutSeconds,
@@ -141,8 +132,6 @@ public final class StartChildWorkflowExecutionParameters {
   }
 
   private final String domain;
-
-  private final String control;
 
   private final long executionStartToCloseTimeoutSeconds;
 
@@ -169,7 +158,6 @@ public final class StartChildWorkflowExecutionParameters {
   private StartChildWorkflowExecutionParameters(
       String domain,
       byte[] input,
-      String control,
       long executionStartToCloseTimeoutSeconds,
       String taskList,
       long taskStartToCloseTimeoutSeconds,
@@ -182,7 +170,6 @@ public final class StartChildWorkflowExecutionParameters {
       ParentClosePolicy parentClosePolicy) {
     this.domain = domain;
     this.input = input;
-    this.control = control;
     this.executionStartToCloseTimeoutSeconds = executionStartToCloseTimeoutSeconds;
     this.taskList = taskList;
     this.taskStartToCloseTimeoutSeconds = taskStartToCloseTimeoutSeconds;
@@ -196,11 +183,7 @@ public final class StartChildWorkflowExecutionParameters {
   }
 
   public String getDomain() {
-    return OptionsUtils.safeGet(domain);
-  }
-
-  public String getControl() {
-    return OptionsUtils.safeGet(control);
+    return domain;
   }
 
   public long getExecutionStartToCloseTimeoutSeconds() {
@@ -208,11 +191,11 @@ public final class StartChildWorkflowExecutionParameters {
   }
 
   public byte[] getInput() {
-    return OptionsUtils.safeGet(input);
+    return input;
   }
 
   public String getTaskList() {
-    return OptionsUtils.safeGet(taskList);
+    return taskList;
   }
 
   public long getTaskStartToCloseTimeoutSeconds() {
@@ -236,7 +219,7 @@ public final class StartChildWorkflowExecutionParameters {
   }
 
   public String getCronSchedule() {
-    return OptionsUtils.safeGet(cronSchedule);
+    return cronSchedule;
   }
 
   public Map<String, byte[]> getContext() {
@@ -255,7 +238,6 @@ public final class StartChildWorkflowExecutionParameters {
     return executionStartToCloseTimeoutSeconds == that.executionStartToCloseTimeoutSeconds
         && taskStartToCloseTimeoutSeconds == that.taskStartToCloseTimeoutSeconds
         && Objects.equals(domain, that.domain)
-        && Objects.equals(control, that.control)
         && Arrays.equals(input, that.input)
         && Objects.equals(taskList, that.taskList)
         && Objects.equals(workflowId, that.workflowId)
@@ -272,7 +254,6 @@ public final class StartChildWorkflowExecutionParameters {
     int result =
         Objects.hash(
             domain,
-            control,
             executionStartToCloseTimeoutSeconds,
             taskList,
             taskStartToCloseTimeoutSeconds,
@@ -294,7 +275,6 @@ public final class StartChildWorkflowExecutionParameters {
         + domain
         + '\''
         + ", control='"
-        + control
         + '\''
         + ", executionStartToCloseTimeoutSeconds="
         + executionStartToCloseTimeoutSeconds

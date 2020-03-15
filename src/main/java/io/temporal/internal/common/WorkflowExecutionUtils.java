@@ -343,8 +343,9 @@ public class WorkflowExecutionUtils {
     Deadline expiration = Deadline.after(timeout, TimeUnit.MILLISECONDS);
     GrpcRetryOptions retryOptions =
         new GrpcRetryOptions.Builder()
-            .setBackoffCoefficient(1)
+            .setBackoffCoefficient(1.5)
             .setInitialInterval(Duration.ofMillis(1))
+            .setMaximumInterval(Duration.ofSeconds(1))
             .setMaximumAttempts(Integer.MAX_VALUE)
             .setExpiration(Duration.ofMillis(expiration.timeRemaining(TimeUnit.MILLISECONDS)))
             .addDoNotRetry(Status.Code.INVALID_ARGUMENT, null)
@@ -376,12 +377,6 @@ public class WorkflowExecutionUtils {
   }
 
   public static boolean isWorkflowExecutionCompletedEvent(HistoryEventOrBuilder event) {
-    log.trace("isWorkflowExecutionCompletedEvent: " + event.getEventType());
-    if (event.getEventType() == EventType.EventTypeSignalExternalWorkflowExecutionFailed) {
-      log.trace(
-          "isWorkflowExecutionCompletedEvent EventTypeSignalExternalWorkflowExecutionFailed: "
-              + event.getEventType());
-    }
     return ((event != null)
         && (event.getEventType() == EventType.EventTypeWorkflowExecutionCompleted
             || event.getEventType() == EventType.EventTypeWorkflowExecutionCanceled
@@ -520,7 +515,7 @@ public class WorkflowExecutionUtils {
       case EventTypeWorkflowExecutionTerminated:
         return WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusTerminated;
       default:
-        throw new IllegalArgumentException("Not close event: " + event);
+        throw new IllegalArgumentException("Not a close event: " + event);
     }
   }
 
@@ -706,10 +701,7 @@ public class WorkflowExecutionUtils {
     return result.toString();
   }
 
-  /**
-   * Not really a generic method for printing random object graphs. But it works for events and
-   * decisions.
-   */
+  /** Pretty prints a proto message. */
   @SuppressWarnings("deprecation")
   public static String prettyPrintObject(MessageOrBuilder object) {
     return TextFormat.printToString(object);

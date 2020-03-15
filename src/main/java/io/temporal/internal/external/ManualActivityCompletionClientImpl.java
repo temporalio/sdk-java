@@ -25,6 +25,7 @@ import io.temporal.client.ActivityCancelledException;
 import io.temporal.client.ActivityCompletionFailureException;
 import io.temporal.client.ActivityNotExistsException;
 import io.temporal.converter.DataConverter;
+import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatByIDRequest;
@@ -91,17 +92,18 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
 
   @Override
   public void complete(Object result) {
+    byte[] convertedResult = dataConverter.toData(result);
     if (taskToken != null) {
-      byte[] convertedResult = dataConverter.toData(result);
-      RespondActivityTaskCompletedRequest request =
+      RespondActivityTaskCompletedRequest.Builder request =
           RespondActivityTaskCompletedRequest.newBuilder()
-              .setResult(ByteString.copyFrom(convertedResult))
-              .setTaskToken(ByteString.copyFrom(taskToken))
-              .build();
+              .setTaskToken(ByteString.copyFrom(taskToken));
+      if (result != null) {
+        request.setResult(ByteString.copyFrom(convertedResult));
+      }
       try {
         GrpcRetryer.retry(
             GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
-            () -> service.blockingStub().respondActivityTaskCompleted(request));
+            () -> service.blockingStub().respondActivityTaskCompleted(request.build()));
         metricsScope.counter(MetricsType.ACTIVITY_TASK_COMPLETED_COUNTER).inc(1);
       } catch (StatusRuntimeException e) {
         if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
@@ -115,17 +117,17 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
       if (activityId == null) {
         throw new IllegalArgumentException("Either activity id or task token are required");
       }
-      byte[] convertedResult = dataConverter.toData(result);
-      RespondActivityTaskCompletedByIDRequest request =
+      RespondActivityTaskCompletedByIDRequest.Builder request =
           RespondActivityTaskCompletedByIDRequest.newBuilder()
               .setActivityID(activityId)
-              .setResult(ByteString.copyFrom(convertedResult))
               .setDomain(domain)
               .setWorkflowID(execution.getWorkflowId())
-              .setRunID(execution.getRunId())
-              .build();
+              .setRunID(execution.getRunId());
+      if (result != null) {
+        request.setResult(ByteString.copyFrom(convertedResult));
+      }
       try {
-        service.blockingStub().respondActivityTaskCompletedByID(request);
+        service.blockingStub().respondActivityTaskCompletedByID(request.build());
         metricsScope.counter(MetricsType.ACTIVITY_TASK_COMPLETED_BY_ID_COUNTER).inc(1);
       } catch (StatusRuntimeException e) {
         if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
@@ -148,7 +150,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
       RespondActivityTaskFailedRequest request =
           RespondActivityTaskFailedRequest.newBuilder()
               .setReason(failure.getClass().getName())
-              .setDetails(ByteString.copyFrom(dataConverter.toData(failure)))
+              .setDetails(OptionsUtils.toByteString(dataConverter.toData(failure)))
               .setTaskToken(ByteString.copyFrom(taskToken))
               .build();
       try {
@@ -171,7 +173,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
       RespondActivityTaskFailedByIDRequest request =
           RespondActivityTaskFailedByIDRequest.newBuilder()
               .setReason(failure.getClass().getName())
-              .setDetails(ByteString.copyFrom(dataConverter.toData(failure)))
+              .setDetails(OptionsUtils.toByteString(dataConverter.toData(failure)))
               .setDomain(domain)
               .setWorkflowID(execution.getWorkflowId())
               .setRunID(execution.getRunId())
@@ -195,15 +197,17 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
 
   @Override
   public void recordHeartbeat(Object details) throws CancellationException {
+    byte[] convertedDetails = dataConverter.toData(details);
     if (taskToken != null) {
-      RecordActivityTaskHeartbeatRequest request =
+      RecordActivityTaskHeartbeatRequest.Builder request =
           RecordActivityTaskHeartbeatRequest.newBuilder()
-              .setDetails(ByteString.copyFrom(dataConverter.toData(details)))
-              .setTaskToken(ByteString.copyFrom(taskToken))
-              .build();
+              .setTaskToken(ByteString.copyFrom(taskToken));
+      if (convertedDetails != null) {
+        request.setDetails(ByteString.copyFrom(convertedDetails));
+      }
       RecordActivityTaskHeartbeatResponse status;
       try {
-        status = service.blockingStub().recordActivityTaskHeartbeat(request);
+        status = service.blockingStub().recordActivityTaskHeartbeat(request.build());
         if (status.getCancelRequested()) {
           throw new ActivityCancelledException();
         }
@@ -217,16 +221,17 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
       if (activityId == null) {
         throw new IllegalArgumentException("Either activity id or task token are required");
       }
-      RecordActivityTaskHeartbeatByIDRequest request =
+      RecordActivityTaskHeartbeatByIDRequest.Builder request =
           RecordActivityTaskHeartbeatByIDRequest.newBuilder()
-              .setDetails(ByteString.copyFrom(dataConverter.toData(details)))
               .setWorkflowID(execution.getWorkflowId())
               .setRunID(execution.getRunId())
-              .setActivityID(activityId)
-              .build();
+              .setActivityID(activityId);
+      if (convertedDetails != null) {
+        request.setDetails(ByteString.copyFrom(convertedDetails));
+      }
       RecordActivityTaskHeartbeatByIDResponse status = null;
       try {
-        status = service.blockingStub().recordActivityTaskHeartbeatByID(request);
+        status = service.blockingStub().recordActivityTaskHeartbeatByID(request.build());
         if (status.getCancelRequested()) {
           throw new ActivityCancelledException();
         }
@@ -243,17 +248,18 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
 
   @Override
   public void reportCancellation(Object details) {
+    byte[] convertedDetails = dataConverter.toData(details);
     if (taskToken != null) {
-      RespondActivityTaskCanceledRequest request =
+      RespondActivityTaskCanceledRequest.Builder request =
           RespondActivityTaskCanceledRequest.newBuilder()
-              .setDetails(ByteString.copyFrom(dataConverter.toData(details)))
-              .setTaskToken(ByteString.copyFrom(taskToken))
-              .build();
-
+              .setTaskToken(ByteString.copyFrom(taskToken));
+      if (convertedDetails != null) {
+        request.setDetails(ByteString.copyFrom(convertedDetails));
+      }
       try {
         GrpcRetryer.retry(
             GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
-            () -> service.blockingStub().respondActivityTaskCanceled(request));
+            () -> service.blockingStub().respondActivityTaskCanceled(request.build()));
         metricsScope.counter(MetricsType.ACTIVITY_TASK_CANCELED_COUNTER).inc(1);
       } catch (Exception e) {
         // There is nothing that can be done at this point.
@@ -264,23 +270,24 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
       if (activityId == null) {
         throw new IllegalArgumentException("Either activity id or task token are required");
       }
-      RespondActivityTaskCanceledByIDRequest request =
+      RespondActivityTaskCanceledByIDRequest.Builder request =
           RespondActivityTaskCanceledByIDRequest.newBuilder()
-              .setDetails(ByteString.copyFrom(dataConverter.toData(details)))
               .setDomain(domain)
               .setWorkflowID(execution.getWorkflowId())
-              .setRunID(execution.getRunId())
-              .setActivityID(activityId)
-              .build();
+              .setRunID(OptionsUtils.safeGet(execution.getRunId()))
+              .setActivityID(activityId);
+      if (convertedDetails != null) {
+        request.setDetails(ByteString.copyFrom(convertedDetails));
+      }
       try {
         GrpcRetryer.retry(
             GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
-            () -> service.blockingStub().respondActivityTaskCanceledByID(request));
+            () -> service.blockingStub().respondActivityTaskCanceledByID(request.build()));
         metricsScope.counter(MetricsType.ACTIVITY_TASK_CANCELED_BY_ID_COUNTER).inc(1);
       } catch (Exception e) {
         // There is nothing that can be done at this point.
         // so let's just ignore.
-        log.info("reportCancellation", e);
+        log.warn("reportCancellation", e);
       }
     }
   }

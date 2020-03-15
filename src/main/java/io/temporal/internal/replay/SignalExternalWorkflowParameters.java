@@ -17,7 +17,6 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.internal.common.OptionsUtils;
 import java.nio.charset.StandardCharsets;
 
 public final class SignalExternalWorkflowParameters implements Cloneable {
@@ -33,7 +32,7 @@ public final class SignalExternalWorkflowParameters implements Cloneable {
   private String workflowId;
 
   public String getDomain() {
-    return OptionsUtils.safeGet(domain);
+    return domain;
   }
 
   public SignalExternalWorkflowParameters setDomain(String domain) {
@@ -42,7 +41,7 @@ public final class SignalExternalWorkflowParameters implements Cloneable {
   }
 
   public byte[] getInput() {
-    return OptionsUtils.safeGet(input);
+    return input;
   }
 
   public void setInput(byte[] input) {
@@ -55,7 +54,7 @@ public final class SignalExternalWorkflowParameters implements Cloneable {
   }
 
   public String getRunId() {
-    return OptionsUtils.safeGet(runId);
+    return runId;
   }
 
   public void setRunId(String runId) {

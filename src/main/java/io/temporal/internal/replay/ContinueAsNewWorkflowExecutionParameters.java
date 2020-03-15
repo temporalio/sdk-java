@@ -56,7 +56,7 @@ public final class ContinueAsNewWorkflowExecutionParameters {
   }
 
   public byte[] getInput() {
-    return OptionsUtils.safeGet(input);
+    return input;
   }
 
   public void setInput(byte[] input) {

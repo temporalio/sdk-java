@@ -91,9 +91,6 @@ class SyncWorkflow implements ReplayWorkflow {
 
     WorkflowExecutionStartedEventAttributes startEvent =
         event.getWorkflowExecutionStartedEventAttributes();
-    if (log.isTraceEnabled()) {
-      log.trace("start " + startEvent.getWorkflowType());
-    }
     WorkflowType workflowType = startEvent.getWorkflowType();
     if (workflow == null) {
       throw new IllegalArgumentException("Unknown workflow type: " + workflowType);
@@ -150,9 +147,6 @@ class SyncWorkflow implements ReplayWorkflow {
 
   @Override
   public long getNextWakeUpTime() {
-    if (log.isTraceEnabled()) {
-      log.trace("getNextWakeUpTime ");
-    }
     if (runner == null) {
       throw new IllegalStateException("Start not called");
     }

@@ -17,7 +17,6 @@
 
 package io.temporal.internal.replay;
 
-import com.google.protobuf.ByteString;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.replay.HistoryHelper.DecisionEvents;
@@ -456,7 +455,7 @@ class DecisionsHelper {
         Decision.newBuilder()
             .setCompleteWorkflowExecutionDecisionAttributes(
                 CompleteWorkflowExecutionDecisionAttributes.newBuilder()
-                    .setResult(ByteString.copyFrom(OptionsUtils.safeGet(output))))
+                    .setResult(OptionsUtils.toByteString(output)))
             .setDecisionType(DecisionType.DecisionTypeCompleteWorkflowExecution)
             .build();
     DecisionId decisionId = new DecisionId(DecisionTarget.SELF, 0);
@@ -475,7 +474,7 @@ class DecisionsHelper {
         firstEvent.getWorkflowExecutionStartedEventAttributes();
     ContinueAsNewWorkflowExecutionDecisionAttributes.Builder attributes =
         ContinueAsNewWorkflowExecutionDecisionAttributes.newBuilder();
-    attributes.setInput(ByteString.copyFrom(continueParameters.getInput()));
+    attributes.setInput(OptionsUtils.toByteString(continueParameters.getInput()));
     String workflowType = continueParameters.getWorkflowType();
     if (workflowType != null && !workflowType.isEmpty()) {
       attributes.setWorkflowType(WorkflowType.newBuilder().setName(workflowType));
@@ -498,7 +497,7 @@ class DecisionsHelper {
     }
     attributes.setTaskList(TaskList.newBuilder().setName(taskList).build());
 
-    attributes.setHeader(startedEvent.getHeader());
+    // TODO(maxim): Find out what to do about memo, searchAttributes and header
 
     Decision decision =
         Decision.newBuilder()
@@ -518,7 +517,7 @@ class DecisionsHelper {
             .setFailWorkflowExecutionDecisionAttributes(
                 FailWorkflowExecutionDecisionAttributes.newBuilder()
                     .setReason(failure.getReason())
-                    .setDetails(ByteString.copyFrom(failure.getDetails())))
+                    .setDetails(OptionsUtils.toByteString(failure.getDetails())))
             .setDecisionType(DecisionType.DecisionTypeFailWorkflowExecution)
             .build();
     DecisionId decisionId = new DecisionId(DecisionTarget.SELF, 0);
@@ -546,10 +545,9 @@ class DecisionsHelper {
     // no need to call addAllMissingVersionMarker here as all the callers are already doing it.
 
     RecordMarkerDecisionAttributes.Builder marker =
-        RecordMarkerDecisionAttributes.newBuilder().setMarkerName(markerName);
-    if (details != null) {
-      marker.setDetails(ByteString.copyFrom(details));
-    }
+        RecordMarkerDecisionAttributes.newBuilder()
+            .setMarkerName(markerName)
+            .setDetails(OptionsUtils.toByteString(details));
     if (header != null) {
       marker.setHeader(header);
     }

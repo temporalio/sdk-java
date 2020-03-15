@@ -259,9 +259,6 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   private Optional<RetryState> newRetryStateLocked(RetryPolicy retryPolicy) {
-    if (retryPolicy == null) {
-      return Optional.empty();
-    }
     long expirationInterval =
         TimeUnit.SECONDS.toMillis(retryPolicy.getExpirationIntervalInSeconds());
     long expirationTime = store.currentTimeMillis() + expirationInterval;

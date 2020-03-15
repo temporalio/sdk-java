@@ -23,6 +23,7 @@ import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.common.RetryOptions;
 import io.temporal.internal.common.LocalActivityMarkerData;
+import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.ClockDecisionContext;
@@ -216,7 +217,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
       PollForActivityTaskResponse pollTask =
           PollForActivityTaskResponse.newBuilder()
               .setActivityType(task.params.getActivityType())
-              .setInput(ByteString.copyFrom(task.params.getInput()))
+              .setInput(OptionsUtils.toByteString(task.params.getInput()))
               .setAttempt(task.params.getAttempt())
               .build();
 

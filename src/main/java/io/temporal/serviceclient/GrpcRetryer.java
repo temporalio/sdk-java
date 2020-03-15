@@ -55,7 +55,11 @@ public final class GrpcRetryer {
         .addDoNotRetry(Status.Code.INVALID_ARGUMENT, null)
         .addDoNotRetry(Status.Code.NOT_FOUND, null)
         .addDoNotRetry(Status.Code.ALREADY_EXISTS, null)
-        .addDoNotRetry(Status.Code.FAILED_PRECONDITION, null);
+        .addDoNotRetry(Status.Code.FAILED_PRECONDITION, null)
+        .addDoNotRetry(Status.Code.PERMISSION_DENIED, null)
+        .addDoNotRetry(Status.Code.UNAUTHENTICATED, null)
+        .addDoNotRetry(Status.Code.UNIMPLEMENTED, null)
+        .addDoNotRetry(Status.Code.CANCELLED, null);
     DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS = roBuilder.validateBuildWithDefaults();
   }
 

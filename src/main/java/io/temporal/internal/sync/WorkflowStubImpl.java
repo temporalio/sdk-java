@@ -109,16 +109,8 @@ class WorkflowStubImpl implements WorkflowStub {
     try {
       genericClient.signalWorkflowExecution(p);
     } catch (StatusRuntimeException e) {
-      WorkflowExecutionAlreadyStarted f =
-          GrpcStatusUtils.getFailure(e, WorkflowExecutionAlreadyStarted.class);
-      if (f != null) {
-        WorkflowExecution exe =
-            WorkflowExecution.newBuilder()
-                .setWorkflowId(p.getWorkflowId())
-                .setRunId(f.getRunId())
-                .build();
-        execution.set(exe);
-        throw new DuplicateWorkflowException(exe, workflowType.get(), e.getMessage());
+      if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
+        throw new WorkflowNotFoundException(execution.get(), workflowType, e.getMessage());
       } else {
         throw new WorkflowServiceException(execution.get(), workflowType, e);
       }

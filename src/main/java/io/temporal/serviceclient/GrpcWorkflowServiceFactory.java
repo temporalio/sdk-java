@@ -69,7 +69,7 @@ public class GrpcWorkflowServiceFactory implements AutoCloseable {
   private static final Metadata.Key<String> CLIENT_IMPL_HEADER_KEY =
       Metadata.Key.of("temporal-sdk-name", Metadata.ASCII_STRING_MARSHALLER);
 
-  private static final String CLIENT_IMPL_HEADER_VALUE = "temporal-go";
+  private static final String CLIENT_IMPL_HEADER_VALUE = "temporal-java";
 
   protected ServiceFactoryOptions options;
   protected ManagedChannel channel;

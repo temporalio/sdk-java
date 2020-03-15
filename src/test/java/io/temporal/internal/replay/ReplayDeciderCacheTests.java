@@ -257,9 +257,8 @@ public class ReplayDeciderCacheTests {
   }
 
   private ReplayDecider createFakeDecider(PollForDecisionTaskResponse response) {
-
     return new ReplayDecider(
-        null, // TODO(maxim): Add a way to crate fake service.
+        null,
         "domain",
         new ReplayWorkflow() {
           @Override

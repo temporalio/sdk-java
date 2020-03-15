@@ -56,8 +56,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Implements decider that relies on replay of a workflow code. An instance of this class is created
@@ -66,8 +64,6 @@ import org.slf4j.LoggerFactory;
 class ReplayDecider implements Decider, Consumer<HistoryEvent> {
 
   private static final int MAXIMUM_PAGE_SIZE = 10000;
-
-  private static final Logger log = LoggerFactory.getLogger(ReplayDecider.class);
 
   private final DecisionsHelper decisionsHelper;
   private final DecisionContextImpl context;
@@ -364,20 +360,8 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
 
   @Override
   public DecisionResult decide(PollForDecisionTaskResponseOrBuilder decisionTask) throws Throwable {
-    if (log.isTraceEnabled()) {
-      log.trace(
-          "decide: execution="
-              + decisionTask.getWorkflowExecution()
-              + ", startedEventId="
-              + decisionTask.getStartedEventId());
-    }
     boolean forceCreateNewDecisionTask = decideImpl(decisionTask, null);
-    DecisionResult result =
-        new DecisionResult(decisionsHelper.getDecisions(), forceCreateNewDecisionTask);
-    if (log.isTraceEnabled()) {
-      log.trace("decide done: execution=" + decisionTask.getWorkflowExecution());
-    }
-    return result;
+    return new DecisionResult(decisionsHelper.getDecisions(), forceCreateNewDecisionTask);
   }
 
   // Returns boolean to indicate whether we need to force create new decision task for local

@@ -18,6 +18,7 @@
 package io.temporal.internal.replay;
 
 import com.google.protobuf.ByteString;
+import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.RetryParameters;
 import io.temporal.proto.common.ActivityTaskCanceledEventAttributes;
 import io.temporal.proto.common.ActivityTaskCompletedEventAttributes;
@@ -92,16 +93,10 @@ final class ActivityDecisionContext {
       ExecuteActivityParameters parameters, BiConsumer<byte[], Exception> callback) {
     final OpenRequestInfo<byte[], ActivityType> context =
         new OpenRequestInfo<>(parameters.getActivityType());
-    ByteString input;
-    if (parameters.getInput() != null) {
-      input = ByteString.copyFrom(parameters.getInput());
-    } else {
-      input = ByteString.EMPTY;
-    }
     final ScheduleActivityTaskDecisionAttributes.Builder attributes =
         ScheduleActivityTaskDecisionAttributes.newBuilder()
             .setActivityType(parameters.getActivityType())
-            .setInput(input);
+            .setInput(OptionsUtils.toByteString(parameters.getInput()));
     if (parameters.getHeartbeatTimeoutSeconds() > 0) {
       attributes.setHeartbeatTimeoutSeconds((int) parameters.getHeartbeatTimeoutSeconds());
     }
@@ -214,7 +209,7 @@ final class ActivityDecisionContext {
     }
     Map<String, ByteString> fields = new HashMap<>();
     for (Map.Entry<String, byte[]> item : headers.entrySet()) {
-      fields.put(item.getKey(), ByteString.copyFrom(item.getValue()));
+      fields.put(item.getKey(), OptionsUtils.toByteString(item.getValue()));
     }
     return Header.newBuilder().putAllFields(fields).build();
   }

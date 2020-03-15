@@ -17,7 +17,6 @@
 
 package io.temporal.internal.sync;
 
-import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.activity.ActivityTask;
@@ -27,6 +26,7 @@ import io.temporal.client.ActivityCompletionFailureException;
 import io.temporal.client.ActivityNotExistsException;
 import io.temporal.client.ActivityWorkerShutdownException;
 import io.temporal.converter.DataConverter;
+import io.temporal.internal.common.OptionsUtils;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatRequest;
 import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatResponse;
@@ -171,16 +171,14 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   }
 
   private void sendHeartbeatRequest(Object details) {
-    RecordActivityTaskHeartbeatRequest.Builder r =
+    RecordActivityTaskHeartbeatRequest r =
         RecordActivityTaskHeartbeatRequest.newBuilder()
-            .setTaskToken(ByteString.copyFrom(task.getTaskToken()));
-    byte[] serialized = dataConverter.toData(details);
-    if (serialized != null) {
-      r.setDetails(ByteString.copyFrom(serialized));
-    }
+            .setTaskToken(OptionsUtils.toByteString(task.getTaskToken()))
+            .setDetails(OptionsUtils.toByteString(dataConverter.toData(details)))
+            .build();
     RecordActivityTaskHeartbeatResponse status;
     try {
-      status = service.blockingStub().recordActivityTaskHeartbeat(r.build());
+      status = service.blockingStub().recordActivityTaskHeartbeat(r);
       if (status.getCancelRequested()) {
         lastException = new ActivityCancelledException(task);
       } else {
@@ -214,10 +212,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
     return task;
   }
 
-  /**
-   * @see ActivityExecutionContext#getService()
-   * @return
-   */
+  /** @see ActivityExecutionContext#getService() */
   @Override
   public GrpcWorkflowServiceFactory getService() {
     return service;

@@ -274,10 +274,6 @@ public final class GrpcRetryOptions {
     }
   }
 
-  /**
-   * @return null if not configured. When merging with annotation it makes a difference. null means
-   *     use values from an annotation. Empty list means do not retry on anything.
-   */
   public List<DoNotRetryPair> getDoNotRetry() {
     return doNotRetry;
   }

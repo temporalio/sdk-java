@@ -215,13 +215,10 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
                   ? decisionTask.getTaskListId().getTaskListName()
                   : attributes.getWorkerTaskList().getName());
       if (id.getTaskListName().isEmpty() || id.getDomain().isEmpty()) {
-        throw new IllegalArgumentException("Invalid TaskListId: " + id);
+        throw Status.INTERNAL.withDescription("Invalid TaskListId: " + id).asRuntimeException();
       }
       BlockingQueue<PollForDecisionTaskResponse.Builder> decisionsQueue =
           getDecisionTaskListQueue(id);
-      if (log.isTraceEnabled()) {
-        log.trace("Adding decision task to task list " + id);
-      }
       decisionsQueue.add(decisionTask.getTask());
     }
 
@@ -230,9 +227,6 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       for (ActivityTask activityTask : activityTasks) {
         BlockingQueue<PollForActivityTaskResponse.Builder> activitiesQueue =
             getActivityTaskListQueue(activityTask.getTaskListId());
-        if (log.isTraceEnabled()) {
-          log.trace("Adding activity task to task list " + activityTask.getTaskListId());
-        }
         activitiesQueue.add(activityTask.getTask());
       }
     }
@@ -318,9 +312,6 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
           "Poll request on decision task list about to block waiting for a task on " + taskListId);
     }
     PollForDecisionTaskResponse.Builder result = decisionsQueue.take();
-    if (log.isTraceEnabled()) {
-      log.trace("Poll request on decision task list " + taskListId + " matchied with:\n" + result);
-    }
     return result;
   }
 
@@ -332,9 +323,6 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     BlockingQueue<PollForActivityTaskResponse.Builder> activityTaskQueue =
         getActivityTaskListQueue(taskListId);
     PollForActivityTaskResponse.Builder result = activityTaskQueue.take();
-    if (log.isTraceEnabled()) {
-      log.trace("Poll request on activity task list " + taskListId + " matchied with:\n" + result);
-    }
     return result;
   }
 

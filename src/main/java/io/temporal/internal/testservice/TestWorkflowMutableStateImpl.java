@@ -57,6 +57,7 @@ import io.temporal.proto.common.RecordMarkerDecisionAttributes;
 import io.temporal.proto.common.RequestCancelActivityTaskDecisionAttributes;
 import io.temporal.proto.common.RequestCancelActivityTaskFailedEventAttributes;
 import io.temporal.proto.common.RequestCancelExternalWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.common.RetryPolicy;
 import io.temporal.proto.common.ScheduleActivityTaskDecisionAttributes;
 import io.temporal.proto.common.SignalExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.proto.common.StartChildWorkflowExecutionDecisionAttributes;
@@ -153,7 +154,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       new ConcurrentHashMap<>();
   private final Map<String, PollForDecisionTaskResponse.Builder> queryRequests =
       new ConcurrentHashMap<>();
-  private final Optional<String> continuedExecutionRunId;
   public StickyExecutionAttributes stickyExecutionAttributes;
 
   /**
@@ -175,7 +175,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     this.startRequest = startRequest;
     this.parent = parent;
     this.parentChildInitiatedEventId = parentChildInitiatedEventId;
-    this.continuedExecutionRunId = continuedExecutionRunId;
     this.service = service;
     this.executionId =
         new ExecutionId(startRequest.getDomain(), startRequest.getWorkflowId(), runId);
@@ -516,7 +515,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   private void processScheduleActivityTask(
       RequestContext ctx, ScheduleActivityTaskDecisionAttributes a, long decisionTaskCompletedId) {
-    validateScheduleActivityTask(a);
+    a = validateScheduleActivityTask(a);
     String activityId = a.getActivityId();
     StateMachine<ActivityTaskData> activity = activities.get(activityId);
     if (activity != null) {
@@ -539,13 +538,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     ctx.lockTimer();
   }
 
-  private void validateScheduleActivityTask(ScheduleActivityTaskDecisionAttributes a) {
-    if (a == null) {
-      throw Status.INVALID_ARGUMENT
-          .withDescription("ScheduleActivityTaskDecisionAttributes is not set on decision")
-          .asRuntimeException();
-    }
-
+  /**
+   * The logic is copied from history service implementation of validateActivityScheduleAttributes
+   * function.
+   */
+  private ScheduleActivityTaskDecisionAttributes validateScheduleActivityTask(
+      ScheduleActivityTaskDecisionAttributes a) {
+    ScheduleActivityTaskDecisionAttributes.Builder result = a.toBuilder();
     if (!a.hasTaskList() || a.getTaskList().getName().isEmpty()) {
       throw Status.INVALID_ARGUMENT
           .withDescription("TaskList is not set on decision")
@@ -561,26 +560,69 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           .withDescription("ActivityType is not set on decision")
           .asRuntimeException();
     }
-    if (a.getStartToCloseTimeoutSeconds() <= 0) {
+    // Only attempt to deduce and fill in unspecified timeouts only when all timeouts are
+    // non-negative.
+    if (a.getScheduleToCloseTimeoutSeconds() < 0
+        || a.getScheduleToStartTimeoutSeconds() < 0
+        || a.getStartToCloseTimeoutSeconds() < 0
+        || a.getHeartbeatTimeoutSeconds() < 0) {
       throw Status.INVALID_ARGUMENT
-          .withDescription("A valid StartToCloseTimeoutSeconds is not set on decision")
+          .withDescription("A valid timeout may not be negative.")
           .asRuntimeException();
     }
-    if (a.getScheduleToStartTimeoutSeconds() <= 0) {
+    int workflowTimeout = this.startRequest.getExecutionStartToCloseTimeoutSeconds();
+    // ensure activity timeout never larger than workflow timeout
+    if (a.getScheduleToCloseTimeoutSeconds() > workflowTimeout) {
+      result.setScheduleToCloseTimeoutSeconds(workflowTimeout);
+    }
+    if (a.getScheduleToStartTimeoutSeconds() > workflowTimeout) {
+      result.setScheduleToStartTimeoutSeconds(workflowTimeout);
+    }
+    if (a.getStartToCloseTimeoutSeconds() > workflowTimeout) {
+      result.setStartToCloseTimeoutSeconds(workflowTimeout);
+    }
+    if (a.getHeartbeatTimeoutSeconds() > workflowTimeout) {
+      result.setHeartbeatTimeoutSeconds(workflowTimeout);
+    }
+
+    boolean validScheduleToClose = a.getScheduleToCloseTimeoutSeconds() > 0;
+    boolean validScheduleToStart = a.getScheduleToStartTimeoutSeconds() > 0;
+    boolean validStartToClose = a.getStartToCloseTimeoutSeconds() > 0;
+
+    if (validScheduleToClose) {
+      if (!validScheduleToStart) {
+        result.setScheduleToStartTimeoutSeconds(a.getScheduleToCloseTimeoutSeconds());
+      }
+      if (!validStartToClose) {
+        result.setStartToCloseTimeoutSeconds(a.getScheduleToCloseTimeoutSeconds());
+      }
+    } else if (validScheduleToStart && validStartToClose) {
+      result.setScheduleToCloseTimeoutSeconds(
+          a.getScheduleToStartTimeoutSeconds() + a.getStartToCloseTimeoutSeconds());
+      if (a.getScheduleToCloseTimeoutSeconds() > workflowTimeout) {
+        result.setScheduleToCloseTimeoutSeconds(workflowTimeout);
+      }
+    } else {
+      // Deduction failed as there's not enough information to fill in missing timeouts.
       throw Status.INVALID_ARGUMENT
-          .withDescription("A valid ScheduleToStartTimeoutSeconds is not set on decision")
+          .withDescription("A valid ScheduleToCloseTimeout is not set on decision.")
           .asRuntimeException();
     }
-    if (a.getScheduleToCloseTimeoutSeconds() <= 0) {
-      throw Status.INVALID_ARGUMENT
-          .withDescription("A valid ScheduleToCloseTimeoutSeconds is not set on decision")
-          .asRuntimeException();
+    if (a.hasRetryPolicy()) {
+      RetryPolicy p = a.getRetryPolicy();
+      result.setRetryPolicy(RetryState.validateRetryPolicy(p));
+      int expiration = p.getExpirationIntervalInSeconds();
+      if (expiration == 0) {
+        expiration = workflowTimeout;
+      }
+      if (a.getScheduleToStartTimeoutSeconds() < expiration) {
+        result.setScheduleToStartTimeoutSeconds(expiration);
+      }
+      if (a.getScheduleToCloseTimeoutSeconds() < expiration) {
+        result.setScheduleToCloseTimeoutSeconds(expiration);
+      }
     }
-    if (a.getHeartbeatTimeoutSeconds() < 0) {
-      throw Status.INVALID_ARGUMENT
-          .withDescription("A valid HeartbeatTimeoutSeconds is not set on decision")
-          .asRuntimeException();
-    }
+    return result.build();
   }
 
   private void processStartChildWorkflow(

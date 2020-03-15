@@ -19,6 +19,7 @@ package io.temporal.internal.sync;
 
 import com.google.common.base.Defaults;
 import com.google.protobuf.ByteString;
+import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.StatusRuntimeException;
 import io.grpc.inprocess.InProcessChannelBuilder;
@@ -27,6 +28,7 @@ import io.grpc.stub.StreamObserver;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
+import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
@@ -63,6 +65,7 @@ import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiPredicate;
@@ -77,9 +80,10 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   private ClassConsumerPair<Object> activityHeartbetListener;
   private static final ScheduledExecutorService heartbeatExecutor =
       Executors.newScheduledThreadPool(20);
-  private GrpcWorkflowServiceFactory workflowService;
+  private GrpcWorkflowServiceFactory serviceFactory;
   private Server mockServer;
   private AtomicBoolean cancellationRequested = new AtomicBoolean();
+  private ManagedChannel channel;
 
   public TestActivityEnvironmentInternal(TestEnvironmentOptions options) {
     if (options == null) {
@@ -101,13 +105,11 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
       // This should not happen with in-memory services, but rethrow just in case.
       throw new RuntimeException(e);
     }
-    // TODO: (vkoby) Ideally the channel needs to be closed after use, find a way to do that.
-    workflowService =
-        new GrpcWorkflowServiceFactory(
-            InProcessChannelBuilder.forName(serverName).directExecutor().build());
+    channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
+    serviceFactory = new GrpcWorkflowServiceFactory(channel);
     activityTaskHandler =
         new POJOActivityTaskHandler(
-            workflowService,
+            serviceFactory,
             testEnvironmentOptions.getDomain(),
             testEnvironmentOptions.getDataConverter(),
             heartbeatExecutor);
@@ -165,7 +167,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     ActivityOptions options =
         new ActivityOptions.Builder().setScheduleToCloseTimeout(Duration.ofDays(1)).build();
     InvocationHandler invocationHandler =
-        ActivityInvocationHandler.newInstance(options, new TestActivityExecutor(workflowService));
+        ActivityInvocationHandler.newInstance(options, new TestActivityExecutor());
     invocationHandler = new DeterministicRunnerWrapper(invocationHandler);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
@@ -189,6 +191,11 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
 
   @Override
   public void close() {
+    channel.shutdownNow();
+    try {
+      channel.awaitTermination(100, TimeUnit.MILLISECONDS);
+    } catch (InterruptedException e) {
+    }
     mockServer.shutdown();
     try {
       mockServer.awaitTermination();
@@ -198,13 +205,6 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   }
 
   private class TestActivityExecutor implements WorkflowInterceptor {
-
-    @SuppressWarnings("UnusedVariable")
-    private final GrpcWorkflowServiceFactory workflowService;
-
-    TestActivityExecutor(GrpcWorkflowServiceFactory workflowService) {
-      this.workflowService = workflowService;
-    }
 
     @Override
     public <T> Promise<T> executeActivity(
@@ -222,9 +222,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
               .setScheduledTimestamp(Duration.ofMillis(System.currentTimeMillis()).toNanos())
               .setStartedTimestamp(Duration.ofMillis(System.currentTimeMillis()).toNanos())
               .setInput(
-                  args != null
-                      ? ByteString.copyFrom(testEnvironmentOptions.getDataConverter().toData(args))
-                      : ByteString.EMPTY)
+                  OptionsUtils.toByteString(testEnvironmentOptions.getDataConverter().toData(args)))
               .setTaskToken(ByteString.copyFrom("test-task-token".getBytes(StandardCharsets.UTF_8)))
               .setActivityId(String.valueOf(idSequencer.incrementAndGet()))
               .setWorkflowExecution(

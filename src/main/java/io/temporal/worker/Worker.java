@@ -74,7 +74,6 @@ public final class Worker implements Suspendable {
   private final DeciderCache cache;
   private final String stickyTaskListName;
   private ThreadPoolExecutor threadPoolExecutor;
-  private List<ContextPropagator> contextPropagators;
 
   /**
    * Creates worker that connects to an instance of the Temporal Service.
@@ -108,7 +107,6 @@ public final class Worker implements Suspendable {
 
     this.taskList = taskList;
     this.options = MoreObjects.firstNonNull(options, new WorkerOptions.Builder().build());
-    this.contextPropagators = contextPropagators;
 
     SingleWorkerOptions activityOptions =
         toActivityOptions(this.options, domain, taskList, contextPropagators);

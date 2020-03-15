@@ -69,8 +69,8 @@ import org.slf4j.LoggerFactory;
 @RunWith(Parameterized.class)
 public class StickyWorkerTest {
 
-  private static final boolean useDockerService = true;
-  //      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+  private static final boolean useDockerService =
+      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
 
   @Parameterized.Parameter public boolean useExternalService;
 

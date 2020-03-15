@@ -96,15 +96,8 @@ final class ActivityPollTask implements Poller.PollTask<PollForActivityTaskRespo
     }
 
     if (result == null || result.getTaskToken().isEmpty()) {
-      if (log.isDebugEnabled()) {
-        log.debug("poll request returned no task");
-      }
       options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_NO_TASK_COUNTER).inc(1);
       return null;
-    }
-
-    if (log.isTraceEnabled()) {
-      log.trace("poll request returned \n" + result);
     }
 
     options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_SUCCEED_COUNTER).inc(1);

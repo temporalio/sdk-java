@@ -20,6 +20,7 @@ package io.temporal.internal.replay;
 import static io.temporal.internal.common.InternalUtils.createStickyTaskList;
 
 import com.google.protobuf.ByteString;
+import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.DecisionTaskHandler;
@@ -226,7 +227,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
       if (stickyTaskListName != null && createdNew.get()) {
         cache.addToCache(decisionTask, decider);
       }
-      queryCompletedRequest.setQueryResult(ByteString.copyFrom(queryResult));
+      queryCompletedRequest.setQueryResult(OptionsUtils.toByteString(queryResult));
       queryCompletedRequest.setCompletedType(
           QueryTaskCompletedType.QueryTaskCompletedTypeCompleted);
     } catch (Throwable e) {

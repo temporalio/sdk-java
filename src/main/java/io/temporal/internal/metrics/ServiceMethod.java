@@ -17,6 +17,7 @@
 
 package io.temporal.internal.metrics;
 
+/** TODO(maxim): Add gRPC interceptor for metrics */
 public class ServiceMethod {
   public static final String DEPRECATE_DOMAIN =
       MetricsType.TEMPORAL_METRICS_PREFIX + "DeprecateDomain";

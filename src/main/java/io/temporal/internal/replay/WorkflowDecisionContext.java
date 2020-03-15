@@ -17,8 +17,8 @@
 
 package io.temporal.internal.replay;
 
-import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
+import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.RetryParameters;
 import io.temporal.proto.common.ChildWorkflowExecutionCanceledEventAttributes;
 import io.temporal.proto.common.ChildWorkflowExecutionCompletedEventAttributes;
@@ -108,13 +108,8 @@ final class WorkflowDecisionContext {
       workflowId = randomUUID().toString();
     }
     attributes.setWorkflowId(workflowId);
-    if (parameters.getDomain().isEmpty()) {
-      // Could be removed as soon as server allows null for domain.
-      attributes.setDomain(workflowContext.getDomain());
-    } else {
-      attributes.setDomain(parameters.getDomain());
-    }
-    attributes.setInput(ByteString.copyFrom(parameters.getInput()));
+    attributes.setDomain(OptionsUtils.safeGet(parameters.getDomain()));
+    attributes.setInput(OptionsUtils.toByteString(parameters.getInput()));
     if (parameters.getExecutionStartToCloseTimeoutSeconds() == 0) {
       // TODO: Substract time passed since the parent start
       attributes.setExecutionStartToCloseTimeoutSeconds(
@@ -145,9 +140,7 @@ final class WorkflowDecisionContext {
       attributes.setRetryPolicy(retryParameters.toRetryPolicy());
     }
 
-    if (!Strings.isNullOrEmpty(parameters.getCronSchedule())) {
-      attributes.setCronSchedule(parameters.getCronSchedule());
-    }
+    attributes.setCronSchedule(OptionsUtils.safeGet(parameters.getCronSchedule()));
     Header header = toHeaderGrpc(parameters.getContext());
     if (header != null) {
       attributes.setHeader(header);
@@ -172,7 +165,7 @@ final class WorkflowDecisionContext {
     }
     Header.Builder headerGrpc = Header.newBuilder();
     for (Map.Entry<String, byte[]> item : headers.entrySet()) {
-      headerGrpc.putFields(item.getKey(), ByteString.copyFrom(item.getValue()));
+      headerGrpc.putFields(item.getKey(), OptionsUtils.toByteString(item.getValue()));
     }
     return headerGrpc.build();
   }
@@ -185,19 +178,15 @@ final class WorkflowDecisionContext {
       final SignalExternalWorkflowParameters parameters, BiConsumer<Void, Exception> callback) {
     final OpenRequestInfo<Void, Void> context = new OpenRequestInfo<>();
     final SignalExternalWorkflowExecutionDecisionAttributes.Builder attributes =
-        SignalExternalWorkflowExecutionDecisionAttributes.newBuilder();
-    if (parameters.getDomain() == null) {
-      attributes.setDomain(workflowContext.getDomain());
-    } else {
-      attributes.setDomain(parameters.getDomain());
-    }
+        SignalExternalWorkflowExecutionDecisionAttributes.newBuilder()
+            .setDomain(OptionsUtils.safeGet(parameters.getDomain()));
     String signalId = decisions.getAndIncrementNextId();
     attributes.setControl(ByteString.copyFrom(signalId, StandardCharsets.UTF_8));
     attributes.setSignalName(parameters.getSignalName());
-    attributes.setInput(ByteString.copyFrom(parameters.getInput()));
+    attributes.setInput(OptionsUtils.toByteString(parameters.getInput()));
     attributes.setExecution(
         WorkflowExecution.newBuilder()
-            .setRunId(parameters.getRunId())
+            .setRunId(OptionsUtils.safeGet(parameters.getRunId()))
             .setWorkflowId(parameters.getWorkflowId()));
     final long finalSignalId = decisions.signalExternalWorkflowExecution(attributes.build());
     context.setCompletionHandle(callback);
@@ -217,15 +206,12 @@ final class WorkflowDecisionContext {
   }
 
   void requestCancelWorkflowExecution(WorkflowExecution execution) {
-    RequestCancelExternalWorkflowExecutionDecisionAttributes.Builder attributes =
-        RequestCancelExternalWorkflowExecutionDecisionAttributes.newBuilder();
-    String workflowId = execution.getWorkflowId();
-    attributes.setWorkflowId(workflowId);
-    String runId = execution.getRunId();
-    if (!runId.isEmpty()) {
-      attributes.setRunId(runId);
-    }
-    decisions.requestCancelExternalWorkflowExecution(attributes.build());
+    RequestCancelExternalWorkflowExecutionDecisionAttributes attributes =
+        RequestCancelExternalWorkflowExecutionDecisionAttributes.newBuilder()
+            .setWorkflowId(execution.getWorkflowId())
+            .setRunId(execution.getRunId())
+            .build();
+    decisions.requestCancelExternalWorkflowExecution(attributes);
   }
 
   void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionParameters continueParameters) {

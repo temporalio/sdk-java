@@ -21,6 +21,7 @@ import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
+import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.RetryParameters;
 import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
 import io.temporal.internal.common.StartWorkflowExecutionParameters;
@@ -204,12 +205,12 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
         SignalWorkflowExecutionRequest.newBuilder()
             .setRequestId(UUID.randomUUID().toString())
             .setIdentity(identity)
-            .setDomain(domain)
-            .setInput(ByteString.copyFrom(signalParameters.getInput()))
+            .setDomain(signalParameters.getDomain() == null ? domain : signalParameters.getDomain())
+            .setInput(OptionsUtils.toByteString(signalParameters.getInput()))
             .setSignalName(signalParameters.getSignalName())
             .setWorkflowExecution(
                 WorkflowExecution.newBuilder()
-                    .setRunId(signalParameters.getRunId())
+                    .setRunId(OptionsUtils.safeGet(signalParameters.getRunId()))
                     .setWorkflowId(signalParameters.getWorkflowId()))
             .build();
     GrpcRetryer.retry(
@@ -309,13 +310,15 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
             .setExecution(
                 WorkflowExecution.newBuilder()
                     .setWorkflowId(queryParameters.getWorkflowId())
-                    .setRunId(queryParameters.getRunId()))
+                    .setRunId(OptionsUtils.safeGet(queryParameters.getRunId())))
             .setQuery(
                 WorkflowQuery.newBuilder()
-                    .setQueryArgs(ByteString.copyFrom(queryParameters.getInput()))
+                    .setQueryArgs(OptionsUtils.toByteString(queryParameters.getInput()))
                     .setQueryType(queryParameters.getQueryType()))
             .setQueryRejectCondition(queryParameters.getQueryRejectCondition())
-            .setQueryConsistencyLevel(QueryConsistencyLevel.QueryConsistencyLevelStrong)
+            .setQueryConsistencyLevel(
+                QueryConsistencyLevel
+                    .QueryConsistencyLevelEventual) // TODO: Configurable and strong
             .build();
     return GrpcRetryer.retryWithResult(
         GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
