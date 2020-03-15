@@ -524,6 +524,11 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
 
     @Override
+    public WorkflowExecution getParentWorkflowExecution() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
     public WorkflowType getWorkflowType() {
       return WorkflowType.newBuilder().setName("dummy-workflow").build();
     }
@@ -541,6 +546,11 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     @Override
     public void setContinueAsNewOnCompletion(
         ContinueAsNewWorkflowExecutionParameters continueParameters) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public String getContinuedExecutionRunId() {
       throw new UnsupportedOperationException("not implemented");
     }
 

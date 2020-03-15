@@ -44,8 +44,7 @@ public interface DecisionContext extends ReplayAware {
 
   WorkflowExecution getWorkflowExecution();
 
-  // TODO: Add to Temporal
-  //    io.temporal.proto.common.WorkflowExecution getParentWorkflowExecution();
+  WorkflowExecution getParentWorkflowExecution();
 
   WorkflowType getWorkflowType();
 
@@ -55,9 +54,7 @@ public interface DecisionContext extends ReplayAware {
 
   void setContinueAsNewOnCompletion(ContinueAsNewWorkflowExecutionParameters continueParameters);
 
-  //    io.temporal.ChildPolicy getChildPolicy();
-
-  //    String getContinuedExecutionRunId();
+  String getContinuedExecutionRunId();
 
   int getExecutionStartToCloseTimeoutSeconds();
 

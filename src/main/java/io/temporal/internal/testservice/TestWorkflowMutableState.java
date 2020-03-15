@@ -115,4 +115,6 @@ interface TestWorkflowMutableState {
   void completeQuery(QueryId queryId, RespondQueryTaskCompletedRequest completeRequest);
 
   StickyExecutionAttributes getStickyExecutionAttributes();
+
+  Optional<TestWorkflowMutableState> getParent();
 }

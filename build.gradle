@@ -36,6 +36,7 @@ googleJavaFormat {
     toolVersion '1.5'
     include '**/*.java'
     exclude '**/generated/*'
+    exclude '**/.idea/**'
 }
 
 group = 'io.temporal'
