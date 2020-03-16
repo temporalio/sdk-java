@@ -28,7 +28,8 @@ public class ActivityStubImpl extends ActivityStubBase {
   private final WorkflowInterceptor activityExecutor;
 
   static ActivityStub newInstance(ActivityOptions options, WorkflowInterceptor activityExecutor) {
-    ActivityOptions validatedOptions = options.toBuilder().validateAndBuildWithDefaults();
+    ActivityOptions validatedOptions =
+        ActivityOptions.newBuilder(options).validateAndBuildWithDefaults();
     return new ActivityStubImpl(validatedOptions, activityExecutor);
   }
 

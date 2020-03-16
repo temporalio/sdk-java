@@ -31,7 +31,33 @@ import java.util.function.Function;
 public final class WorkerOptions {
 
   public static Builder newBuilder() {
-    return new WorkerOptions.Builder();
+    return new Builder();
+  }
+
+  public static Builder newBuilder(WorkerOptions o) {
+    Builder result = new Builder();
+    if (o != null) {
+      result.disableWorkflowWorker = o.disableWorkflowWorker;
+      result.disableActivityWorker = o.disableActivityWorker;
+      result.workerActivitiesPerSecond = o.workerActivitiesPerSecond;
+      result.identity = o.identity;
+      result.dataConverter = o.dataConverter;
+      result.maxConcurrentActivityExecutionSize = o.maxConcurrentActivityExecutionSize;
+      result.maxConcurrentWorkflowExecutionSize = o.maxConcurrentWorkflowExecutionSize;
+      result.maxConcurrentLocalActivityExecutionSize = o.maxConcurrentLocalActivityExecutionSize;
+      result.taskListActivitiesPerSecond = o.taskListActivitiesPerSecond;
+      result.activityPollerOptions = o.activityPollerOptions;
+      result.workflowPollerOptions = o.workflowPollerOptions;
+      result.reportActivityCompletionRetryOptions = o.reportActivityCompletionRetryOptions;
+      result.reportActivityFailureRetryOptions = o.reportActivityFailureRetryOptions;
+      result.reportWorkflowCompletionRetryOptions = o.reportWorkflowCompletionRetryOptions;
+      result.reportWorkflowFailureRetryOptions = o.reportWorkflowFailureRetryOptions;
+      result.interceptorFactory = o.interceptorFactory;
+      result.metricsScope = o.metricsScope;
+      result.enableLoggingInReplay = o.enableLoggingInReplay;
+      ;
+    }
+    return result;
   }
 
   public static final class Builder {
@@ -361,28 +387,6 @@ public final class WorkerOptions {
 
   public boolean getEnableLoggingInReplay() {
     return enableLoggingInReplay;
-  }
-
-  public Builder toBuilder() {
-    return new Builder()
-        .setDisableWorkflowWorker(disableWorkflowWorker)
-        .setDisableActivityWorker(disableActivityWorker)
-        .setWorkerActivitiesPerSecond(workerActivitiesPerSecond)
-        .setIdentity(identity)
-        .setDataConverter(dataConverter)
-        .setMaxConcurrentActivityExecutionSize(maxConcurrentActivityExecutionSize)
-        .setMaxConcurrentWorkflowExecutionSize(maxConcurrentWorkflowExecutionSize)
-        .setMaxConcurrentLocalActivityExecutionSize(maxConcurrentLocalActivityExecutionSize)
-        .setTaskListActivitiesPerSecond(taskListActivitiesPerSecond)
-        .setActivityPollerOptions(activityPollerOptions)
-        .setWorkflowPollerOptions(workflowPollerOptions)
-        .setReportActivityCompletionRetryOptions(reportActivityCompletionRetryOptions)
-        .setReportActivityFailureRetryOptions(reportActivityFailureRetryOptions)
-        .setReportWorkflowCompletionRetryOptions(reportWorkflowCompletionRetryOptions)
-        .setReportWorkflowFailureRetryOptions(reportWorkflowFailureRetryOptions)
-        .setInterceptorFactory(interceptorFactory)
-        .setMetricsScope(metricsScope)
-        .setEnableLoggingInReplay(enableLoggingInReplay);
   }
 
   @Override

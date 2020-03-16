@@ -53,7 +53,7 @@ public class ActivityOptionsTest {
         ActivityOptionsTest.class
             .getMethod("defaultActivityOptions")
             .getAnnotation(ActivityMethod.class);
-    Assert.assertEquals(o, o.toBuilder().setActivityMethod(a).build());
+    Assert.assertEquals(o, ActivityOptions.newBuilder(o).setActivityMethod(a).build());
   }
 
   @MethodRetry(initialIntervalSeconds = 3)
@@ -83,7 +83,7 @@ public class ActivityOptionsTest {
         ActivityOptionsTest.class
             .getMethod("defaultActivityAndRetryOptions")
             .getAnnotation(ActivityMethod.class);
-    Assert.assertEquals(o, o.toBuilder().setActivityMethod(a).build());
+    Assert.assertEquals(o, ActivityOptions.newBuilder(o).setActivityMethod(a).build());
   }
 
   @MethodRetry(
@@ -109,7 +109,8 @@ public class ActivityOptionsTest {
     ActivityMethod a = method.getAnnotation(ActivityMethod.class);
     MethodRetry r = method.getAnnotation(MethodRetry.class);
     ActivityOptions o = ActivityOptions.newBuilder().build();
-    ActivityOptions merged = o.toBuilder().setActivityMethod(a).setMethodRetry(r).build();
+    ActivityOptions merged =
+        ActivityOptions.newBuilder(o).setActivityMethod(a).setMethodRetry(r).build();
     Assert.assertEquals(a.taskList(), merged.getTaskList());
     Assert.assertEquals(a.heartbeatTimeoutSeconds(), merged.getHeartbeatTimeout().getSeconds());
     Assert.assertEquals(
@@ -152,6 +153,7 @@ public class ActivityOptionsTest {
     Method method = ActivityOptionsTest.class.getMethod("activityAndRetryOptions");
     ActivityMethod a = method.getAnnotation(ActivityMethod.class);
     MethodRetry r = method.getAnnotation(MethodRetry.class);
-    Assert.assertEquals(o, o.toBuilder().setActivityMethod(a).setMethodRetry(r).build());
+    Assert.assertEquals(
+        o, ActivityOptions.newBuilder(o).setActivityMethod(a).setMethodRetry(r).build());
   }
 }

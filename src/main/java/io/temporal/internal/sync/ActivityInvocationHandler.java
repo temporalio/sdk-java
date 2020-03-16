@@ -44,9 +44,11 @@ class ActivityInvocationHandler extends ActivityInvocationHandlerBase {
   protected Function<Object[], Object> getActivityFunc(
       Method method, MethodRetry methodRetry, ActivityMethod activityMethod, String activityName) {
     Function<Object[], Object> function;
-    ActivityOptions o = options == null ? ActivityOptions.newBuilder().build() : options;
     ActivityOptions mergedOptions =
-        o.toBuilder().setActivityMethod(activityMethod).setMethodRetry(methodRetry).build();
+        ActivityOptions.newBuilder(options)
+            .setActivityMethod(activityMethod)
+            .setMethodRetry(methodRetry)
+            .build();
     ActivityStub stub = ActivityStubImpl.newInstance(mergedOptions, activityExecutor);
 
     function =

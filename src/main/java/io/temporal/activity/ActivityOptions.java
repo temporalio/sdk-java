@@ -29,8 +29,23 @@ import java.util.Objects;
 /** Options used to configure how an activity is invoked. */
 public final class ActivityOptions {
 
-  public static ActivityOptions.Builder newBuilder() {
-    return new ActivityOptions.Builder();
+  public static Builder newBuilder() {
+    return new Builder();
+  }
+
+  public static Builder newBuilder(ActivityOptions o) {
+    Builder result = newBuilder();
+    if (o != null) {
+      result
+          .setContextPropagators(o.contextPropagators)
+          .setHeartbeatTimeout(o.heartbeatTimeout)
+          .setRetryOptions(o.retryOptions)
+          .setScheduleToCloseTimeout(o.scheduleToCloseTimeout)
+          .setScheduleToStartTimeout(o.scheduleToStartTimeout)
+          .setStartToCloseTimeout(o.startToCloseTimeout)
+          .setTaskList(o.taskList);
+    }
+    return result;
   }
 
   public static final class Builder {
@@ -230,17 +245,6 @@ public final class ActivityOptions {
     this.taskList = taskList;
     this.retryOptions = retryOptions;
     this.contextPropagators = contextPropagators;
-  }
-
-  public Builder toBuilder() {
-    return newBuilder()
-        .setContextPropagators(contextPropagators)
-        .setHeartbeatTimeout(heartbeatTimeout)
-        .setRetryOptions(retryOptions)
-        .setScheduleToCloseTimeout(scheduleToCloseTimeout)
-        .setScheduleToStartTimeout(scheduleToStartTimeout)
-        .setStartToCloseTimeout(startToCloseTimeout)
-        .setTaskList(taskList);
   }
 
   public Duration getHeartbeatTimeout() {
