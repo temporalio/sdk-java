@@ -281,7 +281,7 @@ public class WorkflowTest {
               .build();
       workerFactory = new Worker.Factory(service, DOMAIN, factoryOptions);
       WorkerOptions workerOptions =
-          new WorkerOptions.Builder()
+          WorkerOptions.newBuilder()
               .setActivityPollerOptions(new PollerOptions.Builder().setPollThreadCount(5).build())
               .setMaxConcurrentActivityExecutionSize(1000)
               .setInterceptorFactory(tracer)

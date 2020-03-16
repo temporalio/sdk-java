@@ -80,7 +80,7 @@ public class WorkerStressTests {
         new TestEnvironmentWrapper(
             new Worker.FactoryOptions.Builder().setMaxWorkflowThreadCount(200).build());
     Worker.Factory factory = wrapper.getWorkerFactory();
-    Worker worker = factory.newWorker(taskListName, new WorkerOptions.Builder().build());
+    Worker worker = factory.newWorker(taskListName, WorkerOptions.newBuilder().build());
     worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
     worker.registerActivitiesImplementations(new ActivitiesImpl());
     factory.start();
@@ -123,7 +123,7 @@ public class WorkerStressTests {
                 .setMaxWorkflowThreadCount(2)
                 .build());
     Worker.Factory factory = wrapper.getWorkerFactory();
-    Worker worker = factory.newWorker(taskListName, new WorkerOptions.Builder().build());
+    Worker worker = factory.newWorker(taskListName, WorkerOptions.newBuilder().build());
     worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
     worker.registerActivitiesImplementations(new ActivitiesImpl());
     factory.start();

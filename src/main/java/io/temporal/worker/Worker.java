@@ -106,7 +106,7 @@ public final class Worker implements Suspendable {
     this.threadPoolExecutor = Objects.requireNonNull(threadPoolExecutor);
 
     this.taskList = taskList;
-    this.options = MoreObjects.firstNonNull(options, new WorkerOptions.Builder().build());
+    this.options = MoreObjects.firstNonNull(options, WorkerOptions.newBuilder().build());
 
     SingleWorkerOptions activityOptions =
         toActivityOptions(this.options, domain, taskList, contextPropagators);

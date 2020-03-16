@@ -126,7 +126,7 @@ public class StickyWorkerTest {
                 .setMetricScope(scope)
                 .build());
     Worker.Factory factory = wrapper.getWorkerFactory();
-    Worker worker = factory.newWorker(taskListName, new WorkerOptions.Builder().build());
+    Worker worker = factory.newWorker(taskListName, WorkerOptions.newBuilder().build());
     worker.registerWorkflowImplementationTypes(GreetingSignalWorkflowImpl.class);
     factory.start();
 
@@ -189,7 +189,7 @@ public class StickyWorkerTest {
     Worker worker =
         factory.newWorker(
             taskListName,
-            new WorkerOptions.Builder().setMaxConcurrentWorkflowExecutionSize(5).build());
+            WorkerOptions.newBuilder().setMaxConcurrentWorkflowExecutionSize(5).build());
     worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
     worker.registerActivitiesImplementations(new ActivitiesImpl());
     factory.start();
@@ -242,7 +242,7 @@ public class StickyWorkerTest {
                 .setMetricScope(scope)
                 .build());
     Worker.Factory factory = wrapper.getWorkerFactory();
-    Worker worker = factory.newWorker(taskListName, new WorkerOptions.Builder().build());
+    Worker worker = factory.newWorker(taskListName, WorkerOptions.newBuilder().build());
     worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
     worker.registerActivitiesImplementations(new ActivitiesImpl());
     factory.start();
@@ -300,7 +300,7 @@ public class StickyWorkerTest {
                 .setMetricScope(scope)
                 .build());
     Worker.Factory factory = wrapper.getWorkerFactory();
-    Worker worker = factory.newWorker(taskListName, new WorkerOptions.Builder().build());
+    Worker worker = factory.newWorker(taskListName, WorkerOptions.newBuilder().build());
     worker.registerWorkflowImplementationTypes(
         GreetingParentWorkflowImpl.class, GreetingChildImpl.class);
     factory.start();
@@ -351,7 +351,7 @@ public class StickyWorkerTest {
                 .setMetricScope(scope)
                 .build());
     Worker.Factory factory = wrapper.getWorkerFactory();
-    Worker worker = factory.newWorker(taskListName, new WorkerOptions.Builder().build());
+    Worker worker = factory.newWorker(taskListName, WorkerOptions.newBuilder().build());
     worker.registerWorkflowImplementationTypes(TestMutableSideEffectWorkflowImpl.class);
     factory.start();
 

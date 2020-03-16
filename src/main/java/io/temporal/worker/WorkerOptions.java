@@ -30,6 +30,10 @@ import java.util.function.Function;
 
 public final class WorkerOptions {
 
+  public static Builder newBuilder() {
+    return new WorkerOptions.Builder();
+  }
+
   public static final class Builder {
 
     private boolean disableWorkflowWorker;
@@ -50,6 +54,8 @@ public final class WorkerOptions {
     private Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory = (n) -> n;
     private Scope metricsScope;
     private boolean enableLoggingInReplay;
+
+    private Builder() {}
 
     /**
      * When set to true doesn't poll on workflow task list even if there are registered workflows
@@ -355,6 +361,28 @@ public final class WorkerOptions {
 
   public boolean getEnableLoggingInReplay() {
     return enableLoggingInReplay;
+  }
+
+  public Builder toBuilder() {
+    return new Builder()
+        .setDisableWorkflowWorker(disableWorkflowWorker)
+        .setDisableActivityWorker(disableActivityWorker)
+        .setWorkerActivitiesPerSecond(workerActivitiesPerSecond)
+        .setIdentity(identity)
+        .setDataConverter(dataConverter)
+        .setMaxConcurrentActivityExecutionSize(maxConcurrentActivityExecutionSize)
+        .setMaxConcurrentWorkflowExecutionSize(maxConcurrentWorkflowExecutionSize)
+        .setMaxConcurrentLocalActivityExecutionSize(maxConcurrentLocalActivityExecutionSize)
+        .setTaskListActivitiesPerSecond(taskListActivitiesPerSecond)
+        .setActivityPollerOptions(activityPollerOptions)
+        .setWorkflowPollerOptions(workflowPollerOptions)
+        .setReportActivityCompletionRetryOptions(reportActivityCompletionRetryOptions)
+        .setReportActivityFailureRetryOptions(reportActivityFailureRetryOptions)
+        .setReportWorkflowCompletionRetryOptions(reportWorkflowCompletionRetryOptions)
+        .setReportWorkflowFailureRetryOptions(reportWorkflowFailureRetryOptions)
+        .setInterceptorFactory(interceptorFactory)
+        .setMetricsScope(metricsScope)
+        .setEnableLoggingInReplay(enableLoggingInReplay);
   }
 
   @Override
