@@ -18,15 +18,10 @@
 package io.temporal.worker;
 
 import static io.temporal.workflow.WorkflowTest.DOMAIN;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.*;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
@@ -39,7 +34,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.DeciderCache;
-import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.Async;
@@ -59,7 +54,11 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
-import org.junit.*;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Rule;
+import org.junit.Test;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -88,19 +87,24 @@ public class StickyWorkerTest {
 
   @Rule public TestName testName = new TestName();
 
-  private static GrpcWorkflowServiceFactory service;
+  private static WorkflowServiceStubs service;
 
   @BeforeClass
   public static void setUp() {
     if (useDockerService) {
-      service = new GrpcWorkflowServiceFactory();
+      service = WorkflowServiceStubs.newInstance();
     }
   }
 
   @AfterClass
   public static void tearDown() {
     if (service != null) {
-      service.close();
+      service.shutdownNow();
+      try {
+        service.awaitTermination(1, TimeUnit.SECONDS);
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
     }
   }
 

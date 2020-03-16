@@ -15,15 +15,13 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.serviceclient;
+package io.temporal.internal.common;
 
 import static io.temporal.internal.common.CheckedExceptionWrapper.unwrap;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.temporal.internal.common.AsyncBackoffThrottler;
-import io.temporal.internal.common.BackoffThrottler;
-import io.temporal.internal.common.CheckedExceptionWrapper;
+import io.temporal.common.RpcRetryOptions;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
@@ -33,15 +31,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class GrpcRetryer {
-  public static final GrpcRetryOptions DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS;
+  public static final RpcRetryOptions DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS;
 
   private static final Duration RETRY_SERVICE_OPERATION_INITIAL_INTERVAL = Duration.ofMillis(20);
   private static final Duration RETRY_SERVICE_OPERATION_EXPIRATION_INTERVAL = Duration.ofMinutes(1);
   private static final double RETRY_SERVICE_OPERATION_BACKOFF = 1.2;
 
   static {
-    GrpcRetryOptions.Builder roBuilder =
-        new GrpcRetryOptions.Builder()
+    RpcRetryOptions.Builder roBuilder =
+        new RpcRetryOptions.Builder()
             .setInitialInterval(RETRY_SERVICE_OPERATION_INITIAL_INTERVAL)
             .setExpiration(RETRY_SERVICE_OPERATION_EXPIRATION_INTERVAL)
             .setBackoffCoefficient(RETRY_SERVICE_OPERATION_BACKOFF);
@@ -99,7 +97,7 @@ public final class GrpcRetryer {
 
   private static final Logger log = LoggerFactory.getLogger(GrpcRetryer.class);
 
-  public static <T extends Throwable> void retry(GrpcRetryOptions options, RetryableProc<T> r)
+  public static <T extends Throwable> void retry(RpcRetryOptions options, RetryableProc<T> r)
       throws T {
     retryWithResult(
         options,
@@ -110,7 +108,7 @@ public final class GrpcRetryer {
   }
 
   public static <R, T extends Throwable> R retryWithResult(
-      GrpcRetryOptions options, RetryableFunc<R, T> r) throws T {
+      RpcRetryOptions options, RetryableFunc<R, T> r) throws T {
     int attempt = 0;
     long startTime = System.currentTimeMillis();
     BackoffThrottler throttler =
@@ -130,10 +128,10 @@ public final class GrpcRetryer {
         return null;
       } catch (StatusRuntimeException e) {
         throttler.failure();
-        for (GrpcRetryOptions.DoNotRetryPair pair : options.getDoNotRetry()) {
+        for (RpcRetryOptions.DoNotRetryPair pair : options.getDoNotRetry()) {
           if (pair.getCode() == e.getStatus().getCode()
               && (pair.getDetailsClass() == null
-                  || GrpcStatusUtils.hasFailure(e, pair.getDetailsClass()))) {
+                  || StatusUtils.hasFailure(e, pair.getDetailsClass()))) {
             rethrow(e);
           }
         }
@@ -150,7 +148,7 @@ public final class GrpcRetryer {
   }
 
   public static <R> CompletableFuture<R> retryWithResultAsync(
-      GrpcRetryOptions options, Supplier<CompletableFuture<R>> function) {
+      RpcRetryOptions options, Supplier<CompletableFuture<R>> function) {
     int attempt = 0;
     long startTime = System.currentTimeMillis();
     AsyncBackoffThrottler throttler =
@@ -177,7 +175,7 @@ public final class GrpcRetryer {
   }
 
   private static <R> CompletableFuture<R> retryWithResultAsync(
-      GrpcRetryOptions options,
+      RpcRetryOptions options,
       Supplier<CompletableFuture<R>> function,
       int attempt,
       long startTime,
@@ -220,7 +218,7 @@ public final class GrpcRetryer {
 
   /** Using {@link ValueExceptionPair} as future#thenCompose doesn't include exception parameter. */
   private static <R> ValueExceptionPair<R> failOrRetry(
-      GrpcRetryOptions options,
+      RpcRetryOptions options,
       Supplier<CompletableFuture<R>> function,
       int attempt,
       long startTime,
@@ -235,10 +233,10 @@ public final class GrpcRetryer {
     }
     StatusRuntimeException exception = (StatusRuntimeException) e;
     long elapsed = System.currentTimeMillis() - startTime;
-    for (GrpcRetryOptions.DoNotRetryPair pair : options.getDoNotRetry()) {
+    for (RpcRetryOptions.DoNotRetryPair pair : options.getDoNotRetry()) {
       if (pair.getCode() == exception.getStatus().getCode()
           && (pair.getDetailsClass() == null
-              || GrpcStatusUtils.hasFailure(exception, pair.getDetailsClass()))) {
+              || StatusUtils.hasFailure(exception, pair.getDetailsClass()))) {
         return new ValueExceptionPair<>(null, e);
       }
     }

@@ -32,9 +32,10 @@ import io.temporal.internal.worker.DecisionTaskHandler;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.proto.common.StickyExecutionAttributes;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
-import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.HistoryUtils;
 import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -42,7 +43,7 @@ import org.junit.Test;
 public class ReplayDeciderTaskHandlerTests {
 
   private TestWorkflowService testService;
-  private GrpcWorkflowServiceFactory service;
+  private WorkflowServiceStubs service;
 
   @Before
   public void setUp() {
@@ -52,7 +53,12 @@ public class ReplayDeciderTaskHandlerTests {
 
   @After
   public void tearDown() {
-    service.close();
+    service.shutdownNow();
+    try {
+      service.awaitTermination(1, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
     testService.close();
   }
 

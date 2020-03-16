@@ -32,7 +32,7 @@ import io.temporal.internal.external.ManualActivityCompletionClientFactory;
 import io.temporal.internal.external.ManualActivityCompletionClientFactoryImpl;
 import io.temporal.internal.sync.WorkflowInvocationHandler.InvocationType;
 import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.WorkflowMethod;
@@ -42,6 +42,8 @@ import java.lang.reflect.Proxy;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class WorkflowClientInternal implements WorkflowClient {
 
@@ -49,7 +51,11 @@ public final class WorkflowClientInternal implements WorkflowClient {
   private final ManualActivityCompletionClientFactory manualActivityCompletionClientFactory;
   private final DataConverter dataConverter;
   private final WorkflowClientInterceptor[] interceptors;
-  private final GrpcWorkflowServiceFactory workflowService;
+  private final WorkflowServiceStubs workflowService;
+  /** Do not shutdown workflowService if it was passed from outside. */
+  private final boolean workflowServiceSkipShutdown;
+
+  private AtomicBoolean shutdown = new AtomicBoolean();
 
   /**
    * Creates worker that connects to the local instance of the Temporal Service that listens on a
@@ -59,7 +65,10 @@ public final class WorkflowClientInternal implements WorkflowClient {
    */
   public static WorkflowClient newInstance(String domain) {
     return new WorkflowClientInternal(
-        new GrpcWorkflowServiceFactory(), domain, new WorkflowClientOptions.Builder().build());
+        WorkflowServiceStubs.newInstance(),
+        false,
+        domain,
+        new WorkflowClientOptions.Builder().build());
   }
 
   /**
@@ -71,19 +80,19 @@ public final class WorkflowClientInternal implements WorkflowClient {
    *     configuring client.
    */
   public static WorkflowClient newInstance(String domain, WorkflowClientOptions options) {
-    return new WorkflowClientInternal(new GrpcWorkflowServiceFactory(), domain, options);
+    return new WorkflowClientInternal(WorkflowServiceStubs.newInstance(), false, domain, options);
   }
 
   /**
    * Creates client that connects to an instance of the Temporal Service.
    *
-   * @param host of the Temporal Service endpoint
-   * @param port of the Temporal Service endpoint
+   * @param target address of the Temporal Service endpoint
    * @param domain domain that worker uses to poll.
    */
-  public static WorkflowClient newInstance(String host, int port, String domain) {
+  public static WorkflowClient newInstance(String target, String domain) {
     return new WorkflowClientInternal(
-        new GrpcWorkflowServiceFactory(host, port),
+        WorkflowServiceStubs.newInstance(target),
+        false,
         domain,
         new WorkflowClientOptions.Builder().build());
   }
@@ -91,15 +100,15 @@ public final class WorkflowClientInternal implements WorkflowClient {
   /**
    * Creates client that connects to an instance of the Temporal Service.
    *
-   * @param host of the Temporal Service endpoint
-   * @param port of the Temporal Service endpoint
+   * @param target address of the Temporal Service endpoint
    * @param domain domain that worker uses to poll.
    * @param options Options (like {@link io.temporal.converter.DataConverter} override) for
    *     configuring client.
    */
   public static WorkflowClient newInstance(
-      String host, int port, String domain, WorkflowClientOptions options) {
-    return new WorkflowClientInternal(new GrpcWorkflowServiceFactory(host, port), domain, options);
+      String target, String domain, WorkflowClientOptions options) {
+    return new WorkflowClientInternal(
+        WorkflowServiceStubs.newInstance(target), false, domain, options);
   }
 
   /**
@@ -108,8 +117,8 @@ public final class WorkflowClientInternal implements WorkflowClient {
    * @param service client to the Temporal Service endpoint.
    * @param domain domain that worker uses to poll.
    */
-  public static WorkflowClient newInstance(GrpcWorkflowServiceFactory service, String domain) {
-    return new WorkflowClientInternal(service, domain, null);
+  public static WorkflowClient newInstance(WorkflowServiceStubs service, String domain) {
+    return new WorkflowClientInternal(service, true, domain, null);
   }
 
   /**
@@ -121,16 +130,20 @@ public final class WorkflowClientInternal implements WorkflowClient {
    *     configuring client.
    */
   public static WorkflowClient newInstance(
-      GrpcWorkflowServiceFactory service, String domain, WorkflowClientOptions options) {
-    return new WorkflowClientInternal(service, domain, options);
+      WorkflowServiceStubs service, String domain, WorkflowClientOptions options) {
+    return new WorkflowClientInternal(service, true, domain, options);
   }
 
   private WorkflowClientInternal(
-      GrpcWorkflowServiceFactory service, String domain, WorkflowClientOptions options) {
+      WorkflowServiceStubs service,
+      boolean workflowServiceSkipShutdown,
+      String domain,
+      WorkflowClientOptions options) {
     if (options == null) {
       options = new WorkflowClientOptions.Builder().build();
     }
     this.workflowService = service;
+    this.workflowServiceSkipShutdown = workflowServiceSkipShutdown;
     this.genericClient =
         new GenericWorkflowClientExternalImpl(
             service, domain, options.getIdentity(), options.getMetricsScope());
@@ -258,6 +271,44 @@ public final class WorkflowClientInternal implements WorkflowClient {
   @Override
   public WorkflowExecution signalWithStart(BatchRequest signalWithStartBatch) {
     return ((SignalWithStartBatchRequest) signalWithStartBatch).invoke();
+  }
+
+  @Override
+  public void shutdown() {
+    shutdown.set(true);
+    if (!workflowServiceSkipShutdown) {
+      workflowService.shutdown();
+    }
+  }
+
+  @Override
+  public void shutdownNow() {
+    shutdown.set(true);
+    if (!workflowServiceSkipShutdown) {
+      workflowService.shutdownNow();
+    }
+  }
+
+  @Override
+  public boolean isShutdown() {
+    return shutdown.get();
+  }
+
+  @Override
+  public boolean isTerminated() {
+    if (!workflowServiceSkipShutdown) {
+      return workflowService.isTerminated();
+    } else {
+      return shutdown.get();
+    }
+  }
+
+  @Override
+  public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+    if (!workflowServiceSkipShutdown) {
+      return workflowService.awaitTermination(timeout, unit);
+    }
+    return true;
   }
 
   public static WorkflowExecution start(Functions.Proc workflow) {
@@ -446,10 +497,5 @@ public final class WorkflowClientInternal implements WorkflowClient {
       A5 arg5,
       A6 arg6) {
     return execute(() -> workflow.apply(arg1, arg2, arg3, arg4, arg5, arg6));
-  }
-
-  @Override
-  public void close() {
-    this.workflowService.close();
   }
 }

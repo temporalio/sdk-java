@@ -18,7 +18,7 @@
 package io.temporal.internal.sync;
 
 import io.temporal.activity.ActivityTask;
-import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
@@ -42,7 +42,7 @@ public final class ActivityInternal {
     return getContext().getDomain();
   }
 
-  public static GrpcWorkflowServiceFactory getService() {
+  public static WorkflowServiceStubs getService() {
     return getContext().getService();
   }
 

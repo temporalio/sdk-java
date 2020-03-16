@@ -23,6 +23,8 @@ import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import io.grpc.Status;
+import io.temporal.common.RpcRetryOptions;
+import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.HistoryHelper.DecisionEvents;
@@ -42,9 +44,7 @@ import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
-import io.temporal.serviceclient.GrpcRetryOptions;
-import io.temporal.serviceclient.GrpcRetryer;
-import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -67,7 +67,7 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
 
   private final DecisionsHelper decisionsHelper;
   private final DecisionContextImpl context;
-  private final GrpcWorkflowServiceFactory service;
+  private final WorkflowServiceStubs service;
   private final ReplayWorkflow workflow;
   private boolean cancelRequested;
   private boolean completed;
@@ -79,7 +79,7 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
   private final WorkflowExecutionStartedEventAttributes startedEvent;
 
   ReplayDecider(
-      GrpcWorkflowServiceFactory service,
+      WorkflowServiceStubs service,
       String domain,
       ReplayWorkflow workflow,
       DecisionsHelper decisionsHelper,
@@ -607,8 +607,8 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
                     "getWorkflowExecutionHistory pagination took longer than decision task timeout")
                 .asRuntimeException();
           }
-          GrpcRetryOptions retryOptions =
-              new GrpcRetryOptions.Builder()
+          RpcRetryOptions retryOptions =
+              new RpcRetryOptions.Builder()
                   .setExpiration(expiration)
                   .setInitialInterval(retryServiceOperationInitialInterval)
                   .setMaximumInterval(retryServiceOperationMaxInterval)

@@ -38,10 +38,11 @@ import io.temporal.proto.common.HistoryEvent;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowQuery;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
-import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.HistoryUtils;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import junit.framework.TestCase;
 import org.junit.Test;
 
@@ -72,7 +73,7 @@ public class ReplayDeciderCacheTests {
   @Test
   public void whenHistoryIsFullNewReplayDeciderIsReturned_InitiallyCached() throws Exception {
     TestWorkflowService testService = new TestWorkflowService();
-    GrpcWorkflowServiceFactory service = testService.newClientStub();
+    WorkflowServiceStubs service = testService.newClientStub();
 
     // Arrange
     DeciderCache replayDeciderCache = new DeciderCache(10, NoopScope.getInstance());
@@ -101,7 +102,12 @@ public class ReplayDeciderCacheTests {
         decider2,
         replayDeciderCache.getOrCreate(decisionTask2, () -> createFakeDecider(decisionTask2)));
     assertSame(decider2, decider);
-    service.close();
+    service.shutdownNow();
+    try {
+      service.awaitTermination(1, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
   }
 
   @Test(timeout = 2000)
@@ -117,8 +123,9 @@ public class ReplayDeciderCacheTests {
         new RootScopeBuilder().reporter(reporter).reportEvery(Duration.ofMillis(500)).tagged(tags);
 
     DeciderCache replayDeciderCache = new DeciderCache(10, scope);
-    try (TestWorkflowService testService = new TestWorkflowService(true);
-        GrpcWorkflowServiceFactory service = testService.newClientStub(); ) {
+    TestWorkflowService testService = new TestWorkflowService(true);
+    WorkflowServiceStubs service = testService.newClientStub();
+    try {
       PollForDecisionTaskResponse decisionTask =
           HistoryUtils.generateDecisionTaskWithInitialHistory(
               "domain", "taskList", "workflowType", service);
@@ -140,6 +147,10 @@ public class ReplayDeciderCacheTests {
       Thread.sleep(500);
       verify(reporter, times(1)).reportCounter(MetricsType.STICKY_CACHE_HIT, tags, 1);
       assertEquals(decider, decider2);
+    } finally {
+      service.shutdownNow();
+      service.awaitTermination(1, TimeUnit.SECONDS);
+      testService.close();
     }
   }
 
