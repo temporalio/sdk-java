@@ -19,6 +19,7 @@ package io.temporal.internal.sync;
 
 import io.temporal.internal.replay.DecisionContext;
 import io.temporal.proto.common.SearchAttributes;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.workflow.WorkflowInfo;
 import java.time.Duration;
 
@@ -51,6 +52,11 @@ final class WorkflowInfoImpl implements WorkflowInfo {
   }
 
   @Override
+  public String getContinuedExecutionRunId() {
+    return context.getContinuedExecutionRunId();
+  }
+
+  @Override
   public String getTaskList() {
     return context.getTaskList();
   }
@@ -63,5 +69,17 @@ final class WorkflowInfoImpl implements WorkflowInfo {
   @Override
   public SearchAttributes getSearchAttributes() {
     return context.getSearchAttributes();
+  }
+
+  @Override
+  public String getParentWorkflowId() {
+    WorkflowExecution parentWorkflowExecution = context.getParentWorkflowExecution();
+    return parentWorkflowExecution == null ? null : parentWorkflowExecution.getWorkflowId();
+  }
+
+  @Override
+  public String getParentRunId() {
+    WorkflowExecution parentWorkflowExecution = context.getParentWorkflowExecution();
+    return parentWorkflowExecution == null ? null : parentWorkflowExecution.getRunId();
   }
 }

@@ -30,9 +30,15 @@ public interface WorkflowInfo {
 
   String getWorkflowType();
 
+  String getContinuedExecutionRunId();
+
   String getTaskList();
 
   Duration getExecutionStartToCloseTimeout();
 
   SearchAttributes getSearchAttributes();
+
+  String getParentWorkflowId();
+
+  String getParentRunId();
 }

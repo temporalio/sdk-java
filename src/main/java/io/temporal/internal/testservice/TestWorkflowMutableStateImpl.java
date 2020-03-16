@@ -273,6 +273,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
+  public Optional<TestWorkflowMutableState> getParent() {
+    return parent;
+  }
+
+  @Override
   public void startDecisionTask(
       PollForDecisionTaskResponse.Builder task, PollForDecisionTaskRequest pollRequest) {
     if (!task.hasQuery()) {

@@ -315,7 +315,8 @@ public final class ClockDecisionContext {
   }
 
   private void validateVersion(String changeID, int version, int minSupported, int maxSupported) {
-    if (version < minSupported || version > maxSupported) {
+    if ((version < minSupported || version > maxSupported)
+        && version != WorkflowInternal.DEFAULT_VERSION) {
       throw new Error(
           String.format(
               "Version %d of changeID %s is not supported. Supported version is between %d and %d.",

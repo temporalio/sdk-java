@@ -107,6 +107,16 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   }
 
   @Override
+  public WorkflowExecution getParentWorkflowExecution() {
+    return workflowContext.getParentWorkflowExecution();
+  }
+
+  @Override
+  public String getContinuedExecutionRunId() {
+    return workflowContext.getContinuedExecutionRunId();
+  }
+
+  @Override
   public WorkflowType getWorkflowType() {
     return workflowContext.getWorkflowType();
   }

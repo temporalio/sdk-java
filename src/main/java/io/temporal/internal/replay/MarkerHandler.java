@@ -19,6 +19,7 @@ package io.temporal.internal.replay;
 
 import io.temporal.converter.DataConverter;
 import io.temporal.internal.common.OptionsUtils;
+import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.proto.common.Header;
 import io.temporal.proto.common.HistoryEvent;
 import io.temporal.proto.common.MarkerRecordedEventAttributes;
@@ -212,6 +213,13 @@ class MarkerHandler {
         recordMutableMarker(id, eventId, data.get(), accessCount, converter);
         return data;
       }
+
+      // TODO(maxim): Verify why this is necessary.
+      if (!stored.isPresent()) {
+        mutableMarkerResults.put(
+            id, new MarkerResult(converter.toData(WorkflowInternal.DEFAULT_VERSION)));
+      }
+
       return stored;
     }
     Optional<byte[]> toStore = func.apply(stored);

@@ -35,8 +35,6 @@ public final class GrpcRetryOptions {
 
   /**
    * The parameter options takes precedence.
-   *
-   * @return
    */
   public GrpcRetryOptions merge(GrpcRetryOptions o) {
     if (o == null) {
