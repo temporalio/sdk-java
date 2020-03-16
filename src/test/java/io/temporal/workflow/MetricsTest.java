@@ -80,7 +80,7 @@ public class MetricsTest {
               .setTaskList(taskList)
               .setScheduleToCloseTimeout(Duration.ofSeconds(1))
               .setRetryOptions(
-                  new RetryOptions.Builder()
+                  RetryOptions.newBuilder()
                       .setExpiration(Duration.ofSeconds(100))
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))

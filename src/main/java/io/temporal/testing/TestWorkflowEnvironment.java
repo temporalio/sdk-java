@@ -23,6 +23,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.internal.sync.TestWorkflowEnvironmentInternal;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.Worker;
+import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerOptions;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
@@ -172,7 +173,7 @@ public interface TestWorkflowEnvironment {
   /** Calls {@link #shutdownNow()} and {@link #awaitTermination(long, TimeUnit)}. */
   void close();
 
-  Worker.Factory getWorkerFactory();
+  WorkerFactory getWorkerFactory();
 
   /** Start all workers created by this factory. */
   void start();

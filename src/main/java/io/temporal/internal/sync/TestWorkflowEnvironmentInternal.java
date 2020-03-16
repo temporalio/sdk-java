@@ -37,6 +37,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
+import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerOptions;
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -55,7 +56,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   private Server server;
   private final WorkflowServiceStubs workflowServiceStubs;
   private final TestWorkflowService service;
-  private final Worker.Factory workerFactory;
+  private final WorkerFactory workerFactory;
 
   public TestWorkflowEnvironmentInternal(TestEnvironmentOptions options) {
     if (options == null) {
@@ -80,7 +81,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
     workflowServiceStubs = WorkflowServiceStubs.newInstance(channel);
     workerFactory =
-        new Worker.Factory(
+        new WorkerFactory(
             workflowServiceStubs, options.getDomain(), options.getWorkerFactoryOptions());
   }
 
@@ -218,7 +219,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   }
 
   @Override
-  public Worker.Factory getWorkerFactory() {
+  public WorkerFactory getWorkerFactory() {
     return workerFactory;
   }
 

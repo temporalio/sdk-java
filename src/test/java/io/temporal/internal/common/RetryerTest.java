@@ -32,7 +32,7 @@ public class RetryerTest {
   @Test
   public void testExpiration() throws InterruptedException {
     RetryOptions options =
-        new RetryOptions.Builder()
+        RetryOptions.newBuilder()
             .setInitialInterval(Duration.ofMillis(10))
             .setMaximumInterval(Duration.ofMillis(100))
             .setExpiration(Duration.ofMillis(500))
@@ -56,7 +56,7 @@ public class RetryerTest {
   @Test
   public void testExpirationFuture() throws InterruptedException {
     RetryOptions options =
-        new RetryOptions.Builder()
+        RetryOptions.newBuilder()
             .setInitialInterval(Duration.ofMillis(10))
             .setMaximumInterval(Duration.ofMillis(100))
             .setExpiration(Duration.ofMillis(500))
@@ -82,7 +82,7 @@ public class RetryerTest {
   @Test
   public void testInterruptedException() throws InterruptedException {
     RetryOptions options =
-        new RetryOptions.Builder()
+        RetryOptions.newBuilder()
             .setInitialInterval(Duration.ofMillis(10))
             .setMaximumInterval(Duration.ofMillis(100))
             .setExpiration(Duration.ofSeconds(100))

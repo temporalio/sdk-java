@@ -69,12 +69,12 @@ public final class ActivityWorker implements SuspendableWorker {
     PollerOptions pollerOptions = options.getPollerOptions();
     if (pollerOptions.getPollThreadNamePrefix() == null) {
       pollerOptions =
-          new PollerOptions.Builder(pollerOptions)
+          PollerOptions.newBuilder(pollerOptions)
               .setPollThreadNamePrefix(
                   POLL_THREAD_NAME_PREFIX + "\"" + taskList + "\", domain=\"" + domain + "\"")
               .build();
     }
-    this.options = new SingleWorkerOptions.Builder(options).setPollerOptions(pollerOptions).build();
+    this.options = SingleWorkerOptions.newBuilder(options).setPollerOptions(pollerOptions).build();
   }
 
   @Override
@@ -241,7 +241,10 @@ public final class ActivityWorker implements SuspendableWorker {
       RpcRetryOptions ro = response.getRequestRetryOptions();
       RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
-        ro = options.getReportCompletionRetryOptions().merge(ro);
+        ro =
+            RpcRetryOptions.newBuilder(options.getReportCompletionRetryOptions())
+                .setRetryOptions(ro)
+                .build();
         RespondActivityTaskCompletedRequest request =
             taskCompleted
                 .toBuilder()
@@ -261,7 +264,11 @@ public final class ActivityWorker implements SuspendableWorker {
                   .setTaskToken(task.getTaskToken())
                   .setIdentity(options.getIdentity())
                   .build();
-          ro = options.getReportFailureRetryOptions().merge(ro);
+          ro =
+              RpcRetryOptions.newBuilder(options.getReportFailureRetryOptions())
+                  .setRetryOptions(ro)
+                  .build();
+
           GrpcRetryer.retry(ro, () -> service.blockingStub().respondActivityTaskFailed(request));
           metricsScope.counter(MetricsType.ACTIVITY_TASK_FAILED_COUNTER).inc(1);
         } else {
@@ -273,7 +280,11 @@ public final class ActivityWorker implements SuspendableWorker {
                     .setTaskToken(task.getTaskToken())
                     .setIdentity(options.getIdentity())
                     .build();
-            ro = options.getReportFailureRetryOptions().merge(ro);
+            ro =
+                RpcRetryOptions.newBuilder(options.getReportFailureRetryOptions())
+                    .setRetryOptions(ro)
+                    .build();
+
             GrpcRetryer.retry(
                 ro, () -> service.blockingStub().respondActivityTaskCanceled(request));
             metricsScope.counter(MetricsType.ACTIVITY_TASK_CANCELED_COUNTER).inc(1);

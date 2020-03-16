@@ -167,7 +167,7 @@ public class DeterministicRunnerTest {
   @Test
   public void testRetry() throws Throwable {
     RetryOptions retryOptions =
-        new RetryOptions.Builder()
+        RetryOptions.newBuilder()
             .setInitialInterval(Duration.ofSeconds(10))
             .setMaximumInterval(Duration.ofSeconds(100))
             .setExpiration(Duration.ofMinutes(5))

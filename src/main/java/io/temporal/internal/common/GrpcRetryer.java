@@ -39,7 +39,7 @@ public final class GrpcRetryer {
 
   static {
     RpcRetryOptions.Builder roBuilder =
-        new RpcRetryOptions.Builder()
+        RpcRetryOptions.newBuilder()
             .setInitialInterval(RETRY_SERVICE_OPERATION_INITIAL_INTERVAL)
             .setExpiration(RETRY_SERVICE_OPERATION_EXPIRATION_INTERVAL)
             .setBackoffCoefficient(RETRY_SERVICE_OPERATION_BACKOFF);

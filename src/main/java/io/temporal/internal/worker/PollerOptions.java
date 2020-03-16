@@ -24,7 +24,13 @@ import org.slf4j.LoggerFactory;
 /** Options for component that polls Temporal task lists for tasks. */
 public final class PollerOptions {
 
-  private static final Logger log = LoggerFactory.getLogger(PollerOptions.class);
+  public static Builder newBuilder() {
+    return new Builder();
+  }
+
+  public static Builder newBuilder(PollerOptions o) {
+    return new Builder(o);
+  }
 
   public static final class Builder {
 
@@ -44,9 +50,9 @@ public final class PollerOptions {
 
     private Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
 
-    public Builder() {}
+    private Builder() {}
 
-    public Builder(PollerOptions o) {
+    private Builder(PollerOptions o) {
       if (o == null) {
         return;
       }
@@ -130,6 +136,8 @@ public final class PollerOptions {
           pollThreadNamePrefix);
     }
   }
+
+  private static final Logger log = LoggerFactory.getLogger(PollerOptions.class);
 
   private final int maximumPollRateIntervalMilliseconds;
 

@@ -34,18 +34,7 @@ public final class ActivityOptions {
   }
 
   public static Builder newBuilder(ActivityOptions o) {
-    Builder result = newBuilder();
-    if (o != null) {
-      result
-          .setContextPropagators(o.contextPropagators)
-          .setHeartbeatTimeout(o.heartbeatTimeout)
-          .setRetryOptions(o.retryOptions)
-          .setScheduleToCloseTimeout(o.scheduleToCloseTimeout)
-          .setScheduleToStartTimeout(o.scheduleToStartTimeout)
-          .setStartToCloseTimeout(o.startToCloseTimeout)
-          .setTaskList(o.taskList);
-    }
-    return result;
+    return new Builder(o);
   }
 
   public static final class Builder {
@@ -65,6 +54,19 @@ public final class ActivityOptions {
     private List<ContextPropagator> contextPropagators;
 
     private Builder() {}
+
+    private Builder(ActivityOptions o) {
+      if (o == null) {
+        return;
+      }
+      this.taskList = o.taskList;
+      this.heartbeatTimeout = o.heartbeatTimeout;
+      this.retryOptions = o.retryOptions;
+      this.contextPropagators = o.contextPropagators;
+      this.scheduleToCloseTimeout = o.scheduleToCloseTimeout;
+      this.startToCloseTimeout = o.startToCloseTimeout;
+      this.scheduleToStartTimeout = o.scheduleToStartTimeout;
+    }
 
     /**
      * Overall timeout workflow is willing to wait for activity to complete. It includes time in a
@@ -190,7 +192,7 @@ public final class ActivityOptions {
       }
       RetryOptions ro = null;
       if (retryOptions != null) {
-        ro = new RetryOptions.Builder(retryOptions).validateBuildWithDefaults();
+        ro = RetryOptions.newBuilder(retryOptions).validateBuildWithDefaults();
       }
       return new ActivityOptions(
           roundUpToSeconds(heartbeat),

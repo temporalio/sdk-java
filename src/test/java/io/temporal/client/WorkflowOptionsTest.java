@@ -94,7 +94,7 @@ public class WorkflowOptionsTest {
   @Test
   public void testBothPresent() throws NoSuchMethodException {
     RetryOptions retryOptions =
-        new RetryOptions.Builder()
+        RetryOptions.newBuilder()
             .setDoNotRetry(IllegalArgumentException.class)
             .setMaximumAttempts(11111)
             .setBackoffCoefficient(1.55)
@@ -132,7 +132,7 @@ public class WorkflowOptionsTest {
   @Test
   public void testChildWorkflowOptionMerge() throws NoSuchMethodException {
     RetryOptions retryOptions =
-        new RetryOptions.Builder()
+        RetryOptions.newBuilder()
             .setDoNotRetry(IllegalArgumentException.class)
             .setMaximumAttempts(11111)
             .setBackoffCoefficient(1.55)

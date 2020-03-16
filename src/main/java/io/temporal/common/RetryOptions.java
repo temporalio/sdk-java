@@ -31,6 +31,14 @@ public final class RetryOptions {
   private static final double DEFAULT_BACKOFF_COEFFICIENT = 2.0;
   private static final int DEFAULT_MAXIMUM_MULTIPLIER = 100;
 
+  public static Builder newBuilder() {
+    return new Builder();
+  }
+
+  public static Builder newBuilder(RetryOptions o) {
+    return new Builder(o);
+  }
+
   /**
    * Merges annotation with explicitly provided RetryOptions. If there is conflict RetryOptions
    * takes precedence.
@@ -40,13 +48,13 @@ public final class RetryOptions {
       if (o == null) {
         return null;
       }
-      return new RetryOptions.Builder(o).validateBuildWithDefaults();
+      return RetryOptions.newBuilder(o).validateBuildWithDefaults();
     }
     if (o == null) {
-      o = new RetryOptions.Builder().build();
+      o = RetryOptions.newBuilder().build();
     }
     Duration initial = merge(r.initialIntervalSeconds(), o.getInitialInterval());
-    RetryOptions.Builder builder = new RetryOptions.Builder();
+    RetryOptions.Builder builder = RetryOptions.newBuilder();
     if (initial != null) {
       builder.setInitialInterval(initial);
     }
@@ -75,7 +83,7 @@ public final class RetryOptions {
     if (o == null) {
       return this;
     }
-    return new RetryOptions.Builder()
+    return RetryOptions.newBuilder()
         .setInitialInterval(merge(getInitialInterval(), o.getInitialInterval(), Duration.class))
         .setExpiration(merge(getExpiration(), o.getExpiration(), Duration.class))
         .setMaximumInterval(merge(getMaximumInterval(), o.getMaximumInterval(), Duration.class))
@@ -98,7 +106,7 @@ public final class RetryOptions {
     }
 
     RetryOptions.Builder builder =
-        new RetryOptions.Builder()
+        RetryOptions.newBuilder()
             .setInitialInterval(getInitialInterval())
             .setExpiration(getExpiration())
             .setMaximumInterval(getMaximumInterval())
@@ -125,9 +133,9 @@ public final class RetryOptions {
 
     private List<Class<? extends Throwable>> doNotRetry;
 
-    public Builder() {}
+    private Builder() {}
 
-    public Builder(RetryOptions o) {
+    private Builder(RetryOptions o) {
       if (o == null) {
         return;
       }

@@ -40,7 +40,7 @@ public class ActivityOptionsTest {
             .setScheduleToStartTimeout(Duration.ofSeconds(333))
             .setStartToCloseTimeout(Duration.ofSeconds(345))
             .setRetryOptions(
-                new RetryOptions.Builder()
+                RetryOptions.newBuilder()
                     .setDoNotRetry(IllegalArgumentException.class)
                     .setMaximumAttempts(11111)
                     .setBackoffCoefficient(1.55)
@@ -70,7 +70,7 @@ public class ActivityOptionsTest {
             .setScheduleToStartTimeout(Duration.ofSeconds(333))
             .setStartToCloseTimeout(Duration.ofSeconds(345))
             .setRetryOptions(
-                new RetryOptions.Builder()
+                RetryOptions.newBuilder()
                     .setDoNotRetry(IllegalArgumentException.class)
                     .setMaximumAttempts(11111)
                     .setBackoffCoefficient(1.55)
@@ -141,7 +141,7 @@ public class ActivityOptionsTest {
             .setScheduleToStartTimeout(Duration.ofSeconds(333))
             .setStartToCloseTimeout(Duration.ofSeconds(345))
             .setRetryOptions(
-                new RetryOptions.Builder()
+                RetryOptions.newBuilder()
                     .setDoNotRetry(IllegalArgumentException.class)
                     .setMaximumAttempts(11111)
                     .setBackoffCoefficient(1.55)

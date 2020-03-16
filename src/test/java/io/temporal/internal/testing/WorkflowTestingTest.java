@@ -46,6 +46,7 @@ import io.temporal.proto.workflowservice.ListOpenWorkflowExecutionsResponse;
 import io.temporal.testing.SimulatedTimeoutException;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
+import io.temporal.worker.FactoryOptions;
 import io.temporal.worker.Worker;
 import io.temporal.workflow.ActivityTimeoutException;
 import io.temporal.workflow.Async;
@@ -98,7 +99,7 @@ public class WorkflowTestingTest {
     TestEnvironmentOptions options =
         new TestEnvironmentOptions.Builder()
             .setFactoryOptions(
-                new Worker.FactoryOptions.Builder()
+                FactoryOptions.newBuilder()
                     .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
                     .build())
             .build();

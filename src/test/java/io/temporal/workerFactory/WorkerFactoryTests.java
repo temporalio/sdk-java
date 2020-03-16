@@ -20,7 +20,7 @@ package io.temporal.workerFactory;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import io.temporal.worker.Worker;
+import io.temporal.worker.WorkerFactory;
 import java.util.concurrent.TimeUnit;
 import org.junit.Assume;
 import org.junit.BeforeClass;
@@ -38,7 +38,7 @@ public class WorkerFactoryTests {
 
   @Test
   public void whenAFactoryIsStartedAllWorkersStart() {
-    Worker.Factory factory = new Worker.Factory("domain");
+    WorkerFactory factory = new WorkerFactory("domain");
     factory.newWorker("task1");
     factory.newWorker("task2");
 
@@ -50,7 +50,7 @@ public class WorkerFactoryTests {
 
   @Test
   public void whenAFactoryIsShutdownAllWorkersAreShutdown() {
-    Worker.Factory factory = new Worker.Factory("domain");
+    WorkerFactory factory = new WorkerFactory("domain");
     factory.newWorker("task1");
     factory.newWorker("task2");
 
@@ -69,7 +69,7 @@ public class WorkerFactoryTests {
 
   @Test
   public void aFactoryCanBeStartedMoreThanOnce() {
-    Worker.Factory factory = new Worker.Factory("domain");
+    WorkerFactory factory = new WorkerFactory("domain");
 
     factory.start();
     factory.start();
@@ -79,7 +79,7 @@ public class WorkerFactoryTests {
 
   @Test(expected = IllegalStateException.class)
   public void aFactoryCannotBeStartedAfterShutdown() {
-    Worker.Factory factory = new Worker.Factory("domain");
+    WorkerFactory factory = new WorkerFactory("domain");
     factory.newWorker("task1");
 
     factory.shutdown();
@@ -89,7 +89,7 @@ public class WorkerFactoryTests {
 
   @Test(expected = IllegalStateException.class)
   public void workersCannotBeCreatedAfterFactoryHasStarted() {
-    Worker.Factory factory = new Worker.Factory("domain");
+    WorkerFactory factory = new WorkerFactory("domain");
     factory.newWorker("task1");
 
     factory.start();
@@ -104,7 +104,7 @@ public class WorkerFactoryTests {
 
   @Test(expected = IllegalStateException.class)
   public void workersCannotBeCreatedAfterFactoryIsShutdown() {
-    Worker.Factory factory = new Worker.Factory("domain");
+    WorkerFactory factory = new WorkerFactory("domain");
     factory.newWorker("task1");
 
     factory.shutdown();
@@ -119,7 +119,7 @@ public class WorkerFactoryTests {
 
   @Test
   public void factoryCanOnlyBeShutdownMoreThanOnce() {
-    Worker.Factory factory = new Worker.Factory("domain");
+    WorkerFactory factory = new WorkerFactory("domain");
     factory.newWorker("task1");
 
     factory.shutdown();

@@ -78,8 +78,8 @@ public class WorkerStressTests {
 
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
-            new Worker.FactoryOptions.Builder().setMaxWorkflowThreadCount(200).build());
-    Worker.Factory factory = wrapper.getWorkerFactory();
+            FactoryOptions.newBuilder().setMaxWorkflowThreadCount(200).build());
+    WorkerFactory factory = wrapper.getWorkerFactory();
     Worker worker = factory.newWorker(taskListName, WorkerOptions.newBuilder().build());
     worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
     worker.registerActivitiesImplementations(new ActivitiesImpl());
@@ -118,11 +118,11 @@ public class WorkerStressTests {
 
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
-            new Worker.FactoryOptions.Builder()
+            FactoryOptions.newBuilder()
                 .setDisableStickyExecution(false)
                 .setMaxWorkflowThreadCount(2)
                 .build());
-    Worker.Factory factory = wrapper.getWorkerFactory();
+    WorkerFactory factory = wrapper.getWorkerFactory();
     Worker worker = factory.newWorker(taskListName, WorkerOptions.newBuilder().build());
     worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
     worker.registerActivitiesImplementations(new ActivitiesImpl());
@@ -168,19 +168,19 @@ public class WorkerStressTests {
   private class TestEnvironmentWrapper {
 
     private TestWorkflowEnvironment testEnv;
-    private Worker.Factory factory;
+    private WorkerFactory factory;
 
-    public TestEnvironmentWrapper(Worker.FactoryOptions options) {
+    public TestEnvironmentWrapper(FactoryOptions options) {
       if (options == null) {
-        options = new Worker.FactoryOptions.Builder().setDisableStickyExecution(false).build();
+        options = FactoryOptions.newBuilder().setDisableStickyExecution(false).build();
       }
-      factory = new Worker.Factory(DOMAIN, options);
+      factory = new WorkerFactory(DOMAIN, options);
       TestEnvironmentOptions testOptions =
           new TestEnvironmentOptions.Builder().setDomain(DOMAIN).setFactoryOptions(options).build();
       testEnv = TestWorkflowEnvironment.newInstance(testOptions);
     }
 
-    private Worker.Factory getWorkerFactory() {
+    private WorkerFactory getWorkerFactory() {
       return useExternalService ? factory : testEnv.getWorkerFactory();
     }
 

@@ -135,11 +135,11 @@ public class CleanWorkerShutdownTest {
     String taskList =
         "CleanWorkerShutdownTest-" + testName.getMethodName() + "-" + UUID.randomUUID().toString();
     WorkflowClient workflowClient;
-    Worker.Factory workerFactory = null;
+    WorkerFactory workerFactory = null;
     TestWorkflowEnvironment testEnvironment = null;
     CompletableFuture<Boolean> started = new CompletableFuture<>();
     if (useExternalService) {
-      workerFactory = new Worker.Factory(service, DOMAIN);
+      workerFactory = new WorkerFactory(service, DOMAIN);
       Worker worker = workerFactory.newWorker(taskList);
       workflowClient = WorkflowClient.newInstance(service, DOMAIN);
       worker.registerWorkflowImplementationTypes(TestWorkflowImpl.class);
@@ -191,11 +191,11 @@ public class CleanWorkerShutdownTest {
     String taskList =
         "CleanWorkerShutdownTest-" + testName.getMethodName() + "-" + UUID.randomUUID().toString();
     WorkflowClient workflowClient;
-    Worker.Factory workerFactory = null;
+    WorkerFactory workerFactory = null;
     TestWorkflowEnvironment testEnvironment = null;
     CompletableFuture<Boolean> started = new CompletableFuture<>();
     if (useExternalService) {
-      workerFactory = new Worker.Factory(service, DOMAIN);
+      workerFactory = new WorkerFactory(service, DOMAIN);
       Worker worker = workerFactory.newWorker(taskList);
       workflowClient = WorkflowClient.newInstance(service, DOMAIN);
       worker.registerWorkflowImplementationTypes(TestWorkflowImpl.class);
@@ -266,18 +266,18 @@ public class CleanWorkerShutdownTest {
 
   /**
    * Tests that Activity#heartbeat throws ActivityWorkerShutdownException after {@link
-   * Worker.Factory#shutdown()} is closed.
+   * WorkerFactory#shutdown()} is closed.
    */
   @Test
   public void testShutdownHeartbeatingActivity() throws ExecutionException, InterruptedException {
     String taskList =
         "CleanWorkerShutdownTest-" + testName.getMethodName() + "-" + UUID.randomUUID().toString();
     WorkflowClient workflowClient;
-    Worker.Factory workerFactory = null;
+    WorkerFactory workerFactory = null;
     TestWorkflowEnvironment testEnvironment = null;
     CompletableFuture<Boolean> started = new CompletableFuture<>();
     if (useExternalService) {
-      workerFactory = new Worker.Factory(service, DOMAIN);
+      workerFactory = new WorkerFactory(service, DOMAIN);
       Worker worker = workerFactory.newWorker(taskList);
       workflowClient = WorkflowClient.newInstance(service, DOMAIN);
       worker.registerWorkflowImplementationTypes(TestWorkflowImpl.class);

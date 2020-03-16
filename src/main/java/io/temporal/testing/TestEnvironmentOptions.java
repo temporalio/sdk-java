@@ -22,7 +22,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.converter.DataConverter;
 import io.temporal.converter.JsonDataConverter;
 import io.temporal.internal.metrics.NoopScope;
-import io.temporal.worker.Worker;
+import io.temporal.worker.FactoryOptions;
 import io.temporal.workflow.WorkflowInterceptor;
 import java.util.Objects;
 import java.util.function.Function;
@@ -42,7 +42,7 @@ public final class TestEnvironmentOptions {
 
     private boolean enableLoggingInReplay;
 
-    private Worker.FactoryOptions factoryOptions;
+    private FactoryOptions factoryOptions;
 
     /** Sets data converter to use for unit-tests. Default is {@link JsonDataConverter}. */
     public Builder setDataConverter(DataConverter dataConverter) {
@@ -76,7 +76,7 @@ public final class TestEnvironmentOptions {
     }
 
     /** Set factoryOptions for worker factory used to create workers. */
-    public Builder setFactoryOptions(Worker.FactoryOptions options) {
+    public Builder setFactoryOptions(FactoryOptions options) {
       this.factoryOptions = options;
       return this;
     }
@@ -93,8 +93,7 @@ public final class TestEnvironmentOptions {
       }
 
       if (factoryOptions == null) {
-        factoryOptions =
-            new Worker.FactoryOptions.Builder().setDisableStickyExecution(false).build();
+        factoryOptions = FactoryOptions.newBuilder().setDisableStickyExecution(false).build();
       }
 
       return new TestEnvironmentOptions(
@@ -112,14 +111,14 @@ public final class TestEnvironmentOptions {
   private final Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory;
   private final Scope metricsScope;
   private final boolean enableLoggingInReplay;
-  private final Worker.FactoryOptions workerFactoryOptions;
+  private final FactoryOptions workerFactoryOptions;
 
   private TestEnvironmentOptions(
       DataConverter dataConverter,
       String domain,
       Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
       Scope metricsScope,
-      Worker.FactoryOptions options,
+      FactoryOptions options,
       boolean enableLoggingInReplay) {
     this.dataConverter = dataConverter;
     this.domain = domain;
@@ -149,7 +148,7 @@ public final class TestEnvironmentOptions {
     return enableLoggingInReplay;
   }
 
-  public Worker.FactoryOptions getWorkerFactoryOptions() {
+  public FactoryOptions getWorkerFactoryOptions() {
     return workerFactoryOptions;
   }
 

@@ -62,7 +62,9 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.WorkflowReplayer;
+import io.temporal.worker.FactoryOptions;
 import io.temporal.worker.Worker;
+import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions.Func;
@@ -194,7 +196,7 @@ public class WorkflowTest {
 
   private String taskList;
 
-  private Worker.Factory workerFactory;
+  private WorkerFactory workerFactory;
   private Worker worker;
   private TestActivitiesImpl activitiesImpl;
   private WorkflowClient workflowClient;
@@ -275,14 +277,12 @@ public class WorkflowTest {
     tracer = new TracingWorkflowInterceptorFactory();
     // TODO: Create a version of TestWorkflowEnvironment that runs against a real service.
     if (useExternalService) {
-      Worker.FactoryOptions factoryOptions =
-          new Worker.FactoryOptions.Builder()
-              .setDisableStickyExecution(disableStickyExecution)
-              .build();
-      workerFactory = new Worker.Factory(service, DOMAIN, factoryOptions);
+      FactoryOptions factoryOptions =
+          FactoryOptions.newBuilder().setDisableStickyExecution(disableStickyExecution).build();
+      workerFactory = new WorkerFactory(service, DOMAIN, factoryOptions);
       WorkerOptions workerOptions =
           WorkerOptions.newBuilder()
-              .setActivityPollerOptions(new PollerOptions.Builder().setPollThreadCount(5).build())
+              .setActivityPollerOptions(PollerOptions.newBuilder().setPollThreadCount(5).build())
               .setMaxConcurrentActivityExecutionSize(1000)
               .setInterceptorFactory(tracer)
               .build();
@@ -300,7 +300,7 @@ public class WorkflowTest {
               .setDomain(DOMAIN)
               .setInterceptorFactory(tracer)
               .setFactoryOptions(
-                  new Worker.FactoryOptions.Builder()
+                  FactoryOptions.newBuilder()
                       .setDisableStickyExecution(disableStickyExecution)
                       .build())
               .build();
@@ -451,7 +451,7 @@ public class WorkflowTest {
               .setHeartbeatTimeout(Duration.ofSeconds(5))
               .setScheduleToCloseTimeout(Duration.ofSeconds(3))
               .setRetryOptions(
-                  new RetryOptions.Builder()
+                  RetryOptions.newBuilder()
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
                       .setMaximumAttempts(3)
@@ -497,7 +497,7 @@ public class WorkflowTest {
               .setHeartbeatTimeout(Duration.ofSeconds(5))
               .setScheduleToCloseTimeout(Duration.ofSeconds(3))
               .setRetryOptions(
-                  new RetryOptions.Builder()
+                  RetryOptions.newBuilder()
                       .setExpiration(Duration.ofSeconds(3))
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
@@ -541,7 +541,7 @@ public class WorkflowTest {
           new LocalActivityOptions.Builder()
               .setScheduleToCloseTimeout(Duration.ofSeconds(5))
               .setRetryOptions(
-                  new RetryOptions.Builder()
+                  RetryOptions.newBuilder()
                       .setExpiration(Duration.ofSeconds(100))
                       .setMaximumInterval(Duration.ofSeconds(20))
                       .setInitialInterval(Duration.ofSeconds(1))
@@ -585,7 +585,7 @@ public class WorkflowTest {
               .setTaskList(taskList)
               .setScheduleToCloseTimeout(Duration.ofSeconds(1))
               .setRetryOptions(
-                  new RetryOptions.Builder()
+                  RetryOptions.newBuilder()
                       .setExpiration(Duration.ofSeconds(100))
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
@@ -643,7 +643,7 @@ public class WorkflowTest {
       RetryOptions retryOptions;
       if (Workflow.isReplaying()) {
         retryOptions =
-            new RetryOptions.Builder()
+            RetryOptions.newBuilder()
                 .setMaximumInterval(Duration.ofSeconds(1))
                 .setInitialInterval(Duration.ofSeconds(1))
                 .setExpiration(Duration.ofDays(1))
@@ -651,7 +651,7 @@ public class WorkflowTest {
                 .build();
       } else {
         retryOptions =
-            new RetryOptions.Builder()
+            RetryOptions.newBuilder()
                 .setMaximumInterval(Duration.ofSeconds(1))
                 .setInitialInterval(Duration.ofSeconds(1))
                 .setExpiration(Duration.ofDays(1))
@@ -691,7 +691,7 @@ public class WorkflowTest {
               .setScheduleToStartTimeout(Duration.ofSeconds(5))
               .setStartToCloseTimeout(Duration.ofSeconds(10))
               .setRetryOptions(
-                  new RetryOptions.Builder()
+                  RetryOptions.newBuilder()
                       .setExpiration(Duration.ofSeconds(100))
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
@@ -763,7 +763,7 @@ public class WorkflowTest {
               .setScheduleToStartTimeout(Duration.ofSeconds(5))
               .setStartToCloseTimeout(Duration.ofSeconds(10))
               .setRetryOptions(
-                  new RetryOptions.Builder()
+                  RetryOptions.newBuilder()
                       .setExpiration(Duration.ofSeconds(100))
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
@@ -836,7 +836,7 @@ public class WorkflowTest {
               .setStartToCloseTimeout(Duration.ofSeconds(10));
       if (Workflow.isReplaying()) {
         options.setRetryOptions(
-            new RetryOptions.Builder()
+            RetryOptions.newBuilder()
                 .setExpiration(Duration.ofSeconds(100))
                 .setMaximumInterval(Duration.ofSeconds(1))
                 .setInitialInterval(Duration.ofSeconds(1))
@@ -845,7 +845,7 @@ public class WorkflowTest {
                 .build());
       } else {
         options.setRetryOptions(
-            new RetryOptions.Builder()
+            RetryOptions.newBuilder()
                 .setExpiration(Duration.ofSeconds(10))
                 .setMaximumInterval(Duration.ofSeconds(1))
                 .setInitialInterval(Duration.ofSeconds(1))
@@ -1982,7 +1982,7 @@ public class WorkflowTest {
   }
 
   private static final RetryOptions retryOptions =
-      new RetryOptions.Builder()
+      RetryOptions.newBuilder()
           .setInitialInterval(Duration.ofSeconds(1))
           .setMaximumInterval(Duration.ofSeconds(1))
           .setExpiration(Duration.ofSeconds(2))
@@ -2048,14 +2048,14 @@ public class WorkflowTest {
       RetryOptions retryOptions;
       if (Workflow.isReplaying()) {
         retryOptions =
-            new RetryOptions.Builder()
+            RetryOptions.newBuilder()
                 .setMaximumInterval(Duration.ofSeconds(1))
                 .setInitialInterval(Duration.ofSeconds(1))
                 .setMaximumAttempts(3)
                 .build();
       } else {
         retryOptions =
-            new RetryOptions.Builder()
+            RetryOptions.newBuilder()
                 .setMaximumInterval(Duration.ofSeconds(1))
                 .setInitialInterval(Duration.ofSeconds(1))
                 .setMaximumAttempts(2)
@@ -2271,7 +2271,7 @@ public class WorkflowTest {
     // Test getTrace through replay by a local worker.
     Worker queryWorker;
     if (useExternalService) {
-      Worker.Factory workerFactory = new Worker.Factory(service, DOMAIN);
+      WorkerFactory workerFactory = new WorkerFactory(service, DOMAIN);
       queryWorker = workerFactory.newWorker(taskList);
     } else {
       queryWorker = testEnvironment.newWorker(taskList);
@@ -2345,7 +2345,7 @@ public class WorkflowTest {
     // Test getTrace through replay by a local worker.
     Worker queryWorker;
     if (useExternalService) {
-      Worker.Factory workerFactory = new Worker.Factory(service, DOMAIN);
+      WorkerFactory workerFactory = new WorkerFactory(service, DOMAIN);
       queryWorker = workerFactory.newWorker(taskList);
     } else {
       queryWorker = testEnvironment.newWorker(taskList);
@@ -2795,7 +2795,7 @@ public class WorkflowTest {
               .setTaskStartToCloseTimeout(Duration.ofSeconds(2))
               .setTaskList(taskList)
               .setRetryOptions(
-                  new RetryOptions.Builder()
+                  RetryOptions.newBuilder()
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
                       .setMaximumAttempts(3)
@@ -3123,7 +3123,7 @@ public class WorkflowTest {
               .setTaskStartToCloseTimeout(Duration.ofSeconds(2))
               .setTaskList(taskList)
               .setRetryOptions(
-                  new RetryOptions.Builder()
+                  RetryOptions.newBuilder()
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
                       .setExpiration(Duration.ofDays(1))
@@ -3250,7 +3250,7 @@ public class WorkflowTest {
   public void testWorkflowRetry() {
     startWorkerFor(TestWorkflowRetryImpl.class);
     RetryOptions workflowRetryOptions =
-        new RetryOptions.Builder()
+        RetryOptions.newBuilder()
             .setInitialInterval(Duration.ofSeconds(1))
             .setExpiration(Duration.ofSeconds(10))
             .setMaximumAttempts(3)
@@ -3294,7 +3294,7 @@ public class WorkflowTest {
   public void testWorkflowRetryDoNotRetryException() {
     startWorkerFor(TestWorkflowRetryDoNotRetryException.class);
     RetryOptions workflowRetryOptions =
-        new RetryOptions.Builder()
+        RetryOptions.newBuilder()
             .setInitialInterval(Duration.ofSeconds(1))
             .setExpiration(Duration.ofSeconds(10))
             .setDoNotRetry(IllegalArgumentException.class)
@@ -5081,7 +5081,7 @@ public class WorkflowTest {
           ChildWorkflowOptions.newBuilder()
               .setTaskList(taskList)
               .setRetryOptions(
-                  new RetryOptions.Builder()
+                  RetryOptions.newBuilder()
                       .setMaximumAttempts(3)
                       .setInitialInterval(Duration.ofSeconds(1))
                       .build())
