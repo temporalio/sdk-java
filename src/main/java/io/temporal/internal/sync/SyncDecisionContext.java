@@ -361,7 +361,7 @@ final class SyncDecisionContext implements WorkflowInterceptor {
     // used client side retry before the server side retry existed.
     if (retryOptions != null && !context.isServerSideChildWorkflowRetry()) {
       ChildWorkflowOptions o1 =
-          new ChildWorkflowOptions.Builder()
+          ChildWorkflowOptions.newBuilder()
               .setTaskList(options.getTaskList())
               .setExecutionStartToCloseTimeout(options.getExecutionStartToCloseTimeout())
               .setTaskStartToCloseTimeout(options.getTaskStartToCloseTimeout())

@@ -826,7 +826,7 @@ public class WorkflowTestingTest {
 
       // Fire up a child workflow
       ChildWorkflowOptions options =
-          new ChildWorkflowOptions.Builder()
+          ChildWorkflowOptions.newBuilder()
               .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
               .build();
       ChildWorkflow child = Workflow.newChildWorkflowStub(ChildWorkflow.class, options);
@@ -966,7 +966,7 @@ public class WorkflowTestingTest {
       String mdcValue = MDC.get("test");
 
       // Fire up a child workflow
-      ChildWorkflowOptions options = new ChildWorkflowOptions.Builder().build();
+      ChildWorkflowOptions options = ChildWorkflowOptions.newBuilder().build();
       ChildWorkflow child = Workflow.newChildWorkflowStub(ChildWorkflow.class, options);
 
       String result = child.workflow(mdcValue, Workflow.getWorkflowInfo().getWorkflowId());

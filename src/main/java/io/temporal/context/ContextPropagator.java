@@ -110,7 +110,7 @@ import java.util.Map;
  *
  * <pre>{@code
  * ChildWorkflow childWorkflow = Workflow.newChildWorkflowStub(ChildWorkflow.class,
- *                new ChildWorkflowOptions.Builder()
+ *                ChildWorkflowOptions.newBuilder()
  *                        .setContextPropagators(Collections.singletonList(new MDCContextPropagator()))
  *                        .build());
  * }</pre>

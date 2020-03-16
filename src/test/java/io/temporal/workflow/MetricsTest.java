@@ -92,7 +92,7 @@ public class MetricsTest {
       activity.runActivity(1);
 
       ChildWorkflowOptions options =
-          new ChildWorkflowOptions.Builder().setTaskList(taskList).build();
+          ChildWorkflowOptions.newBuilder().setTaskList(taskList).build();
       TestChildWorkflow workflow = Workflow.newChildWorkflowStub(TestChildWorkflow.class, options);
       workflow.executeChild();
 

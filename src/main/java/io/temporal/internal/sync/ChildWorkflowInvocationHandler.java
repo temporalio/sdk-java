@@ -17,9 +17,7 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.internal.common.InternalUtils.getValueOrDefault;
-import static io.temporal.internal.common.InternalUtils.getWorkflowMethod;
-import static io.temporal.internal.common.InternalUtils.getWorkflowType;
+import static io.temporal.internal.common.InternalUtils.*;
 
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
@@ -49,7 +47,11 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
     CronSchedule cronSchedule = workflowMethod.getAnnotation(CronSchedule.class);
 
     ChildWorkflowOptions merged =
-        ChildWorkflowOptions.merge(workflowAnnotation, retryAnnotation, cronSchedule, options);
+        ChildWorkflowOptions.newBuilder(options)
+            .setWorkflowMethod(workflowAnnotation)
+            .setMethodRetry(retryAnnotation)
+            .setCronSchedule(cronSchedule)
+            .validateAndBuildWithDefaults();
     this.stub = new ChildWorkflowStubImpl(workflowType, merged, decisionContext);
   }
 

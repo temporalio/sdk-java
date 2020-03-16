@@ -34,30 +34,8 @@ public final class WorkerOptions {
     return new Builder();
   }
 
-  public static Builder newBuilder(WorkerOptions o) {
-    Builder result = new Builder();
-    if (o != null) {
-      result.disableWorkflowWorker = o.disableWorkflowWorker;
-      result.disableActivityWorker = o.disableActivityWorker;
-      result.workerActivitiesPerSecond = o.workerActivitiesPerSecond;
-      result.identity = o.identity;
-      result.dataConverter = o.dataConverter;
-      result.maxConcurrentActivityExecutionSize = o.maxConcurrentActivityExecutionSize;
-      result.maxConcurrentWorkflowExecutionSize = o.maxConcurrentWorkflowExecutionSize;
-      result.maxConcurrentLocalActivityExecutionSize = o.maxConcurrentLocalActivityExecutionSize;
-      result.taskListActivitiesPerSecond = o.taskListActivitiesPerSecond;
-      result.activityPollerOptions = o.activityPollerOptions;
-      result.workflowPollerOptions = o.workflowPollerOptions;
-      result.reportActivityCompletionRetryOptions = o.reportActivityCompletionRetryOptions;
-      result.reportActivityFailureRetryOptions = o.reportActivityFailureRetryOptions;
-      result.reportWorkflowCompletionRetryOptions = o.reportWorkflowCompletionRetryOptions;
-      result.reportWorkflowFailureRetryOptions = o.reportWorkflowFailureRetryOptions;
-      result.interceptorFactory = o.interceptorFactory;
-      result.metricsScope = o.metricsScope;
-      result.enableLoggingInReplay = o.enableLoggingInReplay;
-      ;
-    }
-    return result;
+  public static Builder newBuilder(WorkerOptions source) {
+    return new Builder(source);
   }
 
   public static final class Builder {
@@ -82,6 +60,30 @@ public final class WorkerOptions {
     private boolean enableLoggingInReplay;
 
     private Builder() {}
+
+    private Builder(WorkerOptions o) {
+      if (o == null) {
+        return;
+      }
+      this.disableWorkflowWorker = o.disableWorkflowWorker;
+      this.disableActivityWorker = o.disableActivityWorker;
+      this.workerActivitiesPerSecond = o.workerActivitiesPerSecond;
+      this.identity = o.identity;
+      this.dataConverter = o.dataConverter;
+      this.maxConcurrentActivityExecutionSize = o.maxConcurrentActivityExecutionSize;
+      this.maxConcurrentWorkflowExecutionSize = o.maxConcurrentWorkflowExecutionSize;
+      this.maxConcurrentLocalActivityExecutionSize = o.maxConcurrentLocalActivityExecutionSize;
+      this.taskListActivitiesPerSecond = o.taskListActivitiesPerSecond;
+      this.activityPollerOptions = o.activityPollerOptions;
+      this.workflowPollerOptions = o.workflowPollerOptions;
+      this.reportActivityCompletionRetryOptions = o.reportActivityCompletionRetryOptions;
+      this.reportActivityFailureRetryOptions = o.reportActivityFailureRetryOptions;
+      this.reportWorkflowCompletionRetryOptions = o.reportWorkflowCompletionRetryOptions;
+      this.reportWorkflowFailureRetryOptions = o.reportWorkflowFailureRetryOptions;
+      this.interceptorFactory = o.interceptorFactory;
+      this.metricsScope = o.metricsScope;
+      this.enableLoggingInReplay = o.enableLoggingInReplay;
+    }
 
     /**
      * When set to true doesn't poll on workflow task list even if there are registered workflows

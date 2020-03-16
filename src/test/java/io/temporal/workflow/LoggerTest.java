@@ -61,7 +61,7 @@ public class LoggerTest {
     public void execute(String id) {
       workflowLogger.info("Start executing workflow {}.", id);
       ChildWorkflowOptions options =
-          new ChildWorkflowOptions.Builder().setTaskList(taskList).build();
+          ChildWorkflowOptions.newBuilder().setTaskList(taskList).build();
       LoggerTest.TestChildWorkflow workflow =
           Workflow.newChildWorkflowStub(LoggerTest.TestChildWorkflow.class, options);
       workflow.executeChild(id);

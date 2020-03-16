@@ -1563,7 +1563,7 @@ public class WorkflowTest {
     @Override
     public String execute(String taskList) {
       ChildWorkflowOptions workflowOptions =
-          new ChildWorkflowOptions.Builder().setTaskList(taskList).build();
+          ChildWorkflowOptions.newBuilder().setTaskList(taskList).build();
       TestMultiargsWorkflowsFunc stubF =
           Workflow.newChildWorkflowStub(TestMultiargsWorkflowsFunc.class, workflowOptions);
       assertEquals("func", Async.function(stubF::func).get());
@@ -1655,7 +1655,7 @@ public class WorkflowTest {
     @Override
     public String execute(String taskList) {
       ChildWorkflowOptions workflowOptions =
-          new ChildWorkflowOptions.Builder()
+          ChildWorkflowOptions.newBuilder()
               .setExecutionStartToCloseTimeout(Duration.ofSeconds(100))
               .setTaskStartToCloseTimeout(Duration.ofSeconds(60))
               .setTaskList(taskList)
@@ -1697,7 +1697,7 @@ public class WorkflowTest {
     @Override
     public String execute(String taskList) {
       ChildWorkflowOptions workflowOptions =
-          new ChildWorkflowOptions.Builder().setTaskList(taskList).build();
+          ChildWorkflowOptions.newBuilder().setTaskList(taskList).build();
       ChildWorkflowStub stubF =
           Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsFunc::func", workflowOptions);
       assertEquals("func", stubF.execute(String.class));
@@ -1773,7 +1773,7 @@ public class WorkflowTest {
     @Override
     public String execute(String taskList) {
       ChildWorkflowOptions workflowOptions =
-          new ChildWorkflowOptions.Builder().setTaskList(taskList).build();
+          ChildWorkflowOptions.newBuilder().setTaskList(taskList).build();
       ChildWorkflowStub stubF =
           Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsFunc::func", workflowOptions);
       assertEquals("func", stubF.executeAsync(String.class).get());
@@ -1849,7 +1849,7 @@ public class WorkflowTest {
     @Override
     public String execute(String taskList) {
       ChildWorkflowOptions workflowOptions =
-          new ChildWorkflowOptions.Builder().setTaskList(taskList).build();
+          ChildWorkflowOptions.newBuilder().setTaskList(taskList).build();
       ChildWorkflowStub stubF =
           Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsFunc::func", workflowOptions);
       assertEquals("func", Async.function(stubF::<String>execute, String.class).get());
@@ -2145,7 +2145,7 @@ public class WorkflowTest {
     @SuppressWarnings("AssertionFailureIgnored")
     public void execute(String taskList) {
       ChildWorkflowOptions options =
-          new ChildWorkflowOptions.Builder()
+          ChildWorkflowOptions.newBuilder()
               .setExecutionStartToCloseTimeout(Duration.ofHours(1))
               .build();
       TestWorkflow1 child = Workflow.newChildWorkflowStub(TestWorkflow1.class, options);
@@ -2580,7 +2580,7 @@ public class WorkflowTest {
     private final ITestNamedChild child2;
 
     public TestParentWorkflow() {
-      ChildWorkflowOptions.Builder options = new ChildWorkflowOptions.Builder();
+      ChildWorkflowOptions.Builder options = ChildWorkflowOptions.newBuilder();
       options.setWorkflowId(child2Id);
       child2 = Workflow.newChildWorkflowStub(ITestNamedChild.class, options.build());
     }
@@ -2599,7 +2599,7 @@ public class WorkflowTest {
     private final ITestChild child;
 
     public TestParentWorkflowWithChildTimeout() {
-      ChildWorkflowOptions.Builder options = new ChildWorkflowOptions.Builder();
+      ChildWorkflowOptions.Builder options = ChildWorkflowOptions.newBuilder();
       options.setExecutionStartToCloseTimeout(Duration.ofSeconds(1));
       child = Workflow.newChildWorkflowStub(ITestChild.class, options.build());
     }
@@ -2663,7 +2663,7 @@ public class WorkflowTest {
     private final ITestChild child1 =
         Workflow.newChildWorkflowStub(
             ITestChild.class,
-            new ChildWorkflowOptions.Builder()
+            ChildWorkflowOptions.newBuilder()
                 .setWorkflowIdReusePolicy(
                     WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate)
                 .build());
@@ -2708,7 +2708,7 @@ public class WorkflowTest {
     @Override
     public String execute(boolean parallel, WorkflowIdReusePolicy policy) {
       ChildWorkflowOptions options =
-          new ChildWorkflowOptions.Builder()
+          ChildWorkflowOptions.newBuilder()
               .setWorkflowId(childReexecuteId)
               .setWorkflowIdReusePolicy(policy)
               .build();
@@ -2790,7 +2790,7 @@ public class WorkflowTest {
     @Override
     public String execute(String taskList) {
       ChildWorkflowOptions options =
-          new ChildWorkflowOptions.Builder()
+          ChildWorkflowOptions.newBuilder()
               .setExecutionStartToCloseTimeout(Duration.ofSeconds(500))
               .setTaskStartToCloseTimeout(Duration.ofSeconds(2))
               .setTaskList(taskList)
@@ -3118,7 +3118,7 @@ public class WorkflowTest {
     @Override
     public String execute(String taskList) {
       ChildWorkflowOptions options =
-          new ChildWorkflowOptions.Builder()
+          ChildWorkflowOptions.newBuilder()
               .setExecutionStartToCloseTimeout(Duration.ofSeconds(5))
               .setTaskStartToCloseTimeout(Duration.ofSeconds(2))
               .setTaskList(taskList)
@@ -5078,7 +5078,7 @@ public class WorkflowTest {
     @Override
     public String execute(String taskList) {
       ChildWorkflowOptions workflowOptions =
-          new ChildWorkflowOptions.Builder()
+          ChildWorkflowOptions.newBuilder()
               .setTaskList(taskList)
               .setRetryOptions(
                   new RetryOptions.Builder()
@@ -5245,7 +5245,7 @@ public class WorkflowTest {
           Workflow.newActivityStub(TestActivities.class, newActivityOptions1(taskList));
 
       ChildWorkflowOptions workflowOptions =
-          new ChildWorkflowOptions.Builder().setTaskList(taskList).build();
+          ChildWorkflowOptions.newBuilder().setTaskList(taskList).build();
       TestMultiargsWorkflowsFunc stubF1 =
           Workflow.newChildWorkflowStub(TestMultiargsWorkflowsFunc.class, workflowOptions);
 
@@ -5422,7 +5422,7 @@ public class WorkflowTest {
     @Override
     public String func() {
       ChildWorkflowOptions workflowOptions =
-          new ChildWorkflowOptions.Builder()
+          ChildWorkflowOptions.newBuilder()
               .setExecutionStartToCloseTimeout(Duration.ofSeconds(100))
               .setTaskStartToCloseTimeout(Duration.ofSeconds(60))
               .build();
