@@ -36,7 +36,7 @@ class ContinueAsNewWorkflowInvocationHandler implements InvocationHandler {
 
   ContinueAsNewWorkflowInvocationHandler(
       ContinueAsNewOptions options, WorkflowInterceptor decisionContext) {
-    this.options = options == null ? new ContinueAsNewOptions.Builder().build() : options;
+    this.options = options;
     this.decisionContext = decisionContext;
   }
 
@@ -61,7 +61,7 @@ class ContinueAsNewWorkflowInvocationHandler implements InvocationHandler {
     }
     String workflowType = InternalUtils.getWorkflowType(method, workflowMethod);
     WorkflowInternal.continueAsNew(
-        Optional.of(workflowType), Optional.of(options), args, decisionContext);
+        Optional.of(workflowType), Optional.ofNullable(options), args, decisionContext);
     return getValueOrDefault(null, method.getReturnType());
   }
 }

@@ -22,11 +22,27 @@ import java.time.Duration;
 
 public final class ContinueAsNewOptions {
 
+  public static Builder newBuilder() {
+    return new Builder();
+  }
+
+  public static Builder newBuilder(ContinueAsNewOptions o) {
+    return new Builder(o);
+  }
+
   public static final class Builder {
 
     private Duration executionStartToCloseTimeout;
     private String taskList;
     private Duration taskStartToCloseTimeout;
+
+    private Builder() {}
+
+    private Builder(ContinueAsNewOptions o) {
+      this.executionStartToCloseTimeout = o.executionStartToCloseTimeout;
+      this.taskList = o.taskList;
+      this.taskStartToCloseTimeout = o.taskStartToCloseTimeout;
+    }
 
     public Builder setExecutionStartToCloseTimeout(Duration executionStartToCloseTimeout) {
       this.executionStartToCloseTimeout = executionStartToCloseTimeout;

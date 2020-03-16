@@ -1069,7 +1069,7 @@ public class WorkflowTest {
         return 111;
       }
       ContinueAsNewOptions options =
-          new ContinueAsNewOptions.Builder().setTaskList(continueAsNewTaskList).build();
+          ContinueAsNewOptions.newBuilder().setTaskList(continueAsNewTaskList).build();
       TestContinueAsNew next = Workflow.newContinueAsNewStub(TestContinueAsNew.class, options);
       next.execute(count - 1, continueAsNewTaskList);
       throw new RuntimeException("unreachable");
