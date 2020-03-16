@@ -17,11 +17,11 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.Decision;
-import io.temporal.DecisionType;
-import io.temporal.HistoryEvent;
-import io.temporal.RequestCancelExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.StartChildWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.common.Decision;
+import io.temporal.proto.common.HistoryEvent;
+import io.temporal.proto.common.RequestCancelExternalWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.common.StartChildWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.enums.DecisionType;
 
 final class ChildWorkflowDecisionStateMachine extends DecisionStateMachineBase {
 
@@ -136,20 +136,19 @@ final class ChildWorkflowDecisionStateMachine extends DecisionStateMachineBase {
   }
 
   private Decision createRequestCancelExternalWorkflowExecutionDecision() {
-    RequestCancelExternalWorkflowExecutionDecisionAttributes tryCancel =
-        new RequestCancelExternalWorkflowExecutionDecisionAttributes();
-    tryCancel.setWorkflowId(startAttributes.getWorkflowId());
-    tryCancel.setRunId(runId);
-    Decision decision = new Decision();
-    decision.setRequestCancelExternalWorkflowExecutionDecisionAttributes(tryCancel);
-    decision.setDecisionType(DecisionType.RequestCancelExternalWorkflowExecution);
-    return decision;
+    return Decision.newBuilder()
+        .setRequestCancelExternalWorkflowExecutionDecisionAttributes(
+            RequestCancelExternalWorkflowExecutionDecisionAttributes.newBuilder()
+                .setWorkflowId(startAttributes.getWorkflowId())
+                .setRunId(runId))
+        .setDecisionType(DecisionType.DecisionTypeRequestCancelExternalWorkflowExecution)
+        .build();
   }
 
   private Decision createStartChildWorkflowExecutionDecision() {
-    Decision decision = new Decision();
-    decision.setStartChildWorkflowExecutionDecisionAttributes(startAttributes);
-    decision.setDecisionType(DecisionType.StartChildWorkflowExecution);
-    return decision;
+    return Decision.newBuilder()
+        .setStartChildWorkflowExecutionDecisionAttributes(startAttributes)
+        .setDecisionType(DecisionType.DecisionTypeStartChildWorkflowExecution)
+        .build();
   }
 }

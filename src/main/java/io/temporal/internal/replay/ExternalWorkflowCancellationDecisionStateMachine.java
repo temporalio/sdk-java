@@ -17,10 +17,10 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.Decision;
-import io.temporal.DecisionType;
-import io.temporal.HistoryEvent;
-import io.temporal.RequestCancelExternalWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.common.Decision;
+import io.temporal.proto.common.HistoryEvent;
+import io.temporal.proto.common.RequestCancelExternalWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.enums.DecisionType;
 
 final class ExternalWorkflowCancellationDecisionStateMachine extends DecisionStateMachineBase {
 
@@ -102,9 +102,11 @@ final class ExternalWorkflowCancellationDecisionStateMachine extends DecisionSta
   }
 
   private Decision createRequestCancelExternalWorkflowExecutionDecision() {
-    Decision decision = new Decision();
-    decision.setRequestCancelExternalWorkflowExecutionDecisionAttributes(attributes);
-    decision.setDecisionType(DecisionType.RequestCancelExternalWorkflowExecution);
+    Decision decision =
+        Decision.newBuilder()
+            .setRequestCancelExternalWorkflowExecutionDecisionAttributes(attributes)
+            .setDecisionType(DecisionType.DecisionTypeRequestCancelExternalWorkflowExecution)
+            .build();
     return decision;
   }
 }

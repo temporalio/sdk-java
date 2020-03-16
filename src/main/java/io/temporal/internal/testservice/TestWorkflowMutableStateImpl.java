@@ -24,8 +24,9 @@ import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.cronutils.model.time.ExecutionTime;
 import com.cronutils.parser.CronParser;
 import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
-import io.temporal.*;
+import com.google.protobuf.ByteString;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.StateMachines.Action;
 import io.temporal.internal.testservice.StateMachines.ActivityTaskData;
@@ -36,6 +37,63 @@ import io.temporal.internal.testservice.StateMachines.State;
 import io.temporal.internal.testservice.StateMachines.TimerData;
 import io.temporal.internal.testservice.StateMachines.WorkflowData;
 import io.temporal.internal.testservice.TestWorkflowStore.TaskListId;
+import io.temporal.proto.common.ActivityTaskScheduledEventAttributes;
+import io.temporal.proto.common.CancelTimerDecisionAttributes;
+import io.temporal.proto.common.CancelTimerFailedEventAttributes;
+import io.temporal.proto.common.CancelWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.common.ChildWorkflowExecutionCanceledEventAttributes;
+import io.temporal.proto.common.ChildWorkflowExecutionCompletedEventAttributes;
+import io.temporal.proto.common.ChildWorkflowExecutionFailedEventAttributes;
+import io.temporal.proto.common.ChildWorkflowExecutionStartedEventAttributes;
+import io.temporal.proto.common.ChildWorkflowExecutionTimedOutEventAttributes;
+import io.temporal.proto.common.CompleteWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.common.ContinueAsNewWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.common.Decision;
+import io.temporal.proto.common.FailWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.common.HistoryEvent;
+import io.temporal.proto.common.MarkerRecordedEventAttributes;
+import io.temporal.proto.common.QueryRejected;
+import io.temporal.proto.common.RecordMarkerDecisionAttributes;
+import io.temporal.proto.common.RequestCancelActivityTaskDecisionAttributes;
+import io.temporal.proto.common.RequestCancelActivityTaskFailedEventAttributes;
+import io.temporal.proto.common.RequestCancelExternalWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.common.RetryPolicy;
+import io.temporal.proto.common.ScheduleActivityTaskDecisionAttributes;
+import io.temporal.proto.common.SignalExternalWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.common.StartChildWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.common.StartChildWorkflowExecutionFailedEventAttributes;
+import io.temporal.proto.common.StartTimerDecisionAttributes;
+import io.temporal.proto.common.StickyExecutionAttributes;
+import io.temporal.proto.common.UpsertWorkflowSearchAttributesDecisionAttributes;
+import io.temporal.proto.common.UpsertWorkflowSearchAttributesEventAttributes;
+import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecutionContinuedAsNewEventAttributes;
+import io.temporal.proto.common.WorkflowExecutionSignaledEventAttributes;
+import io.temporal.proto.enums.DecisionTaskFailedCause;
+import io.temporal.proto.enums.EventType;
+import io.temporal.proto.enums.QueryRejectCondition;
+import io.temporal.proto.enums.QueryTaskCompletedType;
+import io.temporal.proto.enums.SignalExternalWorkflowExecutionFailedCause;
+import io.temporal.proto.enums.TimeoutType;
+import io.temporal.proto.enums.WorkflowExecutionCloseStatus;
+import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
+import io.temporal.proto.workflowservice.PollForActivityTaskResponseOrBuilder;
+import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
+import io.temporal.proto.workflowservice.QueryWorkflowRequest;
+import io.temporal.proto.workflowservice.QueryWorkflowResponse;
+import io.temporal.proto.workflowservice.RequestCancelWorkflowExecutionRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskCanceledByIDRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskCompletedByIDRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskFailedByIDRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
+import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
+import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
+import io.temporal.proto.workflowservice.RespondQueryTaskCompletedRequest;
+import io.temporal.proto.workflowservice.SignalWorkflowExecutionRequest;
+import io.temporal.proto.workflowservice.StartWorkflowExecutionRequest;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -58,10 +116,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.LongSupplier;
-import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,9 +127,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @FunctionalInterface
   private interface UpdateProcedure {
-
-    void apply(RequestContext ctx)
-        throws InternalServiceError, BadRequestError, EntityNotExistsError;
+    void apply(RequestContext ctx);
   }
 
   private static final Logger log = LoggerFactory.getLogger(TestWorkflowMutableStateImpl.class);
@@ -96,8 +152,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private long lastNonFailedDecisionStartEventId;
   private final Map<String, CompletableFuture<QueryWorkflowResponse>> queries =
       new ConcurrentHashMap<>();
-  private final Map<String, PollForDecisionTaskResponse> queryRequests = new ConcurrentHashMap<>();
-  private final Optional<String> continuedExecutionRunId;
+  private final Map<String, PollForDecisionTaskResponse.Builder> queryRequests =
+      new ConcurrentHashMap<>();
   public StickyExecutionAttributes stickyExecutionAttributes;
 
   /**
@@ -107,9 +163,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
    */
   TestWorkflowMutableStateImpl(
       StartWorkflowExecutionRequest startRequest,
+      String runId,
       Optional<RetryState> retryState,
       int backoffStartIntervalInSeconds,
-      byte[] lastCompletionResult,
+      ByteString lastCompletionResult,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
       Optional<String> continuedExecutionRunId,
@@ -118,9 +175,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     this.startRequest = startRequest;
     this.parent = parent;
     this.parentChildInitiatedEventId = parentChildInitiatedEventId;
-    this.continuedExecutionRunId = continuedExecutionRunId;
     this.service = service;
-    String runId = UUID.randomUUID().toString();
     this.executionId =
         new ExecutionId(startRequest.getDomain(), startRequest.getWorkflowId(), runId);
     this.store = store;
@@ -138,21 +193,19 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     this.workflow = StateMachines.newWorkflowStateMachine(data);
   }
 
-  private void update(UpdateProcedure updater)
-      throws InternalServiceError, EntityNotExistsError, BadRequestError {
+  private void update(UpdateProcedure updater) {
     StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
     update(false, updater, stackTraceElements[2].getMethodName());
   }
 
-  private void completeDecisionUpdate(UpdateProcedure updater, StickyExecutionAttributes attributes)
-      throws InternalServiceError, EntityNotExistsError, BadRequestError {
+  private void completeDecisionUpdate(
+      UpdateProcedure updater, StickyExecutionAttributes attributes) {
     StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
     stickyExecutionAttributes = attributes;
     update(true, updater, stackTraceElements[2].getMethodName());
   }
 
-  private void update(boolean completeDecisionUpdate, UpdateProcedure updater, String caller)
-      throws InternalServiceError, EntityNotExistsError, BadRequestError {
+  private void update(boolean completeDecisionUpdate, UpdateProcedure updater, String caller) {
     String callerInfo = "Decision Update from " + caller;
     lock.lock();
     LockHandle lockHandle = selfAdvancingTimer.lockTimeSkipping(callerInfo);
@@ -172,10 +225,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       } else {
         nextEventId = ctx.commitChanges(store);
       }
-    } catch (InternalServiceError | EntityNotExistsError | BadRequestError e) {
+    } catch (StatusRuntimeException e) {
       throw e;
     } catch (Exception e) {
-      throw new InternalServiceError(Throwables.getStackTraceAsString(e));
+      throw Status.INTERNAL.withCause(e).asRuntimeException();
     } finally {
       lockHandle.unlock();
       lock.unlock();
@@ -196,15 +249,15 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       case CANCELLATION_REQUESTED:
         return Optional.empty();
       case FAILED:
-        return Optional.of(WorkflowExecutionCloseStatus.FAILED);
+        return Optional.of(WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusFailed);
       case TIMED_OUT:
-        return Optional.of(WorkflowExecutionCloseStatus.TIMED_OUT);
+        return Optional.of(WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusTimedOut);
       case CANCELED:
-        return Optional.of(WorkflowExecutionCloseStatus.CANCELED);
+        return Optional.of(WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusCanceled);
       case COMPLETED:
-        return Optional.of(WorkflowExecutionCloseStatus.COMPLETED);
+        return Optional.of(WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusCompleted);
       case CONTINUED_AS_NEW:
-        return Optional.of(WorkflowExecutionCloseStatus.CONTINUED_AS_NEW);
+        return Optional.of(WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusContinuedAsNew);
     }
     throw new IllegalStateException("unreachable");
   }
@@ -221,9 +274,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public void startDecisionTask(
-      PollForDecisionTaskResponse task, PollForDecisionTaskRequest pollRequest)
-      throws InternalServiceError, EntityNotExistsError, BadRequestError {
-    if (task.getQuery() == null) {
+      PollForDecisionTaskResponse.Builder task, PollForDecisionTaskRequest pollRequest) {
+    if (!task.hasQuery()) {
       update(
           ctx -> {
             long scheduledEventId = decision.getData().scheduledEventId;
@@ -237,27 +289,30 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public void completeDecisionTask(int historySize, RespondDecisionTaskCompletedRequest request)
-      throws InternalServiceError, EntityNotExistsError, BadRequestError {
-    List<Decision> decisions = request.getDecisions();
+  public void completeDecisionTask(int historySize, RespondDecisionTaskCompletedRequest request) {
+    List<Decision> decisions = request.getDecisionsList();
     completeDecisionUpdate(
         ctx -> {
           if (ctx.getInitialEventId() != historySize + 1) {
-            throw new BadRequestError(
-                "Expired decision: expectedHistorySize="
-                    + historySize
-                    + ","
-                    + " actualHistorySize="
-                    + ctx.getInitialEventId());
+
+            throw Status.NOT_FOUND
+                .withDescription(
+                    "Expired decision: expectedHistorySize="
+                        + historySize
+                        + ","
+                        + " actualHistorySize="
+                        + ctx.getInitialEventId())
+                .asRuntimeException();
           }
           long decisionTaskCompletedId = ctx.getNextEventId() - 1;
           // Fail the decision if there are new events and the decision tries to complete the
           // workflow
-          if (!concurrentToDecision.isEmpty() && hasCompleteDecision(request.getDecisions())) {
+          if (!concurrentToDecision.isEmpty() && hasCompleteDecision(request.getDecisionsList())) {
             RespondDecisionTaskFailedRequest failedRequest =
-                new RespondDecisionTaskFailedRequest()
-                    .setCause(DecisionTaskFailedCause.UNHANDLED_DECISION)
-                    .setIdentity(request.getIdentity());
+                RespondDecisionTaskFailedRequest.newBuilder()
+                    .setCause(DecisionTaskFailedCause.DecisionTaskFailedCauseUnhandledDecision)
+                    .setIdentity(request.getIdentity())
+                    .build();
             decision.action(Action.FAIL, ctx, failedRequest, decisionTaskCompletedId);
             for (RequestContext deferredCtx : this.concurrentToDecision) {
               ctx.add(deferredCtx);
@@ -270,7 +325,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             return;
           }
           if (decision == null) {
-            throw new EntityNotExistsError("No outstanding decision");
+            throw Status.FAILED_PRECONDITION
+                .withDescription("No outstanding decision")
+                .asRuntimeException();
           }
           decision.action(StateMachines.Action.COMPLETE, ctx, request, 0);
           for (Decision d : decisions) {
@@ -287,13 +344,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   || workflow.getState() == StateMachines.State.CANCELED;
           if (!completed
               && ((ctx.isNeedDecision() || !this.concurrentToDecision.isEmpty())
-                  || request.isForceCreateNewDecisionTask())) {
+                  || request.getForceCreateNewDecisionTask())) {
             scheduleDecision(ctx);
           }
           this.concurrentToDecision.clear();
           ctx.unlockTimer();
         },
-        request.getStickyAttributes());
+        request.hasStickyAttributes() ? request.getStickyAttributes() : null);
   }
 
   private boolean hasCompleteDecision(List<Decision> decisions) {
@@ -306,61 +363,60 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   private void processDecision(
-      RequestContext ctx, Decision d, String identity, long decisionTaskCompletedId)
-      throws BadRequestError, InternalServiceError {
+      RequestContext ctx, Decision d, String identity, long decisionTaskCompletedId) {
     switch (d.getDecisionType()) {
-      case CompleteWorkflowExecution:
+      case DecisionTypeCompleteWorkflowExecution:
         processCompleteWorkflowExecution(
             ctx,
             d.getCompleteWorkflowExecutionDecisionAttributes(),
             decisionTaskCompletedId,
             identity);
         break;
-      case FailWorkflowExecution:
+      case DecisionTypeFailWorkflowExecution:
         processFailWorkflowExecution(
             ctx, d.getFailWorkflowExecutionDecisionAttributes(), decisionTaskCompletedId, identity);
         break;
-      case CancelWorkflowExecution:
+      case DecisionTypeCancelWorkflowExecution:
         processCancelWorkflowExecution(
             ctx, d.getCancelWorkflowExecutionDecisionAttributes(), decisionTaskCompletedId);
         break;
-      case ContinueAsNewWorkflowExecution:
+      case DecisionTypeContinueAsNewWorkflowExecution:
         processContinueAsNewWorkflowExecution(
             ctx,
             d.getContinueAsNewWorkflowExecutionDecisionAttributes(),
             decisionTaskCompletedId,
             identity);
         break;
-      case ScheduleActivityTask:
+      case DecisionTypeScheduleActivityTask:
         processScheduleActivityTask(
             ctx, d.getScheduleActivityTaskDecisionAttributes(), decisionTaskCompletedId);
         break;
-      case RequestCancelActivityTask:
+      case DecisionTypeRequestCancelActivityTask:
         processRequestCancelActivityTask(
             ctx, d.getRequestCancelActivityTaskDecisionAttributes(), decisionTaskCompletedId);
         break;
-      case StartTimer:
+      case DecisionTypeStartTimer:
         processStartTimer(ctx, d.getStartTimerDecisionAttributes(), decisionTaskCompletedId);
         break;
-      case CancelTimer:
+      case DecisionTypeCancelTimer:
         processCancelTimer(ctx, d.getCancelTimerDecisionAttributes(), decisionTaskCompletedId);
         break;
-      case StartChildWorkflowExecution:
+      case DecisionTypeStartChildWorkflowExecution:
         processStartChildWorkflow(
             ctx, d.getStartChildWorkflowExecutionDecisionAttributes(), decisionTaskCompletedId);
         break;
-      case SignalExternalWorkflowExecution:
+      case DecisionTypeSignalExternalWorkflowExecution:
         processSignalExternalWorkflowExecution(
             ctx, d.getSignalExternalWorkflowExecutionDecisionAttributes(), decisionTaskCompletedId);
         break;
-      case RecordMarker:
+      case DecisionTypeRecordMarker:
         processRecordMarker(ctx, d.getRecordMarkerDecisionAttributes(), decisionTaskCompletedId);
         break;
-      case RequestCancelExternalWorkflowExecution:
+      case DecisionTypeRequestCancelExternalWorkflowExecution:
         processRequestCancelExternalWorkflowExecution(
             ctx, d.getRequestCancelExternalWorkflowExecutionDecisionAttributes());
         break;
-      case UpsertWorkflowSearchAttributes:
+      case DecisionTypeUpsertWorkflowSearchAttributes:
         processUpsertWorkflowSearchAttributes(
             ctx, d.getUpsertWorkflowSearchAttributesDecisionAttributes(), decisionTaskCompletedId);
         break;
@@ -373,13 +429,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         .execute(
             () -> {
               RequestCancelWorkflowExecutionRequest request =
-                  new RequestCancelWorkflowExecutionRequest();
-              WorkflowExecution workflowExecution = new WorkflowExecution();
-              workflowExecution.setWorkflowId(attr.workflowId);
-              request.setWorkflowExecution(workflowExecution);
-              request.setDomain(ctx.getDomain());
+                  RequestCancelWorkflowExecutionRequest.newBuilder()
+                      .setWorkflowExecution(
+                          WorkflowExecution.newBuilder().setWorkflowId(attr.getWorkflowId()))
+                      .setDomain(ctx.getDomain())
+                      .build();
               try {
-                service.RequestCancelWorkflowExecution(request);
+                service.requestCancelWorkflowExecution(request);
               } catch (Exception e) {
                 log.error("Failure to request cancel external workflow", e);
               }
@@ -387,40 +443,40 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   private void processRecordMarker(
-      RequestContext ctx, RecordMarkerDecisionAttributes attr, long decisionTaskCompletedId)
-      throws BadRequestError {
-    if (!attr.isSetMarkerName()) {
-      throw new BadRequestError("marker name is required");
+      RequestContext ctx, RecordMarkerDecisionAttributes attr, long decisionTaskCompletedId) {
+    if (attr.getMarkerName().isEmpty()) {
+      throw Status.INVALID_ARGUMENT.withDescription("marker name is required").asRuntimeException();
     }
 
-    MarkerRecordedEventAttributes marker =
-        new MarkerRecordedEventAttributes()
+    MarkerRecordedEventAttributes.Builder marker =
+        MarkerRecordedEventAttributes.newBuilder()
             .setMarkerName(attr.getMarkerName())
             .setHeader(attr.getHeader())
             .setDetails(attr.getDetails())
             .setDecisionTaskCompletedEventId(decisionTaskCompletedId);
     HistoryEvent event =
-        new HistoryEvent()
-            .setEventType(EventType.MarkerRecorded)
-            .setMarkerRecordedEventAttributes(marker);
+        HistoryEvent.newBuilder()
+            .setEventType(EventType.EventTypeMarkerRecorded)
+            .setMarkerRecordedEventAttributes(marker)
+            .build();
     ctx.addEvent(event);
   }
 
   private void processCancelTimer(
-      RequestContext ctx, CancelTimerDecisionAttributes d, long decisionTaskCompletedId)
-      throws InternalServiceError, BadRequestError {
+      RequestContext ctx, CancelTimerDecisionAttributes d, long decisionTaskCompletedId) {
     String timerId = d.getTimerId();
     StateMachine<TimerData> timer = timers.get(timerId);
     if (timer == null) {
-      CancelTimerFailedEventAttributes failedAttr =
-          new CancelTimerFailedEventAttributes()
+      CancelTimerFailedEventAttributes.Builder failedAttr =
+          CancelTimerFailedEventAttributes.newBuilder()
               .setTimerId(timerId)
               .setCause("TIMER_ID_UNKNOWN")
               .setDecisionTaskCompletedEventId(decisionTaskCompletedId);
       HistoryEvent cancellationFailed =
-          new HistoryEvent()
-              .setEventType(EventType.CancelTimerFailed)
-              .setCancelTimerFailedEventAttributes(failedAttr);
+          HistoryEvent.newBuilder()
+              .setEventType(EventType.EventTypeCancelTimerFailed)
+              .setCancelTimerFailedEventAttributes(failedAttr)
+              .build();
       ctx.addEvent(cancellationFailed);
       return;
     }
@@ -431,20 +487,20 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private void processRequestCancelActivityTask(
       RequestContext ctx,
       RequestCancelActivityTaskDecisionAttributes a,
-      long decisionTaskCompletedId)
-      throws InternalServiceError, BadRequestError {
+      long decisionTaskCompletedId) {
     String activityId = a.getActivityId();
     StateMachine<?> activity = activities.get(activityId);
     if (activity == null) {
-      RequestCancelActivityTaskFailedEventAttributes failedAttr =
-          new RequestCancelActivityTaskFailedEventAttributes()
+      RequestCancelActivityTaskFailedEventAttributes.Builder failedAttr =
+          RequestCancelActivityTaskFailedEventAttributes.newBuilder()
               .setActivityId(activityId)
               .setCause("ACTIVITY_ID_UNKNOWN")
               .setDecisionTaskCompletedEventId(decisionTaskCompletedId);
       HistoryEvent cancellationFailed =
-          new HistoryEvent()
-              .setEventType(EventType.RequestCancelActivityTaskFailed)
-              .setRequestCancelActivityTaskFailedEventAttributes(failedAttr);
+          HistoryEvent.newBuilder()
+              .setEventType(EventType.EventTypeRequestCancelActivityTaskFailed)
+              .setRequestCancelActivityTaskFailedEventAttributes(failedAttr)
+              .build();
       ctx.addEvent(cancellationFailed);
       return;
     }
@@ -458,13 +514,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   private void processScheduleActivityTask(
-      RequestContext ctx, ScheduleActivityTaskDecisionAttributes a, long decisionTaskCompletedId)
-      throws BadRequestError, InternalServiceError {
-    validateScheduleActivityTask(a);
+      RequestContext ctx, ScheduleActivityTaskDecisionAttributes a, long decisionTaskCompletedId) {
+    a = validateScheduleActivityTask(a);
     String activityId = a.getActivityId();
     StateMachine<ActivityTaskData> activity = activities.get(activityId);
     if (activity != null) {
-      throw new BadRequestError("Already open activity with " + activityId);
+      throw Status.FAILED_PRECONDITION
+          .withDescription("Already open activity with " + activityId)
+          .asRuntimeException();
     }
     activity = StateMachines.newActivityStateMachine(store, this.startRequest);
     activities.put(activityId, activity);
@@ -472,52 +529,107 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     ActivityTaskScheduledEventAttributes scheduledEvent = activity.getData().scheduledEvent;
     ctx.addTimer(
         scheduledEvent.getScheduleToCloseTimeoutSeconds(),
-        () -> timeoutActivity(activityId, TimeoutType.SCHEDULE_TO_CLOSE),
+        () -> timeoutActivity(activityId, TimeoutType.TimeoutTypeScheduleToClose),
         "Activity ScheduleToCloseTimeout");
     ctx.addTimer(
         scheduledEvent.getScheduleToStartTimeoutSeconds(),
-        () -> timeoutActivity(activityId, TimeoutType.SCHEDULE_TO_START),
+        () -> timeoutActivity(activityId, TimeoutType.TimeoutTypeScheduleToStart),
         "Activity ScheduleToStartTimeout");
     ctx.lockTimer();
   }
 
-  private void validateScheduleActivityTask(ScheduleActivityTaskDecisionAttributes a)
-      throws BadRequestError {
-    if (a == null) {
-      throw new BadRequestError("ScheduleActivityTaskDecisionAttributes is not set on decision.");
+  /**
+   * The logic is copied from history service implementation of validateActivityScheduleAttributes
+   * function.
+   */
+  private ScheduleActivityTaskDecisionAttributes validateScheduleActivityTask(
+      ScheduleActivityTaskDecisionAttributes a) {
+    ScheduleActivityTaskDecisionAttributes.Builder result = a.toBuilder();
+    if (!a.hasTaskList() || a.getTaskList().getName().isEmpty()) {
+      throw Status.INVALID_ARGUMENT
+          .withDescription("TaskList is not set on decision")
+          .asRuntimeException();
+    }
+    if (a.getActivityId().isEmpty()) {
+      throw Status.INVALID_ARGUMENT
+          .withDescription("ActivityId is not set on decision")
+          .asRuntimeException();
+    }
+    if (!a.hasActivityType() || a.getActivityType().getName().isEmpty()) {
+      throw Status.INVALID_ARGUMENT
+          .withDescription("ActivityType is not set on decision")
+          .asRuntimeException();
+    }
+    // Only attempt to deduce and fill in unspecified timeouts only when all timeouts are
+    // non-negative.
+    if (a.getScheduleToCloseTimeoutSeconds() < 0
+        || a.getScheduleToStartTimeoutSeconds() < 0
+        || a.getStartToCloseTimeoutSeconds() < 0
+        || a.getHeartbeatTimeoutSeconds() < 0) {
+      throw Status.INVALID_ARGUMENT
+          .withDescription("A valid timeout may not be negative.")
+          .asRuntimeException();
+    }
+    int workflowTimeout = this.startRequest.getExecutionStartToCloseTimeoutSeconds();
+    // ensure activity timeout never larger than workflow timeout
+    if (a.getScheduleToCloseTimeoutSeconds() > workflowTimeout) {
+      result.setScheduleToCloseTimeoutSeconds(workflowTimeout);
+    }
+    if (a.getScheduleToStartTimeoutSeconds() > workflowTimeout) {
+      result.setScheduleToStartTimeoutSeconds(workflowTimeout);
+    }
+    if (a.getStartToCloseTimeoutSeconds() > workflowTimeout) {
+      result.setStartToCloseTimeoutSeconds(workflowTimeout);
+    }
+    if (a.getHeartbeatTimeoutSeconds() > workflowTimeout) {
+      result.setHeartbeatTimeoutSeconds(workflowTimeout);
     }
 
-    if (a.getTaskList() == null || a.getTaskList().getName().isEmpty()) {
-      throw new BadRequestError("TaskList is not set on decision.");
+    boolean validScheduleToClose = a.getScheduleToCloseTimeoutSeconds() > 0;
+    boolean validScheduleToStart = a.getScheduleToStartTimeoutSeconds() > 0;
+    boolean validStartToClose = a.getStartToCloseTimeoutSeconds() > 0;
+
+    if (validScheduleToClose) {
+      if (!validScheduleToStart) {
+        result.setScheduleToStartTimeoutSeconds(a.getScheduleToCloseTimeoutSeconds());
+      }
+      if (!validStartToClose) {
+        result.setStartToCloseTimeoutSeconds(a.getScheduleToCloseTimeoutSeconds());
+      }
+    } else if (validScheduleToStart && validStartToClose) {
+      result.setScheduleToCloseTimeoutSeconds(
+          a.getScheduleToStartTimeoutSeconds() + a.getStartToCloseTimeoutSeconds());
+      if (a.getScheduleToCloseTimeoutSeconds() > workflowTimeout) {
+        result.setScheduleToCloseTimeoutSeconds(workflowTimeout);
+      }
+    } else {
+      // Deduction failed as there's not enough information to fill in missing timeouts.
+      throw Status.INVALID_ARGUMENT
+          .withDescription("A valid ScheduleToCloseTimeout is not set on decision.")
+          .asRuntimeException();
     }
-    if (a.getActivityId() == null || a.getActivityId().isEmpty()) {
-      throw new BadRequestError("ActivityId is not set on decision.");
+    if (a.hasRetryPolicy()) {
+      RetryPolicy p = a.getRetryPolicy();
+      result.setRetryPolicy(RetryState.validateRetryPolicy(p));
+      int expiration = p.getExpirationIntervalInSeconds();
+      if (expiration == 0) {
+        expiration = workflowTimeout;
+      }
+      if (a.getScheduleToStartTimeoutSeconds() < expiration) {
+        result.setScheduleToStartTimeoutSeconds(expiration);
+      }
+      if (a.getScheduleToCloseTimeoutSeconds() < expiration) {
+        result.setScheduleToCloseTimeoutSeconds(expiration);
+      }
     }
-    if (a.getActivityType() == null
-        || a.getActivityType().getName() == null
-        || a.getActivityType().getName().isEmpty()) {
-      throw new BadRequestError("ActivityType is not set on decision.");
-    }
-    if (a.getStartToCloseTimeoutSeconds() <= 0) {
-      throw new BadRequestError("A valid StartToCloseTimeoutSeconds is not set on decision.");
-    }
-    if (a.getScheduleToStartTimeoutSeconds() <= 0) {
-      throw new BadRequestError("A valid ScheduleToStartTimeoutSeconds is not set on decision.");
-    }
-    if (a.getScheduleToCloseTimeoutSeconds() <= 0) {
-      throw new BadRequestError("A valid ScheduleToCloseTimeoutSeconds is not set on decision.");
-    }
-    if (a.getHeartbeatTimeoutSeconds() < 0) {
-      throw new BadRequestError("Ac valid HeartbeatTimeoutSeconds is not set on decision.");
-    }
+    return result.build();
   }
 
   private void processStartChildWorkflow(
       RequestContext ctx,
       StartChildWorkflowExecutionDecisionAttributes a,
-      long decisionTaskCompletedId)
-      throws BadRequestError, InternalServiceError {
-    validateStartChildExecutionAttributes(a);
+      long decisionTaskCompletedId) {
+    a = validateStartChildExecutionAttributes(a);
     StateMachine<ChildWorkflowData> child = StateMachines.newChildWorkflowStateMachine(service);
     childWorkflows.put(ctx.getNextEventId(), child);
     child.action(StateMachines.Action.INITIATE, ctx, a, decisionTaskCompletedId);
@@ -525,48 +637,53 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   /** Clone of the validateStartChildExecutionAttributes from historyEngine.go */
-  private void validateStartChildExecutionAttributes(
-      StartChildWorkflowExecutionDecisionAttributes a) throws BadRequestError {
+  private StartChildWorkflowExecutionDecisionAttributes validateStartChildExecutionAttributes(
+      StartChildWorkflowExecutionDecisionAttributes a) {
     if (a == null) {
-      throw new BadRequestError(
-          "StartChildWorkflowExecutionDecisionAttributes is not set on decision.");
+      throw Status.INVALID_ARGUMENT
+          .withDescription("StartChildWorkflowExecutionDecisionAttributes is not set on decision")
+          .asRuntimeException();
     }
 
     if (a.getWorkflowId().isEmpty()) {
-      throw new BadRequestError("Required field WorkflowID is not set on decision.");
+      throw Status.INVALID_ARGUMENT
+          .withDescription("Required field WorkflowID is not set on decision")
+          .asRuntimeException();
     }
 
-    if (a.getWorkflowType() == null || a.getWorkflowType().getName().isEmpty()) {
-      throw new BadRequestError("Required field WorkflowType is not set on decision.");
+    if (!a.hasWorkflowType() || a.getWorkflowType().getName().isEmpty()) {
+      throw Status.INVALID_ARGUMENT
+          .withDescription("Required field WorkflowType is not set on decision")
+          .asRuntimeException();
     }
 
+    StartChildWorkflowExecutionDecisionAttributes.Builder ab = a.toBuilder();
     // Inherit tasklist from parent workflow execution if not provided on decision
-    if (a.getTaskList() == null || a.getTaskList().getName().isEmpty()) {
-      a.setTaskList(startRequest.getTaskList());
+    if (!ab.hasTaskList()) {
+      ab.setTaskList(startRequest.getTaskList());
     }
 
     // Inherit workflow timeout from parent workflow execution if not provided on decision
     if (a.getExecutionStartToCloseTimeoutSeconds() <= 0) {
-      a.setExecutionStartToCloseTimeoutSeconds(
+      ab.setExecutionStartToCloseTimeoutSeconds(
           startRequest.getExecutionStartToCloseTimeoutSeconds());
     }
 
     // Inherit decision task timeout from parent workflow execution if not provided on decision
     if (a.getTaskStartToCloseTimeoutSeconds() <= 0) {
-      a.setTaskStartToCloseTimeoutSeconds(startRequest.getTaskStartToCloseTimeoutSeconds());
+      ab.setTaskStartToCloseTimeoutSeconds(startRequest.getTaskStartToCloseTimeoutSeconds());
     }
 
-    RetryPolicy retryPolicy = a.getRetryPolicy();
-    if (retryPolicy != null) {
-      RetryState.validateRetryPolicy(retryPolicy);
+    if (a.hasRetryPolicy()) {
+      ab.setRetryPolicy(RetryState.validateRetryPolicy(a.getRetryPolicy()));
     }
+    return ab.build();
   }
 
   private void processSignalExternalWorkflowExecution(
       RequestContext ctx,
       SignalExternalWorkflowExecutionDecisionAttributes a,
-      long decisionTaskCompletedId)
-      throws InternalServiceError, BadRequestError {
+      long decisionTaskCompletedId) {
     String signalId = UUID.randomUUID().toString();
     StateMachine<SignalExternalData> signalStateMachine =
         StateMachines.newSignalExternalStateMachine();
@@ -585,8 +702,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public void completeSignalExternalWorkflowExecution(String signalId, String runId)
-      throws EntityNotExistsError, InternalServiceError, BadRequestError {
+  public void completeSignalExternalWorkflowExecution(String signalId, String runId) {
     update(
         ctx -> {
           StateMachine<SignalExternalData> signal = getSignal(signalId);
@@ -598,8 +714,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public void failSignalExternalWorkflowExecution(
-      String signalId, SignalExternalWorkflowExecutionFailedCause cause)
-      throws EntityNotExistsError, InternalServiceError, BadRequestError {
+      String signalId, SignalExternalWorkflowExecutionFailedCause cause) {
     update(
         ctx -> {
           StateMachine<SignalExternalData> signal = getSignal(signalId);
@@ -609,18 +724,19 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         });
   }
 
-  private StateMachine<SignalExternalData> getSignal(String signalId) throws EntityNotExistsError {
+  private StateMachine<SignalExternalData> getSignal(String signalId) {
     StateMachine<SignalExternalData> signal = externalSignals.get(signalId);
     if (signal == null) {
-      throw new EntityNotExistsError("unknown signalId: " + signalId);
+      throw Status.FAILED_PRECONDITION
+          .withDescription("unknown signalId: " + signalId)
+          .asRuntimeException();
     }
     return signal;
   }
 
   // TODO: insert a single decision failure into the history
   @Override
-  public void failDecisionTask(RespondDecisionTaskFailedRequest request)
-      throws InternalServiceError, EntityNotExistsError, BadRequestError {
+  public void failDecisionTask(RespondDecisionTaskFailedRequest request) {
     completeDecisionUpdate(
         ctx -> {
           decision.action(Action.FAIL, ctx, request, 0);
@@ -640,11 +756,16 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               // timeout for a previous decision
               return;
             }
-            decision.action(StateMachines.Action.TIME_OUT, ctx, TimeoutType.START_TO_CLOSE, 0);
+            decision.action(
+                StateMachines.Action.TIME_OUT, ctx, TimeoutType.TimeoutTypeStartToClose, 0);
             scheduleDecision(ctx);
           },
           null); // reset sticky attributes to null
-    } catch (EntityNotExistsError e) {
+    } catch (StatusRuntimeException e) {
+      if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
+        // Cannot fail to timer threads
+        log.error("Failure trying to timeout a decision scheduledEventId=" + scheduledEventId, e);
+      }
       // Expected as timers are not removed
     } catch (Exception e) {
       // Cannot fail to timer threads
@@ -653,8 +774,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public void childWorkflowStarted(ChildWorkflowExecutionStartedEventAttributes a)
-      throws InternalServiceError, EntityNotExistsError, BadRequestError {
+  public void childWorkflowStarted(ChildWorkflowExecutionStartedEventAttributes a) {
     update(
         ctx -> {
           StateMachine<ChildWorkflowData> child = getChildWorkflow(a.getInitiatedEventId());
@@ -667,8 +787,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public void childWorkflowFailed(String activityId, ChildWorkflowExecutionFailedEventAttributes a)
-      throws InternalServiceError, EntityNotExistsError, BadRequestError {
+  public void childWorkflowFailed(
+      String activityId, ChildWorkflowExecutionFailedEventAttributes a) {
     update(
         ctx -> {
           StateMachine<ChildWorkflowData> child = getChildWorkflow(a.getInitiatedEventId());
@@ -681,8 +801,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public void childWorkflowTimedOut(
-      String activityId, ChildWorkflowExecutionTimedOutEventAttributes a)
-      throws InternalServiceError, EntityNotExistsError, BadRequestError {
+      String activityId, ChildWorkflowExecutionTimedOutEventAttributes a) {
     update(
         ctx -> {
           StateMachine<ChildWorkflowData> child = getChildWorkflow(a.getInitiatedEventId());
@@ -695,8 +814,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public void failStartChildWorkflow(
-      String childId, StartChildWorkflowExecutionFailedEventAttributes a)
-      throws InternalServiceError, EntityNotExistsError, BadRequestError {
+      String childId, StartChildWorkflowExecutionFailedEventAttributes a) {
     update(
         ctx -> {
           StateMachine<ChildWorkflowData> child = getChildWorkflow(a.getInitiatedEventId());
@@ -709,8 +827,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public void childWorkflowCompleted(
-      String activityId, ChildWorkflowExecutionCompletedEventAttributes a)
-      throws InternalServiceError, EntityNotExistsError, BadRequestError {
+      String activityId, ChildWorkflowExecutionCompletedEventAttributes a) {
     update(
         ctx -> {
           StateMachine<ChildWorkflowData> child = getChildWorkflow(a.getInitiatedEventId());
@@ -723,8 +840,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public void childWorkflowCanceled(
-      String activityId, ChildWorkflowExecutionCanceledEventAttributes a)
-      throws InternalServiceError, EntityNotExistsError, BadRequestError {
+      String activityId, ChildWorkflowExecutionCanceledEventAttributes a) {
     update(
         ctx -> {
           StateMachine<ChildWorkflowData> child = getChildWorkflow(a.getInitiatedEventId());
@@ -736,15 +852,18 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   private void processStartTimer(
-      RequestContext ctx, StartTimerDecisionAttributes a, long decisionTaskCompletedId)
-      throws BadRequestError, InternalServiceError {
+      RequestContext ctx, StartTimerDecisionAttributes a, long decisionTaskCompletedId) {
     String timerId = a.getTimerId();
     if (timerId == null) {
-      throw new BadRequestError("A valid TimerId is not set on StartTimerDecision");
+      throw Status.INVALID_ARGUMENT
+          .withDescription("A valid TimerId is not set on StartTimerDecision")
+          .asRuntimeException();
     }
     StateMachine<TimerData> timer = timers.get(timerId);
     if (timer != null) {
-      throw new BadRequestError("Already open timer with " + timerId);
+      throw Status.FAILED_PRECONDITION
+          .withDescription("Already open timer with " + timerId)
+          .asRuntimeException();
     }
     timer = StateMachines.newTimerStateMachine();
     timers.put(timerId, timer);
@@ -772,7 +891,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             timers.remove(timerId);
             scheduleDecision(ctx);
           });
-    } catch (BadRequestError | InternalServiceError | EntityNotExistsError e) {
+    } catch (Throwable e) {
       // Cannot fail to timer threads
       log.error("Failure firing a timer", e);
     }
@@ -782,25 +901,35 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       RequestContext ctx,
       FailWorkflowExecutionDecisionAttributes d,
       long decisionTaskCompletedId,
-      String identity)
-      throws InternalServiceError, BadRequestError {
+      String identity) {
     WorkflowData data = workflow.getData();
     if (data.retryState.isPresent()) {
       RetryState rs = data.retryState.get();
       int backoffIntervalSeconds =
           rs.getBackoffIntervalInSeconds(d.getReason(), store.currentTimeMillis());
       if (backoffIntervalSeconds > 0) {
-        ContinueAsNewWorkflowExecutionDecisionAttributes continueAsNewAttr =
-            new ContinueAsNewWorkflowExecutionDecisionAttributes()
+        ContinueAsNewWorkflowExecutionDecisionAttributes.Builder continueAsNewAttr =
+            ContinueAsNewWorkflowExecutionDecisionAttributes.newBuilder()
                 .setInput(startRequest.getInput())
                 .setWorkflowType(startRequest.getWorkflowType())
                 .setExecutionStartToCloseTimeoutSeconds(
                     startRequest.getExecutionStartToCloseTimeoutSeconds())
                 .setTaskStartToCloseTimeoutSeconds(startRequest.getTaskStartToCloseTimeoutSeconds())
-                .setTaskList(startRequest.getTaskList())
-                .setBackoffStartIntervalInSeconds(backoffIntervalSeconds)
-                .setRetryPolicy(startRequest.getRetryPolicy());
-        workflow.action(Action.CONTINUE_AS_NEW, ctx, continueAsNewAttr, decisionTaskCompletedId);
+                .setBackoffStartIntervalInSeconds(backoffIntervalSeconds);
+        if (startRequest.hasTaskList()) {
+          continueAsNewAttr.setTaskList(startRequest.getTaskList());
+        }
+        if (startRequest.hasRetryPolicy()) {
+          continueAsNewAttr.setRetryPolicy(startRequest.getRetryPolicy());
+        }
+        if (startRequest.hasHeader()) {
+          continueAsNewAttr.setHeader(startRequest.getHeader());
+        }
+        if (startRequest.hasMemo()) {
+          continueAsNewAttr.setMemo(startRequest.getMemo());
+        }
+        workflow.action(
+            Action.CONTINUE_AS_NEW, ctx, continueAsNewAttr.build(), decisionTaskCompletedId);
         HistoryEvent event = ctx.getEvents().get(ctx.getEvents().size() - 1);
         WorkflowExecutionContinuedAsNewEventAttributes continuedAsNewEventAttributes =
             event.getWorkflowExecutionContinuedAsNewEventAttributes();
@@ -815,7 +944,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 getExecutionId(),
                 parent,
                 parentChildInitiatedEventId);
-        continuedAsNewEventAttributes.setNewExecutionRunId(runId);
         return;
       }
     }
@@ -829,13 +957,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     if (parent.isPresent()) {
       ctx.lockTimer(); // unlocked by the parent
       ChildWorkflowExecutionFailedEventAttributes a =
-          new ChildWorkflowExecutionFailedEventAttributes()
+          ChildWorkflowExecutionFailedEventAttributes.newBuilder()
               .setInitiatedEventId(parentChildInitiatedEventId.getAsLong())
               .setDetails(d.getDetails())
               .setReason(d.getReason())
               .setWorkflowType(startRequest.getWorkflowType())
               .setDomain(ctx.getDomain())
-              .setWorkflowExecution(ctx.getExecution());
+              .setWorkflowExecution(ctx.getExecution())
+              .build();
       ForkJoinPool.commonPool()
           .execute(
               () -> {
@@ -843,10 +972,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   parent
                       .get()
                       .childWorkflowFailed(ctx.getExecutionId().getWorkflowId().getWorkflowId(), a);
-                } catch (EntityNotExistsError entityNotExistsError) {
+                } catch (StatusRuntimeException e) {
                   // Parent might already close
-                } catch (BadRequestError | InternalServiceError e) {
-                  log.error("Failure reporting child completion", e);
+                  if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
+                    log.error("Failure reporting child failure", e);
+                  }
+                } catch (Throwable e) {
+                  log.error("Failure reporting child failure", e);
                 }
               });
     }
@@ -856,8 +988,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       RequestContext ctx,
       CompleteWorkflowExecutionDecisionAttributes d,
       long decisionTaskCompletedId,
-      String identity)
-      throws InternalServiceError, BadRequestError {
+      String identity) {
     WorkflowData data = workflow.getData();
     if (!Strings.isNullOrEmpty(data.cronSchedule)) {
       startNewCronRun(ctx, decisionTaskCompletedId, identity, data, d.getResult());
@@ -868,12 +999,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     if (parent.isPresent()) {
       ctx.lockTimer(); // unlocked by the parent
       ChildWorkflowExecutionCompletedEventAttributes a =
-          new ChildWorkflowExecutionCompletedEventAttributes()
+          ChildWorkflowExecutionCompletedEventAttributes.newBuilder()
               .setInitiatedEventId(parentChildInitiatedEventId.getAsLong())
               .setResult(d.getResult())
               .setDomain(ctx.getDomain())
               .setWorkflowExecution(ctx.getExecution())
-              .setWorkflowType(startRequest.getWorkflowType());
+              .setWorkflowType(startRequest.getWorkflowType())
+              .build();
       ForkJoinPool.commonPool()
           .execute(
               () -> {
@@ -882,9 +1014,12 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                       .get()
                       .childWorkflowCompleted(
                           ctx.getExecutionId().getWorkflowId().getWorkflowId(), a);
-                } catch (EntityNotExistsError entityNotExistsError) {
+                } catch (StatusRuntimeException e) {
                   // Parent might already close
-                } catch (BadRequestError | InternalServiceError e) {
+                  if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
+                    log.error("Failure reporting child completion", e);
+                  }
+                } catch (Throwable e) {
                   log.error("Failure reporting child completion", e);
                 }
               });
@@ -896,8 +1031,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       long decisionTaskCompletedId,
       String identity,
       WorkflowData data,
-      byte[] lastCompletionResult)
-      throws InternalServiceError, BadRequestError {
+      ByteString lastCompletionResult) {
     CronDefinition cronDefinition = CronDefinitionBuilder.instanceDefinitionFor(CronType.UNIX);
     CronParser parser = new CronParser(cronDefinition);
     Cron cron = parser.parse(data.cronSchedule);
@@ -915,7 +1049,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     }
 
     ContinueAsNewWorkflowExecutionDecisionAttributes continueAsNewAttr =
-        new ContinueAsNewWorkflowExecutionDecisionAttributes()
+        ContinueAsNewWorkflowExecutionDecisionAttributes.newBuilder()
             .setInput(startRequest.getInput())
             .setWorkflowType(startRequest.getWorkflowType())
             .setExecutionStartToCloseTimeoutSeconds(
@@ -924,7 +1058,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setTaskList(startRequest.getTaskList())
             .setBackoffStartIntervalInSeconds(backoffIntervalSeconds)
             .setRetryPolicy(startRequest.getRetryPolicy())
-            .setLastCompletionResult(lastCompletionResult);
+            .setLastCompletionResult(lastCompletionResult)
+            .build();
     workflow.action(Action.CONTINUE_AS_NEW, ctx, continueAsNewAttr, decisionTaskCompletedId);
     HistoryEvent event = ctx.getEvents().get(ctx.getEvents().size() - 1);
     WorkflowExecutionContinuedAsNewEventAttributes continuedAsNewEventAttributes =
@@ -939,22 +1074,23 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             getExecutionId(),
             parent,
             parentChildInitiatedEventId);
-    continuedAsNewEventAttributes.setNewExecutionRunId(runId);
   }
 
   private void processCancelWorkflowExecution(
-      RequestContext ctx, CancelWorkflowExecutionDecisionAttributes d, long decisionTaskCompletedId)
-      throws InternalServiceError, BadRequestError {
+      RequestContext ctx,
+      CancelWorkflowExecutionDecisionAttributes d,
+      long decisionTaskCompletedId) {
     workflow.action(StateMachines.Action.CANCEL, ctx, d, decisionTaskCompletedId);
     if (parent.isPresent()) {
       ctx.lockTimer(); // unlocked by the parent
       ChildWorkflowExecutionCanceledEventAttributes a =
-          new ChildWorkflowExecutionCanceledEventAttributes()
+          ChildWorkflowExecutionCanceledEventAttributes.newBuilder()
               .setInitiatedEventId(parentChildInitiatedEventId.getAsLong())
               .setDetails(d.getDetails())
               .setDomain(ctx.getDomain())
               .setWorkflowExecution(ctx.getExecution())
-              .setWorkflowType(startRequest.getWorkflowType());
+              .setWorkflowType(startRequest.getWorkflowType())
+              .build();
       ForkJoinPool.commonPool()
           .execute(
               () -> {
@@ -963,10 +1099,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                       .get()
                       .childWorkflowCanceled(
                           ctx.getExecutionId().getWorkflowId().getWorkflowId(), a);
-                } catch (EntityNotExistsError entityNotExistsError) {
+                } catch (StatusRuntimeException e) {
                   // Parent might already close
-                } catch (BadRequestError | InternalServiceError e) {
-                  log.error("Failure reporting child completion", e);
+                  if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
+                    log.error("Failure reporting child cancellation", e);
+                  }
+                } catch (Throwable e) {
+                  log.error("Failure reporting child cancellation", e);
                 }
               });
     }
@@ -976,8 +1115,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       RequestContext ctx,
       ContinueAsNewWorkflowExecutionDecisionAttributes d,
       long decisionTaskCompletedId,
-      String identity)
-      throws InternalServiceError, BadRequestError {
+      String identity) {
     workflow.action(Action.CONTINUE_AS_NEW, ctx, d, decisionTaskCompletedId);
     HistoryEvent event = ctx.getEvents().get(ctx.getEvents().size() - 1);
     String runId =
@@ -989,29 +1127,27 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             getExecutionId(),
             parent,
             parentChildInitiatedEventId);
-    event.getWorkflowExecutionContinuedAsNewEventAttributes().setNewExecutionRunId(runId);
   }
 
   private void processUpsertWorkflowSearchAttributes(
       RequestContext ctx,
       UpsertWorkflowSearchAttributesDecisionAttributes attr,
-      long decisionTaskCompletedId)
-      throws BadRequestError, InternalServiceError {
-    UpsertWorkflowSearchAttributesEventAttributes upsertEventAttr =
-        new UpsertWorkflowSearchAttributesEventAttributes()
+      long decisionTaskCompletedId) {
+    UpsertWorkflowSearchAttributesEventAttributes.Builder upsertEventAttr =
+        UpsertWorkflowSearchAttributesEventAttributes.newBuilder()
             .setSearchAttributes(attr.getSearchAttributes())
             .setDecisionTaskCompletedEventId(decisionTaskCompletedId);
     HistoryEvent event =
-        new HistoryEvent()
-            .setEventType(EventType.UpsertWorkflowSearchAttributes)
-            .setUpsertWorkflowSearchAttributesEventAttributes(upsertEventAttr);
+        HistoryEvent.newBuilder()
+            .setEventType(EventType.EventTypeUpsertWorkflowSearchAttributes)
+            .setUpsertWorkflowSearchAttributesEventAttributes(upsertEventAttr)
+            .build();
     ctx.addEvent(event);
   }
 
   @Override
   public void startWorkflow(
-      boolean continuedAsNew, Optional<SignalWorkflowExecutionRequest> signalWithStartSignal)
-      throws InternalServiceError, BadRequestError {
+      boolean continuedAsNew, Optional<SignalWorkflowExecutionRequest> signalWithStartSignal) {
     try {
       update(
           ctx -> {
@@ -1026,10 +1162,12 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   () -> {
                     try {
                       update(ctx1 -> scheduleDecision(ctx1));
-                    } catch (EntityNotExistsError e) {
-                      // Expected as timers are not removed
-                    } catch (Exception e) {
-                      // Cannot fail to timer threads
+                    } catch (StatusRuntimeException e) {
+                      // NOT_FOUND is expected as timers are not removed
+                      if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
+                        log.error("Failure trying to add task for an delayed workflow retry", e);
+                      }
+                    } catch (Throwable e) {
                       log.error("Failure trying to add task for an delayed workflow retry", e);
                     }
                   },
@@ -1046,31 +1184,38 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             ctx.addTimer(
                 executionTimeoutTimerDelay, this::timeoutWorkflow, "workflow execution timeout");
           });
-    } catch (EntityNotExistsError entityNotExistsError) {
-      throw new InternalServiceError(Throwables.getStackTraceAsString(entityNotExistsError));
+    } catch (StatusRuntimeException e) {
+      if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
+        throw Status.INTERNAL.withCause(e).asRuntimeException();
+      }
+      throw e;
     }
     if (!continuedAsNew && parent.isPresent()) {
       ChildWorkflowExecutionStartedEventAttributes a =
-          new ChildWorkflowExecutionStartedEventAttributes()
+          ChildWorkflowExecutionStartedEventAttributes.newBuilder()
               .setInitiatedEventId(parentChildInitiatedEventId.getAsLong())
               .setWorkflowExecution(getExecutionId().getExecution())
               .setDomain(getExecutionId().getDomain())
-              .setWorkflowType(startRequest.getWorkflowType());
+              .setWorkflowType(startRequest.getWorkflowType())
+              .build();
       ForkJoinPool.commonPool()
           .execute(
               () -> {
                 try {
                   parent.get().childWorkflowStarted(a);
-                } catch (EntityNotExistsError entityNotExistsError) {
-                  // Not a problem. Parent might just close by now.
-                } catch (BadRequestError | InternalServiceError e) {
-                  log.error("Failure reporting child completion", e);
+                } catch (StatusRuntimeException e) {
+                  // NOT_FOUND is expected as the parent might just close by now.
+                  if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
+                    log.error("Failure reporting child completion", e);
+                  }
+                } catch (Throwable e) {
+                  log.error("Failure trying to add task for an delayed workflow retry", e);
                 }
               });
     }
   }
 
-  private void scheduleDecision(RequestContext ctx) throws InternalServiceError, BadRequestError {
+  private void scheduleDecision(RequestContext ctx) {
     if (decision != null) {
       if (decision.getState() == StateMachines.State.INITIATED) {
         return; // No need to schedule again
@@ -1086,7 +1231,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         ctx.lockTimer();
         return;
       }
-      throw new InternalServiceError("unexpected decision state: " + decision.getState());
+      throw Status.INTERNAL
+          .withDescription("unexpected decision state: " + decision.getState())
+          .asRuntimeException();
     }
     this.decision = StateMachines.newDecisionStateMachine(lastNonFailedDecisionStartEventId, store);
     decision.action(StateMachines.Action.INITIATE, ctx, startRequest, 0);
@@ -1095,8 +1242,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public void startActivityTask(
-      PollForActivityTaskResponse task, PollForActivityTaskRequest pollRequest)
-      throws InternalServiceError, EntityNotExistsError, BadRequestError {
+      PollForActivityTaskResponseOrBuilder task, PollForActivityTaskRequest pollRequest) {
     update(
         ctx -> {
           String activityId = task.getActivityId();
@@ -1108,17 +1254,19 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           if (startToCloseTimeout > 0) {
             ctx.addTimer(
                 startToCloseTimeout,
-                () -> timeoutActivity(activityId, TimeoutType.START_TO_CLOSE),
+                () -> timeoutActivity(activityId, TimeoutType.TimeoutTypeStartToClose),
                 "Activity StartToCloseTimeout");
           }
           updateHeartbeatTimer(ctx, activityId, activity, startToCloseTimeout, heartbeatTimeout);
         });
   }
 
-  private void checkCompleted() throws EntityNotExistsError {
+  private void checkCompleted() {
     State workflowState = workflow.getState();
     if (isTerminalState(workflowState)) {
-      throw new EntityNotExistsError("Workflow is already completed: " + workflowState);
+      throw Status.NOT_FOUND
+          .withDescription("Workflow is already completed: " + workflowState)
+          .asRuntimeException();
     }
   }
 
@@ -1140,14 +1288,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       activity.getData().lastHeartbeatTime = clock.getAsLong();
       ctx.addTimer(
           heartbeatTimeout,
-          () -> timeoutActivity(activityId, TimeoutType.HEARTBEAT),
+          () -> timeoutActivity(activityId, TimeoutType.TimeoutTypeHeartbeat),
           "Activity Heartbeat Timeout");
     }
   }
 
   @Override
-  public void completeActivityTask(String activityId, RespondActivityTaskCompletedRequest request)
-      throws InternalServiceError, EntityNotExistsError, BadRequestError {
+  public void completeActivityTask(String activityId, RespondActivityTaskCompletedRequest request) {
     update(
         ctx -> {
           StateMachine<?> activity = getActivity(activityId);
@@ -1160,8 +1307,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public void completeActivityTaskById(
-      String activityId, RespondActivityTaskCompletedByIDRequest request)
-      throws InternalServiceError, EntityNotExistsError, BadRequestError {
+      String activityId, RespondActivityTaskCompletedByIDRequest request) {
     update(
         ctx -> {
           StateMachine<?> activity = getActivity(activityId);
@@ -1173,8 +1319,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public void failActivityTask(String activityId, RespondActivityTaskFailedRequest request)
-      throws InternalServiceError, EntityNotExistsError, BadRequestError {
+  public void failActivityTask(String activityId, RespondActivityTaskFailedRequest request) {
     update(
         ctx -> {
           StateMachine<ActivityTaskData> activity = getActivity(activityId);
@@ -1205,9 +1350,12 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           boolean unlockTimer = false;
           try {
             update(ctx1 -> ctx1.addActivityTask(data.activityTask));
-          } catch (EntityNotExistsError e) {
+          } catch (StatusRuntimeException e) {
+            // NOT_FOUND is expected as timers are not removed
+            if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
+              log.error("Failure trying to add task for an activity retry", e);
+            }
             unlockTimer = true;
-            // Expected as timers are not removed
           } catch (Exception e) {
             unlockTimer = true;
             // Cannot fail to timer threads
@@ -1224,8 +1372,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public void failActivityTaskById(String activityId, RespondActivityTaskFailedByIDRequest request)
-      throws EntityNotExistsError, InternalServiceError, BadRequestError {
+  public void failActivityTaskById(
+      String activityId, RespondActivityTaskFailedByIDRequest request) {
     update(
         ctx -> {
           StateMachine<ActivityTaskData> activity = getActivity(activityId);
@@ -1241,8 +1389,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public void cancelActivityTask(String activityId, RespondActivityTaskCanceledRequest request)
-      throws EntityNotExistsError, InternalServiceError, BadRequestError {
+  public void cancelActivityTask(String activityId, RespondActivityTaskCanceledRequest request) {
     update(
         ctx -> {
           StateMachine<?> activity = getActivity(activityId);
@@ -1255,8 +1402,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public void cancelActivityTaskById(
-      String activityId, RespondActivityTaskCanceledByIDRequest request)
-      throws EntityNotExistsError, InternalServiceError, BadRequestError {
+      String activityId, RespondActivityTaskCanceledByIDRequest request) {
     update(
         ctx -> {
           StateMachine<?> activity = getActivity(activityId);
@@ -1268,30 +1414,22 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public RecordActivityTaskHeartbeatResponse heartbeatActivityTask(
-      String activityId, byte[] details) throws InternalServiceError, EntityNotExistsError {
-    RecordActivityTaskHeartbeatResponse result = new RecordActivityTaskHeartbeatResponse();
-    try {
-      update(
-          ctx -> {
-            StateMachine<ActivityTaskData> activity = getActivity(activityId);
-            activity.action(StateMachines.Action.UPDATE, ctx, details, 0);
-            if (activity.getState() == StateMachines.State.CANCELLATION_REQUESTED) {
-              result.setCancelRequested(true);
-            }
-            ActivityTaskData data = activity.getData();
-            data.lastHeartbeatTime = clock.getAsLong();
-            int startToCloseTimeout = data.scheduledEvent.getStartToCloseTimeoutSeconds();
-            int heartbeatTimeout = data.scheduledEvent.getHeartbeatTimeoutSeconds();
-            updateHeartbeatTimer(ctx, activityId, activity, startToCloseTimeout, heartbeatTimeout);
-          });
-
-    } catch (InternalServiceError | EntityNotExistsError e) {
-      throw e;
-    } catch (Exception e) {
-      throw new InternalServiceError(Throwables.getStackTraceAsString(e));
-    }
-    return result;
+  public boolean heartbeatActivityTask(String activityId, ByteString details) {
+    AtomicBoolean result = new AtomicBoolean();
+    update(
+        ctx -> {
+          StateMachine<ActivityTaskData> activity = getActivity(activityId);
+          activity.action(StateMachines.Action.UPDATE, ctx, details, 0);
+          if (activity.getState() == StateMachines.State.CANCELLATION_REQUESTED) {
+            result.set(true);
+          }
+          ActivityTaskData data = activity.getData();
+          data.lastHeartbeatTime = clock.getAsLong();
+          int startToCloseTimeout = data.scheduledEvent.getStartToCloseTimeoutSeconds();
+          int heartbeatTimeout = data.scheduledEvent.getHeartbeatTimeoutSeconds();
+          updateHeartbeatTimer(ctx, activityId, activity, startToCloseTimeout, heartbeatTimeout);
+        });
+    return result.get();
   }
 
   private void timeoutActivity(String activityId, TimeoutType timeoutType) {
@@ -1300,17 +1438,17 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       update(
           ctx -> {
             StateMachine<ActivityTaskData> activity = getActivity(activityId);
-            if (timeoutType == TimeoutType.SCHEDULE_TO_START
+            if (timeoutType == TimeoutType.TimeoutTypeScheduleToStart
                 && activity.getState() != StateMachines.State.INITIATED) {
-              throw new EntityNotExistsError("Not in INITIATED");
+              throw Status.INTERNAL.withDescription("Not in INITIATED").asRuntimeException();
             }
-            if (timeoutType == TimeoutType.HEARTBEAT) {
+            if (timeoutType == TimeoutType.TimeoutTypeHeartbeat) {
               // Deal with timers which are never cancelled
               long heartbeatTimeout =
                   TimeUnit.SECONDS.toMillis(
                       activity.getData().scheduledEvent.getHeartbeatTimeoutSeconds());
               if (clock.getAsLong() - activity.getData().lastHeartbeatTime < heartbeatTimeout) {
-                throw new EntityNotExistsError("Not heartbeat timeout");
+                throw Status.INTERNAL.withDescription("Not heartbeat timeout").asRuntimeException();
               }
             }
             activity.action(StateMachines.Action.TIME_OUT, ctx, timeoutType, 0);
@@ -1321,8 +1459,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               addActivityRetryTimer(ctx, activity);
             }
           });
-    } catch (EntityNotExistsError e) {
-      // Expected as timers are not removed
+    } catch (StatusRuntimeException e) {
+      // NOT_FOUND is expected as timers are not removed
+      if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
+        log.error("Failure trying to add task for an activity retry", e);
+      }
       unlockTimer = false;
     } catch (Exception e) {
       // Cannot fail to timer threads
@@ -1351,13 +1492,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             if (isTerminalState(workflow.getState())) {
               return;
             }
-            workflow.action(StateMachines.Action.TIME_OUT, ctx, TimeoutType.START_TO_CLOSE, 0);
+            workflow.action(
+                StateMachines.Action.TIME_OUT, ctx, TimeoutType.TimeoutTypeStartToClose, 0);
             if (parent != null) {
               ctx.lockTimer(); // unlocked by the parent
             }
             ForkJoinPool.commonPool().execute(() -> reportWorkflowTimeoutToParent(ctx));
           });
-    } catch (BadRequestError | InternalServiceError | EntityNotExistsError e) {
+    } catch (Exception e) {
       // Cannot fail to timer threads
       log.error("Failure trying to timeout a workflow", e);
     }
@@ -1369,23 +1511,26 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     }
     try {
       ChildWorkflowExecutionTimedOutEventAttributes a =
-          new ChildWorkflowExecutionTimedOutEventAttributes()
+          ChildWorkflowExecutionTimedOutEventAttributes.newBuilder()
               .setInitiatedEventId(parentChildInitiatedEventId.getAsLong())
-              .setTimeoutType(TimeoutType.START_TO_CLOSE)
+              .setTimeoutType(TimeoutType.TimeoutTypeStartToClose)
               .setWorkflowType(startRequest.getWorkflowType())
               .setDomain(ctx.getDomain())
-              .setWorkflowExecution(ctx.getExecution());
+              .setWorkflowExecution(ctx.getExecution())
+              .build();
       parent.get().childWorkflowTimedOut(ctx.getExecutionId().getWorkflowId().getWorkflowId(), a);
-    } catch (EntityNotExistsError entityNotExistsError) {
-      // Parent might already close
-    } catch (BadRequestError | InternalServiceError e) {
+    } catch (StatusRuntimeException e) {
+      // NOT_FOUND is expected as parent might already close
+      if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
+        log.error("Failure reporting child timing out", e);
+      }
+    } catch (Exception e) {
       log.error("Failure reporting child timing out", e);
     }
   }
 
   @Override
-  public void signal(SignalWorkflowExecutionRequest signalRequest)
-      throws EntityNotExistsError, InternalServiceError, BadRequestError {
+  public void signal(SignalWorkflowExecutionRequest signalRequest) {
     update(
         ctx -> {
           addExecutionSignaledEvent(ctx, signalRequest);
@@ -1394,8 +1539,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public void signalFromWorkflow(SignalExternalWorkflowExecutionDecisionAttributes a)
-      throws EntityNotExistsError, InternalServiceError, BadRequestError {
+  public void signalFromWorkflow(SignalExternalWorkflowExecutionDecisionAttributes a) {
     update(
         ctx -> {
           addExecutionSignaledByExternalEvent(ctx, a);
@@ -1404,8 +1548,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public void requestCancelWorkflowExecution(RequestCancelWorkflowExecutionRequest cancelRequest)
-      throws EntityNotExistsError, InternalServiceError, BadRequestError {
+  public void requestCancelWorkflowExecution(RequestCancelWorkflowExecutionRequest cancelRequest) {
     update(
         ctx -> {
           workflow.action(StateMachines.Action.REQUEST_CANCELLATION, ctx, cancelRequest, 0);
@@ -1414,25 +1557,28 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public QueryWorkflowResponse query(QueryWorkflowRequest queryRequest) throws TException {
+  public QueryWorkflowResponse query(QueryWorkflowRequest queryRequest) {
     QueryId queryId = new QueryId(executionId);
 
     Optional<WorkflowExecutionCloseStatus> optCloseStatus = getCloseStatus();
     if (optCloseStatus.isPresent() && queryRequest.getQueryRejectCondition() != null) {
       WorkflowExecutionCloseStatus closeStatus = optCloseStatus.get();
       boolean rejectNotOpen =
-          queryRequest.getQueryRejectCondition() == QueryRejectCondition.NOT_OPEN;
+          queryRequest.getQueryRejectCondition()
+              == QueryRejectCondition.QueryRejectConditionNotOpen;
       boolean rejectNotCompletedCleanly =
-          queryRequest.getQueryRejectCondition() == QueryRejectCondition.NOT_COMPLETED_CLEANLY
-              && closeStatus != WorkflowExecutionCloseStatus.COMPLETED;
+          queryRequest.getQueryRejectCondition()
+                  == QueryRejectCondition.QueryRejectConditionNotCompletedCleanly
+              && closeStatus != WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusCompleted;
       if (rejectNotOpen || rejectNotCompletedCleanly) {
-        return new QueryWorkflowResponse()
-            .setQueryRejected(new QueryRejected().setCloseStatus(closeStatus));
+        return QueryWorkflowResponse.newBuilder()
+            .setQueryRejected(QueryRejected.newBuilder().setCloseStatus(closeStatus))
+            .build();
       }
     }
 
-    PollForDecisionTaskResponse task =
-        new PollForDecisionTaskResponse()
+    PollForDecisionTaskResponse.Builder task =
+        PollForDecisionTaskResponse.newBuilder()
             .setTaskToken(queryId.toBytes())
             .setWorkflowExecution(executionId.getExecution())
             .setWorkflowType(startRequest.getWorkflowType())
@@ -1451,83 +1597,90 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     try {
       return result.get();
     } catch (InterruptedException e) {
-      return new QueryWorkflowResponse();
+      return QueryWorkflowResponse.getDefaultInstance();
     } catch (ExecutionException e) {
-      Throwable cause = e.getCause();
-      if (cause instanceof TException) {
-        throw (TException) cause;
-      }
-      throw new InternalServiceError(Throwables.getStackTraceAsString(cause));
+      throw Status.INTERNAL.withCause(e).asRuntimeException();
     }
   }
 
   @Override
-  public void completeQuery(QueryId queryId, RespondQueryTaskCompletedRequest completeRequest)
-      throws EntityNotExistsError {
+  public void completeQuery(QueryId queryId, RespondQueryTaskCompletedRequest completeRequest) {
     CompletableFuture<QueryWorkflowResponse> result = queries.get(queryId.getQueryId());
     if (result == null) {
-      throw new EntityNotExistsError("Unknown query id: " + queryId.getQueryId());
+      throw Status.NOT_FOUND
+          .withDescription("Unknown query id: " + queryId.getQueryId())
+          .asRuntimeException();
     }
-    if (completeRequest.getCompletedType() == QueryTaskCompletedType.COMPLETED) {
+    if (completeRequest.getCompletedType()
+        == QueryTaskCompletedType.QueryTaskCompletedTypeCompleted) {
       QueryWorkflowResponse response =
-          new QueryWorkflowResponse().setQueryResult(completeRequest.getQueryResult());
+          QueryWorkflowResponse.newBuilder()
+              .setQueryResult(completeRequest.getQueryResult())
+              .build();
       result.complete(response);
     } else if (stickyExecutionAttributes != null) {
       stickyExecutionAttributes = null;
-      PollForDecisionTaskResponse task = queryRequests.remove(queryId.getQueryId());
+      PollForDecisionTaskResponse.Builder task = queryRequests.remove(queryId.getQueryId());
 
       TaskListId taskListId =
           new TaskListId(startRequest.getDomain(), startRequest.getTaskList().getName());
       store.sendQueryTask(executionId, taskListId, task);
     } else {
-      QueryFailedError error = new QueryFailedError().setMessage(completeRequest.getErrorMessage());
+      StatusRuntimeException error =
+          Status.INVALID_ARGUMENT
+              .withDescription(completeRequest.getErrorMessage())
+              .asRuntimeException();
       result.completeExceptionally(error);
     }
   }
 
   private void addExecutionSignaledEvent(
       RequestContext ctx, SignalWorkflowExecutionRequest signalRequest) {
-    WorkflowExecutionSignaledEventAttributes a =
-        new WorkflowExecutionSignaledEventAttributes()
+    WorkflowExecutionSignaledEventAttributes.Builder a =
+        WorkflowExecutionSignaledEventAttributes.newBuilder()
             .setInput(startRequest.getInput())
             .setIdentity(signalRequest.getIdentity())
             .setInput(signalRequest.getInput())
             .setSignalName(signalRequest.getSignalName());
     HistoryEvent executionSignaled =
-        new HistoryEvent()
-            .setEventType(EventType.WorkflowExecutionSignaled)
-            .setWorkflowExecutionSignaledEventAttributes(a);
+        HistoryEvent.newBuilder()
+            .setEventType(EventType.EventTypeWorkflowExecutionSignaled)
+            .setWorkflowExecutionSignaledEventAttributes(a)
+            .build();
     ctx.addEvent(executionSignaled);
   }
 
   private void addExecutionSignaledByExternalEvent(
       RequestContext ctx, SignalExternalWorkflowExecutionDecisionAttributes d) {
-    WorkflowExecutionSignaledEventAttributes a =
-        new WorkflowExecutionSignaledEventAttributes()
+    WorkflowExecutionSignaledEventAttributes.Builder a =
+        WorkflowExecutionSignaledEventAttributes.newBuilder()
             .setInput(startRequest.getInput())
             .setInput(d.getInput())
             .setSignalName(d.getSignalName());
     HistoryEvent executionSignaled =
-        new HistoryEvent()
-            .setEventType(EventType.WorkflowExecutionSignaled)
-            .setWorkflowExecutionSignaledEventAttributes(a);
+        HistoryEvent.newBuilder()
+            .setEventType(EventType.EventTypeWorkflowExecutionSignaled)
+            .setWorkflowExecutionSignaledEventAttributes(a)
+            .build();
     ctx.addEvent(executionSignaled);
   }
 
-  private StateMachine<ActivityTaskData> getActivity(String activityId)
-      throws EntityNotExistsError {
+  private StateMachine<ActivityTaskData> getActivity(String activityId) {
     StateMachine<ActivityTaskData> activity = activities.get(activityId);
     if (activity == null) {
-      throw new EntityNotExistsError("unknown activityId: " + activityId);
+      throw Status.NOT_FOUND
+          .withDescription("unknown activityId: " + activityId)
+          .asRuntimeException();
     }
     return activity;
   }
 
-  private StateMachine<ChildWorkflowData> getChildWorkflow(long initiatedEventId)
-      throws InternalServiceError {
+  private StateMachine<ChildWorkflowData> getChildWorkflow(long initiatedEventId) {
     StateMachine<ChildWorkflowData> child = childWorkflows.get(initiatedEventId);
     if (child == null) {
-      throw new InternalServiceError("unknown initiatedEventId: " + initiatedEventId);
+      throw Status.INTERNAL
+          .withDescription("unknown initiatedEventId: " + initiatedEventId)
+          .asRuntimeException();
     }
     return child;
   }
@@ -1555,31 +1708,31 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       return queryId;
     }
 
-    byte[] toBytes() throws InternalServiceError {
+    ByteString toBytes() {
       ByteArrayOutputStream bout = new ByteArrayOutputStream();
       DataOutputStream out = new DataOutputStream(bout);
       addBytes(out);
-      return bout.toByteArray();
+      return ByteString.copyFrom(bout.toByteArray());
     }
 
-    void addBytes(DataOutputStream out) throws InternalServiceError {
+    void addBytes(DataOutputStream out) {
       try {
         executionId.addBytes(out);
         out.writeUTF(queryId);
       } catch (IOException e) {
-        throw new InternalServiceError(Throwables.getStackTraceAsString(e));
+        throw Status.INTERNAL.withCause(e).asRuntimeException();
       }
     }
 
-    static QueryId fromBytes(byte[] serialized) throws InternalServiceError {
-      ByteArrayInputStream bin = new ByteArrayInputStream(serialized);
+    static QueryId fromBytes(ByteString serialized) {
+      ByteArrayInputStream bin = new ByteArrayInputStream(serialized.toByteArray());
       DataInputStream in = new DataInputStream(bin);
       try {
         ExecutionId executionId = ExecutionId.readFromBytes(in);
         String queryId = in.readUTF();
         return new QueryId(executionId, queryId);
       } catch (IOException e) {
-        throw new InternalServiceError(Throwables.getStackTraceAsString(e));
+        throw Status.INTERNAL.withCause(e).asRuntimeException();
       }
     }
   }

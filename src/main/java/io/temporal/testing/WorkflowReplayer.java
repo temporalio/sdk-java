@@ -18,10 +18,10 @@
 package io.temporal.testing;
 
 import com.google.common.collect.ObjectArrays;
-import io.temporal.TaskList;
-import io.temporal.WorkflowExecutionStartedEventAttributes;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.internal.common.WorkflowExecutionUtils;
+import io.temporal.proto.common.TaskList;
+import io.temporal.proto.common.WorkflowExecutionStartedEventAttributes;
 import io.temporal.worker.Worker;
 import java.io.File;
 

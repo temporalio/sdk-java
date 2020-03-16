@@ -18,21 +18,21 @@
 package io.temporal.internal.replay;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.DecisionTaskFailedCause;
-import io.temporal.DecisionTaskFailedEventAttributes;
-import io.temporal.HistoryEvent;
-import io.temporal.PollForDecisionTaskResponse;
-import io.temporal.SearchAttributes;
-import io.temporal.TimerFiredEventAttributes;
-import io.temporal.UpsertWorkflowSearchAttributesEventAttributes;
-import io.temporal.WorkflowExecution;
-import io.temporal.WorkflowExecutionStartedEventAttributes;
-import io.temporal.WorkflowType;
 import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
 import io.temporal.internal.metrics.ReplayAwareScope;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
+import io.temporal.proto.common.DecisionTaskFailedEventAttributes;
+import io.temporal.proto.common.HistoryEvent;
+import io.temporal.proto.common.SearchAttributes;
+import io.temporal.proto.common.TimerFiredEventAttributes;
+import io.temporal.proto.common.UpsertWorkflowSearchAttributesEventAttributes;
+import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecutionStartedEventAttributes;
+import io.temporal.proto.common.WorkflowType;
+import io.temporal.proto.enums.DecisionTaskFailedCause;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
@@ -63,7 +63,7 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   DecisionContextImpl(
       DecisionsHelper decisionsHelper,
       String domain,
-      PollForDecisionTaskResponse decisionTask,
+      PollForDecisionTaskResponseOrBuilder decisionTask,
       WorkflowExecutionStartedEventAttributes startedAttributes,
       SingleWorkerOptions options,
       BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller,
@@ -158,7 +158,11 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
 
   @Override
   public String getRunId() {
-    return workflowContext.getWorkflowExecution().getRunId();
+    String result = workflowContext.getWorkflowExecution().getRunId();
+    if (result.isEmpty()) {
+      return null;
+    }
+    return result;
   }
 
   @Override
@@ -368,7 +372,8 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
 
   public void handleDecisionTaskFailed(HistoryEvent event) {
     DecisionTaskFailedEventAttributes attr = event.getDecisionTaskFailedEventAttributes();
-    if (attr != null && attr.getCause() == DecisionTaskFailedCause.RESET_WORKFLOW) {
+    if (attr != null
+        && attr.getCause() == DecisionTaskFailedCause.DecisionTaskFailedCauseResetWorkflow) {
       workflowContext.setCurrentRunId(attr.getNewRunId());
     }
   }

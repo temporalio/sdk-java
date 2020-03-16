@@ -20,10 +20,6 @@ package io.temporal.internal.sync;
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.ActivityType;
-import io.temporal.SearchAttributes;
-import io.temporal.WorkflowExecution;
-import io.temporal.WorkflowType;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.RetryOptions;
@@ -40,6 +36,10 @@ import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
+import io.temporal.proto.common.ActivityType;
+import io.temporal.proto.common.SearchAttributes;
+import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.common.WorkflowType;
 import io.temporal.workflow.ActivityException;
 import io.temporal.workflow.ActivityFailureException;
 import io.temporal.workflow.ActivityTimeoutException;
@@ -298,7 +298,7 @@ final class SyncDecisionContext implements WorkflowInterceptor {
       taskList = context.getTaskList();
     }
     parameters
-        .withActivityType(new ActivityType().setName(name))
+        .withActivityType(ActivityType.newBuilder().setName(name).build())
         .withInput(input)
         .withTaskList(taskList)
         .withScheduleToStartTimeoutSeconds(options.getScheduleToStartTimeout().getSeconds())
@@ -325,7 +325,7 @@ final class SyncDecisionContext implements WorkflowInterceptor {
       String name, LocalActivityOptions options, byte[] input, long elapsed, int attempt) {
     ExecuteLocalActivityParameters parameters = new ExecuteLocalActivityParameters();
     parameters
-        .withActivityType(new ActivityType().setName(name))
+        .withActivityType(ActivityType.newBuilder().setName(name).build())
         .withInput(input)
         .withScheduleToCloseTimeoutSeconds(options.getScheduleToCloseTimeout().getSeconds());
     RetryOptions retryOptions = options.getRetryOptions();
@@ -393,7 +393,7 @@ final class SyncDecisionContext implements WorkflowInterceptor {
 
     StartChildWorkflowExecutionParameters parameters =
         new StartChildWorkflowExecutionParameters.Builder()
-            .setWorkflowType(new WorkflowType().setName(name))
+            .setWorkflowType(WorkflowType.newBuilder().setName(name).build())
             .setWorkflowId(options.getWorkflowId())
             .setInput(input)
             .setExecutionStartToCloseTimeoutSeconds(

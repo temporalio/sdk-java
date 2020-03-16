@@ -17,7 +17,7 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecution;
 import java.util.function.Consumer;
 
 class OpenChildWorkflowRequestInfo extends OpenRequestInfo<byte[], String> {

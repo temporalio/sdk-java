@@ -17,7 +17,7 @@
 
 package io.temporal.workflow;
 
-import io.temporal.ActivityType;
+import io.temporal.proto.common.ActivityType;
 
 /** Exception used to communicate failure of a remote activity. */
 @SuppressWarnings("serial")

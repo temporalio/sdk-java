@@ -20,8 +20,8 @@ package io.temporal.internal.common;
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
 import com.uber.m3.util.ImmutableList;
-import io.temporal.RetryPolicy;
 import io.temporal.common.RetryOptions;
+import io.temporal.proto.common.RetryPolicy;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -90,7 +90,7 @@ public final class RetryParameters {
   }
 
   public List<String> getNonRetriableErrorReasons() {
-    return nonRetriableErrorReasons;
+    return nonRetriableErrorReasons == null ? new ArrayList<>() : nonRetriableErrorReasons;
   }
 
   public void setNonRetriableErrorReasons(List<String> nonRetriableErrorReasons) {
@@ -117,13 +117,19 @@ public final class RetryParameters {
   }
 
   public RetryPolicy toRetryPolicy() {
-    return new RetryPolicy()
-        .setNonRetriableErrorReasons(getNonRetriableErrorReasons())
+    if (getInitialIntervalInSeconds() <= 0) {
+      throw new IllegalStateException(
+          "required property initialIntervalSeconds is not set or valid:"
+              + getInitialIntervalInSeconds());
+    }
+    return RetryPolicy.newBuilder()
+        .addAllNonRetriableErrorReasons(getNonRetriableErrorReasons())
         .setMaximumAttempts(getMaximumAttempts())
         .setInitialIntervalInSeconds(getInitialIntervalInSeconds())
         .setExpirationIntervalInSeconds(getExpirationIntervalInSeconds())
         .setBackoffCoefficient(getBackoffCoefficient())
-        .setMaximumIntervalInSeconds(getMaximumIntervalInSeconds());
+        .setMaximumIntervalInSeconds(getMaximumIntervalInSeconds())
+        .build();
   }
 
   @Override

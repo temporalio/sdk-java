@@ -17,7 +17,7 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.WorkflowExecutionStartedEventAttributes;
+import io.temporal.proto.common.WorkflowExecutionStartedEventAttributes;
 import java.util.Objects;
 
 class WorkflowRunnable implements Runnable {
@@ -43,8 +43,7 @@ class WorkflowRunnable implements Runnable {
   @Override
   public void run() {
     try {
-
-      output = workflow.execute(attributes.getInput());
+      output = workflow.execute(attributes.getInput().toByteArray());
     } finally {
       done = true;
     }

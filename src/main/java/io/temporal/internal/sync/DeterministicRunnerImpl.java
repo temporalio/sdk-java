@@ -18,9 +18,6 @@
 package io.temporal.internal.sync;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.SearchAttributes;
-import io.temporal.WorkflowExecution;
-import io.temporal.WorkflowType;
 import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
 import io.temporal.converter.JsonDataConverter;
@@ -34,6 +31,9 @@ import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
+import io.temporal.proto.common.SearchAttributes;
+import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.common.WorkflowType;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
@@ -167,7 +167,6 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     this.clock = clock;
     this.cache = cache;
     runnerCancellationScope = new CancellationScopeImpl(true, null, null);
-
     // TODO: workflow instance specific thread name
     rootWorkflowThread =
         new WorkflowThreadImpl(
@@ -526,7 +525,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
     @Override
     public WorkflowType getWorkflowType() {
-      return new WorkflowType().setName("dummy-workflow");
+      return WorkflowType.newBuilder().setName("dummy-workflow").build();
     }
 
     @Override

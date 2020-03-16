@@ -21,8 +21,6 @@ import static io.temporal.internal.common.InternalUtils.getWorkflowMethod;
 import static io.temporal.internal.common.InternalUtils.getWorkflowType;
 
 import com.google.common.base.Defaults;
-import io.temporal.WorkflowExecution;
-import io.temporal.WorkflowIdReusePolicy;
 import io.temporal.client.DuplicateWorkflowException;
 import io.temporal.client.WorkflowClientInterceptor;
 import io.temporal.client.WorkflowOptions;
@@ -32,6 +30,8 @@ import io.temporal.common.MethodRetry;
 import io.temporal.converter.DataConverter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.external.GenericWorkflowClientExternal;
+import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.enums.WorkflowIdReusePolicy;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.WorkflowMethod;
@@ -170,14 +170,16 @@ class WorkflowInvocationHandler implements InvocationHandler {
     Optional<WorkflowOptions> options = untyped.getOptions();
     if (untyped.getExecution() == null
         || (options.isPresent()
-            && options.get().getWorkflowIdReusePolicy() == WorkflowIdReusePolicy.AllowDuplicate)) {
+            && options.get().getWorkflowIdReusePolicy()
+                == WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicate)) {
       try {
         untyped.start(args);
       } catch (DuplicateWorkflowException e) {
         // We do allow duplicated calls if policy is not AllowDuplicate. Semantic is to wait for
         // result.
         if (options.isPresent()
-            && options.get().getWorkflowIdReusePolicy() == WorkflowIdReusePolicy.AllowDuplicate) {
+            && options.get().getWorkflowIdReusePolicy()
+                == WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicate) {
           throw e;
         }
       }

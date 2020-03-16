@@ -20,18 +20,19 @@ package io.temporal.internal.sync;
 import com.google.common.base.Joiner;
 import com.google.common.reflect.TypeToken;
 import com.uber.m3.tally.Scope;
-import io.temporal.PollForActivityTaskResponse;
-import io.temporal.RespondActivityTaskCompletedRequest;
-import io.temporal.RespondActivityTaskFailedRequest;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.common.MethodRetry;
 import io.temporal.converter.DataConverter;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.common.InternalUtils;
+import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.ActivityTaskHandler;
-import io.temporal.serviceclient.IWorkflowService;
+import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
+import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import io.temporal.testing.SimulatedTimeoutException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -48,11 +49,11 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
   private final ScheduledExecutorService heartbeatExecutor;
   private final Map<String, ActivityTaskExecutor> activities =
       Collections.synchronizedMap(new HashMap<>());
-  private IWorkflowService service;
+  private GrpcWorkflowServiceFactory service;
   private final String domain;
 
   POJOActivityTaskHandler(
-      IWorkflowService service,
+      GrpcWorkflowServiceFactory service,
       String domain,
       DataConverter dataConverter,
       ScheduledExecutorService heartbeatExecutor) {
@@ -143,10 +144,12 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
       metricsScope.counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
     }
 
-    RespondActivityTaskFailedRequest result = new RespondActivityTaskFailedRequest();
     failure = CheckedExceptionWrapper.unwrap(failure);
-    result.setReason(failure.getClass().getName());
-    result.setDetails(dataConverter.toData(failure));
+    RespondActivityTaskFailedRequest result =
+        RespondActivityTaskFailedRequest.newBuilder()
+            .setReason(failure.getClass().getName())
+            .setDetails(OptionsUtils.toByteString(dataConverter.toData(failure)))
+            .build();
     return new ActivityTaskHandler.Result(
         null, new Result.TaskFailedResult(result, failure), null, null);
   }
@@ -212,14 +215,15 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
       try {
         Object[] args = dataConverter.fromDataArray(input, method.getGenericParameterTypes());
         Object result = method.invoke(activity, args);
-        RespondActivityTaskCompletedRequest request = new RespondActivityTaskCompletedRequest();
         if (context.isDoNotCompleteOnReturn()) {
           return new ActivityTaskHandler.Result(null, null, null, null);
         }
+        RespondActivityTaskCompletedRequest.Builder request =
+            RespondActivityTaskCompletedRequest.newBuilder();
         if (method.getReturnType() != Void.TYPE) {
-          request.setResult(dataConverter.toData(result));
+          request.setResult(OptionsUtils.toByteString(dataConverter.toData(result)));
         }
-        return new ActivityTaskHandler.Result(request, null, null, null);
+        return new ActivityTaskHandler.Result(request.build(), null, null, null);
       } catch (RuntimeException | IllegalAccessException e) {
         return mapToActivityFailure(e, metricsScope, false);
       } catch (InvocationTargetException e) {
@@ -248,11 +252,12 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
       try {
         Object[] args = dataConverter.fromDataArray(input, method.getGenericParameterTypes());
         Object result = method.invoke(activity, args);
-        RespondActivityTaskCompletedRequest request = new RespondActivityTaskCompletedRequest();
+        RespondActivityTaskCompletedRequest.Builder request =
+            RespondActivityTaskCompletedRequest.newBuilder();
         if (method.getReturnType() != Void.TYPE) {
-          request.setResult(dataConverter.toData(result));
+          request.setResult(OptionsUtils.toByteString(dataConverter.toData(result)));
         }
-        return new ActivityTaskHandler.Result(request, null, null, null);
+        return new ActivityTaskHandler.Result(request.build(), null, null, null);
       } catch (RuntimeException | IllegalAccessException e) {
         return mapToActivityFailure(e, metricsScope, true);
       } catch (InvocationTargetException e) {
@@ -261,10 +266,5 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
         CurrentActivityExecutionContext.unset();
       }
     }
-  }
-
-  // This is only for unit test to mock service and set expectations.
-  void setWorkflowService(IWorkflowService service) {
-    this.service = service;
   }
 }

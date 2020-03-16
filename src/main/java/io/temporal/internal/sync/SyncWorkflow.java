@@ -17,10 +17,6 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.EventType;
-import io.temporal.HistoryEvent;
-import io.temporal.WorkflowQuery;
-import io.temporal.WorkflowType;
 import io.temporal.client.WorkflowClient;
 import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
@@ -28,18 +24,27 @@ import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.DecisionContext;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.worker.WorkflowExecutionException;
+import io.temporal.proto.common.HistoryEvent;
+import io.temporal.proto.common.WorkflowExecutionStartedEventAttributes;
+import io.temporal.proto.common.WorkflowQuery;
+import io.temporal.proto.common.WorkflowType;
+import io.temporal.proto.enums.EventType;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.WorkflowInterceptor;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * SyncWorkflow supports workflows that use synchronous blocking code. An instance is created per
  * decision.
  */
 class SyncWorkflow implements ReplayWorkflow {
+
+  private static final Logger log = LoggerFactory.getLogger(SyncWorkflow.class);
 
   private final DataConverter dataConverter;
   private final List<ContextPropagator> contextPropagators;
@@ -78,14 +83,17 @@ class SyncWorkflow implements ReplayWorkflow {
 
   @Override
   public void start(HistoryEvent event, DecisionContext context) {
-    WorkflowType workflowType =
-        event.getWorkflowExecutionStartedEventAttributes().getWorkflowType();
-    if (workflow == null) {
-      throw new IllegalArgumentException("Unknown workflow type: " + workflowType);
-    }
-    if (event.getEventType() != EventType.WorkflowExecutionStarted) {
+    if (event.getEventType() != EventType.EventTypeWorkflowExecutionStarted
+        || !event.hasWorkflowExecutionStartedEventAttributes()) {
       throw new IllegalArgumentException(
           "first event is not WorkflowExecutionStarted, but " + event.getEventType());
+    }
+
+    WorkflowExecutionStartedEventAttributes startEvent =
+        event.getWorkflowExecutionStartedEventAttributes();
+    WorkflowType workflowType = startEvent.getWorkflowType();
+    if (workflow == null) {
+      throw new IllegalArgumentException("Unknown workflow type: " + workflowType);
     }
 
     SyncDecisionContext syncContext =
@@ -94,11 +102,9 @@ class SyncWorkflow implements ReplayWorkflow {
             dataConverter,
             contextPropagators,
             interceptorFactory,
-            event.getWorkflowExecutionStartedEventAttributes().getLastCompletionResult());
+            startEvent.getLastCompletionResult().toByteArray());
 
-    workflowProc =
-        new WorkflowRunnable(
-            syncContext, workflow, event.getWorkflowExecutionStartedEventAttributes());
+    workflowProc = new WorkflowRunnable(syncContext, workflow, startEvent);
     runner =
         DeterministicRunner.newRunner(
             threadPool, syncContext, context::currentTimeMillis, workflowProc, cache);
@@ -141,6 +147,9 @@ class SyncWorkflow implements ReplayWorkflow {
 
   @Override
   public long getNextWakeUpTime() {
+    if (runner == null) {
+      throw new IllegalStateException("Start not called");
+    }
     return runner.getNextWakeUpTime();
   }
 
@@ -152,7 +161,7 @@ class SyncWorkflow implements ReplayWorkflow {
     if (WorkflowClient.QUERY_TYPE_STACK_TRACE.equals(query.getQueryType())) {
       return dataConverter.toData(runner.stackTrace());
     }
-    return workflowProc.query(query.getQueryType(), query.getQueryArgs());
+    return workflowProc.query(query.getQueryType(), query.getQueryArgs().toByteArray());
   }
 
   @Override

@@ -17,16 +17,21 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.*;
+import com.google.protobuf.ByteString;
 import io.temporal.context.ContextPropagator;
-import java.nio.ByteBuffer;
+import io.temporal.proto.common.Header;
+import io.temporal.proto.common.SearchAttributes;
+import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecutionStartedEventAttributes;
+import io.temporal.proto.common.WorkflowType;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 final class WorkflowContext {
 
-  private final PollForDecisionTaskResponse decisionTask;
+  private final PollForDecisionTaskResponseOrBuilder decisionTask;
   private boolean cancelRequested;
   private ContinueAsNewWorkflowExecutionParameters continueAsNewOnCompletion;
   private WorkflowExecutionStartedEventAttributes startedAttributes;
@@ -34,19 +39,21 @@ final class WorkflowContext {
   // RunId can change when reset happens. This remembers the actual runId that is used
   // as in this particular part of the history.
   private String currentRunId;
-  private SearchAttributes searchAttributes;
+  private SearchAttributes.Builder searchAttributes;
   private List<ContextPropagator> contextPropagators;
 
   WorkflowContext(
       String domain,
-      PollForDecisionTaskResponse decisionTask,
+      PollForDecisionTaskResponseOrBuilder decisionTask,
       WorkflowExecutionStartedEventAttributes startedAttributes,
       List<ContextPropagator> contextPropagators) {
     this.domain = domain;
     this.decisionTask = decisionTask;
     this.startedAttributes = startedAttributes;
     this.currentRunId = startedAttributes.getOriginalExecutionRunId();
-    this.searchAttributes = startedAttributes.getSearchAttributes();
+    if (startedAttributes.hasSearchAttributes()) {
+      this.searchAttributes = startedAttributes.getSearchAttributes().toBuilder();
+    }
     this.contextPropagators = contextPropagators;
   }
 
@@ -139,7 +146,9 @@ final class WorkflowContext {
   }
 
   SearchAttributes getSearchAttributes() {
-    return searchAttributes;
+    return searchAttributes == null || searchAttributes.getIndexedFieldsCount() == 0
+        ? null
+        : searchAttributes.build();
   }
 
   public List<ContextPropagator> getContextPropagators() {
@@ -158,12 +167,9 @@ final class WorkflowContext {
     }
 
     Map<String, byte[]> headerData = new HashMap<>();
-    headers
-        .getFields()
-        .forEach(
-            (k, v) -> {
-              headerData.put(k, org.apache.thrift.TBaseHelper.byteBufferToByteArray(v));
-            });
+    for (Map.Entry<String, ByteString> pair : headers.getFieldsMap().entrySet()) {
+      headerData.put(pair.getKey(), pair.getValue().toByteArray());
+    }
 
     Map<String, Object> contextData = new HashMap<>();
     for (ContextPropagator propagator : contextPropagators) {
@@ -178,20 +184,13 @@ final class WorkflowContext {
       return;
     }
     if (this.searchAttributes == null) {
-      this.searchAttributes = newSearchAttributes();
+      this.searchAttributes = SearchAttributes.newBuilder();
     }
-    Map<String, ByteBuffer> current = this.searchAttributes.getIndexedFields();
-    searchAttributes
-        .getIndexedFields()
-        .forEach(
-            (k, v) -> {
-              current.put(k, v);
-            });
-  }
-
-  private SearchAttributes newSearchAttributes() {
-    SearchAttributes result = new SearchAttributes();
-    result.setIndexedFields(new HashMap<String, ByteBuffer>());
-    return result;
+    for (Map.Entry<String, ByteString> pair : searchAttributes.getIndexedFieldsMap().entrySet()) {
+      this.searchAttributes.putIndexedFields(pair.getKey(), pair.getValue());
+    }
+    if (searchAttributes.getIndexedFieldsCount() == 0) {
+      this.searchAttributes = null;
+    }
   }
 }

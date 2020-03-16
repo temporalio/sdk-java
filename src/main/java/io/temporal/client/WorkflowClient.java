@@ -17,10 +17,10 @@
 
 package io.temporal.client;
 
-import io.temporal.WorkflowExecution;
 import io.temporal.activity.Activity;
 import io.temporal.internal.sync.WorkflowClientInternal;
-import io.temporal.serviceclient.IWorkflowService;
+import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
@@ -160,7 +160,7 @@ public interface WorkflowClient {
    * @param service client to the Temporal Service endpoint.
    * @param domain domain that worker uses to poll.
    */
-  static WorkflowClient newInstance(IWorkflowService service, String domain) {
+  static WorkflowClient newInstance(GrpcWorkflowServiceFactory service, String domain) {
     return WorkflowClientInternal.newInstance(service, domain);
   }
 
@@ -173,7 +173,7 @@ public interface WorkflowClient {
    *     configuring client.
    */
   static WorkflowClient newInstance(
-      IWorkflowService service, String domain, WorkflowClientOptions options) {
+      GrpcWorkflowServiceFactory service, String domain, WorkflowClientOptions options) {
     return WorkflowClientInternal.newInstance(service, domain, options);
   }
 
@@ -729,6 +729,9 @@ public interface WorkflowClient {
     return WorkflowClientInternal.execute(workflow, arg1, arg2, arg3, arg4, arg5, arg6);
   }
 
-  /** Closes the workflow client and the underlying IWorkflowService when this method is called. */
+  /**
+   * Closes the workflow client and the underlying GrpcWorkflowServiceFactory when this method is
+   * called.
+   */
   void close();
 }

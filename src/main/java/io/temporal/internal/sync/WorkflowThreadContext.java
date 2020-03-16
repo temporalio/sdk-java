@@ -222,7 +222,10 @@ class WorkflowThreadContext {
       }
       return !remainedBlocked;
     } catch (InterruptedException e) {
-      throw new Error("Unexpected interrupt", e);
+      if (!isDestroyRequested()) {
+        throw new Error("Unexpected interrupt", e);
+      }
+      return true;
     } finally {
       inRunUntilBlocked = false;
       lock.unlock();

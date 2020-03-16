@@ -17,30 +17,33 @@
 
 package io.temporal.internal.worker;
 
+import com.google.protobuf.DoubleValue;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
-import io.temporal.InternalServiceError;
-import io.temporal.PollForActivityTaskRequest;
-import io.temporal.PollForActivityTaskResponse;
-import io.temporal.ServiceBusyError;
-import io.temporal.TaskList;
-import io.temporal.TaskListMetadata;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.serviceclient.IWorkflowService;
-import org.apache.thrift.TException;
+import io.temporal.proto.common.TaskList;
+import io.temporal.proto.common.TaskListMetadata;
+import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
+import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 final class ActivityPollTask implements Poller.PollTask<PollForActivityTaskResponse> {
 
-  private final IWorkflowService service;
+  private final GrpcWorkflowServiceFactory service;
   private final String domain;
   private final String taskList;
   private final SingleWorkerOptions options;
   private static final Logger log = LoggerFactory.getLogger(ActivityPollTask.class);
 
   public ActivityPollTask(
-      IWorkflowService service, String domain, String taskList, SingleWorkerOptions options) {
+      GrpcWorkflowServiceFactory service,
+      String domain,
+      String taskList,
+      SingleWorkerOptions options) {
 
     this.service = service;
     this.domain = domain;
@@ -49,19 +52,24 @@ final class ActivityPollTask implements Poller.PollTask<PollForActivityTaskRespo
   }
 
   @Override
-  public PollForActivityTaskResponse poll() throws TException {
+  public PollForActivityTaskResponse poll() {
     options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_COUNTER).inc(1);
     Stopwatch sw = options.getMetricsScope().timer(MetricsType.ACTIVITY_POLL_LATENCY).start();
 
-    PollForActivityTaskRequest pollRequest = new PollForActivityTaskRequest();
-    pollRequest.setDomain(domain);
-    pollRequest.setIdentity(options.getIdentity());
-    pollRequest.setTaskList(new TaskList().setName(taskList));
+    PollForActivityTaskRequest.Builder pollRequest =
+        PollForActivityTaskRequest.newBuilder()
+            .setDomain(domain)
+            .setIdentity(options.getIdentity())
+            .setTaskList(TaskList.newBuilder().setName(taskList));
 
     if (options.getTaskListActivitiesPerSecond() > 0) {
-      TaskListMetadata metadata = new TaskListMetadata();
-      metadata.setMaxTasksPerSecond(options.getTaskListActivitiesPerSecond());
-      pollRequest.setTaskListMetadata(metadata);
+      pollRequest.setTaskListMetadata(
+          TaskListMetadata.newBuilder()
+              .setMaxTasksPerSecond(
+                  DoubleValue.newBuilder()
+                      .setValue(options.getTaskListActivitiesPerSecond())
+                      .build())
+              .build());
     }
 
     if (log.isDebugEnabled()) {
@@ -69,25 +77,27 @@ final class ActivityPollTask implements Poller.PollTask<PollForActivityTaskRespo
     }
     PollForActivityTaskResponse result;
     try {
-      result = service.PollForActivityTask(pollRequest);
-    } catch (InternalServiceError | ServiceBusyError e) {
-      options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_TRANSIENT_FAILED_COUNTER).inc(1);
-      throw e;
-    } catch (TException e) {
-      options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_FAILED_COUNTER).inc(1);
+      result = service.blockingStub().pollForActivityTask(pollRequest.build());
+    } catch (StatusRuntimeException e) {
+      if (e.getStatus().getCode() == Status.Code.UNAVAILABLE
+          && e.getMessage().startsWith("UNAVAILABLE: Channel shutdown")) {
+        return null;
+      }
+      if (e.getStatus().getCode() == Status.Code.INTERNAL
+          || e.getStatus().getCode() == Status.Code.RESOURCE_EXHAUSTED) {
+        options
+            .getMetricsScope()
+            .counter(MetricsType.ACTIVITY_POLL_TRANSIENT_FAILED_COUNTER)
+            .inc(1);
+      } else {
+        options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_FAILED_COUNTER).inc(1);
+      }
       throw e;
     }
 
-    if (result == null || result.getTaskToken() == null) {
-      if (log.isDebugEnabled()) {
-        log.debug("poll request returned no task");
-      }
+    if (result == null || result.getTaskToken().isEmpty()) {
       options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_NO_TASK_COUNTER).inc(1);
       return null;
-    }
-
-    if (log.isTraceEnabled()) {
-      log.trace("poll request returned " + result);
     }
 
     options.getMetricsScope().counter(MetricsType.ACTIVITY_POLL_SUCCEED_COUNTER).inc(1);

@@ -17,7 +17,7 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.WorkflowType;
+import io.temporal.proto.common.WorkflowType;
 
 public interface ReplayWorkflowFactory {
   ReplayWorkflow getWorkflow(WorkflowType workflowType) throws Exception;

@@ -17,8 +17,6 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.PollForDecisionTaskResponse;
-import io.temporal.WorkflowExecution;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.converter.DataConverter;
 import io.temporal.internal.common.InternalUtils;
@@ -29,7 +27,9 @@ import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.SuspendableWorker;
 import io.temporal.internal.worker.WorkflowWorker;
-import io.temporal.serviceclient.IWorkflowService;
+import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.WorkflowInterceptor;
@@ -55,7 +55,7 @@ public class SyncWorkflowWorker
   private final ScheduledExecutorService heartbeatExecutor = Executors.newScheduledThreadPool(4);
 
   public SyncWorkflowWorker(
-      IWorkflowService service,
+      GrpcWorkflowServiceFactory service,
       String domain,
       String taskList,
       Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,

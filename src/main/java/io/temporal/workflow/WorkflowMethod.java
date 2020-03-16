@@ -17,8 +17,8 @@
 
 package io.temporal.workflow;
 
-import io.temporal.WorkflowIdReusePolicy;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.proto.enums.WorkflowIdReusePolicy;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -61,7 +61,7 @@ public @interface WorkflowMethod {
    * Default is AllowDuplicateFailedOnly.
    */
   WorkflowIdReusePolicy workflowIdReusePolicy() default
-      WorkflowIdReusePolicy.AllowDuplicateFailedOnly;
+      WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicateFailedOnly;
 
   /**
    * Maximum workflow execution time. Must be specified either through {@link

@@ -17,10 +17,10 @@
 
 package io.temporal.internal.common;
 
-import io.temporal.WorkflowIdReusePolicy;
-import io.temporal.WorkflowType;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
+import io.temporal.proto.common.WorkflowType;
+import io.temporal.proto.enums.WorkflowIdReusePolicy;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;

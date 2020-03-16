@@ -17,7 +17,7 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.QueryRejectCondition;
+import io.temporal.proto.enums.QueryRejectCondition;
 import java.nio.charset.StandardCharsets;
 
 public class QueryWorkflowParameters implements Cloneable {
@@ -87,6 +87,9 @@ public class QueryWorkflowParameters implements Cloneable {
   }
 
   public QueryRejectCondition getQueryRejectCondition() {
+    if (queryRejectCondition == null) {
+      return QueryRejectCondition.QueryRejectConditionNone;
+    }
     return queryRejectCondition;
   }
 

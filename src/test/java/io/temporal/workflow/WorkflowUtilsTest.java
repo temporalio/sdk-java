@@ -19,8 +19,8 @@ package io.temporal.workflow;
 
 import static junit.framework.TestCase.assertEquals;
 
-import io.temporal.SearchAttributes;
 import io.temporal.internal.common.InternalUtils;
+import io.temporal.proto.common.SearchAttributes;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Test;
@@ -31,7 +31,9 @@ public class WorkflowUtilsTest {
   public void TestGetValueFromSearchAttributes() {
     assertEquals(null, WorkflowUtils.getValueFromSearchAttributes(null, "key", String.class));
     assertEquals(
-        null, WorkflowUtils.getValueFromSearchAttributes(new SearchAttributes(), "", String.class));
+        null,
+        WorkflowUtils.getValueFromSearchAttributes(
+            SearchAttributes.getDefaultInstance(), "", String.class));
 
     Map<String, Object> attr = new HashMap<>();
     String stringVal = "keyword";

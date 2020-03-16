@@ -17,7 +17,7 @@
 
 package io.temporal.workflow;
 
-import io.temporal.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecution;
 
 /**
  * Supports signalling and cancelling any workflows by the workflow type and their id. This is

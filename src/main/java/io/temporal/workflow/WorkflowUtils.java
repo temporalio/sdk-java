@@ -18,10 +18,9 @@
 package io.temporal.workflow;
 
 import com.cronutils.utils.StringUtils;
-import io.temporal.SearchAttributes;
 import io.temporal.converter.DataConverter;
 import io.temporal.converter.JsonDataConverter;
-import java.nio.ByteBuffer;
+import io.temporal.proto.common.SearchAttributes;
 
 public class WorkflowUtils {
   private static final DataConverter jsonConverter = JsonDataConverter.getInstance();
@@ -35,11 +34,6 @@ public class WorkflowUtils {
   }
 
   private static byte[] getValueBytes(SearchAttributes searchAttributes, String key) {
-    ByteBuffer byteBuffer = searchAttributes.getIndexedFields().get(key);
-    final byte[] valueBytes = new byte[byteBuffer.remaining()];
-    byteBuffer.mark();
-    byteBuffer.get(valueBytes);
-    byteBuffer.reset();
-    return valueBytes;
+    return searchAttributes.getIndexedFieldsOrThrow(key).toByteArray();
   }
 }

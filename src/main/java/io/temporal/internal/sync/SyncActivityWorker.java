@@ -21,7 +21,7 @@ import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.worker.ActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.SuspendableWorker;
-import io.temporal.serviceclient.IWorkflowService;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -34,7 +34,10 @@ public class SyncActivityWorker implements SuspendableWorker {
   private final ScheduledExecutorService heartbeatExecutor = Executors.newScheduledThreadPool(4);
 
   public SyncActivityWorker(
-      IWorkflowService service, String domain, String taskList, SingleWorkerOptions options) {
+      GrpcWorkflowServiceFactory service,
+      String domain,
+      String taskList,
+      SingleWorkerOptions options) {
     taskHandler =
         new POJOActivityTaskHandler(service, domain, options.getDataConverter(), heartbeatExecutor);
     worker = new ActivityWorker(service, domain, taskList, options, taskHandler);

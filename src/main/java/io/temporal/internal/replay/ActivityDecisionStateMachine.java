@@ -17,11 +17,11 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.Decision;
-import io.temporal.DecisionType;
-import io.temporal.HistoryEvent;
-import io.temporal.RequestCancelActivityTaskDecisionAttributes;
-import io.temporal.ScheduleActivityTaskDecisionAttributes;
+import io.temporal.proto.common.Decision;
+import io.temporal.proto.common.HistoryEvent;
+import io.temporal.proto.common.RequestCancelActivityTaskDecisionAttributes;
+import io.temporal.proto.common.ScheduleActivityTaskDecisionAttributes;
+import io.temporal.proto.enums.DecisionType;
 
 final class ActivityDecisionStateMachine extends DecisionStateMachineBase {
 
@@ -81,19 +81,18 @@ final class ActivityDecisionStateMachine extends DecisionStateMachineBase {
   }
 
   private Decision createRequestCancelActivityTaskDecision() {
-    RequestCancelActivityTaskDecisionAttributes tryCancel =
-        new RequestCancelActivityTaskDecisionAttributes();
-    tryCancel.setActivityId(scheduleAttributes.getActivityId());
-    Decision decision = new Decision();
-    decision.setRequestCancelActivityTaskDecisionAttributes(tryCancel);
-    decision.setDecisionType(DecisionType.RequestCancelActivityTask);
-    return decision;
+    return Decision.newBuilder()
+        .setRequestCancelActivityTaskDecisionAttributes(
+            RequestCancelActivityTaskDecisionAttributes.newBuilder()
+                .setActivityId(scheduleAttributes.getActivityId()))
+        .setDecisionType(DecisionType.DecisionTypeRequestCancelActivityTask)
+        .build();
   }
 
   private Decision createScheduleActivityTaskDecision() {
-    Decision decision = new Decision();
-    decision.setScheduleActivityTaskDecisionAttributes(scheduleAttributes);
-    decision.setDecisionType(DecisionType.ScheduleActivityTask);
-    return decision;
+    return Decision.newBuilder()
+        .setScheduleActivityTaskDecisionAttributes(scheduleAttributes)
+        .setDecisionType(DecisionType.DecisionTypeScheduleActivityTask)
+        .build();
   }
 }

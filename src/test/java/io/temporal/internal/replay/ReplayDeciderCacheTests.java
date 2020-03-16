@@ -28,16 +28,17 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.StatsReporter;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
-import io.temporal.HistoryEvent;
-import io.temporal.PollForDecisionTaskResponse;
-import io.temporal.WorkflowExecution;
-import io.temporal.WorkflowQuery;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.WorkflowExecutionException;
+import io.temporal.proto.common.HistoryEvent;
+import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.common.WorkflowQuery;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import io.temporal.testUtils.HistoryUtils;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.Map;
@@ -70,7 +71,8 @@ public class ReplayDeciderCacheTests {
 
   @Test
   public void whenHistoryIsFullNewReplayDeciderIsReturned_InitiallyCached() throws Exception {
-    TestWorkflowService service = new TestWorkflowService();
+    TestWorkflowService testService = new TestWorkflowService();
+    GrpcWorkflowServiceFactory service = testService.newClientStub();
 
     // Arrange
     DeciderCache replayDeciderCache = new DeciderCache(10, NoopScope.getInstance());
@@ -115,29 +117,30 @@ public class ReplayDeciderCacheTests {
         new RootScopeBuilder().reporter(reporter).reportEvery(Duration.ofMillis(500)).tagged(tags);
 
     DeciderCache replayDeciderCache = new DeciderCache(10, scope);
-    TestWorkflowService service = new TestWorkflowService();
-    service.lockTimeSkipping("test");
-    PollForDecisionTaskResponse decisionTask =
-        HistoryUtils.generateDecisionTaskWithInitialHistory(
-            "domain", "taskList", "workflowType", service);
+    try (TestWorkflowService testService = new TestWorkflowService(true);
+        GrpcWorkflowServiceFactory service = testService.newClientStub(); ) {
+      PollForDecisionTaskResponse decisionTask =
+          HistoryUtils.generateDecisionTaskWithInitialHistory(
+              "domain", "taskList", "workflowType", service);
 
-    Decider decider =
-        replayDeciderCache.getOrCreate(decisionTask, () -> createFakeDecider(decisionTask));
-    replayDeciderCache.addToCache(decisionTask, decider);
+      Decider decider =
+          replayDeciderCache.getOrCreate(decisionTask, () -> createFakeDecider(decisionTask));
+      replayDeciderCache.addToCache(decisionTask, decider);
 
-    // Act
-    PollForDecisionTaskResponse decisionTask2 =
-        HistoryUtils.generateDecisionTaskWithPartialHistoryFromExistingTask(
-            decisionTask, "domain", "stickyTaskList", service);
-    Decider decider2 =
-        replayDeciderCache.getOrCreate(decisionTask2, () -> doNotCreateFakeDecider(decisionTask2));
+      // Act
+      PollForDecisionTaskResponse decisionTask2 =
+          HistoryUtils.generateDecisionTaskWithPartialHistoryFromExistingTask(
+              decisionTask, "domain", "stickyTaskList", service);
+      Decider decider2 =
+          replayDeciderCache.getOrCreate(
+              decisionTask2, () -> doNotCreateFakeDecider(decisionTask2));
 
-    // Assert
-    // Wait for reporter
-    Thread.sleep(500);
-    verify(reporter, times(1)).reportCounter(MetricsType.STICKY_CACHE_HIT, tags, 1);
-    assertEquals(decider, decider2);
-    service.close();
+      // Assert
+      // Wait for reporter
+      Thread.sleep(500);
+      verify(reporter, times(1)).reportCounter(MetricsType.STICKY_CACHE_HIT, tags, 1);
+      assertEquals(decider, decider2);
+    }
   }
 
   @Test
@@ -202,7 +205,7 @@ public class ReplayDeciderCacheTests {
 
     assertEquals(3, replayDeciderCache.size());
 
-    replayDeciderCache.evictAnyNotInProcessing(decisionTask3.workflowExecution.runId);
+    replayDeciderCache.evictAnyNotInProcessing(decisionTask3.getWorkflowExecution().getRunId());
 
     // Assert
     assertEquals(2, replayDeciderCache.size());
@@ -227,7 +230,7 @@ public class ReplayDeciderCacheTests {
 
     assertEquals(1, replayDeciderCache.size());
 
-    replayDeciderCache.evictAnyNotInProcessing(decisionTask1.workflowExecution.runId);
+    replayDeciderCache.evictAnyNotInProcessing(decisionTask1.getWorkflowExecution().getRunId());
 
     // Assert
     assertEquals(1, replayDeciderCache.size());
@@ -237,8 +240,9 @@ public class ReplayDeciderCacheTests {
     Throwable ex = null;
     try {
       PollForDecisionTaskResponse decisionTask =
-          new PollForDecisionTaskResponse()
-              .setWorkflowExecution(new WorkflowExecution().setRunId(runId));
+          PollForDecisionTaskResponse.newBuilder()
+              .setWorkflowExecution(WorkflowExecution.newBuilder().setRunId(runId))
+              .build();
       cache.getOrCreate(decisionTask, () -> doNotCreateFakeDecider(decisionTask));
     } catch (AssertionError e) {
       ex = e;
@@ -254,7 +258,7 @@ public class ReplayDeciderCacheTests {
 
   private ReplayDecider createFakeDecider(PollForDecisionTaskResponse response) {
     return new ReplayDecider(
-        new TestWorkflowService(),
+        null,
         "domain",
         new ReplayWorkflow() {
           @Override
@@ -304,7 +308,7 @@ public class ReplayDeciderCacheTests {
             return new WorkflowImplementationOptions.Builder().build();
           }
         },
-        new DecisionsHelper(response),
+        new DecisionsHelper(response.toBuilder()),
         new SingleWorkerOptions.Builder().build(),
         (a, d) -> true);
   }

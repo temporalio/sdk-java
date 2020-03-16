@@ -23,7 +23,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
-import io.temporal.PollForDecisionTaskResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.context.ContextPropagator;
@@ -40,8 +39,8 @@ import io.temporal.internal.worker.PollerOptions;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.Suspendable;
 import io.temporal.internal.worker.WorkflowPollTaskFactory;
-import io.temporal.serviceclient.IWorkflowService;
-import io.temporal.serviceclient.WorkflowServiceTChannel;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.WorkflowMethod;
 import java.net.InetAddress;
@@ -75,7 +74,6 @@ public final class Worker implements Suspendable {
   private final DeciderCache cache;
   private final String stickyTaskListName;
   private ThreadPoolExecutor threadPoolExecutor;
-  private List<ContextPropagator> contextPropagators;
 
   /**
    * Creates worker that connects to an instance of the Temporal Service.
@@ -88,7 +86,7 @@ public final class Worker implements Suspendable {
    * @param stickyTaskListName
    */
   private Worker(
-      IWorkflowService service,
+      GrpcWorkflowServiceFactory service,
       String domain,
       String taskList,
       WorkerOptions options,
@@ -109,7 +107,6 @@ public final class Worker implements Suspendable {
 
     this.taskList = taskList;
     this.options = MoreObjects.firstNonNull(options, new WorkerOptions.Builder().build());
-    this.contextPropagators = contextPropagators;
 
     SingleWorkerOptions activityOptions =
         toActivityOptions(this.options, domain, taskList, contextPropagators);
@@ -440,7 +437,7 @@ public final class Worker implements Suspendable {
   /** Maintains worker creation and lifecycle. */
   public static final class Factory {
     private final List<Worker> workers = new ArrayList<>();
-    private final IWorkflowService workflowService;
+    private final GrpcWorkflowServiceFactory workflowService;
     /** Indicates if factory owns the service. An owned service is closed on shutdown. */
     private final boolean closeServiceOnShutdown;
 
@@ -466,7 +463,7 @@ public final class Worker implements Suspendable {
      * @param domain Domain used by workers to poll for workflows.
      */
     public Factory(String domain) {
-      this(new WorkflowServiceTChannel(), true, domain, null);
+      this(new GrpcWorkflowServiceFactory(), true, domain, null);
     }
 
     /**
@@ -478,7 +475,7 @@ public final class Worker implements Suspendable {
      * @param domain Domain used by workers to poll for workflows.
      */
     public Factory(String host, int port, String domain) {
-      this(new WorkflowServiceTChannel(host, port), true, domain, null);
+      this(new GrpcWorkflowServiceFactory(host, port), true, domain, null);
     }
 
     /**
@@ -488,7 +485,7 @@ public final class Worker implements Suspendable {
      * @param factoryOptions Options used to configure factory settings
      */
     public Factory(String domain, FactoryOptions factoryOptions) {
-      this(new WorkflowServiceTChannel(), true, domain, factoryOptions);
+      this(new GrpcWorkflowServiceFactory(), true, domain, factoryOptions);
     }
 
     /**
@@ -501,7 +498,7 @@ public final class Worker implements Suspendable {
      * @param factoryOptions Options used to configure factory settings
      */
     public Factory(String host, int port, String domain, FactoryOptions factoryOptions) {
-      this(new WorkflowServiceTChannel(host, port), true, domain, factoryOptions);
+      this(new GrpcWorkflowServiceFactory(host, port), true, domain, factoryOptions);
     }
 
     /**
@@ -511,7 +508,7 @@ public final class Worker implements Suspendable {
      * @param workflowService client to the Temporal Service endpoint.
      * @param domain Domain used by workers to poll for workflows.
      */
-    public Factory(IWorkflowService workflowService, String domain) {
+    public Factory(GrpcWorkflowServiceFactory workflowService, String domain) {
       this(workflowService, false, domain, null);
     }
 
@@ -523,12 +520,13 @@ public final class Worker implements Suspendable {
      * @param domain Domain used by workers to poll for workflows.
      * @param factoryOptions Options used to configure factory settings
      */
-    public Factory(IWorkflowService workflowService, String domain, FactoryOptions factoryOptions) {
+    public Factory(
+        GrpcWorkflowServiceFactory workflowService, String domain, FactoryOptions factoryOptions) {
       this(workflowService, false, domain, factoryOptions);
     }
 
     private Factory(
-        IWorkflowService workflowService,
+        GrpcWorkflowServiceFactory workflowService,
         boolean closeServiceOnShutdown,
         String domain,
         FactoryOptions factoryOptions) {
@@ -682,7 +680,7 @@ public final class Worker implements Suspendable {
     }
 
     /** @return instance of the Temporal client that this worker uses. */
-    public IWorkflowService getWorkflowService() {
+    public GrpcWorkflowServiceFactory getWorkflowService() {
       return workflowService;
     }
 

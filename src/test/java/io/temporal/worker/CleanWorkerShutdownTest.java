@@ -21,18 +21,17 @@ import static io.temporal.workflow.WorkflowTest.DOMAIN;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import io.temporal.EventType;
-import io.temporal.GetWorkflowExecutionHistoryRequest;
-import io.temporal.GetWorkflowExecutionHistoryResponse;
-import io.temporal.HistoryEvent;
-import io.temporal.WorkflowExecution;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.client.ActivityWorkerShutdownException;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.serviceclient.IWorkflowService;
-import io.temporal.serviceclient.WorkflowServiceTChannel;
+import io.temporal.proto.common.HistoryEvent;
+import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.enums.EventType;
+import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
+import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
+import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.Workflow;
@@ -43,7 +42,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import org.apache.thrift.TException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -74,12 +72,12 @@ public class CleanWorkerShutdownTest {
 
   @Rule public TestName testName = new TestName();
 
-  private static IWorkflowService service;
+  private static GrpcWorkflowServiceFactory service;
 
   @Before
   public void setUp() {
     if (useExternalService) {
-      service = new WorkflowServiceTChannel();
+      service = new GrpcWorkflowServiceFactory();
     }
   }
 
@@ -128,7 +126,7 @@ public class CleanWorkerShutdownTest {
   }
 
   @Test
-  public void testShutdown() throws ExecutionException, InterruptedException, TException {
+  public void testShutdown() throws ExecutionException, InterruptedException {
     String taskList =
         "CleanWorkerShutdownTest-" + testName.getMethodName() + "-" + UUID.randomUUID().toString();
     WorkflowClient workflowClient;
@@ -165,14 +163,18 @@ public class CleanWorkerShutdownTest {
       testEnvironment.awaitTermination(10, TimeUnit.MINUTES);
     }
     GetWorkflowExecutionHistoryRequest request =
-        new GetWorkflowExecutionHistoryRequest().setDomain(DOMAIN).setExecution(execution);
-    GetWorkflowExecutionHistoryResponse result = service.GetWorkflowExecutionHistory(request);
-    List<HistoryEvent> events = result.getHistory().getEvents();
+        GetWorkflowExecutionHistoryRequest.newBuilder()
+            .setDomain(DOMAIN)
+            .setExecution(execution)
+            .build();
+    GetWorkflowExecutionHistoryResponse result =
+        service.blockingStub().getWorkflowExecutionHistory(request);
+    List<HistoryEvent> events = result.getHistory().getEventsList();
     boolean found = false;
     for (HistoryEvent e : events) {
-      if (e.getEventType() == EventType.ActivityTaskCompleted) {
+      if (e.getEventType() == EventType.EventTypeActivityTaskCompleted) {
         found = true;
-        byte[] ar = e.getActivityTaskCompletedEventAttributes().getResult();
+        byte[] ar = e.getActivityTaskCompletedEventAttributes().getResult().toByteArray();
         assertEquals("\"completed\"", new String(ar, StandardCharsets.UTF_8));
       }
     }
@@ -180,7 +182,7 @@ public class CleanWorkerShutdownTest {
   }
 
   @Test
-  public void testShutdownNow() throws ExecutionException, InterruptedException, TException {
+  public void testShutdownNow() throws ExecutionException, InterruptedException {
     String taskList =
         "CleanWorkerShutdownTest-" + testName.getMethodName() + "-" + UUID.randomUUID().toString();
     WorkflowClient workflowClient;
@@ -217,14 +219,18 @@ public class CleanWorkerShutdownTest {
       testEnvironment.awaitTermination(10, TimeUnit.MINUTES);
     }
     GetWorkflowExecutionHistoryRequest request =
-        new GetWorkflowExecutionHistoryRequest().setDomain(DOMAIN).setExecution(execution);
-    GetWorkflowExecutionHistoryResponse result = service.GetWorkflowExecutionHistory(request);
-    List<HistoryEvent> events = result.getHistory().getEvents();
+        GetWorkflowExecutionHistoryRequest.newBuilder()
+            .setDomain(DOMAIN)
+            .setExecution(execution)
+            .build();
+    GetWorkflowExecutionHistoryResponse result =
+        service.blockingStub().getWorkflowExecutionHistory(request);
+    List<HistoryEvent> events = result.getHistory().getEventsList();
     boolean found = false;
     for (HistoryEvent e : events) {
-      if (e.getEventType() == EventType.ActivityTaskCompleted) {
+      if (e.getEventType() == EventType.EventTypeActivityTaskCompleted) {
         found = true;
-        byte[] ar = e.getActivityTaskCompletedEventAttributes().getResult();
+        byte[] ar = e.getActivityTaskCompletedEventAttributes().getResult().toByteArray();
         assertEquals("\"interrupted\"", new String(ar, StandardCharsets.UTF_8));
       }
     }
@@ -258,8 +264,7 @@ public class CleanWorkerShutdownTest {
    * Worker.Factory#shutdown()} is closed.
    */
   @Test
-  public void testShutdownHeartbeatingActivity()
-      throws ExecutionException, InterruptedException, TException {
+  public void testShutdownHeartbeatingActivity() throws ExecutionException, InterruptedException {
     String taskList =
         "CleanWorkerShutdownTest-" + testName.getMethodName() + "-" + UUID.randomUUID().toString();
     WorkflowClient workflowClient;
@@ -296,14 +301,18 @@ public class CleanWorkerShutdownTest {
       testEnvironment.awaitTermination(10, TimeUnit.MINUTES);
     }
     GetWorkflowExecutionHistoryRequest request =
-        new GetWorkflowExecutionHistoryRequest().setDomain(DOMAIN).setExecution(execution);
-    GetWorkflowExecutionHistoryResponse result = service.GetWorkflowExecutionHistory(request);
-    List<HistoryEvent> events = result.getHistory().getEvents();
+        GetWorkflowExecutionHistoryRequest.newBuilder()
+            .setDomain(DOMAIN)
+            .setExecution(execution)
+            .build();
+    GetWorkflowExecutionHistoryResponse result =
+        service.blockingStub().getWorkflowExecutionHistory(request);
+    List<HistoryEvent> events = result.getHistory().getEventsList();
     boolean found = false;
     for (HistoryEvent e : events) {
-      if (e.getEventType() == EventType.ActivityTaskCompleted) {
+      if (e.getEventType() == EventType.EventTypeActivityTaskCompleted) {
         found = true;
-        byte[] ar = e.getActivityTaskCompletedEventAttributes().getResult();
+        byte[] ar = e.getActivityTaskCompletedEventAttributes().getResult().toByteArray();
         assertEquals("\"workershutdown\"", new String(ar, StandardCharsets.UTF_8));
       }
     }

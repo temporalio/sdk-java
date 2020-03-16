@@ -18,11 +18,11 @@
 package io.temporal.workflow;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.WorkflowExecution;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.internal.sync.WorkflowInternal;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Functions.Func;
 import java.lang.reflect.Type;
@@ -463,7 +463,7 @@ public final class Workflow {
    */
   public static <R> R newExternalWorkflowStub(
       Class<? extends R> workflowInterface, String workflowId) {
-    WorkflowExecution execution = new WorkflowExecution().setWorkflowId(workflowId);
+    WorkflowExecution execution = WorkflowExecution.newBuilder().setWorkflowId(workflowId).build();
     return WorkflowInternal.newExternalWorkflowStub(workflowInterface, execution);
   }
 
@@ -523,7 +523,7 @@ public final class Workflow {
    * @param workflowId id of the workflow to communicate with.
    */
   public static ExternalWorkflowStub newUntypedExternalWorkflowStub(String workflowId) {
-    WorkflowExecution execution = new WorkflowExecution().setWorkflowId(workflowId);
+    WorkflowExecution execution = WorkflowExecution.newBuilder().setWorkflowId(workflowId).build();
     return Workflow.newUntypedExternalWorkflowStub(execution);
   }
 

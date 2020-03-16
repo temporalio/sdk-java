@@ -18,11 +18,12 @@
 package io.temporal.internal.replay;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.SearchAttributes;
-import io.temporal.WorkflowExecution;
-import io.temporal.WorkflowType;
 import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
+import io.temporal.proto.common.SearchAttributes;
+import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.common.WorkflowType;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
@@ -44,7 +45,7 @@ public interface DecisionContext extends ReplayAware {
   WorkflowExecution getWorkflowExecution();
 
   // TODO: Add to Temporal
-  //    io.temporal.WorkflowExecution getParentWorkflowExecution();
+  //    io.temporal.proto.common.WorkflowExecution getParentWorkflowExecution();
 
   WorkflowType getWorkflowType();
 
@@ -142,8 +143,8 @@ public interface DecisionContext extends ReplayAware {
       String id, DataConverter dataConverter, Func1<Optional<byte[]>, Optional<byte[]>> func);
 
   /**
-   * @return time of the {@link io.temporal.PollForDecisionTaskResponse} start event of the decision
-   *     being processed or replayed.
+   * @return time of the {@link PollForDecisionTaskResponse} start event of the decision being
+   *     processed or replayed.
    */
   long currentTimeMillis();
 

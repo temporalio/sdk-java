@@ -22,8 +22,8 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.uber.m3.tally.Scope;
-import io.temporal.PollForDecisionTaskResponse;
 import io.temporal.internal.metrics.MetricsType;
+import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.Lock;
@@ -58,7 +58,8 @@ public final class DeciderCache {
   }
 
   public Decider getOrCreate(
-      PollForDecisionTaskResponse decisionTask, Callable<Decider> deciderFunc) throws Exception {
+      PollForDecisionTaskResponseOrBuilder decisionTask, Callable<Decider> deciderFunc)
+      throws Exception {
     String runId = decisionTask.getWorkflowExecution().getRunId();
     if (isFullHistory(decisionTask)) {
       invalidate(runId);
@@ -88,7 +89,7 @@ public final class DeciderCache {
     }
   }
 
-  void markProcessingDone(PollForDecisionTaskResponse decisionTask) {
+  void markProcessingDone(PollForDecisionTaskResponseOrBuilder decisionTask) {
     String runId = decisionTask.getWorkflowExecution().getRunId();
 
     cacheLock.lock();
@@ -99,7 +100,7 @@ public final class DeciderCache {
     }
   }
 
-  public void addToCache(PollForDecisionTaskResponse decisionTask, Decider decider) {
+  public void addToCache(PollForDecisionTaskResponseOrBuilder decisionTask, Decider decider) {
     String runId = decisionTask.getWorkflowExecution().getRunId();
     cache.put(runId, decider);
   }
@@ -138,10 +139,10 @@ public final class DeciderCache {
     return cache.size();
   }
 
-  private boolean isFullHistory(PollForDecisionTaskResponse decisionTask) {
+  private boolean isFullHistory(PollForDecisionTaskResponseOrBuilder decisionTask) {
     return decisionTask.getHistory() != null
-        && decisionTask.getHistory().getEvents().size() > 0
-        && decisionTask.getHistory().getEvents().get(0).getEventId() == 1;
+        && decisionTask.getHistory().getEventsCount() > 0
+        && decisionTask.getHistory().getEvents(0).getEventId() == 1;
   }
 
   public void invalidateAll() {

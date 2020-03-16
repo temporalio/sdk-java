@@ -22,16 +22,20 @@ import io.temporal.internal.common.BackoffThrottler;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.metrics.MetricsType;
 import java.util.Objects;
-import java.util.concurrent.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.thrift.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class Poller<T> implements SuspendableWorker {
 
   public interface PollTask<TT> {
-    TT poll() throws TException;
+    TT poll();
   }
 
   interface ThrowingRunnable {
@@ -200,7 +204,7 @@ public final class Poller<T> implements SuspendableWorker {
     @Override
     public void run() {
       try {
-        if (pollExecutor.isTerminating()) {
+        if (pollExecutor.isShutdown()) {
           return;
         }
         pollBackoffThrottler.throttle();
@@ -219,19 +223,21 @@ public final class Poller<T> implements SuspendableWorker {
           suspender.await();
         }
 
-        if (pollExecutor.isTerminating()) {
+        if (pollExecutor.isShutdown()) {
           return;
         }
         task.run();
         pollBackoffThrottler.success();
       } catch (Throwable e) {
         pollBackoffThrottler.failure();
-        if (!(e.getCause() instanceof InterruptedException)) {
+        if (!pollExecutor.isShutdown() && !pollExecutor.isTerminating()
+            || !(e.getCause() instanceof InterruptedException)
+                && !(e instanceof RejectedExecutionException)) {
           uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), e);
         }
       } finally {
         // Resubmit itself back to pollExecutor
-        if (!pollExecutor.isTerminating()) {
+        if (!pollExecutor.isTerminating() && !pollExecutor.isShutdown()) {
           pollExecutor.execute(this);
         } else {
           log.info("poll loop done");

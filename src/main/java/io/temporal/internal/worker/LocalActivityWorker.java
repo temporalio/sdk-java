@@ -17,19 +17,21 @@
 
 package io.temporal.internal.worker;
 
+import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
-import io.temporal.EventType;
-import io.temporal.HistoryEvent;
-import io.temporal.MarkerRecordedEventAttributes;
-import io.temporal.PollForActivityTaskResponse;
 import io.temporal.common.RetryOptions;
 import io.temporal.internal.common.LocalActivityMarkerData;
+import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.ClockDecisionContext;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
+import io.temporal.proto.common.HistoryEvent;
+import io.temporal.proto.common.MarkerRecordedEventAttributes;
+import io.temporal.proto.enums.EventType;
+import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
@@ -175,9 +177,9 @@ public final class LocalActivityWorker implements SuspendableWorker {
       markerBuilder.setReplayTimeMillis(replayTimeMillis);
 
       if (result.getTaskCompleted() != null) {
-        markerBuilder.setResult(result.getTaskCompleted().getResult());
-      } else if (result.getTaskFailedResult() != null) {
-        markerBuilder.setTaskFailedRequest(result.getTaskFailedResult().getTaskFailedRequest());
+        markerBuilder.setResult(result.getTaskCompleted().getResult().toByteArray());
+      } else if (result.getTaskFailed() != null) {
+        markerBuilder.setTaskFailedRequest(result.getTaskFailed().getTaskFailedRequest());
         markerBuilder.setAttempt(result.getAttempt());
         markerBuilder.setBackoff(result.getBackoff());
       } else {
@@ -186,14 +188,15 @@ public final class LocalActivityWorker implements SuspendableWorker {
 
       LocalActivityMarkerData marker = markerBuilder.build();
 
-      HistoryEvent event = new HistoryEvent();
-      event.setEventType(EventType.MarkerRecorded);
-      MarkerRecordedEventAttributes attributes =
-          new MarkerRecordedEventAttributes()
-              .setMarkerName(ClockDecisionContext.LOCAL_ACTIVITY_MARKER_NAME)
-              .setHeader(marker.getHeader(options.getDataConverter()))
-              .setDetails(marker.getResult());
-      event.setMarkerRecordedEventAttributes(attributes);
+      HistoryEvent event =
+          HistoryEvent.newBuilder()
+              .setEventType(EventType.EventTypeMarkerRecorded)
+              .setMarkerRecordedEventAttributes(
+                  MarkerRecordedEventAttributes.newBuilder()
+                      .setMarkerName(ClockDecisionContext.LOCAL_ACTIVITY_MARKER_NAME)
+                      .setHeader(marker.getHeader(options.getDataConverter()))
+                      .setDetails(ByteString.copyFrom(marker.getResult())))
+              .build();
       task.eventConsumer.accept(event);
     }
 
@@ -211,10 +214,12 @@ public final class LocalActivityWorker implements SuspendableWorker {
       Scope metricsScope = options.getMetricsScope().tagged(activityTypeTag);
       metricsScope.counter(MetricsType.LOCAL_ACTIVITY_TOTAL_COUNTER).inc(1);
 
-      PollForActivityTaskResponse pollTask = new PollForActivityTaskResponse();
-      pollTask.setActivityType(task.params.getActivityType());
-      pollTask.setInput(task.params.getInput());
-      pollTask.setAttempt(task.params.getAttempt());
+      PollForActivityTaskResponse pollTask =
+          PollForActivityTaskResponse.newBuilder()
+              .setActivityType(task.params.getActivityType())
+              .setInput(OptionsUtils.toByteString(task.params.getInput()))
+              .setAttempt(task.params.getAttempt())
+              .build();
 
       Stopwatch sw = metricsScope.timer(MetricsType.LOCAL_ACTIVITY_EXECUTION_LATENCY).start();
       ActivityTaskHandler.Result result = handler.handle(pollTask, metricsScope, true);
@@ -232,7 +237,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
       long elapsedTask = System.currentTimeMillis() - task.taskStartTime;
       long elapsedTotal = elapsedTask + task.params.getElapsedTime();
       if (retryOptions.shouldRethrow(
-          result.getTaskFailedResult().getFailure(),
+          result.getTaskFailed().getFailure(),
           task.params.getAttempt(),
           elapsedTotal,
           sleepMillis)) {

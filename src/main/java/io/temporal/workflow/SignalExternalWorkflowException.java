@@ -17,8 +17,8 @@
 
 package io.temporal.workflow;
 
-import io.temporal.SignalExternalWorkflowExecutionFailedCause;
-import io.temporal.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.enums.SignalExternalWorkflowExecutionFailedCause;
 
 /** Exception used to communicate failure of a request to signal an external workflow. */
 @SuppressWarnings("serial")

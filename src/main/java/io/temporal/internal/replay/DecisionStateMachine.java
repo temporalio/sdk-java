@@ -17,11 +17,12 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.HistoryEvent;
+import io.temporal.proto.common.Decision;
+import io.temporal.proto.common.HistoryEvent;
 
 interface DecisionStateMachine {
 
-  io.temporal.Decision getDecision();
+  Decision getDecision();
 
   /** @return true if produced a decision */
   boolean cancel(Runnable immediateCancellationCallback);

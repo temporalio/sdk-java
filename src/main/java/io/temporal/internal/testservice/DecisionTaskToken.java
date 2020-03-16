@@ -17,8 +17,8 @@
 
 package io.temporal.internal.testservice;
 
-import com.google.common.base.Throwables;
-import io.temporal.InternalServiceError;
+import com.google.protobuf.ByteString;
+import io.grpc.Status;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -45,15 +45,15 @@ final class DecisionTaskToken {
   }
 
   /** Used for task tokens. */
-  byte[] toBytes() throws InternalServiceError {
+  ByteString toBytes() {
     ByteArrayOutputStream bout = new ByteArrayOutputStream();
     DataOutputStream out = new DataOutputStream(bout);
     try {
       addBytes(out);
     } catch (IOException e) {
-      throw new InternalServiceError(Throwables.getStackTraceAsString(e));
+      throw Status.INTERNAL.withCause(e).asRuntimeException();
     }
-    return bout.toByteArray();
+    return ByteString.copyFrom(bout.toByteArray());
   }
 
   private void addBytes(DataOutputStream out) throws IOException {
@@ -61,15 +61,18 @@ final class DecisionTaskToken {
     out.writeInt(historySize);
   }
 
-  static DecisionTaskToken fromBytes(byte[] serialized) throws InternalServiceError {
-    ByteArrayInputStream bin = new ByteArrayInputStream(serialized);
+  static DecisionTaskToken fromBytes(ByteString serialized) {
+    ByteArrayInputStream bin = new ByteArrayInputStream(serialized.toByteArray());
     DataInputStream in = new DataInputStream(bin);
     try {
       ExecutionId executionId = ExecutionId.readFromBytes(in);
       int historySize = in.readInt();
       return new DecisionTaskToken(executionId, historySize);
     } catch (IOException e) {
-      throw new InternalServiceError(Throwables.getStackTraceAsString(e));
+      throw Status.INVALID_ARGUMENT
+          .withDescription("Failure parsing decision task token")
+          .withCause(e)
+          .asRuntimeException();
     }
   }
 }

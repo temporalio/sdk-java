@@ -17,7 +17,7 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.Decision;
+import io.temporal.proto.common.Decision;
 
 public class UpsertSearchAttributesDecisionStateMachine extends DecisionStateMachineBase {
 

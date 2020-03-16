@@ -18,7 +18,7 @@
 package io.temporal.internal.sync;
 
 import com.google.common.base.Defaults;
-import io.temporal.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.workflow.ChildWorkflowException;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ChildWorkflowStub;

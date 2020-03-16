@@ -28,9 +28,9 @@ import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import com.google.gson.reflect.TypeToken;
-import io.temporal.EventType;
-import io.temporal.HistoryEvent;
-import io.temporal.WorkflowExecution;
+import io.temporal.proto.common.HistoryEvent;
+import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.enums.EventType;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
 import java.util.Base64;
@@ -60,11 +60,11 @@ public final class WorkflowExecutionHistory {
       throw new IllegalArgumentException("Empty history");
     }
     HistoryEvent startedEvent = events.get(0);
-    if (startedEvent.getEventType() != EventType.WorkflowExecutionStarted) {
+    if (startedEvent.getEventType() != EventType.EventTypeWorkflowExecutionStarted) {
       throw new IllegalArgumentException(
           "First event is not WorkflowExecutionStarted but " + startedEvent);
     }
-    if (startedEvent.getWorkflowExecutionStartedEventAttributes() == null) {
+    if (!startedEvent.hasWorkflowExecutionStartedEventAttributes()) {
       throw new IllegalArgumentException("First event is corrupted");
     }
   }
@@ -76,9 +76,10 @@ public final class WorkflowExecutionHistory {
   }
 
   public WorkflowExecution getWorkflowExecution() {
-    return new WorkflowExecution()
+    return WorkflowExecution.newBuilder()
         .setWorkflowId("workflow_id_in_replay")
-        .setRunId("run_id_in_replay");
+        .setRunId("run_id_in_replay")
+        .build();
   }
 
   public List<HistoryEvent> getEvents() {

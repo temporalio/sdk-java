@@ -17,14 +17,11 @@
 
 package io.temporal.internal.testservice;
 
-import io.temporal.BadRequestError;
-import io.temporal.EntityNotExistsError;
-import io.temporal.HistoryEvent;
-import io.temporal.InternalServiceError;
-import io.temporal.WorkflowExecution;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.TestWorkflowStore.ActivityTask;
 import io.temporal.internal.testservice.TestWorkflowStore.DecisionTask;
+import io.temporal.proto.common.HistoryEvent;
+import io.temporal.proto.common.WorkflowExecution;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -36,7 +33,7 @@ final class RequestContext {
   @FunctionalInterface
   interface CommitCallback {
 
-    void apply(int historySize) throws InternalServiceError, BadRequestError;
+    void apply(int historySize);
   }
 
   static final class Timer {
@@ -205,13 +202,12 @@ final class RequestContext {
   }
 
   /** @return nextEventId */
-  long commitChanges(TestWorkflowStore store)
-      throws InternalServiceError, EntityNotExistsError, BadRequestError {
+  long commitChanges(TestWorkflowStore store) {
     return store.save(this);
   }
 
   /** Called by {@link TestWorkflowStore#save(RequestContext)} */
-  void fireCallbacks(int historySize) throws InternalServiceError, BadRequestError {
+  void fireCallbacks(int historySize) {
     for (CommitCallback callback : commitCallbacks) {
       callback.apply(historySize);
     }

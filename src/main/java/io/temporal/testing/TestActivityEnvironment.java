@@ -19,7 +19,6 @@ package io.temporal.testing;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.temporal.internal.sync.TestActivityEnvironmentInternal;
-import io.temporal.serviceclient.IWorkflowService;
 import java.lang.reflect.Type;
 import java.util.function.Consumer;
 
@@ -101,5 +100,11 @@ public interface TestActivityEnvironment {
   <T> void setActivityHeartbeatListener(
       Class<T> detailsClass, Type detailsType, Consumer<T> listener);
 
-  void setWorkflowService(IWorkflowService workflowService);
+  /**
+   * Requests activity cancellation. The cancellation is going to be delivered to the activity on
+   * the next heartbeat.
+   */
+  void requestCancelActivity();
+
+  void close();
 }
