@@ -230,7 +230,7 @@ public class WorkflowTest {
 
   private static ActivityOptions newActivityOptions1(String taskList) {
     if (DEBUGGER_TIMEOUTS) {
-      return new ActivityOptions.Builder()
+      return ActivityOptions.newBuilder()
           .setTaskList(taskList)
           .setScheduleToCloseTimeout(Duration.ofSeconds(1000))
           .setHeartbeatTimeout(Duration.ofSeconds(1000))
@@ -238,7 +238,7 @@ public class WorkflowTest {
           .setStartToCloseTimeout(Duration.ofSeconds(10000))
           .build();
     } else {
-      return new ActivityOptions.Builder()
+      return ActivityOptions.newBuilder()
           .setTaskList(taskList)
           .setScheduleToCloseTimeout(Duration.ofSeconds(5))
           .setHeartbeatTimeout(Duration.ofSeconds(5))
@@ -261,7 +261,7 @@ public class WorkflowTest {
   }
 
   private static ActivityOptions newActivityOptions2() {
-    return new ActivityOptions.Builder().setScheduleToCloseTimeout(Duration.ofSeconds(20)).build();
+    return ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofSeconds(20)).build();
   }
 
   @Before
@@ -446,7 +446,7 @@ public class WorkflowTest {
     @SuppressWarnings("Finally")
     public String execute(String taskList) {
       ActivityOptions options =
-          new ActivityOptions.Builder()
+          ActivityOptions.newBuilder()
               .setTaskList(taskList)
               .setHeartbeatTimeout(Duration.ofSeconds(5))
               .setScheduleToCloseTimeout(Duration.ofSeconds(3))
@@ -492,7 +492,7 @@ public class WorkflowTest {
     @SuppressWarnings("Finally")
     public String execute(String taskList) {
       ActivityOptions options =
-          new ActivityOptions.Builder()
+          ActivityOptions.newBuilder()
               .setTaskList(taskList)
               .setHeartbeatTimeout(Duration.ofSeconds(5))
               .setScheduleToCloseTimeout(Duration.ofSeconds(3))
@@ -581,7 +581,7 @@ public class WorkflowTest {
     @SuppressWarnings("Finally")
     public String execute(String taskList) {
       ActivityOptions options =
-          new ActivityOptions.Builder()
+          ActivityOptions.newBuilder()
               .setTaskList(taskList)
               .setScheduleToCloseTimeout(Duration.ofSeconds(1))
               .setRetryOptions(
@@ -634,7 +634,7 @@ public class WorkflowTest {
     @Override
     public String execute(String taskList) {
       ActivityOptions.Builder options =
-          new ActivityOptions.Builder()
+          ActivityOptions.newBuilder()
               .setTaskList(taskList)
               .setHeartbeatTimeout(Duration.ofSeconds(5))
               .setScheduleToCloseTimeout(Duration.ofSeconds(5))
@@ -684,7 +684,7 @@ public class WorkflowTest {
     @Override
     public String execute(String taskList) {
       ActivityOptions options =
-          new ActivityOptions.Builder()
+          ActivityOptions.newBuilder()
               .setTaskList(taskList)
               .setHeartbeatTimeout(Duration.ofSeconds(5))
               .setScheduleToCloseTimeout(Duration.ofSeconds(5))
@@ -756,7 +756,7 @@ public class WorkflowTest {
     @Override
     public String execute(String taskList) {
       ActivityOptions options =
-          new ActivityOptions.Builder()
+          ActivityOptions.newBuilder()
               .setTaskList(taskList)
               .setHeartbeatTimeout(Duration.ofSeconds(5))
               .setScheduleToCloseTimeout(Duration.ofSeconds(5))
@@ -828,7 +828,7 @@ public class WorkflowTest {
     @Override
     public String execute(String taskList) {
       ActivityOptions.Builder options =
-          new ActivityOptions.Builder()
+          ActivityOptions.newBuilder()
               .setTaskList(taskList)
               .setHeartbeatTimeout(Duration.ofSeconds(5))
               .setScheduleToCloseTimeout(Duration.ofSeconds(5))
@@ -879,7 +879,7 @@ public class WorkflowTest {
     @Override
     public String execute(String taskList) {
       ActivityOptions options =
-          new ActivityOptions.Builder()
+          ActivityOptions.newBuilder()
               .setTaskList(taskList)
               .setHeartbeatTimeout(Duration.ofSeconds(1)) // short heartbeat timeout;
               .setScheduleToCloseTimeout(Duration.ofSeconds(5))
@@ -2834,8 +2834,7 @@ public class WorkflowTest {
     public String execute(String taskList, int delay) {
       AngryChildActivity activity =
           Workflow.newActivityStub(
-              AngryChildActivity.class,
-              new ActivityOptions.Builder().setTaskList(taskList).build());
+              AngryChildActivity.class, ActivityOptions.newBuilder().setTaskList(taskList).build());
       activity.execute();
       throw new UnsupportedOperationException("simulated failure");
     }
@@ -4622,7 +4621,7 @@ public class WorkflowTest {
       StringBuilder result = new StringBuilder();
       ActivityStub activity =
           Workflow.newUntypedActivityStub(
-              new ActivityOptions.Builder()
+              ActivityOptions.newBuilder()
                   .setScheduleToCloseTimeout(Duration.ofSeconds(5))
                   .build());
       ActivityStub localActivity =
@@ -5089,7 +5088,7 @@ public class WorkflowTest {
               .build();
 
       ActivityOptions options =
-          new ActivityOptions.Builder()
+          ActivityOptions.newBuilder()
               .setTaskList(taskList)
               .setHeartbeatTimeout(Duration.ofSeconds(5))
               .setScheduleToCloseTimeout(Duration.ofSeconds(5))

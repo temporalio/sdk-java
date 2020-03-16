@@ -29,36 +29,8 @@ import java.util.Objects;
 /** Options used to configure how an activity is invoked. */
 public final class ActivityOptions {
 
-  /**
-   * Used to merge annotation and options. Options takes precedence. Returns options with all
-   * defaults filled in.
-   */
-  public static ActivityOptions merge(ActivityMethod a, MethodRetry r, ActivityOptions o) {
-    if (a == null) {
-      if (r == null) {
-        return new ActivityOptions.Builder(o).validateAndBuildWithDefaults();
-      }
-      RetryOptions mergedR = RetryOptions.merge(r, o.getRetryOptions());
-      return new ActivityOptions.Builder().setRetryOptions(mergedR).validateAndBuildWithDefaults();
-    }
-    if (o == null) {
-      o = new ActivityOptions.Builder().build();
-    }
-    return new ActivityOptions.Builder()
-        .setScheduleToCloseTimeout(
-            mergeDuration(a.scheduleToCloseTimeoutSeconds(), o.getScheduleToCloseTimeout()))
-        .setScheduleToStartTimeout(
-            mergeDuration(a.scheduleToStartTimeoutSeconds(), o.getScheduleToStartTimeout()))
-        .setStartToCloseTimeout(
-            mergeDuration(a.startToCloseTimeoutSeconds(), o.getStartToCloseTimeout()))
-        .setHeartbeatTimeout(mergeDuration(a.heartbeatTimeoutSeconds(), o.getHeartbeatTimeout()))
-        .setTaskList(
-            o.getTaskList() != null
-                ? o.getTaskList()
-                : (a.taskList().isEmpty() ? null : a.taskList()))
-        .setRetryOptions(RetryOptions.merge(r, o.getRetryOptions()))
-        .setContextPropagators(o.getContextPropagators())
-        .validateAndBuildWithDefaults();
+  public static ActivityOptions.Builder newBuilder() {
+    return new ActivityOptions.Builder();
   }
 
   public static final class Builder {
@@ -77,21 +49,7 @@ public final class ActivityOptions {
 
     private List<ContextPropagator> contextPropagators;
 
-    public Builder() {}
-
-    /** Copy Builder fields from the options. */
-    public Builder(ActivityOptions options) {
-      if (options == null) {
-        return;
-      }
-      this.scheduleToStartTimeout = options.getScheduleToStartTimeout();
-      this.scheduleToCloseTimeout = options.getScheduleToCloseTimeout();
-      this.heartbeatTimeout = options.getHeartbeatTimeout();
-      this.startToCloseTimeout = options.getStartToCloseTimeout();
-      this.taskList = options.taskList;
-      this.retryOptions = options.retryOptions;
-      this.contextPropagators = options.contextPropagators;
-    }
+    private Builder() {}
 
     /**
      * Overall timeout workflow is willing to wait for activity to complete. It includes time in a
@@ -152,6 +110,31 @@ public final class ActivityOptions {
     /** ContextPropagators help propagate the context from the workflow to the activities */
     public Builder setContextPropagators(List<ContextPropagator> contextPropagators) {
       this.contextPropagators = contextPropagators;
+      return this;
+    }
+
+    /**
+     * Properties that are set on this builder take precedence over ones found in the annotation.
+     */
+    public Builder setActivityMethod(ActivityMethod a) {
+      if (a == null) {
+        return this;
+      }
+      scheduleToCloseTimeout =
+          mergeDuration(a.scheduleToCloseTimeoutSeconds(), scheduleToCloseTimeout);
+      scheduleToStartTimeout =
+          mergeDuration(a.scheduleToStartTimeoutSeconds(), scheduleToStartTimeout);
+      startToCloseTimeout = mergeDuration(a.startToCloseTimeoutSeconds(), startToCloseTimeout);
+      heartbeatTimeout = mergeDuration(a.heartbeatTimeoutSeconds(), heartbeatTimeout);
+      taskList = taskList != null ? taskList : (a.taskList().isEmpty() ? null : a.taskList());
+      return this;
+    }
+
+    /**
+     * Properties that are set on this builder take precedence over ones found in the annotation.
+     */
+    public Builder setMethodRetry(MethodRetry r) {
+      retryOptions = RetryOptions.merge(r, retryOptions);
       return this;
     }
 
@@ -247,6 +230,17 @@ public final class ActivityOptions {
     this.taskList = taskList;
     this.retryOptions = retryOptions;
     this.contextPropagators = contextPropagators;
+  }
+
+  public Builder toBuilder() {
+    return newBuilder()
+        .setContextPropagators(contextPropagators)
+        .setHeartbeatTimeout(heartbeatTimeout)
+        .setRetryOptions(retryOptions)
+        .setScheduleToCloseTimeout(scheduleToCloseTimeout)
+        .setScheduleToStartTimeout(scheduleToStartTimeout)
+        .setStartToCloseTimeout(startToCloseTimeout)
+        .setTaskList(taskList);
   }
 
   public Duration getHeartbeatTimeout() {

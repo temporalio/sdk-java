@@ -76,7 +76,7 @@ public class MetricsTest {
       Workflow.getMetricsScope().counter("test-started").inc(1);
 
       ActivityOptions activityOptions =
-          new ActivityOptions.Builder()
+          ActivityOptions.newBuilder()
               .setTaskList(taskList)
               .setScheduleToCloseTimeout(Duration.ofSeconds(1))
               .setRetryOptions(

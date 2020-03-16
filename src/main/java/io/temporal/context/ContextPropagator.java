@@ -98,7 +98,7 @@ import java.util.Map;
  *
  * <pre>{@code
  * activities = Workflow.newActivityStub(Activity.class,
- *                 new ActivityOptions.Builder()
+ *                 ActivityOptions.newBuilder()
  *                         .setScheduleToCloseTimeout(Duration.ofSeconds(60))
  *                         .setContextPropagators(Collections.singletonList(new MDCContextPropagator()))
  *                         .build());

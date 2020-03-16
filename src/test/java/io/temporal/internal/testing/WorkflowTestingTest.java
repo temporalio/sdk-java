@@ -267,7 +267,7 @@ public class WorkflowTestingTest {
         long scheduleToStartTimeoutSeconds,
         long startToCloseTimeoutSeconds) {
       ActivityOptions options =
-          new ActivityOptions.Builder()
+          ActivityOptions.newBuilder()
               .setScheduleToCloseTimeout(Duration.ofSeconds(scheduleToCloseTimeoutSeconds))
               .setStartToCloseTimeout(Duration.ofSeconds(startToCloseTimeoutSeconds))
               .setScheduleToStartTimeout(Duration.ofSeconds(scheduleToStartTimeoutSeconds))
@@ -905,7 +905,7 @@ public class WorkflowTestingTest {
     @Override
     public String workflow1(String input) {
       ActivityOptions options =
-          new ActivityOptions.Builder()
+          ActivityOptions.newBuilder()
               .setScheduleToCloseTimeout(Duration.ofSeconds(5))
               .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
               .build();
@@ -935,7 +935,7 @@ public class WorkflowTestingTest {
     @Override
     public String workflow1(String input) {
       ActivityOptions options =
-          new ActivityOptions.Builder().setScheduleToCloseTimeout(Duration.ofSeconds(5)).build();
+          ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofSeconds(5)).build();
       TestActivity activity = Workflow.newActivityStub(TestActivity.class, options);
       return activity.activity1("foo");
     }

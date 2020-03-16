@@ -219,7 +219,7 @@ public class WorkerStressTests {
       SleepActivity activity =
           Workflow.newActivityStub(
               SleepActivity.class,
-              new ActivityOptions.Builder()
+              ActivityOptions.newBuilder()
                   .setTaskList(params.TaskListName)
                   .setScheduleToStartTimeout(Duration.ofMinutes(1))
                   .setStartToCloseTimeout(Duration.ofMinutes(1))
