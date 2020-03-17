@@ -63,10 +63,10 @@ public final class WorkflowOptions {
       return new WorkflowOptions.Builder(o).validateBuildWithDefaults();
     }
     if (o == null) {
-      o = new WorkflowOptions.Builder().build();
+      o = WorkflowOptions.newBuilder().build();
     }
     String cronAnnotation = cronSchedule == null ? "" : cronSchedule.value();
-    return new WorkflowOptions.Builder()
+    return WorkflowOptions.newBuilder()
         .setWorkflowIdReusePolicy(
             OptionsUtils.merge(
                 a.workflowIdReusePolicy(),
@@ -109,9 +109,9 @@ public final class WorkflowOptions {
 
     private List<ContextPropagator> contextPropagators;
 
-    public Builder() {}
+    private Builder() {}
 
-    public Builder(WorkflowOptions options) {
+    private Builder(WorkflowOptions options) {
       if (options == null) {
         return;
       }

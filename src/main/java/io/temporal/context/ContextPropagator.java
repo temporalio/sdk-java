@@ -83,7 +83,7 @@ import java.util.Map;
  * Creating your {@link io.temporal.client.WorkflowClient}:
  *
  * <pre>{@code
- * WorkflowOptions options = new WorkflowOptions.Builder()
+ * WorkflowOptions options = WorkflowOptions.newBuilder()
  *                 .setExecutionStartToCloseTimeout(Duration.ofSeconds(5))
  *                 .setTaskList("myTaskList")
  *                 .setContextPropagators(Collections.singletonList(new MDCContextPropagator()))

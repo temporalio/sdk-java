@@ -215,7 +215,7 @@ public class MetricsTest {
 
     WorkflowClient workflowClient = testEnvironment.getWorkflowClient();
     WorkflowOptions options =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(1000))
             .setTaskList(taskList)
             .build();
@@ -275,7 +275,7 @@ public class MetricsTest {
     testEnvironment.start();
 
     WorkflowOptions options =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(1000))
             .setTaskList(taskList)
             .build();

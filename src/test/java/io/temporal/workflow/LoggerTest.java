@@ -99,7 +99,7 @@ public class LoggerTest {
 
     WorkflowClient workflowClient = env.getWorkflowClient();
     WorkflowOptions options =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(1000))
             .setTaskList(taskList)
             .build();

@@ -219,12 +219,12 @@ public class WorkflowTest {
 
   private static WorkflowOptions.Builder newWorkflowOptionsBuilder(String taskList) {
     if (DEBUGGER_TIMEOUTS) {
-      return new WorkflowOptions.Builder()
+      return WorkflowOptions.newBuilder()
           .setExecutionStartToCloseTimeout(Duration.ofSeconds(1000))
           .setTaskStartToCloseTimeout(Duration.ofSeconds(60))
           .setTaskList(taskList);
     } else {
-      return new WorkflowOptions.Builder()
+      return WorkflowOptions.newBuilder()
           .setExecutionStartToCloseTimeout(Duration.ofSeconds(30))
           .setTaskStartToCloseTimeout(Duration.ofSeconds(5))
           .setTaskList(taskList);
@@ -1621,7 +1621,7 @@ public class WorkflowTest {
   public void testChildAsyncWorkflow() {
     startWorkerFor(TestChildAsyncWorkflow.class, TestMultiargsWorkflowsImpl.class);
 
-    WorkflowOptions.Builder options = new WorkflowOptions.Builder();
+    WorkflowOptions.Builder options = WorkflowOptions.newBuilder();
     options.setExecutionStartToCloseTimeout(Duration.ofSeconds(200));
     options.setTaskStartToCloseTimeout(Duration.ofSeconds(60));
     options.setTaskList(taskList);
@@ -1690,7 +1690,7 @@ public class WorkflowTest {
   public void testChildAsyncLambdaWorkflow() {
     startWorkerFor(TestChildAsyncLambdaWorkflow.class, TestWaitOnSignalWorkflowImpl.class);
 
-    WorkflowOptions.Builder options = new WorkflowOptions.Builder();
+    WorkflowOptions.Builder options = WorkflowOptions.newBuilder();
     options.setExecutionStartToCloseTimeout(Duration.ofSeconds(200));
     options.setTaskStartToCloseTimeout(Duration.ofSeconds(60));
     options.setTaskList(taskList);
@@ -1766,7 +1766,7 @@ public class WorkflowTest {
   public void testUntypedChildStubWorkflow() {
     startWorkerFor(TestUntypedChildStubWorkflow.class, TestMultiargsWorkflowsImpl.class);
 
-    WorkflowOptions.Builder options = new WorkflowOptions.Builder();
+    WorkflowOptions.Builder options = WorkflowOptions.newBuilder();
     options.setExecutionStartToCloseTimeout(Duration.ofSeconds(200));
     options.setTaskStartToCloseTimeout(Duration.ofSeconds(60));
     options.setTaskList(taskList);
@@ -1842,7 +1842,7 @@ public class WorkflowTest {
   public void testUntypedChildStubWorkflowAsync() {
     startWorkerFor(TestUntypedChildStubWorkflowAsync.class, TestMultiargsWorkflowsImpl.class);
 
-    WorkflowOptions.Builder options = new WorkflowOptions.Builder();
+    WorkflowOptions.Builder options = WorkflowOptions.newBuilder();
     options.setExecutionStartToCloseTimeout(Duration.ofSeconds(200));
     options.setTaskStartToCloseTimeout(Duration.ofSeconds(60));
     options.setTaskList(taskList);
@@ -1912,7 +1912,7 @@ public class WorkflowTest {
   public void testUntypedChildStubWorkflowAsyncInvoke() {
     startWorkerFor(TestUntypedChildStubWorkflowAsyncInvoke.class, TestMultiargsWorkflowsImpl.class);
 
-    WorkflowOptions.Builder options = new WorkflowOptions.Builder();
+    WorkflowOptions.Builder options = WorkflowOptions.newBuilder();
     options.setExecutionStartToCloseTimeout(Duration.ofSeconds(200));
     options.setTaskStartToCloseTimeout(Duration.ofSeconds(60));
     options.setTaskList(taskList);
@@ -2557,11 +2557,13 @@ public class WorkflowTest {
   @Test
   public void testTimerCallbackBlocked() {
     startWorkerFor(TestTimerCallbackBlockedWorkflowImpl.class);
-    WorkflowOptions.Builder options = new WorkflowOptions.Builder();
-    options.setExecutionStartToCloseTimeout(Duration.ofSeconds(10));
-    options.setTaskStartToCloseTimeout(Duration.ofSeconds(1));
-    options.setTaskList(taskList);
-    TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setExecutionStartToCloseTimeout(Duration.ofSeconds(10))
+            .setTaskStartToCloseTimeout(Duration.ofSeconds(1))
+            .setTaskList(taskList)
+            .build();
+    TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options);
     String result = client.execute(taskList);
     assertEquals("timer2Fired", result);
   }
@@ -2586,9 +2588,9 @@ public class WorkflowTest {
     private final ITestNamedChild child2;
 
     public TestParentWorkflow() {
-      ChildWorkflowOptions.Builder options = ChildWorkflowOptions.newBuilder();
-      options.setWorkflowId(child2Id);
-      child2 = Workflow.newChildWorkflowStub(ITestNamedChild.class, options.build());
+      ChildWorkflowOptions options =
+          ChildWorkflowOptions.newBuilder().setWorkflowId(child2Id).build();
+      child2 = Workflow.newChildWorkflowStub(ITestNamedChild.class, options);
     }
 
     @Override
@@ -2605,9 +2607,11 @@ public class WorkflowTest {
     private final ITestChild child;
 
     public TestParentWorkflowWithChildTimeout() {
-      ChildWorkflowOptions.Builder options = ChildWorkflowOptions.newBuilder();
-      options.setExecutionStartToCloseTimeout(Duration.ofSeconds(1));
-      child = Workflow.newChildWorkflowStub(ITestChild.class, options.build());
+      ChildWorkflowOptions options =
+          ChildWorkflowOptions.newBuilder()
+              .setExecutionStartToCloseTimeout(Duration.ofSeconds(1))
+              .build();
+      child = Workflow.newChildWorkflowStub(ITestChild.class, options);
     }
 
     @Override
@@ -2643,11 +2647,13 @@ public class WorkflowTest {
     child2Id = UUID.randomUUID().toString();
     startWorkerFor(TestParentWorkflow.class, TestNamedChild.class, TestChild.class);
 
-    WorkflowOptions.Builder options = new WorkflowOptions.Builder();
-    options.setExecutionStartToCloseTimeout(Duration.ofSeconds(200));
-    options.setTaskStartToCloseTimeout(Duration.ofSeconds(60));
-    options.setTaskList(taskList);
-    TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setExecutionStartToCloseTimeout(Duration.ofSeconds(200))
+            .setTaskStartToCloseTimeout(Duration.ofSeconds(60))
+            .setTaskList(taskList)
+            .build();
+    TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options);
     assertEquals("HELLO WORLD!", client.execute(taskList));
   }
 
@@ -2656,11 +2662,13 @@ public class WorkflowTest {
     child2Id = UUID.randomUUID().toString();
     startWorkerFor(TestParentWorkflowWithChildTimeout.class, TestChild.class);
 
-    WorkflowOptions.Builder options = new WorkflowOptions.Builder();
-    options.setExecutionStartToCloseTimeout(Duration.ofSeconds(200));
-    options.setTaskStartToCloseTimeout(Duration.ofSeconds(60));
-    options.setTaskList(taskList);
-    TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setExecutionStartToCloseTimeout(Duration.ofSeconds(200))
+            .setTaskStartToCloseTimeout(Duration.ofSeconds(60))
+            .setTaskList(taskList)
+            .build();
+    TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options);
     assertEquals("ChildWorkflowTimedOutException", client.execute(taskList));
   }
 
@@ -2691,11 +2699,13 @@ public class WorkflowTest {
     child2Id = UUID.randomUUID().toString();
     startWorkerFor(TestParentWorkflowContinueAsNew.class, TestChild.class);
 
-    WorkflowOptions.Builder options = new WorkflowOptions.Builder();
-    options.setExecutionStartToCloseTimeout(Duration.ofSeconds(200));
-    options.setTaskStartToCloseTimeout(Duration.ofSeconds(60));
-    options.setTaskList(taskList);
-    TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setExecutionStartToCloseTimeout(Duration.ofSeconds(200))
+            .setTaskStartToCloseTimeout(Duration.ofSeconds(60))
+            .setTaskList(taskList)
+            .build();
+    TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options);
     assertEquals("foo", client.execute("not empty"));
   }
 
@@ -2740,12 +2750,14 @@ public class WorkflowTest {
   public void testChildAlreadyRunning() {
     startWorkerFor(TestChildReexecuteWorkflow.class, TestNamedChild.class);
 
-    WorkflowOptions.Builder options = new WorkflowOptions.Builder();
-    options.setExecutionStartToCloseTimeout(Duration.ofSeconds(200));
-    options.setTaskStartToCloseTimeout(Duration.ofSeconds(60));
-    options.setTaskList(taskList);
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setExecutionStartToCloseTimeout(Duration.ofSeconds(200))
+            .setTaskStartToCloseTimeout(Duration.ofSeconds(60))
+            .setTaskList(taskList)
+            .build();
     WorkflowIdReusePolicyParent client =
-        workflowClient.newWorkflowStub(WorkflowIdReusePolicyParent.class, options.build());
+        workflowClient.newWorkflowStub(WorkflowIdReusePolicyParent.class, options);
     try {
       client.execute(false, WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate);
       fail("unreachable");
@@ -2758,12 +2770,14 @@ public class WorkflowTest {
   public void testChildStartTwice() {
     startWorkerFor(TestChildReexecuteWorkflow.class, TestNamedChild.class);
 
-    WorkflowOptions.Builder options = new WorkflowOptions.Builder();
-    options.setExecutionStartToCloseTimeout(Duration.ofSeconds(200));
-    options.setTaskStartToCloseTimeout(Duration.ofSeconds(60));
-    options.setTaskList(taskList);
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setExecutionStartToCloseTimeout(Duration.ofSeconds(200))
+            .setTaskStartToCloseTimeout(Duration.ofSeconds(60))
+            .setTaskList(taskList)
+            .build();
     WorkflowIdReusePolicyParent client =
-        workflowClient.newWorkflowStub(WorkflowIdReusePolicyParent.class, options.build());
+        workflowClient.newWorkflowStub(WorkflowIdReusePolicyParent.class, options);
     try {
       client.execute(true, WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate);
       fail("unreachable");
@@ -2776,12 +2790,14 @@ public class WorkflowTest {
   public void testChildReexecute() {
     startWorkerFor(TestChildReexecuteWorkflow.class, TestNamedChild.class);
 
-    WorkflowOptions.Builder options = new WorkflowOptions.Builder();
-    options.setExecutionStartToCloseTimeout(Duration.ofSeconds(200));
-    options.setTaskStartToCloseTimeout(Duration.ofSeconds(60));
-    options.setTaskList(taskList);
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setExecutionStartToCloseTimeout(Duration.ofSeconds(200))
+            .setTaskStartToCloseTimeout(Duration.ofSeconds(60))
+            .setTaskList(taskList)
+            .build();
     WorkflowIdReusePolicyParent client =
-        workflowClient.newWorkflowStub(WorkflowIdReusePolicyParent.class, options.build());
+        workflowClient.newWorkflowStub(WorkflowIdReusePolicyParent.class, options);
     assertEquals(
         "HELLO WORLD!",
         client.execute(false, WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicate));
@@ -2852,10 +2868,6 @@ public class WorkflowTest {
     worker.registerActivitiesImplementations(angryChildActivity);
     startWorkerFor(TestChildWorkflowRetryWorkflow.class, AngryChild.class);
 
-    WorkflowOptions.Builder options = new WorkflowOptions.Builder();
-    options.setExecutionStartToCloseTimeout(Duration.ofSeconds(20));
-    options.setTaskStartToCloseTimeout(Duration.ofSeconds(2));
-    options.setTaskList(taskList);
     AtomicReference<String> capturedWorkflowType = new AtomicReference<>();
     WorkflowClientOptions clientOptions =
         new WorkflowClientOptions.Builder()
@@ -2877,7 +2889,13 @@ public class WorkflowTest {
       wc = testEnvironment.getWorkflowClient(clientOptions);
     }
 
-    TestWorkflow1 client = wc.newWorkflowStub(TestWorkflow1.class, options.build());
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setExecutionStartToCloseTimeout(Duration.ofSeconds(20))
+            .setTaskStartToCloseTimeout(Duration.ofSeconds(2))
+            .setTaskList(taskList)
+            .build();
+    TestWorkflow1 client = wc.newWorkflowStub(TestWorkflow1.class, options);
     try {
       client.execute(taskList);
       fail("unreachable");
@@ -2930,10 +2948,6 @@ public class WorkflowTest {
   public void testChildWorkflowExecutionPromiseHandler() {
     startWorkerFor(TestChildWorkflowExecutionPromiseHandler.class, TestNamedChild.class);
 
-    WorkflowOptions.Builder options = new WorkflowOptions.Builder();
-    options.setExecutionStartToCloseTimeout(Duration.ofSeconds(20));
-    options.setTaskStartToCloseTimeout(Duration.ofSeconds(2));
-    options.setTaskList(taskList);
     WorkflowClient wc;
     if (useExternalService) {
       wc =
@@ -2942,8 +2956,13 @@ public class WorkflowTest {
     } else {
       wc = testEnvironment.getWorkflowClient();
     }
-
-    TestWorkflow1 client = wc.newWorkflowStub(TestWorkflow1.class, options.build());
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setExecutionStartToCloseTimeout(Duration.ofSeconds(20))
+            .setTaskStartToCloseTimeout(Duration.ofSeconds(2))
+            .setTaskList(taskList)
+            .build();
+    TestWorkflow1 client = wc.newWorkflowStub(TestWorkflow1.class, options);
     String result = client.execute(taskList);
     assertEquals("FOO", result);
   }
@@ -2989,12 +3008,14 @@ public class WorkflowTest {
   @Test
   public void testSignalExternalWorkflow() {
     startWorkerFor(TestSignalExternalWorkflow.class, SignalingChildImpl.class);
-    WorkflowOptions.Builder options = new WorkflowOptions.Builder();
-    options.setExecutionStartToCloseTimeout(Duration.ofSeconds(2000));
-    options.setTaskStartToCloseTimeout(Duration.ofSeconds(60));
-    options.setTaskList(taskList);
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setExecutionStartToCloseTimeout(Duration.ofSeconds(2000))
+            .setTaskStartToCloseTimeout(Duration.ofSeconds(60))
+            .setTaskList(taskList)
+            .build();
     TestWorkflowSignaled client =
-        workflowClient.newWorkflowStub(TestWorkflowSignaled.class, options.build());
+        workflowClient.newWorkflowStub(TestWorkflowSignaled.class, options);
     assertEquals("Hello World!", client.execute());
     tracer.setExpected(
         "executeChildWorkflow SignalingChild::execute",
@@ -3034,12 +3055,14 @@ public class WorkflowTest {
   @Test
   public void testUntypedSignalExternalWorkflow() {
     startWorkerFor(TestUntypedSignalExternalWorkflow.class, UntypedSignalingChildImpl.class);
-    WorkflowOptions.Builder options = new WorkflowOptions.Builder();
-    options.setExecutionStartToCloseTimeout(Duration.ofSeconds(20));
-    options.setTaskStartToCloseTimeout(Duration.ofSeconds(2));
-    options.setTaskList(taskList);
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setExecutionStartToCloseTimeout(Duration.ofSeconds(20))
+            .setTaskStartToCloseTimeout(Duration.ofSeconds(2))
+            .setTaskList(taskList)
+            .build();
     TestWorkflowSignaled client =
-        workflowClient.newWorkflowStub(TestWorkflowSignaled.class, options.build());
+        workflowClient.newWorkflowStub(TestWorkflowSignaled.class, options);
     assertEquals("Hello World!", client.execute());
   }
 
@@ -3059,11 +3082,13 @@ public class WorkflowTest {
   @Test
   public void testSignalExternalWorkflowFailure() {
     startWorkerFor(TestSignalExternalWorkflowFailure.class);
-    WorkflowOptions.Builder options = new WorkflowOptions.Builder();
-    options.setExecutionStartToCloseTimeout(Duration.ofSeconds(20));
-    options.setTaskStartToCloseTimeout(Duration.ofSeconds(2));
-    options.setTaskList(taskList);
-    TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setExecutionStartToCloseTimeout(Duration.ofSeconds(20))
+            .setTaskStartToCloseTimeout(Duration.ofSeconds(2))
+            .setTaskList(taskList)
+            .build();
+    TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options);
     try {
       client.execute(taskList);
       fail("unreachable");
@@ -3105,11 +3130,13 @@ public class WorkflowTest {
   @Test
   public void testSignalExternalWorkflowImmediateCancellation() {
     startWorkerFor(TestSignalExternalWorkflowImmediateCancellation.class);
-    WorkflowOptions.Builder options = new WorkflowOptions.Builder();
-    options.setExecutionStartToCloseTimeout(Duration.ofSeconds(20));
-    options.setTaskStartToCloseTimeout(Duration.ofSeconds(2));
-    options.setTaskList(taskList);
-    TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setExecutionStartToCloseTimeout(Duration.ofSeconds(20))
+            .setTaskStartToCloseTimeout(Duration.ofSeconds(2))
+            .setTaskList(taskList)
+            .build();
+    TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options);
     try {
       client.execute(taskList);
       fail("unreachable");
@@ -3150,11 +3177,13 @@ public class WorkflowTest {
     worker.registerActivitiesImplementations(angryChildActivity);
     startWorkerFor(TestChildWorkflowAsyncRetryWorkflow.class, AngryChild.class);
 
-    WorkflowOptions.Builder options = new WorkflowOptions.Builder();
-    options.setExecutionStartToCloseTimeout(Duration.ofSeconds(20));
-    options.setTaskStartToCloseTimeout(Duration.ofSeconds(2));
-    options.setTaskList(taskList);
-    TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setExecutionStartToCloseTimeout(Duration.ofSeconds(20))
+            .setTaskStartToCloseTimeout(Duration.ofSeconds(2))
+            .setTaskList(taskList)
+            .build();
+    TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options);
     try {
       client.execute(taskList);
       fail("unreachable");
@@ -3184,7 +3213,7 @@ public class WorkflowTest {
     testDecisionFailureBackoffReplayCount = 0;
     startWorkerFor(TestDecisionFailureBackoff.class);
     WorkflowOptions o =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(10))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(1))
             .setTaskList(taskList)
@@ -4339,7 +4368,7 @@ public class WorkflowTest {
     Assume.assumeTrue("skipping as no replay in sticky", disableStickyExecution);
     startWorkerFor(DeterminismFailingWorkflowImpl.class);
     WorkflowOptions options =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(10))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(1))
             .setTaskList(taskList)
@@ -4379,7 +4408,7 @@ public class WorkflowTest {
       testEnvironment.start();
     }
     WorkflowOptions options =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(1))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(1))
             .setTaskList(taskList)
@@ -4784,7 +4813,7 @@ public class WorkflowTest {
     startWorkerFor(DecisionTimeoutWorkflowImpl.class);
 
     WorkflowOptions options =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setTaskList(taskList)
             .setTaskStartToCloseTimeout(Duration.ofSeconds(1))
             .build();
@@ -4849,7 +4878,7 @@ public class WorkflowTest {
   public void testLocalActivityMultipleBatches() {
     startWorkerFor(TestLocalActivityMultiBatchWorkflowImpl.class);
     WorkflowOptions options =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setExecutionStartToCloseTimeout(Duration.ofMinutes(5))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(5))
             .setTaskList(taskList)
@@ -4892,7 +4921,7 @@ public class WorkflowTest {
   public void testParallelLocalActivityExecutionWorkflow() {
     startWorkerFor(TestParallelLocalActivityExecutionWorkflowImpl.class);
     WorkflowOptions options =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setExecutionStartToCloseTimeout(Duration.ofMinutes(5))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(5))
             .setTaskList(taskList)
@@ -4947,7 +4976,7 @@ public class WorkflowTest {
 
     startWorkerFor(TestLocalActivityAndQueryWorkflow.class);
     WorkflowOptions options =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setExecutionStartToCloseTimeout(Duration.ofMinutes(5))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(5))
             .setTaskList(taskList)
@@ -4988,7 +5017,7 @@ public class WorkflowTest {
 
     startWorkerFor(TestLocalActivityAndQueryWorkflow.class);
     WorkflowOptions options =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setExecutionStartToCloseTimeout(Duration.ofMinutes(5))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(5))
             .setTaskList(taskList)
@@ -5052,7 +5081,7 @@ public class WorkflowTest {
   public void testSignalOrderingWorkflow() {
     startWorkerFor(SignalOrderingWorkflowImpl.class);
     WorkflowOptions options =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setExecutionStartToCloseTimeout(Duration.ofMinutes(1))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(10))
             .setTaskList(taskList)

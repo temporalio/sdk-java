@@ -496,6 +496,7 @@ class DecisionsHelper {
       taskList = startedEvent.getTaskList().getName();
     }
     attributes.setTaskList(TaskList.newBuilder().setName(taskList).build());
+
     // TODO(maxim): Find out what to do about memo, searchAttributes and header
 
     Decision decision =

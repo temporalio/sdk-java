@@ -33,8 +33,8 @@ public final class ActivityOptions {
     return new Builder();
   }
 
-  public static Builder newBuilder(ActivityOptions o) {
-    return new Builder(o);
+  public static Builder newBuilder(ActivityOptions options) {
+    return new Builder(options);
   }
 
   public static ActivityOptions getDefaultInstance() {
@@ -65,17 +65,17 @@ public final class ActivityOptions {
 
     private Builder() {}
 
-    private Builder(ActivityOptions o) {
-      if (o == null) {
+    private Builder(ActivityOptions options) {
+      if (options == null) {
         return;
       }
-      this.taskList = o.taskList;
-      this.heartbeatTimeout = o.heartbeatTimeout;
-      this.retryOptions = o.retryOptions;
-      this.contextPropagators = o.contextPropagators;
-      this.scheduleToCloseTimeout = o.scheduleToCloseTimeout;
-      this.startToCloseTimeout = o.startToCloseTimeout;
-      this.scheduleToStartTimeout = o.scheduleToStartTimeout;
+      this.taskList = options.taskList;
+      this.heartbeatTimeout = options.heartbeatTimeout;
+      this.retryOptions = options.retryOptions;
+      this.contextPropagators = options.contextPropagators;
+      this.scheduleToCloseTimeout = options.scheduleToCloseTimeout;
+      this.startToCloseTimeout = options.startToCloseTimeout;
+      this.scheduleToStartTimeout = options.scheduleToStartTimeout;
     }
 
     /**

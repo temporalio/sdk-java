@@ -132,7 +132,7 @@ public class StickyWorkerTest {
     factory.start();
 
     WorkflowOptions workflowOptions =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
             .setExecutionStartToCloseTimeout(Duration.ofDays(30))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
@@ -196,7 +196,7 @@ public class StickyWorkerTest {
     factory.start();
 
     WorkflowOptions workflowOptions =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
             .setExecutionStartToCloseTimeout(Duration.ofDays(30))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(1))
@@ -249,7 +249,7 @@ public class StickyWorkerTest {
     factory.start();
 
     WorkflowOptions workflowOptions =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
             .setExecutionStartToCloseTimeout(Duration.ofDays(30))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
@@ -307,7 +307,7 @@ public class StickyWorkerTest {
     factory.start();
 
     WorkflowOptions workflowOptions =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
             .setExecutionStartToCloseTimeout(Duration.ofDays(30))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
@@ -357,7 +357,7 @@ public class StickyWorkerTest {
     factory.start();
 
     WorkflowOptions workflowOptions =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
             .setExecutionStartToCloseTimeout(Duration.ofDays(30))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
@@ -406,7 +406,7 @@ public class StickyWorkerTest {
     factory.start();
 
     WorkflowOptions workflowOptions =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
             .setExecutionStartToCloseTimeout(Duration.ofDays(30))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
@@ -439,7 +439,7 @@ public class StickyWorkerTest {
     factory.start();
 
     WorkflowOptions workflowOptions =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
             .setExecutionStartToCloseTimeout(Duration.ofDays(30))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
@@ -479,7 +479,7 @@ public class StickyWorkerTest {
     factory.start();
 
     WorkflowOptions workflowOptions =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
             .setExecutionStartToCloseTimeout(Duration.ofDays(30))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
@@ -520,7 +520,7 @@ public class StickyWorkerTest {
     factory.start();
 
     WorkflowOptions workflowOptions =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
             .setExecutionStartToCloseTimeout(Duration.ofDays(30))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(30))

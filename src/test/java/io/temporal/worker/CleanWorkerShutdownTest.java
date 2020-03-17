@@ -159,7 +159,7 @@ public class CleanWorkerShutdownTest {
       worker.registerActivitiesImplementations(new ActivitiesImpl(started));
       testEnvironment.start();
     }
-    WorkflowOptions options = new WorkflowOptions.Builder().setTaskList(taskList).build();
+    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskList(taskList).build();
     TestWorkflow workflow = workflowClient.newWorkflowStub(TestWorkflow.class, options);
     WorkflowExecution execution = WorkflowClient.start(workflow::execute);
     started.get();
@@ -217,7 +217,7 @@ public class CleanWorkerShutdownTest {
       worker.registerActivitiesImplementations(new ActivitiesImpl(started));
       testEnvironment.start();
     }
-    WorkflowOptions options = new WorkflowOptions.Builder().setTaskList(taskList).build();
+    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskList(taskList).build();
     TestWorkflow workflow = workflowClient.newWorkflowStub(TestWorkflow.class, options);
     WorkflowExecution execution = WorkflowClient.start(workflow::execute);
     started.get();
@@ -301,7 +301,7 @@ public class CleanWorkerShutdownTest {
       worker.registerActivitiesImplementations(new HeartbeatingActivitiesImpl(started));
       testEnvironment.start();
     }
-    WorkflowOptions options = new WorkflowOptions.Builder().setTaskList(taskList).build();
+    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskList(taskList).build();
     TestWorkflow workflow = workflowClient.newWorkflowStub(TestWorkflow.class, options);
     WorkflowExecution execution = WorkflowClient.start(workflow::execute);
     started.get();

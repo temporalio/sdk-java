@@ -85,6 +85,7 @@ public final class WorkerFactory {
   private WorkerFactory(WorkflowClient workflowClient, WorkerFactoryOptions factoryOptions) {
     this.workflowClient = Objects.requireNonNull(workflowClient);
     this.factoryOptions = Objects.requireNonNull(factoryOptions);
+
     workflowThreadPool =
         new ThreadPoolExecutor(
             0,

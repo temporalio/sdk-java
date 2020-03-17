@@ -88,7 +88,7 @@ public class WorkerStressTests {
     factory.start();
 
     WorkflowOptions workflowOptions =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(250))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
@@ -131,7 +131,7 @@ public class WorkerStressTests {
     factory.start();
 
     WorkflowOptions workflowOptions =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(250))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(30))

@@ -17,7 +17,9 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.internal.common.InternalUtils.*;
+import static io.temporal.internal.common.InternalUtils.getValueOrDefault;
+import static io.temporal.internal.common.InternalUtils.getWorkflowMethod;
+import static io.temporal.internal.common.InternalUtils.getWorkflowType;
 
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;

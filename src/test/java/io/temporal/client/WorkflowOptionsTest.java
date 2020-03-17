@@ -39,7 +39,7 @@ public class WorkflowOptionsTest {
   @Test
   public void testOnlyOptionsAndEmptyAnnotationsPresent() throws NoSuchMethodException {
     WorkflowOptions o =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setTaskList("foo")
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(321))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
@@ -78,7 +78,7 @@ public class WorkflowOptionsTest {
     WorkflowMethod a = method.getAnnotation(WorkflowMethod.class);
     MethodRetry r = method.getAnnotation(MethodRetry.class);
     CronSchedule c = method.getAnnotation(CronSchedule.class);
-    WorkflowOptions o = new WorkflowOptions.Builder().build();
+    WorkflowOptions o = WorkflowOptions.newBuilder().build();
     WorkflowOptions merged = WorkflowOptions.merge(a, r, c, o);
     Assert.assertEquals(a.taskList(), merged.getTaskList());
     Assert.assertEquals(
@@ -107,7 +107,7 @@ public class WorkflowOptionsTest {
     Map<String, Object> searchAttributes = getTestSearchAttributes();
 
     WorkflowOptions o =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setTaskList("foo")
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(321))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
@@ -178,7 +178,7 @@ public class WorkflowOptionsTest {
   @Test
   public void testInvalidCronScheduleAnnotation() throws NoSuchMethodException {
     WorkflowOptions o =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setTaskList("foo")
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(321))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
@@ -200,7 +200,7 @@ public class WorkflowOptionsTest {
   private Map<String, Object> getTestMemo() {
     Map<String, Object> memo = new HashMap<>();
     memo.put("testKey", "testObject");
-    memo.put("objectKey", new WorkflowOptions.Builder().build());
+    memo.put("objectKey", WorkflowOptions.newBuilder().build());
     return memo;
   }
 

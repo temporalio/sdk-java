@@ -365,9 +365,7 @@ public class WorkflowTestingTest {
     testEnvironment.start();
     WorkflowClient client = testEnvironment.getWorkflowClient();
     WorkflowOptions options =
-        new WorkflowOptions.Builder()
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(1))
-            .build();
+        WorkflowOptions.newBuilder().setExecutionStartToCloseTimeout(Duration.ofSeconds(1)).build();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class, options);
     try {
       workflow.workflow1("bar");
@@ -641,7 +639,7 @@ public class WorkflowTestingTest {
     worker.registerWorkflowImplementationTypes(ChildWorkflowImpl.class, ParentWorkflowImpl.class);
     testEnvironment.start();
     WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options = new WorkflowOptions.Builder().setWorkflowId("parent1").build();
+    WorkflowOptions options = WorkflowOptions.newBuilder().setWorkflowId("parent1").build();
     ParentWorkflow workflow = client.newWorkflowStub(ParentWorkflow.class, options);
     String result = workflow.workflow("input1");
     assertEquals("child input1", result);
@@ -677,7 +675,7 @@ public class WorkflowTestingTest {
         SimulatedTimeoutParentWorkflow.class, SimulatedTimeoutChildWorkflow.class);
     testEnvironment.start();
     WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options = new WorkflowOptions.Builder().setWorkflowId("parent1").build();
+    WorkflowOptions options = WorkflowOptions.newBuilder().setWorkflowId("parent1").build();
     ParentWorkflow workflow = client.newWorkflowStub(ParentWorkflow.class, options);
     try {
       CompletableFuture<String> result = WorkflowClient.execute(workflow::workflow, "input1");
@@ -746,7 +744,7 @@ public class WorkflowTestingTest {
         });
     testEnvironment.start();
     WorkflowClient client = testEnvironment.getWorkflowClient();
-    WorkflowOptions options = new WorkflowOptions.Builder().setWorkflowId("parent1").build();
+    WorkflowOptions options = WorkflowOptions.newBuilder().setWorkflowId("parent1").build();
     ParentWorkflow workflow = client.newWorkflowStub(ParentWorkflow.class, options);
     try {
       workflow.workflow("input1");
@@ -810,7 +808,7 @@ public class WorkflowTestingTest {
     MDC.put("test", "testing123");
     WorkflowClient client = testEnvironment.getWorkflowClient();
     WorkflowOptions options =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
             .build();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class, options);
@@ -858,7 +856,7 @@ public class WorkflowTestingTest {
     MDC.put("test", "testing123");
     WorkflowClient client = testEnvironment.getWorkflowClient();
     WorkflowOptions options =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
             .build();
     ParentWorkflow workflow = client.newWorkflowStub(ParentWorkflow.class, options);
@@ -887,7 +885,7 @@ public class WorkflowTestingTest {
     MDC.put("test", "testing123");
     WorkflowClient client = testEnvironment.getWorkflowClient();
     WorkflowOptions options =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
             .build();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class, options);
@@ -924,7 +922,7 @@ public class WorkflowTestingTest {
     MDC.put("test", "testing123");
     WorkflowClient client = testEnvironment.getWorkflowClient();
     WorkflowOptions options =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
             .build();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class, options);
@@ -951,7 +949,7 @@ public class WorkflowTestingTest {
     MDC.put("test", "testing123");
     WorkflowClient client = testEnvironment.getWorkflowClient();
     WorkflowOptions options =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
             .build();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class, options);
@@ -988,7 +986,7 @@ public class WorkflowTestingTest {
     MDC.put("test", "testing123");
     WorkflowClient client = testEnvironment.getWorkflowClient();
     WorkflowOptions options =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
             .build();
     ParentWorkflow workflow = client.newWorkflowStub(ParentWorkflow.class, options);
