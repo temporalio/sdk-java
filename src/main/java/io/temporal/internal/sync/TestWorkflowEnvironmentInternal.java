@@ -106,11 +106,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     WorkerOptions.Builder builder =
         WorkerOptions.newBuilder()
             .setInterceptorFactory(testEnvironmentOptions.getInterceptorFactory())
-            .setMetricsScope(testEnvironmentOptions.getMetricsScope())
             .setEnableLoggingInReplay(testEnvironmentOptions.isLoggingEnabledInReplay());
-    if (testEnvironmentOptions.getDataConverter() != null) {
-      builder.setDataConverter(testEnvironmentOptions.getDataConverter());
-    }
     builder = overrideOptions.apply(builder);
     Worker result = workerFactory.newWorker(taskList, builder.build());
     return result;

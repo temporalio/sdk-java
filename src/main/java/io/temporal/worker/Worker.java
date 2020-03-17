@@ -125,13 +125,13 @@ public final class Worker implements Suspendable {
             .put(MetricsTag.TASK_LIST, taskList)
             .build();
     return SingleWorkerOptions.newBuilder()
-        .setDataConverter(options.getDataConverter())
+        .setDataConverter(clientOptions.getDataConverter())
         .setIdentity(clientOptions.getIdentity())
         .setPollerOptions(options.getActivityPollerOptions())
         .setReportCompletionRetryOptions(options.getReportActivityCompletionRetryOptions())
         .setReportFailureRetryOptions(options.getReportActivityFailureRetryOptions())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentActivityExecutionSize())
-        .setMetricsScope(options.getMetricsScope().tagged(tags))
+        .setMetricsScope(clientOptions.getMetricsScope().tagged(tags))
         .setEnableLoggingInReplay(options.getEnableLoggingInReplay())
         .setContextPropagators(contextPropagators)
         .build();
@@ -148,13 +148,13 @@ public final class Worker implements Suspendable {
             .put(MetricsTag.TASK_LIST, taskList)
             .build();
     return SingleWorkerOptions.newBuilder()
-        .setDataConverter(options.getDataConverter())
+        .setDataConverter(clientOptions.getDataConverter())
         .setIdentity(clientOptions.getIdentity())
         .setPollerOptions(options.getWorkflowPollerOptions())
         .setReportCompletionRetryOptions(options.getReportWorkflowCompletionRetryOptions())
         .setReportFailureRetryOptions(options.getReportWorkflowFailureRetryOptions())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentWorkflowExecutionSize())
-        .setMetricsScope(options.getMetricsScope().tagged(tags))
+        .setMetricsScope(clientOptions.getMetricsScope().tagged(tags))
         .setEnableLoggingInReplay(options.getEnableLoggingInReplay())
         .setContextPropagators(contextPropagators)
         .build();
@@ -171,13 +171,13 @@ public final class Worker implements Suspendable {
             .put(MetricsTag.TASK_LIST, taskList)
             .build();
     return SingleWorkerOptions.newBuilder()
-        .setDataConverter(options.getDataConverter())
+        .setDataConverter(clientOptions.getDataConverter())
         .setIdentity(clientOptions.getIdentity())
         .setPollerOptions(options.getWorkflowPollerOptions())
         .setReportCompletionRetryOptions(options.getReportWorkflowCompletionRetryOptions())
         .setReportFailureRetryOptions(options.getReportWorkflowFailureRetryOptions())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentLocalActivityExecutionSize())
-        .setMetricsScope(options.getMetricsScope().tagged(tags))
+        .setMetricsScope(clientOptions.getMetricsScope().tagged(tags))
         .setEnableLoggingInReplay(options.getEnableLoggingInReplay())
         .setContextPropagators(contextPropagators)
         .build();

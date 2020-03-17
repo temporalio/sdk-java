@@ -17,11 +17,7 @@
 
 package io.temporal.worker;
 
-import com.uber.m3.tally.Scope;
 import io.temporal.common.RpcRetryOptions;
-import io.temporal.converter.DataConverter;
-import io.temporal.converter.JsonDataConverter;
-import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.worker.PollerOptions;
 import io.temporal.workflow.WorkflowInterceptor;
 import java.util.Objects;
@@ -50,7 +46,6 @@ public final class WorkerOptions {
   public static final class Builder {
 
     private double workerActivitiesPerSecond;
-    private DataConverter dataConverter = JsonDataConverter.getInstance();
     private int maxConcurrentActivityExecutionSize = 100;
     private int maxConcurrentWorkflowExecutionSize = 50;
     private int maxConcurrentLocalActivityExecutionSize = 100;
@@ -62,7 +57,6 @@ public final class WorkerOptions {
     private RpcRetryOptions reportWorkflowCompletionRetryOptions;
     private RpcRetryOptions reportWorkflowFailureRetryOptions;
     private Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory = (n) -> n;
-    private Scope metricsScope;
     private boolean enableLoggingInReplay;
 
     private Builder() {}
@@ -72,7 +66,6 @@ public final class WorkerOptions {
         return;
       }
       workerActivitiesPerSecond = o.workerActivitiesPerSecond;
-      dataConverter = o.dataConverter;
       maxConcurrentActivityExecutionSize = o.maxConcurrentActivityExecutionSize;
       maxConcurrentWorkflowExecutionSize = o.maxConcurrentWorkflowExecutionSize;
       maxConcurrentLocalActivityExecutionSize = o.maxConcurrentLocalActivityExecutionSize;
@@ -84,17 +77,7 @@ public final class WorkerOptions {
       reportWorkflowCompletionRetryOptions = o.reportWorkflowCompletionRetryOptions;
       reportWorkflowFailureRetryOptions = o.reportWorkflowFailureRetryOptions;
       interceptorFactory = o.interceptorFactory;
-      metricsScope = o.metricsScope;
       enableLoggingInReplay = o.enableLoggingInReplay;
-    }
-
-    /**
-     * Override a data converter implementation used by workflows and activities executed by this
-     * worker. Default is {@link io.temporal.converter.JsonDataConverter} data converter.
-     */
-    public Builder setDataConverter(DataConverter dataConverter) {
-      this.dataConverter = Objects.requireNonNull(dataConverter);
-      return this;
     }
 
     /** Maximum number of activities started per second. Default is 0 which means unlimited. */
@@ -181,11 +164,6 @@ public final class WorkerOptions {
       return this;
     }
 
-    public Builder setMetricsScope(Scope metricsScope) {
-      this.metricsScope = Objects.requireNonNull(metricsScope);
-      return this;
-    }
-
     public Builder setEnableLoggingInReplay(boolean enableLoggingInReplay) {
       this.enableLoggingInReplay = enableLoggingInReplay;
       return this;
@@ -205,13 +183,8 @@ public final class WorkerOptions {
     }
 
     public WorkerOptions build() {
-      if (metricsScope == null) {
-        metricsScope = NoopScope.getInstance();
-      }
-
       return new WorkerOptions(
           workerActivitiesPerSecond,
-          dataConverter,
           maxConcurrentActivityExecutionSize,
           maxConcurrentWorkflowExecutionSize,
           maxConcurrentLocalActivityExecutionSize,
@@ -223,13 +196,11 @@ public final class WorkerOptions {
           reportWorkflowCompletionRetryOptions,
           reportWorkflowFailureRetryOptions,
           interceptorFactory,
-          metricsScope,
           enableLoggingInReplay);
     }
   }
 
   private final double workerActivitiesPerSecond;
-  private final DataConverter dataConverter;
   private final int maxConcurrentActivityExecutionSize;
   private final int maxConcurrentWorkflowExecutionSize;
   private final int maxConcurrentLocalActivityExecutionSize;
@@ -241,12 +212,10 @@ public final class WorkerOptions {
   private final RpcRetryOptions reportWorkflowCompletionRetryOptions;
   private final RpcRetryOptions reportWorkflowFailureRetryOptions;
   private final Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory;
-  private final Scope metricsScope;
   private final boolean enableLoggingInReplay;
 
   private WorkerOptions(
       double workerActivitiesPerSecond,
-      DataConverter dataConverter,
       int maxConcurrentActivityExecutionSize,
       int maxConcurrentWorkflowExecutionSize,
       int maxConcurrentLocalActivityExecutionSize,
@@ -258,10 +227,8 @@ public final class WorkerOptions {
       RpcRetryOptions reportWorkflowCompletionRetryOptions,
       RpcRetryOptions reportWorkflowFailureRetryOptions,
       Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
-      Scope metricsScope,
       boolean enableLoggingInReplay) {
     this.workerActivitiesPerSecond = workerActivitiesPerSecond;
-    this.dataConverter = dataConverter;
     this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
     this.maxConcurrentWorkflowExecutionSize = maxConcurrentWorkflowExecutionSize;
     this.maxConcurrentLocalActivityExecutionSize = maxConcurrentLocalActivityExecutionSize;
@@ -273,16 +240,11 @@ public final class WorkerOptions {
     this.reportWorkflowCompletionRetryOptions = reportWorkflowCompletionRetryOptions;
     this.reportWorkflowFailureRetryOptions = reportWorkflowFailureRetryOptions;
     this.interceptorFactory = interceptorFactory;
-    this.metricsScope = metricsScope;
     this.enableLoggingInReplay = enableLoggingInReplay;
   }
 
   public double getWorkerActivitiesPerSecond() {
     return workerActivitiesPerSecond;
-  }
-
-  public DataConverter getDataConverter() {
-    return dataConverter;
   }
 
   public int getMaxConcurrentActivityExecutionSize() {
@@ -325,10 +287,6 @@ public final class WorkerOptions {
     return interceptorFactory;
   }
 
-  public Scope getMetricsScope() {
-    return metricsScope;
-  }
-
   public boolean getEnableLoggingInReplay() {
     return enableLoggingInReplay;
   }
@@ -338,8 +296,6 @@ public final class WorkerOptions {
     return "WorkerOptions{"
         + ", workerActivitiesPerSecond="
         + workerActivitiesPerSecond
-        + ", dataConverter="
-        + dataConverter
         + ", maxConcurrentActivityExecutionSize="
         + maxConcurrentActivityExecutionSize
         + ", maxConcurrentWorkflowExecutionSize="
