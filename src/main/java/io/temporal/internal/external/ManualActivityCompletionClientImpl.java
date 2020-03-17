@@ -25,6 +25,7 @@ import io.temporal.client.ActivityCancelledException;
 import io.temporal.client.ActivityCompletionFailureException;
 import io.temporal.client.ActivityNotExistsException;
 import io.temporal.converter.DataConverter;
+import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.proto.common.WorkflowExecution;
@@ -38,8 +39,7 @@ import io.temporal.proto.workflowservice.RespondActivityTaskCompletedByIDRequest
 import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedByIDRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
-import io.temporal.serviceclient.GrpcRetryer;
-import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.concurrent.CancellationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +50,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
   private static final Logger log =
       LoggerFactory.getLogger(ManualActivityCompletionClientImpl.class);
 
-  private final GrpcWorkflowServiceFactory service;
+  private final WorkflowServiceStubs service;
 
   private final byte[] taskToken;
 
@@ -61,7 +61,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
   private final Scope metricsScope;
 
   ManualActivityCompletionClientImpl(
-      GrpcWorkflowServiceFactory service,
+      WorkflowServiceStubs service,
       byte[] taskToken,
       DataConverter dataConverter,
       Scope metricsScope) {
@@ -75,7 +75,7 @@ class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient 
   }
 
   ManualActivityCompletionClientImpl(
-      GrpcWorkflowServiceFactory service,
+      WorkflowServiceStubs service,
       String domain,
       WorkflowExecution execution,
       String activityId,

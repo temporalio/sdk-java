@@ -22,7 +22,9 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
+import io.temporal.common.RpcRetryOptions;
 import io.temporal.context.ContextPropagator;
+import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsTag;
@@ -33,9 +35,7 @@ import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
-import io.temporal.serviceclient.GrpcRetryOptions;
-import io.temporal.serviceclient.GrpcRetryer;
-import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -50,13 +50,13 @@ public final class ActivityWorker implements SuspendableWorker {
 
   private SuspendableWorker poller = new NoopSuspendableWorker();
   private final ActivityTaskHandler handler;
-  private final GrpcWorkflowServiceFactory service;
+  private final WorkflowServiceStubs service;
   private final String domain;
   private final String taskList;
   private final SingleWorkerOptions options;
 
   public ActivityWorker(
-      GrpcWorkflowServiceFactory service,
+      WorkflowServiceStubs service,
       String domain,
       String taskList,
       SingleWorkerOptions options,
@@ -238,7 +238,7 @@ public final class ActivityWorker implements SuspendableWorker {
 
     private void sendReply(
         PollForActivityTaskResponse task, ActivityTaskHandler.Result response, Scope metricsScope) {
-      GrpcRetryOptions ro = response.getRequestRetryOptions();
+      RpcRetryOptions ro = response.getRequestRetryOptions();
       RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
         ro = options.getReportCompletionRetryOptions().merge(ro);

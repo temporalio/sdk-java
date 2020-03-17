@@ -23,7 +23,8 @@ import static io.temporal.testUtils.TestServiceUtils.*;
 
 import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
-import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
+import java.util.concurrent.TimeUnit;
 
 public class HistoryUtils {
   private HistoryUtils() {}
@@ -35,14 +36,19 @@ public class HistoryUtils {
 
   public static PollForDecisionTaskResponse generateDecisionTaskWithInitialHistory()
       throws Exception {
-    try (TestWorkflowService testService = new TestWorkflowService(true);
-        GrpcWorkflowServiceFactory service = testService.newClientStub(); ) {
+    TestWorkflowService testService = new TestWorkflowService(true);
+    WorkflowServiceStubs service = testService.newClientStub();
+    try {
       return generateDecisionTaskWithInitialHistory(DOMAIN, TASK_LIST, WORKFLOW_TYPE, service);
+    } finally {
+      service.shutdownNow();
+      service.awaitTermination(1, TimeUnit.SECONDS);
+      testService.close();
     }
   }
 
   public static PollForDecisionTaskResponse generateDecisionTaskWithInitialHistory(
-      String domain, String tasklistName, String workflowType, GrpcWorkflowServiceFactory service)
+      String domain, String tasklistName, String workflowType, WorkflowServiceStubs service)
       throws Exception {
     startWorkflowExecution(domain, tasklistName, workflowType, service);
     return pollForDecisionTask(domain, createNormalTaskList(tasklistName), service);
@@ -55,12 +61,17 @@ public class HistoryUtils {
 
   public static PollForDecisionTaskResponse generateDecisionTaskWithPartialHistory(
       String domain, String tasklistName, String workflowType) throws Exception {
-    try (TestWorkflowService testService = new TestWorkflowService(true);
-        GrpcWorkflowServiceFactory service = testService.newClientStub(); ) {
+    TestWorkflowService testService = new TestWorkflowService(true);
+    WorkflowServiceStubs service = testService.newClientStub();
+    try {
       PollForDecisionTaskResponse response =
           generateDecisionTaskWithInitialHistory(domain, tasklistName, workflowType, service);
       return generateDecisionTaskWithPartialHistoryFromExistingTask(
           response, domain, HOST_TASK_LIST, service);
+    } finally {
+      service.shutdownNow();
+      service.awaitTermination(1, TimeUnit.SECONDS);
+      testService.close();
     }
   }
 
@@ -68,7 +79,7 @@ public class HistoryUtils {
       PollForDecisionTaskResponse response,
       String domain,
       String stickyTaskListName,
-      GrpcWorkflowServiceFactory service)
+      WorkflowServiceStubs service)
       throws Exception {
     signalWorkflow(response.getWorkflowExecution(), domain, service);
     respondDecisionTaskCompletedWithSticky(response.getTaskToken(), stickyTaskListName, service);

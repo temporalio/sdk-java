@@ -31,7 +31,7 @@ import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.enums.EventType;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
-import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.Workflow;
@@ -72,18 +72,23 @@ public class CleanWorkerShutdownTest {
 
   @Rule public TestName testName = new TestName();
 
-  private static GrpcWorkflowServiceFactory service;
+  private static WorkflowServiceStubs service;
 
   @Before
   public void setUp() {
     if (useExternalService) {
-      service = new GrpcWorkflowServiceFactory();
+      service = WorkflowServiceStubs.newInstance();
     }
   }
 
   @After
   public void tearDown() {
-    service.close();
+    service.shutdownNow();
+    try {
+      service.awaitTermination(1, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
   }
 
   public interface TestWorkflow {

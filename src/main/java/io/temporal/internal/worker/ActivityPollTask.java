@@ -27,23 +27,20 @@ import io.temporal.proto.common.TaskList;
 import io.temporal.proto.common.TaskListMetadata;
 import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
-import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 final class ActivityPollTask implements Poller.PollTask<PollForActivityTaskResponse> {
 
-  private final GrpcWorkflowServiceFactory service;
+  private final WorkflowServiceStubs service;
   private final String domain;
   private final String taskList;
   private final SingleWorkerOptions options;
   private static final Logger log = LoggerFactory.getLogger(ActivityPollTask.class);
 
   public ActivityPollTask(
-      GrpcWorkflowServiceFactory service,
-      String domain,
-      String taskList,
-      SingleWorkerOptions options) {
+      WorkflowServiceStubs service, String domain, String taskList, SingleWorkerOptions options) {
 
     this.service = service;
     this.domain = domain;

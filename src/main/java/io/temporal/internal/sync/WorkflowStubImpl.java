@@ -35,6 +35,7 @@ import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.common.QueryResponse;
 import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
 import io.temporal.internal.common.StartWorkflowExecutionParameters;
+import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.common.WorkflowExecutionFailedException;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.external.GenericWorkflowClientExternal;
@@ -46,7 +47,6 @@ import io.temporal.proto.enums.QueryRejectCondition;
 import io.temporal.proto.failure.QueryFailed;
 import io.temporal.proto.failure.WorkflowExecutionAlreadyStarted;
 import io.temporal.proto.workflowservice.QueryWorkflowResponse;
-import io.temporal.serviceclient.GrpcStatusUtils;
 import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.List;
@@ -125,7 +125,7 @@ class WorkflowStubImpl implements WorkflowStub {
       execution.set(genericClient.startWorkflow(p));
     } catch (StatusRuntimeException e) {
       WorkflowExecutionAlreadyStarted f =
-          GrpcStatusUtils.getFailure(e, WorkflowExecutionAlreadyStarted.class);
+          StatusUtils.getFailure(e, WorkflowExecutionAlreadyStarted.class);
       if (f != null) {
         WorkflowExecution exe =
             WorkflowExecution.newBuilder()
@@ -420,7 +420,7 @@ class WorkflowStubImpl implements WorkflowStub {
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
         throw new WorkflowNotFoundException(execution.get(), workflowType, e.getMessage());
-      } else if (GrpcStatusUtils.hasFailure(e, QueryFailed.class)) {
+      } else if (StatusUtils.hasFailure(e, QueryFailed.class)) {
         throw new WorkflowQueryException(execution.get(), e.getMessage());
       }
       throw new WorkflowServiceException(execution.get(), workflowType, e);

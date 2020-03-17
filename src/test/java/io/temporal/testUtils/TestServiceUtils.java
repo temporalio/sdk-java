@@ -31,7 +31,7 @@ import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
 import io.temporal.proto.workflowservice.SignalWorkflowExecutionRequest;
 import io.temporal.proto.workflowservice.StartWorkflowExecutionRequest;
-import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.ArrayList;
 import java.util.UUID;
 
@@ -39,7 +39,7 @@ public class TestServiceUtils {
   private TestServiceUtils() {}
 
   public static void startWorkflowExecution(
-      String domain, String tasklistName, String workflowType, GrpcWorkflowServiceFactory service)
+      String domain, String tasklistName, String workflowType, WorkflowServiceStubs service)
       throws Exception {
     startWorkflowExecution(domain, tasklistName, workflowType, 100, 100, service);
   }
@@ -50,7 +50,7 @@ public class TestServiceUtils {
       String workflowType,
       int executionStartToCloseTimeoutSeconds,
       int taskStartToCloseTimeoutSeconds,
-      GrpcWorkflowServiceFactory service)
+      WorkflowServiceStubs service)
       throws Exception {
     StartWorkflowExecutionRequest.Builder request = StartWorkflowExecutionRequest.newBuilder();
     request.setDomain(domain);
@@ -63,7 +63,7 @@ public class TestServiceUtils {
   }
 
   public static void respondDecisionTaskCompletedWithSticky(
-      ByteString taskToken, String stickyTasklistName, GrpcWorkflowServiceFactory service)
+      ByteString taskToken, String stickyTasklistName, WorkflowServiceStubs service)
       throws Exception {
     respondDecisionTaskCompletedWithSticky(taskToken, stickyTasklistName, 100, service);
   }
@@ -72,7 +72,7 @@ public class TestServiceUtils {
       ByteString taskToken,
       String stickyTasklistName,
       int startToCloseTimeout,
-      GrpcWorkflowServiceFactory service)
+      WorkflowServiceStubs service)
       throws Exception {
     RespondDecisionTaskCompletedRequest.Builder request =
         RespondDecisionTaskCompletedRequest.newBuilder();
@@ -86,21 +86,21 @@ public class TestServiceUtils {
   }
 
   public static void respondDecisionTaskFailedWithSticky(
-      ByteString taskToken, GrpcWorkflowServiceFactory service) throws Exception {
+      ByteString taskToken, WorkflowServiceStubs service) throws Exception {
     RespondDecisionTaskFailedRequest request =
         RespondDecisionTaskFailedRequest.newBuilder().setTaskToken(taskToken).build();
     service.blockingStub().respondDecisionTaskFailed(request);
   }
 
   public static PollForDecisionTaskResponse pollForDecisionTask(
-      String domain, TaskList tasklist, GrpcWorkflowServiceFactory service) throws Exception {
+      String domain, TaskList tasklist, WorkflowServiceStubs service) throws Exception {
     PollForDecisionTaskRequest request =
         PollForDecisionTaskRequest.newBuilder().setDomain(domain).setTaskList(tasklist).build();
     return service.blockingStub().pollForDecisionTask(request);
   }
 
   public static void signalWorkflow(
-      WorkflowExecution workflowExecution, String domain, GrpcWorkflowServiceFactory service)
+      WorkflowExecution workflowExecution, String domain, WorkflowServiceStubs service)
       throws Exception {
     SignalWorkflowExecutionRequest signalRequest =
         SignalWorkflowExecutionRequest.newBuilder()

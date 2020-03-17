@@ -25,10 +25,11 @@ import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.proto.common.HistoryEvent;
 import io.temporal.proto.enums.EventType;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
-import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.TestServiceUtils;
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -41,7 +42,7 @@ public class WorkflowStickynessTest {
   private final String WORKFLOW_TYPE = "wfType";
   private final String CALLER = "WorkflowStickynessTest";
 
-  private GrpcWorkflowServiceFactory service;
+  private WorkflowServiceStubs service;
   private TestWorkflowService testService;
 
   @Before
@@ -53,7 +54,12 @@ public class WorkflowStickynessTest {
 
   @After
   public void tearDown() {
-    service.close();
+    service.shutdownNow();
+    try {
+      service.awaitTermination(1, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
     testService.close();
   }
 
