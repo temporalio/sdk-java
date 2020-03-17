@@ -73,7 +73,7 @@ public class WorkerStressTests {
   // Todo: Write a unit test specifically to test DecisionTaskWithHistoryIteratorImpl
   @Ignore("Takes a long time to run")
   @Test
-  public void longHistoryWorkflowsCompleteSuccessfully() {
+  public void longHistoryWorkflowsCompleteSuccessfully() throws InterruptedException {
 
     // Arrange
     String taskListName = "veryLongWorkflow";
@@ -170,6 +170,7 @@ public class WorkerStressTests {
   private class TestEnvironmentWrapper {
 
     private TestWorkflowEnvironment testEnv;
+    WorkflowServiceStubs service;
     private WorkerFactory factory;
 
     public TestEnvironmentWrapper(WorkerFactoryOptions options) {
@@ -177,7 +178,7 @@ public class WorkerStressTests {
         options = WorkerFactoryOptions.newBuilder().setDisableStickyExecution(false).build();
       }
       if (useDockerService) {
-        WorkflowServiceStubs service = WorkflowServiceStubs.newInstance();
+        service = WorkflowServiceStubs.newInstance();
         WorkflowClientOptions clientOptions =
             WorkflowClientOptions.newBuilder().setDomain(DOMAIN).build();
         WorkflowClient client = WorkflowClient.newInstance(service, clientOptions);
@@ -200,10 +201,12 @@ public class WorkerStressTests {
       return useExternalService ? factory.getWorkflowClient() : testEnv.getWorkflowClient();
     }
 
-    private void close() {
+    private void close() throws InterruptedException {
       if (factory != null) {
         factory.shutdown();
         factory.awaitTermination(10, TimeUnit.SECONDS);
+        service.shutdownNow();
+        service.awaitTermination(10, TimeUnit.SECONDS);
       } else {
         testEnv.close();
       }

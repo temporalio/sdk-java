@@ -130,7 +130,7 @@ public final class Worker implements Suspendable {
         .setIdentity(clientOptions.getIdentity())
         .setPollerOptions(
             PollerOptions.newBuilder()
-                .setMaximumPollRatePerSecond(options.getWorkerActivitiesPerSecond())
+                .setMaximumPollRatePerSecond(options.getMaxActivitiesPerSecond())
                 .build())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentActivityExecutionSize())
         .setMetricsScope(clientOptions.getMetricsScope().tagged(tags))
@@ -153,7 +153,7 @@ public final class Worker implements Suspendable {
         .setDataConverter(clientOptions.getDataConverter())
         .setIdentity(clientOptions.getIdentity())
         .setPollerOptions(PollerOptions.newBuilder().build())
-        .setTaskExecutorThreadPoolSize(options.getMaxConcurrentWorkflowExecutionSize())
+        .setTaskExecutorThreadPoolSize(options.getMaxConcurrentWorkflowTaskExecutionSize())
         .setMetricsScope(clientOptions.getMetricsScope().tagged(tags))
         .setEnableLoggingInReplay(options.getEnableLoggingInReplay())
         .setContextPropagators(contextPropagators)

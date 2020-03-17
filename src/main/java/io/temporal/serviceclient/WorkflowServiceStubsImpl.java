@@ -36,6 +36,7 @@ import io.temporal.internal.Version;
 import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,8 +61,10 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
 
   public static final String TEMPORAL_SERVICE_ADDRESS_ENV = "TEMPORAL_ADDRESS";
 
-  protected WorkflowServiceStubsOptions options;
-  protected ManagedChannel channel;
+  private ManagedChannel channel;
+  // Shutdown channel that was created by us
+  private boolean channelNeedsShutdown;
+  private AtomicBoolean shutdownRequested = new AtomicBoolean();
   protected WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub;
   protected WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub;
 
@@ -97,7 +100,6 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
 
   private void init(WorkflowServiceStubsOptions options) {
     options = WorkflowServiceStubsOptions.newBuilder(options).validateAndBuildWithDefaults();
-    this.options = options;
     if (options.getChannel() != null) {
       this.channel = options.getChannel();
     } else {
@@ -106,6 +108,7 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
               .defaultLoadBalancingPolicy("round_robin")
               .usePlaintext()
               .build();
+      channelNeedsShutdown = true;
     }
     ClientInterceptor deadlineInterceptor = new GrpcDeadlineInterceptor(options);
     ClientInterceptor tracingInterceptor = newTracingInterceptor();
@@ -183,27 +186,42 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
 
   @Override
   public void shutdown() {
-    channel.shutdown();
+    shutdownRequested.set(true);
+    if (channelNeedsShutdown) {
+      channel.shutdown();
+    }
   }
 
   @Override
   public void shutdownNow() {
-    channel.shutdownNow();
+    shutdownRequested.set(true);
+    if (channelNeedsShutdown) {
+      channel.shutdownNow();
+    }
   }
 
   @Override
   public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-    return channel.awaitTermination(timeout, unit);
+    if (channelNeedsShutdown) {
+      return channel.awaitTermination(timeout, unit);
+    }
+    return true;
   }
 
   @Override
   public boolean isShutdown() {
-    return channel.isShutdown();
+    if (channelNeedsShutdown) {
+      return channel.isShutdown();
+    }
+    return shutdownRequested.get();
   }
 
   @Override
   public boolean isTerminated() {
-    return channel.isTerminated();
+    if (channelNeedsShutdown) {
+      return channel.isTerminated();
+    }
+    return shutdownRequested.get();
   }
 
   /** Set RPC call deadlines according to ServiceFactoryOptions. */

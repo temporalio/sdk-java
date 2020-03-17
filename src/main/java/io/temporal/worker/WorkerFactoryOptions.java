@@ -18,9 +18,7 @@
 package io.temporal.worker;
 
 import com.google.common.base.Preconditions;
-import com.uber.m3.tally.Scope;
 import io.temporal.context.ContextPropagator;
-import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.worker.PollerOptions;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -52,7 +50,6 @@ public class WorkerFactoryOptions {
     private int cacheMaximumSize = 600;
     private int maxWorkflowThreadCount = 600;
     private PollerOptions stickyWorkflowPollerOptions;
-    private Scope metricScope;
     private List<ContextPropagator> contextPropagators;
 
     private Builder() {}
@@ -64,7 +61,6 @@ public class WorkerFactoryOptions {
       this.cacheMaximumSize = options.cacheMaximumSize;
       this.maxWorkflowThreadCount = options.maxWorkflowThreadCount;
       this.stickyWorkflowPollerOptions = options.stickyWorkflowPollerOptions;
-      this.metricScope = options.metricsScope;
       this.contextPropagators = options.contextPropagators;
     }
 
@@ -116,11 +112,6 @@ public class WorkerFactoryOptions {
       return this;
     }
 
-    public Builder setMetricScope(Scope metricScope) {
-      this.metricScope = metricScope;
-      return this;
-    }
-
     public Builder setContextPropagators(List<ContextPropagator> contextPropagators) {
       this.contextPropagators = contextPropagators;
       return this;
@@ -133,7 +124,6 @@ public class WorkerFactoryOptions {
           maxWorkflowThreadCount,
           stickyDecisionScheduleToStartTimeoutInSeconds,
           stickyWorkflowPollerOptions,
-          metricScope,
           contextPropagators);
     }
   }
@@ -143,7 +133,6 @@ public class WorkerFactoryOptions {
   private final int maxWorkflowThreadCount;
   private final int stickyDecisionScheduleToStartTimeoutInSeconds;
   private final PollerOptions stickyWorkflowPollerOptions;
-  private final Scope metricsScope;
   private List<ContextPropagator> contextPropagators;
 
   private WorkerFactoryOptions(
@@ -152,7 +141,6 @@ public class WorkerFactoryOptions {
       int maxWorkflowThreadCount,
       int stickyDecisionScheduleToStartTimeoutInSeconds,
       PollerOptions stickyWorkflowPollerOptions,
-      Scope metricsScope,
       List<ContextPropagator> contextPropagators) {
     Preconditions.checkArgument(cacheMaximumSize > 0, "cacheMaximumSize should be greater than 0");
     Preconditions.checkArgument(
@@ -176,12 +164,6 @@ public class WorkerFactoryOptions {
               .build();
     } else {
       this.stickyWorkflowPollerOptions = stickyWorkflowPollerOptions;
-    }
-
-    if (metricsScope == null) {
-      this.metricsScope = NoopScope.getInstance();
-    } else {
-      this.metricsScope = metricsScope;
     }
 
     if (contextPropagators != null) {
@@ -209,10 +191,6 @@ public class WorkerFactoryOptions {
 
   public PollerOptions getStickyWorkflowPollerOptions() {
     return stickyWorkflowPollerOptions;
-  }
-
-  public Scope getMetricsScope() {
-    return metricsScope;
   }
 
   public List<ContextPropagator> getContextPropagators() {

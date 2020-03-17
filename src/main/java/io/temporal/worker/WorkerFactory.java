@@ -101,7 +101,8 @@ public final class WorkerFactory {
     }
 
     Scope metricsScope =
-        this.factoryOptions
+        this.workflowClient
+            .getOptions()
             .getMetricsScope()
             .tagged(
                 new ImmutableMap.Builder<String, String>(2)

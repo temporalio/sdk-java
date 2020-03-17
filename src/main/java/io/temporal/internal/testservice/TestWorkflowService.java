@@ -120,11 +120,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   private final ForkJoinPool forkJoinPool = new ForkJoinPool(4);
 
   private final String serverName;
+  private ManagedChannel channel;
+  private WorkflowServiceStubs stubs;
 
   public WorkflowServiceStubs newClientStub() {
-    ManagedChannel channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
-    return WorkflowServiceStubs.newInstance(
-        WorkflowServiceStubsOptions.newBuilder().setChannel(channel).build());
+    return stubs;
   }
 
   public TestWorkflowService(boolean lockTimeSkipping) {
@@ -147,10 +147,20 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+    channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
+    stubs =
+        WorkflowServiceStubs.newInstance(
+            WorkflowServiceStubsOptions.newBuilder().setChannel(channel).build());
   }
 
   @Override
   public void close() {
+    channel.shutdown();
+    try {
+      channel.awaitTermination(1, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
     store.close();
   }
 

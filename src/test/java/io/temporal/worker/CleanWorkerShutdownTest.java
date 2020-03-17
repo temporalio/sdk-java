@@ -245,6 +245,10 @@ public class CleanWorkerShutdownTest {
       }
     }
     assertTrue("Contains ActivityTaskCompleted", found);
+    if (useExternalService) {
+      service.shutdownNow();
+      service.awaitTermination(10, TimeUnit.MINUTES);
+    }
   }
 
   public static class HeartbeatingActivitiesImpl implements Activities {
@@ -329,5 +333,9 @@ public class CleanWorkerShutdownTest {
       }
     }
     assertTrue("Contains ActivityTaskCompleted", found);
+    if (useExternalService) {
+      service.shutdownNow();
+      service.awaitTermination(10, TimeUnit.MINUTES);
+    }
   }
 }

@@ -43,9 +43,9 @@ public final class WorkerOptions {
 
   public static final class Builder {
 
-    private double workerActivitiesPerSecond;
+    private double maxActivitiesPerSecond;
     private int maxConcurrentActivityExecutionSize = 100;
-    private int maxConcurrentWorkflowExecutionSize = 50;
+    private int maxConcurrentWorkflowTaskExecutionSize = 50;
     private int maxConcurrentLocalActivityExecutionSize = 100;
     private double taskListActivitiesPerSecond = 100000;
     private Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory = (n) -> n;
@@ -57,21 +57,27 @@ public final class WorkerOptions {
       if (o == null) {
         return;
       }
-      workerActivitiesPerSecond = o.workerActivitiesPerSecond;
+      maxActivitiesPerSecond = o.maxActivitiesPerSecond;
       maxConcurrentActivityExecutionSize = o.maxConcurrentActivityExecutionSize;
-      maxConcurrentWorkflowExecutionSize = o.maxConcurrentWorkflowExecutionSize;
+      maxConcurrentWorkflowTaskExecutionSize = o.maxConcurrentWorkflowTaskExecutionSize;
       maxConcurrentLocalActivityExecutionSize = o.maxConcurrentLocalActivityExecutionSize;
       taskListActivitiesPerSecond = o.taskListActivitiesPerSecond;
       interceptorFactory = o.interceptorFactory;
       enableLoggingInReplay = o.enableLoggingInReplay;
     }
 
-    /** Maximum number of activities started per second. Default is 0 which means unlimited. */
-    public Builder setWorkerActivitiesPerSecond(double workerActivitiesPerSecond) {
-      if (workerActivitiesPerSecond <= 0) {
-        throw new IllegalArgumentException("Negative or zero: " + workerActivitiesPerSecond);
+    /**
+     * Maximum number of activities started per second by this worker. Default is 0 which means
+     * unlimited.
+     *
+     * <p>Note that this is a per worker limit. Use {@link #setTaskListActivitiesPerSecond(double)}
+     * to set per task list limit across multiple workers.
+     */
+    public Builder setMaxActivitiesPerSecond(double maxActivitiesPerSecond) {
+      if (maxActivitiesPerSecond <= 0) {
+        throw new IllegalArgumentException("Negative or zero: " + maxActivitiesPerSecond);
       }
-      this.workerActivitiesPerSecond = workerActivitiesPerSecond;
+      this.maxActivitiesPerSecond = maxActivitiesPerSecond;
       return this;
     }
 
@@ -85,13 +91,18 @@ public final class WorkerOptions {
       return this;
     }
 
-    /** Maximum number of parallely executed decision tasks. */
-    public Builder setMaxConcurrentWorkflowExecutionSize(int maxConcurrentWorkflowExecutionSize) {
-      if (maxConcurrentWorkflowExecutionSize <= 0) {
+    /**
+     * Maximum number of simultaneously executed workflow tasks. Note that this is not related to
+     * the total number of open workflows which do not need to be loaded in a worker when they are
+     * not making state transitions.
+     */
+    public Builder setMaxConcurrentWorkflowTaskExecutionSize(
+        int maxConcurrentWorkflowTaskExecutionSize) {
+      if (maxConcurrentWorkflowTaskExecutionSize <= 0) {
         throw new IllegalArgumentException(
-            "Negative or zero: " + maxConcurrentWorkflowExecutionSize);
+            "Negative or zero: " + maxConcurrentWorkflowTaskExecutionSize);
       }
-      this.maxConcurrentWorkflowExecutionSize = maxConcurrentWorkflowExecutionSize;
+      this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowTaskExecutionSize;
       return this;
     }
 
@@ -132,9 +143,9 @@ public final class WorkerOptions {
 
     public WorkerOptions build() {
       return new WorkerOptions(
-          workerActivitiesPerSecond,
+          maxActivitiesPerSecond,
           maxConcurrentActivityExecutionSize,
-          maxConcurrentWorkflowExecutionSize,
+          maxConcurrentWorkflowTaskExecutionSize,
           maxConcurrentLocalActivityExecutionSize,
           taskListActivitiesPerSecond,
           interceptorFactory,
@@ -142,41 +153,41 @@ public final class WorkerOptions {
     }
   }
 
-  private final double workerActivitiesPerSecond;
+  private final double maxActivitiesPerSecond;
   private final int maxConcurrentActivityExecutionSize;
-  private final int maxConcurrentWorkflowExecutionSize;
+  private final int maxConcurrentWorkflowTaskExecutionSize;
   private final int maxConcurrentLocalActivityExecutionSize;
   private final double taskListActivitiesPerSecond;
   private final Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory;
   private final boolean enableLoggingInReplay;
 
   private WorkerOptions(
-      double workerActivitiesPerSecond,
+      double maxActivitiesPerSecond,
       int maxConcurrentActivityExecutionSize,
       int maxConcurrentWorkflowExecutionSize,
       int maxConcurrentLocalActivityExecutionSize,
       double taskListActivitiesPerSecond,
       Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
       boolean enableLoggingInReplay) {
-    this.workerActivitiesPerSecond = workerActivitiesPerSecond;
+    this.maxActivitiesPerSecond = maxActivitiesPerSecond;
     this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
-    this.maxConcurrentWorkflowExecutionSize = maxConcurrentWorkflowExecutionSize;
+    this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowExecutionSize;
     this.maxConcurrentLocalActivityExecutionSize = maxConcurrentLocalActivityExecutionSize;
     this.taskListActivitiesPerSecond = taskListActivitiesPerSecond;
     this.interceptorFactory = interceptorFactory;
     this.enableLoggingInReplay = enableLoggingInReplay;
   }
 
-  public double getWorkerActivitiesPerSecond() {
-    return workerActivitiesPerSecond;
+  public double getMaxActivitiesPerSecond() {
+    return maxActivitiesPerSecond;
   }
 
   public int getMaxConcurrentActivityExecutionSize() {
     return maxConcurrentActivityExecutionSize;
   }
 
-  public int getMaxConcurrentWorkflowExecutionSize() {
-    return maxConcurrentWorkflowExecutionSize;
+  public int getMaxConcurrentWorkflowTaskExecutionSize() {
+    return maxConcurrentWorkflowTaskExecutionSize;
   }
 
   public int getMaxConcurrentLocalActivityExecutionSize() {
@@ -195,11 +206,11 @@ public final class WorkerOptions {
   public String toString() {
     return "WorkerOptions{"
         + ", workerActivitiesPerSecond="
-        + workerActivitiesPerSecond
+        + maxActivitiesPerSecond
         + ", maxConcurrentActivityExecutionSize="
         + maxConcurrentActivityExecutionSize
         + ", maxConcurrentWorkflowExecutionSize="
-        + maxConcurrentWorkflowExecutionSize
+        + maxConcurrentWorkflowTaskExecutionSize
         + ", maxConcurrentLocalActivityExecutionSize="
         + maxConcurrentLocalActivityExecutionSize
         + ", taskListActivitiesPerSecond="

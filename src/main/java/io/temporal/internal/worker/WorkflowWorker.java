@@ -17,6 +17,8 @@
 
 package io.temporal.internal.worker;
 
+import static io.temporal.internal.common.GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS;
+
 import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
@@ -324,7 +326,10 @@ public final class WorkflowWorker
       } else {
         RespondDecisionTaskFailedRequest taskFailed = response.getTaskFailed();
         if (taskFailed != null) {
-          ro = RpcRetryOptions.newBuilder().setRetryOptions(ro).validateBuildWithDefaults();
+          ro =
+              RpcRetryOptions.newBuilder(DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS)
+                  .setRetryOptions(ro)
+                  .validateBuildWithDefaults();
 
           RespondDecisionTaskFailedRequest request =
               taskFailed
