@@ -47,7 +47,6 @@ import io.temporal.converter.JsonDataConverter;
 import io.temporal.internal.common.QueryResponse;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.sync.DeterministicRunnerTest;
-import io.temporal.internal.worker.PollerOptions;
 import io.temporal.proto.common.HistoryEvent;
 import io.temporal.proto.common.Memo;
 import io.temporal.proto.common.SearchAttributes;
@@ -287,7 +286,6 @@ public class WorkflowTest {
       workerFactory = WorkerFactory.newInstance(workflowClient, factoryOptions);
       WorkerOptions workerOptions =
           WorkerOptions.newBuilder()
-              .setActivityPollerOptions(PollerOptions.newBuilder().setPollThreadCount(5).build())
               .setMaxConcurrentActivityExecutionSize(1000)
               .setInterceptorFactory(tracer)
               .build();

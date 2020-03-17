@@ -21,7 +21,6 @@ import com.uber.m3.tally.Scope;
 import io.temporal.converter.DataConverter;
 import io.temporal.converter.JsonDataConverter;
 import io.temporal.internal.metrics.NoopScope;
-
 import java.lang.management.ManagementFactory;
 import java.util.Objects;
 

@@ -18,7 +18,6 @@
 package io.temporal.worker;
 
 import io.temporal.common.RpcRetryOptions;
-import io.temporal.internal.worker.PollerOptions;
 import io.temporal.workflow.WorkflowInterceptor;
 import java.util.Objects;
 import java.util.function.Function;
@@ -50,8 +49,6 @@ public final class WorkerOptions {
     private int maxConcurrentWorkflowExecutionSize = 50;
     private int maxConcurrentLocalActivityExecutionSize = 100;
     private double taskListActivitiesPerSecond = 100000;
-    private PollerOptions activityPollerOptions;
-    private PollerOptions workflowPollerOptions;
     private RpcRetryOptions reportActivityCompletionRetryOptions;
     private RpcRetryOptions reportActivityFailureRetryOptions;
     private RpcRetryOptions reportWorkflowCompletionRetryOptions;
@@ -70,8 +67,6 @@ public final class WorkerOptions {
       maxConcurrentWorkflowExecutionSize = o.maxConcurrentWorkflowExecutionSize;
       maxConcurrentLocalActivityExecutionSize = o.maxConcurrentLocalActivityExecutionSize;
       taskListActivitiesPerSecond = o.taskListActivitiesPerSecond;
-      activityPollerOptions = o.activityPollerOptions;
-      workflowPollerOptions = o.workflowPollerOptions;
       reportActivityCompletionRetryOptions = o.reportActivityCompletionRetryOptions;
       reportActivityFailureRetryOptions = o.reportActivityFailureRetryOptions;
       reportWorkflowCompletionRetryOptions = o.reportWorkflowCompletionRetryOptions;
@@ -117,16 +112,6 @@ public final class WorkerOptions {
             "Negative or zero: " + maxConcurrentLocalActivityExecutionSize);
       }
       this.maxConcurrentLocalActivityExecutionSize = maxConcurrentLocalActivityExecutionSize;
-      return this;
-    }
-
-    public Builder setActivityPollerOptions(PollerOptions activityPollerOptions) {
-      this.activityPollerOptions = Objects.requireNonNull(activityPollerOptions);
-      return this;
-    }
-
-    public Builder setWorkflowPollerOptions(PollerOptions workflowPollerOptions) {
-      this.workflowPollerOptions = Objects.requireNonNull(workflowPollerOptions);
       return this;
     }
 
@@ -189,8 +174,6 @@ public final class WorkerOptions {
           maxConcurrentWorkflowExecutionSize,
           maxConcurrentLocalActivityExecutionSize,
           taskListActivitiesPerSecond,
-          activityPollerOptions,
-          workflowPollerOptions,
           reportActivityCompletionRetryOptions,
           reportActivityFailureRetryOptions,
           reportWorkflowCompletionRetryOptions,
@@ -205,8 +188,6 @@ public final class WorkerOptions {
   private final int maxConcurrentWorkflowExecutionSize;
   private final int maxConcurrentLocalActivityExecutionSize;
   private final double taskListActivitiesPerSecond;
-  private final PollerOptions activityPollerOptions;
-  private final PollerOptions workflowPollerOptions;
   private final RpcRetryOptions reportActivityCompletionRetryOptions;
   private final RpcRetryOptions reportActivityFailureRetryOptions;
   private final RpcRetryOptions reportWorkflowCompletionRetryOptions;
@@ -220,8 +201,6 @@ public final class WorkerOptions {
       int maxConcurrentWorkflowExecutionSize,
       int maxConcurrentLocalActivityExecutionSize,
       double taskListActivitiesPerSecond,
-      PollerOptions activityPollerOptions,
-      PollerOptions workflowPollerOptions,
       RpcRetryOptions reportActivityCompletionRetryOptions,
       RpcRetryOptions reportActivityFailureRetryOptions,
       RpcRetryOptions reportWorkflowCompletionRetryOptions,
@@ -233,8 +212,6 @@ public final class WorkerOptions {
     this.maxConcurrentWorkflowExecutionSize = maxConcurrentWorkflowExecutionSize;
     this.maxConcurrentLocalActivityExecutionSize = maxConcurrentLocalActivityExecutionSize;
     this.taskListActivitiesPerSecond = taskListActivitiesPerSecond;
-    this.activityPollerOptions = activityPollerOptions;
-    this.workflowPollerOptions = workflowPollerOptions;
     this.reportActivityCompletionRetryOptions = reportActivityCompletionRetryOptions;
     this.reportActivityFailureRetryOptions = reportActivityFailureRetryOptions;
     this.reportWorkflowCompletionRetryOptions = reportWorkflowCompletionRetryOptions;
@@ -257,14 +234,6 @@ public final class WorkerOptions {
 
   public int getMaxConcurrentLocalActivityExecutionSize() {
     return maxConcurrentLocalActivityExecutionSize;
-  }
-
-  public PollerOptions getActivityPollerOptions() {
-    return activityPollerOptions;
-  }
-
-  public PollerOptions getWorkflowPollerOptions() {
-    return workflowPollerOptions;
   }
 
   public RpcRetryOptions getReportActivityCompletionRetryOptions() {
@@ -304,10 +273,6 @@ public final class WorkerOptions {
         + maxConcurrentLocalActivityExecutionSize
         + ", taskListActivitiesPerSecond="
         + taskListActivitiesPerSecond
-        + ", activityPollerOptions="
-        + activityPollerOptions
-        + ", workflowPollerOptions="
-        + workflowPollerOptions
         + ", reportActivityCompletionRetryOptions="
         + reportActivityCompletionRetryOptions
         + ", reportActivityFailureRetryOptions="

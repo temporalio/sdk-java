@@ -32,6 +32,7 @@ import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.sync.SyncActivityWorker;
 import io.temporal.internal.sync.SyncWorkflowWorker;
+import io.temporal.internal.worker.PollerOptions;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.Suspendable;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -127,7 +128,10 @@ public final class Worker implements Suspendable {
     return SingleWorkerOptions.newBuilder()
         .setDataConverter(clientOptions.getDataConverter())
         .setIdentity(clientOptions.getIdentity())
-        .setPollerOptions(options.getActivityPollerOptions())
+        .setPollerOptions(
+            PollerOptions.newBuilder()
+                .setMaximumPollRatePerSecond(options.getWorkerActivitiesPerSecond())
+                .build())
         .setReportCompletionRetryOptions(options.getReportActivityCompletionRetryOptions())
         .setReportFailureRetryOptions(options.getReportActivityFailureRetryOptions())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentActivityExecutionSize())
@@ -150,7 +154,7 @@ public final class Worker implements Suspendable {
     return SingleWorkerOptions.newBuilder()
         .setDataConverter(clientOptions.getDataConverter())
         .setIdentity(clientOptions.getIdentity())
-        .setPollerOptions(options.getWorkflowPollerOptions())
+        .setPollerOptions(PollerOptions.newBuilder().build())
         .setReportCompletionRetryOptions(options.getReportWorkflowCompletionRetryOptions())
         .setReportFailureRetryOptions(options.getReportWorkflowFailureRetryOptions())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentWorkflowExecutionSize())
@@ -173,7 +177,7 @@ public final class Worker implements Suspendable {
     return SingleWorkerOptions.newBuilder()
         .setDataConverter(clientOptions.getDataConverter())
         .setIdentity(clientOptions.getIdentity())
-        .setPollerOptions(options.getWorkflowPollerOptions())
+        .setPollerOptions(PollerOptions.newBuilder().build())
         .setReportCompletionRetryOptions(options.getReportWorkflowCompletionRetryOptions())
         .setReportFailureRetryOptions(options.getReportWorkflowFailureRetryOptions())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentLocalActivityExecutionSize())
