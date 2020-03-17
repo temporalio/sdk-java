@@ -47,6 +47,7 @@ import io.temporal.testing.SimulatedTimeoutException;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
+import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.ActivityTimeoutException;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.ChildWorkflowOptions;
@@ -98,7 +99,7 @@ public class WorkflowTestingTest {
     TestEnvironmentOptions options =
         new TestEnvironmentOptions.Builder()
             .setFactoryOptions(
-                new Worker.FactoryOptions.Builder()
+                WorkerFactoryOptions.newBuilder()
                     .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
                     .build())
             .build();
@@ -130,7 +131,7 @@ public class WorkflowTestingTest {
     Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(EmptyWorkflowImpl.class);
     testEnvironment.start();
-    WorkflowClient client = testEnvironment.newWorkflowClient();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class);
     String result = workflow.workflow1("input1");
     assertEquals("TestWorkflow::workflow1-input1", result);
@@ -151,7 +152,7 @@ public class WorkflowTestingTest {
     Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(FailingWorkflowImpl.class);
     testEnvironment.start();
-    WorkflowClient client = testEnvironment.newWorkflowClient();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class);
 
     try {
@@ -193,7 +194,7 @@ public class WorkflowTestingTest {
     worker.registerWorkflowImplementationTypes(ActivityWorkflow.class);
     worker.registerActivitiesImplementations(new ActivityImpl());
     testEnvironment.start();
-    WorkflowClient client = testEnvironment.newWorkflowClient();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class);
     String result = workflow.workflow1("input1");
     assertEquals("TestActivity::activity1-input1", result);
@@ -213,7 +214,7 @@ public class WorkflowTestingTest {
     worker.registerWorkflowImplementationTypes(ActivityWorkflow.class);
     worker.registerActivitiesImplementations(new FailingActivityImpl());
     testEnvironment.start();
-    WorkflowClient client = testEnvironment.newWorkflowClient();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class);
     try {
       workflow.workflow1("input1");
@@ -237,7 +238,7 @@ public class WorkflowTestingTest {
     worker.registerWorkflowImplementationTypes(ActivityWorkflow.class);
     worker.registerActivitiesImplementations(new SimulatedTimeoutActivityImpl());
     testEnvironment.start();
-    WorkflowClient client = testEnvironment.newWorkflowClient();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class);
     try {
       workflow.workflow1("input1");
@@ -295,7 +296,7 @@ public class WorkflowTestingTest {
     worker.registerWorkflowImplementationTypes(TestActivityTimeoutWorkflowImpl.class);
     worker.registerActivitiesImplementations(new TimingOutActivityImpl());
     testEnvironment.start();
-    WorkflowClient client = testEnvironment.newWorkflowClient();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
     TestActivityTimeoutWorkflow workflow =
         client.newWorkflowStub(TestActivityTimeoutWorkflow.class);
     try {
@@ -314,7 +315,7 @@ public class WorkflowTestingTest {
     Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(TestActivityTimeoutWorkflowImpl.class);
     testEnvironment.start();
-    WorkflowClient client = testEnvironment.newWorkflowClient();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
     TestActivityTimeoutWorkflow workflow =
         client.newWorkflowStub(TestActivityTimeoutWorkflow.class);
     try {
@@ -334,7 +335,7 @@ public class WorkflowTestingTest {
     worker.registerWorkflowImplementationTypes(TestActivityTimeoutWorkflowImpl.class);
     worker.registerActivitiesImplementations(new TimingOutActivityImpl());
     testEnvironment.start();
-    WorkflowClient client = testEnvironment.newWorkflowClient();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
     TestActivityTimeoutWorkflow workflow =
         client.newWorkflowStub(TestActivityTimeoutWorkflow.class);
     try {
@@ -362,7 +363,7 @@ public class WorkflowTestingTest {
     Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(TimeoutWorkflow.class);
     testEnvironment.start();
-    WorkflowClient client = testEnvironment.newWorkflowClient();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
     WorkflowOptions options =
         new WorkflowOptions.Builder()
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(1))
@@ -392,7 +393,7 @@ public class WorkflowTestingTest {
     Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(TimerWorkflow.class);
     testEnvironment.start();
-    WorkflowClient client = testEnvironment.newWorkflowClient();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class);
     long start = testEnvironment.currentTimeMillis();
     String result = workflow.workflow1("input1");
@@ -431,7 +432,7 @@ public class WorkflowTestingTest {
     Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(SignaledWorkflowImpl.class);
     testEnvironment.start();
-    WorkflowClient client = testEnvironment.newWorkflowClient();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
     SignaledWorkflow workflow = client.newWorkflowStub(SignaledWorkflow.class);
     CompletableFuture<String> result = WorkflowClient.execute(workflow::workflow1, "input1");
     testEnvironment.sleep(Duration.ofMinutes(65)); // after 1 hour sleep in the workflow
@@ -444,7 +445,7 @@ public class WorkflowTestingTest {
     Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(SignaledWorkflowImpl.class);
     testEnvironment.start();
-    WorkflowClient client = testEnvironment.newWorkflowClient();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
     SignaledWorkflow workflow = client.newWorkflowStub(SignaledWorkflow.class);
     testEnvironment.registerDelayedCallback(
         Duration.ofMinutes(65), () -> workflow.ProcessSignal("signalInput"));
@@ -480,7 +481,7 @@ public class WorkflowTestingTest {
     Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(ConcurrentDecisionWorkflowImpl.class);
     testEnvironment.start();
-    WorkflowClient client = testEnvironment.newWorkflowClient();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
     SignaledWorkflow workflow = client.newWorkflowStub(SignaledWorkflow.class);
     CompletableFuture<String> result = WorkflowClient.execute(workflow::workflow1, "input1");
     workflow.ProcessSignal("signalInput");
@@ -523,7 +524,7 @@ public class WorkflowTestingTest {
     worker.registerWorkflowImplementationTypes(TestCancellationWorkflow.class);
     worker.registerActivitiesImplementations(new TestCancellationActivityImpl());
     testEnvironment.start();
-    WorkflowClient client = testEnvironment.newWorkflowClient();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class);
     try {
       WorkflowExecution execution = WorkflowClient.start(workflow::workflow1, "input1");
@@ -562,7 +563,7 @@ public class WorkflowTestingTest {
     worker.registerWorkflowImplementationTypes(TestTimerCancellationWorkflow.class);
     worker.registerActivitiesImplementations(new ActivityImpl());
     testEnvironment.start();
-    WorkflowClient client = testEnvironment.newWorkflowClient();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class);
     WorkflowExecution execution = WorkflowClient.start(workflow::workflow1, "input1");
     WorkflowStub untyped = client.newUntypedWorkflowStub(execution, Optional.empty());
@@ -639,7 +640,7 @@ public class WorkflowTestingTest {
     Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(ChildWorkflowImpl.class, ParentWorkflowImpl.class);
     testEnvironment.start();
-    WorkflowClient client = testEnvironment.newWorkflowClient();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
     WorkflowOptions options = new WorkflowOptions.Builder().setWorkflowId("parent1").build();
     ParentWorkflow workflow = client.newWorkflowStub(ParentWorkflow.class, options);
     String result = workflow.workflow("input1");
@@ -675,7 +676,7 @@ public class WorkflowTestingTest {
     worker.registerWorkflowImplementationTypes(
         SimulatedTimeoutParentWorkflow.class, SimulatedTimeoutChildWorkflow.class);
     testEnvironment.start();
-    WorkflowClient client = testEnvironment.newWorkflowClient();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
     WorkflowOptions options = new WorkflowOptions.Builder().setWorkflowId("parent1").build();
     ParentWorkflow workflow = client.newWorkflowStub(ParentWorkflow.class, options);
     try {
@@ -744,7 +745,7 @@ public class WorkflowTestingTest {
           return child;
         });
     testEnvironment.start();
-    WorkflowClient client = testEnvironment.newWorkflowClient();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
     WorkflowOptions options = new WorkflowOptions.Builder().setWorkflowId("parent1").build();
     ParentWorkflow workflow = client.newWorkflowStub(ParentWorkflow.class, options);
     try {
@@ -807,7 +808,7 @@ public class WorkflowTestingTest {
     worker.registerWorkflowImplementationTypes(ContextPropagationWorkflowImpl.class);
     testEnvironment.start();
     MDC.put("test", "testing123");
-    WorkflowClient client = testEnvironment.newWorkflowClient();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
     WorkflowOptions options =
         new WorkflowOptions.Builder()
             .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
@@ -855,7 +856,7 @@ public class WorkflowTestingTest {
         ContextPropagationParentWorkflowImpl.class, ContextPropagationChildWorkflowImpl.class);
     testEnvironment.start();
     MDC.put("test", "testing123");
-    WorkflowClient client = testEnvironment.newWorkflowClient();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
     WorkflowOptions options =
         new WorkflowOptions.Builder()
             .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
@@ -884,7 +885,7 @@ public class WorkflowTestingTest {
     worker.registerWorkflowImplementationTypes(ContextPropagationThreadWorkflowImpl.class);
     testEnvironment.start();
     MDC.put("test", "testing123");
-    WorkflowClient client = testEnvironment.newWorkflowClient();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
     WorkflowOptions options =
         new WorkflowOptions.Builder()
             .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
@@ -921,7 +922,7 @@ public class WorkflowTestingTest {
     worker.registerActivitiesImplementations(new ContextActivityImpl());
     testEnvironment.start();
     MDC.put("test", "testing123");
-    WorkflowClient client = testEnvironment.newWorkflowClient();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
     WorkflowOptions options =
         new WorkflowOptions.Builder()
             .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
@@ -948,7 +949,7 @@ public class WorkflowTestingTest {
     worker.registerActivitiesImplementations(new ContextActivityImpl());
     testEnvironment.start();
     MDC.put("test", "testing123");
-    WorkflowClient client = testEnvironment.newWorkflowClient();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
     WorkflowOptions options =
         new WorkflowOptions.Builder()
             .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
@@ -985,7 +986,7 @@ public class WorkflowTestingTest {
         ContextPropagationChildWorkflowImpl.class);
     testEnvironment.start();
     MDC.put("test", "testing123");
-    WorkflowClient client = testEnvironment.newWorkflowClient();
+    WorkflowClient client = testEnvironment.getWorkflowClient();
     WorkflowOptions options =
         new WorkflowOptions.Builder()
             .setContextPropagators(Collections.singletonList(new TestContextPropagator()))

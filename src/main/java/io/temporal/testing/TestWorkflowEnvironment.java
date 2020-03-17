@@ -23,6 +23,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.internal.sync.TestWorkflowEnvironmentInternal;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.Worker;
+import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerOptions;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
@@ -116,14 +117,14 @@ public interface TestWorkflowEnvironment {
       String taskList, Function<WorkerOptions.Builder, WorkerOptions.Builder> overrideOptions);
 
   /** Creates a WorkflowClient that is connected to the in-memory test Temporal service. */
-  WorkflowClient newWorkflowClient();
+  WorkflowClient getWorkflowClient();
 
   /**
    * Creates a WorkflowClient that is connected to the in-memory test Temporal service.
    *
    * @param clientOptions options used to configure the client.
    */
-  WorkflowClient newWorkflowClient(WorkflowClientOptions clientOptions);
+  WorkflowClient getWorkflowClient(WorkflowClientOptions clientOptions);
 
   /**
    * Returns the current in-memory test Temporal service time in milliseconds. This time might not
@@ -172,7 +173,7 @@ public interface TestWorkflowEnvironment {
   /** Calls {@link #shutdownNow()} and {@link #awaitTermination(long, TimeUnit)}. */
   void close();
 
-  Worker.Factory getWorkerFactory();
+  WorkerFactory getWorkerFactory();
 
   /** Start all workers created by this factory. */
   void start();

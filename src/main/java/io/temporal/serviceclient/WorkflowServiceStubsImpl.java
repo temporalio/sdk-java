@@ -17,7 +17,6 @@
 
 package io.temporal.serviceclient;
 
-import com.google.common.base.Strings;
 import io.grpc.CallOptions;
 import io.grpc.Channel;
 import io.grpc.ClientCall;
@@ -46,8 +45,6 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
 
   private static final Logger log = LoggerFactory.getLogger(WorkflowServiceStubsImpl.class);
 
-  private static final String LOCALHOST_TARGET = "127.0.0.1:7233";
-
   /** refers to the name of the gRPC header that contains the client library version */
   private static final Metadata.Key<String> LIBRARY_VERSION_HEADER_KEY =
       Metadata.Key.of("temporal-sdk-version", Metadata.ASCII_STRING_MARSHALLER);
@@ -70,22 +67,13 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
   protected WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub;
 
   /**
-   * Creates Temporal client that connects to the local instance of the Temporal Service that
-   * listens on a default port (7933).
+   * Creates a factory that connects to the Temporal service using passed channel.
+   *
+   * @param channel a channel used to communicate with Temporal service.
+   * @param options connection options
    */
-  WorkflowServiceStubsImpl() {
-    this(
-        Strings.isNullOrEmpty(System.getenv(TEMPORAL_SERVICE_ADDRESS_ENV))
-            ? LOCALHOST_TARGET
-            : System.getenv("TEMPORAL_SEEDS"));
-  }
-
   WorkflowServiceStubsImpl(ManagedChannel channel, WorkflowServiceStubsOptions options) {
     init(channel, options);
-  }
-
-  WorkflowServiceStubsImpl(ManagedChannel channel) {
-    this(channel, WorkflowServiceStubsOptions.getDefaultInstance());
   }
 
   /**
@@ -98,19 +86,6 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
    */
   WorkflowServiceStubsImpl(String target, WorkflowServiceStubsOptions options) {
     this(ManagedChannelBuilder.forTarget(target).usePlaintext().build(), options);
-  }
-
-  /**
-   * Creates a factory that connects to the Temporal service use plaintext connection.
-   *
-   * @param target a target string, which can be either a valid {@link NameResolver}-compliant URI,
-   *     or an authority string. See {@link ManagedChannelBuilder#forTarget(String)} for more
-   *     information about parameter format.
-   */
-  WorkflowServiceStubsImpl(String target) {
-    this(
-        ManagedChannelBuilder.forTarget(target).usePlaintext().build(),
-        WorkflowServiceStubsOptions.getDefaultInstance());
   }
 
   /**

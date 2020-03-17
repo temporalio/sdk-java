@@ -63,6 +63,8 @@ import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.WorkflowReplayer;
 import io.temporal.worker.Worker;
+import io.temporal.worker.WorkerFactory;
+import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions.Func;
@@ -194,7 +196,7 @@ public class WorkflowTest {
 
   private String taskList;
 
-  private Worker.Factory workerFactory;
+  private WorkerFactory workerFactory;
   private Worker worker;
   private TestActivitiesImpl activitiesImpl;
   private WorkflowClient workflowClient;
@@ -202,7 +204,8 @@ public class WorkflowTest {
   private TestWorkflowEnvironment testEnvironment;
   private ScheduledExecutorService scheduledExecutor;
   private List<ScheduledFuture<?>> delayedCallbacks = new ArrayList<>();
-  private static final WorkflowServiceStubs service = WorkflowServiceStubs.newInstance();
+  private static final WorkflowServiceStubs service =
+      WorkflowServiceStubs.newInstance(WorkflowServiceStubs.LOCAL_DOCKER_TARGET);
 
   @AfterClass
   public static void closeService() {
@@ -275,24 +278,27 @@ public class WorkflowTest {
     tracer = new TracingWorkflowInterceptorFactory();
     // TODO: Create a version of TestWorkflowEnvironment that runs against a real service.
     if (useExternalService) {
-      Worker.FactoryOptions factoryOptions =
-          new Worker.FactoryOptions.Builder()
+      workflowClient =
+          WorkflowClient.newInstance(
+              service, WorkflowClientOptions.newBuilder().setDomain(DOMAIN).build());
+      WorkerFactoryOptions factoryOptions =
+          WorkerFactoryOptions.newBuilder()
               .setDisableStickyExecution(disableStickyExecution)
               .build();
-      workerFactory = new Worker.Factory(service, DOMAIN, factoryOptions);
+      workerFactory = new WorkerFactory(workflowClient, factoryOptions);
       WorkerOptions workerOptions =
-          new WorkerOptions.Builder()
+          WorkerOptions.newBuilder()
               .setActivityPollerOptions(new PollerOptions.Builder().setPollThreadCount(5).build())
               .setMaxConcurrentActivityExecutionSize(1000)
               .setInterceptorFactory(tracer)
               .build();
       worker = workerFactory.newWorker(taskList, workerOptions);
-      workflowClient = WorkflowClient.newInstance(service, DOMAIN);
       WorkflowClientOptions clientOptions =
           new WorkflowClientOptions.Builder()
+              .setDomain(DOMAIN)
               .setDataConverter(JsonDataConverter.getInstance())
               .build();
-      workflowClientWithOptions = WorkflowClient.newInstance(service, DOMAIN, clientOptions);
+      workflowClientWithOptions = WorkflowClient.newInstance(service, clientOptions);
       scheduledExecutor = new ScheduledThreadPoolExecutor(1);
     } else {
       TestEnvironmentOptions testOptions =
@@ -300,14 +306,14 @@ public class WorkflowTest {
               .setDomain(DOMAIN)
               .setInterceptorFactory(tracer)
               .setFactoryOptions(
-                  new Worker.FactoryOptions.Builder()
+                  WorkerFactoryOptions.newBuilder()
                       .setDisableStickyExecution(disableStickyExecution)
                       .build())
               .build();
       testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
       worker = testEnvironment.newWorker(taskList);
-      workflowClient = testEnvironment.newWorkflowClient();
-      workflowClientWithOptions = testEnvironment.newWorkflowClient();
+      workflowClient = testEnvironment.getWorkflowClient();
+      workflowClientWithOptions = testEnvironment.getWorkflowClient();
     }
 
     ActivityCompletionClient completionClient = workflowClient.newActivityCompletionClient();
@@ -2271,7 +2277,7 @@ public class WorkflowTest {
     // Test getTrace through replay by a local worker.
     Worker queryWorker;
     if (useExternalService) {
-      Worker.Factory workerFactory = new Worker.Factory(service, DOMAIN);
+      WorkerFactory workerFactory = new WorkerFactory(workflowClient);
       queryWorker = workerFactory.newWorker(taskList);
     } else {
       queryWorker = testEnvironment.newWorker(taskList);
@@ -2345,7 +2351,7 @@ public class WorkflowTest {
     // Test getTrace through replay by a local worker.
     Worker queryWorker;
     if (useExternalService) {
-      Worker.Factory workerFactory = new Worker.Factory(service, DOMAIN);
+      WorkerFactory workerFactory = new WorkerFactory(workflowClient);
       queryWorker = workerFactory.newWorker(taskList);
     } else {
       queryWorker = testEnvironment.newWorker(taskList);
@@ -2854,6 +2860,7 @@ public class WorkflowTest {
     AtomicReference<String> capturedWorkflowType = new AtomicReference<>();
     WorkflowClientOptions clientOptions =
         new WorkflowClientOptions.Builder()
+            .setDomain(DOMAIN)
             .setInterceptors(
                 new WorkflowClientInterceptorBase() {
                   @Override
@@ -2866,9 +2873,9 @@ public class WorkflowTest {
             .build();
     WorkflowClient wc;
     if (useExternalService) {
-      wc = WorkflowClient.newInstance(service, DOMAIN, clientOptions);
+      wc = WorkflowClient.newInstance(service, clientOptions);
     } else {
-      wc = testEnvironment.newWorkflowClient(clientOptions);
+      wc = testEnvironment.getWorkflowClient(clientOptions);
     }
 
     TestWorkflow1 client = wc.newWorkflowStub(TestWorkflow1.class, options.build());
@@ -2930,9 +2937,11 @@ public class WorkflowTest {
     options.setTaskList(taskList);
     WorkflowClient wc;
     if (useExternalService) {
-      wc = WorkflowClient.newInstance(service, DOMAIN);
+      wc =
+          WorkflowClient.newInstance(
+              service, WorkflowClientOptions.newBuilder().setDomain(DOMAIN).build());
     } else {
-      wc = testEnvironment.newWorkflowClient();
+      wc = testEnvironment.getWorkflowClient();
     }
 
     TestWorkflow1 client = wc.newWorkflowStub(TestWorkflow1.class, options.build());

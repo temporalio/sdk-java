@@ -23,12 +23,10 @@ import java.util.concurrent.TimeUnit;
 
 public interface WorkflowServiceStubs {
 
-  static WorkflowServiceStubs newInstance() {
-    return new WorkflowServiceStubsImpl();
-  }
+  String LOCAL_DOCKER_TARGET = "127.0.0.1:7233";
 
   static WorkflowServiceStubs newInstance(String target) {
-    return new WorkflowServiceStubsImpl(target);
+    return new WorkflowServiceStubsImpl(target, WorkflowServiceStubsOptions.getDefaultInstance());
   }
 
   static WorkflowServiceStubs newInstance(String target, WorkflowServiceStubsOptions options) {
@@ -36,7 +34,7 @@ public interface WorkflowServiceStubs {
   }
 
   static WorkflowServiceStubs newInstance(ManagedChannel channel) {
-    return new WorkflowServiceStubsImpl(channel);
+    return new WorkflowServiceStubsImpl(channel, WorkflowServiceStubsOptions.getDefaultInstance());
   }
 
   static WorkflowServiceStubs newInstance(

@@ -97,7 +97,7 @@ public class LoggerTest {
         TestLoggingInWorkflow.class, TestLoggerInChildWorkflow.class);
     env.start();
 
-    WorkflowClient workflowClient = env.newWorkflowClient();
+    WorkflowClient workflowClient = env.getWorkflowClient();
     WorkflowOptions options =
         new WorkflowOptions.Builder()
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(1000))
