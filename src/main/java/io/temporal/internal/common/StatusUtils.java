@@ -15,7 +15,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.serviceclient;
+package io.temporal.internal.common;
 
 import com.google.common.base.Preconditions;
 import com.google.protobuf.Any;
@@ -27,9 +27,9 @@ import io.grpc.protobuf.StatusProto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class GrpcStatusUtils {
+public class StatusUtils {
 
-  private static final Logger log = LoggerFactory.getLogger(GrpcStatusUtils.class);
+  private static final Logger log = LoggerFactory.getLogger(StatusUtils.class);
 
   /**
    * Determines if a StatusRuntimeException contains a failure message of a given type.

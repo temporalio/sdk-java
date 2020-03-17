@@ -30,7 +30,7 @@ import io.temporal.internal.common.OptionsUtils;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatRequest;
 import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatResponse;
-import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.lang.reflect.Type;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
@@ -53,7 +53,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   private static final long HEARTBEAT_RETRY_WAIT_MILLIS = 1000;
   private static final long MAX_HEARTBEAT_INTERVAL_MILLIS = 30000;
 
-  private final GrpcWorkflowServiceFactory service;
+  private final WorkflowServiceStubs service;
   private final String domain;
   private final ActivityTask task;
   private final DataConverter dataConverter;
@@ -68,7 +68,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
 
   /** Create an ActivityExecutionContextImpl with the given attributes. */
   ActivityExecutionContextImpl(
-      GrpcWorkflowServiceFactory service,
+      WorkflowServiceStubs service,
       String domain,
       ActivityTask task,
       DataConverter dataConverter,
@@ -214,7 +214,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
 
   /** @see ActivityExecutionContext#getService() */
   @Override
-  public GrpcWorkflowServiceFactory getService() {
+  public WorkflowServiceStubs getService() {
     return service;
   }
 

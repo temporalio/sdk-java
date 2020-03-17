@@ -96,24 +96,16 @@ final class WorkflowContext {
     this.continueAsNewOnCompletion = continueParameters;
   }
 
-  // TODO: Implement as soon as WorkflowExecutionStartedEventAttributes have these fields added.
-  ////    WorkflowExecution getParentWorkflowExecution() {
-  //        WorkflowExecutionStartedEventAttributes attributes =
-  // getWorkflowStartedEventAttributes();
-  //        return attributes.getParentWorkflowExecution();
-  //    }
+  String getContinuedExecutionRunId() {
+    WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
+    String runId = attributes.getContinuedExecutionRunId();
+    return runId.isEmpty() ? null : runId;
+  }
 
-  ////    io.temporal.ChildPolicy getChildPolicy() {
-  //        WorkflowExecutionStartedEventAttributes attributes =
-  // getWorkflowStartedEventAttributes();
-  //        return ChildPolicy.fromValue(attributes.getChildPolicy());
-  //    }
-
-  ////    String getContinuedExecutionRunId() {
-  //        WorkflowExecutionStartedEventAttributes attributes =
-  // getWorkflowStartedEventAttributes();
-  //        return attributes.getContinuedExecutionRunId();
-  //    }
+  WorkflowExecution getParentWorkflowExecution() {
+    WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
+    return attributes.hasParentWorkflowExecution() ? attributes.getParentWorkflowExecution() : null;
+  }
 
   int getExecutionStartToCloseTimeoutSeconds() {
     WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();

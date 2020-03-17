@@ -20,7 +20,7 @@ package io.temporal.client;
 import io.temporal.activity.Activity;
 import io.temporal.internal.sync.WorkflowClientInternal;
 import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
@@ -34,6 +34,7 @@ import io.temporal.workflow.Functions.Proc6;
 import io.temporal.workflow.WorkflowMethod;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Client to the Temporal service used to start and query workflows by external processes. Also it
@@ -132,26 +133,23 @@ public interface WorkflowClient {
   /**
    * Creates client that connects to an instance of the Temporal Service.
    *
-   * @param host of the Temporal Service endpoint
-   * @param port of the Temporal Service endpoint
+   * @param target address of the Temporal Service endpoint
    * @param domain domain that worker uses to poll.
    */
-  static WorkflowClient newInstance(String host, int port, String domain) {
-    return WorkflowClientInternal.newInstance(host, port, domain);
+  static WorkflowClient newInstance(String target, String domain) {
+    return WorkflowClientInternal.newInstance(target, domain);
   }
 
   /**
    * Creates client that connects to an instance of the Temporal Service.
    *
-   * @param host of the Temporal Service endpoint
-   * @param port of the Temporal Service endpoint
+   * @param target address of the Temporal Service endpoint
    * @param domain domain that worker uses to poll.
    * @param options Options (like {@link io.temporal.converter.DataConverter}er override) for
    *     configuring client.
    */
-  static WorkflowClient newInstance(
-      String host, int port, String domain, WorkflowClientOptions options) {
-    return WorkflowClientInternal.newInstance(host, port, domain, options);
+  static WorkflowClient newInstance(String target, String domain, WorkflowClientOptions options) {
+    return WorkflowClientInternal.newInstance(target, domain, options);
   }
 
   /**
@@ -160,7 +158,7 @@ public interface WorkflowClient {
    * @param service client to the Temporal Service endpoint.
    * @param domain domain that worker uses to poll.
    */
-  static WorkflowClient newInstance(GrpcWorkflowServiceFactory service, String domain) {
+  static WorkflowClient newInstance(WorkflowServiceStubs service, String domain) {
     return WorkflowClientInternal.newInstance(service, domain);
   }
 
@@ -173,7 +171,7 @@ public interface WorkflowClient {
    *     configuring client.
    */
   static WorkflowClient newInstance(
-      GrpcWorkflowServiceFactory service, String domain, WorkflowClientOptions options) {
+      WorkflowServiceStubs service, String domain, WorkflowClientOptions options) {
     return WorkflowClientInternal.newInstance(service, domain, options);
   }
 
@@ -284,6 +282,21 @@ public interface WorkflowClient {
    * @return workflowID and runId of the signaled or started workflow.
    */
   WorkflowExecution signalWithStart(BatchRequest signalWithStartBatch);
+
+  void shutdown();
+
+  void shutdownNow();
+
+  boolean isShutdown();
+
+  boolean isTerminated();
+
+  /**
+   * Waits for the client to become terminated up to specified timeout
+   *
+   * @return whether the channel is terminated according to {@link #isTerminated()}
+   */
+  boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException;
 
   /**
    * Executes zero argument workflow with void return type
@@ -728,10 +741,4 @@ public interface WorkflowClient {
       A6 arg6) {
     return WorkflowClientInternal.execute(workflow, arg1, arg2, arg3, arg4, arg5, arg6);
   }
-
-  /**
-   * Closes the workflow client and the underlying GrpcWorkflowServiceFactory when this method is
-   * called.
-   */
-  void close();
 }

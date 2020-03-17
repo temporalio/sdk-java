@@ -29,7 +29,8 @@ import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.proto.common.TaskList;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
-import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import org.junit.After;
@@ -45,7 +46,7 @@ public class PollDecisionTaskDispatcherTests {
   ch.qos.logback.classic.Logger logger = context.getLogger(Logger.ROOT_LOGGER_NAME);
 
   private TestWorkflowService testService;
-  private GrpcWorkflowServiceFactory service;
+  private WorkflowServiceStubs service;
 
   @Before
   public void setUp() {
@@ -55,7 +56,12 @@ public class PollDecisionTaskDispatcherTests {
 
   @After
   public void tearDown() {
-    service.close();
+    service.shutdownNow();
+    try {
+      service.awaitTermination(1, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
     testService.close();
   }
 
@@ -138,7 +144,7 @@ public class PollDecisionTaskDispatcherTests {
 
     WorkflowServiceGrpc.WorkflowServiceBlockingStub stub =
         mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);
-    GrpcWorkflowServiceFactory mockService = mock(GrpcWorkflowServiceFactory.class);
+    WorkflowServiceStubs mockService = mock(WorkflowServiceStubs.class);
     when(mockService.blockingStub()).thenReturn(stub);
 
     PollDecisionTaskDispatcher dispatcher = new PollDecisionTaskDispatcher(mockService);

@@ -21,7 +21,7 @@ import com.google.protobuf.ByteString;
 import io.temporal.proto.enums.DecisionTaskFailedCause;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
-import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Objects;
@@ -39,17 +39,17 @@ public final class PollDecisionTaskDispatcher
   private static final Logger log = LoggerFactory.getLogger(PollDecisionTaskDispatcher.class);
   private final Map<String, Consumer<PollForDecisionTaskResponse>> subscribers =
       new ConcurrentHashMap<>();
-  private GrpcWorkflowServiceFactory service;
+  private WorkflowServiceStubs service;
   private Thread.UncaughtExceptionHandler uncaughtExceptionHandler =
       (t, e) -> log.error("uncaught exception", e);
   private AtomicBoolean shutdown = new AtomicBoolean();
 
-  public PollDecisionTaskDispatcher(GrpcWorkflowServiceFactory service) {
+  public PollDecisionTaskDispatcher(WorkflowServiceStubs service) {
     this.service = Objects.requireNonNull(service);
   }
 
   public PollDecisionTaskDispatcher(
-      GrpcWorkflowServiceFactory service, Thread.UncaughtExceptionHandler exceptionHandler) {
+      WorkflowServiceStubs service, Thread.UncaughtExceptionHandler exceptionHandler) {
     this.service = Objects.requireNonNull(service);
     if (exceptionHandler != null) {
       this.uncaughtExceptionHandler = exceptionHandler;

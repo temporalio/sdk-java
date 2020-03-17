@@ -22,7 +22,9 @@ import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
+import io.temporal.common.RpcRetryOptions;
 import io.temporal.common.WorkflowExecutionHistory;
+import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsTag;
@@ -38,9 +40,7 @@ import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
 import io.temporal.proto.workflowservice.RespondQueryTaskCompletedRequest;
-import io.temporal.serviceclient.GrpcRetryOptions;
-import io.temporal.serviceclient.GrpcRetryer;
-import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -57,7 +57,7 @@ public final class WorkflowWorker
   private SuspendableWorker poller = new NoopSuspendableWorker();
   private PollTaskExecutor<PollForDecisionTaskResponse> pollTaskExecutor;
   private final DecisionTaskHandler handler;
-  private final GrpcWorkflowServiceFactory service;
+  private final WorkflowServiceStubs service;
   private final String domain;
   private final String taskList;
   private final SingleWorkerOptions options;
@@ -65,7 +65,7 @@ public final class WorkflowWorker
   private final WorkflowRunLockManager runLocks = new WorkflowRunLockManager();
 
   public WorkflowWorker(
-      GrpcWorkflowServiceFactory service,
+      WorkflowServiceStubs service,
       String domain,
       String taskList,
       SingleWorkerOptions options,
@@ -284,10 +284,8 @@ public final class WorkflowWorker
     }
 
     private void sendReply(
-        GrpcWorkflowServiceFactory service,
-        ByteString taskToken,
-        DecisionTaskHandler.Result response) {
-      GrpcRetryOptions ro = response.getRequestRetryOptions();
+        WorkflowServiceStubs service, ByteString taskToken, DecisionTaskHandler.Result response) {
+      RpcRetryOptions ro = response.getRequestRetryOptions();
       RespondDecisionTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
         ro = options.getReportCompletionRetryOptions().merge(ro);

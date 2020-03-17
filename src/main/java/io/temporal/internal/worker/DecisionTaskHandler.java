@@ -17,11 +17,11 @@
 
 package io.temporal.internal.worker;
 
+import io.temporal.common.RpcRetryOptions;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
 import io.temporal.proto.workflowservice.RespondQueryTaskCompletedRequest;
-import io.temporal.serviceclient.GrpcRetryOptions;
 
 /**
  * Interface of workflow task handlers.
@@ -34,13 +34,13 @@ public interface DecisionTaskHandler {
     private final RespondDecisionTaskCompletedRequest taskCompleted;
     private final RespondDecisionTaskFailedRequest taskFailed;
     private final RespondQueryTaskCompletedRequest queryCompleted;
-    private final GrpcRetryOptions requestRetryOptions;
+    private final RpcRetryOptions requestRetryOptions;
 
     public Result(
         RespondDecisionTaskCompletedRequest taskCompleted,
         RespondDecisionTaskFailedRequest taskFailed,
         RespondQueryTaskCompletedRequest queryCompleted,
-        GrpcRetryOptions requestRetryOptions) {
+        RpcRetryOptions requestRetryOptions) {
       this.taskCompleted = taskCompleted;
       this.taskFailed = taskFailed;
       this.queryCompleted = queryCompleted;
@@ -59,7 +59,7 @@ public interface DecisionTaskHandler {
       return queryCompleted;
     }
 
-    public GrpcRetryOptions getRequestRetryOptions() {
+    public RpcRetryOptions getRequestRetryOptions() {
       return requestRetryOptions;
     }
 

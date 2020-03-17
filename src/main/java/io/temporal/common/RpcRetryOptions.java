@@ -15,34 +15,30 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.serviceclient;
+package io.temporal.common;
 
 import com.google.common.base.Defaults;
 import com.google.protobuf.GeneratedMessageV3;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.temporal.common.MethodRetry;
+import io.temporal.internal.common.StatusUtils;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-public final class GrpcRetryOptions {
+public final class RpcRetryOptions {
 
   private static final double DEFAULT_BACKOFF_COEFFICIENT = 2.0;
   private static final int DEFAULT_MAXIMUM_MULTIPLIER = 100;
 
-  /**
-   * The parameter options takes precedence.
-   *
-   * @return
-   */
-  public GrpcRetryOptions merge(GrpcRetryOptions o) {
+  /** The parameter options takes precedence. */
+  public RpcRetryOptions merge(RpcRetryOptions o) {
     if (o == null) {
       return this;
     }
-    return new GrpcRetryOptions.Builder()
+    return new RpcRetryOptions.Builder()
         .setInitialInterval(merge(getInitialInterval(), o.getInitialInterval(), Duration.class))
         .setExpiration(merge(getExpiration(), o.getExpiration(), Duration.class))
         .setMaximumInterval(merge(getMaximumInterval(), o.getMaximumInterval(), Duration.class))
@@ -87,7 +83,7 @@ public final class GrpcRetryOptions {
 
     public Builder() {}
 
-    public Builder(GrpcRetryOptions o) {
+    public Builder(RpcRetryOptions o) {
       if (o == null) {
         return;
       }
@@ -180,8 +176,8 @@ public final class GrpcRetryOptions {
      * Build RetryOptions without performing validation as validation should be done after merging
      * with {@link MethodRetry}.
      */
-    public GrpcRetryOptions build() {
-      return new GrpcRetryOptions(
+    public RpcRetryOptions build() {
+      return new RpcRetryOptions(
           initialInterval,
           backoffCoefficient,
           expiration,
@@ -191,13 +187,13 @@ public final class GrpcRetryOptions {
     }
 
     /** Validates property values and builds RetryOptions with default values. */
-    public GrpcRetryOptions validateBuildWithDefaults() {
+    public RpcRetryOptions validateBuildWithDefaults() {
       double backoff = backoffCoefficient;
       if (backoff == 0d) {
         backoff = DEFAULT_BACKOFF_COEFFICIENT;
       }
-      GrpcRetryOptions result =
-          new GrpcRetryOptions(
+      RpcRetryOptions result =
+          new RpcRetryOptions(
               initialInterval, backoff, expiration, maximumAttempts, maximumInterval, doNotRetry);
       result.validate();
       return result;
@@ -216,7 +212,7 @@ public final class GrpcRetryOptions {
 
   private final List<DoNotRetryPair> doNotRetry;
 
-  private GrpcRetryOptions(
+  private RpcRetryOptions(
       Duration initialInterval,
       double backoffCoefficient,
       Duration expiration,
@@ -300,7 +296,7 @@ public final class GrpcRetryOptions {
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
-    GrpcRetryOptions that = (GrpcRetryOptions) o;
+    RpcRetryOptions that = (RpcRetryOptions) o;
     return Double.compare(that.backoffCoefficient, backoffCoefficient) == 0
         && maximumAttempts == that.maximumAttempts
         && Objects.equals(initialInterval, that.initialInterval)
@@ -369,7 +365,7 @@ public final class GrpcRetryOptions {
     for (DoNotRetryPair pair : doNotRetry) {
       if (pair.getCode() != e.getStatus().getCode()
           || (pair.getDetailsClass() != null
-              && !GrpcStatusUtils.hasFailure(e, pair.getDetailsClass()))) {
+              && !StatusUtils.hasFailure(e, pair.getDetailsClass()))) {
         return false;
       }
     }
