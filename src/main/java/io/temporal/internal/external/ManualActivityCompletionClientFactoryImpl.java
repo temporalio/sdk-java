@@ -27,7 +27,7 @@ import java.util.Map;
 import java.util.Objects;
 
 public class ManualActivityCompletionClientFactoryImpl
-    extends ManualActivityCompletionClientFactory {
+    implements ManualActivityCompletionClientFactory {
 
   private final WorkflowServiceStubs service;
   private final DataConverter dataConverter;

@@ -45,7 +45,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 // TODO: service call retries
-class ManualActivityCompletionClientImpl extends ManualActivityCompletionClient {
+class ManualActivityCompletionClientImpl implements ManualActivityCompletionClient {
 
   private static final Logger log =
       LoggerFactory.getLogger(ManualActivityCompletionClientImpl.class);

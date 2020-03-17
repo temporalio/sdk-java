@@ -80,19 +80,9 @@ public final class WorkerFactory {
    * client passed in.
    *
    * @param workflowClient client to the Temporal Service endpoint.
-   */
-  public WorkerFactory(WorkflowClient workflowClient) {
-    this(workflowClient, WorkerFactoryOptions.getDefaultInstance());
-  }
-
-  /**
-   * Creates a factory. Workers will be connect to the temporal-server using the workflowService
-   * client passed in.
-   *
-   * @param workflowClient client to the Temporal Service endpoint.
    * @param factoryOptions Options used to configure factory settings
    */
-  public WorkerFactory(WorkflowClient workflowClient, WorkerFactoryOptions factoryOptions) {
+  private WorkerFactory(WorkflowClient workflowClient, WorkerFactoryOptions factoryOptions) {
     this.workflowClient = Objects.requireNonNull(workflowClient);
     this.factoryOptions = Objects.requireNonNull(factoryOptions);
 
