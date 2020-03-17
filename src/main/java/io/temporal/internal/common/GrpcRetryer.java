@@ -127,6 +127,9 @@ public final class GrpcRetryer {
         Thread.currentThread().interrupt();
         return null;
       } catch (StatusRuntimeException e) {
+        if (e.getStatus().getCode() == Status.Code.CANCELLED) {
+          return null;
+        }
         throttler.failure();
         for (RpcRetryOptions.DoNotRetryPair pair : options.getDoNotRetry()) {
           if (pair.getCode() == e.getStatus().getCode()

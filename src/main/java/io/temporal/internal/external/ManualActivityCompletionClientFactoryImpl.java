@@ -24,6 +24,7 @@ import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.Map;
+import java.util.Objects;
 
 public class ManualActivityCompletionClientFactoryImpl
     extends ManualActivityCompletionClientFactory {
@@ -38,9 +39,9 @@ public class ManualActivityCompletionClientFactoryImpl
       String domain,
       DataConverter dataConverter,
       Scope metricsScope) {
-    this.service = service;
-    this.domain = domain;
-    this.dataConverter = dataConverter;
+    this.service = Objects.requireNonNull(service);
+    this.domain = Objects.requireNonNull(domain);
+    this.dataConverter = Objects.requireNonNull(dataConverter);
 
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(1).put(MetricsTag.DOMAIN, domain).build();

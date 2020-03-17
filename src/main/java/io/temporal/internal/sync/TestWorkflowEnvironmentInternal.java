@@ -80,7 +80,14 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     }
     channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
     workflowServiceStubs = WorkflowServiceStubs.newInstance(channel);
-    WorkflowClient client = WorkflowClient.newInstance(workflowServiceStubs);
+    WorkflowClient client =
+        WorkflowClient.newInstance(
+            workflowServiceStubs,
+            WorkflowClientOptions.newBuilder()
+                .setDomain(options.getDomain())
+                .setDataConverter(options.getDataConverter())
+                .setMetricsScope(options.getMetricsScope())
+                .build());
     workerFactory = new WorkerFactory(client, options.getWorkerFactoryOptions());
   }
 
