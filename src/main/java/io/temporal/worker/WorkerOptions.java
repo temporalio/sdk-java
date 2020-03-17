@@ -50,8 +50,6 @@ public final class WorkerOptions {
 
   public static final class Builder {
 
-    private boolean disableWorkflowWorker;
-    private boolean disableActivityWorker;
     private double workerActivitiesPerSecond;
     private String identity;
     private DataConverter dataConverter = JsonDataConverter.getInstance();
@@ -75,8 +73,6 @@ public final class WorkerOptions {
       if (o == null) {
         return;
       }
-      disableWorkflowWorker = o.disableWorkflowWorker;
-      disableActivityWorker = o.disableActivityWorker;
       workerActivitiesPerSecond = o.workerActivitiesPerSecond;
       identity = o.identity;
       dataConverter = o.dataConverter;
@@ -93,28 +89,6 @@ public final class WorkerOptions {
       interceptorFactory = o.interceptorFactory;
       metricsScope = o.metricsScope;
       enableLoggingInReplay = o.enableLoggingInReplay;
-    }
-
-    /**
-     * When set to true doesn't poll on workflow task list even if there are registered workflows
-     * with a worker. For clarity prefer not registing workflow types with a {@link Worker} to
-     * setting this option. But it can be useful for disabling polling through configuration without
-     * a code change.
-     */
-    public Builder setDisableWorkflowWorker(boolean disableWorkflowWorker) {
-      this.disableWorkflowWorker = disableWorkflowWorker;
-      return this;
-    }
-
-    /**
-     * When set to true doesn't poll on activity task list even if there are registered activities
-     * with a worker. For clarity prefer not registing activity implementations with a {@link
-     * Worker} to setting this option. But it can be useful for disabling polling through
-     * configuration without a code change.
-     */
-    public Builder setDisableActivityWorker(boolean disableActivityWorker) {
-      this.disableActivityWorker = disableActivityWorker;
-      return this;
     }
 
     /**
@@ -254,8 +228,6 @@ public final class WorkerOptions {
       }
 
       return new WorkerOptions(
-          disableWorkflowWorker,
-          disableActivityWorker,
           workerActivitiesPerSecond,
           identity,
           dataConverter,
@@ -275,8 +247,6 @@ public final class WorkerOptions {
     }
   }
 
-  private final boolean disableWorkflowWorker;
-  private final boolean disableActivityWorker;
   private final double workerActivitiesPerSecond;
   private final String identity;
   private final DataConverter dataConverter;
@@ -295,8 +265,6 @@ public final class WorkerOptions {
   private final boolean enableLoggingInReplay;
 
   private WorkerOptions(
-      boolean disableWorkflowWorker,
-      boolean disableActivityWorker,
       double workerActivitiesPerSecond,
       String identity,
       DataConverter dataConverter,
@@ -313,8 +281,6 @@ public final class WorkerOptions {
       Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
       Scope metricsScope,
       boolean enableLoggingInReplay) {
-    this.disableWorkflowWorker = disableWorkflowWorker;
-    this.disableActivityWorker = disableActivityWorker;
     this.workerActivitiesPerSecond = workerActivitiesPerSecond;
     this.identity = identity;
     this.dataConverter = dataConverter;
@@ -331,14 +297,6 @@ public final class WorkerOptions {
     this.interceptorFactory = interceptorFactory;
     this.metricsScope = metricsScope;
     this.enableLoggingInReplay = enableLoggingInReplay;
-  }
-
-  public boolean isDisableWorkflowWorker() {
-    return disableWorkflowWorker;
-  }
-
-  public boolean isDisableActivityWorker() {
-    return disableActivityWorker;
   }
 
   public double getWorkerActivitiesPerSecond() {
@@ -404,10 +362,6 @@ public final class WorkerOptions {
   @Override
   public String toString() {
     return "WorkerOptions{"
-        + "disableWorkflowWorker="
-        + disableWorkflowWorker
-        + ", disableActivityWorker="
-        + disableActivityWorker
         + ", workerActivitiesPerSecond="
         + workerActivitiesPerSecond
         + ", identity='"

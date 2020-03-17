@@ -94,29 +94,24 @@ public final class Worker implements Suspendable {
 
     SingleWorkerOptions activityOptions =
         toActivityOptions(this.options, domain, taskList, contextPropagators);
-    activityWorker =
-        this.options.isDisableActivityWorker()
-            ? null
-            : new SyncActivityWorker(service, domain, taskList, activityOptions);
+    activityWorker = new SyncActivityWorker(service, domain, taskList, activityOptions);
 
     SingleWorkerOptions workflowOptions =
         toWorkflowOptions(this.options, domain, taskList, contextPropagators);
     SingleWorkerOptions localActivityOptions =
         toLocalActivityOptions(this.options, domain, taskList, contextPropagators);
     workflowWorker =
-        this.options.isDisableWorkflowWorker()
-            ? null
-            : new SyncWorkflowWorker(
-                service,
-                domain,
-                taskList,
-                this.options.getInterceptorFactory(),
-                workflowOptions,
-                localActivityOptions,
-                this.cache,
-                this.stickyTaskListName,
-                stickyDecisionScheduleToStartTimeout,
-                this.threadPoolExecutor);
+        new SyncWorkflowWorker(
+            service,
+            domain,
+            taskList,
+            this.options.getInterceptorFactory(),
+            workflowOptions,
+            localActivityOptions,
+            this.cache,
+            this.stickyTaskListName,
+            stickyDecisionScheduleToStartTimeout,
+            this.threadPoolExecutor);
   }
 
   private static SingleWorkerOptions toActivityOptions(
@@ -209,9 +204,6 @@ public final class Worker implements Suspendable {
    */
   public void registerWorkflowImplementationTypes(Class<?>... workflowImplementationClasses) {
     Preconditions.checkState(
-        workflowWorker != null,
-        "registerWorkflowImplementationTypes is not allowed when disableWorkflowWorker is set in worker options");
-    Preconditions.checkState(
         !started.get(),
         "registerWorkflowImplementationTypes is not allowed after worker has started");
 
@@ -232,9 +224,6 @@ public final class Worker implements Suspendable {
    */
   public void registerWorkflowImplementationTypes(
       WorkflowImplementationOptions options, Class<?>... workflowImplementationClasses) {
-    Preconditions.checkState(
-        workflowWorker != null,
-        "registerWorkflowImplementationTypes is not allowed when disableWorkflowWorker is set in worker options");
     Preconditions.checkState(
         !started.get(),
         "registerWorkflowImplementationTypes is not allowed after worker has started");
@@ -303,40 +292,25 @@ public final class Worker implements Suspendable {
     if (activityWorker != null) {
       activityWorker.setActivitiesImplementation(activityImplementations);
     }
-
-    if (workflowWorker != null) {
-      workflowWorker.setLocalActivitiesImplementation(activityImplementations);
-    }
+    workflowWorker.setLocalActivitiesImplementation(activityImplementations);
   }
 
   void start() {
     if (!started.compareAndSet(false, true)) {
       return;
     }
-    if (workflowWorker != null) {
-      workflowWorker.start();
-    }
-    if (activityWorker != null) {
-      activityWorker.start();
-    }
+    workflowWorker.start();
+    activityWorker.start();
   }
 
   void shutdown() {
-    if (activityWorker != null) {
-      activityWorker.shutdown();
-    }
-    if (workflowWorker != null) {
-      workflowWorker.shutdown();
-    }
+    activityWorker.shutdown();
+    workflowWorker.shutdown();
   }
 
   void shutdownNow() {
-    if (activityWorker != null) {
-      activityWorker.shutdownNow();
-    }
-    if (workflowWorker != null) {
-      workflowWorker.shutdownNow();
-    }
+    activityWorker.shutdownNow();
+    workflowWorker.shutdownNow();
   }
 
   boolean isTerminated() {
@@ -391,38 +365,18 @@ public final class Worker implements Suspendable {
 
   @Override
   public void suspendPolling() {
-    if (workflowWorker != null) {
-      workflowWorker.suspendPolling();
-    }
-
-    if (activityWorker != null) {
-      activityWorker.suspendPolling();
-    }
+    workflowWorker.suspendPolling();
+    activityWorker.suspendPolling();
   }
 
   @Override
   public void resumePolling() {
-    if (workflowWorker != null) {
-      workflowWorker.resumePolling();
-    }
-
-    if (activityWorker != null) {
-      activityWorker.resumePolling();
-    }
+    workflowWorker.resumePolling();
+    activityWorker.resumePolling();
   }
 
   @Override
   public boolean isSuspended() {
-    boolean workflowWorkerSuspended = true;
-    if (workflowWorker != null) {
-      workflowWorkerSuspended = workflowWorker.isSuspended();
-    }
-
-    boolean activityWorkerSuspended = activityWorker.isSuspended();
-    if (activityWorker != null) {
-      activityWorker.resumePolling();
-    }
-
-    return workflowWorkerSuspended && activityWorkerSuspended;
+    return workflowWorker.isSuspended() && activityWorker.isSuspended();
   }
 }
