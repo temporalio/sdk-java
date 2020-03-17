@@ -28,6 +28,7 @@ import java.util.Objects;
 public final class WorkflowClientOptions {
 
   private static final WorkflowClientOptions DEFAULT_INSTANCE;
+  private static final String DEFAULT_DOMAIN = "default";
 
   static {
     DEFAULT_INSTANCE = newBuilder().build();
@@ -47,10 +48,9 @@ public final class WorkflowClientOptions {
 
   public static final class Builder {
 
-    private static final String DEFAULT_DOMAIN = "default";
     private String domain;
-    private DataConverter dataConverter = JsonDataConverter.getInstance();
-    private WorkflowClientInterceptor[] interceptors = EMPTY_INTERCEPTOR_ARRAY;
+    private DataConverter dataConverter;
+    private WorkflowClientInterceptor[] interceptors;
     private Scope metricsScope;
     private String identity;
 
@@ -111,8 +111,8 @@ public final class WorkflowClientOptions {
     public WorkflowClientOptions validateAndBuildWithDefaults() {
       return new WorkflowClientOptions(
           domain == null ? DEFAULT_DOMAIN : domain,
-          dataConverter,
-          interceptors,
+          dataConverter == null ? JsonDataConverter.getInstance() : dataConverter,
+          interceptors == null ? EMPTY_INTERCEPTOR_ARRAY : interceptors,
           metricsScope == null ? NoopScope.getInstance() : metricsScope,
           identity == null ? ManagementFactory.getRuntimeMXBean().getName() : identity);
     }

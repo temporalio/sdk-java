@@ -149,7 +149,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
       throw new IllegalArgumentException("workflowId is null or empty");
     }
     WorkflowExecution execution =
-        WorkflowExecution.newBuilder().setWorkflowId(workflowId).setRunId(runId.get()).build();
+        WorkflowExecution.newBuilder().setWorkflowId(workflowId).setRunId(runId.orElse("")).build();
 
     WorkflowInvocationHandler invocationHandler =
         new WorkflowInvocationHandler(
