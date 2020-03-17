@@ -132,8 +132,6 @@ public final class Worker implements Suspendable {
             PollerOptions.newBuilder()
                 .setMaximumPollRatePerSecond(options.getWorkerActivitiesPerSecond())
                 .build())
-        .setReportCompletionRetryOptions(options.getReportActivityCompletionRetryOptions())
-        .setReportFailureRetryOptions(options.getReportActivityFailureRetryOptions())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentActivityExecutionSize())
         .setMetricsScope(clientOptions.getMetricsScope().tagged(tags))
         .setEnableLoggingInReplay(options.getEnableLoggingInReplay())
@@ -155,8 +153,6 @@ public final class Worker implements Suspendable {
         .setDataConverter(clientOptions.getDataConverter())
         .setIdentity(clientOptions.getIdentity())
         .setPollerOptions(PollerOptions.newBuilder().build())
-        .setReportCompletionRetryOptions(options.getReportWorkflowCompletionRetryOptions())
-        .setReportFailureRetryOptions(options.getReportWorkflowFailureRetryOptions())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentWorkflowExecutionSize())
         .setMetricsScope(clientOptions.getMetricsScope().tagged(tags))
         .setEnableLoggingInReplay(options.getEnableLoggingInReplay())
@@ -178,21 +174,11 @@ public final class Worker implements Suspendable {
         .setDataConverter(clientOptions.getDataConverter())
         .setIdentity(clientOptions.getIdentity())
         .setPollerOptions(PollerOptions.newBuilder().build())
-        .setReportCompletionRetryOptions(options.getReportWorkflowCompletionRetryOptions())
-        .setReportFailureRetryOptions(options.getReportWorkflowFailureRetryOptions())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentLocalActivityExecutionSize())
         .setMetricsScope(clientOptions.getMetricsScope().tagged(tags))
         .setEnableLoggingInReplay(options.getEnableLoggingInReplay())
         .setContextPropagators(contextPropagators)
         .build();
-  }
-
-  SyncWorkflowWorker getWorkflowWorker() {
-    return workflowWorker;
-  }
-
-  SyncActivityWorker getActivityWorker() {
-    return activityWorker;
   }
 
   /**

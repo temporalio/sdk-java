@@ -20,6 +20,7 @@ package io.temporal.common;
 import com.google.common.base.Defaults;
 import com.google.protobuf.GeneratedMessageV3;
 import io.grpc.Status;
+
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -240,6 +241,15 @@ public final class RpcRetryOptions {
       double backoff = backoffCoefficient;
       if (backoff == 0d) {
         backoff = DEFAULT_BACKOFF_COEFFICIENT;
+      }
+      if (initialInterval == null || initialInterval.isZero() || initialInterval.isNegative()) {
+        initialInterval = Duration.ofMillis(10);
+      }
+      if (expiration == null || expiration.isZero() || expiration.isNegative()) {
+        expiration = Duration.ofSeconds(5);
+      }
+      if (maximumInterval == null || maximumInterval.isZero() || maximumInterval.isNegative()) {
+        maximumInterval = Duration.ofMillis(500);
       }
       RpcRetryOptions result =
           new RpcRetryOptions(

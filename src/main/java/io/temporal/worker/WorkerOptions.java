@@ -17,7 +17,6 @@
 
 package io.temporal.worker;
 
-import io.temporal.common.RpcRetryOptions;
 import io.temporal.workflow.WorkflowInterceptor;
 import java.util.Objects;
 import java.util.function.Function;
@@ -49,10 +48,6 @@ public final class WorkerOptions {
     private int maxConcurrentWorkflowExecutionSize = 50;
     private int maxConcurrentLocalActivityExecutionSize = 100;
     private double taskListActivitiesPerSecond = 100000;
-    private RpcRetryOptions reportActivityCompletionRetryOptions;
-    private RpcRetryOptions reportActivityFailureRetryOptions;
-    private RpcRetryOptions reportWorkflowCompletionRetryOptions;
-    private RpcRetryOptions reportWorkflowFailureRetryOptions;
     private Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory = (n) -> n;
     private boolean enableLoggingInReplay;
 
@@ -67,10 +62,6 @@ public final class WorkerOptions {
       maxConcurrentWorkflowExecutionSize = o.maxConcurrentWorkflowExecutionSize;
       maxConcurrentLocalActivityExecutionSize = o.maxConcurrentLocalActivityExecutionSize;
       taskListActivitiesPerSecond = o.taskListActivitiesPerSecond;
-      reportActivityCompletionRetryOptions = o.reportActivityCompletionRetryOptions;
-      reportActivityFailureRetryOptions = o.reportActivityFailureRetryOptions;
-      reportWorkflowCompletionRetryOptions = o.reportWorkflowCompletionRetryOptions;
-      reportWorkflowFailureRetryOptions = o.reportWorkflowFailureRetryOptions;
       interceptorFactory = o.interceptorFactory;
       enableLoggingInReplay = o.enableLoggingInReplay;
     }
@@ -115,34 +106,6 @@ public final class WorkerOptions {
       return this;
     }
 
-    public Builder setReportActivityCompletionRetryOptions(
-        RpcRetryOptions reportActivityCompletionRetryOptions) {
-      this.reportActivityCompletionRetryOptions =
-          Objects.requireNonNull(reportActivityCompletionRetryOptions);
-      return this;
-    }
-
-    public Builder setReportActivityFailureRetryOptions(
-        RpcRetryOptions reportActivityFailureRetryOptions) {
-      this.reportActivityFailureRetryOptions =
-          Objects.requireNonNull(reportActivityFailureRetryOptions);
-      return this;
-    }
-
-    public Builder setReportWorkflowCompletionRetryOptions(
-        RpcRetryOptions reportWorkflowCompletionRetryOptions) {
-      this.reportWorkflowCompletionRetryOptions =
-          Objects.requireNonNull(reportWorkflowCompletionRetryOptions);
-      return this;
-    }
-
-    public Builder setReportWorkflowFailureRetryOptions(
-        RpcRetryOptions reportWorkflowFailureRetryOptions) {
-      this.reportWorkflowFailureRetryOptions =
-          Objects.requireNonNull(reportWorkflowFailureRetryOptions);
-      return this;
-    }
-
     public Builder setInterceptorFactory(
         Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory) {
       this.interceptorFactory = Objects.requireNonNull(interceptorFactory);
@@ -174,10 +137,6 @@ public final class WorkerOptions {
           maxConcurrentWorkflowExecutionSize,
           maxConcurrentLocalActivityExecutionSize,
           taskListActivitiesPerSecond,
-          reportActivityCompletionRetryOptions,
-          reportActivityFailureRetryOptions,
-          reportWorkflowCompletionRetryOptions,
-          reportWorkflowFailureRetryOptions,
           interceptorFactory,
           enableLoggingInReplay);
     }
@@ -188,10 +147,6 @@ public final class WorkerOptions {
   private final int maxConcurrentWorkflowExecutionSize;
   private final int maxConcurrentLocalActivityExecutionSize;
   private final double taskListActivitiesPerSecond;
-  private final RpcRetryOptions reportActivityCompletionRetryOptions;
-  private final RpcRetryOptions reportActivityFailureRetryOptions;
-  private final RpcRetryOptions reportWorkflowCompletionRetryOptions;
-  private final RpcRetryOptions reportWorkflowFailureRetryOptions;
   private final Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory;
   private final boolean enableLoggingInReplay;
 
@@ -201,10 +156,6 @@ public final class WorkerOptions {
       int maxConcurrentWorkflowExecutionSize,
       int maxConcurrentLocalActivityExecutionSize,
       double taskListActivitiesPerSecond,
-      RpcRetryOptions reportActivityCompletionRetryOptions,
-      RpcRetryOptions reportActivityFailureRetryOptions,
-      RpcRetryOptions reportWorkflowCompletionRetryOptions,
-      RpcRetryOptions reportWorkflowFailureRetryOptions,
       Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
       boolean enableLoggingInReplay) {
     this.workerActivitiesPerSecond = workerActivitiesPerSecond;
@@ -212,10 +163,6 @@ public final class WorkerOptions {
     this.maxConcurrentWorkflowExecutionSize = maxConcurrentWorkflowExecutionSize;
     this.maxConcurrentLocalActivityExecutionSize = maxConcurrentLocalActivityExecutionSize;
     this.taskListActivitiesPerSecond = taskListActivitiesPerSecond;
-    this.reportActivityCompletionRetryOptions = reportActivityCompletionRetryOptions;
-    this.reportActivityFailureRetryOptions = reportActivityFailureRetryOptions;
-    this.reportWorkflowCompletionRetryOptions = reportWorkflowCompletionRetryOptions;
-    this.reportWorkflowFailureRetryOptions = reportWorkflowFailureRetryOptions;
     this.interceptorFactory = interceptorFactory;
     this.enableLoggingInReplay = enableLoggingInReplay;
   }
@@ -234,22 +181,6 @@ public final class WorkerOptions {
 
   public int getMaxConcurrentLocalActivityExecutionSize() {
     return maxConcurrentLocalActivityExecutionSize;
-  }
-
-  public RpcRetryOptions getReportActivityCompletionRetryOptions() {
-    return reportActivityCompletionRetryOptions;
-  }
-
-  public RpcRetryOptions getReportActivityFailureRetryOptions() {
-    return reportActivityFailureRetryOptions;
-  }
-
-  public RpcRetryOptions getReportWorkflowCompletionRetryOptions() {
-    return reportWorkflowCompletionRetryOptions;
-  }
-
-  public RpcRetryOptions getReportWorkflowFailureRetryOptions() {
-    return reportWorkflowFailureRetryOptions;
   }
 
   public Function<WorkflowInterceptor, WorkflowInterceptor> getInterceptorFactory() {
@@ -273,14 +204,6 @@ public final class WorkerOptions {
         + maxConcurrentLocalActivityExecutionSize
         + ", taskListActivitiesPerSecond="
         + taskListActivitiesPerSecond
-        + ", reportActivityCompletionRetryOptions="
-        + reportActivityCompletionRetryOptions
-        + ", reportActivityFailureRetryOptions="
-        + reportActivityFailureRetryOptions
-        + ", reportWorkflowCompletionRetryOptions="
-        + reportWorkflowCompletionRetryOptions
-        + ", reportWorkflowFailureRetryOptions="
-        + reportWorkflowFailureRetryOptions
         + '}';
   }
 }

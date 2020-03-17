@@ -312,10 +312,7 @@ public final class WorkflowWorker
       RpcRetryOptions ro = response.getRequestRetryOptions();
       RespondDecisionTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
-        ro =
-            RpcRetryOptions.newBuilder(options.getReportCompletionRetryOptions())
-                .setRetryOptions(ro)
-                .build();
+        ro = RpcRetryOptions.newBuilder().setRetryOptions(ro).validateBuildWithDefaults();
 
         RespondDecisionTaskCompletedRequest request =
             taskCompleted
@@ -327,10 +324,7 @@ public final class WorkflowWorker
       } else {
         RespondDecisionTaskFailedRequest taskFailed = response.getTaskFailed();
         if (taskFailed != null) {
-          ro =
-              RpcRetryOptions.newBuilder(options.getReportFailureRetryOptions())
-                  .setRetryOptions(ro)
-                  .build();
+          ro = RpcRetryOptions.newBuilder().setRetryOptions(ro).validateBuildWithDefaults();
 
           RespondDecisionTaskFailedRequest request =
               taskFailed
