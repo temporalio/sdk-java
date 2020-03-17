@@ -34,8 +34,7 @@ public class RegisterTestDomain {
       return;
     }
 
-    WorkflowServiceStubs service =
-        WorkflowServiceStubs.newInstance(WorkflowServiceStubs.LOCAL_DOCKER_TARGET);
+    WorkflowServiceStubs service = WorkflowServiceStubs.newInstance();
     RegisterDomainRequest request =
         RegisterDomainRequest.newBuilder()
             .setName(DOMAIN)

@@ -204,8 +204,7 @@ public class WorkflowTest {
   private TestWorkflowEnvironment testEnvironment;
   private ScheduledExecutorService scheduledExecutor;
   private List<ScheduledFuture<?>> delayedCallbacks = new ArrayList<>();
-  private static final WorkflowServiceStubs service =
-      WorkflowServiceStubs.newInstance(WorkflowServiceStubs.LOCAL_DOCKER_TARGET);
+  private static final WorkflowServiceStubs service = WorkflowServiceStubs.newInstance();
 
   @AfterClass
   public static void closeService() {

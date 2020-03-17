@@ -177,8 +177,7 @@ public class WorkerStressTests {
         options = WorkerFactoryOptions.newBuilder().setDisableStickyExecution(false).build();
       }
       if (useDockerService) {
-        WorkflowServiceStubs service =
-            WorkflowServiceStubs.newInstance(WorkflowServiceStubs.LOCAL_DOCKER_TARGET);
+        WorkflowServiceStubs service = WorkflowServiceStubs.newInstance();
         WorkflowClientOptions clientOptions =
             WorkflowClientOptions.newBuilder().setDomain(DOMAIN).build();
         WorkflowClient client = WorkflowClient.newInstance(service, clientOptions);

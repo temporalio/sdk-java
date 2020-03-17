@@ -34,6 +34,7 @@ import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.enums.QueryRejectCondition;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
@@ -79,7 +80,10 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
       throw new RuntimeException(e);
     }
     channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
-    workflowServiceStubs = WorkflowServiceStubs.newInstance(channel);
+    workflowServiceStubs =
+        WorkflowServiceStubs.newInstance(
+            WorkflowServiceStubsOptions.newBuilder().setChannel(channel).build());
+
     WorkflowClient client =
         WorkflowClient.newInstance(
             workflowServiceStubs,

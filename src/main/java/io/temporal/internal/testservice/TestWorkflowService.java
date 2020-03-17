@@ -81,6 +81,7 @@ import io.temporal.proto.workflowservice.StartWorkflowExecutionRequest;
 import io.temporal.proto.workflowservice.StartWorkflowExecutionResponse;
 import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.HashMap;
@@ -122,7 +123,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
 
   public WorkflowServiceStubs newClientStub() {
     ManagedChannel channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
-    return WorkflowServiceStubs.newInstance(channel);
+    return WorkflowServiceStubs.newInstance(
+        WorkflowServiceStubsOptions.newBuilder().setChannel(channel).build());
   }
 
   public TestWorkflowService(boolean lockTimeSkipping) {

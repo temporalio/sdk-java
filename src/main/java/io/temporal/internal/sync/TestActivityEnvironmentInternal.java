@@ -42,6 +42,7 @@ import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
 import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestActivityEnvironment;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.workflow.ActivityFailureException;
@@ -106,7 +107,9 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
       throw new RuntimeException(e);
     }
     channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
-    workflowServiceStubs = WorkflowServiceStubs.newInstance(channel);
+    workflowServiceStubs =
+        WorkflowServiceStubs.newInstance(
+            WorkflowServiceStubsOptions.newBuilder().setChannel(channel).build());
     activityTaskHandler =
         new POJOActivityTaskHandler(
             workflowServiceStubs,

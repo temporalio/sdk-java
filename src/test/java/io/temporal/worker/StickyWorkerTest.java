@@ -93,7 +93,7 @@ public class StickyWorkerTest {
   @BeforeClass
   public static void setUp() {
     if (useDockerService) {
-      service = WorkflowServiceStubs.newInstance(WorkflowServiceStubs.LOCAL_DOCKER_TARGET);
+      service = WorkflowServiceStubs.newInstance();
     }
   }
 

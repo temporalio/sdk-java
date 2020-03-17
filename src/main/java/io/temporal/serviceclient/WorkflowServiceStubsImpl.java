@@ -29,7 +29,6 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
-import io.grpc.NameResolver;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.MetadataUtils;
@@ -67,25 +66,12 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
   protected WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub;
 
   /**
-   * Creates a factory that connects to the Temporal service using passed channel.
+   * Creates a factory that connects to the Temporal according to the specified options.
    *
-   * @param channel a channel used to communicate with Temporal service.
    * @param options connection options
    */
-  WorkflowServiceStubsImpl(ManagedChannel channel, WorkflowServiceStubsOptions options) {
-    init(channel, options);
-  }
-
-  /**
-   * Creates a factory that connects to the Temporal service use plaintext connection.
-   *
-   * @param target a target string, which can be either a valid {@link NameResolver}-compliant URI,
-   *     or an authority string. See {@link ManagedChannelBuilder#forTarget(String)} for more
-   *     information about parameter format.
-   * @param options connection options
-   */
-  WorkflowServiceStubsImpl(String target, WorkflowServiceStubsOptions options) {
-    this(ManagedChannelBuilder.forTarget(target).usePlaintext().build(), options);
+  WorkflowServiceStubsImpl(WorkflowServiceStubsOptions options) {
+    init(options);
   }
 
   /**
@@ -104,13 +90,23 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
       throw new RuntimeException(unexpected);
     }
     init(
-        InProcessChannelBuilder.forName(serverName).directExecutor().build(),
-        WorkflowServiceStubsOptions.getDefaultInstance());
+        WorkflowServiceStubsOptions.newBuilder()
+            .setChannel(InProcessChannelBuilder.forName(serverName).directExecutor().build())
+            .build());
   }
 
-  private void init(ManagedChannel channel, WorkflowServiceStubsOptions options) {
+  private void init(WorkflowServiceStubsOptions options) {
+    options = WorkflowServiceStubsOptions.newBuilder(options).validateAndBuildWithDefaults();
     this.options = options;
-    this.channel = channel;
+    if (options.getChannel() != null) {
+      this.channel = options.getChannel();
+    } else {
+      this.channel =
+          ManagedChannelBuilder.forTarget(options.getTarget())
+              .defaultLoadBalancingPolicy("round_robin")
+              .usePlaintext()
+              .build();
+    }
     ClientInterceptor deadlineInterceptor = new GrpcDeadlineInterceptor(options);
     ClientInterceptor tracingInterceptor = newTracingInterceptor();
     Metadata headers = new Metadata();

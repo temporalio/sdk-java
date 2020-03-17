@@ -78,7 +78,7 @@ public class CleanWorkerShutdownTest {
   @Before
   public void setUp() {
     if (useExternalService) {
-      service = WorkflowServiceStubs.newInstance(WorkflowServiceStubs.LOCAL_DOCKER_TARGET);
+      service = WorkflowServiceStubs.newInstance();
     }
   }
 

@@ -18,12 +18,17 @@
 package io.temporal.serviceclient;
 
 import com.google.common.collect.ImmutableMap;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
+import io.grpc.NameResolver;
 import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
 public class WorkflowServiceStubsOptions {
+
+  private static final String LOCAL_DOCKER_TARGET = "127.0.0.1:7233";
 
   /** Default RPC timeout used for all non long poll calls. */
   private static final long DEFAULT_RPC_TIMEOUT_MILLIS = 1000;
@@ -42,9 +47,17 @@ public class WorkflowServiceStubsOptions {
     return new Builder();
   }
 
+  public static Builder newBuilder(WorkflowServiceStubsOptions options) {
+    return new Builder(options);
+  }
+
   public static WorkflowServiceStubsOptions getDefaultInstance() {
     return DEFAULT_INSTANCE;
   }
+
+  private final ManagedChannel channel;
+
+  private final String target;
 
   /** The tChannel timeout in milliseconds */
   private final long rpcTimeoutMillis;
@@ -68,28 +81,47 @@ public class WorkflowServiceStubsOptions {
           WorkflowServiceGrpc.WorkflowServiceFutureStub>
       futureStubInterceptor;
 
-  private WorkflowServiceStubsOptions(
-      Builder builder,
-      Function<
-              WorkflowServiceGrpc.WorkflowServiceBlockingStub,
-              WorkflowServiceGrpc.WorkflowServiceBlockingStub>
-          blockingStubInterceptor,
-      Function<
-              WorkflowServiceGrpc.WorkflowServiceFutureStub,
-              WorkflowServiceGrpc.WorkflowServiceFutureStub>
-          futureStubInterceptor) {
-
+  private WorkflowServiceStubsOptions(Builder builder) {
+    this.target = builder.target;
+    this.channel = builder.channel;
     this.rpcLongPollTimeoutMillis = builder.rpcLongPollTimeoutMillis;
     this.rpcQueryTimeoutMillis = builder.rpcQueryTimeoutMillis;
     this.rpcTimeoutMillis = builder.rpcTimeoutMillis;
-    this.blockingStubInterceptor = blockingStubInterceptor;
-    this.futureStubInterceptor = futureStubInterceptor;
+    this.blockingStubInterceptor = builder.blockingStubInterceptor;
+    this.futureStubInterceptor = builder.futureStubInterceptor;
+    this.headers = builder.headers;
+  }
+
+  private WorkflowServiceStubsOptions(Builder builder, boolean validate) {
+    if (builder.target != null && builder.channel != null) {
+      throw new IllegalStateException(
+          "Only one of the target and channel options can be set at a time");
+    }
+    if (builder.target == null && builder.channel == null) {
+      this.target = LOCAL_DOCKER_TARGET;
+    } else {
+      this.target = builder.target;
+    }
+    this.channel = builder.channel;
+    this.rpcLongPollTimeoutMillis = builder.rpcLongPollTimeoutMillis;
+    this.rpcQueryTimeoutMillis = builder.rpcQueryTimeoutMillis;
+    this.rpcTimeoutMillis = builder.rpcTimeoutMillis;
+    this.blockingStubInterceptor = builder.blockingStubInterceptor;
+    this.futureStubInterceptor = builder.futureStubInterceptor;
 
     if (builder.headers != null) {
       this.headers = ImmutableMap.copyOf(builder.headers);
     } else {
       this.headers = ImmutableMap.of();
     }
+  }
+
+  public ManagedChannel getChannel() {
+    return channel;
+  }
+
+  public String getTarget() {
+    return target;
   }
 
   /** @return Returns the rpc timeout value in millis. */
@@ -133,6 +165,8 @@ public class WorkflowServiceStubsOptions {
    * @author venkat
    */
   public static class Builder {
+    private ManagedChannel channel;
+    private String target;
     private long rpcTimeoutMillis = DEFAULT_RPC_TIMEOUT_MILLIS;
     private long rpcLongPollTimeoutMillis = DEFAULT_POLL_RPC_TIMEOUT_MILLIS;
     public long rpcQueryTimeoutMillis = DEFAULT_QUERY_RPC_TIMEOUT_MILLIS;
@@ -147,6 +181,35 @@ public class WorkflowServiceStubsOptions {
         futureStubInterceptor;
 
     private Builder() {}
+
+    public Builder(WorkflowServiceStubsOptions options) {
+      this.target = options.target;
+      this.channel = options.channel;
+      this.rpcLongPollTimeoutMillis = options.rpcLongPollTimeoutMillis;
+      this.rpcQueryTimeoutMillis = options.rpcQueryTimeoutMillis;
+      this.rpcTimeoutMillis = options.rpcTimeoutMillis;
+      this.blockingStubInterceptor = options.blockingStubInterceptor;
+      this.futureStubInterceptor = options.futureStubInterceptor;
+      this.headers = options.headers;
+    }
+
+    /** Sets gRPC channel to use. Exclusive with target. */
+    public Builder setChannel(ManagedChannel channel) {
+      this.channel = channel;
+      return this;
+    }
+
+    /**
+     * Sets a target string, which can be either a valid {@link NameResolver}-compliant URI, or an
+     * authority string. See {@link ManagedChannelBuilder#forTarget(String)} for more information
+     * about parameter format.
+     *
+     * <p>Exclusive with channel.
+     */
+    public Builder setTarget(String target) {
+      this.target = target;
+      return this;
+    }
 
     /**
      * Sets the rpc timeout value for non query and non long poll calls. Default is 1000.
@@ -209,7 +272,11 @@ public class WorkflowServiceStubsOptions {
      * @return ClientOptions object with the specified params.
      */
     public WorkflowServiceStubsOptions build() {
-      return new WorkflowServiceStubsOptions(this, blockingStubInterceptor, futureStubInterceptor);
+      return new WorkflowServiceStubsOptions(this);
+    }
+
+    public WorkflowServiceStubsOptions validateAndBuildWithDefaults() {
+      return new WorkflowServiceStubsOptions(this, true);
     }
   }
 }
