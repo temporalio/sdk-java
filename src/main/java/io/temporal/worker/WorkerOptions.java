@@ -24,7 +24,6 @@ import io.temporal.converter.JsonDataConverter;
 import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.worker.PollerOptions;
 import io.temporal.workflow.WorkflowInterceptor;
-import java.lang.management.ManagementFactory;
 import java.util.Objects;
 import java.util.function.Function;
 
@@ -51,7 +50,6 @@ public final class WorkerOptions {
   public static final class Builder {
 
     private double workerActivitiesPerSecond;
-    private String identity;
     private DataConverter dataConverter = JsonDataConverter.getInstance();
     private int maxConcurrentActivityExecutionSize = 100;
     private int maxConcurrentWorkflowExecutionSize = 50;
@@ -74,7 +72,6 @@ public final class WorkerOptions {
         return;
       }
       workerActivitiesPerSecond = o.workerActivitiesPerSecond;
-      identity = o.identity;
       dataConverter = o.dataConverter;
       maxConcurrentActivityExecutionSize = o.maxConcurrentActivityExecutionSize;
       maxConcurrentWorkflowExecutionSize = o.maxConcurrentWorkflowExecutionSize;
@@ -89,17 +86,6 @@ public final class WorkerOptions {
       interceptorFactory = o.interceptorFactory;
       metricsScope = o.metricsScope;
       enableLoggingInReplay = o.enableLoggingInReplay;
-    }
-
-    /**
-     * Override human readable identity of the worker. Identity is used to identify a worker and is
-     * recorded in the workflow history events. For example when a worker gets an activity task the
-     * correspondent ActivityTaskStarted event contains the worker identity as a field. Default is
-     * whatever <code>(ManagementFactory.getRuntimeMXBean().getName()</code> returns.
-     */
-    public Builder setIdentity(String identity) {
-      this.identity = Objects.requireNonNull(identity);
-      return this;
     }
 
     /**
@@ -219,17 +205,12 @@ public final class WorkerOptions {
     }
 
     public WorkerOptions build() {
-      if (identity == null) {
-        identity = ManagementFactory.getRuntimeMXBean().getName();
-      }
-
       if (metricsScope == null) {
         metricsScope = NoopScope.getInstance();
       }
 
       return new WorkerOptions(
           workerActivitiesPerSecond,
-          identity,
           dataConverter,
           maxConcurrentActivityExecutionSize,
           maxConcurrentWorkflowExecutionSize,
@@ -248,7 +229,6 @@ public final class WorkerOptions {
   }
 
   private final double workerActivitiesPerSecond;
-  private final String identity;
   private final DataConverter dataConverter;
   private final int maxConcurrentActivityExecutionSize;
   private final int maxConcurrentWorkflowExecutionSize;
@@ -266,7 +246,6 @@ public final class WorkerOptions {
 
   private WorkerOptions(
       double workerActivitiesPerSecond,
-      String identity,
       DataConverter dataConverter,
       int maxConcurrentActivityExecutionSize,
       int maxConcurrentWorkflowExecutionSize,
@@ -282,7 +261,6 @@ public final class WorkerOptions {
       Scope metricsScope,
       boolean enableLoggingInReplay) {
     this.workerActivitiesPerSecond = workerActivitiesPerSecond;
-    this.identity = identity;
     this.dataConverter = dataConverter;
     this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
     this.maxConcurrentWorkflowExecutionSize = maxConcurrentWorkflowExecutionSize;
@@ -301,10 +279,6 @@ public final class WorkerOptions {
 
   public double getWorkerActivitiesPerSecond() {
     return workerActivitiesPerSecond;
-  }
-
-  public String getIdentity() {
-    return identity;
   }
 
   public DataConverter getDataConverter() {
@@ -364,9 +338,6 @@ public final class WorkerOptions {
     return "WorkerOptions{"
         + ", workerActivitiesPerSecond="
         + workerActivitiesPerSecond
-        + ", identity='"
-        + identity
-        + '\''
         + ", dataConverter="
         + dataConverter
         + ", maxConcurrentActivityExecutionSize="

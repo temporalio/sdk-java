@@ -23,6 +23,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
@@ -62,16 +63,14 @@ public final class Worker implements Suspendable {
   /**
    * Creates worker that connects to an instance of the Temporal Service.
    *
-   * @param service client to the Temporal Service endpoint.
-   * @param domain domain that worker uses to poll.
+   * @param client client to the Temporal Service endpoint.
    * @param taskList task list name worker uses to poll. It uses this name for both decision and
    *     activity task list polls.
    * @param options Options (like {@link DataConverter} override) for configuring worker.
    * @param stickyTaskListName
    */
   Worker(
-      WorkflowServiceStubs service,
-      String domain,
+      WorkflowClient client,
       String taskList,
       WorkerOptions options,
       DeciderCache cache,
@@ -80,9 +79,7 @@ public final class Worker implements Suspendable {
       ThreadPoolExecutor threadPoolExecutor,
       List<ContextPropagator> contextPropagators) {
 
-    Objects.requireNonNull(service, "service should not be null");
-    Preconditions.checkArgument(
-        !Strings.isNullOrEmpty(domain), "domain should not be an empty string");
+    Objects.requireNonNull(client, "client should not be null");
     Preconditions.checkArgument(
         !Strings.isNullOrEmpty(taskList), "taskList should not be an empty string");
     this.cache = cache;
@@ -92,14 +89,17 @@ public final class Worker implements Suspendable {
     this.taskList = taskList;
     this.options = MoreObjects.firstNonNull(options, WorkerOptions.newBuilder().build());
 
+    WorkflowServiceStubs service = client.getWorkflowServiceStubs();
+    WorkflowClientOptions clientOptions = client.getOptions();
+    String domain = clientOptions.getDomain();
     SingleWorkerOptions activityOptions =
-        toActivityOptions(this.options, domain, taskList, contextPropagators);
+        toActivityOptions(this.options, clientOptions, taskList, contextPropagators);
     activityWorker = new SyncActivityWorker(service, domain, taskList, activityOptions);
 
     SingleWorkerOptions workflowOptions =
-        toWorkflowOptions(this.options, domain, taskList, contextPropagators);
+        toWorkflowOptions(this.options, clientOptions, taskList, contextPropagators);
     SingleWorkerOptions localActivityOptions =
-        toLocalActivityOptions(this.options, domain, taskList, contextPropagators);
+        toLocalActivityOptions(this.options, clientOptions, taskList, contextPropagators);
     workflowWorker =
         new SyncWorkflowWorker(
             service,
@@ -116,17 +116,17 @@ public final class Worker implements Suspendable {
 
   private static SingleWorkerOptions toActivityOptions(
       WorkerOptions options,
-      String domain,
+      WorkflowClientOptions clientOptions,
       String taskList,
       List<ContextPropagator> contextPropagators) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
-            .put(MetricsTag.DOMAIN, domain)
+            .put(MetricsTag.DOMAIN, clientOptions.getDomain())
             .put(MetricsTag.TASK_LIST, taskList)
             .build();
     return SingleWorkerOptions.newBuilder()
         .setDataConverter(options.getDataConverter())
-        .setIdentity(options.getIdentity())
+        .setIdentity(clientOptions.getIdentity())
         .setPollerOptions(options.getActivityPollerOptions())
         .setReportCompletionRetryOptions(options.getReportActivityCompletionRetryOptions())
         .setReportFailureRetryOptions(options.getReportActivityFailureRetryOptions())
@@ -139,17 +139,17 @@ public final class Worker implements Suspendable {
 
   private static SingleWorkerOptions toWorkflowOptions(
       WorkerOptions options,
-      String domain,
+      WorkflowClientOptions clientOptions,
       String taskList,
       List<ContextPropagator> contextPropagators) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
-            .put(MetricsTag.DOMAIN, domain)
+            .put(MetricsTag.DOMAIN, clientOptions.getDomain())
             .put(MetricsTag.TASK_LIST, taskList)
             .build();
     return SingleWorkerOptions.newBuilder()
         .setDataConverter(options.getDataConverter())
-        .setIdentity(options.getIdentity())
+        .setIdentity(clientOptions.getIdentity())
         .setPollerOptions(options.getWorkflowPollerOptions())
         .setReportCompletionRetryOptions(options.getReportWorkflowCompletionRetryOptions())
         .setReportFailureRetryOptions(options.getReportWorkflowFailureRetryOptions())
@@ -162,17 +162,17 @@ public final class Worker implements Suspendable {
 
   private static SingleWorkerOptions toLocalActivityOptions(
       WorkerOptions options,
-      String domain,
+      WorkflowClientOptions clientOptions,
       String taskList,
       List<ContextPropagator> contextPropagators) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
-            .put(MetricsTag.DOMAIN, domain)
+            .put(MetricsTag.DOMAIN, clientOptions.getDomain())
             .put(MetricsTag.TASK_LIST, taskList)
             .build();
     return SingleWorkerOptions.newBuilder()
         .setDataConverter(options.getDataConverter())
-        .setIdentity(options.getIdentity())
+        .setIdentity(clientOptions.getIdentity())
         .setPollerOptions(options.getWorkflowPollerOptions())
         .setReportCompletionRetryOptions(options.getReportWorkflowCompletionRetryOptions())
         .setReportFailureRetryOptions(options.getReportWorkflowFailureRetryOptions())

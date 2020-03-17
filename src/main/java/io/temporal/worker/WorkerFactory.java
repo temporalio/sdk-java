@@ -105,7 +105,7 @@ public final class WorkerFactory {
             .getMetricsScope()
             .tagged(
                 new ImmutableMap.Builder<String, String>(2)
-                    .put(MetricsTag.DOMAIN, workflowClient.getDomain())
+                    .put(MetricsTag.DOMAIN, workflowClient.getOptions().getDomain())
                     .put(MetricsTag.TASK_LIST, getHostName())
                     .build());
 
@@ -117,7 +117,7 @@ public final class WorkerFactory {
             id.toString(),
             new WorkflowPollTaskFactory(
                     workflowClient.getWorkflowServiceStubs(),
-                    workflowClient.getDomain(),
+                    workflowClient.getOptions().getDomain(),
                     getStickyTaskListName(),
                     metricsScope,
                     id.toString())
@@ -158,8 +158,7 @@ public final class WorkerFactory {
         String.format(statusErrorMessage, "create new worker", state.name(), State.Initial.name()));
     Worker worker =
         new Worker(
-            workflowClient.getWorkflowServiceStubs(),
-            workflowClient.getDomain(),
+            workflowClient,
             taskList,
             options,
             cache,

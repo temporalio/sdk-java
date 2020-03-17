@@ -99,6 +99,14 @@ public final class WorkflowClientOptions {
       return this;
     }
 
+    /**
+     * Override human readable identity of the worker. Identity is used to identify a worker and is
+     * recorded in the workflow history events. For example when a worker gets an activity task the
+     * correspondent ActivityTaskStarted event contains the worker identity as a field. Default is
+     * whatever <code>(ManagementFactory.getRuntimeMXBean().getName()</code> returns.
+     *
+     * @return
+     */
     public Builder setIdentity(String identity) {
       this.identity = identity;
       return this;
