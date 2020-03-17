@@ -35,6 +35,16 @@ public final class LocalActivityOptions {
     return new Builder(o);
   }
 
+  public static LocalActivityOptions getDefaultInstance() {
+    return DEFAULT_INSTANCE;
+  }
+
+  private static final LocalActivityOptions DEFAULT_INSTANCE;
+
+  static {
+    DEFAULT_INSTANCE = LocalActivityOptions.newBuilder().build();
+  }
+
   public static final class Builder {
     private Duration scheduleToCloseTimeout;
     private RetryOptions retryOptions;

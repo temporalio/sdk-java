@@ -35,8 +35,18 @@ public final class RetryOptions {
     return new Builder();
   }
 
-  public static Builder newBuilder(RetryOptions o) {
-    return new Builder(o);
+  public static Builder newBuilder(RetryOptions options) {
+    return new Builder(options);
+  }
+
+  public static RetryOptions getDefaultInstance() {
+    return DEFAULT_INSTANCE;
+  }
+
+  private static final RetryOptions DEFAULT_INSTANCE;
+
+  static {
+    DEFAULT_INSTANCE = RetryOptions.newBuilder().build();
   }
 
   /**
@@ -135,16 +145,16 @@ public final class RetryOptions {
 
     private Builder() {}
 
-    private Builder(RetryOptions o) {
-      if (o == null) {
+    private Builder(RetryOptions options) {
+      if (options == null) {
         return;
       }
-      this.backoffCoefficient = o.getBackoffCoefficient();
-      this.maximumAttempts = o.getMaximumAttempts();
-      this.expiration = o.getExpiration();
-      this.initialInterval = o.getInitialInterval();
-      this.maximumInterval = o.getMaximumInterval();
-      this.doNotRetry = o.getDoNotRetry();
+      this.backoffCoefficient = options.getBackoffCoefficient();
+      this.maximumAttempts = options.getMaximumAttempts();
+      this.expiration = options.getExpiration();
+      this.initialInterval = options.getInitialInterval();
+      this.maximumInterval = options.getMaximumInterval();
+      this.doNotRetry = options.getDoNotRetry();
     }
 
     /**

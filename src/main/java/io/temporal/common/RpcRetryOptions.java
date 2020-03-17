@@ -35,8 +35,18 @@ public final class RpcRetryOptions {
     return new Builder();
   }
 
-  public static Builder newBuilder(RpcRetryOptions o) {
-    return new Builder(o);
+  public static Builder newBuilder(RpcRetryOptions options) {
+    return new Builder(options);
+  }
+
+  public static RpcRetryOptions getDefaultInstance() {
+    return DEFAULT_INSTANCE;
+  }
+
+  private static final RpcRetryOptions DEFAULT_INSTANCE;
+
+  static {
+    DEFAULT_INSTANCE = RpcRetryOptions.newBuilder().build();
   }
 
   public static class DoNotRetryPair {
@@ -73,16 +83,16 @@ public final class RpcRetryOptions {
 
     private Builder() {}
 
-    private Builder(RpcRetryOptions o) {
-      if (o == null) {
+    private Builder(RpcRetryOptions options) {
+      if (options == null) {
         return;
       }
-      this.backoffCoefficient = o.getBackoffCoefficient();
-      this.maximumAttempts = o.getMaximumAttempts();
-      this.expiration = o.getExpiration();
-      this.initialInterval = o.getInitialInterval();
-      this.maximumInterval = o.getMaximumInterval();
-      this.doNotRetry = o.getDoNotRetry();
+      this.backoffCoefficient = options.getBackoffCoefficient();
+      this.maximumAttempts = options.getMaximumAttempts();
+      this.expiration = options.getExpiration();
+      this.initialInterval = options.getInitialInterval();
+      this.maximumInterval = options.getMaximumInterval();
+      this.doNotRetry = options.getDoNotRetry();
     }
 
     /**

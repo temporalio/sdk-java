@@ -97,8 +97,8 @@ public class WorkflowTestingTest {
   @Before
   public void setUp() {
     TestEnvironmentOptions options =
-        new TestEnvironmentOptions.Builder()
-            .setFactoryOptions(
+        TestEnvironmentOptions.newBuilder()
+            .setWorkerFactoryOptions(
                 WorkerFactoryOptions.newBuilder()
                     .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
                     .build())

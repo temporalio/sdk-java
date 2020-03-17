@@ -567,9 +567,9 @@ public class StickyWorkerTest {
         factory = WorkerFactory.newInstance(client, options);
       } else {
         TestEnvironmentOptions testOptions =
-            new TestEnvironmentOptions.Builder()
+            TestEnvironmentOptions.newBuilder()
                 .setDomain(DOMAIN)
-                .setFactoryOptions(options)
+                .setWorkerFactoryOptions(options)
                 .build();
         testEnv = TestWorkflowEnvironment.newInstance(testOptions);
       }

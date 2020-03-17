@@ -87,7 +87,7 @@ public class LoggerTest {
   @Test
   public void testWorkflowLogger() {
     TestEnvironmentOptions testOptions =
-        new TestEnvironmentOptions.Builder()
+        TestEnvironmentOptions.newBuilder()
             .setDomain(WorkflowTest.DOMAIN)
             .setEnableLoggingInReplay(false)
             .build();

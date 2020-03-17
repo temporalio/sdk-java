@@ -37,8 +37,8 @@ public final class ChildWorkflowOptions {
     return new Builder();
   }
 
-  public static Builder newBuilder(ChildWorkflowOptions o) {
-    return new Builder(o);
+  public static Builder newBuilder(ChildWorkflowOptions options) {
+    return new Builder(options);
   }
 
   public static ChildWorkflowOptions getDefaultInstance() {
@@ -79,22 +79,22 @@ public final class ChildWorkflowOptions {
 
     private Builder() {}
 
-    private Builder(ChildWorkflowOptions source) {
-      if (source == null) {
+    private Builder(ChildWorkflowOptions options) {
+      if (options == null) {
         return;
       }
-      this.domain = source.getDomain();
-      this.workflowId = source.getWorkflowId();
-      this.workflowIdReusePolicy = source.getWorkflowIdReusePolicy();
-      this.executionStartToCloseTimeout = source.getExecutionStartToCloseTimeout();
-      this.taskStartToCloseTimeout = source.getTaskStartToCloseTimeout();
-      this.taskList = source.getTaskList();
-      this.retryOptions = source.getRetryOptions();
-      this.cronSchedule = source.getCronSchedule();
-      this.parentClosePolicy = source.getParentClosePolicy();
-      this.memo = source.getMemo();
-      this.searchAttributes = source.getSearchAttributes();
-      this.contextPropagators = source.getContextPropagators();
+      this.domain = options.getDomain();
+      this.workflowId = options.getWorkflowId();
+      this.workflowIdReusePolicy = options.getWorkflowIdReusePolicy();
+      this.executionStartToCloseTimeout = options.getExecutionStartToCloseTimeout();
+      this.taskStartToCloseTimeout = options.getTaskStartToCloseTimeout();
+      this.taskList = options.getTaskList();
+      this.retryOptions = options.getRetryOptions();
+      this.cronSchedule = options.getCronSchedule();
+      this.parentClosePolicy = options.getParentClosePolicy();
+      this.memo = options.getMemo();
+      this.searchAttributes = options.getSearchAttributes();
+      this.contextPropagators = options.getContextPropagators();
     }
 
     /**

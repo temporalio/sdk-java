@@ -302,10 +302,10 @@ public class WorkflowTest {
       scheduledExecutor = new ScheduledThreadPoolExecutor(1);
     } else {
       TestEnvironmentOptions testOptions =
-          new TestEnvironmentOptions.Builder()
+          TestEnvironmentOptions.newBuilder()
               .setDomain(DOMAIN)
               .setInterceptorFactory(tracer)
-              .setFactoryOptions(
+              .setWorkerFactoryOptions(
                   WorkerFactoryOptions.newBuilder()
                       .setDisableStickyExecution(disableStickyExecution)
                       .build())

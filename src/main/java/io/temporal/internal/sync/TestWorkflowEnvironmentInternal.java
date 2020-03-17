@@ -60,7 +60,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
 
   public TestWorkflowEnvironmentInternal(TestEnvironmentOptions options) {
     if (options == null) {
-      this.testEnvironmentOptions = new TestEnvironmentOptions.Builder().build();
+      this.testEnvironmentOptions = TestEnvironmentOptions.getDefaultInstance();
     } else {
       this.testEnvironmentOptions = options;
     }

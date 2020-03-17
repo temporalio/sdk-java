@@ -30,6 +30,24 @@ import java.util.function.Function;
 @VisibleForTesting
 public final class TestEnvironmentOptions {
 
+  public static Builder newBuilder() {
+    return new Builder();
+  }
+
+  public static Builder newBuilder(TestEnvironmentOptions options) {
+    return new Builder(options);
+  }
+
+  public static TestEnvironmentOptions getDefaultInstance() {
+    return DEFAULT_INSTANCE;
+  }
+
+  private static final TestEnvironmentOptions DEFAULT_INSTANCE;
+
+  static {
+    DEFAULT_INSTANCE = TestEnvironmentOptions.newBuilder().build();
+  }
+
   public static final class Builder {
 
     private DataConverter dataConverter = JsonDataConverter.getInstance();
@@ -42,7 +60,18 @@ public final class TestEnvironmentOptions {
 
     private boolean enableLoggingInReplay;
 
-    private WorkerFactoryOptions factoryOptions;
+    private WorkerFactoryOptions workerFactoryOptions;
+
+    private Builder() {}
+
+    private Builder(TestEnvironmentOptions o) {
+      dataConverter = o.dataConverter;
+      domain = o.domain;
+      interceptorFactory = o.interceptorFactory;
+      metricsScope = o.metricsScope;
+      enableLoggingInReplay = o.enableLoggingInReplay;
+      workerFactoryOptions = o.workerFactoryOptions;
+    }
 
     /** Sets data converter to use for unit-tests. Default is {@link JsonDataConverter}. */
     public Builder setDataConverter(DataConverter dataConverter) {
@@ -76,8 +105,8 @@ public final class TestEnvironmentOptions {
     }
 
     /** Set factoryOptions for worker factory used to create workers. */
-    public Builder setFactoryOptions(WorkerFactoryOptions options) {
-      this.factoryOptions = options;
+    public Builder setWorkerFactoryOptions(WorkerFactoryOptions options) {
+      this.workerFactoryOptions = options;
       return this;
     }
 
@@ -92,8 +121,9 @@ public final class TestEnvironmentOptions {
         metricsScope = NoopScope.getInstance();
       }
 
-      if (factoryOptions == null) {
-        factoryOptions = WorkerFactoryOptions.newBuilder().setDisableStickyExecution(false).build();
+      if (workerFactoryOptions == null) {
+        workerFactoryOptions =
+            WorkerFactoryOptions.newBuilder().setDisableStickyExecution(false).build();
       }
 
       return new TestEnvironmentOptions(
@@ -101,7 +131,7 @@ public final class TestEnvironmentOptions {
           domain,
           interceptorFactory,
           metricsScope,
-          factoryOptions,
+          workerFactoryOptions,
           enableLoggingInReplay);
     }
   }

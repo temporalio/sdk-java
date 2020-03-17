@@ -150,7 +150,7 @@ public class CleanWorkerShutdownTest {
       workerFactory.start();
     } else {
       TestEnvironmentOptions testOptions =
-          new TestEnvironmentOptions.Builder().setDomain(DOMAIN).build();
+          TestEnvironmentOptions.newBuilder().setDomain(DOMAIN).build();
       testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
       service = testEnvironment.getWorkflowService();
       Worker worker = testEnvironment.newWorker(taskList);
@@ -208,7 +208,7 @@ public class CleanWorkerShutdownTest {
       workerFactory.start();
     } else {
       TestEnvironmentOptions testOptions =
-          new TestEnvironmentOptions.Builder().setDomain(DOMAIN).build();
+          TestEnvironmentOptions.newBuilder().setDomain(DOMAIN).build();
       testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
       service = testEnvironment.getWorkflowService();
       Worker worker = testEnvironment.newWorker(taskList);
@@ -292,7 +292,7 @@ public class CleanWorkerShutdownTest {
       workerFactory.start();
     } else {
       TestEnvironmentOptions testOptions =
-          new TestEnvironmentOptions.Builder().setDomain(DOMAIN).build();
+          TestEnvironmentOptions.newBuilder().setDomain(DOMAIN).build();
       testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
       service = testEnvironment.getWorkflowService();
       Worker worker = testEnvironment.newWorker(taskList);

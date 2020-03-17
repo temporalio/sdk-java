@@ -93,7 +93,7 @@ import java.util.function.Function;
 public interface TestWorkflowEnvironment {
 
   static TestWorkflowEnvironment newInstance() {
-    return new TestWorkflowEnvironmentInternal(new TestEnvironmentOptions.Builder().build());
+    return new TestWorkflowEnvironmentInternal(TestEnvironmentOptions.getDefaultInstance());
   }
 
   static TestWorkflowEnvironment newInstance(TestEnvironmentOptions options) {

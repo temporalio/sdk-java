@@ -87,7 +87,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
 
   public TestActivityEnvironmentInternal(TestEnvironmentOptions options) {
     if (options == null) {
-      this.testEnvironmentOptions = new TestEnvironmentOptions.Builder().build();
+      this.testEnvironmentOptions = TestEnvironmentOptions.newBuilder().build();
     } else {
       this.testEnvironmentOptions = options;
     }

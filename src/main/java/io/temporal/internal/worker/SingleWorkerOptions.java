@@ -33,8 +33,8 @@ public final class SingleWorkerOptions {
     return new Builder();
   }
 
-  public static Builder newBuilder(SingleWorkerOptions source) {
-    return new Builder(source);
+  public static Builder newBuilder(SingleWorkerOptions options) {
+    return new Builder(options);
   }
 
   public static final class Builder {
