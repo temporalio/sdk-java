@@ -19,7 +19,7 @@ package io.temporal.internal.sync;
 
 import io.temporal.activity.ActivityTask;
 import io.temporal.client.ActivityCompletionException;
-import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.lang.reflect.Type;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
@@ -69,7 +69,7 @@ public interface ActivityExecutionContext {
    * @return an instance of the Simple Workflow Java client that is the same used by the invoked
    *     activity worker.
    */
-  GrpcWorkflowServiceFactory getService();
+  WorkflowServiceStubs getService();
 
   String getDomain();
 }

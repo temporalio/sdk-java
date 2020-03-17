@@ -22,7 +22,7 @@ import static io.temporal.workflow.WorkflowTest.DOMAIN;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.proto.workflowservice.RegisterDomainRequest;
-import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 
 /** Waits for local service to become available and registers UnitTest domain. */
 public class RegisterTestDomain {
@@ -34,7 +34,7 @@ public class RegisterTestDomain {
       return;
     }
 
-    GrpcWorkflowServiceFactory service = new GrpcWorkflowServiceFactory();
+    WorkflowServiceStubs service = WorkflowServiceStubs.newInstance();
     RegisterDomainRequest request =
         RegisterDomainRequest.newBuilder()
             .setName(DOMAIN)

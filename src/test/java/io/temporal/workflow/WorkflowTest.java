@@ -58,7 +58,7 @@ import io.temporal.proto.enums.TimeoutType;
 import io.temporal.proto.enums.WorkflowExecutionCloseStatus;
 import io.temporal.proto.enums.WorkflowIdReusePolicy;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
-import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.WorkflowReplayer;
@@ -202,11 +202,16 @@ public class WorkflowTest {
   private TestWorkflowEnvironment testEnvironment;
   private ScheduledExecutorService scheduledExecutor;
   private List<ScheduledFuture<?>> delayedCallbacks = new ArrayList<>();
-  private static final GrpcWorkflowServiceFactory service = new GrpcWorkflowServiceFactory();
+  private static final WorkflowServiceStubs service = WorkflowServiceStubs.newInstance();
 
   @AfterClass
   public static void closeService() {
-    service.close();
+    service.shutdownNow();
+    try {
+      service.awaitTermination(10, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
   }
 
   private static WorkflowOptions.Builder newWorkflowOptionsBuilder(String taskList) {

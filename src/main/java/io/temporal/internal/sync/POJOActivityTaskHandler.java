@@ -32,7 +32,7 @@ import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
-import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.SimulatedTimeoutException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -49,11 +49,11 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
   private final ScheduledExecutorService heartbeatExecutor;
   private final Map<String, ActivityTaskExecutor> activities =
       Collections.synchronizedMap(new HashMap<>());
-  private GrpcWorkflowServiceFactory service;
+  private WorkflowServiceStubs service;
   private final String domain;
 
   POJOActivityTaskHandler(
-      GrpcWorkflowServiceFactory service,
+      WorkflowServiceStubs service,
       String domain,
       DataConverter dataConverter,
       ScheduledExecutorService heartbeatExecutor) {

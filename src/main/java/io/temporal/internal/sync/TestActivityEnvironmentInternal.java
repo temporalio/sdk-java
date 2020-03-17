@@ -41,7 +41,7 @@ import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
 import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
-import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.TestActivityEnvironment;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.workflow.ActivityFailureException;
@@ -80,7 +80,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   private ClassConsumerPair<Object> activityHeartbetListener;
   private static final ScheduledExecutorService heartbeatExecutor =
       Executors.newScheduledThreadPool(20);
-  private GrpcWorkflowServiceFactory serviceFactory;
+  private WorkflowServiceStubs workflowServiceStubs;
   private Server mockServer;
   private AtomicBoolean cancellationRequested = new AtomicBoolean();
   private ManagedChannel channel;
@@ -106,10 +106,10 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
       throw new RuntimeException(e);
     }
     channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
-    serviceFactory = new GrpcWorkflowServiceFactory(channel);
+    workflowServiceStubs = WorkflowServiceStubs.newInstance(channel);
     activityTaskHandler =
         new POJOActivityTaskHandler(
-            serviceFactory,
+            workflowServiceStubs,
             testEnvironmentOptions.getDomain(),
             testEnvironmentOptions.getDataConverter(),
             heartbeatExecutor);

@@ -21,6 +21,7 @@ import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
+import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.RetryParameters;
 import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
@@ -47,8 +48,7 @@ import io.temporal.proto.workflowservice.SignalWorkflowExecutionRequest;
 import io.temporal.proto.workflowservice.StartWorkflowExecutionRequest;
 import io.temporal.proto.workflowservice.StartWorkflowExecutionResponse;
 import io.temporal.proto.workflowservice.TerminateWorkflowExecutionRequest;
-import io.temporal.serviceclient.GrpcRetryer;
-import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -56,12 +56,12 @@ import java.util.UUID;
 public final class GenericWorkflowClientExternalImpl implements GenericWorkflowClientExternal {
 
   private final String domain;
-  private final GrpcWorkflowServiceFactory service;
+  private final WorkflowServiceStubs service;
   private final Scope metricsScope;
   private final String identity;
 
   public GenericWorkflowClientExternalImpl(
-      GrpcWorkflowServiceFactory service, String domain, String identity, Scope metricsScope) {
+      WorkflowServiceStubs service, String domain, String identity, Scope metricsScope) {
     this.service = service;
     this.domain = domain;
     this.identity = identity;
@@ -74,7 +74,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   }
 
   @Override
-  public GrpcWorkflowServiceFactory getService() {
+  public WorkflowServiceStubs getService() {
     return service;
   }
 

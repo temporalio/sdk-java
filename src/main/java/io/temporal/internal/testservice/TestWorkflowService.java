@@ -25,6 +25,7 @@ import io.grpc.StatusRuntimeException;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
+import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.testservice.TestWorkflowMutableStateImpl.QueryId;
 import io.temporal.internal.testservice.TestWorkflowStore.WorkflowState;
 import io.temporal.proto.common.RetryPolicy;
@@ -79,8 +80,7 @@ import io.temporal.proto.workflowservice.SignalWorkflowExecutionResponse;
 import io.temporal.proto.workflowservice.StartWorkflowExecutionRequest;
 import io.temporal.proto.workflowservice.StartWorkflowExecutionResponse;
 import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
-import io.temporal.serviceclient.GrpcStatusUtils;
-import io.temporal.serviceclient.GrpcWorkflowServiceFactory;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.HashMap;
@@ -120,9 +120,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
 
   private final String serverName;
 
-  public GrpcWorkflowServiceFactory newClientStub() {
+  public WorkflowServiceStubs newClientStub() {
     ManagedChannel channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
-    return new GrpcWorkflowServiceFactory(channel);
+    return WorkflowServiceStubs.newInstance(channel);
   }
 
   public TestWorkflowService(boolean lockTimeSkipping) {
@@ -273,7 +273,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             .setRunId(execution.getRunId())
             .setStartRequestId(startRequest.getRequestId())
             .build();
-    throw GrpcStatusUtils.newException(
+    throw StatusUtils.newException(
         Status.ALREADY_EXISTS.withDescription(
             String.format(
                 "WorkflowId: %s, " + "RunId: %s", execution.getWorkflowId(), execution.getRunId())),
