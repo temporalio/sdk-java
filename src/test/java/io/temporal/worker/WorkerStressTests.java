@@ -23,8 +23,10 @@ import static org.junit.Assert.assertNotNull;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.Async;
@@ -78,15 +80,15 @@ public class WorkerStressTests {
 
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
-            new Worker.FactoryOptions.Builder().setMaxWorkflowThreadCount(200).build());
-    Worker.Factory factory = wrapper.getWorkerFactory();
-    Worker worker = factory.newWorker(taskListName, new WorkerOptions.Builder().build());
+            WorkerFactoryOptions.newBuilder().setMaxWorkflowThreadCount(200).build());
+    WorkerFactory factory = wrapper.getWorkerFactory();
+    Worker worker = factory.newWorker(taskListName, WorkerOptions.newBuilder().build());
     worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
     worker.registerActivitiesImplementations(new ActivitiesImpl());
     factory.start();
 
     WorkflowOptions workflowOptions =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(250))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
@@ -118,18 +120,18 @@ public class WorkerStressTests {
 
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
-            new Worker.FactoryOptions.Builder()
+            WorkerFactoryOptions.newBuilder()
                 .setDisableStickyExecution(false)
                 .setMaxWorkflowThreadCount(2)
                 .build());
-    Worker.Factory factory = wrapper.getWorkerFactory();
-    Worker worker = factory.newWorker(taskListName, new WorkerOptions.Builder().build());
+    WorkerFactory factory = wrapper.getWorkerFactory();
+    Worker worker = factory.newWorker(taskListName, WorkerOptions.newBuilder().build());
     worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
     worker.registerActivitiesImplementations(new ActivitiesImpl());
     factory.start();
 
     WorkflowOptions workflowOptions =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(250))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
@@ -168,26 +170,34 @@ public class WorkerStressTests {
   private class TestEnvironmentWrapper {
 
     private TestWorkflowEnvironment testEnv;
-    private Worker.Factory factory;
+    private WorkerFactory factory;
 
-    public TestEnvironmentWrapper(Worker.FactoryOptions options) {
+    public TestEnvironmentWrapper(WorkerFactoryOptions options) {
       if (options == null) {
-        options = new Worker.FactoryOptions.Builder().setDisableStickyExecution(false).build();
+        options = WorkerFactoryOptions.newBuilder().setDisableStickyExecution(false).build();
       }
-      factory = new Worker.Factory(DOMAIN, options);
-      TestEnvironmentOptions testOptions =
-          new TestEnvironmentOptions.Builder().setDomain(DOMAIN).setFactoryOptions(options).build();
-      testEnv = TestWorkflowEnvironment.newInstance(testOptions);
+      if (useDockerService) {
+        WorkflowServiceStubs service = WorkflowServiceStubs.newInstance();
+        WorkflowClientOptions clientOptions =
+            WorkflowClientOptions.newBuilder().setDomain(DOMAIN).build();
+        WorkflowClient client = WorkflowClient.newInstance(service, clientOptions);
+        factory = WorkerFactory.newInstance(client, options);
+      } else {
+        TestEnvironmentOptions testOptions =
+            TestEnvironmentOptions.newBuilder()
+                .setDomain(DOMAIN)
+                .setWorkerFactoryOptions(options)
+                .build();
+        testEnv = TestWorkflowEnvironment.newInstance(testOptions);
+      }
     }
 
-    private Worker.Factory getWorkerFactory() {
+    private WorkerFactory getWorkerFactory() {
       return useExternalService ? factory : testEnv.getWorkerFactory();
     }
 
     private WorkflowClient getWorkflowClient() {
-      return useExternalService
-          ? WorkflowClient.newInstance(factory.getWorkflowService(), DOMAIN)
-          : testEnv.newWorkflowClient();
+      return useExternalService ? factory.getWorkflowClient() : testEnv.getWorkflowClient();
     }
 
     private void close() {
@@ -219,7 +229,7 @@ public class WorkerStressTests {
       SleepActivity activity =
           Workflow.newActivityStub(
               SleepActivity.class,
-              new ActivityOptions.Builder()
+              ActivityOptions.newBuilder()
                   .setTaskList(params.TaskListName)
                   .setScheduleToStartTimeout(Duration.ofMinutes(1))
                   .setStartToCloseTimeout(Duration.ofMinutes(1))

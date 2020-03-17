@@ -80,12 +80,12 @@ public final class WorkflowWorker
     PollerOptions pollerOptions = options.getPollerOptions();
     if (pollerOptions.getPollThreadNamePrefix() == null) {
       pollerOptions =
-          new PollerOptions.Builder(pollerOptions)
+          PollerOptions.newBuilder(pollerOptions)
               .setPollThreadNamePrefix(
                   POLL_THREAD_NAME_PREFIX + "\"" + taskList + "\", domain=\"" + domain + "\"")
               .build();
     }
-    this.options = new SingleWorkerOptions.Builder(options).setPollerOptions(pollerOptions).build();
+    this.options = SingleWorkerOptions.newBuilder(options).setPollerOptions(pollerOptions).build();
   }
 
   @Override
@@ -288,7 +288,11 @@ public final class WorkflowWorker
       RpcRetryOptions ro = response.getRequestRetryOptions();
       RespondDecisionTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
-        ro = options.getReportCompletionRetryOptions().merge(ro);
+        ro =
+            RpcRetryOptions.newBuilder(options.getReportCompletionRetryOptions())
+                .setRetryOptions(ro)
+                .build();
+
         RespondDecisionTaskCompletedRequest request =
             taskCompleted
                 .toBuilder()
@@ -299,7 +303,11 @@ public final class WorkflowWorker
       } else {
         RespondDecisionTaskFailedRequest taskFailed = response.getTaskFailed();
         if (taskFailed != null) {
-          ro = options.getReportFailureRetryOptions().merge(ro);
+          ro =
+              RpcRetryOptions.newBuilder(options.getReportFailureRetryOptions())
+                  .setRetryOptions(ro)
+                  .build();
+
           RespondDecisionTaskFailedRequest request =
               taskFailed
                   .toBuilder()

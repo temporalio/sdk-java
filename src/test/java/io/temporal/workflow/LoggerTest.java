@@ -61,7 +61,7 @@ public class LoggerTest {
     public void execute(String id) {
       workflowLogger.info("Start executing workflow {}.", id);
       ChildWorkflowOptions options =
-          new ChildWorkflowOptions.Builder().setTaskList(taskList).build();
+          ChildWorkflowOptions.newBuilder().setTaskList(taskList).build();
       LoggerTest.TestChildWorkflow workflow =
           Workflow.newChildWorkflowStub(LoggerTest.TestChildWorkflow.class, options);
       workflow.executeChild(id);
@@ -87,7 +87,7 @@ public class LoggerTest {
   @Test
   public void testWorkflowLogger() {
     TestEnvironmentOptions testOptions =
-        new TestEnvironmentOptions.Builder()
+        TestEnvironmentOptions.newBuilder()
             .setDomain(WorkflowTest.DOMAIN)
             .setEnableLoggingInReplay(false)
             .build();
@@ -97,9 +97,9 @@ public class LoggerTest {
         TestLoggingInWorkflow.class, TestLoggerInChildWorkflow.class);
     env.start();
 
-    WorkflowClient workflowClient = env.newWorkflowClient();
+    WorkflowClient workflowClient = env.getWorkflowClient();
     WorkflowOptions options =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(1000))
             .setTaskList(taskList)
             .build();

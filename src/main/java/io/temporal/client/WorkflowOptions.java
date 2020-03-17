@@ -39,16 +39,34 @@ import java.util.Objects;
 
 public final class WorkflowOptions {
 
+  public static Builder newBuilder() {
+    return new Builder();
+  }
+
+  public static Builder newBuilder(WorkflowOptions options) {
+    return new Builder(options);
+  }
+
+  public static WorkflowOptions getDefaultInstance() {
+    return DEFAULT_INSTANCE;
+  }
+
+  private static final WorkflowOptions DEFAULT_INSTANCE;
+
+  static {
+    DEFAULT_INSTANCE = WorkflowOptions.newBuilder().build();
+  }
+
   public static WorkflowOptions merge(
       WorkflowMethod a, MethodRetry methodRetry, CronSchedule cronSchedule, WorkflowOptions o) {
     if (a == null) {
       return new WorkflowOptions.Builder(o).validateBuildWithDefaults();
     }
     if (o == null) {
-      o = new WorkflowOptions.Builder().build();
+      o = WorkflowOptions.newBuilder().build();
     }
     String cronAnnotation = cronSchedule == null ? "" : cronSchedule.value();
-    return new WorkflowOptions.Builder()
+    return WorkflowOptions.newBuilder()
         .setWorkflowIdReusePolicy(
             OptionsUtils.merge(
                 a.workflowIdReusePolicy(),
@@ -91,22 +109,22 @@ public final class WorkflowOptions {
 
     private List<ContextPropagator> contextPropagators;
 
-    public Builder() {}
+    private Builder() {}
 
-    public Builder(WorkflowOptions o) {
-      if (o == null) {
+    private Builder(WorkflowOptions options) {
+      if (options == null) {
         return;
       }
-      this.workflowIdReusePolicy = o.workflowIdReusePolicy;
-      this.workflowId = o.workflowId;
-      this.taskStartToCloseTimeout = o.taskStartToCloseTimeout;
-      this.executionStartToCloseTimeout = o.executionStartToCloseTimeout;
-      this.taskList = o.taskList;
-      this.retryOptions = o.retryOptions;
-      this.cronSchedule = o.cronSchedule;
-      this.memo = o.memo;
-      this.searchAttributes = o.searchAttributes;
-      this.contextPropagators = o.contextPropagators;
+      this.workflowIdReusePolicy = options.workflowIdReusePolicy;
+      this.workflowId = options.workflowId;
+      this.taskStartToCloseTimeout = options.taskStartToCloseTimeout;
+      this.executionStartToCloseTimeout = options.executionStartToCloseTimeout;
+      this.taskList = options.taskList;
+      this.retryOptions = options.retryOptions;
+      this.cronSchedule = options.cronSchedule;
+      this.memo = options.memo;
+      this.searchAttributes = options.searchAttributes;
+      this.contextPropagators = options.contextPropagators;
     }
 
     /**

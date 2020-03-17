@@ -83,7 +83,7 @@ import java.util.Map;
  * Creating your {@link io.temporal.client.WorkflowClient}:
  *
  * <pre>{@code
- * WorkflowOptions options = new WorkflowOptions.Builder()
+ * WorkflowOptions options = WorkflowOptions.newBuilder()
  *                 .setExecutionStartToCloseTimeout(Duration.ofSeconds(5))
  *                 .setTaskList("myTaskList")
  *                 .setContextPropagators(Collections.singletonList(new MDCContextPropagator()))
@@ -98,7 +98,7 @@ import java.util.Map;
  *
  * <pre>{@code
  * activities = Workflow.newActivityStub(Activity.class,
- *                 new ActivityOptions.Builder()
+ *                 ActivityOptions.newBuilder()
  *                         .setScheduleToCloseTimeout(Duration.ofSeconds(60))
  *                         .setContextPropagators(Collections.singletonList(new MDCContextPropagator()))
  *                         .build());
@@ -110,7 +110,7 @@ import java.util.Map;
  *
  * <pre>{@code
  * ChildWorkflow childWorkflow = Workflow.newChildWorkflowStub(ChildWorkflow.class,
- *                new ChildWorkflowOptions.Builder()
+ *                ChildWorkflowOptions.newBuilder()
  *                        .setContextPropagators(Collections.singletonList(new MDCContextPropagator()))
  *                        .build());
  * }</pre>

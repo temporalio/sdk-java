@@ -29,6 +29,14 @@ import java.util.List;
 
 public final class SingleWorkerOptions {
 
+  public static Builder newBuilder() {
+    return new Builder();
+  }
+
+  public static Builder newBuilder(SingleWorkerOptions options) {
+    return new Builder(options);
+  }
+
   public static final class Builder {
 
     private String identity;
@@ -45,9 +53,9 @@ public final class SingleWorkerOptions {
     private boolean enableLoggingInReplay;
     private List<ContextPropagator> contextPropagators;
 
-    public Builder() {}
+    private Builder() {}
 
-    public Builder(SingleWorkerOptions options) {
+    private Builder(SingleWorkerOptions options) {
       this.identity = options.getIdentity();
       this.dataConverter = options.getDataConverter();
       this.pollerOptions = options.getPollerOptions();
@@ -122,7 +130,7 @@ public final class SingleWorkerOptions {
 
       if (pollerOptions == null) {
         pollerOptions =
-            new PollerOptions.Builder()
+            PollerOptions.newBuilder()
                 .setPollBackoffInitialInterval(Duration.ofMillis(200))
                 .setPollBackoffMaximumInterval(Duration.ofSeconds(20))
                 .setPollThreadCount(1)

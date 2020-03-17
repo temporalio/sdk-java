@@ -27,19 +27,45 @@ import java.util.Objects;
 /** Options for WorkflowClient configuration. */
 public final class WorkflowClientOptions {
 
+  private static final WorkflowClientOptions DEFAULT_INSTANCE;
+  private static final String DEFAULT_DOMAIN = "default";
+
+  static {
+    DEFAULT_INSTANCE = newBuilder().build();
+  }
+
+  public static Builder newBuilder() {
+    return new WorkflowClientOptions.Builder();
+  }
+
+  public static Builder newBuilder(WorkflowClientOptions options) {
+    return new WorkflowClientOptions.Builder(options);
+  }
+
+  public static WorkflowClientOptions getDefaultInstance() {
+    return DEFAULT_INSTANCE;
+  }
+
   public static final class Builder {
 
-    private DataConverter dataConverter = JsonDataConverter.getInstance();
-    private WorkflowClientInterceptor[] interceptors = EMPTY_INTERCEPTOR_ARRAY;
+    private String domain;
+    private DataConverter dataConverter;
+    private WorkflowClientInterceptor[] interceptors;
     private Scope metricsScope;
     private String identity;
 
     public Builder() {}
 
     public Builder(WorkflowClientOptions options) {
-      dataConverter = options.getDataConverter();
-      interceptors = options.getInterceptors();
-      metricsScope = options.getMetricsScope();
+      domain = options.domain;
+      dataConverter = options.dataConverter;
+      interceptors = options.interceptors;
+      metricsScope = options.metricsScope;
+    }
+
+    public Builder setDomain(String domain) {
+      this.domain = domain;
+      return this;
     }
 
     /**
@@ -79,18 +105,24 @@ public final class WorkflowClientOptions {
     }
 
     public WorkflowClientOptions build() {
-      if (metricsScope == null) {
-        metricsScope = NoopScope.getInstance();
-      }
-      if (identity == null) {
-        identity = ManagementFactory.getRuntimeMXBean().getName();
-      }
-      return new WorkflowClientOptions(dataConverter, interceptors, metricsScope, identity);
+      return new WorkflowClientOptions(domain, dataConverter, interceptors, metricsScope, identity);
+    }
+
+    public WorkflowClientOptions validateAndBuildWithDefaults() {
+      return new WorkflowClientOptions(
+          domain == null ? DEFAULT_DOMAIN : domain,
+          dataConverter == null ? JsonDataConverter.getInstance() : dataConverter,
+          interceptors == null ? EMPTY_INTERCEPTOR_ARRAY : interceptors,
+          metricsScope == null ? NoopScope.getInstance() : metricsScope,
+          identity == null ? ManagementFactory.getRuntimeMXBean().getName() : identity);
     }
   }
 
   private static final WorkflowClientInterceptor[] EMPTY_INTERCEPTOR_ARRAY =
       new WorkflowClientInterceptor[0];
+
+  private final String domain;
+
   private final DataConverter dataConverter;
 
   private final WorkflowClientInterceptor[] interceptors;
@@ -100,14 +132,20 @@ public final class WorkflowClientOptions {
   private final String identity;
 
   private WorkflowClientOptions(
+      String domain,
       DataConverter dataConverter,
       WorkflowClientInterceptor[] interceptors,
       Scope metricsScope,
       String identity) {
+    this.domain = domain;
     this.dataConverter = dataConverter;
     this.interceptors = interceptors;
     this.metricsScope = metricsScope;
     this.identity = identity;
+  }
+
+  public String getDomain() {
+    return domain;
   }
 
   public DataConverter getDataConverter() {

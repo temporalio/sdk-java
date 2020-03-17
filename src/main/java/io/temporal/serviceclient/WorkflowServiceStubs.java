@@ -17,31 +17,22 @@
 
 package io.temporal.serviceclient;
 
-import io.grpc.ManagedChannel;
 import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
 import java.util.concurrent.TimeUnit;
 
 public interface WorkflowServiceStubs {
 
+  /**
+   * Create gRPC connection stubs using default options. The options default to the connection to
+   * the locally running temporal service.
+   */
   static WorkflowServiceStubs newInstance() {
-    return new WorkflowServiceStubsImpl();
+    return new WorkflowServiceStubsImpl(WorkflowServiceStubsOptions.getDefaultInstance());
   }
 
-  static WorkflowServiceStubs newInstance(String target) {
-    return new WorkflowServiceStubsImpl(target);
-  }
-
-  static WorkflowServiceStubs newInstance(String target, WorkflowServiceStubsOptions options) {
-    return new WorkflowServiceStubsImpl(target, options);
-  }
-
-  static WorkflowServiceStubs newInstance(ManagedChannel channel) {
-    return new WorkflowServiceStubsImpl(channel);
-  }
-
-  static WorkflowServiceStubs newInstance(
-      ManagedChannel channel, WorkflowServiceStubsOptions options) {
-    return new WorkflowServiceStubsImpl(channel, options);
+  /** Create gRPC connection stubs using provided options. */
+  static WorkflowServiceStubs newInstance(WorkflowServiceStubsOptions options) {
+    return new WorkflowServiceStubsImpl(options);
   }
 
   /** @return Blocking (synchronous) stub that allows direct calls to service. */

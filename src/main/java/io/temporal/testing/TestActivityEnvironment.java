@@ -53,7 +53,7 @@ import java.util.function.Consumer;
 public interface TestActivityEnvironment {
 
   static TestActivityEnvironment newInstance() {
-    return newInstance(new TestEnvironmentOptions.Builder().build());
+    return newInstance(TestEnvironmentOptions.getDefaultInstance());
   }
 
   static TestActivityEnvironment newInstance(TestEnvironmentOptions options) {

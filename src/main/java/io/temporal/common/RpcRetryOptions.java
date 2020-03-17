@@ -20,8 +20,6 @@ package io.temporal.common;
 import com.google.common.base.Defaults;
 import com.google.protobuf.GeneratedMessageV3;
 import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
-import io.temporal.internal.common.StatusUtils;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,20 +31,22 @@ public final class RpcRetryOptions {
   private static final double DEFAULT_BACKOFF_COEFFICIENT = 2.0;
   private static final int DEFAULT_MAXIMUM_MULTIPLIER = 100;
 
-  /** The parameter options takes precedence. */
-  public RpcRetryOptions merge(RpcRetryOptions o) {
-    if (o == null) {
-      return this;
-    }
-    return new RpcRetryOptions.Builder()
-        .setInitialInterval(merge(getInitialInterval(), o.getInitialInterval(), Duration.class))
-        .setExpiration(merge(getExpiration(), o.getExpiration(), Duration.class))
-        .setMaximumInterval(merge(getMaximumInterval(), o.getMaximumInterval(), Duration.class))
-        .setBackoffCoefficient(
-            merge(getBackoffCoefficient(), o.getBackoffCoefficient(), double.class))
-        .setMaximumAttempts(merge(getMaximumAttempts(), o.getMaximumAttempts(), int.class))
-        .setDoNotRetry(merge(getDoNotRetry(), o.getDoNotRetry()))
-        .validateBuildWithDefaults();
+  public static Builder newBuilder() {
+    return new Builder();
+  }
+
+  public static Builder newBuilder(RpcRetryOptions options) {
+    return new Builder(options);
+  }
+
+  public static RpcRetryOptions getDefaultInstance() {
+    return DEFAULT_INSTANCE;
+  }
+
+  private static final RpcRetryOptions DEFAULT_INSTANCE;
+
+  static {
+    DEFAULT_INSTANCE = RpcRetryOptions.newBuilder().build();
   }
 
   public static class DoNotRetryPair {
@@ -81,18 +81,18 @@ public final class RpcRetryOptions {
 
     private List<DoNotRetryPair> doNotRetry = new ArrayList<>();
 
-    public Builder() {}
+    private Builder() {}
 
-    public Builder(RpcRetryOptions o) {
-      if (o == null) {
+    private Builder(RpcRetryOptions options) {
+      if (options == null) {
         return;
       }
-      this.backoffCoefficient = o.getBackoffCoefficient();
-      this.maximumAttempts = o.getMaximumAttempts();
-      this.expiration = o.getExpiration();
-      this.initialInterval = o.getInitialInterval();
-      this.maximumInterval = o.getMaximumInterval();
-      this.doNotRetry = o.getDoNotRetry();
+      this.backoffCoefficient = options.getBackoffCoefficient();
+      this.maximumAttempts = options.getMaximumAttempts();
+      this.expiration = options.getExpiration();
+      this.initialInterval = options.getInitialInterval();
+      this.maximumInterval = options.getMaximumInterval();
+      this.doNotRetry = options.getDoNotRetry();
     }
 
     /**
@@ -170,6 +170,55 @@ public final class RpcRetryOptions {
     Builder setDoNotRetry(List<DoNotRetryPair> pairs) {
       doNotRetry = pairs;
       return this;
+    }
+
+    /** The parameter options takes precedence. */
+    public Builder setRetryOptions(RpcRetryOptions o) {
+      if (o == null) {
+        return this;
+      }
+      setInitialInterval(merge(initialInterval, o.getInitialInterval(), Duration.class));
+      setExpiration(merge(expiration, o.getExpiration(), Duration.class));
+      setMaximumInterval(merge(maximumInterval, o.getMaximumInterval(), Duration.class));
+      setBackoffCoefficient(merge(backoffCoefficient, o.getBackoffCoefficient(), double.class));
+      setMaximumAttempts(merge(maximumAttempts, o.getMaximumAttempts(), int.class));
+      setDoNotRetry(merge(doNotRetry, o.getDoNotRetry()));
+      validateBuildWithDefaults();
+      return this;
+    }
+
+    private static <G> G merge(G annotation, G options, Class<G> type) {
+      if (!Defaults.defaultValue(type).equals(options)) {
+        return options;
+      }
+      return annotation;
+    }
+
+    private static Duration merge(long aSeconds, Duration o) {
+      if (o != null) {
+        return o;
+      }
+      return aSeconds == 0 ? null : Duration.ofSeconds(aSeconds);
+    }
+
+    private static Class<? extends Throwable>[] merge(
+        Class<? extends Throwable>[] a, List<Class<? extends Throwable>> o) {
+      if (o != null) {
+        @SuppressWarnings("unchecked")
+        Class<? extends Throwable>[] result = new Class[o.size()];
+        return o.toArray(result);
+      }
+      return a.length == 0 ? null : a;
+    }
+
+    private List<DoNotRetryPair> merge(List<DoNotRetryPair> o1, List<DoNotRetryPair> o2) {
+      if (o2 != null) {
+        return new ArrayList<>(o2);
+      }
+      if (o1.size() > 0) {
+        return new ArrayList<>(o1);
+      }
+      return null;
     }
 
     /**
@@ -314,65 +363,5 @@ public final class RpcRetryOptions {
         maximumAttempts,
         maximumInterval,
         doNotRetry);
-  }
-
-  private static <G> G merge(G annotation, G options, Class<G> type) {
-    if (!Defaults.defaultValue(type).equals(options)) {
-      return options;
-    }
-    return annotation;
-  }
-
-  private static Duration merge(long aSeconds, Duration o) {
-    if (o != null) {
-      return o;
-    }
-    return aSeconds == 0 ? null : Duration.ofSeconds(aSeconds);
-  }
-
-  private static Class<? extends Throwable>[] merge(
-      Class<? extends Throwable>[] a, List<Class<? extends Throwable>> o) {
-    if (o != null) {
-      @SuppressWarnings("unchecked")
-      Class<? extends Throwable>[] result = new Class[o.size()];
-      return o.toArray(result);
-    }
-    return a.length == 0 ? null : a;
-  }
-
-  private List<DoNotRetryPair> merge(List<DoNotRetryPair> o1, List<DoNotRetryPair> o2) {
-    if (o2 != null) {
-      return new ArrayList<>(o2);
-    }
-    if (o1.size() > 0) {
-      return new ArrayList<>(o1);
-    }
-    return null;
-  }
-
-  public long calculateSleepTime(long attempt) {
-    double coefficient =
-        backoffCoefficient == 0d ? DEFAULT_BACKOFF_COEFFICIENT : backoffCoefficient;
-    double sleepMillis = Math.pow(coefficient, attempt - 1) * initialInterval.toMillis();
-    if (maximumInterval == null) {
-      return (long) Math.min(sleepMillis, initialInterval.toMillis() * DEFAULT_MAXIMUM_MULTIPLIER);
-    }
-    return Math.min((long) sleepMillis, maximumInterval.toMillis());
-  }
-
-  public boolean shouldRethrow(
-      StatusRuntimeException e, long attempt, long elapsed, long sleepTime) {
-    for (DoNotRetryPair pair : doNotRetry) {
-      if (pair.getCode() != e.getStatus().getCode()
-          || (pair.getDetailsClass() != null
-              && !StatusUtils.hasFailure(e, pair.getDetailsClass()))) {
-        return false;
-      }
-    }
-    // Attempt that failed.
-    if (maximumAttempts != 0 && attempt >= maximumAttempts) {
-      return true;
-    }
-    return expiration != null && elapsed + sleepTime >= expiration.toMillis();
   }
 }

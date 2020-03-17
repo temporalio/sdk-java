@@ -30,6 +30,24 @@ import java.util.function.Function;
 
 public final class WorkerOptions {
 
+  public static Builder newBuilder() {
+    return new Builder();
+  }
+
+  public static Builder newBuilder(WorkerOptions options) {
+    return new Builder(options);
+  }
+
+  public static WorkerOptions getDefaultInstance() {
+    return DEFAULT_INSTANCE;
+  }
+
+  private static final WorkerOptions DEFAULT_INSTANCE;
+
+  static {
+    DEFAULT_INSTANCE = WorkerOptions.newBuilder().build();
+  }
+
   public static final class Builder {
 
     private boolean disableWorkflowWorker;
@@ -50,6 +68,32 @@ public final class WorkerOptions {
     private Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory = (n) -> n;
     private Scope metricsScope;
     private boolean enableLoggingInReplay;
+
+    private Builder() {}
+
+    private Builder(WorkerOptions o) {
+      if (o == null) {
+        return;
+      }
+      disableWorkflowWorker = o.disableWorkflowWorker;
+      disableActivityWorker = o.disableActivityWorker;
+      workerActivitiesPerSecond = o.workerActivitiesPerSecond;
+      identity = o.identity;
+      dataConverter = o.dataConverter;
+      maxConcurrentActivityExecutionSize = o.maxConcurrentActivityExecutionSize;
+      maxConcurrentWorkflowExecutionSize = o.maxConcurrentWorkflowExecutionSize;
+      maxConcurrentLocalActivityExecutionSize = o.maxConcurrentLocalActivityExecutionSize;
+      taskListActivitiesPerSecond = o.taskListActivitiesPerSecond;
+      activityPollerOptions = o.activityPollerOptions;
+      workflowPollerOptions = o.workflowPollerOptions;
+      reportActivityCompletionRetryOptions = o.reportActivityCompletionRetryOptions;
+      reportActivityFailureRetryOptions = o.reportActivityFailureRetryOptions;
+      reportWorkflowCompletionRetryOptions = o.reportWorkflowCompletionRetryOptions;
+      reportWorkflowFailureRetryOptions = o.reportWorkflowFailureRetryOptions;
+      interceptorFactory = o.interceptorFactory;
+      metricsScope = o.metricsScope;
+      enableLoggingInReplay = o.enableLoggingInReplay;
+    }
 
     /**
      * When set to true doesn't poll on workflow task list even if there are registered workflows

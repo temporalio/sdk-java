@@ -29,36 +29,22 @@ import java.util.Objects;
 /** Options used to configure how an activity is invoked. */
 public final class ActivityOptions {
 
-  /**
-   * Used to merge annotation and options. Options takes precedence. Returns options with all
-   * defaults filled in.
-   */
-  public static ActivityOptions merge(ActivityMethod a, MethodRetry r, ActivityOptions o) {
-    if (a == null) {
-      if (r == null) {
-        return new ActivityOptions.Builder(o).validateAndBuildWithDefaults();
-      }
-      RetryOptions mergedR = RetryOptions.merge(r, o.getRetryOptions());
-      return new ActivityOptions.Builder().setRetryOptions(mergedR).validateAndBuildWithDefaults();
-    }
-    if (o == null) {
-      o = new ActivityOptions.Builder().build();
-    }
-    return new ActivityOptions.Builder()
-        .setScheduleToCloseTimeout(
-            mergeDuration(a.scheduleToCloseTimeoutSeconds(), o.getScheduleToCloseTimeout()))
-        .setScheduleToStartTimeout(
-            mergeDuration(a.scheduleToStartTimeoutSeconds(), o.getScheduleToStartTimeout()))
-        .setStartToCloseTimeout(
-            mergeDuration(a.startToCloseTimeoutSeconds(), o.getStartToCloseTimeout()))
-        .setHeartbeatTimeout(mergeDuration(a.heartbeatTimeoutSeconds(), o.getHeartbeatTimeout()))
-        .setTaskList(
-            o.getTaskList() != null
-                ? o.getTaskList()
-                : (a.taskList().isEmpty() ? null : a.taskList()))
-        .setRetryOptions(RetryOptions.merge(r, o.getRetryOptions()))
-        .setContextPropagators(o.getContextPropagators())
-        .validateAndBuildWithDefaults();
+  public static Builder newBuilder() {
+    return new Builder();
+  }
+
+  public static Builder newBuilder(ActivityOptions options) {
+    return new Builder(options);
+  }
+
+  public static ActivityOptions getDefaultInstance() {
+    return DEFAULT_INSTANCE;
+  }
+
+  private static final ActivityOptions DEFAULT_INSTANCE;
+
+  static {
+    DEFAULT_INSTANCE = ActivityOptions.newBuilder().build();
   }
 
   public static final class Builder {
@@ -77,20 +63,19 @@ public final class ActivityOptions {
 
     private List<ContextPropagator> contextPropagators;
 
-    public Builder() {}
+    private Builder() {}
 
-    /** Copy Builder fields from the options. */
-    public Builder(ActivityOptions options) {
+    private Builder(ActivityOptions options) {
       if (options == null) {
         return;
       }
-      this.scheduleToStartTimeout = options.getScheduleToStartTimeout();
-      this.scheduleToCloseTimeout = options.getScheduleToCloseTimeout();
-      this.heartbeatTimeout = options.getHeartbeatTimeout();
-      this.startToCloseTimeout = options.getStartToCloseTimeout();
       this.taskList = options.taskList;
+      this.heartbeatTimeout = options.heartbeatTimeout;
       this.retryOptions = options.retryOptions;
       this.contextPropagators = options.contextPropagators;
+      this.scheduleToCloseTimeout = options.scheduleToCloseTimeout;
+      this.startToCloseTimeout = options.startToCloseTimeout;
+      this.scheduleToStartTimeout = options.scheduleToStartTimeout;
     }
 
     /**
@@ -155,6 +140,31 @@ public final class ActivityOptions {
       return this;
     }
 
+    /**
+     * Properties that are set on this builder take precedence over ones found in the annotation.
+     */
+    public Builder setActivityMethod(ActivityMethod a) {
+      if (a == null) {
+        return this;
+      }
+      scheduleToCloseTimeout =
+          mergeDuration(a.scheduleToCloseTimeoutSeconds(), scheduleToCloseTimeout);
+      scheduleToStartTimeout =
+          mergeDuration(a.scheduleToStartTimeoutSeconds(), scheduleToStartTimeout);
+      startToCloseTimeout = mergeDuration(a.startToCloseTimeoutSeconds(), startToCloseTimeout);
+      heartbeatTimeout = mergeDuration(a.heartbeatTimeoutSeconds(), heartbeatTimeout);
+      taskList = taskList != null ? taskList : (a.taskList().isEmpty() ? null : a.taskList());
+      return this;
+    }
+
+    /**
+     * Properties that are set on this builder take precedence over ones found in the annotation.
+     */
+    public Builder setMethodRetry(MethodRetry r) {
+      retryOptions = RetryOptions.merge(r, retryOptions);
+      return this;
+    }
+
     public ActivityOptions build() {
       return new ActivityOptions(
           heartbeatTimeout,
@@ -192,7 +202,7 @@ public final class ActivityOptions {
       }
       RetryOptions ro = null;
       if (retryOptions != null) {
-        ro = new RetryOptions.Builder(retryOptions).validateBuildWithDefaults();
+        ro = RetryOptions.newBuilder(retryOptions).validateBuildWithDefaults();
       }
       return new ActivityOptions(
           roundUpToSeconds(heartbeat),

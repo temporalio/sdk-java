@@ -24,7 +24,23 @@ import org.slf4j.LoggerFactory;
 /** Options for component that polls Temporal task lists for tasks. */
 public final class PollerOptions {
 
-  private static final Logger log = LoggerFactory.getLogger(PollerOptions.class);
+  public static Builder newBuilder() {
+    return new Builder();
+  }
+
+  public static Builder newBuilder(PollerOptions options) {
+    return new Builder(options);
+  }
+
+  public static PollerOptions getDefaultInstance() {
+    return DEFAULT_INSTANCE;
+  }
+
+  private static final PollerOptions DEFAULT_INSTANCE;
+
+  static {
+    DEFAULT_INSTANCE = PollerOptions.newBuilder().build();
+  }
 
   public static final class Builder {
 
@@ -44,20 +60,20 @@ public final class PollerOptions {
 
     private Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
 
-    public Builder() {}
+    private Builder() {}
 
-    public Builder(PollerOptions o) {
-      if (o == null) {
+    private Builder(PollerOptions options) {
+      if (options == null) {
         return;
       }
-      this.maximumPollRateIntervalMilliseconds = o.getMaximumPollRateIntervalMilliseconds();
-      this.maximumPollRatePerSecond = o.getMaximumPollRatePerSecond();
-      this.pollBackoffCoefficient = o.getPollBackoffCoefficient();
-      this.pollBackoffInitialInterval = o.getPollBackoffInitialInterval();
-      this.pollBackoffMaximumInterval = o.getPollBackoffMaximumInterval();
-      this.pollThreadCount = o.getPollThreadCount();
-      this.pollThreadNamePrefix = o.getPollThreadNamePrefix();
-      this.uncaughtExceptionHandler = o.getUncaughtExceptionHandler();
+      this.maximumPollRateIntervalMilliseconds = options.getMaximumPollRateIntervalMilliseconds();
+      this.maximumPollRatePerSecond = options.getMaximumPollRatePerSecond();
+      this.pollBackoffCoefficient = options.getPollBackoffCoefficient();
+      this.pollBackoffInitialInterval = options.getPollBackoffInitialInterval();
+      this.pollBackoffMaximumInterval = options.getPollBackoffMaximumInterval();
+      this.pollThreadCount = options.getPollThreadCount();
+      this.pollThreadNamePrefix = options.getPollThreadNamePrefix();
+      this.uncaughtExceptionHandler = options.getUncaughtExceptionHandler();
     }
 
     /** Defines interval for measuring poll rate. Larger the interval more spiky can be the load. */
@@ -130,6 +146,8 @@ public final class PollerOptions {
           pollThreadNamePrefix);
     }
   }
+
+  private static final Logger log = LoggerFactory.getLogger(PollerOptions.class);
 
   private final int maximumPollRateIntervalMilliseconds;
 

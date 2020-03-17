@@ -30,6 +30,7 @@ import com.uber.m3.util.ImmutableMap;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
@@ -121,17 +122,17 @@ public class StickyWorkerTest {
 
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
-            new Worker.FactoryOptions.Builder()
+            WorkerFactoryOptions.newBuilder()
                 .setDisableStickyExecution(false)
                 .setMetricScope(scope)
                 .build());
-    Worker.Factory factory = wrapper.getWorkerFactory();
-    Worker worker = factory.newWorker(taskListName, new WorkerOptions.Builder().build());
+    WorkerFactory factory = wrapper.getWorkerFactory();
+    Worker worker = factory.newWorker(taskListName, WorkerOptions.newBuilder().build());
     worker.registerWorkflowImplementationTypes(GreetingSignalWorkflowImpl.class);
     factory.start();
 
     WorkflowOptions workflowOptions =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
             .setExecutionStartToCloseTimeout(Duration.ofDays(30))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
@@ -179,23 +180,23 @@ public class StickyWorkerTest {
 
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
-            new Worker.FactoryOptions.Builder()
+            WorkerFactoryOptions.newBuilder()
                 .setDisableStickyExecution(false)
                 .setMetricScope(scope)
                 .setMaxWorkflowThreadCount(10)
                 .setCacheMaximumSize(100)
                 .build());
-    Worker.Factory factory = wrapper.getWorkerFactory();
+    WorkerFactory factory = wrapper.getWorkerFactory();
     Worker worker =
         factory.newWorker(
             taskListName,
-            new WorkerOptions.Builder().setMaxConcurrentWorkflowExecutionSize(5).build());
+            WorkerOptions.newBuilder().setMaxConcurrentWorkflowExecutionSize(5).build());
     worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
     worker.registerActivitiesImplementations(new ActivitiesImpl());
     factory.start();
 
     WorkflowOptions workflowOptions =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
             .setExecutionStartToCloseTimeout(Duration.ofDays(30))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(1))
@@ -237,18 +238,18 @@ public class StickyWorkerTest {
 
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
-            new Worker.FactoryOptions.Builder()
+            WorkerFactoryOptions.newBuilder()
                 .setDisableStickyExecution(false)
                 .setMetricScope(scope)
                 .build());
-    Worker.Factory factory = wrapper.getWorkerFactory();
-    Worker worker = factory.newWorker(taskListName, new WorkerOptions.Builder().build());
+    WorkerFactory factory = wrapper.getWorkerFactory();
+    Worker worker = factory.newWorker(taskListName, WorkerOptions.newBuilder().build());
     worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
     worker.registerActivitiesImplementations(new ActivitiesImpl());
     factory.start();
 
     WorkflowOptions workflowOptions =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
             .setExecutionStartToCloseTimeout(Duration.ofDays(30))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
@@ -295,18 +296,18 @@ public class StickyWorkerTest {
 
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
-            new Worker.FactoryOptions.Builder()
+            WorkerFactoryOptions.newBuilder()
                 .setDisableStickyExecution(false)
                 .setMetricScope(scope)
                 .build());
-    Worker.Factory factory = wrapper.getWorkerFactory();
-    Worker worker = factory.newWorker(taskListName, new WorkerOptions.Builder().build());
+    WorkerFactory factory = wrapper.getWorkerFactory();
+    Worker worker = factory.newWorker(taskListName, WorkerOptions.newBuilder().build());
     worker.registerWorkflowImplementationTypes(
         GreetingParentWorkflowImpl.class, GreetingChildImpl.class);
     factory.start();
 
     WorkflowOptions workflowOptions =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
             .setExecutionStartToCloseTimeout(Duration.ofDays(30))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
@@ -346,17 +347,17 @@ public class StickyWorkerTest {
 
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
-            new Worker.FactoryOptions.Builder()
+            WorkerFactoryOptions.newBuilder()
                 .setDisableStickyExecution(false)
                 .setMetricScope(scope)
                 .build());
-    Worker.Factory factory = wrapper.getWorkerFactory();
-    Worker worker = factory.newWorker(taskListName, new WorkerOptions.Builder().build());
+    WorkerFactory factory = wrapper.getWorkerFactory();
+    Worker worker = factory.newWorker(taskListName, WorkerOptions.newBuilder().build());
     worker.registerWorkflowImplementationTypes(TestMutableSideEffectWorkflowImpl.class);
     factory.start();
 
     WorkflowOptions workflowOptions =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
             .setExecutionStartToCloseTimeout(Duration.ofDays(30))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
@@ -398,14 +399,14 @@ public class StickyWorkerTest {
     String taskListName = "notCachedStickyTest";
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
-            new Worker.FactoryOptions.Builder().setDisableStickyExecution(true).build());
-    Worker.Factory factory = wrapper.getWorkerFactory();
+            WorkerFactoryOptions.newBuilder().setDisableStickyExecution(true).build());
+    WorkerFactory factory = wrapper.getWorkerFactory();
     Worker worker = factory.newWorker(taskListName);
     worker.registerWorkflowImplementationTypes(GreetingSignalWorkflowImpl.class);
     factory.start();
 
     WorkflowOptions workflowOptions =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
             .setExecutionStartToCloseTimeout(Duration.ofDays(30))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
@@ -431,14 +432,14 @@ public class StickyWorkerTest {
     String taskListName = "evictedStickyTest";
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
-            new Worker.FactoryOptions.Builder().setDisableStickyExecution(false).build());
-    Worker.Factory factory = wrapper.getWorkerFactory();
+            WorkerFactoryOptions.newBuilder().setDisableStickyExecution(false).build());
+    WorkerFactory factory = wrapper.getWorkerFactory();
     Worker worker = factory.newWorker(taskListName);
     worker.registerWorkflowImplementationTypes(GreetingSignalWorkflowImpl.class);
     factory.start();
 
     WorkflowOptions workflowOptions =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
             .setExecutionStartToCloseTimeout(Duration.ofDays(30))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
@@ -471,14 +472,14 @@ public class StickyWorkerTest {
     String taskListName = "queryStickyTest";
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
-            new Worker.FactoryOptions.Builder().setDisableStickyExecution(false).build());
-    Worker.Factory factory = wrapper.getWorkerFactory();
+            WorkerFactoryOptions.newBuilder().setDisableStickyExecution(false).build());
+    WorkerFactory factory = wrapper.getWorkerFactory();
     Worker worker = factory.newWorker(taskListName);
     worker.registerWorkflowImplementationTypes(GreetingSignalWorkflowImpl.class);
     factory.start();
 
     WorkflowOptions workflowOptions =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
             .setExecutionStartToCloseTimeout(Duration.ofDays(30))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
@@ -512,14 +513,14 @@ public class StickyWorkerTest {
     String taskListName = "queryEvictionStickyTest";
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
-            new Worker.FactoryOptions.Builder().setDisableStickyExecution(false).build());
-    Worker.Factory factory = wrapper.getWorkerFactory();
+            WorkerFactoryOptions.newBuilder().setDisableStickyExecution(false).build());
+    WorkerFactory factory = wrapper.getWorkerFactory();
     Worker worker = factory.newWorker(taskListName);
     worker.registerWorkflowImplementationTypes(GreetingSignalWorkflowImpl.class);
     factory.start();
 
     WorkflowOptions workflowOptions =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
             .setExecutionStartToCloseTimeout(Duration.ofDays(30))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
@@ -553,32 +554,33 @@ public class StickyWorkerTest {
   private class TestEnvironmentWrapper {
 
     private TestWorkflowEnvironment testEnv;
-    private Worker.Factory factory;
+    private WorkerFactory factory;
 
-    public TestEnvironmentWrapper(Worker.FactoryOptions options) {
+    public TestEnvironmentWrapper(WorkerFactoryOptions options) {
       if (options == null) {
-        options = new Worker.FactoryOptions.Builder().setDisableStickyExecution(false).build();
+        options = WorkerFactoryOptions.newBuilder().setDisableStickyExecution(false).build();
       }
       if (useExternalService) {
-        factory = new Worker.Factory(service, DOMAIN, options);
+        WorkflowClientOptions clientOptions =
+            WorkflowClientOptions.newBuilder().setDomain(DOMAIN).build();
+        WorkflowClient client = WorkflowClient.newInstance(service, clientOptions);
+        factory = WorkerFactory.newInstance(client, options);
       } else {
         TestEnvironmentOptions testOptions =
-            new TestEnvironmentOptions.Builder()
+            TestEnvironmentOptions.newBuilder()
                 .setDomain(DOMAIN)
-                .setFactoryOptions(options)
+                .setWorkerFactoryOptions(options)
                 .build();
         testEnv = TestWorkflowEnvironment.newInstance(testOptions);
       }
     }
 
-    private Worker.Factory getWorkerFactory() {
+    private WorkerFactory getWorkerFactory() {
       return useExternalService ? factory : testEnv.getWorkerFactory();
     }
 
     private WorkflowClient getWorkflowClient() {
-      return useExternalService
-          ? WorkflowClient.newInstance(service, DOMAIN)
-          : testEnv.newWorkflowClient();
+      return useExternalService ? factory.getWorkflowClient() : testEnv.getWorkflowClient();
     }
 
     private void close() {
@@ -687,7 +689,7 @@ public class StickyWorkerTest {
       SleepActivity activity =
           Workflow.newActivityStub(
               SleepActivity.class,
-              new ActivityOptions.Builder()
+              ActivityOptions.newBuilder()
                   .setTaskList(params.TaskListName)
                   .setScheduleToStartTimeout(Duration.ofMinutes(1))
                   .setStartToCloseTimeout(Duration.ofMinutes(1))

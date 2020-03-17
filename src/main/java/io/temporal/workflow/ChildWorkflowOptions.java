@@ -33,34 +33,22 @@ import java.util.Objects;
 
 public final class ChildWorkflowOptions {
 
-  public static ChildWorkflowOptions merge(
-      WorkflowMethod a, MethodRetry r, CronSchedule cronSchedule, ChildWorkflowOptions o) {
-    if (o == null) {
-      o = new ChildWorkflowOptions.Builder().build();
-    }
+  public static Builder newBuilder() {
+    return new Builder();
+  }
 
-    String cronAnnotation = cronSchedule == null ? "" : cronSchedule.value();
-    return new ChildWorkflowOptions.Builder()
-        .setDomain(o.getDomain())
-        .setWorkflowIdReusePolicy(
-            OptionsUtils.merge(
-                a.workflowIdReusePolicy(),
-                o.getWorkflowIdReusePolicy(),
-                WorkflowIdReusePolicy.class))
-        .setWorkflowId(OptionsUtils.merge(a.workflowId(), o.getWorkflowId(), String.class))
-        .setTaskStartToCloseTimeout(
-            OptionsUtils.merge(a.taskStartToCloseTimeoutSeconds(), o.getTaskStartToCloseTimeout()))
-        .setExecutionStartToCloseTimeout(
-            OptionsUtils.merge(
-                a.executionStartToCloseTimeoutSeconds(), o.getExecutionStartToCloseTimeout()))
-        .setTaskList(OptionsUtils.merge(a.taskList(), o.getTaskList(), String.class))
-        .setRetryOptions(RetryOptions.merge(r, o.getRetryOptions()))
-        .setCronSchedule(OptionsUtils.merge(cronAnnotation, o.getCronSchedule(), String.class))
-        .setParentClosePolicy(o.getParentClosePolicy())
-        .setMemo(o.getMemo())
-        .setSearchAttributes(o.getSearchAttributes())
-        .setContextPropagators(o.getContextPropagators())
-        .validateAndBuildWithDefaults();
+  public static Builder newBuilder(ChildWorkflowOptions options) {
+    return new Builder(options);
+  }
+
+  public static ChildWorkflowOptions getDefaultInstance() {
+    return DEFAULT_INSTANCE;
+  }
+
+  private static final ChildWorkflowOptions DEFAULT_INSTANCE;
+
+  static {
+    DEFAULT_INSTANCE = ChildWorkflowOptions.newBuilder().build();
   }
 
   public static final class Builder {
@@ -89,24 +77,24 @@ public final class ChildWorkflowOptions {
 
     private List<ContextPropagator> contextPropagators;
 
-    public Builder() {}
+    private Builder() {}
 
-    public Builder(ChildWorkflowOptions source) {
-      if (source == null) {
+    private Builder(ChildWorkflowOptions options) {
+      if (options == null) {
         return;
       }
-      this.domain = source.getDomain();
-      this.workflowId = source.getWorkflowId();
-      this.workflowIdReusePolicy = source.getWorkflowIdReusePolicy();
-      this.executionStartToCloseTimeout = source.getExecutionStartToCloseTimeout();
-      this.taskStartToCloseTimeout = source.getTaskStartToCloseTimeout();
-      this.taskList = source.getTaskList();
-      this.retryOptions = source.getRetryOptions();
-      this.cronSchedule = source.getCronSchedule();
-      this.parentClosePolicy = source.getParentClosePolicy();
-      this.memo = source.getMemo();
-      this.searchAttributes = source.getSearchAttributes();
-      this.contextPropagators = source.getContextPropagators();
+      this.domain = options.getDomain();
+      this.workflowId = options.getWorkflowId();
+      this.workflowIdReusePolicy = options.getWorkflowIdReusePolicy();
+      this.executionStartToCloseTimeout = options.getExecutionStartToCloseTimeout();
+      this.taskStartToCloseTimeout = options.getTaskStartToCloseTimeout();
+      this.taskList = options.getTaskList();
+      this.retryOptions = options.getRetryOptions();
+      this.cronSchedule = options.getCronSchedule();
+      this.parentClosePolicy = options.getParentClosePolicy();
+      this.memo = options.getMemo();
+      this.searchAttributes = options.getSearchAttributes();
+      this.contextPropagators = options.getContextPropagators();
     }
 
     /**
@@ -220,6 +208,30 @@ public final class ChildWorkflowOptions {
     /** Specifies the list of context propagators to use during this workflow. */
     public Builder setContextPropagators(List<ContextPropagator> contextPropagators) {
       this.contextPropagators = contextPropagators;
+      return this;
+    }
+
+    public Builder setWorkflowMethod(WorkflowMethod a) {
+      workflowIdReusePolicy =
+          OptionsUtils.merge(
+              a.workflowIdReusePolicy(), workflowIdReusePolicy, WorkflowIdReusePolicy.class);
+      workflowId = OptionsUtils.merge(a.workflowId(), workflowId, String.class);
+      taskStartToCloseTimeout =
+          OptionsUtils.merge(a.taskStartToCloseTimeoutSeconds(), taskStartToCloseTimeout);
+      executionStartToCloseTimeout =
+          OptionsUtils.merge(a.executionStartToCloseTimeoutSeconds(), executionStartToCloseTimeout);
+      taskList = OptionsUtils.merge(a.taskList(), taskList, String.class);
+      return this;
+    }
+
+    public Builder setMethodRetry(MethodRetry r) {
+      retryOptions = RetryOptions.merge(r, retryOptions);
+      return this;
+    }
+
+    public Builder setCronSchedule(CronSchedule c) {
+      String cronAnnotation = c == null ? "" : c.value();
+      cronSchedule = OptionsUtils.merge(cronAnnotation, cronSchedule, String.class);
       return this;
     }
 

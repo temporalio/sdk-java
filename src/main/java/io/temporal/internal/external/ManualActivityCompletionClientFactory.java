@@ -19,10 +19,9 @@ package io.temporal.internal.external;
 
 import io.temporal.proto.common.WorkflowExecution;
 
-public abstract class ManualActivityCompletionClientFactory {
+public interface ManualActivityCompletionClientFactory {
 
-  public abstract ManualActivityCompletionClient getClient(byte[] taskToken);
+  ManualActivityCompletionClient getClient(byte[] taskToken);
 
-  public abstract ManualActivityCompletionClient getClient(
-      WorkflowExecution execution, String activityId);
+  ManualActivityCompletionClient getClient(WorkflowExecution execution, String activityId);
 }

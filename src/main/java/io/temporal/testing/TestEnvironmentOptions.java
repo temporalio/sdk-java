@@ -22,13 +22,31 @@ import com.uber.m3.tally.Scope;
 import io.temporal.converter.DataConverter;
 import io.temporal.converter.JsonDataConverter;
 import io.temporal.internal.metrics.NoopScope;
-import io.temporal.worker.Worker;
+import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.WorkflowInterceptor;
 import java.util.Objects;
 import java.util.function.Function;
 
 @VisibleForTesting
 public final class TestEnvironmentOptions {
+
+  public static Builder newBuilder() {
+    return new Builder();
+  }
+
+  public static Builder newBuilder(TestEnvironmentOptions options) {
+    return new Builder(options);
+  }
+
+  public static TestEnvironmentOptions getDefaultInstance() {
+    return DEFAULT_INSTANCE;
+  }
+
+  private static final TestEnvironmentOptions DEFAULT_INSTANCE;
+
+  static {
+    DEFAULT_INSTANCE = TestEnvironmentOptions.newBuilder().build();
+  }
 
   public static final class Builder {
 
@@ -42,7 +60,18 @@ public final class TestEnvironmentOptions {
 
     private boolean enableLoggingInReplay;
 
-    private Worker.FactoryOptions factoryOptions;
+    private WorkerFactoryOptions workerFactoryOptions;
+
+    private Builder() {}
+
+    private Builder(TestEnvironmentOptions o) {
+      dataConverter = o.dataConverter;
+      domain = o.domain;
+      interceptorFactory = o.interceptorFactory;
+      metricsScope = o.metricsScope;
+      enableLoggingInReplay = o.enableLoggingInReplay;
+      workerFactoryOptions = o.workerFactoryOptions;
+    }
 
     /** Sets data converter to use for unit-tests. Default is {@link JsonDataConverter}. */
     public Builder setDataConverter(DataConverter dataConverter) {
@@ -76,8 +105,8 @@ public final class TestEnvironmentOptions {
     }
 
     /** Set factoryOptions for worker factory used to create workers. */
-    public Builder setFactoryOptions(Worker.FactoryOptions options) {
-      this.factoryOptions = options;
+    public Builder setWorkerFactoryOptions(WorkerFactoryOptions options) {
+      this.workerFactoryOptions = options;
       return this;
     }
 
@@ -92,9 +121,9 @@ public final class TestEnvironmentOptions {
         metricsScope = NoopScope.getInstance();
       }
 
-      if (factoryOptions == null) {
-        factoryOptions =
-            new Worker.FactoryOptions.Builder().setDisableStickyExecution(false).build();
+      if (workerFactoryOptions == null) {
+        workerFactoryOptions =
+            WorkerFactoryOptions.newBuilder().setDisableStickyExecution(false).build();
       }
 
       return new TestEnvironmentOptions(
@@ -102,7 +131,7 @@ public final class TestEnvironmentOptions {
           domain,
           interceptorFactory,
           metricsScope,
-          factoryOptions,
+          workerFactoryOptions,
           enableLoggingInReplay);
     }
   }
@@ -112,14 +141,14 @@ public final class TestEnvironmentOptions {
   private final Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory;
   private final Scope metricsScope;
   private final boolean enableLoggingInReplay;
-  private final Worker.FactoryOptions workerFactoryOptions;
+  private final WorkerFactoryOptions workerFactoryOptions;
 
   private TestEnvironmentOptions(
       DataConverter dataConverter,
       String domain,
       Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
       Scope metricsScope,
-      Worker.FactoryOptions options,
+      WorkerFactoryOptions options,
       boolean enableLoggingInReplay) {
     this.dataConverter = dataConverter;
     this.domain = domain;
@@ -149,7 +178,7 @@ public final class TestEnvironmentOptions {
     return enableLoggingInReplay;
   }
 
-  public Worker.FactoryOptions getWorkerFactoryOptions() {
+  public WorkerFactoryOptions getWorkerFactoryOptions() {
     return workerFactoryOptions;
   }
 

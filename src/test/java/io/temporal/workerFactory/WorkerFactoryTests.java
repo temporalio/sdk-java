@@ -20,9 +20,13 @@ package io.temporal.workerFactory;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import io.temporal.worker.Worker;
+import io.temporal.client.WorkflowClient;
+import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.worker.WorkerFactory;
 import java.util.concurrent.TimeUnit;
+import org.junit.After;
 import org.junit.Assume;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -36,9 +40,25 @@ public class WorkerFactoryTests {
     Assume.assumeTrue(useDockerService);
   }
 
+  private WorkflowServiceStubs service;
+  private WorkflowClient client;
+  private WorkerFactory factory;
+
+  @Before
+  public void setUp() {
+    service = WorkflowServiceStubs.newInstance();
+    client = WorkflowClient.newInstance(service);
+    factory = WorkerFactory.newInstance(client);
+  }
+
+  @After
+  public void tearDown() throws InterruptedException {
+    service.shutdownNow();
+    service.awaitTermination(1, TimeUnit.SECONDS);
+  }
+
   @Test
   public void whenAFactoryIsStartedAllWorkersStart() {
-    Worker.Factory factory = new Worker.Factory("domain");
     factory.newWorker("task1");
     factory.newWorker("task2");
 
@@ -50,7 +70,6 @@ public class WorkerFactoryTests {
 
   @Test
   public void whenAFactoryIsShutdownAllWorkersAreShutdown() {
-    Worker.Factory factory = new Worker.Factory("domain");
     factory.newWorker("task1");
     factory.newWorker("task2");
 
@@ -69,8 +88,6 @@ public class WorkerFactoryTests {
 
   @Test
   public void aFactoryCanBeStartedMoreThanOnce() {
-    Worker.Factory factory = new Worker.Factory("domain");
-
     factory.start();
     factory.start();
     factory.shutdown();
@@ -79,7 +96,6 @@ public class WorkerFactoryTests {
 
   @Test(expected = IllegalStateException.class)
   public void aFactoryCannotBeStartedAfterShutdown() {
-    Worker.Factory factory = new Worker.Factory("domain");
     factory.newWorker("task1");
 
     factory.shutdown();
@@ -89,7 +105,6 @@ public class WorkerFactoryTests {
 
   @Test(expected = IllegalStateException.class)
   public void workersCannotBeCreatedAfterFactoryHasStarted() {
-    Worker.Factory factory = new Worker.Factory("domain");
     factory.newWorker("task1");
 
     factory.start();
@@ -104,7 +119,6 @@ public class WorkerFactoryTests {
 
   @Test(expected = IllegalStateException.class)
   public void workersCannotBeCreatedAfterFactoryIsShutdown() {
-    Worker.Factory factory = new Worker.Factory("domain");
     factory.newWorker("task1");
 
     factory.shutdown();
@@ -119,7 +133,6 @@ public class WorkerFactoryTests {
 
   @Test
   public void factoryCanOnlyBeShutdownMoreThanOnce() {
-    Worker.Factory factory = new Worker.Factory("domain");
     factory.newWorker("task1");
 
     factory.shutdown();

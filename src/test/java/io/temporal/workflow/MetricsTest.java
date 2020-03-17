@@ -76,11 +76,11 @@ public class MetricsTest {
       Workflow.getMetricsScope().counter("test-started").inc(1);
 
       ActivityOptions activityOptions =
-          new ActivityOptions.Builder()
+          ActivityOptions.newBuilder()
               .setTaskList(taskList)
               .setScheduleToCloseTimeout(Duration.ofSeconds(1))
               .setRetryOptions(
-                  new RetryOptions.Builder()
+                  RetryOptions.newBuilder()
                       .setExpiration(Duration.ofSeconds(100))
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
@@ -92,7 +92,7 @@ public class MetricsTest {
       activity.runActivity(1);
 
       ChildWorkflowOptions options =
-          new ChildWorkflowOptions.Builder().setTaskList(taskList).build();
+          ChildWorkflowOptions.newBuilder().setTaskList(taskList).build();
       TestChildWorkflow workflow = Workflow.newChildWorkflowStub(TestChildWorkflow.class, options);
       workflow.executeChild();
 
@@ -196,7 +196,7 @@ public class MetricsTest {
     Scope scope = new RootScopeBuilder().reporter(reporter).reportEvery(reportingFrequecy);
 
     TestEnvironmentOptions testOptions =
-        new TestEnvironmentOptions.Builder()
+        TestEnvironmentOptions.newBuilder()
             .setDomain(WorkflowTest.DOMAIN)
             .setMetricsScope(scope)
             .build();
@@ -213,9 +213,9 @@ public class MetricsTest {
     worker.registerActivitiesImplementations(new TestActivityImpl());
     testEnvironment.start();
 
-    WorkflowClient workflowClient = testEnvironment.newWorkflowClient();
+    WorkflowClient workflowClient = testEnvironment.getWorkflowClient();
     WorkflowOptions options =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(1000))
             .setTaskList(taskList)
             .build();
@@ -275,12 +275,12 @@ public class MetricsTest {
     testEnvironment.start();
 
     WorkflowOptions options =
-        new WorkflowOptions.Builder()
+        WorkflowOptions.newBuilder()
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(1000))
             .setTaskList(taskList)
             .build();
 
-    WorkflowClient workflowClient = testEnvironment.newWorkflowClient();
+    WorkflowClient workflowClient = testEnvironment.getWorkflowClient();
     SendSignalObjectWorkflow workflow =
         workflowClient.newWorkflowStub(SendSignalObjectWorkflow.class, options);
     workflow.execute();

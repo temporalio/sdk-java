@@ -49,7 +49,11 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
     CronSchedule cronSchedule = workflowMethod.getAnnotation(CronSchedule.class);
 
     ChildWorkflowOptions merged =
-        ChildWorkflowOptions.merge(workflowAnnotation, retryAnnotation, cronSchedule, options);
+        ChildWorkflowOptions.newBuilder(options)
+            .setWorkflowMethod(workflowAnnotation)
+            .setMethodRetry(retryAnnotation)
+            .setCronSchedule(cronSchedule)
+            .validateAndBuildWithDefaults();
     this.stub = new ChildWorkflowStubImpl(workflowType, merged, decisionContext);
   }
 

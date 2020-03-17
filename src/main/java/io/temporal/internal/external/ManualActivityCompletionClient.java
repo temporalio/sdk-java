@@ -19,13 +19,13 @@ package io.temporal.internal.external;
 
 import java.util.concurrent.CancellationException;
 
-public abstract class ManualActivityCompletionClient {
+public interface ManualActivityCompletionClient {
 
-  public abstract void complete(Object result);
+  void complete(Object result);
 
-  public abstract void fail(Throwable failure);
+  void fail(Throwable failure);
 
-  public abstract void recordHeartbeat(Object details) throws CancellationException;
+  void recordHeartbeat(Object details) throws CancellationException;
 
-  public abstract void reportCancellation(Object details);
+  void reportCancellation(Object details);
 }
