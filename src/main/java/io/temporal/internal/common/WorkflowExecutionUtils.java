@@ -86,7 +86,7 @@ public class WorkflowExecutionUtils {
   private static final Logger log = LoggerFactory.getLogger(WorkflowExecutionUtils.class);
 
   private static RpcRetryOptions retryParameters =
-      new RpcRetryOptions.Builder()
+      RpcRetryOptions.newBuilder()
           .setBackoffCoefficient(2)
           .setInitialInterval(Duration.ofMillis(500))
           .setMaximumInterval(Duration.ofSeconds(30))
@@ -200,7 +200,7 @@ public class WorkflowExecutionUtils {
       Deadline expiration = Deadline.after(unit.toMillis(timeout) - elapsed, TimeUnit.MILLISECONDS);
       if (expiration.timeRemaining(TimeUnit.MILLISECONDS) > 0) {
         RpcRetryOptions retryOptions =
-            new RpcRetryOptions.Builder()
+            RpcRetryOptions.newBuilder()
                 .setBackoffCoefficient(1)
                 .setInitialInterval(Duration.ofMillis(1))
                 .setMaximumAttempts(Integer.MAX_VALUE)
@@ -341,7 +341,7 @@ public class WorkflowExecutionUtils {
     long start = System.currentTimeMillis();
     Deadline expiration = Deadline.after(timeout, TimeUnit.MILLISECONDS);
     RpcRetryOptions retryOptions =
-        new RpcRetryOptions.Builder()
+        RpcRetryOptions.newBuilder()
             .setBackoffCoefficient(1.5)
             .setInitialInterval(Duration.ofMillis(1))
             .setMaximumInterval(Duration.ofSeconds(1))

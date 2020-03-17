@@ -129,7 +129,7 @@ public final class Worker implements Suspendable {
             .put(MetricsTag.DOMAIN, domain)
             .put(MetricsTag.TASK_LIST, taskList)
             .build();
-    return new SingleWorkerOptions.Builder()
+    return SingleWorkerOptions.newBuilder()
         .setDataConverter(options.getDataConverter())
         .setIdentity(options.getIdentity())
         .setPollerOptions(options.getActivityPollerOptions())
@@ -152,7 +152,7 @@ public final class Worker implements Suspendable {
             .put(MetricsTag.DOMAIN, domain)
             .put(MetricsTag.TASK_LIST, taskList)
             .build();
-    return new SingleWorkerOptions.Builder()
+    return SingleWorkerOptions.newBuilder()
         .setDataConverter(options.getDataConverter())
         .setIdentity(options.getIdentity())
         .setPollerOptions(options.getWorkflowPollerOptions())
@@ -175,7 +175,7 @@ public final class Worker implements Suspendable {
             .put(MetricsTag.DOMAIN, domain)
             .put(MetricsTag.TASK_LIST, taskList)
             .build();
-    return new SingleWorkerOptions.Builder()
+    return SingleWorkerOptions.newBuilder()
         .setDataConverter(options.getDataConverter())
         .setIdentity(options.getIdentity())
         .setPollerOptions(options.getWorkflowPollerOptions())
@@ -186,6 +186,14 @@ public final class Worker implements Suspendable {
         .setEnableLoggingInReplay(options.getEnableLoggingInReplay())
         .setContextPropagators(contextPropagators)
         .build();
+  }
+
+  SyncWorkflowWorker getWorkflowWorker() {
+    return workflowWorker;
+  }
+
+  SyncActivityWorker getActivityWorker() {
+    return activityWorker;
   }
 
   /**

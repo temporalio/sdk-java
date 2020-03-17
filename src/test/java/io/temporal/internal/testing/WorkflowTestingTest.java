@@ -268,7 +268,7 @@ public class WorkflowTestingTest {
         long scheduleToStartTimeoutSeconds,
         long startToCloseTimeoutSeconds) {
       ActivityOptions options =
-          new ActivityOptions.Builder()
+          ActivityOptions.newBuilder()
               .setScheduleToCloseTimeout(Duration.ofSeconds(scheduleToCloseTimeoutSeconds))
               .setStartToCloseTimeout(Duration.ofSeconds(startToCloseTimeoutSeconds))
               .setScheduleToStartTimeout(Duration.ofSeconds(scheduleToStartTimeoutSeconds))
@@ -827,7 +827,7 @@ public class WorkflowTestingTest {
 
       // Fire up a child workflow
       ChildWorkflowOptions options =
-          new ChildWorkflowOptions.Builder()
+          ChildWorkflowOptions.newBuilder()
               .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
               .build();
       ChildWorkflow child = Workflow.newChildWorkflowStub(ChildWorkflow.class, options);
@@ -906,7 +906,7 @@ public class WorkflowTestingTest {
     @Override
     public String workflow1(String input) {
       ActivityOptions options =
-          new ActivityOptions.Builder()
+          ActivityOptions.newBuilder()
               .setScheduleToCloseTimeout(Duration.ofSeconds(5))
               .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
               .build();
@@ -936,7 +936,7 @@ public class WorkflowTestingTest {
     @Override
     public String workflow1(String input) {
       ActivityOptions options =
-          new ActivityOptions.Builder().setScheduleToCloseTimeout(Duration.ofSeconds(5)).build();
+          ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofSeconds(5)).build();
       TestActivity activity = Workflow.newActivityStub(TestActivity.class, options);
       return activity.activity1("foo");
     }
@@ -967,7 +967,7 @@ public class WorkflowTestingTest {
       String mdcValue = MDC.get("test");
 
       // Fire up a child workflow
-      ChildWorkflowOptions options = new ChildWorkflowOptions.Builder().build();
+      ChildWorkflowOptions options = ChildWorkflowOptions.newBuilder().build();
       ChildWorkflow child = Workflow.newChildWorkflowStub(ChildWorkflow.class, options);
 
       String result = child.workflow(mdcValue, Workflow.getWorkflowInfo().getWorkflowId());

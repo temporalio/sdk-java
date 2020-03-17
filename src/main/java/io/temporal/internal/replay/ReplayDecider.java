@@ -608,7 +608,7 @@ class ReplayDecider implements Decider, Consumer<HistoryEvent> {
                 .asRuntimeException();
           }
           RpcRetryOptions retryOptions =
-              new RpcRetryOptions.Builder()
+              RpcRetryOptions.newBuilder()
                   .setExpiration(expiration)
                   .setInitialInterval(retryServiceOperationInitialInterval)
                   .setMaximumInterval(retryServiceOperationMaxInterval)

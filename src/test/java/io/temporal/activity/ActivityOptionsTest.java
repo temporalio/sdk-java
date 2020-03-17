@@ -33,14 +33,14 @@ public class ActivityOptionsTest {
   @Test
   public void testOnlyOptionsPresent() throws NoSuchMethodException {
     ActivityOptions o =
-        new ActivityOptions.Builder()
+        ActivityOptions.newBuilder()
             .setTaskList("foo")
             .setHeartbeatTimeout(Duration.ofSeconds(123))
             .setScheduleToCloseTimeout(Duration.ofSeconds(321))
             .setScheduleToStartTimeout(Duration.ofSeconds(333))
             .setStartToCloseTimeout(Duration.ofSeconds(345))
             .setRetryOptions(
-                new RetryOptions.Builder()
+                RetryOptions.newBuilder()
                     .setDoNotRetry(IllegalArgumentException.class)
                     .setMaximumAttempts(11111)
                     .setBackoffCoefficient(1.55)
@@ -53,7 +53,7 @@ public class ActivityOptionsTest {
         ActivityOptionsTest.class
             .getMethod("defaultActivityOptions")
             .getAnnotation(ActivityMethod.class);
-    Assert.assertEquals(o, ActivityOptions.merge(a, null, o));
+    Assert.assertEquals(o, ActivityOptions.newBuilder(o).setActivityMethod(a).build());
   }
 
   @MethodRetry(initialIntervalSeconds = 3)
@@ -63,14 +63,14 @@ public class ActivityOptionsTest {
   @Test
   public void testOnlyOptionsAndEmptyAnnotationsPresent() throws NoSuchMethodException {
     ActivityOptions o =
-        new ActivityOptions.Builder()
+        ActivityOptions.newBuilder()
             .setTaskList("foo")
             .setHeartbeatTimeout(Duration.ofSeconds(123))
             .setScheduleToCloseTimeout(Duration.ofSeconds(321))
             .setScheduleToStartTimeout(Duration.ofSeconds(333))
             .setStartToCloseTimeout(Duration.ofSeconds(345))
             .setRetryOptions(
-                new RetryOptions.Builder()
+                RetryOptions.newBuilder()
                     .setDoNotRetry(IllegalArgumentException.class)
                     .setMaximumAttempts(11111)
                     .setBackoffCoefficient(1.55)
@@ -83,7 +83,7 @@ public class ActivityOptionsTest {
         ActivityOptionsTest.class
             .getMethod("defaultActivityAndRetryOptions")
             .getAnnotation(ActivityMethod.class);
-    Assert.assertEquals(o, ActivityOptions.merge(a, null, o));
+    Assert.assertEquals(o, ActivityOptions.newBuilder(o).setActivityMethod(a).build());
   }
 
   @MethodRetry(
@@ -108,8 +108,9 @@ public class ActivityOptionsTest {
     Method method = ActivityOptionsTest.class.getMethod("activityAndRetryOptions");
     ActivityMethod a = method.getAnnotation(ActivityMethod.class);
     MethodRetry r = method.getAnnotation(MethodRetry.class);
-    ActivityOptions o = new ActivityOptions.Builder().build();
-    ActivityOptions merged = ActivityOptions.merge(a, r, o);
+    ActivityOptions o = ActivityOptions.newBuilder().build();
+    ActivityOptions merged =
+        ActivityOptions.newBuilder(o).setActivityMethod(a).setMethodRetry(r).build();
     Assert.assertEquals(a.taskList(), merged.getTaskList());
     Assert.assertEquals(a.heartbeatTimeoutSeconds(), merged.getHeartbeatTimeout().getSeconds());
     Assert.assertEquals(
@@ -133,14 +134,14 @@ public class ActivityOptionsTest {
   @Test
   public void testBothPresent() throws NoSuchMethodException {
     ActivityOptions o =
-        new ActivityOptions.Builder()
+        ActivityOptions.newBuilder()
             .setTaskList("foo")
             .setHeartbeatTimeout(Duration.ofSeconds(123))
             .setScheduleToCloseTimeout(Duration.ofSeconds(321))
             .setScheduleToStartTimeout(Duration.ofSeconds(333))
             .setStartToCloseTimeout(Duration.ofSeconds(345))
             .setRetryOptions(
-                new RetryOptions.Builder()
+                RetryOptions.newBuilder()
                     .setDoNotRetry(IllegalArgumentException.class)
                     .setMaximumAttempts(11111)
                     .setBackoffCoefficient(1.55)
@@ -152,6 +153,7 @@ public class ActivityOptionsTest {
     Method method = ActivityOptionsTest.class.getMethod("activityAndRetryOptions");
     ActivityMethod a = method.getAnnotation(ActivityMethod.class);
     MethodRetry r = method.getAnnotation(MethodRetry.class);
-    Assert.assertEquals(o, ActivityOptions.merge(a, r, o));
+    Assert.assertEquals(
+        o, ActivityOptions.newBuilder(o).setActivityMethod(a).setMethodRetry(r).build());
   }
 }

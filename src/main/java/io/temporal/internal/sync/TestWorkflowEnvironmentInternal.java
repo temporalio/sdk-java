@@ -88,7 +88,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
                 .setDataConverter(options.getDataConverter())
                 .setMetricsScope(options.getMetricsScope())
                 .build());
-    workerFactory = new WorkerFactory(client, options.getWorkerFactoryOptions());
+    workerFactory = WorkerFactory.newInstance(client, options.getWorkerFactoryOptions());
   }
 
   @Override

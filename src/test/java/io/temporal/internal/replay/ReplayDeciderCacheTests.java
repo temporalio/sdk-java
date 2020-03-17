@@ -320,7 +320,7 @@ public class ReplayDeciderCacheTests {
           }
         },
         new DecisionsHelper(response.toBuilder()),
-        new SingleWorkerOptions.Builder().build(),
+        SingleWorkerOptions.newBuilder().build(),
         (a, d) -> true);
   }
 }

@@ -41,7 +41,7 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
   ChildWorkflowStubImpl(
       String workflowType, ChildWorkflowOptions options, WorkflowInterceptor decisionContext) {
     this.workflowType = Objects.requireNonNull(workflowType);
-    this.options = new ChildWorkflowOptions.Builder(options).validateAndBuildWithDefaults();
+    this.options = ChildWorkflowOptions.newBuilder(options).validateAndBuildWithDefaults();
     this.decisionContext = Objects.requireNonNull(decisionContext);
     this.execution = Workflow.newPromise();
   }

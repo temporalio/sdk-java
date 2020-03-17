@@ -49,7 +49,7 @@ import org.slf4j.LoggerFactory;
 public final class WorkerFactory {
 
   public static WorkerFactory newInstance(WorkflowClient workflowClient) {
-    return new WorkerFactory(workflowClient, WorkerFactoryOptions.getDefaultInstance());
+    return WorkerFactory.newInstance(workflowClient, WorkerFactoryOptions.getDefaultInstance());
   }
 
   public static WorkerFactory newInstance(
@@ -85,7 +85,6 @@ public final class WorkerFactory {
   private WorkerFactory(WorkflowClient workflowClient, WorkerFactoryOptions factoryOptions) {
     this.workflowClient = Objects.requireNonNull(workflowClient);
     this.factoryOptions = Objects.requireNonNull(factoryOptions);
-
     workflowThreadPool =
         new ThreadPoolExecutor(
             0,

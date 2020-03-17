@@ -94,7 +94,7 @@ public class WorkflowOptionsTest {
   @Test
   public void testBothPresent() throws NoSuchMethodException {
     RetryOptions retryOptions =
-        new RetryOptions.Builder()
+        RetryOptions.newBuilder()
             .setDoNotRetry(IllegalArgumentException.class)
             .setMaximumAttempts(11111)
             .setBackoffCoefficient(1.55)
@@ -132,7 +132,7 @@ public class WorkflowOptionsTest {
   @Test
   public void testChildWorkflowOptionMerge() throws NoSuchMethodException {
     RetryOptions retryOptions =
-        new RetryOptions.Builder()
+        RetryOptions.newBuilder()
             .setDoNotRetry(IllegalArgumentException.class)
             .setMaximumAttempts(11111)
             .setBackoffCoefficient(1.55)
@@ -144,7 +144,7 @@ public class WorkflowOptionsTest {
     Map<String, Object> memo = getTestMemo();
     Map<String, Object> searchAttributes = getTestSearchAttributes();
     ChildWorkflowOptions o =
-        new ChildWorkflowOptions.Builder()
+        ChildWorkflowOptions.newBuilder()
             .setTaskList("foo")
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(321))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
@@ -159,7 +159,12 @@ public class WorkflowOptionsTest {
     WorkflowMethod a = method.getAnnotation(WorkflowMethod.class);
     MethodRetry r = method.getAnnotation(MethodRetry.class);
     CronSchedule c = method.getAnnotation(CronSchedule.class);
-    ChildWorkflowOptions merged = ChildWorkflowOptions.merge(a, r, c, o);
+    ChildWorkflowOptions merged =
+        ChildWorkflowOptions.newBuilder(o)
+            .setMethodRetry(r)
+            .setCronSchedule(c)
+            .setWorkflowMethod(a)
+            .validateAndBuildWithDefaults();
     Assert.assertEquals(retryOptions, merged.getRetryOptions());
     Assert.assertEquals("* 1 * * *", merged.getCronSchedule());
     Assert.assertEquals(memo, merged.getMemo());

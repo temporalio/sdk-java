@@ -143,7 +143,7 @@ public class CleanWorkerShutdownTest {
       workflowClient =
           WorkflowClient.newInstance(
               service, WorkflowClientOptions.newBuilder().setDomain(DOMAIN).build());
-      workerFactory = new WorkerFactory(workflowClient);
+      workerFactory = WorkerFactory.newInstance(workflowClient);
       Worker worker = workerFactory.newWorker(taskList);
       worker.registerWorkflowImplementationTypes(TestWorkflowImpl.class);
       worker.registerActivitiesImplementations(new ActivitiesImpl(started));
@@ -201,7 +201,7 @@ public class CleanWorkerShutdownTest {
       workflowClient =
           WorkflowClient.newInstance(
               service, WorkflowClientOptions.newBuilder().setDomain(DOMAIN).build());
-      workerFactory = new WorkerFactory(workflowClient);
+      workerFactory = WorkerFactory.newInstance(workflowClient);
       Worker worker = workerFactory.newWorker(taskList);
       worker.registerWorkflowImplementationTypes(TestWorkflowImpl.class);
       worker.registerActivitiesImplementations(new ActivitiesImpl(started));
@@ -285,7 +285,7 @@ public class CleanWorkerShutdownTest {
       workflowClient =
           WorkflowClient.newInstance(
               service, WorkflowClientOptions.newBuilder().setDomain(DOMAIN).build());
-      workerFactory = new WorkerFactory(workflowClient);
+      workerFactory = WorkerFactory.newInstance(workflowClient);
       Worker worker = workerFactory.newWorker(taskList);
       worker.registerWorkflowImplementationTypes(TestWorkflowImpl.class);
       worker.registerActivitiesImplementations(new HeartbeatingActivitiesImpl(started));

@@ -76,11 +76,11 @@ public class MetricsTest {
       Workflow.getMetricsScope().counter("test-started").inc(1);
 
       ActivityOptions activityOptions =
-          new ActivityOptions.Builder()
+          ActivityOptions.newBuilder()
               .setTaskList(taskList)
               .setScheduleToCloseTimeout(Duration.ofSeconds(1))
               .setRetryOptions(
-                  new RetryOptions.Builder()
+                  RetryOptions.newBuilder()
                       .setExpiration(Duration.ofSeconds(100))
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
@@ -92,7 +92,7 @@ public class MetricsTest {
       activity.runActivity(1);
 
       ChildWorkflowOptions options =
-          new ChildWorkflowOptions.Builder().setTaskList(taskList).build();
+          ChildWorkflowOptions.newBuilder().setTaskList(taskList).build();
       TestChildWorkflow workflow = Workflow.newChildWorkflowStub(TestChildWorkflow.class, options);
       workflow.executeChild();
 

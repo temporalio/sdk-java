@@ -135,12 +135,12 @@ import org.slf4j.Logger;
  *
  * <pre><code>
  * public FileProcessingWorkflowImpl() {
- *     ActivityOptions options1 = new ActivityOptions.Builder()
+ *     ActivityOptions options1 = ActivityOptions.newBuilder()
  *         .setTaskList("taskList1")
  *         .build();
  *     this.store1 = Workflow.newActivityStub(FileProcessingActivities.class, options1);
  *
- *     ActivityOptions options2 = new ActivityOptions.Builder()
+ *     ActivityOptions options2 = ActivityOptions.newBuilder()
  *         .setTaskList("taskList2")
  *         .build();
  *     this.store2 = Workflow.newActivityStub(FileProcessingActivities.class, options2);

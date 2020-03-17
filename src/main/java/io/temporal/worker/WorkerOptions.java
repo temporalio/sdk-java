@@ -72,6 +72,9 @@ public final class WorkerOptions {
     private Builder() {}
 
     private Builder(WorkerOptions o) {
+      if (o == null) {
+        return;
+      }
       disableWorkflowWorker = o.disableWorkflowWorker;
       disableActivityWorker = o.disableActivityWorker;
       workerActivitiesPerSecond = o.workerActivitiesPerSecond;

@@ -564,7 +564,7 @@ public class StickyWorkerTest {
         WorkflowClientOptions clientOptions =
             WorkflowClientOptions.newBuilder().setDomain(DOMAIN).build();
         WorkflowClient client = WorkflowClient.newInstance(service, clientOptions);
-        factory = new WorkerFactory(client, options);
+        factory = WorkerFactory.newInstance(client, options);
       } else {
         TestEnvironmentOptions testOptions =
             new TestEnvironmentOptions.Builder()
@@ -689,7 +689,7 @@ public class StickyWorkerTest {
       SleepActivity activity =
           Workflow.newActivityStub(
               SleepActivity.class,
-              new ActivityOptions.Builder()
+              ActivityOptions.newBuilder()
                   .setTaskList(params.TaskListName)
                   .setScheduleToStartTimeout(Duration.ofMinutes(1))
                   .setStartToCloseTimeout(Duration.ofMinutes(1))

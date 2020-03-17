@@ -27,30 +27,12 @@ import java.util.Objects;
 /** Options used to configure how an local activity is invoked. */
 public final class LocalActivityOptions {
 
-  /**
-   * Used to merge annotation and options. Options takes precedence. Returns options with all
-   * defaults filled in.
-   */
-  public static LocalActivityOptions merge(
-      ActivityMethod a, MethodRetry r, LocalActivityOptions o) {
-    if (a == null) {
-      if (r == null) {
-        return new LocalActivityOptions.Builder(o).validateAndBuildWithDefaults();
-      }
-      RetryOptions mergedR = RetryOptions.merge(r, o.getRetryOptions());
-      return new LocalActivityOptions.Builder()
-          .setRetryOptions(mergedR)
-          .validateAndBuildWithDefaults();
-    }
-    if (o == null) {
-      o = new LocalActivityOptions.Builder().build();
-    }
-    return new LocalActivityOptions.Builder()
-        .setScheduleToCloseTimeout(
-            ActivityOptions.mergeDuration(
-                a.scheduleToCloseTimeoutSeconds(), o.getScheduleToCloseTimeout()))
-        .setRetryOptions(RetryOptions.merge(r, o.getRetryOptions()))
-        .validateAndBuildWithDefaults();
+  public static Builder newBuilder() {
+    return new Builder();
+  }
+
+  public static Builder newBuilder(LocalActivityOptions o) {
+    return new Builder(o);
   }
 
   public static final class Builder {
@@ -83,6 +65,30 @@ public final class LocalActivityOptions {
       return this;
     }
 
+    /**
+     * Merges ActivityMethod annotation. The values of this builder take precedence over annotation
+     * ones.
+     */
+    public Builder setActivityMethod(ActivityMethod a) {
+      if (a != null) {
+        this.scheduleToCloseTimeout =
+            ActivityOptions.mergeDuration(
+                a.scheduleToCloseTimeoutSeconds(), scheduleToCloseTimeout);
+      }
+      return this;
+    }
+
+    /**
+     * Merges MethodRetry annotation. The values of this builder take precedence over annotation
+     * ones.
+     */
+    public Builder setMethodRetry(MethodRetry r) {
+      if (r != null) {
+        this.retryOptions = RetryOptions.merge(r, retryOptions);
+      }
+      return this;
+    }
+
     public LocalActivityOptions build() {
       return new LocalActivityOptions(scheduleToCloseTimeout, retryOptions);
     }
@@ -90,7 +96,7 @@ public final class LocalActivityOptions {
     public LocalActivityOptions validateAndBuildWithDefaults() {
       RetryOptions ro = null;
       if (retryOptions != null) {
-        ro = new RetryOptions.Builder(retryOptions).validateBuildWithDefaults();
+        ro = RetryOptions.newBuilder(retryOptions).validateBuildWithDefaults();
       }
       return new LocalActivityOptions(roundUpToSeconds(scheduleToCloseTimeout), ro);
     }

@@ -26,24 +26,14 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
-public class WorkerFactoryOptions {
+public class FactoryOptions {
 
   public static Builder newBuilder() {
     return new Builder();
   }
 
-  public static Builder newBuilder(WorkerFactoryOptions options) {
-    return new Builder(options);
-  }
-
-  public static WorkerFactoryOptions getDefaultInstance() {
-    return DEFAULT_INSTANCE;
-  }
-
-  private static final WorkerFactoryOptions DEFAULT_INSTANCE;
-
-  static {
-    DEFAULT_INSTANCE = WorkerFactoryOptions.newBuilder().build();
+  public static Builder newBuilder(FactoryOptions o) {
+    return new Builder(o);
   }
 
   public static class Builder {
@@ -57,15 +47,18 @@ public class WorkerFactoryOptions {
 
     private Builder() {}
 
-    private Builder(WorkerFactoryOptions options) {
-      this.disableStickyExecution = options.disableStickyExecution;
+    private Builder(FactoryOptions o) {
+      if (o == null) {
+        return;
+      }
+      this.disableStickyExecution = o.disableStickyExecution;
       this.stickyDecisionScheduleToStartTimeoutInSeconds =
-          options.stickyDecisionScheduleToStartTimeoutInSeconds;
-      this.cacheMaximumSize = options.cacheMaximumSize;
-      this.maxWorkflowThreadCount = options.maxWorkflowThreadCount;
-      this.stickyWorkflowPollerOptions = options.stickyWorkflowPollerOptions;
-      this.metricScope = options.metricsScope;
-      this.contextPropagators = options.contextPropagators;
+          o.stickyDecisionScheduleToStartTimeoutInSeconds;
+      this.cacheMaximumSize = o.cacheMaximumSize;
+      this.maxWorkflowThreadCount = o.maxWorkflowThreadCount;
+      this.stickyWorkflowPollerOptions = o.stickyWorkflowPollerOptions;
+      this.metricScope = o.metricsScope;
+      this.contextPropagators = o.contextPropagators;
     }
 
     /**
@@ -126,8 +119,8 @@ public class WorkerFactoryOptions {
       return this;
     }
 
-    public WorkerFactoryOptions build() {
-      return new WorkerFactoryOptions(
+    public FactoryOptions build() {
+      return new FactoryOptions(
           disableStickyExecution,
           cacheMaximumSize,
           maxWorkflowThreadCount,
@@ -146,7 +139,7 @@ public class WorkerFactoryOptions {
   private final Scope metricsScope;
   private List<ContextPropagator> contextPropagators;
 
-  private WorkerFactoryOptions(
+  private FactoryOptions(
       boolean disableStickyExecution,
       int cacheMaximumSize,
       int maxWorkflowThreadCount,

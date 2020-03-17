@@ -48,7 +48,7 @@ public class WorkerFactoryTests {
   public void setUp() {
     service = WorkflowServiceStubs.newInstance(WorkflowServiceStubs.LOCAL_DOCKER_TARGET);
     client = WorkflowClient.newInstance(service);
-    factory = new WorkerFactory(client);
+    factory = WorkerFactory.newInstance(client);
   }
 
   @After
