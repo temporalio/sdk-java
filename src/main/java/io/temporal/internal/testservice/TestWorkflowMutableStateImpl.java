@@ -228,7 +228,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     } catch (StatusRuntimeException e) {
       throw e;
     } catch (Exception e) {
-      throw Status.INTERNAL.withCause(e).asRuntimeException();
+      throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
     } finally {
       lockHandle.unlock();
       lock.unlock();
@@ -1037,9 +1037,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       String identity,
       WorkflowData data,
       ByteString lastCompletionResult) {
-    CronDefinition cronDefinition = CronDefinitionBuilder.instanceDefinitionFor(CronType.UNIX);
-    CronParser parser = new CronParser(cronDefinition);
-    Cron cron = parser.parse(data.cronSchedule);
+    Cron cron = parseCron(data.cronSchedule);
 
     Instant i = Instant.ofEpochMilli(store.currentTimeMillis());
     ZonedDateTime now = ZonedDateTime.ofInstant(i, ZoneOffset.UTC);
@@ -1079,6 +1077,12 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             getExecutionId(),
             parent,
             parentChildInitiatedEventId);
+  }
+
+  static Cron parseCron(String schedule) {
+    CronDefinition cronDefinition = CronDefinitionBuilder.instanceDefinitionFor(CronType.UNIX);
+    CronParser parser = new CronParser(cronDefinition);
+    return parser.parse(schedule);
   }
 
   private void processCancelWorkflowExecution(
@@ -1191,7 +1195,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           });
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
-        throw Status.INTERNAL.withCause(e).asRuntimeException();
+        throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
       }
       throw e;
     }
@@ -1604,7 +1608,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     } catch (InterruptedException e) {
       return QueryWorkflowResponse.getDefaultInstance();
     } catch (ExecutionException e) {
-      throw Status.INTERNAL.withCause(e).asRuntimeException();
+      throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
     }
   }
 
@@ -1725,7 +1729,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         executionId.addBytes(out);
         out.writeUTF(queryId);
       } catch (IOException e) {
-        throw Status.INTERNAL.withCause(e).asRuntimeException();
+        throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
       }
     }
 
@@ -1737,7 +1741,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         String queryId = in.readUTF();
         return new QueryId(executionId, queryId);
       } catch (IOException e) {
-        throw Status.INTERNAL.withCause(e).asRuntimeException();
+        throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
       }
     }
   }

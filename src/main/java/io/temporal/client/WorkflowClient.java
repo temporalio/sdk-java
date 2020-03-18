@@ -127,7 +127,7 @@ public interface WorkflowClient {
     return WorkflowClientInternal.newInstance(service, options);
   }
 
-  String getDomain();
+  WorkflowClientOptions getOptions();
 
   /**
    * Creates workflow client stub that can be used to start a single workflow execution. The first

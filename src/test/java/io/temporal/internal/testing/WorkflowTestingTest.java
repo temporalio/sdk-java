@@ -579,7 +579,7 @@ public class WorkflowTestingTest {
             .getWorkflowExecutionHistory(
                 GetWorkflowExecutionHistoryRequest.newBuilder()
                     .setExecution(execution)
-                    .setDomain(client.getDomain())
+                    .setDomain(client.getOptions().getDomain())
                     .build())
             .getHistory();
     List<HistoryEvent> historyEvents = history.getEventsList();

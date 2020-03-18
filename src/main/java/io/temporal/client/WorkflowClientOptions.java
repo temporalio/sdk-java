@@ -69,10 +69,10 @@ public final class WorkflowClientOptions {
     }
 
     /**
-     * Used to override default (JSON) data converter implementation.
+     * Overrides a data converter implementation used serialize workflow and activity arguments and
+     * results.
      *
-     * @param dataConverter data converter to serialize and deserialize arguments and return values.
-     *     Not null.
+     * <p>Default is {@link io.temporal.converter.JsonDataConverter} data converter.
      */
     public Builder setDataConverter(DataConverter dataConverter) {
       this.dataConverter = Objects.requireNonNull(dataConverter);
@@ -99,6 +99,14 @@ public final class WorkflowClientOptions {
       return this;
     }
 
+    /**
+     * Override human readable identity of the worker. Identity is used to identify a worker and is
+     * recorded in the workflow history events. For example when a worker gets an activity task the
+     * correspondent ActivityTaskStarted event contains the worker identity as a field. Default is
+     * whatever <code>(ManagementFactory.getRuntimeMXBean().getName()</code> returns.
+     *
+     * @return
+     */
     public Builder setIdentity(String identity) {
       this.identity = identity;
       return this;

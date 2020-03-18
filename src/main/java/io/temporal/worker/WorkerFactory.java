@@ -96,16 +96,13 @@ public final class WorkerFactory {
     workflowThreadPool.setThreadFactory(
         r -> new Thread(r, "workflow-thread-" + workflowThreadCounter.incrementAndGet()));
 
-    if (this.factoryOptions.isDisableStickyExecution()) {
-      return;
-    }
-
     Scope metricsScope =
-        this.factoryOptions
+        this.workflowClient
+            .getOptions()
             .getMetricsScope()
             .tagged(
                 new ImmutableMap.Builder<String, String>(2)
-                    .put(MetricsTag.DOMAIN, workflowClient.getDomain())
+                    .put(MetricsTag.DOMAIN, workflowClient.getOptions().getDomain())
                     .put(MetricsTag.TASK_LIST, getHostName())
                     .build());
 
@@ -117,7 +114,7 @@ public final class WorkerFactory {
             id.toString(),
             new WorkflowPollTaskFactory(
                     workflowClient.getWorkflowServiceStubs(),
-                    workflowClient.getDomain(),
+                    workflowClient.getOptions().getDomain(),
                     getStickyTaskListName(),
                     metricsScope,
                     id.toString())
@@ -158,8 +155,7 @@ public final class WorkerFactory {
         String.format(statusErrorMessage, "create new worker", state.name(), State.Initial.name()));
     Worker worker =
         new Worker(
-            workflowClient.getWorkflowServiceStubs(),
-            workflowClient.getDomain(),
+            workflowClient,
             taskList,
             options,
             cache,
@@ -168,10 +164,7 @@ public final class WorkerFactory {
             workflowThreadPool,
             factoryOptions.getContextPropagators());
     workers.add(worker);
-
-    if (!this.factoryOptions.isDisableStickyExecution()) {
-      dispatcher.subscribe(taskList, worker.workflowWorker);
-    }
+    dispatcher.subscribe(taskList, worker.workflowWorker);
     return worker;
   }
 
@@ -309,9 +302,7 @@ public final class WorkerFactory {
   }
 
   private String getStickyTaskListName() {
-    return this.factoryOptions.isDisableStickyExecution()
-        ? null
-        : String.format("%s:%s", getHostName(), id);
+    return String.format("%s:%s", getHostName(), id);
   }
 
   public synchronized void suspendPolling() {

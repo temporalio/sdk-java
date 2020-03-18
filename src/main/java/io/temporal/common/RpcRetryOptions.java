@@ -17,6 +17,8 @@
 
 package io.temporal.common;
 
+import static io.temporal.internal.common.GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS;
+
 import com.google.common.base.Defaults;
 import com.google.protobuf.GeneratedMessageV3;
 import io.grpc.Status;
@@ -29,7 +31,6 @@ import java.util.Objects;
 public final class RpcRetryOptions {
 
   private static final double DEFAULT_BACKOFF_COEFFICIENT = 2.0;
-  private static final int DEFAULT_MAXIMUM_MULTIPLIER = 100;
 
   public static Builder newBuilder() {
     return new Builder();
@@ -194,23 +195,6 @@ public final class RpcRetryOptions {
       return annotation;
     }
 
-    private static Duration merge(long aSeconds, Duration o) {
-      if (o != null) {
-        return o;
-      }
-      return aSeconds == 0 ? null : Duration.ofSeconds(aSeconds);
-    }
-
-    private static Class<? extends Throwable>[] merge(
-        Class<? extends Throwable>[] a, List<Class<? extends Throwable>> o) {
-      if (o != null) {
-        @SuppressWarnings("unchecked")
-        Class<? extends Throwable>[] result = new Class[o.size()];
-        return o.toArray(result);
-      }
-      return a.length == 0 ? null : a;
-    }
-
     private List<DoNotRetryPair> merge(List<DoNotRetryPair> o1, List<DoNotRetryPair> o2) {
       if (o2 != null) {
         return new ArrayList<>(o2);
@@ -239,7 +223,19 @@ public final class RpcRetryOptions {
     public RpcRetryOptions validateBuildWithDefaults() {
       double backoff = backoffCoefficient;
       if (backoff == 0d) {
-        backoff = DEFAULT_BACKOFF_COEFFICIENT;
+        backoff = DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS.backoffCoefficient;
+      }
+      if (initialInterval == null || initialInterval.isZero() || initialInterval.isNegative()) {
+        initialInterval = DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS.initialInterval;
+      }
+      if (expiration == null || expiration.isZero() || expiration.isNegative()) {
+        expiration = DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS.expiration;
+      }
+      if (maximumInterval == null || maximumInterval.isZero() || maximumInterval.isNegative()) {
+        maximumInterval = DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS.maximumInterval;
+      }
+      if (doNotRetry == null || doNotRetry.size() == 0) {
+        doNotRetry = DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS.doNotRetry;
       }
       RpcRetryOptions result =
           new RpcRetryOptions(

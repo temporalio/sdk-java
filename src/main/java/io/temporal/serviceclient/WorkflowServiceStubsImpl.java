@@ -36,6 +36,7 @@ import io.temporal.internal.Version;
 import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,54 +59,52 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
 
   private static final String CLIENT_IMPL_HEADER_VALUE = "temporal-java";
 
-  public static final String TEMPORAL_SERVICE_ADDRESS_ENV = "TEMPORAL_ADDRESS";
-
-  protected WorkflowServiceStubsOptions options;
-  protected ManagedChannel channel;
-  protected WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub;
-  protected WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub;
-
-  /**
-   * Creates a factory that connects to the Temporal according to the specified options.
-   *
-   * @param options connection options
-   */
-  WorkflowServiceStubsImpl(WorkflowServiceStubsOptions options) {
-    init(options);
-  }
+  private final ManagedChannel channel;
+  // Shutdown channel that was created by us
+  private final boolean channelNeedsShutdown;
+  private final AtomicBoolean shutdownRequested = new AtomicBoolean();
+  private final WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub;
+  private final WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub;
 
   /**
-   * Generates the client for an in-process service using an in-memory channel. Useful for testing,
-   * usually with mock and spy services.
+   * Creates a factory that connects to the Temporal according to the specified options. When
+   * serviceImpl is not null generates the client for an in-process service using an in-memory
+   * channel. Useful for testing, usually with mock and spy services.
    */
-  WorkflowServiceStubsImpl(WorkflowServiceGrpc.WorkflowServiceImplBase serviceImpl) {
-    String serverName = InProcessServerBuilder.generateName();
-    try {
-      InProcessServerBuilder.forName(serverName)
-          .directExecutor()
-          .addService(serviceImpl)
-          .build()
-          .start();
-    } catch (IOException unexpected) {
-      throw new RuntimeException(unexpected);
+  WorkflowServiceStubsImpl(
+      WorkflowServiceGrpc.WorkflowServiceImplBase serviceImpl,
+      WorkflowServiceStubsOptions options) {
+    if (serviceImpl != null) {
+      if (options.getChannel() != null) {
+        throw new IllegalArgumentException("both channel and serviceImpl present");
+      }
+      String serverName = InProcessServerBuilder.generateName();
+      try {
+        InProcessServerBuilder.forName(serverName)
+            .directExecutor()
+            .addService(serviceImpl)
+            .build()
+            .start();
+      } catch (IOException unexpected) {
+        throw new RuntimeException(unexpected);
+      }
+      options =
+          WorkflowServiceStubsOptions.newBuilder(options)
+              .setChannel(InProcessChannelBuilder.forName(serverName).directExecutor().build())
+              .build();
     }
-    init(
-        WorkflowServiceStubsOptions.newBuilder()
-            .setChannel(InProcessChannelBuilder.forName(serverName).directExecutor().build())
-            .build());
-  }
-
-  private void init(WorkflowServiceStubsOptions options) {
     options = WorkflowServiceStubsOptions.newBuilder(options).validateAndBuildWithDefaults();
-    this.options = options;
     if (options.getChannel() != null) {
       this.channel = options.getChannel();
+      // Do not shutdown a channel passed to the constructor from outside
+      channelNeedsShutdown = serviceImpl != null;
     } else {
       this.channel =
           ManagedChannelBuilder.forTarget(options.getTarget())
               .defaultLoadBalancingPolicy("round_robin")
               .usePlaintext()
               .build();
+      channelNeedsShutdown = true;
     }
     ClientInterceptor deadlineInterceptor = new GrpcDeadlineInterceptor(options);
     ClientInterceptor tracingInterceptor = newTracingInterceptor();
@@ -117,16 +116,20 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
         ClientInterceptors.intercept(
             channel, deadlineInterceptor, MetadataUtils.newAttachHeadersInterceptor(headers));
     if (log.isTraceEnabled()) {
-      interceptedChannel = ClientInterceptors.intercept(channel, tracingInterceptor);
+      interceptedChannel = ClientInterceptors.intercept(interceptedChannel, tracingInterceptor);
     }
-    blockingStub = WorkflowServiceGrpc.newBlockingStub(interceptedChannel);
+    WorkflowServiceGrpc.WorkflowServiceBlockingStub bs =
+        WorkflowServiceGrpc.newBlockingStub(interceptedChannel);
     if (options.getBlockingStubInterceptor().isPresent()) {
-      blockingStub = options.getBlockingStubInterceptor().get().apply(blockingStub);
+      bs = options.getBlockingStubInterceptor().get().apply(bs);
     }
-    futureStub = WorkflowServiceGrpc.newFutureStub(interceptedChannel);
+    this.blockingStub = bs;
+    WorkflowServiceGrpc.WorkflowServiceFutureStub fs =
+        WorkflowServiceGrpc.newFutureStub(interceptedChannel);
     if (options.getFutureStubInterceptor().isPresent()) {
-      futureStub = options.getFutureStubInterceptor().get().apply(futureStub);
+      fs = options.getFutureStubInterceptor().get().apply(fs);
     }
+    this.futureStub = fs;
     log.info(String.format("Created GRPC client for channel: %s", channel));
   }
 
@@ -151,8 +154,13 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
                     responseListener) {
                   @Override
                   public void onMessage(RespT message) {
-                    log.trace(
-                        "Returned " + method.getFullMethodName() + " with output: " + message);
+                    // Skip printing the whole history
+                    if (method == WorkflowServiceGrpc.getPollForDecisionTaskMethod()) {
+                      log.trace("Returned " + method.getFullMethodName());
+                    } else {
+                      log.trace(
+                          "Returned " + method.getFullMethodName() + " with output: " + message);
+                    }
                     super.onMessage(message);
                   }
                 };
@@ -173,37 +181,44 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
     return futureStub;
   }
 
-  /** Simple port validation */
-  private static int validatePort(int port) {
-    if (port < 0) {
-      throw new IllegalArgumentException("0 or negative port");
-    }
-    return port;
-  }
-
   @Override
   public void shutdown() {
-    channel.shutdown();
+    shutdownRequested.set(true);
+    if (channelNeedsShutdown) {
+      channel.shutdown();
+    }
   }
 
   @Override
   public void shutdownNow() {
-    channel.shutdownNow();
+    shutdownRequested.set(true);
+    if (channelNeedsShutdown) {
+      channel.shutdownNow();
+    }
   }
 
   @Override
   public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-    return channel.awaitTermination(timeout, unit);
+    if (channelNeedsShutdown) {
+      return channel.awaitTermination(timeout, unit);
+    }
+    return true;
   }
 
   @Override
   public boolean isShutdown() {
-    return channel.isShutdown();
+    if (channelNeedsShutdown) {
+      return channel.isShutdown();
+    }
+    return shutdownRequested.get();
   }
 
   @Override
   public boolean isTerminated() {
-    return channel.isTerminated();
+    if (channelNeedsShutdown) {
+      return channel.isTerminated();
+    }
+    return shutdownRequested.get();
   }
 
   /** Set RPC call deadlines according to ServiceFactoryOptions. */
@@ -225,8 +240,7 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
       } else {
         duration = deadline.timeRemaining(TimeUnit.MILLISECONDS);
       }
-      String name = method.getFullMethodName();
-      if (name.equals("workflowservice.WorkflowService/GetWorkflowExecutionHistory")) {
+      if (method == WorkflowServiceGrpc.getGetWorkflowExecutionHistoryMethod()) {
         if (deadline == null) {
           duration = options.getRpcLongPollTimeoutMillis();
         } else {
@@ -235,13 +249,14 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
             duration = options.getRpcLongPollTimeoutMillis();
           }
         }
-      } else if (name.equals("workflowservice.WorkflowService/PollForDecisionTask")
-          || name.equals("workflowservice.WorkflowService/PollForActivityTask")) {
+      } else if (method == WorkflowServiceGrpc.getPollForDecisionTaskMethod()
+          || method == WorkflowServiceGrpc.getPollForActivityTaskMethod()) {
         duration = options.getRpcLongPollTimeoutMillis();
-      } else if (name.equals("workflowservice.WorkflowService/QueryWorkflow")) {
+      } else if (method == WorkflowServiceGrpc.getQueryWorkflowMethod()) {
         duration = options.getRpcQueryTimeoutMillis();
       }
       if (log.isTraceEnabled()) {
+        String name = method.getFullMethodName();
         log.trace("TimeoutInterceptor method=" + name + ", timeoutMs=" + duration);
       }
       return next.newCall(method, callOptions.withDeadlineAfter(duration, TimeUnit.MILLISECONDS));

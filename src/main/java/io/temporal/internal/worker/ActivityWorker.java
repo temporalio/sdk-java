@@ -241,10 +241,7 @@ public final class ActivityWorker implements SuspendableWorker {
       RpcRetryOptions ro = response.getRequestRetryOptions();
       RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
-        ro =
-            RpcRetryOptions.newBuilder(options.getReportCompletionRetryOptions())
-                .setRetryOptions(ro)
-                .build();
+        ro = RpcRetryOptions.newBuilder().setRetryOptions(ro).validateBuildWithDefaults();
         RespondActivityTaskCompletedRequest request =
             taskCompleted
                 .toBuilder()
@@ -264,10 +261,7 @@ public final class ActivityWorker implements SuspendableWorker {
                   .setTaskToken(task.getTaskToken())
                   .setIdentity(options.getIdentity())
                   .build();
-          ro =
-              RpcRetryOptions.newBuilder(options.getReportFailureRetryOptions())
-                  .setRetryOptions(ro)
-                  .build();
+          ro = RpcRetryOptions.newBuilder().setRetryOptions(ro).validateBuildWithDefaults();
 
           GrpcRetryer.retry(ro, () -> service.blockingStub().respondActivityTaskFailed(request));
           metricsScope.counter(MetricsType.ACTIVITY_TASK_FAILED_COUNTER).inc(1);
@@ -280,10 +274,7 @@ public final class ActivityWorker implements SuspendableWorker {
                     .setTaskToken(task.getTaskToken())
                     .setIdentity(options.getIdentity())
                     .build();
-            ro =
-                RpcRetryOptions.newBuilder(options.getReportFailureRetryOptions())
-                    .setRetryOptions(ro)
-                    .build();
+            ro = RpcRetryOptions.newBuilder().setRetryOptions(ro).validateBuildWithDefaults();
 
             GrpcRetryer.retry(
                 ro, () -> service.blockingStub().respondActivityTaskCanceled(request));

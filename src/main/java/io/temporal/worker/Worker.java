@@ -23,6 +23,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
@@ -31,6 +32,7 @@ import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.sync.SyncActivityWorker;
 import io.temporal.internal.sync.SyncWorkflowWorker;
+import io.temporal.internal.worker.PollerOptions;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.Suspendable;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -62,16 +64,14 @@ public final class Worker implements Suspendable {
   /**
    * Creates worker that connects to an instance of the Temporal Service.
    *
-   * @param service client to the Temporal Service endpoint.
-   * @param domain domain that worker uses to poll.
+   * @param client client to the Temporal Service endpoint.
    * @param taskList task list name worker uses to poll. It uses this name for both decision and
    *     activity task list polls.
    * @param options Options (like {@link DataConverter} override) for configuring worker.
    * @param stickyTaskListName
    */
   Worker(
-      WorkflowServiceStubs service,
-      String domain,
+      WorkflowClient client,
       String taskList,
       WorkerOptions options,
       DeciderCache cache,
@@ -80,9 +80,7 @@ public final class Worker implements Suspendable {
       ThreadPoolExecutor threadPoolExecutor,
       List<ContextPropagator> contextPropagators) {
 
-    Objects.requireNonNull(service, "service should not be null");
-    Preconditions.checkArgument(
-        !Strings.isNullOrEmpty(domain), "domain should not be an empty string");
+    Objects.requireNonNull(client, "client should not be null");
     Preconditions.checkArgument(
         !Strings.isNullOrEmpty(taskList), "taskList should not be an empty string");
     this.cache = cache;
@@ -92,51 +90,50 @@ public final class Worker implements Suspendable {
     this.taskList = taskList;
     this.options = MoreObjects.firstNonNull(options, WorkerOptions.newBuilder().build());
 
+    WorkflowServiceStubs service = client.getWorkflowServiceStubs();
+    WorkflowClientOptions clientOptions = client.getOptions();
+    String domain = clientOptions.getDomain();
     SingleWorkerOptions activityOptions =
-        toActivityOptions(this.options, domain, taskList, contextPropagators);
-    activityWorker =
-        this.options.isDisableActivityWorker()
-            ? null
-            : new SyncActivityWorker(service, domain, taskList, activityOptions);
+        toActivityOptions(this.options, clientOptions, taskList, contextPropagators);
+    activityWorker = new SyncActivityWorker(service, domain, taskList, activityOptions);
 
     SingleWorkerOptions workflowOptions =
-        toWorkflowOptions(this.options, domain, taskList, contextPropagators);
+        toWorkflowOptions(this.options, clientOptions, taskList, contextPropagators);
     SingleWorkerOptions localActivityOptions =
-        toLocalActivityOptions(this.options, domain, taskList, contextPropagators);
+        toLocalActivityOptions(this.options, clientOptions, taskList, contextPropagators);
     workflowWorker =
-        this.options.isDisableWorkflowWorker()
-            ? null
-            : new SyncWorkflowWorker(
-                service,
-                domain,
-                taskList,
-                this.options.getInterceptorFactory(),
-                workflowOptions,
-                localActivityOptions,
-                this.cache,
-                this.stickyTaskListName,
-                stickyDecisionScheduleToStartTimeout,
-                this.threadPoolExecutor);
+        new SyncWorkflowWorker(
+            service,
+            domain,
+            taskList,
+            this.options.getInterceptorFactory(),
+            workflowOptions,
+            localActivityOptions,
+            this.cache,
+            this.stickyTaskListName,
+            stickyDecisionScheduleToStartTimeout,
+            this.threadPoolExecutor);
   }
 
   private static SingleWorkerOptions toActivityOptions(
       WorkerOptions options,
-      String domain,
+      WorkflowClientOptions clientOptions,
       String taskList,
       List<ContextPropagator> contextPropagators) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
-            .put(MetricsTag.DOMAIN, domain)
+            .put(MetricsTag.DOMAIN, clientOptions.getDomain())
             .put(MetricsTag.TASK_LIST, taskList)
             .build();
     return SingleWorkerOptions.newBuilder()
-        .setDataConverter(options.getDataConverter())
-        .setIdentity(options.getIdentity())
-        .setPollerOptions(options.getActivityPollerOptions())
-        .setReportCompletionRetryOptions(options.getReportActivityCompletionRetryOptions())
-        .setReportFailureRetryOptions(options.getReportActivityFailureRetryOptions())
+        .setDataConverter(clientOptions.getDataConverter())
+        .setIdentity(clientOptions.getIdentity())
+        .setPollerOptions(
+            PollerOptions.newBuilder()
+                .setMaximumPollRatePerSecond(options.getMaxActivitiesPerSecond())
+                .build())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentActivityExecutionSize())
-        .setMetricsScope(options.getMetricsScope().tagged(tags))
+        .setMetricsScope(clientOptions.getMetricsScope().tagged(tags))
         .setEnableLoggingInReplay(options.getEnableLoggingInReplay())
         .setContextPropagators(contextPropagators)
         .build();
@@ -144,22 +141,20 @@ public final class Worker implements Suspendable {
 
   private static SingleWorkerOptions toWorkflowOptions(
       WorkerOptions options,
-      String domain,
+      WorkflowClientOptions clientOptions,
       String taskList,
       List<ContextPropagator> contextPropagators) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
-            .put(MetricsTag.DOMAIN, domain)
+            .put(MetricsTag.DOMAIN, clientOptions.getDomain())
             .put(MetricsTag.TASK_LIST, taskList)
             .build();
     return SingleWorkerOptions.newBuilder()
-        .setDataConverter(options.getDataConverter())
-        .setIdentity(options.getIdentity())
-        .setPollerOptions(options.getWorkflowPollerOptions())
-        .setReportCompletionRetryOptions(options.getReportWorkflowCompletionRetryOptions())
-        .setReportFailureRetryOptions(options.getReportWorkflowFailureRetryOptions())
-        .setTaskExecutorThreadPoolSize(options.getMaxConcurrentWorkflowExecutionSize())
-        .setMetricsScope(options.getMetricsScope().tagged(tags))
+        .setDataConverter(clientOptions.getDataConverter())
+        .setIdentity(clientOptions.getIdentity())
+        .setPollerOptions(PollerOptions.newBuilder().build())
+        .setTaskExecutorThreadPoolSize(options.getMaxConcurrentWorkflowTaskExecutionSize())
+        .setMetricsScope(clientOptions.getMetricsScope().tagged(tags))
         .setEnableLoggingInReplay(options.getEnableLoggingInReplay())
         .setContextPropagators(contextPropagators)
         .build();
@@ -167,33 +162,23 @@ public final class Worker implements Suspendable {
 
   private static SingleWorkerOptions toLocalActivityOptions(
       WorkerOptions options,
-      String domain,
+      WorkflowClientOptions clientOptions,
       String taskList,
       List<ContextPropagator> contextPropagators) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
-            .put(MetricsTag.DOMAIN, domain)
+            .put(MetricsTag.DOMAIN, clientOptions.getDomain())
             .put(MetricsTag.TASK_LIST, taskList)
             .build();
     return SingleWorkerOptions.newBuilder()
-        .setDataConverter(options.getDataConverter())
-        .setIdentity(options.getIdentity())
-        .setPollerOptions(options.getWorkflowPollerOptions())
-        .setReportCompletionRetryOptions(options.getReportWorkflowCompletionRetryOptions())
-        .setReportFailureRetryOptions(options.getReportWorkflowFailureRetryOptions())
+        .setDataConverter(clientOptions.getDataConverter())
+        .setIdentity(clientOptions.getIdentity())
+        .setPollerOptions(PollerOptions.newBuilder().build())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentLocalActivityExecutionSize())
-        .setMetricsScope(options.getMetricsScope().tagged(tags))
+        .setMetricsScope(clientOptions.getMetricsScope().tagged(tags))
         .setEnableLoggingInReplay(options.getEnableLoggingInReplay())
         .setContextPropagators(contextPropagators)
         .build();
-  }
-
-  SyncWorkflowWorker getWorkflowWorker() {
-    return workflowWorker;
-  }
-
-  SyncActivityWorker getActivityWorker() {
-    return activityWorker;
   }
 
   /**
@@ -208,9 +193,6 @@ public final class Worker implements Suspendable {
    * workflows are stateful and a new instance is created for each workflow execution.
    */
   public void registerWorkflowImplementationTypes(Class<?>... workflowImplementationClasses) {
-    Preconditions.checkState(
-        workflowWorker != null,
-        "registerWorkflowImplementationTypes is not allowed when disableWorkflowWorker is set in worker options");
     Preconditions.checkState(
         !started.get(),
         "registerWorkflowImplementationTypes is not allowed after worker has started");
@@ -232,9 +214,6 @@ public final class Worker implements Suspendable {
    */
   public void registerWorkflowImplementationTypes(
       WorkflowImplementationOptions options, Class<?>... workflowImplementationClasses) {
-    Preconditions.checkState(
-        workflowWorker != null,
-        "registerWorkflowImplementationTypes is not allowed when disableWorkflowWorker is set in worker options");
     Preconditions.checkState(
         !started.get(),
         "registerWorkflowImplementationTypes is not allowed after worker has started");
@@ -303,40 +282,25 @@ public final class Worker implements Suspendable {
     if (activityWorker != null) {
       activityWorker.setActivitiesImplementation(activityImplementations);
     }
-
-    if (workflowWorker != null) {
-      workflowWorker.setLocalActivitiesImplementation(activityImplementations);
-    }
+    workflowWorker.setLocalActivitiesImplementation(activityImplementations);
   }
 
   void start() {
     if (!started.compareAndSet(false, true)) {
       return;
     }
-    if (workflowWorker != null) {
-      workflowWorker.start();
-    }
-    if (activityWorker != null) {
-      activityWorker.start();
-    }
+    workflowWorker.start();
+    activityWorker.start();
   }
 
   void shutdown() {
-    if (activityWorker != null) {
-      activityWorker.shutdown();
-    }
-    if (workflowWorker != null) {
-      workflowWorker.shutdown();
-    }
+    activityWorker.shutdown();
+    workflowWorker.shutdown();
   }
 
   void shutdownNow() {
-    if (activityWorker != null) {
-      activityWorker.shutdownNow();
-    }
-    if (workflowWorker != null) {
-      workflowWorker.shutdownNow();
-    }
+    activityWorker.shutdownNow();
+    workflowWorker.shutdownNow();
   }
 
   boolean isTerminated() {
@@ -391,38 +355,18 @@ public final class Worker implements Suspendable {
 
   @Override
   public void suspendPolling() {
-    if (workflowWorker != null) {
-      workflowWorker.suspendPolling();
-    }
-
-    if (activityWorker != null) {
-      activityWorker.suspendPolling();
-    }
+    workflowWorker.suspendPolling();
+    activityWorker.suspendPolling();
   }
 
   @Override
   public void resumePolling() {
-    if (workflowWorker != null) {
-      workflowWorker.resumePolling();
-    }
-
-    if (activityWorker != null) {
-      activityWorker.resumePolling();
-    }
+    workflowWorker.resumePolling();
+    activityWorker.resumePolling();
   }
 
   @Override
   public boolean isSuspended() {
-    boolean workflowWorkerSuspended = true;
-    if (workflowWorker != null) {
-      workflowWorkerSuspended = workflowWorker.isSuspended();
-    }
-
-    boolean activityWorkerSuspended = activityWorker.isSuspended();
-    if (activityWorker != null) {
-      activityWorker.resumePolling();
-    }
-
-    return workflowWorkerSuspended && activityWorkerSuspended;
+    return workflowWorker.isSuspended() && activityWorker.isSuspended();
   }
 }

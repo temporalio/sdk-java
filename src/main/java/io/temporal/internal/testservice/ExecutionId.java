@@ -90,7 +90,7 @@ final class ExecutionId {
     try {
       addBytes(out);
     } catch (IOException e) {
-      throw Status.INTERNAL.withCause(e).asRuntimeException();
+      throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
     }
     return bout.toByteArray();
   }
@@ -109,7 +109,7 @@ final class ExecutionId {
     try {
       return readFromBytes(in);
     } catch (IOException e) {
-      throw Status.INTERNAL.withCause(e).asRuntimeException();
+      throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
     }
   }
 

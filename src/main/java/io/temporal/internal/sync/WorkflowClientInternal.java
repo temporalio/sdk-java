@@ -47,6 +47,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class WorkflowClientInternal implements WorkflowClient {
 
   private final GenericWorkflowClientExternalImpl genericClient;
+  private final WorkflowClientOptions options;
   private final ManualActivityCompletionClientFactory manualActivityCompletionClientFactory;
   private final DataConverter dataConverter;
   private final WorkflowClientInterceptor[] interceptors;
@@ -69,6 +70,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
   private WorkflowClientInternal(
       WorkflowServiceStubs workflowServiceStubs, WorkflowClientOptions options) {
     options = new WorkflowClientOptions.Builder(options).validateAndBuildWithDefaults();
+    this.options = options;
     this.workflowServiceStubs = workflowServiceStubs;
     this.genericClient =
         new GenericWorkflowClientExternalImpl(
@@ -94,8 +96,8 @@ public final class WorkflowClientInternal implements WorkflowClient {
   }
 
   @Override
-  public String getDomain() {
-    return genericClient.getDomain();
+  public WorkflowClientOptions getOptions() {
+    return options;
   }
 
   @Override

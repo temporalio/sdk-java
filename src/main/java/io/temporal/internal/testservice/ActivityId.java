@@ -99,7 +99,7 @@ final class ActivityId {
       out.writeUTF(id);
       return ByteString.copyFrom(bout.toByteArray());
     } catch (IOException e) {
-      throw Status.INTERNAL.withCause(e).asRuntimeException();
+      throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
     }
   }
 
@@ -117,7 +117,7 @@ final class ActivityId {
       String id = in.readUTF();
       return new ActivityId(domain, workflowId, runId, id);
     } catch (IOException e) {
-      throw Status.INTERNAL.withCause(e).asRuntimeException();
+      throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
     }
   }
 

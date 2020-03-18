@@ -17,6 +17,8 @@
 
 package io.temporal.internal.worker;
 
+import static io.temporal.internal.common.GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS;
+
 import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
@@ -108,16 +110,25 @@ public final class WorkflowWorker
 
   @Override
   public boolean isStarted() {
+    if (poller == null) {
+      return false;
+    }
     return poller.isStarted();
   }
 
   @Override
   public boolean isShutdown() {
+    if (poller == null) {
+      return true;
+    }
     return poller.isShutdown();
   }
 
   @Override
   public boolean isTerminated() {
+    if (poller == null) {
+      return true;
+    }
     return poller.isTerminated();
   }
 
@@ -188,17 +199,23 @@ public final class WorkflowWorker
 
   @Override
   public void shutdown() {
+    if (poller == null) {
+      return;
+    }
     poller.shutdown();
   }
 
   @Override
   public void shutdownNow() {
+    if (poller == null) {
+      return;
+    }
     poller.shutdownNow();
   }
 
   @Override
   public void awaitTermination(long timeout, TimeUnit unit) {
-    if (!poller.isStarted()) {
+    if (poller == null || !poller.isStarted()) {
       return;
     }
 
@@ -207,16 +224,25 @@ public final class WorkflowWorker
 
   @Override
   public void suspendPolling() {
+    if (poller == null) {
+      return;
+    }
     poller.suspendPolling();
   }
 
   @Override
   public void resumePolling() {
+    if (poller == null) {
+      return;
+    }
     poller.resumePolling();
   }
 
   @Override
   public boolean isSuspended() {
+    if (poller == null) {
+      return false;
+    }
     return poller.isSuspended();
   }
 
@@ -288,10 +314,7 @@ public final class WorkflowWorker
       RpcRetryOptions ro = response.getRequestRetryOptions();
       RespondDecisionTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
-        ro =
-            RpcRetryOptions.newBuilder(options.getReportCompletionRetryOptions())
-                .setRetryOptions(ro)
-                .build();
+        ro = RpcRetryOptions.newBuilder().setRetryOptions(ro).validateBuildWithDefaults();
 
         RespondDecisionTaskCompletedRequest request =
             taskCompleted
@@ -304,9 +327,9 @@ public final class WorkflowWorker
         RespondDecisionTaskFailedRequest taskFailed = response.getTaskFailed();
         if (taskFailed != null) {
           ro =
-              RpcRetryOptions.newBuilder(options.getReportFailureRetryOptions())
+              RpcRetryOptions.newBuilder(DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS)
                   .setRetryOptions(ro)
-                  .build();
+                  .validateBuildWithDefaults();
 
           RespondDecisionTaskFailedRequest request =
               taskFailed

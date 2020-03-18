@@ -27,12 +27,21 @@ public interface WorkflowServiceStubs {
    * the locally running temporal service.
    */
   static WorkflowServiceStubs newInstance() {
-    return new WorkflowServiceStubsImpl(WorkflowServiceStubsOptions.getDefaultInstance());
+    return new WorkflowServiceStubsImpl(null, WorkflowServiceStubsOptions.getDefaultInstance());
   }
 
   /** Create gRPC connection stubs using provided options. */
   static WorkflowServiceStubs newInstance(WorkflowServiceStubsOptions options) {
-    return new WorkflowServiceStubsImpl(options);
+    return new WorkflowServiceStubsImpl(null, options);
+  }
+
+  /**
+   * Create gRPC connection stubs that connect to the provided service implementation using an
+   * in-memory channel. Useful for testing, usually with mock and spy services.
+   */
+  static WorkflowServiceStubs newInstance(
+      WorkflowServiceGrpc.WorkflowServiceImplBase service, WorkflowServiceStubsOptions options) {
+    return new WorkflowServiceStubsImpl(service, options);
   }
 
   /** @return Blocking (synchronous) stub that allows direct calls to service. */

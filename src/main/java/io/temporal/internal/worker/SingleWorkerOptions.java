@@ -18,11 +18,9 @@
 package io.temporal.internal.worker;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.common.RpcRetryOptions;
 import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
 import io.temporal.converter.JsonDataConverter;
-import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.metrics.NoopScope;
 import java.time.Duration;
 import java.util.List;
@@ -44,11 +42,6 @@ public final class SingleWorkerOptions {
     private int taskExecutorThreadPoolSize = 100;
     private double taskListActivitiesPerSecond;
     private PollerOptions pollerOptions;
-    /** TODO: Dynamic expiration based on activity timeout */
-    private RpcRetryOptions reportCompletionRetryOptions =
-        GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS;
-
-    private RpcRetryOptions reportFailureRetryOptions;
     private Scope metricsScope;
     private boolean enableLoggingInReplay;
     private List<ContextPropagator> contextPropagators;
@@ -61,8 +54,6 @@ public final class SingleWorkerOptions {
       this.pollerOptions = options.getPollerOptions();
       this.taskListActivitiesPerSecond = options.getTaskListActivitiesPerSecond();
       this.taskExecutorThreadPoolSize = options.getTaskExecutorThreadPoolSize();
-      this.reportCompletionRetryOptions = options.getReportCompletionRetryOptions();
-      this.reportFailureRetryOptions = options.getReportFailureRetryOptions();
       this.metricsScope = options.getMetricsScope();
       this.enableLoggingInReplay = options.getEnableLoggingInReplay();
       this.contextPropagators = options.getContextPropagators();
@@ -103,16 +94,6 @@ public final class SingleWorkerOptions {
       return this;
     }
 
-    public Builder setReportCompletionRetryOptions(RpcRetryOptions reportCompletionRetryOptions) {
-      this.reportCompletionRetryOptions = reportCompletionRetryOptions;
-      return this;
-    }
-
-    public Builder setReportFailureRetryOptions(RpcRetryOptions reportFailureRetryOptions) {
-      this.reportFailureRetryOptions = reportFailureRetryOptions;
-      return this;
-    }
-
     /** Specifies the list of context propagators to use during this workflow. */
     public Builder setContextPropagators(List<ContextPropagator> contextPropagators) {
       this.contextPropagators = contextPropagators;
@@ -120,14 +101,6 @@ public final class SingleWorkerOptions {
     }
 
     public SingleWorkerOptions build() {
-      if (reportCompletionRetryOptions == null) {
-        reportCompletionRetryOptions = GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS;
-      }
-
-      if (reportFailureRetryOptions == null) {
-        reportFailureRetryOptions = GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS;
-      }
-
       if (pollerOptions == null) {
         pollerOptions =
             PollerOptions.newBuilder()
@@ -151,8 +124,6 @@ public final class SingleWorkerOptions {
           taskExecutorThreadPoolSize,
           taskListActivitiesPerSecond,
           pollerOptions,
-          reportCompletionRetryOptions,
-          reportFailureRetryOptions,
           metricsScope,
           enableLoggingInReplay,
           contextPropagators);
@@ -164,8 +135,6 @@ public final class SingleWorkerOptions {
   private final int taskExecutorThreadPoolSize;
   private final double taskListActivitiesPerSecond;
   private final PollerOptions pollerOptions;
-  private final RpcRetryOptions reportCompletionRetryOptions;
-  private final RpcRetryOptions reportFailureRetryOptions;
   private final Scope metricsScope;
   private final boolean enableLoggingInReplay;
   private List<ContextPropagator> contextPropagators;
@@ -176,8 +145,6 @@ public final class SingleWorkerOptions {
       int taskExecutorThreadPoolSize,
       double taskListActivitiesPerSecond,
       PollerOptions pollerOptions,
-      RpcRetryOptions reportCompletionRetryOptions,
-      RpcRetryOptions reportFailureRetryOptions,
       Scope metricsScope,
       boolean enableLoggingInReplay,
       List<ContextPropagator> contextPropagators) {
@@ -186,8 +153,6 @@ public final class SingleWorkerOptions {
     this.taskExecutorThreadPoolSize = taskExecutorThreadPoolSize;
     this.taskListActivitiesPerSecond = taskListActivitiesPerSecond;
     this.pollerOptions = pollerOptions;
-    this.reportCompletionRetryOptions = reportCompletionRetryOptions;
-    this.reportFailureRetryOptions = reportFailureRetryOptions;
     this.metricsScope = metricsScope;
     this.enableLoggingInReplay = enableLoggingInReplay;
     this.contextPropagators = contextPropagators;
@@ -207,14 +172,6 @@ public final class SingleWorkerOptions {
 
   PollerOptions getPollerOptions() {
     return pollerOptions;
-  }
-
-  RpcRetryOptions getReportCompletionRetryOptions() {
-    return reportCompletionRetryOptions;
-  }
-
-  RpcRetryOptions getReportFailureRetryOptions() {
-    return reportFailureRetryOptions;
   }
 
   double getTaskListActivitiesPerSecond() {

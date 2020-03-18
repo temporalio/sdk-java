@@ -579,6 +579,17 @@ class StateMachines {
     if (data.lastCompletionResult != null) {
       a.setLastCompletionResult(data.lastCompletionResult);
     }
+    if (!request.getCronSchedule().isEmpty()) {
+      try {
+        TestWorkflowMutableStateImpl.parseCron(request.getCronSchedule());
+        a.setCronSchedule(request.getCronSchedule());
+      } catch (Exception e) {
+        throw Status.INVALID_ARGUMENT
+            .withDescription("Invalid cron expression: " + e.getMessage())
+            .withCause(e)
+            .asRuntimeException();
+      }
+    }
     if (request.hasMemo()) {
       a.setMemo(request.getMemo());
     }

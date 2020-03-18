@@ -122,8 +122,7 @@ public final class TestEnvironmentOptions {
       }
 
       if (workerFactoryOptions == null) {
-        workerFactoryOptions =
-            WorkerFactoryOptions.newBuilder().setDisableStickyExecution(false).build();
+        workerFactoryOptions = WorkerFactoryOptions.getDefaultInstance();
       }
 
       return new TestEnvironmentOptions(

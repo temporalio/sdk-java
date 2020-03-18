@@ -18,9 +18,7 @@
 package io.temporal.worker;
 
 import com.google.common.base.Preconditions;
-import com.uber.m3.tally.Scope;
 import io.temporal.context.ContextPropagator;
-import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.worker.PollerOptions;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -47,35 +45,21 @@ public class WorkerFactoryOptions {
   }
 
   public static class Builder {
-    private boolean disableStickyExecution;
     private int stickyDecisionScheduleToStartTimeoutInSeconds = 5;
     private int cacheMaximumSize = 600;
     private int maxWorkflowThreadCount = 600;
     private PollerOptions stickyWorkflowPollerOptions;
-    private Scope metricScope;
     private List<ContextPropagator> contextPropagators;
 
     private Builder() {}
 
     private Builder(WorkerFactoryOptions options) {
-      this.disableStickyExecution = options.disableStickyExecution;
       this.stickyDecisionScheduleToStartTimeoutInSeconds =
           options.stickyDecisionScheduleToStartTimeoutInSeconds;
       this.cacheMaximumSize = options.cacheMaximumSize;
       this.maxWorkflowThreadCount = options.maxWorkflowThreadCount;
       this.stickyWorkflowPollerOptions = options.stickyWorkflowPollerOptions;
-      this.metricScope = options.metricsScope;
       this.contextPropagators = options.contextPropagators;
-    }
-
-    /**
-     * When set to false it will create an affinity between the worker and the workflow run it's
-     * processing. Workers will cache workflows and will handle all decisions for that workflow
-     * instance until it's complete or evicted from the cache. Default value is false.
-     */
-    public Builder setDisableStickyExecution(boolean disableStickyExecution) {
-      this.disableStickyExecution = disableStickyExecution;
-      return this;
     }
 
     /**
@@ -116,11 +100,6 @@ public class WorkerFactoryOptions {
       return this;
     }
 
-    public Builder setMetricScope(Scope metricScope) {
-      this.metricScope = metricScope;
-      return this;
-    }
-
     public Builder setContextPropagators(List<ContextPropagator> contextPropagators) {
       this.contextPropagators = contextPropagators;
       return this;
@@ -128,31 +107,25 @@ public class WorkerFactoryOptions {
 
     public WorkerFactoryOptions build() {
       return new WorkerFactoryOptions(
-          disableStickyExecution,
           cacheMaximumSize,
           maxWorkflowThreadCount,
           stickyDecisionScheduleToStartTimeoutInSeconds,
           stickyWorkflowPollerOptions,
-          metricScope,
           contextPropagators);
     }
   }
 
-  private final boolean disableStickyExecution;
   private final int cacheMaximumSize;
   private final int maxWorkflowThreadCount;
   private final int stickyDecisionScheduleToStartTimeoutInSeconds;
   private final PollerOptions stickyWorkflowPollerOptions;
-  private final Scope metricsScope;
   private List<ContextPropagator> contextPropagators;
 
   private WorkerFactoryOptions(
-      boolean disableStickyExecution,
       int cacheMaximumSize,
       int maxWorkflowThreadCount,
       int stickyDecisionScheduleToStartTimeoutInSeconds,
       PollerOptions stickyWorkflowPollerOptions,
-      Scope metricsScope,
       List<ContextPropagator> contextPropagators) {
     Preconditions.checkArgument(cacheMaximumSize > 0, "cacheMaximumSize should be greater than 0");
     Preconditions.checkArgument(
@@ -161,7 +134,6 @@ public class WorkerFactoryOptions {
         stickyDecisionScheduleToStartTimeoutInSeconds > 0,
         "stickyDecisionScheduleToStartTimeoutInSeconds should be greater than 0");
 
-    this.disableStickyExecution = disableStickyExecution;
     this.cacheMaximumSize = cacheMaximumSize;
     this.maxWorkflowThreadCount = maxWorkflowThreadCount;
     this.stickyDecisionScheduleToStartTimeoutInSeconds =
@@ -178,21 +150,11 @@ public class WorkerFactoryOptions {
       this.stickyWorkflowPollerOptions = stickyWorkflowPollerOptions;
     }
 
-    if (metricsScope == null) {
-      this.metricsScope = NoopScope.getInstance();
-    } else {
-      this.metricsScope = metricsScope;
-    }
-
     if (contextPropagators != null) {
       this.contextPropagators = contextPropagators;
     } else {
       this.contextPropagators = new ArrayList<>();
     }
-  }
-
-  public boolean isDisableStickyExecution() {
-    return disableStickyExecution;
   }
 
   public int getCacheMaximumSize() {
@@ -209,10 +171,6 @@ public class WorkerFactoryOptions {
 
   public PollerOptions getStickyWorkflowPollerOptions() {
     return stickyWorkflowPollerOptions;
-  }
-
-  public Scope getMetricsScope() {
-    return metricsScope;
   }
 
   public List<ContextPropagator> getContextPropagators() {
