@@ -120,10 +120,8 @@ public class WorkerStressTests {
 
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
-            WorkerFactoryOptions.newBuilder()
-                .setDisableStickyExecution(false)
-                .setMaxWorkflowThreadCount(2)
-                .build());
+            WorkerFactoryOptions.newBuilder().setMaxWorkflowThreadCount(2).build());
+
     WorkerFactory factory = wrapper.getWorkerFactory();
     Worker worker = factory.newWorker(taskListName, WorkerOptions.newBuilder().build());
     worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
@@ -175,7 +173,7 @@ public class WorkerStressTests {
 
     public TestEnvironmentWrapper(WorkerFactoryOptions options) {
       if (options == null) {
-        options = WorkerFactoryOptions.newBuilder().setDisableStickyExecution(false).build();
+        options = WorkerFactoryOptions.newBuilder().build();
       }
       if (useDockerService) {
         service = WorkflowServiceStubs.newInstance();

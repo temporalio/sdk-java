@@ -96,10 +96,6 @@ public final class WorkerFactory {
     workflowThreadPool.setThreadFactory(
         r -> new Thread(r, "workflow-thread-" + workflowThreadCounter.incrementAndGet()));
 
-    if (this.factoryOptions.isDisableStickyExecution()) {
-      return;
-    }
-
     Scope metricsScope =
         this.workflowClient
             .getOptions()
@@ -168,10 +164,7 @@ public final class WorkerFactory {
             workflowThreadPool,
             factoryOptions.getContextPropagators());
     workers.add(worker);
-
-    if (!this.factoryOptions.isDisableStickyExecution()) {
-      dispatcher.subscribe(taskList, worker.workflowWorker);
-    }
+    dispatcher.subscribe(taskList, worker.workflowWorker);
     return worker;
   }
 
@@ -309,9 +302,7 @@ public final class WorkerFactory {
   }
 
   private String getStickyTaskListName() {
-    return this.factoryOptions.isDisableStickyExecution()
-        ? null
-        : String.format("%s:%s", getHostName(), id);
+    return String.format("%s:%s", getHostName(), id);
   }
 
   public synchronized void suspendPolling() {

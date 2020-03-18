@@ -120,7 +120,7 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
         ClientInterceptors.intercept(
             channel, deadlineInterceptor, MetadataUtils.newAttachHeadersInterceptor(headers));
     if (log.isTraceEnabled()) {
-      interceptedChannel = ClientInterceptors.intercept(channel, tracingInterceptor);
+      interceptedChannel = ClientInterceptors.intercept(interceptedChannel, tracingInterceptor);
     }
     blockingStub = WorkflowServiceGrpc.newBlockingStub(interceptedChannel);
     if (options.getBlockingStubInterceptor().isPresent()) {
@@ -154,8 +154,13 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
                     responseListener) {
                   @Override
                   public void onMessage(RespT message) {
-                    log.trace(
-                        "Returned " + method.getFullMethodName() + " with output: " + message);
+                    // Skip printing the whole history
+                    if (method == WorkflowServiceGrpc.getPollForDecisionTaskMethod()) {
+                      log.trace("Returned " + method.getFullMethodName());
+                    } else {
+                      log.trace(
+                          "Returned " + method.getFullMethodName() + " with output: " + message);
+                    }
                     super.onMessage(message);
                   }
                 };
@@ -243,8 +248,7 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
       } else {
         duration = deadline.timeRemaining(TimeUnit.MILLISECONDS);
       }
-      String name = method.getFullMethodName();
-      if (name.equals("workflowservice.WorkflowService/GetWorkflowExecutionHistory")) {
+      if (method == WorkflowServiceGrpc.getGetWorkflowExecutionHistoryMethod()) {
         if (deadline == null) {
           duration = options.getRpcLongPollTimeoutMillis();
         } else {
@@ -253,13 +257,14 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
             duration = options.getRpcLongPollTimeoutMillis();
           }
         }
-      } else if (name.equals("workflowservice.WorkflowService/PollForDecisionTask")
-          || name.equals("workflowservice.WorkflowService/PollForActivityTask")) {
+      } else if (method == WorkflowServiceGrpc.getPollForDecisionTaskMethod()
+          || method == WorkflowServiceGrpc.getPollForActivityTaskMethod()) {
         duration = options.getRpcLongPollTimeoutMillis();
-      } else if (name.equals("workflowservice.WorkflowService/QueryWorkflow")) {
+      } else if (method == WorkflowServiceGrpc.getQueryWorkflowMethod()) {
         duration = options.getRpcQueryTimeoutMillis();
       }
       if (log.isTraceEnabled()) {
+        String name = method.getFullMethodName();
         log.trace("TimeoutInterceptor method=" + name + ", timeoutMs=" + duration);
       }
       return next.newCall(method, callOptions.withDeadlineAfter(duration, TimeUnit.MILLISECONDS));

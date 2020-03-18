@@ -45,7 +45,6 @@ public class WorkerFactoryOptions {
   }
 
   public static class Builder {
-    private boolean disableStickyExecution;
     private int stickyDecisionScheduleToStartTimeoutInSeconds = 5;
     private int cacheMaximumSize = 600;
     private int maxWorkflowThreadCount = 600;
@@ -55,23 +54,12 @@ public class WorkerFactoryOptions {
     private Builder() {}
 
     private Builder(WorkerFactoryOptions options) {
-      this.disableStickyExecution = options.disableStickyExecution;
       this.stickyDecisionScheduleToStartTimeoutInSeconds =
           options.stickyDecisionScheduleToStartTimeoutInSeconds;
       this.cacheMaximumSize = options.cacheMaximumSize;
       this.maxWorkflowThreadCount = options.maxWorkflowThreadCount;
       this.stickyWorkflowPollerOptions = options.stickyWorkflowPollerOptions;
       this.contextPropagators = options.contextPropagators;
-    }
-
-    /**
-     * When set to false it will create an affinity between the worker and the workflow run it's
-     * processing. Workers will cache workflows and will handle all decisions for that workflow
-     * instance until it's complete or evicted from the cache. Default value is false.
-     */
-    public Builder setDisableStickyExecution(boolean disableStickyExecution) {
-      this.disableStickyExecution = disableStickyExecution;
-      return this;
     }
 
     /**
@@ -119,7 +107,6 @@ public class WorkerFactoryOptions {
 
     public WorkerFactoryOptions build() {
       return new WorkerFactoryOptions(
-          disableStickyExecution,
           cacheMaximumSize,
           maxWorkflowThreadCount,
           stickyDecisionScheduleToStartTimeoutInSeconds,
@@ -128,7 +115,6 @@ public class WorkerFactoryOptions {
     }
   }
 
-  private final boolean disableStickyExecution;
   private final int cacheMaximumSize;
   private final int maxWorkflowThreadCount;
   private final int stickyDecisionScheduleToStartTimeoutInSeconds;
@@ -136,7 +122,6 @@ public class WorkerFactoryOptions {
   private List<ContextPropagator> contextPropagators;
 
   private WorkerFactoryOptions(
-      boolean disableStickyExecution,
       int cacheMaximumSize,
       int maxWorkflowThreadCount,
       int stickyDecisionScheduleToStartTimeoutInSeconds,
@@ -149,7 +134,6 @@ public class WorkerFactoryOptions {
         stickyDecisionScheduleToStartTimeoutInSeconds > 0,
         "stickyDecisionScheduleToStartTimeoutInSeconds should be greater than 0");
 
-    this.disableStickyExecution = disableStickyExecution;
     this.cacheMaximumSize = cacheMaximumSize;
     this.maxWorkflowThreadCount = maxWorkflowThreadCount;
     this.stickyDecisionScheduleToStartTimeoutInSeconds =
@@ -171,10 +155,6 @@ public class WorkerFactoryOptions {
     } else {
       this.contextPropagators = new ArrayList<>();
     }
-  }
-
-  public boolean isDisableStickyExecution() {
-    return disableStickyExecution;
   }
 
   public int getCacheMaximumSize() {

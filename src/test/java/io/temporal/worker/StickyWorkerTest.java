@@ -179,7 +179,6 @@ public class StickyWorkerTest {
         new TestEnvironmentWrapper(
             scope,
             WorkerFactoryOptions.newBuilder()
-                .setDisableStickyExecution(false)
                 .setMaxWorkflowThreadCount(10)
                 .setCacheMaximumSize(100)
                 .build());
@@ -234,8 +233,7 @@ public class StickyWorkerTest {
             .reportEvery(com.uber.m3.util.Duration.ofMillis(300));
 
     TestEnvironmentWrapper wrapper =
-        new TestEnvironmentWrapper(
-            scope, WorkerFactoryOptions.newBuilder().setDisableStickyExecution(false).build());
+        new TestEnvironmentWrapper(scope, WorkerFactoryOptions.newBuilder().build());
     WorkerFactory factory = wrapper.getWorkerFactory();
     Worker worker = factory.newWorker(taskListName, WorkerOptions.newBuilder().build());
     worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
@@ -289,8 +287,7 @@ public class StickyWorkerTest {
             .reportEvery(com.uber.m3.util.Duration.ofMillis(300));
 
     TestEnvironmentWrapper wrapper =
-        new TestEnvironmentWrapper(
-            scope, WorkerFactoryOptions.newBuilder().setDisableStickyExecution(false).build());
+        new TestEnvironmentWrapper(scope, WorkerFactoryOptions.newBuilder().build());
     WorkerFactory factory = wrapper.getWorkerFactory();
     Worker worker = factory.newWorker(taskListName, WorkerOptions.newBuilder().build());
     worker.registerWorkflowImplementationTypes(
@@ -337,8 +334,7 @@ public class StickyWorkerTest {
             .reportEvery(com.uber.m3.util.Duration.ofMillis(300));
 
     TestEnvironmentWrapper wrapper =
-        new TestEnvironmentWrapper(
-            scope, WorkerFactoryOptions.newBuilder().setDisableStickyExecution(false).build());
+        new TestEnvironmentWrapper(scope, WorkerFactoryOptions.newBuilder().build());
     WorkerFactory factory = wrapper.getWorkerFactory();
     Worker worker = factory.newWorker(taskListName, WorkerOptions.newBuilder().build());
     worker.registerWorkflowImplementationTypes(TestMutableSideEffectWorkflowImpl.class);
@@ -382,47 +378,12 @@ public class StickyWorkerTest {
   }
 
   @Test
-  public void whenStickyIsNotEnabledThenTheWorkflowIsNotCached() {
-    // Arrange
-    String taskListName = "notCachedStickyTest";
-    TestEnvironmentWrapper wrapper =
-        new TestEnvironmentWrapper(
-            NoopScope.getInstance(),
-            WorkerFactoryOptions.newBuilder().setDisableStickyExecution(true).build());
-    WorkerFactory factory = wrapper.getWorkerFactory();
-    Worker worker = factory.newWorker(taskListName);
-    worker.registerWorkflowImplementationTypes(GreetingSignalWorkflowImpl.class);
-    factory.start();
-
-    WorkflowOptions workflowOptions =
-        WorkflowOptions.newBuilder()
-            .setTaskList(taskListName)
-            .setExecutionStartToCloseTimeout(Duration.ofDays(30))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
-            .build();
-    GreetingSignalWorkflow workflow =
-        wrapper.getWorkflowClient().newWorkflowStub(GreetingSignalWorkflow.class, workflowOptions);
-
-    // Act
-    WorkflowClient.start(workflow::getGreeting);
-    workflow.waitForName("World");
-    String greeting = workflow.getGreeting();
-    assertEquals("Hello World!", greeting);
-
-    // Assert
-    DeciderCache cache = factory.getCache();
-    assertNull(cache);
-    wrapper.close();
-  }
-
-  @Test
   public void whenCacheIsEvictedTheWorkerCanRecover() throws Exception {
     // Arrange
     String taskListName = "evictedStickyTest";
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
-            NoopScope.getInstance(),
-            WorkerFactoryOptions.newBuilder().setDisableStickyExecution(false).build());
+            NoopScope.getInstance(), WorkerFactoryOptions.newBuilder().build());
     WorkerFactory factory = wrapper.getWorkerFactory();
     Worker worker = factory.newWorker(taskListName);
     worker.registerWorkflowImplementationTypes(GreetingSignalWorkflowImpl.class);
@@ -462,8 +423,7 @@ public class StickyWorkerTest {
     String taskListName = "queryStickyTest";
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
-            NoopScope.getInstance(),
-            WorkerFactoryOptions.newBuilder().setDisableStickyExecution(false).build());
+            NoopScope.getInstance(), WorkerFactoryOptions.newBuilder().build());
     WorkerFactory factory = wrapper.getWorkerFactory();
     Worker worker = factory.newWorker(taskListName);
     worker.registerWorkflowImplementationTypes(GreetingSignalWorkflowImpl.class);
@@ -504,8 +464,7 @@ public class StickyWorkerTest {
     String taskListName = "queryEvictionStickyTest";
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
-            NoopScope.getInstance(),
-            WorkerFactoryOptions.newBuilder().setDisableStickyExecution(false).build());
+            NoopScope.getInstance(), WorkerFactoryOptions.newBuilder().build());
     WorkerFactory factory = wrapper.getWorkerFactory();
     Worker worker = factory.newWorker(taskListName);
     worker.registerWorkflowImplementationTypes(GreetingSignalWorkflowImpl.class);
