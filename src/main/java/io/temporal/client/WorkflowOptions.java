@@ -19,12 +19,6 @@ package io.temporal.client;
 
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
-import com.cronutils.model.Cron;
-import com.cronutils.model.CronType;
-import com.cronutils.model.definition.CronDefinition;
-import com.cronutils.model.definition.CronDefinitionBuilder;
-import com.cronutils.parser.CronParser;
-import com.google.common.base.Strings;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
@@ -265,13 +259,6 @@ public final class WorkflowOptions {
           throw new IllegalArgumentException(
               "RetryOptions must specify either expiration or maximum attempts");
         }
-      }
-
-      if (!Strings.isNullOrEmpty(cronSchedule)) {
-        CronDefinition cronDefinition = CronDefinitionBuilder.instanceDefinitionFor(CronType.UNIX);
-        CronParser parser = new CronParser(cronDefinition);
-        Cron cron = parser.parse(cronSchedule);
-        cron.validate();
       }
 
       return new WorkflowOptions(

@@ -17,12 +17,6 @@
 
 package io.temporal.internal.sync;
 
-import io.grpc.ManagedChannel;
-import io.grpc.Server;
-import io.grpc.ServerInterceptors;
-import io.grpc.inprocess.InProcessChannelBuilder;
-import io.grpc.inprocess.InProcessServerBuilder;
-import io.temporal.activity.Activity;
 import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientInterceptor;
@@ -40,7 +34,6 @@ import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerOptions;
-import java.io.IOException;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.Optional;
@@ -53,8 +46,6 @@ import java.util.function.Function;
 public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnvironment {
 
   private final TestEnvironmentOptions testEnvironmentOptions;
-  private ManagedChannel channel;
-  private Server server;
   private final WorkflowServiceStubs workflowServiceStubs;
   private final TestWorkflowService service;
   private final WorkerFactory workerFactory;
@@ -67,22 +58,8 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     }
     service = new TestWorkflowService();
     service.lockTimeSkipping("TestWorkflowEnvironmentInternal constructor");
-    String serverName = InProcessServerBuilder.generateName();
-    // Initialize an in-memory mock service.
-    try {
-      server =
-          InProcessServerBuilder.forName(serverName)
-              .directExecutor()
-              .addService(ServerInterceptors.intercept(service, new LoggingInterceptor()))
-              .build()
-              .start();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-    channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
     workflowServiceStubs =
-        WorkflowServiceStubs.newInstance(
-            WorkflowServiceStubsOptions.newBuilder().setChannel(channel).build());
+        WorkflowServiceStubs.newInstance(service, WorkflowServiceStubsOptions.getDefaultInstance());
 
     WorkflowClient client =
         WorkflowClient.newInstance(
@@ -176,17 +153,9 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     workerFactory.shutdownNow();
     workerFactory.awaitTermination(10, TimeUnit.SECONDS);
     workflowServiceStubs.shutdownNow();
-    channel.shutdownNow();
     try {
       workflowServiceStubs.awaitTermination(10, TimeUnit.SECONDS);
-      channel.awaitTermination(10, TimeUnit.SECONDS);
     } catch (InterruptedException e) {
-    }
-    server.shutdown();
-    try {
-      server.awaitTermination();
-    } catch (InterruptedException e) {
-      throw Activity.wrap(e);
     }
     service.close();
   }

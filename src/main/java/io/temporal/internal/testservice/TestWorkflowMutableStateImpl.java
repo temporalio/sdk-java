@@ -228,7 +228,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     } catch (StatusRuntimeException e) {
       throw e;
     } catch (Exception e) {
-      throw Status.INTERNAL.withCause(e).asRuntimeException();
+      throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
     } finally {
       lockHandle.unlock();
       lock.unlock();
@@ -1191,7 +1191,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           });
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
-        throw Status.INTERNAL.withCause(e).asRuntimeException();
+        throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
       }
       throw e;
     }
@@ -1604,7 +1604,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     } catch (InterruptedException e) {
       return QueryWorkflowResponse.getDefaultInstance();
     } catch (ExecutionException e) {
-      throw Status.INTERNAL.withCause(e).asRuntimeException();
+      throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
     }
   }
 
@@ -1725,7 +1725,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         executionId.addBytes(out);
         out.writeUTF(queryId);
       } catch (IOException e) {
-        throw Status.INTERNAL.withCause(e).asRuntimeException();
+        throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
       }
     }
 
@@ -1737,7 +1737,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         String queryId = in.readUTF();
         return new QueryId(executionId, queryId);
       } catch (IOException e) {
-        throw Status.INTERNAL.withCause(e).asRuntimeException();
+        throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
       }
     }
   }

@@ -171,32 +171,6 @@ public class WorkflowOptionsTest {
     Assert.assertEquals(searchAttributes, merged.getSearchAttributes());
   }
 
-  @WorkflowMethod
-  @CronSchedule("invalid * * * *")
-  public void invalidCronScheduleAnnotation() {}
-
-  @Test
-  public void testInvalidCronScheduleAnnotation() throws NoSuchMethodException {
-    WorkflowOptions o =
-        WorkflowOptions.newBuilder()
-            .setTaskList("foo")
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(321))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate)
-            .build();
-    Method method = WorkflowOptionsTest.class.getMethod("invalidCronScheduleAnnotation");
-    WorkflowMethod a = method.getAnnotation(WorkflowMethod.class);
-    CronSchedule c = method.getAnnotation(CronSchedule.class);
-
-    try {
-      WorkflowOptions.merge(a, null, c, o);
-    } catch (IllegalArgumentException e) {
-      return;
-    }
-
-    Assert.fail("invalid cron schedule not caught");
-  }
-
   private Map<String, Object> getTestMemo() {
     Map<String, Object> memo = new HashMap<>();
     memo.put("testKey", "testObject");

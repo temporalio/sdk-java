@@ -59,49 +59,45 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
 
   private static final String CLIENT_IMPL_HEADER_VALUE = "temporal-java";
 
-  public static final String TEMPORAL_SERVICE_ADDRESS_ENV = "TEMPORAL_ADDRESS";
-
-  private ManagedChannel channel;
+  private final ManagedChannel channel;
   // Shutdown channel that was created by us
-  private boolean channelNeedsShutdown;
-  private AtomicBoolean shutdownRequested = new AtomicBoolean();
-  protected WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub;
-  protected WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub;
+  private final boolean channelNeedsShutdown;
+  private final AtomicBoolean shutdownRequested = new AtomicBoolean();
+  private final WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub;
+  private final WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub;
 
   /**
-   * Creates a factory that connects to the Temporal according to the specified options.
-   *
-   * @param options connection options
+   * Creates a factory that connects to the Temporal according to the specified options. When
+   * serviceImpl is not null generates the client for an in-process service using an in-memory
+   * channel. Useful for testing, usually with mock and spy services.
    */
-  WorkflowServiceStubsImpl(WorkflowServiceStubsOptions options) {
-    init(options);
-  }
-
-  /**
-   * Generates the client for an in-process service using an in-memory channel. Useful for testing,
-   * usually with mock and spy services.
-   */
-  WorkflowServiceStubsImpl(WorkflowServiceGrpc.WorkflowServiceImplBase serviceImpl) {
-    String serverName = InProcessServerBuilder.generateName();
-    try {
-      InProcessServerBuilder.forName(serverName)
-          .directExecutor()
-          .addService(serviceImpl)
-          .build()
-          .start();
-    } catch (IOException unexpected) {
-      throw new RuntimeException(unexpected);
+  WorkflowServiceStubsImpl(
+      WorkflowServiceGrpc.WorkflowServiceImplBase serviceImpl,
+      WorkflowServiceStubsOptions options) {
+    if (serviceImpl != null) {
+      if (options.getChannel() != null) {
+        throw new IllegalArgumentException("both channel and serviceImpl present");
+      }
+      String serverName = InProcessServerBuilder.generateName();
+      try {
+        InProcessServerBuilder.forName(serverName)
+            .directExecutor()
+            .addService(serviceImpl)
+            .build()
+            .start();
+      } catch (IOException unexpected) {
+        throw new RuntimeException(unexpected);
+      }
+      options =
+          WorkflowServiceStubsOptions.newBuilder(options)
+              .setChannel(InProcessChannelBuilder.forName(serverName).directExecutor().build())
+              .build();
     }
-    init(
-        WorkflowServiceStubsOptions.newBuilder()
-            .setChannel(InProcessChannelBuilder.forName(serverName).directExecutor().build())
-            .build());
-  }
-
-  private void init(WorkflowServiceStubsOptions options) {
     options = WorkflowServiceStubsOptions.newBuilder(options).validateAndBuildWithDefaults();
     if (options.getChannel() != null) {
       this.channel = options.getChannel();
+      // Do not shutdown a channel passed to the constructor from outside
+      channelNeedsShutdown = serviceImpl != null;
     } else {
       this.channel =
           ManagedChannelBuilder.forTarget(options.getTarget())
@@ -122,14 +118,18 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
     if (log.isTraceEnabled()) {
       interceptedChannel = ClientInterceptors.intercept(interceptedChannel, tracingInterceptor);
     }
-    blockingStub = WorkflowServiceGrpc.newBlockingStub(interceptedChannel);
+    WorkflowServiceGrpc.WorkflowServiceBlockingStub bs =
+        WorkflowServiceGrpc.newBlockingStub(interceptedChannel);
     if (options.getBlockingStubInterceptor().isPresent()) {
-      blockingStub = options.getBlockingStubInterceptor().get().apply(blockingStub);
+      bs = options.getBlockingStubInterceptor().get().apply(bs);
     }
-    futureStub = WorkflowServiceGrpc.newFutureStub(interceptedChannel);
+    this.blockingStub = bs;
+    WorkflowServiceGrpc.WorkflowServiceFutureStub fs =
+        WorkflowServiceGrpc.newFutureStub(interceptedChannel);
     if (options.getFutureStubInterceptor().isPresent()) {
-      futureStub = options.getFutureStubInterceptor().get().apply(futureStub);
+      fs = options.getFutureStubInterceptor().get().apply(fs);
     }
+    this.futureStub = fs;
     log.info(String.format("Created GRPC client for channel: %s", channel));
   }
 
@@ -179,14 +179,6 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
   /** @return Future (asynchronous) stub that allows direct calls to service. */
   public WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub() {
     return futureStub;
-  }
-
-  /** Simple port validation */
-  private static int validatePort(int port) {
-    if (port < 0) {
-      throw new IllegalArgumentException("0 or negative port");
-    }
-    return port;
   }
 
   @Override
