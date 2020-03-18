@@ -1037,9 +1037,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       String identity,
       WorkflowData data,
       ByteString lastCompletionResult) {
-    CronDefinition cronDefinition = CronDefinitionBuilder.instanceDefinitionFor(CronType.UNIX);
-    CronParser parser = new CronParser(cronDefinition);
-    Cron cron = parser.parse(data.cronSchedule);
+    Cron cron = parseCron(data.cronSchedule);
 
     Instant i = Instant.ofEpochMilli(store.currentTimeMillis());
     ZonedDateTime now = ZonedDateTime.ofInstant(i, ZoneOffset.UTC);
@@ -1079,6 +1077,12 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             getExecutionId(),
             parent,
             parentChildInitiatedEventId);
+  }
+
+  static Cron parseCron(String schedule) {
+    CronDefinition cronDefinition = CronDefinitionBuilder.instanceDefinitionFor(CronType.UNIX);
+    CronParser parser = new CronParser(cronDefinition);
+    return parser.parse(schedule);
   }
 
   private void processCancelWorkflowExecution(
