@@ -46,7 +46,7 @@ services:
         aliases:
           - temporal
 
-  unit-test-docker-sticky-off:
+  unit-test-docker:
     build:
       context: ../../
       dockerfile: ./docker/buildkite/Dockerfile
@@ -55,7 +55,6 @@ services:
       - "USER=unittest"
       - "TEMPORAL_SEEDS=temporal"
       - "USE_DOCKER_SERVICE=true"
-      - "STICKY_OFF=true"
     depends_on:
       - temporal
     volumes:
@@ -63,26 +62,7 @@ services:
     networks:
       services-network:
         aliases:
-          - unit-test-docker-sticky-off
-
-  unit-test-docker-sticky-on:
-    build:
-      context: ../../
-      dockerfile: ./docker/buildkite/Dockerfile
-    command: "./gradlew --no-daemon test"
-    environment:
-      - "USER=unittest"
-      - "TEMPORAL_SEEDS=temporal"
-      - "USE_DOCKER_SERVICE=true"
-      - "STICKY_OFF=false"
-    depends_on:
-      - temporal
-    volumes:
-      - "../../:/temporal-java-client"
-    networks:
-      services-network:
-        aliases:
-          - unit-test-docker-sticky-on
+          - unit-test-docker
 
   unit-test-test-service:
     build:
