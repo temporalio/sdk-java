@@ -3,6 +3,8 @@
  *
  *  Modifications copyright (C) 2017 Uber Technologies, Inc.
  *
+ *  Modifications copyright (C) 2020 Temporal Technologies, Inc.
+ *
  *  Licensed under the Apache License, Version 2.0 (the "License"). You may not
  *  use this file except in compliance with the License. A copy of the License is
  *  located at
@@ -33,7 +35,7 @@ final class DecisionTaskToken {
 
   DecisionTaskToken(ExecutionId executionId, int historySize) {
     this.executionId = Objects.requireNonNull(executionId);
-    this.historySize = Objects.requireNonNull(historySize);
+    this.historySize = historySize;
   }
 
   ExecutionId getExecutionId() {
