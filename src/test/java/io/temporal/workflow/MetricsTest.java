@@ -29,6 +29,7 @@ import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.internal.metrics.MetricsTag;
@@ -36,6 +37,7 @@ import io.temporal.internal.metrics.MetricsType;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
+import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.interceptors.SignalWorkflowInterceptor;
 import java.time.Duration;
 import java.util.Map;
@@ -191,21 +193,27 @@ public class MetricsTest {
     public String value;
   }
 
-  public void setUp(com.uber.m3.util.Duration reportingFrequecy) {
+  public void setUp(
+      com.uber.m3.util.Duration reportingFrequecy, WorkerFactoryOptions workerFactoryOptions) {
     reporter = mock(StatsReporter.class);
     Scope scope = new RootScopeBuilder().reporter(reporter).reportEvery(reportingFrequecy);
 
     TestEnvironmentOptions testOptions =
         TestEnvironmentOptions.newBuilder()
-            .setDomain(WorkflowTest.DOMAIN)
-            .setMetricsScope(scope)
+            .setWorkflowClientOptions(
+                WorkflowClientOptions.newBuilder()
+                    .setMetricsScope(scope)
+                    .setDomain(WorkflowTest.DOMAIN)
+                    .build())
+            .setWorkerFactoryOptions(workerFactoryOptions)
             .build();
+
     testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
   }
 
   @Test
   public void testWorkflowMetrics() throws InterruptedException {
-    setUp(com.uber.m3.util.Duration.ofMillis(10));
+    setUp(com.uber.m3.util.Duration.ofMillis(10), WorkerFactoryOptions.getDefaultInstance());
 
     Worker worker = testEnvironment.newWorker(taskList);
     worker.registerWorkflowImplementationTypes(
@@ -262,13 +270,13 @@ public class MetricsTest {
 
   @Test
   public void testCorruptedSignalMetrics() throws InterruptedException {
-    setUp(com.uber.m3.util.Duration.ofMillis(300));
+    setUp(
+        com.uber.m3.util.Duration.ofMillis(300),
+        WorkerFactoryOptions.newBuilder()
+            .setInterceptorFactory(new CorruptedSignalWorkflowInterceptorFactory())
+            .build());
 
-    Worker worker =
-        testEnvironment.newWorker(
-            taskList,
-            builder ->
-                builder.setInterceptorFactory(new CorruptedSignalWorkflowInterceptorFactory()));
+    Worker worker = testEnvironment.newWorker(taskList);
 
     worker.registerWorkflowImplementationTypes(
         SendSignalObjectWorkflowImpl.class, ReceiveSignalObjectChildWorkflowImpl.class);

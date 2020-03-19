@@ -1,4 +1,4 @@
-# Temporal Java SDK  [![Build Status]()](https://buildkite.com/uberopensource/cadence-java-client) [![Javadocs]()]()
+# Temporal Java SDK  [![Build Status]()](https://buildkite.com/temporalio/temporal-java-sdk) [![Javadocs]()]()
 
 
 [Temporal](https://github.com/temporalio/temporal) is a Workflow as Code platform used to build and operate 

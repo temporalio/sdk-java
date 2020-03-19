@@ -70,26 +70,13 @@ import java.util.Map;
  * }</pre>
  *
  * To set up the context propagators, you must configure them when: <br>
- * Setting up your workflow/activity workers:
+ * Creating WorkflowClient:
  *
  * <pre>{@code
- * Worker.FactoryOptions factoryOptions = new Worker.FactoryOptions.Builder()
+ * WorkflowClientOptions options = WorkflowClientOptions.newBuilder()
  *                 .setContextPropagators(Collections.singletonList(new MDCContextPropagator()))
  *                 .build();
- * Worker.Factory factory = new Worker.Factory("cadence", 7933,"test-domain", factoryOptions);
- * }</pre>
- *
- * <br>
- * Creating your {@link io.temporal.client.WorkflowClient}:
- *
- * <pre>{@code
- * WorkflowOptions options = WorkflowOptions.newBuilder()
- *                 .setExecutionStartToCloseTimeout(Duration.ofSeconds(5))
- *                 .setTaskList("myTaskList")
- *                 .setContextPropagators(Collections.singletonList(new MDCContextPropagator()))
- *                 .build();
- *
- * WorkflowClient workflowClient = WorkflowClient.newInstance("cadence", 7933,"test-domain");
+ * WorkflowClient client = WorkflowClient.newInstance(service, factoryOptions);
  * }</pre>
  *
  * <br>
@@ -125,7 +112,7 @@ public interface ContextPropagator {
    */
   String getName();
 
-  /** Given context data, serialize it for transmission in the Cadence header */
+  /** Given context data, serialize it for transmission in the RPC header */
   Map<String, byte[]> serializeContext(Object context);
 
   /** Turn the serialized header data into context object(s) */

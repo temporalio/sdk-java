@@ -19,7 +19,6 @@ package io.temporal.testing;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowClientOptions;
 import io.temporal.internal.sync.TestWorkflowEnvironmentInternal;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.Worker;
@@ -27,7 +26,6 @@ import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerOptions;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 
 /**
  * TestWorkflowEnvironment provides workflow unit testing capabilities.
@@ -111,20 +109,11 @@ public interface TestWorkflowEnvironment {
    * Creates a new Worker instance that is connected to the in-memory test Temporal service.
    *
    * @param taskList task list to poll.
-   * @param overrideOptions is used to override the default worker options.
    */
-  Worker newWorker(
-      String taskList, Function<WorkerOptions.Builder, WorkerOptions.Builder> overrideOptions);
+  Worker newWorker(String taskList, WorkerOptions options);
 
   /** Creates a WorkflowClient that is connected to the in-memory test Temporal service. */
   WorkflowClient getWorkflowClient();
-
-  /**
-   * Creates a WorkflowClient that is connected to the in-memory test Temporal service.
-   *
-   * @param clientOptions options used to configure the client.
-   */
-  WorkflowClient getWorkflowClient(WorkflowClientOptions clientOptions);
 
   /**
    * Returns the current in-memory test Temporal service time in milliseconds. This time might not

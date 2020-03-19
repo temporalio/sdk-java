@@ -1,25 +1,16 @@
 FROM openjdk:8-alpine
 
-# Apache Thrift version
-ENV APACHE_THRIFT_VERSION=0.9.3
+# Based on https://github.com/sgerrand/alpine-pkg-glibc
+# Needed to run protoc java plugin
+RUN wget -q -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub
+RUN wget https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.31-r0/glibc-2.31-r0.apk
+RUN apk add glibc-2.31-r0.apk
 
 # Install dependencies using apk
-RUN apk update && apk add --virtual wget ca-certificates wget && apk add --virtual build-dependencies build-base gcc
+RUN apk update && apk add --virtual wget ca-certificates wget && apk add protobuf
+
 # Git is needed in order to update the dls submodule
 RUN apk add --virtual git
-
-# Compile source
-RUN set -ex ;\
-	wget http://www-us.apache.org/dist/thrift/${APACHE_THRIFT_VERSION}/thrift-${APACHE_THRIFT_VERSION}.tar.gz ;\
-	tar -xvf thrift-${APACHE_THRIFT_VERSION}.tar.gz ;\
-	rm thrift-${APACHE_THRIFT_VERSION}.tar.gz ;\
-	cd thrift-${APACHE_THRIFT_VERSION}/ ;\
-	./configure --enable-libs=no --enable-tests=no --enable-tutorial=no --with-cpp=no --with-c_glib=no --with-java=yes --with-ruby=no --with-erlang=no --with-go=no --with-nodejs=no --with-python=no ;\
-	make -j2 && make install ;\
-	cd .. && rm -rf thrift-${APACHE_THRIFT_VERSION}
-
-# Cleanup packages and remove cache
-RUN apk del build-dependencies wget && rm -rf /var/cache/apk/*
 
 RUN mkdir /temporal-java-client
 WORKDIR /temporal-java-client

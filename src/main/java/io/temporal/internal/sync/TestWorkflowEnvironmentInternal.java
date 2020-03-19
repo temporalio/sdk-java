@@ -17,6 +17,7 @@
 
 package io.temporal.internal.sync;
 
+import com.google.common.collect.ObjectArrays;
 import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientInterceptor;
@@ -33,6 +34,7 @@ import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
+import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -41,11 +43,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Function;
 
 public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnvironment {
 
   private final TestEnvironmentOptions testEnvironmentOptions;
+  private final WorkflowClientOptions workflowClientOptions;
+  private final WorkerFactoryOptions workerFactoryOptions;
   private final WorkflowServiceStubs workflowServiceStubs;
   private final TestWorkflowService service;
   private final WorkerFactory workerFactory;
@@ -56,64 +59,42 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     } else {
       this.testEnvironmentOptions = options;
     }
+    workflowClientOptions =
+        WorkflowClientOptions.newBuilder(testEnvironmentOptions.getWorkflowClientOptions())
+            .validateAndBuildWithDefaults();
+    workerFactoryOptions =
+        WorkerFactoryOptions.newBuilder(testEnvironmentOptions.getWorkerFactoryOptions())
+            .validateAndBuildWithDefaults();
     service = new TestWorkflowService();
     service.lockTimeSkipping("TestWorkflowEnvironmentInternal constructor");
     workflowServiceStubs =
         WorkflowServiceStubs.newInstance(service, WorkflowServiceStubsOptions.getDefaultInstance());
 
-    WorkflowClient client =
-        WorkflowClient.newInstance(
-            workflowServiceStubs,
-            WorkflowClientOptions.newBuilder()
-                .setDomain(options.getDomain())
-                .setDataConverter(options.getDataConverter())
-                .setMetricsScope(options.getMetricsScope())
-                .build());
+    WorkflowClient client = WorkflowClient.newInstance(workflowServiceStubs, workflowClientOptions);
     workerFactory = WorkerFactory.newInstance(client, options.getWorkerFactoryOptions());
   }
 
   @Override
   public Worker newWorker(String taskList) {
-    return newWorker(taskList, x -> x);
+    Worker result = workerFactory.newWorker(taskList, WorkerOptions.getDefaultInstance());
+    return result;
   }
 
   @Override
-  public Worker newWorker(
-      String taskList, Function<WorkerOptions.Builder, WorkerOptions.Builder> overrideOptions) {
-    WorkerOptions.Builder builder =
-        WorkerOptions.newBuilder()
-            .setInterceptorFactory(testEnvironmentOptions.getInterceptorFactory())
-            .setEnableLoggingInReplay(testEnvironmentOptions.isLoggingEnabledInReplay());
-    builder = overrideOptions.apply(builder);
-    Worker result = workerFactory.newWorker(taskList, builder.build());
+  public Worker newWorker(String taskList, WorkerOptions options) {
+    Worker result = workerFactory.newWorker(taskList, options);
     return result;
   }
 
   @Override
   public WorkflowClient getWorkflowClient() {
     WorkflowClientOptions options =
-        new WorkflowClientOptions.Builder()
-            .setDomain(testEnvironmentOptions.getDomain())
-            .setDataConverter(testEnvironmentOptions.getDataConverter())
-            .setInterceptors(new TimeLockingInterceptor(service))
-            .setMetricsScope(testEnvironmentOptions.getMetricsScope())
+        WorkflowClientOptions.newBuilder(workflowClientOptions)
+            .setInterceptors(
+                ObjectArrays.concat(
+                    workflowClientOptions.getInterceptors(), new TimeLockingInterceptor(service)))
             .build();
     return WorkflowClientInternal.newInstance(workflowServiceStubs, options);
-  }
-
-  @Override
-  public WorkflowClient getWorkflowClient(WorkflowClientOptions options) {
-    WorkflowClientInterceptor[] existingInterceptors = options.getInterceptors();
-    WorkflowClientInterceptor[] interceptors =
-        new WorkflowClientInterceptor[existingInterceptors.length + 1];
-    System.arraycopy(existingInterceptors, 0, interceptors, 0, existingInterceptors.length);
-    interceptors[interceptors.length - 1] = new TimeLockingInterceptor(service);
-    WorkflowClientOptions newOptions =
-        new WorkflowClientOptions.Builder(options)
-            .setInterceptors(interceptors)
-            .setDomain(testEnvironmentOptions.getDomain())
-            .build();
-    return WorkflowClientInternal.newInstance(workflowServiceStubs, newOptions);
   }
 
   @Override
@@ -138,7 +119,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
 
   @Override
   public String getDomain() {
-    return testEnvironmentOptions.getDomain();
+    return workflowClientOptions.getDomain();
   }
 
   @Override

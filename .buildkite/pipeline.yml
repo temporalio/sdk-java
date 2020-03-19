@@ -1,5 +1,5 @@
 steps:
-  - label: ":java: Unit test with test services"
+  - label: ":java: Unit test with in-memory test service"
     agents:
       queue: "default"
       docker: "*"
@@ -8,24 +8,13 @@ steps:
       - docker-compose#v3.0.0:
           run: unit-test-test-service
           config: docker/buildkite/docker-compose.yaml
-
-  - label: ":java: Unit test with docker services sticky on"
+  - label: ":java: Unit test with docker service"
     agents:
       queue: "default"
       docker: "*"
     command: "./gradlew --no-daemon test"
     plugins:
       - docker-compose#v3.0.0:
-          run: unit-test-docker-sticky-on
-          config: docker/buildkite/docker-compose.yaml
-
-  - label: ":java: Unit test with docker services sticky off"
-    agents:
-      queue: "default"
-      docker: "*"
-    command: "./gradlew --no-daemon test"
-    plugins:
-      - docker-compose#v3.0.0:
-          run: unit-test-docker-sticky-off
+          run: unit-test-docker
           config: docker/buildkite/docker-compose.yaml
   - wait

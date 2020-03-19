@@ -18,10 +18,13 @@
 package io.temporal.client;
 
 import com.uber.m3.tally.Scope;
+import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
 import io.temporal.converter.JsonDataConverter;
 import io.temporal.internal.metrics.NoopScope;
 import java.lang.management.ManagementFactory;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 /** Options for WorkflowClient configuration. */
@@ -35,11 +38,11 @@ public final class WorkflowClientOptions {
   }
 
   public static Builder newBuilder() {
-    return new WorkflowClientOptions.Builder();
+    return new Builder();
   }
 
   public static Builder newBuilder(WorkflowClientOptions options) {
-    return new WorkflowClientOptions.Builder(options);
+    return new Builder(options);
   }
 
   public static WorkflowClientOptions getDefaultInstance() {
@@ -53,14 +56,20 @@ public final class WorkflowClientOptions {
     private WorkflowClientInterceptor[] interceptors;
     private Scope metricsScope;
     private String identity;
+    private List<ContextPropagator> contextPropagators;
 
-    public Builder() {}
+    private Builder() {}
 
-    public Builder(WorkflowClientOptions options) {
+    private Builder(WorkflowClientOptions options) {
+      if (options == null) {
+        return;
+      }
       domain = options.domain;
       dataConverter = options.dataConverter;
       interceptors = options.interceptors;
       metricsScope = options.metricsScope;
+      identity = options.identity;
+      contextPropagators = options.contextPropagators;
     }
 
     public Builder setDomain(String domain) {
@@ -112,8 +121,14 @@ public final class WorkflowClientOptions {
       return this;
     }
 
+    public Builder setContextPropagators(List<ContextPropagator> contextPropagators) {
+      this.contextPropagators = contextPropagators;
+      return this;
+    }
+
     public WorkflowClientOptions build() {
-      return new WorkflowClientOptions(domain, dataConverter, interceptors, metricsScope, identity);
+      return new WorkflowClientOptions(
+          domain, dataConverter, interceptors, metricsScope, identity, contextPropagators);
     }
 
     public WorkflowClientOptions validateAndBuildWithDefaults() {
@@ -122,12 +137,15 @@ public final class WorkflowClientOptions {
           dataConverter == null ? JsonDataConverter.getInstance() : dataConverter,
           interceptors == null ? EMPTY_INTERCEPTOR_ARRAY : interceptors,
           metricsScope == null ? NoopScope.getInstance() : metricsScope,
-          identity == null ? ManagementFactory.getRuntimeMXBean().getName() : identity);
+          identity == null ? ManagementFactory.getRuntimeMXBean().getName() : identity,
+          contextPropagators == null ? EMPTY_CONTEXT_PROPAGATORS : contextPropagators);
     }
   }
 
   private static final WorkflowClientInterceptor[] EMPTY_INTERCEPTOR_ARRAY =
       new WorkflowClientInterceptor[0];
+
+  private static final List<ContextPropagator> EMPTY_CONTEXT_PROPAGATORS = Arrays.asList();
 
   private final String domain;
 
@@ -139,17 +157,21 @@ public final class WorkflowClientOptions {
 
   private final String identity;
 
+  private final List<ContextPropagator> contextPropagators;
+
   private WorkflowClientOptions(
       String domain,
       DataConverter dataConverter,
       WorkflowClientInterceptor[] interceptors,
       Scope metricsScope,
-      String identity) {
+      String identity,
+      List<ContextPropagator> contextPropagators) {
     this.domain = domain;
     this.dataConverter = dataConverter;
     this.interceptors = interceptors;
     this.metricsScope = metricsScope;
     this.identity = identity;
+    this.contextPropagators = contextPropagators;
   }
 
   public String getDomain() {
@@ -170,5 +192,29 @@ public final class WorkflowClientOptions {
 
   public String getIdentity() {
     return identity;
+  }
+
+  public List<ContextPropagator> getContextPropagators() {
+    return contextPropagators;
+  }
+
+  @Override
+  public String toString() {
+    return "WorkflowClientOptions{"
+        + "domain='"
+        + domain
+        + '\''
+        + ", dataConverter="
+        + dataConverter
+        + ", interceptors="
+        + Arrays.toString(interceptors)
+        + ", metricsScope="
+        + metricsScope
+        + ", identity='"
+        + identity
+        + '\''
+        + ", contextPropagators="
+        + contextPropagators
+        + '}';
   }
 }

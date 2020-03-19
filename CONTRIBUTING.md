@@ -1,6 +1,6 @@
-# Developing cadence-java-client
+# Developing temporal-java-sdk
 
-This doc is intended for contributors to `cadence-java-client` (hopefully that's you!)
+This doc is intended for contributors to `temporal-java-sdk` (hopefully that's you!)
 
 **Note:** All contributors also need to fill out the [Uber Contributor License Agreement](http://t.uber.com/cla) before we can merge in any of your changes
 
@@ -33,14 +33,14 @@ commit messages. Read it, follow it, learn it, love it.
 
 ## Test and Build
 
-Testing and building cadence-java-client requires running cadence docker locally, execute:
+Testing and building temporal-java-sdk requires running temporal docker locally, execute:
 
 ```bash
-curl -O https://raw.githubusercontent.com/uber/cadence/master/docker/docker-compose.yml
+curl -O https://raw.githubusercontent.com/temporalio/temporal/master/docker/docker-compose.yml
 docker-compose up
 ```
 
-(If this does not work, see instructions for running the Cadence Server at https://github.com/uber/cadence/blob/master/README.md.)
+(If this does not work, see instructions for running the Temporal Server at https://github.com/temporalio/temporal/blob/master/README.md.)
 
 Then run all the tests with:
 

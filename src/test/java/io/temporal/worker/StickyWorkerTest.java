@@ -18,7 +18,8 @@
 package io.temporal.worker;
 
 import static io.temporal.workflow.WorkflowTest.DOMAIN;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.*;
@@ -37,6 +38,7 @@ import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.replay.DeciderCache;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.Async;
@@ -72,6 +74,7 @@ public class StickyWorkerTest {
 
   private static final boolean useDockerService =
       Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+  private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
 
   @Parameterized.Parameter public boolean useExternalService;
 
@@ -94,7 +97,9 @@ public class StickyWorkerTest {
   @BeforeClass
   public static void setUp() {
     if (useDockerService) {
-      service = WorkflowServiceStubs.newInstance();
+      service =
+          WorkflowServiceStubs.newInstance(
+              WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
     }
   }
 
@@ -511,17 +516,16 @@ public class StickyWorkerTest {
       if (options == null) {
         options = WorkerFactoryOptions.newBuilder().build();
       }
+      WorkflowClientOptions clientOptions =
+          WorkflowClientOptions.newBuilder().setDomain(DOMAIN).setMetricsScope(scope).build();
       if (useExternalService) {
-        WorkflowClientOptions clientOptions =
-            WorkflowClientOptions.newBuilder().setDomain(DOMAIN).setMetricsScope(scope).build();
         WorkflowClient client = WorkflowClient.newInstance(service, clientOptions);
         factory = WorkerFactory.newInstance(client, options);
       } else {
         TestEnvironmentOptions testOptions =
             TestEnvironmentOptions.newBuilder()
-                .setDomain(DOMAIN)
+                .setWorkflowClientOptions(clientOptions)
                 .setWorkerFactoryOptions(options)
-                .setMetricsScope(scope)
                 .build();
         testEnv = TestWorkflowEnvironment.newInstance(testOptions);
       }

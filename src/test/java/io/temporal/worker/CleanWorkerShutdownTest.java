@@ -33,6 +33,7 @@ import io.temporal.proto.enums.EventType;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.Workflow;
@@ -56,6 +57,7 @@ public class CleanWorkerShutdownTest {
 
   private static final boolean useDockerService =
       Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+  private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
 
   @Parameterized.Parameter public boolean useExternalService;
 
@@ -78,7 +80,9 @@ public class CleanWorkerShutdownTest {
   @Before
   public void setUp() {
     if (useExternalService) {
-      service = WorkflowServiceStubs.newInstance();
+      service =
+          WorkflowServiceStubs.newInstance(
+              WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
     }
   }
 
@@ -139,10 +143,10 @@ public class CleanWorkerShutdownTest {
     WorkerFactory workerFactory = null;
     TestWorkflowEnvironment testEnvironment = null;
     CompletableFuture<Boolean> started = new CompletableFuture<>();
+    WorkflowClientOptions clientOptions =
+        WorkflowClientOptions.newBuilder().setDomain(DOMAIN).build();
     if (useExternalService) {
-      workflowClient =
-          WorkflowClient.newInstance(
-              service, WorkflowClientOptions.newBuilder().setDomain(DOMAIN).build());
+      workflowClient = WorkflowClient.newInstance(service, clientOptions);
       workerFactory = WorkerFactory.newInstance(workflowClient);
       Worker worker = workerFactory.newWorker(taskList);
       worker.registerWorkflowImplementationTypes(TestWorkflowImpl.class);
@@ -150,7 +154,7 @@ public class CleanWorkerShutdownTest {
       workerFactory.start();
     } else {
       TestEnvironmentOptions testOptions =
-          TestEnvironmentOptions.newBuilder().setDomain(DOMAIN).build();
+          TestEnvironmentOptions.newBuilder().setWorkflowClientOptions(clientOptions).build();
       testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
       service = testEnvironment.getWorkflowService();
       Worker worker = testEnvironment.newWorker(taskList);
@@ -197,10 +201,10 @@ public class CleanWorkerShutdownTest {
     WorkerFactory workerFactory = null;
     TestWorkflowEnvironment testEnvironment = null;
     CompletableFuture<Boolean> started = new CompletableFuture<>();
+    WorkflowClientOptions clientOptions =
+        WorkflowClientOptions.newBuilder().setDomain(DOMAIN).build();
     if (useExternalService) {
-      workflowClient =
-          WorkflowClient.newInstance(
-              service, WorkflowClientOptions.newBuilder().setDomain(DOMAIN).build());
+      workflowClient = WorkflowClient.newInstance(service, clientOptions);
       workerFactory = WorkerFactory.newInstance(workflowClient);
       Worker worker = workerFactory.newWorker(taskList);
       worker.registerWorkflowImplementationTypes(TestWorkflowImpl.class);
@@ -208,7 +212,7 @@ public class CleanWorkerShutdownTest {
       workerFactory.start();
     } else {
       TestEnvironmentOptions testOptions =
-          TestEnvironmentOptions.newBuilder().setDomain(DOMAIN).build();
+          TestEnvironmentOptions.newBuilder().setWorkflowClientOptions(clientOptions).build();
       testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
       service = testEnvironment.getWorkflowService();
       Worker worker = testEnvironment.newWorker(taskList);
@@ -285,10 +289,10 @@ public class CleanWorkerShutdownTest {
     WorkerFactory workerFactory = null;
     TestWorkflowEnvironment testEnvironment = null;
     CompletableFuture<Boolean> started = new CompletableFuture<>();
+    WorkflowClientOptions clientOptions =
+        WorkflowClientOptions.newBuilder().setDomain(DOMAIN).build();
     if (useExternalService) {
-      workflowClient =
-          WorkflowClient.newInstance(
-              service, WorkflowClientOptions.newBuilder().setDomain(DOMAIN).build());
+      workflowClient = WorkflowClient.newInstance(service, clientOptions);
       workerFactory = WorkerFactory.newInstance(workflowClient);
       Worker worker = workerFactory.newWorker(taskList);
       worker.registerWorkflowImplementationTypes(TestWorkflowImpl.class);
@@ -296,7 +300,7 @@ public class CleanWorkerShutdownTest {
       workerFactory.start();
     } else {
       TestEnvironmentOptions testOptions =
-          TestEnvironmentOptions.newBuilder().setDomain(DOMAIN).build();
+          TestEnvironmentOptions.newBuilder().setWorkflowClientOptions(clientOptions).build();
       testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
       service = testEnvironment.getWorkflowService();
       Worker worker = testEnvironment.newWorker(taskList);

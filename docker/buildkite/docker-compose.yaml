@@ -27,17 +27,22 @@ services:
           - statsd
 
   temporal:
-    image: temporalio/temporal:0.0.1.alpha-auto-setup
+    image: temporalio/temporal:master-auto-setup
     logging:
       driver: none
     ports:
-      - "7933:7933"
-      - "7934:7934"
-      - "7935:7935"
-      - "7939:7939"
+      - "7233:7233"
+      - "7234:7234"
+      - "7235:7235"
+      - "7239:7239"
+      - "6933:6933"
+      - "6934:6934"
+      - "6935:6935"
+      - "6939:6939"
     environment:
       - "CASSANDRA_SEEDS=cassandra"
       - "STATSD_ENDPOINT=statsd:8125"
+      - "DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development.yaml"
     depends_on:
       - cassandra
       - statsd
@@ -46,16 +51,15 @@ services:
         aliases:
           - temporal
 
-  unit-test-docker-sticky-off:
+  unit-test-docker:
     build:
       context: ../../
       dockerfile: ./docker/buildkite/Dockerfile
     command: "./gradlew --no-daemon test"
     environment:
       - "USER=unittest"
-      - "TEMPORAL_SEEDS=temporal"
+      - "TEMPORAL_SERVICE_ADDRESS=temporal:7233"
       - "USE_DOCKER_SERVICE=true"
-      - "STICKY_OFF=true"
     depends_on:
       - temporal
     volumes:
@@ -63,26 +67,7 @@ services:
     networks:
       services-network:
         aliases:
-          - unit-test-docker-sticky-off
-
-  unit-test-docker-sticky-on:
-    build:
-      context: ../../
-      dockerfile: ./docker/buildkite/Dockerfile
-    command: "./gradlew --no-daemon test"
-    environment:
-      - "USER=unittest"
-      - "TEMPORAL_SEEDS=temporal"
-      - "USE_DOCKER_SERVICE=true"
-      - "STICKY_OFF=false"
-    depends_on:
-      - temporal
-    volumes:
-      - "../../:/temporal-java-client"
-    networks:
-      services-network:
-        aliases:
-          - unit-test-docker-sticky-on
+          - unit-test-docker
 
   unit-test-test-service:
     build:

@@ -17,12 +17,8 @@
 
 package io.temporal.worker;
 
-import com.google.common.base.Preconditions;
-import io.temporal.context.ContextPropagator;
-import io.temporal.internal.worker.PollerOptions;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
+import io.temporal.workflow.WorkflowInterceptor;
+import java.util.function.Function;
 
 public class WorkerFactoryOptions {
 
@@ -45,21 +41,24 @@ public class WorkerFactoryOptions {
   }
 
   public static class Builder {
-    private int stickyDecisionScheduleToStartTimeoutInSeconds = 5;
-    private int cacheMaximumSize = 600;
-    private int maxWorkflowThreadCount = 600;
-    private PollerOptions stickyWorkflowPollerOptions;
-    private List<ContextPropagator> contextPropagators;
+    private int stickyDecisionScheduleToStartTimeoutInSeconds;
+    private int cacheMaximumSize;
+    private int maxWorkflowThreadCount;
+    private Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory;
+    private boolean enableLoggingInReplay;
 
     private Builder() {}
 
     private Builder(WorkerFactoryOptions options) {
+      if (options == null) {
+        return;
+      }
       this.stickyDecisionScheduleToStartTimeoutInSeconds =
           options.stickyDecisionScheduleToStartTimeoutInSeconds;
       this.cacheMaximumSize = options.cacheMaximumSize;
       this.maxWorkflowThreadCount = options.maxWorkflowThreadCount;
-      this.stickyWorkflowPollerOptions = options.stickyWorkflowPollerOptions;
-      this.contextPropagators = options.contextPropagators;
+      this.interceptorFactory = options.interceptorFactory;
+      this.enableLoggingInReplay = options.enableLoggingInReplay;
     }
 
     /**
@@ -91,17 +90,14 @@ public class WorkerFactoryOptions {
       return this;
     }
 
-    /**
-     * PollerOptions for poller responsible for polling for decisions for workflows cached by all
-     * workers created by this factory.
-     */
-    public Builder setStickyWorkflowPollerOptions(PollerOptions stickyWorkflowPollerOptions) {
-      this.stickyWorkflowPollerOptions = stickyWorkflowPollerOptions;
+    public Builder setInterceptorFactory(
+        Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory) {
+      this.interceptorFactory = interceptorFactory;
       return this;
     }
 
-    public Builder setContextPropagators(List<ContextPropagator> contextPropagators) {
-      this.contextPropagators = contextPropagators;
+    public Builder setEnableLoggingInReplay(boolean enableLoggingInReplay) {
+      this.enableLoggingInReplay = enableLoggingInReplay;
       return this;
     }
 
@@ -110,51 +106,55 @@ public class WorkerFactoryOptions {
           cacheMaximumSize,
           maxWorkflowThreadCount,
           stickyDecisionScheduleToStartTimeoutInSeconds,
-          stickyWorkflowPollerOptions,
-          contextPropagators);
+          interceptorFactory,
+          enableLoggingInReplay,
+          false);
+    }
+
+    public WorkerFactoryOptions validateAndBuildWithDefaults() {
+      return new WorkerFactoryOptions(
+          cacheMaximumSize,
+          maxWorkflowThreadCount,
+          stickyDecisionScheduleToStartTimeoutInSeconds,
+          interceptorFactory,
+          enableLoggingInReplay,
+          true);
     }
   }
 
   private final int cacheMaximumSize;
   private final int maxWorkflowThreadCount;
   private final int stickyDecisionScheduleToStartTimeoutInSeconds;
-  private final PollerOptions stickyWorkflowPollerOptions;
-  private List<ContextPropagator> contextPropagators;
+  private final Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory;
+  private final boolean enableLoggingInReplay;
 
   private WorkerFactoryOptions(
       int cacheMaximumSize,
       int maxWorkflowThreadCount,
       int stickyDecisionScheduleToStartTimeoutInSeconds,
-      PollerOptions stickyWorkflowPollerOptions,
-      List<ContextPropagator> contextPropagators) {
-    Preconditions.checkArgument(cacheMaximumSize > 0, "cacheMaximumSize should be greater than 0");
-    Preconditions.checkArgument(
-        maxWorkflowThreadCount > 0, "maxWorkflowThreadCount should be greater than 0");
-    Preconditions.checkArgument(
-        stickyDecisionScheduleToStartTimeoutInSeconds > 0,
-        "stickyDecisionScheduleToStartTimeoutInSeconds should be greater than 0");
-
+      Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
+      boolean enableLoggingInReplay,
+      boolean validate) {
+    if (validate) {
+      if (cacheMaximumSize <= 0) {
+        cacheMaximumSize = 600;
+      }
+      if (maxWorkflowThreadCount <= 0) {
+        maxWorkflowThreadCount = 600;
+      }
+      if (stickyDecisionScheduleToStartTimeoutInSeconds <= 0) {
+        stickyDecisionScheduleToStartTimeoutInSeconds = 5;
+      }
+      if (interceptorFactory == null) {
+        interceptorFactory = (i) -> i;
+      }
+    }
     this.cacheMaximumSize = cacheMaximumSize;
     this.maxWorkflowThreadCount = maxWorkflowThreadCount;
     this.stickyDecisionScheduleToStartTimeoutInSeconds =
         stickyDecisionScheduleToStartTimeoutInSeconds;
-
-    if (stickyWorkflowPollerOptions == null) {
-      this.stickyWorkflowPollerOptions =
-          PollerOptions.newBuilder()
-              .setPollBackoffInitialInterval(Duration.ofMillis(200))
-              .setPollBackoffMaximumInterval(Duration.ofSeconds(20))
-              .setPollThreadCount(1)
-              .build();
-    } else {
-      this.stickyWorkflowPollerOptions = stickyWorkflowPollerOptions;
-    }
-
-    if (contextPropagators != null) {
-      this.contextPropagators = contextPropagators;
-    } else {
-      this.contextPropagators = new ArrayList<>();
-    }
+    this.interceptorFactory = interceptorFactory;
+    this.enableLoggingInReplay = enableLoggingInReplay;
   }
 
   public int getCacheMaximumSize() {
@@ -169,11 +169,11 @@ public class WorkerFactoryOptions {
     return stickyDecisionScheduleToStartTimeoutInSeconds;
   }
 
-  public PollerOptions getStickyWorkflowPollerOptions() {
-    return stickyWorkflowPollerOptions;
+  public Function<WorkflowInterceptor, WorkflowInterceptor> getInterceptorFactory() {
+    return interceptorFactory;
   }
 
-  public List<ContextPropagator> getContextPropagators() {
-    return contextPropagators;
+  public boolean isEnableLoggingInReplay() {
+    return enableLoggingInReplay;
   }
 }
