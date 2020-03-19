@@ -1,5 +1,5 @@
 steps:
-  - label: ":java: Unit test with in-memory test services"
+  - label: ":java: Unit test with in-memory test service"
     agents:
       queue: "default"
       docker: "*"
@@ -8,8 +8,7 @@ steps:
       - docker-compose#v3.0.0:
           run: unit-test-test-service
           config: docker/buildkite/docker-compose.yaml
-
-  - label: ":java: Unit test with docker services"
+  - label: ":java: Unit test with docker service"
     agents:
       queue: "default"
       docker: "*"

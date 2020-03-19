@@ -38,6 +38,7 @@ import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.replay.DeciderCache;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.Async;
@@ -73,6 +74,7 @@ public class StickyWorkerTest {
 
   private static final boolean useDockerService =
       Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+  private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
 
   @Parameterized.Parameter public boolean useExternalService;
 
@@ -95,7 +97,9 @@ public class StickyWorkerTest {
   @BeforeClass
   public static void setUp() {
     if (useDockerService) {
-      service = WorkflowServiceStubs.newInstance();
+      service =
+          WorkflowServiceStubs.newInstance(
+              WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
     }
   }
 

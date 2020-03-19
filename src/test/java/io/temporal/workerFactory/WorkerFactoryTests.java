@@ -22,6 +22,7 @@ import static org.junit.Assert.assertTrue;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.WorkerFactory;
 import java.util.concurrent.TimeUnit;
 import org.junit.After;
@@ -34,6 +35,7 @@ public class WorkerFactoryTests {
 
   private static final boolean useDockerService =
       Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+  private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
 
   @BeforeClass
   public static void beforeClass() {
@@ -46,7 +48,9 @@ public class WorkerFactoryTests {
 
   @Before
   public void setUp() {
-    service = WorkflowServiceStubs.newInstance();
+    service =
+        WorkflowServiceStubs.newInstance(
+            WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
     client = WorkflowClient.newInstance(service);
     factory = WorkerFactory.newInstance(client);
   }

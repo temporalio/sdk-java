@@ -10,6 +10,7 @@ plugins {
     id 'java-library'
     id 'net.ltgt.errorprone' version '1.1.1'
     id 'net.minecrell.licenser' version '0.4.1'
+    id 'ru.vyarus.quality' version '4.1.0'
 }
 
 repositories {
@@ -37,6 +38,10 @@ googleJavaFormat {
     include '**/*.java'
     exclude '**/generated/*'
     exclude '**/.idea/**'
+}
+
+quality {
+    exclude '**/generated/*'
 }
 
 group = 'io.temporal'

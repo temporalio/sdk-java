@@ -27,6 +27,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.Async;
@@ -53,6 +54,7 @@ public class WorkerStressTests {
 
   private static final boolean useDockerService =
       Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+  private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
 
   @Parameterized.Parameter public boolean useExternalService;
 
@@ -178,7 +180,9 @@ public class WorkerStressTests {
       WorkflowClientOptions clientOptions =
           WorkflowClientOptions.newBuilder().setDomain(DOMAIN).build();
       if (useDockerService) {
-        service = WorkflowServiceStubs.newInstance();
+        service =
+            WorkflowServiceStubs.newInstance(
+                WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
         WorkflowClient client = WorkflowClient.newInstance(service, clientOptions);
         factory = WorkerFactory.newInstance(client, options);
       } else {

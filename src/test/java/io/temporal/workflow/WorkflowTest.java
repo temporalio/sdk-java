@@ -58,6 +58,7 @@ import io.temporal.proto.enums.WorkflowExecutionCloseStatus;
 import io.temporal.proto.enums.WorkflowIdReusePolicy;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.WorkflowReplayer;
@@ -138,8 +139,9 @@ public class WorkflowTest {
   private static final String ANNOTATION_TASK_LIST = "WorkflowTest-testExecute[Docker]";
 
   private TracingWorkflowInterceptorFactory tracer;
-  private static final boolean useExternalService = true;
-  //      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+  private static final boolean useExternalService =
+      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+  private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
 
   @Rule public TestName testName = new TestName();
 
@@ -176,7 +178,9 @@ public class WorkflowTest {
   private ScheduledExecutorService scheduledExecutor;
   private List<ScheduledFuture<?>> delayedCallbacks = new ArrayList<>();
   private AtomicReference<String> lastStartedWorkflowType = new AtomicReference<>();
-  private static final WorkflowServiceStubs service = WorkflowServiceStubs.newInstance();
+  private static final WorkflowServiceStubs service =
+      WorkflowServiceStubs.newInstance(
+          WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
 
   @AfterClass
   public static void closeService() {

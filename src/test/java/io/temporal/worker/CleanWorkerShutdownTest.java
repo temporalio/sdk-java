@@ -33,6 +33,7 @@ import io.temporal.proto.enums.EventType;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.Workflow;
@@ -56,6 +57,7 @@ public class CleanWorkerShutdownTest {
 
   private static final boolean useDockerService =
       Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+  private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
 
   @Parameterized.Parameter public boolean useExternalService;
 
@@ -78,7 +80,9 @@ public class CleanWorkerShutdownTest {
   @Before
   public void setUp() {
     if (useExternalService) {
-      service = WorkflowServiceStubs.newInstance();
+      service =
+          WorkflowServiceStubs.newInstance(
+              WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
     }
   }
 

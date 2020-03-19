@@ -579,10 +579,11 @@ class StateMachines {
     if (data.lastCompletionResult != null) {
       a.setLastCompletionResult(data.lastCompletionResult);
     }
-    if (!request.getCronSchedule().isEmpty()) {
+    String cronSchedule = request.getCronSchedule();
+    if (!cronSchedule.trim().isEmpty()) {
       try {
-        TestWorkflowMutableStateImpl.parseCron(request.getCronSchedule());
-        a.setCronSchedule(request.getCronSchedule());
+        TestWorkflowMutableStateImpl.parseCron(cronSchedule);
+        a.setCronSchedule(cronSchedule);
       } catch (Exception e) {
         throw Status.INVALID_ARGUMENT
             .withDescription("Invalid cron expression: " + e.getMessage())
