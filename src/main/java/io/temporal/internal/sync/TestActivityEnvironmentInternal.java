@@ -87,11 +87,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   private ManagedChannel channel;
 
   public TestActivityEnvironmentInternal(TestEnvironmentOptions options) {
-    if (options == null) {
-      this.testEnvironmentOptions = TestEnvironmentOptions.newBuilder().build();
-    } else {
-      this.testEnvironmentOptions = options;
-    }
+    this.testEnvironmentOptions =
+        TestEnvironmentOptions.newBuilder(options).validateAndBuildWithDefaults();
 
     // Initialize an in-memory mock service.
     String serverName = InProcessServerBuilder.generateName();
@@ -113,8 +110,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     activityTaskHandler =
         new POJOActivityTaskHandler(
             workflowServiceStubs,
-            testEnvironmentOptions.getDomain(),
-            testEnvironmentOptions.getDataConverter(),
+            testEnvironmentOptions.getWorkflowClientOptions().getDomain(),
+            testEnvironmentOptions.getWorkflowClientOptions().getDataConverter(),
             heartbeatExecutor);
   }
 
@@ -127,6 +124,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         if (activityHeartbetListener != null) {
           Object details =
               testEnvironmentOptions
+                  .getWorkflowClientOptions()
                   .getDataConverter()
                   .fromData(
                       request.getDetails().toByteArray(),
@@ -225,7 +223,11 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
               .setScheduledTimestamp(Duration.ofMillis(System.currentTimeMillis()).toNanos())
               .setStartedTimestamp(Duration.ofMillis(System.currentTimeMillis()).toNanos())
               .setInput(
-                  OptionsUtils.toByteString(testEnvironmentOptions.getDataConverter().toData(args)))
+                  OptionsUtils.toByteString(
+                      testEnvironmentOptions
+                          .getWorkflowClientOptions()
+                          .getDataConverter()
+                          .toData(args)))
               .setTaskToken(ByteString.copyFrom("test-task-token".getBytes(StandardCharsets.UTF_8)))
               .setActivityId(String.valueOf(idSequencer.incrementAndGet()))
               .setWorkflowExecution(
@@ -340,6 +342,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
       RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
         return testEnvironmentOptions
+            .getWorkflowClientOptions()
             .getDataConverter()
             .fromData(taskCompleted.getResult().toByteArray(), resultClass, resultType);
       } else {
@@ -356,6 +359,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
             causeClass = cc;
             cause =
                 testEnvironmentOptions
+                    .getWorkflowClientOptions()
                     .getDataConverter()
                     .fromData(taskFailed.getDetails().toByteArray(), causeClass, causeClass);
           } catch (Exception e) {

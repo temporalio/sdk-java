@@ -189,12 +189,12 @@ publishing {
             pom.withXml {
                 asNode().with {
                     appendNode('packaging', 'jar')
-                    appendNode('name', 'cadence-client')
+                    appendNode('name', 'temporal-sdk')
                     appendNode('description', description)
-                    appendNode('url', 'https://github.com/uber-java/cadence-client')
+                    appendNode('url', 'https://github.com/temporalio/temporal-java-sdk')
                     appendNode('scm').with {
-                        appendNode('url', 'https://github.com/uber-java/cadence-client')
-                        appendNode('connection', 'git@github.com:uber-java/cadence-client.git')
+                        appendNode('url', 'https://github.com/temporalio/temporal-java-sdk')
+                        appendNode('connection', 'git@github.com:temporalio/temporal-java-sdk.git')
                     }
                     appendNode('licenses').with {
                         appendNode('license').with {
@@ -204,14 +204,14 @@ publishing {
                     }
                     appendNode('developers').with {
                         appendNode('maxim').with {
-                            appendNode('id', 'maxim')
+                            appendNode('id', 'mfateev')
                             appendNode('name', 'Maxim Fateev')
-                            appendNode('email', 'maxim@uber.com')
+                            appendNode('email', 'maxim@temporal.io')
                         }
                         appendNode('developer').with {
-                            appendNode('id', 'meiliang')
-                            appendNode('name', 'Liang Mei')
-                            appendNode('email', 'meiliang@uber.com')
+                            appendNode('id', 'samarabbas')
+                            appendNode('name', 'Samar Abbas')
+                            appendNode('email', 'samar@temporal.io')
                         }
                     }
                 }
@@ -269,16 +269,16 @@ uploadArchives {
             }
 
             pom.project {
-                name 'cadence-client'
+                name 'temporal-sdk'
                 packaging 'jar'
                 // optionally artifactId can be defined here
-                description 'Uber Cadence Java Client'
-                url 'https://github.com/uber-java/cadence-client'
+                description 'Temporal Java SDK'
+                url 'https://github.com/temporalio/temporal-java-sdk'
 
                 scm {
-                    connection 'scm:git:git@github.com:uber-java/cadence-client.git/'
-                    developerConnection 'scm:git:git@github.com:uber-java/cadence-client.git/'
-                    url 'https://github.com/uber-java/cadence-client'
+                    connection 'scm:git@github.com:temporalio/temporal-java-sdk.git'
+                    developerConnection 'scm:git@github.com:temporalio/temporal-java-sdk.git'
+                    url 'https://github.com/temporalio/temporal-java-sdk.git'
                 }
 
                 licenses {
@@ -290,14 +290,14 @@ uploadArchives {
 
                 developers {
                     developer {
-                        id 'maxim'
+                        id 'mfateev'
                         name 'Maxim Fateev'
-                        email 'maxim@uber.com'
+                        email 'maxim@temporal.io'
                     }
                     developer {
-                        id 'meiliang'
-                        name 'Liang Mei'
-                        email 'meiliang@uber.com'
+                        id 'samarabbas'
+                        name 'Samar Abbas'
+                        email 'samar@temporal.io'
                     }
                 }
             }

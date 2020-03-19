@@ -29,11 +29,11 @@ import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.worker.PollDecisionTaskDispatcher;
 import io.temporal.internal.worker.Poller;
+import io.temporal.internal.worker.PollerOptions;
 import io.temporal.internal.worker.WorkflowPollTaskFactory;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -84,7 +84,8 @@ public final class WorkerFactory {
    */
   private WorkerFactory(WorkflowClient workflowClient, WorkerFactoryOptions factoryOptions) {
     this.workflowClient = Objects.requireNonNull(workflowClient);
-    this.factoryOptions = Objects.requireNonNull(factoryOptions);
+    this.factoryOptions =
+        WorkerFactoryOptions.newBuilder(factoryOptions).validateAndBuildWithDefaults();
 
     workflowThreadPool =
         new ThreadPoolExecutor(
@@ -120,7 +121,7 @@ public final class WorkerFactory {
                     id.toString())
                 .get(),
             dispatcher,
-            this.factoryOptions.getStickyWorkflowPollerOptions(),
+            PollerOptions.newBuilder().build(),
             metricsScope);
   }
 
@@ -157,12 +158,12 @@ public final class WorkerFactory {
         new Worker(
             workflowClient,
             taskList,
+            factoryOptions,
             options,
             cache,
             getStickyTaskListName(),
-            Duration.ofSeconds(factoryOptions.getStickyDecisionScheduleToStartTimeoutInSeconds()),
             workflowThreadPool,
-            factoryOptions.getContextPropagators());
+            workflowClient.getOptions().getContextPropagators());
     workers.add(worker);
     dispatcher.subscribe(taskList, worker.workflowWorker);
     return worker;

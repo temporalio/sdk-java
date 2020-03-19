@@ -26,7 +26,6 @@ import ch.qos.logback.core.read.ListAppender;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.internal.logging.LoggerTag;
-import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
 import java.time.Duration;
@@ -86,12 +85,7 @@ public class LoggerTest {
 
   @Test
   public void testWorkflowLogger() {
-    TestEnvironmentOptions testOptions =
-        TestEnvironmentOptions.newBuilder()
-            .setDomain(WorkflowTest.DOMAIN)
-            .setEnableLoggingInReplay(false)
-            .build();
-    TestWorkflowEnvironment env = TestWorkflowEnvironment.newInstance(testOptions);
+    TestWorkflowEnvironment env = TestWorkflowEnvironment.newInstance();
     Worker worker = env.newWorker(taskList);
     worker.registerWorkflowImplementationTypes(
         TestLoggingInWorkflow.class, TestLoggerInChildWorkflow.class);

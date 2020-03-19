@@ -18,7 +18,8 @@
 package io.temporal.worker;
 
 import static io.temporal.workflow.WorkflowTest.DOMAIN;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.*;
@@ -511,17 +512,16 @@ public class StickyWorkerTest {
       if (options == null) {
         options = WorkerFactoryOptions.newBuilder().build();
       }
+      WorkflowClientOptions clientOptions =
+          WorkflowClientOptions.newBuilder().setDomain(DOMAIN).setMetricsScope(scope).build();
       if (useExternalService) {
-        WorkflowClientOptions clientOptions =
-            WorkflowClientOptions.newBuilder().setDomain(DOMAIN).setMetricsScope(scope).build();
         WorkflowClient client = WorkflowClient.newInstance(service, clientOptions);
         factory = WorkerFactory.newInstance(client, options);
       } else {
         TestEnvironmentOptions testOptions =
             TestEnvironmentOptions.newBuilder()
-                .setDomain(DOMAIN)
+                .setWorkflowClientOptions(clientOptions)
                 .setWorkerFactoryOptions(options)
-                .setMetricsScope(scope)
                 .build();
         testEnv = TestWorkflowEnvironment.newInstance(testOptions);
       }

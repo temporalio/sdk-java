@@ -69,7 +69,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
 
   private WorkflowClientInternal(
       WorkflowServiceStubs workflowServiceStubs, WorkflowClientOptions options) {
-    options = new WorkflowClientOptions.Builder(options).validateAndBuildWithDefaults();
+    options = WorkflowClientOptions.newBuilder(options).validateAndBuildWithDefaults();
     this.options = options;
     this.workflowServiceStubs = workflowServiceStubs;
     this.genericClient =

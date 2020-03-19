@@ -175,16 +175,16 @@ public class WorkerStressTests {
       if (options == null) {
         options = WorkerFactoryOptions.newBuilder().build();
       }
+      WorkflowClientOptions clientOptions =
+          WorkflowClientOptions.newBuilder().setDomain(DOMAIN).build();
       if (useDockerService) {
         service = WorkflowServiceStubs.newInstance();
-        WorkflowClientOptions clientOptions =
-            WorkflowClientOptions.newBuilder().setDomain(DOMAIN).build();
         WorkflowClient client = WorkflowClient.newInstance(service, clientOptions);
         factory = WorkerFactory.newInstance(client, options);
       } else {
         TestEnvironmentOptions testOptions =
             TestEnvironmentOptions.newBuilder()
-                .setDomain(DOMAIN)
+                .setWorkflowClientOptions(clientOptions)
                 .setWorkerFactoryOptions(options)
                 .build();
         testEnv = TestWorkflowEnvironment.newInstance(testOptions);

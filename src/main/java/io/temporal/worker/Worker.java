@@ -18,7 +18,6 @@
 package io.temporal.worker;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.uber.m3.util.ImmutableMap;
@@ -52,6 +51,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public final class Worker implements Suspendable {
 
+  private final WorkerFactoryOptions factoryOptions;
   private final WorkerOptions options;
   private final String taskList;
   final SyncWorkflowWorker workflowWorker;
@@ -73,10 +73,10 @@ public final class Worker implements Suspendable {
   Worker(
       WorkflowClient client,
       String taskList,
+      WorkerFactoryOptions factoryOptions,
       WorkerOptions options,
       DeciderCache cache,
       String stickyTaskListName,
-      Duration stickyDecisionScheduleToStartTimeout,
       ThreadPoolExecutor threadPoolExecutor,
       List<ContextPropagator> contextPropagators) {
 
@@ -88,34 +88,38 @@ public final class Worker implements Suspendable {
     this.threadPoolExecutor = Objects.requireNonNull(threadPoolExecutor);
 
     this.taskList = taskList;
-    this.options = MoreObjects.firstNonNull(options, WorkerOptions.newBuilder().build());
-
+    this.options = WorkerOptions.newBuilder(options).validateAndBuildWithDefaults();
+    this.factoryOptions = factoryOptions;
     WorkflowServiceStubs service = client.getWorkflowServiceStubs();
     WorkflowClientOptions clientOptions = client.getOptions();
     String domain = clientOptions.getDomain();
     SingleWorkerOptions activityOptions =
-        toActivityOptions(this.options, clientOptions, taskList, contextPropagators);
+        toActivityOptions(
+            this.factoryOptions, this.options, clientOptions, taskList, contextPropagators);
     activityWorker = new SyncActivityWorker(service, domain, taskList, activityOptions);
 
     SingleWorkerOptions workflowOptions =
-        toWorkflowOptions(this.options, clientOptions, taskList, contextPropagators);
+        toWorkflowOptions(
+            this.factoryOptions, this.options, clientOptions, taskList, contextPropagators);
     SingleWorkerOptions localActivityOptions =
-        toLocalActivityOptions(this.options, clientOptions, taskList, contextPropagators);
+        toLocalActivityOptions(
+            this.factoryOptions, this.options, clientOptions, taskList, contextPropagators);
     workflowWorker =
         new SyncWorkflowWorker(
             service,
             domain,
             taskList,
-            this.options.getInterceptorFactory(),
+            factoryOptions.getInterceptorFactory(),
             workflowOptions,
             localActivityOptions,
             this.cache,
             this.stickyTaskListName,
-            stickyDecisionScheduleToStartTimeout,
+            Duration.ofSeconds(factoryOptions.getStickyDecisionScheduleToStartTimeoutInSeconds()),
             this.threadPoolExecutor);
   }
 
   private static SingleWorkerOptions toActivityOptions(
+      WorkerFactoryOptions factoryOptions,
       WorkerOptions options,
       WorkflowClientOptions clientOptions,
       String taskList,
@@ -134,12 +138,13 @@ public final class Worker implements Suspendable {
                 .build())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentActivityExecutionSize())
         .setMetricsScope(clientOptions.getMetricsScope().tagged(tags))
-        .setEnableLoggingInReplay(options.getEnableLoggingInReplay())
+        .setEnableLoggingInReplay(factoryOptions.isEnableLoggingInReplay())
         .setContextPropagators(contextPropagators)
         .build();
   }
 
   private static SingleWorkerOptions toWorkflowOptions(
+      WorkerFactoryOptions factoryOptions,
       WorkerOptions options,
       WorkflowClientOptions clientOptions,
       String taskList,
@@ -155,12 +160,13 @@ public final class Worker implements Suspendable {
         .setPollerOptions(PollerOptions.newBuilder().build())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentWorkflowTaskExecutionSize())
         .setMetricsScope(clientOptions.getMetricsScope().tagged(tags))
-        .setEnableLoggingInReplay(options.getEnableLoggingInReplay())
+        .setEnableLoggingInReplay(factoryOptions.isEnableLoggingInReplay())
         .setContextPropagators(contextPropagators)
         .build();
   }
 
   private static SingleWorkerOptions toLocalActivityOptions(
+      WorkerFactoryOptions factoryOptions,
       WorkerOptions options,
       WorkflowClientOptions clientOptions,
       String taskList,
@@ -176,7 +182,7 @@ public final class Worker implements Suspendable {
         .setPollerOptions(PollerOptions.newBuilder().build())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentLocalActivityExecutionSize())
         .setMetricsScope(clientOptions.getMetricsScope().tagged(tags))
-        .setEnableLoggingInReplay(options.getEnableLoggingInReplay())
+        .setEnableLoggingInReplay(factoryOptions.isEnableLoggingInReplay())
         .setContextPropagators(contextPropagators)
         .build();
   }

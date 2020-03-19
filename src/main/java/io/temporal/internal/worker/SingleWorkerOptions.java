@@ -49,6 +49,9 @@ public final class SingleWorkerOptions {
     private Builder() {}
 
     private Builder(SingleWorkerOptions options) {
+      if (options == null) {
+        return;
+      }
       this.identity = options.getIdentity();
       this.dataConverter = options.getDataConverter();
       this.pollerOptions = options.getPollerOptions();
