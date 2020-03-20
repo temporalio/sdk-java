@@ -1,4 +1,6 @@
 /*
+ *  Copyright (C) 2020 Temporal Technologies, Inc. All Rights Reserved.
+ *
  *  Copyright 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Modifications copyright (C) 2017 Uber Technologies, Inc.
@@ -33,7 +35,7 @@ final class DecisionTaskToken {
 
   DecisionTaskToken(ExecutionId executionId, int historySize) {
     this.executionId = Objects.requireNonNull(executionId);
-    this.historySize = Objects.requireNonNull(historySize);
+    this.historySize = historySize;
   }
 
   ExecutionId getExecutionId() {
