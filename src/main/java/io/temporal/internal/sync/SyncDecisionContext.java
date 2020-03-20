@@ -58,6 +58,7 @@ import io.temporal.workflow.Promise;
 import io.temporal.workflow.SignalExternalWorkflowException;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterceptor;
+import io.temporal.workflow.WorkflowInterceptorFactory;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.HashMap;
@@ -72,7 +73,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,27 +85,23 @@ final class SyncDecisionContext implements WorkflowInterceptor {
   private DeterministicRunner runner;
   private final DataConverter converter;
   private final List<ContextPropagator> contextPropagators;
-  private final WorkflowInterceptor headInterceptor;
+  private WorkflowInterceptor headInterceptor;
   private final WorkflowTimers timers = new WorkflowTimers();
   private final Map<String, Functions.Func1<byte[], byte[]>> queryCallbacks = new HashMap<>();
   private final byte[] lastCompletionResult;
+  private final WorkflowInterceptorFactory interceptorFactory;
 
   public SyncDecisionContext(
       DecisionContext context,
       DataConverter converter,
       List<ContextPropagator> contextPropagators,
-      Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
+      WorkflowInterceptorFactory interceptorFactory,
       byte[] lastCompletionResult) {
     this.context = context;
     this.converter = converter;
     this.contextPropagators = contextPropagators;
-    WorkflowInterceptor interceptor = interceptorFactory.apply(this);
-    if (interceptor == null) {
-      log.warn("WorkflowInterceptor factory returned null interceptor");
-      interceptor = this;
-    }
-    this.headInterceptor = interceptor;
     this.lastCompletionResult = lastCompletionResult;
+    this.interceptorFactory = interceptorFactory;
   }
 
   /**
@@ -121,6 +117,14 @@ final class SyncDecisionContext implements WorkflowInterceptor {
   }
 
   public WorkflowInterceptor getWorkflowInterceptor() {
+    if (headInterceptor == null) {
+      WorkflowInterceptor interceptor = interceptorFactory.apply(this);
+      if (interceptor == null) {
+        log.warn("WorkflowInterceptor factory returned null interceptor");
+        interceptor = this;
+      }
+      this.headInterceptor = interceptor;
+    }
     return headInterceptor;
   }
 

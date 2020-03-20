@@ -19,8 +19,7 @@
 
 package io.temporal.worker;
 
-import io.temporal.workflow.WorkflowInterceptor;
-import java.util.function.Function;
+import io.temporal.workflow.WorkflowInterceptorFactory;
 
 public class WorkerFactoryOptions {
 
@@ -46,7 +45,7 @@ public class WorkerFactoryOptions {
     private int stickyDecisionScheduleToStartTimeoutInSeconds;
     private int cacheMaximumSize;
     private int maxWorkflowThreadCount;
-    private Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory;
+    private WorkflowInterceptorFactory interceptorFactory;
     private boolean enableLoggingInReplay;
 
     private Builder() {}
@@ -92,8 +91,7 @@ public class WorkerFactoryOptions {
       return this;
     }
 
-    public Builder setInterceptorFactory(
-        Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory) {
+    public Builder setInterceptorFactory(WorkflowInterceptorFactory interceptorFactory) {
       this.interceptorFactory = interceptorFactory;
       return this;
     }
@@ -127,14 +125,14 @@ public class WorkerFactoryOptions {
   private final int cacheMaximumSize;
   private final int maxWorkflowThreadCount;
   private final int stickyDecisionScheduleToStartTimeoutInSeconds;
-  private final Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory;
+  private final WorkflowInterceptorFactory interceptorFactory;
   private final boolean enableLoggingInReplay;
 
   private WorkerFactoryOptions(
       int cacheMaximumSize,
       int maxWorkflowThreadCount,
       int stickyDecisionScheduleToStartTimeoutInSeconds,
-      Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
+      WorkflowInterceptorFactory interceptorFactory,
       boolean enableLoggingInReplay,
       boolean validate) {
     if (validate) {
@@ -171,7 +169,7 @@ public class WorkerFactoryOptions {
     return stickyDecisionScheduleToStartTimeoutInSeconds;
   }
 
-  public Function<WorkflowInterceptor, WorkflowInterceptor> getInterceptorFactory() {
+  public WorkflowInterceptorFactory getInterceptorFactory() {
     return interceptorFactory;
   }
 

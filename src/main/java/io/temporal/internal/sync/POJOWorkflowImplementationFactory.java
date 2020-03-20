@@ -41,7 +41,7 @@ import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInfo;
-import io.temporal.workflow.WorkflowInterceptor;
+import io.temporal.workflow.WorkflowInterceptorFactory;
 import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -52,7 +52,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,7 +60,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   private static final Logger log =
       LoggerFactory.getLogger(POJOWorkflowImplementationFactory.class);
   private static final byte[] EMPTY_BLOB = {};
-  private final Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory;
+  private final WorkflowInterceptorFactory interceptorFactory;
 
   private DataConverter dataConverter;
   private List<ContextPropagator> contextPropagators;
@@ -82,7 +81,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   POJOWorkflowImplementationFactory(
       DataConverter dataConverter,
       ExecutorService threadPool,
-      Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
+      WorkflowInterceptorFactory interceptorFactory,
       DeciderCache cache,
       List<ContextPropagator> contextPropagators) {
     this.dataConverter = Objects.requireNonNull(dataConverter);

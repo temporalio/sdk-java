@@ -32,11 +32,10 @@ import io.temporal.proto.common.WorkflowQuery;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.enums.EventType;
 import io.temporal.worker.WorkflowImplementationOptions;
-import io.temporal.workflow.WorkflowInterceptor;
+import io.temporal.workflow.WorkflowInterceptorFactory;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +52,7 @@ class SyncWorkflow implements ReplayWorkflow {
   private final ExecutorService threadPool;
   private final SyncWorkflowDefinition workflow;
   WorkflowImplementationOptions workflowImplementationOptions;
-  private final Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory;
+  private final WorkflowInterceptorFactory interceptorFactory;
   private DeciderCache cache;
   private WorkflowRunnable workflowProc;
   private DeterministicRunner runner;
@@ -63,7 +62,7 @@ class SyncWorkflow implements ReplayWorkflow {
       WorkflowImplementationOptions workflowImplementationOptions,
       DataConverter dataConverter,
       ExecutorService threadPool,
-      Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
+      WorkflowInterceptorFactory interceptorFactory,
       DeciderCache cache,
       List<ContextPropagator> contextPropagators) {
     this.workflow = Objects.requireNonNull(workflow);

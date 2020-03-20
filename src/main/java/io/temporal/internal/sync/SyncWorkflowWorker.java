@@ -34,7 +34,7 @@ import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions.Func;
-import io.temporal.workflow.WorkflowInterceptor;
+import io.temporal.workflow.WorkflowInterceptorFactory;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.Objects;
@@ -43,7 +43,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 /** Workflow worker that supports POJO workflow implementations. */
 public class SyncWorkflowWorker
@@ -60,7 +59,7 @@ public class SyncWorkflowWorker
       WorkflowServiceStubs service,
       String domain,
       String taskList,
-      Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
+      WorkflowInterceptorFactory interceptorFactory,
       SingleWorkerOptions workflowOptions,
       SingleWorkerOptions localActivityOptions,
       DeciderCache cache,

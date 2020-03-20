@@ -43,7 +43,6 @@ import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.interceptors.SignalWorkflowInterceptor;
 import java.time.Duration;
 import java.util.Map;
-import java.util.function.Function;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestWatcher;
@@ -308,7 +307,7 @@ public class MetricsTest {
   }
 
   private static class CorruptedSignalWorkflowInterceptorFactory
-      implements Function<WorkflowInterceptor, WorkflowInterceptor> {
+      implements WorkflowInterceptorFactory {
 
     @Override
     public WorkflowInterceptor apply(WorkflowInterceptor next) {

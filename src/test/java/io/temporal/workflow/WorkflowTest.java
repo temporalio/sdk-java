@@ -111,7 +111,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -4363,8 +4362,7 @@ public class WorkflowTest {
     }
   }
 
-  private static class TracingWorkflowInterceptorFactory
-      implements Function<WorkflowInterceptor, WorkflowInterceptor> {
+  private static class TracingWorkflowInterceptorFactory implements WorkflowInterceptorFactory {
 
     private final FilteredTrace trace = new FilteredTrace();
     private List<String> expected;
@@ -5387,6 +5385,8 @@ public class WorkflowTest {
     private final WorkflowInterceptor next;
 
     private TracingWorkflowInterceptor(FilteredTrace trace, WorkflowInterceptor next) {
+      WorkflowInfo workflowInfo = Workflow.getWorkflowInfo();
+      trace.add("init " + workflowInfo.getWorkflowId());
       this.trace = trace;
       this.next = Objects.requireNonNull(next);
     }
