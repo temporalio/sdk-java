@@ -415,8 +415,8 @@ public class WorkflowTest {
     assertEquals("activity10", result);
     tracer.setExpected(
         "sleep PT2S",
-        "executeActivity TestActivities::activityWithDelay",
-        "executeActivity TestActivities::activity2");
+        "executeActivity TestActivities_activityWithDelay",
+        "executeActivity TestActivities_activity2");
   }
 
   public static class TestActivityRetryWithMaxAttempts implements TestWorkflow1 {
@@ -678,7 +678,7 @@ public class WorkflowTest {
                       .build())
               .build();
       ActivityStub activities = Workflow.newUntypedActivityStub(options);
-      activities.execute("TestActivities::throwIO", Void.class);
+      activities.execute("TestActivities_throwIO", Void.class);
       return "ignored";
     }
   }
@@ -889,7 +889,7 @@ public class WorkflowTest {
     startWorkerFor(TestSyncWorkflowImpl.class);
     WorkflowStub workflowStub =
         workflowClient.newUntypedWorkflowStub(
-            "TestWorkflow1::execute", newWorkflowOptionsBuilder(taskList).build());
+            "TestWorkflow1_execute", newWorkflowOptionsBuilder(taskList).build());
     WorkflowExecution execution = workflowStub.start(taskList);
     sleep(Duration.ofMillis(500));
     String stackTrace = workflowStub.query(WorkflowClient.QUERY_TYPE_STACK_TRACE, String.class);
@@ -927,7 +927,7 @@ public class WorkflowTest {
     startWorkerFor(TestCancellationForWorkflowsWithFailedPromises.class);
     WorkflowStub client =
         workflowClient.newUntypedWorkflowStub(
-            "TestWorkflow1::execute", newWorkflowOptionsBuilder(taskList).build());
+            "TestWorkflow1_execute", newWorkflowOptionsBuilder(taskList).build());
     client.start(taskList);
     client.cancel();
 
@@ -943,7 +943,7 @@ public class WorkflowTest {
     startWorkerFor(TestSyncWorkflowImpl.class);
     WorkflowStub client =
         workflowClient.newUntypedWorkflowStub(
-            "TestWorkflow1::execute", newWorkflowOptionsBuilder(taskList).build());
+            "TestWorkflow1_execute", newWorkflowOptionsBuilder(taskList).build());
     client.start(taskList);
     client.cancel();
     try {
@@ -968,7 +968,7 @@ public class WorkflowTest {
     startWorkerFor(TestCancellationScopePromise.class);
     WorkflowStub client =
         workflowClient.newUntypedWorkflowStub(
-            "TestWorkflow1::execute", newWorkflowOptionsBuilder(taskList).build());
+            "TestWorkflow1_execute", newWorkflowOptionsBuilder(taskList).build());
     client.start(taskList);
     client.cancel();
     try {
@@ -1018,7 +1018,7 @@ public class WorkflowTest {
     startWorkerFor(TestDetachedCancellationScope.class);
     WorkflowStub client =
         workflowClient.newUntypedWorkflowStub(
-            "TestWorkflow1::execute", newWorkflowOptionsBuilder(taskList).build());
+            "TestWorkflow1_execute", newWorkflowOptionsBuilder(taskList).build());
     client.start(taskList);
     sleep(Duration.ofMillis(500)); // To let activityWithDelay start.
     client.cancel();
@@ -1135,7 +1135,7 @@ public class WorkflowTest {
     public String execute(String taskList) {
       ActivityStub testActivities = Workflow.newUntypedActivityStub(newActivityOptions2());
       Promise<String> a =
-          Async.function(testActivities::<String>execute, "TestActivities::activity", String.class);
+          Async.function(testActivities::<String>execute, "TestActivities_activity", String.class);
       Promise<String> a1 =
           Async.function(
               testActivities::<String>execute,
@@ -1144,19 +1144,14 @@ public class WorkflowTest {
               "1"); // name overridden in annotation
       Promise<String> a2 =
           Async.function(
-              testActivities::<String>execute, "TestActivities::activity2", String.class, "1", 2);
+              testActivities::<String>execute, "TestActivities_activity2", String.class, "1", 2);
       Promise<String> a3 =
           Async.function(
-              testActivities::<String>execute,
-              "TestActivities::activity3",
-              String.class,
-              "1",
-              2,
-              3);
+              testActivities::<String>execute, "TestActivities_activity3", String.class, "1", 2, 3);
       Promise<String> a4 =
           Async.function(
               testActivities::<String>execute,
-              "TestActivities::activity4",
+              "TestActivities_activity4",
               String.class,
               "1",
               2,
@@ -1168,15 +1163,14 @@ public class WorkflowTest {
       assertEquals("123", a3.get());
       assertEquals("1234", a4.get());
 
-      Async.procedure(testActivities::<Void>execute, "TestActivities::proc", Void.class).get();
-      Async.procedure(testActivities::<Void>execute, "TestActivities::proc1", Void.class, "1")
+      Async.procedure(testActivities::<Void>execute, "TestActivities_proc", Void.class).get();
+      Async.procedure(testActivities::<Void>execute, "TestActivities_proc1", Void.class, "1").get();
+      Async.procedure(testActivities::<Void>execute, "TestActivities_proc2", Void.class, "1", 2)
           .get();
-      Async.procedure(testActivities::<Void>execute, "TestActivities::proc2", Void.class, "1", 2)
-          .get();
-      Async.procedure(testActivities::<Void>execute, "TestActivities::proc3", Void.class, "1", 2, 3)
+      Async.procedure(testActivities::<Void>execute, "TestActivities_proc3", Void.class, "1", 2, 3)
           .get();
       Async.procedure(
-              testActivities::<Void>execute, "TestActivities::proc4", Void.class, "1", 2, 3, 4)
+              testActivities::<Void>execute, "TestActivities_proc4", Void.class, "1", 2, 3, 4)
           .get();
       return "workflow";
     }
@@ -1202,21 +1196,20 @@ public class WorkflowTest {
     @Override
     public String execute(String taskList) {
       ActivityStub testActivities = Workflow.newUntypedActivityStub(newActivityOptions2());
-      Promise<String> a = testActivities.executeAsync("TestActivities::activity", String.class);
+      Promise<String> a = testActivities.executeAsync("TestActivities_activity", String.class);
       Promise<String> a1 =
           testActivities.executeAsync(
               "customActivity1", String.class, "1"); // name overridden in annotation
       Promise<String> a2 =
-          testActivities.executeAsync("TestActivities::activity2", String.class, "1", 2);
+          testActivities.executeAsync("TestActivities_activity2", String.class, "1", 2);
       Promise<String> a3 =
-          testActivities.executeAsync("TestActivities::activity3", String.class, "1", 2, 3);
+          testActivities.executeAsync("TestActivities_activity3", String.class, "1", 2, 3);
       Promise<String> a4 =
-          testActivities.executeAsync("TestActivities::activity4", String.class, "1", 2, 3, 4);
+          testActivities.executeAsync("TestActivities_activity4", String.class, "1", 2, 3, 4);
       Promise<String> a5 =
-          testActivities.executeAsync("TestActivities::activity5", String.class, "1", 2, 3, 4, 5);
+          testActivities.executeAsync("TestActivities_activity5", String.class, "1", 2, 3, 4, 5);
       Promise<String> a6 =
-          testActivities.executeAsync(
-              "TestActivities::activity6", String.class, "1", 2, 3, 4, 5, 6);
+          testActivities.executeAsync("TestActivities_activity6", String.class, "1", 2, 3, 4, 5, 6);
       assertEquals("activity", a.get());
       assertEquals("1", a1.get());
       assertEquals("12", a2.get());
@@ -1225,13 +1218,13 @@ public class WorkflowTest {
       assertEquals("12345", a5.get());
       assertEquals("123456", a6.get());
 
-      testActivities.executeAsync("TestActivities::proc", Void.class).get();
-      testActivities.executeAsync("TestActivities::proc1", Void.class, "1").get();
-      testActivities.executeAsync("TestActivities::proc2", Void.class, "1", 2).get();
-      testActivities.executeAsync("TestActivities::proc3", Void.class, "1", 2, 3).get();
-      testActivities.executeAsync("TestActivities::proc4", Void.class, "1", 2, 3, 4).get();
-      testActivities.executeAsync("TestActivities::proc5", Void.class, "1", 2, 3, 4, 5).get();
-      testActivities.executeAsync("TestActivities::proc6", Void.class, "1", 2, 3, 4, 5, 6).get();
+      testActivities.executeAsync("TestActivities_proc", Void.class).get();
+      testActivities.executeAsync("TestActivities_proc1", Void.class, "1").get();
+      testActivities.executeAsync("TestActivities_proc2", Void.class, "1", 2).get();
+      testActivities.executeAsync("TestActivities_proc3", Void.class, "1", 2, 3).get();
+      testActivities.executeAsync("TestActivities_proc4", Void.class, "1", 2, 3, 4).get();
+      testActivities.executeAsync("TestActivities_proc5", Void.class, "1", 2, 3, 4, 5).get();
+      testActivities.executeAsync("TestActivities_proc6", Void.class, "1", 2, 3, 4, 5, 6).get();
       return "workflow";
     }
   }
@@ -1662,58 +1655,58 @@ public class WorkflowTest {
       ChildWorkflowOptions workflowOptions =
           ChildWorkflowOptions.newBuilder().setTaskList(taskList).build();
       ChildWorkflowStub stubF =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsFunc::func", workflowOptions);
+          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsFunc_func", workflowOptions);
       assertEquals("func", stubF.execute(String.class));
       // Workflow type overridden through the @WorkflowMethod.name
       ChildWorkflowStub stubF1 = Workflow.newUntypedChildWorkflowStub("func1", workflowOptions);
       assertEquals("1", stubF1.execute(String.class, "1"));
       ChildWorkflowStub stubF2 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsFunc2::func2", workflowOptions);
+              "TestMultiargsWorkflowsFunc2_func2", workflowOptions);
       assertEquals("12", stubF2.execute(String.class, "1", 2));
       ChildWorkflowStub stubF3 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsFunc3::func3", workflowOptions);
+              "TestMultiargsWorkflowsFunc3_func3", workflowOptions);
       assertEquals("123", stubF3.execute(String.class, "1", 2, 3));
       ChildWorkflowStub stubF4 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsFunc4::func4", workflowOptions);
+              "TestMultiargsWorkflowsFunc4_func4", workflowOptions);
       assertEquals("1234", stubF4.execute(String.class, "1", 2, 3, 4));
       ChildWorkflowStub stubF5 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsFunc5::func5", workflowOptions);
+              "TestMultiargsWorkflowsFunc5_func5", workflowOptions);
       assertEquals("12345", stubF5.execute(String.class, "1", 2, 3, 4, 5));
       ChildWorkflowStub stubF6 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsFunc6::func6", workflowOptions);
+              "TestMultiargsWorkflowsFunc6_func6", workflowOptions);
       assertEquals("123456", stubF6.execute(String.class, "1", 2, 3, 4, 5, 6));
 
       ChildWorkflowStub stubP =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsProc::proc", workflowOptions);
+          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsProc_proc", workflowOptions);
       stubP.execute(Void.class);
       ChildWorkflowStub stubP1 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsProc1::proc1", workflowOptions);
+              "TestMultiargsWorkflowsProc1_proc1", workflowOptions);
       stubP1.execute(Void.class, "1");
       ChildWorkflowStub stubP2 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsProc2::proc2", workflowOptions);
+              "TestMultiargsWorkflowsProc2_proc2", workflowOptions);
       stubP2.execute(Void.class, "1", 2);
       ChildWorkflowStub stubP3 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsProc3::proc3", workflowOptions);
+              "TestMultiargsWorkflowsProc3_proc3", workflowOptions);
       stubP3.execute(Void.class, "1", 2, 3);
       ChildWorkflowStub stubP4 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsProc4::proc4", workflowOptions);
+              "TestMultiargsWorkflowsProc4_proc4", workflowOptions);
       stubP4.execute(Void.class, "1", 2, 3, 4);
       ChildWorkflowStub stubP5 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsProc5::proc5", workflowOptions);
+              "TestMultiargsWorkflowsProc5_proc5", workflowOptions);
       stubP5.execute(Void.class, "1", 2, 3, 4, 5);
       ChildWorkflowStub stubP6 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsProc6::proc6", workflowOptions);
+              "TestMultiargsWorkflowsProc6_proc6", workflowOptions);
       stubP6.execute(Void.class, "1", 2, 3, 4, 5, 6);
       return null;
     }
@@ -1738,58 +1731,58 @@ public class WorkflowTest {
       ChildWorkflowOptions workflowOptions =
           ChildWorkflowOptions.newBuilder().setTaskList(taskList).build();
       ChildWorkflowStub stubF =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsFunc::func", workflowOptions);
+          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsFunc_func", workflowOptions);
       assertEquals("func", stubF.executeAsync(String.class).get());
       // Workflow type overridden through the @WorkflowMethod.name
       ChildWorkflowStub stubF1 = Workflow.newUntypedChildWorkflowStub("func1", workflowOptions);
       assertEquals("1", stubF1.executeAsync(String.class, "1").get());
       ChildWorkflowStub stubF2 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsFunc2::func2", workflowOptions);
+              "TestMultiargsWorkflowsFunc2_func2", workflowOptions);
       assertEquals("12", stubF2.executeAsync(String.class, "1", 2).get());
       ChildWorkflowStub stubF3 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsFunc3::func3", workflowOptions);
+              "TestMultiargsWorkflowsFunc3_func3", workflowOptions);
       assertEquals("123", stubF3.executeAsync(String.class, "1", 2, 3).get());
       ChildWorkflowStub stubF4 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsFunc4::func4", workflowOptions);
+              "TestMultiargsWorkflowsFunc4_func4", workflowOptions);
       assertEquals("1234", stubF4.executeAsync(String.class, "1", 2, 3, 4).get());
       ChildWorkflowStub stubF5 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsFunc5::func5", workflowOptions);
+              "TestMultiargsWorkflowsFunc5_func5", workflowOptions);
       assertEquals("12345", stubF5.executeAsync(String.class, "1", 2, 3, 4, 5).get());
       ChildWorkflowStub stubF6 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsFunc6::func6", workflowOptions);
+              "TestMultiargsWorkflowsFunc6_func6", workflowOptions);
       assertEquals("123456", stubF6.executeAsync(String.class, "1", 2, 3, 4, 5, 6).get());
 
       ChildWorkflowStub stubP =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsProc::proc", workflowOptions);
+          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsProc_proc", workflowOptions);
       stubP.executeAsync(Void.class).get();
       ChildWorkflowStub stubP1 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsProc1::proc1", workflowOptions);
+              "TestMultiargsWorkflowsProc1_proc1", workflowOptions);
       stubP1.executeAsync(Void.class, "1").get();
       ChildWorkflowStub stubP2 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsProc2::proc2", workflowOptions);
+              "TestMultiargsWorkflowsProc2_proc2", workflowOptions);
       stubP2.executeAsync(Void.class, "1", 2).get();
       ChildWorkflowStub stubP3 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsProc3::proc3", workflowOptions);
+              "TestMultiargsWorkflowsProc3_proc3", workflowOptions);
       stubP3.executeAsync(Void.class, "1", 2, 3).get();
       ChildWorkflowStub stubP4 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsProc4::proc4", workflowOptions);
+              "TestMultiargsWorkflowsProc4_proc4", workflowOptions);
       stubP4.executeAsync(Void.class, "1", 2, 3, 4).get();
       ChildWorkflowStub stubP5 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsProc5::proc5", workflowOptions);
+              "TestMultiargsWorkflowsProc5_proc5", workflowOptions);
       stubP5.executeAsync(Void.class, "1", 2, 3, 4, 5).get();
       ChildWorkflowStub stubP6 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsProc6::proc6", workflowOptions);
+              "TestMultiargsWorkflowsProc6_proc6", workflowOptions);
       stubP6.executeAsync(Void.class, "1", 2, 3, 4, 5, 6).get();
       return null;
     }
@@ -1814,52 +1807,52 @@ public class WorkflowTest {
       ChildWorkflowOptions workflowOptions =
           ChildWorkflowOptions.newBuilder().setTaskList(taskList).build();
       ChildWorkflowStub stubF =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsFunc::func", workflowOptions);
+          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsFunc_func", workflowOptions);
       assertEquals("func", Async.function(stubF::<String>execute, String.class).get());
       // Workflow type overridden through the @WorkflowMethod.name
       ChildWorkflowStub stubF1 = Workflow.newUntypedChildWorkflowStub("func1", workflowOptions);
       assertEquals("1", Async.function(stubF1::<String>execute, String.class, "1").get());
       ChildWorkflowStub stubF2 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsFunc2::func2", workflowOptions);
+              "TestMultiargsWorkflowsFunc2_func2", workflowOptions);
       assertEquals("12", Async.function(stubF2::<String>execute, String.class, "1", 2).get());
       ChildWorkflowStub stubF3 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsFunc3::func3", workflowOptions);
+              "TestMultiargsWorkflowsFunc3_func3", workflowOptions);
       assertEquals("123", Async.function(stubF3::<String>execute, String.class, "1", 2, 3).get());
       ChildWorkflowStub stubF4 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsFunc4::func4", workflowOptions);
+              "TestMultiargsWorkflowsFunc4_func4", workflowOptions);
       assertEquals(
           "1234", Async.function(stubF4::<String>execute, String.class, "1", 2, 3, 4).get());
       ChildWorkflowStub stubF5 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsFunc5::func5", workflowOptions);
+              "TestMultiargsWorkflowsFunc5_func5", workflowOptions);
       assertEquals(
           "12345", Async.function(stubF5::<String>execute, String.class, "1", 2, 3, 4, 5).get());
 
       ChildWorkflowStub stubP =
-          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsProc::proc", workflowOptions);
+          Workflow.newUntypedChildWorkflowStub("TestMultiargsWorkflowsProc_proc", workflowOptions);
       Async.procedure(stubP::<Void>execute, Void.class).get();
       ChildWorkflowStub stubP1 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsProc1::proc1", workflowOptions);
+              "TestMultiargsWorkflowsProc1_proc1", workflowOptions);
       Async.procedure(stubP1::<Void>execute, Void.class, "1").get();
       ChildWorkflowStub stubP2 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsProc2::proc2", workflowOptions);
+              "TestMultiargsWorkflowsProc2_proc2", workflowOptions);
       Async.procedure(stubP2::<Void>execute, Void.class, "1", 2).get();
       ChildWorkflowStub stubP3 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsProc3::proc3", workflowOptions);
+              "TestMultiargsWorkflowsProc3_proc3", workflowOptions);
       Async.procedure(stubP3::<Void>execute, Void.class, "1", 2, 3).get();
       ChildWorkflowStub stubP4 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsProc4::proc4", workflowOptions);
+              "TestMultiargsWorkflowsProc4_proc4", workflowOptions);
       Async.procedure(stubP4::<Void>execute, Void.class, "1", 2, 3, 4).get();
       ChildWorkflowStub stubP5 =
           Workflow.newUntypedChildWorkflowStub(
-              "TestMultiargsWorkflowsProc5::proc5", workflowOptions);
+              "TestMultiargsWorkflowsProc5_proc5", workflowOptions);
       Async.procedure(stubP5::<Void>execute, Void.class, "1", 2, 3, 4, 5).get();
       return null;
     }
@@ -2088,7 +2081,7 @@ public class WorkflowTest {
         return "ignored";
       } catch (ActivityFailureException e) {
         try {
-          assertTrue(e.getMessage().contains("TestActivities::throwIO"));
+          assertTrue(e.getMessage().contains("TestActivities_throwIO"));
           assertTrue(e.getCause() instanceof IOException);
           assertEquals("simulated IO problem", e.getCause().getMessage());
         } catch (AssertionError ae) {
@@ -2118,7 +2111,7 @@ public class WorkflowTest {
       } catch (RuntimeException e) {
         try {
           assertNoEmptyStacks(e);
-          assertTrue(e.getMessage().contains("TestWorkflow1::execute"));
+          assertTrue(e.getMessage().contains("TestWorkflow1_execute"));
           assertTrue(e instanceof ChildWorkflowException);
           assertTrue(e.getCause() instanceof NumberFormatException);
           assertTrue(e.getCause().getCause() instanceof ActivityFailureException);
@@ -2176,7 +2169,7 @@ public class WorkflowTest {
       assertNoEmptyStacks(e);
       // Uncomment to see the actual trace.
       //            e.printStackTrace();
-      assertTrue(e.getMessage(), e.getMessage().contains("TestExceptionPropagation::execute"));
+      assertTrue(e.getMessage(), e.getMessage().contains("TestExceptionPropagation_execute"));
       assertTrue(e.getStackTrace().length > 0);
       assertTrue(e.getCause() instanceof FileNotFoundException);
       assertTrue(e.getCause().getCause() instanceof ChildWorkflowException);
@@ -2394,7 +2387,7 @@ public class WorkflowTest {
   @Test
   public void testSignalUntyped() {
     startWorkerFor(TestSignalWorkflowImpl.class);
-    String workflowType = QueryableWorkflow.class.getSimpleName() + "::execute";
+    String workflowType = QueryableWorkflow.class.getSimpleName() + "_execute";
     AtomicReference<WorkflowExecution> execution = new AtomicReference<>();
     WorkflowStub client =
         workflowClient.newUntypedWorkflowStub(
@@ -2404,14 +2397,14 @@ public class WorkflowTest {
     registerDelayedCallback(
         Duration.ofSeconds(1),
         () -> {
-          assertEquals("initial", client.query("QueryableWorkflow::getState", String.class));
+          assertEquals("initial", client.query("QueryableWorkflow_getState", String.class));
           client.signal("testSignal", "Hello ");
           sleep(Duration.ofMillis(500));
-          while (!"Hello ".equals(client.query("QueryableWorkflow::getState", String.class))) {}
-          assertEquals("Hello ", client.query("QueryableWorkflow::getState", String.class));
+          while (!"Hello ".equals(client.query("QueryableWorkflow_getState", String.class))) {}
+          assertEquals("Hello ", client.query("QueryableWorkflow_getState", String.class));
           client.signal("testSignal", "World!");
-          while (!"World!".equals(client.query("QueryableWorkflow::getState", String.class))) {}
-          assertEquals("World!", client.query("QueryableWorkflow::getState", String.class));
+          while (!"World!".equals(client.query("QueryableWorkflow_getState", String.class))) {}
+          assertEquals("World!", client.query("QueryableWorkflow_getState", String.class));
           assertEquals(
               "Hello World!",
               workflowClient
@@ -2420,10 +2413,10 @@ public class WorkflowTest {
         });
     execution.set(client.start());
     assertEquals("Hello World!", client.getResult(String.class));
-    assertEquals("World!", client.query("QueryableWorkflow::getState", String.class));
+    assertEquals("World!", client.query("QueryableWorkflow_getState", String.class));
     QueryResponse<String> queryResponse =
         client.query(
-            "QueryableWorkflow::getState",
+            "QueryableWorkflow_getState",
             String.class,
             QueryRejectCondition.QueryRejectConditionNotOpen);
     assertNull(queryResponse.getResult());
@@ -2840,7 +2833,7 @@ public class WorkflowTest {
       assertTrue(e.toString(), e.getCause().getCause() instanceof UnsupportedOperationException);
       assertEquals("simulated failure", e.getCause().getCause().getMessage());
     }
-    assertEquals("TestWorkflow1::execute", lastStartedWorkflowType.get());
+    assertEquals("TestWorkflow1_execute", lastStartedWorkflowType.get());
     assertEquals(3, angryChildActivity.getInvocationCount());
   }
 
@@ -2953,14 +2946,14 @@ public class WorkflowTest {
         workflowClient.newWorkflowStub(TestWorkflowSignaled.class, options);
     assertEquals("Hello World!", client.execute());
     tracer.setExpected(
-        "executeChildWorkflow SignalingChild::execute",
+        "executeChildWorkflow SignalingChild_execute",
         "signalExternalWorkflow " + UUID_REGEXP + " testSignal");
   }
 
   public static class TestUntypedSignalExternalWorkflow implements TestWorkflowSignaled {
 
     private final ChildWorkflowStub child =
-        Workflow.newUntypedChildWorkflowStub("SignalingChild::execute");
+        Workflow.newUntypedChildWorkflowStub("SignalingChild_execute");
 
     private final CompletablePromise<Object> fromSignal = Workflow.newPromise();
 
@@ -3383,7 +3376,7 @@ public class WorkflowTest {
 
     WorkflowStub client =
         workflowClient.newUntypedWorkflowStub(
-            "TestWorkflowWithCronSchedule::execute",
+            "TestWorkflowWithCronSchedule_execute",
             newWorkflowOptionsBuilder(taskList)
                 .setExecutionStartToCloseTimeout(Duration.ofHours(1))
                 .setCronSchedule("0 * * * *")
@@ -3422,7 +3415,7 @@ public class WorkflowTest {
 
     WorkflowStub client =
         workflowClient.newUntypedWorkflowStub(
-            "TestWorkflow1::execute",
+            "TestWorkflow1_execute",
             newWorkflowOptionsBuilder(taskList)
                 .setExecutionStartToCloseTimeout(Duration.ofHours(10))
                 .build());
@@ -4067,7 +4060,7 @@ public class WorkflowTest {
     assertEquals("activity22activity1activity1activity1", result);
     tracer.setExpected(
         "getVersion",
-        "executeActivity TestActivities::activity2",
+        "executeActivity TestActivities_activity2",
         "getVersion",
         "executeActivity customActivity1",
         "executeActivity customActivity1",
@@ -4203,8 +4196,8 @@ public class WorkflowTest {
     assertEquals("activity22activity", result);
     tracer.setExpected(
         "getVersion",
-        "executeActivity TestActivities::activity2",
-        "executeActivity TestActivities::activity");
+        "executeActivity TestActivities_activity2",
+        "executeActivity TestActivities_activity");
   }
 
   // The following test covers the scenario where getVersion call is removed before another
@@ -4236,7 +4229,7 @@ public class WorkflowTest {
             TestWorkflow1.class, newWorkflowOptionsBuilder(taskList).build());
     String result = workflowStub.execute(taskList);
     assertEquals("activity", result);
-    tracer.setExpected("getVersion", "getVersion", "executeActivity TestActivities::activity");
+    tracer.setExpected("getVersion", "getVersion", "executeActivity TestActivities_activity");
   }
 
   public static class TestVersionNotSupportedWorkflowImpl implements TestWorkflow1 {
@@ -4423,7 +4416,7 @@ public class WorkflowTest {
             TestWorkflow1.class, newWorkflowOptionsBuilder(taskList).build());
     String result = workflowStub.execute(taskList);
     assertEquals("foo10", result);
-    tracer.setExpected("sideEffect", "sideEffect", "executeActivity TestActivities::activity2");
+    tracer.setExpected("sideEffect", "sideEffect", "executeActivity TestActivities_activity2");
   }
 
   public interface GenericParametersActivity {
@@ -4605,13 +4598,13 @@ public class WorkflowTest {
                   .setScheduleToCloseTimeout(Duration.ofSeconds(5))
                   .build());
       try {
-        activity.execute("NonDeserializableArgumentsActivity::execute", Void.class, "boo");
+        activity.execute("NonDeserializableArgumentsActivity_execute", Void.class, "boo");
       } catch (ActivityFailureException e) {
         result.append(e.getCause().getClass().getSimpleName());
       }
       result.append("-");
       try {
-        localActivity.execute("NonDeserializableArgumentsActivity::execute", Void.class, "boo");
+        localActivity.execute("NonDeserializableArgumentsActivity_execute", Void.class, "boo");
       } catch (ActivityFailureException e) {
         result.append(e.getCause().getClass().getSimpleName());
       }
@@ -4770,7 +4763,7 @@ public class WorkflowTest {
         localActivities.throwIO();
       } catch (ActivityFailureException e) {
         try {
-          assertTrue(e.getMessage().contains("TestActivities::throwIO"));
+          assertTrue(e.getMessage().contains("TestActivities_throwIO"));
           assertTrue(e.getCause() instanceof IOException);
           assertEquals("simulated IO problem", e.getCause().getMessage());
         } catch (AssertionError ae) {
@@ -5215,10 +5208,10 @@ public class WorkflowTest {
     sagaWorkflow.execute(taskList, false);
     tracer.setExpected(
         "executeActivity customActivity1",
-        "executeChildWorkflow TestMultiargsWorkflowsFunc::func",
-        "executeActivity TestActivities::throwIO",
-        "executeChildWorkflow TestCompensationWorkflow::compensate",
-        "executeActivity TestActivities::activity2");
+        "executeChildWorkflow TestMultiargsWorkflowsFunc_func",
+        "executeActivity TestActivities_throwIO",
+        "executeChildWorkflow TestCompensationWorkflow_compensate",
+        "executeActivity TestActivities_activity2");
   }
 
   @Test
@@ -5232,8 +5225,8 @@ public class WorkflowTest {
             TestSagaWorkflow.class, newWorkflowOptionsBuilder(taskList).build());
     sagaWorkflow.execute(taskList, true);
     String trace = tracer.getTrace();
-    assertTrue(trace, trace.contains("executeChildWorkflow TestCompensationWorkflow::compensate"));
-    assertTrue(trace, trace.contains("executeActivity TestActivities::activity2"));
+    assertTrue(trace, trace.contains("executeChildWorkflow TestCompensationWorkflow_compensate"));
+    assertTrue(trace, trace.contains("executeActivity TestActivities_activity2"));
   }
 
   public static class TestSignalExceptionWorkflowImpl implements TestWorkflowSignaled {
@@ -5335,7 +5328,7 @@ public class WorkflowTest {
             TestUpsertSearchAttributes.class, newWorkflowOptionsBuilder(taskList).build());
     String result = testWorkflow.execute(taskList, "testKey");
     assertEquals("done", result);
-    tracer.setExpected("upsertSearchAttributes", "executeActivity TestActivities::activity");
+    tracer.setExpected("upsertSearchAttributes", "executeActivity TestActivities_activity");
   }
 
   public static class TestMultiargsWorkflowsFuncChild implements TestMultiargsWorkflowsFunc2 {
