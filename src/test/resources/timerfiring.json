@@ -6,7 +6,7 @@
     "version": -24,
     "workflowExecutionStartedEventAttributes": {
       "workflowType": {
-        "name": "GreetingWorkflow::createGreeting"
+        "name": "GreetingWorkflow_createGreeting"
       },
       "taskList": {
         "name": "HelloQuery"
@@ -62,7 +62,7 @@
     "activityTaskScheduledEventAttributes": {
       "activityId": "0",
       "activityType": {
-        "name": "GreetingActivities::composeGreeting"
+        "name": "GreetingActivities_composeGreeting"
       },
       "taskList": {
         "name": "HelloQuery"

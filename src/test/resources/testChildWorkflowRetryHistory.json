@@ -6,7 +6,7 @@
     "version": -24,
     "workflowExecutionStartedEventAttributes": {
       "workflowType": {
-        "name": "TestWorkflow1::execute"
+        "name": "TestWorkflow1_execute"
       },
       "taskList": {
         "name": "WorkflowTest-testChildWorkflowRetry[Docker Sticky ON]-7f1642a9-9092-4ab1-9820-ffdf9eec95ce"
@@ -73,7 +73,7 @@
       "domain": "UnitTest",
       "workflowId": "c766b1bc-a4a2-369f-93f4-15be09faf4bb",
       "workflowType": {
-        "name": "ITestChild::execute"
+        "name": "ITestChild_execute"
       },
       "taskList": {
         "name": "WorkflowTest-testChildWorkflowRetry[Docker Sticky ON]-7f1642a9-9092-4ab1-9820-ffdf9eec95ce"
@@ -99,7 +99,7 @@
         "runId": "102e3eee-510c-4b3a-9770-75183a250fe2"
       },
       "workflowType": {
-        "name": "ITestChild::execute"
+        "name": "ITestChild_execute"
       }
     }
   },
@@ -152,7 +152,7 @@
         "runId": "102e3eee-510c-4b3a-9770-75183a250fe2"
       },
       "workflowType": {
-        "name": "ITestChild::execute"
+        "name": "ITestChild_execute"
       },
       "initiatedEventId": 6,
       "startedEventId": 7
@@ -269,7 +269,7 @@
       "domain": "UnitTest",
       "workflowId": "ae895176-b277-32c0-a73c-00d437f99e69",
       "workflowType": {
-        "name": "ITestChild::execute"
+        "name": "ITestChild_execute"
       },
       "taskList": {
         "name": "WorkflowTest-testChildWorkflowRetry[Docker Sticky ON]-7f1642a9-9092-4ab1-9820-ffdf9eec95ce"
@@ -295,7 +295,7 @@
         "runId": "bfc14ce9-57fd-4345-a1d0-96b34ce85694"
       },
       "workflowType": {
-        "name": "ITestChild::execute"
+        "name": "ITestChild_execute"
       }
     }
   },
@@ -348,7 +348,7 @@
         "runId": "bfc14ce9-57fd-4345-a1d0-96b34ce85694"
       },
       "workflowType": {
-        "name": "ITestChild::execute"
+        "name": "ITestChild_execute"
       },
       "initiatedEventId": 21,
       "startedEventId": 22
@@ -465,7 +465,7 @@
       "domain": "UnitTest",
       "workflowId": "6fb308b0-2d80-3efe-8334-6fe812a2debe",
       "workflowType": {
-        "name": "ITestChild::execute"
+        "name": "ITestChild_execute"
       },
       "taskList": {
         "name": "WorkflowTest-testChildWorkflowRetry[Docker Sticky ON]-7f1642a9-9092-4ab1-9820-ffdf9eec95ce"
@@ -491,7 +491,7 @@
         "runId": "421fd6ab-a552-47a1-881f-1bbc3650412e"
       },
       "workflowType": {
-        "name": "ITestChild::execute"
+        "name": "ITestChild_execute"
       }
     }
   },
@@ -544,7 +544,7 @@
         "runId": "421fd6ab-a552-47a1-881f-1bbc3650412e"
       },
       "workflowType": {
-        "name": "ITestChild::execute"
+        "name": "ITestChild_execute"
       },
       "initiatedEventId": 36,
       "startedEventId": 37
