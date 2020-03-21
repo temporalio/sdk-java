@@ -7,7 +7,7 @@
     "taskId": 1049398,
     "workflowExecutionStartedEventAttributes": {
       "workflowType": {
-        "name": "TestWorkflow1::execute"
+        "name": "TestWorkflow1_execute"
       },
       "taskList": {
         "name": "WorkflowTest-testWorkflowReset[Docker Sticky OFF]-2ac130cd-f7fb-48db-8c06-a7b8db8906fd"
@@ -68,7 +68,7 @@
     "activityTaskScheduledEventAttributes": {
       "activityId": "1",
       "activityType": {
-        "name": "TestActivities::activity"
+        "name": "TestActivities_activity"
       },
       "taskList": {
         "name": "WorkflowTest-testWorkflowReset[Docker Sticky OFF]-2ac130cd-f7fb-48db-8c06-a7b8db8906fd"
@@ -154,7 +154,7 @@
       "domain": "UnitTest",
       "workflowId": "ab7d2f10-06c6-3954-9a83-bdd53ed81b9a",
       "workflowType": {
-        "name": "TestMultiargsWorkflowsFunc::func"
+        "name": "TestMultiargsWorkflowsFunc_func"
       },
       "taskList": {
         "name": "WorkflowTest-testWorkflowReset[Docker Sticky OFF]-2ac130cd-f7fb-48db-8c06-a7b8db8906fd"
@@ -187,7 +187,7 @@
         "runId": "e127306b-11f7-4733-a69d-d154cf218964"
       },
       "workflowType": {
-        "name": "TestMultiargsWorkflowsFunc::func"
+        "name": "TestMultiargsWorkflowsFunc_func"
       }
     }
   },
@@ -243,7 +243,7 @@
         "runId": "e127306b-11f7-4733-a69d-d154cf218964"
       },
       "workflowType": {
-        "name": "TestMultiargsWorkflowsFunc::func"
+        "name": "TestMultiargsWorkflowsFunc_func"
       },
       "initiatedEventId": 11,
       "startedEventId": 12
@@ -339,7 +339,7 @@
     "activityTaskScheduledEventAttributes": {
       "activityId": "5",
       "activityType": {
-        "name": "TestActivities::activity"
+        "name": "TestActivities_activity"
       },
       "taskList": {
         "name": "WorkflowTest-testWorkflowReset[Docker Sticky OFF]-2ac130cd-f7fb-48db-8c06-a7b8db8906fd"
@@ -425,7 +425,7 @@
       "domain": "UnitTest",
       "workflowId": "f97d06d4-cfe2-372f-a0ca-d8d6276509c8",
       "workflowType": {
-        "name": "TestMultiargsWorkflowsFunc::func"
+        "name": "TestMultiargsWorkflowsFunc_func"
       },
       "taskList": {
         "name": "WorkflowTest-testWorkflowReset[Docker Sticky OFF]-2ac130cd-f7fb-48db-8c06-a7b8db8906fd"
@@ -458,7 +458,7 @@
         "runId": "f5037dc5-9f7c-423c-935e-e1ddb7d5b934"
       },
       "workflowType": {
-        "name": "TestMultiargsWorkflowsFunc::func"
+        "name": "TestMultiargsWorkflowsFunc_func"
       }
     }
   },
@@ -490,7 +490,7 @@
         "runId": "f5037dc5-9f7c-423c-935e-e1ddb7d5b934"
       },
       "workflowType": {
-        "name": "TestMultiargsWorkflowsFunc::func"
+        "name": "TestMultiargsWorkflowsFunc_func"
       },
       "initiatedEventId": 29,
       "startedEventId": 30
@@ -529,7 +529,7 @@
     "activityTaskScheduledEventAttributes": {
       "activityId": "9",
       "activityType": {
-        "name": "TestActivities::activity"
+        "name": "TestActivities_activity"
       },
       "taskList": {
         "name": "WorkflowTest-testWorkflowReset[Docker Sticky OFF]-2ac130cd-f7fb-48db-8c06-a7b8db8906fd"
@@ -615,7 +615,7 @@
       "domain": "UnitTest",
       "workflowId": "558b6d2b-22c6-37f8-bd02-2000f323c767",
       "workflowType": {
-        "name": "TestMultiargsWorkflowsFunc::func"
+        "name": "TestMultiargsWorkflowsFunc_func"
       },
       "taskList": {
         "name": "WorkflowTest-testWorkflowReset[Docker Sticky OFF]-2ac130cd-f7fb-48db-8c06-a7b8db8906fd"
@@ -648,7 +648,7 @@
         "runId": "741a8a94-c511-4cf8-9ac9-73588c039713"
       },
       "workflowType": {
-        "name": "TestMultiargsWorkflowsFunc::func"
+        "name": "TestMultiargsWorkflowsFunc_func"
       }
     }
   },
@@ -704,7 +704,7 @@
         "runId": "741a8a94-c511-4cf8-9ac9-73588c039713"
       },
       "workflowType": {
-        "name": "TestMultiargsWorkflowsFunc::func"
+        "name": "TestMultiargsWorkflowsFunc_func"
       },
       "initiatedEventId": 41,
       "startedEventId": 42
@@ -757,7 +757,7 @@
     "activityTaskScheduledEventAttributes": {
       "activityId": "13",
       "activityType": {
-        "name": "TestActivities::activity"
+        "name": "TestActivities_activity"
       },
       "taskList": {
         "name": "WorkflowTest-testWorkflowReset[Docker Sticky OFF]-2ac130cd-f7fb-48db-8c06-a7b8db8906fd"
@@ -842,7 +842,7 @@
     "activityTaskScheduledEventAttributes": {
       "activityId": "15",
       "activityType": {
-        "name": "TestActivities::activity"
+        "name": "TestActivities_activity"
       },
       "taskList": {
         "name": "WorkflowTest-testWorkflowReset[Docker Sticky OFF]-2ac130cd-f7fb-48db-8c06-a7b8db8906fd"
@@ -970,7 +970,7 @@
     "activityTaskScheduledEventAttributes": {
       "activityId": "17",
       "activityType": {
-        "name": "TestActivities::activity"
+        "name": "TestActivities_activity"
       },
       "taskList": {
         "name": "WorkflowTest-testWorkflowReset[Docker Sticky OFF]-2ac130cd-f7fb-48db-8c06-a7b8db8906fd"
@@ -1056,7 +1056,7 @@
       "domain": "UnitTest",
       "workflowId": "b1c2d938-8490-34b3-acf4-138c591deb62",
       "workflowType": {
-        "name": "TestMultiargsWorkflowsFunc::func"
+        "name": "TestMultiargsWorkflowsFunc_func"
       },
       "taskList": {
         "name": "WorkflowTest-testWorkflowReset[Docker Sticky OFF]-2ac130cd-f7fb-48db-8c06-a7b8db8906fd"
@@ -1089,7 +1089,7 @@
         "runId": "18c47f68-3b5a-41d1-92a1-2e11d5e92bc7"
       },
       "workflowType": {
-        "name": "TestMultiargsWorkflowsFunc::func"
+        "name": "TestMultiargsWorkflowsFunc_func"
       }
     }
   },
@@ -1121,7 +1121,7 @@
         "runId": "18c47f68-3b5a-41d1-92a1-2e11d5e92bc7"
       },
       "workflowType": {
-        "name": "TestMultiargsWorkflowsFunc::func"
+        "name": "TestMultiargsWorkflowsFunc_func"
       },
       "initiatedEventId": 71,
       "startedEventId": 72

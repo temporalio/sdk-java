@@ -40,7 +40,8 @@ googleJavaFormat {
 }
 
 group = 'io.temporal'
-version = '1.0.0'
+version = '0.10.0-SNAPSHOT'
+archivesBaseName="temporal-sdk"
 
 description = '''Temporal Workflow Java SDK'''
 
@@ -182,63 +183,6 @@ artifacts {
 def ossrhUsername = hasProperty('ossrhUsername') ? property('ossrhUsername') : ''
 def ossrhPassword = hasProperty('ossrhPassword') ? property('ossrhPassword') : ''
 
-publishing {
-
-    publications {
-        maven(MavenPublication) {
-            pom.withXml {
-                asNode().with {
-                    appendNode('packaging', 'jar')
-                    appendNode('name', 'temporal-sdk')
-                    appendNode('description', description)
-                    appendNode('url', 'https://github.com/temporalio/temporal-java-sdk')
-                    appendNode('scm').with {
-                        appendNode('url', 'https://github.com/temporalio/temporal-java-sdk')
-                        appendNode('connection', 'git@github.com:temporalio/temporal-java-sdk.git')
-                    }
-                    appendNode('licenses').with {
-                        appendNode('license').with {
-                            appendNode('name', 'The Apache License, Version 2.0')
-                            appendNode('url', 'http://www.apache.org/licenses/LICENSE-2.0.txt')
-                        }
-                    }
-                    appendNode('developers').with {
-                        appendNode('maxim').with {
-                            appendNode('id', 'mfateev')
-                            appendNode('name', 'Maxim Fateev')
-                            appendNode('email', 'maxim@temporal.io')
-                        }
-                        appendNode('developer').with {
-                            appendNode('id', 'samarabbas')
-                            appendNode('name', 'Samar Abbas')
-                            appendNode('email', 'samar@temporal.io')
-                        }
-                    }
-                }
-            }
-        }
-
-        mavenJava(MavenPublication) {
-            from components.java
-            artifact javadocJar
-            artifact sourcesJar
-        }
-    }
-    repositories {
-        maven {
-            credentials {
-                username ossrhUsername
-                password ossrhPassword
-            }
-            if (project.version.endsWith('-SNAPSHOT')) {
-                url 'https://oss.sonatype.org/content/repositories/snapshots/'
-            } else {
-                url 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
-            }
-        }
-    }
-}
-
 task registerDomain(type: JavaExec) {
     main = 'io.temporal.RegisterTestDomain'
     classpath = sourceSets.test.runtimeClasspath
@@ -269,10 +213,10 @@ uploadArchives {
             }
 
             pom.project {
-                name 'temporal-sdk'
+                name 'Temporal Java SDK'
                 packaging 'jar'
                 // optionally artifactId can be defined here
-                description 'Temporal Java SDK'
+                description 'Temporal Workflow Java SDK'
                 url 'https://github.com/temporalio/temporal-java-sdk'
 
                 scm {

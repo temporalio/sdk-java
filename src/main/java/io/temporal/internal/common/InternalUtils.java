@@ -40,10 +40,10 @@ public final class InternalUtils {
   /**
    * Used to construct default name of an activity or workflow type from a method it implements.
    *
-   * @return "Simple class name"::"methodName"
+   * @return "Simple class name"_"methodName"
    */
   public static String getSimpleName(Method method) {
-    return method.getDeclaringClass().getSimpleName() + "::" + method.getName();
+    return method.getDeclaringClass().getSimpleName() + "_" + method.getName();
   }
 
   public static String getWorkflowType(Method method, WorkflowMethod workflowMethod) {

@@ -62,7 +62,7 @@ public class ActivityTestingTest {
     testEnvironment.registerActivitiesImplementations(new ActivityImpl());
     TestActivity activity = testEnvironment.newActivityStub(TestActivity.class);
     String result = activity.activity1("input1");
-    assertEquals("TestActivity::activity1-input1", result);
+    assertEquals("TestActivity_activity1-input1", result);
   }
 
   private static class AngryActivityImpl implements TestActivity {
@@ -81,7 +81,7 @@ public class ActivityTestingTest {
       activity.activity1("input1");
       fail("unreachable");
     } catch (ActivityFailureException e) {
-      assertTrue(e.getMessage().contains("TestActivity::activity1"));
+      assertTrue(e.getMessage().contains("TestActivity_activity1"));
       assertTrue(e.getCause() instanceof IOException);
       assertEquals("simulated", e.getCause().getMessage());
     }
