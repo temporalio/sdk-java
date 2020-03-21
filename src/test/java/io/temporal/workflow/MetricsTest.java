@@ -274,7 +274,7 @@ public class MetricsTest {
     setUp(
         com.uber.m3.util.Duration.ofMillis(300),
         WorkerFactoryOptions.newBuilder()
-            .setInterceptorFactory(new CorruptedSignalWorkflowInterceptor())
+            .setWorkflowInterceptor(new CorruptedSignalWorkflowInterceptor())
             .build());
 
     Worker worker = testEnvironment.newWorker(taskList);
@@ -310,9 +310,7 @@ public class MetricsTest {
 
     @Override
     public WorkflowInvoker interceptExecuteWorkflow(
-        Object[] arguments,
-        WorkflowCallsInterceptor interceptor,
-        WorkflowInvocationInterceptor next) {
+        WorkflowCallsInterceptor interceptor, WorkflowInvocationInterceptor next) {
       SignalWorkflowCallsInterceptor i =
           new SignalWorkflowCallsInterceptor(
               args -> {
@@ -323,17 +321,7 @@ public class MetricsTest {
               },
               sig -> sig,
               interceptor);
-      return new WorkflowInvoker() {
-        @Override
-        public Object execute(Object[] arguments) {
-          return next.execute(arguments, i);
-        }
-
-        @Override
-        public void processSignal(String signalName, Object[] arguments, long eventId) {
-          next.processSignal(signalName, arguments, eventId);
-        }
-      };
+      return new BaseWorkflowInvoker(i, next);
     }
   }
 }

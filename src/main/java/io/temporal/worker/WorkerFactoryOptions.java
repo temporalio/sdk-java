@@ -19,8 +19,8 @@
 
 package io.temporal.worker;
 
+import io.temporal.workflow.NoopWorkflowInterceptor;
 import io.temporal.workflow.WorkflowInterceptor;
-import io.temporal.workflow.WorkflowInvoker;
 
 public class WorkerFactoryOptions {
 
@@ -46,7 +46,7 @@ public class WorkerFactoryOptions {
     private int stickyDecisionScheduleToStartTimeoutInSeconds;
     private int cacheMaximumSize;
     private int maxWorkflowThreadCount;
-    private WorkflowInterceptor interceptorFactory;
+    private WorkflowInterceptor workflowInterceptor;
     private boolean enableLoggingInReplay;
 
     private Builder() {}
@@ -59,7 +59,7 @@ public class WorkerFactoryOptions {
           options.stickyDecisionScheduleToStartTimeoutInSeconds;
       this.cacheMaximumSize = options.cacheMaximumSize;
       this.maxWorkflowThreadCount = options.maxWorkflowThreadCount;
-      this.interceptorFactory = options.interceptorFactory;
+      this.workflowInterceptor = options.workflowInterceptor;
       this.enableLoggingInReplay = options.enableLoggingInReplay;
     }
 
@@ -92,8 +92,8 @@ public class WorkerFactoryOptions {
       return this;
     }
 
-    public Builder setInterceptorFactory(WorkflowInterceptor interceptorFactory) {
-      this.interceptorFactory = interceptorFactory;
+    public Builder setWorkflowInterceptor(WorkflowInterceptor workflowInterceptor) {
+      this.workflowInterceptor = workflowInterceptor;
       return this;
     }
 
@@ -107,7 +107,7 @@ public class WorkerFactoryOptions {
           cacheMaximumSize,
           maxWorkflowThreadCount,
           stickyDecisionScheduleToStartTimeoutInSeconds,
-          interceptorFactory,
+          workflowInterceptor,
           enableLoggingInReplay,
           false);
     }
@@ -117,7 +117,7 @@ public class WorkerFactoryOptions {
           cacheMaximumSize,
           maxWorkflowThreadCount,
           stickyDecisionScheduleToStartTimeoutInSeconds,
-          interceptorFactory,
+          workflowInterceptor,
           enableLoggingInReplay,
           true);
     }
@@ -126,14 +126,14 @@ public class WorkerFactoryOptions {
   private final int cacheMaximumSize;
   private final int maxWorkflowThreadCount;
   private final int stickyDecisionScheduleToStartTimeoutInSeconds;
-  private final WorkflowInterceptor interceptorFactory;
+  private final WorkflowInterceptor workflowInterceptor;
   private final boolean enableLoggingInReplay;
 
   private WorkerFactoryOptions(
       int cacheMaximumSize,
       int maxWorkflowThreadCount,
       int stickyDecisionScheduleToStartTimeoutInSeconds,
-      WorkflowInterceptor interceptorFactory,
+      WorkflowInterceptor workflowInterceptor,
       boolean enableLoggingInReplay,
       boolean validate) {
     if (validate) {
@@ -146,27 +146,15 @@ public class WorkerFactoryOptions {
       if (stickyDecisionScheduleToStartTimeoutInSeconds <= 0) {
         stickyDecisionScheduleToStartTimeoutInSeconds = 5;
       }
-      if (interceptorFactory == null) {
-        interceptorFactory =
-            (args, interceptor, next) ->
-                new WorkflowInvoker() {
-                  @Override
-                  public Object execute(Object[] arguments) {
-                    return next.execute(arguments, interceptor);
-                  }
-
-                  @Override
-                  public void processSignal(String signalName, Object[] arguments, long eventId) {
-                    next.processSignal(signalName, arguments, eventId);
-                  }
-                };
+      if (workflowInterceptor == null) {
+        workflowInterceptor = new NoopWorkflowInterceptor();
       }
     }
     this.cacheMaximumSize = cacheMaximumSize;
     this.maxWorkflowThreadCount = maxWorkflowThreadCount;
     this.stickyDecisionScheduleToStartTimeoutInSeconds =
         stickyDecisionScheduleToStartTimeoutInSeconds;
-    this.interceptorFactory = interceptorFactory;
+    this.workflowInterceptor = workflowInterceptor;
     this.enableLoggingInReplay = enableLoggingInReplay;
   }
 
@@ -182,8 +170,8 @@ public class WorkerFactoryOptions {
     return stickyDecisionScheduleToStartTimeoutInSeconds;
   }
 
-  public WorkflowInterceptor getInterceptorFactory() {
-    return interceptorFactory;
+  public WorkflowInterceptor getWorkflowInterceptor() {
+    return workflowInterceptor;
   }
 
   public boolean isEnableLoggingInReplay() {

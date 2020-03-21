@@ -46,7 +46,6 @@ import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowInvoker;
 import io.temporal.workflow.WorkflowTest;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -727,24 +726,7 @@ public class DeterministicRunnerTest {
     DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
             threadPool,
-            new SyncDecisionContext(
-                decisionContext,
-                JsonDataConverter.getInstance(),
-                null,
-                (args, interceptor, next) ->
-                    new WorkflowInvoker() {
-                      @Override
-                      public Object execute(Object[] arguments) {
-                        return next.execute(arguments, interceptor);
-                      }
-
-                      @Override
-                      public void processSignal(
-                          String signalName, Object[] arguments, long eventId) {
-                        next.processSignal(signalName, arguments, eventId);
-                      }
-                    },
-                null),
+            new SyncDecisionContext(decisionContext, JsonDataConverter.getInstance(), null, null),
             () -> 0L, // clock override
             () -> {
               Promise<Void> thread =
@@ -768,24 +750,7 @@ public class DeterministicRunnerTest {
     DeterministicRunnerImpl d2 =
         new DeterministicRunnerImpl(
             threadPool,
-            new SyncDecisionContext(
-                decisionContext,
-                JsonDataConverter.getInstance(),
-                null,
-                (args, interceptor, next) ->
-                    new WorkflowInvoker() {
-                      @Override
-                      public Object execute(Object[] arguments) {
-                        return next.execute(arguments, interceptor);
-                      }
-
-                      @Override
-                      public void processSignal(
-                          String signalName, Object[] arguments, long eventId) {
-                        next.processSignal(signalName, arguments, eventId);
-                      }
-                    },
-                null),
+            new SyncDecisionContext(decisionContext, JsonDataConverter.getInstance(), null, null),
             () -> 0L, // clock override
             () -> {
               Promise<Void> thread =

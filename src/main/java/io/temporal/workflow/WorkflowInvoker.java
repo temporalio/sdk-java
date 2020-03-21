@@ -20,6 +20,8 @@
 package io.temporal.workflow;
 
 public interface WorkflowInvoker {
+  void init();
+
   Object execute(Object[] arguments);
 
   void processSignal(String signalName, Object[] arguments, long eventId);

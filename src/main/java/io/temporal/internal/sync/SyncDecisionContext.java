@@ -58,7 +58,6 @@ import io.temporal.workflow.Promise;
 import io.temporal.workflow.SignalExternalWorkflowException;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowCallsInterceptor;
-import io.temporal.workflow.WorkflowInterceptor;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.HashMap;
@@ -89,19 +88,16 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
   private final WorkflowTimers timers = new WorkflowTimers();
   private final Map<String, Functions.Func1<byte[], byte[]>> queryCallbacks = new HashMap<>();
   private final byte[] lastCompletionResult;
-  private final WorkflowInterceptor interceptorFactory;
 
   public SyncDecisionContext(
       DecisionContext context,
       DataConverter converter,
       List<ContextPropagator> contextPropagators,
-      WorkflowInterceptor interceptorFactory,
       byte[] lastCompletionResult) {
     this.context = context;
     this.converter = converter;
     this.contextPropagators = contextPropagators;
     this.lastCompletionResult = lastCompletionResult;
-    this.interceptorFactory = interceptorFactory;
   }
 
   /**
@@ -117,7 +113,8 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
   }
 
   public WorkflowCallsInterceptor getWorkflowInterceptor() {
-    return headInterceptor;
+    // This is needed for unit tests that create DeterministicRunner directly.
+    return headInterceptor == null ? this : headInterceptor;
   }
 
   public void setHeadInterceptor(WorkflowCallsInterceptor head) {
@@ -417,7 +414,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
             parameters,
             (we) ->
                 runner.executeInWorkflowThread(
-                    "child workflow completion callback", () -> executionResult.complete(we)),
+                    "child workflow started callback", () -> executionResult.complete(we)),
             (output, failure) -> {
               if (failure != null) {
                 runner.executeInWorkflowThread(

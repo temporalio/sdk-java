@@ -140,8 +140,8 @@ public class WorkflowTest {
   private static final String ANNOTATION_TASK_LIST = "WorkflowTest-testExecute[Docker]";
 
   private TracingWorkflowInterceptor tracer;
-  private static final boolean useExternalService =
-      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+  private static final boolean useExternalService = true;
+  //      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
   private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
 
   @Rule public TestName testName = new TestName();
@@ -268,7 +268,7 @@ public class WorkflowTest {
             .setDomain(DOMAIN)
             .build();
     WorkerFactoryOptions factoryOptions =
-        WorkerFactoryOptions.newBuilder().setInterceptorFactory(tracer).build();
+        WorkerFactoryOptions.newBuilder().setWorkflowInterceptor(tracer).build();
     if (useExternalService) {
       workflowClient = WorkflowClient.newInstance(service, workflowClientOptions);
       workerFactory = WorkerFactory.newInstance(workflowClient, factoryOptions);
@@ -4423,19 +4423,12 @@ public class WorkflowTest {
 
     @Override
     public WorkflowInvoker interceptExecuteWorkflow(
-        Object[] arguments,
-        WorkflowCallsInterceptor interceptor,
-        WorkflowInvocationInterceptor next) {
+        WorkflowCallsInterceptor interceptor, WorkflowInvocationInterceptor next) {
       trace.add("interceptExecuteWorkflow " + Workflow.getWorkflowInfo().getWorkflowId());
-      return new WorkflowInvoker() {
+      return new BaseWorkflowInvoker(interceptor, next) {
         @Override
-        public Object execute(Object[] arguments) {
-          return next.execute(arguments, new TracingWorkflowCallsInterceptor(trace, interceptor));
-        }
-
-        @Override
-        public void processSignal(String signalName, Object[] arguments, long eventId) {
-          next.processSignal(signalName, arguments, eventId);
+        public void init() {
+          next.init(new TracingWorkflowCallsInterceptor(trace, interceptor));
         }
       };
     }

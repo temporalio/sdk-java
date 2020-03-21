@@ -25,7 +25,6 @@ import io.temporal.converter.JsonDataConverter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.replay.DecisionContext;
 import io.temporal.proto.common.SearchAttributes;
-import io.temporal.workflow.WorkflowInvoker;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Before;
@@ -38,23 +37,7 @@ public class SyncDecisionContextTest {
   @Before
   public void setUp() {
     this.context =
-        new SyncDecisionContext(
-            mockDecisionContext,
-            JsonDataConverter.getInstance(),
-            null,
-            (args, interceptor, next) ->
-                new WorkflowInvoker() {
-                  @Override
-                  public Object execute(Object[] arguments) {
-                    return next.execute(arguments, interceptor);
-                  }
-
-                  @Override
-                  public void processSignal(String signalName, Object[] arguments, long eventId) {
-                    next.processSignal(signalName, arguments, eventId);
-                  }
-                },
-            null);
+        new SyncDecisionContext(mockDecisionContext, JsonDataConverter.getInstance(), null, null);
   }
 
   @Test

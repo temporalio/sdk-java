@@ -21,6 +21,7 @@ package io.temporal.internal.sync;
 
 import static io.temporal.worker.NonDeterministicWorkflowPolicy.FailWorkflow;
 
+import com.google.common.base.Preconditions;
 import com.google.common.reflect.TypeToken;
 import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
@@ -63,7 +64,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   private static final Logger log =
       LoggerFactory.getLogger(POJOWorkflowImplementationFactory.class);
   private static final byte[] EMPTY_BLOB = {};
-  private final WorkflowInterceptor interceptorFactory;
+  private final WorkflowInterceptor workflowInterceptor;
 
   private DataConverter dataConverter;
   private List<ContextPropagator> contextPropagators;
@@ -84,12 +85,12 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   POJOWorkflowImplementationFactory(
       DataConverter dataConverter,
       ExecutorService threadPool,
-      WorkflowInterceptor interceptorFactory,
+      WorkflowInterceptor workflowInterceptor,
       DeciderCache cache,
       List<ContextPropagator> contextPropagators) {
     this.dataConverter = Objects.requireNonNull(dataConverter);
     this.threadPool = Objects.requireNonNull(threadPool);
-    this.interceptorFactory = Objects.requireNonNull(interceptorFactory);
+    this.workflowInterceptor = Objects.requireNonNull(workflowInterceptor);
     this.cache = cache;
     this.contextPropagators = contextPropagators;
   }
@@ -212,13 +213,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     SyncWorkflowDefinition workflow = getWorkflowDefinition(workflowType);
     WorkflowImplementationOptions options = implementationOptions.get(workflowType.getName());
     return new SyncWorkflow(
-        workflow,
-        options,
-        dataConverter,
-        threadPool,
-        interceptorFactory,
-        cache,
-        contextPropagators);
+        workflow, options, dataConverter, threadPool, cache, contextPropagators);
   }
 
   @Override
@@ -242,15 +237,17 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     }
 
     @Override
+    public void initialize() {
+      workflowInvoker =
+          workflowInterceptor.interceptExecuteWorkflow(
+              WorkflowInternal.getRootDecisionContext(), new RootWorkflowInvocationInterceptor());
+      workflowInvoker.init();
+    }
+
+    @Override
     public byte[] execute(byte[] input) throws CancellationException, WorkflowExecutionException {
       Object[] args = dataConverter.fromDataArray(input, workflowMethod.getGenericParameterTypes());
-      if (workflowInvoker == null) {
-        workflowInvoker =
-            interceptorFactory.interceptExecuteWorkflow(
-                args,
-                WorkflowInternal.getRootDecisionContext(),
-                new RootWorkflowInvocationInterceptor());
-      }
+      Preconditions.checkNotNull(workflowInvoker, "initialize not called");
       Object result = workflowInvoker.execute(args);
       if (workflowMethod.getReturnType() == Void.TYPE) {
         return EMPTY_BLOB;
@@ -300,22 +297,15 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
         return;
       }
       Object[] args = dataConverter.fromDataArray(input, signalMethod.getGenericParameterTypes());
-      if (workflowInvoker == null) {
-        workflowInvoker =
-            interceptorFactory.interceptExecuteWorkflow(
-                args,
-                WorkflowInternal.getRootDecisionContext(),
-                new RootWorkflowInvocationInterceptor());
-      }
+      Preconditions.checkNotNull(workflowInvoker, "initialize not called");
       workflowInvoker.processSignal(signalName, args, eventId);
     }
 
     private class RootWorkflowInvocationInterceptor implements WorkflowInvocationInterceptor {
 
       @Override
-      public Object execute(Object[] arguments, WorkflowCallsInterceptor interceptor) {
+      public Object execute(Object[] arguments) {
         WorkflowInfo context = Workflow.getWorkflowInfo();
-        WorkflowInternal.getRootDecisionContext().setHeadInterceptor(interceptor);
         newInstance();
         WorkflowInternal.registerQuery(workflow);
         try {
@@ -346,6 +336,11 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
           // Cast to Exception is safe as Error is handled above.
           throw mapToWorkflowExecutionException((Exception) targetException, dataConverter);
         }
+      }
+
+      @Override
+      public void init(WorkflowCallsInterceptor interceptor) {
+        WorkflowInternal.getRootDecisionContext().setHeadInterceptor(interceptor);
       }
 
       @Override

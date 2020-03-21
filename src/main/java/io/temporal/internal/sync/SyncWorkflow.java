@@ -32,7 +32,6 @@ import io.temporal.proto.common.WorkflowQuery;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.enums.EventType;
 import io.temporal.worker.WorkflowImplementationOptions;
-import io.temporal.workflow.WorkflowInterceptor;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
@@ -52,9 +51,8 @@ class SyncWorkflow implements ReplayWorkflow {
   private final ExecutorService threadPool;
   private final SyncWorkflowDefinition workflow;
   WorkflowImplementationOptions workflowImplementationOptions;
-  private final WorkflowInterceptor interceptorFactory;
   private DeciderCache cache;
-  private WorkflowRunnable workflowProc;
+  private WorkflowExecuteRunnable workflowProc;
   private DeterministicRunner runner;
 
   public SyncWorkflow(
@@ -62,7 +60,6 @@ class SyncWorkflow implements ReplayWorkflow {
       WorkflowImplementationOptions workflowImplementationOptions,
       DataConverter dataConverter,
       ExecutorService threadPool,
-      WorkflowInterceptor interceptorFactory,
       DeciderCache cache,
       List<ContextPropagator> contextPropagators) {
     this.workflow = Objects.requireNonNull(workflow);
@@ -72,7 +69,6 @@ class SyncWorkflow implements ReplayWorkflow {
             : workflowImplementationOptions;
     this.dataConverter = Objects.requireNonNull(dataConverter);
     this.threadPool = Objects.requireNonNull(threadPool);
-    this.interceptorFactory = Objects.requireNonNull(interceptorFactory);
     this.cache = cache;
     this.contextPropagators = contextPropagators;
   }
@@ -102,13 +98,19 @@ class SyncWorkflow implements ReplayWorkflow {
             context,
             dataConverter,
             contextPropagators,
-            interceptorFactory,
             startEvent.getLastCompletionResult().toByteArray());
 
-    workflowProc = new WorkflowRunnable(syncContext, workflow, startEvent);
+    workflowProc = new WorkflowExecuteRunnable(syncContext, workflow, startEvent);
     runner =
         DeterministicRunner.newRunner(
-            threadPool, syncContext, context::currentTimeMillis, workflowProc, cache);
+            threadPool,
+            syncContext,
+            context::currentTimeMillis,
+            () -> {
+              workflow.initialize();
+              WorkflowInternal.newThread(false, () -> workflowProc.run()).start();
+            },
+            cache);
     syncContext.setRunner(runner);
   }
 
