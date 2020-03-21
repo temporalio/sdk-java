@@ -19,7 +19,11 @@
 
 package io.temporal.workflow;
 
-/** Intercepts workflow execution. */
+/**
+ * Intercepts workflow execution.
+ *
+ * <p>TODO(maxim): JavaDoc with sample
+ */
 public interface WorkflowInterceptor {
   WorkflowInvoker interceptExecuteWorkflow(
       WorkflowCallsInterceptor interceptor, WorkflowInvocationInterceptor next);

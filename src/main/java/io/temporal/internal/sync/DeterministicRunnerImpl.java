@@ -92,6 +92,10 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   private final Lock lock = new ReentrantLock();
   private final ExecutorService threadPool;
   private final SyncDecisionContext decisionContext;
+
+  // Note that threads field is a set. So we need to make sure that getPriority never returns the
+  // same value for different threads. We use addedThreads variable for this.
+  //
   // protected by lock
   private final Set<WorkflowThread> threads =
       new TreeSet<>((t1, t2) -> Ints.compare(t1.getPriority(), t2.getPriority()));

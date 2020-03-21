@@ -296,9 +296,13 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
                 + signalHandlers.keySet());
         return;
       }
-      Object[] args = dataConverter.fromDataArray(input, signalMethod.getGenericParameterTypes());
-      Preconditions.checkNotNull(workflowInvoker, "initialize not called");
-      workflowInvoker.processSignal(signalName, args, eventId);
+      try {
+        Object[] args = dataConverter.fromDataArray(input, signalMethod.getGenericParameterTypes());
+        Preconditions.checkNotNull(workflowInvoker, "initialize not called");
+        workflowInvoker.processSignal(signalName, args, eventId);
+      } catch (DataConverterException e) {
+        logSerializationException(signalName, eventId, e);
+      }
     }
 
     private class RootWorkflowInvocationInterceptor implements WorkflowInvocationInterceptor {
@@ -351,8 +355,6 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
           signalMethod.invoke(workflow, arguments);
         } catch (IllegalAccessException e) {
           throw new Error("Failure processing \"" + signalName + "\" at eventID " + eventId, e);
-        } catch (DataConverterException e) {
-          logSerializationException(signalName, eventId, e);
         } catch (InvocationTargetException e) {
           Throwable targetException = e.getTargetException();
           if (targetException instanceof DataConverterException) {

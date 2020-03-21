@@ -92,6 +92,7 @@ public class WorkerFactoryOptions {
       return this;
     }
 
+    // TODO: List of interceptors
     public Builder setWorkflowInterceptor(WorkflowInterceptor workflowInterceptor) {
       this.workflowInterceptor = workflowInterceptor;
       return this;

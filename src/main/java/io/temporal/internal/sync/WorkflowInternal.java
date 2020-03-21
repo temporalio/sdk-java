@@ -256,10 +256,6 @@ public final class WorkflowInternal {
         .getWorkflowInterceptor();
   }
 
-  static void setHeadInterceptor(WorkflowCallsInterceptor head) {
-    DeterministicRunnerImpl.currentThreadInternal().getDecisionContext().setHeadInterceptor(head);
-  }
-
   static SyncDecisionContext getRootDecisionContext() {
     return DeterministicRunnerImpl.currentThreadInternal().getDecisionContext();
   }

@@ -101,6 +101,10 @@ class SyncWorkflow implements ReplayWorkflow {
             startEvent.getLastCompletionResult().toByteArray());
 
     workflowProc = new WorkflowExecuteRunnable(syncContext, workflow, startEvent);
+    // The following order is ensured by this code and DeterministicRunner implementation:
+    // 1. workflow.initialize
+    // 2. signal handler (if signalWithStart was called)
+    // 3. main workflow method
     runner =
         DeterministicRunner.newRunner(
             threadPool,

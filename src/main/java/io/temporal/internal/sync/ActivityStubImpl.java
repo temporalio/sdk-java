@@ -25,7 +25,7 @@ import io.temporal.workflow.Promise;
 import io.temporal.workflow.WorkflowCallsInterceptor;
 import java.lang.reflect.Type;
 
-public class ActivityStubImpl extends ActivityStubBase {
+final class ActivityStubImpl extends ActivityStubBase {
   protected final ActivityOptions options;
   private final WorkflowCallsInterceptor activityExecutor;
 

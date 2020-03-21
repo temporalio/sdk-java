@@ -19,7 +19,6 @@
 
 package io.temporal.workflow;
 
-import static io.temporal.worker.NonDeterministicWorkflowPolicy.FailWorkflow;
 import static org.junit.Assert.*;
 
 import com.google.common.util.concurrent.UncheckedExecutionException;
@@ -64,6 +63,7 @@ import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.WorkflowReplayer;
+import io.temporal.worker.NonDeterministicWorkflowPolicy;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerFactoryOptions;
@@ -114,7 +114,6 @@ import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 import org.junit.After;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -140,12 +139,13 @@ public class WorkflowTest {
   private static final String ANNOTATION_TASK_LIST = "WorkflowTest-testExecute[Docker]";
 
   private TracingWorkflowInterceptor tracer;
-  private static final boolean useExternalService = true;
-  //      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+  private static final boolean useExternalService =
+      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
   private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
 
   @Rule public TestName testName = new TestName();
 
+  @Rule
   public Timeout globalTimeout =
       Timeout.seconds(DEBUGGER_TIMEOUTS ? 500 : !useExternalService ? 15 : 30);
 
@@ -3422,7 +3422,7 @@ public class WorkflowTest {
     }
 
     // Run 3 failed. So on run 4 we get the last completion result from run 2.
-    Assert.assertEquals("run 2", lastCompletionResult);
+    assertEquals("run 2", lastCompletionResult);
   }
 
   public static class TestCronParentWorkflow implements TestWorkflow1 {
@@ -3461,7 +3461,7 @@ public class WorkflowTest {
     }
 
     // Run 3 failed. So on run 4 we get the last completion result from run 2.
-    Assert.assertEquals("run 2", lastCompletionResult);
+    assertEquals("run 2", lastCompletionResult);
   }
 
   public interface TestActivities {
@@ -4369,7 +4369,7 @@ public class WorkflowTest {
   public void testNonDeterministicWorkflowPolicyFailWorkflow() {
     WorkflowImplementationOptions implementationOptions =
         new WorkflowImplementationOptions.Builder()
-            .setNonDeterministicWorkflowPolicy(FailWorkflow)
+            .setNonDeterministicWorkflowPolicy(NonDeterministicWorkflowPolicy.FailWorkflow)
             .build();
     worker.registerWorkflowImplementationTypes(
         implementationOptions, DeterminismFailingWorkflowImpl.class);
@@ -4416,7 +4416,7 @@ public class WorkflowTest {
         for (int i = 0; i < traceElements.size(); i++) {
           String t = traceElements.get(i);
           String expectedRegExp = expected.get(i);
-          Assert.assertTrue(t + " doesn't match " + expectedRegExp, t.matches(expectedRegExp));
+          assertTrue(t + " doesn't match " + expectedRegExp, t.matches(expectedRegExp));
         }
       }
     }
@@ -4802,7 +4802,7 @@ public class WorkflowTest {
     DecisionTimeoutWorkflow stub =
         workflowClient.newWorkflowStub(DecisionTimeoutWorkflow.class, options);
     String result = stub.execute(testName.getMethodName());
-    Assert.assertEquals("some result", result);
+    assertEquals("some result", result);
   }
 
   public static class TestLocalActivityWorkflowImpl implements TestWorkflow1 {

@@ -33,7 +33,7 @@ import java.util.UUID;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 
-/** Convenience base class for WorkflowInterceptor implementations. */
+/** Convenience base class for WorkflowCallsInterceptor implementations. */
 public class WorkflowCallsInterceptorBase implements WorkflowCallsInterceptor {
 
   private final WorkflowCallsInterceptor next;
