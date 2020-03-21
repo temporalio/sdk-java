@@ -274,7 +274,7 @@ public class MetricsTest {
     setUp(
         com.uber.m3.util.Duration.ofMillis(300),
         WorkerFactoryOptions.newBuilder()
-            .setInterceptorFactory(new CorruptedSignalWorkflowExecutionInterceptor())
+            .setInterceptorFactory(new CorruptedSignalWorkflowInterceptor())
             .build());
 
     Worker worker = testEnvironment.newWorker(taskList);
@@ -306,21 +306,34 @@ public class MetricsTest {
     testEnvironment.close();
   }
 
-  private static class CorruptedSignalWorkflowExecutionInterceptor
-      implements WorkflowExecutionInterceptor {
+  private static class CorruptedSignalWorkflowInterceptor implements WorkflowInterceptor {
 
     @Override
-    public WorkflowCallsInterceptor interceptExecuteWorkflow(
-        String workflowType, Object[] arguments, WorkflowCallsInterceptor next) {
-      return new SignalWorkflowCallsInterceptor(
-          args -> {
-            if (args != null && args.length > 0) {
-              return new Object[] {"Corrupted Signal"};
-            }
-            return args;
-          },
-          sig -> sig,
-          next);
+    public WorkflowInvoker interceptExecuteWorkflow(
+        Object[] arguments,
+        WorkflowCallsInterceptor interceptor,
+        WorkflowInvocationInterceptor next) {
+      SignalWorkflowCallsInterceptor i =
+          new SignalWorkflowCallsInterceptor(
+              args -> {
+                if (args != null && args.length > 0) {
+                  return new Object[] {"Corrupted Signal"};
+                }
+                return args;
+              },
+              sig -> sig,
+              interceptor);
+      return new WorkflowInvoker() {
+        @Override
+        public Object execute(Object[] arguments) {
+          return next.execute(arguments, i);
+        }
+
+        @Override
+        public void processSignal(String signalName, Object[] arguments, long eventId) {
+          next.processSignal(signalName, arguments, eventId);
+        }
+      };
     }
   }
 }

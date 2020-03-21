@@ -19,8 +19,8 @@
 
 package io.temporal.worker;
 
-import io.temporal.workflow.WorkflowCallsInterceptor;
-import io.temporal.workflow.WorkflowExecutionInterceptor;
+import io.temporal.workflow.WorkflowInterceptor;
+import io.temporal.workflow.WorkflowInvoker;
 
 public class WorkerFactoryOptions {
 
@@ -46,7 +46,7 @@ public class WorkerFactoryOptions {
     private int stickyDecisionScheduleToStartTimeoutInSeconds;
     private int cacheMaximumSize;
     private int maxWorkflowThreadCount;
-    private WorkflowExecutionInterceptor interceptorFactory;
+    private WorkflowInterceptor interceptorFactory;
     private boolean enableLoggingInReplay;
 
     private Builder() {}
@@ -92,7 +92,7 @@ public class WorkerFactoryOptions {
       return this;
     }
 
-    public Builder setInterceptorFactory(WorkflowExecutionInterceptor interceptorFactory) {
+    public Builder setInterceptorFactory(WorkflowInterceptor interceptorFactory) {
       this.interceptorFactory = interceptorFactory;
       return this;
     }
@@ -126,14 +126,14 @@ public class WorkerFactoryOptions {
   private final int cacheMaximumSize;
   private final int maxWorkflowThreadCount;
   private final int stickyDecisionScheduleToStartTimeoutInSeconds;
-  private final WorkflowExecutionInterceptor interceptorFactory;
+  private final WorkflowInterceptor interceptorFactory;
   private final boolean enableLoggingInReplay;
 
   private WorkerFactoryOptions(
       int cacheMaximumSize,
       int maxWorkflowThreadCount,
       int stickyDecisionScheduleToStartTimeoutInSeconds,
-      WorkflowExecutionInterceptor interceptorFactory,
+      WorkflowInterceptor interceptorFactory,
       boolean enableLoggingInReplay,
       boolean validate) {
     if (validate) {
@@ -147,7 +147,19 @@ public class WorkerFactoryOptions {
         stickyDecisionScheduleToStartTimeoutInSeconds = 5;
       }
       if (interceptorFactory == null) {
-        interceptorFactory = new NoopWorkflowExecutionInterceptor();
+        interceptorFactory =
+            (args, interceptor, next) ->
+                new WorkflowInvoker() {
+                  @Override
+                  public Object execute(Object[] arguments) {
+                    return next.execute(arguments, interceptor);
+                  }
+
+                  @Override
+                  public void processSignal(String signalName, Object[] arguments, long eventId) {
+                    next.processSignal(signalName, arguments, eventId);
+                  }
+                };
       }
     }
     this.cacheMaximumSize = cacheMaximumSize;
@@ -170,19 +182,11 @@ public class WorkerFactoryOptions {
     return stickyDecisionScheduleToStartTimeoutInSeconds;
   }
 
-  public WorkflowExecutionInterceptor getInterceptorFactory() {
+  public WorkflowInterceptor getInterceptorFactory() {
     return interceptorFactory;
   }
 
   public boolean isEnableLoggingInReplay() {
     return enableLoggingInReplay;
-  }
-
-  static class NoopWorkflowExecutionInterceptor implements WorkflowExecutionInterceptor {
-    @Override
-    public WorkflowCallsInterceptor interceptExecuteWorkflow(
-        String workflowType, Object[] arguments, WorkflowCallsInterceptor next) {
-      return next;
-    }
   }
 }

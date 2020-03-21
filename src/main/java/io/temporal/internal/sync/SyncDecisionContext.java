@@ -58,7 +58,7 @@ import io.temporal.workflow.Promise;
 import io.temporal.workflow.SignalExternalWorkflowException;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowCallsInterceptor;
-import io.temporal.workflow.WorkflowExecutionInterceptor;
+import io.temporal.workflow.WorkflowInterceptor;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.HashMap;
@@ -89,13 +89,13 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
   private final WorkflowTimers timers = new WorkflowTimers();
   private final Map<String, Functions.Func1<byte[], byte[]>> queryCallbacks = new HashMap<>();
   private final byte[] lastCompletionResult;
-  private final WorkflowExecutionInterceptor interceptorFactory;
+  private final WorkflowInterceptor interceptorFactory;
 
   public SyncDecisionContext(
       DecisionContext context,
       DataConverter converter,
       List<ContextPropagator> contextPropagators,
-      WorkflowExecutionInterceptor interceptorFactory,
+      WorkflowInterceptor interceptorFactory,
       byte[] lastCompletionResult) {
     this.context = context;
     this.converter = converter;
@@ -120,19 +120,10 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     return headInterceptor;
   }
 
-  public WorkflowCallsInterceptor createWorkflowInterceptor(
-      String workflowType, Object[] arguments) {
-    if (headInterceptor != null) {
-      return headInterceptor;
+  public void setHeadInterceptor(WorkflowCallsInterceptor head) {
+    if (headInterceptor == null) {
+      this.headInterceptor = head;
     }
-    WorkflowCallsInterceptor interceptor =
-        interceptorFactory.interceptExecuteWorkflow(workflowType, arguments, this);
-    if (interceptor == null) {
-      log.warn("WorkflowInterceptor factory returned null interceptor");
-      interceptor = this;
-    }
-    this.headInterceptor = interceptor;
-    return headInterceptor;
   }
 
   @Override

@@ -34,7 +34,7 @@ import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions.Func;
-import io.temporal.workflow.WorkflowExecutionInterceptor;
+import io.temporal.workflow.WorkflowInterceptor;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.Objects;
@@ -59,7 +59,7 @@ public class SyncWorkflowWorker
       WorkflowServiceStubs service,
       String domain,
       String taskList,
-      WorkflowExecutionInterceptor interceptorFactory,
+      WorkflowInterceptor interceptorFactory,
       SingleWorkerOptions workflowOptions,
       SingleWorkerOptions localActivityOptions,
       DeciderCache cache,

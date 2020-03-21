@@ -139,7 +139,7 @@ public class WorkflowTest {
 
   private static final String ANNOTATION_TASK_LIST = "WorkflowTest-testExecute[Docker]";
 
-  private TracingWorkflowExecutionInterceptor tracer;
+  private TracingWorkflowInterceptor tracer;
   private static final boolean useExternalService =
       Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
   private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
@@ -251,7 +251,7 @@ public class WorkflowTest {
     } else {
       taskList = "WorkflowTest-" + testMethod + "-" + UUID.randomUUID().toString();
     }
-    tracer = new TracingWorkflowExecutionInterceptor();
+    tracer = new TracingWorkflowInterceptor();
     // TODO: Create a version of TestWorkflowEnvironment that runs against a real service.
     lastStartedWorkflowType.set(null);
     WorkflowClientOptions workflowClientOptions =
@@ -4397,17 +4397,10 @@ public class WorkflowTest {
     }
   }
 
-  private static class TracingWorkflowExecutionInterceptor implements WorkflowExecutionInterceptor {
+  private static class TracingWorkflowInterceptor implements WorkflowInterceptor {
 
     private final FilteredTrace trace = new FilteredTrace();
     private List<String> expected;
-
-    @Override
-    public WorkflowCallsInterceptor interceptExecuteWorkflow(
-        String workflowType, Object[] arguments, WorkflowCallsInterceptor next) {
-      trace.add("interceptExecuteWorkflow " + Workflow.getWorkflowInfo().getWorkflowId());
-      return new TracingWorkflowCallsInterceptor(trace, next);
-    }
 
     public String getTrace() {
       return String.join("\n", trace.getImpl());
@@ -4426,6 +4419,25 @@ public class WorkflowTest {
           Assert.assertTrue(t + " doesn't match " + expectedRegExp, t.matches(expectedRegExp));
         }
       }
+    }
+
+    @Override
+    public WorkflowInvoker interceptExecuteWorkflow(
+        Object[] arguments,
+        WorkflowCallsInterceptor interceptor,
+        WorkflowInvocationInterceptor next) {
+      trace.add("interceptExecuteWorkflow " + Workflow.getWorkflowInfo().getWorkflowId());
+      return new WorkflowInvoker() {
+        @Override
+        public Object execute(Object[] arguments) {
+          return next.execute(arguments, new TracingWorkflowCallsInterceptor(trace, interceptor));
+        }
+
+        @Override
+        public void processSignal(String signalName, Object[] arguments, long eventId) {
+          next.processSignal(signalName, arguments, eventId);
+        }
+      };
     }
   }
 

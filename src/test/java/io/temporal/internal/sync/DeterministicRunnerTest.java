@@ -19,10 +19,7 @@
 
 package io.temporal.internal.sync;
 
-import static junit.framework.TestCase.assertEquals;
-import static junit.framework.TestCase.assertNotNull;
-import static junit.framework.TestCase.assertTrue;
-import static junit.framework.TestCase.fail;
+import static junit.framework.TestCase.*;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.Mockito.*;
 
@@ -49,6 +46,7 @@ import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflow.WorkflowInvoker;
 import io.temporal.workflow.WorkflowTest;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -733,7 +731,19 @@ public class DeterministicRunnerTest {
                 decisionContext,
                 JsonDataConverter.getInstance(),
                 null,
-                (type, args, next) -> next,
+                (args, interceptor, next) ->
+                    new WorkflowInvoker() {
+                      @Override
+                      public Object execute(Object[] arguments) {
+                        return next.execute(arguments, interceptor);
+                      }
+
+                      @Override
+                      public void processSignal(
+                          String signalName, Object[] arguments, long eventId) {
+                        next.processSignal(signalName, arguments, eventId);
+                      }
+                    },
                 null),
             () -> 0L, // clock override
             () -> {
@@ -762,7 +772,19 @@ public class DeterministicRunnerTest {
                 decisionContext,
                 JsonDataConverter.getInstance(),
                 null,
-                (type, args, next) -> next,
+                (args, interceptor, next) ->
+                    new WorkflowInvoker() {
+                      @Override
+                      public Object execute(Object[] arguments) {
+                        return next.execute(arguments, interceptor);
+                      }
+
+                      @Override
+                      public void processSignal(
+                          String signalName, Object[] arguments, long eventId) {
+                        next.processSignal(signalName, arguments, eventId);
+                      }
+                    },
                 null),
             () -> 0L, // clock override
             () -> {

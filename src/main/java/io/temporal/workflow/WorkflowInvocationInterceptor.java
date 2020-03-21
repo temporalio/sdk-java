@@ -19,8 +19,8 @@
 
 package io.temporal.workflow;
 
-/** Intercepts workflow execution. */
-public interface WorkflowExecutionInterceptor {
-  WorkflowCallsInterceptor interceptExecuteWorkflow(
-      String workflowType, Object[] arguments, WorkflowCallsInterceptor next);
+public interface WorkflowInvocationInterceptor {
+  Object execute(Object[] arguments, WorkflowCallsInterceptor interceptor);
+
+  void processSignal(String signalName, Object[] arguments, long EventId);
 }

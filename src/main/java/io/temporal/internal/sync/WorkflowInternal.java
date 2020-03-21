@@ -256,14 +256,11 @@ public final class WorkflowInternal {
         .getWorkflowInterceptor();
   }
 
-  static WorkflowCallsInterceptor createWorkflowInterceptor(
-      String workflowType, Object[] arguments) {
-    return DeterministicRunnerImpl.currentThreadInternal()
-        .getDecisionContext()
-        .createWorkflowInterceptor(workflowType, arguments);
+  static void setHeadInterceptor(WorkflowCallsInterceptor head) {
+    DeterministicRunnerImpl.currentThreadInternal().getDecisionContext().setHeadInterceptor(head);
   }
 
-  private static SyncDecisionContext getRootDecisionContext() {
+  static SyncDecisionContext getRootDecisionContext() {
     return DeterministicRunnerImpl.currentThreadInternal().getDecisionContext();
   }
 

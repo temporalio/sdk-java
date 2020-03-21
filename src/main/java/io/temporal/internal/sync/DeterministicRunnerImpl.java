@@ -39,6 +39,7 @@ import io.temporal.proto.common.WorkflowType;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
+import io.temporal.workflow.WorkflowInvoker;
 import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -191,7 +192,18 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         new DummyDecisionContext(),
         JsonDataConverter.getInstance(),
         null,
-        (workflowType, arguments, next) -> next,
+        (arguments, interceptor, next) ->
+            new WorkflowInvoker() {
+              @Override
+              public Object execute(Object[] arguments) {
+                return next.execute(arguments, interceptor);
+              }
+
+              @Override
+              public void processSignal(String signalName, Object[] arguments, long eventId) {
+                next.processSignal(signalName, arguments, eventId);
+              }
+            },
         null);
   }
 
