@@ -153,6 +153,10 @@ class WorkflowInvocationHandler implements InvocationHandler {
     } catch (NoSuchMethodException e) {
       throw new Error("unexpected", e);
     }
+    // Implement StubMarker
+    if (method.getName().equals(StubMarker.GET_UNTYPED_STUB_METHOD)) {
+      return untyped;
+    }
     if (!method.getDeclaringClass().isInterface()) {
       throw new IllegalArgumentException(
           "Interface type is expected: " + method.getDeclaringClass());

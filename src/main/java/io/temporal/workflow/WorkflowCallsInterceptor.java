@@ -32,7 +32,16 @@ import java.util.UUID;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 
-public interface WorkflowInterceptor {
+/**
+ * Can be used to intercept workflow code calls to Temporal APIs. An instance should be created
+ * through {@link WorkflowExecutionInterceptor#interceptExecuteWorkflow(String, Object[],
+ * WorkflowCallsInterceptor)}. An interceptor instance must forward all the calls to the next
+ * interceptor passed to the interceptExecuteWorkflow call.
+ *
+ * <p>The calls to the interceptor are executed in the context of a workflow and must follow the
+ * same rules all the other workflow code follows.
+ */
+public interface WorkflowCallsInterceptor {
 
   final class WorkflowResult<R> {
 

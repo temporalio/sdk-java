@@ -54,7 +54,7 @@ import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowInterceptor;
+import io.temporal.workflow.WorkflowCallsInterceptor;
 import java.io.IOException;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Type;
@@ -207,7 +207,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
   }
 
-  private class TestActivityExecutor implements WorkflowInterceptor {
+  private class TestActivityExecutor implements WorkflowCallsInterceptor {
 
     @Override
     public <T> Promise<T> executeActivity(

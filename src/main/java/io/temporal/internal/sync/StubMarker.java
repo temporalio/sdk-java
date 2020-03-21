@@ -20,7 +20,6 @@
 package io.temporal.internal.sync;
 
 import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.workflow.Promise;
 
 /**
  * Interface that stub created through {@link
@@ -29,8 +28,8 @@ import io.temporal.workflow.Promise;
  * io.temporal.workflow.Workflow#getWorkflowExecution(Object)} to access {@link WorkflowExecution}
  * out of a workflow stub.
  */
-public interface WorkflowStubMarker {
-  String GET_EXECUTION_METHOD_NAME = "__getWorkflowExecution";
+public interface StubMarker {
+  String GET_UNTYPED_STUB_METHOD = "__getUntypedStub";
 
-  Promise<WorkflowExecution> __getWorkflowExecution();
+  Object __getUntypedStub();
 }

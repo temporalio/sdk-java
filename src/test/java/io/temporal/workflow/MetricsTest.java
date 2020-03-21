@@ -40,7 +40,7 @@ import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
-import io.temporal.workflow.interceptors.SignalWorkflowInterceptor;
+import io.temporal.workflow.interceptors.SignalWorkflowCallsInterceptor;
 import java.time.Duration;
 import java.util.Map;
 import org.junit.Rule;
@@ -274,7 +274,7 @@ public class MetricsTest {
     setUp(
         com.uber.m3.util.Duration.ofMillis(300),
         WorkerFactoryOptions.newBuilder()
-            .setInterceptorFactory(new CorruptedSignalWorkflowInterceptorFactory())
+            .setInterceptorFactory(new CorruptedSignalWorkflowExecutionInterceptor())
             .build());
 
     Worker worker = testEnvironment.newWorker(taskList);
@@ -306,12 +306,13 @@ public class MetricsTest {
     testEnvironment.close();
   }
 
-  private static class CorruptedSignalWorkflowInterceptorFactory
-      implements WorkflowInterceptorFactory {
+  private static class CorruptedSignalWorkflowExecutionInterceptor
+      implements WorkflowExecutionInterceptor {
 
     @Override
-    public WorkflowInterceptor apply(WorkflowInterceptor next) {
-      return new SignalWorkflowInterceptor(
+    public WorkflowCallsInterceptor interceptExecuteWorkflow(
+        String workflowType, Object[] arguments, WorkflowCallsInterceptor next) {
+      return new SignalWorkflowCallsInterceptor(
           args -> {
             if (args != null && args.length > 0) {
               return new Object[] {"Corrupted Signal"};

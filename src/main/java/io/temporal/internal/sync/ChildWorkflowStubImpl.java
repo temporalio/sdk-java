@@ -28,8 +28,8 @@ import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.SignalExternalWorkflowException;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowInterceptor;
-import io.temporal.workflow.WorkflowInterceptor.WorkflowResult;
+import io.temporal.workflow.WorkflowCallsInterceptor;
+import io.temporal.workflow.WorkflowCallsInterceptor.WorkflowResult;
 import java.lang.reflect.Type;
 import java.util.Objects;
 
@@ -37,11 +37,11 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
 
   private final String workflowType;
   private final ChildWorkflowOptions options;
-  private final WorkflowInterceptor decisionContext;
+  private final WorkflowCallsInterceptor decisionContext;
   private final CompletablePromise<WorkflowExecution> execution;
 
   ChildWorkflowStubImpl(
-      String workflowType, ChildWorkflowOptions options, WorkflowInterceptor decisionContext) {
+      String workflowType, ChildWorkflowOptions options, WorkflowCallsInterceptor decisionContext) {
     this.workflowType = Objects.requireNonNull(workflowType);
     this.options = ChildWorkflowOptions.newBuilder(options).validateAndBuildWithDefaults();
     this.decisionContext = Objects.requireNonNull(decisionContext);

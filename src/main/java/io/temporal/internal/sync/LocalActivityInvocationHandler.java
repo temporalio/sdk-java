@@ -23,22 +23,22 @@ import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.MethodRetry;
 import io.temporal.workflow.ActivityStub;
-import io.temporal.workflow.WorkflowInterceptor;
+import io.temporal.workflow.WorkflowCallsInterceptor;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.util.function.Function;
 
 class LocalActivityInvocationHandler extends ActivityInvocationHandlerBase {
   private final LocalActivityOptions options;
-  private final WorkflowInterceptor activityExecutor;
+  private final WorkflowCallsInterceptor activityExecutor;
 
   static InvocationHandler newInstance(
-      LocalActivityOptions options, WorkflowInterceptor activityExecutor) {
+      LocalActivityOptions options, WorkflowCallsInterceptor activityExecutor) {
     return new LocalActivityInvocationHandler(options, activityExecutor);
   }
 
   private LocalActivityInvocationHandler(
-      LocalActivityOptions options, WorkflowInterceptor activityExecutor) {
+      LocalActivityOptions options, WorkflowCallsInterceptor activityExecutor) {
     this.options = options;
     this.activityExecutor = activityExecutor;
   }

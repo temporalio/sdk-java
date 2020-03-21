@@ -34,16 +34,16 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-public class SignalWorkflowInterceptor implements WorkflowInterceptor {
+public class SignalWorkflowCallsInterceptor implements WorkflowCallsInterceptor {
 
   private Function<Object[], Object[]> overrideArgs;
   private Function<String, String> overrideSignalName;
-  private final WorkflowInterceptor next;
+  private final WorkflowCallsInterceptor next;
 
-  public SignalWorkflowInterceptor(
+  public SignalWorkflowCallsInterceptor(
       Function<Object[], Object[]> overrideArgs,
       Function<String, String> overrideSignalName,
-      WorkflowInterceptor next) {
+      WorkflowCallsInterceptor next) {
     this.overrideArgs = overrideArgs;
     this.overrideSignalName = overrideSignalName;
     this.next = Objects.requireNonNull(next);

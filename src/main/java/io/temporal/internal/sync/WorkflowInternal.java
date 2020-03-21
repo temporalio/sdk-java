@@ -42,8 +42,8 @@ import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflow.WorkflowCallsInterceptor;
 import io.temporal.workflow.WorkflowInfo;
-import io.temporal.workflow.WorkflowInterceptor;
 import io.temporal.workflow.WorkflowQueue;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -149,7 +149,7 @@ public final class WorkflowInternal {
    * @param activityInterface interface type implemented by activities
    */
   public static <T> T newActivityStub(Class<T> activityInterface, ActivityOptions options) {
-    WorkflowInterceptor decisionContext = WorkflowInternal.getWorkflowInterceptor();
+    WorkflowCallsInterceptor decisionContext = WorkflowInternal.getWorkflowInterceptor();
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(options, decisionContext);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
@@ -162,7 +162,7 @@ public final class WorkflowInternal {
    */
   public static <T> T newLocalActivityStub(
       Class<T> activityInterface, LocalActivityOptions options) {
-    WorkflowInterceptor decisionContext = WorkflowInternal.getWorkflowInterceptor();
+    WorkflowCallsInterceptor decisionContext = WorkflowInternal.getWorkflowInterceptor();
     InvocationHandler invocationHandler =
         LocalActivityInvocationHandler.newInstance(options, decisionContext);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
@@ -182,7 +182,7 @@ public final class WorkflowInternal {
     return (T)
         Proxy.newProxyInstance(
             WorkflowInternal.class.getClassLoader(),
-            new Class<?>[] {workflowInterface, WorkflowStubMarker.class, AsyncMarker.class},
+            new Class<?>[] {workflowInterface, StubMarker.class, AsyncMarker.class},
             new ChildWorkflowInvocationHandler(
                 workflowInterface, options, getWorkflowInterceptor()));
   }
@@ -193,13 +193,14 @@ public final class WorkflowInternal {
     return (T)
         Proxy.newProxyInstance(
             WorkflowInternal.class.getClassLoader(),
-            new Class<?>[] {workflowInterface, WorkflowStubMarker.class, AsyncMarker.class},
+            new Class<?>[] {workflowInterface, StubMarker.class, AsyncMarker.class},
             new ExternalWorkflowInvocationHandler(execution, getWorkflowInterceptor()));
   }
 
   public static Promise<WorkflowExecution> getWorkflowExecution(Object workflowStub) {
-    if (workflowStub instanceof WorkflowStubMarker) {
-      return ((WorkflowStubMarker) workflowStub).__getWorkflowExecution();
+    if (workflowStub instanceof StubMarker) {
+      Object stub = ((StubMarker) workflowStub).__getUntypedStub();
+      return ((ChildWorkflowStub) stub).getExecution();
     }
     throw new IllegalArgumentException(
         "Not a workflow stub created through Workflow.newChildWorkflowStub: " + workflowStub);
@@ -249,10 +250,17 @@ public final class WorkflowInternal {
     return result.get();
   }
 
-  private static WorkflowInterceptor getWorkflowInterceptor() {
+  private static WorkflowCallsInterceptor getWorkflowInterceptor() {
     return DeterministicRunnerImpl.currentThreadInternal()
         .getDecisionContext()
         .getWorkflowInterceptor();
+  }
+
+  static WorkflowCallsInterceptor createWorkflowInterceptor(
+      String workflowType, Object[] arguments) {
+    return DeterministicRunnerImpl.currentThreadInternal()
+        .getDecisionContext()
+        .createWorkflowInterceptor(workflowType, arguments);
   }
 
   private static SyncDecisionContext getRootDecisionContext() {
@@ -344,7 +352,7 @@ public final class WorkflowInternal {
       Optional<String> workflowType,
       Optional<ContinueAsNewOptions> options,
       Object[] args,
-      WorkflowInterceptor decisionContext) {
+      WorkflowCallsInterceptor decisionContext) {
     decisionContext.continueAsNew(workflowType, options, args);
   }
 

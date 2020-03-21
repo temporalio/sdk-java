@@ -139,7 +139,7 @@ public class WorkflowTest {
 
   private static final String ANNOTATION_TASK_LIST = "WorkflowTest-testExecute[Docker]";
 
-  private TracingWorkflowInterceptorFactory tracer;
+  private TracingWorkflowExecutionInterceptor tracer;
   private static final boolean useExternalService =
       Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
   private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
@@ -251,7 +251,7 @@ public class WorkflowTest {
     } else {
       taskList = "WorkflowTest-" + testMethod + "-" + UUID.randomUUID().toString();
     }
-    tracer = new TracingWorkflowInterceptorFactory();
+    tracer = new TracingWorkflowExecutionInterceptor();
     // TODO: Create a version of TestWorkflowEnvironment that runs against a real service.
     lastStartedWorkflowType.set(null);
     WorkflowClientOptions workflowClientOptions =
@@ -413,6 +413,7 @@ public class WorkflowTest {
     String result = workflowStub.execute(taskList);
     assertEquals("activity10", result);
     tracer.setExpected(
+        "interceptExecuteWorkflow " + UUID_REGEXP,
         "sleep PT2S",
         "executeActivity TestActivities::activityWithDelay",
         "executeActivity TestActivities::activity2");
@@ -1069,7 +1070,16 @@ public class WorkflowTest {
             TestContinueAsNew.class, newWorkflowOptionsBuilder(this.taskList).build());
     int result = client.execute(4, continuedTaskList);
     assertEquals(111, result);
-    tracer.setExpected("continueAsNew", "continueAsNew", "continueAsNew", "continueAsNew");
+    tracer.setExpected(
+        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "continueAsNew",
+        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "continueAsNew",
+        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "continueAsNew",
+        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "continueAsNew",
+        "interceptExecuteWorkflow " + UUID_REGEXP);
   }
 
   public static class TestAsyncActivityWorkflowImpl implements TestWorkflow1 {
@@ -1936,10 +1946,18 @@ public class WorkflowTest {
     assertEquals("testTimer", result);
     if (useExternalService) {
       tracer.setExpected(
-          "registerQuery getTrace", "newTimer PT0.7S", "newTimer PT1.3S", "newTimer PT10S");
+          "interceptExecuteWorkflow " + UUID_REGEXP,
+          "registerQuery getTrace",
+          "newTimer PT0.7S",
+          "newTimer PT1.3S",
+          "newTimer PT10S");
     } else {
       tracer.setExpected(
-          "registerQuery getTrace", "newTimer PT11M40S", "newTimer PT21M40S", "newTimer PT10H");
+          "interceptExecuteWorkflow " + UUID_REGEXP,
+          "registerQuery getTrace",
+          "newTimer PT11M40S",
+          "newTimer PT21M40S",
+          "newTimer PT10H");
     }
   }
 
@@ -2692,7 +2710,9 @@ public class WorkflowTest {
         r1 = r1P.get();
       }
       ITestNamedChild child2 = Workflow.newChildWorkflowStub(ITestNamedChild.class, options);
-      String r2 = child2.execute("World!");
+      ChildWorkflowStub child2Stub = ChildWorkflowStub.fromTyped(child2);
+      // Same as String r2 = child2.execute("World!");
+      String r2 = child2Stub.execute(String.class, "World!");
       if (parallel) {
         r1 = r1P.get();
       }
@@ -2934,7 +2954,9 @@ public class WorkflowTest {
           WorkflowExecution.newBuilder().setWorkflowId(parentWorkflowID).build();
       TestWorkflowSignaled parent =
           Workflow.newExternalWorkflowStub(TestWorkflowSignaled.class, parentExecution);
-      parent.signal1("World");
+      ExternalWorkflowStub untyped = ExternalWorkflowStub.fromTyped(parent);
+      //  Same as parent.signal1("World");
+      untyped.signal("testSignal", "World");
       return greeting;
     }
   }
@@ -2951,8 +2973,11 @@ public class WorkflowTest {
     TestWorkflowSignaled client =
         workflowClient.newWorkflowStub(TestWorkflowSignaled.class, options);
     assertEquals("Hello World!", client.execute());
+    WorkflowStub stub = WorkflowStub.fromTyped(client);
     tracer.setExpected(
+        "interceptExecuteWorkflow " + stub.getExecution().getWorkflowId(),
         "executeChildWorkflow SignalingChild::execute",
+        "interceptExecuteWorkflow " + UUID_REGEXP, // child
         "signalExternalWorkflow " + UUID_REGEXP + " testSignal");
   }
 
@@ -3969,7 +3994,11 @@ public class WorkflowTest {
             TestWorkflow1.class, newWorkflowOptionsBuilder(taskList).build());
     String result = workflowStub.execute(taskList);
     assertEquals("activity1", result);
-    tracer.setExpected("sideEffect", "sleep PT1S", "executeActivity customActivity1");
+    tracer.setExpected(
+        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "sideEffect",
+        "sleep PT1S",
+        "executeActivity customActivity1");
   }
 
   private static final Map<String, Queue<Long>> mutableSideEffectValue =
@@ -4065,6 +4094,7 @@ public class WorkflowTest {
     String result = workflowStub.execute(taskList);
     assertEquals("activity22activity1activity1activity1", result);
     tracer.setExpected(
+        "interceptExecuteWorkflow " + UUID_REGEXP,
         "getVersion",
         "executeActivity TestActivities::activity2",
         "getVersion",
@@ -4201,6 +4231,7 @@ public class WorkflowTest {
     String result = workflowStub.execute(taskList);
     assertEquals("activity22activity", result);
     tracer.setExpected(
+        "interceptExecuteWorkflow " + UUID_REGEXP,
         "getVersion",
         "executeActivity TestActivities::activity2",
         "executeActivity TestActivities::activity");
@@ -4235,7 +4266,11 @@ public class WorkflowTest {
             TestWorkflow1.class, newWorkflowOptionsBuilder(taskList).build());
     String result = workflowStub.execute(taskList);
     assertEquals("activity", result);
-    tracer.setExpected("getVersion", "getVersion", "executeActivity TestActivities::activity");
+    tracer.setExpected(
+        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "getVersion",
+        "getVersion",
+        "executeActivity TestActivities::activity");
   }
 
   public static class TestVersionNotSupportedWorkflowImpl implements TestWorkflow1 {
@@ -4362,14 +4397,16 @@ public class WorkflowTest {
     }
   }
 
-  private static class TracingWorkflowInterceptorFactory implements WorkflowInterceptorFactory {
+  private static class TracingWorkflowExecutionInterceptor implements WorkflowExecutionInterceptor {
 
     private final FilteredTrace trace = new FilteredTrace();
     private List<String> expected;
 
     @Override
-    public WorkflowInterceptor apply(WorkflowInterceptor next) {
-      return new TracingWorkflowInterceptor(trace, next);
+    public WorkflowCallsInterceptor interceptExecuteWorkflow(
+        String workflowType, Object[] arguments, WorkflowCallsInterceptor next) {
+      trace.add("interceptExecuteWorkflow " + Workflow.getWorkflowInfo().getWorkflowId());
+      return new TracingWorkflowCallsInterceptor(trace, next);
     }
 
     public String getTrace() {
@@ -4421,7 +4458,11 @@ public class WorkflowTest {
             TestWorkflow1.class, newWorkflowOptionsBuilder(taskList).build());
     String result = workflowStub.execute(taskList);
     assertEquals("foo10", result);
-    tracer.setExpected("sideEffect", "sideEffect", "executeActivity TestActivities::activity2");
+    tracer.setExpected(
+        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "sideEffect",
+        "sideEffect",
+        "executeActivity TestActivities::activity2");
   }
 
   public interface GenericParametersActivity {
@@ -5212,10 +5253,13 @@ public class WorkflowTest {
             TestSagaWorkflow.class, newWorkflowOptionsBuilder(taskList).build());
     sagaWorkflow.execute(taskList, false);
     tracer.setExpected(
+        "interceptExecuteWorkflow " + UUID_REGEXP,
         "executeActivity customActivity1",
         "executeChildWorkflow TestMultiargsWorkflowsFunc::func",
+        "interceptExecuteWorkflow " + UUID_REGEXP,
         "executeActivity TestActivities::throwIO",
         "executeChildWorkflow TestCompensationWorkflow::compensate",
+        "interceptExecuteWorkflow " + UUID_REGEXP,
         "executeActivity TestActivities::activity2");
   }
 
@@ -5333,7 +5377,10 @@ public class WorkflowTest {
             TestUpsertSearchAttributes.class, newWorkflowOptionsBuilder(taskList).build());
     String result = testWorkflow.execute(taskList, "testKey");
     assertEquals("done", result);
-    tracer.setExpected("upsertSearchAttributes", "executeActivity TestActivities::activity");
+    tracer.setExpected(
+        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "upsertSearchAttributes",
+        "executeActivity TestActivities::activity");
   }
 
   public static class TestMultiargsWorkflowsFuncChild implements TestMultiargsWorkflowsFunc2 {
@@ -5379,14 +5426,13 @@ public class WorkflowTest {
     assertEquals(expected, result);
   }
 
-  private static class TracingWorkflowInterceptor implements WorkflowInterceptor {
+  private static class TracingWorkflowCallsInterceptor implements WorkflowCallsInterceptor {
 
     private final FilteredTrace trace;
-    private final WorkflowInterceptor next;
+    private final WorkflowCallsInterceptor next;
 
-    private TracingWorkflowInterceptor(FilteredTrace trace, WorkflowInterceptor next) {
+    private TracingWorkflowCallsInterceptor(FilteredTrace trace, WorkflowCallsInterceptor next) {
       WorkflowInfo workflowInfo = Workflow.getWorkflowInfo();
-      trace.add("init " + workflowInfo.getWorkflowId());
       this.trace = trace;
       this.next = Objects.requireNonNull(next);
     }

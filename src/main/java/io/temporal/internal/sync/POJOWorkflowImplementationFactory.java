@@ -40,8 +40,8 @@ import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflow.WorkflowExecutionInterceptor;
 import io.temporal.workflow.WorkflowInfo;
-import io.temporal.workflow.WorkflowInterceptorFactory;
 import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -60,7 +60,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   private static final Logger log =
       LoggerFactory.getLogger(POJOWorkflowImplementationFactory.class);
   private static final byte[] EMPTY_BLOB = {};
-  private final WorkflowInterceptorFactory interceptorFactory;
+  private final WorkflowExecutionInterceptor interceptorFactory;
 
   private DataConverter dataConverter;
   private List<ContextPropagator> contextPropagators;
@@ -81,7 +81,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   POJOWorkflowImplementationFactory(
       DataConverter dataConverter,
       ExecutorService threadPool,
-      WorkflowInterceptorFactory interceptorFactory,
+      WorkflowExecutionInterceptor interceptorFactory,
       DeciderCache cache,
       List<ContextPropagator> contextPropagators) {
     this.dataConverter = Objects.requireNonNull(dataConverter);
@@ -240,8 +240,11 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     @Override
     public byte[] execute(byte[] input) throws CancellationException, WorkflowExecutionException {
       Object[] args = dataConverter.fromDataArray(input, workflowMethod.getGenericParameterTypes());
+      WorkflowInfo context = Workflow.getWorkflowInfo();
       try {
+        WorkflowInternal.createWorkflowInterceptor(context.getWorkflowType(), args);
         newInstance();
+        WorkflowInternal.registerQuery(workflow);
         Object result = workflowMethod.invoke(workflow, args);
         if (workflowMethod.getReturnType() == Void.TYPE) {
           return EMPTY_BLOB;
@@ -259,7 +262,6 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
           throw (CancellationException) targetException;
         }
         if (log.isErrorEnabled()) {
-          WorkflowInfo context = Workflow.getWorkflowInfo();
           log.error(
               "Workflow execution failure "
                   + "WorkflowID="
@@ -294,7 +296,6 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
                 e);
           }
         }
-        WorkflowInternal.registerQuery(workflow);
       }
     }
 
@@ -321,6 +322,9 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       try {
         Object[] args = dataConverter.fromDataArray(input, signalMethod.getGenericParameterTypes());
         newInstance();
+        WorkflowInfo context = Workflow.getWorkflowInfo();
+        WorkflowInternal.createWorkflowInterceptor(context.getWorkflowType(), args);
+        WorkflowInternal.registerQuery(workflow);
         signalMethod.invoke(workflow, args);
       } catch (IllegalAccessException e) {
         throw new Error("Failure processing \"" + signalName + "\" at eventID " + eventId, e);

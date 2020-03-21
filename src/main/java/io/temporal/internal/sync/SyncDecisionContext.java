@@ -57,8 +57,8 @@ import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.SignalExternalWorkflowException;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowInterceptor;
-import io.temporal.workflow.WorkflowInterceptorFactory;
+import io.temporal.workflow.WorkflowCallsInterceptor;
+import io.temporal.workflow.WorkflowExecutionInterceptor;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.HashMap;
@@ -77,7 +77,7 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class SyncDecisionContext implements WorkflowInterceptor {
+final class SyncDecisionContext implements WorkflowCallsInterceptor {
 
   private static final Logger log = LoggerFactory.getLogger(SyncDecisionContext.class);
 
@@ -85,17 +85,17 @@ final class SyncDecisionContext implements WorkflowInterceptor {
   private DeterministicRunner runner;
   private final DataConverter converter;
   private final List<ContextPropagator> contextPropagators;
-  private WorkflowInterceptor headInterceptor;
+  private WorkflowCallsInterceptor headInterceptor;
   private final WorkflowTimers timers = new WorkflowTimers();
   private final Map<String, Functions.Func1<byte[], byte[]>> queryCallbacks = new HashMap<>();
   private final byte[] lastCompletionResult;
-  private final WorkflowInterceptorFactory interceptorFactory;
+  private final WorkflowExecutionInterceptor interceptorFactory;
 
   public SyncDecisionContext(
       DecisionContext context,
       DataConverter converter,
       List<ContextPropagator> contextPropagators,
-      WorkflowInterceptorFactory interceptorFactory,
+      WorkflowExecutionInterceptor interceptorFactory,
       byte[] lastCompletionResult) {
     this.context = context;
     this.converter = converter;
@@ -116,15 +116,22 @@ final class SyncDecisionContext implements WorkflowInterceptor {
     return runner;
   }
 
-  public WorkflowInterceptor getWorkflowInterceptor() {
-    if (headInterceptor == null) {
-      WorkflowInterceptor interceptor = interceptorFactory.apply(this);
-      if (interceptor == null) {
-        log.warn("WorkflowInterceptor factory returned null interceptor");
-        interceptor = this;
-      }
-      this.headInterceptor = interceptor;
+  public WorkflowCallsInterceptor getWorkflowInterceptor() {
+    return headInterceptor;
+  }
+
+  public WorkflowCallsInterceptor createWorkflowInterceptor(
+      String workflowType, Object[] arguments) {
+    if (headInterceptor != null) {
+      return headInterceptor;
     }
+    WorkflowCallsInterceptor interceptor =
+        interceptorFactory.interceptExecuteWorkflow(workflowType, arguments, this);
+    if (interceptor == null) {
+      log.warn("WorkflowInterceptor factory returned null interceptor");
+      interceptor = this;
+    }
+    this.headInterceptor = interceptor;
     return headInterceptor;
   }
 

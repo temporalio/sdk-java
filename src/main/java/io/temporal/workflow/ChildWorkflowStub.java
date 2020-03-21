@@ -19,6 +19,7 @@
 
 package io.temporal.workflow;
 
+import io.temporal.internal.sync.StubMarker;
 import io.temporal.proto.common.WorkflowExecution;
 import java.lang.reflect.Type;
 
@@ -30,6 +31,28 @@ import java.lang.reflect.Type;
  * @see Workflow#newChildWorkflowStub(Class)
  */
 public interface ChildWorkflowStub {
+
+  /**
+   * Extracts untyped WorkflowStub from a typed workflow stub created through {@link
+   * Workflow#newChildWorkflowStub(Class)}.
+   *
+   * @param typed typed workflow stub
+   * @param <T> type of the workflow stub interface
+   * @return untyped workflow stub for the same workflow instance.
+   */
+  static <T> ChildWorkflowStub fromTyped(T typed) {
+    if (!(typed instanceof StubMarker)) {
+      throw new IllegalArgumentException(
+          "arguments must be created through Workflow.newChildWorkflowStub");
+    }
+    if (typed instanceof ExternalWorkflowStub) {
+      throw new IllegalArgumentException(
+          "Use ExternalWorkflowStub.fromTyped to extract stub created through Workflow#newExternalWorkflowStub");
+    }
+    @SuppressWarnings("unchecked")
+    StubMarker supplier = (StubMarker) typed;
+    return (ChildWorkflowStub) supplier.__getUntypedStub();
+  }
 
   String getWorkflowType();
 
