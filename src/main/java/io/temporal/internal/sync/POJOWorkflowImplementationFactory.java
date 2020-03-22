@@ -256,23 +256,24 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     }
 
     private void newInstance() {
-      if (workflow == null) {
-        Func<?> factory = workflowImplementationFactories.get(workflowImplementationClass);
-        if (factory != null) {
-          workflow = factory.apply();
-        } else {
-          try {
-            workflow = workflowImplementationClass.getDeclaredConstructor().newInstance();
-          } catch (NoSuchMethodException
-              | InstantiationException
-              | IllegalAccessException
-              | InvocationTargetException e) {
-            // Error to fail decision as this can be fixed by a new deployment.
-            throw new Error(
-                "Failure instantiating workflow implementation class "
-                    + workflowImplementationClass.getName(),
-                e);
-          }
+      if (workflow != null) {
+        throw new IllegalStateException("Already called");
+      }
+      Func<?> factory = workflowImplementationFactories.get(workflowImplementationClass);
+      if (factory != null) {
+        workflow = factory.apply();
+      } else {
+        try {
+          workflow = workflowImplementationClass.getDeclaredConstructor().newInstance();
+        } catch (NoSuchMethodException
+            | InstantiationException
+            | IllegalAccessException
+            | InvocationTargetException e) {
+          // Error to fail decision as this can be fixed by a new deployment.
+          throw new Error(
+              "Failure instantiating workflow implementation class "
+                  + workflowImplementationClass.getName(),
+              e);
         }
       }
     }
