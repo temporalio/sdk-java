@@ -40,10 +40,9 @@ import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
-import io.temporal.workflow.interceptors.SignalWorkflowInterceptor;
+import io.temporal.workflow.interceptors.SignalWorkflowCallsInterceptor;
 import java.time.Duration;
 import java.util.Map;
-import java.util.function.Function;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestWatcher;
@@ -275,7 +274,7 @@ public class MetricsTest {
     setUp(
         com.uber.m3.util.Duration.ofMillis(300),
         WorkerFactoryOptions.newBuilder()
-            .setInterceptorFactory(new CorruptedSignalWorkflowInterceptorFactory())
+            .setWorkflowInterceptor(new CorruptedSignalWorkflowInterceptor())
             .build());
 
     Worker worker = testEnvironment.newWorker(taskList);
@@ -307,20 +306,22 @@ public class MetricsTest {
     testEnvironment.close();
   }
 
-  private static class CorruptedSignalWorkflowInterceptorFactory
-      implements Function<WorkflowInterceptor, WorkflowInterceptor> {
+  private static class CorruptedSignalWorkflowInterceptor implements WorkflowInterceptor {
 
     @Override
-    public WorkflowInterceptor apply(WorkflowInterceptor next) {
-      return new SignalWorkflowInterceptor(
-          args -> {
-            if (args != null && args.length > 0) {
-              return new Object[] {"Corrupted Signal"};
-            }
-            return args;
-          },
-          sig -> sig,
-          next);
+    public WorkflowInvoker interceptExecuteWorkflow(
+        WorkflowCallsInterceptor interceptor, WorkflowInvocationInterceptor next) {
+      SignalWorkflowCallsInterceptor i =
+          new SignalWorkflowCallsInterceptor(
+              args -> {
+                if (args != null && args.length > 0) {
+                  return new Object[] {"Corrupted Signal"};
+                }
+                return args;
+              },
+              sig -> sig,
+              interceptor);
+      return new BaseWorkflowInvoker(i, next);
     }
   }
 }

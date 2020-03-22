@@ -33,12 +33,12 @@ import java.util.UUID;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 
-/** Convenience base class for WorkflowInterceptor implementations. */
-public class WorkflowInterceptorBase implements WorkflowInterceptor {
+/** Convenience base class for WorkflowCallsInterceptor implementations. */
+public class WorkflowCallsInterceptorBase implements WorkflowCallsInterceptor {
 
-  private final WorkflowInterceptor next;
+  private final WorkflowCallsInterceptor next;
 
-  public WorkflowInterceptorBase(WorkflowInterceptor next) {
+  public WorkflowCallsInterceptorBase(WorkflowCallsInterceptor next) {
     this.next = next;
   }
 

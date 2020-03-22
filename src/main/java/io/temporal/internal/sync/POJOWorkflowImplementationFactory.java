@@ -21,6 +21,7 @@ package io.temporal.internal.sync;
 
 import static io.temporal.worker.NonDeterministicWorkflowPolicy.FailWorkflow;
 
+import com.google.common.base.Preconditions;
 import com.google.common.reflect.TypeToken;
 import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
@@ -40,8 +41,11 @@ import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflow.WorkflowCallsInterceptor;
 import io.temporal.workflow.WorkflowInfo;
 import io.temporal.workflow.WorkflowInterceptor;
+import io.temporal.workflow.WorkflowInvocationInterceptor;
+import io.temporal.workflow.WorkflowInvoker;
 import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -52,7 +56,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,7 +64,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   private static final Logger log =
       LoggerFactory.getLogger(POJOWorkflowImplementationFactory.class);
   private static final byte[] EMPTY_BLOB = {};
-  private final Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory;
+  private final WorkflowInterceptor workflowInterceptor;
 
   private DataConverter dataConverter;
   private List<ContextPropagator> contextPropagators;
@@ -82,12 +85,12 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   POJOWorkflowImplementationFactory(
       DataConverter dataConverter,
       ExecutorService threadPool,
-      Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
+      WorkflowInterceptor workflowInterceptor,
       DeciderCache cache,
       List<ContextPropagator> contextPropagators) {
     this.dataConverter = Objects.requireNonNull(dataConverter);
     this.threadPool = Objects.requireNonNull(threadPool);
-    this.interceptorFactory = Objects.requireNonNull(interceptorFactory);
+    this.workflowInterceptor = Objects.requireNonNull(workflowInterceptor);
     this.cache = cache;
     this.contextPropagators = contextPropagators;
   }
@@ -210,13 +213,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     SyncWorkflowDefinition workflow = getWorkflowDefinition(workflowType);
     WorkflowImplementationOptions options = implementationOptions.get(workflowType.getName());
     return new SyncWorkflow(
-        workflow,
-        options,
-        dataConverter,
-        threadPool,
-        interceptorFactory,
-        cache,
-        contextPropagators);
+        workflow, options, dataConverter, threadPool, cache, contextPropagators);
   }
 
   @Override
@@ -230,6 +227,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     private final Class<?> workflowImplementationClass;
     private final Map<String, Method> signalHandlers;
     private Object workflow;
+    private WorkflowInvoker workflowInvoker;
 
     POJOWorkflowImplementation(
         Method method, Class<?> workflowImplementationClass, Map<String, Method> signalHandlers) {
@@ -239,63 +237,44 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     }
 
     @Override
+    public void initialize() {
+      workflowInvoker =
+          workflowInterceptor.interceptExecuteWorkflow(
+              WorkflowInternal.getRootDecisionContext(), new RootWorkflowInvocationInterceptor());
+      workflowInvoker.init();
+    }
+
+    @Override
     public byte[] execute(byte[] input) throws CancellationException, WorkflowExecutionException {
       Object[] args = dataConverter.fromDataArray(input, workflowMethod.getGenericParameterTypes());
-      try {
-        newInstance();
-        Object result = workflowMethod.invoke(workflow, args);
-        if (workflowMethod.getReturnType() == Void.TYPE) {
-          return EMPTY_BLOB;
-        }
-        return dataConverter.toData(result);
-      } catch (IllegalAccessException e) {
-        throw new Error(mapToWorkflowExecutionException(e, dataConverter));
-      } catch (InvocationTargetException e) {
-        Throwable targetException = e.getTargetException();
-        if (targetException instanceof Error) {
-          throw (Error) targetException;
-        }
-        // Cancellation should be delivered as it impacts which decision closes a workflow.
-        if (targetException instanceof CancellationException) {
-          throw (CancellationException) targetException;
-        }
-        if (log.isErrorEnabled()) {
-          WorkflowInfo context = Workflow.getWorkflowInfo();
-          log.error(
-              "Workflow execution failure "
-                  + "WorkflowID="
-                  + context.getWorkflowId()
-                  + ", RunID="
-                  + context.getRunId()
-                  + ", WorkflowType="
-                  + context.getWorkflowType(),
-              targetException);
-        }
-        // Cast to Exception is safe as Error is handled above.
-        throw mapToWorkflowExecutionException((Exception) targetException, dataConverter);
+      Preconditions.checkNotNull(workflowInvoker, "initialize not called");
+      Object result = workflowInvoker.execute(args);
+      if (workflowMethod.getReturnType() == Void.TYPE) {
+        return EMPTY_BLOB;
       }
+      return dataConverter.toData(result);
     }
 
     private void newInstance() {
-      if (workflow == null) {
-        Func<?> factory = workflowImplementationFactories.get(workflowImplementationClass);
-        if (factory != null) {
-          workflow = factory.apply();
-        } else {
-          try {
-            workflow = workflowImplementationClass.getDeclaredConstructor().newInstance();
-          } catch (NoSuchMethodException
-              | InstantiationException
-              | IllegalAccessException
-              | InvocationTargetException e) {
-            // Error to fail decision as this can be fixed by a new deployment.
-            throw new Error(
-                "Failure instantiating workflow implementation class "
-                    + workflowImplementationClass.getName(),
-                e);
-          }
+      if (workflow != null) {
+        throw new IllegalStateException("Already called");
+      }
+      Func<?> factory = workflowImplementationFactories.get(workflowImplementationClass);
+      if (factory != null) {
+        workflow = factory.apply();
+      } else {
+        try {
+          workflow = workflowImplementationClass.getDeclaredConstructor().newInstance();
+        } catch (NoSuchMethodException
+            | InstantiationException
+            | IllegalAccessException
+            | InvocationTargetException e) {
+          // Error to fail decision as this can be fixed by a new deployment.
+          throw new Error(
+              "Failure instantiating workflow implementation class "
+                  + workflowImplementationClass.getName(),
+              e);
         }
-        WorkflowInternal.registerQuery(workflow);
       }
     }
 
@@ -318,24 +297,75 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
                 + signalHandlers.keySet());
         return;
       }
-
       try {
         Object[] args = dataConverter.fromDataArray(input, signalMethod.getGenericParameterTypes());
-        newInstance();
-        signalMethod.invoke(workflow, args);
-      } catch (IllegalAccessException e) {
-        throw new Error("Failure processing \"" + signalName + "\" at eventID " + eventId, e);
+        Preconditions.checkNotNull(workflowInvoker, "initialize not called");
+        workflowInvoker.processSignal(signalName, args, eventId);
       } catch (DataConverterException e) {
         logSerializationException(signalName, eventId, e);
-      } catch (InvocationTargetException e) {
-        Throwable targetException = e.getTargetException();
-        if (targetException instanceof DataConverterException) {
-          logSerializationException(signalName, eventId, (DataConverterException) targetException);
-        } else if (targetException instanceof Error) {
-          throw (Error) targetException;
-        } else {
-          throw new Error(
-              "Failure processing \"" + signalName + "\" at eventID " + eventId, targetException);
+      }
+    }
+
+    private class RootWorkflowInvocationInterceptor implements WorkflowInvocationInterceptor {
+
+      @Override
+      public Object execute(Object[] arguments) {
+        WorkflowInfo context = Workflow.getWorkflowInfo();
+        WorkflowInternal.registerQuery(workflow);
+        try {
+          return workflowMethod.invoke(workflow, arguments);
+        } catch (IllegalAccessException e) {
+          throw new Error(mapToWorkflowExecutionException(e, dataConverter));
+        } catch (InvocationTargetException e) {
+          Throwable targetException = e.getTargetException();
+          if (targetException instanceof Error) {
+            throw (Error) targetException;
+          }
+          // Cancellation should be delivered as it impacts which decision closes a
+          // workflow.
+          if (targetException instanceof CancellationException) {
+            throw (CancellationException) targetException;
+          }
+          if (log.isErrorEnabled()) {
+            log.error(
+                "Workflow execution failure "
+                    + "WorkflowID="
+                    + context.getWorkflowId()
+                    + ", RunID="
+                    + context.getRunId()
+                    + ", WorkflowType="
+                    + context.getWorkflowType(),
+                targetException);
+          }
+          // Cast to Exception is safe as Error is handled above.
+          throw mapToWorkflowExecutionException((Exception) targetException, dataConverter);
+        }
+      }
+
+      @Override
+      public void init(WorkflowCallsInterceptor interceptor) {
+        WorkflowInternal.getRootDecisionContext().setHeadInterceptor(interceptor);
+        newInstance();
+      }
+
+      @Override
+      public void processSignal(String signalName, Object[] arguments, long eventId) {
+        Method signalMethod = signalHandlers.get(signalName);
+        try {
+          signalMethod.invoke(workflow, arguments);
+        } catch (IllegalAccessException e) {
+          throw new Error("Failure processing \"" + signalName + "\" at eventID " + eventId, e);
+        } catch (InvocationTargetException e) {
+          Throwable targetException = e.getTargetException();
+          if (targetException instanceof DataConverterException) {
+            logSerializationException(
+                signalName, eventId, (DataConverterException) targetException);
+          } else if (targetException instanceof Error) {
+            throw (Error) targetException;
+          } else {
+            throw new Error(
+                "Failure processing \"" + signalName + "\" at eventID " + eventId, targetException);
+          }
         }
       }
     }

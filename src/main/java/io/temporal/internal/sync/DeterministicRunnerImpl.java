@@ -19,6 +19,7 @@
 
 package io.temporal.internal.sync;
 
+import com.google.common.primitives.Ints;
 import com.uber.m3.tally.Scope;
 import io.temporal.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
@@ -40,10 +41,8 @@ import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
 import java.time.Duration;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -52,6 +51,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -71,6 +71,10 @@ import org.slf4j.LoggerFactory;
 /** Throws Error in case of any unexpected condition. It is to fail a decision, not a workflow. */
 class DeterministicRunnerImpl implements DeterministicRunner {
 
+  private static final int ROOT_THREAD_PRIORITY = 0;
+  private static final int CALLBACK_THREAD_PRIORITY = 10;
+  private static final int WORKFLOW_THREAD_PRIORITY = 20000000;
+
   private static class NamedRunnable {
     private final String name;
     private final Runnable runnable;
@@ -88,11 +92,18 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   private final Lock lock = new ReentrantLock();
   private final ExecutorService threadPool;
   private final SyncDecisionContext decisionContext;
-  private final Deque<WorkflowThread> threads = new ArrayDeque<>(); // protected by lock
+
+  // Note that threads field is a set. So we need to make sure that getPriority never returns the
+  // same value for different threads. We use addedThreads variable for this.
+  //
+  // protected by lock
+  private final Set<WorkflowThread> threads =
+      new TreeSet<>((t1, t2) -> Ints.compare(t1.getPriority(), t2.getPriority()));
   // Values from RunnerLocalInternal
   private final Map<RunnerLocalInternal<?>, Object> runnerLocalMap = new HashMap<>();
 
   private final List<WorkflowThread> threadsToAdd = Collections.synchronizedList(new ArrayList<>());
+  private int addedThreads;
   private final List<NamedRunnable> toExecuteInWorkflowThread = new ArrayList<>();
   private final Supplier<Long> clock;
   private DeciderCache cache;
@@ -176,19 +187,20 @@ class DeterministicRunnerImpl implements DeterministicRunner {
             threadPool,
             this,
             WORKFLOW_ROOT_THREAD_NAME,
+            ROOT_THREAD_PRIORITY,
             false,
             runnerCancellationScope,
             root,
             cache,
             getContextPropagators(),
             getPropagatedContexts());
-    threads.addLast(rootWorkflowThread);
+    threads.add(rootWorkflowThread);
     rootWorkflowThread.start();
   }
 
   private static SyncDecisionContext newDummySyncDecisionContext() {
     return new SyncDecisionContext(
-        new DummyDecisionContext(), JsonDataConverter.getInstance(), null, (next) -> next, null);
+        new DummyDecisionContext(), JsonDataConverter.getInstance(), null, null);
   }
 
   SyncDecisionContext getDecisionContext() {
@@ -208,7 +220,6 @@ class DeterministicRunnerImpl implements DeterministicRunner {
       outerLoop:
       do {
         threadsToAdd.clear();
-
         if (!toExecuteInWorkflowThread.isEmpty()) {
           List<WorkflowThread> callbackThreads = new ArrayList<>(toExecuteInWorkflowThread.size());
           for (NamedRunnable nr : toExecuteInWorkflowThread) {
@@ -218,6 +229,8 @@ class DeterministicRunnerImpl implements DeterministicRunner {
                     threadPool,
                     this,
                     nr.name,
+                    CALLBACK_THREAD_PRIORITY
+                        + (addedThreads++), // maintain the order in toExecuteInWorkflowThread
                     false,
                     runnerCancellationScope,
                     nr.runnable,
@@ -234,10 +247,9 @@ class DeterministicRunnerImpl implements DeterministicRunner {
           // Adding the callbacks in the same order as they appear in history.
 
           for (int i = callbackThreads.size() - 1; i >= 0; i--) {
-            threads.addFirst(callbackThreads.get(i));
+            threads.add(callbackThreads.get(i));
           }
         }
-
         toExecuteInWorkflowThread.clear();
         progress = false;
         Iterator<WorkflowThread> ci = threads.iterator();
@@ -267,7 +279,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
           throw unhandledException;
         }
         for (WorkflowThread c : threadsToAdd) {
-          threads.addLast(c);
+          threads.add(c);
         }
       } while (progress && !threads.isEmpty());
       if (nextWakeUpTime < currentTimeMillis()) {
@@ -329,7 +341,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
     try {
       for (WorkflowThread c : threadsToAdd) {
-        threads.addLast(c);
+        threads.add(c);
       }
       threadsToAdd.clear();
 
@@ -425,6 +437,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
   }
 
+  /** To be called only from another workflow thread. */
   WorkflowThread newThread(Runnable runnable, boolean detached, String name) {
     checkWorkflowThreadOnly();
     checkClosed();
@@ -434,6 +447,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
             threadPool,
             this,
             name,
+            WORKFLOW_THREAD_PRIORITY + (addedThreads++),
             detached,
             CancellationScopeImpl.current(),
             runnable,

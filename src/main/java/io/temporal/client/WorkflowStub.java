@@ -20,6 +20,7 @@
 package io.temporal.client;
 
 import io.temporal.internal.common.QueryResponse;
+import io.temporal.internal.sync.StubMarker;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.enums.QueryRejectCondition;
 import java.lang.reflect.Type;
@@ -27,7 +28,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Supplier;
 
 /**
  * WorkflowStub is a client side stub to a single workflow instance. It can be used to start,
@@ -43,16 +43,16 @@ public interface WorkflowStub {
    *
    * @param typed typed workflow stub
    * @param <T> type of the workflow stub interface
-   * @return untyped workflow stub for the same workflow instance.
+   * @return untyped workflow stub for the same workflow instance
    */
   static <T> WorkflowStub fromTyped(T typed) {
-    if (!(typed instanceof Supplier)) {
+    if (!(typed instanceof StubMarker)) {
       throw new IllegalArgumentException(
           "arguments must be created through WorkflowClient.newWorkflowStub");
     }
     @SuppressWarnings("unchecked")
-    Supplier<WorkflowStub> supplier = (Supplier<WorkflowStub>) typed;
-    return supplier.get();
+    StubMarker supplier = (StubMarker) typed;
+    return (WorkflowStub) supplier.__getUntypedStub();
   }
 
   void signal(String signalName, Object... args);

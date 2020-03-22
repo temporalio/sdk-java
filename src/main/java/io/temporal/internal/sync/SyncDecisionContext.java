@@ -57,7 +57,7 @@ import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.SignalExternalWorkflowException;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowInterceptor;
+import io.temporal.workflow.WorkflowCallsInterceptor;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.HashMap;
@@ -72,12 +72,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class SyncDecisionContext implements WorkflowInterceptor {
+final class SyncDecisionContext implements WorkflowCallsInterceptor {
 
   private static final Logger log = LoggerFactory.getLogger(SyncDecisionContext.class);
 
@@ -85,7 +84,7 @@ final class SyncDecisionContext implements WorkflowInterceptor {
   private DeterministicRunner runner;
   private final DataConverter converter;
   private final List<ContextPropagator> contextPropagators;
-  private final WorkflowInterceptor headInterceptor;
+  private WorkflowCallsInterceptor headInterceptor;
   private final WorkflowTimers timers = new WorkflowTimers();
   private final Map<String, Functions.Func1<byte[], byte[]>> queryCallbacks = new HashMap<>();
   private final byte[] lastCompletionResult;
@@ -94,17 +93,10 @@ final class SyncDecisionContext implements WorkflowInterceptor {
       DecisionContext context,
       DataConverter converter,
       List<ContextPropagator> contextPropagators,
-      Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
       byte[] lastCompletionResult) {
     this.context = context;
     this.converter = converter;
     this.contextPropagators = contextPropagators;
-    WorkflowInterceptor interceptor = interceptorFactory.apply(this);
-    if (interceptor == null) {
-      log.warn("WorkflowInterceptor factory returned null interceptor");
-      interceptor = this;
-    }
-    this.headInterceptor = interceptor;
     this.lastCompletionResult = lastCompletionResult;
   }
 
@@ -120,8 +112,15 @@ final class SyncDecisionContext implements WorkflowInterceptor {
     return runner;
   }
 
-  public WorkflowInterceptor getWorkflowInterceptor() {
-    return headInterceptor;
+  public WorkflowCallsInterceptor getWorkflowInterceptor() {
+    // This is needed for unit tests that create DeterministicRunner directly.
+    return headInterceptor == null ? this : headInterceptor;
+  }
+
+  public void setHeadInterceptor(WorkflowCallsInterceptor head) {
+    if (headInterceptor == null) {
+      this.headInterceptor = head;
+    }
   }
 
   @Override
@@ -415,7 +414,7 @@ final class SyncDecisionContext implements WorkflowInterceptor {
             parameters,
             (we) ->
                 runner.executeInWorkflowThread(
-                    "child workflow completion callback", () -> executionResult.complete(we)),
+                    "child workflow started callback", () -> executionResult.complete(we)),
             (output, failure) -> {
               if (failure != null) {
                 runner.executeInWorkflowThread(

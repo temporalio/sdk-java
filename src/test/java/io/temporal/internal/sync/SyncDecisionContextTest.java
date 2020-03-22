@@ -19,9 +19,7 @@
 
 package io.temporal.internal.sync;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 import io.temporal.converter.JsonDataConverter;
 import io.temporal.internal.common.InternalUtils;
@@ -39,8 +37,7 @@ public class SyncDecisionContextTest {
   @Before
   public void setUp() {
     this.context =
-        new SyncDecisionContext(
-            mockDecisionContext, JsonDataConverter.getInstance(), null, (next) -> next, null);
+        new SyncDecisionContext(mockDecisionContext, JsonDataConverter.getInstance(), null, null);
   }
 
   @Test

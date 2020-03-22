@@ -78,6 +78,8 @@ interface WorkflowThread extends CancellationScope {
 
   long getId();
 
+  int getPriority();
+
   String getStackTrace();
 
   DeterministicRunnerImpl getRunner();

@@ -19,10 +19,7 @@
 
 package io.temporal.internal.sync;
 
-import static junit.framework.TestCase.assertEquals;
-import static junit.framework.TestCase.assertNotNull;
-import static junit.framework.TestCase.assertTrue;
-import static junit.framework.TestCase.fail;
+import static junit.framework.TestCase.*;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.Mockito.*;
 
@@ -729,8 +726,7 @@ public class DeterministicRunnerTest {
     DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
             threadPool,
-            new SyncDecisionContext(
-                decisionContext, JsonDataConverter.getInstance(), null, next -> next, null),
+            new SyncDecisionContext(decisionContext, JsonDataConverter.getInstance(), null, null),
             () -> 0L, // clock override
             () -> {
               Promise<Void> thread =
@@ -754,8 +750,7 @@ public class DeterministicRunnerTest {
     DeterministicRunnerImpl d2 =
         new DeterministicRunnerImpl(
             threadPool,
-            new SyncDecisionContext(
-                decisionContext, JsonDataConverter.getInstance(), null, next -> next, null),
+            new SyncDecisionContext(decisionContext, JsonDataConverter.getInstance(), null, null),
             () -> 0L, // clock override
             () -> {
               Promise<Void> thread =

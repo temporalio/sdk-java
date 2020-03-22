@@ -33,7 +33,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.*;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -166,9 +171,10 @@ class WorkflowThreadImpl implements WorkflowThread {
   private final boolean root;
   private final ExecutorService threadPool;
   private final WorkflowThreadContext context;
-  private DeciderCache cache;
+  private final DeciderCache cache;
   private final DeterministicRunnerImpl runner;
   private final RunnableWrapper task;
+  private final int priority;
   private Thread thread;
   private Future<?> taskFuture;
   private final Map<WorkflowThreadLocalInternal<?>, Object> threadLocalMap = new HashMap<>();
@@ -186,6 +192,7 @@ class WorkflowThreadImpl implements WorkflowThread {
       ExecutorService threadPool,
       DeterministicRunnerImpl runner,
       String name,
+      int priority,
       boolean detached,
       CancellationScopeImpl parentCancellationScope,
       Runnable runnable,
@@ -197,7 +204,7 @@ class WorkflowThreadImpl implements WorkflowThread {
     this.runner = runner;
     this.context = new WorkflowThreadContext(runner.getLock());
     this.cache = cache;
-
+    this.priority = priority;
     if (name == null) {
       name = "workflow-" + super.hashCode();
     }
@@ -316,6 +323,11 @@ class WorkflowThreadImpl implements WorkflowThread {
   @Override
   public long getId() {
     return hashCode();
+  }
+
+  @Override
+  public int getPriority() {
+    return priority;
   }
 
   @Override

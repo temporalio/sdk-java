@@ -22,22 +22,22 @@ package io.temporal.internal.sync;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.workflow.ActivityStub;
 import io.temporal.workflow.Promise;
-import io.temporal.workflow.WorkflowInterceptor;
+import io.temporal.workflow.WorkflowCallsInterceptor;
 import java.lang.reflect.Type;
 
 public class LocalActivityStubImpl extends ActivityStubBase {
   protected final LocalActivityOptions options;
-  private final WorkflowInterceptor activityExecutor;
+  private final WorkflowCallsInterceptor activityExecutor;
 
   static ActivityStub newInstance(
-      LocalActivityOptions options, WorkflowInterceptor activityExecutor) {
+      LocalActivityOptions options, WorkflowCallsInterceptor activityExecutor) {
     LocalActivityOptions validatedOptions =
         new LocalActivityOptions.Builder(options).validateAndBuildWithDefaults();
     return new LocalActivityStubImpl(validatedOptions, activityExecutor);
   }
 
   private LocalActivityStubImpl(
-      LocalActivityOptions options, WorkflowInterceptor activityExecutor) {
+      LocalActivityOptions options, WorkflowCallsInterceptor activityExecutor) {
     this.options = options;
     this.activityExecutor = activityExecutor;
   }

@@ -30,7 +30,7 @@ import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ChildWorkflowStub;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;
-import io.temporal.workflow.WorkflowInterceptor;
+import io.temporal.workflow.WorkflowCallsInterceptor;
 import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -43,7 +43,7 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
   ChildWorkflowInvocationHandler(
       Class<?> workflowInterface,
       ChildWorkflowOptions options,
-      WorkflowInterceptor decisionContext) {
+      WorkflowCallsInterceptor decisionContext) {
     Method workflowMethod = getWorkflowMethod(workflowInterface);
     WorkflowMethod workflowAnnotation = workflowMethod.getAnnotation(WorkflowMethod.class);
     String workflowType = getWorkflowType(workflowMethod, workflowAnnotation);
@@ -61,9 +61,9 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
 
   @Override
   public Object invoke(Object proxy, Method method, Object[] args) {
-    // Implement WorkflowStub
-    if (method.getName().equals(WorkflowStubMarker.GET_EXECUTION_METHOD_NAME)) {
-      return stub.getExecution();
+    // Implement StubMarker
+    if (method.getName().equals(StubMarker.GET_UNTYPED_STUB_METHOD)) {
+      return stub;
     }
     WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
     QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);

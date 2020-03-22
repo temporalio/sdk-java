@@ -17,19 +17,27 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.workflow;
 
-interface SyncWorkflowDefinition {
+/**
+ * Intercepts calls to the workflow execution. Executes under workflow context. So all the
+ * restrictions on the workflow code should be obeyed.
+ */
+public interface WorkflowInvocationInterceptor {
+  /**
+   * Called when workflow class is intantiated.
+   *
+   * @param interceptor interceptor for calls that workflow makes
+   */
+  void init(WorkflowCallsInterceptor interceptor);
 
   /**
-   * Always called first. Usually {@link #execute(byte[])} is called after that and then potentially
-   * multiple {@link #processSignal(String, byte[], long)} while execute is running. But in case of
-   * signalWithStart {@link #processSignal(String, byte[], long)} can be called before the {@link
-   * #execute(byte[])}.
+   * Called when workflow main method is called.
+   *
+   * @return result of the workflow execution.
    */
-  void initialize();
+  Object execute(Object[] arguments);
 
-  byte[] execute(byte[] input);
-
-  void processSignal(String signalName, byte[] input, long eventId);
+  /** Called when signal is delivered to the workflow instance. */
+  void processSignal(String signalName, Object[] arguments, long EventId);
 }

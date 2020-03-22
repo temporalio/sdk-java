@@ -19,6 +19,7 @@
 
 package io.temporal.workflow;
 
+import io.temporal.internal.sync.StubMarker;
 import io.temporal.proto.common.WorkflowExecution;
 
 /**
@@ -29,6 +30,28 @@ import io.temporal.proto.common.WorkflowExecution;
  * @see Workflow#newUntypedExternalWorkflowStub(String)
  */
 public interface ExternalWorkflowStub {
+
+  /**
+   * Extracts untyped ExternalWorkflowStub from a typed workflow stub created through {@link
+   * Workflow#newExternalWorkflowStub(Class, String)}.
+   *
+   * @param typed typed external workflow stub
+   * @param <T> type of the workflow stub interface
+   * @return untyped external workflow stub for the same workflow instance.
+   */
+  static <T> ExternalWorkflowStub fromTyped(T typed) {
+    if (!(typed instanceof StubMarker)) {
+      throw new IllegalArgumentException(
+          "arguments must be created through Workflow.newChildWorkflowStub");
+    }
+    if (typed instanceof ChildWorkflowStub) {
+      throw new IllegalArgumentException(
+          "Use ChildWorkflowStub.fromTyped to extract sbub created through Workflow#newChildWorkflowStub");
+    }
+    @SuppressWarnings("unchecked")
+    StubMarker supplier = (StubMarker) typed;
+    return (ExternalWorkflowStub) supplier.__getUntypedStub();
+  }
 
   WorkflowExecution getExecution();
 

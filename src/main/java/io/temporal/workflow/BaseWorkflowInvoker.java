@@ -17,19 +17,30 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.workflow;
 
-interface SyncWorkflowDefinition {
+public class BaseWorkflowInvoker implements WorkflowInvoker {
+  private final WorkflowInvocationInterceptor next;
+  private final WorkflowCallsInterceptor interceptor;
 
-  /**
-   * Always called first. Usually {@link #execute(byte[])} is called after that and then potentially
-   * multiple {@link #processSignal(String, byte[], long)} while execute is running. But in case of
-   * signalWithStart {@link #processSignal(String, byte[], long)} can be called before the {@link
-   * #execute(byte[])}.
-   */
-  void initialize();
+  public BaseWorkflowInvoker(
+      WorkflowCallsInterceptor interceptor, WorkflowInvocationInterceptor next) {
+    this.next = next;
+    this.interceptor = interceptor;
+  }
 
-  byte[] execute(byte[] input);
+  @Override
+  public void init() {
+    next.init(interceptor);
+  }
 
-  void processSignal(String signalName, byte[] input, long eventId);
+  @Override
+  public Object execute(Object[] arguments) {
+    return next.execute(arguments);
+  }
+
+  @Override
+  public void processSignal(String signalName, Object[] arguments, long eventId) {
+    next.processSignal(signalName, arguments, eventId);
+  }
 }

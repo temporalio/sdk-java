@@ -25,7 +25,7 @@ import io.temporal.internal.common.InternalUtils;
 import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;
-import io.temporal.workflow.WorkflowInterceptor;
+import io.temporal.workflow.WorkflowCallsInterceptor;
 import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -34,10 +34,10 @@ import java.util.Optional;
 class ContinueAsNewWorkflowInvocationHandler implements InvocationHandler {
 
   private final ContinueAsNewOptions options;
-  private final WorkflowInterceptor decisionContext;
+  private final WorkflowCallsInterceptor decisionContext;
 
   ContinueAsNewWorkflowInvocationHandler(
-      ContinueAsNewOptions options, WorkflowInterceptor decisionContext) {
+      ContinueAsNewOptions options, WorkflowCallsInterceptor decisionContext) {
     this.options = options;
     this.decisionContext = decisionContext;
   }

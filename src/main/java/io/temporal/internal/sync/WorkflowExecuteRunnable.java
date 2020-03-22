@@ -22,7 +22,7 @@ package io.temporal.internal.sync;
 import io.temporal.proto.common.WorkflowExecutionStartedEventAttributes;
 import java.util.Objects;
 
-class WorkflowRunnable implements Runnable {
+class WorkflowExecuteRunnable implements Runnable {
   private final SyncDecisionContext context;
   private final SyncWorkflowDefinition workflow;
   private final WorkflowExecutionStartedEventAttributes attributes;
@@ -30,7 +30,7 @@ class WorkflowRunnable implements Runnable {
   private byte[] output;
   private boolean done;
 
-  public WorkflowRunnable(
+  public WorkflowExecuteRunnable(
       SyncDecisionContext context,
       SyncWorkflowDefinition workflow,
       WorkflowExecutionStartedEventAttributes attributes) {

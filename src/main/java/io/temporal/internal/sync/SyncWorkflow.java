@@ -32,11 +32,9 @@ import io.temporal.proto.common.WorkflowQuery;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.enums.EventType;
 import io.temporal.worker.WorkflowImplementationOptions;
-import io.temporal.workflow.WorkflowInterceptor;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,9 +51,8 @@ class SyncWorkflow implements ReplayWorkflow {
   private final ExecutorService threadPool;
   private final SyncWorkflowDefinition workflow;
   WorkflowImplementationOptions workflowImplementationOptions;
-  private final Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory;
   private DeciderCache cache;
-  private WorkflowRunnable workflowProc;
+  private WorkflowExecuteRunnable workflowProc;
   private DeterministicRunner runner;
 
   public SyncWorkflow(
@@ -63,7 +60,6 @@ class SyncWorkflow implements ReplayWorkflow {
       WorkflowImplementationOptions workflowImplementationOptions,
       DataConverter dataConverter,
       ExecutorService threadPool,
-      Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
       DeciderCache cache,
       List<ContextPropagator> contextPropagators) {
     this.workflow = Objects.requireNonNull(workflow);
@@ -73,7 +69,6 @@ class SyncWorkflow implements ReplayWorkflow {
             : workflowImplementationOptions;
     this.dataConverter = Objects.requireNonNull(dataConverter);
     this.threadPool = Objects.requireNonNull(threadPool);
-    this.interceptorFactory = Objects.requireNonNull(interceptorFactory);
     this.cache = cache;
     this.contextPropagators = contextPropagators;
   }
@@ -103,13 +98,23 @@ class SyncWorkflow implements ReplayWorkflow {
             context,
             dataConverter,
             contextPropagators,
-            interceptorFactory,
             startEvent.getLastCompletionResult().toByteArray());
 
-    workflowProc = new WorkflowRunnable(syncContext, workflow, startEvent);
+    workflowProc = new WorkflowExecuteRunnable(syncContext, workflow, startEvent);
+    // The following order is ensured by this code and DeterministicRunner implementation:
+    // 1. workflow.initialize
+    // 2. signal handler (if signalWithStart was called)
+    // 3. main workflow method
     runner =
         DeterministicRunner.newRunner(
-            threadPool, syncContext, context::currentTimeMillis, workflowProc, cache);
+            threadPool,
+            syncContext,
+            context::currentTimeMillis,
+            () -> {
+              workflow.initialize();
+              WorkflowInternal.newThread(false, () -> workflowProc.run()).start();
+            },
+            cache);
     syncContext.setRunner(runner);
   }
 

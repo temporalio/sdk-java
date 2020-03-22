@@ -43,7 +43,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 /** Workflow worker that supports POJO workflow implementations. */
 public class SyncWorkflowWorker
@@ -60,7 +59,7 @@ public class SyncWorkflowWorker
       WorkflowServiceStubs service,
       String domain,
       String taskList,
-      Function<WorkflowInterceptor, WorkflowInterceptor> interceptorFactory,
+      WorkflowInterceptor interceptorFactory,
       SingleWorkerOptions workflowOptions,
       SingleWorkerOptions localActivityOptions,
       DeciderCache cache,

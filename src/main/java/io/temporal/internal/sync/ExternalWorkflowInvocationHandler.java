@@ -26,7 +26,7 @@ import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.workflow.ExternalWorkflowStub;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;
-import io.temporal.workflow.WorkflowInterceptor;
+import io.temporal.workflow.WorkflowCallsInterceptor;
 import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -37,15 +37,15 @@ class ExternalWorkflowInvocationHandler implements InvocationHandler {
   private final ExternalWorkflowStub stub;
 
   public ExternalWorkflowInvocationHandler(
-      WorkflowExecution execution, WorkflowInterceptor decisionContext) {
+      WorkflowExecution execution, WorkflowCallsInterceptor decisionContext) {
     stub = new ExternalWorkflowStubImpl(execution, decisionContext);
   }
 
   @Override
   public Object invoke(Object proxy, Method method, Object[] args) {
-    // Implement WorkflowStub
-    if (method.getName().equals(WorkflowStubMarker.GET_EXECUTION_METHOD_NAME)) {
-      return stub.getExecution();
+    // Implement StubMarker
+    if (method.getName().equals(StubMarker.GET_UNTYPED_STUB_METHOD)) {
+      return stub;
     }
     WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
     QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);
