@@ -31,6 +31,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
+import io.grpc.Server;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.MetadataUtils;
@@ -68,6 +69,7 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
   private final AtomicBoolean shutdownRequested = new AtomicBoolean();
   private final WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub;
   private final WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub;
+  private final Server inProcessServer;
 
   /**
    * Creates a factory that connects to the Temporal according to the specified options. When
@@ -83,11 +85,12 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
       }
       String serverName = InProcessServerBuilder.generateName();
       try {
-        InProcessServerBuilder.forName(serverName)
-            .directExecutor()
-            .addService(serviceImpl)
-            .build()
-            .start();
+        inProcessServer =
+            InProcessServerBuilder.forName(serverName)
+                .directExecutor()
+                .addService(serviceImpl)
+                .build()
+                .start();
       } catch (IOException unexpected) {
         throw new RuntimeException(unexpected);
       }
@@ -95,6 +98,8 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
           WorkflowServiceStubsOptions.newBuilder(options)
               .setChannel(InProcessChannelBuilder.forName(serverName).directExecutor().build())
               .build();
+    } else {
+      inProcessServer = null;
     }
     options = WorkflowServiceStubsOptions.newBuilder(options).validateAndBuildWithDefaults();
     if (options.getChannel() != null) {
@@ -190,6 +195,9 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
     if (channelNeedsShutdown) {
       channel.shutdown();
     }
+    if (inProcessServer != null) {
+      inProcessServer.shutdown();
+    }
   }
 
   @Override
@@ -198,30 +206,50 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
     if (channelNeedsShutdown) {
       channel.shutdownNow();
     }
+    if (inProcessServer != null) {
+      inProcessServer.shutdownNow();
+    }
   }
 
   @Override
   public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+    long start = System.currentTimeMillis();
     if (channelNeedsShutdown) {
       return channel.awaitTermination(timeout, unit);
+    }
+    long left = System.currentTimeMillis() - unit.toMillis(start);
+    if (inProcessServer != null) {
+      inProcessServer.awaitTermination(left, TimeUnit.MILLISECONDS);
     }
     return true;
   }
 
   @Override
   public boolean isShutdown() {
+    boolean result;
     if (channelNeedsShutdown) {
-      return channel.isShutdown();
+      result = channel.isShutdown();
+    } else {
+      result = shutdownRequested.get();
     }
-    return shutdownRequested.get();
+    if (inProcessServer != null) {
+      result = result && inProcessServer.isShutdown();
+    }
+    return result;
   }
 
   @Override
   public boolean isTerminated() {
+    boolean result;
     if (channelNeedsShutdown) {
-      return channel.isTerminated();
+      result = channel.isTerminated();
+    } else {
+      result = shutdownRequested.get();
     }
-    return shutdownRequested.get();
+    if (inProcessServer != null) {
+      result = result && inProcessServer.isTerminated();
+    }
+    return result;
   }
 
   /** Set RPC call deadlines according to ServiceFactoryOptions. */
