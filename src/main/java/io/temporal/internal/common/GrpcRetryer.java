@@ -23,7 +23,6 @@ import static io.temporal.internal.common.CheckedExceptionWrapper.unwrap;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.temporal.common.RpcRetryOptions;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;

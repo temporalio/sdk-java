@@ -17,13 +17,14 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.common;
+package io.temporal.internal.common;
 
 import static io.temporal.internal.common.GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS;
 
 import com.google.common.base.Defaults;
 import com.google.protobuf.GeneratedMessageV3;
 import io.grpc.Status;
+import io.temporal.common.MethodRetry;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
