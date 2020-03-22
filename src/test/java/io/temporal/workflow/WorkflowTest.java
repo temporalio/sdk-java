@@ -152,7 +152,7 @@ public class WorkflowTest {
 
   @Rule
   public Timeout globalTimeout =
-      Timeout.seconds(DEBUGGER_TIMEOUTS ? 500 : !useExternalService ? 15 : 30);
+      Timeout.seconds(DEBUGGER_TIMEOUTS ? 500 : 30);
 
   @Rule
   public TestWatcher watchman =
