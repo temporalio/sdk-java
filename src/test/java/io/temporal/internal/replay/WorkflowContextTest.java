@@ -22,8 +22,8 @@ package io.temporal.internal.replay;
 import static junit.framework.TestCase.assertEquals;
 
 import com.google.protobuf.ByteString;
-import io.temporal.converter.DataConverter;
-import io.temporal.converter.JsonDataConverter;
+import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.JsonDataConverter;
 import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.common.WorkflowExecutionStartedEventAttributes;
 import io.temporal.workflow.WorkflowUtils;

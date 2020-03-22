@@ -201,7 +201,7 @@ public final class WorkflowOptions {
 
     /**
      * Specifies additional non-indexed information in result of list workflow. The type of value
-     * can be any object that are serializable by {@link io.temporal.converter.DataConverter}
+     * can be any object that are serializable by {@link io.temporal.common.converter.DataConverter}
      */
     public Builder setMemo(Map<String, Object> memo) {
       this.memo = memo;

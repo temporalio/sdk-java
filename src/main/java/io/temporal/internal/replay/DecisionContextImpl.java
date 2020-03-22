@@ -21,7 +21,7 @@ package io.temporal.internal.replay;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.common.context.ContextPropagator;
-import io.temporal.converter.DataConverter;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.metrics.ReplayAwareScope;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;

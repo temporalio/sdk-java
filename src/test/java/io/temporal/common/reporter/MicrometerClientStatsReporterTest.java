@@ -34,7 +34,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-public class TemporalClientStatsReporterTest {
+public class MicrometerClientStatsReporterTest {
 
   private static final String DEFAULT_REPORT_NAME = "temporal_workflow_start";
   private static final Map<String, String> DEFAULT_REPORT_TAGS =
@@ -42,8 +42,8 @@ public class TemporalClientStatsReporterTest {
   private static final long DEFAULT_COUNT = 10;
   private static final Duration DEFAULT_DURATION = Duration.ofSeconds(10);
 
-  private TemporalClientStatsReporter temporalClientStatsReporter =
-      new TemporalClientStatsReporter();
+  private MicrometerClientStatsReporter micrometerClientStatsReporter =
+      new MicrometerClientStatsReporter();
 
   @Before
   public void init() {
@@ -57,7 +57,7 @@ public class TemporalClientStatsReporterTest {
 
   @Test
   public void testReporterCapabilitiesShouldReturnReporting() {
-    assertEquals(CapableOf.REPORTING, temporalClientStatsReporter.capabilities());
+    assertEquals(CapableOf.REPORTING, micrometerClientStatsReporter.capabilities());
   }
 
   @Test
@@ -82,12 +82,12 @@ public class TemporalClientStatsReporterTest {
   }
 
   private void callDefaultCounter() {
-    temporalClientStatsReporter.reportCounter(
+    micrometerClientStatsReporter.reportCounter(
         DEFAULT_REPORT_NAME, DEFAULT_REPORT_TAGS, DEFAULT_COUNT);
   }
 
   private void callDefaultTimer() {
-    temporalClientStatsReporter.reportTimer(
+    micrometerClientStatsReporter.reportTimer(
         DEFAULT_REPORT_NAME, DEFAULT_REPORT_TAGS, DEFAULT_DURATION);
   }
 }

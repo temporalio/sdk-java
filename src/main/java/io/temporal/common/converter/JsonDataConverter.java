@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.converter;
+package io.temporal.common.converter;
 
 import com.google.common.base.Defaults;
 import com.google.gson.Gson;

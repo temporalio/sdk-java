@@ -38,7 +38,7 @@ import java.util.Optional;
  * activity type. A single workflow can use more than one activity interface and call more than one
  * activity method from the same interface. The only requirement is that activity method arguments
  * and return values are serializable to a byte array using the provided {@link
- * io.temporal.converter.DataConverter} implementation. The default implementation uses JSON
+ * io.temporal.common.converter.DataConverter} implementation. The default implementation uses JSON
  * serializer, but an alternative implementation can be easily configured.
  *
  * <p>Example of an interface that defines four activities:

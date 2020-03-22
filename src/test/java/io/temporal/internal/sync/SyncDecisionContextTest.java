@@ -21,7 +21,7 @@ package io.temporal.internal.sync;
 
 import static org.mockito.Mockito.*;
 
-import io.temporal.converter.JsonDataConverter;
+import io.temporal.common.converter.JsonDataConverter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.replay.DecisionContext;
 import io.temporal.proto.common.SearchAttributes;

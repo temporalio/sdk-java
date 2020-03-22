@@ -28,7 +28,7 @@ import io.temporal.client.WorkflowClientInterceptor;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
-import io.temporal.converter.DataConverter;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.external.GenericWorkflowClientExternalImpl;
 import io.temporal.internal.external.ManualActivityCompletionClientFactory;
 import io.temporal.internal.external.ManualActivityCompletionClientFactoryImpl;
@@ -61,7 +61,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
    * Creates client that connects to an instance of the Temporal Service.
    *
    * @param service client to the Temporal Service endpoint.
-   * @param options Options (like {@link io.temporal.converter.DataConverter} override) for
+   * @param options Options (like {@link io.temporal.common.converter.DataConverter} override) for
    *     configuring client.
    */
   public static WorkflowClient newInstance(

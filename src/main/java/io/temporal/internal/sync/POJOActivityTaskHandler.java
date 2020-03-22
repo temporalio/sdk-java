@@ -25,7 +25,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.common.MethodRetry;
-import io.temporal.converter.DataConverter;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.OptionsUtils;

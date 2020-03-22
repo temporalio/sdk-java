@@ -21,8 +21,8 @@ package io.temporal.internal.common;
 
 import com.google.common.base.Defaults;
 import com.google.protobuf.ByteString;
-import io.temporal.converter.DataConverter;
-import io.temporal.converter.JsonDataConverter;
+import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.JsonDataConverter;
 import io.temporal.internal.worker.Shutdownable;
 import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.common.TaskList;

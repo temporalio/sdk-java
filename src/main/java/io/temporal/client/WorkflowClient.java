@@ -122,7 +122,7 @@ public interface WorkflowClient {
    * Creates client that connects to an instance of the Temporal Service.
    *
    * @param service client to the Temporal Service endpoint.
-   * @param options Options (like {@link io.temporal.converter.DataConverter}er override) for
+   * @param options Options (like {@link io.temporal.common.converter.DataConverter}er override) for
    *     configuring client.
    */
   static WorkflowClient newInstance(WorkflowServiceStubs service, WorkflowClientOptions options) {

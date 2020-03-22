@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-public class TemporalClientStatsReporter implements StatsReporter {
+public class MicrometerClientStatsReporter implements StatsReporter {
 
   @Override
   public Capabilities capabilities() {
