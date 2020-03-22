@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.serviceclient;
+package io.temporal.internal;
 
 import io.grpc.CallOptions;
 import io.grpc.Channel;
@@ -34,8 +34,9 @@ import io.grpc.MethodDescriptor;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.MetadataUtils;
-import io.temporal.internal.Version;
 import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
+import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -43,7 +44,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** TODO: (vkoby) Add metrics. */
-final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
+public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
 
   private static final Logger log = LoggerFactory.getLogger(WorkflowServiceStubsImpl.class);
 
@@ -73,7 +74,7 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
    * serviceImpl is not null generates the client for an in-process service using an in-memory
    * channel. Useful for testing, usually with mock and spy services.
    */
-  WorkflowServiceStubsImpl(
+  public WorkflowServiceStubsImpl(
       WorkflowServiceGrpc.WorkflowServiceImplBase serviceImpl,
       WorkflowServiceStubsOptions options) {
     if (serviceImpl != null) {
