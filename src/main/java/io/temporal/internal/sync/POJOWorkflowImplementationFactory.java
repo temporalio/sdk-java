@@ -310,7 +310,6 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       @Override
       public Object execute(Object[] arguments) {
         WorkflowInfo context = Workflow.getWorkflowInfo();
-        newInstance();
         WorkflowInternal.registerQuery(workflow);
         try {
           return workflowMethod.invoke(workflow, arguments);
@@ -345,13 +344,13 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       @Override
       public void init(WorkflowCallsInterceptor interceptor) {
         WorkflowInternal.getRootDecisionContext().setHeadInterceptor(interceptor);
+        newInstance();
       }
 
       @Override
       public void processSignal(String signalName, Object[] arguments, long eventId) {
         Method signalMethod = signalHandlers.get(signalName);
         try {
-          newInstance();
           signalMethod.invoke(workflow, arguments);
         } catch (IllegalAccessException e) {
           throw new Error("Failure processing \"" + signalName + "\" at eventID " + eventId, e);
