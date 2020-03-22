@@ -21,7 +21,7 @@ package io.temporal.testing;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.temporal.client.WorkflowClientOptions;
-import io.temporal.context.ContextPropagator;
+import io.temporal.common.context.ContextPropagator;
 import io.temporal.worker.WorkerFactoryOptions;
 import java.util.Arrays;
 import java.util.List;

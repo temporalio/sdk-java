@@ -19,7 +19,7 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.converter.DataConverter;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.proto.common.Header;

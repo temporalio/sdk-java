@@ -20,9 +20,9 @@
 package io.temporal.internal.worker;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.context.ContextPropagator;
-import io.temporal.converter.DataConverter;
-import io.temporal.converter.JsonDataConverter;
+import io.temporal.common.context.ContextPropagator;
+import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.JsonDataConverter;
 import io.temporal.internal.metrics.NoopScope;
 import java.time.Duration;
 import java.util.List;

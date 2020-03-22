@@ -17,30 +17,12 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow;
+package io.temporal.common.interceptors;
 
-public class BaseWorkflowInvoker implements WorkflowInvoker {
-  private final WorkflowInvocationInterceptor next;
-  private final WorkflowCallsInterceptor interceptor;
+public interface WorkflowInvoker {
+  void init();
 
-  public BaseWorkflowInvoker(
-      WorkflowCallsInterceptor interceptor, WorkflowInvocationInterceptor next) {
-    this.next = next;
-    this.interceptor = interceptor;
-  }
+  Object execute(Object[] arguments);
 
-  @Override
-  public void init() {
-    next.init(interceptor);
-  }
-
-  @Override
-  public Object execute(Object[] arguments) {
-    return next.execute(arguments);
-  }
-
-  @Override
-  public void processSignal(String signalName, Object[] arguments, long eventId) {
-    next.processSignal(signalName, arguments, eventId);
-  }
+  void processSignal(String signalName, Object[] arguments, long eventId);
 }

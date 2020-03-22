@@ -20,7 +20,7 @@
 package io.temporal.internal.replay;
 
 import com.google.protobuf.ByteString;
-import io.temporal.context.ContextPropagator;
+import io.temporal.common.context.ContextPropagator;
 import io.temporal.proto.common.Header;
 import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.common.WorkflowExecution;

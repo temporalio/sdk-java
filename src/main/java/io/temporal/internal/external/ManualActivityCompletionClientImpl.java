@@ -26,7 +26,7 @@ import io.grpc.StatusRuntimeException;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.client.ActivityCompletionFailureException;
 import io.temporal.client.ActivityNotExistsException;
-import io.temporal.converter.DataConverter;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.metrics.MetricsType;

@@ -20,6 +20,8 @@
 package io.temporal.internal.sync;
 
 import com.google.common.base.Defaults;
+import io.temporal.common.interceptors.WorkflowCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowCallsInterceptor.WorkflowResult;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.workflow.ChildWorkflowException;
 import io.temporal.workflow.ChildWorkflowOptions;
@@ -28,8 +30,6 @@ import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.SignalExternalWorkflowException;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowCallsInterceptor;
-import io.temporal.workflow.WorkflowCallsInterceptor.WorkflowResult;
 import java.lang.reflect.Type;
 import java.util.Objects;
 

@@ -29,7 +29,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
-import io.temporal.converter.DataConverter;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.external.GenericWorkflowClientExternal;
 import io.temporal.proto.common.WorkflowExecution;

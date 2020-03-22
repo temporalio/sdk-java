@@ -44,7 +44,12 @@ import io.temporal.client.WorkflowTimedOutException;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
-import io.temporal.converter.JsonDataConverter;
+import io.temporal.common.converter.JsonDataConverter;
+import io.temporal.common.interceptors.BaseWorkflowInvoker;
+import io.temporal.common.interceptors.WorkflowCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowInterceptor;
+import io.temporal.common.interceptors.WorkflowInvocationInterceptor;
+import io.temporal.common.interceptors.WorkflowInvoker;
 import io.temporal.internal.common.QueryResponse;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.sync.DeterministicRunnerTest;
@@ -548,6 +553,7 @@ public class WorkflowTest {
       workflowStub.execute(taskList);
       fail("unreachable");
     } catch (WorkflowException e) {
+      assertNotNull(e.toString(), e.getCause());
       assertTrue(e.getCause().getCause() instanceof IOException);
     }
     assertEquals(activitiesImpl.toString(), 5, activitiesImpl.invocations.size());

@@ -19,7 +19,7 @@
 
 package io.temporal.workflow;
 
-import io.temporal.converter.DataConverter;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.enums.TimeoutType;
 import java.lang.reflect.Type;

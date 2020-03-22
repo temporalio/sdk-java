@@ -356,8 +356,8 @@ import org.slf4j.Logger;
  * </ul>
  *
  * <p>Workflow method arguments and return values are serializable to a byte array using the
- * provided {@link io.temporal.converter.DataConverter}. The default implementation uses the JSON
- * serializer, but any alternative serialization mechanism is pluggable.
+ * provided {@link io.temporal.common.converter.DataConverter}. The default implementation uses the
+ * JSON serializer, but any alternative serialization mechanism is pluggable.
  *
  * <p>The values passed to workflows through invocation parameters or returned through a result
  * value are recorded in the execution history. The entire execution history is transferred from the

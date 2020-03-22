@@ -17,27 +17,10 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow;
-
 /**
- * Intercepts calls to the workflow execution. Executes under workflow context. So all the
- * restrictions on the workflow code should be obeyed.
+ * This package and its subpackages contain implementation classes of the Temporal SDK.
+ *
+ * <p><strong></strong>Do not use them directly in any application code! There is absolutely no
+ * guarantee about backwards compatibility of APIs in the internal packages.</strong>
  */
-public interface WorkflowInvocationInterceptor {
-  /**
-   * Called when workflow class is intantiated.
-   *
-   * @param interceptor interceptor for calls that workflow makes
-   */
-  void init(WorkflowCallsInterceptor interceptor);
-
-  /**
-   * Called when workflow main method is called.
-   *
-   * @return result of the workflow execution.
-   */
-  Object execute(Object[] arguments);
-
-  /** Called when signal is delivered to the workflow instance. */
-  void processSignal(String signalName, Object[] arguments, long EventId);
-}
+package io.temporal.internal;

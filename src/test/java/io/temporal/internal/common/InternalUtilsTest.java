@@ -21,7 +21,7 @@ package io.temporal.internal.common;
 
 import static junit.framework.TestCase.assertEquals;
 
-import io.temporal.converter.DataConverterException;
+import io.temporal.common.converter.DataConverterException;
 import io.temporal.proto.common.SearchAttributes;
 import io.temporal.workflow.WorkflowUtils;
 import java.io.FileOutputStream;

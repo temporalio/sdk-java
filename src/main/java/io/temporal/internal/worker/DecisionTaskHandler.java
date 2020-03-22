@@ -19,7 +19,7 @@
 
 package io.temporal.internal.worker;
 
-import io.temporal.common.RpcRetryOptions;
+import io.temporal.internal.common.RpcRetryOptions;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;

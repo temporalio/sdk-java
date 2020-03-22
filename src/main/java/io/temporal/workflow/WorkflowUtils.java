@@ -20,8 +20,8 @@
 package io.temporal.workflow;
 
 import com.cronutils.utils.StringUtils;
-import io.temporal.converter.DataConverter;
-import io.temporal.converter.JsonDataConverter;
+import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.JsonDataConverter;
 import io.temporal.proto.common.SearchAttributes;
 
 public class WorkflowUtils {

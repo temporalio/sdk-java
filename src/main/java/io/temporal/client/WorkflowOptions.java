@@ -24,7 +24,7 @@ import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
-import io.temporal.context.ContextPropagator;
+import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.proto.enums.WorkflowIdReusePolicy;
 import io.temporal.workflow.WorkflowMethod;
@@ -201,7 +201,7 @@ public final class WorkflowOptions {
 
     /**
      * Specifies additional non-indexed information in result of list workflow. The type of value
-     * can be any object that are serializable by {@link io.temporal.converter.DataConverter}
+     * can be any object that are serializable by {@link io.temporal.common.converter.DataConverter}
      */
     public Builder setMemo(Map<String, Object> memo) {
       this.memo = memo;

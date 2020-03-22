@@ -32,8 +32,6 @@ import io.grpc.Deadline;
 import io.grpc.Status;
 import io.temporal.client.WorkflowTerminatedException;
 import io.temporal.client.WorkflowTimedOutException;
-import io.temporal.common.RpcRetryOptions;
-import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.proto.common.Decision;
 import io.temporal.proto.common.History;
 import io.temporal.proto.common.HistoryEvent;

@@ -20,8 +20,8 @@
 package io.temporal.internal.replay;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.context.ContextPropagator;
-import io.temporal.converter.DataConverter;
+import io.temporal.common.context.ContextPropagator;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
@@ -82,8 +82,9 @@ public interface DecisionContext extends ReplayAware {
 
   /**
    * Returns all of the current contexts being propagated by a {@link
-   * io.temporal.context.ContextPropagator}. The key is the {@link ContextPropagator#getName()} and
-   * the value is the object returned by {@link ContextPropagator#getCurrentContext()}
+   * io.temporal.common.context.ContextPropagator}. The key is the {@link
+   * ContextPropagator#getName()} and the value is the object returned by {@link
+   * ContextPropagator#getCurrentContext()}
    */
   Map<String, Object> getPropagatedContexts();
 

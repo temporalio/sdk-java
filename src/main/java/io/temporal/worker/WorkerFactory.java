@@ -25,7 +25,7 @@ import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.client.WorkflowClient;
-import io.temporal.converter.DataConverter;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.replay.DeciderCache;

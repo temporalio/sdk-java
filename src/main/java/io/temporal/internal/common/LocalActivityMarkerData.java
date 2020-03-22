@@ -21,7 +21,7 @@ package io.temporal.internal.common;
 
 import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
-import io.temporal.converter.DataConverter;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.Header;
 import io.temporal.proto.common.MarkerRecordedEventAttributes;
