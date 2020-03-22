@@ -7,10 +7,6 @@ services:
       driver: none
     ports:
       - "9042:9042"
-    networks:
-      services-network:
-        aliases:
-          - cassandra
 
   statsd:
     image: hopsoft/graphite-statsd
@@ -21,10 +17,6 @@ services:
       - "2003:2003"
       - "8125:8125"
       - "8126:8126"
-    networks:
-      services-network:
-        aliases:
-          - statsd
 
   temporal:
     image: temporalio/temporal:master-auto-setup
@@ -46,10 +38,6 @@ services:
     depends_on:
       - cassandra
       - statsd
-    networks:
-      services-network:
-        aliases:
-          - temporal
 
   unit-test-docker:
     build:
@@ -64,10 +52,6 @@ services:
       - temporal
     volumes:
       - "../../:/temporal-java-client"
-    networks:
-      services-network:
-        aliases:
-          - unit-test-docker
 
   unit-test-test-service:
     build:
@@ -79,12 +63,3 @@ services:
       - "USE_DOCKER_SERVICE=false"
     volumes:
       - "../../:/temporal-java-client"
-    networks:
-      services-network:
-        aliases:
-          - unit-test-test-service
-
-networks:
-  services-network:
-    name: services-network
-    driver: bridge

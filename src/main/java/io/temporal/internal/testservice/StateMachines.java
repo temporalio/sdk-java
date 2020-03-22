@@ -588,7 +588,7 @@ class StateMachines {
         a.setCronSchedule(cronSchedule);
       } catch (Exception e) {
         throw Status.INVALID_ARGUMENT
-            .withDescription("Invalid cron expression: " + e.getMessage())
+            .withDescription("Invalid cron expression \"" + cronSchedule + "\": " + e.getMessage())
             .withCause(e)
             .asRuntimeException();
       }
