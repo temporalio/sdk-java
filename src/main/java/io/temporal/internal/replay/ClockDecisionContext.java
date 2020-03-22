@@ -41,8 +41,6 @@ import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -90,8 +88,7 @@ public final class ClockDecisionContext {
   private final Map<String, ExecuteLocalActivityParameters> unstartedLaTasks = new HashMap<>();
   private final ReplayDecider replayDecider;
   private final DataConverter dataConverter;
-  private final Lock laTaskLock = new ReentrantLock();
-  private final Condition taskCondition = laTaskLock.newCondition();
+  private final Condition taskCondition;
   private boolean taskCompleted = false;
 
   ClockDecisionContext(
@@ -100,6 +97,7 @@ public final class ClockDecisionContext {
       ReplayDecider replayDecider,
       DataConverter dataConverter) {
     this.decisions = decisions;
+    this.taskCondition = replayDecider.getLock().newCondition();
     mutableSideEffectHandler =
         new MarkerHandler(decisions, MUTABLE_SIDE_EFFECT_MARKER_NAME, () -> replaying);
     versionHandler = new MarkerHandler(decisions, VERSION_MARKER_NAME, () -> replaying);
@@ -243,7 +241,6 @@ public final class ClockDecisionContext {
   private void handleLocalActivityMarker(MarkerRecordedEventAttributes attributes) {
     LocalActivityMarkerData marker =
         LocalActivityMarkerData.fromEventAttributes(attributes, dataConverter);
-
     if (pendingLaTasks.containsKey(marker.getActivityId())) {
       log.debug("Handle LocalActivityMarker for activity " + marker.getActivityId());
 
@@ -278,13 +275,9 @@ public final class ClockDecisionContext {
       completionHandle.accept(marker.getResult(), failure);
       setReplayCurrentTimeMilliseconds(marker.getReplayTimeMillis());
 
-      laTaskLock.lock();
-      try {
-        taskCompleted = true;
-        taskCondition.signal();
-      } finally {
-        laTaskLock.unlock();
-      }
+      taskCompleted = true;
+      // This method is already called under the lock.
+      taskCondition.signal();
     }
   }
 
@@ -348,7 +341,7 @@ public final class ClockDecisionContext {
           laTaskPoller.apply(
               new LocalActivityWorker.Task(
                   params,
-                  replayDecider,
+                  replayDecider.getLocalActivityCompletionSink(),
                   replayDecider.getDecisionTimeoutSeconds(),
                   this::currentTimeMillis,
                   this::replayTimeUpdatedAtMillis),
@@ -366,14 +359,10 @@ public final class ClockDecisionContext {
   }
 
   void awaitTaskCompletion(Duration duration) throws InterruptedException {
-    laTaskLock.lock();
-    try {
-      while (!taskCompleted) {
-        taskCondition.awaitNanos(duration.toNanos());
-      }
-      taskCompleted = false;
-    } finally {
-      laTaskLock.unlock();
+    while (!taskCompleted) {
+      // This call is called from already locked object
+      taskCondition.awaitNanos(duration.toNanos());
     }
+    taskCompleted = false;
   }
 }
