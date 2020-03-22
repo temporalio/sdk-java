@@ -20,7 +20,7 @@
 package io.temporal.internal.sync;
 
 import com.google.common.util.concurrent.RateLimiter;
-import io.temporal.context.ContextPropagator;
+import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.context.ContextThreadLocal;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsType;

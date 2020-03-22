@@ -19,7 +19,7 @@
 
 package io.temporal.internal.context;
 
-import io.temporal.context.ContextPropagator;
+import io.temporal.common.context.ContextPropagator;
 import io.temporal.workflow.WorkflowThreadLocal;
 import java.util.ArrayList;
 import java.util.HashMap;

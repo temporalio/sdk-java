@@ -21,7 +21,7 @@ package io.temporal.internal.sync;
 
 import com.google.common.primitives.Ints;
 import com.uber.m3.tally.Scope;
-import io.temporal.context.ContextPropagator;
+import io.temporal.common.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
 import io.temporal.converter.JsonDataConverter;
 import io.temporal.internal.common.CheckedExceptionWrapper;

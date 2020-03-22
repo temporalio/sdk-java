@@ -20,7 +20,7 @@
 package io.temporal.client;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.context.ContextPropagator;
+import io.temporal.common.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
 import io.temporal.converter.JsonDataConverter;
 import io.temporal.internal.metrics.NoopScope;

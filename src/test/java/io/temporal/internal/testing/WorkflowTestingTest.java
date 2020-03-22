@@ -33,7 +33,7 @@ import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.client.WorkflowTimedOutException;
-import io.temporal.context.ContextPropagator;
+import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.proto.common.History;
 import io.temporal.proto.common.HistoryEvent;

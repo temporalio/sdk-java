@@ -23,7 +23,7 @@ import static io.temporal.worker.NonDeterministicWorkflowPolicy.FailWorkflow;
 
 import com.google.common.base.Preconditions;
 import com.google.common.reflect.TypeToken;
-import io.temporal.context.ContextPropagator;
+import io.temporal.common.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
 import io.temporal.converter.DataConverterException;
 import io.temporal.internal.common.CheckedExceptionWrapper;

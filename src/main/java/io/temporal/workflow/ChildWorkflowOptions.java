@@ -24,7 +24,7 @@ import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
-import io.temporal.context.ContextPropagator;
+import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.proto.enums.ParentClosePolicy;
 import io.temporal.proto.enums.WorkflowIdReusePolicy;

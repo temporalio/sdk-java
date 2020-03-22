@@ -20,7 +20,7 @@
 package io.temporal.internal.sync;
 
 import io.temporal.client.WorkflowClient;
-import io.temporal.context.ContextPropagator;
+import io.temporal.common.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
 import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.DecisionContext;

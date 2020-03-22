@@ -25,7 +25,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.RetryOptions;
-import io.temporal.context.ContextPropagator;
+import io.temporal.common.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.RetryParameters;

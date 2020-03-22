@@ -25,7 +25,7 @@ import com.google.common.base.Strings;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
-import io.temporal.context.ContextPropagator;
+import io.temporal.common.context.ContextPropagator;
 import io.temporal.converter.DataConverter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.WorkflowExecutionHistory;
