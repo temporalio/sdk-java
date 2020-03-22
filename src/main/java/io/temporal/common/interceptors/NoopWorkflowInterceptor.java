@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow;
+package io.temporal.common.interceptors;
 
 public final class NoopWorkflowInterceptor implements WorkflowInterceptor {
   @Override

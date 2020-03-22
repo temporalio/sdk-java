@@ -68,7 +68,7 @@ import java.util.concurrent.TimeUnit;
  *    worker.start();
  *
  *    // Creates a WorkflowClient that interacts with the server owned by the testEnvironment.
- *    WorkflowClient client = testEnvironment.newWorkflowClient();
+ *    WorkflowClient client = testEnvironment.getWorkflowClient();
  *    SignaledWorkflow workflow = client.newWorkflowStub(SignaledWorkflow.class);
  *
  *    // Starts a workflow execution

@@ -17,14 +17,27 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow;
+package io.temporal.common.interceptors;
 
 /**
- * Intercepts workflow execution.
- *
- * <p>TODO(maxim): JavaDoc with sample
+ * Intercepts calls to the workflow execution. Executes under workflow context. So all the
+ * restrictions on the workflow code should be obeyed.
  */
-public interface WorkflowInterceptor {
-  WorkflowInvoker interceptExecuteWorkflow(
-      WorkflowCallsInterceptor interceptor, WorkflowInvocationInterceptor next);
+public interface WorkflowInvocationInterceptor {
+  /**
+   * Called when workflow class is intantiated.
+   *
+   * @param interceptor interceptor for calls that workflow makes
+   */
+  void init(WorkflowCallsInterceptor interceptor);
+
+  /**
+   * Called when workflow main method is called.
+   *
+   * @return result of the workflow execution.
+   */
+  Object execute(Object[] arguments);
+
+  /** Called when signal is delivered to the workflow instance. */
+  void processSignal(String signalName, Object[] arguments, long EventId);
 }

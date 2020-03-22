@@ -17,12 +17,14 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow;
+package io.temporal.common.interceptors;
 
-public interface WorkflowInvoker {
-  void init();
-
-  Object execute(Object[] arguments);
-
-  void processSignal(String signalName, Object[] arguments, long eventId);
+/**
+ * Intercepts workflow execution.
+ *
+ * <p>TODO(maxim): JavaDoc with sample
+ */
+public interface WorkflowInterceptor {
+  WorkflowInvoker interceptExecuteWorkflow(
+      WorkflowCallsInterceptor interceptor, WorkflowInvocationInterceptor next);
 }

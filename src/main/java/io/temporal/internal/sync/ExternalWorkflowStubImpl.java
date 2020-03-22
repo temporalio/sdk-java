@@ -19,12 +19,12 @@
 
 package io.temporal.internal.sync;
 
+import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.workflow.CancelExternalWorkflowException;
 import io.temporal.workflow.ExternalWorkflowStub;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.SignalExternalWorkflowException;
-import io.temporal.workflow.WorkflowCallsInterceptor;
 import java.util.Objects;
 
 /** Dynamic implementation of a strongly typed child workflow interface. */

@@ -20,9 +20,9 @@
 package io.temporal.internal.sync;
 
 import io.temporal.activity.ActivityOptions;
+import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.workflow.ActivityStub;
 import io.temporal.workflow.Promise;
-import io.temporal.workflow.WorkflowCallsInterceptor;
 import java.lang.reflect.Type;
 
 final class ActivityStubImpl extends ActivityStubBase {

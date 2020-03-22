@@ -19,8 +19,8 @@
 
 package io.temporal.worker;
 
-import io.temporal.workflow.NoopWorkflowInterceptor;
-import io.temporal.workflow.WorkflowInterceptor;
+import io.temporal.common.interceptors.NoopWorkflowInterceptor;
+import io.temporal.common.interceptors.WorkflowInterceptor;
 
 public class WorkerFactoryOptions {
 

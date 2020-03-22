@@ -21,11 +21,11 @@ package io.temporal.internal.sync;
 
 import static io.temporal.internal.common.InternalUtils.getValueOrDefault;
 
+import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;
-import io.temporal.workflow.WorkflowCallsInterceptor;
 import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;

@@ -25,12 +25,12 @@ import static io.temporal.internal.common.InternalUtils.getWorkflowType;
 
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
+import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ChildWorkflowStub;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;
-import io.temporal.workflow.WorkflowCallsInterceptor;
 import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;

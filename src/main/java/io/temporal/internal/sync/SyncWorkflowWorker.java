@@ -20,6 +20,7 @@
 package io.temporal.internal.sync;
 
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.replay.DeciderCache;
@@ -34,7 +35,6 @@ import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions.Func;
-import io.temporal.workflow.WorkflowInterceptor;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.Objects;
