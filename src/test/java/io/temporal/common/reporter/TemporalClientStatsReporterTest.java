@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.reporter;
+package io.temporal.common.reporter;
 
 import static org.junit.Assert.assertEquals;
 

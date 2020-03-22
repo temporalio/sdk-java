@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.reporter;
+package io.temporal.common.reporter;
 
 import com.uber.m3.tally.Buckets;
 import com.uber.m3.tally.Capabilities;
