@@ -33,8 +33,6 @@ import java.util.Objects;
 
 public final class RpcRetryOptions {
 
-  private static final double DEFAULT_BACKOFF_COEFFICIENT = 2.0;
-
   public static Builder newBuilder() {
     return new Builder();
   }

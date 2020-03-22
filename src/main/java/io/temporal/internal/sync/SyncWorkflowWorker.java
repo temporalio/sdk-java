@@ -19,9 +19,9 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.converter.DataConverter;
 import io.temporal.internal.common.InternalUtils;
+import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.ReplayDecisionTaskHandler;
 import io.temporal.internal.worker.DecisionTaskHandler;

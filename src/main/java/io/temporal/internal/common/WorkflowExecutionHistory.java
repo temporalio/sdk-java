@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.common;
+package io.temporal.internal.common;
 
 import com.google.common.collect.ImmutableList;
 import com.google.gson.Gson;
