@@ -2445,6 +2445,7 @@ public class WorkflowTest {
         execution.toString(),
         WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusCompleted,
         queryResponse.getQueryRejected().getCloseStatus());
+    log.info("testSignalUntyped completed");
   }
 
   static final AtomicInteger decisionCount = new AtomicInteger();
