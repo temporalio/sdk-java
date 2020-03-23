@@ -116,7 +116,7 @@ public final class WorkflowClientOptions {
      * correspondent ActivityTaskStarted event contains the worker identity as a field. Default is
      * "unknown-mac" string on Mac or whatever <code>(ManagementFactory.getRuntimeMXBean().getName()
      * </code> returns on any other platform. The reason for treating Mac differently is a very slow
-     * local host name resolution in default configuration.
+     * local host name resolution in a default configuration.
      *
      * @return
      */
