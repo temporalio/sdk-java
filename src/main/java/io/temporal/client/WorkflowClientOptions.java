@@ -114,7 +114,9 @@ public final class WorkflowClientOptions {
      * Override human readable identity of the worker. Identity is used to identify a worker and is
      * recorded in the workflow history events. For example when a worker gets an activity task the
      * correspondent ActivityTaskStarted event contains the worker identity as a field. Default is
-     * whatever <code>(ManagementFactory.getRuntimeMXBean().getName()</code> returns.
+     * "unknown-mac" string on Mac or whatever <code>(ManagementFactory.getRuntimeMXBean().getName()
+     * </code> returns on any other platform. The reason for treating Mac differently is a very slow
+     * local host name resolution in a default configuration.
      *
      * @return
      */
@@ -134,12 +136,26 @@ public final class WorkflowClientOptions {
     }
 
     public WorkflowClientOptions validateAndBuildWithDefaults() {
+      String name;
+      if (identity == null) {
+        String osName = System.getProperty("os.name");
+        // On mac by default getLocalHost (which getRuntimeMXBean().getName() calls) takes long
+        // time. So we don't set identity on mac by default to avoid the bad user experience.
+        // https://stackoverflow.com/questions/33289695/inetaddress-getlocalhost-slow-to-run-30-seconds
+        if (osName.toLowerCase().contains("mac")) {
+          name = "unknown-mac";
+        } else {
+          name = ManagementFactory.getRuntimeMXBean().getName();
+        }
+      } else {
+        name = identity;
+      }
       return new WorkflowClientOptions(
           domain == null ? DEFAULT_DOMAIN : domain,
           dataConverter == null ? JsonDataConverter.getInstance() : dataConverter,
           interceptors == null ? EMPTY_INTERCEPTOR_ARRAY : interceptors,
           metricsScope == null ? NoopScope.getInstance() : metricsScope,
-          identity == null ? ManagementFactory.getRuntimeMXBean().getName() : identity,
+          name,
           contextPropagators == null ? EMPTY_CONTEXT_PROPAGATORS : contextPropagators);
     }
   }

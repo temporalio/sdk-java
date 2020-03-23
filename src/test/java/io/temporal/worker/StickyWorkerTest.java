@@ -59,6 +59,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -128,6 +129,7 @@ public class StickyWorkerTest {
             .reporter(reporter)
             .reportEvery(com.uber.m3.util.Duration.ofMillis(300));
 
+    String identity = UUID.randomUUID().toString();
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(scope, WorkerFactoryOptions.newBuilder().build());
     WorkerFactory factory = wrapper.getWorkerFactory();
@@ -160,7 +162,7 @@ public class StickyWorkerTest {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.DOMAIN, DOMAIN)
-            .put(MetricsTag.TASK_LIST, factory.getHostName())
+            .put(MetricsTag.TASK_LIST, wrapper.getIdentity())
             .build();
     Thread.sleep(600);
     verify(reporter, atLeastOnce())
@@ -272,7 +274,7 @@ public class StickyWorkerTest {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.DOMAIN, DOMAIN)
-            .put(MetricsTag.TASK_LIST, factory.getHostName())
+            .put(MetricsTag.TASK_LIST, wrapper.getIdentity())
             .build();
     verify(reporter, atLeastOnce())
         .reportCounter(eq(MetricsType.STICKY_CACHE_HIT), eq(tags), anyInt());
@@ -320,7 +322,7 @@ public class StickyWorkerTest {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.DOMAIN, DOMAIN)
-            .put(MetricsTag.TASK_LIST, factory.getHostName())
+            .put(MetricsTag.TASK_LIST, wrapper.getIdentity())
             .build();
     verify(reporter, atLeastOnce())
         .reportCounter(eq(MetricsType.STICKY_CACHE_HIT), eq(tags), anyInt());
@@ -375,7 +377,7 @@ public class StickyWorkerTest {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.DOMAIN, DOMAIN)
-            .put(MetricsTag.TASK_LIST, factory.getHostName())
+            .put(MetricsTag.TASK_LIST, wrapper.getIdentity())
             .build();
     verify(reporter, atLeastOnce())
         .reportCounter(eq(MetricsType.STICKY_CACHE_HIT), eq(tags), anyInt());
@@ -513,13 +515,18 @@ public class StickyWorkerTest {
 
     private TestWorkflowEnvironment testEnv;
     private WorkerFactory factory;
+    private String identity = UUID.randomUUID().toString();
 
     public TestEnvironmentWrapper(Scope scope, WorkerFactoryOptions options) {
       if (options == null) {
         options = WorkerFactoryOptions.newBuilder().build();
       }
       WorkflowClientOptions clientOptions =
-          WorkflowClientOptions.newBuilder().setDomain(DOMAIN).setMetricsScope(scope).build();
+          WorkflowClientOptions.newBuilder()
+              .setDomain(DOMAIN)
+              .setIdentity(identity)
+              .setMetricsScope(scope)
+              .build();
       if (useExternalService) {
         WorkflowClient client = WorkflowClient.newInstance(service, clientOptions);
         factory = WorkerFactory.newInstance(client, options);
@@ -531,6 +538,10 @@ public class StickyWorkerTest {
                 .build();
         testEnv = TestWorkflowEnvironment.newInstance(testOptions);
       }
+    }
+
+    public String getIdentity() {
+      return identity;
     }
 
     private WorkerFactory getWorkerFactory() {

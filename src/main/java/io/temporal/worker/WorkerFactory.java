@@ -34,8 +34,6 @@ import io.temporal.internal.worker.Poller;
 import io.temporal.internal.worker.PollerOptions;
 import io.temporal.internal.worker.WorkflowPollTaskFactory;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -106,7 +104,7 @@ public final class WorkerFactory {
             .tagged(
                 new ImmutableMap.Builder<String, String>(2)
                     .put(MetricsTag.DOMAIN, workflowClient.getOptions().getDomain())
-                    .put(MetricsTag.TASK_LIST, getHostName())
+                    .put(MetricsTag.TASK_LIST, workflowClient.getOptions().getIdentity())
                     .build());
 
     this.cache = new DeciderCache(this.factoryOptions.getCacheMaximumSize(), metricsScope);
@@ -295,17 +293,8 @@ public final class WorkerFactory {
     return this.cache;
   }
 
-  @VisibleForTesting
-  String getHostName() {
-    try {
-      return InetAddress.getLocalHost().getHostName();
-    } catch (UnknownHostException e) {
-      return "UnknownHost";
-    }
-  }
-
   private String getStickyTaskListName() {
-    return String.format("%s:%s", getHostName(), id);
+    return String.format("%s:%s", workflowClient.getOptions().getIdentity(), id);
   }
 
   public synchronized void suspendPolling() {
