@@ -48,6 +48,7 @@ public class WorkerFactoryOptions {
     private int maxWorkflowThreadCount;
     private WorkflowInterceptor workflowInterceptor;
     private boolean enableLoggingInReplay;
+    private String hostnameOverride;
 
     private Builder() {}
 
@@ -61,6 +62,7 @@ public class WorkerFactoryOptions {
       this.maxWorkflowThreadCount = options.maxWorkflowThreadCount;
       this.workflowInterceptor = options.workflowInterceptor;
       this.enableLoggingInReplay = options.enableLoggingInReplay;
+      this.hostnameOverride = options.hostnameOverride;
     }
 
     /**
@@ -103,6 +105,11 @@ public class WorkerFactoryOptions {
       return this;
     }
 
+    public Builder setHostNameOverride(String hostnameOverride) {
+      this.hostnameOverride = hostnameOverride;
+      return this;
+    }
+
     public WorkerFactoryOptions build() {
       return new WorkerFactoryOptions(
           cacheMaximumSize,
@@ -110,7 +117,7 @@ public class WorkerFactoryOptions {
           stickyDecisionScheduleToStartTimeoutInSeconds,
           workflowInterceptor,
           enableLoggingInReplay,
-          false);
+          false, "");
     }
 
     public WorkerFactoryOptions validateAndBuildWithDefaults() {
@@ -120,7 +127,7 @@ public class WorkerFactoryOptions {
           stickyDecisionScheduleToStartTimeoutInSeconds,
           workflowInterceptor,
           enableLoggingInReplay,
-          true);
+          true, "");
     }
   }
 
@@ -129,6 +136,7 @@ public class WorkerFactoryOptions {
   private final int stickyDecisionScheduleToStartTimeoutInSeconds;
   private final WorkflowInterceptor workflowInterceptor;
   private final boolean enableLoggingInReplay;
+  private final String hostnameOverride;
 
   private WorkerFactoryOptions(
       int cacheMaximumSize,
@@ -136,7 +144,8 @@ public class WorkerFactoryOptions {
       int stickyDecisionScheduleToStartTimeoutInSeconds,
       WorkflowInterceptor workflowInterceptor,
       boolean enableLoggingInReplay,
-      boolean validate) {
+      boolean validate,
+      String hostnameOverride) {
     if (validate) {
       if (cacheMaximumSize <= 0) {
         cacheMaximumSize = 600;
@@ -157,6 +166,7 @@ public class WorkerFactoryOptions {
         stickyDecisionScheduleToStartTimeoutInSeconds;
     this.workflowInterceptor = workflowInterceptor;
     this.enableLoggingInReplay = enableLoggingInReplay;
+    this.hostnameOverride = hostnameOverride;
   }
 
   public int getCacheMaximumSize() {
@@ -177,5 +187,9 @@ public class WorkerFactoryOptions {
 
   public boolean isEnableLoggingInReplay() {
     return enableLoggingInReplay;
+  }
+
+  public String getHostnameOverride() {
+    return hostnameOverride;
   }
 }

@@ -44,7 +44,13 @@ public final class TestEnvironmentOptions {
   private static final TestEnvironmentOptions DEFAULT_INSTANCE;
 
   static {
-    DEFAULT_INSTANCE = TestEnvironmentOptions.newBuilder().build();
+    DEFAULT_INSTANCE = TestEnvironmentOptions.newBuilder()
+            .setWorkerFactoryOptions(
+                    WorkerFactoryOptions
+                            .newBuilder()
+                            .setHostNameOverride("127.0.0.1")
+                            .build())
+            .build();
   }
 
   private static final List<ContextPropagator> EMPTY_CONTEXT_PROPAGATORS = Arrays.asList();

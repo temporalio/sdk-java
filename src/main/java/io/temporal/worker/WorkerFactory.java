@@ -298,6 +298,9 @@ public final class WorkerFactory {
   @VisibleForTesting
   String getHostName() {
     try {
+      if (!factoryOptions.getHostnameOverride().isEmpty()) {
+        return factoryOptions.getHostnameOverride();
+      }
       return InetAddress.getLocalHost().getHostName();
     } catch (UnknownHostException e) {
       return "UnknownHost";
