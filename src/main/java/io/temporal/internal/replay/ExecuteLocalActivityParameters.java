@@ -21,10 +21,13 @@ package io.temporal.internal.replay;
 
 import io.temporal.common.RetryOptions;
 import io.temporal.proto.common.ActivityType;
+import io.temporal.proto.common.WorkflowExecution;
 import java.util.Arrays;
 
 public class ExecuteLocalActivityParameters {
 
+  private String workflowDomain;
+  private WorkflowExecution workflowExecution;
   private String activityId;
   private ActivityType activityType;
   private byte[] input;
@@ -213,10 +216,31 @@ public class ExecuteLocalActivityParameters {
     this.elapsedTime = startTime;
   }
 
+  public String getWorkflowDomain() {
+    return workflowDomain;
+  }
+
+  public void setWorkflowDomain(String workflowDomain) {
+    this.workflowDomain = workflowDomain;
+  }
+
+  public WorkflowExecution getWorkflowExecution() {
+    return workflowExecution;
+  }
+
+  public void setWorkflowExecution(WorkflowExecution workflowExecution) {
+    this.workflowExecution = workflowExecution;
+  }
+
   @Override
   public String toString() {
-    return "ExecuteActivityParameters{"
-        + "activityId='"
+    return "ExecuteLocalActivityParameters{"
+        + "workflowDomain='"
+        + workflowDomain
+        + '\''
+        + ", workflowExecution="
+        + workflowExecution
+        + ", activityId='"
         + activityId
         + '\''
         + ", activityType="
@@ -225,6 +249,12 @@ public class ExecuteLocalActivityParameters {
         + Arrays.toString(input)
         + ", scheduleToCloseTimeoutSeconds="
         + scheduleToCloseTimeoutSeconds
+        + ", retryOptions="
+        + retryOptions
+        + ", elapsedTime="
+        + elapsedTime
+        + ", attempt="
+        + attempt
         + '}';
   }
 }

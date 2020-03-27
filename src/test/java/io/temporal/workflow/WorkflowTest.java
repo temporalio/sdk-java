@@ -3696,6 +3696,11 @@ public class WorkflowTest {
 
     @Override
     public void throwIO() {
+      assertEquals(DOMAIN, Activity.getTask().getWorkflowDomain());
+      assertNotNull(Activity.getTask().getWorkflowExecution());
+      assertNotNull(Activity.getTask().getWorkflowExecution().getWorkflowId());
+      assertFalse(Activity.getTask().getWorkflowExecution().getWorkflowId().isEmpty());
+      assertFalse(Activity.getTask().getWorkflowExecution().getRunId().isEmpty());
       lastAttempt = Activity.getTask().getAttempt();
       invocations.add("throwIO");
       try {
