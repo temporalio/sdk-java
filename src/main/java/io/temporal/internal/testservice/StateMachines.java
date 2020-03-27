@@ -792,6 +792,7 @@ class StateMachines {
 
     PollForActivityTaskResponse.Builder taskResponse =
         PollForActivityTaskResponse.newBuilder()
+            .setWorkflowDomain(ctx.getDomain())
             .setWorkflowType(data.startWorkflowExecutionRequest.getWorkflowType())
             .setActivityType(d.getActivityType())
             .setWorkflowExecution(ctx.getExecution())
