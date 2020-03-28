@@ -26,7 +26,7 @@ import java.util.Arrays;
 
 public class ExecuteLocalActivityParameters {
 
-  private String workflowDomain;
+  private String workflowNamespace;
   private WorkflowExecution workflowExecution;
   private String activityId;
   private ActivityType activityType;
@@ -216,12 +216,12 @@ public class ExecuteLocalActivityParameters {
     this.elapsedTime = startTime;
   }
 
-  public String getWorkflowDomain() {
-    return workflowDomain;
+  public String getWorkflowNamespace() {
+    return workflowNamespace;
   }
 
-  public void setWorkflowDomain(String workflowDomain) {
-    this.workflowDomain = workflowDomain;
+  public void setWorkflowNamespace(String workflowNamespace) {
+    this.workflowNamespace = workflowNamespace;
   }
 
   public WorkflowExecution getWorkflowExecution() {
@@ -235,8 +235,8 @@ public class ExecuteLocalActivityParameters {
   @Override
   public String toString() {
     return "ExecuteLocalActivityParameters{"
-        + "workflowDomain='"
-        + workflowDomain
+        + "workflowNamespace='"
+        + workflowNamespace
         + '\''
         + ", workflowExecution="
         + workflowExecution

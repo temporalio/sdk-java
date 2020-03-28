@@ -3724,7 +3724,7 @@ public class WorkflowTest {
 
     @Override
     public void throwIO() {
-      assertEquals(DOMAIN, Activity.getTask().getWorkflowDomain());
+      assertEquals(NAMESPACE, Activity.getTask().getWorkflowNamespace());
       assertNotNull(Activity.getTask().getWorkflowExecution());
       assertNotNull(Activity.getTask().getWorkflowExecution().getWorkflowId());
       assertFalse(Activity.getTask().getWorkflowExecution().getWorkflowId().isEmpty());

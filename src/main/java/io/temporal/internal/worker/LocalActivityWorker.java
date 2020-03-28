@@ -242,7 +242,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
 
       PollForActivityTaskResponse pollTask =
           PollForActivityTaskResponse.newBuilder()
-              .setWorkflowDomain(task.params.getWorkflowDomain())
+              .setWorkflowNamespace(task.params.getWorkflowNamespace())
               .setActivityId(task.params.getActivityId())
               .setWorkflowExecution(task.params.getWorkflowExecution())
               .setScheduledTimestamp(System.currentTimeMillis())
