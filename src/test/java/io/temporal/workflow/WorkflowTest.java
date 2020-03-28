@@ -166,7 +166,7 @@ public class WorkflowTest {
         }
       };
 
-  public static final String DOMAIN = "UnitTest";
+  public static final String NAMESPACE = "UnitTest";
   private static final Logger log = LoggerFactory.getLogger(WorkflowTest.class);
 
   private static String UUID_REGEXP =
@@ -268,7 +268,7 @@ public class WorkflowTest {
                     return next;
                   }
                 })
-            .setDomain(DOMAIN)
+            .setNamespace(NAMESPACE)
             .build();
     WorkerFactoryOptions factoryOptions =
         WorkerFactoryOptions.newBuilder().setWorkflowInterceptor(tracer).build();
@@ -420,6 +420,34 @@ public class WorkflowTest {
         "sleep PT2S",
         "executeActivity TestActivities_activityWithDelay",
         "executeActivity TestActivities_activity2");
+  }
+
+  public interface TestMultipleTimers {
+    @WorkflowMethod
+    long execute();
+  }
+
+  public static class TestMultipleTimersImpl implements TestMultipleTimers {
+
+    @Override
+    public long execute() {
+      Promise<Void> t1 = Async.procedure(() -> Workflow.sleep(Duration.ofSeconds(1)));
+      Promise<Void> t2 = Async.procedure(() -> Workflow.sleep(Duration.ofSeconds(2)));
+      long start = Workflow.currentTimeMillis();
+      Promise.anyOf(t1, t2).get();
+      long elapsed = Workflow.currentTimeMillis() - start;
+      return elapsed;
+    }
+  }
+
+  @Test
+  public void testMultipleTimers() {
+    startWorkerFor(TestMultipleTimersImpl.class);
+    TestMultipleTimers workflowStub =
+        workflowClient.newWorkflowStub(
+            TestMultipleTimers.class, newWorkflowOptionsBuilder(taskList).build());
+    long result = workflowStub.execute();
+    assertTrue("should be around 1 second: " + result, result < 2000);
   }
 
   public static class TestActivityRetryWithMaxAttempts implements TestWorkflow1 {
@@ -1365,7 +1393,7 @@ public class WorkflowTest {
 
       GetWorkflowExecutionHistoryResponse historyResp =
           WorkflowExecutionUtils.getHistoryPage(
-              testEnvironment.getWorkflowService(), DOMAIN, executionF, ByteString.EMPTY);
+              testEnvironment.getWorkflowService(), NAMESPACE, executionF, ByteString.EMPTY);
       HistoryEvent startEvent = historyResp.getHistory().getEvents(0);
       Memo memoFromEvent = startEvent.getWorkflowExecutionStartedEventAttributes().getMemo();
       byte[] memoBytes = memoFromEvent.getFieldsMap().get(testMemoKey).toByteArray();
@@ -1406,7 +1434,7 @@ public class WorkflowTest {
 
       GetWorkflowExecutionHistoryResponse historyResp =
           WorkflowExecutionUtils.getHistoryPage(
-              testEnvironment.getWorkflowService(), DOMAIN, executionF, ByteString.EMPTY);
+              testEnvironment.getWorkflowService(), NAMESPACE, executionF, ByteString.EMPTY);
       HistoryEvent startEvent = historyResp.getHistory().getEvents(0);
       SearchAttributes searchAttrFromEvent =
           startEvent.getWorkflowExecutionStartedEventAttributes().getSearchAttributes();
@@ -2904,7 +2932,7 @@ public class WorkflowTest {
     if (useExternalService) {
       wc =
           WorkflowClient.newInstance(
-              service, WorkflowClientOptions.newBuilder().setDomain(DOMAIN).build());
+              service, WorkflowClientOptions.newBuilder().setNamespace(NAMESPACE).build());
     } else {
       wc = testEnvironment.getWorkflowClient();
     }

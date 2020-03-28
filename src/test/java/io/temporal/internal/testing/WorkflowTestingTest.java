@@ -64,6 +64,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -543,16 +544,17 @@ public class WorkflowTestingTest {
 
     @Override
     public String workflow1(String input) {
-      Promise<Void> s = Async.procedure(() -> Workflow.sleep(Duration.ofDays(1)));
+      long startTime = Workflow.currentTimeMillis();
+      Promise<Void> s = Async.procedure(() -> Workflow.sleep(Duration.ofHours(3)));
       TestActivity activity = Workflow.newActivityStub(TestActivity.class);
-      try {
-        activity.activity1("input");
-        Workflow.sleep(Duration.ofDays(3));
-      } catch (CancellationException e) {
-        return "cancelled";
-      } finally {
-        s.get();
+      activity.activity1("input");
+      Workflow.sleep(Duration.ofHours(1));
+      s.get();
+      long endTime = Workflow.currentTimeMillis();
+      if (Duration.ofMillis(endTime - startTime).compareTo(Duration.ofHours(3)) < 0) {
+        fail("workflow sleep interrupted unexpectedly");
       }
+
       return "result";
     }
   }
@@ -564,24 +566,21 @@ public class WorkflowTestingTest {
     worker.registerActivitiesImplementations(new ActivityImpl());
     testEnvironment.start();
     WorkflowClient client = testEnvironment.getWorkflowClient();
-    TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class);
-    WorkflowExecution execution = WorkflowClient.start(workflow::workflow1, "input1");
-    WorkflowStub untyped = client.newUntypedWorkflowStub(execution, Optional.empty());
-    testEnvironment.sleep(Duration.ofHours(1));
-    untyped.cancel();
-    try {
-      untyped.getResult(String.class);
-      fail("unreacheable");
-    } catch (CancellationException e) {
-    }
+    String workflowID = UUID.randomUUID().toString();
+    TestWorkflow workflow =
+        client.newWorkflowStub(
+            TestWorkflow.class, WorkflowOptions.newBuilder().setWorkflowId(workflowID).build());
+    String result = workflow.workflow1("input1");
+    assertEquals("result", result);
+
     History history =
         testEnvironment
             .getWorkflowService()
             .blockingStub()
             .getWorkflowExecutionHistory(
                 GetWorkflowExecutionHistoryRequest.newBuilder()
-                    .setExecution(execution)
-                    .setDomain(client.getOptions().getDomain())
+                    .setExecution(WorkflowExecution.newBuilder().setWorkflowId(workflowID).build())
+                    .setNamespace(client.getOptions().getNamespace())
                     .build())
             .getHistory();
     List<HistoryEvent> historyEvents = history.getEventsList();
@@ -686,7 +685,7 @@ public class WorkflowTestingTest {
       // List open workflows and validate their types
       ListOpenWorkflowExecutionsRequest listRequest =
           ListOpenWorkflowExecutionsRequest.newBuilder()
-              .setDomain(testEnvironment.getDomain())
+              .setNamespace(testEnvironment.getNamespace())
               .build();
       ListOpenWorkflowExecutionsResponse listResponse =
           testEnvironment
@@ -714,7 +713,7 @@ public class WorkflowTestingTest {
     // List closed workflows and validate their types
     ListClosedWorkflowExecutionsRequest listRequest =
         ListClosedWorkflowExecutionsRequest.newBuilder()
-            .setDomain(testEnvironment.getDomain())
+            .setNamespace(testEnvironment.getNamespace())
             .build();
     ListClosedWorkflowExecutionsResponse listResponse =
         testEnvironment

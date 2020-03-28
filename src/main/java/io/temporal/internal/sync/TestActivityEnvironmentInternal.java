@@ -112,7 +112,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     activityTaskHandler =
         new POJOActivityTaskHandler(
             workflowServiceStubs,
-            testEnvironmentOptions.getWorkflowClientOptions().getDomain(),
+            testEnvironmentOptions.getWorkflowClientOptions().getNamespace(),
             testEnvironmentOptions.getWorkflowClientOptions().getDataConverter(),
             heartbeatExecutor);
   }

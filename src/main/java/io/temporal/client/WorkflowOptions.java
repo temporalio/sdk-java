@@ -135,7 +135,7 @@ public final class WorkflowOptions {
 
     /**
      * Specifies server behavior if a completed workflow with the same id exists. Note that under no
-     * conditions Temporal allows two workflows with the same domain and workflow id run
+     * conditions Temporal allows two workflows with the same namespace and workflow id run
      * simultaneously.
      * <li>
      *

@@ -24,7 +24,7 @@ import java.time.Duration;
 
 public interface WorkflowInfo {
 
-  String getDomain();
+  String getNamespace();
 
   String getWorkflowId();
 

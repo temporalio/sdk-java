@@ -52,15 +52,15 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
   private final Map<String, ActivityTaskExecutor> activities =
       Collections.synchronizedMap(new HashMap<>());
   private WorkflowServiceStubs service;
-  private final String domain;
+  private final String namespace;
 
   POJOActivityTaskHandler(
       WorkflowServiceStubs service,
-      String domain,
+      String namespace,
       DataConverter dataConverter,
       ScheduledExecutorService heartbeatExecutor) {
     this.service = service;
-    this.domain = domain;
+    this.namespace = namespace;
     this.dataConverter = dataConverter;
     this.heartbeatExecutor = heartbeatExecutor;
   }
@@ -211,7 +211,8 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     @Override
     public ActivityTaskHandler.Result execute(ActivityTaskImpl task, Scope metricsScope) {
       ActivityExecutionContext context =
-          new ActivityExecutionContextImpl(service, domain, task, dataConverter, heartbeatExecutor);
+          new ActivityExecutionContextImpl(
+              service, namespace, task, dataConverter, heartbeatExecutor);
       byte[] input = task.getInput();
       CurrentActivityExecutionContext.set(context);
       try {
@@ -248,7 +249,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     @Override
     public ActivityTaskHandler.Result execute(ActivityTaskImpl task, Scope metricsScope) {
       ActivityExecutionContext context =
-          new LocalActivityExecutionContextImpl(service, domain, task);
+          new LocalActivityExecutionContextImpl(service, namespace, task);
       CurrentActivityExecutionContext.set(context);
       byte[] input = task.getInput();
       try {

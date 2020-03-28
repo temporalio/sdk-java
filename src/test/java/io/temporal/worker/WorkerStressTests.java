@@ -19,7 +19,7 @@
 
 package io.temporal.worker;
 
-import static io.temporal.workflow.WorkflowTest.DOMAIN;
+import static io.temporal.workflow.WorkflowTest.NAMESPACE;
 import static org.junit.Assert.assertNotNull;
 
 import io.temporal.activity.ActivityMethod;
@@ -180,7 +180,7 @@ public class WorkerStressTests {
         options = WorkerFactoryOptions.newBuilder().build();
       }
       WorkflowClientOptions clientOptions =
-          WorkflowClientOptions.newBuilder().setDomain(DOMAIN).build();
+          WorkflowClientOptions.newBuilder().setNamespace(NAMESPACE).build();
       if (useDockerService) {
         service =
             WorkflowServiceStubs.newInstance(

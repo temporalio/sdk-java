@@ -57,7 +57,7 @@ public class SyncWorkflowWorker
 
   public SyncWorkflowWorker(
       WorkflowServiceStubs service,
-      String domain,
+      String namespace,
       String taskList,
       WorkflowInterceptor interceptorFactory,
       SingleWorkerOptions workflowOptions,
@@ -79,12 +79,12 @@ public class SyncWorkflowWorker
 
     laTaskHandler =
         new POJOActivityTaskHandler(
-            service, domain, localActivityOptions.getDataConverter(), heartbeatExecutor);
-    laWorker = new LocalActivityWorker(domain, taskList, localActivityOptions, laTaskHandler);
+            service, namespace, localActivityOptions.getDataConverter(), heartbeatExecutor);
+    laWorker = new LocalActivityWorker(namespace, taskList, localActivityOptions, laTaskHandler);
 
     DecisionTaskHandler taskHandler =
         new ReplayDecisionTaskHandler(
-            domain,
+            namespace,
             factory,
             cache,
             workflowOptions,
@@ -95,7 +95,7 @@ public class SyncWorkflowWorker
 
     workflowWorker =
         new WorkflowWorker(
-            service, domain, taskList, workflowOptions, taskHandler, stickyTaskListName);
+            service, namespace, taskList, workflowOptions, taskHandler, stickyTaskListName);
   }
 
   public void setWorkflowImplementationTypes(

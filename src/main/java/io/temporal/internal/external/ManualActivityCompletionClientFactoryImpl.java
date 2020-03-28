@@ -33,20 +33,20 @@ public class ManualActivityCompletionClientFactoryImpl
 
   private final WorkflowServiceStubs service;
   private final DataConverter dataConverter;
-  private final String domain;
+  private final String namespace;
   private final Scope metricsScope;
 
   public ManualActivityCompletionClientFactoryImpl(
       WorkflowServiceStubs service,
-      String domain,
+      String namespace,
       DataConverter dataConverter,
       Scope metricsScope) {
     this.service = Objects.requireNonNull(service);
-    this.domain = Objects.requireNonNull(domain);
+    this.namespace = Objects.requireNonNull(namespace);
     this.dataConverter = Objects.requireNonNull(dataConverter);
 
     Map<String, String> tags =
-        new ImmutableMap.Builder<String, String>(1).put(MetricsTag.DOMAIN, domain).build();
+        new ImmutableMap.Builder<String, String>(1).put(MetricsTag.NAMESPACE, namespace).build();
     this.metricsScope = metricsScope.tagged(tags);
   }
 
@@ -81,6 +81,6 @@ public class ManualActivityCompletionClientFactoryImpl
       throw new IllegalArgumentException("null activityId");
     }
     return new ManualActivityCompletionClientImpl(
-        service, domain, execution, activityId, dataConverter, metricsScope);
+        service, namespace, execution, activityId, dataConverter, metricsScope);
   }
 }

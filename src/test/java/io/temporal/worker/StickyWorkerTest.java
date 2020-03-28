@@ -19,7 +19,7 @@
 
 package io.temporal.worker;
 
-import static io.temporal.workflow.WorkflowTest.DOMAIN;
+import static io.temporal.workflow.WorkflowTest.NAMESPACE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Matchers.anyInt;
@@ -161,7 +161,7 @@ public class StickyWorkerTest {
     // Verify the workflow succeeded without having to recover from a failure
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
-            .put(MetricsTag.DOMAIN, DOMAIN)
+            .put(MetricsTag.NAMESPACE, NAMESPACE)
             .put(MetricsTag.TASK_LIST, wrapper.getIdentity())
             .build();
     Thread.sleep(600);
@@ -273,7 +273,7 @@ public class StickyWorkerTest {
     // Verify the workflow succeeded without having to recover from a failure
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
-            .put(MetricsTag.DOMAIN, DOMAIN)
+            .put(MetricsTag.NAMESPACE, NAMESPACE)
             .put(MetricsTag.TASK_LIST, wrapper.getIdentity())
             .build();
     verify(reporter, atLeastOnce())
@@ -321,7 +321,7 @@ public class StickyWorkerTest {
     // Verify the workflow succeeded without having to recover from a failure
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
-            .put(MetricsTag.DOMAIN, DOMAIN)
+            .put(MetricsTag.NAMESPACE, NAMESPACE)
             .put(MetricsTag.TASK_LIST, wrapper.getIdentity())
             .build();
     verify(reporter, atLeastOnce())
@@ -376,7 +376,7 @@ public class StickyWorkerTest {
     // Verify the workflow succeeded without having to recover from a failure
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
-            .put(MetricsTag.DOMAIN, DOMAIN)
+            .put(MetricsTag.NAMESPACE, NAMESPACE)
             .put(MetricsTag.TASK_LIST, wrapper.getIdentity())
             .build();
     verify(reporter, atLeastOnce())
@@ -523,7 +523,7 @@ public class StickyWorkerTest {
       }
       WorkflowClientOptions clientOptions =
           WorkflowClientOptions.newBuilder()
-              .setDomain(DOMAIN)
+              .setNamespace(NAMESPACE)
               .setIdentity(identity)
               .setMetricsScope(scope)
               .build();

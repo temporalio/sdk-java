@@ -81,7 +81,7 @@ public class ReplayDeciderCacheTests {
     DeciderCache replayDeciderCache = new DeciderCache(10, NoopScope.getInstance());
     PollForDecisionTaskResponse decisionTask1 =
         HistoryUtils.generateDecisionTaskWithInitialHistory(
-            "domain", "taskList", "workflowType", service);
+            "namespace", "taskList", "workflowType", service);
 
     Decider decider =
         replayDeciderCache.getOrCreate(decisionTask1, () -> createFakeDecider(decisionTask1));
@@ -89,7 +89,7 @@ public class ReplayDeciderCacheTests {
 
     PollForDecisionTaskResponse decisionTask2 =
         HistoryUtils.generateDecisionTaskWithPartialHistoryFromExistingTask(
-            decisionTask1, "domain", "stickyTaskList", service);
+            decisionTask1, "namespace", "stickyTaskList", service);
 
     assertEquals(
         decider,
@@ -117,7 +117,7 @@ public class ReplayDeciderCacheTests {
     // Arrange
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
-            .put(MetricsTag.DOMAIN, "domain")
+            .put(MetricsTag.NAMESPACE, "namespace")
             .put(MetricsTag.TASK_LIST, "stickyTaskList")
             .build();
     StatsReporter reporter = mock(StatsReporter.class);
@@ -130,7 +130,7 @@ public class ReplayDeciderCacheTests {
     try {
       PollForDecisionTaskResponse decisionTask =
           HistoryUtils.generateDecisionTaskWithInitialHistory(
-              "domain", "taskList", "workflowType", service);
+              "namespace", "taskList", "workflowType", service);
 
       Decider decider =
           replayDeciderCache.getOrCreate(decisionTask, () -> createFakeDecider(decisionTask));
@@ -139,7 +139,7 @@ public class ReplayDeciderCacheTests {
       // Act
       PollForDecisionTaskResponse decisionTask2 =
           HistoryUtils.generateDecisionTaskWithPartialHistoryFromExistingTask(
-              decisionTask, "domain", "stickyTaskList", service);
+              decisionTask, "namespace", "stickyTaskList", service);
       Decider decider2 =
           replayDeciderCache.getOrCreate(
               decisionTask2, () -> doNotCreateFakeDecider(decisionTask2));
@@ -161,7 +161,7 @@ public class ReplayDeciderCacheTests {
     // Arrange
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
-            .put(MetricsTag.DOMAIN, "domain")
+            .put(MetricsTag.NAMESPACE, "namespace")
             .put(MetricsTag.TASK_LIST, "stickyTaskList")
             .build();
     StatsReporter reporter = mock(StatsReporter.class);
@@ -191,7 +191,7 @@ public class ReplayDeciderCacheTests {
   public void evictAnyWillInvalidateAnEntryRandomlyFromTheCache() throws Exception {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
-            .put(MetricsTag.DOMAIN, "domain")
+            .put(MetricsTag.NAMESPACE, "namespace")
             .put(MetricsTag.TASK_LIST, "stickyTaskList")
             .build();
     StatsReporter reporter = mock(StatsReporter.class);
@@ -272,7 +272,7 @@ public class ReplayDeciderCacheTests {
   private ReplayDecider createFakeDecider(PollForDecisionTaskResponse response) {
     return new ReplayDecider(
         null,
-        "domain",
+        "namespace",
         new ReplayWorkflow() {
           @Override
           public void start(HistoryEvent event, DecisionContext context) {}

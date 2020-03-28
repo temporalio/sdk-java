@@ -37,7 +37,7 @@ public class WorkflowContextTest {
   public void TestMergeSearchAttributes() {
     WorkflowExecutionStartedEventAttributes startAttr =
         WorkflowExecutionStartedEventAttributes.getDefaultInstance();
-    WorkflowContext workflowContext = new WorkflowContext("domain", null, startAttr, null);
+    WorkflowContext workflowContext = new WorkflowContext("namespace", null, startAttr, null);
 
     DataConverter converter = JsonDataConverter.getInstance();
     Map<String, ByteString> indexedFields = new HashMap<>();

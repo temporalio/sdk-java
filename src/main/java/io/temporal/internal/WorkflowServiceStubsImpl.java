@@ -51,15 +51,15 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
 
   /** refers to the name of the gRPC header that contains the client library version */
   private static final Metadata.Key<String> LIBRARY_VERSION_HEADER_KEY =
-      Metadata.Key.of("temporal-sdk-version", Metadata.ASCII_STRING_MARSHALLER);
+      Metadata.Key.of("temporal-client-version", Metadata.ASCII_STRING_MARSHALLER);
 
   /** refers to the name of the gRPC header that contains the client feature version */
   private static final Metadata.Key<String> FEATURE_VERSION_HEADER_KEY =
-      Metadata.Key.of("temporal-sdk-feature-version", Metadata.ASCII_STRING_MARSHALLER);
+      Metadata.Key.of("temporal-client-feature-version", Metadata.ASCII_STRING_MARSHALLER);
 
   /** refers to the name of the gRPC header that contains the client SDK name */
   private static final Metadata.Key<String> CLIENT_IMPL_HEADER_KEY =
-      Metadata.Key.of("temporal-sdk-name", Metadata.ASCII_STRING_MARSHALLER);
+      Metadata.Key.of("temporal-client-name", Metadata.ASCII_STRING_MARSHALLER);
 
   private static final String CLIENT_IMPL_HEADER_VALUE = "temporal-java";
 

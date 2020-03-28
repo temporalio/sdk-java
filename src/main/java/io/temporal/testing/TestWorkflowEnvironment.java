@@ -139,7 +139,7 @@ public interface TestWorkflowEnvironment {
   /** Returns the in-memory test Temporal service that is owned by this. */
   WorkflowServiceStubs getWorkflowService();
 
-  String getDomain();
+  String getNamespace();
 
   /**
    * Returns the diagnostic data about the internal service state. Currently prints histories of all

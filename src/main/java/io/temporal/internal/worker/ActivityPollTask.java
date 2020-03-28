@@ -36,16 +36,19 @@ import org.slf4j.LoggerFactory;
 final class ActivityPollTask implements Poller.PollTask<PollForActivityTaskResponse> {
 
   private final WorkflowServiceStubs service;
-  private final String domain;
+  private final String namespace;
   private final String taskList;
   private final SingleWorkerOptions options;
   private static final Logger log = LoggerFactory.getLogger(ActivityPollTask.class);
 
   public ActivityPollTask(
-      WorkflowServiceStubs service, String domain, String taskList, SingleWorkerOptions options) {
+      WorkflowServiceStubs service,
+      String namespace,
+      String taskList,
+      SingleWorkerOptions options) {
 
     this.service = service;
-    this.domain = domain;
+    this.namespace = namespace;
     this.taskList = taskList;
     this.options = options;
   }
@@ -57,7 +60,7 @@ final class ActivityPollTask implements Poller.PollTask<PollForActivityTaskRespo
 
     PollForActivityTaskRequest.Builder pollRequest =
         PollForActivityTaskRequest.newBuilder()
-            .setDomain(domain)
+            .setNamespace(namespace)
             .setIdentity(options.getIdentity())
             .setTaskList(TaskList.newBuilder().setName(taskList));
 

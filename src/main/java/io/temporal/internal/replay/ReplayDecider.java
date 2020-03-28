@@ -86,7 +86,7 @@ class ReplayDecider implements Decider {
 
   ReplayDecider(
       WorkflowServiceStubs service,
-      String domain,
+      String namespace,
       ReplayWorkflow workflow,
       DecisionsHelper decisionsHelper,
       SingleWorkerOptions options,
@@ -107,7 +107,7 @@ class ReplayDecider implements Decider {
 
     context =
         new DecisionContextImpl(
-            decisionsHelper, domain, decisionTask, startedEvent, options, laTaskPoller, this);
+            decisionsHelper, namespace, decisionTask, startedEvent, options, laTaskPoller, this);
 
     localActivityCompletionSink =
         historyEvent -> {
@@ -655,7 +655,7 @@ class ReplayDecider implements Decider {
 
           GetWorkflowExecutionHistoryRequest request =
               GetWorkflowExecutionHistoryRequest.newBuilder()
-                  .setDomain(context.getDomain())
+                  .setNamespace(context.getNamespace())
                   .setExecution(task.getWorkflowExecution())
                   .setMaximumPageSize(MAXIMUM_PAGE_SIZE)
                   .setNextPageToken(nextPageToken)

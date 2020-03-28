@@ -34,8 +34,8 @@ final class WorkflowInfoImpl implements WorkflowInfo {
   }
 
   @Override
-  public String getDomain() {
-    return context.getDomain();
+  public String getNamespace() {
+    return context.getNamespace();
   }
 
   @Override

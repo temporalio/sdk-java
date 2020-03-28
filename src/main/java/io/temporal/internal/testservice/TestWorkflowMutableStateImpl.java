@@ -179,7 +179,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     this.parentChildInitiatedEventId = parentChildInitiatedEventId;
     this.service = service;
     this.executionId =
-        new ExecutionId(startRequest.getDomain(), startRequest.getWorkflowId(), runId);
+        new ExecutionId(startRequest.getNamespace(), startRequest.getWorkflowId(), runId);
     this.store = store;
     selfAdvancingTimer = store.getTimer();
     this.clock = selfAdvancingTimer.getClock();
@@ -439,7 +439,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   RequestCancelWorkflowExecutionRequest.newBuilder()
                       .setWorkflowExecution(
                           WorkflowExecution.newBuilder().setWorkflowId(attr.getWorkflowId()))
-                      .setDomain(ctx.getDomain())
+                      .setNamespace(ctx.getNamespace())
                       .build();
               try {
                 service.requestCancelWorkflowExecution(request);
@@ -969,7 +969,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               .setDetails(d.getDetails())
               .setReason(d.getReason())
               .setWorkflowType(startRequest.getWorkflowType())
-              .setDomain(ctx.getDomain())
+              .setNamespace(ctx.getNamespace())
               .setWorkflowExecution(ctx.getExecution())
               .build();
       ForkJoinPool.commonPool()
@@ -1009,7 +1009,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           ChildWorkflowExecutionCompletedEventAttributes.newBuilder()
               .setInitiatedEventId(parentChildInitiatedEventId.getAsLong())
               .setResult(d.getResult())
-              .setDomain(ctx.getDomain())
+              .setNamespace(ctx.getNamespace())
               .setWorkflowExecution(ctx.getExecution())
               .setWorkflowType(startRequest.getWorkflowType())
               .build();
@@ -1098,7 +1098,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           ChildWorkflowExecutionCanceledEventAttributes.newBuilder()
               .setInitiatedEventId(parentChildInitiatedEventId.getAsLong())
               .setDetails(d.getDetails())
-              .setDomain(ctx.getDomain())
+              .setNamespace(ctx.getNamespace())
               .setWorkflowExecution(ctx.getExecution())
               .setWorkflowType(startRequest.getWorkflowType())
               .build();
@@ -1206,7 +1206,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           ChildWorkflowExecutionStartedEventAttributes.newBuilder()
               .setInitiatedEventId(parentChildInitiatedEventId.getAsLong())
               .setWorkflowExecution(getExecutionId().getExecution())
-              .setDomain(getExecutionId().getDomain())
+              .setNamespace(getExecutionId().getNamespace())
               .setWorkflowType(startRequest.getWorkflowType())
               .build();
       ForkJoinPool.commonPool()
@@ -1526,7 +1526,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               .setInitiatedEventId(parentChildInitiatedEventId.getAsLong())
               .setTimeoutType(TimeoutType.TimeoutTypeStartToClose)
               .setWorkflowType(startRequest.getWorkflowType())
-              .setDomain(ctx.getDomain())
+              .setNamespace(ctx.getNamespace())
               .setWorkflowExecution(ctx.getExecution())
               .build();
       parent.get().childWorkflowTimedOut(ctx.getExecutionId().getWorkflowId().getWorkflowId(), a);
@@ -1597,7 +1597,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setWorkflowExecutionTaskList(startRequest.getTaskList());
     TaskListId taskListId =
         new TaskListId(
-            queryRequest.getDomain(),
+            queryRequest.getNamespace(),
             stickyExecutionAttributes == null
                 ? startRequest.getTaskList().getName()
                 : stickyExecutionAttributes.getWorkerTaskList().getName());
@@ -1634,7 +1634,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       PollForDecisionTaskResponse.Builder task = queryRequests.remove(queryId.getQueryId());
 
       TaskListId taskListId =
-          new TaskListId(startRequest.getDomain(), startRequest.getTaskList().getName());
+          new TaskListId(startRequest.getNamespace(), startRequest.getTaskList().getName());
       store.sendQueryTask(executionId, taskListId, task);
     } else {
       StatusRuntimeException error =

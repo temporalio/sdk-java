@@ -57,22 +57,22 @@ import java.util.UUID;
 
 public final class GenericWorkflowClientExternalImpl implements GenericWorkflowClientExternal {
 
-  private final String domain;
+  private final String namespace;
   private final WorkflowServiceStubs service;
   private final Scope metricsScope;
   private final String identity;
 
   public GenericWorkflowClientExternalImpl(
-      WorkflowServiceStubs service, String domain, String identity, Scope metricsScope) {
+      WorkflowServiceStubs service, String namespace, String identity, Scope metricsScope) {
     this.service = service;
-    this.domain = domain;
+    this.namespace = namespace;
     this.identity = identity;
     this.metricsScope = metricsScope;
   }
 
   @Override
-  public String getDomain() {
-    return domain;
+  public String getNamespace() {
+    return namespace;
   }
 
   @Override
@@ -90,7 +90,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
           new ImmutableMap.Builder<String, String>(3)
               .put(MetricsTag.WORKFLOW_TYPE, startParameters.getWorkflowType().getName())
               .put(MetricsTag.TASK_LIST, startParameters.getTaskList())
-              .put(MetricsTag.DOMAIN, domain)
+              .put(MetricsTag.NAMESPACE, namespace)
               .build();
       metricsScope.tagged(tags).counter(MetricsType.WORKFLOW_START_COUNTER).inc(1);
     }
@@ -100,7 +100,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
       StartWorkflowExecutionParameters startParameters) {
     StartWorkflowExecutionRequest.Builder request =
         StartWorkflowExecutionRequest.newBuilder()
-            .setDomain(domain)
+            .setNamespace(namespace)
             .setRequestId(UUID.randomUUID().toString())
             .setIdentity(identity);
     if (startParameters.getInput() != null) {
@@ -207,7 +207,10 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
         SignalWorkflowExecutionRequest.newBuilder()
             .setRequestId(UUID.randomUUID().toString())
             .setIdentity(identity)
-            .setDomain(signalParameters.getDomain() == null ? domain : signalParameters.getDomain())
+            .setNamespace(
+                signalParameters.getNamespace() == null
+                    ? namespace
+                    : signalParameters.getNamespace())
             .setInput(OptionsUtils.toByteString(signalParameters.getInput()))
             .setSignalName(signalParameters.getSignalName())
             .setWorkflowExecution(
@@ -232,7 +235,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
                   MetricsTag.WORKFLOW_TYPE,
                   parameters.getStartParameters().getWorkflowType().getName())
               .put(MetricsTag.TASK_LIST, parameters.getStartParameters().getTaskList())
-              .put(MetricsTag.DOMAIN, domain)
+              .put(MetricsTag.NAMESPACE, namespace)
               .build();
       metricsScope.tagged(tags).counter(MetricsType.WORKFLOW_SIGNAL_WITH_START_COUNTER).inc(1);
     }
@@ -244,7 +247,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
 
     SignalWithStartWorkflowExecutionRequest.Builder request =
         SignalWithStartWorkflowExecutionRequest.newBuilder()
-            .setDomain(domain)
+            .setNamespace(namespace)
             .setRequestId(UUID.randomUUID().toString())
             .setIdentity(identity)
             .setSignalName(parameters.getSignalName())
@@ -296,7 +299,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
         RequestCancelWorkflowExecutionRequest.newBuilder()
             .setRequestId(UUID.randomUUID().toString())
             .setIdentity(identity)
-            .setDomain(domain)
+            .setNamespace(namespace)
             .setWorkflowExecution(execution)
             .build();
     GrpcRetryer.retry(
@@ -308,7 +311,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   public QueryWorkflowResponse queryWorkflow(QueryWorkflowParameters queryParameters) {
     QueryWorkflowRequest request =
         QueryWorkflowRequest.newBuilder()
-            .setDomain(domain)
+            .setNamespace(namespace)
             .setExecution(
                 WorkflowExecution.newBuilder()
                     .setWorkflowId(queryParameters.getWorkflowId())
@@ -339,7 +342,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
         TerminateWorkflowExecutionRequest.newBuilder()
             .setIdentity(identity)
             .setWorkflowExecution(terminateParameters.getWorkflowExecution())
-            .setDomain(domain)
+            .setNamespace(namespace)
             .setDetails(ByteString.copyFrom(terminateParameters.getDetails()))
             .setReason(terminateParameters.getReason())
             .build();

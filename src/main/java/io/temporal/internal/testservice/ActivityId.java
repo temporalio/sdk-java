@@ -34,15 +34,15 @@ final class ActivityId {
   private final ExecutionId executionId;
   private final String id;
 
-  ActivityId(String domain, WorkflowExecution execution, String id) {
+  ActivityId(String namespace, WorkflowExecution execution, String id) {
     this.executionId =
-        new ExecutionId(Objects.requireNonNull(domain), Objects.requireNonNull(execution));
+        new ExecutionId(Objects.requireNonNull(namespace), Objects.requireNonNull(execution));
     this.id = Objects.requireNonNull(id);
   }
 
-  ActivityId(String domain, String workflowId, String runId, String id) {
+  ActivityId(String namespace, String workflowId, String runId, String id) {
     this(
-        domain,
+        namespace,
         WorkflowExecution.newBuilder().setWorkflowId(workflowId).setRunId(runId).build(),
         id);
   }
@@ -94,7 +94,7 @@ final class ActivityId {
     ByteArrayOutputStream bout = new ByteArrayOutputStream();
     DataOutputStream out = new DataOutputStream(bout);
     try {
-      out.writeUTF(executionId.getDomain());
+      out.writeUTF(executionId.getNamespace());
       WorkflowExecution execution = executionId.getExecution();
       out.writeUTF(execution.getWorkflowId());
       out.writeUTF(execution.getRunId());
@@ -113,17 +113,17 @@ final class ActivityId {
     ByteArrayInputStream bin = new ByteArrayInputStream(serialized);
     DataInputStream in = new DataInputStream(bin);
     try {
-      String domain = in.readUTF();
+      String namespace = in.readUTF();
       String workflowId = in.readUTF();
       String runId = in.readUTF();
       String id = in.readUTF();
-      return new ActivityId(domain, workflowId, runId, id);
+      return new ActivityId(namespace, workflowId, runId, id);
     } catch (IOException e) {
       throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
     }
   }
 
   public WorkflowId getWorkflowId() {
-    return new WorkflowId(executionId.getDomain(), executionId.getExecution().getWorkflowId());
+    return new WorkflowId(executionId.getNamespace(), executionId.getExecution().getWorkflowId());
   }
 }

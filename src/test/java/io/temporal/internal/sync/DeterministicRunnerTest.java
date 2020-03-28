@@ -704,7 +704,7 @@ public class DeterministicRunnerTest {
     // Arrange
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
-            .put(MetricsTag.DOMAIN, "domain")
+            .put(MetricsTag.NAMESPACE, "namespace")
             .put(MetricsTag.TASK_LIST, "stickyTaskList")
             .build();
     StatsReporter reporter = mock(StatsReporter.class);
@@ -720,7 +720,7 @@ public class DeterministicRunnerTest {
     DeciderCache cache = new DeciderCache(3, scope);
     DecisionContext decisionContext = mock(DecisionContext.class);
     when(decisionContext.getMetricsScope()).thenReturn(scope);
-    when(decisionContext.getDomain()).thenReturn("domain");
+    when(decisionContext.getNamespace()).thenReturn("namespace");
     when(decisionContext.getWorkflowType()).thenReturn(WorkflowType.getDefaultInstance());
 
     DeterministicRunnerImpl d =

@@ -23,16 +23,16 @@ import java.util.Objects;
 
 class WorkflowId {
 
-  private final String domain;
+  private final String namespace;
   private final String workflowId;
 
-  public WorkflowId(String domain, String workflowId) {
-    this.domain = Objects.requireNonNull(domain);
+  public WorkflowId(String namespace, String workflowId) {
+    this.namespace = Objects.requireNonNull(namespace);
     this.workflowId = Objects.requireNonNull(workflowId);
   }
 
-  public String getDomain() {
-    return domain;
+  public String getNamespace() {
+    return namespace;
   }
 
   public String getWorkflowId() {
@@ -50,7 +50,7 @@ class WorkflowId {
 
     WorkflowId that = (WorkflowId) o;
 
-    if (!domain.equals(that.domain)) {
+    if (!namespace.equals(that.namespace)) {
       return false;
     }
     return workflowId.equals(that.workflowId);
@@ -58,13 +58,20 @@ class WorkflowId {
 
   @Override
   public int hashCode() {
-    int result = domain.hashCode();
+    int result = namespace.hashCode();
     result = 31 * result + workflowId.hashCode();
     return result;
   }
 
   @Override
   public String toString() {
-    return "WorkflowId{" + "domain='" + domain + '\'' + ", workflowId='" + workflowId + '\'' + '}';
+    return "WorkflowId{"
+        + "namespace='"
+        + namespace
+        + '\''
+        + ", workflowId='"
+        + workflowId
+        + '\''
+        + '}';
   }
 }

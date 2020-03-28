@@ -209,7 +209,7 @@ public class MetricsTest {
             .setWorkflowClientOptions(
                 WorkflowClientOptions.newBuilder()
                     .setMetricsScope(scope)
-                    .setDomain(WorkflowTest.DOMAIN)
+                    .setNamespace(WorkflowTest.NAMESPACE)
                     .build())
             .setWorkerFactoryOptions(workerFactoryOptions)
             .build();
@@ -240,7 +240,7 @@ public class MetricsTest {
 
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
-            .put(MetricsTag.DOMAIN, WorkflowTest.DOMAIN)
+            .put(MetricsTag.NAMESPACE, WorkflowTest.NAMESPACE)
             .put(MetricsTag.TASK_LIST, taskList)
             .build();
 
@@ -263,7 +263,7 @@ public class MetricsTest {
 
     Map<String, String> activityCompletionTags =
         new ImmutableMap.Builder<String, String>(3)
-            .put(MetricsTag.DOMAIN, WorkflowTest.DOMAIN)
+            .put(MetricsTag.NAMESPACE, WorkflowTest.NAMESPACE)
             .put(MetricsTag.TASK_LIST, taskList)
             .put(MetricsTag.ACTIVITY_TYPE, "TestActivity_runActivity")
             .put(MetricsTag.WORKFLOW_TYPE, "TestWorkflow_execute")
@@ -304,7 +304,7 @@ public class MetricsTest {
 
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
-            .put(MetricsTag.DOMAIN, WorkflowTest.DOMAIN)
+            .put(MetricsTag.NAMESPACE, WorkflowTest.NAMESPACE)
             .put(MetricsTag.TASK_LIST, taskList)
             .build();
     verify(reporter, times(1)).reportCounter(MetricsType.CORRUPTED_SIGNALS_COUNTER, tags, 1);
