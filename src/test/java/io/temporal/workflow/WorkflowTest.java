@@ -422,6 +422,34 @@ public class WorkflowTest {
         "executeActivity TestActivities_activity2");
   }
 
+  public interface TestMultipleTimers {
+    @WorkflowMethod
+    long execute();
+  }
+
+  public static class TestMultipleTimersImpl implements TestMultipleTimers {
+
+    @Override
+    public long execute() {
+      Promise<Void> t1 = Async.procedure(() -> Workflow.sleep(Duration.ofSeconds(1)));
+      Promise<Void> t2 = Async.procedure(() -> Workflow.sleep(Duration.ofSeconds(2)));
+      long start = Workflow.currentTimeMillis();
+      Promise.anyOf(t1, t2).get();
+      long elapsed = Workflow.currentTimeMillis() - start;
+      return elapsed;
+    }
+  }
+
+  @Test
+  public void testMultipleTimers() {
+    startWorkerFor(TestMultipleTimersImpl.class);
+    TestMultipleTimers workflowStub =
+        workflowClient.newWorkflowStub(
+            TestMultipleTimers.class, newWorkflowOptionsBuilder(taskList).build());
+    long result = workflowStub.execute();
+    assertTrue("should be around 1 second: " + result, result < 2000);
+  }
+
   public static class TestActivityRetryWithMaxAttempts implements TestWorkflow1 {
 
     @Override
