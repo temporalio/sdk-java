@@ -25,7 +25,6 @@ apply plugin: 'com.google.protobuf'
 apply plugin: 'idea' // IntelliJ plugin to see files generated from protos
 apply plugin: 'maven'
 apply plugin: 'maven-publish'
-apply from: 'versioning.gradle'
 
 if (hasProperty('signing.keyId')) {
     apply plugin: 'signing'
@@ -53,9 +52,9 @@ ext.getTag = { ->
 ext.getVersionName = { ->
     def split = getTag().split('-')
     if (split.size() > 1) {
-        version = split[0] + '-SNAPSHOT'
+        return split[0] + '-SNAPSHOT'
     }
-    return version
+    return split[0]
 }
 
 group='io.temporal'
