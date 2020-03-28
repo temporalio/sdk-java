@@ -19,7 +19,7 @@ services:
       - "8126:8126"
 
   temporal:
-    image: temporalio/temporal:master-auto-setup
+    image: temporalio/auto-setup:latest
     logging:
       driver: none
     ports:
