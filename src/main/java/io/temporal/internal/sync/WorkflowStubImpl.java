@@ -276,7 +276,7 @@ class WorkflowStubImpl implements WorkflowStub {
       byte[] resultValue =
           WorkflowExecutionUtils.getWorkflowExecutionResult(
               genericClient.getService(),
-              genericClient.getDomain(),
+              genericClient.getNamespace(),
               execution.get(),
               workflowType,
               timeout,
@@ -314,7 +314,7 @@ class WorkflowStubImpl implements WorkflowStub {
     checkStarted();
     return WorkflowExecutionUtils.getWorkflowExecutionResultAsync(
             genericClient.getService(),
-            genericClient.getDomain(),
+            genericClient.getNamespace(),
             execution.get(),
             workflowType,
             timeout,

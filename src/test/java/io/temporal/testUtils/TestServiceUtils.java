@@ -41,13 +41,13 @@ public class TestServiceUtils {
   private TestServiceUtils() {}
 
   public static void startWorkflowExecution(
-      String domain, String tasklistName, String workflowType, WorkflowServiceStubs service)
+      String namespace, String tasklistName, String workflowType, WorkflowServiceStubs service)
       throws Exception {
-    startWorkflowExecution(domain, tasklistName, workflowType, 100, 100, service);
+    startWorkflowExecution(namespace, tasklistName, workflowType, 100, 100, service);
   }
 
   public static void startWorkflowExecution(
-      String domain,
+      String namespace,
       String tasklistName,
       String workflowType,
       int executionStartToCloseTimeoutSeconds,
@@ -55,7 +55,7 @@ public class TestServiceUtils {
       WorkflowServiceStubs service)
       throws Exception {
     StartWorkflowExecutionRequest.Builder request = StartWorkflowExecutionRequest.newBuilder();
-    request.setDomain(domain);
+    request.setNamespace(namespace);
     request.setWorkflowId(UUID.randomUUID().toString());
     request.setTaskList(createNormalTaskList(tasklistName));
     request.setExecutionStartToCloseTimeoutSeconds(executionStartToCloseTimeoutSeconds);
@@ -95,18 +95,21 @@ public class TestServiceUtils {
   }
 
   public static PollForDecisionTaskResponse pollForDecisionTask(
-      String domain, TaskList tasklist, WorkflowServiceStubs service) throws Exception {
+      String namespace, TaskList tasklist, WorkflowServiceStubs service) throws Exception {
     PollForDecisionTaskRequest request =
-        PollForDecisionTaskRequest.newBuilder().setDomain(domain).setTaskList(tasklist).build();
+        PollForDecisionTaskRequest.newBuilder()
+            .setNamespace(namespace)
+            .setTaskList(tasklist)
+            .build();
     return service.blockingStub().pollForDecisionTask(request);
   }
 
   public static void signalWorkflow(
-      WorkflowExecution workflowExecution, String domain, WorkflowServiceStubs service)
+      WorkflowExecution workflowExecution, String namespace, WorkflowServiceStubs service)
       throws Exception {
     SignalWorkflowExecutionRequest signalRequest =
         SignalWorkflowExecutionRequest.newBuilder()
-            .setDomain(domain)
+            .setNamespace(namespace)
             .setSignalName("my-signal")
             .setWorkflowExecution(workflowExecution)
             .build();

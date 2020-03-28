@@ -215,13 +215,13 @@ artifacts {
 def ossrhUsername = hasProperty('ossrhUsername') ? property('ossrhUsername') : ''
 def ossrhPassword = hasProperty('ossrhPassword') ? property('ossrhPassword') : ''
 
-task registerDomain(type: JavaExec) {
-    main = 'io.temporal.RegisterTestDomain'
+task registerNamespace(type: JavaExec) {
+    main = 'io.temporal.RegisterTestNamespace'
     classpath = sourceSets.test.runtimeClasspath
 }
 
 test {
-    dependsOn 'registerDomain'
+    dependsOn 'registerNamespace'
     dependsOn 'checkLicenseMain'
     testLogging {
         events 'passed', 'skipped', 'failed'

@@ -48,7 +48,7 @@ import java.util.concurrent.CompletableFuture;
  * then calling a method annotated with {@literal @}{@link WorkflowMethod}.
  *
  * <pre><code>
- * WorkflowClient workflowClient = WorkflowClient.newInstance(temporalServiceHost, temporalServicePort, domain);
+ * WorkflowClient workflowClient = WorkflowClient.newInstance(temporalServiceHost, temporalServicePort, namespace);
  * // Create a workflow stub.
  * FileProcessingWorkflow workflow = workflowClient.newWorkflowStub(FileProcessingWorkflow.class);
  * </code></pre>

@@ -399,7 +399,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
             .setInput(input)
             .setExecutionStartToCloseTimeoutSeconds(
                 options.getExecutionStartToCloseTimeout().getSeconds())
-            .setDomain(options.getDomain())
+            .setNamespace(options.getNamespace())
             .setTaskList(options.getTaskList())
             .setTaskStartToCloseTimeoutSeconds(options.getTaskStartToCloseTimeout().getSeconds())
             .setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy())

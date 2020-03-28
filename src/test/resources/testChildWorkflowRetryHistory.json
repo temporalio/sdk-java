@@ -70,7 +70,7 @@
     "eventType": "StartChildWorkflowExecutionInitiated",
     "version": -24,
     "startChildWorkflowExecutionInitiatedEventAttributes": {
-      "domain": "UnitTest",
+      "namespace": "UnitTest",
       "workflowId": "c766b1bc-a4a2-369f-93f4-15be09faf4bb",
       "workflowType": {
         "name": "ITestChild_execute"
@@ -92,7 +92,7 @@
     "eventType": "ChildWorkflowExecutionStarted",
     "version": -24,
     "childWorkflowExecutionStartedEventAttributes": {
-      "domain": "UnitTest",
+      "namespace": "UnitTest",
       "initiatedEventId": 6,
       "workflowExecution": {
         "workflowId": "c766b1bc-a4a2-369f-93f4-15be09faf4bb",
@@ -146,7 +146,7 @@
     "childWorkflowExecutionFailedEventAttributes": {
       "reason": "java.lang.UnsupportedOperationException",
       "details": "eyJkZXRhaWxNZXNzYWdlIjoic2ltdWxhdGVkIGZhaWx1cmUiLCJzdGFja1RyYWNlIjoiY29tLnViZXIuY2FkZW5jZS53b3JrZmxvdy5Xb3JrZmxvd1Rlc3QkQW5ncnlDaGlsZC5leGVjdXRlKFdvcmtmbG93VGVzdC5qYXZhOjIzMDIpXG5zdW4ucmVmbGVjdC5OYXRpdmVNZXRob2RBY2Nlc3NvckltcGwuaW52b2tlMChOYXRpdmUgTWV0aG9kKVxuc3VuLnJlZmxlY3QuTmF0aXZlTWV0aG9kQWNjZXNzb3JJbXBsLmludm9rZShOYXRpdmVNZXRob2RBY2Nlc3NvckltcGwuamF2YTo2MilcbnN1bi5yZWZsZWN0LkRlbGVnYXRpbmdNZXRob2RBY2Nlc3NvckltcGwuaW52b2tlKERlbGVnYXRpbmdNZXRob2RBY2Nlc3NvckltcGwuamF2YTo0MylcbmphdmEubGFuZy5yZWZsZWN0Lk1ldGhvZC5pbnZva2UoTWV0aG9kLmphdmE6NDk4KVxuY29tLnViZXIuY2FkZW5jZS5pbnRlcm5hbC5zeW5jLlBPSk9Xb3JrZmxvd0ltcGxlbWVudGF0aW9uRmFjdG9yeSRQT0pPV29ya2Zsb3dJbXBsZW1lbnRhdGlvbi5leGVjdXRlKFBPSk9Xb3JrZmxvd0ltcGxlbWVudGF0aW9uRmFjdG9yeS5qYXZhOjIxMylcbmNvbS51YmVyLmNhZGVuY2UuaW50ZXJuYWwuc3luYy5Xb3JrZmxvd1J1bm5hYmxlLnJ1bihXb3JrZmxvd1J1bm5hYmxlLmphdmE6NDYpXG5jb20udWJlci5jYWRlbmNlLmludGVybmFsLnN5bmMuQ2FuY2VsbGF0aW9uU2NvcGVJbXBsLnJ1bihDYW5jZWxsYXRpb25TY29wZUltcGwuamF2YTo5MylcbmNvbS51YmVyLmNhZGVuY2UuaW50ZXJuYWwuc3luYy5Xb3JrZmxvd1RocmVhZEltcGwkUnVubmFibGVXcmFwcGVyLnJ1bihXb3JrZmxvd1RocmVhZEltcGwuamF2YTo4MylcbmphdmEudXRpbC5jb25jdXJyZW50LkV4ZWN1dG9ycyRSdW5uYWJsZUFkYXB0ZXIuY2FsbChFeGVjdXRvcnMuamF2YTo1MTEpXG5qYXZhLnV0aWwuY29uY3VycmVudC5GdXR1cmVUYXNrLnJ1bihGdXR1cmVUYXNrLmphdmE6MjY2KVxuamF2YS51dGlsLmNvbmN1cnJlbnQuVGhyZWFkUG9vbEV4ZWN1dG9yLnJ1bldvcmtlcihUaHJlYWRQb29sRXhlY3V0b3IuamF2YToxMTQ5KVxuamF2YS51dGlsLmNvbmN1cnJlbnQuVGhyZWFkUG9vbEV4ZWN1dG9yJFdvcmtlci5ydW4oVGhyZWFkUG9vbEV4ZWN1dG9yLmphdmE6NjI0KVxuamF2YS5sYW5nLlRocmVhZC5ydW4oVGhyZWFkLmphdmE6NzQ4KVxuIiwic3VwcHJlc3NlZEV4Y2VwdGlvbnMiOltdLCJjbGFzcyI6ImphdmEubGFuZy5VbnN1cHBvcnRlZE9wZXJhdGlvbkV4Y2VwdGlvbiJ9",
-      "domain": "UnitTest",
+      "namespace": "UnitTest",
       "workflowExecution": {
         "workflowId": "c766b1bc-a4a2-369f-93f4-15be09faf4bb",
         "runId": "102e3eee-510c-4b3a-9770-75183a250fe2"
@@ -266,7 +266,7 @@
     "eventType": "StartChildWorkflowExecutionInitiated",
     "version": -24,
     "startChildWorkflowExecutionInitiatedEventAttributes": {
-      "domain": "UnitTest",
+      "namespace": "UnitTest",
       "workflowId": "ae895176-b277-32c0-a73c-00d437f99e69",
       "workflowType": {
         "name": "ITestChild_execute"
@@ -288,7 +288,7 @@
     "eventType": "ChildWorkflowExecutionStarted",
     "version": -24,
     "childWorkflowExecutionStartedEventAttributes": {
-      "domain": "UnitTest",
+      "namespace": "UnitTest",
       "initiatedEventId": 21,
       "workflowExecution": {
         "workflowId": "ae895176-b277-32c0-a73c-00d437f99e69",
@@ -342,7 +342,7 @@
     "childWorkflowExecutionFailedEventAttributes": {
       "reason": "java.lang.UnsupportedOperationException",
       "details": "eyJkZXRhaWxNZXNzYWdlIjoic2ltdWxhdGVkIGZhaWx1cmUiLCJzdGFja1RyYWNlIjoiY29tLnViZXIuY2FkZW5jZS53b3JrZmxvdy5Xb3JrZmxvd1Rlc3QkQW5ncnlDaGlsZC5leGVjdXRlKFdvcmtmbG93VGVzdC5qYXZhOjIzMDIpXG5zdW4ucmVmbGVjdC5OYXRpdmVNZXRob2RBY2Nlc3NvckltcGwuaW52b2tlMChOYXRpdmUgTWV0aG9kKVxuc3VuLnJlZmxlY3QuTmF0aXZlTWV0aG9kQWNjZXNzb3JJbXBsLmludm9rZShOYXRpdmVNZXRob2RBY2Nlc3NvckltcGwuamF2YTo2MilcbnN1bi5yZWZsZWN0LkRlbGVnYXRpbmdNZXRob2RBY2Nlc3NvckltcGwuaW52b2tlKERlbGVnYXRpbmdNZXRob2RBY2Nlc3NvckltcGwuamF2YTo0MylcbmphdmEubGFuZy5yZWZsZWN0Lk1ldGhvZC5pbnZva2UoTWV0aG9kLmphdmE6NDk4KVxuY29tLnViZXIuY2FkZW5jZS5pbnRlcm5hbC5zeW5jLlBPSk9Xb3JrZmxvd0ltcGxlbWVudGF0aW9uRmFjdG9yeSRQT0pPV29ya2Zsb3dJbXBsZW1lbnRhdGlvbi5leGVjdXRlKFBPSk9Xb3JrZmxvd0ltcGxlbWVudGF0aW9uRmFjdG9yeS5qYXZhOjIxMylcbmNvbS51YmVyLmNhZGVuY2UuaW50ZXJuYWwuc3luYy5Xb3JrZmxvd1J1bm5hYmxlLnJ1bihXb3JrZmxvd1J1bm5hYmxlLmphdmE6NDYpXG5jb20udWJlci5jYWRlbmNlLmludGVybmFsLnN5bmMuQ2FuY2VsbGF0aW9uU2NvcGVJbXBsLnJ1bihDYW5jZWxsYXRpb25TY29wZUltcGwuamF2YTo5MylcbmNvbS51YmVyLmNhZGVuY2UuaW50ZXJuYWwuc3luYy5Xb3JrZmxvd1RocmVhZEltcGwkUnVubmFibGVXcmFwcGVyLnJ1bihXb3JrZmxvd1RocmVhZEltcGwuamF2YTo4MylcbmphdmEudXRpbC5jb25jdXJyZW50LkV4ZWN1dG9ycyRSdW5uYWJsZUFkYXB0ZXIuY2FsbChFeGVjdXRvcnMuamF2YTo1MTEpXG5qYXZhLnV0aWwuY29uY3VycmVudC5GdXR1cmVUYXNrLnJ1bihGdXR1cmVUYXNrLmphdmE6MjY2KVxuamF2YS51dGlsLmNvbmN1cnJlbnQuVGhyZWFkUG9vbEV4ZWN1dG9yLnJ1bldvcmtlcihUaHJlYWRQb29sRXhlY3V0b3IuamF2YToxMTQ5KVxuamF2YS51dGlsLmNvbmN1cnJlbnQuVGhyZWFkUG9vbEV4ZWN1dG9yJFdvcmtlci5ydW4oVGhyZWFkUG9vbEV4ZWN1dG9yLmphdmE6NjI0KVxuamF2YS5sYW5nLlRocmVhZC5ydW4oVGhyZWFkLmphdmE6NzQ4KVxuIiwic3VwcHJlc3NlZEV4Y2VwdGlvbnMiOltdLCJjbGFzcyI6ImphdmEubGFuZy5VbnN1cHBvcnRlZE9wZXJhdGlvbkV4Y2VwdGlvbiJ9",
-      "domain": "UnitTest",
+      "namespace": "UnitTest",
       "workflowExecution": {
         "workflowId": "ae895176-b277-32c0-a73c-00d437f99e69",
         "runId": "bfc14ce9-57fd-4345-a1d0-96b34ce85694"
@@ -462,7 +462,7 @@
     "eventType": "StartChildWorkflowExecutionInitiated",
     "version": -24,
     "startChildWorkflowExecutionInitiatedEventAttributes": {
-      "domain": "UnitTest",
+      "namespace": "UnitTest",
       "workflowId": "6fb308b0-2d80-3efe-8334-6fe812a2debe",
       "workflowType": {
         "name": "ITestChild_execute"
@@ -484,7 +484,7 @@
     "eventType": "ChildWorkflowExecutionStarted",
     "version": -24,
     "childWorkflowExecutionStartedEventAttributes": {
-      "domain": "UnitTest",
+      "namespace": "UnitTest",
       "initiatedEventId": 36,
       "workflowExecution": {
         "workflowId": "6fb308b0-2d80-3efe-8334-6fe812a2debe",
@@ -538,7 +538,7 @@
     "childWorkflowExecutionFailedEventAttributes": {
       "reason": "java.lang.UnsupportedOperationException",
       "details": "eyJkZXRhaWxNZXNzYWdlIjoic2ltdWxhdGVkIGZhaWx1cmUiLCJzdGFja1RyYWNlIjoiY29tLnViZXIuY2FkZW5jZS53b3JrZmxvdy5Xb3JrZmxvd1Rlc3QkQW5ncnlDaGlsZC5leGVjdXRlKFdvcmtmbG93VGVzdC5qYXZhOjIzMDIpXG5zdW4ucmVmbGVjdC5OYXRpdmVNZXRob2RBY2Nlc3NvckltcGwuaW52b2tlMChOYXRpdmUgTWV0aG9kKVxuc3VuLnJlZmxlY3QuTmF0aXZlTWV0aG9kQWNjZXNzb3JJbXBsLmludm9rZShOYXRpdmVNZXRob2RBY2Nlc3NvckltcGwuamF2YTo2MilcbnN1bi5yZWZsZWN0LkRlbGVnYXRpbmdNZXRob2RBY2Nlc3NvckltcGwuaW52b2tlKERlbGVnYXRpbmdNZXRob2RBY2Nlc3NvckltcGwuamF2YTo0MylcbmphdmEubGFuZy5yZWZsZWN0Lk1ldGhvZC5pbnZva2UoTWV0aG9kLmphdmE6NDk4KVxuY29tLnViZXIuY2FkZW5jZS5pbnRlcm5hbC5zeW5jLlBPSk9Xb3JrZmxvd0ltcGxlbWVudGF0aW9uRmFjdG9yeSRQT0pPV29ya2Zsb3dJbXBsZW1lbnRhdGlvbi5leGVjdXRlKFBPSk9Xb3JrZmxvd0ltcGxlbWVudGF0aW9uRmFjdG9yeS5qYXZhOjIxMylcbmNvbS51YmVyLmNhZGVuY2UuaW50ZXJuYWwuc3luYy5Xb3JrZmxvd1J1bm5hYmxlLnJ1bihXb3JrZmxvd1J1bm5hYmxlLmphdmE6NDYpXG5jb20udWJlci5jYWRlbmNlLmludGVybmFsLnN5bmMuQ2FuY2VsbGF0aW9uU2NvcGVJbXBsLnJ1bihDYW5jZWxsYXRpb25TY29wZUltcGwuamF2YTo5MylcbmNvbS51YmVyLmNhZGVuY2UuaW50ZXJuYWwuc3luYy5Xb3JrZmxvd1RocmVhZEltcGwkUnVubmFibGVXcmFwcGVyLnJ1bihXb3JrZmxvd1RocmVhZEltcGwuamF2YTo4MylcbmphdmEudXRpbC5jb25jdXJyZW50LkV4ZWN1dG9ycyRSdW5uYWJsZUFkYXB0ZXIuY2FsbChFeGVjdXRvcnMuamF2YTo1MTEpXG5qYXZhLnV0aWwuY29uY3VycmVudC5GdXR1cmVUYXNrLnJ1bihGdXR1cmVUYXNrLmphdmE6MjY2KVxuamF2YS51dGlsLmNvbmN1cnJlbnQuVGhyZWFkUG9vbEV4ZWN1dG9yLnJ1bldvcmtlcihUaHJlYWRQb29sRXhlY3V0b3IuamF2YToxMTQ5KVxuamF2YS51dGlsLmNvbmN1cnJlbnQuVGhyZWFkUG9vbEV4ZWN1dG9yJFdvcmtlci5ydW4oVGhyZWFkUG9vbEV4ZWN1dG9yLmphdmE6NjI0KVxuamF2YS5sYW5nLlRocmVhZC5ydW4oVGhyZWFkLmphdmE6NzQ4KVxuIiwic3VwcHJlc3NlZEV4Y2VwdGlvbnMiOltdLCJjbGFzcyI6ImphdmEubGFuZy5VbnN1cHBvcnRlZE9wZXJhdGlvbkV4Y2VwdGlvbiJ9",
-      "domain": "UnitTest",
+      "namespace": "UnitTest",
       "workflowExecution": {
         "workflowId": "6fb308b0-2d80-3efe-8334-6fe812a2debe",
         "runId": "421fd6ab-a552-47a1-881f-1bbc3650412e"

@@ -151,7 +151,7 @@
     "version": -24,
     "taskId": 1049423,
     "startChildWorkflowExecutionInitiatedEventAttributes": {
-      "domain": "UnitTest",
+      "namespace": "UnitTest",
       "workflowId": "ab7d2f10-06c6-3954-9a83-bdd53ed81b9a",
       "workflowType": {
         "name": "TestMultiargsWorkflowsFunc_func"
@@ -180,7 +180,7 @@
     "version": -24,
     "taskId": 1049425,
     "childWorkflowExecutionStartedEventAttributes": {
-      "domain": "UnitTest",
+      "namespace": "UnitTest",
       "initiatedEventId": 11,
       "workflowExecution": {
         "workflowId": "ab7d2f10-06c6-3954-9a83-bdd53ed81b9a",
@@ -237,7 +237,7 @@
     "taskId": 1049435,
     "childWorkflowExecutionCompletedEventAttributes": {
       "result": "ImZ1bmMi",
-      "domain": "UnitTest",
+      "namespace": "UnitTest",
       "workflowExecution": {
         "workflowId": "ab7d2f10-06c6-3954-9a83-bdd53ed81b9a",
         "runId": "e127306b-11f7-4733-a69d-d154cf218964"
@@ -422,7 +422,7 @@
     "version": -24,
     "taskId": 1049618,
     "startChildWorkflowExecutionInitiatedEventAttributes": {
-      "domain": "UnitTest",
+      "namespace": "UnitTest",
       "workflowId": "f97d06d4-cfe2-372f-a0ca-d8d6276509c8",
       "workflowType": {
         "name": "TestMultiargsWorkflowsFunc_func"
@@ -451,7 +451,7 @@
     "version": -24,
     "taskId": 1049620,
     "childWorkflowExecutionStartedEventAttributes": {
-      "domain": "UnitTest",
+      "namespace": "UnitTest",
       "initiatedEventId": 29,
       "workflowExecution": {
         "workflowId": "f97d06d4-cfe2-372f-a0ca-d8d6276509c8",
@@ -484,7 +484,7 @@
     "taskId": 1049626,
     "childWorkflowExecutionCompletedEventAttributes": {
       "result": "ImZ1bmMi",
-      "domain": "UnitTest",
+      "namespace": "UnitTest",
       "workflowExecution": {
         "workflowId": "f97d06d4-cfe2-372f-a0ca-d8d6276509c8",
         "runId": "f5037dc5-9f7c-423c-935e-e1ddb7d5b934"
@@ -612,7 +612,7 @@
     "version": -24,
     "taskId": 1049647,
     "startChildWorkflowExecutionInitiatedEventAttributes": {
-      "domain": "UnitTest",
+      "namespace": "UnitTest",
       "workflowId": "558b6d2b-22c6-37f8-bd02-2000f323c767",
       "workflowType": {
         "name": "TestMultiargsWorkflowsFunc_func"
@@ -641,7 +641,7 @@
     "version": -24,
     "taskId": 1049651,
     "childWorkflowExecutionStartedEventAttributes": {
-      "domain": "UnitTest",
+      "namespace": "UnitTest",
       "initiatedEventId": 41,
       "workflowExecution": {
         "workflowId": "558b6d2b-22c6-37f8-bd02-2000f323c767",
@@ -698,7 +698,7 @@
     "taskId": 1049673,
     "childWorkflowExecutionCompletedEventAttributes": {
       "result": "ImZ1bmMi",
-      "domain": "UnitTest",
+      "namespace": "UnitTest",
       "workflowExecution": {
         "workflowId": "558b6d2b-22c6-37f8-bd02-2000f323c767",
         "runId": "741a8a94-c511-4cf8-9ac9-73588c039713"
@@ -1053,7 +1053,7 @@
     "version": -24,
     "taskId": 1049779,
     "startChildWorkflowExecutionInitiatedEventAttributes": {
-      "domain": "UnitTest",
+      "namespace": "UnitTest",
       "workflowId": "b1c2d938-8490-34b3-acf4-138c591deb62",
       "workflowType": {
         "name": "TestMultiargsWorkflowsFunc_func"
@@ -1082,7 +1082,7 @@
     "version": -24,
     "taskId": 1049781,
     "childWorkflowExecutionStartedEventAttributes": {
-      "domain": "UnitTest",
+      "namespace": "UnitTest",
       "initiatedEventId": 71,
       "workflowExecution": {
         "workflowId": "b1c2d938-8490-34b3-acf4-138c591deb62",
@@ -1115,7 +1115,7 @@
     "taskId": 1049787,
     "childWorkflowExecutionCompletedEventAttributes": {
       "result": "ImZ1bmMi",
-      "domain": "UnitTest",
+      "namespace": "UnitTest",
       "workflowExecution": {
         "workflowId": "b1c2d938-8490-34b3-acf4-138c591deb62",
         "runId": "18c47f68-3b5a-41d1-92a1-2e11d5e92bc7"

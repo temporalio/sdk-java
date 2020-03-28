@@ -103,7 +103,7 @@ public final class WorkerFactory {
             .getMetricsScope()
             .tagged(
                 new ImmutableMap.Builder<String, String>(2)
-                    .put(MetricsTag.DOMAIN, workflowClient.getOptions().getDomain())
+                    .put(MetricsTag.NAMESPACE, workflowClient.getOptions().getNamespace())
                     .put(MetricsTag.TASK_LIST, workflowClient.getOptions().getIdentity())
                     .build());
 
@@ -115,7 +115,7 @@ public final class WorkerFactory {
             id.toString(),
             new WorkflowPollTaskFactory(
                     workflowClient.getWorkflowServiceStubs(),
-                    workflowClient.getOptions().getDomain(),
+                    workflowClient.getOptions().getNamespace(),
                     getStickyTaskListName(),
                     metricsScope,
                     id.toString())
@@ -126,7 +126,7 @@ public final class WorkerFactory {
   }
 
   /**
-   * Creates worker that connects to an instance of the Temporal Service. It uses the domain
+   * Creates worker that connects to an instance of the Temporal Service. It uses the namespace
    * configured at the Factory level. New workers cannot be created after the start() has been
    * called
    *
@@ -139,7 +139,7 @@ public final class WorkerFactory {
   }
 
   /**
-   * Creates worker that connects to an instance of the Temporal Service. It uses the domain
+   * Creates worker that connects to an instance of the Temporal Service. It uses the namespace
    * configured at the Factory level. New workers cannot be created after the start() has been
    * called
    *

@@ -56,7 +56,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   private static final long MAX_HEARTBEAT_INTERVAL_MILLIS = 30000;
 
   private final WorkflowServiceStubs service;
-  private final String domain;
+  private final String namespace;
   private final ActivityTask task;
   private final DataConverter dataConverter;
   private boolean doNotCompleteOnReturn;
@@ -71,11 +71,11 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   /** Create an ActivityExecutionContextImpl with the given attributes. */
   ActivityExecutionContextImpl(
       WorkflowServiceStubs service,
-      String domain,
+      String namespace,
       ActivityTask task,
       DataConverter dataConverter,
       ScheduledExecutorService heartbeatExecutor) {
-    this.domain = domain;
+    this.namespace = namespace;
     this.service = service;
     this.task = task;
     this.dataConverter = dataConverter;
@@ -231,7 +231,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   }
 
   @Override
-  public String getDomain() {
-    return domain;
+  public String getNamespace() {
+    return namespace;
   }
 }

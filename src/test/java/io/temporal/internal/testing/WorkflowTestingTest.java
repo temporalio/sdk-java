@@ -581,7 +581,7 @@ public class WorkflowTestingTest {
             .getWorkflowExecutionHistory(
                 GetWorkflowExecutionHistoryRequest.newBuilder()
                     .setExecution(execution)
-                    .setDomain(client.getOptions().getDomain())
+                    .setNamespace(client.getOptions().getNamespace())
                     .build())
             .getHistory();
     List<HistoryEvent> historyEvents = history.getEventsList();
@@ -686,7 +686,7 @@ public class WorkflowTestingTest {
       // List open workflows and validate their types
       ListOpenWorkflowExecutionsRequest listRequest =
           ListOpenWorkflowExecutionsRequest.newBuilder()
-              .setDomain(testEnvironment.getDomain())
+              .setNamespace(testEnvironment.getNamespace())
               .build();
       ListOpenWorkflowExecutionsResponse listResponse =
           testEnvironment
@@ -714,7 +714,7 @@ public class WorkflowTestingTest {
     // List closed workflows and validate their types
     ListClosedWorkflowExecutionsRequest listRequest =
         ListClosedWorkflowExecutionsRequest.newBuilder()
-            .setDomain(testEnvironment.getDomain())
+            .setNamespace(testEnvironment.getNamespace())
             .build();
     ListClosedWorkflowExecutionsResponse listResponse =
         testEnvironment

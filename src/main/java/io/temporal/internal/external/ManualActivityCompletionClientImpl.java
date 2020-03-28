@@ -57,7 +57,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
   private final byte[] taskToken;
 
   private final DataConverter dataConverter;
-  private final String domain;
+  private final String namespace;
   private final WorkflowExecution execution;
   private final String activityId;
   private final Scope metricsScope;
@@ -70,7 +70,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
     this.service = service;
     this.taskToken = taskToken;
     this.dataConverter = dataConverter;
-    this.domain = null;
+    this.namespace = null;
     this.execution = null;
     this.activityId = null;
     this.metricsScope = metricsScope;
@@ -78,14 +78,14 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
 
   ManualActivityCompletionClientImpl(
       WorkflowServiceStubs service,
-      String domain,
+      String namespace,
       WorkflowExecution execution,
       String activityId,
       DataConverter dataConverter,
       Scope metricsScope) {
     this.service = service;
     this.taskToken = null;
-    this.domain = domain;
+    this.namespace = namespace;
     this.execution = execution;
     this.activityId = activityId;
     this.dataConverter = dataConverter;
@@ -122,7 +122,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       RespondActivityTaskCompletedByIDRequest.Builder request =
           RespondActivityTaskCompletedByIDRequest.newBuilder()
               .setActivityID(activityId)
-              .setDomain(domain)
+              .setNamespace(namespace)
               .setWorkflowID(execution.getWorkflowId())
               .setRunID(execution.getRunId());
       if (result != null) {
@@ -176,7 +176,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
           RespondActivityTaskFailedByIDRequest.newBuilder()
               .setReason(failure.getClass().getName())
               .setDetails(OptionsUtils.toByteString(dataConverter.toData(failure)))
-              .setDomain(domain)
+              .setNamespace(namespace)
               .setWorkflowID(execution.getWorkflowId())
               .setRunID(execution.getRunId())
               .setActivityID(activityId)
@@ -274,7 +274,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       }
       RespondActivityTaskCanceledByIDRequest.Builder request =
           RespondActivityTaskCanceledByIDRequest.newBuilder()
-              .setDomain(domain)
+              .setNamespace(namespace)
               .setWorkflowID(execution.getWorkflowId())
               .setRunID(OptionsUtils.safeGet(execution.getRunId()))
               .setActivityID(activityId);

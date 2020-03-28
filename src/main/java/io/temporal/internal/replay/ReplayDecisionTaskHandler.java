@@ -57,7 +57,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
   private static final Logger log = LoggerFactory.getLogger(ReplayDecisionTaskHandler.class);
 
   private final ReplayWorkflowFactory workflowFactory;
-  private final String domain;
+  private final String namespace;
   private final DeciderCache cache;
   private final SingleWorkerOptions options;
   private final Duration stickyTaskListScheduleToStartTimeout;
@@ -66,7 +66,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
   private final BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller;
 
   public ReplayDecisionTaskHandler(
-      String domain,
+      String namespace,
       ReplayWorkflowFactory asyncWorkflowFactory,
       DeciderCache cache,
       SingleWorkerOptions options,
@@ -74,7 +74,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
       Duration stickyTaskListScheduleToStartTimeout,
       WorkflowServiceStubs service,
       BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller) {
-    this.domain = domain;
+    this.namespace = namespace;
     this.workflowFactory = asyncWorkflowFactory;
     this.cache = cache;
     this.options = options;
@@ -280,7 +280,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     if (events.isEmpty() || events.get(0).getEventId() > 1) {
       GetWorkflowExecutionHistoryRequest getHistoryRequest =
           GetWorkflowExecutionHistoryRequest.newBuilder()
-              .setDomain(domain)
+              .setNamespace(namespace)
               .setExecution(decisionTask.getWorkflowExecution())
               .build();
       GetWorkflowExecutionHistoryResponse getHistoryResponse =
@@ -290,6 +290,6 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     }
     DecisionsHelper decisionsHelper = new DecisionsHelper(decisionTask);
     ReplayWorkflow workflow = workflowFactory.getWorkflow(workflowType);
-    return new ReplayDecider(service, domain, workflow, decisionsHelper, options, laTaskPoller);
+    return new ReplayDecider(service, namespace, workflow, decisionsHelper, options, laTaskPoller);
   }
 }

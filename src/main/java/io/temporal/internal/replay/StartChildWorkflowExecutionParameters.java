@@ -31,7 +31,7 @@ public final class StartChildWorkflowExecutionParameters {
 
   public static final class Builder {
 
-    private String domain;
+    private String namespace;
 
     private long executionStartToCloseTimeoutSeconds;
 
@@ -55,8 +55,8 @@ public final class StartChildWorkflowExecutionParameters {
 
     private ParentClosePolicy parentClosePolicy;
 
-    public Builder setDomain(String domain) {
-      this.domain = domain;
+    public Builder setNamespace(String namespace) {
+      this.namespace = namespace;
       return this;
     }
 
@@ -118,7 +118,7 @@ public final class StartChildWorkflowExecutionParameters {
 
     public StartChildWorkflowExecutionParameters build() {
       return new StartChildWorkflowExecutionParameters(
-          domain,
+          namespace,
           input,
           executionStartToCloseTimeoutSeconds,
           taskList,
@@ -133,7 +133,7 @@ public final class StartChildWorkflowExecutionParameters {
     }
   }
 
-  private final String domain;
+  private final String namespace;
 
   private final long executionStartToCloseTimeoutSeconds;
 
@@ -158,7 +158,7 @@ public final class StartChildWorkflowExecutionParameters {
   private final ParentClosePolicy parentClosePolicy;
 
   private StartChildWorkflowExecutionParameters(
-      String domain,
+      String namespace,
       byte[] input,
       long executionStartToCloseTimeoutSeconds,
       String taskList,
@@ -170,7 +170,7 @@ public final class StartChildWorkflowExecutionParameters {
       String cronSchedule,
       Map<String, byte[]> context,
       ParentClosePolicy parentClosePolicy) {
-    this.domain = domain;
+    this.namespace = namespace;
     this.input = input;
     this.executionStartToCloseTimeoutSeconds = executionStartToCloseTimeoutSeconds;
     this.taskList = taskList;
@@ -184,8 +184,8 @@ public final class StartChildWorkflowExecutionParameters {
     this.parentClosePolicy = parentClosePolicy;
   }
 
-  public String getDomain() {
-    return domain;
+  public String getNamespace() {
+    return namespace;
   }
 
   public long getExecutionStartToCloseTimeoutSeconds() {
@@ -239,7 +239,7 @@ public final class StartChildWorkflowExecutionParameters {
     StartChildWorkflowExecutionParameters that = (StartChildWorkflowExecutionParameters) o;
     return executionStartToCloseTimeoutSeconds == that.executionStartToCloseTimeoutSeconds
         && taskStartToCloseTimeoutSeconds == that.taskStartToCloseTimeoutSeconds
-        && Objects.equals(domain, that.domain)
+        && Objects.equals(namespace, that.namespace)
         && Arrays.equals(input, that.input)
         && Objects.equals(taskList, that.taskList)
         && Objects.equals(workflowId, that.workflowId)
@@ -255,7 +255,7 @@ public final class StartChildWorkflowExecutionParameters {
   public int hashCode() {
     int result =
         Objects.hash(
-            domain,
+            namespace,
             executionStartToCloseTimeoutSeconds,
             taskList,
             taskStartToCloseTimeoutSeconds,
@@ -273,8 +273,8 @@ public final class StartChildWorkflowExecutionParameters {
   @Override
   public String toString() {
     return "StartChildWorkflowExecutionParameters{"
-        + "domain='"
-        + domain
+        + "namespace='"
+        + namespace
         + '\''
         + ", control='"
         + '\''

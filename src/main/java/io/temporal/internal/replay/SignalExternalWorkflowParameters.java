@@ -23,7 +23,7 @@ import java.nio.charset.StandardCharsets;
 
 public final class SignalExternalWorkflowParameters implements Cloneable {
 
-  private String domain;
+  private String namespace;
 
   private byte[] input;
 
@@ -33,12 +33,12 @@ public final class SignalExternalWorkflowParameters implements Cloneable {
 
   private String workflowId;
 
-  public String getDomain() {
-    return domain;
+  public String getNamespace() {
+    return namespace;
   }
 
-  public SignalExternalWorkflowParameters setDomain(String domain) {
-    this.domain = domain;
+  public SignalExternalWorkflowParameters setNamespace(String namespace) {
+    this.namespace = namespace;
     return this;
   }
 

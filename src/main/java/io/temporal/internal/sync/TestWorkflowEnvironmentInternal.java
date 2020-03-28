@@ -120,8 +120,8 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   }
 
   @Override
-  public String getDomain() {
-    return workflowClientOptions.getDomain();
+  public String getNamespace() {
+    return workflowClientOptions.getNamespace();
   }
 
   @Override

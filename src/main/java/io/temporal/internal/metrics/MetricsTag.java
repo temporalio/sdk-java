@@ -22,7 +22,7 @@ package io.temporal.internal.metrics;
 public class MetricsTag {
   public static final String ACTIVITY_ID = "ActivityID";
   public static final String ACTIVITY_TYPE = "ActivityType";
-  public static final String DOMAIN = "Domain";
+  public static final String NAMESPACE = "Namespace";
   public static final String EVENT_ID = "EventID";
   public static final String EVENT_TYPE = "EventType";
   public static final String RUN_ID = "RunID";

@@ -33,7 +33,7 @@ import java.util.Objects;
 public final class WorkflowClientOptions {
 
   private static final WorkflowClientOptions DEFAULT_INSTANCE;
-  private static final String DEFAULT_DOMAIN = "default";
+  private static final String DEFAULT_NAMESPACE = "default";
 
   static {
     DEFAULT_INSTANCE = newBuilder().build();
@@ -53,7 +53,7 @@ public final class WorkflowClientOptions {
 
   public static final class Builder {
 
-    private String domain;
+    private String namespace;
     private DataConverter dataConverter;
     private WorkflowClientInterceptor[] interceptors;
     private Scope metricsScope;
@@ -66,7 +66,7 @@ public final class WorkflowClientOptions {
       if (options == null) {
         return;
       }
-      domain = options.domain;
+      namespace = options.namespace;
       dataConverter = options.dataConverter;
       interceptors = options.interceptors;
       metricsScope = options.metricsScope;
@@ -74,8 +74,8 @@ public final class WorkflowClientOptions {
       contextPropagators = options.contextPropagators;
     }
 
-    public Builder setDomain(String domain) {
-      this.domain = domain;
+    public Builder setNamespace(String namespace) {
+      this.namespace = namespace;
       return this;
     }
 
@@ -132,7 +132,7 @@ public final class WorkflowClientOptions {
 
     public WorkflowClientOptions build() {
       return new WorkflowClientOptions(
-          domain, dataConverter, interceptors, metricsScope, identity, contextPropagators);
+          namespace, dataConverter, interceptors, metricsScope, identity, contextPropagators);
     }
 
     public WorkflowClientOptions validateAndBuildWithDefaults() {
@@ -151,7 +151,7 @@ public final class WorkflowClientOptions {
         name = identity;
       }
       return new WorkflowClientOptions(
-          domain == null ? DEFAULT_DOMAIN : domain,
+          namespace == null ? DEFAULT_NAMESPACE : namespace,
           dataConverter == null ? JsonDataConverter.getInstance() : dataConverter,
           interceptors == null ? EMPTY_INTERCEPTOR_ARRAY : interceptors,
           metricsScope == null ? NoopScope.getInstance() : metricsScope,
@@ -165,7 +165,7 @@ public final class WorkflowClientOptions {
 
   private static final List<ContextPropagator> EMPTY_CONTEXT_PROPAGATORS = Arrays.asList();
 
-  private final String domain;
+  private final String namespace;
 
   private final DataConverter dataConverter;
 
@@ -178,13 +178,13 @@ public final class WorkflowClientOptions {
   private final List<ContextPropagator> contextPropagators;
 
   private WorkflowClientOptions(
-      String domain,
+      String namespace,
       DataConverter dataConverter,
       WorkflowClientInterceptor[] interceptors,
       Scope metricsScope,
       String identity,
       List<ContextPropagator> contextPropagators) {
-    this.domain = domain;
+    this.namespace = namespace;
     this.dataConverter = dataConverter;
     this.interceptors = interceptors;
     this.metricsScope = metricsScope;
@@ -192,8 +192,8 @@ public final class WorkflowClientOptions {
     this.contextPropagators = contextPropagators;
   }
 
-  public String getDomain() {
-    return domain;
+  public String getNamespace() {
+    return namespace;
   }
 
   public DataConverter getDataConverter() {
@@ -219,8 +219,8 @@ public final class WorkflowClientOptions {
   @Override
   public String toString() {
     return "WorkflowClientOptions{"
-        + "domain='"
-        + domain
+        + "namespace='"
+        + namespace
         + '\''
         + ", dataConverter="
         + dataConverter

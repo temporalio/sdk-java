@@ -73,5 +73,5 @@ public interface ActivityExecutionContext {
    */
   WorkflowServiceStubs getService();
 
-  String getDomain();
+  String getNamespace();
 }

@@ -31,7 +31,7 @@ import java.util.concurrent.TimeUnit;
 public class HistoryUtils {
   private HistoryUtils() {}
 
-  private static final String DOMAIN = "domain";
+  private static final String NAMESPACE = "namespace";
   private static final String TASK_LIST = "taskList";
   private static final String HOST_TASK_LIST = "stickyTaskList";
   private static final String WORKFLOW_TYPE = "workflowType";
@@ -41,7 +41,7 @@ public class HistoryUtils {
     TestWorkflowService testService = new TestWorkflowService(true);
     WorkflowServiceStubs service = testService.newClientStub();
     try {
-      return generateDecisionTaskWithInitialHistory(DOMAIN, TASK_LIST, WORKFLOW_TYPE, service);
+      return generateDecisionTaskWithInitialHistory(NAMESPACE, TASK_LIST, WORKFLOW_TYPE, service);
     } finally {
       service.shutdownNow();
       service.awaitTermination(1, TimeUnit.SECONDS);
@@ -50,26 +50,26 @@ public class HistoryUtils {
   }
 
   public static PollForDecisionTaskResponse generateDecisionTaskWithInitialHistory(
-      String domain, String tasklistName, String workflowType, WorkflowServiceStubs service)
+      String namespace, String tasklistName, String workflowType, WorkflowServiceStubs service)
       throws Exception {
-    startWorkflowExecution(domain, tasklistName, workflowType, service);
-    return pollForDecisionTask(domain, createNormalTaskList(tasklistName), service);
+    startWorkflowExecution(namespace, tasklistName, workflowType, service);
+    return pollForDecisionTask(namespace, createNormalTaskList(tasklistName), service);
   }
 
   public static PollForDecisionTaskResponse generateDecisionTaskWithPartialHistory()
       throws Exception {
-    return generateDecisionTaskWithPartialHistory(DOMAIN, TASK_LIST, WORKFLOW_TYPE);
+    return generateDecisionTaskWithPartialHistory(NAMESPACE, TASK_LIST, WORKFLOW_TYPE);
   }
 
   public static PollForDecisionTaskResponse generateDecisionTaskWithPartialHistory(
-      String domain, String tasklistName, String workflowType) throws Exception {
+      String namespace, String tasklistName, String workflowType) throws Exception {
     TestWorkflowService testService = new TestWorkflowService(true);
     WorkflowServiceStubs service = testService.newClientStub();
     try {
       PollForDecisionTaskResponse response =
-          generateDecisionTaskWithInitialHistory(domain, tasklistName, workflowType, service);
+          generateDecisionTaskWithInitialHistory(namespace, tasklistName, workflowType, service);
       return generateDecisionTaskWithPartialHistoryFromExistingTask(
-          response, domain, HOST_TASK_LIST, service);
+          response, namespace, HOST_TASK_LIST, service);
     } finally {
       service.shutdownNow();
       service.awaitTermination(1, TimeUnit.SECONDS);
@@ -79,12 +79,12 @@ public class HistoryUtils {
 
   public static PollForDecisionTaskResponse generateDecisionTaskWithPartialHistoryFromExistingTask(
       PollForDecisionTaskResponse response,
-      String domain,
+      String namespace,
       String stickyTaskListName,
       WorkflowServiceStubs service)
       throws Exception {
-    signalWorkflow(response.getWorkflowExecution(), domain, service);
+    signalWorkflow(response.getWorkflowExecution(), namespace, service);
     respondDecisionTaskCompletedWithSticky(response.getTaskToken(), stickyTaskListName, service);
-    return pollForDecisionTask(domain, createStickyTaskList(stickyTaskListName), service);
+    return pollForDecisionTask(namespace, createStickyTaskList(stickyTaskListName), service);
   }
 }

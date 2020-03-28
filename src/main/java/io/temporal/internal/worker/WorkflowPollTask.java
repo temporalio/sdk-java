@@ -37,20 +37,20 @@ final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskRespo
 
   private final Scope metricScope;
   private final WorkflowServiceStubs service;
-  private final String domain;
+  private final String namespace;
   private final String taskList;
   private final String identity;
   private static final Logger log = LoggerFactory.getLogger(WorkflowWorker.class);
 
   WorkflowPollTask(
       WorkflowServiceStubs service,
-      String domain,
+      String namespace,
       String taskList,
       Scope metricScope,
       String identity) {
     this.identity = Objects.requireNonNull(identity);
     this.service = Objects.requireNonNull(service);
-    this.domain = Objects.requireNonNull(domain);
+    this.namespace = Objects.requireNonNull(namespace);
     this.taskList = Objects.requireNonNull(taskList);
     this.metricScope = Objects.requireNonNull(metricScope);
   }
@@ -62,7 +62,7 @@ final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskRespo
 
     PollForDecisionTaskRequest pollRequest =
         PollForDecisionTaskRequest.newBuilder()
-            .setDomain(domain)
+            .setNamespace(namespace)
             .setIdentity(identity)
             .setTaskList(TaskList.newBuilder().setName(taskList).build())
             .build();

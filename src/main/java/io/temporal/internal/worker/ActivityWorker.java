@@ -53,18 +53,18 @@ public final class ActivityWorker implements SuspendableWorker {
   private SuspendableWorker poller = new NoopSuspendableWorker();
   private final ActivityTaskHandler handler;
   private final WorkflowServiceStubs service;
-  private final String domain;
+  private final String namespace;
   private final String taskList;
   private final SingleWorkerOptions options;
 
   public ActivityWorker(
       WorkflowServiceStubs service,
-      String domain,
+      String namespace,
       String taskList,
       SingleWorkerOptions options,
       ActivityTaskHandler handler) {
     this.service = Objects.requireNonNull(service);
-    this.domain = Objects.requireNonNull(domain);
+    this.namespace = Objects.requireNonNull(namespace);
     this.taskList = Objects.requireNonNull(taskList);
     this.handler = handler;
 
@@ -73,7 +73,7 @@ public final class ActivityWorker implements SuspendableWorker {
       pollerOptions =
           PollerOptions.newBuilder(pollerOptions)
               .setPollThreadNamePrefix(
-                  POLL_THREAD_NAME_PREFIX + "\"" + taskList + "\", domain=\"" + domain + "\"")
+                  POLL_THREAD_NAME_PREFIX + "\"" + taskList + "\", namespace=\"" + namespace + "\"")
               .build();
     }
     this.options = SingleWorkerOptions.newBuilder(options).setPollerOptions(pollerOptions).build();
@@ -85,8 +85,8 @@ public final class ActivityWorker implements SuspendableWorker {
       poller =
           new Poller<>(
               options.getIdentity(),
-              new ActivityPollTask(service, domain, taskList, options),
-              new PollTaskExecutor<>(domain, taskList, options, new TaskHandlerImpl(handler)),
+              new ActivityPollTask(service, namespace, taskList, options),
+              new PollTaskExecutor<>(namespace, taskList, options, new TaskHandlerImpl(handler)),
               options.getPollerOptions(),
               options.getMetricsScope());
       poller.start();

@@ -64,7 +64,7 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
 
   DecisionContextImpl(
       DecisionsHelper decisionsHelper,
-      String domain,
+      String namespace,
       PollForDecisionTaskResponseOrBuilder decisionTask,
       WorkflowExecutionStartedEventAttributes startedAttributes,
       SingleWorkerOptions options,
@@ -73,7 +73,7 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
     this.activityClient = new ActivityDecisionContext(decisionsHelper);
     this.workflowContext =
         new WorkflowContext(
-            domain, decisionTask, startedAttributes, options.getContextPropagators());
+            namespace, decisionTask, startedAttributes, options.getContextPropagators());
     this.workflowClient = new WorkflowDecisionContext(decisionsHelper, workflowContext);
     this.workflowClock =
         new ClockDecisionContext(
@@ -159,8 +159,8 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   }
 
   @Override
-  public String getDomain() {
-    return workflowContext.getDomain();
+  public String getNamespace() {
+    return workflowContext.getNamespace();
   }
 
   @Override

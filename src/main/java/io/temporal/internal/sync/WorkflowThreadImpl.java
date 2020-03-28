@@ -93,7 +93,7 @@ class WorkflowThreadImpl implements WorkflowThread {
       MDC.put(LoggerTag.WORKFLOW_TYPE, decisionContext.getWorkflowType().getName());
       MDC.put(LoggerTag.RUN_ID, decisionContext.getRunId());
       MDC.put(LoggerTag.TASK_LIST, decisionContext.getTaskList());
-      MDC.put(LoggerTag.DOMAIN, decisionContext.getDomain());
+      MDC.put(LoggerTag.NAMESPACE, decisionContext.getNamespace());
 
       // Repopulate the context(s)
       ContextThreadLocal.setContextPropagators(this.contextPropagators);

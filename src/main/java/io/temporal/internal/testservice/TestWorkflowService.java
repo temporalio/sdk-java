@@ -229,8 +229,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       OptionalLong parentChildInitiatedEventId,
       Optional<SignalWorkflowExecutionRequest> signalWithStartSignal) {
     String requestWorkflowId = requireNotNull("WorkflowId", startRequest.getWorkflowId());
-    String domain = requireNotNull("Domain", startRequest.getDomain());
-    WorkflowId workflowId = new WorkflowId(domain, requestWorkflowId);
+    String namespace = requireNotNull("Namespace", startRequest.getNamespace());
+    WorkflowId workflowId = new WorkflowId(namespace, requestWorkflowId);
     TestWorkflowMutableState existing;
     lock.lock();
     try {
@@ -305,7 +305,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       OptionalLong parentChildInitiatedEventId,
       Optional<SignalWorkflowExecutionRequest> signalWithStartSignal,
       WorkflowId workflowId) {
-    String domain = startRequest.getDomain();
+    String namespace = startRequest.getNamespace();
     TestWorkflowMutableState mutableState =
         new TestWorkflowMutableStateImpl(
             startRequest,
@@ -319,7 +319,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             this,
             store);
     WorkflowExecution execution = mutableState.getExecutionId().getExecution();
-    ExecutionId executionId = new ExecutionId(domain, execution);
+    ExecutionId executionId = new ExecutionId(namespace, execution);
     executionsByWorkflowId.put(workflowId, mutableState);
     executions.put(executionId, mutableState);
     mutableState.startWorkflow(continuedExecutionRunId.isPresent(), signalWithStartSignal);
@@ -330,7 +330,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   public void getWorkflowExecutionHistory(
       GetWorkflowExecutionHistoryRequest getRequest,
       StreamObserver<GetWorkflowExecutionHistoryResponse> responseObserver) {
-    ExecutionId executionId = new ExecutionId(getRequest.getDomain(), getRequest.getExecution());
+    ExecutionId executionId = new ExecutionId(getRequest.getNamespace(), getRequest.getExecution());
     TestWorkflowMutableState mutableState = getMutableState(executionId);
     forkJoinPool.execute(
         () -> {
@@ -356,7 +356,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       responseObserver.onCompleted();
       return;
     }
-    ExecutionId executionId = new ExecutionId(pollRequest.getDomain(), task.getWorkflowExecution());
+    ExecutionId executionId =
+        new ExecutionId(pollRequest.getNamespace(), task.getWorkflowExecution());
     TestWorkflowMutableState mutableState = getMutableState(executionId);
     try {
       mutableState.startDecisionTask(task, pollRequest);
@@ -425,7 +426,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         return;
       }
       ExecutionId executionId =
-          new ExecutionId(pollRequest.getDomain(), task.getWorkflowExecution());
+          new ExecutionId(pollRequest.getNamespace(), task.getWorkflowExecution());
       TestWorkflowMutableState mutableState = getMutableState(executionId);
       try {
         mutableState.startActivityTask(task, pollRequest);
@@ -473,7 +474,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     try {
       ExecutionId execution =
           new ExecutionId(
-              heartbeatRequest.getDomain(),
+              heartbeatRequest.getNamespace(),
               heartbeatRequest.getWorkflowID(),
               heartbeatRequest.getRunID());
       TestWorkflowMutableState mutableState = getMutableState(execution);
@@ -512,7 +513,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     try {
       ActivityId activityId =
           new ActivityId(
-              completeRequest.getDomain(),
+              completeRequest.getNamespace(),
               completeRequest.getWorkflowID(),
               completeRequest.getRunID(),
               completeRequest.getActivityID());
@@ -547,7 +548,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     try {
       ActivityId activityId =
           new ActivityId(
-              failRequest.getDomain(),
+              failRequest.getNamespace(),
               failRequest.getWorkflowID(),
               failRequest.getRunID(),
               failRequest.getActivityID());
@@ -582,7 +583,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     try {
       ActivityId activityId =
           new ActivityId(
-              canceledRequest.getDomain(),
+              canceledRequest.getNamespace(),
               canceledRequest.getWorkflowID(),
               canceledRequest.getRunID(),
               canceledRequest.getActivityID());
@@ -610,7 +611,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
 
   void requestCancelWorkflowExecution(RequestCancelWorkflowExecutionRequest cancelRequest) {
     ExecutionId executionId =
-        new ExecutionId(cancelRequest.getDomain(), cancelRequest.getWorkflowExecution());
+        new ExecutionId(cancelRequest.getNamespace(), cancelRequest.getWorkflowExecution());
     TestWorkflowMutableState mutableState = getMutableState(executionId);
     mutableState.requestCancelWorkflowExecution(cancelRequest);
   }
@@ -621,7 +622,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       StreamObserver<SignalWorkflowExecutionResponse> responseObserver) {
     try {
       ExecutionId executionId =
-          new ExecutionId(signalRequest.getDomain(), signalRequest.getWorkflowExecution());
+          new ExecutionId(signalRequest.getNamespace(), signalRequest.getWorkflowExecution());
       TestWorkflowMutableState mutableState = getMutableState(executionId);
       mutableState.signal(signalRequest);
       responseObserver.onNext(SignalWorkflowExecutionResponse.getDefaultInstance());
@@ -646,7 +647,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             .withDescription("request missing required workflowType field")
             .asRuntimeException();
       }
-      ExecutionId executionId = new ExecutionId(r.getDomain(), r.getWorkflowId(), null);
+      ExecutionId executionId = new ExecutionId(r.getNamespace(), r.getWorkflowId(), null);
       TestWorkflowMutableState mutableState = getMutableState(executionId, false);
       SignalWorkflowExecutionRequest signalRequest =
           SignalWorkflowExecutionRequest.newBuilder()
@@ -655,7 +656,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               .setWorkflowExecution(executionId.getExecution())
               .setRequestId(r.getRequestId())
               .setControl(r.getControl())
-              .setDomain(r.getDomain())
+              .setNamespace(r.getNamespace())
               .setIdentity(r.getIdentity())
               .build();
       if (mutableState != null) {
@@ -672,7 +673,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               .setInput(r.getInput())
               .setExecutionStartToCloseTimeoutSeconds(r.getExecutionStartToCloseTimeoutSeconds())
               .setTaskStartToCloseTimeoutSeconds(r.getTaskStartToCloseTimeoutSeconds())
-              .setDomain(r.getDomain())
+              .setNamespace(r.getNamespace())
               .setTaskList(r.getTaskList())
               .setWorkflowId(r.getWorkflowId())
               .setWorkflowIdReusePolicy(r.getWorkflowIdReusePolicy())
@@ -713,13 +714,13 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       String signalId,
       SignalExternalWorkflowExecutionDecisionAttributes a,
       TestWorkflowMutableState source) {
-    String domain;
-    if (a.getDomain().isEmpty()) {
-      domain = source.getExecutionId().getDomain();
+    String namespace;
+    if (a.getNamespace().isEmpty()) {
+      namespace = source.getExecutionId().getNamespace();
     } else {
-      domain = a.getDomain();
+      namespace = a.getNamespace();
     }
-    ExecutionId executionId = new ExecutionId(domain, a.getExecution());
+    ExecutionId executionId = new ExecutionId(namespace, a.getExecution());
     TestWorkflowMutableState mutableState = null;
     try {
       mutableState = getMutableState(executionId);
@@ -756,7 +757,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             .setWorkflowType(a.getWorkflowType())
             .setExecutionStartToCloseTimeoutSeconds(a.getExecutionStartToCloseTimeoutSeconds())
             .setTaskStartToCloseTimeoutSeconds(a.getTaskStartToCloseTimeoutSeconds())
-            .setDomain(executionId.getDomain())
+            .setNamespace(executionId.getNamespace())
             .setTaskList(a.getTaskList())
             .setWorkflowId(executionId.getWorkflowId().getWorkflowId())
             .setWorkflowIdReusePolicy(previousRunStartRequest.getWorkflowIdReusePolicy())
@@ -851,7 +852,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       QueryWorkflowRequest queryRequest, StreamObserver<QueryWorkflowResponse> responseObserver) {
     try {
       ExecutionId executionId =
-          new ExecutionId(queryRequest.getDomain(), queryRequest.getExecution());
+          new ExecutionId(queryRequest.getNamespace(), queryRequest.getExecution());
       TestWorkflowMutableState mutableState = getMutableState(executionId);
       QueryWorkflowResponse result = mutableState.query(queryRequest);
       responseObserver.onNext(result);

@@ -94,11 +94,11 @@ public final class Worker implements Suspendable {
     this.factoryOptions = factoryOptions;
     WorkflowServiceStubs service = client.getWorkflowServiceStubs();
     WorkflowClientOptions clientOptions = client.getOptions();
-    String domain = clientOptions.getDomain();
+    String namespace = clientOptions.getNamespace();
     SingleWorkerOptions activityOptions =
         toActivityOptions(
             this.factoryOptions, this.options, clientOptions, taskList, contextPropagators);
-    activityWorker = new SyncActivityWorker(service, domain, taskList, activityOptions);
+    activityWorker = new SyncActivityWorker(service, namespace, taskList, activityOptions);
 
     SingleWorkerOptions workflowOptions =
         toWorkflowOptions(
@@ -109,7 +109,7 @@ public final class Worker implements Suspendable {
     workflowWorker =
         new SyncWorkflowWorker(
             service,
-            domain,
+            namespace,
             taskList,
             factoryOptions.getWorkflowInterceptor(),
             workflowOptions,
@@ -128,7 +128,7 @@ public final class Worker implements Suspendable {
       List<ContextPropagator> contextPropagators) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
-            .put(MetricsTag.DOMAIN, clientOptions.getDomain())
+            .put(MetricsTag.NAMESPACE, clientOptions.getNamespace())
             .put(MetricsTag.TASK_LIST, taskList)
             .build();
     return SingleWorkerOptions.newBuilder()
@@ -153,7 +153,7 @@ public final class Worker implements Suspendable {
       List<ContextPropagator> contextPropagators) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
-            .put(MetricsTag.DOMAIN, clientOptions.getDomain())
+            .put(MetricsTag.NAMESPACE, clientOptions.getNamespace())
             .put(MetricsTag.TASK_LIST, taskList)
             .build();
     return SingleWorkerOptions.newBuilder()
@@ -175,7 +175,7 @@ public final class Worker implements Suspendable {
       List<ContextPropagator> contextPropagators) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
-            .put(MetricsTag.DOMAIN, clientOptions.getDomain())
+            .put(MetricsTag.NAMESPACE, clientOptions.getNamespace())
             .put(MetricsTag.TASK_LIST, taskList)
             .build();
     return SingleWorkerOptions.newBuilder()
