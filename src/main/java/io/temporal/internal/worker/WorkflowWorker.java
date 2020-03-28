@@ -62,7 +62,7 @@ public final class WorkflowWorker
   private PollTaskExecutor<PollForDecisionTaskResponse> pollTaskExecutor;
   private final DecisionTaskHandler handler;
   private final WorkflowServiceStubs service;
-  private final String domain;
+  private final String namespace;
   private final String taskList;
   private final SingleWorkerOptions options;
   private final String stickyTaskListName;
@@ -70,13 +70,13 @@ public final class WorkflowWorker
 
   public WorkflowWorker(
       WorkflowServiceStubs service,
-      String domain,
+      String namespace,
       String taskList,
       SingleWorkerOptions options,
       DecisionTaskHandler handler,
       String stickyTaskListName) {
     this.service = Objects.requireNonNull(service);
-    this.domain = Objects.requireNonNull(domain);
+    this.namespace = Objects.requireNonNull(namespace);
     this.taskList = Objects.requireNonNull(taskList);
     this.handler = handler;
     this.stickyTaskListName = stickyTaskListName;
@@ -86,7 +86,7 @@ public final class WorkflowWorker
       pollerOptions =
           PollerOptions.newBuilder(pollerOptions)
               .setPollThreadNamePrefix(
-                  POLL_THREAD_NAME_PREFIX + "\"" + taskList + "\", domain=\"" + domain + "\"")
+                  POLL_THREAD_NAME_PREFIX + "\"" + taskList + "\", namespace=\"" + namespace + "\"")
               .build();
     }
     this.options = SingleWorkerOptions.newBuilder(options).setPollerOptions(pollerOptions).build();
@@ -96,12 +96,12 @@ public final class WorkflowWorker
   public void start() {
     if (handler.isAnyTypeSupported()) {
       pollTaskExecutor =
-          new PollTaskExecutor<>(domain, taskList, options, new TaskHandlerImpl(handler));
+          new PollTaskExecutor<>(namespace, taskList, options, new TaskHandlerImpl(handler));
       poller =
           new Poller<>(
               options.getIdentity(),
               new WorkflowPollTask(
-                  service, domain, taskList, options.getMetricsScope(), options.getIdentity()),
+                  service, namespace, taskList, options.getMetricsScope(), options.getIdentity()),
               pollTaskExecutor,
               options.getPollerOptions(),
               options.getMetricsScope());
@@ -137,7 +137,7 @@ public final class WorkflowWorker
   public byte[] queryWorkflowExecution(WorkflowExecution exec, String queryType, byte[] args)
       throws Exception {
     GetWorkflowExecutionHistoryResponse historyResponse =
-        WorkflowExecutionUtils.getHistoryPage(service, domain, exec, ByteString.EMPTY);
+        WorkflowExecutionUtils.getHistoryPage(service, namespace, exec, ByteString.EMPTY);
     History history = historyResponse.getHistory();
     WorkflowExecutionHistory workflowExecutionHistory =
         new WorkflowExecutionHistory(history.getEventsList());

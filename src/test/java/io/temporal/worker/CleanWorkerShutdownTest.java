@@ -19,7 +19,7 @@
 
 package io.temporal.worker;
 
-import static io.temporal.workflow.WorkflowTest.DOMAIN;
+import static io.temporal.workflow.WorkflowTest.NAMESPACE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -146,7 +146,7 @@ public class CleanWorkerShutdownTest {
     TestWorkflowEnvironment testEnvironment = null;
     CompletableFuture<Boolean> started = new CompletableFuture<>();
     WorkflowClientOptions clientOptions =
-        WorkflowClientOptions.newBuilder().setDomain(DOMAIN).build();
+        WorkflowClientOptions.newBuilder().setNamespace(NAMESPACE).build();
     if (useExternalService) {
       workflowClient = WorkflowClient.newInstance(service, clientOptions);
       workerFactory = WorkerFactory.newInstance(workflowClient);
@@ -178,7 +178,7 @@ public class CleanWorkerShutdownTest {
     }
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setDomain(DOMAIN)
+            .setNamespace(NAMESPACE)
             .setExecution(execution)
             .build();
     GetWorkflowExecutionHistoryResponse result =
@@ -204,7 +204,7 @@ public class CleanWorkerShutdownTest {
     TestWorkflowEnvironment testEnvironment = null;
     CompletableFuture<Boolean> started = new CompletableFuture<>();
     WorkflowClientOptions clientOptions =
-        WorkflowClientOptions.newBuilder().setDomain(DOMAIN).build();
+        WorkflowClientOptions.newBuilder().setNamespace(NAMESPACE).build();
     if (useExternalService) {
       workflowClient = WorkflowClient.newInstance(service, clientOptions);
       workerFactory = WorkerFactory.newInstance(workflowClient);
@@ -236,7 +236,7 @@ public class CleanWorkerShutdownTest {
     }
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setDomain(DOMAIN)
+            .setNamespace(NAMESPACE)
             .setExecution(execution)
             .build();
     GetWorkflowExecutionHistoryResponse result =
@@ -292,7 +292,7 @@ public class CleanWorkerShutdownTest {
     TestWorkflowEnvironment testEnvironment = null;
     CompletableFuture<Boolean> started = new CompletableFuture<>();
     WorkflowClientOptions clientOptions =
-        WorkflowClientOptions.newBuilder().setDomain(DOMAIN).build();
+        WorkflowClientOptions.newBuilder().setNamespace(NAMESPACE).build();
     if (useExternalService) {
       workflowClient = WorkflowClient.newInstance(service, clientOptions);
       workerFactory = WorkerFactory.newInstance(workflowClient);
@@ -324,7 +324,7 @@ public class CleanWorkerShutdownTest {
     }
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setDomain(DOMAIN)
+            .setNamespace(NAMESPACE)
             .setExecution(execution)
             .build();
     GetWorkflowExecutionHistoryResponse result =

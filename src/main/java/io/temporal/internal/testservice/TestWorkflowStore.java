@@ -40,16 +40,16 @@ interface TestWorkflowStore {
 
   class TaskListId {
 
-    private final String domain;
+    private final String namespace;
     private final String taskListName;
 
-    public TaskListId(String domain, String taskListName) {
-      this.domain = Objects.requireNonNull(domain);
+    public TaskListId(String namespace, String taskListName) {
+      this.namespace = Objects.requireNonNull(namespace);
       this.taskListName = Objects.requireNonNull(taskListName);
     }
 
-    public String getDomain() {
-      return domain;
+    public String getNamespace() {
+      return namespace;
     }
 
     public String getTaskListName() {
@@ -68,7 +68,7 @@ interface TestWorkflowStore {
 
       TaskListId that = (TaskListId) o;
 
-      if (!domain.equals(that.domain)) {
+      if (!namespace.equals(that.namespace)) {
         return false;
       }
       return taskListName.equals(that.taskListName);
@@ -76,7 +76,7 @@ interface TestWorkflowStore {
 
     @Override
     public int hashCode() {
-      int result = domain.hashCode();
+      int result = namespace.hashCode();
       result = 31 * result + taskListName.hashCode();
       return result;
     }
@@ -84,8 +84,8 @@ interface TestWorkflowStore {
     @Override
     public String toString() {
       return "TaskListId{"
-          + "domain='"
-          + domain
+          + "namespace='"
+          + namespace
           + '\''
           + ", taskListName='"
           + taskListName

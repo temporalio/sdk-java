@@ -31,25 +31,25 @@ import java.util.Objects;
 
 final class ExecutionId {
 
-  private final String domain;
+  private final String namespace;
   private final WorkflowExecution execution;
 
-  ExecutionId(String domain, WorkflowExecution execution) {
-    this.domain = Objects.requireNonNull(domain);
+  ExecutionId(String namespace, WorkflowExecution execution) {
+    this.namespace = Objects.requireNonNull(namespace);
     this.execution = Objects.requireNonNull(execution);
   }
 
-  ExecutionId(String domain, String workflowId, String runId) {
+  ExecutionId(String namespace, String workflowId, String runId) {
     this(
-        domain,
+        namespace,
         WorkflowExecution.newBuilder()
             .setWorkflowId(Objects.requireNonNull(workflowId))
             .setRunId(OptionsUtils.safeGet(runId))
             .build());
   }
 
-  public String getDomain() {
-    return domain;
+  public String getNamespace() {
+    return namespace;
   }
 
   public WorkflowExecution getExecution() {
@@ -67,7 +67,7 @@ final class ExecutionId {
 
     ExecutionId that = (ExecutionId) o;
 
-    if (!domain.equals(that.domain)) {
+    if (!namespace.equals(that.namespace)) {
       return false;
     }
     return execution.equals(that.execution);
@@ -75,14 +75,14 @@ final class ExecutionId {
 
   @Override
   public int hashCode() {
-    int result = domain.hashCode();
+    int result = namespace.hashCode();
     result = 31 * result + execution.hashCode();
     return result;
   }
 
   @Override
   public String toString() {
-    return "ExecutionId{" + "domain='" + domain + '\'' + ", execution=" + execution + '}';
+    return "ExecutionId{" + "namespace='" + namespace + '\'' + ", execution=" + execution + '}';
   }
 
   /** Used for task tokens. */
@@ -98,7 +98,7 @@ final class ExecutionId {
   }
 
   void addBytes(DataOutputStream out) throws IOException {
-    out.writeUTF(domain);
+    out.writeUTF(namespace);
     out.writeUTF(execution.getWorkflowId());
     if (!execution.getRunId().isEmpty()) {
       out.writeUTF(execution.getRunId());
@@ -116,16 +116,16 @@ final class ExecutionId {
   }
 
   static ExecutionId readFromBytes(DataInputStream in) throws IOException {
-    String domain = in.readUTF();
+    String namespace = in.readUTF();
     String workflowId = in.readUTF();
     String runId = null;
     if (in.available() > 0) {
       runId = in.readUTF();
     }
-    return new ExecutionId(domain, workflowId, runId);
+    return new ExecutionId(namespace, workflowId, runId);
   }
 
   public WorkflowId getWorkflowId() {
-    return new WorkflowId(domain, execution.getWorkflowId());
+    return new WorkflowId(namespace, execution.getWorkflowId());
   }
 }

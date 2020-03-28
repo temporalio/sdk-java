@@ -29,19 +29,19 @@ public class WorkflowPollTaskFactory
     implements Supplier<Poller.PollTask<PollForDecisionTaskResponse>> {
 
   private final WorkflowServiceStubs service;
-  private final String domain;
+  private final String namespace;
   private final String taskList;
   private final Scope metricScope;
   private final String identity;
 
   public WorkflowPollTaskFactory(
       WorkflowServiceStubs service,
-      String domain,
+      String namespace,
       String taskList,
       Scope metricScope,
       String identity) {
     this.service = Objects.requireNonNull(service, "service should not be null");
-    this.domain = Objects.requireNonNull(domain, "domain should not be null");
+    this.namespace = Objects.requireNonNull(namespace, "namespace should not be null");
     this.taskList = Objects.requireNonNull(taskList, "taskList should not be null");
     this.metricScope = Objects.requireNonNull(metricScope, "metricScope should not be null");
     this.identity = Objects.requireNonNull(identity, "identity should not be null");
@@ -49,6 +49,6 @@ public class WorkflowPollTaskFactory
 
   @Override
   public Poller.PollTask<PollForDecisionTaskResponse> get() {
-    return new WorkflowPollTask(service, domain, taskList, metricScope, identity);
+    return new WorkflowPollTask(service, namespace, taskList, metricScope, identity);
   }
 }

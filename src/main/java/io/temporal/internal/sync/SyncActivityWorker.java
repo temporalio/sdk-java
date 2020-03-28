@@ -36,10 +36,14 @@ public class SyncActivityWorker implements SuspendableWorker {
   private final ScheduledExecutorService heartbeatExecutor = Executors.newScheduledThreadPool(4);
 
   public SyncActivityWorker(
-      WorkflowServiceStubs service, String domain, String taskList, SingleWorkerOptions options) {
+      WorkflowServiceStubs service,
+      String namespace,
+      String taskList,
+      SingleWorkerOptions options) {
     taskHandler =
-        new POJOActivityTaskHandler(service, domain, options.getDataConverter(), heartbeatExecutor);
-    worker = new ActivityWorker(service, domain, taskList, options, taskHandler);
+        new POJOActivityTaskHandler(
+            service, namespace, options.getDataConverter(), heartbeatExecutor);
+    worker = new ActivityWorker(service, namespace, taskList, options, taskHandler);
   }
 
   public void setActivitiesImplementation(Object... activitiesImplementation) {

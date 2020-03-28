@@ -325,7 +325,7 @@ class StateMachines {
     StartChildWorkflowExecutionInitiatedEventAttributes ie = data.initiatedEvent;
     ChildWorkflowExecutionTimedOutEventAttributes a =
         ChildWorkflowExecutionTimedOutEventAttributes.newBuilder()
-            .setDomain(ie.getDomain())
+            .setNamespace(ie.getNamespace())
             .setStartedEventId(data.startedEventId)
             .setWorkflowExecution(data.execution)
             .setWorkflowType(ie.getWorkflowType())
@@ -350,8 +350,8 @@ class StateMachines {
             .setInitiatedEventId(data.initiatedEventId)
             .setWorkflowType(data.initiatedEvent.getWorkflowType())
             .setWorkflowId(data.initiatedEvent.getWorkflowId());
-    if (!data.initiatedEvent.getDomain().isEmpty()) {
-      updatedAttr.setDomain(data.initiatedEvent.getDomain());
+    if (!data.initiatedEvent.getNamespace().isEmpty()) {
+      updatedAttr.setNamespace(data.initiatedEvent.getNamespace());
     }
     HistoryEvent event =
         HistoryEvent.newBuilder()
@@ -410,8 +410,8 @@ class StateMachines {
             .setStartedEventId(data.startedEventId)
             .setWorkflowExecution(data.execution)
             .setWorkflowType(data.initiatedEvent.getWorkflowType());
-    if (!data.initiatedEvent.getDomain().isEmpty()) {
-      updatedAttr.setDomain(data.initiatedEvent.getDomain());
+    if (!data.initiatedEvent.getNamespace().isEmpty()) {
+      updatedAttr.setNamespace(data.initiatedEvent.getNamespace());
     }
     HistoryEvent event =
         HistoryEvent.newBuilder()
@@ -449,7 +449,7 @@ class StateMachines {
             .setControl(d.getControl())
             .setInput(d.getInput())
             .setDecisionTaskCompletedEventId(decisionTaskCompletedEventId)
-            .setDomain(d.getDomain().isEmpty() ? ctx.getDomain() : d.getDomain())
+            .setNamespace(d.getNamespace().isEmpty() ? ctx.getNamespace() : d.getNamespace())
             .setExecutionStartToCloseTimeoutSeconds(d.getExecutionStartToCloseTimeoutSeconds())
             .setTaskStartToCloseTimeoutSeconds(d.getTaskStartToCloseTimeoutSeconds())
             .setTaskList(d.getTaskList())
@@ -479,7 +479,7 @@ class StateMachines {
           data.initiatedEvent = a.build();
           StartWorkflowExecutionRequest.Builder startChild =
               StartWorkflowExecutionRequest.newBuilder()
-                  .setDomain(d.getDomain().isEmpty() ? ctx.getDomain() : d.getDomain())
+                  .setNamespace(d.getNamespace().isEmpty() ? ctx.getNamespace() : d.getNamespace())
                   .setExecutionStartToCloseTimeoutSeconds(
                       d.getExecutionStartToCloseTimeoutSeconds())
                   .setTaskStartToCloseTimeoutSeconds(d.getTaskStartToCloseTimeoutSeconds())
@@ -605,7 +605,7 @@ class StateMachines {
     Optional<TestWorkflowMutableState> parent = ctx.getWorkflowMutableState().getParent();
     if (parent.isPresent()) {
       ExecutionId parentExecutionId = parent.get().getExecutionId();
-      a.setParentWorkflowDomain(parentExecutionId.getDomain());
+      a.setParentWorkflowNamespace(parentExecutionId.getNamespace());
       a.setParentWorkflowExecution(parentExecutionId.getExecution());
     }
     HistoryEvent event =
@@ -770,7 +770,7 @@ class StateMachines {
             .setInput(d.getInput())
             .setActivityId(d.getActivityId())
             .setActivityType(d.getActivityType())
-            .setDomain(d.getDomain().isEmpty() ? ctx.getDomain() : d.getDomain())
+            .setNamespace(d.getNamespace().isEmpty() ? ctx.getNamespace() : d.getNamespace())
             .setHeartbeatTimeoutSeconds(d.getHeartbeatTimeoutSeconds())
             .setScheduleToCloseTimeoutSeconds(scheduleToCloseTimeoutSeconds)
             .setScheduleToStartTimeoutSeconds(scheduleToStartTimeoutSeconds)
@@ -804,7 +804,7 @@ class StateMachines {
             .setHeader(d.getHeader())
             .setAttempt(0);
 
-    TaskListId taskListId = new TaskListId(ctx.getDomain(), d.getTaskList().getName());
+    TaskListId taskListId = new TaskListId(ctx.getNamespace(), d.getTaskList().getName());
     ActivityTask activityTask = new ActivityTask(taskListId, taskResponse);
     ctx.addActivityTask(activityTask);
     ctx.onCommit(
@@ -857,7 +857,7 @@ class StateMachines {
     decisionTaskResponse.setWorkflowExecution(ctx.getExecution());
     decisionTaskResponse.setWorkflowType(request.getWorkflowType());
     decisionTaskResponse.setAttempt(data.attempt);
-    TaskListId taskListId = new TaskListId(ctx.getDomain(), request.getTaskList().getName());
+    TaskListId taskListId = new TaskListId(ctx.getNamespace(), request.getTaskList().getName());
     DecisionTask decisionTask = new DecisionTask(taskListId, decisionTaskResponse);
     ctx.setDecisionTask(decisionTask);
     ctx.onCommit(
@@ -887,7 +887,7 @@ class StateMachines {
           data.decisionTask.setTaskToken(taskToken.toBytes());
           GetWorkflowExecutionHistoryRequest getRequest =
               GetWorkflowExecutionHistoryRequest.newBuilder()
-                  .setDomain(request.getDomain())
+                  .setNamespace(request.getNamespace())
                   .setExecution(ctx.getExecution())
                   .build();
           List<HistoryEvent> events;
@@ -1237,7 +1237,7 @@ class StateMachines {
             .setDecisionTaskCompletedEventId(decisionTaskCompletedEventId)
             .setControl(d.getControl())
             .setInput(d.getInput())
-            .setDomain(d.getDomain())
+            .setNamespace(d.getNamespace())
             .setChildWorkflowOnly(d.getChildWorkflowOnly())
             .setSignalName(d.getSignalName())
             .setWorkflowExecution(d.getExecution());
@@ -1267,7 +1267,7 @@ class StateMachines {
             .setWorkflowExecution(initiatedEvent.getWorkflowExecution())
             .setControl(initiatedEvent.getControl())
             .setCause(cause)
-            .setDomain(initiatedEvent.getDomain());
+            .setNamespace(initiatedEvent.getNamespace());
     HistoryEvent event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EventTypeSignalExternalWorkflowExecutionFailed)
@@ -1286,7 +1286,7 @@ class StateMachines {
             .setInitiatedEventId(data.initiatedEventId)
             .setWorkflowExecution(signaledExecution)
             .setControl(initiatedEvent.getControl())
-            .setDomain(initiatedEvent.getDomain());
+            .setNamespace(initiatedEvent.getNamespace());
     HistoryEvent event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EventTypeExternalWorkflowExecutionSignaled)

@@ -47,5 +47,5 @@ public interface GenericWorkflowClientExternal {
 
   WorkflowServiceStubs getService();
 
-  String getDomain();
+  String getNamespace();
 }

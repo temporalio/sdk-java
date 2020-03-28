@@ -62,7 +62,7 @@ public interface DecisionContext extends ReplayAware {
 
   String getTaskList();
 
-  String getDomain();
+  String getNamespace();
 
   String getWorkflowId();
 

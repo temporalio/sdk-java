@@ -166,7 +166,7 @@ public class WorkflowTest {
         }
       };
 
-  public static final String DOMAIN = "UnitTest";
+  public static final String NAMESPACE = "UnitTest";
   private static final Logger log = LoggerFactory.getLogger(WorkflowTest.class);
 
   private static String UUID_REGEXP =
@@ -268,7 +268,7 @@ public class WorkflowTest {
                     return next;
                   }
                 })
-            .setDomain(DOMAIN)
+            .setNamespace(NAMESPACE)
             .build();
     WorkerFactoryOptions factoryOptions =
         WorkerFactoryOptions.newBuilder().setWorkflowInterceptor(tracer).build();
@@ -1365,7 +1365,7 @@ public class WorkflowTest {
 
       GetWorkflowExecutionHistoryResponse historyResp =
           WorkflowExecutionUtils.getHistoryPage(
-              testEnvironment.getWorkflowService(), DOMAIN, executionF, ByteString.EMPTY);
+              testEnvironment.getWorkflowService(), NAMESPACE, executionF, ByteString.EMPTY);
       HistoryEvent startEvent = historyResp.getHistory().getEvents(0);
       Memo memoFromEvent = startEvent.getWorkflowExecutionStartedEventAttributes().getMemo();
       byte[] memoBytes = memoFromEvent.getFieldsMap().get(testMemoKey).toByteArray();
@@ -1406,7 +1406,7 @@ public class WorkflowTest {
 
       GetWorkflowExecutionHistoryResponse historyResp =
           WorkflowExecutionUtils.getHistoryPage(
-              testEnvironment.getWorkflowService(), DOMAIN, executionF, ByteString.EMPTY);
+              testEnvironment.getWorkflowService(), NAMESPACE, executionF, ByteString.EMPTY);
       HistoryEvent startEvent = historyResp.getHistory().getEvents(0);
       SearchAttributes searchAttrFromEvent =
           startEvent.getWorkflowExecutionStartedEventAttributes().getSearchAttributes();
@@ -2904,7 +2904,7 @@ public class WorkflowTest {
     if (useExternalService) {
       wc =
           WorkflowClient.newInstance(
-              service, WorkflowClientOptions.newBuilder().setDomain(DOMAIN).build());
+              service, WorkflowClientOptions.newBuilder().setNamespace(NAMESPACE).build());
     } else {
       wc = testEnvironment.getWorkflowClient();
     }

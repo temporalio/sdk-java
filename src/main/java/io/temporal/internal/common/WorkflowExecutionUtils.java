@@ -110,7 +110,7 @@ public class WorkflowExecutionUtils {
    */
   public static byte[] getWorkflowExecutionResult(
       WorkflowServiceStubs service,
-      String domain,
+      String namespace,
       WorkflowExecution workflowExecution,
       Optional<String> workflowType,
       long timeout,
@@ -119,18 +119,18 @@ public class WorkflowExecutionUtils {
           WorkflowTerminatedException, WorkflowTimedOutException {
     // getIntanceCloseEvent waits for workflow completion including new runs.
     HistoryEvent closeEvent =
-        getInstanceCloseEvent(service, domain, workflowExecution, timeout, unit);
+        getInstanceCloseEvent(service, namespace, workflowExecution, timeout, unit);
     return getResultFromCloseEvent(workflowExecution, workflowType, closeEvent);
   }
 
   public static CompletableFuture<byte[]> getWorkflowExecutionResultAsync(
       WorkflowServiceStubs service,
-      String domain,
+      String namespace,
       WorkflowExecution workflowExecution,
       Optional<String> workflowType,
       long timeout,
       TimeUnit unit) {
-    return getInstanceCloseEventAsync(service, domain, workflowExecution, timeout, unit)
+    return getInstanceCloseEventAsync(service, namespace, workflowExecution, timeout, unit)
         .thenApply(
             (closeEvent) -> getResultFromCloseEvent(workflowExecution, workflowType, closeEvent));
   }
@@ -177,7 +177,7 @@ public class WorkflowExecutionUtils {
   /** Returns an instance closing event, potentially waiting for workflow to complete. */
   public static HistoryEvent getInstanceCloseEvent(
       WorkflowServiceStubs service,
-      String domain,
+      String namespace,
       WorkflowExecution workflowExecution,
       long timeout,
       TimeUnit unit)
@@ -190,7 +190,7 @@ public class WorkflowExecutionUtils {
     do {
       GetWorkflowExecutionHistoryRequest r =
           GetWorkflowExecutionHistoryRequest.newBuilder()
-              .setDomain(domain)
+              .setNamespace(namespace)
               .setExecution(workflowExecution)
               .setHistoryEventFilterType(HistoryEventFilterType.HistoryEventFilterTypeCloseEvent)
               .setWaitForNewEvent(true)
@@ -265,17 +265,17 @@ public class WorkflowExecutionUtils {
   /** Returns an instance closing event, potentially waiting for workflow to complete. */
   private static CompletableFuture<HistoryEvent> getInstanceCloseEventAsync(
       WorkflowServiceStubs service,
-      String domain,
+      String namespace,
       final WorkflowExecution workflowExecution,
       long timeout,
       TimeUnit unit) {
     return getInstanceCloseEventAsync(
-        service, domain, workflowExecution, ByteString.EMPTY, timeout, unit);
+        service, namespace, workflowExecution, ByteString.EMPTY, timeout, unit);
   }
 
   private static CompletableFuture<HistoryEvent> getInstanceCloseEventAsync(
       WorkflowServiceStubs service,
-      String domain,
+      String namespace,
       final WorkflowExecution workflowExecution,
       ByteString pageToken,
       long timeout,
@@ -284,7 +284,7 @@ public class WorkflowExecutionUtils {
     long start = System.currentTimeMillis();
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setDomain(domain)
+            .setNamespace(namespace)
             .setExecution(workflowExecution)
             .setHistoryEventFilterType(HistoryEventFilterType.HistoryEventFilterTypeCloseEvent)
             .setNextPageToken(pageToken)
@@ -309,7 +309,7 @@ public class WorkflowExecutionUtils {
           if (history.getEventsCount() == 0) {
             // Empty poll returned
             return getInstanceCloseEventAsync(
-                service, domain, workflowExecution, pageToken, timeout, unit);
+                service, namespace, workflowExecution, pageToken, timeout, unit);
           }
           HistoryEvent event = history.getEvents(0);
           if (!isWorkflowExecutionCompletedEvent(event)) {
@@ -326,7 +326,7 @@ public class WorkflowExecutionUtils {
                             .getNewExecutionRunId())
                     .build();
             return getInstanceCloseEventAsync(
-                service, domain, nextWorkflowExecution, r.getNextPageToken(), timeout, unit);
+                service, namespace, nextWorkflowExecution, r.getNextPageToken(), timeout, unit);
           }
           return CompletableFuture.completedFuture(event);
         });
@@ -470,10 +470,10 @@ public class WorkflowExecutionUtils {
    * @return instance close status
    */
   public static WorkflowExecutionCloseStatus waitForWorkflowInstanceCompletion(
-      WorkflowServiceStubs service, String domain, WorkflowExecution workflowExecution) {
+      WorkflowServiceStubs service, String namespace, WorkflowExecution workflowExecution) {
     try {
       return waitForWorkflowInstanceCompletion(
-          service, domain, workflowExecution, 0, TimeUnit.MILLISECONDS);
+          service, namespace, workflowExecution, 0, TimeUnit.MILLISECONDS);
     } catch (TimeoutException e) {
       throw new Error("should never happen", e);
     }
@@ -489,13 +489,13 @@ public class WorkflowExecutionUtils {
    */
   public static WorkflowExecutionCloseStatus waitForWorkflowInstanceCompletion(
       WorkflowServiceStubs service,
-      String domain,
+      String namespace,
       WorkflowExecution workflowExecution,
       long timeout,
       TimeUnit unit)
       throws TimeoutException {
     HistoryEvent closeEvent =
-        getInstanceCloseEvent(service, domain, workflowExecution, timeout, unit);
+        getInstanceCloseEvent(service, namespace, workflowExecution, timeout, unit);
     return getCloseStatus(closeEvent);
   }
 
@@ -528,7 +528,7 @@ public class WorkflowExecutionUtils {
    */
   public static WorkflowExecutionCloseStatus waitForWorkflowInstanceCompletionAcrossGenerations(
       WorkflowServiceStubs service,
-      String domain,
+      String namespace,
       WorkflowExecution workflowExecution,
       long timeout,
       TimeUnit unit)
@@ -537,14 +537,14 @@ public class WorkflowExecutionUtils {
     WorkflowExecution lastExecutionToRun = workflowExecution;
     long millisecondsAtFirstWait = System.currentTimeMillis();
     WorkflowExecutionCloseStatus lastExecutionToRunCloseStatus =
-        waitForWorkflowInstanceCompletion(service, domain, lastExecutionToRun, timeout, unit);
+        waitForWorkflowInstanceCompletion(service, namespace, lastExecutionToRun, timeout, unit);
 
     // keep waiting if the instance continued as new
     while (lastExecutionToRunCloseStatus
         == WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusContinuedAsNew) {
       // get the new execution's information
       HistoryEvent closeEvent =
-          getInstanceCloseEvent(service, domain, lastExecutionToRun, timeout, unit);
+          getInstanceCloseEvent(service, namespace, lastExecutionToRun, timeout, unit);
       WorkflowExecutionContinuedAsNewEventAttributes continuedAsNewAttributes =
           closeEvent.getWorkflowExecutionContinuedAsNewEventAttributes();
 
@@ -563,7 +563,7 @@ public class WorkflowExecutionUtils {
       lastExecutionToRunCloseStatus =
           waitForWorkflowInstanceCompletion(
               service,
-              domain,
+              namespace,
               newGenerationExecution,
               timeoutInSecondsForNextWait,
               TimeUnit.MILLISECONDS);
@@ -578,21 +578,21 @@ public class WorkflowExecutionUtils {
    * long, TimeUnit)} , but with no timeout.*
    */
   public static WorkflowExecutionCloseStatus waitForWorkflowInstanceCompletionAcrossGenerations(
-      WorkflowServiceStubs service, String domain, WorkflowExecution workflowExecution)
+      WorkflowServiceStubs service, String namespace, WorkflowExecution workflowExecution)
       throws InterruptedException {
     try {
       return waitForWorkflowInstanceCompletionAcrossGenerations(
-          service, domain, workflowExecution, 0L, TimeUnit.MILLISECONDS);
+          service, namespace, workflowExecution, 0L, TimeUnit.MILLISECONDS);
     } catch (TimeoutException e) {
       throw new Error("should never happen", e);
     }
   }
 
   public static WorkflowExecutionInfo describeWorkflowInstance(
-      WorkflowServiceStubs service, String domain, WorkflowExecution workflowExecution) {
+      WorkflowServiceStubs service, String namespace, WorkflowExecution workflowExecution) {
     DescribeWorkflowExecutionRequest describeRequest =
         DescribeWorkflowExecutionRequest.newBuilder()
-            .setDomain(domain)
+            .setNamespace(namespace)
             .setExecution(workflowExecution)
             .build();
     DescribeWorkflowExecutionResponse executionDetail =
@@ -603,12 +603,12 @@ public class WorkflowExecutionUtils {
 
   public static GetWorkflowExecutionHistoryResponse getHistoryPage(
       WorkflowServiceStubs service,
-      String domain,
+      String namespace,
       WorkflowExecution workflowExecution,
       ByteString nextPageToken) {
     GetWorkflowExecutionHistoryRequest getHistoryRequest =
         GetWorkflowExecutionHistoryRequest.newBuilder()
-            .setDomain(domain)
+            .setNamespace(namespace)
             .setExecution(workflowExecution)
             .setNextPageToken(nextPageToken)
             .build();
@@ -617,8 +617,8 @@ public class WorkflowExecutionUtils {
 
   /** Returns workflow instance history in a human readable format. */
   public static String prettyPrintHistory(
-      WorkflowServiceStubs service, String domain, WorkflowExecution workflowExecution) {
-    return prettyPrintHistory(service, domain, workflowExecution, true);
+      WorkflowServiceStubs service, String namespace, WorkflowExecution workflowExecution) {
+    return prettyPrintHistory(service, namespace, workflowExecution, true);
   }
   /**
    * Returns workflow instance history in a human readable format.
@@ -628,15 +628,15 @@ public class WorkflowExecutionUtils {
    */
   public static String prettyPrintHistory(
       WorkflowServiceStubs service,
-      String domain,
+      String namespace,
       WorkflowExecution workflowExecution,
       boolean showWorkflowTasks) {
-    Iterator<HistoryEvent> events = getHistory(service, domain, workflowExecution);
+    Iterator<HistoryEvent> events = getHistory(service, namespace, workflowExecution);
     return prettyPrintHistory(events, showWorkflowTasks);
   }
 
   public static Iterator<HistoryEvent> getHistory(
-      WorkflowServiceStubs service, String domain, WorkflowExecution workflowExecution) {
+      WorkflowServiceStubs service, String namespace, WorkflowExecution workflowExecution) {
     return new Iterator<HistoryEvent>() {
       ByteString nextPageToken = ByteString.EMPTY;
       Iterator<HistoryEvent> current;
@@ -661,7 +661,7 @@ public class WorkflowExecutionUtils {
 
       private void getNextPage() {
         GetWorkflowExecutionHistoryResponse history =
-            getHistoryPage(service, domain, workflowExecution, nextPageToken);
+            getHistoryPage(service, namespace, workflowExecution, nextPageToken);
         current = history.getHistory().getEventsList().iterator();
         nextPageToken = history.getNextPageToken();
       }

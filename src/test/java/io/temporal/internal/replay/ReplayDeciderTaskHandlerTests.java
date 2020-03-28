@@ -70,7 +70,7 @@ public class ReplayDeciderTaskHandlerTests {
     DeciderCache cache = new DeciderCache(10, NoopScope.getInstance());
     DecisionTaskHandler taskHandler =
         new ReplayDecisionTaskHandler(
-            "domain",
+            "namespace",
             setUpMockWorkflowFactory(),
             cache,
             SingleWorkerOptions.newBuilder().build(),
@@ -95,7 +95,7 @@ public class ReplayDeciderTaskHandlerTests {
     DeciderCache cache = new DeciderCache(10, NoopScope.getInstance());
     DecisionTaskHandler taskHandler =
         new ReplayDecisionTaskHandler(
-            "domain",
+            "namespace",
             setUpMockWorkflowFactory(),
             cache,
             SingleWorkerOptions.newBuilder().build(),
@@ -129,7 +129,7 @@ public class ReplayDeciderTaskHandlerTests {
             .build();
     DecisionTaskHandler taskHandler =
         new ReplayDecisionTaskHandler(
-            "domain",
+            "namespace",
             setUpMockWorkflowFactory(),
             cache,
             SingleWorkerOptions.newBuilder().build(),

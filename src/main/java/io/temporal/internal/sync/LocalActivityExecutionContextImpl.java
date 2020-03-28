@@ -28,12 +28,12 @@ import java.util.Optional;
 
 class LocalActivityExecutionContextImpl implements ActivityExecutionContext {
   private final WorkflowServiceStubs service;
-  private final String domain;
+  private final String namespace;
   private final ActivityTask task;
 
   LocalActivityExecutionContextImpl(
-      WorkflowServiceStubs service, String domain, ActivityTask task) {
-    this.domain = domain;
+      WorkflowServiceStubs service, String namespace, ActivityTask task) {
+    this.namespace = namespace;
     this.service = service;
     this.task = task;
   }
@@ -83,7 +83,7 @@ class LocalActivityExecutionContextImpl implements ActivityExecutionContext {
   }
 
   @Override
-  public String getDomain() {
-    return domain;
+  public String getNamespace() {
+    return namespace;
   }
 }

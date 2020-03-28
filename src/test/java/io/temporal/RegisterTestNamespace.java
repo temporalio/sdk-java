@@ -19,16 +19,16 @@
 
 package io.temporal;
 
-import static io.temporal.workflow.WorkflowTest.DOMAIN;
+import static io.temporal.workflow.WorkflowTest.NAMESPACE;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.temporal.proto.workflowservice.RegisterDomainRequest;
+import io.temporal.proto.workflowservice.RegisterNamespaceRequest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 
-/** Waits for local service to become available and registers UnitTest domain. */
-public class RegisterTestDomain {
+/** Waits for local service to become available and registers UnitTest namespace. */
+public class RegisterTestNamespace {
   private static final boolean useDockerService =
       Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
   private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
@@ -41,14 +41,14 @@ public class RegisterTestDomain {
     WorkflowServiceStubs service =
         WorkflowServiceStubs.newInstance(
             WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
-    RegisterDomainRequest request =
-        RegisterDomainRequest.newBuilder()
-            .setName(DOMAIN)
+    RegisterNamespaceRequest request =
+        RegisterNamespaceRequest.newBuilder()
+            .setName(NAMESPACE)
             .setWorkflowExecutionRetentionPeriodInDays(1)
             .build();
     while (true) {
       try {
-        service.blockingStub().registerDomain(request);
+        service.blockingStub().registerNamespace(request);
         break;
       } catch (StatusRuntimeException e) {
         if (e.getStatus().getCode() == Status.Code.ALREADY_EXISTS) {

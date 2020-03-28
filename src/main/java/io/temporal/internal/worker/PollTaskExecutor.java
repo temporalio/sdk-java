@@ -37,13 +37,13 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
 
   private final ThreadPoolExecutor taskExecutor;
   private final SingleWorkerOptions options;
-  private final String domain;
+  private final String namespace;
   private final String taskList;
   private final TaskHandler<T> handler;
 
   PollTaskExecutor(
-      String domain, String taskList, SingleWorkerOptions options, TaskHandler<T> handler) {
-    this.domain = domain;
+      String namespace, String taskList, SingleWorkerOptions options, TaskHandler<T> handler) {
+    this.namespace = namespace;
     this.taskList = taskList;
     this.handler = handler;
     Preconditions.checkNotNull(options, "options should not be null");
@@ -67,7 +67,7 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
   public void process(T task) {
     taskExecutor.execute(
         () -> {
-          MDC.put(LoggerTag.DOMAIN, domain);
+          MDC.put(LoggerTag.NAMESPACE, namespace);
           MDC.put(LoggerTag.TASK_LIST, taskList);
           try {
             handler.handle(task);
@@ -77,7 +77,7 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
                 .getUncaughtExceptionHandler()
                 .uncaughtException(Thread.currentThread(), handler.wrapFailure(task, ee));
           } finally {
-            MDC.remove(LoggerTag.DOMAIN);
+            MDC.remove(LoggerTag.NAMESPACE);
             MDC.remove(LoggerTag.TASK_LIST);
           }
         });

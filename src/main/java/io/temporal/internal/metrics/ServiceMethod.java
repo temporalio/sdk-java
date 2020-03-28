@@ -21,11 +21,12 @@ package io.temporal.internal.metrics;
 
 /** TODO(maxim): Add gRPC interceptor for metrics */
 public class ServiceMethod {
-  public static final String DEPRECATE_DOMAIN =
-      MetricsType.TEMPORAL_METRICS_PREFIX + "DeprecateDomain";
-  public static final String DESCRIBE_DOMAIN =
-      MetricsType.TEMPORAL_METRICS_PREFIX + "DescribeDomain";
-  public static final String LIST_DOMAINS = MetricsType.TEMPORAL_METRICS_PREFIX + "ListDomains";
+  public static final String DEPRECATE_NAMESPACE =
+      MetricsType.TEMPORAL_METRICS_PREFIX + "DeprecateNamespace";
+  public static final String DESCRIBE_NAMESPACE =
+      MetricsType.TEMPORAL_METRICS_PREFIX + "DescribeNamespace";
+  public static final String LIST_NAMESPACES =
+      MetricsType.TEMPORAL_METRICS_PREFIX + "ListNamespaces";
   public static final String GET_WORKFLOW_EXECUTION_HISTORY =
       MetricsType.TEMPORAL_METRICS_PREFIX + "GetWorkflowExecutionHistory";
   public static final String LIST_CLOSED_WORKFLOW_EXECUTIONS =
@@ -52,8 +53,8 @@ public class ServiceMethod {
       MetricsType.TEMPORAL_METRICS_PREFIX + "RecordActivityTaskHeartbeat";
   public static final String RECORD_ACTIVITY_TASK_HEARTBEAT_BY_ID =
       MetricsType.TEMPORAL_METRICS_PREFIX + "RecordActivityTaskHeartbeatByID";
-  public static final String REGISTER_DOMAIN =
-      MetricsType.TEMPORAL_METRICS_PREFIX + "RegisterDomain";
+  public static final String REGISTER_NAMESPACE =
+      MetricsType.TEMPORAL_METRICS_PREFIX + "RegisterNamespace";
   public static final String REQUEST_CANCEL_WORKFLOW_EXECUTION =
       MetricsType.TEMPORAL_METRICS_PREFIX + "RequestCancelWorkflowExecution";
   public static final String RESPOND_ACTIVITY_TASK_CANCELED =
@@ -80,7 +81,8 @@ public class ServiceMethod {
       MetricsType.TEMPORAL_METRICS_PREFIX + "StartWorkflowExecution";
   public static final String TERMINATE_WORKFLOW_EXECUTION =
       MetricsType.TEMPORAL_METRICS_PREFIX + "TerminateWorkflowExecution";
-  public static final String UPDATE_DOMAIN = MetricsType.TEMPORAL_METRICS_PREFIX + "UpdateDomain";
+  public static final String UPDATE_NAMESPACE =
+      MetricsType.TEMPORAL_METRICS_PREFIX + "UpdateNamespace";
   public static final String QUERY_WORKFLOW = MetricsType.TEMPORAL_METRICS_PREFIX + "QueryWorkflow";
   public static final String DESCRIBE_TASK_LIST =
       MetricsType.TEMPORAL_METRICS_PREFIX + "DescribeTaskList";

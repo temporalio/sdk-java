@@ -40,8 +40,8 @@ public final class ActivityInternal {
     return getContext().getTask();
   }
 
-  public static String getDomain() {
-    return getContext().getDomain();
+  public static String getNamespace() {
+    return getContext().getNamespace();
   }
 
   public static WorkflowServiceStubs getService() {

@@ -212,11 +212,11 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
           ctx.getWorkflowMutableState().getStickyExecutionAttributes();
       TaskListId id =
           new TaskListId(
-              decisionTask.getTaskListId().getDomain(),
+              decisionTask.getTaskListId().getNamespace(),
               attributes == null
                   ? decisionTask.getTaskListId().getTaskListName()
                   : attributes.getWorkerTaskList().getName());
-      if (id.getTaskListName().isEmpty() || id.getDomain().isEmpty()) {
+      if (id.getTaskListName().isEmpty() || id.getNamespace().isEmpty()) {
         throw Status.INTERNAL.withDescription("Invalid TaskListId: " + id).asRuntimeException();
       }
       BlockingQueue<PollForDecisionTaskResponse.Builder> decisionsQueue =
@@ -306,7 +306,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   public PollForDecisionTaskResponse.Builder pollForDecisionTask(
       PollForDecisionTaskRequest pollRequest) throws InterruptedException {
     TaskListId taskListId =
-        new TaskListId(pollRequest.getDomain(), pollRequest.getTaskList().getName());
+        new TaskListId(pollRequest.getNamespace(), pollRequest.getTaskList().getName());
     BlockingQueue<PollForDecisionTaskResponse.Builder> decisionsQueue =
         getDecisionTaskListQueue(taskListId);
     if (log.isTraceEnabled()) {
@@ -321,7 +321,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   public PollForActivityTaskResponse.Builder pollForActivityTask(
       PollForActivityTaskRequest pollRequest) throws InterruptedException {
     TaskListId taskListId =
-        new TaskListId(pollRequest.getDomain(), pollRequest.getTaskList().getName());
+        new TaskListId(pollRequest.getNamespace(), pollRequest.getTaskList().getName());
     BlockingQueue<PollForActivityTaskResponse.Builder> activityTaskQueue =
         getActivityTaskListQueue(taskListId);
     PollForActivityTaskResponse.Builder result = activityTaskQueue.take();

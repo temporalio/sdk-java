@@ -110,7 +110,7 @@ final class WorkflowDecisionContext {
       workflowId = randomUUID().toString();
     }
     attributes.setWorkflowId(workflowId);
-    attributes.setDomain(OptionsUtils.safeGet(parameters.getDomain()));
+    attributes.setNamespace(OptionsUtils.safeGet(parameters.getNamespace()));
     attributes.setInput(OptionsUtils.toByteString(parameters.getInput()));
     if (parameters.getExecutionStartToCloseTimeoutSeconds() == 0) {
       // TODO: Substract time passed since the parent start
@@ -181,7 +181,7 @@ final class WorkflowDecisionContext {
     final OpenRequestInfo<Void, Void> context = new OpenRequestInfo<>();
     final SignalExternalWorkflowExecutionDecisionAttributes.Builder attributes =
         SignalExternalWorkflowExecutionDecisionAttributes.newBuilder()
-            .setDomain(OptionsUtils.safeGet(parameters.getDomain()));
+            .setNamespace(OptionsUtils.safeGet(parameters.getNamespace()));
     String signalId = decisions.getAndIncrementNextId();
     attributes.setControl(ByteString.copyFrom(signalId, StandardCharsets.UTF_8));
     attributes.setSignalName(parameters.getSignalName());

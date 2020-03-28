@@ -85,8 +85,8 @@ final class ActivityTaskImpl implements ActivityTask {
   }
 
   @Override
-  public String getWorkflowDomain() {
-    return response.getWorkflowDomain();
+  public String getWorkflowNamespace() {
+    return response.getWorkflowNamespace();
   }
 
   @Override

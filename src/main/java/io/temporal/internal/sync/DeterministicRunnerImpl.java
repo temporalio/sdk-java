@@ -581,8 +581,8 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
 
     @Override
-    public String getDomain() {
-      return "dummy-domain";
+    public String getNamespace() {
+      return "dummy-namespace";
     }
 
     @Override

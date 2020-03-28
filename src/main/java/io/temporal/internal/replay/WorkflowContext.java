@@ -37,7 +37,7 @@ final class WorkflowContext {
   private boolean cancelRequested;
   private ContinueAsNewWorkflowExecutionParameters continueAsNewOnCompletion;
   private WorkflowExecutionStartedEventAttributes startedAttributes;
-  private final String domain;
+  private final String namespace;
   // RunId can change when reset happens. This remembers the actual runId that is used
   // as in this particular part of the history.
   private String currentRunId;
@@ -45,11 +45,11 @@ final class WorkflowContext {
   private List<ContextPropagator> contextPropagators;
 
   WorkflowContext(
-      String domain,
+      String namespace,
       PollForDecisionTaskResponseOrBuilder decisionTask,
       WorkflowExecutionStartedEventAttributes startedAttributes,
       List<ContextPropagator> contextPropagators) {
-    this.domain = domain;
+    this.namespace = namespace;
     this.decisionTask = decisionTask;
     this.startedAttributes = startedAttributes;
     this.currentRunId = startedAttributes.getOriginalExecutionRunId();
@@ -123,8 +123,8 @@ final class WorkflowContext {
     return attributes.getTaskList().getName();
   }
 
-  String getDomain() {
-    return domain;
+  String getNamespace() {
+    return namespace;
   }
 
   private WorkflowExecutionStartedEventAttributes getWorkflowStartedEventAttributes() {

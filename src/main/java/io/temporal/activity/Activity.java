@@ -115,7 +115,7 @@ import java.util.Optional;
  *
  *      {@literal @}Override
  *      public String download(String bucketName, String remoteName, String localName) {
- *         log.info("domain=" +  Activity.getDomain());
+ *         log.info("namespace=" +  Activity.getNamespace());
  *         WorkflowExecution execution = Activity.getWorkflowExecution();
  *         log.info("workflowId=" + execution.getWorkflowId());
  *         log.info("runId=" + execution.getRunId());
@@ -278,8 +278,8 @@ public final class Activity {
     return ActivityInternal.getService();
   }
 
-  public static String getDomain() {
-    return ActivityInternal.getDomain();
+  public static String getNamespace() {
+    return ActivityInternal.getNamespace();
   }
 
   /**

@@ -55,7 +55,7 @@ public final class ChildWorkflowOptions {
 
   public static final class Builder {
 
-    private String domain;
+    private String namespace;
 
     private String workflowId;
 
@@ -85,7 +85,7 @@ public final class ChildWorkflowOptions {
       if (options == null) {
         return;
       }
-      this.domain = options.getDomain();
+      this.namespace = options.getNamespace();
       this.workflowId = options.getWorkflowId();
       this.workflowIdReusePolicy = options.getWorkflowIdReusePolicy();
       this.executionStartToCloseTimeout = options.getExecutionStartToCloseTimeout();
@@ -100,12 +100,12 @@ public final class ChildWorkflowOptions {
     }
 
     /**
-     * Specify domain in which workflow should be started.
+     * Specify namespace in which workflow should be started.
      *
-     * <p>TODO: Resolve conflict with WorkflowClient domain.
+     * <p>TODO: Resolve conflict with WorkflowClient namespace.
      */
-    public Builder setDomain(String domain) {
-      this.domain = domain;
+    public Builder setNamespace(String namespace) {
+      this.namespace = namespace;
       return this;
     }
 
@@ -121,7 +121,7 @@ public final class ChildWorkflowOptions {
 
     /**
      * Specifies server behavior if a completed workflow with the same id exists. Note that under no
-     * conditions Temporal allows two workflows with the same domain and workflow id run
+     * conditions Temporal allows two workflows with the same namespace and workflow id run
      * simultaneously.
      * <li>
      *
@@ -239,7 +239,7 @@ public final class ChildWorkflowOptions {
 
     public ChildWorkflowOptions build() {
       return new ChildWorkflowOptions(
-          domain,
+          namespace,
           workflowId,
           workflowIdReusePolicy,
           executionStartToCloseTimeout,
@@ -255,7 +255,7 @@ public final class ChildWorkflowOptions {
 
     public ChildWorkflowOptions validateAndBuildWithDefaults() {
       return new ChildWorkflowOptions(
-          domain,
+          namespace,
           workflowId,
           workflowIdReusePolicy,
           roundUpToSeconds(executionStartToCloseTimeout),
@@ -270,7 +270,7 @@ public final class ChildWorkflowOptions {
     }
   }
 
-  private final String domain;
+  private final String namespace;
 
   private final String workflowId;
 
@@ -295,7 +295,7 @@ public final class ChildWorkflowOptions {
   private List<ContextPropagator> contextPropagators;
 
   private ChildWorkflowOptions(
-      String domain,
+      String namespace,
       String workflowId,
       WorkflowIdReusePolicy workflowIdReusePolicy,
       Duration executionStartToCloseTimeout,
@@ -307,7 +307,7 @@ public final class ChildWorkflowOptions {
       Map<String, Object> memo,
       Map<String, Object> searchAttributes,
       List<ContextPropagator> contextPropagators) {
-    this.domain = domain;
+    this.namespace = namespace;
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
     this.executionStartToCloseTimeout = executionStartToCloseTimeout;
@@ -321,8 +321,8 @@ public final class ChildWorkflowOptions {
     this.contextPropagators = contextPropagators;
   }
 
-  public String getDomain() {
-    return domain;
+  public String getNamespace() {
+    return namespace;
   }
 
   public String getWorkflowId() {
@@ -375,7 +375,7 @@ public final class ChildWorkflowOptions {
     if (o == null || getClass() != o.getClass()) return false;
 
     ChildWorkflowOptions that = (ChildWorkflowOptions) o;
-    return Objects.equals(domain, that.domain)
+    return Objects.equals(namespace, that.namespace)
         && Objects.equals(workflowId, that.workflowId)
         && workflowIdReusePolicy == that.workflowIdReusePolicy
         && Objects.equals(executionStartToCloseTimeout, that.executionStartToCloseTimeout)
@@ -392,7 +392,7 @@ public final class ChildWorkflowOptions {
   @Override
   public int hashCode() {
     return Objects.hash(
-        domain,
+        namespace,
         workflowId,
         workflowIdReusePolicy,
         executionStartToCloseTimeout,
@@ -409,8 +409,8 @@ public final class ChildWorkflowOptions {
   @Override
   public String toString() {
     return "ChildWorkflowOptions{"
-        + "domain='"
-        + domain
+        + "namespace='"
+        + namespace
         + '\''
         + ", workflowId='"
         + workflowId

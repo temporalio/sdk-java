@@ -146,8 +146,8 @@ final class RequestContext {
     return workflowMutableState;
   }
 
-  String getDomain() {
-    return executionId.getDomain();
+  String getNamespace() {
+    return executionId.getNamespace();
   }
 
   public long getInitialEventId() {
