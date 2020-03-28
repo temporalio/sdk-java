@@ -131,6 +131,7 @@ protobuf {
         }
     }
     generateProtoTasks {
+        all().each { task -> task.dependsOn updateSubmodules }
         all()*.plugins {
             grpc {
                 outputSubDir = 'java'
