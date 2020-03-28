@@ -40,6 +40,7 @@ googleJavaFormat {
     exclude '**/.idea/**'
 }
 
+// v0.20.0-2-g000a42a -> 0.20.0-2-g000a42a
 ext.getTag = { ->
     def stdout = new ByteArrayOutputStream()
     exec {
@@ -49,11 +50,23 @@ ext.getTag = { ->
     return stdout.toString().trim().substring(1)
 }
 
+// 0.20.0-2-g000a42a -> 0.20.0-SNAPSHOT
+// 0.20.0 -> 0.20.0
+// Used to name jar files
 ext.getVersionName = { ->
     def split = getTag().split('-')
     if (split.size() > 1) {
         return split[0] + '-SNAPSHOT'
     }
+    return split[0]
+}
+
+// 0.20.0-SNAPSHOT -> 0.20.0
+// 0.20.0 -> 0.20.0
+// Stored int version.properties which is loaded
+// and used as a value of temporal-client-version gRPC header.
+ext.getClientVersionName = { ->
+    def split = getVersionName().split('-')
     return split[0]
 }
 
@@ -162,7 +175,7 @@ task createProperties(dependsOn: processResources) {
         }
         new File("$buildDir/resources/main/io/temporal/version.properties").withWriter { w ->
             Properties p = new Properties()
-            p['temporal-client-version'] = getTag()
+            p['temporal-client-version'] = getClientVersionName()
             p.store w, null
         }
     }
