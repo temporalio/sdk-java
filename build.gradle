@@ -10,6 +10,7 @@ plugins {
     id 'java-library'
     id 'net.ltgt.errorprone' version '1.1.1'
     id 'net.minecrell.licenser' version '0.4.1'
+    id 'com.palantir.git-version' version '0.12.3'
 }
 
 repositories {
@@ -24,6 +25,7 @@ apply plugin: 'com.google.protobuf'
 apply plugin: 'idea' // IntelliJ plugin to see files generated from protos
 apply plugin: 'maven'
 apply plugin: 'maven-publish'
+apply from: 'versioning.gradle'
 
 if (hasProperty('signing.keyId')) {
     apply plugin: 'signing'
@@ -39,8 +41,25 @@ googleJavaFormat {
     exclude '**/.idea/**'
 }
 
-group = 'io.temporal'
-version = '0.10.0-SNAPSHOT'
+ext.getTag = { ->
+    def stdout = new ByteArrayOutputStream()
+    exec {
+        commandLine 'git', 'describe', '--tags'
+        standardOutput = stdout
+    }
+    return stdout.toString().trim().substring(1)
+}
+
+ext.getVersionName = { ->
+    def split = getTag().split('-')
+    if (split.size() > 1) {
+        version = split[0] + '-SNAPSHOT'
+    }
+    return version
+}
+
+group='io.temporal'
+version = getVersionName()
 archivesBaseName="temporal-sdk"
 
 description = '''Temporal Workflow Java SDK'''
@@ -138,13 +157,13 @@ compileTestJava {
 // Generation version.properties for value to be included into the request header
 task createProperties(dependsOn: processResources) {
     doLast {
-        def subdir = new File('$buildDir/resources/main/io/temporal/')
+        def subdir = new File("$buildDir/resources/main/io/temporal/")
         if (!subdir.exists()) {
             subdir.mkdirs()
         }
-        new File('$buildDir/resources/main/io/temporal/version.properties').withWriter { w ->
+        new File("$buildDir/resources/main/io/temporal/version.properties").withWriter { w ->
             Properties p = new Properties()
-            p['temporal-client-version'] = project.version.toString()
+            p['temporal-client-version'] = getTag()
             p.store w, null
         }
     }
