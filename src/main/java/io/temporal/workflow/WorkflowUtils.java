@@ -21,11 +21,11 @@ package io.temporal.workflow;
 
 import com.cronutils.utils.StringUtils;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.JsonDataConverter;
+import io.temporal.common.converter.GsonJsonDataConverter;
 import io.temporal.proto.common.SearchAttributes;
 
 public class WorkflowUtils {
-  private static final DataConverter jsonConverter = JsonDataConverter.getInstance();
+  private static final DataConverter jsonConverter = GsonJsonDataConverter.getInstance();
 
   public static <T> T getValueFromSearchAttributes(
       SearchAttributes searchAttributes, String key, Class<T> classType) {

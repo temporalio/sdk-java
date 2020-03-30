@@ -22,7 +22,7 @@ package io.temporal.client;
 import com.uber.m3.tally.Scope;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.JsonDataConverter;
+import io.temporal.common.converter.GsonJsonDataConverter;
 import io.temporal.internal.metrics.NoopScope;
 import java.lang.management.ManagementFactory;
 import java.util.Arrays;
@@ -83,7 +83,7 @@ public final class WorkflowClientOptions {
      * Overrides a data converter implementation used serialize workflow and activity arguments and
      * results.
      *
-     * <p>Default is {@link io.temporal.common.converter.JsonDataConverter} data converter.
+     * <p>Default is {@link GsonJsonDataConverter} data converter.
      */
     public Builder setDataConverter(DataConverter dataConverter) {
       this.dataConverter = Objects.requireNonNull(dataConverter);
@@ -152,7 +152,7 @@ public final class WorkflowClientOptions {
       }
       return new WorkflowClientOptions(
           namespace == null ? DEFAULT_NAMESPACE : namespace,
-          dataConverter == null ? JsonDataConverter.getInstance() : dataConverter,
+          dataConverter == null ? GsonJsonDataConverter.getInstance() : dataConverter,
           interceptors == null ? EMPTY_INTERCEPTOR_ARRAY : interceptors,
           metricsScope == null ? NoopScope.getInstance() : metricsScope,
           name,

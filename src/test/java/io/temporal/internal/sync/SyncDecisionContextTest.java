@@ -21,7 +21,7 @@ package io.temporal.internal.sync;
 
 import static org.mockito.Mockito.*;
 
-import io.temporal.common.converter.JsonDataConverter;
+import io.temporal.common.converter.GsonJsonDataConverter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.replay.DecisionContext;
 import io.temporal.proto.common.SearchAttributes;
@@ -37,7 +37,8 @@ public class SyncDecisionContextTest {
   @Before
   public void setUp() {
     this.context =
-        new SyncDecisionContext(mockDecisionContext, JsonDataConverter.getInstance(), null, null);
+        new SyncDecisionContext(
+            mockDecisionContext, GsonJsonDataConverter.getInstance(), null, null);
   }
 
   @Test

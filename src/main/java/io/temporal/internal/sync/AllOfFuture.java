@@ -115,18 +115,18 @@ class AllOfPromise<G> implements Promise<List<G>> {
   }
 
   @Override
-  public List<G> get(List<G> defaultValue) {
-    return impl.get(defaultValue);
-  }
-
-  @Override
   public List<G> get(long timeout, TimeUnit unit) throws TimeoutException {
     return impl.get(timeout, unit);
   }
 
   @Override
-  public List<G> get(long timeout, TimeUnit unit, List<G> defaultValue) {
-    return impl.get(timeout, unit, defaultValue);
+  public List<G> cancellableGet() {
+    return impl.cancellableGet();
+  }
+
+  @Override
+  public List<G> cancellableGet(long timeout, TimeUnit unit) throws TimeoutException {
+    return impl.cancellableGet(timeout, unit);
   }
 
   @Override

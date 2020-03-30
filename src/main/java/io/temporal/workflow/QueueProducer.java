@@ -43,14 +43,15 @@ public interface QueueProducer<E> {
    * available.
    *
    * @param e the element to add
-   * @throws InterruptedException if interrupted while waiting
+   * @throws java.util.concurrent.CancellationException if surrounding @{@link CancellationScope} is
+   *     cancelled while waiting
    * @throws ClassCastException if the class of the specified element prevents it from being added
    *     to this queue
    * @throws NullPointerException if the specified element is null
    * @throws IllegalArgumentException if some property of the specified element prevents it from
    *     being added to this queue
    */
-  void put(E e) throws InterruptedException;
+  void put(E e);
 
   /**
    * Inserts the specified element into this queue, waiting up to the specified wait time if
@@ -61,12 +62,13 @@ public interface QueueProducer<E> {
    * @param unit a {@code TimeUnit} determining how to interpret the {@code timeout} parameter
    * @return {@code true} if successful, or {@code false} if the specified waiting time elapses
    *     before space is available
-   * @throws InterruptedException if interrupted while waiting
+   * @throws java.util.concurrent.CancellationException if surrounding @{@link CancellationScope} is
+   *     cancelled while waiting
    * @throws ClassCastException if the class of the specified element prevents it from being added
    *     to this queue
    * @throws NullPointerException if the specified element is null
    * @throws IllegalArgumentException if some property of the specified element prevents it from
    *     being added to this queue
    */
-  boolean offer(E e, long timeout, TimeUnit unit) throws InterruptedException;
+  boolean offer(E e, long timeout, TimeUnit unit);
 }

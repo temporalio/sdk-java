@@ -28,9 +28,10 @@ public interface QueueConsumer<E> {
    * available.
    *
    * @return the head of this queue
-   * @throws InterruptedException if interrupted while waiting
+   * @throws java.util.concurrent.CancellationException if surrounding @{@link CancellationScope} is
+   *     cancelled while waiting
    */
-  E take() throws InterruptedException;
+  E take();
 
   /**
    * Retrieves and removes the head of this queue, waiting up to the specified wait time if
@@ -40,9 +41,10 @@ public interface QueueConsumer<E> {
    * @param unit a {@code TimeUnit} determining how to interpret the {@code timeout} parameter
    * @return the head of this queue, or {@code null} if the specified waiting time elapses before an
    *     element is available
-   * @throws InterruptedException if interrupted while waiting
+   * @throws java.util.concurrent.CancellationException if surrounding @{@link CancellationScope} is
+   *     cancelled while waiting
    */
-  E poll(long timeout, TimeUnit unit) throws InterruptedException;
+  E poll(long timeout, TimeUnit unit);
 
   /**
    * Returns a queue consisting of the results of applying the given function to the elements of

@@ -19,6 +19,7 @@
 
 package io.temporal.internal.sync;
 
+import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.QueueConsumer;
 import io.temporal.workflow.WorkflowQueue;
@@ -39,14 +40,26 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
   }
 
   @Override
-  public E take() throws InterruptedException {
-    WorkflowThread.await("WorkflowQueue.take", () -> !queue.isEmpty());
+  public E take() {
+    WorkflowThread.await(
+        "WorkflowQueue.take",
+        () -> {
+          CancellationScope.throwCancelled();
+          return !queue.isEmpty();
+        });
     return queue.pollLast();
   }
 
   @Override
-  public E poll(long timeout, TimeUnit unit) throws InterruptedException {
-    WorkflowThread.await(unit.toMillis(timeout), "WorkflowQueue.poll", () -> !queue.isEmpty());
+  public E poll(long timeout, TimeUnit unit) {
+    WorkflowThread.await(
+        unit.toMillis(timeout),
+        "WorkflowQueue.poll",
+        () -> {
+          CancellationScope.throwCancelled();
+          return !queue.isEmpty();
+        });
+
     if (queue.isEmpty()) {
       return null;
     }
@@ -63,19 +76,24 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
   }
 
   @Override
-  public void put(E e) throws InterruptedException {
+  public void put(E e) {
     // This condition is excessive as await already checks it.
     // But await can be called only from the sync owned thread.
     // This condition allows puts outside the sync thread which
     // is used by signal handling logic.
     if (queue.size() >= capacity) {
-      WorkflowThread.await("WorkflowQueue.put", () -> queue.size() < capacity);
+      WorkflowThread.await(
+          "WorkflowQueue.put",
+          () -> {
+            CancellationScope.throwCancelled();
+            return queue.size() < capacity;
+          });
     }
     queue.addLast(e);
   }
 
   @Override
-  public boolean offer(E e, long timeout, TimeUnit unit) throws InterruptedException {
+  public boolean offer(E e, long timeout, TimeUnit unit) {
     boolean timedOut =
         WorkflowThread.await(
             unit.toMillis(timeout), "WorkflowQueue.offer", () -> queue.size() < capacity);
@@ -103,26 +121,18 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
     }
 
     @Override
-    public R take() throws InterruptedException {
+    public R take() {
       E element = source.take();
-      try {
-        return mapper.apply(element);
-      } catch (Exception e) {
-        throw new RuntimeException("Failure mapping an element", e);
-      }
+      return mapper.apply(element);
     }
 
     @Override
-    public R poll(long timeout, TimeUnit unit) throws InterruptedException {
+    public R poll(long timeout, TimeUnit unit) {
       E element = source.poll(timeout, unit);
-      try {
-        if (element == null) {
-          return null;
-        }
-        return mapper.apply(element);
-      } catch (Exception e) {
-        throw new RuntimeException("Failure mapping an element", e);
+      if (element == null) {
+        return null;
       }
+      return mapper.apply(element);
     }
 
     @Override

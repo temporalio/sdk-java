@@ -44,7 +44,7 @@ import io.temporal.client.WorkflowTimedOutException;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
-import io.temporal.common.converter.JsonDataConverter;
+import io.temporal.common.converter.GsonJsonDataConverter;
 import io.temporal.common.interceptors.BaseWorkflowInvoker;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInterceptor;
@@ -1398,7 +1398,7 @@ public class WorkflowTest {
       Memo memoFromEvent = startEvent.getWorkflowExecutionStartedEventAttributes().getMemo();
       byte[] memoBytes = memoFromEvent.getFieldsMap().get(testMemoKey).toByteArray();
       String memoRetrieved =
-          JsonDataConverter.getInstance().fromData(memoBytes, String.class, String.class);
+          GsonJsonDataConverter.getInstance().fromData(memoBytes, String.class, String.class);
       assertEquals(testMemoValue, memoRetrieved);
     }
   }
@@ -1442,27 +1442,27 @@ public class WorkflowTest {
       Map<String, ByteString> fieldsMap = searchAttrFromEvent.getIndexedFieldsMap();
       byte[] searchAttrStringBytes = fieldsMap.get(testKeyString).toByteArray();
       String retrievedString =
-          JsonDataConverter.getInstance()
+          GsonJsonDataConverter.getInstance()
               .fromData(searchAttrStringBytes, String.class, String.class);
       assertEquals(testValueString, retrievedString);
       byte[] searchAttrIntegerBytes = fieldsMap.get(testKeyInteger).toByteArray();
       Integer retrievedInteger =
-          JsonDataConverter.getInstance()
+          GsonJsonDataConverter.getInstance()
               .fromData(searchAttrIntegerBytes, Integer.class, Integer.class);
       assertEquals(testValueInteger, retrievedInteger);
       byte[] searchAttrDateTimeBytes = fieldsMap.get(testKeyDateTime).toByteArray();
       LocalDateTime retrievedDateTime =
-          JsonDataConverter.getInstance()
+          GsonJsonDataConverter.getInstance()
               .fromData(searchAttrDateTimeBytes, LocalDateTime.class, LocalDateTime.class);
       assertEquals(testValueDateTime, retrievedDateTime);
       byte[] searchAttrBoolBytes = fieldsMap.get(testKeyBool).toByteArray();
       Boolean retrievedBool =
-          JsonDataConverter.getInstance()
+          GsonJsonDataConverter.getInstance()
               .fromData(searchAttrBoolBytes, Boolean.class, Boolean.class);
       assertEquals(testValueBool, retrievedBool);
       byte[] searchAttrDoubleBytes = fieldsMap.get(testKeyDouble).toByteArray();
       Double retrievedDouble =
-          JsonDataConverter.getInstance()
+          GsonJsonDataConverter.getInstance()
               .fromData(searchAttrDoubleBytes, Double.class, Double.class);
       assertEquals(testValueDouble, retrievedDouble);
     }

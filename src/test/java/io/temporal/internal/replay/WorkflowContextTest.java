@@ -23,7 +23,7 @@ import static junit.framework.TestCase.assertEquals;
 
 import com.google.protobuf.ByteString;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.JsonDataConverter;
+import io.temporal.common.converter.GsonJsonDataConverter;
 import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.common.WorkflowExecutionStartedEventAttributes;
 import io.temporal.workflow.WorkflowUtils;
@@ -39,7 +39,7 @@ public class WorkflowContextTest {
         WorkflowExecutionStartedEventAttributes.getDefaultInstance();
     WorkflowContext workflowContext = new WorkflowContext("namespace", null, startAttr, null);
 
-    DataConverter converter = JsonDataConverter.getInstance();
+    DataConverter converter = GsonJsonDataConverter.getInstance();
     Map<String, ByteString> indexedFields = new HashMap<>();
     indexedFields.put("CustomKeywordField", ByteString.copyFrom(converter.toData("key")));
 
