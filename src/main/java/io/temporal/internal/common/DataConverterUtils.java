@@ -51,15 +51,15 @@ public class DataConverterUtils {
 
   static {
     boolean value = false;
-    //    try {
-    //      Field causeField = Throwable.class.getDeclaredField("cause");
-    //      causeField.setAccessible(true);
-    //      causeField.set(new RuntimeException(), null);
-    //      value = true;
-    //    } catch (IllegalAccessException e) {
-    //    } catch (Exception ex) {
-    //      throw new Error("Unexpected", ex);
-    //    }
+    try {
+      Field causeField = Throwable.class.getDeclaredField("cause");
+      causeField.setAccessible(true);
+      causeField.set(new RuntimeException(), null);
+      value = true;
+    } catch (IllegalAccessException e) {
+    } catch (Exception ex) {
+      throw new Error("Unexpected", ex);
+    }
     SETTING_PRIVATE_FIELD_ALLOWED = value;
   }
 

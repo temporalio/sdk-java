@@ -20,6 +20,7 @@
 package io.temporal.common.converter;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import com.google.common.base.Objects;
 import io.temporal.activity.Activity;
@@ -147,6 +148,8 @@ public class JsonDataConverterTest {
     @SuppressWarnings("unused")
     private final InputStream file; // gson chokes on this field
 
+    private final String foo;
+
     public NonSerializableException(Throwable cause) {
       super(cause);
       try {
@@ -154,20 +157,22 @@ public class JsonDataConverterTest {
       } catch (IOException e) {
         throw Activity.wrap(e);
       }
+      foo = "bar";
     }
   }
 
   @Test
   public void testException() {
-    RuntimeException rootException = new RuntimeException("root exception");
-    //    NonSerializableException nonSerializableCause = new
-    // NonSerializableException(rootException);
-    RuntimeException e = new RuntimeException("application exception", rootException);
+    RuntimeException rootException = new IllegalArgumentException("root exception");
+    NonSerializableException nonSerializableCause = new NonSerializableException(rootException);
+    RuntimeException e = new RuntimeException("application exception", nonSerializableCause);
 
     byte[] converted = converter.toData(e);
-    System.out.println("SEERIALIZED: " + new String(converted));
+    String serialized = new String(converted);
+    fail("SEERIALIZED: " + serialized);
     //    RuntimeException fromConverted =
     //        converter.fromData(converted, RuntimeException.class, RuntimeException.class);
+    //    fromConverted.printStackTrace();
     //    assertEquals(RuntimeException.class, fromConverted.getClass());
     //    assertEquals("application exception", fromConverted.getMessage());
     //

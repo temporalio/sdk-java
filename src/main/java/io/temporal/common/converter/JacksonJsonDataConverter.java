@@ -19,26 +19,36 @@
 
 package io.temporal.common.converter;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.TreeNode;
+import com.fasterxml.jackson.databind.BeanDescription;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationConfig;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.ser.BeanPropertyWriter;
+import com.fasterxml.jackson.databind.ser.BeanSerializerModifier;
+import com.fasterxml.jackson.databind.ser.impl.BeanAsArraySerializer;
+import com.fasterxml.jackson.databind.ser.impl.ObjectIdWriter;
+import com.fasterxml.jackson.databind.ser.std.BeanSerializerBase;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.google.common.base.Defaults;
 import com.google.common.collect.ImmutableSet;
 import io.temporal.internal.common.DataConverterUtils;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.util.Set;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,6 +74,7 @@ public class JacksonJsonDataConverter implements DataConverter {
 
   private static final DataConverter INSTANCE = new JacksonJsonDataConverter();
   private static final Object[] EMPTY_OBJECT_ARRAY = new Object[0];
+  private static final StackTraceElement[] EMPTY_STACK_TRACE = new StackTraceElement[0];
   private static final String TYPE_FIELD_NAME = "type";
   private static final String JSON_CONVERTER_TYPE = "JSON";
   private final ObjectMapper mapper;
@@ -74,11 +85,32 @@ public class JacksonJsonDataConverter implements DataConverter {
 
   private JacksonJsonDataConverter() {
     mapper = new ObjectMapper();
-    SimpleModule module = new SimpleModule();
-    module.addSerializer(new ThrowableSerializer());
-    module.addSerializer(new DataConverterSerializer());
-    module.addDeserializer(DataConverter.class, new DataConverterDeserializer(this));
-    module.addDeserializer(Throwable.class, new ThrowableDeserializer());
+    SimpleModule module =
+        new SimpleModule() {
+          @Override
+          public void setupModule(SetupContext context) {
+            super.setupModule(context);
+            //            addSerializer(new ThrowableSerializer((BeanSerializerBase) serializer));
+            addSerializer(new DataConverterSerializer());
+            addDeserializer(
+                DataConverter.class, new DataConverterDeserializer(JacksonJsonDataConverter.this));
+            addDeserializer(Throwable.class, new ThrowableDeserializer());
+            context.addBeanSerializerModifier(
+                new BeanSerializerModifier() {
+
+                  public JsonSerializer<?> modifySerializer(
+                      SerializationConfig config,
+                      BeanDescription beanDesc,
+                      JsonSerializer<?> serializer) {
+                    if (serializer instanceof BeanSerializerBase) {
+                      return new ThrowableSerializer((BeanSerializerBase) serializer);
+                    }
+                    return serializer;
+                  }
+                });
+          }
+        };
+    mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
     mapper.registerModule(module);
   }
 
@@ -154,70 +186,170 @@ public class JacksonJsonDataConverter implements DataConverter {
     }
   }
 
-  private static class ThrowableSerializer extends StdSerializer<Throwable> {
+  private static class ThrowableSerializer extends BeanSerializerBase {
 
-    protected ThrowableSerializer() {
-      super(Throwable.class);
+    protected ThrowableSerializer(BeanSerializerBase serializer) {
+      super(serializer);
+    }
+
+    public ThrowableSerializer(ThrowableSerializer src, ObjectIdWriter objectIdWriter) {
+      super(src, objectIdWriter);
+    }
+
+    public ThrowableSerializer(ThrowableSerializer throwableSerializer, Set<String> toIgnore) {
+      super(throwableSerializer, toIgnore);
     }
 
     @Override
-    public void serialize(Throwable throwable, JsonGenerator gen, SerializerProvider provider)
-        throws IOException {
-      System.out.println("ThrowableSerializer: " + throwable.getClass().getName());
-      // We want to serialize the throwable and its cause separately, so that if the throwable
-      // is serializable but the cause is not, we can still serialize them correctly (i.e. we
-      // serialize the throwable correctly and convert the cause to a data converter exception).
-      // If existing cause is not detached due to security policy then null is returned.
-      Throwable cause = DataConverterUtils.detachCause(throwable);
-
-      ObjectNode object;
-      //      try {
-      JsonSerializer<Object> valueSerializer = provider.findValueSerializer(Object.class);
-      valueSerializer.serialize(throwable, gen, provider);
-      //        TypeAdapter exceptionTypeAdapter =
-      //                gson.getDelegateAdapter(skipPast, TypeToken.get(throwable.getClass()));
-      //        object = exceptionTypeAdapter.toJsonTree(throwable).getAsJsonObject();
-      //        object.add("class", new JsonPrimitive(throwable.getClass().getName()));
-      //        String stackTrace = DataConverterUtils.serializeStackTrace(throwable);
-      //        object.add("stackTrace", new JsonPrimitive(stackTrace));
-      //      } catch (Throwable e) {
-      //        // In case a throwable is not serializable, we will convert it to a data converter
-      // exception.
-      //        // The cause of the data converter exception will indicate why the serialization
-      // failed. On
-      //        // the other hand, if the non-serializable throwable contains a cause, we will add
-      // it to the
-      //        // suppressed exceptions list.
-      //        DataConverterException ee =
-      //                new DataConverterException("Failure serializing exception: " +
-      // throwable.toString(), e);
-      //        if (cause != null) {
-      //          ee.addSuppressed(cause);
-      //          cause = null;
-      //        }
-      //
-      //        TypeAdapter<Throwable> exceptionTypeAdapter =
-      //                new CustomThrowableTypeAdapter<>(gson, skipPast);
-      //        object = exceptionTypeAdapter.toJsonTree(ee).getAsJsonObject();
-      //      }
-      //
-      //      if (cause != null) {
-      //        TypeAdapter<Throwable> causeTypeAdapter = new CustomThrowableTypeAdapter<>(gson,
-      // skipPast);
-      //        try {
-      //          object.add("cause", causeTypeAdapter.toJsonTree(cause));
-      //        } catch (Throwable e) {
-      //          DataConverterException ee =
-      //                  new DataConverterException("Failure serializing exception: " +
-      // cause.toString(), e);
-      //          ee.setStackTrace(cause.getStackTrace());
-      //          object.add("cause", causeTypeAdapter.toJsonTree(ee));
-      //        }
-      //      }
-      //
-      //      TypeAdapter<JsonElement> elementAdapter = gson.getAdapter(JsonElement.class);
-      //      elementAdapter.write(jsonWriter, object);
+    public BeanSerializerBase withObjectIdWriter(ObjectIdWriter objectIdWriter) {
+      return new ThrowableSerializer(this, objectIdWriter);
     }
+
+    @Override
+    protected BeanSerializerBase withIgnorals(Set<String> toIgnore) {
+      return new ThrowableSerializer(this, toIgnore);
+    }
+
+    @Override
+    protected BeanSerializerBase asArraySerializer() {
+      return new BeanAsArraySerializer(this);
+    }
+
+    @Override
+    public BeanSerializerBase withFilterId(Object filterId) {
+      throw new UnsupportedOperationException("unimplemented");
+    }
+
+    @Override
+    public void serialize(Object bean, JsonGenerator gen, SerializerProvider provider)
+        throws IOException {
+      if (bean instanceof Throwable) {
+        serializeThrowable((Throwable) bean, gen, provider);
+        return;
+      }
+      gen.writeStartObject();
+      serializeFields(bean, gen, provider);
+      gen.writeEndObject();
+    }
+
+    public void serializeThrowable(
+        Throwable throwable, JsonGenerator gen, SerializerProvider provider) throws IOException {
+      Throwable cause = DataConverterUtils.detachCause(throwable);
+      String stackTrace = DataConverterUtils.serializeStackTrace(throwable);
+      throwable.setStackTrace(EMPTY_STACK_TRACE);
+      gen.writeStartObject();
+      if (stackTrace != null) {
+        gen.writeStringField("__stackTrace", stackTrace);
+      }
+
+      BeanPropertyWriter[] props = _props;
+      int i = 0;
+      try {
+        for (final int len = props.length; i < len; ++i) {
+          BeanPropertyWriter prop = props[i];
+          if (prop == null) {
+            continue;
+          }
+          String name = prop.getName();
+          if (!name.equals("stackTrace") && !name.equals("localizedMessage")) {
+            if (name.equals("cause") && throwable.getCause() == null) {
+              continue;
+            }
+            if (name.equals("suppressed") && throwable.getSuppressed().length == 0) {
+              continue;
+            }
+            prop.serializeAsField(throwable, gen, provider);
+          }
+        }
+      } catch (Exception e) {
+        String name = (i == props.length) ? "[anySetter]" : props[i].getName();
+        wrapAndThrow(provider, e, throwable, name);
+      } catch (StackOverflowError e) {
+        JsonMappingException mapE =
+            new JsonMappingException(gen, "Infinite recursion (StackOverflowError)", e);
+
+        String name = (i == props.length) ? "[anySetter]" : props[i].getName();
+        mapE.prependPath(new JsonMappingException.Reference(throwable, name));
+        throw mapE;
+      }
+      gen.writeStringField("class", throwable.getClass().getName());
+      if (cause != null) {
+        try {
+          gen.writeObjectField("cause", cause);
+        } catch (Throwable e) {
+          DataConverterException ee =
+              new DataConverterException("Failure serializing exception: " + cause.toString(), e);
+          ee.setStackTrace(cause.getStackTrace());
+          gen.writeObjectField("cause", ee);
+        }
+      }
+      gen.writeEndObject();
+    }
+
+    //    @Override
+    //    public void serialize(Throwable throwable, JsonGenerator gen, SerializerProvider provider)
+    //        throws IOException {
+    //      System.out.println("ThrowableSerializer: " + throwable.getClass().getName());
+    //      // We want to serialize the throwable and its cause separately, so that if the throwable
+    //      // is serializable but the cause is not, we can still serialize them correctly (i.e. we
+    //      // serialize the throwable correctly and convert the cause to a data converter
+    // exception).
+    //      // If existing cause is not detached due to security policy then null is returned.
+    //      Throwable cause = DataConverterUtils.detachCause(throwable);
+    //
+    //      ObjectNode object;
+    //      //      try {
+    //      JsonSerializer<Object> valueSerializer = provider.findValueSerializer(Object.class);
+    //      valueSerializer.serialize(throwable, gen, provider);
+    //      //        TypeAdapter exceptionTypeAdapter =
+    //      //                gson.getDelegateAdapter(skipPast,
+    // TypeToken.get(throwable.getClass()));
+    //      //        object = exceptionTypeAdapter.toJsonTree(throwable).getAsJsonObject();
+    //      //        object.add("class", new JsonPrimitive(throwable.getClass().getName()));
+    //      //        String stackTrace = DataConverterUtils.serializeStackTrace(throwable);
+    //      //        object.add("stackTrace", new JsonPrimitive(stackTrace));
+    //      //      } catch (Throwable e) {
+    //      //        // In case a throwable is not serializable, we will convert it to a data
+    // converter
+    //      // exception.
+    //      //        // The cause of the data converter exception will indicate why the
+    // serialization
+    //      // failed. On
+    //      //        // the other hand, if the non-serializable throwable contains a cause, we will
+    // add
+    //      // it to the
+    //      //        // suppressed exceptions list.
+    //      //        DataConverterException ee =
+    //      //                new DataConverterException("Failure serializing exception: " +
+    //      // throwable.toString(), e);
+    //      //        if (cause != null) {
+    //      //          ee.addSuppressed(cause);
+    //      //          cause = null;
+    //      //        }
+    //      //
+    //      //        TypeAdapter<Throwable> exceptionTypeAdapter =
+    //      //                new CustomThrowableTypeAdapter<>(gson, skipPast);
+    //      //        object = exceptionTypeAdapter.toJsonTree(ee).getAsJsonObject();
+    //      //      }
+    //      //
+    //      //      if (cause != null) {
+    //      //        TypeAdapter<Throwable> causeTypeAdapter = new
+    // CustomThrowableTypeAdapter<>(gson,
+    //      // skipPast);
+    //      //        try {
+    //      //          object.add("cause", causeTypeAdapter.toJsonTree(cause));
+    //      //        } catch (Throwable e) {
+    //      //          DataConverterException ee =
+    //      //                  new DataConverterException("Failure serializing exception: " +
+    //      // cause.toString(), e);
+    //      //          ee.setStackTrace(cause.getStackTrace());
+    //      //          object.add("cause", causeTypeAdapter.toJsonTree(ee));
+    //      //        }
+    //      //      }
+    //      //
+    //      //      TypeAdapter<JsonElement> elementAdapter = gson.getAdapter(JsonElement.class);
+    //      //      elementAdapter.write(jsonWriter, object);
+    //    }
   }
 
   private static class ThrowableDeserializer extends StdDeserializer<Throwable> {
