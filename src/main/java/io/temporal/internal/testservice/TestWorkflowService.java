@@ -36,7 +36,7 @@ import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.proto.common.WorkflowExecutionInfo;
 import io.temporal.proto.enums.SignalExternalWorkflowExecutionFailedCause;
-import io.temporal.proto.enums.WorkflowExecutionCloseStatus;
+import io.temporal.proto.enums.WorkflowExecutionStatus;
 import io.temporal.proto.enums.WorkflowIdReusePolicy;
 import io.temporal.proto.failure.WorkflowExecutionAlreadyStarted;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
@@ -236,17 +236,15 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     try {
       existing = executionsByWorkflowId.get(workflowId);
       if (existing != null) {
-        Optional<WorkflowExecutionCloseStatus> statusOptional = existing.getCloseStatus();
+        WorkflowExecutionStatus status = existing.getWorkflowExecutionStatus();
         WorkflowIdReusePolicy policy = startRequest.getWorkflowIdReusePolicy();
-        if (!statusOptional.isPresent()
+        if (status == WorkflowExecutionStatus.WorkflowExecutionStatusRunning
             || policy == WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate) {
           return throwDuplicatedWorkflow(startRequest, existing);
         }
-        WorkflowExecutionCloseStatus status = statusOptional.get();
         if (policy == WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicateFailedOnly
-            && (status == WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusCompleted
-                || status
-                    == WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusContinuedAsNew)) {
+            && (status == WorkflowExecutionStatus.WorkflowExecutionStatusCompleted
+                || status == WorkflowExecutionStatus.WorkflowExecutionStatusContinuedAsNew)) {
           return throwDuplicatedWorkflow(startRequest, existing);
         }
       }
