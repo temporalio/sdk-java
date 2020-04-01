@@ -25,7 +25,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import io.temporal.activity.Activity;
-import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
@@ -167,8 +166,6 @@ public class WorkflowTestingTest {
   }
 
   public interface TestActivity {
-
-    @ActivityMethod(scheduleToCloseTimeoutSeconds = 3600)
     String activity1(String input);
   }
 
@@ -182,7 +179,10 @@ public class WorkflowTestingTest {
 
   public static class ActivityWorkflow implements TestWorkflow {
 
-    private final TestActivity activity = Workflow.newActivityStub(TestActivity.class);
+    private final TestActivity activity =
+        Workflow.newActivityStub(
+            TestActivity.class,
+            ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofHours(1)).build());
 
     @Override
     public String workflow1(String input) {
@@ -491,8 +491,6 @@ public class WorkflowTestingTest {
   }
 
   public interface TestCancellationActivity {
-
-    @ActivityMethod(scheduleToCloseTimeoutSeconds = 1000, heartbeatTimeoutSeconds = 2)
     String activity1(String input);
   }
 
@@ -510,7 +508,12 @@ public class WorkflowTestingTest {
   public static class TestCancellationWorkflow implements TestWorkflow {
 
     private final TestCancellationActivity activity =
-        Workflow.newActivityStub(TestCancellationActivity.class);
+        Workflow.newActivityStub(
+            TestCancellationActivity.class,
+            ActivityOptions.newBuilder()
+                .setScheduleToCloseTimeout(Duration.ofSeconds(1000))
+                .setHeartbeatTimeout(Duration.ofSeconds(2))
+                .build());
 
     @Override
     public String workflow1(String input) {
@@ -546,7 +549,11 @@ public class WorkflowTestingTest {
     public String workflow1(String input) {
       long startTime = Workflow.currentTimeMillis();
       Promise<Void> s = Async.procedure(() -> Workflow.sleep(Duration.ofHours(3)));
-      TestActivity activity = Workflow.newActivityStub(TestActivity.class);
+      TestActivity activity =
+          Workflow.newActivityStub(
+              TestActivity.class,
+              ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofHours(1)).build());
+
       activity.activity1("input");
       Workflow.sleep(Duration.ofHours(1));
       s.get();
@@ -907,7 +914,11 @@ public class WorkflowTestingTest {
               .setScheduleToCloseTimeout(Duration.ofSeconds(5))
               .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
               .build();
-      TestActivity activity = Workflow.newActivityStub(TestActivity.class, options);
+      TestActivity activity =
+          Workflow.newActivityStub(
+              TestActivity.class,
+              ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofHours(1)).build());
+
       return activity.activity1("foo");
     }
   }

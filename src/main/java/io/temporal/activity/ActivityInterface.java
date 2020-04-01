@@ -25,13 +25,14 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Indicates that the method is an activity method. This annotation applies only to activity
- * interface methods. Not required. Use it to override default activity type name.
+ * Indicates that the interface is an activity interface. Only interfaces annotated with this
+ * annotation can be used as parameters to {@link
+ * io.temporal.workflow.Workflow#newActivityStub(Class)} methods.
+ *
+ * <p>Each method of the interface annotated with <code>ActivityInterface</code> including inherited
+ * from interfaces is a separate activity. By default the name of an activity type is "short
+ * interface name"_"method name".
  */
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.METHOD)
-public @interface ActivityMethod {
-
-  /** Name of the workflow type. Default is {short class name}::{method name} */
-  String name() default "";
-}
+@Target(ElementType.TYPE)
+public @interface ActivityInterface {}

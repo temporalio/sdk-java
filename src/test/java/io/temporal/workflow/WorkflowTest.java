@@ -735,7 +735,15 @@ public class WorkflowTest {
     private final TestActivities activities;
 
     public TestActivityRetryAnnotated() {
-      this.activities = Workflow.newActivityStub(TestActivities.class);
+      this.activities =
+          Workflow.newActivityStub(
+              TestActivities.class,
+              ActivityOptions.newBuilder()
+                  .setScheduleToCloseTimeout(Duration.ofSeconds(5))
+                  .setScheduleToStartTimeout(Duration.ofSeconds(5))
+                  .setHeartbeatTimeout(Duration.ofSeconds(5))
+                  .setStartToCloseTimeout(Duration.ofSeconds(10))
+                  .build());
     }
 
     @Override
@@ -2834,7 +2842,7 @@ public class WorkflowTest {
 
   public interface AngryChildActivity {
 
-    @ActivityMethod(scheduleToCloseTimeoutSeconds = 5)
+    @ActivityMethod
     void execute();
   }
 
@@ -2858,7 +2866,11 @@ public class WorkflowTest {
     public String execute(String taskList, int delay) {
       AngryChildActivity activity =
           Workflow.newActivityStub(
-              AngryChildActivity.class, ActivityOptions.newBuilder().setTaskList(taskList).build());
+              AngryChildActivity.class,
+              ActivityOptions.newBuilder()
+                  .setTaskList(taskList)
+                  .setScheduleToCloseTimeout(Duration.ofSeconds(5))
+                  .build());
       activity.execute();
       throw new UnsupportedOperationException("simulated failure");
     }
@@ -3531,12 +3543,6 @@ public class WorkflowTest {
 
     void neverComplete();
 
-    @ActivityMethod(
-      scheduleToStartTimeoutSeconds = 5,
-      scheduleToCloseTimeoutSeconds = 5,
-      heartbeatTimeoutSeconds = 5,
-      startToCloseTimeoutSeconds = 10
-    )
     @MethodRetry(
       initialIntervalSeconds = 1,
       maximumIntervalSeconds = 1,
@@ -4605,8 +4611,6 @@ public class WorkflowTest {
   }
 
   public interface NonSerializableExceptionActivity {
-
-    @ActivityMethod(scheduleToCloseTimeoutSeconds = 5)
     void execute();
   }
 
@@ -4624,7 +4628,11 @@ public class WorkflowTest {
     @Override
     public String execute(String taskList) {
       NonSerializableExceptionActivity activity =
-          Workflow.newActivityStub(NonSerializableExceptionActivity.class);
+          Workflow.newActivityStub(
+              NonSerializableExceptionActivity.class,
+              ActivityOptions.newBuilder()
+                  .setScheduleToCloseTimeout(Duration.ofSeconds(5))
+                  .build());
       try {
         activity.execute();
       } catch (ActivityFailureException e) {
@@ -4648,7 +4656,7 @@ public class WorkflowTest {
 
   public interface NonDeserializableArgumentsActivity {
 
-    @ActivityMethod(scheduleToCloseTimeoutSeconds = 5)
+    @ActivityMethod
     void execute(int arg);
   }
 
@@ -5144,7 +5152,7 @@ public class WorkflowTest {
   }
 
   public interface GreetingActivities {
-    @ActivityMethod(scheduleToCloseTimeoutSeconds = 60)
+    @ActivityMethod
     String composeGreeting(String string);
   }
 
@@ -5164,7 +5172,9 @@ public class WorkflowTest {
   public static class TimerFiringWorkflowImpl implements GreetingWorkflow {
 
     private final GreetingActivities activities =
-        Workflow.newActivityStub(GreetingActivities.class);
+        Workflow.newActivityStub(
+            GreetingActivities.class,
+            ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofSeconds(5)).build());
 
     @Override
     public void createGreeting(String name) {

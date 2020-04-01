@@ -69,7 +69,7 @@ abstract class ActivityInvocationHandlerBase implements InvocationHandler {
           activityName = activityMethod.name();
         }
 
-        function = getActivityFunc(method, methodRetry, activityMethod, activityName);
+        function = getActivityFunc(method, methodRetry, activityName);
         methodFunctions.put(method, function);
       } catch (NoSuchMethodException e) {
         throw Workflow.wrap(e);
@@ -79,5 +79,5 @@ abstract class ActivityInvocationHandlerBase implements InvocationHandler {
   }
 
   protected abstract Function<Object[], Object> getActivityFunc(
-      Method method, MethodRetry methodRetry, ActivityMethod activityMethod, String activityName);
+      Method method, MethodRetry methodRetry, String activityName);
 }

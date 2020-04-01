@@ -23,7 +23,6 @@ import static org.junit.Assert.*;
 
 import io.grpc.Status;
 import io.temporal.activity.Activity;
-import io.temporal.activity.ActivityMethod;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.testing.TestActivityEnvironment;
 import io.temporal.workflow.ActivityFailureException;
@@ -108,8 +107,6 @@ public class ActivityTestingTest {
   }
 
   public interface InterruptibleTestActivity {
-
-    @ActivityMethod(scheduleToCloseTimeoutSeconds = 1000, heartbeatTimeoutSeconds = 1)
     void activity1() throws InterruptedException;
   }
 
