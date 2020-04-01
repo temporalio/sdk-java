@@ -55,7 +55,6 @@ interface TestWorkflowMutableState {
 
   ExecutionId getExecutionId();
 
-  /** @return close status of the workflow or empty if still open */
   WorkflowExecutionStatus getWorkflowExecutionStatus();
 
   StartWorkflowExecutionRequest getStartRequest();

@@ -96,6 +96,9 @@ import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
 import io.temporal.proto.workflowservice.RespondQueryTaskCompletedRequest;
 import io.temporal.proto.workflowservice.SignalWorkflowExecutionRequest;
 import io.temporal.proto.workflowservice.StartWorkflowExecutionRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -122,8 +125,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.LongSupplier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
@@ -1571,8 +1572,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   public QueryWorkflowResponse query(QueryWorkflowRequest queryRequest) {
     QueryId queryId = new QueryId(executionId);
 
-    WorkflowExecutionStatus closeStatus = getWorkflowExecutionStatus();
-    if (closeStatus != WorkflowExecutionStatus.WorkflowExecutionStatusRunning
+    WorkflowExecutionStatus status = getWorkflowExecutionStatus();
+    if (status != WorkflowExecutionStatus.WorkflowExecutionStatusRunning
         && queryRequest.getQueryRejectCondition() != null) {
       boolean rejectNotOpen =
           queryRequest.getQueryRejectCondition()
@@ -1580,10 +1581,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       boolean rejectNotCompletedCleanly =
           queryRequest.getQueryRejectCondition()
                   == QueryRejectCondition.QueryRejectConditionNotCompletedCleanly
-              && closeStatus != WorkflowExecutionStatus.WorkflowExecutionStatusCompleted;
+              && status != WorkflowExecutionStatus.WorkflowExecutionStatusCompleted;
       if (rejectNotOpen || rejectNotCompletedCleanly) {
         return QueryWorkflowResponse.newBuilder()
-            .setQueryRejected(QueryRejected.newBuilder().setStatus(closeStatus))
+            .setQueryRejected(QueryRejected.newBuilder().setStatus(status))
             .build();
       }
     }
