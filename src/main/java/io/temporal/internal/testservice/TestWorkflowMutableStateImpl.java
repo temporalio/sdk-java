@@ -77,7 +77,7 @@ import io.temporal.proto.enums.QueryRejectCondition;
 import io.temporal.proto.enums.QueryTaskCompletedType;
 import io.temporal.proto.enums.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.proto.enums.TimeoutType;
-import io.temporal.proto.enums.WorkflowExecutionCloseStatus;
+import io.temporal.proto.enums.WorkflowExecutionStatus;
 import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponseOrBuilder;
 import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
@@ -85,17 +85,20 @@ import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.proto.workflowservice.QueryWorkflowRequest;
 import io.temporal.proto.workflowservice.QueryWorkflowResponse;
 import io.temporal.proto.workflowservice.RequestCancelWorkflowExecutionRequest;
-import io.temporal.proto.workflowservice.RespondActivityTaskCanceledByIDRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskCanceledByIdRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
-import io.temporal.proto.workflowservice.RespondActivityTaskCompletedByIDRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskCompletedByIdRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
-import io.temporal.proto.workflowservice.RespondActivityTaskFailedByIDRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskFailedByIdRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
 import io.temporal.proto.workflowservice.RespondQueryTaskCompletedRequest;
 import io.temporal.proto.workflowservice.SignalWorkflowExecutionRequest;
 import io.temporal.proto.workflowservice.StartWorkflowExecutionRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -122,8 +125,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.LongSupplier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
@@ -243,23 +244,23 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public Optional<WorkflowExecutionCloseStatus> getCloseStatus() {
+  public WorkflowExecutionStatus getWorkflowExecutionStatus() {
     switch (workflow.getState()) {
       case NONE:
       case INITIATED:
       case STARTED:
       case CANCELLATION_REQUESTED:
-        return Optional.empty();
+        return WorkflowExecutionStatus.WorkflowExecutionStatusRunning;
       case FAILED:
-        return Optional.of(WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusFailed);
+        return WorkflowExecutionStatus.WorkflowExecutionStatusFailed;
       case TIMED_OUT:
-        return Optional.of(WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusTimedOut);
+        return WorkflowExecutionStatus.WorkflowExecutionStatusTimedOut;
       case CANCELED:
-        return Optional.of(WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusCanceled);
+        return WorkflowExecutionStatus.WorkflowExecutionStatusCanceled;
       case COMPLETED:
-        return Optional.of(WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusCompleted);
+        return WorkflowExecutionStatus.WorkflowExecutionStatusCompleted;
       case CONTINUED_AS_NEW:
-        return Optional.of(WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusContinuedAsNew);
+        return WorkflowExecutionStatus.WorkflowExecutionStatusContinuedAsNew;
     }
     throw new IllegalStateException("unreachable");
   }
@@ -654,7 +655,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
     if (a.getWorkflowId().isEmpty()) {
       throw Status.INVALID_ARGUMENT
-          .withDescription("Required field WorkflowID is not set on decision")
+          .withDescription("Required field WorkflowId is not set on decision")
           .asRuntimeException();
     }
 
@@ -1318,7 +1319,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public void completeActivityTaskById(
-      String activityId, RespondActivityTaskCompletedByIDRequest request) {
+      String activityId, RespondActivityTaskCompletedByIdRequest request) {
     update(
         ctx -> {
           StateMachine<?> activity = getActivity(activityId);
@@ -1384,7 +1385,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public void failActivityTaskById(
-      String activityId, RespondActivityTaskFailedByIDRequest request) {
+      String activityId, RespondActivityTaskFailedByIdRequest request) {
     update(
         ctx -> {
           StateMachine<ActivityTaskData> activity = getActivity(activityId);
@@ -1413,7 +1414,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public void cancelActivityTaskById(
-      String activityId, RespondActivityTaskCanceledByIDRequest request) {
+      String activityId, RespondActivityTaskCanceledByIdRequest request) {
     update(
         ctx -> {
           StateMachine<?> activity = getActivity(activityId);
@@ -1571,19 +1572,19 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   public QueryWorkflowResponse query(QueryWorkflowRequest queryRequest) {
     QueryId queryId = new QueryId(executionId);
 
-    Optional<WorkflowExecutionCloseStatus> optCloseStatus = getCloseStatus();
-    if (optCloseStatus.isPresent() && queryRequest.getQueryRejectCondition() != null) {
-      WorkflowExecutionCloseStatus closeStatus = optCloseStatus.get();
+    WorkflowExecutionStatus status = getWorkflowExecutionStatus();
+    if (status != WorkflowExecutionStatus.WorkflowExecutionStatusRunning
+        && queryRequest.getQueryRejectCondition() != null) {
       boolean rejectNotOpen =
           queryRequest.getQueryRejectCondition()
               == QueryRejectCondition.QueryRejectConditionNotOpen;
       boolean rejectNotCompletedCleanly =
           queryRequest.getQueryRejectCondition()
                   == QueryRejectCondition.QueryRejectConditionNotCompletedCleanly
-              && closeStatus != WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusCompleted;
+              && status != WorkflowExecutionStatus.WorkflowExecutionStatusCompleted;
       if (rejectNotOpen || rejectNotCompletedCleanly) {
         return QueryWorkflowResponse.newBuilder()
-            .setQueryRejected(QueryRejected.newBuilder().setCloseStatus(closeStatus))
+            .setQueryRejected(QueryRejected.newBuilder().setStatus(status))
             .build();
       }
     }

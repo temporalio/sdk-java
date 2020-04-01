@@ -291,7 +291,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
         log.error(
             "Unknown signal: "
                 + signalName
-                + " at eventID "
+                + " at eventId "
                 + eventId
                 + ", knownSignals="
                 + signalHandlers.keySet());
@@ -329,9 +329,9 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
           if (log.isErrorEnabled()) {
             log.error(
                 "Workflow execution failure "
-                    + "WorkflowID="
+                    + "WorkflowId="
                     + context.getWorkflowId()
-                    + ", RunID="
+                    + ", RunId="
                     + context.getRunId()
                     + ", WorkflowType="
                     + context.getWorkflowType(),
@@ -354,7 +354,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
         try {
           signalMethod.invoke(workflow, arguments);
         } catch (IllegalAccessException e) {
-          throw new Error("Failure processing \"" + signalName + "\" at eventID " + eventId, e);
+          throw new Error("Failure processing \"" + signalName + "\" at eventId " + eventId, e);
         } catch (InvocationTargetException e) {
           Throwable targetException = e.getTargetException();
           if (targetException instanceof DataConverterException) {
@@ -364,7 +364,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
             throw (Error) targetException;
           } else {
             throw new Error(
-                "Failure processing \"" + signalName + "\" at eventID " + eventId, targetException);
+                "Failure processing \"" + signalName + "\" at eventId " + eventId, targetException);
           }
         }
       }
@@ -376,7 +376,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     log.error(
         "Failure deserializing signal input for \""
             + signalName
-            + "\" at eventID "
+            + "\" at eventId "
             + eventId
             + ". Dropping it.",
         exception);

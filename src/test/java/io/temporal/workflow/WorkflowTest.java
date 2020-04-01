@@ -60,7 +60,7 @@ import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.enums.QueryRejectCondition;
 import io.temporal.proto.enums.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.proto.enums.TimeoutType;
-import io.temporal.proto.enums.WorkflowExecutionCloseStatus;
+import io.temporal.proto.enums.WorkflowExecutionStatus;
 import io.temporal.proto.enums.WorkflowIdReusePolicy;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -1531,9 +1531,9 @@ public class WorkflowTest {
     startWorkerFor(TestMultiargsWorkflowsImpl.class);
 
     // Without setting WorkflowIdReusePolicy, the semantics is to get result for the previous run.
-    String workflowID = UUID.randomUUID().toString();
+    String workflowId = UUID.randomUUID().toString();
     WorkflowOptions workflowOptions =
-        newWorkflowOptionsBuilder(taskList).setWorkflowId(workflowID).build();
+        newWorkflowOptionsBuilder(taskList).setWorkflowId(workflowId).build();
     TestMultiargsWorkflowsFunc1 stubF1_1 =
         workflowClient.newWorkflowStub(TestMultiargsWorkflowsFunc1.class, workflowOptions);
     assertEquals(1, stubF1_1.func1(1));
@@ -1545,7 +1545,7 @@ public class WorkflowTest {
     workflowOptions =
         newWorkflowOptionsBuilder(taskList)
             .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicate)
-            .setWorkflowId(workflowID)
+            .setWorkflowId(workflowId)
             .build();
     TestMultiargsWorkflowsFunc1 stubF1_3 =
         workflowClient.newWorkflowStub(TestMultiargsWorkflowsFunc1.class, workflowOptions);
@@ -2471,8 +2471,8 @@ public class WorkflowTest {
     assertNull(queryResponse.getResult());
     assertEquals(
         execution.toString(),
-        WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusCompleted,
-        queryResponse.getQueryRejected().getCloseStatus());
+        WorkflowExecutionStatus.WorkflowExecutionStatusCompleted,
+        queryResponse.getQueryRejected().getStatus());
     log.info("testSignalUntyped completed");
   }
 
@@ -2969,15 +2969,15 @@ public class WorkflowTest {
   public interface SignalingChild {
 
     @WorkflowMethod
-    String execute(String arg, String parentWorkflowID);
+    String execute(String arg, String parentWorkflowId);
   }
 
   public static class SignalingChildImpl implements SignalingChild {
 
     @Override
-    public String execute(String greeting, String parentWorkflowID) {
+    public String execute(String greeting, String parentWorkflowId) {
       WorkflowExecution parentExecution =
-          WorkflowExecution.newBuilder().setWorkflowId(parentWorkflowID).build();
+          WorkflowExecution.newBuilder().setWorkflowId(parentWorkflowId).build();
       TestWorkflowSignaled parent =
           Workflow.newExternalWorkflowStub(TestWorkflowSignaled.class, parentExecution);
       ExternalWorkflowStub untyped = ExternalWorkflowStub.fromTyped(parent);
@@ -3030,8 +3030,8 @@ public class WorkflowTest {
   public static class UntypedSignalingChildImpl implements SignalingChild {
 
     @Override
-    public String execute(String greeting, String parentWorkflowID) {
-      ExternalWorkflowStub parent = Workflow.newUntypedExternalWorkflowStub(parentWorkflowID);
+    public String execute(String greeting, String parentWorkflowId) {
+      ExternalWorkflowStub parent = Workflow.newUntypedExternalWorkflowStub(parentWorkflowId);
       parent.signal("testSignal", "World");
       return greeting;
     }
@@ -5563,9 +5563,9 @@ public class WorkflowTest {
     }
 
     @Override
-    public int getVersion(String changeID, int minSupported, int maxSupported) {
+    public int getVersion(String changeId, int minSupported, int maxSupported) {
       trace.add("getVersion");
-      return next.getVersion(changeID, minSupported, maxSupported);
+      return next.getVersion(changeId, minSupported, maxSupported);
     }
 
     @Override

@@ -462,8 +462,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
                     Int64Value.newBuilder().setValue(history.get(0).getTimestamp()).build())
                 .setType(
                     history.get(0).getWorkflowExecutionStartedEventAttributes().getWorkflowType())
-                .setCloseStatus(
-                    WorkflowExecutionUtils.getCloseStatus(history.get(history.size() - 1)))
+                .setStatus(WorkflowExecutionUtils.getCloseStatus(history.get(history.size() - 1)))
                 .build();
         result.add(info);
       }

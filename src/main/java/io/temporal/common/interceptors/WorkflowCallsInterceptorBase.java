@@ -123,8 +123,8 @@ public class WorkflowCallsInterceptorBase implements WorkflowCallsInterceptor {
   }
 
   @Override
-  public int getVersion(String changeID, int minSupported, int maxSupported) {
-    return next.getVersion(changeID, minSupported, maxSupported);
+  public int getVersion(String changeId, int minSupported, int maxSupported) {
+    return next.getVersion(changeId, minSupported, maxSupported);
   }
 
   @Override

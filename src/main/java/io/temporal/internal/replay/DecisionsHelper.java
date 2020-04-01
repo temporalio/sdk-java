@@ -173,7 +173,7 @@ class DecisionsHelper {
   private long getActivityScheduledEventId(String activityId) {
     Long scheduledEventId = activityIdToScheduledEventId.get(activityId);
     if (scheduledEventId == null) {
-      throw new Error("Unknown activityID: " + activityId);
+      throw new Error("Unknown activityId: " + activityId);
     }
     return scheduledEventId;
   }

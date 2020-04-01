@@ -36,7 +36,7 @@ import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.proto.common.WorkflowExecutionInfo;
 import io.temporal.proto.enums.SignalExternalWorkflowExecutionFailedCause;
-import io.temporal.proto.enums.WorkflowExecutionCloseStatus;
+import io.temporal.proto.enums.WorkflowExecutionStatus;
 import io.temporal.proto.enums.WorkflowIdReusePolicy;
 import io.temporal.proto.failure.WorkflowExecutionAlreadyStarted;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
@@ -51,22 +51,22 @@ import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.proto.workflowservice.QueryWorkflowRequest;
 import io.temporal.proto.workflowservice.QueryWorkflowResponse;
-import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatByIDRequest;
-import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatByIDResponse;
+import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatByIdRequest;
+import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatByIdResponse;
 import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatRequest;
 import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatResponse;
 import io.temporal.proto.workflowservice.RequestCancelWorkflowExecutionRequest;
 import io.temporal.proto.workflowservice.RequestCancelWorkflowExecutionResponse;
-import io.temporal.proto.workflowservice.RespondActivityTaskCanceledByIDRequest;
-import io.temporal.proto.workflowservice.RespondActivityTaskCanceledByIDResponse;
+import io.temporal.proto.workflowservice.RespondActivityTaskCanceledByIdRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskCanceledByIdResponse;
 import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskCanceledResponse;
-import io.temporal.proto.workflowservice.RespondActivityTaskCompletedByIDRequest;
-import io.temporal.proto.workflowservice.RespondActivityTaskCompletedByIDResponse;
+import io.temporal.proto.workflowservice.RespondActivityTaskCompletedByIdRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskCompletedByIdResponse;
 import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskCompletedResponse;
-import io.temporal.proto.workflowservice.RespondActivityTaskFailedByIDRequest;
-import io.temporal.proto.workflowservice.RespondActivityTaskFailedByIDResponse;
+import io.temporal.proto.workflowservice.RespondActivityTaskFailedByIdRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskFailedByIdResponse;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedResponse;
 import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
@@ -236,17 +236,15 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     try {
       existing = executionsByWorkflowId.get(workflowId);
       if (existing != null) {
-        Optional<WorkflowExecutionCloseStatus> statusOptional = existing.getCloseStatus();
+        WorkflowExecutionStatus status = existing.getWorkflowExecutionStatus();
         WorkflowIdReusePolicy policy = startRequest.getWorkflowIdReusePolicy();
-        if (!statusOptional.isPresent()
+        if (status == WorkflowExecutionStatus.WorkflowExecutionStatusRunning
             || policy == WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate) {
           return throwDuplicatedWorkflow(startRequest, existing);
         }
-        WorkflowExecutionCloseStatus status = statusOptional.get();
         if (policy == WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicateFailedOnly
-            && (status == WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusCompleted
-                || status
-                    == WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusContinuedAsNew)) {
+            && (status == WorkflowExecutionStatus.WorkflowExecutionStatusCompleted
+                || status == WorkflowExecutionStatus.WorkflowExecutionStatusContinuedAsNew)) {
           return throwDuplicatedWorkflow(startRequest, existing);
         }
       }
@@ -468,21 +466,21 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   @Override
-  public void recordActivityTaskHeartbeatByID(
-      RecordActivityTaskHeartbeatByIDRequest heartbeatRequest,
-      StreamObserver<RecordActivityTaskHeartbeatByIDResponse> responseObserver) {
+  public void recordActivityTaskHeartbeatById(
+      RecordActivityTaskHeartbeatByIdRequest heartbeatRequest,
+      StreamObserver<RecordActivityTaskHeartbeatByIdResponse> responseObserver) {
     try {
       ExecutionId execution =
           new ExecutionId(
               heartbeatRequest.getNamespace(),
-              heartbeatRequest.getWorkflowID(),
-              heartbeatRequest.getRunID());
+              heartbeatRequest.getWorkflowId(),
+              heartbeatRequest.getRunId());
       TestWorkflowMutableState mutableState = getMutableState(execution);
       boolean cancelRequested =
           mutableState.heartbeatActivityTask(
-              heartbeatRequest.getActivityID(), heartbeatRequest.getDetails());
+              heartbeatRequest.getActivityId(), heartbeatRequest.getDetails());
       responseObserver.onNext(
-          RecordActivityTaskHeartbeatByIDResponse.newBuilder()
+          RecordActivityTaskHeartbeatByIdResponse.newBuilder()
               .setCancelRequested(cancelRequested)
               .build());
       responseObserver.onCompleted();
@@ -507,19 +505,19 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   @Override
-  public void respondActivityTaskCompletedByID(
-      RespondActivityTaskCompletedByIDRequest completeRequest,
-      StreamObserver<RespondActivityTaskCompletedByIDResponse> responseObserver) {
+  public void respondActivityTaskCompletedById(
+      RespondActivityTaskCompletedByIdRequest completeRequest,
+      StreamObserver<RespondActivityTaskCompletedByIdResponse> responseObserver) {
     try {
       ActivityId activityId =
           new ActivityId(
               completeRequest.getNamespace(),
-              completeRequest.getWorkflowID(),
-              completeRequest.getRunID(),
-              completeRequest.getActivityID());
+              completeRequest.getWorkflowId(),
+              completeRequest.getRunId(),
+              completeRequest.getActivityId());
       TestWorkflowMutableState mutableState = getMutableState(activityId.getWorkflowId());
       mutableState.completeActivityTaskById(activityId.getId(), completeRequest);
-      responseObserver.onNext(RespondActivityTaskCompletedByIDResponse.getDefaultInstance());
+      responseObserver.onNext(RespondActivityTaskCompletedByIdResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
       responseObserver.onError(e);
@@ -542,19 +540,19 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   @Override
-  public void respondActivityTaskFailedByID(
-      RespondActivityTaskFailedByIDRequest failRequest,
-      StreamObserver<RespondActivityTaskFailedByIDResponse> responseObserver) {
+  public void respondActivityTaskFailedById(
+      RespondActivityTaskFailedByIdRequest failRequest,
+      StreamObserver<RespondActivityTaskFailedByIdResponse> responseObserver) {
     try {
       ActivityId activityId =
           new ActivityId(
               failRequest.getNamespace(),
-              failRequest.getWorkflowID(),
-              failRequest.getRunID(),
-              failRequest.getActivityID());
+              failRequest.getWorkflowId(),
+              failRequest.getRunId(),
+              failRequest.getActivityId());
       TestWorkflowMutableState mutableState = getMutableState(activityId.getWorkflowId());
       mutableState.failActivityTaskById(activityId.getId(), failRequest);
-      responseObserver.onNext(RespondActivityTaskFailedByIDResponse.getDefaultInstance());
+      responseObserver.onNext(RespondActivityTaskFailedByIdResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
       responseObserver.onError(e);
@@ -577,19 +575,19 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   @Override
-  public void respondActivityTaskCanceledByID(
-      RespondActivityTaskCanceledByIDRequest canceledRequest,
-      StreamObserver<RespondActivityTaskCanceledByIDResponse> responseObserver) {
+  public void respondActivityTaskCanceledById(
+      RespondActivityTaskCanceledByIdRequest canceledRequest,
+      StreamObserver<RespondActivityTaskCanceledByIdResponse> responseObserver) {
     try {
       ActivityId activityId =
           new ActivityId(
               canceledRequest.getNamespace(),
-              canceledRequest.getWorkflowID(),
-              canceledRequest.getRunID(),
-              canceledRequest.getActivityID());
+              canceledRequest.getWorkflowId(),
+              canceledRequest.getRunId(),
+              canceledRequest.getActivityId());
       TestWorkflowMutableState mutableState = getMutableState(activityId.getWorkflowId());
       mutableState.cancelActivityTaskById(activityId.getId(), canceledRequest);
-      responseObserver.onNext(RespondActivityTaskCanceledByIDResponse.getDefaultInstance());
+      responseObserver.onNext(RespondActivityTaskCanceledByIdResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
       responseObserver.onError(e);

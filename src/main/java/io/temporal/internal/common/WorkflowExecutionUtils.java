@@ -45,7 +45,7 @@ import io.temporal.proto.common.WorkflowExecutionTimedOutEventAttributes;
 import io.temporal.proto.enums.DecisionType;
 import io.temporal.proto.enums.EventType;
 import io.temporal.proto.enums.HistoryEventFilterType;
-import io.temporal.proto.enums.WorkflowExecutionCloseStatus;
+import io.temporal.proto.enums.WorkflowExecutionStatus;
 import io.temporal.proto.workflowservice.DescribeWorkflowExecutionRequest;
 import io.temporal.proto.workflowservice.DescribeWorkflowExecutionResponse;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
@@ -469,7 +469,7 @@ public class WorkflowExecutionUtils {
    * @param workflowExecution workflowId and optional runId
    * @return instance close status
    */
-  public static WorkflowExecutionCloseStatus waitForWorkflowInstanceCompletion(
+  public static WorkflowExecutionStatus waitForWorkflowInstanceCompletion(
       WorkflowServiceStubs service, String namespace, WorkflowExecution workflowExecution) {
     try {
       return waitForWorkflowInstanceCompletion(
@@ -487,7 +487,7 @@ public class WorkflowExecutionUtils {
    * @param timeout maximum time to wait for completion. 0 means wait forever.
    * @return instance close status
    */
-  public static WorkflowExecutionCloseStatus waitForWorkflowInstanceCompletion(
+  public static WorkflowExecutionStatus waitForWorkflowInstanceCompletion(
       WorkflowServiceStubs service,
       String namespace,
       WorkflowExecution workflowExecution,
@@ -499,20 +499,20 @@ public class WorkflowExecutionUtils {
     return getCloseStatus(closeEvent);
   }
 
-  public static WorkflowExecutionCloseStatus getCloseStatus(HistoryEvent event) {
+  public static WorkflowExecutionStatus getCloseStatus(HistoryEvent event) {
     switch (event.getEventType()) {
       case EventTypeWorkflowExecutionCanceled:
-        return WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusCanceled;
+        return WorkflowExecutionStatus.WorkflowExecutionStatusCanceled;
       case EventTypeWorkflowExecutionFailed:
-        return WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusFailed;
+        return WorkflowExecutionStatus.WorkflowExecutionStatusFailed;
       case EventTypeWorkflowExecutionTimedOut:
-        return WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusTimedOut;
+        return WorkflowExecutionStatus.WorkflowExecutionStatusTimedOut;
       case EventTypeWorkflowExecutionContinuedAsNew:
-        return WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusContinuedAsNew;
+        return WorkflowExecutionStatus.WorkflowExecutionStatusContinuedAsNew;
       case EventTypeWorkflowExecutionCompleted:
-        return WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusCompleted;
+        return WorkflowExecutionStatus.WorkflowExecutionStatusCompleted;
       case EventTypeWorkflowExecutionTerminated:
-        return WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusTerminated;
+        return WorkflowExecutionStatus.WorkflowExecutionStatusTerminated;
       default:
         throw new IllegalArgumentException("Not a close event: " + event);
     }
@@ -526,7 +526,7 @@ public class WorkflowExecutionUtils {
    * @see #waitForWorkflowInstanceCompletion(WorkflowServiceStubs, String, WorkflowExecution, long,
    *     TimeUnit)
    */
-  public static WorkflowExecutionCloseStatus waitForWorkflowInstanceCompletionAcrossGenerations(
+  public static WorkflowExecutionStatus waitForWorkflowInstanceCompletionAcrossGenerations(
       WorkflowServiceStubs service,
       String namespace,
       WorkflowExecution workflowExecution,
@@ -536,12 +536,12 @@ public class WorkflowExecutionUtils {
 
     WorkflowExecution lastExecutionToRun = workflowExecution;
     long millisecondsAtFirstWait = System.currentTimeMillis();
-    WorkflowExecutionCloseStatus lastExecutionToRunCloseStatus =
+    WorkflowExecutionStatus lastExecutionToRunCloseStatus =
         waitForWorkflowInstanceCompletion(service, namespace, lastExecutionToRun, timeout, unit);
 
     // keep waiting if the instance continued as new
     while (lastExecutionToRunCloseStatus
-        == WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusContinuedAsNew) {
+        == WorkflowExecutionStatus.WorkflowExecutionStatusContinuedAsNew) {
       // get the new execution's information
       HistoryEvent closeEvent =
           getInstanceCloseEvent(service, namespace, lastExecutionToRun, timeout, unit);
@@ -577,7 +577,7 @@ public class WorkflowExecutionUtils {
    * Like {@link #waitForWorkflowInstanceCompletion(WorkflowServiceStubs, String, WorkflowExecution,
    * long, TimeUnit)} , but with no timeout.*
    */
-  public static WorkflowExecutionCloseStatus waitForWorkflowInstanceCompletionAcrossGenerations(
+  public static WorkflowExecutionStatus waitForWorkflowInstanceCompletionAcrossGenerations(
       WorkflowServiceStubs service, String namespace, WorkflowExecution workflowExecution)
       throws InterruptedException {
     try {
