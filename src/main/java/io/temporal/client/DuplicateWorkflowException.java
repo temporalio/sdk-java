@@ -27,7 +27,7 @@ import java.util.Optional;
  * <li>
  *
  *     <ul>
- *       Workflow with the same WorkflowID is currently running.
+ *       Workflow with the same WorkflowId is currently running.
  * </ul>
  *
  * <ul>

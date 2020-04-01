@@ -279,8 +279,8 @@ public final class WorkflowInternal {
     return getWorkflowInterceptor().mutableSideEffect(id, resultClass, resultType, updated, func);
   }
 
-  public static int getVersion(String changeID, int minSupported, int maxSupported) {
-    return getWorkflowInterceptor().getVersion(changeID, minSupported, maxSupported);
+  public static int getVersion(String changeId, int minSupported, int maxSupported) {
+    return getWorkflowInterceptor().getVersion(changeId, minSupported, maxSupported);
   }
 
   public static <U> Promise<List<U>> promiseAllOf(Collection<Promise<U>> promises) {

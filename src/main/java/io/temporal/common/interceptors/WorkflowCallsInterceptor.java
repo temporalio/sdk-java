@@ -107,7 +107,7 @@ public interface WorkflowCallsInterceptor {
   <R> R mutableSideEffect(
       String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func);
 
-  int getVersion(String changeID, int minSupported, int maxSupported);
+  int getVersion(String changeId, int minSupported, int maxSupported);
 
   void continueAsNew(
       Optional<String> workflowType, Optional<ContinueAsNewOptions> options, Object[] args);

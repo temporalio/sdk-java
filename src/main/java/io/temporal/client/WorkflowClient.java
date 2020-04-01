@@ -233,7 +233,7 @@ public interface WorkflowClient {
    * Invoke SignalWithStart operation.
    *
    * @param signalWithStartBatch Must be created with {@link #newSignalWithStartRequest()}
-   * @return workflowID and runId of the signaled or started workflow.
+   * @return workflowId and runId of the signaled or started workflow.
    */
   WorkflowExecution signalWithStart(BatchRequest signalWithStartBatch);
 
@@ -244,7 +244,7 @@ public interface WorkflowClient {
    *
    * @param workflow The only supported value is method reference to a proxy created through {@link
    *     #newWorkflowStub(Class, WorkflowOptions)}.
-   * @return WorkflowExecution that contains WorkflowID and RunID of the started workflow.
+   * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
   static WorkflowExecution start(Functions.Proc workflow) {
     return WorkflowClientInternal.start(workflow);
@@ -256,7 +256,7 @@ public interface WorkflowClient {
    * @param workflow The only supported value is method reference to a proxy created through {@link
    *     #newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first workflow function parameter
-   * @return WorkflowExecution that contains WorkflowID and RunID of the started workflow.
+   * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
   static <A1> WorkflowExecution start(Functions.Proc1<A1> workflow, A1 arg1) {
     return WorkflowClientInternal.start(workflow, arg1);
@@ -269,7 +269,7 @@ public interface WorkflowClient {
    *     #newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first workflow function parameter
    * @param arg2 second workflow function parameter
-   * @return WorkflowExecution that contains WorkflowID and RunID of the started workflow.
+   * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
   static <A1, A2> WorkflowExecution start(Functions.Proc2<A1, A2> workflow, A1 arg1, A2 arg2) {
     return WorkflowClientInternal.start(workflow, arg1, arg2);
@@ -283,7 +283,7 @@ public interface WorkflowClient {
    * @param arg1 first workflow function parameter
    * @param arg2 second workflow function parameter
    * @param arg3 third workflow function parameter
-   * @return WorkflowExecution that contains WorkflowID and RunID of the started workflow.
+   * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
   static <A1, A2, A3> WorkflowExecution start(
       Functions.Proc3<A1, A2, A3> workflow, A1 arg1, A2 arg2, A3 arg3) {
@@ -299,7 +299,7 @@ public interface WorkflowClient {
    * @param arg2 second workflow function parameter
    * @param arg3 third workflow function parameter
    * @param arg4 fourth workflow function parameter
-   * @return WorkflowExecution that contains WorkflowID and RunID of the started workflow.
+   * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
   static <A1, A2, A3, A4> WorkflowExecution start(
       Functions.Proc4<A1, A2, A3, A4> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
@@ -316,7 +316,7 @@ public interface WorkflowClient {
    * @param arg3 third workflow function parameter
    * @param arg4 fourth workflow function parameter
    * @param arg5 fifth workflow function parameter
-   * @return WorkflowExecution that contains WorkflowID and RunID of the started workflow.
+   * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
   static <A1, A2, A3, A4, A5> WorkflowExecution start(
       Functions.Proc5<A1, A2, A3, A4, A5> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4, A5 arg5) {
@@ -334,7 +334,7 @@ public interface WorkflowClient {
    * @param arg4 fourth workflow function parameter
    * @param arg5 sixth workflow function parameter
    * @param arg6 sixth workflow function parameter
-   * @return WorkflowExecution that contains WorkflowID and RunID of the started workflow.
+   * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
   static <A1, A2, A3, A4, A5, A6> WorkflowExecution start(
       Functions.Proc6<A1, A2, A3, A4, A5, A6> workflow,
@@ -352,7 +352,7 @@ public interface WorkflowClient {
    *
    * @param workflow The only supported value is method reference to a proxy created through {@link
    *     #newWorkflowStub(Class, WorkflowOptions)}.
-   * @return WorkflowExecution that contains WorkflowID and RunID of the started workflow.
+   * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
   static <R> WorkflowExecution start(Functions.Func<R> workflow) {
     return WorkflowClientInternal.start(workflow);
@@ -364,7 +364,7 @@ public interface WorkflowClient {
    * @param workflow The only supported value is method reference to a proxy created through {@link
    *     #newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first workflow argument
-   * @return WorkflowExecution that contains WorkflowID and RunID of the started workflow.
+   * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
   static <A1, R> WorkflowExecution start(Functions.Func1<A1, R> workflow, A1 arg1) {
     return WorkflowClientInternal.start(workflow, arg1);
@@ -377,7 +377,7 @@ public interface WorkflowClient {
    *     #newWorkflowStub(Class, WorkflowOptions)}.
    * @param arg1 first workflow function parameter
    * @param arg2 second workflow function parameter
-   * @return WorkflowExecution that contains WorkflowID and RunID of the started workflow.
+   * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
   static <A1, A2, R> WorkflowExecution start(
       Functions.Func2<A1, A2, R> workflow, A1 arg1, A2 arg2) {
@@ -392,7 +392,7 @@ public interface WorkflowClient {
    * @param arg1 first workflow function parameter
    * @param arg2 second workflow function parameter
    * @param arg3 third workflow function parameter
-   * @return WorkflowExecution that contains WorkflowID and RunID of the started workflow.
+   * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
   static <A1, A2, A3, R> WorkflowExecution start(
       Functions.Func3<A1, A2, A3, R> workflow, A1 arg1, A2 arg2, A3 arg3) {
@@ -408,7 +408,7 @@ public interface WorkflowClient {
    * @param arg2 second workflow function parameter
    * @param arg3 third workflow function parameter
    * @param arg4 fourth workflow function parameter
-   * @return WorkflowExecution that contains WorkflowID and RunID of the started workflow.
+   * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
   static <A1, A2, A3, A4, R> WorkflowExecution start(
       Functions.Func4<A1, A2, A3, A4, R> workflow, A1 arg1, A2 arg2, A3 arg3, A4 arg4) {
@@ -425,7 +425,7 @@ public interface WorkflowClient {
    * @param arg3 third workflow function parameter
    * @param arg4 fourth workflow function parameter
    * @param arg5 sixth workflow function parameter
-   * @return WorkflowExecution that contains WorkflowID and RunID of the started workflow.
+   * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
   static <A1, A2, A3, A4, A5, R> WorkflowExecution start(
       Functions.Func5<A1, A2, A3, A4, A5, R> workflow,
@@ -448,7 +448,7 @@ public interface WorkflowClient {
    * @param arg4 fourth workflow function parameter
    * @param arg5 sixth workflow function parameter
    * @param arg6 sixth workflow function parameter
-   * @return WorkflowExecution that contains WorkflowID and RunID of the started workflow.
+   * @return WorkflowExecution that contains WorkflowId and RunId of the started workflow.
    */
   static <A1, A2, A3, A4, A5, A6, R> WorkflowExecution start(
       Functions.Func6<A1, A2, A3, A4, A5, A6, R> workflow,

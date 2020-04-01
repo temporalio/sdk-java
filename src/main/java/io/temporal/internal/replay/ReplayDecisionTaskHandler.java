@@ -104,9 +104,9 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
         log.error(
             "Workflow task failure. startedEventId="
                 + decisionTask.getStartedEventId()
-                + ", WorkflowID="
+                + ", WorkflowId="
                 + execution.getWorkflowId()
-                + ", RunID="
+                + ", RunId="
                 + execution.getRunId()
                 + ". If see continuously the workflow might be stuck.",
             e);
@@ -162,9 +162,9 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
         log.trace(
             "WorkflowTask startedEventId="
                 + decisionTask.getStartedEventId()
-                + ", WorkflowID="
+                + ", WorkflowId="
                 + execution.getWorkflowId()
-                + ", RunID="
+                + ", RunId="
                 + execution.getRunId()
                 + " completed with \n"
                 + WorkflowExecutionUtils.prettyPrintDecisions(result.getDecisions())
@@ -175,9 +175,9 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
         log.debug(
             "WorkflowTask startedEventId="
                 + decisionTask.getStartedEventId()
-                + ", WorkflowID="
+                + ", WorkflowId="
                 + execution.getWorkflowId()
-                + ", RunID="
+                + ", RunId="
                 + execution.getRunId()
                 + " completed with "
                 + result.getDecisions().size()

@@ -287,8 +287,8 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
 
   @Override
   public int getVersion(
-      String changeID, DataConverter converter, int minSupported, int maxSupported) {
-    return workflowClock.getVersion(changeID, converter, minSupported, maxSupported);
+      String changeId, DataConverter converter, int minSupported, int maxSupported) {
+    return workflowClock.getVersion(changeId, converter, minSupported, maxSupported);
   }
 
   @Override

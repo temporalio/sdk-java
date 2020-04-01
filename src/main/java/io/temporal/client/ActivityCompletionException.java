@@ -44,7 +44,7 @@ public class ActivityCompletionException extends RuntimeException {
                 + task.getWorkflowExecution()
                 + ", ActivityType="
                 + task.getActivityType()
-                + ", ActivityID="
+                + ", ActivityId="
                 + task.getActivityId()
             : null,
         cause);
