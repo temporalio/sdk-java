@@ -30,7 +30,7 @@ import io.temporal.proto.common.SignalExternalWorkflowExecutionDecisionAttribute
 import io.temporal.proto.common.StartChildWorkflowExecutionFailedEventAttributes;
 import io.temporal.proto.common.StickyExecutionAttributes;
 import io.temporal.proto.enums.SignalExternalWorkflowExecutionFailedCause;
-import io.temporal.proto.enums.WorkflowExecutionCloseStatus;
+import io.temporal.proto.enums.WorkflowExecutionStatus;
 import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponseOrBuilder;
 import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
@@ -55,8 +55,7 @@ interface TestWorkflowMutableState {
 
   ExecutionId getExecutionId();
 
-  /** @return close status of the workflow or empty if still open */
-  Optional<WorkflowExecutionCloseStatus> getCloseStatus();
+  WorkflowExecutionStatus getWorkflowExecutionStatus();
 
   StartWorkflowExecutionRequest getStartRequest();
 

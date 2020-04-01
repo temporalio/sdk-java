@@ -60,7 +60,7 @@ import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.enums.QueryRejectCondition;
 import io.temporal.proto.enums.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.proto.enums.TimeoutType;
-import io.temporal.proto.enums.WorkflowExecutionCloseStatus;
+import io.temporal.proto.enums.WorkflowExecutionStatus;
 import io.temporal.proto.enums.WorkflowIdReusePolicy;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -2471,8 +2471,8 @@ public class WorkflowTest {
     assertNull(queryResponse.getResult());
     assertEquals(
         execution.toString(),
-        WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusCompleted,
-        queryResponse.getQueryRejected().getCloseStatus());
+        WorkflowExecutionStatus.WorkflowExecutionStatusCompleted,
+        queryResponse.getQueryRejected().getStatus());
     log.info("testSignalUntyped completed");
   }
 
