@@ -566,10 +566,10 @@ public class WorkflowTestingTest {
     worker.registerActivitiesImplementations(new ActivityImpl());
     testEnvironment.start();
     WorkflowClient client = testEnvironment.getWorkflowClient();
-    String workflowID = UUID.randomUUID().toString();
+    String workflowId = UUID.randomUUID().toString();
     TestWorkflow workflow =
         client.newWorkflowStub(
-            TestWorkflow.class, WorkflowOptions.newBuilder().setWorkflowId(workflowID).build());
+            TestWorkflow.class, WorkflowOptions.newBuilder().setWorkflowId(workflowId).build());
     String result = workflow.workflow1("input1");
     assertEquals("result", result);
 
@@ -579,7 +579,7 @@ public class WorkflowTestingTest {
             .blockingStub()
             .getWorkflowExecutionHistory(
                 GetWorkflowExecutionHistoryRequest.newBuilder()
-                    .setExecution(WorkflowExecution.newBuilder().setWorkflowId(workflowID).build())
+                    .setExecution(WorkflowExecution.newBuilder().setWorkflowId(workflowId).build())
                     .setNamespace(client.getOptions().getNamespace())
                     .build())
             .getHistory();

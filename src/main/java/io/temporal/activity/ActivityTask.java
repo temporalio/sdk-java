@@ -35,7 +35,7 @@ public interface ActivityTask {
    */
   byte[] getTaskToken();
 
-  /** ID and RunID of the workflow that scheduled the activity. */
+  /** ID and RunId of the workflow that scheduled the activity. */
   WorkflowExecution getWorkflowExecution();
 
   /**

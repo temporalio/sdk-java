@@ -52,7 +52,7 @@ public class ServiceMethod {
   public static final String RECORD_ACTIVITY_TASK_HEARTBEAT =
       MetricsType.TEMPORAL_METRICS_PREFIX + "RecordActivityTaskHeartbeat";
   public static final String RECORD_ACTIVITY_TASK_HEARTBEAT_BY_ID =
-      MetricsType.TEMPORAL_METRICS_PREFIX + "RecordActivityTaskHeartbeatByID";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "RecordActivityTaskHeartbeatById";
   public static final String REGISTER_NAMESPACE =
       MetricsType.TEMPORAL_METRICS_PREFIX + "RegisterNamespace";
   public static final String REQUEST_CANCEL_WORKFLOW_EXECUTION =
@@ -64,11 +64,11 @@ public class ServiceMethod {
   public static final String RESPOND_ACTIVITY_TASK_FAILED =
       MetricsType.TEMPORAL_METRICS_PREFIX + "RespondActivityTaskFailed";
   public static final String RESPOND_ACTIVITY_TASK_CANCELED_BY_ID =
-      MetricsType.TEMPORAL_METRICS_PREFIX + "RespondActivityTaskCanceledByID";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "RespondActivityTaskCanceledById";
   public static final String RESPOND_ACTIVITY_TASK_COMPLETED_BY_ID =
-      MetricsType.TEMPORAL_METRICS_PREFIX + "RespondActivityTaskCompletedByID";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "RespondActivityTaskCompletedById";
   public static final String RESPOND_ACTIVITY_TASK_FAILED_BY_ID =
-      MetricsType.TEMPORAL_METRICS_PREFIX + "RespondActivityTaskFailedByID";
+      MetricsType.TEMPORAL_METRICS_PREFIX + "RespondActivityTaskFailedById";
   public static final String RESPOND_DECISION_TASK_COMPLETED =
       MetricsType.TEMPORAL_METRICS_PREFIX + "RespondDecisionTaskCompleted";
   public static final String RESPOND_DECISION_TASK_FAILED =

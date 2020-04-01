@@ -34,9 +34,9 @@ public abstract class ActivityException extends WorkflowOperationException {
         message
             + ", ActivityType=\""
             + activityType.getName()
-            + "\", ActivityID=\""
+            + "\", ActivityId=\""
             + activityId
-            + "\", EventID="
+            + "\", EventId="
             + eventId,
         eventId);
     this.activityType = activityType;

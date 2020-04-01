@@ -227,13 +227,13 @@ public final class ActivityWorker implements SuspendableWorker {
     public Throwable wrapFailure(PollForActivityTaskResponse task, Throwable failure) {
       WorkflowExecution execution = task.getWorkflowExecution();
       return new RuntimeException(
-          "Failure processing activity task. WorkflowID="
+          "Failure processing activity task. WorkflowId="
               + execution.getWorkflowId()
-              + ", RunID="
+              + ", RunId="
               + execution.getRunId()
               + ", ActivityType="
               + task.getActivityType().getName()
-              + ", ActivityID="
+              + ", ActivityId="
               + task.getActivityId(),
           failure);
     }

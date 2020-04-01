@@ -101,12 +101,12 @@ public class LoggerTest {
             .build();
     LoggerTest.TestWorkflow workflow =
         workflowClient.newWorkflowStub(LoggerTest.TestWorkflow.class, options);
-    String wfID = UUID.randomUUID().toString();
-    workflow.execute(wfID);
+    String wfId = UUID.randomUUID().toString();
+    workflow.execute(wfId);
 
-    assertEquals(1, matchingLines(String.format("Start executing workflow %s.", wfID)));
-    assertEquals(1, matchingLines(String.format("Executing child workflow %s.", wfID)));
-    assertEquals(1, matchingLines(String.format("Done executing workflow %s.", wfID)));
+    assertEquals(1, matchingLines(String.format("Start executing workflow %s.", wfId)));
+    assertEquals(1, matchingLines(String.format("Executing child workflow %s.", wfId)));
+    assertEquals(1, matchingLines(String.format("Done executing workflow %s.", wfId)));
   }
 
   private int matchingLines(String message) {

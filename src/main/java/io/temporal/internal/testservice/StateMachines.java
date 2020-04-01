@@ -84,11 +84,11 @@ import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.proto.workflowservice.RequestCancelWorkflowExecutionRequest;
-import io.temporal.proto.workflowservice.RespondActivityTaskCanceledByIDRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskCanceledByIdRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
-import io.temporal.proto.workflowservice.RespondActivityTaskCompletedByIDRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskCompletedByIdRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
-import io.temporal.proto.workflowservice.RespondActivityTaskFailedByIDRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskFailedByIdRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
@@ -1001,8 +1001,8 @@ class StateMachines {
     }
     if (request instanceof RespondActivityTaskCompletedRequest) {
       completeActivityTaskByTaskToken(ctx, data, (RespondActivityTaskCompletedRequest) request);
-    } else if (request instanceof RespondActivityTaskCompletedByIDRequest) {
-      completeActivityTaskById(ctx, data, (RespondActivityTaskCompletedByIDRequest) request);
+    } else if (request instanceof RespondActivityTaskCompletedByIdRequest) {
+      completeActivityTaskById(ctx, data, (RespondActivityTaskCompletedByIdRequest) request);
     } else {
       throw new IllegalArgumentException("Unknown request: " + request);
     }
@@ -1026,7 +1026,7 @@ class StateMachines {
   }
 
   private static void completeActivityTaskById(
-      RequestContext ctx, ActivityTaskData data, RespondActivityTaskCompletedByIDRequest request) {
+      RequestContext ctx, ActivityTaskData data, RespondActivityTaskCompletedByIdRequest request) {
     ActivityTaskCompletedEventAttributes.Builder a =
         ActivityTaskCompletedEventAttributes.newBuilder()
             .setIdentity(request.getIdentity())
@@ -1046,8 +1046,8 @@ class StateMachines {
       RequestContext ctx, ActivityTaskData data, Object request, long notUsed) {
     if (request instanceof RespondActivityTaskFailedRequest) {
       return failActivityTaskByTaskToken(ctx, data, (RespondActivityTaskFailedRequest) request);
-    } else if (request instanceof RespondActivityTaskFailedByIDRequest) {
-      return failActivityTaskById(ctx, data, (RespondActivityTaskFailedByIDRequest) request);
+    } else if (request instanceof RespondActivityTaskFailedByIdRequest) {
+      return failActivityTaskById(ctx, data, (RespondActivityTaskFailedByIdRequest) request);
     } else {
       throw new IllegalArgumentException("Unknown request: " + request);
     }
@@ -1076,7 +1076,7 @@ class StateMachines {
   }
 
   private static State failActivityTaskById(
-      RequestContext ctx, ActivityTaskData data, RespondActivityTaskFailedByIDRequest request) {
+      RequestContext ctx, ActivityTaskData data, RespondActivityTaskFailedByIdRequest request) {
     if (attemptActivityRetry(ctx, request.getReason(), data)) {
       return INITIATED;
     }
@@ -1150,8 +1150,8 @@ class StateMachines {
     ByteString details = null;
     if (request instanceof RespondActivityTaskCanceledRequest) {
       details = ((RespondActivityTaskCanceledRequest) request).getDetails();
-    } else if (request instanceof RespondActivityTaskCanceledByIDRequest) {
-      details = ((RespondActivityTaskCanceledByIDRequest) request).getDetails();
+    } else if (request instanceof RespondActivityTaskCanceledByIdRequest) {
+      details = ((RespondActivityTaskCanceledByIdRequest) request).getDetails();
     }
     ActivityTaskCanceledEventAttributes.Builder a =
         ActivityTaskCanceledEventAttributes.newBuilder()

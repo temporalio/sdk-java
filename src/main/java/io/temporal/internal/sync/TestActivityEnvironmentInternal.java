@@ -311,7 +311,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
-    public int getVersion(String changeID, int minSupported, int maxSupported) {
+    public int getVersion(String changeId, int minSupported, int maxSupported) {
       throw new UnsupportedOperationException("not implemented");
     }
 

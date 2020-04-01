@@ -85,11 +85,11 @@ import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.proto.workflowservice.QueryWorkflowRequest;
 import io.temporal.proto.workflowservice.QueryWorkflowResponse;
 import io.temporal.proto.workflowservice.RequestCancelWorkflowExecutionRequest;
-import io.temporal.proto.workflowservice.RespondActivityTaskCanceledByIDRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskCanceledByIdRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
-import io.temporal.proto.workflowservice.RespondActivityTaskCompletedByIDRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskCompletedByIdRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
-import io.temporal.proto.workflowservice.RespondActivityTaskFailedByIDRequest;
+import io.temporal.proto.workflowservice.RespondActivityTaskFailedByIdRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
@@ -654,7 +654,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
     if (a.getWorkflowId().isEmpty()) {
       throw Status.INVALID_ARGUMENT
-          .withDescription("Required field WorkflowID is not set on decision")
+          .withDescription("Required field WorkflowId is not set on decision")
           .asRuntimeException();
     }
 
@@ -1318,7 +1318,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public void completeActivityTaskById(
-      String activityId, RespondActivityTaskCompletedByIDRequest request) {
+      String activityId, RespondActivityTaskCompletedByIdRequest request) {
     update(
         ctx -> {
           StateMachine<?> activity = getActivity(activityId);
@@ -1384,7 +1384,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public void failActivityTaskById(
-      String activityId, RespondActivityTaskFailedByIDRequest request) {
+      String activityId, RespondActivityTaskFailedByIdRequest request) {
     update(
         ctx -> {
           StateMachine<ActivityTaskData> activity = getActivity(activityId);
@@ -1413,7 +1413,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public void cancelActivityTaskById(
-      String activityId, RespondActivityTaskCanceledByIDRequest request) {
+      String activityId, RespondActivityTaskCanceledByIdRequest request) {
     update(
         ctx -> {
           StateMachine<?> activity = getActivity(activityId);

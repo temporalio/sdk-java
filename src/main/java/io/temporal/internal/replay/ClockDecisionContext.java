@@ -193,7 +193,7 @@ public final class ClockDecisionContext {
     if (replaying) {
       result = sideEffectResults.get(sideEffectEventId);
       if (result == null) {
-        throw new Error("No cached result found for SideEffect EventID=" + sideEffectEventId);
+        throw new Error("No cached result found for SideEffect EventId=" + sideEffectEventId);
       }
     } else {
       try {
@@ -309,13 +309,13 @@ public final class ClockDecisionContext {
     return version;
   }
 
-  private void validateVersion(String changeID, int version, int minSupported, int maxSupported) {
+  private void validateVersion(String changeId, int version, int minSupported, int maxSupported) {
     if ((version < minSupported || version > maxSupported)
         && version != WorkflowInternal.DEFAULT_VERSION) {
       throw new Error(
           String.format(
-              "Version %d of changeID %s is not supported. Supported version is between %d and %d.",
-              version, changeID, minSupported, maxSupported));
+              "Version %d of changeId %s is not supported. Supported version is between %d and %d.",
+              version, changeId, minSupported, maxSupported));
     }
   }
 
