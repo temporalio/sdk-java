@@ -19,6 +19,7 @@
 
 package io.temporal.internal.sync;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
 import com.uber.m3.tally.Scope;
@@ -162,6 +163,11 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
   @Override
   public boolean isAnyTypeSupported() {
     return !activities.isEmpty();
+  }
+
+  @VisibleForTesting
+  public Set<String> getRegisteredActivityTypes() {
+    return activities.keySet();
   }
 
   void setActivitiesImplementation(Object[] activitiesImplementation) {
