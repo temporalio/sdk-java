@@ -23,6 +23,7 @@ import static org.junit.Assert.*;
 
 import io.grpc.Status;
 import io.temporal.activity.Activity;
+import io.temporal.activity.ActivityInterface;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.testing.TestActivityEnvironment;
 import io.temporal.workflow.ActivityFailureException;
@@ -43,6 +44,7 @@ public class ActivityTestingTest {
     testEnvironment = TestActivityEnvironment.newInstance();
   }
 
+  @ActivityInterface
   public interface TestActivity {
 
     String activity1(String input);
@@ -106,6 +108,7 @@ public class ActivityTestingTest {
     assertEquals("details1", details.get());
   }
 
+  @ActivityInterface
   public interface InterruptibleTestActivity {
     void activity1() throws InterruptedException;
   }

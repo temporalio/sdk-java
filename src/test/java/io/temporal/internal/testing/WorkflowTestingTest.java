@@ -25,6 +25,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import io.temporal.activity.Activity;
+import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
@@ -165,6 +166,7 @@ public class WorkflowTestingTest {
     }
   }
 
+  @ActivityInterface
   public interface TestActivity {
     String activity1(String input);
   }
@@ -490,6 +492,7 @@ public class WorkflowTestingTest {
     log.info(testEnvironment.getDiagnostics());
   }
 
+  @ActivityInterface
   public interface TestCancellationActivity {
     String activity1(String input);
   }

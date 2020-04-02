@@ -43,7 +43,11 @@ public final class InternalUtils {
    * @return "Simple class name"_"methodName"
    */
   public static String getSimpleName(Method method) {
-    return method.getDeclaringClass().getSimpleName() + "_" + method.getName();
+    return getSimpleName(method.getDeclaringClass(), method);
+  }
+
+  public static String getSimpleName(Class<?> type, Method method) {
+    return type.getSimpleName() + "_" + method.getName();
   }
 
   public static String getWorkflowType(Method method, WorkflowMethod workflowMethod) {

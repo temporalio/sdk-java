@@ -24,6 +24,7 @@ import static org.junit.Assert.*;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.protobuf.ByteString;
 import io.temporal.activity.Activity;
+import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.ActivityTask;
@@ -2840,6 +2841,7 @@ public class WorkflowTest {
     }
   }
 
+  @ActivityInterface
   public interface AngryChildActivity {
 
     @ActivityMethod
@@ -3502,6 +3504,7 @@ public class WorkflowTest {
     assertEquals("run 2", lastCompletionResult);
   }
 
+  @ActivityInterface
   public interface TestActivities {
 
     String sleepActivity(long milliseconds, int input);
@@ -4502,6 +4505,7 @@ public class WorkflowTest {
         "executeActivity TestActivities_activity2");
   }
 
+  @ActivityInterface
   public interface GenericParametersActivity {
 
     List<UUID> execute(List<UUID> arg1, Set<UUID> arg2);
@@ -4610,6 +4614,7 @@ public class WorkflowTest {
     }
   }
 
+  @ActivityInterface
   public interface NonSerializableExceptionActivity {
     void execute();
   }
@@ -4654,9 +4659,8 @@ public class WorkflowTest {
     assertTrue(result.contains("NonSerializableException"));
   }
 
+  @ActivityInterface
   public interface NonDeserializableArgumentsActivity {
-
-    @ActivityMethod
     void execute(int arg);
   }
 

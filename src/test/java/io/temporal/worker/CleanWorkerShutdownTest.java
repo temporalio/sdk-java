@@ -24,6 +24,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import io.temporal.activity.Activity;
+import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.client.ActivityWorkerShutdownException;
 import io.temporal.client.WorkflowClient;
@@ -119,6 +120,7 @@ public class CleanWorkerShutdownTest {
     }
   }
 
+  @ActivityInterface
   public interface Activities {
     String execute();
   }

@@ -29,6 +29,7 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.StatsReporter;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
+import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
@@ -108,6 +109,7 @@ public class MetricsTest {
     }
   }
 
+  @ActivityInterface
   public interface TestActivity {
     int runActivity(int input);
   }
