@@ -91,7 +91,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
       }
     }
     Set<MethodInterfacePair> activityMethods =
-        getAnnotatedInterfaceMethods(cls, ActivityInterface.class);
+        getAnnotatedInterfaceMethodsFromImplementation(cls, ActivityInterface.class);
     if (activityMethods.isEmpty()) {
       throw new IllegalArgumentException(
           "Class doesn't implement any non empty interface annotated with @ActivityInterface: "
@@ -342,7 +342,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
   }
 
-  Set<MethodInterfacePair> getAnnotatedInterfaceMethods(
+  static Set<MethodInterfacePair> getAnnotatedInterfaceMethodsFromImplementation(
       Class<?> implementationClass, Class<? extends Annotation> annotationClass) {
     if (implementationClass.isInterface()) {
       throw new IllegalArgumentException(
@@ -351,11 +351,33 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     Set<MethodInterfacePair> pairs = new HashSet<>();
     // Methods inherited from interfaces that are not annotated with @ActivityInterface
     Set<MethodWrapper> ignored = new HashSet<>();
-    getAnnotatedInterfaceMethods(implementationClass, annotationClass, ignored, pairs);
+    getAnnotatedInterfaceMethodsFromImplementation(
+        implementationClass, annotationClass, ignored, pairs);
     return pairs;
   }
 
-  private void getAnnotatedInterfaceMethods(
+  static Set<MethodInterfacePair> getAnnotatedInterfaceMethodsFromInterface(
+      Class<?> iClass, Class<? extends Annotation> annotationClass) {
+    if (!iClass.isInterface()) {
+      throw new IllegalArgumentException("Interface expected. Found: " + iClass.getSimpleName());
+    }
+    Annotation annotation = iClass.getAnnotation(annotationClass);
+    if (annotation == null) {
+      throw new IllegalArgumentException(
+          "@ActivityInterface annotation is required on the stub interface: "
+              + iClass.getSimpleName());
+    }
+    Set<MethodInterfacePair> pairs = new HashSet<>();
+    // Methods inherited from interfaces that are not annotated with @ActivityInterface
+    Set<MethodWrapper> ignored = new HashSet<>();
+    getAnnotatedInterfaceMethodsFromImplementation(iClass, annotationClass, ignored, pairs);
+    if (!ignored.isEmpty()) {
+      throw new IllegalStateException("Not empty ignored: " + ignored);
+    }
+    return pairs;
+  }
+
+  private static void getAnnotatedInterfaceMethodsFromImplementation(
       Class<?> current,
       Class<? extends Annotation> annotationClass,
       Set<MethodWrapper> methods,
@@ -372,7 +394,8 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     Class<?>[] interfaces = current.getInterfaces();
     for (int i = 0; i < interfaces.length; i++) {
       Class<?> anInterface = interfaces[i];
-      getAnnotatedInterfaceMethods(anInterface, annotationClass, ourMethods, result);
+      getAnnotatedInterfaceMethodsFromImplementation(
+          anInterface, annotationClass, ourMethods, result);
     }
     Annotation annotation = current.getAnnotation(annotationClass);
     if (annotation == null) {

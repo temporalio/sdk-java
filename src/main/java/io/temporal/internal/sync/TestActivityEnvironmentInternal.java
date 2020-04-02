@@ -173,7 +173,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
             .setHeartbeatTimeout(Duration.ofSeconds(1))
             .build();
     InvocationHandler invocationHandler =
-        ActivityInvocationHandler.newInstance(options, new TestActivityExecutor());
+        ActivityInvocationHandler.newInstance(
+            activityInterface, options, new TestActivityExecutor());
     invocationHandler = new DeterministicRunnerWrapper(invocationHandler);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
