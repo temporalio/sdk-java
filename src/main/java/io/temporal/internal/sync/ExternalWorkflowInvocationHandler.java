@@ -65,7 +65,12 @@ class ExternalWorkflowInvocationHandler implements InvocationHandler {
               + "Use activity that perform the query instead.");
     }
     if (signalMethod != null) {
-      String name = getEntityName(method, WorkflowInterface.class);
+      String name;
+      if (!signalMethod.name().isEmpty()) {
+        name = signalMethod.name();
+      } else {
+        name = getEntityName(method, WorkflowInterface.class);
+      }
       stub.signal(name, args);
       return null;
     }

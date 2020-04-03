@@ -50,12 +50,15 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
       WorkflowCallsInterceptor decisionContext) {
     InternalUtils.MethodInterfacePair workflowMethodPair =
         initMethodToNameMap(workflowInterface, methodToNameMap);
-    workflowType = getSimpleName(workflowMethodPair);
     Method workflowMethod = workflowMethodPair.getMethod();
     MethodRetry retryAnnotation = workflowMethod.getAnnotation(MethodRetry.class);
     CronSchedule cronSchedule = workflowMethod.getAnnotation(CronSchedule.class);
     WorkflowMethod workflowAnnotation = workflowMethod.getAnnotation(WorkflowMethod.class);
-
+    if (workflowAnnotation.name().isEmpty()) {
+      workflowType = getSimpleName(workflowMethodPair);
+    } else {
+      workflowType = workflowAnnotation.name();
+    }
     ChildWorkflowOptions merged =
         ChildWorkflowOptions.newBuilder(options)
             .setWorkflowMethod(workflowAnnotation)

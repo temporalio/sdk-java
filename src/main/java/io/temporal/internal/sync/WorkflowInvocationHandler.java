@@ -144,7 +144,12 @@ class WorkflowInvocationHandler implements InvocationHandler {
     WorkflowMethod annotation = workflowMethod.getAnnotation(WorkflowMethod.class);
     WorkflowOptions mergedOptions =
         WorkflowOptions.merge(annotation, methodRetry, cronSchedule, options);
-    String workflowType = getSimpleName(workflowMethodPair);
+    String workflowType;
+    if (annotation.name().isEmpty()) {
+      workflowType = getSimpleName(workflowMethodPair);
+    } else {
+      workflowType = annotation.name();
+    }
     WorkflowStub stub =
         new WorkflowStubImpl(genericClient, dataConverter, workflowType, mergedOptions);
     for (WorkflowClientInterceptor i : interceptors) {
@@ -173,7 +178,12 @@ class WorkflowInvocationHandler implements InvocationHandler {
                 + " must contain at most one annotation of @WorkflowMethod, @QueryMethod or @SignalMethod");
       }
       if (workflowMethod != null) {
-        String workflowType = getWorkflowType(pair, workflowMethod);
+        String workflowType;
+        if (workflowMethod.name().isEmpty()) {
+          workflowType = getWorkflowType(pair, workflowMethod);
+        } else {
+          workflowType = workflowMethod.name();
+        }
         methodToNameMap.put(method, workflowType);
         workflowMethodPair = pair;
       } else if (signalMethod != null) {

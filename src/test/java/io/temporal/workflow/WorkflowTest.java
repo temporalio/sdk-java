@@ -369,12 +369,14 @@ public class WorkflowTest {
     }
   }
 
+  @WorkflowInterface
   public interface TestWorkflow1 {
 
     @WorkflowMethod
     String execute(String taskList);
   }
 
+  @WorkflowInterface
   public interface TestWorkflowSignaled {
 
     @WorkflowMethod
@@ -384,6 +386,7 @@ public class WorkflowTest {
     void signal1(String arg);
   }
 
+  @WorkflowInterface
   public interface TestWorkflow2 {
 
     @WorkflowMethod(name = "testActivity")
@@ -2240,6 +2243,7 @@ public class WorkflowTest {
     }
   }
 
+  @WorkflowInterface
   public interface QueryableWorkflow {
 
     @WorkflowMethod
@@ -2577,12 +2581,14 @@ public class WorkflowTest {
     assertEquals("timer2Fired", result);
   }
 
+  @WorkflowInterface
   public interface ITestChild {
 
     @WorkflowMethod
     String execute(String arg, int delay);
   }
 
+  @WorkflowInterface
   public interface ITestNamedChild {
 
     @WorkflowMethod(name = "namedChild")
@@ -2720,6 +2726,7 @@ public class WorkflowTest {
 
   private static String childReexecuteId = UUID.randomUUID().toString();
 
+  @WorkflowInterface
   public interface WorkflowIdReusePolicyParent {
 
     @WorkflowMethod
@@ -2980,6 +2987,7 @@ public class WorkflowTest {
     }
   }
 
+  @WorkflowInterface
   public interface SignalingChild {
 
     @WorkflowMethod
@@ -3264,6 +3272,7 @@ public class WorkflowTest {
 
   private static Map<String, AtomicInteger> retryCount = new ConcurrentHashMap<>();
 
+  @WorkflowInterface
   public interface TestWorkflowRetry {
 
     @WorkflowMethod
@@ -3774,12 +3783,14 @@ public class WorkflowTest {
     String query();
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsFunc {
 
     @WorkflowMethod
     String func();
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsFunc1 {
 
     @WorkflowMethod(
@@ -3791,72 +3802,84 @@ public class WorkflowTest {
     int func1(int input);
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsFunc2 {
 
     @WorkflowMethod
     String func2(String a1, int a2);
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsFunc3 {
 
     @WorkflowMethod
     String func3(String a1, int a2, int a3);
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsFunc4 {
 
     @WorkflowMethod
     String func4(String a1, int a2, int a3, int a4);
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsFunc5 {
 
     @WorkflowMethod
     String func5(String a1, int a2, int a3, int a4, int a5);
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsFunc6 {
 
     @WorkflowMethod
     String func6(String a1, int a2, int a3, int a4, int a5, int a6);
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsProc extends ProcInvocationQueryable {
 
     @WorkflowMethod
     void proc();
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsProc1 extends ProcInvocationQueryable {
 
     @WorkflowMethod
     void proc1(String input);
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsProc2 extends ProcInvocationQueryable {
 
     @WorkflowMethod
     void proc2(String a1, int a2);
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsProc3 extends ProcInvocationQueryable {
 
     @WorkflowMethod
     void proc3(String a1, int a2, int a3);
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsProc4 extends ProcInvocationQueryable {
 
     @WorkflowMethod
     void proc4(String a1, int a2, int a3, int a4);
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsProc5 extends ProcInvocationQueryable {
 
     @WorkflowMethod
     void proc5(String a1, int a2, int a3, int a4, int a5);
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsProc6 extends ProcInvocationQueryable {
 
     @WorkflowMethod
@@ -5227,6 +5250,7 @@ public class WorkflowTest {
     }
   }
 
+  @WorkflowInterface
   public interface TestCompensationWorkflow {
     @WorkflowMethod
     void compensate();
@@ -5245,6 +5269,7 @@ public class WorkflowTest {
     public void compensate() {}
   }
 
+  @WorkflowInterface
   public interface TestSagaWorkflow {
     @WorkflowMethod
     String execute(String taskList, boolean parallelCompensation);
@@ -5380,6 +5405,7 @@ public class WorkflowTest {
         "workflow threads might leak, #workflowThreads = " + workflowThreads, workflowThreads < 20);
   }
 
+  @WorkflowInterface
   public interface TestUpsertSearchAttributes {
     @WorkflowMethod
     String execute(String taskList, String keyword);
