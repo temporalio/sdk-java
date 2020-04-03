@@ -19,9 +19,9 @@
 
 package io.temporal.internal.sync;
 
+import static io.temporal.internal.common.InternalUtils.getSimpleName;
 import static io.temporal.internal.common.InternalUtils.getValueOrDefault;
-import static io.temporal.internal.common.InternalUtils.getWorkflowMethod;
-import static io.temporal.internal.common.InternalUtils.getWorkflowType;
+import static io.temporal.internal.sync.WorkflowInvocationHandler.initMethodToNameMap;
 
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
@@ -34,21 +34,27 @@ import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 
 /** Dynamic implementation of a strongly typed child workflow interface. */
 class ChildWorkflowInvocationHandler implements InvocationHandler {
 
   private final ChildWorkflowStub stub;
+  private final Map<Method, String> methodToNameMap = new HashMap<>();
+  private final String workflowType;
 
   ChildWorkflowInvocationHandler(
       Class<?> workflowInterface,
       ChildWorkflowOptions options,
       WorkflowCallsInterceptor decisionContext) {
-    Method workflowMethod = getWorkflowMethod(workflowInterface);
-    WorkflowMethod workflowAnnotation = workflowMethod.getAnnotation(WorkflowMethod.class);
-    String workflowType = getWorkflowType(workflowMethod, workflowAnnotation);
+    InternalUtils.MethodInterfacePair workflowMethodPair =
+        initMethodToNameMap(workflowInterface, methodToNameMap);
+    workflowType = getSimpleName(workflowMethodPair);
+    Method workflowMethod = workflowMethodPair.getMethod();
     MethodRetry retryAnnotation = workflowMethod.getAnnotation(MethodRetry.class);
     CronSchedule cronSchedule = workflowMethod.getAnnotation(CronSchedule.class);
+    WorkflowMethod workflowAnnotation = workflowMethod.getAnnotation(WorkflowMethod.class);
 
     ChildWorkflowOptions merged =
         ChildWorkflowOptions.newBuilder(options)
@@ -65,6 +71,14 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
     if (method.getName().equals(StubMarker.GET_UNTYPED_STUB_METHOD)) {
       return stub;
     }
+    String name = methodToNameMap.get(method);
+    if (name == null) {
+      throw new IllegalArgumentException("Unknown method: " + method.getName());
+    }
+    if (!name.equals(workflowType)) {
+      throw new IllegalArgumentException(
+          "Workflow type doesn't match: " + workflowType + "!=" + name);
+    }
     WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
     QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);
     SignalMethod signalMethod = method.getAnnotation(SignalMethod.class);
@@ -80,18 +94,14 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
               + "Use activity that perform the query instead.");
     }
     if (signalMethod != null) {
-      signalWorkflow(method, signalMethod, args);
+      signalWorkflow(name, args);
       return null;
     }
     throw new IllegalArgumentException(
         method + " is not annotated with @WorkflowMethod or @QueryMethod");
   }
 
-  private void signalWorkflow(Method method, SignalMethod signalMethod, Object[] args) {
-    String signalName = signalMethod.name();
-    if (signalName.isEmpty()) {
-      signalName = InternalUtils.getSimpleName(method);
-    }
+  private void signalWorkflow(String signalName, Object[] args) {
     stub.signal(signalName, args);
   }
 }

@@ -19,9 +19,9 @@
 
 package io.temporal.internal.sync;
 
+import static io.temporal.internal.common.InternalUtils.getAnnotatedInterfaceMethodsFromImplementation;
 import static io.temporal.internal.sync.AsyncInternal.AsyncMarker;
 
-import com.google.common.reflect.TypeToken;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
@@ -44,6 +44,7 @@ import io.temporal.workflow.Promise;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInfo;
+import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowQueue;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -55,6 +56,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
@@ -110,31 +112,33 @@ public final class WorkflowInternal {
    */
   public static void registerQuery(Object queryImplementation) {
     Class<?> cls = queryImplementation.getClass();
-    TypeToken<?>.TypeSet interfaces = TypeToken.of(cls).getTypes().interfaces();
-    if (interfaces.isEmpty()) {
-      throw new IllegalArgumentException(cls.getName() + " must implement at least one interface");
-    }
-    for (TypeToken<?> i : interfaces) {
-      for (Method method : i.getRawType().getMethods()) {
-        QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);
-        if (queryMethod != null) {
-          String name = queryMethod.name();
-          if (name.isEmpty()) {
-            name = InternalUtils.getSimpleName(method);
-          }
-          getWorkflowInterceptor()
-              .registerQuery(
-                  name,
-                  method.getGenericParameterTypes(),
-                  (args) -> {
-                    try {
-                      return method.invoke(queryImplementation, args);
-                    } catch (Throwable e) {
-                      throw CheckedExceptionWrapper.wrap(e);
-                    }
-                  });
-        }
+    Set<InternalUtils.MethodInterfacePair> workflowMethods =
+        getAnnotatedInterfaceMethodsFromImplementation(cls, WorkflowInterface.class);
+    for (InternalUtils.MethodInterfacePair pair : workflowMethods) {
+      Method method = pair.getMethod();
+      QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);
+      if (queryMethod == null) {
+        continue;
       }
+      if (method.getReturnType() == Void.TYPE) {
+        throw new IllegalArgumentException(
+            "Method annotated with @QueryMethod " + "cannot have void return type: " + method);
+      }
+      String queryName = queryMethod.name();
+      if (queryName.isEmpty()) {
+        queryName = InternalUtils.getSimpleName(pair);
+      }
+      getWorkflowInterceptor()
+          .registerQuery(
+              queryName,
+              method.getGenericParameterTypes(),
+              (args) -> {
+                try {
+                  return method.invoke(queryImplementation, args);
+                } catch (Throwable e) {
+                  throw CheckedExceptionWrapper.wrap(e);
+                }
+              });
     }
   }
 

@@ -19,8 +19,7 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.internal.common.InternalUtils.getWorkflowMethod;
-import static io.temporal.internal.common.InternalUtils.getWorkflowType;
+import static io.temporal.internal.common.InternalUtils.*;
 
 import com.google.common.base.Defaults;
 import io.temporal.client.DuplicateWorkflowException;
@@ -36,10 +35,14 @@ import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.enums.WorkflowIdReusePolicy;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;
+import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Dynamic implementation of a strongly typed workflow interface that can be used to start, signal
@@ -57,7 +60,9 @@ class WorkflowInvocationHandler implements InvocationHandler {
   interface SpecificInvocationHandler {
     InvocationType getInvocationType();
 
-    void invoke(WorkflowStub untyped, Method method, Object[] args) throws Throwable;
+    void invoke(
+        WorkflowInvocationHandler handler, WorkflowStub untyped, Method method, Object[] args)
+        throws Throwable;
 
     <R> R getResult(Class<R> resultClass);
   }
@@ -103,6 +108,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
   }
 
   private final WorkflowStub untyped;
+  private final Map<Method, String> methodToNameMap = new HashMap<>();
 
   WorkflowInvocationHandler(
       Class<?> workflowInterface,
@@ -110,14 +116,16 @@ class WorkflowInvocationHandler implements InvocationHandler {
       WorkflowExecution execution,
       DataConverter dataConverter,
       WorkflowClientInterceptor[] interceptors) {
-    Method workflowMethod = getWorkflowMethod(workflowInterface);
-    WorkflowMethod annotation = workflowMethod.getAnnotation(WorkflowMethod.class);
-    String workflowType = getWorkflowType(workflowMethod, annotation);
 
-    WorkflowStub stub =
-        new WorkflowStubImpl(genericClient, dataConverter, Optional.of(workflowType), execution);
+    MethodInterfacePair workflowMethodPair =
+        initMethodToNameMap(workflowInterface, methodToNameMap);
+    Optional<String> workflowType =
+        workflowMethodPair == null
+            ? Optional.empty()
+            : Optional.of(getSimpleName(workflowMethodPair));
+    WorkflowStub stub = new WorkflowStubImpl(genericClient, dataConverter, workflowType, execution);
     for (WorkflowClientInterceptor i : interceptors) {
-      stub = i.newUntypedWorkflowStub(execution, Optional.of(workflowType), stub);
+      stub = i.newUntypedWorkflowStub(execution, workflowType, stub);
     }
     this.untyped = stub;
   }
@@ -128,19 +136,61 @@ class WorkflowInvocationHandler implements InvocationHandler {
       WorkflowOptions options,
       DataConverter dataConverter,
       WorkflowClientInterceptor[] interceptors) {
-    Method workflowMethod = getWorkflowMethod(workflowInterface);
+    MethodInterfacePair workflowMethodPair =
+        initMethodToNameMap(workflowInterface, methodToNameMap);
+    Method workflowMethod = workflowMethodPair.getMethod();
     MethodRetry methodRetry = workflowMethod.getAnnotation(MethodRetry.class);
     CronSchedule cronSchedule = workflowMethod.getAnnotation(CronSchedule.class);
     WorkflowMethod annotation = workflowMethod.getAnnotation(WorkflowMethod.class);
-    String workflowType = getWorkflowType(workflowMethod, annotation);
     WorkflowOptions mergedOptions =
         WorkflowOptions.merge(annotation, methodRetry, cronSchedule, options);
+    String workflowType = getSimpleName(workflowMethodPair);
     WorkflowStub stub =
         new WorkflowStubImpl(genericClient, dataConverter, workflowType, mergedOptions);
     for (WorkflowClientInterceptor i : interceptors) {
       stub = i.newUntypedWorkflowStub(workflowType, mergedOptions, stub);
     }
     this.untyped = stub;
+  }
+
+  static MethodInterfacePair initMethodToNameMap(
+      Class<?> workflowInterface, Map<Method, String> methodToNameMap) {
+    Set<MethodInterfacePair> workflowMethods =
+        getAnnotatedInterfaceMethodsFromInterface(workflowInterface, WorkflowInterface.class);
+    MethodInterfacePair workflowMethodPair = null;
+    for (MethodInterfacePair pair : workflowMethods) {
+      Method method = pair.getMethod();
+      WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
+      QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);
+      SignalMethod signalMethod = method.getAnnotation(SignalMethod.class);
+      int count =
+          (workflowMethod == null ? 0 : 1)
+              + (queryMethod == null ? 0 : 1)
+              + (signalMethod == null ? 0 : 1);
+      if (count > 1) {
+        throw new IllegalArgumentException(
+            method
+                + " must contain at most one annotation of @WorkflowMethod, @QueryMethod or @SignalMethod");
+      }
+      if (workflowMethod != null) {
+        String workflowType = getWorkflowType(pair, workflowMethod);
+        methodToNameMap.put(method, workflowType);
+        workflowMethodPair = pair;
+      } else if (signalMethod != null) {
+        String name = signalMethod.name();
+        if (name.isEmpty()) {
+          name = InternalUtils.getSimpleName(pair);
+        }
+        methodToNameMap.put(method, name);
+      } else if (queryMethod != null) {
+        String name = queryMethod.name();
+        if (name.isEmpty()) {
+          name = InternalUtils.getSimpleName(pair);
+        }
+        methodToNameMap.put(method, name);
+      }
+    }
+    return workflowMethodPair;
   }
 
   @Override
@@ -165,7 +215,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
     if (handler == null) {
       handler = new SyncWorkflowInvocationHandler();
     }
-    handler.invoke(untyped, method, args);
+    handler.invoke(this, untyped, method, args);
     if (handler.getInvocationType() == InvocationType.SYNC) {
       return handler.getResult(method.getReturnType());
     }
@@ -219,7 +269,8 @@ class WorkflowInvocationHandler implements InvocationHandler {
     }
 
     @Override
-    public void invoke(WorkflowStub untyped, Method method, Object[] args) {
+    public void invoke(
+        WorkflowInvocationHandler handler, WorkflowStub untyped, Method method, Object[] args) {
       WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
       if (workflowMethod == null) {
         throw new IllegalArgumentException(
@@ -245,17 +296,18 @@ class WorkflowInvocationHandler implements InvocationHandler {
     }
 
     @Override
-    public void invoke(WorkflowStub untyped, Method method, Object[] args) {
+    public void invoke(
+        WorkflowInvocationHandler handler, WorkflowStub untyped, Method method, Object[] args) {
       WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
       QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);
       SignalMethod signalMethod = method.getAnnotation(SignalMethod.class);
       checkAnnotations(method, workflowMethod, queryMethod, signalMethod);
       if (workflowMethod != null) {
-        result = startWorkflow(untyped, method, args);
+        result = startWorkflow(handler, untyped, method, args);
       } else if (queryMethod != null) {
-        result = queryWorkflow(untyped, method, queryMethod, args);
+        result = queryWorkflow(handler, untyped, method, args);
       } else if (signalMethod != null) {
-        signalWorkflow(untyped, method, signalMethod, args);
+        signalWorkflow(handler, untyped, method, args);
         result = null;
       } else {
         throw new IllegalArgumentException(
@@ -270,38 +322,38 @@ class WorkflowInvocationHandler implements InvocationHandler {
     }
 
     private void signalWorkflow(
-        WorkflowStub untyped, Method method, SignalMethod signalMethod, Object[] args) {
+        WorkflowInvocationHandler handler, WorkflowStub untyped, Method method, Object[] args) {
       if (method.getReturnType() != Void.TYPE) {
         throw new IllegalArgumentException("Signal method must have void return type: " + method);
       }
-
-      String signalName = nameFromMethodAndAnnotation(method, signalMethod.name());
+      String signalName = handler.getNameFromMethod(method);
       untyped.signal(signalName, args);
     }
 
     private Object queryWorkflow(
-        WorkflowStub untyped, Method method, QueryMethod queryMethod, Object[] args) {
+        WorkflowInvocationHandler handler, WorkflowStub untyped, Method method, Object[] args) {
       if (method.getReturnType() == Void.TYPE) {
         throw new IllegalArgumentException("Query method cannot have void return type: " + method);
       }
-      String queryType = nameFromMethodAndAnnotation(method, queryMethod.name());
+      String queryType = handler.getNameFromMethod(method);
 
       return untyped.query(queryType, method.getReturnType(), method.getGenericReturnType(), args);
     }
 
     @SuppressWarnings("FutureReturnValueIgnored")
-    private Object startWorkflow(WorkflowStub untyped, Method method, Object[] args) {
+    private Object startWorkflow(
+        WorkflowInvocationHandler handler, WorkflowStub untyped, Method method, Object[] args) {
       WorkflowInvocationHandler.startWorkflow(untyped, args);
       return untyped.getResult(method.getReturnType(), method.getGenericReturnType());
     }
   }
 
-  private static String nameFromMethodAndAnnotation(Method method, String name) {
-    String signalName = name;
-    if (signalName.isEmpty()) {
-      signalName = InternalUtils.getSimpleName(method);
+  private String getNameFromMethod(Method method) {
+    String result = methodToNameMap.get(method);
+    if (result == null) {
+      throw new IllegalArgumentException("Uknown method: " + method);
     }
-    return signalName;
+    return result;
   }
 
   private static class ExecuteWorkflowInvocationHandler implements SpecificInvocationHandler {
@@ -314,7 +366,8 @@ class WorkflowInvocationHandler implements InvocationHandler {
     }
 
     @Override
-    public void invoke(WorkflowStub untyped, Method method, Object[] args) {
+    public void invoke(
+        WorkflowInvocationHandler handler, WorkflowStub untyped, Method method, Object[] args) {
       WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
       if (workflowMethod == null) {
         throw new IllegalArgumentException(
@@ -346,7 +399,9 @@ class WorkflowInvocationHandler implements InvocationHandler {
     }
 
     @Override
-    public void invoke(WorkflowStub untyped, Method method, Object[] args) throws Throwable {
+    public void invoke(
+        WorkflowInvocationHandler handler, WorkflowStub untyped, Method method, Object[] args)
+        throws Throwable {
       QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);
       SignalMethod signalMethod = method.getAnnotation(SignalMethod.class);
       WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
@@ -358,7 +413,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
       if (workflowMethod != null) {
         batch.start(untyped, args);
       } else if (signalMethod != null) {
-        String signalName = nameFromMethodAndAnnotation(method, signalMethod.name());
+        String signalName = handler.getNameFromMethod(method);
         batch.signal(untyped, signalName, args);
       } else {
         throw new IllegalArgumentException(

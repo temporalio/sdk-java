@@ -19,22 +19,25 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.internal.common.InternalUtils.getValueOrDefault;
+import static io.temporal.internal.common.InternalUtils.getEntityName;
 
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
-import io.temporal.internal.common.InternalUtils;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.workflow.ExternalWorkflowStub;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;
+import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 
 /** Dynamic implementation of a strongly typed child workflow interface. */
 class ExternalWorkflowInvocationHandler implements InvocationHandler {
 
   private final ExternalWorkflowStub stub;
+  private final Map<Method, String> methodToNameMap = new HashMap<>();
 
   public ExternalWorkflowInvocationHandler(
       WorkflowExecution execution, WorkflowCallsInterceptor decisionContext) {
@@ -57,28 +60,16 @@ class ExternalWorkflowInvocationHandler implements InvocationHandler {
               + "created through Workflow.newExternalWorkflowStub");
     }
     if (queryMethod != null) {
-      return getValueOrDefault(queryWorkflow(method, queryMethod, args), method.getReturnType());
+      throw new UnsupportedOperationException(
+          "Query is not supported from workflow to workflow. "
+              + "Use activity that perform the query instead.");
     }
     if (signalMethod != null) {
-      signalWorkflow(method, signalMethod, args);
+      String name = getEntityName(method, WorkflowInterface.class);
+      stub.signal(name, args);
       return null;
     }
     throw new IllegalArgumentException(
         method + " is not annotated with @SignalMethod or @QueryMethod");
-  }
-
-  private void signalWorkflow(Method method, SignalMethod signalMethod, Object[] args) {
-    String signalName = signalMethod.name();
-    if (signalName.isEmpty()) {
-      signalName = InternalUtils.getSimpleName(method);
-    }
-    stub.signal(signalName, args);
-  }
-
-  @SuppressWarnings("unused")
-  private Object queryWorkflow(Method method, QueryMethod queryMethod, Object[] args) {
-    throw new UnsupportedOperationException(
-        "Query is not supported from workflow to workflow. "
-            + "Use activity that perform the query instead.");
   }
 }

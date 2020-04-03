@@ -19,13 +19,14 @@
 
 package io.temporal.internal.sync;
 
+import static io.temporal.internal.common.InternalUtils.getEntityName;
 import static io.temporal.internal.common.InternalUtils.getValueOrDefault;
 
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
-import io.temporal.internal.common.InternalUtils;
 import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;
+import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -61,7 +62,7 @@ class ContinueAsNewWorkflowInvocationHandler implements InvocationHandler {
       throw new IllegalStateException(
           "ContinueAsNew Stub supports only calls to methods annotated with @WorkflowMethod");
     }
-    String workflowType = InternalUtils.getWorkflowType(method, workflowMethod);
+    String workflowType = getEntityName(method, WorkflowInterface.class);
     WorkflowInternal.continueAsNew(
         Optional.of(workflowType), Optional.ofNullable(options), args, decisionContext);
     return getValueOrDefault(null, method.getReturnType());

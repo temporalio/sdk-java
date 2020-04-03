@@ -700,9 +700,15 @@ public final class Workflow {
   }
 
   /**
-   * Register query or queries implementation object. There is no need to register top level
-   * workflow implementation object as it is done implicitly. Only methods annotated with @{@link
+   * Register query or queries implementation object. The object must implement at least one
+   * interface annotated with {@link WorkflowInterface}. Only methods annotated with @{@link
    * QueryMethod} are registered.
+   *
+   * <p>There is no need to register top level workflow implementation object as it is done
+   * implicitly by the framework on object startup.
+   *
+   * <p>An attempt to register a duplicated query is going to fail with {@link
+   * IllegalArgumentException}
    */
   public static void registerQuery(Object queryImplementation) {
     WorkflowInternal.registerQuery(queryImplementation);

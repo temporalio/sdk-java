@@ -19,8 +19,8 @@
 
 package io.temporal.internal.sync;
 
+import static io.temporal.internal.common.InternalUtils.getAnnotatedInterfaceMethodsFromInterface;
 import static io.temporal.internal.common.InternalUtils.getValueOrDefault;
-import static io.temporal.internal.sync.POJOActivityTaskHandler.getAnnotatedInterfaceMethodsFromInterface;
 
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
@@ -50,21 +50,21 @@ abstract class ActivityInvocationHandlerBase implements InvocationHandler {
   }
 
   protected void init(Class<?> activityInterface) {
-    Set<POJOActivityTaskHandler.MethodInterfacePair> activityMethods =
+    Set<InternalUtils.MethodInterfacePair> activityMethods =
         getAnnotatedInterfaceMethodsFromInterface(activityInterface, ActivityInterface.class);
     if (activityMethods.isEmpty()) {
       throw new IllegalArgumentException(
           "Class doesn't implement any non empty interface annotated with @ActivityInterface: "
               + activityInterface.getName());
     }
-    for (POJOActivityTaskHandler.MethodInterfacePair pair : activityMethods) {
+    for (InternalUtils.MethodInterfacePair pair : activityMethods) {
       Method method = pair.getMethod();
       ActivityMethod activityMethod = method.getAnnotation(ActivityMethod.class);
       String activityType;
       if (activityMethod != null && !activityMethod.name().isEmpty()) {
         activityType = activityMethod.name();
       } else {
-        activityType = InternalUtils.getSimpleName(pair.getType(), method);
+        activityType = InternalUtils.getSimpleName(pair);
       }
 
       MethodRetry methodRetry = method.getAnnotation(MethodRetry.class);

@@ -41,6 +41,9 @@ import java.lang.annotation.Target;
  * annotated with WorkflowInterface. If a method is declared in non annotated interface the prefix
  * comes from the first sub-interface that has the WorkflowInterface annotation.
  *
+ * <p>A workflow implementation object must have exactly one method annotated with
+ * {@literal @}WorkflowMethod inherited from all the interfaces it implements.
+ *
  * <p>Example:
  *
  * <pre><code>
