@@ -26,7 +26,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Indicates that the interface is an activity interface. Only interfaces annotated with this
+ * Indicates that an interface is an activity interface. Only interfaces annotated with this
  * annotation can be used as parameters to {@link Workflow#newActivityStub(Class)} methods.
  *
  * <p>Each method of the interface annotated with <code>ActivityInterface</code> including inherited
