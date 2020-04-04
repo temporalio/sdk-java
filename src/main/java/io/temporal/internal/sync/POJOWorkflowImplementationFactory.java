@@ -49,6 +49,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 import org.slf4j.Logger;
@@ -109,37 +110,64 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   <R> void addWorkflowImplementationFactory(
       WorkflowImplementationOptions options, Class<R> clazz, Functions.Func<R> factory) {
     workflowImplementationFactories.put(clazz, factory);
-    addWorkflowImplementationType(options, clazz);
+    POJOWorkflowInterfaceMetadata workflowMetadata =
+        POJOWorkflowInterfaceMetadata.newInstance(clazz);
+    if (!workflowMetadata.getWorkflowMethod().isPresent()) {
+      throw new IllegalArgumentException(
+          "Workflow interface doesn't contain a method annotated with @WorkflowMethod: " + clazz);
+    }
+    List<POJOWorkflowMethodMetadata> methodsMetadata = workflowMetadata.getMethodsMetadata();
+    Map<String, Method> signalHandlers = new HashMap<>();
+    for (POJOWorkflowMethodMetadata methodMetadata : methodsMetadata) {
+      switch (methodMetadata.getType()) {
+        case WORKFLOW:
+          String workflowName = methodMetadata.getName();
+          if (workflowDefinitions.containsKey(workflowName)) {
+            throw new IllegalStateException(
+                workflowName + " workflow type is already registered with the worker");
+          }
+          workflowDefinitions.put(
+              workflowName,
+              () ->
+                  new POJOWorkflowImplementation(
+                      clazz, methodMetadata.getWorkflowMethod(), signalHandlers));
+          implementationOptions.put(workflowName, options);
+          break;
+        case SIGNAL:
+          signalHandlers.put(methodMetadata.getName(), methodMetadata.getWorkflowMethod());
+          break;
+      }
+    }
   }
 
   private void addWorkflowImplementationType(
       WorkflowImplementationOptions options, Class<?> workflowImplementationClass) {
-    POJOWorkflowMetadata workflowMetadata =
-        POJOWorkflowMetadata.newForImplementation(workflowImplementationClass);
-    List<POJOWorkflowMetadata.MethodMetadata> methodsMetadata =
-        workflowMetadata.getMethodsMetadata();
+    POJOWorkflowImplMetadata workflowMetadata =
+        POJOWorkflowImplMetadata.newInstance(workflowImplementationClass);
+    Set<String> workflowMethodTypes = workflowMetadata.getWorkflowTypes();
+    Set<String> signalTypes = workflowMetadata.getSignalTypes();
     Map<String, Method> signalHandlers = new HashMap<>();
     boolean hasWorkflowMethod = false;
-    for (POJOWorkflowMetadata.MethodMetadata methodMetadata : methodsMetadata) {
-      Method method = methodMetadata.getMethod();
-      if (methodMetadata.getType() == POJOWorkflowMetadata.WorkflowMethodType.WORKFLOW) {
-        Functions.Func<SyncWorkflowDefinition> factory =
-            () ->
-                new POJOWorkflowImplementation(workflowImplementationClass, method, signalHandlers);
+    for (String workflowType : workflowMethodTypes) {
+      POJOWorkflowMethodMetadata methodMetadata =
+          workflowMetadata.getWorkflowMethodMetadata(workflowType);
+      Method method = methodMetadata.getWorkflowMethod();
+      Functions.Func<SyncWorkflowDefinition> factory =
+          () -> new POJOWorkflowImplementation(workflowImplementationClass, method, signalHandlers);
 
-        String workflowName = methodMetadata.getName();
-        if (workflowDefinitions.containsKey(workflowName)) {
-          throw new IllegalStateException(
-              workflowName + " workflow type is already registered with the worker");
-        }
-        workflowDefinitions.put(workflowName, factory);
-        implementationOptions.put(workflowName, options);
-        hasWorkflowMethod = true;
-      } else if (methodMetadata.getType() == POJOWorkflowMetadata.WorkflowMethodType.SIGNAL) {
-        signalHandlers.put(methodMetadata.getName(), method);
-      } else if (methodMetadata.getType() == POJOWorkflowMetadata.WorkflowMethodType.QUERY) {
-        // Queries are registered at workflow startup at RootWorkflowInvocationInterceptor#execute.
+      String workflowName = methodMetadata.getName();
+      if (workflowDefinitions.containsKey(workflowName)) {
+        throw new IllegalStateException(
+            workflowName + " workflow type is already registered with the worker");
       }
+      workflowDefinitions.put(workflowName, factory);
+      implementationOptions.put(workflowName, options);
+      hasWorkflowMethod = true;
+    }
+    for (String signalType : signalTypes) {
+      POJOWorkflowMethodMetadata methodMetadata =
+          workflowMetadata.getSignalMethodMetadata(signalType);
+      signalHandlers.put(methodMetadata.getName(), methodMetadata.getWorkflowMethod());
     }
     if (!hasWorkflowMethod) {
       throw new IllegalArgumentException(
@@ -276,7 +304,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       @Override
       public Object execute(Object[] arguments) {
         WorkflowInfo context = Workflow.getWorkflowInfo();
-        WorkflowInternal.registerQuery(workflow);
+        WorkflowInternal.registerListener(workflow);
         try {
           return workflowMethod.invoke(workflow, arguments);
         } catch (IllegalAccessException e) {

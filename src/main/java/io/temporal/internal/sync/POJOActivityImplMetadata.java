@@ -41,15 +41,15 @@ import java.util.Set;
  *       B extends A it cannot also declare foo() even with a different signature.
  * </ul>
  */
-class POJOActivityInstanceMetadata {
+class POJOActivityImplMetadata {
 
-  private final Map<String, POJOMethodMetadata> byName = new HashMap<>();
+  private final Map<String, POJOActivityMethodMetadata> byName = new HashMap<>();
 
-  public static POJOActivityInstanceMetadata newInstance(Class<?> implementationClass) {
-    return new POJOActivityInstanceMetadata(implementationClass);
+  public static POJOActivityImplMetadata newInstance(Class<?> implementationClass) {
+    return new POJOActivityImplMetadata(implementationClass);
   }
 
-  private POJOActivityInstanceMetadata(Class<?> implClass) {
+  private POJOActivityImplMetadata(Class<?> implClass) {
     if (implClass.isInterface()
         || implClass.isPrimitive()
         || implClass.isAnnotation()
@@ -76,10 +76,10 @@ class POJOActivityInstanceMetadata {
       Class<?> anInterface = interfaces[i];
       POJOActivityInterfaceMetadata interfaceMetadata =
           POJOActivityInterfaceMetadata.newImplementationInterface(anInterface);
-      List<io.temporal.internal.sync.POJOMethodMetadata> methods =
-          interfaceMetadata.getMethodsMetadata();
-      for (io.temporal.internal.sync.POJOMethodMetadata methodMetadata : methods) {
-        POJOMethodMetadata registeredMM = byName.put(methodMetadata.getName(), methodMetadata);
+      List<POJOActivityMethodMetadata> methods = interfaceMetadata.getMethodsMetadata();
+      for (POJOActivityMethodMetadata methodMetadata : methods) {
+        POJOActivityMethodMetadata registeredMM =
+            byName.put(methodMetadata.getName(), methodMetadata);
         if (registeredMM != null && !registeredMM.equals(methodMetadata)) {
           throw new IllegalArgumentException(
               "Duplicated name: \""
@@ -103,8 +103,8 @@ class POJOActivityInstanceMetadata {
     return byName.keySet();
   }
 
-  public POJOMethodMetadata getMethodMetadata(String activityType) {
-    POJOMethodMetadata result = byName.get(activityType);
+  public POJOActivityMethodMetadata getMethodMetadata(String activityType) {
+    POJOActivityMethodMetadata result = byName.get(activityType);
     if (result == null) {
       throw new IllegalArgumentException("Unknown activity type: " + activityType);
     }

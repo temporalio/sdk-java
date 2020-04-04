@@ -28,6 +28,7 @@ import org.junit.Test;
 
 public class TestEnvironmentCloseTest {
 
+  @WorkflowInterface
   public interface W {
     @WorkflowMethod(executionStartToCloseTimeoutSeconds = 10, taskList = "WW")
     void foo();

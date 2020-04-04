@@ -72,7 +72,7 @@ class POJOActivityInterfaceMetadata {
     }
   }
 
-  private final Map<Method, POJOMethodMetadata> methods = new HashMap<>();
+  private final Map<Method, POJOActivityMethodMetadata> methods = new HashMap<>();
 
   public static POJOActivityInterfaceMetadata newInstance(Class<?> anInterface) {
     if (!anInterface.isInterface()) {
@@ -99,16 +99,16 @@ class POJOActivityInterfaceMetadata {
     if (!anInterface.isInterface()) {
       throw new IllegalArgumentException("not an interface: " + anInterface);
     }
-    Map<EqualsByMethodName, Method> dedupeMap = new HashMap<>();
+    Map<EqualsByMethodName, POJOActivityMethodMetadata> dedupeMap = new HashMap<>();
     getActivityInterfaceMethods(anInterface, dedupeMap);
   }
 
-  public List<POJOMethodMetadata> getMethodsMetadata() {
+  public List<POJOActivityMethodMetadata> getMethodsMetadata() {
     return new ArrayList<>(methods.values());
   }
 
-  public POJOMethodMetadata getMethodMetadata(Method method) {
-    POJOMethodMetadata result = methods.get(method);
+  public POJOActivityMethodMetadata getMethodMetadata(Method method) {
+    POJOActivityMethodMetadata result = methods.get(method);
     if (result == null) {
       throw new IllegalArgumentException("Unknown method: " + method);
     }
@@ -117,7 +117,7 @@ class POJOActivityInterfaceMetadata {
 
   /** @return methods which are not part of an interface annotated with ActivityInterface */
   private Set<Method> getActivityInterfaceMethods(
-      Class<?> current, Map<EqualsByMethodName, Method> dedupeMap) {
+      Class<?> current, Map<EqualsByMethodName, POJOActivityMethodMetadata> dedupeMap) {
     ActivityInterface annotation = current.getAnnotation(ActivityInterface.class);
 
     // Set to dedupe the same method due to diamond inheritance
@@ -149,17 +149,21 @@ class POJOActivityInterfaceMetadata {
       return result; // Not annotated just pass all the methods to the parent
     }
     for (Method method : result) {
+      POJOActivityMethodMetadata methodMetadata = new POJOActivityMethodMetadata(method, current);
       EqualsByMethodName wrapped = new EqualsByMethodName(method);
-      Method registered = dedupeMap.put(wrapped, method);
-      if (registered != null && !registered.equals(method)) {
+      POJOActivityMethodMetadata registered = dedupeMap.put(wrapped, methodMetadata);
+      if (registered != null) {
         throw new IllegalArgumentException(
             "Duplicated methods (overloads are not allowed in activity interfaces): \""
-                + registered
+                + registered.getMethod()
+                + " through \""
+                + registered.getInterfaceType()
                 + "\" and \""
-                + method
+                + methodMetadata.getMethod()
+                + "\" through \""
+                + methodMetadata.getInterfaceType()
                 + "\"");
       }
-      POJOMethodMetadata methodMetadata = new POJOMethodMetadata(method, current);
       methods.put(method, methodMetadata);
     }
     return Collections.emptySet();

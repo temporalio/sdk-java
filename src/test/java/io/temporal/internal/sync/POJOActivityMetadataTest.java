@@ -29,7 +29,7 @@ import java.util.HashSet;
 import java.util.Set;
 import org.junit.Test;
 
-public class ActivityInterfaceTest {
+public class POJOActivityMetadataTest {
 
   interface A {
     void a();
@@ -137,17 +137,17 @@ public class ActivityInterfaceTest {
 
   @Test(expected = IllegalArgumentException.class)
   public void testActivityRegistration() {
-    POJOActivityInstanceMetadata.newInstance(EmptyImpl.class);
+    POJOActivityImplMetadata.newInstance(EmptyImpl.class);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testNoActivityInterfaceRegistration() {
-    POJOActivityInstanceMetadata.newInstance(NoActivityImpl.class);
+    POJOActivityImplMetadata.newInstance(NoActivityImpl.class);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testDuplicatedActivityTypeRegistration() {
-    POJOActivityInstanceMetadata.newInstance(DuplicatedNameImpl.class);
+    POJOActivityImplMetadata.newInstance(DuplicatedNameImpl.class);
   }
 
   @Test
@@ -163,7 +163,7 @@ public class ActivityInterfaceTest {
     expected.add("E_b");
     expected.add("E_b");
 
-    POJOActivityInstanceMetadata dMetadata = POJOActivityInstanceMetadata.newInstance(DImpl.class);
+    POJOActivityImplMetadata dMetadata = POJOActivityImplMetadata.newInstance(DImpl.class);
     Set<String> dTypes = dMetadata.getActivityTypes();
     assertEquals(expected, dTypes);
   }
@@ -171,7 +171,7 @@ public class ActivityInterfaceTest {
   @Test
   public void testDuplicatedActivityImplementationRegistration() {
     try {
-      POJOActivityInstanceMetadata.newInstance(DEImpl.class);
+      POJOActivityImplMetadata.newInstance(DEImpl.class);
     } catch (IllegalArgumentException e) {
       assertTrue(e.getMessage().contains("bb()"));
     }
@@ -202,7 +202,7 @@ public class ActivityInterfaceTest {
 
     POJOActivityInterfaceMetadata dMetadata = POJOActivityInterfaceMetadata.newInstance(D.class);
     Method c = C.class.getDeclaredMethod("c");
-    POJOMethodMetadata cMethod = dMetadata.getMethodMetadata(c);
+    POJOActivityMethodMetadata cMethod = dMetadata.getMethodMetadata(c);
     assertEquals(c, cMethod.getMethod());
     assertEquals("C_c", cMethod.getName());
   }

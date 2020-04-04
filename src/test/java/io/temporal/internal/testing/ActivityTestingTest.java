@@ -266,6 +266,16 @@ public class ActivityTestingTest {
     void c();
   }
 
+  @ActivityInterface
+  public interface D extends A {
+    void d();
+  }
+
+  @ActivityInterface
+  public interface E extends D {
+    void e();
+  }
+
   public class CImpl implements C {
     private List<String> invocations = new ArrayList<>();
 
@@ -285,29 +295,123 @@ public class ActivityTestingTest {
     }
   }
 
+  public class BImpl implements B {
+    private List<String> invocations = new ArrayList<>();
+
+    @Override
+    public void a() {
+      invocations.add("a");
+    }
+
+    @Override
+    public void b() {
+      invocations.add("b");
+    }
+  }
+
+  public class DImpl implements D {
+    private List<String> invocations = new ArrayList<>();
+
+    @Override
+    public void a() {
+      invocations.add("a");
+    }
+
+    @Override
+    public void d() {
+      invocations.add("d");
+    }
+  }
+
+  public class EImpl implements E {
+    private List<String> invocations = new ArrayList<>();
+
+    @Override
+    public void a() {
+      invocations.add("a");
+    }
+
+    @Override
+    public void d() {
+      invocations.add("d");
+    }
+
+    @Override
+    public void e() {
+      invocations.add("e");
+    }
+  }
+
   @Test
   public void testInvokingActivityByBaseInterface() {
-    CImpl impl = new CImpl();
-    testEnvironment.registerActivitiesImplementations(impl);
-    try {
-      testEnvironment.newActivityStub(A.class);
-      fail("A doesn't implement activity");
-    } catch (IllegalArgumentException e) {
-      // expected as A doesn't implement any activity
+    BImpl bImpl = new BImpl();
+    DImpl dImpl = new DImpl();
+    EImpl eImpl = new EImpl();
+    {
+      testEnvironment.registerActivitiesImplementations(bImpl, dImpl);
+      try {
+        testEnvironment.newActivityStub(A.class);
+        fail("A doesn't implement activity");
+      } catch (IllegalArgumentException e) {
+        // expected as A doesn't implement any activity
+      }
+      B b = testEnvironment.newActivityStub(B.class);
+      b.a();
+      b.b();
+      A a = b;
+      a.a();
+      D d = testEnvironment.newActivityStub(D.class);
+      d.a();
+      d.d();
+      a = d;
+      a.a();
+      List<String> expectedB = new ArrayList<>();
+      expectedB.add("a");
+      expectedB.add("b");
+      expectedB.add("a");
+      assertEquals(expectedB, bImpl.invocations);
+
+      List<String> expectedD = new ArrayList<>();
+      expectedD.add("a");
+      expectedD.add("d");
+      expectedD.add("a");
+      assertEquals(expectedD, dImpl.invocations);
     }
-    B b = testEnvironment.newActivityStub(B.class);
-    b.a();
-    b.b();
-    C c = testEnvironment.newActivityStub(C.class);
-    c.a();
-    c.b();
-    c.c();
-    List<String> expected = new ArrayList<>();
-    expected.add("a");
-    expected.add("b");
-    expected.add("a");
-    expected.add("b");
-    expected.add("c");
-    assertEquals(expected, impl.invocations);
+    {
+      testEnvironment.registerActivitiesImplementations(eImpl);
+      E e = testEnvironment.newActivityStub(E.class);
+      e.a();
+      e.d();
+      e.e();
+      D d = testEnvironment.newActivityStub(D.class);
+      d.a();
+      d.d();
+      List<String> expectedE = new ArrayList<>();
+      expectedE.add("a");
+      expectedE.add("d");
+      expectedE.add("e");
+      expectedE.add("a");
+      expectedE.add("d");
+      assertEquals(expectedE, eImpl.invocations);
+    }
+  }
+
+  @Test
+  public void testDuplicates() {
+    try {
+      CImpl cImpl = new CImpl();
+      testEnvironment.registerActivitiesImplementations(cImpl);
+    } catch (IllegalArgumentException e) {
+      assertTrue(e.getMessage().contains("A.a()"));
+      assertTrue(e.getMessage().contains("Duplicated"));
+    }
+    DImpl dImpl = new DImpl();
+    EImpl eImpl = new EImpl();
+    try {
+      testEnvironment.registerActivitiesImplementations(dImpl, eImpl);
+    } catch (IllegalArgumentException e) {
+      assertTrue(e.getMessage().contains("D_a"));
+      assertTrue(e.getMessage().contains("already registered"));
+    }
   }
 }

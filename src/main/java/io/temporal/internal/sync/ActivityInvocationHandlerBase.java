@@ -47,7 +47,7 @@ abstract class ActivityInvocationHandlerBase implements InvocationHandler {
   protected void init(Class<?> activityInterface) {
     POJOActivityInterfaceMetadata activityMetadata =
         POJOActivityInterfaceMetadata.newInstance(activityInterface);
-    for (POJOMethodMetadata methodMetadata : activityMetadata.getMethodsMetadata()) {
+    for (POJOActivityMethodMetadata methodMetadata : activityMetadata.getMethodsMetadata()) {
       Method method = methodMetadata.getMethod();
       String activityType = methodMetadata.getName();
       MethodRetry methodRetry = method.getAnnotation(MethodRetry.class);

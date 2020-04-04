@@ -31,13 +31,13 @@ class ContinueAsNewWorkflowInvocationHandler implements InvocationHandler {
 
   private final ContinueAsNewOptions options;
   private final WorkflowCallsInterceptor decisionContext;
-  private final POJOWorkflowMetadata workflowMetadata;
+  private final POJOWorkflowInterfaceMetadata workflowMetadata;
 
   ContinueAsNewWorkflowInvocationHandler(
       Class<?> interfaceClass,
       ContinueAsNewOptions options,
       WorkflowCallsInterceptor decisionContext) {
-    workflowMetadata = POJOWorkflowMetadata.newForInterface(interfaceClass);
+    workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(interfaceClass);
     if (!workflowMetadata.getWorkflowMethod().isPresent()) {
       throw new IllegalArgumentException(
           "Missing method annotated with @WorkflowMethod: " + interfaceClass.getName());

@@ -57,6 +57,7 @@ import io.temporal.workflow.ChildWorkflowTimedOutException;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -114,6 +115,7 @@ public class WorkflowTestingTest {
     testEnvironment.close();
   }
 
+  @WorkflowInterface
   public interface TestWorkflow {
 
     @WorkflowMethod(executionStartToCloseTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
@@ -256,6 +258,7 @@ public class WorkflowTestingTest {
     }
   }
 
+  @WorkflowInterface
   public interface TestActivityTimeoutWorkflow {
 
     @WorkflowMethod(executionStartToCloseTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
@@ -404,6 +407,7 @@ public class WorkflowTestingTest {
     assertTrue(testEnvironment.currentTimeMillis() - start >= Duration.ofHours(2).toMillis());
   }
 
+  @WorkflowInterface
   public interface SignaledWorkflow {
 
     @WorkflowMethod(executionStartToCloseTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
@@ -599,6 +603,7 @@ public class WorkflowTestingTest {
         WorkflowExecutionUtils.containsEvent(historyEvents, EventType.EventTypeTimerCanceled));
   }
 
+  @WorkflowInterface
   public interface ParentWorkflow {
 
     @WorkflowMethod(executionStartToCloseTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
@@ -627,6 +632,7 @@ public class WorkflowTestingTest {
     }
   }
 
+  @WorkflowInterface
   public interface ChildWorkflow {
 
     @WorkflowMethod(executionStartToCloseTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)

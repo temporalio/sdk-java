@@ -19,44 +19,41 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.activity.ActivityMethod;
 import java.lang.reflect.Method;
 import java.util.Objects;
+import java.util.Optional;
 
-public class POJOMethodMetadata {
-  private final boolean hasActivityMethodAnnotation;
+class POJOWorkflowMethodMetadata {
+
+  private final POJOWorkflowMethod workflowMethod;
   private final String name;
-  private final Method method;
   private final Class<?> interfaceType;
 
-  POJOMethodMetadata(Method method, Class<?> interfaceType) {
-    this.method = Objects.requireNonNull(method);
-    this.interfaceType = Objects.requireNonNull(interfaceType);
-    ActivityMethod activityMethod = method.getAnnotation(ActivityMethod.class);
-    String name;
-    if (activityMethod != null) {
-      hasActivityMethodAnnotation = true;
-      name = activityMethod.name();
-    } else {
-      hasActivityMethodAnnotation = false;
-      name = interfaceType.getSimpleName() + "_" + method.getName();
+  public POJOWorkflowMethodMetadata(POJOWorkflowMethod methodMetadata, Class<?> interfaceType) {
+    this.workflowMethod = Objects.requireNonNull(methodMetadata);
+    if (workflowMethod.getType() == WorkflowMethodType.NONE) {
+      throw new IllegalArgumentException(
+          "Method \""
+              + methodMetadata.getMethod().getName()
+              + "\" is not annotated with @WorkflowMethod, @SignalMethod or @QueryMethod");
     }
-    this.name = name;
+    this.interfaceType = Objects.requireNonNull(interfaceType);
+    Optional<String> nameFromAnnotation = workflowMethod.getNameFromAnnotation();
+    this.name =
+        nameFromAnnotation.orElse(
+            interfaceType.getSimpleName() + "_" + methodMetadata.getMethod().getName());
   }
 
-  public boolean isHasActivityMethodAnnotation() {
-    return hasActivityMethodAnnotation;
+  public WorkflowMethodType getType() {
+    return workflowMethod.getType();
   }
 
   public String getName() {
-    if (name == null) {
-      throw new IllegalStateException("Not annotated");
-    }
     return name;
   }
 
-  public Method getMethod() {
-    return method;
+  public Method getWorkflowMethod() {
+    return workflowMethod.getMethod();
   }
 
   /** Compare and hash based on method and the interface type only. */
@@ -64,14 +61,14 @@ public class POJOMethodMetadata {
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
-    POJOMethodMetadata that = (POJOMethodMetadata) o;
-    return com.google.common.base.Objects.equal(method, that.method)
+    POJOWorkflowMethodMetadata that = (POJOWorkflowMethodMetadata) o;
+    return com.google.common.base.Objects.equal(workflowMethod, that.workflowMethod)
         && com.google.common.base.Objects.equal(interfaceType, that.interfaceType);
   }
 
   /** Compare and hash based on method and the interface type only. */
   @Override
   public int hashCode() {
-    return com.google.common.base.Objects.hashCode(method, interfaceType);
+    return com.google.common.base.Objects.hashCode(workflowMethod, interfaceType);
   }
 }

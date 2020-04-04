@@ -709,9 +709,11 @@ public final class Workflow {
    *
    * <p>An attempt to register a duplicated query is going to fail with {@link
    * IllegalArgumentException}
+   *
+   * <p>TODO: Add registration of methods annotated with @SignalMethod
    */
-  public static void registerQuery(Object queryImplementation) {
-    WorkflowInternal.registerQuery(queryImplementation);
+  public static void registerListener(Object queryImplementation) {
+    WorkflowInternal.registerListener(queryImplementation);
   }
 
   /**

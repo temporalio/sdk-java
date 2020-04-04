@@ -40,6 +40,7 @@ import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -100,6 +101,7 @@ public class CleanWorkerShutdownTest {
     }
   }
 
+  @WorkflowInterface
   public interface TestWorkflow {
     @WorkflowMethod(executionStartToCloseTimeoutSeconds = 100)
     String execute();

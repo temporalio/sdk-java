@@ -54,7 +54,10 @@ class WorkflowInvocationHandler implements InvocationHandler {
     InvocationType getInvocationType();
 
     void invoke(
-        POJOWorkflowMetadata workflowMetadata, WorkflowStub untyped, Method method, Object[] args)
+        POJOWorkflowInterfaceMetadata workflowMetadata,
+        WorkflowStub untyped,
+        Method method,
+        Object[] args)
         throws Throwable;
 
     <R> R getResult(Class<R> resultClass);
@@ -101,7 +104,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
   }
 
   private final WorkflowStub untyped;
-  private final POJOWorkflowMetadata workflowMetadata;
+  private final POJOWorkflowInterfaceMetadata workflowMetadata;
 
   WorkflowInvocationHandler(
       Class<?> workflowInterface,
@@ -109,7 +112,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
       WorkflowExecution execution,
       DataConverter dataConverter,
       WorkflowClientInterceptor[] interceptors) {
-    workflowMetadata = POJOWorkflowMetadata.newForInterface(workflowInterface);
+    workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
     Optional<String> workflowType = workflowMetadata.getWorkflowType();
     WorkflowStub stub = new WorkflowStubImpl(genericClient, dataConverter, workflowType, execution);
     for (WorkflowClientInterceptor i : interceptors) {
@@ -124,14 +127,14 @@ class WorkflowInvocationHandler implements InvocationHandler {
       WorkflowOptions options,
       DataConverter dataConverter,
       WorkflowClientInterceptor[] interceptors) {
-    workflowMetadata = POJOWorkflowMetadata.newForInterface(workflowInterface);
-    Optional<POJOWorkflowMetadata.MethodMetadata> workflowMethodMetadata =
+    workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
+    Optional<POJOWorkflowMethodMetadata> workflowMethodMetadata =
         workflowMetadata.getWorkflowMethod();
     if (!workflowMethodMetadata.isPresent()) {
       throw new IllegalArgumentException(
           "Method annotated with @WorkflowMethod is not found in " + workflowInterface);
     }
-    Method workflowMethod = workflowMethodMetadata.get().getMethod();
+    Method workflowMethod = workflowMethodMetadata.get().getWorkflowMethod();
     MethodRetry methodRetry = workflowMethod.getAnnotation(MethodRetry.class);
     CronSchedule cronSchedule = workflowMethod.getAnnotation(CronSchedule.class);
     WorkflowMethod annotation = workflowMethod.getAnnotation(WorkflowMethod.class);
@@ -223,7 +226,10 @@ class WorkflowInvocationHandler implements InvocationHandler {
 
     @Override
     public void invoke(
-        POJOWorkflowMetadata workflowMetadata, WorkflowStub untyped, Method method, Object[] args) {
+        POJOWorkflowInterfaceMetadata workflowMetadata,
+        WorkflowStub untyped,
+        Method method,
+        Object[] args) {
       WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
       if (workflowMethod == null) {
         throw new IllegalArgumentException(
@@ -250,15 +256,17 @@ class WorkflowInvocationHandler implements InvocationHandler {
 
     @Override
     public void invoke(
-        POJOWorkflowMetadata workflowMetadata, WorkflowStub untyped, Method method, Object[] args) {
-      POJOWorkflowMetadata.MethodMetadata methodMetadata =
-          workflowMetadata.getMethodMetadata(method);
-      POJOWorkflowMetadata.WorkflowMethodType type = methodMetadata.getType();
-      if (type == POJOWorkflowMetadata.WorkflowMethodType.WORKFLOW) {
+        POJOWorkflowInterfaceMetadata workflowMetadata,
+        WorkflowStub untyped,
+        Method method,
+        Object[] args) {
+      POJOWorkflowMethodMetadata methodMetadata = workflowMetadata.getMethodMetadata(method);
+      WorkflowMethodType type = methodMetadata.getType();
+      if (type == WorkflowMethodType.WORKFLOW) {
         result = startWorkflow(untyped, method, args);
-      } else if (type == POJOWorkflowMetadata.WorkflowMethodType.QUERY) {
+      } else if (type == WorkflowMethodType.QUERY) {
         result = queryWorkflow(methodMetadata, untyped, method, args);
-      } else if (type == POJOWorkflowMetadata.WorkflowMethodType.SIGNAL) {
+      } else if (type == WorkflowMethodType.SIGNAL) {
         signalWorkflow(methodMetadata, untyped, method, args);
         result = null;
       } else {
@@ -274,7 +282,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
     }
 
     private void signalWorkflow(
-        POJOWorkflowMetadata.MethodMetadata methodMetadata,
+        POJOWorkflowMethodMetadata methodMetadata,
         WorkflowStub untyped,
         Method method,
         Object[] args) {
@@ -286,7 +294,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
     }
 
     private Object queryWorkflow(
-        POJOWorkflowMetadata.MethodMetadata methodMetadata,
+        POJOWorkflowMethodMetadata methodMetadata,
         WorkflowStub untyped,
         Method method,
         Object[] args) {
@@ -315,7 +323,10 @@ class WorkflowInvocationHandler implements InvocationHandler {
 
     @Override
     public void invoke(
-        POJOWorkflowMetadata workflowMetadata, WorkflowStub untyped, Method method, Object[] args) {
+        POJOWorkflowInterfaceMetadata workflowMetadata,
+        WorkflowStub untyped,
+        Method method,
+        Object[] args) {
       WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
       if (workflowMethod == null) {
         throw new IllegalArgumentException(
@@ -348,24 +359,21 @@ class WorkflowInvocationHandler implements InvocationHandler {
 
     @Override
     public void invoke(
-        POJOWorkflowMetadata workflowMetadata, WorkflowStub untyped, Method method, Object[] args)
-        throws Throwable {
-      QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);
-      SignalMethod signalMethod = method.getAnnotation(SignalMethod.class);
-      WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
-      checkAnnotations(method, workflowMethod, queryMethod, signalMethod);
-      if (queryMethod != null) {
-        throw new IllegalArgumentException(
-            "SignalWithStart batch doesn't accept methods annotated with @QueryMethod");
-      }
-      if (workflowMethod != null) {
-        batch.start(untyped, args);
-      } else if (signalMethod != null) {
-        String signalName = workflowMetadata.getMethodMetadata(method).getName();
-        batch.signal(untyped, signalName, args);
-      } else {
-        throw new IllegalArgumentException(
-            method + " is not annotated with @WorkflowMethod or @SignalMethod");
+        POJOWorkflowInterfaceMetadata workflowMetadata,
+        WorkflowStub untyped,
+        Method method,
+        Object[] args) {
+      POJOWorkflowMethodMetadata methodMetadata = workflowMetadata.getMethodMetadata(method);
+      switch (methodMetadata.getType()) {
+        case QUERY:
+          throw new IllegalArgumentException(
+              "SignalWithStart batch doesn't accept methods annotated with @QueryMethod");
+        case WORKFLOW:
+          batch.start(untyped, args);
+          break;
+        case SIGNAL:
+          batch.signal(untyped, methodMetadata.getName(), args);
+          break;
       }
     }
 

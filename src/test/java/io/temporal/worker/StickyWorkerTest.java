@@ -49,6 +49,7 @@ import io.temporal.workflow.Promise;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
 import java.util.ArrayDeque;
@@ -571,6 +572,7 @@ public class StickyWorkerTest {
     public Duration TemporalSleep; // nano
   }
 
+  @WorkflowInterface
   public interface GreetingSignalWorkflow {
     /** @return greeting string */
     @QueryMethod
@@ -614,11 +616,13 @@ public class StickyWorkerTest {
     }
   }
 
+  @WorkflowInterface
   public interface GreetingParentWorkflow {
     @WorkflowMethod(executionStartToCloseTimeoutSeconds = 10)
     String getGreeting(String name);
   }
 
+  @WorkflowInterface
   public interface GreetingChild {
     @WorkflowMethod
     String composeGreeting(String greeting, String name);
@@ -645,6 +649,7 @@ public class StickyWorkerTest {
     }
   }
 
+  @WorkflowInterface
   public interface ActivitiesWorkflow {
 
     @WorkflowMethod()
@@ -697,6 +702,7 @@ public class StickyWorkerTest {
     }
   }
 
+  @WorkflowInterface
   public interface TestMutableSideEffectWorkflow {
 
     @WorkflowMethod

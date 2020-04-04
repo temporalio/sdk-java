@@ -29,13 +29,13 @@ import java.lang.reflect.Method;
 class ExternalWorkflowInvocationHandler implements InvocationHandler {
 
   private final ExternalWorkflowStub stub;
-  private final POJOWorkflowMetadata workflowMetadata;
+  private final POJOWorkflowInterfaceMetadata workflowMetadata;
 
   public ExternalWorkflowInvocationHandler(
       Class<?> workflowInterface,
       WorkflowExecution execution,
       WorkflowCallsInterceptor decisionContext) {
-    workflowMetadata = POJOWorkflowMetadata.newForInterface(workflowInterface);
+    workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
     stub = new ExternalWorkflowStubImpl(execution, decisionContext);
   }
 
@@ -45,19 +45,22 @@ class ExternalWorkflowInvocationHandler implements InvocationHandler {
     if (method.getName().equals(StubMarker.GET_UNTYPED_STUB_METHOD)) {
       return stub;
     }
-    POJOWorkflowMetadata.MethodMetadata methodMetadata = workflowMetadata.getMethodMetadata(method);
-    POJOWorkflowMetadata.WorkflowMethodType type = methodMetadata.getType();
-    if (type == POJOWorkflowMetadata.WorkflowMethodType.WORKFLOW) {
-      throw new IllegalStateException(
-          "Cannot start a workflow with an external workflow stub "
-              + "created through Workflow.newExternalWorkflowStub");
+    POJOWorkflowMethodMetadata methodMetadata = workflowMetadata.getMethodMetadata(method);
+    switch (methodMetadata.getType()) {
+      case QUERY:
+        throw new UnsupportedOperationException(
+            "Query is not supported from workflow to workflow. "
+                + "Use activity that perform the query instead.");
+      case WORKFLOW:
+        throw new IllegalStateException(
+            "Cannot start a workflow with an external workflow stub "
+                + "created through Workflow.newExternalWorkflowStub");
+      case SIGNAL:
+        stub.signal(methodMetadata.getName(), args);
+        break;
+      default:
+        throw new IllegalStateException("unreachale");
     }
-    if (type == POJOWorkflowMetadata.WorkflowMethodType.QUERY) {
-      throw new UnsupportedOperationException(
-          "Query is not supported from workflow to workflow. "
-              + "Use activity that perform the query instead.");
-    }
-    stub.signal(methodMetadata.getName(), args);
     return null;
   }
 }

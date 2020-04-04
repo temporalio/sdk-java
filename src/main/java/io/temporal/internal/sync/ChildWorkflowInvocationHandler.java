@@ -35,21 +35,21 @@ import java.util.Optional;
 class ChildWorkflowInvocationHandler implements InvocationHandler {
 
   private final ChildWorkflowStub stub;
-  private final POJOWorkflowMetadata workflowMetadata;
+  private final POJOWorkflowInterfaceMetadata workflowMetadata;
 
   ChildWorkflowInvocationHandler(
       Class<?> workflowInterface,
       ChildWorkflowOptions options,
       WorkflowCallsInterceptor decisionContext) {
-    workflowMetadata = POJOWorkflowMetadata.newForInterface(workflowInterface);
-    Optional<POJOWorkflowMetadata.MethodMetadata> workflowMethodMetadata =
+    workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
+    Optional<POJOWorkflowMethodMetadata> workflowMethodMetadata =
         workflowMetadata.getWorkflowMethod();
     if (!workflowMethodMetadata.isPresent()) {
       throw new IllegalArgumentException(
           "Missing method annotated with @WorkflowMethod: " + workflowInterface.getName());
     }
     ;
-    Method workflowMethod = workflowMethodMetadata.get().getMethod();
+    Method workflowMethod = workflowMethodMetadata.get().getWorkflowMethod();
     MethodRetry retryAnnotation = workflowMethod.getAnnotation(MethodRetry.class);
     CronSchedule cronSchedule = workflowMethod.getAnnotation(CronSchedule.class);
     WorkflowMethod workflowAnnotation = workflowMethod.getAnnotation(WorkflowMethod.class);
@@ -69,19 +69,19 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
     if (method.getName().equals(StubMarker.GET_UNTYPED_STUB_METHOD)) {
       return stub;
     }
-    POJOWorkflowMetadata.MethodMetadata methodMetadata = workflowMetadata.getMethodMetadata(method);
-    POJOWorkflowMetadata.WorkflowMethodType type = methodMetadata.getType();
+    POJOWorkflowMethodMetadata methodMetadata = workflowMetadata.getMethodMetadata(method);
+    WorkflowMethodType type = methodMetadata.getType();
 
-    if (type == POJOWorkflowMetadata.WorkflowMethodType.WORKFLOW) {
+    if (type == WorkflowMethodType.WORKFLOW) {
       return getValueOrDefault(
           stub.execute(method.getReturnType(), method.getGenericReturnType(), args),
           method.getReturnType());
     }
-    if (type == POJOWorkflowMetadata.WorkflowMethodType.SIGNAL) {
+    if (type == WorkflowMethodType.SIGNAL) {
       stub.signal(methodMetadata.getName(), args);
       return null;
     }
-    if (type == POJOWorkflowMetadata.WorkflowMethodType.QUERY) {
+    if (type == WorkflowMethodType.QUERY) {
       throw new UnsupportedOperationException(
           "Query is not supported from workflow to workflow. "
               + "Use activity that perform the query instead.");
