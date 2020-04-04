@@ -24,7 +24,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import io.temporal.activity.Activity;
-import io.temporal.activity.ActivityMethod;
+import io.temporal.activity.ActivityInterface;
+import io.temporal.activity.ActivityOptions;
 import io.temporal.client.ActivityWorkerShutdownException;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
@@ -41,6 +42,7 @@ import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowMethod;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -105,7 +107,12 @@ public class CleanWorkerShutdownTest {
 
   public static class TestWorkflowImpl implements TestWorkflow {
 
-    private final Activities activities = Workflow.newActivityStub(Activities.class);
+    private final Activities activities =
+        Workflow.newActivityStub(
+            Activities.class,
+            ActivityOptions.newBuilder()
+                .setScheduleToCloseTimeout(Duration.ofSeconds(100))
+                .build());
 
     @Override
     public String execute() {
@@ -113,8 +120,8 @@ public class CleanWorkerShutdownTest {
     }
   }
 
+  @ActivityInterface
   public interface Activities {
-    @ActivityMethod(scheduleToCloseTimeoutSeconds = 100)
     String execute();
   }
 

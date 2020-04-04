@@ -30,7 +30,7 @@ import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.StatsReporter;
 import com.uber.m3.util.ImmutableMap;
-import io.temporal.activity.ActivityMethod;
+import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
@@ -683,9 +683,8 @@ public class StickyWorkerTest {
     }
   }
 
+  @ActivityInterface
   public interface SleepActivity {
-
-    @ActivityMethod()
     void sleep(int chain, int concurrency, byte[] bytes);
   }
 

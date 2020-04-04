@@ -24,6 +24,7 @@ import static org.junit.Assert.*;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.protobuf.ByteString;
 import io.temporal.activity.Activity;
+import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.ActivityTask;
@@ -735,7 +736,15 @@ public class WorkflowTest {
     private final TestActivities activities;
 
     public TestActivityRetryAnnotated() {
-      this.activities = Workflow.newActivityStub(TestActivities.class);
+      this.activities =
+          Workflow.newActivityStub(
+              TestActivities.class,
+              ActivityOptions.newBuilder()
+                  .setScheduleToCloseTimeout(Duration.ofSeconds(5))
+                  .setScheduleToStartTimeout(Duration.ofSeconds(5))
+                  .setHeartbeatTimeout(Duration.ofSeconds(5))
+                  .setStartToCloseTimeout(Duration.ofSeconds(10))
+                  .build());
     }
 
     @Override
@@ -2832,9 +2841,10 @@ public class WorkflowTest {
     }
   }
 
+  @ActivityInterface
   public interface AngryChildActivity {
 
-    @ActivityMethod(scheduleToCloseTimeoutSeconds = 5)
+    @ActivityMethod
     void execute();
   }
 
@@ -2858,7 +2868,11 @@ public class WorkflowTest {
     public String execute(String taskList, int delay) {
       AngryChildActivity activity =
           Workflow.newActivityStub(
-              AngryChildActivity.class, ActivityOptions.newBuilder().setTaskList(taskList).build());
+              AngryChildActivity.class,
+              ActivityOptions.newBuilder()
+                  .setTaskList(taskList)
+                  .setScheduleToCloseTimeout(Duration.ofSeconds(5))
+                  .build());
       activity.execute();
       throw new UnsupportedOperationException("simulated failure");
     }
@@ -3490,6 +3504,7 @@ public class WorkflowTest {
     assertEquals("run 2", lastCompletionResult);
   }
 
+  @ActivityInterface
   public interface TestActivities {
 
     String sleepActivity(long milliseconds, int input);
@@ -3531,12 +3546,6 @@ public class WorkflowTest {
 
     void neverComplete();
 
-    @ActivityMethod(
-      scheduleToStartTimeoutSeconds = 5,
-      scheduleToCloseTimeoutSeconds = 5,
-      heartbeatTimeoutSeconds = 5,
-      startToCloseTimeoutSeconds = 10
-    )
     @MethodRetry(
       initialIntervalSeconds = 1,
       maximumIntervalSeconds = 1,
@@ -4496,6 +4505,7 @@ public class WorkflowTest {
         "executeActivity TestActivities_activity2");
   }
 
+  @ActivityInterface
   public interface GenericParametersActivity {
 
     List<UUID> execute(List<UUID> arg1, Set<UUID> arg2);
@@ -4604,9 +4614,8 @@ public class WorkflowTest {
     }
   }
 
+  @ActivityInterface
   public interface NonSerializableExceptionActivity {
-
-    @ActivityMethod(scheduleToCloseTimeoutSeconds = 5)
     void execute();
   }
 
@@ -4624,7 +4633,11 @@ public class WorkflowTest {
     @Override
     public String execute(String taskList) {
       NonSerializableExceptionActivity activity =
-          Workflow.newActivityStub(NonSerializableExceptionActivity.class);
+          Workflow.newActivityStub(
+              NonSerializableExceptionActivity.class,
+              ActivityOptions.newBuilder()
+                  .setScheduleToCloseTimeout(Duration.ofSeconds(5))
+                  .build());
       try {
         activity.execute();
       } catch (ActivityFailureException e) {
@@ -4646,9 +4659,8 @@ public class WorkflowTest {
     assertTrue(result.contains("NonSerializableException"));
   }
 
+  @ActivityInterface
   public interface NonDeserializableArgumentsActivity {
-
-    @ActivityMethod(scheduleToCloseTimeoutSeconds = 5)
     void execute(int arg);
   }
 
@@ -5144,7 +5156,7 @@ public class WorkflowTest {
   }
 
   public interface GreetingActivities {
-    @ActivityMethod(scheduleToCloseTimeoutSeconds = 60)
+    @ActivityMethod
     String composeGreeting(String string);
   }
 
@@ -5164,7 +5176,9 @@ public class WorkflowTest {
   public static class TimerFiringWorkflowImpl implements GreetingWorkflow {
 
     private final GreetingActivities activities =
-        Workflow.newActivityStub(GreetingActivities.class);
+        Workflow.newActivityStub(
+            GreetingActivities.class,
+            ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofSeconds(5)).build());
 
     @Override
     public void createGreeting(String name) {
