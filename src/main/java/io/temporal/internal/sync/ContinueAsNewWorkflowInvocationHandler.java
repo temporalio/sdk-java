@@ -19,15 +19,10 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.internal.common.InternalUtils.getEntityName;
 import static io.temporal.internal.common.InternalUtils.getValueOrDefault;
 
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.workflow.ContinueAsNewOptions;
-import io.temporal.workflow.QueryMethod;
-import io.temporal.workflow.SignalMethod;
-import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.util.Optional;
@@ -36,33 +31,24 @@ class ContinueAsNewWorkflowInvocationHandler implements InvocationHandler {
 
   private final ContinueAsNewOptions options;
   private final WorkflowCallsInterceptor decisionContext;
+  private final POJOWorkflowMetadata workflowMetadata;
 
   ContinueAsNewWorkflowInvocationHandler(
-      ContinueAsNewOptions options, WorkflowCallsInterceptor decisionContext) {
+      Class<?> interfaceClass,
+      ContinueAsNewOptions options,
+      WorkflowCallsInterceptor decisionContext) {
+    workflowMetadata = POJOWorkflowMetadata.newForInterface(interfaceClass);
+    if (!workflowMetadata.getWorkflowMethod().isPresent()) {
+      throw new IllegalArgumentException(
+          "Missing method annotated with @WorkflowMethod: " + interfaceClass.getName());
+    }
     this.options = options;
     this.decisionContext = decisionContext;
   }
 
   @Override
   public Object invoke(Object proxy, Method method, Object[] args) {
-    WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
-    QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);
-    SignalMethod signalMethod = method.getAnnotation(SignalMethod.class);
-    int count =
-        (workflowMethod == null ? 0 : 1)
-            + (queryMethod == null ? 0 : 1)
-            + (signalMethod == null ? 0 : 1);
-    if (count > 1) {
-      throw new IllegalArgumentException(
-          method
-              + " must contain at most one annotation "
-              + "from @WorkflowMethod, @QueryMethod or @SignalMethod");
-    }
-    if (workflowMethod == null) {
-      throw new IllegalStateException(
-          "ContinueAsNew Stub supports only calls to methods annotated with @WorkflowMethod");
-    }
-    String workflowType = getEntityName(method, WorkflowInterface.class);
+    String workflowType = workflowMetadata.getMethodMetadata(method).getName();
     WorkflowInternal.continueAsNew(
         Optional.of(workflowType), Optional.ofNullable(options), args, decisionContext);
     return getValueOrDefault(null, method.getReturnType());

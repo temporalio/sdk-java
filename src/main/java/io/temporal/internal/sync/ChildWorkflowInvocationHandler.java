@@ -19,53 +19,48 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.internal.common.InternalUtils.getSimpleName;
 import static io.temporal.internal.common.InternalUtils.getValueOrDefault;
-import static io.temporal.internal.sync.WorkflowInvocationHandler.initMethodToNameMap;
 
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
-import io.temporal.internal.common.InternalUtils;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ChildWorkflowStub;
-import io.temporal.workflow.QueryMethod;
-import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Optional;
 
 /** Dynamic implementation of a strongly typed child workflow interface. */
 class ChildWorkflowInvocationHandler implements InvocationHandler {
 
   private final ChildWorkflowStub stub;
-  private final Map<Method, String> methodToNameMap = new HashMap<>();
-  private final String workflowType;
+  private final POJOWorkflowMetadata workflowMetadata;
 
   ChildWorkflowInvocationHandler(
       Class<?> workflowInterface,
       ChildWorkflowOptions options,
       WorkflowCallsInterceptor decisionContext) {
-    InternalUtils.MethodInterfacePair workflowMethodPair =
-        initMethodToNameMap(workflowInterface, methodToNameMap);
-    Method workflowMethod = workflowMethodPair.getMethod();
+    workflowMetadata = POJOWorkflowMetadata.newForInterface(workflowInterface);
+    Optional<POJOWorkflowMetadata.MethodMetadata> workflowMethodMetadata =
+        workflowMetadata.getWorkflowMethod();
+    if (!workflowMethodMetadata.isPresent()) {
+      throw new IllegalArgumentException(
+          "Missing method annotated with @WorkflowMethod: " + workflowInterface.getName());
+    }
+    ;
+    Method workflowMethod = workflowMethodMetadata.get().getMethod();
     MethodRetry retryAnnotation = workflowMethod.getAnnotation(MethodRetry.class);
     CronSchedule cronSchedule = workflowMethod.getAnnotation(CronSchedule.class);
     WorkflowMethod workflowAnnotation = workflowMethod.getAnnotation(WorkflowMethod.class);
-    if (workflowAnnotation.name().isEmpty()) {
-      workflowType = getSimpleName(workflowMethodPair);
-    } else {
-      workflowType = workflowAnnotation.name();
-    }
     ChildWorkflowOptions merged =
         ChildWorkflowOptions.newBuilder(options)
             .setWorkflowMethod(workflowAnnotation)
             .setMethodRetry(retryAnnotation)
             .setCronSchedule(cronSchedule)
             .validateAndBuildWithDefaults();
-    this.stub = new ChildWorkflowStubImpl(workflowType, merged, decisionContext);
+    this.stub =
+        new ChildWorkflowStubImpl(workflowMethodMetadata.get().getName(), merged, decisionContext);
   }
 
   @Override
@@ -74,37 +69,23 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
     if (method.getName().equals(StubMarker.GET_UNTYPED_STUB_METHOD)) {
       return stub;
     }
-    String name = methodToNameMap.get(method);
-    if (name == null) {
-      throw new IllegalArgumentException("Unknown method: " + method.getName());
-    }
-    if (!name.equals(workflowType)) {
-      throw new IllegalArgumentException(
-          "Workflow type doesn't match: " + workflowType + "!=" + name);
-    }
-    WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
-    QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);
-    SignalMethod signalMethod = method.getAnnotation(SignalMethod.class);
-    WorkflowInvocationHandler.checkAnnotations(method, workflowMethod, queryMethod, signalMethod);
-    if (workflowMethod != null) {
+    POJOWorkflowMetadata.MethodMetadata methodMetadata = workflowMetadata.getMethodMetadata(method);
+    POJOWorkflowMetadata.WorkflowMethodType type = methodMetadata.getType();
+
+    if (type == POJOWorkflowMetadata.WorkflowMethodType.WORKFLOW) {
       return getValueOrDefault(
           stub.execute(method.getReturnType(), method.getGenericReturnType(), args),
           method.getReturnType());
     }
-    if (queryMethod != null) {
+    if (type == POJOWorkflowMetadata.WorkflowMethodType.SIGNAL) {
+      stub.signal(methodMetadata.getName(), args);
+      return null;
+    }
+    if (type == POJOWorkflowMetadata.WorkflowMethodType.QUERY) {
       throw new UnsupportedOperationException(
           "Query is not supported from workflow to workflow. "
               + "Use activity that perform the query instead.");
     }
-    if (signalMethod != null) {
-      signalWorkflow(name, args);
-      return null;
-    }
-    throw new IllegalArgumentException(
-        method + " is not annotated with @WorkflowMethod or @QueryMethod");
-  }
-
-  private void signalWorkflow(String signalName, Object[] args) {
-    stub.signal(signalName, args);
+    throw new IllegalArgumentException("unreachable");
   }
 }

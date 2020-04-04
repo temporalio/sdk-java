@@ -19,18 +19,12 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.internal.common.InternalUtils.getAnnotatedInterfaceMethodsFromImplementation;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.uber.m3.tally.Scope;
-import io.temporal.activity.ActivityInterface;
-import io.temporal.activity.ActivityMethod;
 import io.temporal.client.ActivityCancelledException;
-import io.temporal.common.MethodRetry;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.CheckedExceptionWrapper;
-import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.ActivityTaskHandler;
@@ -75,41 +69,15 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
       throw new IllegalArgumentException("Activity object instance expected, not the class");
     }
     Class<?> cls = activity.getClass();
-    for (Method method : cls.getMethods()) {
-      if (method.getAnnotation(ActivityMethod.class) != null) {
-        throw new IllegalArgumentException(
-            "Found @ActivityMethod annotation on \""
-                + method
-                + "\" This annotation can be used only on the interface method it implements.");
-      }
-      if (method.getAnnotation(MethodRetry.class) != null) {
-        throw new IllegalArgumentException(
-            "Found @MethodRetry annotation on \""
-                + method
-                + "\" This annotation can be used only on the interface method it implements.");
-      }
-    }
-    Set<InternalUtils.MethodInterfacePair> activityMethods =
-        getAnnotatedInterfaceMethodsFromImplementation(cls, ActivityInterface.class);
-    if (activityMethods.isEmpty()) {
-      throw new IllegalArgumentException(
-          "Class doesn't implement any non empty interface annotated with @ActivityInterface: "
-              + cls.getName());
-    }
-    for (InternalUtils.MethodInterfacePair pair : activityMethods) {
-      Method method = pair.getMethod();
-      ActivityMethod annotation = method.getAnnotation(ActivityMethod.class);
-      String activityType;
-      if (annotation != null && !annotation.name().isEmpty()) {
-        activityType = annotation.name();
-      } else {
-        activityType = InternalUtils.getSimpleName(pair);
-      }
+    POJOActivityMetadata activityMetadata = POJOActivityMetadata.newForImplementation(cls);
+    for (POJOActivityMetadata.MethodMetadata methodMetadata :
+        activityMetadata.getMethodsMetadata()) {
+      Method method = methodMetadata.getMethod();
+      String activityType = methodMetadata.getName();
       if (activities.containsKey(activityType)) {
         throw new IllegalStateException(
             activityType + " activity type is already registered with the worker");
       }
-
       ActivityTaskExecutor implementation = newTaskExecutor.apply(method, activity);
       activities.put(activityType, implementation);
     }

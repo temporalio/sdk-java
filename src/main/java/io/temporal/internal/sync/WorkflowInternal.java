@@ -19,7 +19,6 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.internal.common.InternalUtils.getAnnotatedInterfaceMethodsFromImplementation;
 import static io.temporal.internal.sync.AsyncInternal.AsyncMarker;
 
 import com.uber.m3.tally.Scope;
@@ -28,7 +27,6 @@ import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.internal.common.CheckedExceptionWrapper;
-import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.logging.ReplayAwareLogger;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.workflow.ActivityStub;
@@ -44,7 +42,6 @@ import io.temporal.workflow.Promise;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInfo;
-import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowQueue;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -56,7 +53,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
-import java.util.Set;
 import java.util.UUID;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
@@ -112,25 +108,17 @@ public final class WorkflowInternal {
    */
   public static void registerQuery(Object queryImplementation) {
     Class<?> cls = queryImplementation.getClass();
-    Set<InternalUtils.MethodInterfacePair> workflowMethods =
-        getAnnotatedInterfaceMethodsFromImplementation(cls, WorkflowInterface.class);
-    for (InternalUtils.MethodInterfacePair pair : workflowMethods) {
-      Method method = pair.getMethod();
-      QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);
-      if (queryMethod == null) {
-        continue;
-      }
+    POJOWorkflowMetadata workflowMetadata = POJOWorkflowMetadata.newForImplementation(cls);
+    for (POJOWorkflowMetadata.MethodMetadata methodMetadata :
+        workflowMetadata.getMethodsMetadata(POJOWorkflowMetadata.WorkflowMethodType.SIGNAL)) {
+      Method method = methodMetadata.getMethod();
       if (method.getReturnType() == Void.TYPE) {
         throw new IllegalArgumentException(
             "Method annotated with @QueryMethod " + "cannot have void return type: " + method);
       }
-      String queryName = queryMethod.name();
-      if (queryName.isEmpty()) {
-        queryName = InternalUtils.getSimpleName(pair);
-      }
       getWorkflowInterceptor()
           .registerQuery(
-              queryName,
+              methodMetadata.getName(),
               method.getGenericParameterTypes(),
               (args) -> {
                 try {
@@ -198,7 +186,8 @@ public final class WorkflowInternal {
         Proxy.newProxyInstance(
             WorkflowInternal.class.getClassLoader(),
             new Class<?>[] {workflowInterface, StubMarker.class, AsyncMarker.class},
-            new ExternalWorkflowInvocationHandler(execution, getWorkflowInterceptor()));
+            new ExternalWorkflowInvocationHandler(
+                workflowInterface, execution, getWorkflowInterceptor()));
   }
 
   public static Promise<WorkflowExecution> getWorkflowExecution(Object workflowStub) {
@@ -231,7 +220,8 @@ public final class WorkflowInternal {
         Proxy.newProxyInstance(
             WorkflowInternal.class.getClassLoader(),
             new Class<?>[] {workflowInterface},
-            new ContinueAsNewWorkflowInvocationHandler(options, getWorkflowInterceptor()));
+            new ContinueAsNewWorkflowInvocationHandler(
+                workflowInterface, options, getWorkflowInterceptor()));
   }
 
   /**
