@@ -20,13 +20,13 @@
 package io.temporal.internal.sync;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
-import com.google.common.base.Objects;
 import io.temporal.activity.ActivityInterface;
+import io.temporal.activity.ActivityMethod;
 import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.Set;
-import org.junit.Before;
 import org.junit.Test;
 
 public class ActivityInterfaceTest {
@@ -37,37 +37,38 @@ public class ActivityInterfaceTest {
 
   interface B extends A {
     void b();
+
+    void bb();
   }
 
   @ActivityInterface
   interface C extends B, A {
     void c();
+
+    @ActivityMethod(name = "AM_C_bb")
+    void bb();
   }
 
   @ActivityInterface
-  interface D extends B {
-    void b();
+  interface E extends B {
+    @ActivityMethod(name = "AM_E_bb")
+    void bb();
   }
 
   @ActivityInterface
-  interface E extends D {
-    void b();
-
-    void c();
+  interface D extends C {
+    void d();
   }
 
   @ActivityInterface
-  interface F extends E, D {}
-
-  interface NonActivityA {
-    void nonActivityA();
+  interface F {
+    @ActivityMethod(name = "AM_C_bb")
+    void f();
   }
 
-  interface NonActivityB extends NonActivityA {
-    void nonActivityB();
-  }
+  interface DE extends D, E {}
 
-  static class Impl implements C, E, NonActivityB, F {
+  static class DImpl implements D, E {
 
     @Override
     public void a() {}
@@ -79,10 +80,46 @@ public class ActivityInterfaceTest {
     public void c() {}
 
     @Override
-    public void nonActivityA() {}
+    public void bb() {}
 
     @Override
-    public void nonActivityB() {}
+    public void d() {}
+  }
+
+  static class DEImpl implements DE {
+
+    @Override
+    public void a() {}
+
+    @Override
+    public void b() {}
+
+    @Override
+    public void c() {}
+
+    @Override
+    public void bb() {}
+
+    @Override
+    public void d() {}
+  }
+
+  static class DuplicatedNameImpl implements F, C {
+
+    @Override
+    public void a() {}
+
+    @Override
+    public void b() {}
+
+    @Override
+    public void c() {}
+
+    @Override
+    public void bb() {}
+
+    @Override
+    public void f() {}
   }
 
   @ActivityInterface
@@ -98,72 +135,75 @@ public class ActivityInterfaceTest {
     public void a() {}
   }
 
-  POJOActivityTaskHandler handler;
-
-  @Before
-  public void setUp() throws Exception {
-    handler = new POJOActivityTaskHandler(null, "default", null, null);
-  }
-
   @Test(expected = IllegalArgumentException.class)
   public void testActivityRegistration() {
-    handler.setActivitiesImplementation(new Object[] {new EmptyImpl()});
+    POJOActivityInstanceMetadata.newInstance(EmptyImpl.class);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void testNoActivityInterfaceRegistration() {
-    handler.setActivitiesImplementation(new Object[] {new NoActivityImpl()});
+    POJOActivityInstanceMetadata.newInstance(NoActivityImpl.class);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testDuplicatedActivityTypeRegistration() {
+    POJOActivityInstanceMetadata.newInstance(DuplicatedNameImpl.class);
   }
 
   @Test
-  public void testEmptyActivityRegistration() {
-    handler.setActivitiesImplementation(new Object[] {new Impl()});
-    Set<String> types = handler.getRegisteredActivityTypes();
-    System.out.println(types);
+  public void testActivityImplementationRegistration() {
     Set<String> expected = new HashSet<>();
+    expected.add("AM_C_bb");
+    expected.add("AM_E_bb");
     expected.add("C_a");
     expected.add("C_b");
     expected.add("C_c");
-    expected.add("D_a");
-    expected.add("D_b");
+    expected.add("D_d");
+    expected.add("E_a");
     expected.add("E_b");
-    expected.add("E_c");
-    assertEquals(expected, types);
+    expected.add("E_b");
+
+    POJOActivityInstanceMetadata dMetadata = POJOActivityInstanceMetadata.newInstance(DImpl.class);
+    Set<String> dTypes = dMetadata.getActivityTypes();
+    assertEquals(expected, dTypes);
   }
 
-  static class MethodInterfacePair {
-    private final Method method;
-    private final Class<?> type;
-
-    MethodInterfacePair(Method method, Class<?> type) {
-      this.method = method;
-      this.type = type;
+  @Test
+  public void testDuplicatedActivityImplementationRegistration() {
+    try {
+      POJOActivityInstanceMetadata.newInstance(DEImpl.class);
+    } catch (IllegalArgumentException e) {
+      assertTrue(e.getMessage().contains("bb()"));
     }
+  }
 
-    public Method getMethod() {
-      return method;
-    }
+  @Test(expected = IllegalArgumentException.class)
+  public void testNonInterface() {
+    POJOActivityInterfaceMetadata.newInstance(DImpl.class);
+  }
 
-    public Class<?> getType() {
-      return type;
-    }
+  @Test(expected = IllegalArgumentException.class)
+  public void testEmptyInterface() {
+    POJOActivityInterfaceMetadata.newInstance(Empty.class);
+  }
 
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
-      MethodInterfacePair that = (MethodInterfacePair) o;
-      return Objects.equal(method, that.method) && Objects.equal(type, that.type);
-    }
+  @Test
+  public void testActivityInterface() throws NoSuchMethodException {
+    Set<String> expected = new HashSet<>();
+    expected.add("AM_C_bb");
+    expected.add("AM_E_bb");
+    expected.add("C_a");
+    expected.add("C_b");
+    expected.add("C_c");
+    expected.add("D_d");
+    expected.add("E_a");
+    expected.add("E_b");
+    expected.add("E_b");
 
-    @Override
-    public int hashCode() {
-      return Objects.hashCode(method, type);
-    }
-
-    @Override
-    public String toString() {
-      return "MethodInterfacePair{" + "method=" + method + ", type=" + type + '}';
-    }
+    POJOActivityInterfaceMetadata dMetadata = POJOActivityInterfaceMetadata.newInstance(D.class);
+    Method c = C.class.getDeclaredMethod("c");
+    POJOMethodMetadata cMethod = dMetadata.getMethodMetadata(c);
+    assertEquals(c, cMethod.getMethod());
+    assertEquals("C_c", cMethod.getName());
   }
 }

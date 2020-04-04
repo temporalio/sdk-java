@@ -1,3 +1,22 @@
+/*
+ *  Copyright (C) 2020 Temporal Technologies, Inc. All Rights Reserved.
+ *
+ *  Copyright 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ *  Modifications copyright (C) 2017 Uber Technologies, Inc.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License"). You may not
+ *  use this file except in compliance with the License. A copy of the License is
+ *  located at
+ *
+ *  http://aws.amazon.com/apache2.0
+ *
+ *  or in the "license" file accompanying this file. This file is distributed on
+ *  an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ *  express or implied. See the License for the specific language governing
+ *  permissions and limitations under the License.
+ */
+
 package io.temporal.internal.sync;
 
 import io.temporal.workflow.QueryMethod;
@@ -85,7 +104,7 @@ class POJOWorkflowMetadata {
                 + "of @WorkflowMethod, @QueryMethod or @SignalMethod");
       } else {
         if (name.isEmpty()) {
-          name = interfaceType.getSimpleName() + "_" + method.getName();
+          name = interfaceType.getSimpleName() + "_" + method;
         }
       }
       this.name = name;
@@ -207,7 +226,7 @@ class POJOWorkflowMetadata {
   public MethodMetadata getMethodMetadata(Method method) {
     MethodMetadata result = methods.get(method);
     if (result == null) {
-      throw new IllegalArgumentException("Unknown method: " + method.getName());
+      throw new IllegalArgumentException("Unknown method: " + method);
     }
     return result;
   }
@@ -321,10 +340,7 @@ class POJOWorkflowMetadata {
       Method registered = dedupeMap.put(wrapped, method);
       if (registered != null) {
         throw new IllegalArgumentException(
-            "Duplicated methods (overloads are not allowed): "
-                + registered.getName()
-                + " and "
-                + method.getName());
+            "Duplicated methods (overloads are not allowed): " + registered + " and " + method);
       }
       methods.put(method, methodMetadata);
       MethodMetadata registeredMM =
@@ -338,9 +354,9 @@ class POJOWorkflowMetadata {
                 + " and "
                 + methodMetadata.getName()
                 + " declared at "
-                + registeredMM.getMethod().getName()
+                + registeredMM.getMethod()
                 + " and "
-                + methodMetadata.getMethod().getName());
+                + methodMetadata.getMethod());
       }
     }
     return Collections.emptySet();

@@ -69,15 +69,13 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
       throw new IllegalArgumentException("Activity object instance expected, not the class");
     }
     Class<?> cls = activity.getClass();
-    POJOActivityMetadata activityMetadata = POJOActivityMetadata.newForImplementation(cls);
-    for (POJOActivityMetadata.MethodMetadata methodMetadata :
-        activityMetadata.getMethodsMetadata()) {
-      Method method = methodMetadata.getMethod();
-      String activityType = methodMetadata.getName();
+    POJOActivityInstanceMetadata activityMetadata = POJOActivityInstanceMetadata.newInstance(cls);
+    for (String activityType : activityMetadata.getActivityTypes()) {
       if (activities.containsKey(activityType)) {
         throw new IllegalStateException(
             activityType + " activity type is already registered with the worker");
       }
+      Method method = activityMetadata.getMethodMetadata(activityType).getMethod();
       ActivityTaskExecutor implementation = newTaskExecutor.apply(method, activity);
       activities.put(activityType, implementation);
     }
