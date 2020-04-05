@@ -51,6 +51,7 @@ import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.workflow.ActivityFailureException;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ContinueAsNewOptions;
+import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
@@ -327,6 +328,12 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
 
     @Override
     public void registerQuery(String queryType, Type[] argTypes, Func1<Object[], Object> callback) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public void registerSignal(
+        String signalType, Type[] argTypes, Functions.Proc1<Object[]> callback) {
       throw new UnsupportedOperationException("not implemented");
     }
 

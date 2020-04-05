@@ -64,7 +64,7 @@ class WorkflowExecuteRunnable implements Runnable {
   public void close() {}
 
   public void processSignal(String signalName, byte[] input, long eventId) {
-    workflow.processSignal(signalName, input, eventId);
+    context.signal(signalName, input, eventId);
   }
 
   public byte[] query(String type, byte[] args) {

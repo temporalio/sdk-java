@@ -120,9 +120,8 @@ class SyncWorkflow implements ReplayWorkflow {
 
   @Override
   public void handleSignal(String signalName, byte[] input, long eventId) {
-    String threadName = "\"" + signalName + "\" signal handler";
     runner.executeInWorkflowThread(
-        threadName, () -> workflowProc.processSignal(signalName, input, eventId));
+        "signal " + signalName, () -> workflowProc.processSignal(signalName, input, eventId));
   }
 
   @Override

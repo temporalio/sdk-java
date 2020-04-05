@@ -3027,6 +3027,7 @@ public class WorkflowTest {
     WorkflowStub stub = WorkflowStub.fromTyped(client);
     tracer.setExpected(
         "interceptExecuteWorkflow " + stub.getExecution().getWorkflowId(),
+        "registerSignal testSignal",
         "executeChildWorkflow SignalingChild_execute",
         "interceptExecuteWorkflow " + UUID_REGEXP, // child
         "signalExternalWorkflow " + UUID_REGEXP + " testSignal");
@@ -5713,6 +5714,13 @@ public class WorkflowTest {
     public void registerQuery(String queryType, Type[] argTypes, Func1<Object[], Object> callback) {
       trace.add("registerQuery " + queryType);
       next.registerQuery(queryType, argTypes, callback);
+    }
+
+    @Override
+    public void registerSignal(
+        String signalType, Type[] argTypes, Functions.Proc1<Object[]> callback) {
+      trace.add("registerSignal " + signalType);
+      next.registerSignal(signalType, argTypes, callback);
     }
 
     @Override

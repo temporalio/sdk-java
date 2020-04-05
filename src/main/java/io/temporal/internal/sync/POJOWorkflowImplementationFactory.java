@@ -271,40 +271,11 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       }
     }
 
-    /**
-     * Signals that failed to deserialize are logged, but do not lead to workflow or decision
-     * failure. Otherwise a single bad signal from CLI would kill any workflow. Not that throwing
-     * Error leads to decision being aborted. Throwing any other exception leads to workflow
-     * failure. TODO: Unknown and corrupted signals handler in application code or server side DLQ.
-     */
-    @Override
-    public void processSignal(String signalName, byte[] input, long eventId) {
-      Method signalMethod = signalHandlers.get(signalName);
-      if (signalMethod == null) {
-        log.error(
-            "Unknown signal: "
-                + signalName
-                + " at eventId "
-                + eventId
-                + ", knownSignals="
-                + signalHandlers.keySet());
-        return;
-      }
-      try {
-        Object[] args = dataConverter.fromDataArray(input, signalMethod.getGenericParameterTypes());
-        Preconditions.checkNotNull(workflowInvoker, "initialize not called");
-        workflowInvoker.processSignal(signalName, args, eventId);
-      } catch (DataConverterException e) {
-        logSerializationException(signalName, eventId, e);
-      }
-    }
-
     private class RootWorkflowInvocationInterceptor implements WorkflowInvocationInterceptor {
 
       @Override
       public Object execute(Object[] arguments) {
         WorkflowInfo context = Workflow.getWorkflowInfo();
-        WorkflowInternal.registerListener(workflow);
         try {
           return workflowMethod.invoke(workflow, arguments);
         } catch (IllegalAccessException e) {
@@ -339,6 +310,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       public void init(WorkflowCallsInterceptor interceptor) {
         WorkflowInternal.getRootDecisionContext().setHeadInterceptor(interceptor);
         newInstance();
+        WorkflowInternal.registerListener(workflow);
       }
 
       @Override
