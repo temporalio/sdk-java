@@ -40,6 +40,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowFailureException;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowQueryException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.client.WorkflowTimedOutException;
 import io.temporal.common.CronSchedule;
@@ -5595,6 +5596,68 @@ public class WorkflowTest {
     String queryResult = signalStub.getSignal();
     assertEquals("Hello World!", result);
     assertEquals(queryResult, result);
+  }
+
+  @WorkflowInterface
+  public interface TestSignalAndQueryListenerWorkflow {
+    @WorkflowMethod
+    void execute();
+
+    @SignalMethod
+    void register();
+  }
+
+  public static class TestSignalAndQueryListenerWorkflowImpl
+      implements TestSignalAndQueryListenerWorkflow {
+
+    private boolean register;
+    private List<String> signals = new ArrayList<>();
+
+    @Override
+    public void execute() {
+      Workflow.await(() -> register);
+      Workflow.registerListener(
+          new SignalQueryBase() {
+
+            @Override
+            public void signal(String arg) {
+              signals.add(arg);
+            }
+
+            @Override
+            public String getSignal() {
+              return String.join(", ", signals);
+            }
+          });
+    }
+
+    @Override
+    public void register() {
+      register = true;
+    }
+  }
+
+  @Test
+  public void testSignalAndQueryListener() {
+    startWorkerFor(TestSignalAndQueryListenerWorkflowImpl.class);
+    WorkflowOptions options = newWorkflowOptionsBuilder(taskList).build();
+    TestSignalAndQueryListenerWorkflow stub =
+        workflowClient.newWorkflowStub(TestSignalAndQueryListenerWorkflow.class, options);
+    WorkflowExecution execution = WorkflowClient.start(stub::execute);
+
+    SignalQueryBase signalStub =
+        workflowClient.newWorkflowStub(SignalQueryBase.class, execution.getWorkflowId());
+    // Send signals before listener is registered to test signal buffering
+    signalStub.signal("a");
+    signalStub.signal("b");
+    try {
+      signalStub.getSignal();
+      fail("unreachable"); // as not listener is not registered yet
+    } catch (WorkflowQueryException e) {
+      assertTrue(e.getMessage().contains("Unknown query type: SignalQueryBase_getSignal"));
+    }
+    stub.register();
+    assertEquals("a, b", signalStub.getSignal());
   }
 
   private static class TracingWorkflowCallsInterceptor implements WorkflowCallsInterceptor {

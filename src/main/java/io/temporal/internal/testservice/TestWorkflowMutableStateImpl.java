@@ -29,6 +29,7 @@ import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.StateMachines.Action;
 import io.temporal.internal.testservice.StateMachines.ActivityTaskData;
@@ -78,6 +79,7 @@ import io.temporal.proto.enums.QueryTaskCompletedType;
 import io.temporal.proto.enums.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.proto.enums.TimeoutType;
 import io.temporal.proto.enums.WorkflowExecutionStatus;
+import io.temporal.proto.failure.QueryFailed;
 import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponseOrBuilder;
 import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
@@ -1610,7 +1612,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     } catch (InterruptedException e) {
       return QueryWorkflowResponse.getDefaultInstance();
     } catch (ExecutionException e) {
-      throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
+      Throwable cause = e.getCause();
+      if (cause instanceof StatusRuntimeException) {
+        throw (StatusRuntimeException) cause;
+      }
+      throw Status.INTERNAL
+          .withCause(cause)
+          .withDescription(cause.getMessage())
+          .asRuntimeException();
     }
   }
 
@@ -1629,19 +1638,20 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               .setQueryResult(completeRequest.getQueryResult())
               .build();
       result.complete(response);
+    } else if (completeRequest.getCompletedType()
+        == QueryTaskCompletedType.QueryTaskCompletedTypeFailed) {
+      StatusRuntimeException error =
+          StatusUtils.newException(
+              Status.INVALID_ARGUMENT.withDescription(completeRequest.getErrorMessage()),
+              QueryFailed.getDefaultInstance());
+      result.completeExceptionally(error);
     } else if (stickyExecutionAttributes != null) {
+      // TODO(maxim): This should happen on timeout only. I believe this branch is not reachable.
       stickyExecutionAttributes = null;
       PollForDecisionTaskResponse.Builder task = queryRequests.remove(queryId.getQueryId());
-
       TaskListId taskListId =
           new TaskListId(startRequest.getNamespace(), startRequest.getTaskList().getName());
       store.sendQueryTask(executionId, taskListId, task);
-    } else {
-      StatusRuntimeException error =
-          Status.INVALID_ARGUMENT
-              .withDescription(completeRequest.getErrorMessage())
-              .asRuntimeException();
-      result.completeExceptionally(error);
     }
   }
 
