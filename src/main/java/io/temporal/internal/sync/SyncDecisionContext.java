@@ -332,7 +332,8 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
         .withScheduleToStartTimeoutSeconds(options.getScheduleToStartTimeout().getSeconds())
         .withStartToCloseTimeoutSeconds(options.getStartToCloseTimeout().getSeconds())
         .withScheduleToCloseTimeoutSeconds(options.getScheduleToCloseTimeout().getSeconds())
-        .setHeartbeatTimeoutSeconds(options.getHeartbeatTimeout().getSeconds());
+        .withHeartbeatTimeoutSeconds(options.getHeartbeatTimeout().getSeconds())
+        .withAbandonOnCancellation(options.isAbandonOnCancellation());
     RetryOptions retryOptions = options.getRetryOptions();
     if (retryOptions != null) {
       parameters.setRetryParameters(new RetryParameters(retryOptions));

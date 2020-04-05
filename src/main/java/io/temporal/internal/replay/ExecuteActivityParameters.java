@@ -37,6 +37,8 @@ public class ExecuteActivityParameters implements Cloneable {
   private String taskList;
   private RetryParameters retryParameters;
   private Map<String, byte[]> context;
+  private boolean abandonOnCancellation;
+
   //    private int taskPriority;
 
   public ExecuteActivityParameters() {}
@@ -360,6 +362,19 @@ public class ExecuteActivityParameters implements Cloneable {
 
   public ExecuteActivityParameters withContext(Map<String, byte[]> context) {
     this.context = context;
+    return this;
+  }
+
+  public boolean isAbandonOnCancellation() {
+    return abandonOnCancellation;
+  }
+
+  public void setAbandonOnCancellation(boolean abandonOnCancellation) {
+    this.abandonOnCancellation = abandonOnCancellation;
+  }
+
+  public ExecuteActivityParameters withAbandonOnCancellation(boolean abandonOnCancellation) {
+    this.abandonOnCancellation = abandonOnCancellation;
     return this;
   }
 

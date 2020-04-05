@@ -48,11 +48,17 @@ final class ActivityDecisionContext {
 
     private final BiConsumer<byte[], Exception> callback;
 
+    private final boolean abandonOnCancellation;
+
     private ActivityCancellationHandler(
-        long scheduledEventId, String activityId, BiConsumer<byte[], Exception> callaback) {
+        long scheduledEventId,
+        String activityId,
+        BiConsumer<byte[], Exception> callaback,
+        boolean abandonOnCancellation) {
       this.scheduledEventId = scheduledEventId;
       this.activityId = activityId;
       this.callback = callaback;
+      this.abandonOnCancellation = abandonOnCancellation;
     }
 
     @Override
@@ -61,8 +67,7 @@ final class ActivityDecisionContext {
         // Cancellation handlers are not deregistered. So they fire after an activity completion.
         return;
       }
-      decisions.requestCancelActivityTask(
-          scheduledEventId,
+      Runnable immediateCancellationCallback =
           () -> {
             OpenRequestInfo<byte[], ActivityType> scheduled =
                 scheduledActivities.remove(scheduledEventId);
@@ -73,7 +78,12 @@ final class ActivityDecisionContext {
                       activityId, scheduledEventId));
             }
             callback.accept(null, new CancellationException("Cancelled by request"));
-          });
+          };
+      if (abandonOnCancellation) {
+        immediateCancellationCallback.run();
+        immediateCancellationCallback = () -> {};
+      }
+      decisions.requestCancelActivityTask(scheduledEventId, immediateCancellationCallback);
     }
   }
 
@@ -133,7 +143,10 @@ final class ActivityDecisionContext {
     context.setCompletionHandle(callback);
     scheduledActivities.put(scheduledEventId, context);
     return new ActivityDecisionContext.ActivityCancellationHandler(
-        scheduledEventId, attributes.getActivityId(), callback);
+        scheduledEventId,
+        attributes.getActivityId(),
+        callback,
+        parameters.isAbandonOnCancellation());
   }
 
   void handleActivityTaskCanceled(HistoryEvent event) {

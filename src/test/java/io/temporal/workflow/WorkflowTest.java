@@ -1076,6 +1076,43 @@ public class WorkflowTest {
     activitiesImpl.assertInvocations("activityWithDelay", "activity1", "activity2", "activity3");
   }
 
+  public static class TestAbandonOnCancellation implements TestWorkflow1 {
+
+    @Override
+    public String execute(String taskList) {
+      TestActivities testActivities =
+          Workflow.newActivityStub(
+              TestActivities.class,
+              ActivityOptions.newBuilder(newActivityOptions1(taskList))
+                  .setHeartbeatTimeout(Duration.ofSeconds(10))
+                  .setAbandonOnCancellation(true)
+                  .build());
+      testActivities.activityWithDelay(100000, true);
+      return "foo";
+    }
+  }
+
+  @Test
+  public void testAbandonOnCancellation() {
+    startWorkerFor(TestAbandonOnCancellation.class);
+    TestWorkflow1 client =
+        workflowClient.newWorkflowStub(
+            TestWorkflow1.class, newWorkflowOptionsBuilder(taskList).build());
+    WorkflowClient.start(client::execute, taskList);
+    sleep(Duration.ofMillis(500)); // To let activityWithDelay start.
+    WorkflowStub stub = WorkflowStub.fromTyped(client);
+    stub.cancel();
+    long start = currentTimeMillis();
+    try {
+      stub.getResult(String.class);
+      fail("unreachable");
+    } catch (CancellationException ignored) {
+    }
+    long elapsed = currentTimeMillis() - start;
+    assertTrue(elapsed < 500);
+    activitiesImpl.assertInvocations("activityWithDelay");
+  }
+
   @WorkflowInterface
   public interface TestContinueAsNew {
 
@@ -3614,7 +3651,6 @@ public class WorkflowTest {
               }
               completionClient.complete(taskToken, "activity");
             } catch (InterruptedException e) {
-              throw new RuntimeException("unexpected", e);
             } catch (ActivityNotExistsException | ActivityCancelledException e) {
               completionClient.reportCancellation(taskToken, null);
             }
@@ -5657,6 +5693,8 @@ public class WorkflowTest {
       assertTrue(e.getMessage().contains("Unknown query type: SignalQueryBase_getSignal"));
     }
     stub.register();
+    // TODO: Remove as soon as consistent query is supported by the sdk
+    sleep(Duration.ofSeconds(1));
     assertEquals("a, b", signalStub.getSignal());
   }
 
