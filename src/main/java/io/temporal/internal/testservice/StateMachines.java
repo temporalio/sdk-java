@@ -19,9 +19,6 @@
 
 package io.temporal.internal.testservice;
 
-import static io.temporal.internal.testservice.StateMachines.Action.*;
-import static io.temporal.internal.testservice.StateMachines.State.*;
-
 import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -54,6 +51,8 @@ import io.temporal.proto.common.FailWorkflowExecutionDecisionAttributes;
 import io.temporal.proto.common.History;
 import io.temporal.proto.common.HistoryEvent;
 import io.temporal.proto.common.RequestCancelActivityTaskDecisionAttributes;
+import io.temporal.proto.common.RequestCancelExternalWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.common.RequestCancelExternalWorkflowExecutionInitiatedEventAttributes;
 import io.temporal.proto.common.RetryPolicy;
 import io.temporal.proto.common.ScheduleActivityTaskDecisionAttributes;
 import io.temporal.proto.common.SignalExternalWorkflowExecutionDecisionAttributes;
@@ -93,14 +92,18 @@ import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
 import io.temporal.proto.workflowservice.StartWorkflowExecutionRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import static io.temporal.internal.testservice.StateMachines.Action.*;
+import static io.temporal.internal.testservice.StateMachines.State.*;
 
 class StateMachines {
 
@@ -201,9 +204,13 @@ class StateMachines {
   }
 
   static final class SignalExternalData {
-
     long initiatedEventId = NO_EVENT_ID;
     public SignalExternalWorkflowExecutionInitiatedEventAttributes initiatedEvent;
+  }
+
+  static final class CancelExternalData {
+    long initiatedEventId = NO_EVENT_ID;
+    public RequestCancelExternalWorkflowExecutionInitiatedEventAttributes initiatedEvent;
   }
 
   static final class ChildWorkflowData {
@@ -318,6 +325,14 @@ class StateMachines {
         .add(NONE, INITIATE, INITIATED, StateMachines::initiateExternalSignal)
         .add(INITIATED, FAIL, FAILED, StateMachines::failExternalSignal)
         .add(INITIATED, COMPLETE, COMPLETED, StateMachines::completeExternalSignal);
+  }
+
+  public static StateMachine<CancelExternalData> newCancelExternalStateMachine() {
+    return new StateMachine<>(new SignalExternalData())
+        .add(NONE, INITIATE, INITIATED, StateMachines::initiateExternalCancellation)
+        .add(INITIATED, FAIL, FAILED, StateMachines::failExternalCancellation)
+        .add(INITIATED, START, STARTED, StateMachines::reportCancellationRequested)
+        .add(INITIATED, COMPLETE, COMPLETED, StateMachines::completeExternalCancellation);
   }
 
   private static void timeoutChildWorkflow(
@@ -1227,20 +1242,22 @@ class StateMachines {
     ctx.addEvent(event);
   }
 
-  private static void initiateExternalSignal(
+  private static void initiateExternalCancellation(
       RequestContext ctx,
-      SignalExternalData data,
-      SignalExternalWorkflowExecutionDecisionAttributes d,
+      CancelExternalData data,
+      RequestCancelExternalWorkflowExecutionDecisionAttributes d,
       long decisionTaskCompletedEventId) {
-    SignalExternalWorkflowExecutionInitiatedEventAttributes.Builder a =
-        SignalExternalWorkflowExecutionInitiatedEventAttributes.newBuilder()
+    RequestCancelExternalWorkflowExecutionInitiatedEventAttributes.Builder a =
+            RequestCancelExternalWorkflowExecutionInitiatedEventAttributes.newBuilder()
             .setDecisionTaskCompletedEventId(decisionTaskCompletedEventId)
             .setControl(d.getControl())
-            .setInput(d.getInput())
             .setNamespace(d.getNamespace())
             .setChildWorkflowOnly(d.getChildWorkflowOnly())
-            .setSignalName(d.getSignalName())
-            .setWorkflowExecution(d.getExecution());
+            .setWorkflowExecution(
+                WorkflowExecution.newBuilder()
+                    .setWorkflowId(d.getWorkflowId())
+                    .setRunId(d.getRunId())
+                    .build());
 
     HistoryEvent event =
         HistoryEvent.newBuilder()
@@ -1293,5 +1310,33 @@ class StateMachines {
             .setExternalWorkflowExecutionSignaledEventAttributes(a)
             .build();
     ctx.addEvent(event);
+  }
+
+  private static void initiateExternalSignal(
+      RequestContext ctx,
+      SignalExternalData data,
+      SignalExternalWorkflowExecutionDecisionAttributes d,
+      long decisionTaskCompletedEventId) {
+    SignalExternalWorkflowExecutionInitiatedEventAttributes.Builder a =
+        SignalExternalWorkflowExecutionInitiatedEventAttributes.newBuilder()
+            .setDecisionTaskCompletedEventId(decisionTaskCompletedEventId)
+            .setControl(d.getControl())
+            .setInput(d.getInput())
+            .setNamespace(d.getNamespace())
+            .setChildWorkflowOnly(d.getChildWorkflowOnly())
+            .setSignalName(d.getSignalName())
+            .setWorkflowExecution(d.getExecution());
+
+    HistoryEvent event =
+        HistoryEvent.newBuilder()
+            .setEventType(EventType.EventTypeSignalExternalWorkflowExecutionInitiated)
+            .setSignalExternalWorkflowExecutionInitiatedEventAttributes(a)
+            .build();
+    long initiatedEventId = ctx.addEvent(event);
+    ctx.onCommit(
+        (historySize) -> {
+          data.initiatedEventId = initiatedEventId;
+          data.initiatedEvent = a.build();
+        });
   }
 }

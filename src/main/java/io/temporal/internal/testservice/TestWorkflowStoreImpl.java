@@ -236,6 +236,11 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     List<Timer> timers = ctx.getTimers();
     if (timers != null) {
       for (Timer t : timers) {
+        log.trace(
+            "scheduling timer with "
+                + t.getDelaySeconds()
+                + "seconds delay. Current time="
+                + this.currentTimeMillis());
         timerService.schedule(
             Duration.ofSeconds(t.getDelaySeconds()), t.getCallback(), t.getTaskInfo());
       }

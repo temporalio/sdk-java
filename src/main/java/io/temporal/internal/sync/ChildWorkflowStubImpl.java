@@ -32,6 +32,7 @@ import io.temporal.workflow.SignalExternalWorkflowException;
 import io.temporal.workflow.Workflow;
 import java.lang.reflect.Type;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
 
 class ChildWorkflowStubImpl implements ChildWorkflowStub {
 
@@ -77,7 +78,7 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
     }
     try {
       return result.get();
-    } catch (ChildWorkflowException e) {
+    } catch (ChildWorkflowException | CancellationException e) {
       // Reset stack to the current one. Otherwise it is very confusing to see a stack of
       // an event handling method.
       e.setStackTrace(Thread.currentThread().getStackTrace());

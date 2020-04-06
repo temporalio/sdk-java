@@ -52,6 +52,7 @@ import io.temporal.proto.common.ChildWorkflowExecutionTimedOutEventAttributes;
 import io.temporal.proto.common.CompleteWorkflowExecutionDecisionAttributes;
 import io.temporal.proto.common.ContinueAsNewWorkflowExecutionDecisionAttributes;
 import io.temporal.proto.common.Decision;
+import io.temporal.proto.common.ExternalWorkflowExecutionCancelRequestedEventAttributes;
 import io.temporal.proto.common.FailWorkflowExecutionDecisionAttributes;
 import io.temporal.proto.common.HistoryEvent;
 import io.temporal.proto.common.MarkerRecordedEventAttributes;
@@ -60,6 +61,7 @@ import io.temporal.proto.common.RecordMarkerDecisionAttributes;
 import io.temporal.proto.common.RequestCancelActivityTaskDecisionAttributes;
 import io.temporal.proto.common.RequestCancelActivityTaskFailedEventAttributes;
 import io.temporal.proto.common.RequestCancelExternalWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.common.RequestCancelExternalWorkflowExecutionInitiatedEventAttributes;
 import io.temporal.proto.common.RetryPolicy;
 import io.temporal.proto.common.ScheduleActivityTaskDecisionAttributes;
 import io.temporal.proto.common.SignalExternalWorkflowExecutionDecisionAttributes;
@@ -98,6 +100,9 @@ import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
 import io.temporal.proto.workflowservice.RespondQueryTaskCompletedRequest;
 import io.temporal.proto.workflowservice.SignalWorkflowExecutionRequest;
 import io.temporal.proto.workflowservice.StartWorkflowExecutionRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -124,8 +129,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.LongSupplier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
@@ -423,7 +426,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         break;
       case DecisionTypeRequestCancelExternalWorkflowExecution:
         processRequestCancelExternalWorkflowExecution(
-            ctx, d.getRequestCancelExternalWorkflowExecutionDecisionAttributes());
+            ctx,
+            d.getRequestCancelExternalWorkflowExecutionDecisionAttributes(),
+            decisionTaskCompletedId);
         break;
       case DecisionTypeUpsertWorkflowSearchAttributes:
         processUpsertWorkflowSearchAttributes(
@@ -433,7 +438,27 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   private void processRequestCancelExternalWorkflowExecution(
-      RequestContext ctx, RequestCancelExternalWorkflowExecutionDecisionAttributes attr) {
+      RequestContext ctx,
+      RequestCancelExternalWorkflowExecutionDecisionAttributes attr,
+      long decisionTaskCompletedId) {
+    RequestCancelExternalWorkflowExecutionInitiatedEventAttributes eventAttributes =
+        RequestCancelExternalWorkflowExecutionInitiatedEventAttributes.newBuilder()
+            .setNamespace(attr.getNamespace())
+            .setChildWorkflowOnly(attr.getChildWorkflowOnly())
+            .setControl(attr.getControl())
+            .setDecisionTaskCompletedEventId(decisionTaskCompletedId)
+            .setWorkflowExecution(
+                WorkflowExecution.newBuilder()
+                    .setWorkflowId(attr.getWorkflowId())
+                    .setRunId(attr.getRunId())
+                    .build())
+            .build();
+    HistoryEvent event =
+        HistoryEvent.newBuilder()
+            .setEventType(EventType.EventTypeRequestCancelExternalWorkflowExecutionInitiated)
+            .setRequestCancelExternalWorkflowExecutionInitiatedEventAttributes(eventAttributes)
+            .build();
+    ctx.addEvent(event);
     ForkJoinPool.commonPool()
         .execute(
             () -> {
@@ -886,7 +911,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     try {
       {
         timer = timers.get(timerId);
-        if (timer == null || workflow.getState() != State.STARTED) {
+        if (timer == null
+                || (workflow.getState() != State.STARTED
+                && workflow.getState() != State.CANCELLATION_REQUESTED)) {
           return; // cancelled already
         }
       }
@@ -1229,6 +1256,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   private void scheduleDecision(RequestContext ctx) {
+    log.trace("scheduleDecision begin");
     if (decision != null) {
       if (decision.getState() == StateMachines.State.INITIATED) {
         return; // No need to schedule again
@@ -1560,13 +1588,63 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         });
   }
 
+  static class CancelExternalWorkflowExecutionCallerInfo {
+    private final String namespace;
+    private final long externalInitiatedEventId;
+    private final TestWorkflowMutableState caller;
+
+    CancelExternalWorkflowExecutionCallerInfo(
+            String namespace, long externalInitiatedEventId, WorkflowExecution workflowExecution, TestWorkflowMutableState caller) {
+      this.namespace = namespace;
+      this.externalInitiatedEventId = externalInitiatedEventId;
+      this.caller = caller;
+    }
+
+    public String getNamespace() {
+      return namespace;
+    }
+
+    public long getExternalInitiatedEventId() {
+      return externalInitiatedEventId;
+    }
+
+    public TestWorkflowMutableState getCaller() {
+      return caller;
+    }
+  }
+
   @Override
-  public void requestCancelWorkflowExecution(RequestCancelWorkflowExecutionRequest cancelRequest) {
+  public void requestCancelWorkflowExecution(
+      RequestCancelWorkflowExecutionRequest cancelRequest,
+      Optional<CancelExternalWorkflowExecutionCallerInfo> callerInfo) {
     update(
         ctx -> {
           workflow.action(StateMachines.Action.REQUEST_CANCELLATION, ctx, cancelRequest, 0);
           scheduleDecision(ctx);
         });
+    if (callerInfo.isPresent()) {
+      CancelExternalWorkflowExecutionCallerInfo ci = callerInfo.get();
+      ExternalWorkflowExecutionCancelRequestedEventAttributes a =
+          ExternalWorkflowExecutionCancelRequestedEventAttributes.newBuilder()
+              .setInitiatedEventId(ci.getExternalInitiatedEventId())
+              .setWorkflowExecution(executionId.getExecution())
+              .setNamespace(ci.getNamespace())
+              .build();
+      ForkJoinPool.commonPool()
+          .execute(
+              () -> {
+                try {
+                  ci.getCaller().reportCancelRequested(a);
+                } catch (StatusRuntimeException e) {
+                  // NOT_FOUND is expected as the parent might just close by now.
+                  if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
+                    log.error("Failure reporting external cancellation requested", e);
+                  }
+                } catch (Throwable e) {
+                  log.error("Failure reporting external cancellation requested", e);
+                }
+              });
+    }
   }
 
   @Override

@@ -147,10 +147,10 @@ public final class ActivityOptions {
     }
 
     /**
-     * In case of an activity cancellation it fails {@link CancellationException}Exception. If this
-     * flag is set to false then the exception is thrown not immediately but only after an activity
-     * completes its cleanup. If true a CancellationException is thrown immediately and an activity
-     * cancellation is going to happen in background.
+     * In case of an activity cancellation it fails with a {@link CancellationException}Exception.
+     * If this flag is set to false then the exception is thrown not immediately but only after an
+     * activity completes its cleanup. If true a CancellationException is thrown immediately and an
+     * activity cancellation is going to happen in the background.
      */
     public Builder setAbandonOnCancellation(boolean abandonOnCancellation) {
       this.abandonOnCancellation = abandonOnCancellation;

@@ -49,6 +49,7 @@ import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
 import io.temporal.proto.workflowservice.RespondQueryTaskCompletedRequest;
 import io.temporal.proto.workflowservice.SignalWorkflowExecutionRequest;
 import io.temporal.proto.workflowservice.StartWorkflowExecutionRequest;
+
 import java.util.Optional;
 
 interface TestWorkflowMutableState {
@@ -105,7 +106,9 @@ interface TestWorkflowMutableState {
 
   void signalFromWorkflow(SignalExternalWorkflowExecutionDecisionAttributes a);
 
-  void requestCancelWorkflowExecution(RequestCancelWorkflowExecutionRequest cancelRequest);
+  void requestCancelWorkflowExecution(
+      RequestCancelWorkflowExecutionRequest cancelRequest,
+      Optional<TestWorkflowMutableStateImpl.CancelExternalWorkflowExecutionCallerInfo> callerInfo);
 
   void cancelActivityTask(String id, RespondActivityTaskCanceledRequest canceledRequest);
 

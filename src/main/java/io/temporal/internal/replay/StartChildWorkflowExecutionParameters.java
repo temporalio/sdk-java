@@ -19,13 +19,14 @@
 
 package io.temporal.internal.replay;
 
+import com.google.common.base.Objects;
 import io.temporal.internal.common.RetryParameters;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.enums.ParentClosePolicy;
 import io.temporal.proto.enums.WorkflowIdReusePolicy;
+import io.temporal.workflow.ChildWorkflowOptions;
 import java.util.Arrays;
 import java.util.Map;
-import java.util.Objects;
 
 public final class StartChildWorkflowExecutionParameters {
 
@@ -54,6 +55,8 @@ public final class StartChildWorkflowExecutionParameters {
     private Map<String, byte[]> context;
 
     private ParentClosePolicy parentClosePolicy;
+
+    private ChildWorkflowOptions.ChildWorkflowCancellationType cancellationType;
 
     public Builder setNamespace(String namespace) {
       this.namespace = namespace;
@@ -116,6 +119,12 @@ public final class StartChildWorkflowExecutionParameters {
       return this;
     }
 
+    public Builder setCancellationType(
+        ChildWorkflowOptions.ChildWorkflowCancellationType cancellationType) {
+      this.cancellationType = cancellationType;
+      return this;
+    }
+
     public StartChildWorkflowExecutionParameters build() {
       return new StartChildWorkflowExecutionParameters(
           namespace,
@@ -129,7 +138,8 @@ public final class StartChildWorkflowExecutionParameters {
           retryParameters,
           cronSchedule,
           context,
-          parentClosePolicy);
+          parentClosePolicy,
+          cancellationType);
     }
   }
 
@@ -157,6 +167,8 @@ public final class StartChildWorkflowExecutionParameters {
 
   private final ParentClosePolicy parentClosePolicy;
 
+  private final ChildWorkflowOptions.ChildWorkflowCancellationType cancellationType;
+
   private StartChildWorkflowExecutionParameters(
       String namespace,
       byte[] input,
@@ -169,7 +181,8 @@ public final class StartChildWorkflowExecutionParameters {
       RetryParameters retryParameters,
       String cronSchedule,
       Map<String, byte[]> context,
-      ParentClosePolicy parentClosePolicy) {
+      ParentClosePolicy parentClosePolicy,
+      ChildWorkflowOptions.ChildWorkflowCancellationType cancellationType) {
     this.namespace = namespace;
     this.input = input;
     this.executionStartToCloseTimeoutSeconds = executionStartToCloseTimeoutSeconds;
@@ -182,6 +195,7 @@ public final class StartChildWorkflowExecutionParameters {
     this.cronSchedule = cronSchedule;
     this.context = context;
     this.parentClosePolicy = parentClosePolicy;
+    this.cancellationType = cancellationType;
   }
 
   public String getNamespace() {
@@ -232,6 +246,10 @@ public final class StartChildWorkflowExecutionParameters {
     return parentClosePolicy;
   }
 
+  public ChildWorkflowOptions.ChildWorkflowCancellationType getCancellationType() {
+    return cancellationType;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -239,35 +257,35 @@ public final class StartChildWorkflowExecutionParameters {
     StartChildWorkflowExecutionParameters that = (StartChildWorkflowExecutionParameters) o;
     return executionStartToCloseTimeoutSeconds == that.executionStartToCloseTimeoutSeconds
         && taskStartToCloseTimeoutSeconds == that.taskStartToCloseTimeoutSeconds
-        && Objects.equals(namespace, that.namespace)
+        && cancellationType == that.cancellationType
+        && Objects.equal(namespace, that.namespace)
         && Arrays.equals(input, that.input)
-        && Objects.equals(taskList, that.taskList)
-        && Objects.equals(workflowId, that.workflowId)
-        && Objects.equals(workflowType, that.workflowType)
+        && Objects.equal(taskList, that.taskList)
+        && Objects.equal(workflowId, that.workflowId)
+        && Objects.equal(workflowType, that.workflowType)
         && workflowIdReusePolicy == that.workflowIdReusePolicy
-        && Objects.equals(retryParameters, that.retryParameters)
-        && Objects.equals(cronSchedule, that.cronSchedule)
-        && Objects.equals(context, that.context)
-        && Objects.equals(parentClosePolicy, that.parentClosePolicy);
+        && Objects.equal(retryParameters, that.retryParameters)
+        && Objects.equal(cronSchedule, that.cronSchedule)
+        && Objects.equal(context, that.context)
+        && parentClosePolicy == that.parentClosePolicy;
   }
 
   @Override
   public int hashCode() {
-    int result =
-        Objects.hash(
-            namespace,
-            executionStartToCloseTimeoutSeconds,
-            taskList,
-            taskStartToCloseTimeoutSeconds,
-            workflowId,
-            workflowType,
-            workflowIdReusePolicy,
-            retryParameters,
-            cronSchedule,
-            context,
-            parentClosePolicy);
-    result = 31 * result + Arrays.hashCode(input);
-    return result;
+    return Objects.hashCode(
+        namespace,
+        executionStartToCloseTimeoutSeconds,
+        Arrays.hashCode(input),
+        taskList,
+        taskStartToCloseTimeoutSeconds,
+        workflowId,
+        workflowType,
+        workflowIdReusePolicy,
+        retryParameters,
+        cronSchedule,
+        context,
+        parentClosePolicy,
+        cancellationType);
   }
 
   @Override
@@ -275,8 +293,6 @@ public final class StartChildWorkflowExecutionParameters {
     return "StartChildWorkflowExecutionParameters{"
         + "namespace='"
         + namespace
-        + '\''
-        + ", control='"
         + '\''
         + ", executionStartToCloseTimeoutSeconds="
         + executionStartToCloseTimeoutSeconds
@@ -296,12 +312,15 @@ public final class StartChildWorkflowExecutionParameters {
         + workflowIdReusePolicy
         + ", retryParameters="
         + retryParameters
-        + ", cronSchedule="
+        + ", cronSchedule='"
         + cronSchedule
-        + ", context='"
+        + '\''
+        + ", context="
         + context
         + ", parentClosePolicy="
         + parentClosePolicy
+        + ", cancellationType="
+        + cancellationType
         + '}';
   }
 }

@@ -84,6 +84,9 @@ import io.temporal.proto.workflowservice.StartWorkflowExecutionResponse;
 import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.time.Duration;
 import java.util.HashMap;
@@ -98,8 +101,6 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * In memory implementation of the Temporal service. To be used for testing purposes only. Do not
@@ -599,7 +600,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       RequestCancelWorkflowExecutionRequest cancelRequest,
       StreamObserver<RequestCancelWorkflowExecutionResponse> responseObserver) {
     try {
-      requestCancelWorkflowExecution(cancelRequest);
+      requestCancelWorkflowExecution(cancelRequest, Optional.empty(), Optional.empty());
       responseObserver.onNext(RequestCancelWorkflowExecutionResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
@@ -607,11 +608,15 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
-  void requestCancelWorkflowExecution(RequestCancelWorkflowExecutionRequest cancelRequest) {
+  void requestCancelWorkflowExecution(
+      RequestCancelWorkflowExecutionRequest cancelRequest,
+      Optional<Long> externalInitiatedEventId,
+      Optional<WorkflowExecution> externalWorkflowExecution) {
     ExecutionId executionId =
         new ExecutionId(cancelRequest.getNamespace(), cancelRequest.getWorkflowExecution());
     TestWorkflowMutableState mutableState = getMutableState(executionId);
-    mutableState.requestCancelWorkflowExecution(cancelRequest);
+    mutableState.requestCancelWorkflowExecution(
+        cancelRequest, externalInitiatedEventId, externalWorkflowExecution);
   }
 
   @Override

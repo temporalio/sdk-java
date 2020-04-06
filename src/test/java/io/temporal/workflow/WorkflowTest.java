@@ -59,11 +59,13 @@ import io.temporal.proto.common.HistoryEvent;
 import io.temporal.proto.common.Memo;
 import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.enums.EventType;
 import io.temporal.proto.enums.QueryRejectCondition;
 import io.temporal.proto.enums.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.proto.enums.TimeoutType;
 import io.temporal.proto.enums.WorkflowExecutionStatus;
 import io.temporal.proto.enums.WorkflowIdReusePolicy;
+import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
@@ -123,6 +125,7 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assume;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -184,17 +187,26 @@ public class WorkflowTest {
   private ScheduledExecutorService scheduledExecutor;
   private List<ScheduledFuture<?>> delayedCallbacks = new ArrayList<>();
   private AtomicReference<String> lastStartedWorkflowType = new AtomicReference<>();
-  private static final WorkflowServiceStubs service =
-      WorkflowServiceStubs.newInstance(
-          WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
+  private static WorkflowServiceStubs service;
+
+  @BeforeClass()
+  public static void startService() {
+    if (useExternalService) {
+      service =
+          WorkflowServiceStubs.newInstance(
+              WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
+    }
+  }
 
   @AfterClass
   public static void closeService() {
-    service.shutdownNow();
-    try {
-      service.awaitTermination(10, TimeUnit.SECONDS);
-    } catch (InterruptedException e) {
-      e.printStackTrace();
+    if (useExternalService) {
+      service.shutdownNow();
+      try {
+        service.awaitTermination(10, TimeUnit.SECONDS);
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
     }
   }
 
@@ -206,7 +218,7 @@ public class WorkflowTest {
           .setTaskList(taskList);
     } else {
       return WorkflowOptions.newBuilder()
-          .setExecutionStartToCloseTimeout(Duration.ofSeconds(30))
+          .setExecutionStartToCloseTimeout(Duration.ofHours(30))
           .setTaskStartToCloseTimeout(Duration.ofSeconds(5))
           .setTaskList(taskList);
     }
@@ -291,6 +303,7 @@ public class WorkflowTest {
       testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
       worker = testEnvironment.newWorker(taskList);
       workflowClient = testEnvironment.getWorkflowClient();
+      service = testEnvironment.getWorkflowService();
     }
 
     ActivityCompletionClient completionClient = workflowClient.newActivityCompletionClient();
@@ -1092,6 +1105,45 @@ public class WorkflowTest {
     }
   }
 
+  @WorkflowInterface
+  public interface TestWorkflow {
+    @WorkflowMethod
+    void execute(ChildWorkflowOptions.ChildWorkflowCancellationType cancellationType);
+  }
+
+  public static class TestParentWorkflowImpl implements TestWorkflow {
+
+    @Override
+    public void execute(ChildWorkflowOptions.ChildWorkflowCancellationType cancellationType) {
+      TestChildWorkflow child =
+          Workflow.newChildWorkflowStub(
+              TestChildWorkflow.class,
+              ChildWorkflowOptions.newBuilder().setCancellationType(cancellationType).build());
+      child.execute();
+    }
+  }
+
+  @WorkflowInterface
+  public interface TestChildWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class TestChildWorkflowImpl implements TestChildWorkflow {
+    @Override
+    public void execute() {
+      try {
+        Workflow.sleep(Duration.ofHours(1));
+      } catch (CancellationException e) {
+        Workflow.newDetachedCancellationScope(
+                () -> {
+                  Workflow.sleep(Duration.ofSeconds(1));
+                })
+            .run();
+      }
+    }
+  }
+
   @Test
   public void testAbandonOnCancellation() {
     startWorkerFor(TestAbandonOnCancellation.class);
@@ -1111,6 +1163,144 @@ public class WorkflowTest {
     long elapsed = currentTimeMillis() - start;
     assertTrue(elapsed < 500);
     activitiesImpl.assertInvocations("activityWithDelay");
+  }
+
+  @Test
+  public void testChildWorkflowWaitCancellationRequested() {
+    startWorkerFor(TestParentWorkflowImpl.class, TestChildWorkflowImpl.class);
+    WorkflowStub client =
+        workflowClient.newUntypedWorkflowStub(
+            "TestWorkflow_execute", newWorkflowOptionsBuilder(taskList).build());
+    WorkflowExecution execution =
+        client.start(
+            ChildWorkflowOptions.ChildWorkflowCancellationType.WAIT_CANCELLATION_REQUESTED);
+    client.cancel();
+    try {
+      client.getResult(String.class);
+      fail("unreachable");
+    } catch (CancellationException ignored) {
+    }
+    GetWorkflowExecutionHistoryRequest request =
+        GetWorkflowExecutionHistoryRequest.newBuilder()
+            .setNamespace(NAMESPACE)
+            .setExecution(execution)
+            .build();
+    GetWorkflowExecutionHistoryResponse response =
+        service.blockingStub().getWorkflowExecutionHistory(request);
+
+    boolean hasChildCancelled = false;
+    boolean hasChildCancelRequested = false;
+    for (HistoryEvent event : response.getHistory().getEventsList()) {
+      if (event.getEventType() == EventType.EventTypeChildWorkflowExecutionCanceled) {
+        hasChildCancelled = true;
+      }
+      if (event.getEventType() == EventType.EventTypeExternalWorkflowExecutionCancelRequested) {
+        hasChildCancelRequested = true;
+      }
+    }
+    assertTrue(hasChildCancelRequested);
+    assertFalse(hasChildCancelled);
+  }
+
+  @Test
+  public void testChildWorkflowWaitCancellationCompleted() {
+    startWorkerFor(TestParentWorkflowImpl.class, TestChildWorkflowImpl.class);
+    WorkflowStub client =
+        workflowClient.newUntypedWorkflowStub(
+            "TestWorkflow_execute", newWorkflowOptionsBuilder(taskList).build());
+    WorkflowExecution execution =
+        client.start(
+            ChildWorkflowOptions.ChildWorkflowCancellationType.WAIT_CANCELLATION_COMPLETED);
+    client.cancel();
+    try {
+      client.getResult(String.class);
+      fail("unreachable");
+    } catch (CancellationException ignored) {
+    }
+    GetWorkflowExecutionHistoryRequest request =
+        GetWorkflowExecutionHistoryRequest.newBuilder()
+            .setNamespace(NAMESPACE)
+            .setExecution(execution)
+            .build();
+    GetWorkflowExecutionHistoryResponse response =
+        service.blockingStub().getWorkflowExecutionHistory(request);
+
+    boolean hasChildCancelled = false;
+    for (HistoryEvent event : response.getHistory().getEventsList()) {
+      if (event.getEventType() == EventType.EventTypeChildWorkflowExecutionCanceled) {
+        hasChildCancelled = true;
+      }
+    }
+    assertTrue(hasChildCancelled);
+  }
+
+  @Test
+  public void testChildWorkflowCancellationAbandon() {
+    startWorkerFor(TestParentWorkflowImpl.class, TestChildWorkflowImpl.class);
+    WorkflowStub client =
+        workflowClient.newUntypedWorkflowStub(
+            "TestWorkflow_execute", newWorkflowOptionsBuilder(taskList).build());
+    WorkflowExecution execution =
+        client.start(ChildWorkflowOptions.ChildWorkflowCancellationType.ABANDON);
+    client.cancel();
+    try {
+      client.getResult(String.class);
+      fail("unreachable");
+    } catch (CancellationException ignored) {
+    }
+    GetWorkflowExecutionHistoryRequest request =
+        GetWorkflowExecutionHistoryRequest.newBuilder()
+            .setNamespace(NAMESPACE)
+            .setExecution(execution)
+            .build();
+    GetWorkflowExecutionHistoryResponse response =
+        service.blockingStub().getWorkflowExecutionHistory(request);
+
+    boolean hasChildCancelInitiated = false;
+    for (HistoryEvent event : response.getHistory().getEventsList()) {
+      if (event.getEventType()
+          == EventType.EventTypeRequestCancelExternalWorkflowExecutionInitiated) {
+        hasChildCancelInitiated = true;
+      }
+    }
+    assertFalse(hasChildCancelInitiated);
+  }
+
+  @Test
+  public void testChildWorkflowCancellationTryCancel() {
+    startWorkerFor(TestParentWorkflowImpl.class, TestChildWorkflowImpl.class);
+    WorkflowStub client =
+        workflowClient.newUntypedWorkflowStub(
+            "TestWorkflow_execute", newWorkflowOptionsBuilder(taskList).build());
+    WorkflowExecution execution =
+        client.start(ChildWorkflowOptions.ChildWorkflowCancellationType.TRY_CANCEL);
+    client.cancel();
+    try {
+      client.getResult(String.class);
+      fail("unreachable");
+    } catch (CancellationException ignored) {
+    }
+    GetWorkflowExecutionHistoryRequest request =
+        GetWorkflowExecutionHistoryRequest.newBuilder()
+            .setNamespace(NAMESPACE)
+            .setExecution(execution)
+            .build();
+    GetWorkflowExecutionHistoryResponse response =
+        service.blockingStub().getWorkflowExecutionHistory(request);
+
+    boolean hasChildCancelInitiated = false;
+    boolean hasChildCancelRequested = false;
+    for (HistoryEvent event : response.getHistory().getEventsList()) {
+      if (event.getEventType()
+          == EventType.EventTypeRequestCancelExternalWorkflowExecutionInitiated) {
+        hasChildCancelInitiated = true;
+      }
+      if (event.getEventType() == EventType.EventTypeExternalWorkflowExecutionCancelRequested) {
+        hasChildCancelRequested = true;
+      }
+    }
+    assertTrue(hasChildCancelInitiated);
+    assertFalse(hasChildCancelRequested);
   }
 
   @WorkflowInterface

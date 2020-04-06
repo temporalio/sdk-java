@@ -67,8 +67,8 @@ final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskRespo
             .setTaskList(TaskList.newBuilder().setName(taskList).build())
             .build();
 
-    if (log.isDebugEnabled()) {
-      log.debug("poll request begin: " + pollRequest);
+    if (log.isTraceEnabled()) {
+      log.trace("poll request begin: " + pollRequest);
     }
     PollForDecisionTaskResponse result;
     try {
@@ -86,8 +86,8 @@ final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskRespo
       }
       throw e;
     }
-    if (log.isDebugEnabled()) {
-      log.debug(
+    if (log.isTraceEnabled()) {
+      log.trace(
           "poll request returned decision task: workflowType="
               + result.getWorkflowType()
               + ", workflowExecution="
