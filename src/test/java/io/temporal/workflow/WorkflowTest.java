@@ -5893,9 +5893,14 @@ public class WorkflowTest {
       assertTrue(e.getMessage().contains("Unknown query type: SignalQueryBase_getSignal"));
     }
     stub.register();
-    // TODO: Remove as soon as consistent query is supported by the sdk
-    sleep(Duration.ofSeconds(1));
-    assertEquals("a, b", signalStub.getSignal());
+    while (true) {
+      try {
+        assertEquals("a, b", signalStub.getSignal());
+        break;
+      } catch (WorkflowQueryException e) {
+        assertTrue(e.getMessage().contains("Unknown query type: SignalQueryBase_getSignal"));
+      }
+    }
   }
 
   private static class TracingWorkflowCallsInterceptor implements WorkflowCallsInterceptor {

@@ -32,12 +32,14 @@ Add *temporal-sdk* as a dependency to your *pom.xml*:
     <dependency>
       <groupId>io.temporal</groupId>
       <artifactId>temporal-sdk</artifactId>
-      <version>1.0.0</version>
+      <version>N.N.N</version>
     </dependency>
     
 or to *build.gradle*:
 
-    compile group: 'io.temporal', name: 'temporal-sdk', version: '1.0.0'
+    compile group: 'io.temporal', name: 'temporal-sdk', version: 'N.N.N'
+
+Until the official release use the version from the temporal-java-samples [build.gradle](https://github.com/temporalio/temporal-java-samples/blob/master/build.gradle)
 
 ## Documentation
 
