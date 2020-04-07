@@ -19,8 +19,7 @@
 
 package io.temporal.common.converter;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 import com.google.common.base.Objects;
 import io.temporal.activity.Activity;
@@ -168,23 +167,20 @@ public class JsonDataConverterTest {
     RuntimeException e = new RuntimeException("application exception", nonSerializableCause);
 
     byte[] converted = converter.toData(e);
-    String serialized = new String(converted);
-    fail("SEERIALIZED: " + serialized);
-    //    RuntimeException fromConverted =
-    //        converter.fromData(converted, RuntimeException.class, RuntimeException.class);
-    //    fromConverted.printStackTrace();
-    //    assertEquals(RuntimeException.class, fromConverted.getClass());
-    //    assertEquals("application exception", fromConverted.getMessage());
-    //
-    //    Throwable causeFromConverted = fromConverted.getCause();
-    //    assertNotNull(causeFromConverted);
-    //    assertEquals(DataConverterException.class, causeFromConverted.getClass());
-    //    assertNotNull(causeFromConverted.getCause());
-    //    assertEquals(StackOverflowError.class, causeFromConverted.getCause().getClass());
-    //
-    //    assertNotNull(causeFromConverted.getSuppressed());
-    //    assertEquals(1, causeFromConverted.getSuppressed().length);
-    //
-    //    assertEquals("root exception", causeFromConverted.getSuppressed()[0].getMessage());
+    RuntimeException fromConverted =
+        converter.fromData(converted, RuntimeException.class, RuntimeException.class);
+    assertEquals(RuntimeException.class, fromConverted.getClass());
+    assertEquals("application exception", fromConverted.getMessage());
+
+    Throwable causeFromConverted = fromConverted.getCause();
+    assertNotNull(causeFromConverted);
+    assertEquals(DataConverterException.class, causeFromConverted.getClass());
+    assertNotNull(causeFromConverted.getCause());
+    assertEquals(StackOverflowError.class, causeFromConverted.getCause().getClass());
+
+    assertNotNull(causeFromConverted.getSuppressed());
+    assertEquals(1, causeFromConverted.getSuppressed().length);
+
+    assertEquals("root exception", causeFromConverted.getSuppressed()[0].getMessage());
   }
 }
