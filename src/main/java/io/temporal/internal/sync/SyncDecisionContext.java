@@ -27,9 +27,11 @@ import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.RetryParameters;
+import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.ActivityTaskFailedException;
 import io.temporal.internal.replay.ActivityTaskTimeoutException;
 import io.temporal.internal.replay.ChildWorkflowTaskFailedException;
@@ -41,8 +43,8 @@ import io.temporal.internal.replay.SignalExternalWorkflowParameters;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
 import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.SearchAttributes;
-import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
+import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.workflow.ActivityException;
 import io.temporal.workflow.ActivityFailureException;
 import io.temporal.workflow.ActivityTimeoutException;
@@ -60,6 +62,7 @@ import io.temporal.workflow.SignalExternalWorkflowException;
 import io.temporal.workflow.Workflow;
 import java.lang.reflect.Type;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -78,6 +81,24 @@ import org.slf4j.LoggerFactory;
 
 final class SyncDecisionContext implements WorkflowCallsInterceptor {
 
+  private static class SignalData {
+    private final byte[] payload;
+    private final long eventId;
+
+    private SignalData(byte[] payload, long eventId) {
+      this.payload = payload;
+      this.eventId = eventId;
+    }
+
+    public byte[] getPayload() {
+      return payload;
+    }
+
+    public long getEventId() {
+      return eventId;
+    }
+  }
+
   private static final Logger log = LoggerFactory.getLogger(SyncDecisionContext.class);
 
   private final DecisionContext context;
@@ -87,6 +108,12 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
   private WorkflowCallsInterceptor headInterceptor;
   private final WorkflowTimers timers = new WorkflowTimers();
   private final Map<String, Functions.Func1<byte[], byte[]>> queryCallbacks = new HashMap<>();
+  private final Map<String, Functions.Proc2<byte[], Long>> signalCallbacks = new HashMap<>();
+  /**
+   * Buffers signals which don't have registered listener. Key is signal type. Value is signal data.
+   */
+  private final Map<String, List<SignalData>> signalBuffers = new HashMap<>();
+
   private final byte[] lastCompletionResult;
 
   public SyncDecisionContext(
@@ -584,12 +611,26 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     return callback.apply(args);
   }
 
+  public void signal(String signalName, byte[] args, long eventId) {
+    Functions.Proc2<byte[], Long> callback = signalCallbacks.get(signalName);
+    if (callback == null) {
+      List<SignalData> buffer = signalBuffers.get(signalName);
+      if (buffer == null) {
+        buffer = new ArrayList<>();
+        signalBuffers.put(signalName, buffer);
+      }
+      buffer.add(new SignalData(args, eventId));
+    } else {
+      callback.apply(args, eventId);
+    }
+  }
+
   @Override
   public void registerQuery(
       String queryType, Type[] argTypes, Functions.Func1<Object[], Object> callback) {
-    //    if (queryCallbacks.containsKey(queryType)) {
-    //      throw new IllegalStateException("Query \"" + queryType + "\" is already registered");
-    //    }
+    if (queryCallbacks.containsKey(queryType)) {
+      throw new IllegalStateException("Query \"" + queryType + "\" is already registered");
+    }
     queryCallbacks.put(
         queryType,
         (input) -> {
@@ -597,6 +638,42 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
           Object result = callback.apply(args);
           return converter.toData(result);
         });
+  }
+
+  @Override
+  public void registerSignal(
+      String signalType, Type[] argTypes, Functions.Proc1<Object[]> callback) {
+    if (signalCallbacks.containsKey(signalType)) {
+      throw new IllegalStateException("Signal \"" + signalType + "\" is already registered");
+    }
+    Functions.Proc2<byte[], Long> signalCallback =
+        (input, eventId) -> {
+          try {
+            Object[] args = converter.fromDataArray(input, argTypes);
+            callback.apply(args);
+          } catch (DataConverterException e) {
+            logSerializationException(signalType, eventId, e);
+          }
+        };
+    List<SignalData> buffer = signalBuffers.remove(signalType);
+    if (buffer != null) {
+      for (SignalData signalData : buffer) {
+        signalCallback.apply(signalData.getPayload(), signalData.getEventId());
+      }
+    }
+    signalCallbacks.put(signalType, signalCallback);
+  }
+
+  void logSerializationException(
+      String signalName, Long eventId, DataConverterException exception) {
+    log.error(
+        "Failure deserializing signal input for \""
+            + signalName
+            + "\" at eventId "
+            + eventId
+            + ". Dropping it.",
+        exception);
+    Workflow.getMetricsScope().counter(MetricsType.CORRUPTED_SIGNALS_COUNTER).inc(1);
   }
 
   @Override

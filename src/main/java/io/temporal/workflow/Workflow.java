@@ -24,7 +24,7 @@ import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.internal.sync.WorkflowInternal;
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Functions.Func;
 import java.lang.reflect.Type;
@@ -700,12 +700,18 @@ public final class Workflow {
   }
 
   /**
-   * Register query or queries implementation object. There is no need to register top level
-   * workflow implementation object as it is done implicitly. Only methods annotated with @{@link
-   * QueryMethod} are registered.
+   * Registers an implementation object. The object must implement at least one interface annotated
+   * with {@link WorkflowInterface}. All its methods annotated with @{@link SignalMethod}
+   * and @{@link QueryMethod} are registered.
+   *
+   * <p>There is no need to register the top level workflow implementation object as it is done
+   * implicitly by the framework on object startup.
+   *
+   * <p>An attempt to register a duplicated query is going to fail with {@link
+   * IllegalArgumentException}
    */
-  public static void registerQuery(Object queryImplementation) {
-    WorkflowInternal.registerQuery(queryImplementation);
+  public static void registerListener(Object queryImplementation) {
+    WorkflowInternal.registerListener(queryImplementation);
   }
 
   /**

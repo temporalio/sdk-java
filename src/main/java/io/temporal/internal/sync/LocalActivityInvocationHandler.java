@@ -19,7 +19,6 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
@@ -33,23 +32,27 @@ class LocalActivityInvocationHandler extends ActivityInvocationHandlerBase {
   private final WorkflowCallsInterceptor activityExecutor;
 
   static InvocationHandler newInstance(
-      LocalActivityOptions options, WorkflowCallsInterceptor activityExecutor) {
-    return new LocalActivityInvocationHandler(options, activityExecutor);
+      Class<?> activityInterface,
+      LocalActivityOptions options,
+      WorkflowCallsInterceptor activityExecutor) {
+    return new LocalActivityInvocationHandler(activityInterface, activityExecutor, options);
   }
 
   private LocalActivityInvocationHandler(
-      LocalActivityOptions options, WorkflowCallsInterceptor activityExecutor) {
+      Class<?> activityInterface,
+      WorkflowCallsInterceptor activityExecutor,
+      LocalActivityOptions options) {
     this.options = options;
     this.activityExecutor = activityExecutor;
+    init(activityInterface);
   }
 
   @Override
   protected Function<Object[], Object> getActivityFunc(
-      Method method, MethodRetry methodRetry, ActivityMethod activityMethod, String activityName) {
+      Method method, MethodRetry methodRetry, String activityName) {
     Function<Object[], Object> function;
     LocalActivityOptions mergedOptions =
         LocalActivityOptions.newBuilder(options)
-            .setActivityMethod(activityMethod)
             .setMethodRetry(methodRetry)
             .validateAndBuildWithDefaults();
     ActivityStub stub = LocalActivityStubImpl.newInstance(mergedOptions, activityExecutor);

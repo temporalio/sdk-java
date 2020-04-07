@@ -29,6 +29,7 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.StatsReporter;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
+import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
@@ -71,6 +72,7 @@ public class MetricsTest {
   private TestWorkflowEnvironment testEnvironment;
   private StatsReporter reporter;
 
+  @WorkflowInterface
   public interface TestWorkflow {
 
     @WorkflowMethod
@@ -108,6 +110,7 @@ public class MetricsTest {
     }
   }
 
+  @ActivityInterface
   public interface TestActivity {
     int runActivity(int input);
   }
@@ -119,6 +122,7 @@ public class MetricsTest {
     }
   }
 
+  @WorkflowInterface
   public interface TestChildWorkflow {
 
     @WorkflowMethod
@@ -139,6 +143,7 @@ public class MetricsTest {
     }
   }
 
+  @WorkflowInterface
   public interface ReceiveSignalObjectChildWorkflow {
 
     @WorkflowMethod
@@ -174,6 +179,7 @@ public class MetricsTest {
     }
   }
 
+  @WorkflowInterface
   public interface SendSignalObjectWorkflow {
 
     @WorkflowMethod

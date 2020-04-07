@@ -20,7 +20,7 @@
 package io.temporal.internal.replay;
 
 import io.temporal.proto.common.ActivityType;
-import io.temporal.proto.enums.TimeoutType;
+import io.temporal.proto.event.TimeoutType;
 
 /** Exception that indicates Activity time out. */
 @SuppressWarnings("serial")

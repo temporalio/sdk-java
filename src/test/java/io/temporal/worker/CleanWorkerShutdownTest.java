@@ -24,14 +24,15 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import io.temporal.activity.Activity;
-import io.temporal.activity.ActivityMethod;
+import io.temporal.activity.ActivityInterface;
+import io.temporal.activity.ActivityOptions;
 import io.temporal.client.ActivityWorkerShutdownException;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.proto.common.HistoryEvent;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.enums.EventType;
+import io.temporal.proto.event.EventType;
+import io.temporal.proto.event.HistoryEvent;
+import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -39,8 +40,10 @@ import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -98,6 +101,7 @@ public class CleanWorkerShutdownTest {
     }
   }
 
+  @WorkflowInterface
   public interface TestWorkflow {
     @WorkflowMethod(executionStartToCloseTimeoutSeconds = 100)
     String execute();
@@ -105,7 +109,12 @@ public class CleanWorkerShutdownTest {
 
   public static class TestWorkflowImpl implements TestWorkflow {
 
-    private final Activities activities = Workflow.newActivityStub(Activities.class);
+    private final Activities activities =
+        Workflow.newActivityStub(
+            Activities.class,
+            ActivityOptions.newBuilder()
+                .setScheduleToCloseTimeout(Duration.ofSeconds(100))
+                .build());
 
     @Override
     public String execute() {
@@ -113,8 +122,8 @@ public class CleanWorkerShutdownTest {
     }
   }
 
+  @ActivityInterface
   public interface Activities {
-    @ActivityMethod(scheduleToCloseTimeoutSeconds = 100)
     String execute();
   }
 
@@ -186,7 +195,7 @@ public class CleanWorkerShutdownTest {
     List<HistoryEvent> events = result.getHistory().getEventsList();
     boolean found = false;
     for (HistoryEvent e : events) {
-      if (e.getEventType() == EventType.EventTypeActivityTaskCompleted) {
+      if (e.getEventType() == EventType.ActivityTaskCompleted) {
         found = true;
         byte[] ar = e.getActivityTaskCompletedEventAttributes().getResult().toByteArray();
         assertEquals("\"completed\"", new String(ar, StandardCharsets.UTF_8));
@@ -244,7 +253,7 @@ public class CleanWorkerShutdownTest {
     List<HistoryEvent> events = result.getHistory().getEventsList();
     boolean found = false;
     for (HistoryEvent e : events) {
-      if (e.getEventType() == EventType.EventTypeActivityTaskCompleted) {
+      if (e.getEventType() == EventType.ActivityTaskCompleted) {
         found = true;
         byte[] ar = e.getActivityTaskCompletedEventAttributes().getResult().toByteArray();
         assertEquals("\"interrupted\"", new String(ar, StandardCharsets.UTF_8));
@@ -332,7 +341,7 @@ public class CleanWorkerShutdownTest {
     List<HistoryEvent> events = result.getHistory().getEventsList();
     boolean found = false;
     for (HistoryEvent e : events) {
-      if (e.getEventType() == EventType.EventTypeActivityTaskCompleted) {
+      if (e.getEventType() == EventType.ActivityTaskCompleted) {
         found = true;
         byte[] ar = e.getActivityTaskCompletedEventAttributes().getResult().toByteArray();
         assertEquals("\"workershutdown\"", new String(ar, StandardCharsets.UTF_8));

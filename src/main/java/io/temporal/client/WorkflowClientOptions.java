@@ -117,8 +117,6 @@ public final class WorkflowClientOptions {
      * "unknown-mac" string on Mac or whatever <code>(ManagementFactory.getRuntimeMXBean().getName()
      * </code> returns on any other platform. The reason for treating Mac differently is a very slow
      * local host name resolution in a default configuration.
-     *
-     * @return
      */
     public Builder setIdentity(String identity) {
       this.identity = identity;

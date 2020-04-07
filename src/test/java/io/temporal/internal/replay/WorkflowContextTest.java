@@ -25,7 +25,7 @@ import com.google.protobuf.ByteString;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GsonJsonDataConverter;
 import io.temporal.proto.common.SearchAttributes;
-import io.temporal.proto.common.WorkflowExecutionStartedEventAttributes;
+import io.temporal.proto.event.WorkflowExecutionStartedEventAttributes;
 import io.temporal.workflow.WorkflowUtils;
 import java.util.HashMap;
 import java.util.Map;

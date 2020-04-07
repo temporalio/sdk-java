@@ -29,65 +29,6 @@ import org.junit.Test;
 
 public class ActivityOptionsTest {
 
-  @ActivityMethod
-  public void defaultActivityOptions() {}
-
-  @Test
-  public void testOnlyOptionsPresent() throws NoSuchMethodException {
-    ActivityOptions o =
-        ActivityOptions.newBuilder()
-            .setTaskList("foo")
-            .setHeartbeatTimeout(Duration.ofSeconds(123))
-            .setScheduleToCloseTimeout(Duration.ofSeconds(321))
-            .setScheduleToStartTimeout(Duration.ofSeconds(333))
-            .setStartToCloseTimeout(Duration.ofSeconds(345))
-            .setRetryOptions(
-                RetryOptions.newBuilder()
-                    .setDoNotRetry(IllegalArgumentException.class)
-                    .setMaximumAttempts(11111)
-                    .setBackoffCoefficient(1.55)
-                    .setMaximumInterval(Duration.ofDays(3))
-                    .setExpiration(Duration.ofDays(365))
-                    .setInitialInterval(Duration.ofMinutes(12))
-                    .build())
-            .build();
-    ActivityMethod a =
-        ActivityOptionsTest.class
-            .getMethod("defaultActivityOptions")
-            .getAnnotation(ActivityMethod.class);
-    Assert.assertEquals(o, ActivityOptions.newBuilder(o).setActivityMethod(a).build());
-  }
-
-  @MethodRetry(initialIntervalSeconds = 3)
-  @ActivityMethod
-  public void defaultActivityAndRetryOptions() {}
-
-  @Test
-  public void testOnlyOptionsAndEmptyAnnotationsPresent() throws NoSuchMethodException {
-    ActivityOptions o =
-        ActivityOptions.newBuilder()
-            .setTaskList("foo")
-            .setHeartbeatTimeout(Duration.ofSeconds(123))
-            .setScheduleToCloseTimeout(Duration.ofSeconds(321))
-            .setScheduleToStartTimeout(Duration.ofSeconds(333))
-            .setStartToCloseTimeout(Duration.ofSeconds(345))
-            .setRetryOptions(
-                RetryOptions.newBuilder()
-                    .setDoNotRetry(IllegalArgumentException.class)
-                    .setMaximumAttempts(11111)
-                    .setBackoffCoefficient(1.55)
-                    .setMaximumInterval(Duration.ofDays(3))
-                    .setExpiration(Duration.ofDays(365))
-                    .setInitialInterval(Duration.ofMinutes(12))
-                    .build())
-            .build();
-    ActivityMethod a =
-        ActivityOptionsTest.class
-            .getMethod("defaultActivityAndRetryOptions")
-            .getAnnotation(ActivityMethod.class);
-    Assert.assertEquals(o, ActivityOptions.newBuilder(o).setActivityMethod(a).build());
-  }
-
   @MethodRetry(
     initialIntervalSeconds = 12,
     backoffCoefficient = 1.97,
@@ -95,13 +36,6 @@ public class ActivityOptionsTest {
     maximumAttempts = 234567,
     maximumIntervalSeconds = 22,
     doNotRetry = {NullPointerException.class, UnsupportedOperationException.class}
-  )
-  @ActivityMethod(
-    startToCloseTimeoutSeconds = 1135,
-    taskList = "bar",
-    heartbeatTimeoutSeconds = 4567,
-    scheduleToCloseTimeoutSeconds = 2342,
-    scheduleToStartTimeoutSeconds = 9879
   )
   public void activityAndRetryOptions() {}
 
@@ -111,16 +45,7 @@ public class ActivityOptionsTest {
     ActivityMethod a = method.getAnnotation(ActivityMethod.class);
     MethodRetry r = method.getAnnotation(MethodRetry.class);
     ActivityOptions o = ActivityOptions.newBuilder().build();
-    ActivityOptions merged =
-        ActivityOptions.newBuilder(o).setActivityMethod(a).setMethodRetry(r).build();
-    Assert.assertEquals(a.taskList(), merged.getTaskList());
-    Assert.assertEquals(a.heartbeatTimeoutSeconds(), merged.getHeartbeatTimeout().getSeconds());
-    Assert.assertEquals(
-        a.scheduleToCloseTimeoutSeconds(), merged.getScheduleToCloseTimeout().getSeconds());
-    Assert.assertEquals(
-        a.scheduleToStartTimeoutSeconds(), merged.getScheduleToStartTimeout().getSeconds());
-    Assert.assertEquals(
-        a.startToCloseTimeoutSeconds(), merged.getStartToCloseTimeout().getSeconds());
+    ActivityOptions merged = ActivityOptions.newBuilder(o).setMethodRetry(r).build();
 
     RetryOptions rMerged = merged.getRetryOptions();
     Assert.assertEquals(r.maximumAttempts(), rMerged.getMaximumAttempts());
@@ -131,31 +56,5 @@ public class ActivityOptionsTest {
     Assert.assertEquals(
         Duration.ofSeconds(r.maximumIntervalSeconds()), rMerged.getMaximumInterval());
     Assert.assertEquals(Arrays.asList(r.doNotRetry()), rMerged.getDoNotRetry());
-  }
-
-  @Test
-  public void testBothPresent() throws NoSuchMethodException {
-    ActivityOptions o =
-        ActivityOptions.newBuilder()
-            .setTaskList("foo")
-            .setHeartbeatTimeout(Duration.ofSeconds(123))
-            .setScheduleToCloseTimeout(Duration.ofSeconds(321))
-            .setScheduleToStartTimeout(Duration.ofSeconds(333))
-            .setStartToCloseTimeout(Duration.ofSeconds(345))
-            .setRetryOptions(
-                RetryOptions.newBuilder()
-                    .setDoNotRetry(IllegalArgumentException.class)
-                    .setMaximumAttempts(11111)
-                    .setBackoffCoefficient(1.55)
-                    .setMaximumInterval(Duration.ofDays(3))
-                    .setExpiration(Duration.ofDays(365))
-                    .setInitialInterval(Duration.ofMinutes(12))
-                    .build())
-            .build();
-    Method method = ActivityOptionsTest.class.getMethod("activityAndRetryOptions");
-    ActivityMethod a = method.getAnnotation(ActivityMethod.class);
-    MethodRetry r = method.getAnnotation(MethodRetry.class);
-    Assert.assertEquals(
-        o, ActivityOptions.newBuilder(o).setActivityMethod(a).setMethodRetry(r).build());
   }
 }

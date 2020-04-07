@@ -32,7 +32,7 @@ import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.internal.worker.DecisionTaskHandler;
 import io.temporal.internal.worker.SingleWorkerOptions;
-import io.temporal.proto.common.StickyExecutionAttributes;
+import io.temporal.proto.decision.StickyExecutionAttributes;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.HistoryUtils;

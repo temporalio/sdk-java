@@ -22,7 +22,7 @@ package io.temporal.client;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
-import io.temporal.proto.enums.WorkflowIdReusePolicy;
+import io.temporal.proto.common.WorkflowIdReusePolicy;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.Method;
@@ -45,7 +45,7 @@ public class WorkflowOptionsTest {
             .setTaskList("foo")
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(321))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate)
+            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
             .setMemo(getTestMemo())
             .setSearchAttributes(getTestSearchAttributes())
             .build();
@@ -61,7 +61,7 @@ public class WorkflowOptionsTest {
     taskList = "bar",
     taskStartToCloseTimeoutSeconds = 34,
     workflowId = "foo",
-    workflowIdReusePolicy = WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicate
+    workflowIdReusePolicy = WorkflowIdReusePolicy.AllowDuplicate
   )
   @MethodRetry(
     initialIntervalSeconds = 12,
@@ -113,7 +113,7 @@ public class WorkflowOptionsTest {
             .setTaskList("foo")
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(321))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate)
+            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
             .setWorkflowId("bar")
             .setRetryOptions(retryOptions)
             .setCronSchedule("* 1 * * *")
@@ -150,7 +150,7 @@ public class WorkflowOptionsTest {
             .setTaskList("foo")
             .setExecutionStartToCloseTimeout(Duration.ofSeconds(321))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate)
+            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
             .setWorkflowId("bar")
             .setRetryOptions(retryOptions)
             .setCronSchedule("* 1 * * *")

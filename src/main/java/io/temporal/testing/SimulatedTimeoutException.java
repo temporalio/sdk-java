@@ -20,7 +20,7 @@
 package io.temporal.testing;
 
 import com.google.common.annotations.VisibleForTesting;
-import io.temporal.proto.enums.TimeoutType;
+import io.temporal.proto.event.TimeoutType;
 
 /**
  * SimulatedTimeoutException can be thrown from an activity or child workflow implementation to
@@ -53,7 +53,7 @@ public final class SimulatedTimeoutException extends RuntimeException {
    * simulate a child workflow timeout.
    */
   public SimulatedTimeoutException() {
-    this.timeoutType = TimeoutType.TimeoutTypeStartToClose;
+    this.timeoutType = TimeoutType.StartToClose;
     this.details = null;
   }
 

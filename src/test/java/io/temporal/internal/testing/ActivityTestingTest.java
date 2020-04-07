@@ -23,11 +23,13 @@ import static org.junit.Assert.*;
 
 import io.grpc.Status;
 import io.temporal.activity.Activity;
-import io.temporal.activity.ActivityMethod;
+import io.temporal.activity.ActivityInterface;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.testing.TestActivityEnvironment;
 import io.temporal.workflow.ActivityFailureException;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -44,6 +46,7 @@ public class ActivityTestingTest {
     testEnvironment = TestActivityEnvironment.newInstance();
   }
 
+  @ActivityInterface
   public interface TestActivity {
 
     String activity1(String input);
@@ -107,9 +110,8 @@ public class ActivityTestingTest {
     assertEquals("details1", details.get());
   }
 
+  @ActivityInterface
   public interface InterruptibleTestActivity {
-
-    @ActivityMethod(scheduleToCloseTimeoutSeconds = 1000, heartbeatTimeoutSeconds = 1)
     void activity1() throws InterruptedException;
   }
 
@@ -248,5 +250,168 @@ public class ActivityTestingTest {
         testEnvironment.newActivityStub(InterruptibleTestActivity.class);
     activity.activity1();
     assertEquals(3, count.get());
+  }
+
+  public interface A {
+    void a();
+  }
+
+  @ActivityInterface
+  public interface B extends A {
+    void b();
+  }
+
+  @ActivityInterface
+  public interface C extends B, A {
+    void c();
+  }
+
+  @ActivityInterface
+  public interface D extends A {
+    void d();
+  }
+
+  @ActivityInterface
+  public interface E extends D {
+    void e();
+  }
+
+  public class CImpl implements C {
+    private List<String> invocations = new ArrayList<>();
+
+    @Override
+    public void a() {
+      invocations.add("a");
+    }
+
+    @Override
+    public void b() {
+      invocations.add("b");
+    }
+
+    @Override
+    public void c() {
+      invocations.add("c");
+    }
+  }
+
+  public class BImpl implements B {
+    private List<String> invocations = new ArrayList<>();
+
+    @Override
+    public void a() {
+      invocations.add("a");
+    }
+
+    @Override
+    public void b() {
+      invocations.add("b");
+    }
+  }
+
+  public class DImpl implements D {
+    private List<String> invocations = new ArrayList<>();
+
+    @Override
+    public void a() {
+      invocations.add("a");
+    }
+
+    @Override
+    public void d() {
+      invocations.add("d");
+    }
+  }
+
+  public class EImpl implements E {
+    private List<String> invocations = new ArrayList<>();
+
+    @Override
+    public void a() {
+      invocations.add("a");
+    }
+
+    @Override
+    public void d() {
+      invocations.add("d");
+    }
+
+    @Override
+    public void e() {
+      invocations.add("e");
+    }
+  }
+
+  @Test
+  public void testInvokingActivityByBaseInterface() {
+    BImpl bImpl = new BImpl();
+    DImpl dImpl = new DImpl();
+    EImpl eImpl = new EImpl();
+    {
+      testEnvironment.registerActivitiesImplementations(bImpl, dImpl);
+      try {
+        testEnvironment.newActivityStub(A.class);
+        fail("A doesn't implement activity");
+      } catch (IllegalArgumentException e) {
+        // expected as A doesn't implement any activity
+      }
+      B b = testEnvironment.newActivityStub(B.class);
+      b.a();
+      b.b();
+      A a = b;
+      a.a();
+      D d = testEnvironment.newActivityStub(D.class);
+      d.a();
+      d.d();
+      a = d;
+      a.a();
+      List<String> expectedB = new ArrayList<>();
+      expectedB.add("a");
+      expectedB.add("b");
+      expectedB.add("a");
+      assertEquals(expectedB, bImpl.invocations);
+
+      List<String> expectedD = new ArrayList<>();
+      expectedD.add("a");
+      expectedD.add("d");
+      expectedD.add("a");
+      assertEquals(expectedD, dImpl.invocations);
+    }
+    {
+      testEnvironment.registerActivitiesImplementations(eImpl);
+      E e = testEnvironment.newActivityStub(E.class);
+      e.a();
+      e.d();
+      e.e();
+      D d = testEnvironment.newActivityStub(D.class);
+      d.a();
+      d.d();
+      List<String> expectedE = new ArrayList<>();
+      expectedE.add("a");
+      expectedE.add("d");
+      expectedE.add("e");
+      expectedE.add("a");
+      expectedE.add("d");
+      assertEquals(expectedE, eImpl.invocations);
+    }
+  }
+
+  @Test
+  public void testDuplicates() {
+    try {
+      CImpl cImpl = new CImpl();
+      testEnvironment.registerActivitiesImplementations(cImpl);
+    } catch (IllegalArgumentException e) {
+      assertTrue(e.getMessage().contains("A.a()"));
+      assertTrue(e.getMessage().contains("Duplicated"));
+    }
+    DImpl dImpl = new DImpl();
+    EImpl eImpl = new EImpl();
+    try {
+      testEnvironment.registerActivitiesImplementations(dImpl, eImpl);
+    } catch (IllegalArgumentException e) {
+      assertTrue(e.getMessage().contains("D_a"));
+      assertTrue(e.getMessage().contains("already registered"));
+    }
   }
 }

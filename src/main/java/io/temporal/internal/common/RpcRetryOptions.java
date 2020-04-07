@@ -160,8 +160,8 @@ public final class RpcRetryOptions {
     }
 
     /**
-     * Add <code>Status.Code</code> with associated details class to not retry. If detailsClass is
-     * null all failures with the code are non retryable.
+     * Add <code>Status.Code</code> with associated details class to not retry. If <code>
+     * detailsClass</code> is null all failures with the code are non retryable.
      */
     public Builder addDoNotRetry(
         Status.Code code, Class<? extends GeneratedMessageV3> detailsClass) {

@@ -19,8 +19,8 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.proto.common.Decision;
-import io.temporal.proto.common.HistoryEvent;
+import io.temporal.proto.decision.Decision;
+import io.temporal.proto.event.HistoryEvent;
 
 interface DecisionStateMachine {
 

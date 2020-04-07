@@ -19,15 +19,9 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.internal.common.InternalUtils.getValueOrDefault;
-
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
-import io.temporal.internal.common.InternalUtils;
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.workflow.ExternalWorkflowStub;
-import io.temporal.workflow.QueryMethod;
-import io.temporal.workflow.SignalMethod;
-import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 
@@ -35,9 +29,13 @@ import java.lang.reflect.Method;
 class ExternalWorkflowInvocationHandler implements InvocationHandler {
 
   private final ExternalWorkflowStub stub;
+  private final POJOWorkflowInterfaceMetadata workflowMetadata;
 
   public ExternalWorkflowInvocationHandler(
-      WorkflowExecution execution, WorkflowCallsInterceptor decisionContext) {
+      Class<?> workflowInterface,
+      WorkflowExecution execution,
+      WorkflowCallsInterceptor decisionContext) {
+    workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
     stub = new ExternalWorkflowStubImpl(execution, decisionContext);
   }
 
@@ -47,38 +45,22 @@ class ExternalWorkflowInvocationHandler implements InvocationHandler {
     if (method.getName().equals(StubMarker.GET_UNTYPED_STUB_METHOD)) {
       return stub;
     }
-    WorkflowMethod workflowMethod = method.getAnnotation(WorkflowMethod.class);
-    QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);
-    SignalMethod signalMethod = method.getAnnotation(SignalMethod.class);
-    WorkflowInvocationHandler.checkAnnotations(method, workflowMethod, queryMethod, signalMethod);
-    if (workflowMethod != null) {
-      throw new IllegalStateException(
-          "Cannot start a workflow with an external workflow stub "
-              + "created through Workflow.newExternalWorkflowStub");
+    POJOWorkflowMethodMetadata methodMetadata = workflowMetadata.getMethodMetadata(method);
+    switch (methodMetadata.getType()) {
+      case QUERY:
+        throw new UnsupportedOperationException(
+            "Query is not supported from workflow to workflow. "
+                + "Use activity that perform the query instead.");
+      case WORKFLOW:
+        throw new IllegalStateException(
+            "Cannot start a workflow with an external workflow stub "
+                + "created through Workflow.newExternalWorkflowStub");
+      case SIGNAL:
+        stub.signal(methodMetadata.getName(), args);
+        break;
+      default:
+        throw new IllegalStateException("unreachale");
     }
-    if (queryMethod != null) {
-      return getValueOrDefault(queryWorkflow(method, queryMethod, args), method.getReturnType());
-    }
-    if (signalMethod != null) {
-      signalWorkflow(method, signalMethod, args);
-      return null;
-    }
-    throw new IllegalArgumentException(
-        method + " is not annotated with @SignalMethod or @QueryMethod");
-  }
-
-  private void signalWorkflow(Method method, SignalMethod signalMethod, Object[] args) {
-    String signalName = signalMethod.name();
-    if (signalName.isEmpty()) {
-      signalName = InternalUtils.getSimpleName(method);
-    }
-    stub.signal(signalName, args);
-  }
-
-  @SuppressWarnings("unused")
-  private Object queryWorkflow(Method method, QueryMethod queryMethod, Object[] args) {
-    throw new UnsupportedOperationException(
-        "Query is not supported from workflow to workflow. "
-            + "Use activity that perform the query instead.");
+    return null;
   }
 }

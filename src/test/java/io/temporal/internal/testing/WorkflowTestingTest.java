@@ -25,7 +25,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import io.temporal.activity.Activity;
-import io.temporal.activity.ActivityMethod;
+import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
@@ -35,12 +35,12 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.client.WorkflowTimedOutException;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.common.WorkflowExecutionUtils;
-import io.temporal.proto.common.History;
-import io.temporal.proto.common.HistoryEvent;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.common.WorkflowExecutionInfo;
-import io.temporal.proto.enums.EventType;
-import io.temporal.proto.enums.TimeoutType;
+import io.temporal.proto.event.EventType;
+import io.temporal.proto.event.History;
+import io.temporal.proto.event.HistoryEvent;
+import io.temporal.proto.event.TimeoutType;
+import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.execution.WorkflowExecutionInfo;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.ListClosedWorkflowExecutionsRequest;
 import io.temporal.proto.workflowservice.ListClosedWorkflowExecutionsResponse;
@@ -57,6 +57,7 @@ import io.temporal.workflow.ChildWorkflowTimedOutException;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -114,6 +115,7 @@ public class WorkflowTestingTest {
     testEnvironment.close();
   }
 
+  @WorkflowInterface
   public interface TestWorkflow {
 
     @WorkflowMethod(executionStartToCloseTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
@@ -166,9 +168,8 @@ public class WorkflowTestingTest {
     }
   }
 
+  @ActivityInterface
   public interface TestActivity {
-
-    @ActivityMethod(scheduleToCloseTimeoutSeconds = 3600)
     String activity1(String input);
   }
 
@@ -182,7 +183,10 @@ public class WorkflowTestingTest {
 
   public static class ActivityWorkflow implements TestWorkflow {
 
-    private final TestActivity activity = Workflow.newActivityStub(TestActivity.class);
+    private final TestActivity activity =
+        Workflow.newActivityStub(
+            TestActivity.class,
+            ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofHours(1)).build());
 
     @Override
     public String workflow1(String input) {
@@ -231,7 +235,7 @@ public class WorkflowTestingTest {
 
     @Override
     public String activity1(String input) {
-      throw new SimulatedTimeoutException(TimeoutType.TimeoutTypeHeartbeat, "progress1");
+      throw new SimulatedTimeoutException(TimeoutType.Heartbeat, "progress1");
     }
   }
 
@@ -249,11 +253,12 @@ public class WorkflowTestingTest {
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ActivityTimeoutException);
       ActivityTimeoutException te = (ActivityTimeoutException) e.getCause();
-      assertEquals(TimeoutType.TimeoutTypeHeartbeat, te.getTimeoutType());
+      assertEquals(TimeoutType.Heartbeat, te.getTimeoutType());
       assertEquals("progress1", te.getDetails(String.class));
     }
   }
 
+  @WorkflowInterface
   public interface TestActivityTimeoutWorkflow {
 
     @WorkflowMethod(executionStartToCloseTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
@@ -308,8 +313,7 @@ public class WorkflowTestingTest {
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ActivityTimeoutException);
       assertEquals(
-          TimeoutType.TimeoutTypeStartToClose,
-          ((ActivityTimeoutException) e.getCause()).getTimeoutType());
+          TimeoutType.StartToClose, ((ActivityTimeoutException) e.getCause()).getTimeoutType());
     }
   }
 
@@ -327,8 +331,7 @@ public class WorkflowTestingTest {
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ActivityTimeoutException);
       assertEquals(
-          TimeoutType.TimeoutTypeScheduleToStart,
-          ((ActivityTimeoutException) e.getCause()).getTimeoutType());
+          TimeoutType.ScheduleToStart, ((ActivityTimeoutException) e.getCause()).getTimeoutType());
     }
   }
 
@@ -347,8 +350,7 @@ public class WorkflowTestingTest {
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ActivityTimeoutException);
       assertEquals(
-          TimeoutType.TimeoutTypeScheduleToClose,
-          ((ActivityTimeoutException) e.getCause()).getTimeoutType());
+          TimeoutType.ScheduleToClose, ((ActivityTimeoutException) e.getCause()).getTimeoutType());
     }
   }
 
@@ -375,8 +377,7 @@ public class WorkflowTestingTest {
       fail("unreacheable");
     } catch (WorkflowException e) {
       assertTrue(e instanceof WorkflowTimedOutException);
-      assertEquals(
-          TimeoutType.TimeoutTypeStartToClose, ((WorkflowTimedOutException) e).getTimeoutType());
+      assertEquals(TimeoutType.StartToClose, ((WorkflowTimedOutException) e).getTimeoutType());
     }
   }
 
@@ -402,6 +403,7 @@ public class WorkflowTestingTest {
     assertTrue(testEnvironment.currentTimeMillis() - start >= Duration.ofHours(2).toMillis());
   }
 
+  @WorkflowInterface
   public interface SignaledWorkflow {
 
     @WorkflowMethod(executionStartToCloseTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
@@ -490,9 +492,8 @@ public class WorkflowTestingTest {
     log.info(testEnvironment.getDiagnostics());
   }
 
+  @ActivityInterface
   public interface TestCancellationActivity {
-
-    @ActivityMethod(scheduleToCloseTimeoutSeconds = 1000, heartbeatTimeoutSeconds = 2)
     String activity1(String input);
   }
 
@@ -510,7 +511,12 @@ public class WorkflowTestingTest {
   public static class TestCancellationWorkflow implements TestWorkflow {
 
     private final TestCancellationActivity activity =
-        Workflow.newActivityStub(TestCancellationActivity.class);
+        Workflow.newActivityStub(
+            TestCancellationActivity.class,
+            ActivityOptions.newBuilder()
+                .setScheduleToCloseTimeout(Duration.ofSeconds(1000))
+                .setHeartbeatTimeout(Duration.ofSeconds(2))
+                .build());
 
     @Override
     public String workflow1(String input) {
@@ -546,7 +552,11 @@ public class WorkflowTestingTest {
     public String workflow1(String input) {
       long startTime = Workflow.currentTimeMillis();
       Promise<Void> s = Async.procedure(() -> Workflow.sleep(Duration.ofHours(3)));
-      TestActivity activity = Workflow.newActivityStub(TestActivity.class);
+      TestActivity activity =
+          Workflow.newActivityStub(
+              TestActivity.class,
+              ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofHours(1)).build());
+
       activity.activity1("input");
       Workflow.sleep(Duration.ofHours(1));
       s.get();
@@ -586,9 +596,10 @@ public class WorkflowTestingTest {
     List<HistoryEvent> historyEvents = history.getEventsList();
     assertTrue(
         WorkflowExecutionUtils.prettyPrintHistory(history, false),
-        WorkflowExecutionUtils.containsEvent(historyEvents, EventType.EventTypeTimerCanceled));
+        WorkflowExecutionUtils.containsEvent(historyEvents, EventType.TimerCanceled));
   }
 
+  @WorkflowInterface
   public interface ParentWorkflow {
 
     @WorkflowMethod(executionStartToCloseTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
@@ -617,6 +628,7 @@ public class WorkflowTestingTest {
     }
   }
 
+  @WorkflowInterface
   public interface ChildWorkflow {
 
     @WorkflowMethod(executionStartToCloseTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
@@ -907,7 +919,11 @@ public class WorkflowTestingTest {
               .setScheduleToCloseTimeout(Duration.ofSeconds(5))
               .setContextPropagators(Collections.singletonList(new TestContextPropagator()))
               .build();
-      TestActivity activity = Workflow.newActivityStub(TestActivity.class, options);
+      TestActivity activity =
+          Workflow.newActivityStub(
+              TestActivity.class,
+              ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofHours(1)).build());
+
       return activity.activity1("foo");
     }
   }

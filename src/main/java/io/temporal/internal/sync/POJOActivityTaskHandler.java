@@ -19,15 +19,12 @@
 
 package io.temporal.internal.sync;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
-import com.google.common.reflect.TypeToken;
 import com.uber.m3.tally.Scope;
-import io.temporal.activity.ActivityMethod;
 import io.temporal.client.ActivityCancelledException;
-import io.temporal.common.MethodRetry;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.CheckedExceptionWrapper;
-import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.ActivityTaskHandler;
@@ -41,6 +38,7 @@ import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BiFunction;
@@ -71,44 +69,15 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
       throw new IllegalArgumentException("Activity object instance expected, not the class");
     }
     Class<?> cls = activity.getClass();
-    for (Method method : cls.getMethods()) {
-      if (method.getAnnotation(ActivityMethod.class) != null) {
+    POJOActivityImplMetadata activityMetadata = POJOActivityImplMetadata.newInstance(cls);
+    for (String activityType : activityMetadata.getActivityTypes()) {
+      if (activities.containsKey(activityType)) {
         throw new IllegalArgumentException(
-            "Found @ActivityMethod annotation on \""
-                + method
-                + "\" This annotation can be used only on the interface method it implements.");
+            activityType + " activity type is already registered with the worker");
       }
-      if (method.getAnnotation(MethodRetry.class) != null) {
-        throw new IllegalArgumentException(
-            "Found @MethodRetry annotation on \""
-                + method
-                + "\" This annotation can be used only on the interface method it implements.");
-      }
-    }
-    TypeToken<?>.TypeSet interfaces = TypeToken.of(cls).getTypes().interfaces();
-    if (interfaces.isEmpty()) {
-      throw new IllegalArgumentException("Activity must implement at least one interface");
-    }
-    for (TypeToken<?> i : interfaces) {
-      if (i.getType().getTypeName().startsWith("org.mockito")) {
-        continue;
-      }
-      for (Method method : i.getRawType().getMethods()) {
-        ActivityMethod annotation = method.getAnnotation(ActivityMethod.class);
-        String activityType;
-        if (annotation != null && !annotation.name().isEmpty()) {
-          activityType = annotation.name();
-        } else {
-          activityType = InternalUtils.getSimpleName(method);
-        }
-        if (activities.containsKey(activityType)) {
-          throw new IllegalStateException(
-              activityType + " activity type is already registered with the worker");
-        }
-
-        ActivityTaskExecutor implementation = newTaskExecutor.apply(method, activity);
-        activities.put(activityType, implementation);
-      }
+      Method method = activityMetadata.getMethodMetadata(activityType).getMethod();
+      ActivityTaskExecutor implementation = newTaskExecutor.apply(method, activity);
+      activities.put(activityType, implementation);
     }
   }
 
@@ -159,6 +128,11 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
   @Override
   public boolean isAnyTypeSupported() {
     return !activities.isEmpty();
+  }
+
+  @VisibleForTesting
+  public Set<String> getRegisteredActivityTypes() {
+    return activities.keySet();
   }
 
   void setActivitiesImplementation(Object[] activitiesImplementation) {

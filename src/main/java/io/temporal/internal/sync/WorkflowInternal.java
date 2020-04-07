@@ -21,16 +21,14 @@ package io.temporal.internal.sync;
 
 import static io.temporal.internal.sync.AsyncInternal.AsyncMarker;
 
-import com.google.common.reflect.TypeToken;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.internal.common.CheckedExceptionWrapper;
-import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.logging.ReplayAwareLogger;
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.workflow.ActivityStub;
 import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.ChildWorkflowOptions;
@@ -108,33 +106,40 @@ public final class WorkflowInternal {
    * workflow implementation object as it is done implicitly. Only methods annotated with @{@link
    * QueryMethod} are registered.
    */
-  public static void registerQuery(Object queryImplementation) {
-    Class<?> cls = queryImplementation.getClass();
-    TypeToken<?>.TypeSet interfaces = TypeToken.of(cls).getTypes().interfaces();
-    if (interfaces.isEmpty()) {
-      throw new IllegalArgumentException(cls.getName() + " must implement at least one interface");
+  public static void registerListener(Object implementation) {
+    Class<?> cls = implementation.getClass();
+    POJOWorkflowImplMetadata workflowMetadata = POJOWorkflowImplMetadata.newInstance(cls);
+    for (String queryType : workflowMetadata.getQueryTypes()) {
+      POJOWorkflowMethodMetadata methodMetadata =
+          workflowMetadata.getQueryMethodMetadata(queryType);
+      Method method = methodMetadata.getWorkflowMethod();
+      getWorkflowInterceptor()
+          .registerQuery(
+              methodMetadata.getName(),
+              method.getGenericParameterTypes(),
+              (args) -> {
+                try {
+                  return method.invoke(implementation, args);
+                } catch (Throwable e) {
+                  throw CheckedExceptionWrapper.wrap(e);
+                }
+              });
     }
-    for (TypeToken<?> i : interfaces) {
-      for (Method method : i.getRawType().getMethods()) {
-        QueryMethod queryMethod = method.getAnnotation(QueryMethod.class);
-        if (queryMethod != null) {
-          String name = queryMethod.name();
-          if (name.isEmpty()) {
-            name = InternalUtils.getSimpleName(method);
-          }
-          getWorkflowInterceptor()
-              .registerQuery(
-                  name,
-                  method.getGenericParameterTypes(),
-                  (args) -> {
-                    try {
-                      return method.invoke(queryImplementation, args);
-                    } catch (Throwable e) {
-                      throw CheckedExceptionWrapper.wrap(e);
-                    }
-                  });
-        }
-      }
+    for (String signalType : workflowMetadata.getSignalTypes()) {
+      POJOWorkflowMethodMetadata methodMetadata =
+          workflowMetadata.getSignalMethodMetadata(signalType);
+      Method method = methodMetadata.getWorkflowMethod();
+      getWorkflowInterceptor()
+          .registerSignal(
+              methodMetadata.getName(),
+              method.getGenericParameterTypes(),
+              (args) -> {
+                try {
+                  method.invoke(implementation, args);
+                } catch (Throwable e) {
+                  throw CheckedExceptionWrapper.wrap(e);
+                }
+              });
     }
   }
 
@@ -151,7 +156,7 @@ public final class WorkflowInternal {
   public static <T> T newActivityStub(Class<T> activityInterface, ActivityOptions options) {
     WorkflowCallsInterceptor decisionContext = WorkflowInternal.getWorkflowInterceptor();
     InvocationHandler invocationHandler =
-        ActivityInvocationHandler.newInstance(options, decisionContext);
+        ActivityInvocationHandler.newInstance(activityInterface, options, decisionContext);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
 
@@ -164,7 +169,7 @@ public final class WorkflowInternal {
       Class<T> activityInterface, LocalActivityOptions options) {
     WorkflowCallsInterceptor decisionContext = WorkflowInternal.getWorkflowInterceptor();
     InvocationHandler invocationHandler =
-        LocalActivityInvocationHandler.newInstance(options, decisionContext);
+        LocalActivityInvocationHandler.newInstance(activityInterface, options, decisionContext);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
 
@@ -194,7 +199,8 @@ public final class WorkflowInternal {
         Proxy.newProxyInstance(
             WorkflowInternal.class.getClassLoader(),
             new Class<?>[] {workflowInterface, StubMarker.class, AsyncMarker.class},
-            new ExternalWorkflowInvocationHandler(execution, getWorkflowInterceptor()));
+            new ExternalWorkflowInvocationHandler(
+                workflowInterface, execution, getWorkflowInterceptor()));
   }
 
   public static Promise<WorkflowExecution> getWorkflowExecution(Object workflowStub) {
@@ -227,7 +233,8 @@ public final class WorkflowInternal {
         Proxy.newProxyInstance(
             WorkflowInternal.class.getClassLoader(),
             new Class<?>[] {workflowInterface},
-            new ContinueAsNewWorkflowInvocationHandler(options, getWorkflowInterceptor()));
+            new ContinueAsNewWorkflowInvocationHandler(
+                workflowInterface, options, getWorkflowInterceptor()));
   }
 
   /**

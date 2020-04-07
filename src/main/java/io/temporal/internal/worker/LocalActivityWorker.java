@@ -30,9 +30,9 @@ import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.ClockDecisionContext;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
-import io.temporal.proto.common.HistoryEvent;
-import io.temporal.proto.common.MarkerRecordedEventAttributes;
-import io.temporal.proto.enums.EventType;
+import io.temporal.proto.event.EventType;
+import io.temporal.proto.event.HistoryEvent;
+import io.temporal.proto.event.MarkerRecordedEventAttributes;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import java.time.Duration;
 import java.util.Map;
@@ -216,7 +216,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
 
       HistoryEvent event =
           HistoryEvent.newBuilder()
-              .setEventType(EventType.EventTypeMarkerRecorded)
+              .setEventType(EventType.MarkerRecorded)
               .setMarkerRecordedEventAttributes(
                   MarkerRecordedEventAttributes.newBuilder()
                       .setMarkerName(ClockDecisionContext.LOCAL_ACTIVITY_MARKER_NAME)
