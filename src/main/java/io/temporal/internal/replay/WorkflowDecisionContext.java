@@ -42,7 +42,7 @@ import io.temporal.proto.event.StartChildWorkflowExecutionFailedEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionFailedCause;
 import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.tasklist.TaskList;
-import io.temporal.workflow.ChildWorkflowOptions;
+import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.ChildWorkflowTerminatedException;
 import io.temporal.workflow.ChildWorkflowTimedOutException;
 import io.temporal.workflow.SignalExternalWorkflowException;
@@ -63,12 +63,10 @@ final class WorkflowDecisionContext {
 
     private final long initiatedEventId;
     private final String workflowId;
-    private final ChildWorkflowOptions.ChildWorkflowCancellationType cancellationType;
+    private final ChildWorkflowCancellationType cancellationType;
 
     private ChildWorkflowCancellationHandler(
-        long initiatedEventId,
-        String workflowId,
-        ChildWorkflowOptions.ChildWorkflowCancellationType cancellationType) {
+        long initiatedEventId, String workflowId, ChildWorkflowCancellationType cancellationType) {
       this.initiatedEventId = initiatedEventId;
       this.workflowId = Objects.requireNonNull(workflowId);
       this.cancellationType = cancellationType;
@@ -277,7 +275,7 @@ final class WorkflowDecisionContext {
       return;
     }
     if (scheduled.getCancellationType()
-        == ChildWorkflowOptions.ChildWorkflowCancellationType.WAIT_CANCELLATION_REQUESTED) {
+        == ChildWorkflowCancellationType.WAIT_CANCELLATION_REQUESTED) {
       scheduledExternalWorkflows.remove(attributes.getInitiatedEventId());
       CancellationException e = new CancellationException();
       BiConsumer<byte[], Exception> completionCallback = scheduled.getCompletionCallback();

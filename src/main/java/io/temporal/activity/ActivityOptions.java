@@ -66,7 +66,7 @@ public final class ActivityOptions {
 
     private List<ContextPropagator> contextPropagators;
 
-    private boolean abandonOnCancellation;
+    private ActivityCancellationType cancellationType;
 
     private Builder() {}
 
@@ -81,7 +81,7 @@ public final class ActivityOptions {
       this.scheduleToCloseTimeout = options.scheduleToCloseTimeout;
       this.startToCloseTimeout = options.startToCloseTimeout;
       this.scheduleToStartTimeout = options.scheduleToStartTimeout;
-      this.abandonOnCancellation = options.abandonOnCancellation;
+      this.cancellationType = options.cancellationType;
     }
 
     /**
@@ -152,8 +152,8 @@ public final class ActivityOptions {
      * activity completes its cleanup. If true a CancellationException is thrown immediately and an
      * activity cancellation is going to happen in the background.
      */
-    public Builder setAbandonOnCancellation(boolean abandonOnCancellation) {
-      this.abandonOnCancellation = abandonOnCancellation;
+    public Builder setCancellationType(ActivityCancellationType cancellationType) {
+      this.cancellationType = cancellationType;
       return this;
     }
 
@@ -174,7 +174,7 @@ public final class ActivityOptions {
           taskList,
           retryOptions,
           contextPropagators,
-          abandonOnCancellation);
+          cancellationType);
     }
 
     public ActivityOptions validateAndBuildWithDefaults() {
@@ -213,7 +213,7 @@ public final class ActivityOptions {
           taskList,
           ro,
           contextPropagators,
-          abandonOnCancellation);
+          cancellationType);
     }
   }
 
@@ -231,7 +231,7 @@ public final class ActivityOptions {
 
   private final List<ContextPropagator> contextPropagators;
 
-  private final boolean abandonOnCancellation;
+  private final ActivityCancellationType cancellationType;
 
   private ActivityOptions(
       Duration heartbeatTimeout,
@@ -241,7 +241,7 @@ public final class ActivityOptions {
       String taskList,
       RetryOptions retryOptions,
       List<ContextPropagator> contextPropagators,
-      boolean abandonOnCancellation) {
+      ActivityCancellationType cancellationType) {
     this.heartbeatTimeout = heartbeatTimeout;
     this.scheduleToCloseTimeout = scheduleToCloseTimeout;
     if (scheduleToCloseTimeout != null) {
@@ -262,7 +262,7 @@ public final class ActivityOptions {
     this.taskList = taskList;
     this.retryOptions = retryOptions;
     this.contextPropagators = contextPropagators;
-    this.abandonOnCancellation = abandonOnCancellation;
+    this.cancellationType = cancellationType;
   }
 
   public Duration getHeartbeatTimeout() {
@@ -293,8 +293,8 @@ public final class ActivityOptions {
     return contextPropagators;
   }
 
-  public boolean isAbandonOnCancellation() {
-    return abandonOnCancellation;
+  public ActivityCancellationType getCancellationType() {
+    return cancellationType;
   }
 
   @Override
@@ -302,7 +302,7 @@ public final class ActivityOptions {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     ActivityOptions that = (ActivityOptions) o;
-    return abandonOnCancellation == that.abandonOnCancellation
+    return cancellationType == that.cancellationType
         && Objects.equal(heartbeatTimeout, that.heartbeatTimeout)
         && Objects.equal(scheduleToCloseTimeout, that.scheduleToCloseTimeout)
         && Objects.equal(scheduleToStartTimeout, that.scheduleToStartTimeout)
@@ -322,7 +322,7 @@ public final class ActivityOptions {
         taskList,
         retryOptions,
         contextPropagators,
-        abandonOnCancellation);
+        cancellationType);
   }
 
   @Override
@@ -344,7 +344,7 @@ public final class ActivityOptions {
         + ", contextPropagators="
         + contextPropagators
         + ", abandonOnCancellation="
-        + abandonOnCancellation
+        + cancellationType
         + '}';
   }
 }

@@ -24,7 +24,7 @@ import io.temporal.internal.common.RetryParameters;
 import io.temporal.proto.common.ParentClosePolicy;
 import io.temporal.proto.common.WorkflowIdReusePolicy;
 import io.temporal.proto.common.WorkflowType;
-import io.temporal.workflow.ChildWorkflowOptions;
+import io.temporal.workflow.ChildWorkflowCancellationType;
 import java.util.Arrays;
 import java.util.Map;
 
@@ -56,7 +56,7 @@ public final class StartChildWorkflowExecutionParameters {
 
     private ParentClosePolicy parentClosePolicy;
 
-    private ChildWorkflowOptions.ChildWorkflowCancellationType cancellationType;
+    private ChildWorkflowCancellationType cancellationType;
 
     public Builder setNamespace(String namespace) {
       this.namespace = namespace;
@@ -119,8 +119,7 @@ public final class StartChildWorkflowExecutionParameters {
       return this;
     }
 
-    public Builder setCancellationType(
-        ChildWorkflowOptions.ChildWorkflowCancellationType cancellationType) {
+    public Builder setCancellationType(ChildWorkflowCancellationType cancellationType) {
       this.cancellationType = cancellationType;
       return this;
     }
@@ -167,7 +166,7 @@ public final class StartChildWorkflowExecutionParameters {
 
   private final ParentClosePolicy parentClosePolicy;
 
-  private final ChildWorkflowOptions.ChildWorkflowCancellationType cancellationType;
+  private final ChildWorkflowCancellationType cancellationType;
 
   private StartChildWorkflowExecutionParameters(
       String namespace,
@@ -182,7 +181,7 @@ public final class StartChildWorkflowExecutionParameters {
       String cronSchedule,
       Map<String, byte[]> context,
       ParentClosePolicy parentClosePolicy,
-      ChildWorkflowOptions.ChildWorkflowCancellationType cancellationType) {
+      ChildWorkflowCancellationType cancellationType) {
     this.namespace = namespace;
     this.input = input;
     this.executionStartToCloseTimeoutSeconds = executionStartToCloseTimeoutSeconds;
@@ -246,7 +245,7 @@ public final class StartChildWorkflowExecutionParameters {
     return parentClosePolicy;
   }
 
-  public ChildWorkflowOptions.ChildWorkflowCancellationType getCancellationType() {
+  public ChildWorkflowCancellationType getCancellationType() {
     return cancellationType;
   }
 

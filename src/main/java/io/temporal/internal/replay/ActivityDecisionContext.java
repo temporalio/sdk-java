@@ -20,6 +20,7 @@
 package io.temporal.internal.replay;
 
 import com.google.protobuf.ByteString;
+import io.temporal.activity.ActivityCancellationType;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.RetryParameters;
 import io.temporal.proto.common.ActivityType;
@@ -48,17 +49,17 @@ final class ActivityDecisionContext {
 
     private final BiConsumer<byte[], Exception> callback;
 
-    private final boolean abandonOnCancellation;
+    private final ActivityCancellationType cancellationType;
 
     private ActivityCancellationHandler(
         long scheduledEventId,
         String activityId,
         BiConsumer<byte[], Exception> callaback,
-        boolean abandonOnCancellation) {
+        ActivityCancellationType cancellationType) {
       this.scheduledEventId = scheduledEventId;
       this.activityId = activityId;
       this.callback = callaback;
-      this.abandonOnCancellation = abandonOnCancellation;
+      this.cancellationType = cancellationType;
     }
 
     @Override
@@ -79,11 +80,13 @@ final class ActivityDecisionContext {
             }
             callback.accept(null, new CancellationException("Cancelled by request"));
           };
-      if (abandonOnCancellation) {
+      if (cancellationType != ActivityCancellationType.WAIT_CANCELLATION_COMPLETED) {
         immediateCancellationCallback.run();
         immediateCancellationCallback = () -> {};
       }
-      decisions.requestCancelActivityTask(scheduledEventId, immediateCancellationCallback);
+      if (cancellationType != ActivityCancellationType.ABANDON) {
+        decisions.requestCancelActivityTask(scheduledEventId, immediateCancellationCallback);
+      }
     }
   }
 
@@ -143,10 +146,7 @@ final class ActivityDecisionContext {
     context.setCompletionHandle(callback);
     scheduledActivities.put(scheduledEventId, context);
     return new ActivityDecisionContext.ActivityCancellationHandler(
-        scheduledEventId,
-        attributes.getActivityId(),
-        callback,
-        parameters.isAbandonOnCancellation());
+        scheduledEventId, attributes.getActivityId(), callback, parameters.getCancellationType());
   }
 
   void handleActivityTaskCanceled(HistoryEvent event) {
