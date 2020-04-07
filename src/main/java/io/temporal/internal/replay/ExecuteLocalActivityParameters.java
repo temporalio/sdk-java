@@ -21,7 +21,7 @@ package io.temporal.internal.replay;
 
 import io.temporal.common.RetryOptions;
 import io.temporal.proto.common.ActivityType;
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.execution.WorkflowExecution;
 import java.util.Arrays;
 
 public class ExecuteLocalActivityParameters {

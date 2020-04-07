@@ -37,7 +37,7 @@ import org.junit.Test;
 
 public class JsonDataConverterTest {
 
-  private final DataConverter converter = JacksonJsonDataConverter.getInstance();
+  private final DataConverter converter = GsonJsonDataConverter.getInstance();
 
   public static void foo(List<UUID> arg) {}
 
@@ -107,12 +107,12 @@ public class JsonDataConverterTest {
     list.add(new Struct1(234, "s1"));
     list.add(new Struct1(567, "s2"));
     byte[] data = converter.toData(1234, struct1, "a string", list, "an extra string :o!!!");
-    @SuppressWarnings("unchecked")
     Object[] deserializedArguments = converter.fromDataArray(data, arg);
     assertEquals(4, deserializedArguments.length);
     assertEquals(1234, (int) deserializedArguments[0]);
     assertEquals(struct1, deserializedArguments[1]);
     assertEquals("a string", deserializedArguments[2]);
+    @SuppressWarnings("unchecked")
     List<Struct1> deserializedList = (List<Struct1>) deserializedArguments[3];
     assertEquals(list, deserializedList);
   }
