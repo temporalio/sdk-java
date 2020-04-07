@@ -105,8 +105,6 @@ public final class WorkflowInternal {
    * Register query or queries implementation object. There is no need to register top level
    * workflow implementation object as it is done implicitly. Only methods annotated with @{@link
    * QueryMethod} are registered.
-   *
-   * <p>TODO: Add signal method registration
    */
   public static void registerListener(Object implementation) {
     Class<?> cls = implementation.getClass();
@@ -115,10 +113,6 @@ public final class WorkflowInternal {
       POJOWorkflowMethodMetadata methodMetadata =
           workflowMetadata.getQueryMethodMetadata(queryType);
       Method method = methodMetadata.getWorkflowMethod();
-      if (method.getReturnType() == Void.TYPE) {
-        throw new IllegalArgumentException(
-            "Method annotated with @QueryMethod " + "cannot have void return type: " + method);
-      }
       getWorkflowInterceptor()
           .registerQuery(
               methodMetadata.getName(),
@@ -126,6 +120,22 @@ public final class WorkflowInternal {
               (args) -> {
                 try {
                   return method.invoke(implementation, args);
+                } catch (Throwable e) {
+                  throw CheckedExceptionWrapper.wrap(e);
+                }
+              });
+    }
+    for (String signalType : workflowMetadata.getSignalTypes()) {
+      POJOWorkflowMethodMetadata methodMetadata =
+          workflowMetadata.getSignalMethodMetadata(signalType);
+      Method method = methodMetadata.getWorkflowMethod();
+      getWorkflowInterceptor()
+          .registerSignal(
+              methodMetadata.getName(),
+              method.getGenericParameterTypes(),
+              (args) -> {
+                try {
+                  method.invoke(implementation, args);
                 } catch (Throwable e) {
                   throw CheckedExceptionWrapper.wrap(e);
                 }
