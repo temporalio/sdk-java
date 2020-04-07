@@ -19,7 +19,7 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.workflow.ChildWorkflowOptions;
 import java.util.function.Consumer;
 

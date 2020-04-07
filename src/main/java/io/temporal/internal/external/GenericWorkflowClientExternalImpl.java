@@ -37,10 +37,10 @@ import io.temporal.proto.common.Header;
 import io.temporal.proto.common.Memo;
 import io.temporal.proto.common.RetryPolicy;
 import io.temporal.proto.common.SearchAttributes;
-import io.temporal.proto.common.TaskList;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.common.WorkflowQuery;
-import io.temporal.proto.enums.QueryConsistencyLevel;
+import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.query.QueryConsistencyLevel;
+import io.temporal.proto.query.WorkflowQuery;
+import io.temporal.proto.tasklist.TaskList;
 import io.temporal.proto.workflowservice.QueryWorkflowRequest;
 import io.temporal.proto.workflowservice.QueryWorkflowResponse;
 import io.temporal.proto.workflowservice.RequestCancelWorkflowExecutionRequest;
@@ -322,8 +322,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
                     .setQueryType(queryParameters.getQueryType()))
             .setQueryRejectCondition(queryParameters.getQueryRejectCondition())
             .setQueryConsistencyLevel(
-                QueryConsistencyLevel
-                    .QueryConsistencyLevelEventual) // TODO: Configurable and strong
+                QueryConsistencyLevel.Eventual) // TODO: Configurable and strong
             .build();
     return GrpcRetryer.retryWithResult(
         GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,

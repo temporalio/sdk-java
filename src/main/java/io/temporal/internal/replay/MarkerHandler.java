@@ -23,9 +23,9 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.proto.common.Header;
-import io.temporal.proto.common.HistoryEvent;
-import io.temporal.proto.common.MarkerRecordedEventAttributes;
-import io.temporal.proto.enums.EventType;
+import io.temporal.proto.event.EventType;
+import io.temporal.proto.event.HistoryEvent;
+import io.temporal.proto.event.MarkerRecordedEventAttributes;
 import io.temporal.workflow.Functions.Func1;
 import java.util.HashMap;
 import java.util.Map;
@@ -236,7 +236,7 @@ class MarkerHandler {
   private Optional<byte[]> getMarkerDataFromHistory(
       long eventId, String markerId, int expectedAcccessCount, DataConverter converter) {
     Optional<HistoryEvent> event = decisions.getOptionalDecisionEvent(eventId);
-    if (!event.isPresent() || event.get().getEventType() != EventType.EventTypeMarkerRecorded) {
+    if (!event.isPresent() || event.get().getEventType() != EventType.MarkerRecorded) {
       return Optional.empty();
     }
 

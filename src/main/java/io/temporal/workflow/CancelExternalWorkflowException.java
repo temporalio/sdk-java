@@ -19,8 +19,8 @@
 
 package io.temporal.workflow;
 
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.enums.SignalExternalWorkflowExecutionFailedCause;
+import io.temporal.proto.event.WorkflowExecutionFailedCause;
+import io.temporal.proto.execution.WorkflowExecution;
 
 /**
  * Exception used to communicate failure of a request to signal an external workflow. TODO: Hook it
@@ -29,20 +29,18 @@ import io.temporal.proto.enums.SignalExternalWorkflowExecutionFailedCause;
 @SuppressWarnings("serial")
 public final class CancelExternalWorkflowException extends WorkflowOperationException {
 
-  private SignalExternalWorkflowExecutionFailedCause failureCause;
+  private WorkflowExecutionFailedCause failureCause;
 
   private WorkflowExecution signaledExecution;
 
   public CancelExternalWorkflowException(
-      long eventId,
-      WorkflowExecution signaledExecution,
-      SignalExternalWorkflowExecutionFailedCause cause) {
+      long eventId, WorkflowExecution signaledExecution, WorkflowExecutionFailedCause cause) {
     super(cause + " for signaledExecution=\"" + signaledExecution, eventId);
     this.signaledExecution = signaledExecution;
     this.failureCause = cause;
   }
 
-  public SignalExternalWorkflowExecutionFailedCause getFailureCause() {
+  public WorkflowExecutionFailedCause getFailureCause() {
     return failureCause;
   }
 

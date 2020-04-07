@@ -28,16 +28,15 @@ import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.temporal.internal.common.StatusUtils;
-import io.temporal.internal.testservice.TestWorkflowMutableStateImpl.QueryId;
 import io.temporal.internal.testservice.TestWorkflowStore.WorkflowState;
 import io.temporal.proto.common.RetryPolicy;
-import io.temporal.proto.common.SignalExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.common.WorkflowExecutionContinuedAsNewEventAttributes;
-import io.temporal.proto.common.WorkflowExecutionInfo;
-import io.temporal.proto.enums.SignalExternalWorkflowExecutionFailedCause;
-import io.temporal.proto.enums.WorkflowExecutionStatus;
-import io.temporal.proto.enums.WorkflowIdReusePolicy;
+import io.temporal.proto.common.WorkflowIdReusePolicy;
+import io.temporal.proto.decision.SignalExternalWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.event.WorkflowExecutionContinuedAsNewEventAttributes;
+import io.temporal.proto.event.WorkflowExecutionFailedCause;
+import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.execution.WorkflowExecutionInfo;
+import io.temporal.proto.execution.WorkflowExecutionStatus;
 import io.temporal.proto.failure.WorkflowExecutionAlreadyStarted;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
@@ -84,9 +83,6 @@ import io.temporal.proto.workflowservice.StartWorkflowExecutionResponse;
 import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.time.Duration;
 import java.util.HashMap;
@@ -101,6 +97,8 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * In memory implementation of the Temporal service. To be used for testing purposes only. Do not
@@ -239,13 +237,13 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       if (existing != null) {
         WorkflowExecutionStatus status = existing.getWorkflowExecutionStatus();
         WorkflowIdReusePolicy policy = startRequest.getWorkflowIdReusePolicy();
-        if (status == WorkflowExecutionStatus.WorkflowExecutionStatusRunning
-            || policy == WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate) {
+        if (status == WorkflowExecutionStatus.Running
+            || policy == WorkflowIdReusePolicy.RejectDuplicate) {
           return throwDuplicatedWorkflow(startRequest, existing);
         }
-        if (policy == WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicateFailedOnly
-            && (status == WorkflowExecutionStatus.WorkflowExecutionStatusCompleted
-                || status == WorkflowExecutionStatus.WorkflowExecutionStatusContinuedAsNew)) {
+        if (policy == WorkflowIdReusePolicy.AllowDuplicateFailedOnly
+            && (status == WorkflowExecutionStatus.Completed
+                || status == WorkflowExecutionStatus.ContinuedAsNew)) {
           return throwDuplicatedWorkflow(startRequest, existing);
         }
       }
@@ -733,9 +731,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
         source.failSignalExternalWorkflowExecution(
-            signalId,
-            SignalExternalWorkflowExecutionFailedCause
-                .SignalExternalWorkflowExecutionFailedCauseUnknownExternalWorkflowExecution);
+            signalId, WorkflowExecutionFailedCause.UnknownExternalWorkflowExecution);
       } else {
         throw e;
       }

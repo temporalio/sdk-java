@@ -25,7 +25,7 @@ import com.uber.m3.util.Duration;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.proto.common.TaskList;
+import io.temporal.proto.tasklist.TaskList;
 import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;

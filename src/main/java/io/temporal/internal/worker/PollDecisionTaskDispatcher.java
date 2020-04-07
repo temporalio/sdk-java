@@ -20,7 +20,7 @@
 package io.temporal.internal.worker;
 
 import com.google.protobuf.ByteString;
-import io.temporal.proto.enums.DecisionTaskFailedCause;
+import io.temporal.proto.event.DecisionTaskFailedCause;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -74,7 +74,7 @@ public final class PollDecisionTaskDispatcher
       RespondDecisionTaskFailedRequest request =
           RespondDecisionTaskFailedRequest.newBuilder()
               .setTaskToken(t.getTaskToken())
-              .setCause(DecisionTaskFailedCause.DecisionTaskFailedCauseResetStickyTasklist)
+              .setCause(DecisionTaskFailedCause.ResetStickyTasklist)
               .setDetails(ByteString.copyFrom(message, StandardCharsets.UTF_8))
               .build();
       log.warn(message);

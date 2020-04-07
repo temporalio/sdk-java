@@ -35,12 +35,12 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.client.WorkflowTimedOutException;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.common.WorkflowExecutionUtils;
-import io.temporal.proto.common.History;
-import io.temporal.proto.common.HistoryEvent;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.common.WorkflowExecutionInfo;
-import io.temporal.proto.enums.EventType;
-import io.temporal.proto.enums.TimeoutType;
+import io.temporal.proto.event.EventType;
+import io.temporal.proto.event.History;
+import io.temporal.proto.event.HistoryEvent;
+import io.temporal.proto.event.TimeoutType;
+import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.execution.WorkflowExecutionInfo;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.ListClosedWorkflowExecutionsRequest;
 import io.temporal.proto.workflowservice.ListClosedWorkflowExecutionsResponse;
@@ -235,7 +235,7 @@ public class WorkflowTestingTest {
 
     @Override
     public String activity1(String input) {
-      throw new SimulatedTimeoutException(TimeoutType.TimeoutTypeHeartbeat, "progress1");
+      throw new SimulatedTimeoutException(TimeoutType.Heartbeat, "progress1");
     }
   }
 
@@ -253,7 +253,7 @@ public class WorkflowTestingTest {
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ActivityTimeoutException);
       ActivityTimeoutException te = (ActivityTimeoutException) e.getCause();
-      assertEquals(TimeoutType.TimeoutTypeHeartbeat, te.getTimeoutType());
+      assertEquals(TimeoutType.Heartbeat, te.getTimeoutType());
       assertEquals("progress1", te.getDetails(String.class));
     }
   }
@@ -313,8 +313,7 @@ public class WorkflowTestingTest {
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ActivityTimeoutException);
       assertEquals(
-          TimeoutType.TimeoutTypeStartToClose,
-          ((ActivityTimeoutException) e.getCause()).getTimeoutType());
+          TimeoutType.StartToClose, ((ActivityTimeoutException) e.getCause()).getTimeoutType());
     }
   }
 
@@ -332,8 +331,7 @@ public class WorkflowTestingTest {
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ActivityTimeoutException);
       assertEquals(
-          TimeoutType.TimeoutTypeScheduleToStart,
-          ((ActivityTimeoutException) e.getCause()).getTimeoutType());
+          TimeoutType.ScheduleToStart, ((ActivityTimeoutException) e.getCause()).getTimeoutType());
     }
   }
 
@@ -352,8 +350,7 @@ public class WorkflowTestingTest {
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ActivityTimeoutException);
       assertEquals(
-          TimeoutType.TimeoutTypeScheduleToClose,
-          ((ActivityTimeoutException) e.getCause()).getTimeoutType());
+          TimeoutType.ScheduleToClose, ((ActivityTimeoutException) e.getCause()).getTimeoutType());
     }
   }
 
@@ -380,8 +377,7 @@ public class WorkflowTestingTest {
       fail("unreacheable");
     } catch (WorkflowException e) {
       assertTrue(e instanceof WorkflowTimedOutException);
-      assertEquals(
-          TimeoutType.TimeoutTypeStartToClose, ((WorkflowTimedOutException) e).getTimeoutType());
+      assertEquals(TimeoutType.StartToClose, ((WorkflowTimedOutException) e).getTimeoutType());
     }
   }
 
@@ -600,7 +596,7 @@ public class WorkflowTestingTest {
     List<HistoryEvent> historyEvents = history.getEventsList();
     assertTrue(
         WorkflowExecutionUtils.prettyPrintHistory(history, false),
-        WorkflowExecutionUtils.containsEvent(historyEvents, EventType.EventTypeTimerCanceled));
+        WorkflowExecutionUtils.containsEvent(historyEvents, EventType.TimerCanceled));
   }
 
   @WorkflowInterface

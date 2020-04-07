@@ -19,7 +19,7 @@
 
 package io.temporal.internal.worker;
 
-import io.temporal.proto.common.HistoryEvent;
+import io.temporal.proto.event.HistoryEvent;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
 import java.util.Iterator;
 

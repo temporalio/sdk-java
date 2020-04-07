@@ -55,16 +55,16 @@ import io.temporal.common.interceptors.WorkflowInvoker;
 import io.temporal.internal.common.QueryResponse;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.sync.DeterministicRunnerTest;
-import io.temporal.proto.common.HistoryEvent;
 import io.temporal.proto.common.Memo;
 import io.temporal.proto.common.SearchAttributes;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.enums.EventType;
-import io.temporal.proto.enums.QueryRejectCondition;
-import io.temporal.proto.enums.SignalExternalWorkflowExecutionFailedCause;
-import io.temporal.proto.enums.TimeoutType;
-import io.temporal.proto.enums.WorkflowExecutionStatus;
-import io.temporal.proto.enums.WorkflowIdReusePolicy;
+import io.temporal.proto.common.WorkflowIdReusePolicy;
+import io.temporal.proto.event.EventType;
+import io.temporal.proto.event.HistoryEvent;
+import io.temporal.proto.event.TimeoutType;
+import io.temporal.proto.event.WorkflowExecutionFailedCause;
+import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.execution.WorkflowExecutionStatus;
+import io.temporal.proto.query.QueryRejectCondition;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -926,7 +926,7 @@ public class WorkflowTest {
         // false for second argument means to heartbeat once to set details and then stop.
         activities.activityWithDelay(5000, false);
       } catch (ActivityTimeoutException e) {
-        assertEquals(TimeoutType.TimeoutTypeHeartbeat, e.getTimeoutType());
+        assertEquals(TimeoutType.Heartbeat, e.getTimeoutType());
         return e.getDetails(String.class);
       }
       throw new RuntimeException("unreachable");
@@ -1191,10 +1191,10 @@ public class WorkflowTest {
     boolean hasChildCancelled = false;
     boolean hasChildCancelRequested = false;
     for (HistoryEvent event : response.getHistory().getEventsList()) {
-      if (event.getEventType() == EventType.EventTypeChildWorkflowExecutionCanceled) {
+      if (event.getEventType() == EventType.ChildWorkflowExecutionCanceled) {
         hasChildCancelled = true;
       }
-      if (event.getEventType() == EventType.EventTypeExternalWorkflowExecutionCancelRequested) {
+      if (event.getEventType() == EventType.ExternalWorkflowExecutionCancelRequested) {
         hasChildCancelRequested = true;
       }
     }
@@ -1227,7 +1227,7 @@ public class WorkflowTest {
 
     boolean hasChildCancelled = false;
     for (HistoryEvent event : response.getHistory().getEventsList()) {
-      if (event.getEventType() == EventType.EventTypeChildWorkflowExecutionCanceled) {
+      if (event.getEventType() == EventType.ChildWorkflowExecutionCanceled) {
         hasChildCancelled = true;
       }
     }
@@ -1258,8 +1258,7 @@ public class WorkflowTest {
 
     boolean hasChildCancelInitiated = false;
     for (HistoryEvent event : response.getHistory().getEventsList()) {
-      if (event.getEventType()
-          == EventType.EventTypeRequestCancelExternalWorkflowExecutionInitiated) {
+      if (event.getEventType() == EventType.RequestCancelExternalWorkflowExecutionInitiated) {
         hasChildCancelInitiated = true;
       }
     }
@@ -1291,11 +1290,10 @@ public class WorkflowTest {
     boolean hasChildCancelInitiated = false;
     boolean hasChildCancelRequested = false;
     for (HistoryEvent event : response.getHistory().getEventsList()) {
-      if (event.getEventType()
-          == EventType.EventTypeRequestCancelExternalWorkflowExecutionInitiated) {
+      if (event.getEventType() == EventType.RequestCancelExternalWorkflowExecutionInitiated) {
         hasChildCancelInitiated = true;
       }
-      if (event.getEventType() == EventType.EventTypeExternalWorkflowExecutionCancelRequested) {
+      if (event.getEventType() == EventType.ExternalWorkflowExecutionCancelRequested) {
         hasChildCancelRequested = true;
       }
     }
@@ -1566,7 +1564,7 @@ public class WorkflowTest {
         workflowClient.newWorkflowStub(
             TestMultiargsWorkflowsFunc2.class,
             newWorkflowOptionsBuilder(taskList)
-                .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicate)
+                .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.AllowDuplicate)
                 .build());
     assertResult("12", WorkflowClient.start(stubF2::func2, "1", 2));
     try {
@@ -1786,7 +1784,7 @@ public class WorkflowTest {
     // Setting WorkflowIdReusePolicy to AllowDuplicate will trigger new run.
     workflowOptions =
         newWorkflowOptionsBuilder(taskList)
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicate)
+            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.AllowDuplicate)
             .setWorkflowId(workflowId)
             .build();
     TestMultiargsWorkflowsFunc1 stubF1_3 =
@@ -2708,14 +2706,11 @@ public class WorkflowTest {
     assertEquals("Hello World!", client.getResult(String.class));
     assertEquals("World!", client.query("QueryableWorkflow_getState", String.class));
     QueryResponse<String> queryResponse =
-        client.query(
-            "QueryableWorkflow_getState",
-            String.class,
-            QueryRejectCondition.QueryRejectConditionNotOpen);
+        client.query("QueryableWorkflow_getState", String.class, QueryRejectCondition.NotOpen);
     assertNull(queryResponse.getResult());
     assertEquals(
         execution.toString(),
-        WorkflowExecutionStatus.WorkflowExecutionStatusCompleted,
+        WorkflowExecutionStatus.Completed,
         queryResponse.getQueryRejected().getStatus());
     log.info("testSignalUntyped completed");
   }
@@ -2924,8 +2919,7 @@ public class WorkflowTest {
         Workflow.newChildWorkflowStub(
             ITestChild.class,
             ChildWorkflowOptions.newBuilder()
-                .setWorkflowIdReusePolicy(
-                    WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate)
+                .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
                 .build());
     private final TestWorkflow1 self = Workflow.newContinueAsNewStub(TestWorkflow1.class);
 
@@ -3008,7 +3002,7 @@ public class WorkflowTest {
     WorkflowIdReusePolicyParent client =
         workflowClient.newWorkflowStub(WorkflowIdReusePolicyParent.class, options);
     try {
-      client.execute(false, WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate);
+      client.execute(false, WorkflowIdReusePolicy.RejectDuplicate);
       fail("unreachable");
     } catch (WorkflowFailureException e) {
       assertTrue(e.getCause() instanceof StartChildWorkflowFailedException);
@@ -3028,7 +3022,7 @@ public class WorkflowTest {
     WorkflowIdReusePolicyParent client =
         workflowClient.newWorkflowStub(WorkflowIdReusePolicyParent.class, options);
     try {
-      client.execute(true, WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate);
+      client.execute(true, WorkflowIdReusePolicy.RejectDuplicate);
       fail("unreachable");
     } catch (WorkflowFailureException e) {
       assertTrue(e.getCause() instanceof StartChildWorkflowFailedException);
@@ -3047,9 +3041,7 @@ public class WorkflowTest {
             .build();
     WorkflowIdReusePolicyParent client =
         workflowClient.newWorkflowStub(WorkflowIdReusePolicyParent.class, options);
-    assertEquals(
-        "HELLO WORLD!",
-        client.execute(false, WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicate));
+    assertEquals("HELLO WORLD!", client.execute(false, WorkflowIdReusePolicy.AllowDuplicate));
   }
 
   public static class TestChildWorkflowRetryWorkflow implements TestWorkflow1 {
@@ -3337,8 +3329,7 @@ public class WorkflowTest {
           "invalid id",
           ((SignalExternalWorkflowException) e.getCause()).getSignaledExecution().getWorkflowId());
       assertEquals(
-          SignalExternalWorkflowExecutionFailedCause
-              .SignalExternalWorkflowExecutionFailedCauseUnknownExternalWorkflowExecution,
+          WorkflowExecutionFailedCause.UnknownExternalWorkflowExecution,
           ((SignalExternalWorkflowException) e.getCause()).getFailureCause());
     }
   }
@@ -4029,7 +4020,7 @@ public class WorkflowTest {
     @WorkflowMethod(
       name = "func1",
       taskList = ANNOTATION_TASK_LIST,
-      workflowIdReusePolicy = WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate,
+      workflowIdReusePolicy = WorkflowIdReusePolicy.RejectDuplicate,
       executionStartToCloseTimeoutSeconds = 10
     )
     int func1(int input);

@@ -19,11 +19,11 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.proto.common.Decision;
-import io.temporal.proto.common.HistoryEvent;
-import io.temporal.proto.common.RequestCancelActivityTaskDecisionAttributes;
-import io.temporal.proto.common.ScheduleActivityTaskDecisionAttributes;
-import io.temporal.proto.enums.DecisionType;
+import io.temporal.proto.decision.Decision;
+import io.temporal.proto.decision.DecisionType;
+import io.temporal.proto.decision.RequestCancelActivityTaskDecisionAttributes;
+import io.temporal.proto.decision.ScheduleActivityTaskDecisionAttributes;
+import io.temporal.proto.event.HistoryEvent;
 
 final class ActivityDecisionStateMachine extends DecisionStateMachineBase {
 
@@ -87,14 +87,14 @@ final class ActivityDecisionStateMachine extends DecisionStateMachineBase {
         .setRequestCancelActivityTaskDecisionAttributes(
             RequestCancelActivityTaskDecisionAttributes.newBuilder()
                 .setActivityId(scheduleAttributes.getActivityId()))
-        .setDecisionType(DecisionType.DecisionTypeRequestCancelActivityTask)
+        .setDecisionType(DecisionType.RequestCancelActivityTask)
         .build();
   }
 
   private Decision createScheduleActivityTaskDecision() {
     return Decision.newBuilder()
         .setScheduleActivityTaskDecisionAttributes(scheduleAttributes)
-        .setDecisionType(DecisionType.DecisionTypeScheduleActivityTask)
+        .setDecisionType(DecisionType.ScheduleActivityTask)
         .build();
   }
 }

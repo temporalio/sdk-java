@@ -25,8 +25,8 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.JsonDataConverter;
 import io.temporal.internal.worker.Shutdownable;
 import io.temporal.proto.common.SearchAttributes;
-import io.temporal.proto.common.TaskList;
-import io.temporal.proto.enums.TaskListKind;
+import io.temporal.proto.tasklist.TaskList;
+import io.temporal.proto.tasklist.TaskListKind;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -36,17 +36,11 @@ import java.util.concurrent.TimeUnit;
 public final class InternalUtils {
 
   public static TaskList createStickyTaskList(String taskListName) {
-    return TaskList.newBuilder()
-        .setName(taskListName)
-        .setKind(TaskListKind.TaskListKindSticky)
-        .build();
+    return TaskList.newBuilder().setName(taskListName).setKind(TaskListKind.Sticky).build();
   }
 
   public static TaskList createNormalTaskList(String taskListName) {
-    return TaskList.newBuilder()
-        .setName(taskListName)
-        .setKind(TaskListKind.TaskListKindNormal)
-        .build();
+    return TaskList.newBuilder().setName(taskListName).setKind(TaskListKind.Normal).build();
   }
 
   public static long awaitTermination(Shutdownable s, long timeoutMillis) {

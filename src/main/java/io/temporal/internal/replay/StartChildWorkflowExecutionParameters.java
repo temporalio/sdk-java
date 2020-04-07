@@ -21,9 +21,9 @@ package io.temporal.internal.replay;
 
 import com.google.common.base.Objects;
 import io.temporal.internal.common.RetryParameters;
+import io.temporal.proto.common.ParentClosePolicy;
+import io.temporal.proto.common.WorkflowIdReusePolicy;
 import io.temporal.proto.common.WorkflowType;
-import io.temporal.proto.enums.ParentClosePolicy;
-import io.temporal.proto.enums.WorkflowIdReusePolicy;
 import io.temporal.workflow.ChildWorkflowOptions;
 import java.util.Arrays;
 import java.util.Map;

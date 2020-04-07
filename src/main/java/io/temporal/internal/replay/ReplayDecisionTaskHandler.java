@@ -28,11 +28,11 @@ import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.DecisionTaskHandler;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
-import io.temporal.proto.common.HistoryEvent;
-import io.temporal.proto.common.StickyExecutionAttributes;
-import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
-import io.temporal.proto.enums.QueryTaskCompletedType;
+import io.temporal.proto.decision.StickyExecutionAttributes;
+import io.temporal.proto.event.HistoryEvent;
+import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.query.QueryResultType;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
@@ -230,15 +230,14 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
         cache.addToCache(decisionTask, decider);
       }
       queryCompletedRequest.setQueryResult(OptionsUtils.toByteString(queryResult));
-      queryCompletedRequest.setCompletedType(
-          QueryTaskCompletedType.QueryTaskCompletedTypeCompleted);
+      queryCompletedRequest.setCompletedType(QueryResultType.Answered);
     } catch (Throwable e) {
       // TODO: Appropriate exception serialization.
       StringWriter sw = new StringWriter();
       PrintWriter pw = new PrintWriter(sw);
       e.printStackTrace(pw);
       queryCompletedRequest.setErrorMessage(sw.toString());
-      queryCompletedRequest.setCompletedType(QueryTaskCompletedType.QueryTaskCompletedTypeFailed);
+      queryCompletedRequest.setCompletedType(QueryResultType.Failed);
     } finally {
       if (stickyTaskListName == null && decider != null) {
         decider.close();

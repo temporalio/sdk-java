@@ -20,7 +20,7 @@
 package io.temporal.client;
 
 import io.temporal.activity.ActivityTask;
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.execution.WorkflowExecution;
 
 /** Base exception for all failures returned by an activity completion client. */
 public class ActivityCompletionException extends RuntimeException {

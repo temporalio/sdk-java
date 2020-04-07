@@ -19,7 +19,7 @@
 
 package io.temporal.internal.testservice;
 
-import io.temporal.proto.common.WorkflowExecutionInfo;
+import io.temporal.proto.execution.WorkflowExecutionInfo;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.proto.workflowservice.PollForActivityTaskRequest;

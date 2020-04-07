@@ -19,9 +19,9 @@
 
 package io.temporal.workflow;
 
-import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
-import io.temporal.proto.enums.ChildWorkflowExecutionFailedCause;
+import io.temporal.proto.event.WorkflowExecutionFailedCause;
+import io.temporal.proto.execution.WorkflowExecution;
 
 /**
  * Indicates that child workflow failed to start. Currently the only cause is that there is already
@@ -30,19 +30,19 @@ import io.temporal.proto.enums.ChildWorkflowExecutionFailedCause;
 @SuppressWarnings("serial")
 public final class StartChildWorkflowFailedException extends ChildWorkflowException {
 
-  private ChildWorkflowExecutionFailedCause failureCause;
+  private WorkflowExecutionFailedCause failureCause;
 
   public StartChildWorkflowFailedException(
       long eventId,
       WorkflowExecution workflowExecution,
       WorkflowType workflowType,
-      ChildWorkflowExecutionFailedCause cause) {
+      WorkflowExecutionFailedCause cause) {
     super(String.valueOf(cause), eventId, workflowExecution, workflowType);
     this.failureCause = cause;
   }
 
   /** @return enumeration that contains the cause of the failure */
-  public ChildWorkflowExecutionFailedCause getFailureCause() {
+  public WorkflowExecutionFailedCause getFailureCause() {
     return failureCause;
   }
 }
