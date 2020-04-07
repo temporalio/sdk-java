@@ -585,9 +585,9 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
   @Override
   public void registerQuery(
       String queryType, Type[] argTypes, Functions.Func1<Object[], Object> callback) {
-    //    if (queryCallbacks.containsKey(queryType)) {
-    //      throw new IllegalStateException("Query \"" + queryType + "\" is already registered");
-    //    }
+    if (queryCallbacks.containsKey(queryType)) {
+      throw new IllegalStateException("Query \"" + queryType + "\" is already registered");
+    }
     queryCallbacks.put(
         queryType,
         (input) -> {

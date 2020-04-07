@@ -72,6 +72,7 @@ public class MetricsTest {
   private TestWorkflowEnvironment testEnvironment;
   private StatsReporter reporter;
 
+  @WorkflowInterface
   public interface TestWorkflow {
 
     @WorkflowMethod
@@ -121,6 +122,7 @@ public class MetricsTest {
     }
   }
 
+  @WorkflowInterface
   public interface TestChildWorkflow {
 
     @WorkflowMethod
@@ -141,6 +143,7 @@ public class MetricsTest {
     }
   }
 
+  @WorkflowInterface
   public interface ReceiveSignalObjectChildWorkflow {
 
     @WorkflowMethod
@@ -176,6 +179,7 @@ public class MetricsTest {
     }
   }
 
+  @WorkflowInterface
   public interface SendSignalObjectWorkflow {
 
     @WorkflowMethod

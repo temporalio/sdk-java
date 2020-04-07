@@ -35,6 +35,7 @@ import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -226,6 +227,7 @@ public class WorkerStressTests {
     public Duration TemporalSleep;
   }
 
+  @WorkflowInterface
   public interface ActivitiesWorkflow {
 
     @WorkflowMethod()

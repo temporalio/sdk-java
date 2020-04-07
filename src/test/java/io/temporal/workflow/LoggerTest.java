@@ -50,6 +50,7 @@ public class LoggerTest {
 
   private static final String taskList = "logger-test";
 
+  @WorkflowInterface
   public interface TestWorkflow {
     @WorkflowMethod
     void execute(String id);
@@ -70,6 +71,7 @@ public class LoggerTest {
     }
   }
 
+  @WorkflowInterface
   public interface TestChildWorkflow {
     @WorkflowMethod
     void executeChild(String id);
