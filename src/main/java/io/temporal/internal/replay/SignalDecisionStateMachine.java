@@ -19,10 +19,10 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.proto.common.Decision;
-import io.temporal.proto.common.HistoryEvent;
-import io.temporal.proto.common.SignalExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.proto.enums.DecisionType;
+import io.temporal.proto.decision.Decision;
+import io.temporal.proto.decision.DecisionType;
+import io.temporal.proto.decision.SignalExternalWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.event.HistoryEvent;
 
 class SignalDecisionStateMachine extends DecisionStateMachineBase {
 
@@ -151,7 +151,7 @@ class SignalDecisionStateMachine extends DecisionStateMachineBase {
     Decision decision =
         Decision.newBuilder()
             .setSignalExternalWorkflowExecutionDecisionAttributes(attributes)
-            .setDecisionType(DecisionType.DecisionTypeSignalExternalWorkflowExecution)
+            .setDecisionType(DecisionType.SignalExternalWorkflowExecution)
             .build();
     return decision;
   }

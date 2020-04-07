@@ -20,7 +20,7 @@
 package io.temporal.client;
 
 import io.temporal.activity.Activity;
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.execution.WorkflowExecution;
 import java.util.concurrent.CancellationException;
 
 /**

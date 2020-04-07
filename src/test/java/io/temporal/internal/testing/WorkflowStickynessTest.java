@@ -24,8 +24,8 @@ import static io.temporal.internal.common.InternalUtils.createStickyTaskList;
 import static org.junit.Assert.*;
 
 import io.temporal.internal.testservice.TestWorkflowService;
-import io.temporal.proto.common.HistoryEvent;
-import io.temporal.proto.enums.EventType;
+import io.temporal.proto.event.EventType;
+import io.temporal.proto.event.HistoryEvent;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.TestServiceUtils;
@@ -83,10 +83,10 @@ public class WorkflowStickynessTest {
     assertEquals(4, response.getHistory().getEventsCount());
     assertEquals(TASK_LIST, response.getWorkflowExecutionTaskList().getName());
     List<HistoryEvent> events = response.getHistory().getEventsList();
-    assertEquals(EventType.EventTypeDecisionTaskCompleted, events.get(0).getEventType());
-    assertEquals(EventType.EventTypeWorkflowExecutionSignaled, events.get(1).getEventType());
-    assertEquals(EventType.EventTypeDecisionTaskScheduled, events.get(2).getEventType());
-    assertEquals(EventType.EventTypeDecisionTaskStarted, events.get(3).getEventType());
+    assertEquals(EventType.DecisionTaskCompleted, events.get(0).getEventType());
+    assertEquals(EventType.WorkflowExecutionSignaled, events.get(1).getEventType());
+    assertEquals(EventType.DecisionTaskScheduled, events.get(2).getEventType());
+    assertEquals(EventType.DecisionTaskStarted, events.get(3).getEventType());
   }
 
   @Test

@@ -26,7 +26,7 @@ import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.common.OptionsUtils;
-import io.temporal.proto.enums.WorkflowIdReusePolicy;
+import io.temporal.proto.common.WorkflowIdReusePolicy;
 import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
 import java.util.List;
@@ -250,7 +250,7 @@ public final class WorkflowOptions {
       }
       WorkflowIdReusePolicy policy = workflowIdReusePolicy;
       if (policy == null) {
-        policy = WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicateFailedOnly;
+        policy = WorkflowIdReusePolicy.AllowDuplicateFailedOnly;
       }
       if (retryOptions != null) {
         if (retryOptions.getInitialInterval() == null) {

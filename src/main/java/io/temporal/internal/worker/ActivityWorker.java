@@ -32,7 +32,7 @@ import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;

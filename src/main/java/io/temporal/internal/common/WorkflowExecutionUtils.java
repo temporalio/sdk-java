@@ -32,20 +32,20 @@ import io.grpc.Deadline;
 import io.grpc.Status;
 import io.temporal.client.WorkflowTerminatedException;
 import io.temporal.client.WorkflowTimedOutException;
-import io.temporal.proto.common.Decision;
-import io.temporal.proto.common.History;
-import io.temporal.proto.common.HistoryEvent;
-import io.temporal.proto.common.HistoryEventOrBuilder;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.common.WorkflowExecutionContinuedAsNewEventAttributes;
-import io.temporal.proto.common.WorkflowExecutionFailedEventAttributes;
-import io.temporal.proto.common.WorkflowExecutionInfo;
-import io.temporal.proto.common.WorkflowExecutionTerminatedEventAttributes;
-import io.temporal.proto.common.WorkflowExecutionTimedOutEventAttributes;
-import io.temporal.proto.enums.DecisionType;
-import io.temporal.proto.enums.EventType;
-import io.temporal.proto.enums.HistoryEventFilterType;
-import io.temporal.proto.enums.WorkflowExecutionStatus;
+import io.temporal.proto.decision.Decision;
+import io.temporal.proto.decision.DecisionType;
+import io.temporal.proto.event.EventType;
+import io.temporal.proto.event.History;
+import io.temporal.proto.event.HistoryEvent;
+import io.temporal.proto.event.HistoryEventOrBuilder;
+import io.temporal.proto.event.WorkflowExecutionContinuedAsNewEventAttributes;
+import io.temporal.proto.event.WorkflowExecutionFailedEventAttributes;
+import io.temporal.proto.event.WorkflowExecutionTerminatedEventAttributes;
+import io.temporal.proto.event.WorkflowExecutionTimedOutEventAttributes;
+import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.execution.WorkflowExecutionInfo;
+import io.temporal.proto.execution.WorkflowExecutionStatus;
+import io.temporal.proto.filter.HistoryEventFilterType;
 import io.temporal.proto.workflowservice.DescribeWorkflowExecutionRequest;
 import io.temporal.proto.workflowservice.DescribeWorkflowExecutionResponse;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
@@ -141,20 +141,20 @@ public class WorkflowExecutionUtils {
       throw new IllegalStateException("Workflow is still running");
     }
     switch (closeEvent.getEventType()) {
-      case EventTypeWorkflowExecutionCompleted:
+      case WorkflowExecutionCompleted:
         return closeEvent.getWorkflowExecutionCompletedEventAttributes().getResult().toByteArray();
-      case EventTypeWorkflowExecutionCanceled:
+      case WorkflowExecutionCanceled:
         ByteString details = closeEvent.getWorkflowExecutionCanceledEventAttributes().getDetails();
         String message = details != null ? details.toString(UTF_8) : null;
         throw new CancellationException(message);
-      case EventTypeWorkflowExecutionFailed:
+      case WorkflowExecutionFailed:
         WorkflowExecutionFailedEventAttributes failed =
             closeEvent.getWorkflowExecutionFailedEventAttributes();
         throw new WorkflowExecutionFailedException(
             failed.getReason(),
             failed.getDetails().toByteArray(),
             failed.getDecisionTaskCompletedEventId());
-      case EventTypeWorkflowExecutionTerminated:
+      case WorkflowExecutionTerminated:
         WorkflowExecutionTerminatedEventAttributes terminated =
             closeEvent.getWorkflowExecutionTerminatedEventAttributes();
         throw new WorkflowTerminatedException(
@@ -163,7 +163,7 @@ public class WorkflowExecutionUtils {
             terminated.getReason(),
             terminated.getIdentity(),
             terminated.getDetails().toByteArray());
-      case EventTypeWorkflowExecutionTimedOut:
+      case WorkflowExecutionTimedOut:
         WorkflowExecutionTimedOutEventAttributes timedOut =
             closeEvent.getWorkflowExecutionTimedOutEventAttributes();
         throw new WorkflowTimedOutException(
@@ -192,7 +192,7 @@ public class WorkflowExecutionUtils {
           GetWorkflowExecutionHistoryRequest.newBuilder()
               .setNamespace(namespace)
               .setExecution(workflowExecution)
-              .setHistoryEventFilterType(HistoryEventFilterType.HistoryEventFilterTypeCloseEvent)
+              .setHistoryEventFilterType(HistoryEventFilterType.CloseEvent)
               .setWaitForNewEvent(true)
               .setNextPageToken(pageToken)
               .build();
@@ -244,7 +244,7 @@ public class WorkflowExecutionUtils {
           throw new RuntimeException("Last history event is not completion event: " + event);
         }
         // Workflow called continueAsNew. Start polling the new generation with new runId.
-        if (event.getEventType() == EventType.EventTypeWorkflowExecutionContinuedAsNew) {
+        if (event.getEventType() == EventType.WorkflowExecutionContinuedAsNew) {
           pageToken = ByteString.EMPTY;
           workflowExecution =
               WorkflowExecution.newBuilder()
@@ -286,7 +286,7 @@ public class WorkflowExecutionUtils {
         GetWorkflowExecutionHistoryRequest.newBuilder()
             .setNamespace(namespace)
             .setExecution(workflowExecution)
-            .setHistoryEventFilterType(HistoryEventFilterType.HistoryEventFilterTypeCloseEvent)
+            .setHistoryEventFilterType(HistoryEventFilterType.CloseEvent)
             .setNextPageToken(pageToken)
             .build();
     CompletableFuture<GetWorkflowExecutionHistoryResponse> response =
@@ -316,7 +316,7 @@ public class WorkflowExecutionUtils {
             throw new RuntimeException("Last history event is not completion event: " + event);
           }
           // Workflow called continueAsNew. Start polling the new generation with new runId.
-          if (event.getEventType() == EventType.EventTypeWorkflowExecutionContinuedAsNew) {
+          if (event.getEventType() == EventType.WorkflowExecutionContinuedAsNew) {
             WorkflowExecution nextWorkflowExecution =
                 WorkflowExecution.newBuilder()
                     .setWorkflowId(workflowExecution.getWorkflowId())
@@ -377,52 +377,51 @@ public class WorkflowExecutionUtils {
 
   public static boolean isWorkflowExecutionCompletedEvent(HistoryEventOrBuilder event) {
     return ((event != null)
-        && (event.getEventType() == EventType.EventTypeWorkflowExecutionCompleted
-            || event.getEventType() == EventType.EventTypeWorkflowExecutionCanceled
-            || event.getEventType() == EventType.EventTypeWorkflowExecutionFailed
-            || event.getEventType() == EventType.EventTypeWorkflowExecutionTimedOut
-            || event.getEventType() == EventType.EventTypeWorkflowExecutionContinuedAsNew
-            || event.getEventType() == EventType.EventTypeWorkflowExecutionTerminated));
+        && (event.getEventType() == EventType.WorkflowExecutionCompleted
+            || event.getEventType() == EventType.WorkflowExecutionCanceled
+            || event.getEventType() == EventType.WorkflowExecutionFailed
+            || event.getEventType() == EventType.WorkflowExecutionTimedOut
+            || event.getEventType() == EventType.WorkflowExecutionContinuedAsNew
+            || event.getEventType() == EventType.WorkflowExecutionTerminated));
   }
 
   public static boolean isWorkflowExecutionCompleteDecision(Decision decision) {
     return ((decision != null)
-        && (decision.getDecisionType() == DecisionType.DecisionTypeCompleteWorkflowExecution
-            || decision.getDecisionType() == DecisionType.DecisionTypeCancelWorkflowExecution
-            || decision.getDecisionType() == DecisionType.DecisionTypeFailWorkflowExecution
-            || decision.getDecisionType()
-                == DecisionType.DecisionTypeContinueAsNewWorkflowExecution));
+        && (decision.getDecisionType() == DecisionType.CompleteWorkflowExecution
+            || decision.getDecisionType() == DecisionType.CancelWorkflowExecution
+            || decision.getDecisionType() == DecisionType.FailWorkflowExecution
+            || decision.getDecisionType() == DecisionType.ContinueAsNewWorkflowExecution));
   }
 
   public static boolean isActivityTaskClosedEvent(HistoryEvent event) {
     return ((event != null)
-        && (event.getEventType() == EventType.EventTypeActivityTaskCompleted
-            || event.getEventType() == EventType.EventTypeActivityTaskCanceled
-            || event.getEventType() == EventType.EventTypeActivityTaskFailed
-            || event.getEventType() == EventType.EventTypeActivityTaskTimedOut));
+        && (event.getEventType() == EventType.ActivityTaskCompleted
+            || event.getEventType() == EventType.ActivityTaskCanceled
+            || event.getEventType() == EventType.ActivityTaskFailed
+            || event.getEventType() == EventType.ActivityTaskTimedOut));
   }
 
   public static boolean isExternalWorkflowClosedEvent(HistoryEvent event) {
     return ((event != null)
-        && (event.getEventType() == EventType.EventTypeChildWorkflowExecutionCompleted
-            || event.getEventType() == EventType.EventTypeChildWorkflowExecutionCanceled
-            || event.getEventType() == EventType.EventTypeChildWorkflowExecutionFailed
-            || event.getEventType() == EventType.EventTypeChildWorkflowExecutionTerminated
-            || event.getEventType() == EventType.EventTypeChildWorkflowExecutionTimedOut));
+        && (event.getEventType() == EventType.ChildWorkflowExecutionCompleted
+            || event.getEventType() == EventType.ChildWorkflowExecutionCanceled
+            || event.getEventType() == EventType.ChildWorkflowExecutionFailed
+            || event.getEventType() == EventType.ChildWorkflowExecutionTerminated
+            || event.getEventType() == EventType.ChildWorkflowExecutionTimedOut));
   }
 
   public static WorkflowExecution getWorkflowIdFromExternalWorkflowCompletedEvent(
       HistoryEvent event) {
     if (event != null) {
-      if (event.getEventType() == EventType.EventTypeChildWorkflowExecutionCompleted) {
+      if (event.getEventType() == EventType.ChildWorkflowExecutionCompleted) {
         return event.getChildWorkflowExecutionCompletedEventAttributes().getWorkflowExecution();
-      } else if (event.getEventType() == EventType.EventTypeChildWorkflowExecutionCanceled) {
+      } else if (event.getEventType() == EventType.ChildWorkflowExecutionCanceled) {
         return event.getChildWorkflowExecutionCanceledEventAttributes().getWorkflowExecution();
-      } else if (event.getEventType() == EventType.EventTypeChildWorkflowExecutionFailed) {
+      } else if (event.getEventType() == EventType.ChildWorkflowExecutionFailed) {
         return event.getChildWorkflowExecutionFailedEventAttributes().getWorkflowExecution();
-      } else if (event.getEventType() == EventType.EventTypeChildWorkflowExecutionTerminated) {
+      } else if (event.getEventType() == EventType.ChildWorkflowExecutionTerminated) {
         return event.getChildWorkflowExecutionTerminatedEventAttributes().getWorkflowExecution();
-      } else if (event.getEventType() == EventType.EventTypeChildWorkflowExecutionTimedOut) {
+      } else if (event.getEventType() == EventType.ChildWorkflowExecutionTimedOut) {
         return event.getChildWorkflowExecutionTimedOutEventAttributes().getWorkflowExecution();
       }
     }
@@ -433,7 +432,7 @@ public class WorkflowExecutionUtils {
   public static String getId(HistoryEvent historyEvent) {
     String id = null;
     if (historyEvent != null) {
-      if (historyEvent.getEventType() == EventType.EventTypeStartChildWorkflowExecutionFailed) {
+      if (historyEvent.getEventType() == EventType.StartChildWorkflowExecutionFailed) {
         id = historyEvent.getStartChildWorkflowExecutionFailedEventAttributes().getWorkflowId();
       }
     }
@@ -444,7 +443,7 @@ public class WorkflowExecutionUtils {
   public static String getFailureCause(HistoryEvent historyEvent) {
     String failureCause = null;
     if (historyEvent != null) {
-      if (historyEvent.getEventType() == EventType.EventTypeStartChildWorkflowExecutionFailed) {
+      if (historyEvent.getEventType() == EventType.StartChildWorkflowExecutionFailed) {
         failureCause =
             historyEvent
                 .getStartChildWorkflowExecutionFailedEventAttributes()
@@ -501,18 +500,18 @@ public class WorkflowExecutionUtils {
 
   public static WorkflowExecutionStatus getCloseStatus(HistoryEvent event) {
     switch (event.getEventType()) {
-      case EventTypeWorkflowExecutionCanceled:
-        return WorkflowExecutionStatus.WorkflowExecutionStatusCanceled;
-      case EventTypeWorkflowExecutionFailed:
-        return WorkflowExecutionStatus.WorkflowExecutionStatusFailed;
-      case EventTypeWorkflowExecutionTimedOut:
-        return WorkflowExecutionStatus.WorkflowExecutionStatusTimedOut;
-      case EventTypeWorkflowExecutionContinuedAsNew:
-        return WorkflowExecutionStatus.WorkflowExecutionStatusContinuedAsNew;
-      case EventTypeWorkflowExecutionCompleted:
-        return WorkflowExecutionStatus.WorkflowExecutionStatusCompleted;
-      case EventTypeWorkflowExecutionTerminated:
-        return WorkflowExecutionStatus.WorkflowExecutionStatusTerminated;
+      case WorkflowExecutionCanceled:
+        return WorkflowExecutionStatus.Canceled;
+      case WorkflowExecutionFailed:
+        return WorkflowExecutionStatus.Failed;
+      case WorkflowExecutionTimedOut:
+        return WorkflowExecutionStatus.TimedOut;
+      case WorkflowExecutionContinuedAsNew:
+        return WorkflowExecutionStatus.ContinuedAsNew;
+      case WorkflowExecutionCompleted:
+        return WorkflowExecutionStatus.Completed;
+      case WorkflowExecutionTerminated:
+        return WorkflowExecutionStatus.Terminated;
       default:
         throw new IllegalArgumentException("Not a close event: " + event);
     }
@@ -540,8 +539,7 @@ public class WorkflowExecutionUtils {
         waitForWorkflowInstanceCompletion(service, namespace, lastExecutionToRun, timeout, unit);
 
     // keep waiting if the instance continued as new
-    while (lastExecutionToRunCloseStatus
-        == WorkflowExecutionStatus.WorkflowExecutionStatusContinuedAsNew) {
+    while (lastExecutionToRunCloseStatus == WorkflowExecutionStatus.ContinuedAsNew) {
       // get the new execution's information
       HistoryEvent closeEvent =
           getInstanceCloseEvent(service, namespace, lastExecutionToRun, timeout, unit);
@@ -736,52 +734,52 @@ public class WorkflowExecutionUtils {
     EventType eventType = event.getEventType();
     boolean result =
         ((event != null)
-            && (eventType == EventType.EventTypeActivityTaskScheduled
-                || eventType == EventType.EventTypeStartChildWorkflowExecutionInitiated
-                || eventType == EventType.EventTypeTimerStarted
-                || eventType == EventType.EventTypeWorkflowExecutionCompleted
-                || eventType == EventType.EventTypeWorkflowExecutionFailed
-                || eventType == EventType.EventTypeWorkflowExecutionCanceled
-                || eventType == EventType.EventTypeWorkflowExecutionContinuedAsNew
-                || eventType == EventType.EventTypeActivityTaskCancelRequested
-                || eventType == EventType.EventTypeRequestCancelActivityTaskFailed
-                || eventType == EventType.EventTypeTimerCanceled
-                || eventType == EventType.EventTypeCancelTimerFailed
-                || eventType == EventType.EventTypeRequestCancelExternalWorkflowExecutionInitiated
-                || eventType == EventType.EventTypeMarkerRecorded
-                || eventType == EventType.EventTypeSignalExternalWorkflowExecutionInitiated
-                || eventType == EventType.EventTypeUpsertWorkflowSearchAttributes));
+            && (eventType == EventType.ActivityTaskScheduled
+                || eventType == EventType.StartChildWorkflowExecutionInitiated
+                || eventType == EventType.TimerStarted
+                || eventType == EventType.WorkflowExecutionCompleted
+                || eventType == EventType.WorkflowExecutionFailed
+                || eventType == EventType.WorkflowExecutionCanceled
+                || eventType == EventType.WorkflowExecutionContinuedAsNew
+                || eventType == EventType.ActivityTaskCancelRequested
+                || eventType == EventType.RequestCancelActivityTaskFailed
+                || eventType == EventType.TimerCanceled
+                || eventType == EventType.CancelTimerFailed
+                || eventType == EventType.RequestCancelExternalWorkflowExecutionInitiated
+                || eventType == EventType.MarkerRecorded
+                || eventType == EventType.SignalExternalWorkflowExecutionInitiated
+                || eventType == EventType.UpsertWorkflowSearchAttributes));
     return result;
   }
 
   public static EventType getEventTypeForDecision(DecisionType decisionType) {
     switch (decisionType) {
-      case DecisionTypeScheduleActivityTask:
-        return EventType.EventTypeActivityTaskScheduled;
-      case DecisionTypeRequestCancelActivityTask:
-        return EventType.EventTypeActivityTaskCancelRequested;
-      case DecisionTypeStartTimer:
-        return EventType.EventTypeTimerStarted;
-      case DecisionTypeCompleteWorkflowExecution:
-        return EventType.EventTypeWorkflowExecutionCompleted;
-      case DecisionTypeFailWorkflowExecution:
-        return EventType.EventTypeWorkflowExecutionFailed;
-      case DecisionTypeCancelTimer:
-        return EventType.EventTypeTimerCanceled;
-      case DecisionTypeCancelWorkflowExecution:
-        return EventType.EventTypeWorkflowExecutionCanceled;
-      case DecisionTypeRequestCancelExternalWorkflowExecution:
-        return EventType.EventTypeExternalWorkflowExecutionCancelRequested;
-      case DecisionTypeRecordMarker:
-        return EventType.EventTypeMarkerRecorded;
-      case DecisionTypeContinueAsNewWorkflowExecution:
-        return EventType.EventTypeWorkflowExecutionContinuedAsNew;
-      case DecisionTypeStartChildWorkflowExecution:
-        return EventType.EventTypeStartChildWorkflowExecutionInitiated;
-      case DecisionTypeSignalExternalWorkflowExecution:
-        return EventType.EventTypeSignalExternalWorkflowExecutionInitiated;
-      case DecisionTypeUpsertWorkflowSearchAttributes:
-        return EventType.EventTypeUpsertWorkflowSearchAttributes;
+      case ScheduleActivityTask:
+        return EventType.ActivityTaskScheduled;
+      case RequestCancelActivityTask:
+        return EventType.ActivityTaskCancelRequested;
+      case StartTimer:
+        return EventType.TimerStarted;
+      case CompleteWorkflowExecution:
+        return EventType.WorkflowExecutionCompleted;
+      case FailWorkflowExecution:
+        return EventType.WorkflowExecutionFailed;
+      case CancelTimer:
+        return EventType.TimerCanceled;
+      case CancelWorkflowExecution:
+        return EventType.WorkflowExecutionCanceled;
+      case RequestCancelExternalWorkflowExecution:
+        return EventType.ExternalWorkflowExecutionCancelRequested;
+      case RecordMarker:
+        return EventType.MarkerRecorded;
+      case ContinueAsNewWorkflowExecution:
+        return EventType.WorkflowExecutionContinuedAsNew;
+      case StartChildWorkflowExecution:
+        return EventType.StartChildWorkflowExecutionInitiated;
+      case SignalExternalWorkflowExecution:
+        return EventType.SignalExternalWorkflowExecutionInitiated;
+      case UpsertWorkflowSearchAttributes:
+        return EventType.UpsertWorkflowSearchAttributes;
     }
     throw new IllegalArgumentException("Unknown decisionType");
   }

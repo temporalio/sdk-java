@@ -21,14 +21,14 @@ package io.temporal.workflow;
 
 import io.temporal.common.converter.DataConverter;
 import io.temporal.proto.common.ActivityType;
-import io.temporal.proto.enums.TimeoutType;
+import io.temporal.proto.event.TimeoutType;
 import java.lang.reflect.Type;
 import java.util.Objects;
 
 /**
  * ActivityTimeoutException indicates that an activity has timed out. If the timeout type is a
- * {@link TimeoutType#TimeoutTypeHeartbeat} then the {@link #getDetails(Class)} returns a value
- * passed to the latest successful {@link io.temporal.activity.Activity#heartbeat(Object)} call.
+ * {@link TimeoutType#Heartbeat} then the {@link #getDetails(Class)} returns a value passed to the
+ * latest successful {@link io.temporal.activity.Activity#heartbeat(Object)} call.
  */
 @SuppressWarnings("serial")
 public final class ActivityTimeoutException extends ActivityException {

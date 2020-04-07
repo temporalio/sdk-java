@@ -24,7 +24,7 @@ import com.google.protobuf.ByteString;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.Header;
-import io.temporal.proto.common.MarkerRecordedEventAttributes;
+import io.temporal.proto.event.MarkerRecordedEventAttributes;
 import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
 import java.nio.charset.StandardCharsets;
