@@ -21,7 +21,7 @@ package io.temporal.common.interceptors;
 
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.Functions;
@@ -107,12 +107,14 @@ public interface WorkflowCallsInterceptor {
   <R> R mutableSideEffect(
       String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func);
 
-  int getVersion(String changeID, int minSupported, int maxSupported);
+  int getVersion(String changeId, int minSupported, int maxSupported);
 
   void continueAsNew(
       Optional<String> workflowType, Optional<ContinueAsNewOptions> options, Object[] args);
 
   void registerQuery(String queryType, Type[] argTypes, Functions.Func1<Object[], Object> callback);
+
+  void registerSignal(String signalType, Type[] argTypes, Functions.Proc1<Object[]> callback);
 
   UUID randomUUID();
 

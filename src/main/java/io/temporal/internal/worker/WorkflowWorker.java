@@ -33,12 +33,12 @@ import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.proto.common.History;
-import io.temporal.proto.common.HistoryEvent;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.common.WorkflowExecutionStartedEventAttributes;
-import io.temporal.proto.common.WorkflowQuery;
 import io.temporal.proto.common.WorkflowType;
+import io.temporal.proto.event.History;
+import io.temporal.proto.event.HistoryEvent;
+import io.temporal.proto.event.WorkflowExecutionStartedEventAttributes;
+import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.query.WorkflowQuery;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
@@ -304,9 +304,9 @@ public final class WorkflowWorker
     public Throwable wrapFailure(PollForDecisionTaskResponse task, Throwable failure) {
       WorkflowExecution execution = task.getWorkflowExecution();
       return new RuntimeException(
-          "Failure processing decision task. WorkflowID="
+          "Failure processing decision task. WorkflowId="
               + execution.getWorkflowId()
-              + ", RunID="
+              + ", RunId="
               + execution.getRunId(),
           failure);
     }

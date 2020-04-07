@@ -19,8 +19,8 @@
 
 package io.temporal.activity;
 
-import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
+import io.temporal.proto.execution.WorkflowExecution;
 import java.time.Duration;
 
 /**
@@ -35,7 +35,7 @@ public interface ActivityTask {
    */
   byte[] getTaskToken();
 
-  /** ID and RunID of the workflow that scheduled the activity. */
+  /** ID and RunId of the workflow that scheduled the activity. */
   WorkflowExecution getWorkflowExecution();
 
   /**

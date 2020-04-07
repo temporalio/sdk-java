@@ -21,13 +21,14 @@ package io.temporal.workflow;
 
 import static junit.framework.TestCase.assertTrue;
 
-import io.temporal.activity.ActivityMethod;
+import io.temporal.activity.ActivityInterface;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
 import org.junit.Test;
 
 public class TestEnvironmentCloseTest {
 
+  @WorkflowInterface
   public interface W {
     @WorkflowMethod(executionStartToCloseTimeoutSeconds = 10, taskList = "WW")
     void foo();
@@ -45,8 +46,8 @@ public class TestEnvironmentCloseTest {
     public void signal() {}
   }
 
+  @ActivityInterface
   public interface A {
-    @ActivityMethod
     void bar();
   }
 

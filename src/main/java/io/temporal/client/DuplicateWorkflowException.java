@@ -19,7 +19,7 @@
 
 package io.temporal.client;
 
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.execution.WorkflowExecution;
 import java.util.Optional;
 
 /**
@@ -27,19 +27,19 @@ import java.util.Optional;
  * <li>
  *
  *     <ul>
- *       Workflow with the same WorkflowID is currently running.
+ *       Workflow with the same WorkflowId is currently running.
  * </ul>
  *
  * <ul>
  *   There is a closed workflow with the same ID and the {@link
  *   WorkflowOptions#getWorkflowIdReusePolicy()} is {@link
- *   io.temporal.proto.enums.WorkflowIdReusePolicy#WorkflowIdReusePolicyRejectDuplicate}.
+ *   io.temporal.proto.common.WorkflowIdReusePolicy#RejectDuplicate}.
  * </ul>
  *
  * <ul>
  *   There is successfully closed workflow with the same ID and the {@link
  *   WorkflowOptions#getWorkflowIdReusePolicy()} is {@link
- *   io.temporal.proto.enums.WorkflowIdReusePolicy#WorkflowIdReusePolicyAllowDuplicateFailedOnly}.
+ *   io.temporal.proto.common.WorkflowIdReusePolicy#AllowDuplicateFailedOnly}.
  * </ul>
  *
  * <ul>
@@ -47,7 +47,7 @@ import java.util.Optional;
  *   once</i> on a stub created through {@link
  *   io.temporal.workflow.Workflow#newChildWorkflowStub(Class)} and the {@link
  *   WorkflowOptions#getWorkflowIdReusePolicy()} is {@link
- *   io.temporal.proto.enums.WorkflowIdReusePolicy#WorkflowIdReusePolicyAllowDuplicate}
+ *   io.temporal.proto.common.WorkflowIdReusePolicy#AllowDuplicate}
  * </ul>
  */
 public final class DuplicateWorkflowException extends WorkflowException {

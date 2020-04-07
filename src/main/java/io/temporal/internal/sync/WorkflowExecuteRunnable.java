@@ -19,7 +19,7 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.proto.common.WorkflowExecutionStartedEventAttributes;
+import io.temporal.proto.event.WorkflowExecutionStartedEventAttributes;
 import java.util.Objects;
 
 class WorkflowExecuteRunnable implements Runnable {
@@ -64,7 +64,7 @@ class WorkflowExecuteRunnable implements Runnable {
   public void close() {}
 
   public void processSignal(String signalName, byte[] input, long eventId) {
-    workflow.processSignal(signalName, input, eventId);
+    context.signal(signalName, input, eventId);
   }
 
   public byte[] query(String type, byte[] args) {

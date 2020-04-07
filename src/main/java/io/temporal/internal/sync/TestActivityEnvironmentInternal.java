@@ -36,7 +36,7 @@ import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.proto.common.ActivityType;
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatRequest;
 import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatResponse;
@@ -51,6 +51,7 @@ import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.workflow.ActivityFailureException;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ContinueAsNewOptions;
+import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
@@ -168,9 +169,13 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   @Override
   public <T> T newActivityStub(Class<T> activityInterface) {
     ActivityOptions options =
-        ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofDays(1)).build();
+        ActivityOptions.newBuilder()
+            .setScheduleToCloseTimeout(Duration.ofDays(1))
+            .setHeartbeatTimeout(Duration.ofSeconds(1))
+            .build();
     InvocationHandler invocationHandler =
-        ActivityInvocationHandler.newInstance(options, new TestActivityExecutor());
+        ActivityInvocationHandler.newInstance(
+            activityInterface, options, new TestActivityExecutor());
     invocationHandler = new DeterministicRunnerWrapper(invocationHandler);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
   }
@@ -311,7 +316,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
-    public int getVersion(String changeID, int minSupported, int maxSupported) {
+    public int getVersion(String changeId, int minSupported, int maxSupported) {
       throw new UnsupportedOperationException("not implemented");
     }
 
@@ -323,6 +328,12 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
 
     @Override
     public void registerQuery(String queryType, Type[] argTypes, Func1<Object[], Object> callback) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public void registerSignal(
+        String signalType, Type[] argTypes, Functions.Proc1<Object[]> callback) {
       throw new UnsupportedOperationException("not implemented");
     }
 

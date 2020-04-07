@@ -25,12 +25,12 @@ import io.temporal.internal.common.LocalActivityMarkerData;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.proto.common.ActivityType;
-import io.temporal.proto.common.HistoryEvent;
-import io.temporal.proto.common.MarkerRecordedEventAttributes;
 import io.temporal.proto.common.SearchAttributes;
-import io.temporal.proto.common.StartTimerDecisionAttributes;
-import io.temporal.proto.common.TimerCanceledEventAttributes;
-import io.temporal.proto.common.TimerFiredEventAttributes;
+import io.temporal.proto.decision.StartTimerDecisionAttributes;
+import io.temporal.proto.event.HistoryEvent;
+import io.temporal.proto.event.MarkerRecordedEventAttributes;
+import io.temporal.proto.event.TimerCanceledEventAttributes;
+import io.temporal.proto.event.TimerFiredEventAttributes;
 import io.temporal.workflow.ActivityFailureException;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
@@ -193,7 +193,7 @@ public final class ClockDecisionContext {
     if (replaying) {
       result = sideEffectResults.get(sideEffectEventId);
       if (result == null) {
-        throw new Error("No cached result found for SideEffect EventID=" + sideEffectEventId);
+        throw new Error("No cached result found for SideEffect EventId=" + sideEffectEventId);
       }
     } else {
       try {
@@ -309,13 +309,13 @@ public final class ClockDecisionContext {
     return version;
   }
 
-  private void validateVersion(String changeID, int version, int minSupported, int maxSupported) {
+  private void validateVersion(String changeId, int version, int minSupported, int maxSupported) {
     if ((version < minSupported || version > maxSupported)
         && version != WorkflowInternal.DEFAULT_VERSION) {
       throw new Error(
           String.format(
-              "Version %d of changeID %s is not supported. Supported version is between %d and %d.",
-              version, changeID, minSupported, maxSupported));
+              "Version %d of changeId %s is not supported. Supported version is between %d and %d.",
+              version, changeId, minSupported, maxSupported));
     }
   }
 

@@ -145,23 +145,6 @@ public final class ActivityOptions {
     /**
      * Properties that are set on this builder take precedence over ones found in the annotation.
      */
-    public Builder setActivityMethod(ActivityMethod a) {
-      if (a == null) {
-        return this;
-      }
-      scheduleToCloseTimeout =
-          mergeDuration(a.scheduleToCloseTimeoutSeconds(), scheduleToCloseTimeout);
-      scheduleToStartTimeout =
-          mergeDuration(a.scheduleToStartTimeoutSeconds(), scheduleToStartTimeout);
-      startToCloseTimeout = mergeDuration(a.startToCloseTimeoutSeconds(), startToCloseTimeout);
-      heartbeatTimeout = mergeDuration(a.heartbeatTimeoutSeconds(), heartbeatTimeout);
-      taskList = taskList != null ? taskList : (a.taskList().isEmpty() ? null : a.taskList());
-      return this;
-    }
-
-    /**
-     * Properties that are set on this builder take precedence over ones found in the annotation.
-     */
     public Builder setMethodRetry(MethodRetry r) {
       retryOptions = RetryOptions.merge(r, retryOptions);
       return this;

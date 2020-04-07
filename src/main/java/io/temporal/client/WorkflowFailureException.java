@@ -19,7 +19,7 @@
 
 package io.temporal.client;
 
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.execution.WorkflowExecution;
 import java.util.Optional;
 
 /**
@@ -46,9 +46,9 @@ public final class WorkflowFailureException extends WorkflowException {
       result.append(workflowType.get());
       result.append("\", ");
     }
-    result.append("WorkflowID=\"");
+    result.append("WorkflowId=\"");
     result.append(execution.getWorkflowId());
-    result.append("\", RunID=\"");
+    result.append("\", RunId=\"");
     result.append(execution.getRunId());
     return result.toString();
   }

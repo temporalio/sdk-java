@@ -19,8 +19,8 @@
 
 package io.temporal.workflow;
 
-import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
+import io.temporal.proto.execution.WorkflowExecution;
 
 /** Base exception for failures of a child workflow. */
 @SuppressWarnings("serial")
@@ -41,9 +41,9 @@ public abstract class ChildWorkflowException extends WorkflowOperationException 
             + workflowType.getName()
             + "\", ID=\""
             + workflowExecution.getWorkflowId()
-            + "\", RunID=\""
+            + "\", RunId=\""
             + workflowExecution.getRunId()
-            + ", EventID="
+            + ", EventId="
             + eventId,
         eventId);
 

@@ -78,19 +78,6 @@ public final class LocalActivityOptions {
     }
 
     /**
-     * Merges ActivityMethod annotation. The values of this builder take precedence over annotation
-     * ones.
-     */
-    public Builder setActivityMethod(ActivityMethod a) {
-      if (a != null) {
-        this.scheduleToCloseTimeout =
-            ActivityOptions.mergeDuration(
-                a.scheduleToCloseTimeoutSeconds(), scheduleToCloseTimeout);
-      }
-      return this;
-    }
-
-    /**
      * Merges MethodRetry annotation. The values of this builder take precedence over annotation
      * ones.
      */

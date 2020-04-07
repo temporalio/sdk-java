@@ -20,18 +20,18 @@
 package io.temporal.internal.metrics;
 
 public class MetricsTag {
-  public static final String ACTIVITY_ID = "ActivityID";
+  public static final String ACTIVITY_ID = "ActivityId";
   public static final String ACTIVITY_TYPE = "ActivityType";
   public static final String NAMESPACE = "Namespace";
-  public static final String EVENT_ID = "EventID";
+  public static final String EVENT_ID = "EventId";
   public static final String EVENT_TYPE = "EventType";
-  public static final String RUN_ID = "RunID";
+  public static final String RUN_ID = "RunId";
   public static final String TASK_LIST = "TaskList";
-  public static final String TIMER_ID = "TimerID";
-  public static final String WORKFLOW_ID = "WorkflowID";
+  public static final String TIMER_ID = "TimerId";
+  public static final String WORKFLOW_ID = "WorkflowId";
   public static final String WORKFLOW_TYPE = "WorkflowType";
-  public static final String WORKER_ID = "WorkerID";
+  public static final String WORKER_ID = "WorkerId";
   public static final String WORKER_TYPE = "WorkerType";
-  public static final String SIDE_EFFECT_ID = "SideEffectID";
-  public static final String CHILD_WORKFLOW_ID = "ChildWorkflowID";
+  public static final String SIDE_EFFECT_ID = "SideEffectId";
+  public static final String CHILD_WORKFLOW_ID = "ChildWorkflowId";
 }

@@ -24,6 +24,7 @@ import static org.junit.Assert.*;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.protobuf.ByteString;
 import io.temporal.activity.Activity;
+import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.ActivityTask;
@@ -39,6 +40,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowFailureException;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowQueryException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.client.WorkflowTimedOutException;
 import io.temporal.common.CronSchedule;
@@ -53,15 +55,15 @@ import io.temporal.common.interceptors.WorkflowInvoker;
 import io.temporal.internal.common.QueryResponse;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.sync.DeterministicRunnerTest;
-import io.temporal.proto.common.HistoryEvent;
 import io.temporal.proto.common.Memo;
 import io.temporal.proto.common.SearchAttributes;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.enums.QueryRejectCondition;
-import io.temporal.proto.enums.SignalExternalWorkflowExecutionFailedCause;
-import io.temporal.proto.enums.TimeoutType;
-import io.temporal.proto.enums.WorkflowExecutionCloseStatus;
-import io.temporal.proto.enums.WorkflowIdReusePolicy;
+import io.temporal.proto.common.WorkflowIdReusePolicy;
+import io.temporal.proto.event.HistoryEvent;
+import io.temporal.proto.event.TimeoutType;
+import io.temporal.proto.event.WorkflowExecutionFailedCause;
+import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.execution.WorkflowExecutionStatus;
+import io.temporal.proto.query.QueryRejectCondition;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
@@ -368,12 +370,14 @@ public class WorkflowTest {
     }
   }
 
+  @WorkflowInterface
   public interface TestWorkflow1 {
 
     @WorkflowMethod
     String execute(String taskList);
   }
 
+  @WorkflowInterface
   public interface TestWorkflowSignaled {
 
     @WorkflowMethod
@@ -383,6 +387,7 @@ public class WorkflowTest {
     void signal1(String arg);
   }
 
+  @WorkflowInterface
   public interface TestWorkflow2 {
 
     @WorkflowMethod(name = "testActivity")
@@ -422,6 +427,7 @@ public class WorkflowTest {
         "executeActivity TestActivities_activity2");
   }
 
+  @WorkflowInterface
   public interface TestMultipleTimers {
     @WorkflowMethod
     long execute();
@@ -735,7 +741,15 @@ public class WorkflowTest {
     private final TestActivities activities;
 
     public TestActivityRetryAnnotated() {
-      this.activities = Workflow.newActivityStub(TestActivities.class);
+      this.activities =
+          Workflow.newActivityStub(
+              TestActivities.class,
+              ActivityOptions.newBuilder()
+                  .setScheduleToCloseTimeout(Duration.ofSeconds(5))
+                  .setScheduleToStartTimeout(Duration.ofSeconds(5))
+                  .setHeartbeatTimeout(Duration.ofSeconds(5))
+                  .setStartToCloseTimeout(Duration.ofSeconds(10))
+                  .build());
     }
 
     @Override
@@ -899,7 +913,7 @@ public class WorkflowTest {
         // false for second argument means to heartbeat once to set details and then stop.
         activities.activityWithDelay(5000, false);
       } catch (ActivityTimeoutException e) {
-        assertEquals(TimeoutType.TimeoutTypeHeartbeat, e.getTimeoutType());
+        assertEquals(TimeoutType.Heartbeat, e.getTimeoutType());
         return e.getDetails(String.class);
       }
       throw new RuntimeException("unreachable");
@@ -1062,6 +1076,7 @@ public class WorkflowTest {
     activitiesImpl.assertInvocations("activityWithDelay", "activity1", "activity2", "activity3");
   }
 
+  @WorkflowInterface
   public interface TestContinueAsNew {
 
     @WorkflowMethod
@@ -1324,7 +1339,7 @@ public class WorkflowTest {
         workflowClient.newWorkflowStub(
             TestMultiargsWorkflowsFunc2.class,
             newWorkflowOptionsBuilder(taskList)
-                .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicate)
+                .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.AllowDuplicate)
                 .build());
     assertResult("12", WorkflowClient.start(stubF2::func2, "1", 2));
     try {
@@ -1531,9 +1546,9 @@ public class WorkflowTest {
     startWorkerFor(TestMultiargsWorkflowsImpl.class);
 
     // Without setting WorkflowIdReusePolicy, the semantics is to get result for the previous run.
-    String workflowID = UUID.randomUUID().toString();
+    String workflowId = UUID.randomUUID().toString();
     WorkflowOptions workflowOptions =
-        newWorkflowOptionsBuilder(taskList).setWorkflowId(workflowID).build();
+        newWorkflowOptionsBuilder(taskList).setWorkflowId(workflowId).build();
     TestMultiargsWorkflowsFunc1 stubF1_1 =
         workflowClient.newWorkflowStub(TestMultiargsWorkflowsFunc1.class, workflowOptions);
     assertEquals(1, stubF1_1.func1(1));
@@ -1544,8 +1559,8 @@ public class WorkflowTest {
     // Setting WorkflowIdReusePolicy to AllowDuplicate will trigger new run.
     workflowOptions =
         newWorkflowOptionsBuilder(taskList)
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicate)
-            .setWorkflowId(workflowID)
+            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.AllowDuplicate)
+            .setWorkflowId(workflowId)
             .build();
     TestMultiargsWorkflowsFunc1 stubF1_3 =
         workflowClient.newWorkflowStub(TestMultiargsWorkflowsFunc1.class, workflowOptions);
@@ -1622,6 +1637,7 @@ public class WorkflowTest {
 
   // This workflow is designed specifically for testing some internal logic in Async.procedure
   // and ChildWorkflowStubImpl. See comments on testChildAsyncLambdaWorkflow for more details.
+  @WorkflowInterface
   public interface WaitOnSignalWorkflow {
 
     @WorkflowMethod()
@@ -2111,8 +2127,8 @@ public class WorkflowTest {
     assertTrue(trace.get(2).startsWith("retry at "));
   }
 
+  @WorkflowInterface
   public interface TestExceptionPropagation {
-
     @WorkflowMethod
     void execute(String taskList);
   }
@@ -2231,6 +2247,7 @@ public class WorkflowTest {
     }
   }
 
+  @WorkflowInterface
   public interface QueryableWorkflow {
 
     @WorkflowMethod
@@ -2464,15 +2481,12 @@ public class WorkflowTest {
     assertEquals("Hello World!", client.getResult(String.class));
     assertEquals("World!", client.query("QueryableWorkflow_getState", String.class));
     QueryResponse<String> queryResponse =
-        client.query(
-            "QueryableWorkflow_getState",
-            String.class,
-            QueryRejectCondition.QueryRejectConditionNotOpen);
+        client.query("QueryableWorkflow_getState", String.class, QueryRejectCondition.NotOpen);
     assertNull(queryResponse.getResult());
     assertEquals(
         execution.toString(),
-        WorkflowExecutionCloseStatus.WorkflowExecutionCloseStatusCompleted,
-        queryResponse.getQueryRejected().getCloseStatus());
+        WorkflowExecutionStatus.Completed,
+        queryResponse.getQueryRejected().getStatus());
     log.info("testSignalUntyped completed");
   }
 
@@ -2568,12 +2582,14 @@ public class WorkflowTest {
     assertEquals("timer2Fired", result);
   }
 
+  @WorkflowInterface
   public interface ITestChild {
 
     @WorkflowMethod
     String execute(String arg, int delay);
   }
 
+  @WorkflowInterface
   public interface ITestNamedChild {
 
     @WorkflowMethod(name = "namedChild")
@@ -2678,8 +2694,7 @@ public class WorkflowTest {
         Workflow.newChildWorkflowStub(
             ITestChild.class,
             ChildWorkflowOptions.newBuilder()
-                .setWorkflowIdReusePolicy(
-                    WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate)
+                .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
                 .build());
     private final TestWorkflow1 self = Workflow.newContinueAsNewStub(TestWorkflow1.class);
 
@@ -2711,6 +2726,7 @@ public class WorkflowTest {
 
   private static String childReexecuteId = UUID.randomUUID().toString();
 
+  @WorkflowInterface
   public interface WorkflowIdReusePolicyParent {
 
     @WorkflowMethod
@@ -2761,7 +2777,7 @@ public class WorkflowTest {
     WorkflowIdReusePolicyParent client =
         workflowClient.newWorkflowStub(WorkflowIdReusePolicyParent.class, options);
     try {
-      client.execute(false, WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate);
+      client.execute(false, WorkflowIdReusePolicy.RejectDuplicate);
       fail("unreachable");
     } catch (WorkflowFailureException e) {
       assertTrue(e.getCause() instanceof StartChildWorkflowFailedException);
@@ -2781,7 +2797,7 @@ public class WorkflowTest {
     WorkflowIdReusePolicyParent client =
         workflowClient.newWorkflowStub(WorkflowIdReusePolicyParent.class, options);
     try {
-      client.execute(true, WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate);
+      client.execute(true, WorkflowIdReusePolicy.RejectDuplicate);
       fail("unreachable");
     } catch (WorkflowFailureException e) {
       assertTrue(e.getCause() instanceof StartChildWorkflowFailedException);
@@ -2800,9 +2816,7 @@ public class WorkflowTest {
             .build();
     WorkflowIdReusePolicyParent client =
         workflowClient.newWorkflowStub(WorkflowIdReusePolicyParent.class, options);
-    assertEquals(
-        "HELLO WORLD!",
-        client.execute(false, WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicate));
+    assertEquals("HELLO WORLD!", client.execute(false, WorkflowIdReusePolicy.AllowDuplicate));
   }
 
   public static class TestChildWorkflowRetryWorkflow implements TestWorkflow1 {
@@ -2832,9 +2846,10 @@ public class WorkflowTest {
     }
   }
 
+  @ActivityInterface
   public interface AngryChildActivity {
 
-    @ActivityMethod(scheduleToCloseTimeoutSeconds = 5)
+    @ActivityMethod
     void execute();
   }
 
@@ -2858,7 +2873,11 @@ public class WorkflowTest {
     public String execute(String taskList, int delay) {
       AngryChildActivity activity =
           Workflow.newActivityStub(
-              AngryChildActivity.class, ActivityOptions.newBuilder().setTaskList(taskList).build());
+              AngryChildActivity.class,
+              ActivityOptions.newBuilder()
+                  .setTaskList(taskList)
+                  .setScheduleToCloseTimeout(Duration.ofSeconds(5))
+                  .build());
       activity.execute();
       throw new UnsupportedOperationException("simulated failure");
     }
@@ -2966,18 +2985,19 @@ public class WorkflowTest {
     }
   }
 
+  @WorkflowInterface
   public interface SignalingChild {
 
     @WorkflowMethod
-    String execute(String arg, String parentWorkflowID);
+    String execute(String arg, String parentWorkflowId);
   }
 
   public static class SignalingChildImpl implements SignalingChild {
 
     @Override
-    public String execute(String greeting, String parentWorkflowID) {
+    public String execute(String greeting, String parentWorkflowId) {
       WorkflowExecution parentExecution =
-          WorkflowExecution.newBuilder().setWorkflowId(parentWorkflowID).build();
+          WorkflowExecution.newBuilder().setWorkflowId(parentWorkflowId).build();
       TestWorkflowSignaled parent =
           Workflow.newExternalWorkflowStub(TestWorkflowSignaled.class, parentExecution);
       ExternalWorkflowStub untyped = ExternalWorkflowStub.fromTyped(parent);
@@ -3002,6 +3022,7 @@ public class WorkflowTest {
     WorkflowStub stub = WorkflowStub.fromTyped(client);
     tracer.setExpected(
         "interceptExecuteWorkflow " + stub.getExecution().getWorkflowId(),
+        "registerSignal testSignal",
         "executeChildWorkflow SignalingChild_execute",
         "interceptExecuteWorkflow " + UUID_REGEXP, // child
         "signalExternalWorkflow " + UUID_REGEXP + " testSignal");
@@ -3030,8 +3051,8 @@ public class WorkflowTest {
   public static class UntypedSignalingChildImpl implements SignalingChild {
 
     @Override
-    public String execute(String greeting, String parentWorkflowID) {
-      ExternalWorkflowStub parent = Workflow.newUntypedExternalWorkflowStub(parentWorkflowID);
+    public String execute(String greeting, String parentWorkflowId) {
+      ExternalWorkflowStub parent = Workflow.newUntypedExternalWorkflowStub(parentWorkflowId);
       parent.signal("testSignal", "World");
       return greeting;
     }
@@ -3083,8 +3104,7 @@ public class WorkflowTest {
           "invalid id",
           ((SignalExternalWorkflowException) e.getCause()).getSignaledExecution().getWorkflowId());
       assertEquals(
-          SignalExternalWorkflowExecutionFailedCause
-              .SignalExternalWorkflowExecutionFailedCauseUnknownExternalWorkflowExecution,
+          WorkflowExecutionFailedCause.UnknownExternalWorkflowExecution,
           ((SignalExternalWorkflowException) e.getCause()).getFailureCause());
     }
   }
@@ -3250,6 +3270,7 @@ public class WorkflowTest {
 
   private static Map<String, AtomicInteger> retryCount = new ConcurrentHashMap<>();
 
+  @WorkflowInterface
   public interface TestWorkflowRetry {
 
     @WorkflowMethod
@@ -3337,6 +3358,7 @@ public class WorkflowTest {
     }
   }
 
+  @WorkflowInterface
   public interface TestWorkflowRetryWithMethodRetry {
 
     @WorkflowMethod
@@ -3384,6 +3406,7 @@ public class WorkflowTest {
     }
   }
 
+  @WorkflowInterface
   public interface TestWorkflowWithCronSchedule {
     @WorkflowMethod
     @CronSchedule("0 * * * *")
@@ -3490,6 +3513,7 @@ public class WorkflowTest {
     assertEquals("run 2", lastCompletionResult);
   }
 
+  @ActivityInterface
   public interface TestActivities {
 
     String sleepActivity(long milliseconds, int input);
@@ -3531,12 +3555,6 @@ public class WorkflowTest {
 
     void neverComplete();
 
-    @ActivityMethod(
-      scheduleToStartTimeoutSeconds = 5,
-      scheduleToCloseTimeoutSeconds = 5,
-      heartbeatTimeoutSeconds = 5,
-      startToCloseTimeoutSeconds = 10
-    )
     @MethodRetry(
       initialIntervalSeconds = 1,
       maximumIntervalSeconds = 1,
@@ -3770,89 +3788,103 @@ public class WorkflowTest {
     String query();
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsFunc {
 
     @WorkflowMethod
     String func();
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsFunc1 {
 
     @WorkflowMethod(
       name = "func1",
       taskList = ANNOTATION_TASK_LIST,
-      workflowIdReusePolicy = WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate,
+      workflowIdReusePolicy = WorkflowIdReusePolicy.RejectDuplicate,
       executionStartToCloseTimeoutSeconds = 10
     )
     int func1(int input);
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsFunc2 {
 
     @WorkflowMethod
     String func2(String a1, int a2);
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsFunc3 {
 
     @WorkflowMethod
     String func3(String a1, int a2, int a3);
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsFunc4 {
 
     @WorkflowMethod
     String func4(String a1, int a2, int a3, int a4);
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsFunc5 {
 
     @WorkflowMethod
     String func5(String a1, int a2, int a3, int a4, int a5);
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsFunc6 {
 
     @WorkflowMethod
     String func6(String a1, int a2, int a3, int a4, int a5, int a6);
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsProc extends ProcInvocationQueryable {
 
     @WorkflowMethod
     void proc();
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsProc1 extends ProcInvocationQueryable {
 
     @WorkflowMethod
     void proc1(String input);
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsProc2 extends ProcInvocationQueryable {
 
     @WorkflowMethod
     void proc2(String a1, int a2);
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsProc3 extends ProcInvocationQueryable {
 
     @WorkflowMethod
     void proc3(String a1, int a2, int a3);
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsProc4 extends ProcInvocationQueryable {
 
     @WorkflowMethod
     void proc4(String a1, int a2, int a3, int a4);
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsProc5 extends ProcInvocationQueryable {
 
     @WorkflowMethod
     void proc5(String a1, int a2, int a3, int a4, int a5);
   }
 
+  @WorkflowInterface
   public interface TestMultiargsWorkflowsProc6 extends ProcInvocationQueryable {
 
     @WorkflowMethod
@@ -4501,6 +4533,7 @@ public class WorkflowTest {
         "executeActivity TestActivities_activity2");
   }
 
+  @ActivityInterface
   public interface GenericParametersActivity {
 
     List<UUID> execute(List<UUID> arg1, Set<UUID> arg2);
@@ -4517,6 +4550,7 @@ public class WorkflowTest {
     }
   }
 
+  @WorkflowInterface
   public interface GenericParametersWorkflow {
 
     @WorkflowMethod
@@ -4609,9 +4643,8 @@ public class WorkflowTest {
     }
   }
 
+  @ActivityInterface
   public interface NonSerializableExceptionActivity {
-
-    @ActivityMethod(scheduleToCloseTimeoutSeconds = 5)
     void execute();
   }
 
@@ -4629,7 +4662,11 @@ public class WorkflowTest {
     @Override
     public String execute(String taskList) {
       NonSerializableExceptionActivity activity =
-          Workflow.newActivityStub(NonSerializableExceptionActivity.class);
+          Workflow.newActivityStub(
+              NonSerializableExceptionActivity.class,
+              ActivityOptions.newBuilder()
+                  .setScheduleToCloseTimeout(Duration.ofSeconds(5))
+                  .build());
       try {
         activity.execute();
       } catch (ActivityFailureException e) {
@@ -4651,9 +4688,8 @@ public class WorkflowTest {
     assertTrue(result.contains("NonSerializableException"));
   }
 
+  @ActivityInterface
   public interface NonDeserializableArgumentsActivity {
-
-    @ActivityMethod(scheduleToCloseTimeoutSeconds = 5)
     void execute(int arg);
   }
 
@@ -4706,6 +4742,7 @@ public class WorkflowTest {
     assertEquals("DataConverterException-DataConverterException", result);
   }
 
+  @WorkflowInterface
   public interface NonSerializableExceptionChildWorkflow {
 
     @WorkflowMethod
@@ -4799,6 +4836,7 @@ public class WorkflowTest {
     assertEquals("done", result);
   }
 
+  @WorkflowInterface
   public interface DecisionTimeoutWorkflow {
     @WorkflowMethod(executionStartToCloseTimeoutSeconds = 10000)
     String execute(String testName) throws InterruptedException;
@@ -5022,6 +5060,7 @@ public class WorkflowTest {
         "sleepActivity");
   }
 
+  @WorkflowInterface
   public interface SignalOrderingWorkflow {
     @WorkflowMethod
     List<String> run();
@@ -5149,7 +5188,7 @@ public class WorkflowTest {
   }
 
   public interface GreetingActivities {
-    @ActivityMethod(scheduleToCloseTimeoutSeconds = 60)
+    @ActivityMethod
     String composeGreeting(String string);
   }
 
@@ -5169,7 +5208,9 @@ public class WorkflowTest {
   public static class TimerFiringWorkflowImpl implements GreetingWorkflow {
 
     private final GreetingActivities activities =
-        Workflow.newActivityStub(GreetingActivities.class);
+        Workflow.newActivityStub(
+            GreetingActivities.class,
+            ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofSeconds(5)).build());
 
     @Override
     public void createGreeting(String name) {
@@ -5218,6 +5259,7 @@ public class WorkflowTest {
     }
   }
 
+  @WorkflowInterface
   public interface TestCompensationWorkflow {
     @WorkflowMethod
     void compensate();
@@ -5236,6 +5278,7 @@ public class WorkflowTest {
     public void compensate() {}
   }
 
+  @WorkflowInterface
   public interface TestSagaWorkflow {
     @WorkflowMethod
     String execute(String taskList, boolean parallelCompensation);
@@ -5371,6 +5414,7 @@ public class WorkflowTest {
         "workflow threads might leak, #workflowThreads = " + workflowThreads, workflowThreads < 20);
   }
 
+  @WorkflowInterface
   public interface TestUpsertSearchAttributes {
     @WorkflowMethod
     String execute(String taskList, String keyword);
@@ -5460,6 +5504,165 @@ public class WorkflowTest {
     String result = parent.func();
     String expected = String.format("%s - %s", null, workflowId);
     assertEquals(expected, result);
+  }
+
+  public interface WorkflowBase {
+    @WorkflowMethod
+    String execute(String arg);
+  }
+
+  @WorkflowInterface
+  public interface WorkflowA extends WorkflowBase {}
+
+  @WorkflowInterface
+  public interface WorkflowB extends WorkflowBase {}
+
+  public static class WorkflowAImpl implements WorkflowA {
+    @Override
+    public String execute(String arg) {
+      return "WorkflowAImpl" + arg;
+    }
+  }
+
+  public static class WorkflowBImpl implements WorkflowB {
+    @Override
+    public String execute(String arg) {
+      return "WorkflowBImpl" + arg;
+    }
+  }
+
+  @Test
+  public void testPolymorphicStart() {
+    startWorkerFor(WorkflowBImpl.class, WorkflowAImpl.class);
+    WorkflowOptions options = newWorkflowOptionsBuilder(taskList).build();
+    WorkflowBase[] stubs =
+        new WorkflowBase[] {
+          workflowClient.newWorkflowStub(WorkflowA.class, options),
+          workflowClient.newWorkflowStub(WorkflowB.class, options),
+        };
+    String results = stubs[0].execute("0") + ", " + stubs[1].execute("1");
+    assertEquals("WorkflowAImpl0, WorkflowBImpl1", results);
+  }
+
+  @WorkflowInterface
+  public interface SignalQueryBase {
+    @SignalMethod
+    void signal(String arg);
+
+    @QueryMethod
+    String getSignal();
+  }
+
+  @WorkflowInterface
+  public interface SignalQueryWorkflowA extends SignalQueryBase {
+    @WorkflowMethod
+    String execute();
+  }
+
+  public static class SignalQueryWorkflowAImpl implements SignalQueryWorkflowA {
+
+    private String signal;
+
+    @Override
+    public void signal(String arg) {
+      signal = arg;
+    }
+
+    @Override
+    public String getSignal() {
+      return signal;
+    }
+
+    @Override
+    public String execute() {
+      Workflow.await(() -> signal != null);
+      return signal;
+    }
+  }
+
+  @Test
+  public void testSignalAndQueryInterface() {
+    startWorkerFor(SignalQueryWorkflowAImpl.class);
+    WorkflowOptions options = newWorkflowOptionsBuilder(taskList).build();
+    SignalQueryWorkflowA stub = workflowClient.newWorkflowStub(SignalQueryWorkflowA.class, options);
+    WorkflowExecution execution = WorkflowClient.start(stub::execute);
+
+    SignalQueryBase signalStub =
+        workflowClient.newWorkflowStub(SignalQueryBase.class, execution.getWorkflowId());
+    signalStub.signal("Hello World!");
+    String result = stub.execute();
+    String queryResult = signalStub.getSignal();
+    assertEquals("Hello World!", result);
+    assertEquals(queryResult, result);
+  }
+
+  @WorkflowInterface
+  public interface TestSignalAndQueryListenerWorkflow {
+    @WorkflowMethod
+    void execute();
+
+    @SignalMethod
+    void register();
+  }
+
+  public static class TestSignalAndQueryListenerWorkflowImpl
+      implements TestSignalAndQueryListenerWorkflow {
+
+    private boolean register;
+    private List<String> signals = new ArrayList<>();
+
+    @Override
+    public void execute() {
+      Workflow.await(() -> register);
+      Workflow.registerListener(
+          new SignalQueryBase() {
+
+            @Override
+            public void signal(String arg) {
+              signals.add(arg);
+            }
+
+            @Override
+            public String getSignal() {
+              return String.join(", ", signals);
+            }
+          });
+    }
+
+    @Override
+    public void register() {
+      register = true;
+    }
+  }
+
+  @Test
+  public void testSignalAndQueryListener() {
+    startWorkerFor(TestSignalAndQueryListenerWorkflowImpl.class);
+    WorkflowOptions options = newWorkflowOptionsBuilder(taskList).build();
+    TestSignalAndQueryListenerWorkflow stub =
+        workflowClient.newWorkflowStub(TestSignalAndQueryListenerWorkflow.class, options);
+    WorkflowExecution execution = WorkflowClient.start(stub::execute);
+
+    SignalQueryBase signalStub =
+        workflowClient.newWorkflowStub(SignalQueryBase.class, execution.getWorkflowId());
+    // Send signals before listener is registered to test signal buffering
+    signalStub.signal("a");
+    signalStub.signal("b");
+    try {
+      signalStub.getSignal();
+      fail("unreachable"); // as not listener is not registered yet
+    } catch (WorkflowQueryException e) {
+      assertTrue(e.getMessage().contains("Unknown query type: SignalQueryBase_getSignal"));
+    }
+    stub.register();
+    while (true) {
+      try {
+        assertEquals("a, b", signalStub.getSignal());
+        break;
+      } catch (WorkflowQueryException e) {
+        assertTrue(e.getMessage().contains("Unknown query type: SignalQueryBase_getSignal"));
+      }
+    }
   }
 
   private static class TracingWorkflowCallsInterceptor implements WorkflowCallsInterceptor {
@@ -5563,9 +5766,9 @@ public class WorkflowTest {
     }
 
     @Override
-    public int getVersion(String changeID, int minSupported, int maxSupported) {
+    public int getVersion(String changeId, int minSupported, int maxSupported) {
       trace.add("getVersion");
-      return next.getVersion(changeID, minSupported, maxSupported);
+      return next.getVersion(changeId, minSupported, maxSupported);
     }
 
     @Override
@@ -5579,6 +5782,13 @@ public class WorkflowTest {
     public void registerQuery(String queryType, Type[] argTypes, Func1<Object[], Object> callback) {
       trace.add("registerQuery " + queryType);
       next.registerQuery(queryType, argTypes, callback);
+    }
+
+    @Override
+    public void registerSignal(
+        String signalType, Type[] argTypes, Functions.Proc1<Object[]> callback) {
+      trace.add("registerSignal " + signalType);
+      next.registerSignal(signalType, argTypes, callback);
     }
 
     @Override

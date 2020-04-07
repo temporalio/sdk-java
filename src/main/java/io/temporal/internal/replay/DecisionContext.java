@@ -23,8 +23,8 @@ import com.uber.m3.tally.Scope;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.proto.common.SearchAttributes;
-import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
+import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
@@ -182,12 +182,12 @@ public interface DecisionContext extends ReplayAware {
    * the version that was recorded is returned on replay. DefaultVersion constant contains version
    * of code that wasn't versioned before.
    *
-   * @param changeID identifier of a particular change
+   * @param changeId identifier of a particular change
    * @param minSupported min version supported for the change
    * @param maxSupported max version supported for the change
    * @return version
    */
-  int getVersion(String changeID, DataConverter dataConverter, int minSupported, int maxSupported);
+  int getVersion(String changeId, DataConverter dataConverter, int minSupported, int maxSupported);
 
   Random newRandom();
 

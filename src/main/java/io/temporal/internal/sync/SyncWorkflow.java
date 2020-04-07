@@ -26,11 +26,11 @@ import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.DecisionContext;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.worker.WorkflowExecutionException;
-import io.temporal.proto.common.HistoryEvent;
-import io.temporal.proto.common.WorkflowExecutionStartedEventAttributes;
-import io.temporal.proto.common.WorkflowQuery;
 import io.temporal.proto.common.WorkflowType;
-import io.temporal.proto.enums.EventType;
+import io.temporal.proto.event.EventType;
+import io.temporal.proto.event.HistoryEvent;
+import io.temporal.proto.event.WorkflowExecutionStartedEventAttributes;
+import io.temporal.proto.query.WorkflowQuery;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.List;
 import java.util.Objects;
@@ -80,7 +80,7 @@ class SyncWorkflow implements ReplayWorkflow {
 
   @Override
   public void start(HistoryEvent event, DecisionContext context) {
-    if (event.getEventType() != EventType.EventTypeWorkflowExecutionStarted
+    if (event.getEventType() != EventType.WorkflowExecutionStarted
         || !event.hasWorkflowExecutionStartedEventAttributes()) {
       throw new IllegalArgumentException(
           "first event is not WorkflowExecutionStarted, but " + event.getEventType());
@@ -120,9 +120,8 @@ class SyncWorkflow implements ReplayWorkflow {
 
   @Override
   public void handleSignal(String signalName, byte[] input, long eventId) {
-    String threadName = "\"" + signalName + "\" signal handler";
     runner.executeInWorkflowThread(
-        threadName, () -> workflowProc.processSignal(signalName, input, eventId));
+        "signal " + signalName, () -> workflowProc.processSignal(signalName, input, eventId));
   }
 
   @Override

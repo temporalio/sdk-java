@@ -22,7 +22,7 @@ package io.temporal.worker;
 import static io.temporal.workflow.WorkflowTest.NAMESPACE;
 import static org.junit.Assert.assertNotNull;
 
-import io.temporal.activity.ActivityMethod;
+import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
@@ -35,6 +35,7 @@ import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -226,6 +227,7 @@ public class WorkerStressTests {
     public Duration TemporalSleep;
   }
 
+  @WorkflowInterface
   public interface ActivitiesWorkflow {
 
     @WorkflowMethod()
@@ -265,9 +267,8 @@ public class WorkerStressTests {
     }
   }
 
+  @ActivityInterface
   public interface SleepActivity {
-
-    @ActivityMethod()
     void sleep(int chain, int concurrency, byte[] bytes);
   }
 

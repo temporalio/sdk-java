@@ -35,8 +35,8 @@ import io.temporal.internal.replay.ExecuteLocalActivityParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
 import io.temporal.proto.common.SearchAttributes;
-import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
+import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
@@ -695,7 +695,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
     @Override
     public int getVersion(
-        String changeID, DataConverter converter, int minSupported, int maxSupported) {
+        String changeId, DataConverter converter, int minSupported, int maxSupported) {
       throw new UnsupportedOperationException("not implemented");
     }
 

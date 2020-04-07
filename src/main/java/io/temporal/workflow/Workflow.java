@@ -24,7 +24,7 @@ import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.internal.sync.WorkflowInternal;
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Functions.Func;
 import java.lang.reflect.Type;
@@ -700,12 +700,18 @@ public final class Workflow {
   }
 
   /**
-   * Register query or queries implementation object. There is no need to register top level
-   * workflow implementation object as it is done implicitly. Only methods annotated with @{@link
-   * QueryMethod} are registered.
+   * Registers an implementation object. The object must implement at least one interface annotated
+   * with {@link WorkflowInterface}. All its methods annotated with @{@link SignalMethod}
+   * and @{@link QueryMethod} are registered.
+   *
+   * <p>There is no need to register the top level workflow implementation object as it is done
+   * implicitly by the framework on object startup.
+   *
+   * <p>An attempt to register a duplicated query is going to fail with {@link
+   * IllegalArgumentException}
    */
-  public static void registerQuery(Object queryImplementation) {
-    WorkflowInternal.registerQuery(queryImplementation);
+  public static void registerListener(Object queryImplementation) {
+    WorkflowInternal.registerListener(queryImplementation);
   }
 
   /**
@@ -1107,22 +1113,22 @@ public final class Workflow {
    * it will fail here and not proceed; 2) if you ever need to make more changes for “fooChange”,
    * for example change activity3 to activity4, you just need to update the maxVersion from 2 to 3.
    *
-   * <p>Note that, you only need to preserve the first call to GetVersion() for each changeID. All
-   * subsequent call to GetVersion() with same changeID are safe to remove. However, if you really
+   * <p>Note that, you only need to preserve the first call to GetVersion() for each changeId. All
+   * subsequent call to GetVersion() with same changeId are safe to remove. However, if you really
    * want to get rid of the first GetVersion() call as well, you can do so, but you need to make
    * sure: 1) all older version executions are completed; 2) you can no longer use “fooChange” as
-   * changeID. If you ever need to make changes to that same part, you would need to use a different
-   * changeID like “fooChange-fix2”, and start minVersion from DefaultVersion again.
+   * changeId. If you ever need to make changes to that same part, you would need to use a different
+   * changeId like “fooChange-fix2”, and start minVersion from DefaultVersion again.
    *
-   * @param changeID identifier of a particular change. All calls to getVersion that share a
-   *     changeID are guaranteed to return the same version number. Use this to perform multiple
+   * @param changeId identifier of a particular change. All calls to getVersion that share a
+   *     changeId are guaranteed to return the same version number. Use this to perform multiple
    *     coordinated changes that should be enabled together.
    * @param minSupported min version supported for the change
    * @param maxSupported max version supported for the change
    * @return version
    */
-  public static int getVersion(String changeID, int minSupported, int maxSupported) {
-    return WorkflowInternal.getVersion(changeID, minSupported, maxSupported);
+  public static int getVersion(String changeId, int minSupported, int maxSupported) {
+    return WorkflowInternal.getVersion(changeId, minSupported, maxSupported);
   }
 
   /**

@@ -21,11 +21,8 @@ package io.temporal.internal.sync;
 
 import static io.temporal.internal.common.InternalUtils.getValueOrDefault;
 
-import io.temporal.activity.ActivityMethod;
 import io.temporal.common.MethodRetry;
-import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.sync.AsyncInternal.AsyncMarker;
-import io.temporal.workflow.Workflow;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -47,37 +44,27 @@ abstract class ActivityInvocationHandlerBase implements InvocationHandler {
             invocationHandler);
   }
 
+  protected void init(Class<?> activityInterface) {
+    POJOActivityInterfaceMetadata activityMetadata =
+        POJOActivityInterfaceMetadata.newInstance(activityInterface);
+    for (POJOActivityMethodMetadata methodMetadata : activityMetadata.getMethodsMetadata()) {
+      Method method = methodMetadata.getMethod();
+      String activityType = methodMetadata.getName();
+      MethodRetry methodRetry = method.getAnnotation(MethodRetry.class);
+      Function<Object[], Object> function = getActivityFunc(method, methodRetry, activityType);
+      methodFunctions.put(method, function);
+    }
+  }
+
   @Override
   public Object invoke(Object proxy, Method method, Object[] args) {
     Function<Object[], Object> function = methodFunctions.get(method);
     if (function == null) {
-      try {
-        if (method.equals(Object.class.getMethod("toString"))) {
-          // TODO: activity info
-          return "ActivityInvocationHandlerBase";
-        }
-        if (!method.getDeclaringClass().isInterface()) {
-          throw new IllegalArgumentException(
-              "Interface type is expected: " + method.getDeclaringClass());
-        }
-        MethodRetry methodRetry = method.getAnnotation(MethodRetry.class);
-        ActivityMethod activityMethod = method.getAnnotation(ActivityMethod.class);
-        String activityName;
-        if (activityMethod == null || activityMethod.name().isEmpty()) {
-          activityName = InternalUtils.getSimpleName(method);
-        } else {
-          activityName = activityMethod.name();
-        }
-
-        function = getActivityFunc(method, methodRetry, activityMethod, activityName);
-        methodFunctions.put(method, function);
-      } catch (NoSuchMethodException e) {
-        throw Workflow.wrap(e);
-      }
+      throw new IllegalArgumentException("Unexpected method: " + method);
     }
     return getValueOrDefault(function.apply(args), method.getReturnType());
   }
 
   protected abstract Function<Object[], Object> getActivityFunc(
-      Method method, MethodRetry methodRetry, ActivityMethod activityMethod, String activityName);
+      Method method, MethodRetry methodRetry, String activityName);
 }

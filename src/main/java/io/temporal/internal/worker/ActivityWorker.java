@@ -32,7 +32,7 @@ import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
@@ -227,13 +227,13 @@ public final class ActivityWorker implements SuspendableWorker {
     public Throwable wrapFailure(PollForActivityTaskResponse task, Throwable failure) {
       WorkflowExecution execution = task.getWorkflowExecution();
       return new RuntimeException(
-          "Failure processing activity task. WorkflowID="
+          "Failure processing activity task. WorkflowId="
               + execution.getWorkflowId()
-              + ", RunID="
+              + ", RunId="
               + execution.getRunId()
               + ", ActivityType="
               + task.getActivityType().getName()
-              + ", ActivityID="
+              + ", ActivityId="
               + task.getActivityId(),
           failure);
     }
