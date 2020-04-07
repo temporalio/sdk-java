@@ -21,7 +21,7 @@ package io.temporal.workflow;
 
 import io.temporal.common.converter.DataConverter;
 import io.temporal.proto.common.ActivityType;
-import io.temporal.proto.enums.TimeoutType;
+import io.temporal.proto.event.TimeoutType;
 import java.lang.reflect.Type;
 import java.util.Objects;
 

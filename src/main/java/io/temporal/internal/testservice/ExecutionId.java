@@ -21,7 +21,7 @@ package io.temporal.internal.testservice;
 
 import io.grpc.Status;
 import io.temporal.internal.common.OptionsUtils;
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.execution.WorkflowExecution;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;

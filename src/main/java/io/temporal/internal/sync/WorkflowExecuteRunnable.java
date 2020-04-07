@@ -19,7 +19,7 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.proto.common.WorkflowExecutionStartedEventAttributes;
+import io.temporal.proto.event.WorkflowExecutionStartedEventAttributes;
 import java.util.Objects;
 
 class WorkflowExecuteRunnable implements Runnable {

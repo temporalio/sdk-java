@@ -30,7 +30,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatByIdRequest;
 import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatByIdResponse;
 import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatRequest;

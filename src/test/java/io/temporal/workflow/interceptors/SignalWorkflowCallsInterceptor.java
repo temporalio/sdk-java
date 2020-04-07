@@ -22,7 +22,7 @@ package io.temporal.workflow.interceptors;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.workflow.*;
 import java.lang.reflect.Type;
 import java.time.Duration;

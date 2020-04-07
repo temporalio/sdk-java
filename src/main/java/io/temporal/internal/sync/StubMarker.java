@@ -19,7 +19,7 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.execution.WorkflowExecution;
 
 /**
  * Interface that stub created through {@link
