@@ -157,23 +157,6 @@ class POJOWorkflowInterfaceMetadata {
     return new ArrayList<>(this.methods.values());
   }
 
-  private void initWorkflowInterface(Class<?> anInterface) {
-    if (!anInterface.isInterface()) {
-      throw new IllegalArgumentException("not an interface: " + anInterface);
-    }
-    WorkflowInterface annotation = anInterface.getAnnotation(WorkflowInterface.class);
-    if (annotation == null) {
-      throw new IllegalArgumentException(
-          "Missing requied @WorkflowInterface annotation: " + anInterface);
-    }
-    Map<EqualsByMethodName, Method> dedupeMap = new HashMap<>();
-    getWorkflowInterfaceMethods(anInterface, dedupeMap);
-    if (this.methods.isEmpty()) {
-      throw new IllegalArgumentException(
-          "Interface doesn't contain any methods" + anInterface.getName());
-    }
-  }
-
   /** @return methods which are not part of an interface annotated with WorkflowInterface */
   private Set<POJOWorkflowMethod> getWorkflowInterfaceMethods(
       Class<?> current, Map<EqualsByMethodName, Method> dedupeMap) {
