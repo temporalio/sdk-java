@@ -19,7 +19,6 @@
 
 package io.temporal.internal.sync;
 
-import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,32 +39,6 @@ import java.util.Set;
  * </ul>
  */
 class POJOWorkflowImplMetadata {
-
-  /** Used to override equals and hashCode of Method to ensure deduping by method name in a set. */
-  static class EqualsByMethodName {
-    private final Method method;
-
-    EqualsByMethodName(Method method) {
-      this.method = method;
-    }
-
-    public Method getMethod() {
-      return method;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
-      EqualsByMethodName that = (EqualsByMethodName) o;
-      return com.google.common.base.Objects.equal(method.getName(), that.method.getName());
-    }
-
-    @Override
-    public int hashCode() {
-      return com.google.common.base.Objects.hashCode(method.getName());
-    }
-  }
 
   static class EqualsByNameType {
     private final String name;
