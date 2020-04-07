@@ -28,7 +28,6 @@ import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.temporal.internal.common.StatusUtils;
-import io.temporal.internal.testservice.TestWorkflowMutableStateImpl.QueryId;
 import io.temporal.internal.testservice.TestWorkflowStore.WorkflowState;
 import io.temporal.proto.common.RetryPolicy;
 import io.temporal.proto.common.WorkflowIdReusePolicy;

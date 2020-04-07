@@ -27,8 +27,8 @@ import java.util.Objects;
 
 /**
  * ActivityTimeoutException indicates that an activity has timed out. If the timeout type is a
- * {@link TimeoutType#TimeoutTypeHeartbeat} then the {@link #getDetails(Class)} returns a value
- * passed to the latest successful {@link io.temporal.activity.Activity#heartbeat(Object)} call.
+ * {@link TimeoutType#Heartbeat} then the {@link #getDetails(Class)} returns a value passed to the
+ * latest successful {@link io.temporal.activity.Activity#heartbeat(Object)} call.
  */
 @SuppressWarnings("serial")
 public final class ActivityTimeoutException extends ActivityException {

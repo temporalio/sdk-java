@@ -114,6 +114,8 @@ public interface WorkflowCallsInterceptor {
 
   void registerQuery(String queryType, Type[] argTypes, Functions.Func1<Object[], Object> callback);
 
+  void registerSignal(String signalType, Type[] argTypes, Functions.Proc1<Object[]> callback);
+
   UUID randomUUID();
 
   void upsertSearchAttributes(Map<String, Object> searchAttributes);

@@ -20,7 +20,6 @@
 package io.temporal.internal.testservice;
 
 import com.google.protobuf.ByteString;
-import io.temporal.internal.testservice.TestWorkflowMutableStateImpl.QueryId;
 import io.temporal.proto.decision.SignalExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.proto.decision.StickyExecutionAttributes;
 import io.temporal.proto.event.ChildWorkflowExecutionCanceledEventAttributes;

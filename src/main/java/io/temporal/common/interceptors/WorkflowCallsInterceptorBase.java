@@ -24,6 +24,7 @@ import io.temporal.activity.LocalActivityOptions;
 import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ContinueAsNewOptions;
+import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
@@ -136,6 +137,12 @@ public class WorkflowCallsInterceptorBase implements WorkflowCallsInterceptor {
   @Override
   public void registerQuery(String queryType, Type[] argTypes, Func1<Object[], Object> callback) {
     next.registerQuery(queryType, argTypes, callback);
+  }
+
+  @Override
+  public void registerSignal(
+      String signalType, Type[] argTypes, Functions.Proc1<Object[]> callback) {
+    next.registerSignal(signalType, argTypes, callback);
   }
 
   @Override

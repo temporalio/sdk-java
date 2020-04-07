@@ -33,13 +33,13 @@ import java.util.Optional;
  * <ul>
  *   There is a closed workflow with the same ID and the {@link
  *   WorkflowOptions#getWorkflowIdReusePolicy()} is {@link
- *   io.temporal.proto.common.WorkflowIdReusePolicy#WorkflowIdReusePolicyRejectDuplicate}.
+ *   io.temporal.proto.common.WorkflowIdReusePolicy#RejectDuplicate}.
  * </ul>
  *
  * <ul>
  *   There is successfully closed workflow with the same ID and the {@link
  *   WorkflowOptions#getWorkflowIdReusePolicy()} is {@link
- *   io.temporal.proto.common.WorkflowIdReusePolicy#WorkflowIdReusePolicyAllowDuplicateFailedOnly}.
+ *   io.temporal.proto.common.WorkflowIdReusePolicy#AllowDuplicateFailedOnly}.
  * </ul>
  *
  * <ul>
@@ -47,7 +47,7 @@ import java.util.Optional;
  *   once</i> on a stub created through {@link
  *   io.temporal.workflow.Workflow#newChildWorkflowStub(Class)} and the {@link
  *   WorkflowOptions#getWorkflowIdReusePolicy()} is {@link
- *   io.temporal.proto.common.WorkflowIdReusePolicy#WorkflowIdReusePolicyAllowDuplicate}
+ *   io.temporal.proto.common.WorkflowIdReusePolicy#AllowDuplicate}
  * </ul>
  */
 public final class DuplicateWorkflowException extends WorkflowException {

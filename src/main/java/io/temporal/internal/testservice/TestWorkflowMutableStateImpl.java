@@ -29,6 +29,7 @@ import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.StateMachines.Action;
 import io.temporal.internal.testservice.StateMachines.ActivityTaskData;
@@ -75,6 +76,7 @@ import io.temporal.proto.event.WorkflowExecutionFailedCause;
 import io.temporal.proto.event.WorkflowExecutionSignaledEventAttributes;
 import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.execution.WorkflowExecutionStatus;
+import io.temporal.proto.failure.QueryFailed;
 import io.temporal.proto.query.QueryRejectCondition;
 import io.temporal.proto.query.QueryRejected;
 import io.temporal.proto.query.QueryResultType;
@@ -96,11 +98,6 @@ import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
 import io.temporal.proto.workflowservice.RespondQueryTaskCompletedRequest;
 import io.temporal.proto.workflowservice.SignalWorkflowExecutionRequest;
 import io.temporal.proto.workflowservice.StartWorkflowExecutionRequest;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -109,7 +106,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.UUID;
@@ -1606,7 +1602,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     } catch (InterruptedException e) {
       return QueryWorkflowResponse.getDefaultInstance();
     } catch (ExecutionException e) {
-      throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
+      Throwable cause = e.getCause();
+      if (cause instanceof StatusRuntimeException) {
+        throw (StatusRuntimeException) cause;
+      }
+      throw Status.INTERNAL
+          .withCause(cause)
+          .withDescription(cause.getMessage())
+          .asRuntimeException();
     }
   }
 
@@ -1624,19 +1627,19 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               .setQueryResult(completeRequest.getQueryResult())
               .build();
       result.complete(response);
+    } else if (completeRequest.getCompletedType() == QueryResultType.Failed) {
+      StatusRuntimeException error =
+          StatusUtils.newException(
+              Status.INVALID_ARGUMENT.withDescription(completeRequest.getErrorMessage()),
+              QueryFailed.getDefaultInstance());
+      result.completeExceptionally(error);
     } else if (stickyExecutionAttributes != null) {
+      // TODO(maxim): This should happen on timeout only. I believe this branch is not reachable.
       stickyExecutionAttributes = null;
       PollForDecisionTaskResponse.Builder task = queryRequests.remove(queryId.getQueryId());
-
       TaskListId taskListId =
           new TaskListId(startRequest.getNamespace(), startRequest.getTaskList().getName());
       store.sendQueryTask(executionId, taskListId, task);
-    } else {
-      StatusRuntimeException error =
-          Status.INVALID_ARGUMENT
-              .withDescription(completeRequest.getErrorMessage())
-              .asRuntimeException();
-      result.completeExceptionally(error);
     }
   }
 
@@ -1689,57 +1692,5 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           .asRuntimeException();
     }
     return child;
-  }
-
-  static class QueryId {
-
-    private final ExecutionId executionId;
-    private final String queryId;
-
-    QueryId(ExecutionId executionId) {
-      this.executionId = Objects.requireNonNull(executionId);
-      this.queryId = UUID.randomUUID().toString();
-    }
-
-    private QueryId(ExecutionId executionId, String queryId) {
-      this.executionId = Objects.requireNonNull(executionId);
-      this.queryId = queryId;
-    }
-
-    public ExecutionId getExecutionId() {
-      return executionId;
-    }
-
-    String getQueryId() {
-      return queryId;
-    }
-
-    ByteString toBytes() {
-      ByteArrayOutputStream bout = new ByteArrayOutputStream();
-      DataOutputStream out = new DataOutputStream(bout);
-      addBytes(out);
-      return ByteString.copyFrom(bout.toByteArray());
-    }
-
-    void addBytes(DataOutputStream out) {
-      try {
-        executionId.addBytes(out);
-        out.writeUTF(queryId);
-      } catch (IOException e) {
-        throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
-      }
-    }
-
-    static QueryId fromBytes(ByteString serialized) {
-      ByteArrayInputStream bin = new ByteArrayInputStream(serialized.toByteArray());
-      DataInputStream in = new DataInputStream(bin);
-      try {
-        ExecutionId executionId = ExecutionId.readFromBytes(in);
-        String queryId = in.readUTF();
-        return new QueryId(executionId, queryId);
-      } catch (IOException e) {
-        throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
-      }
-    }
   }
 }
