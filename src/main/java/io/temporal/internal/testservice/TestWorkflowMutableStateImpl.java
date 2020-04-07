@@ -33,6 +33,7 @@ import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.StateMachines.Action;
 import io.temporal.internal.testservice.StateMachines.ActivityTaskData;
+import io.temporal.internal.testservice.StateMachines.CancelExternalData;
 import io.temporal.internal.testservice.StateMachines.ChildWorkflowData;
 import io.temporal.internal.testservice.StateMachines.DecisionTaskData;
 import io.temporal.internal.testservice.StateMachines.SignalExternalData;
@@ -69,7 +70,6 @@ import io.temporal.proto.event.ExternalWorkflowExecutionCancelRequestedEventAttr
 import io.temporal.proto.event.HistoryEvent;
 import io.temporal.proto.event.MarkerRecordedEventAttributes;
 import io.temporal.proto.event.RequestCancelActivityTaskFailedEventAttributes;
-import io.temporal.proto.event.RequestCancelExternalWorkflowExecutionInitiatedEventAttributes;
 import io.temporal.proto.event.StartChildWorkflowExecutionFailedEventAttributes;
 import io.temporal.proto.event.TimeoutType;
 import io.temporal.proto.event.UpsertWorkflowSearchAttributesEventAttributes;
@@ -147,6 +147,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private final Map<Long, StateMachine<ChildWorkflowData>> childWorkflows = new HashMap<>();
   private final Map<String, StateMachine<TimerData>> timers = new HashMap<>();
   private final Map<String, StateMachine<SignalExternalData>> externalSignals = new HashMap<>();
+  private final Map<String, StateMachine<CancelExternalData>> externalCancellations =
+      new HashMap<>();
   private StateMachine<WorkflowData> workflow;
   private volatile StateMachine<DecisionTaskData> decision;
   private long lastNonFailedDecisionStartEventId;
@@ -434,24 +436,16 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       RequestContext ctx,
       RequestCancelExternalWorkflowExecutionDecisionAttributes attr,
       long decisionTaskCompletedId) {
-    RequestCancelExternalWorkflowExecutionInitiatedEventAttributes eventAttributes =
-        RequestCancelExternalWorkflowExecutionInitiatedEventAttributes.newBuilder()
-            .setNamespace(attr.getNamespace())
-            .setChildWorkflowOnly(attr.getChildWorkflowOnly())
-            .setControl(attr.getControl())
-            .setDecisionTaskCompletedEventId(decisionTaskCompletedId)
-            .setWorkflowExecution(
-                WorkflowExecution.newBuilder()
-                    .setWorkflowId(attr.getWorkflowId())
-                    .setRunId(attr.getRunId())
-                    .build())
-            .build();
-    HistoryEvent event =
-        HistoryEvent.newBuilder()
-            .setEventType(EventType.RequestCancelExternalWorkflowExecutionInitiated)
-            .setRequestCancelExternalWorkflowExecutionInitiatedEventAttributes(eventAttributes)
-            .build();
-    ctx.addEvent(event);
+    if (externalCancellations.containsKey(attr.getWorkflowId())) {
+      // TODO: validate that this matches the service behavior
+      throw Status.FAILED_PRECONDITION
+          .withDescription("cancellation aready requested for workflowId=" + attr.getWorkflowId())
+          .asRuntimeException();
+    }
+    StateMachine<CancelExternalData> cancelStateMachine =
+        StateMachines.newCancelExternalStateMachine();
+    externalCancellations.put(attr.getWorkflowId(), cancelStateMachine);
+    cancelStateMachine.action(StateMachines.Action.INITIATE, ctx, attr, decisionTaskCompletedId);
     ForkJoinPool.commonPool()
         .execute(
             () -> {
@@ -461,12 +455,33 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                           WorkflowExecution.newBuilder().setWorkflowId(attr.getWorkflowId()))
                       .setNamespace(ctx.getNamespace())
                       .build();
+              CancelExternalWorkflowExecutionCallerInfo info =
+                  new CancelExternalWorkflowExecutionCallerInfo(
+                      ctx.getNamespace(),
+                      cancelStateMachine.getData().initiatedEventId,
+                      executionId.getExecution(),
+                      this);
               try {
-                service.requestCancelWorkflowExecution(request);
+                service.requestCancelWorkflowExecution(request, Optional.of(info));
               } catch (Exception e) {
                 log.error("Failure to request cancel external workflow", e);
               }
             });
+  }
+
+  @Override
+  public void reportCancelRequested(ExternalWorkflowExecutionCancelRequestedEventAttributes a) {
+    update(
+        ctx -> {
+          StateMachine<CancelExternalData> cancellationRequest =
+              externalCancellations.get(a.getWorkflowExecution().getWorkflowId());
+          cancellationRequest.action(
+              StateMachines.Action.START, ctx, a.getWorkflowExecution().getRunId(), 0);
+          scheduleDecision(ctx);
+          // No need to lock until completion as child workflow might skip
+          // time as well
+          //          ctx.unlockTimer();
+        });
   }
 
   private void processRecordMarker(

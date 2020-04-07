@@ -19,6 +19,7 @@
 
 package io.temporal.workflow;
 
+import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
 import static org.junit.Assert.*;
 
 import com.google.common.util.concurrent.UncheckedExecutionException;
@@ -951,12 +952,12 @@ public class WorkflowTest {
             "TestWorkflow1_execute", newWorkflowOptionsBuilder(taskList).build());
     WorkflowExecution execution = workflowStub.start(taskList);
     sleep(Duration.ofMillis(500));
-    String stackTrace = workflowStub.query(WorkflowClient.QUERY_TYPE_STACK_TRACE, String.class);
+    String stackTrace = workflowStub.query(QUERY_TYPE_STACK_TRACE, String.class);
     assertTrue(stackTrace, stackTrace.contains("WorkflowTest$TestSyncWorkflowImpl.execute"));
     assertTrue(stackTrace, stackTrace.contains("activityWithDelay"));
     // Test stub created from workflow execution.
     workflowStub = workflowClient.newUntypedWorkflowStub(execution, workflowStub.getWorkflowType());
-    stackTrace = workflowStub.query(WorkflowClient.QUERY_TYPE_STACK_TRACE, String.class);
+    stackTrace = workflowStub.query(QUERY_TYPE_STACK_TRACE, String.class);
     assertTrue(stackTrace, stackTrace.contains("WorkflowTest$TestSyncWorkflowImpl.execute"));
     assertTrue(stackTrace, stackTrace.contains("activityWithDelay"));
     String result = workflowStub.getResult(String.class);
@@ -1153,6 +1154,7 @@ public class WorkflowTest {
     WorkflowClient.start(client::execute, taskList);
     sleep(Duration.ofMillis(500)); // To let activityWithDelay start.
     WorkflowStub stub = WorkflowStub.fromTyped(client);
+    waitForOKQuery(stub);
     stub.cancel();
     long start = currentTimeMillis();
     try {
@@ -1165,6 +1167,19 @@ public class WorkflowTest {
     activitiesImpl.assertInvocations("activityWithDelay");
   }
 
+  /** Used to ensure that workflow first decision is executed. */
+  private void waitForOKQuery(WorkflowStub stub) {
+    while (true) {
+      try {
+        String stackTrace = stub.query(QUERY_TYPE_STACK_TRACE, String.class);
+        if (!stackTrace.isEmpty()) {
+          break;
+        }
+      } catch (WorkflowQueryException e) {
+      }
+    }
+  }
+
   @Test
   public void testChildWorkflowWaitCancellationRequested() {
     startWorkerFor(TestParentWorkflowImpl.class, TestChildWorkflowImpl.class);
@@ -1174,6 +1189,7 @@ public class WorkflowTest {
     WorkflowExecution execution =
         client.start(
             ChildWorkflowOptions.ChildWorkflowCancellationType.WAIT_CANCELLATION_REQUESTED);
+    waitForOKQuery(client);
     client.cancel();
     try {
       client.getResult(String.class);
@@ -1211,6 +1227,7 @@ public class WorkflowTest {
     WorkflowExecution execution =
         client.start(
             ChildWorkflowOptions.ChildWorkflowCancellationType.WAIT_CANCELLATION_COMPLETED);
+    waitForOKQuery(client);
     client.cancel();
     try {
       client.getResult(String.class);
@@ -1242,6 +1259,7 @@ public class WorkflowTest {
             "TestWorkflow_execute", newWorkflowOptionsBuilder(taskList).build());
     WorkflowExecution execution =
         client.start(ChildWorkflowOptions.ChildWorkflowCancellationType.ABANDON);
+    waitForOKQuery(client);
     client.cancel();
     try {
       client.getResult(String.class);
@@ -1273,6 +1291,7 @@ public class WorkflowTest {
             "TestWorkflow_execute", newWorkflowOptionsBuilder(taskList).build());
     WorkflowExecution execution =
         client.start(ChildWorkflowOptions.ChildWorkflowCancellationType.TRY_CANCEL);
+    waitForOKQuery(client);
     client.cancel();
     try {
       client.getResult(String.class);

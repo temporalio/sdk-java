@@ -42,22 +42,25 @@ public final class ChildWorkflowOptions {
    * type is a {@link CancellationException} thrown from the child workflow method.
    */
   public enum ChildWorkflowCancellationType {
-    /** Do not request cancellation of the child workflow */
-    ABANDON,
-    /**
-     * Initiate a cancellation request and immediately report cancellation to the parent. Note that
-     * it doesn't guarantee that cancellation is delivered to the child if parent exits before the
-     * delivery is done. It can be mitigated by setting {@link ParentClosePolicy} to {@link
-     * ParentClosePolicy#ParentClosePolicyRequestCancel}.
-     */
-    TRY_CANCEL,
+    /** Wait for child cancellation completion. */
+    WAIT_CANCELLATION_COMPLETED,
+
     /**
      * Request cancellation of the child and wait for confirmation that the request was received.
      * Doesn't wait for actual cancellation.
      */
     WAIT_CANCELLATION_REQUESTED,
-    /** Wait for child cancellation completion. */
-    WAIT_CANCELLATION_COMPLETED
+
+    /**
+     * Initiate a cancellation request and immediately report cancellation to the parent. Note that
+     * it doesn't guarantee that cancellation is delivered to the child if parent exits before the
+     * delivery is done. It can be mitigated by setting {@link ParentClosePolicy} to {@link
+     * ParentClosePolicy#RequestCancel}.
+     */
+    TRY_CANCEL,
+
+    /** Do not request cancellation of the child workflow */
+    ABANDON,
   }
 
   public static Builder newBuilder() {
@@ -305,7 +308,9 @@ public final class ChildWorkflowOptions {
           memo,
           searchAttributes,
           contextPropagators,
-          cancellationType);
+          cancellationType == null
+              ? ChildWorkflowCancellationType.WAIT_CANCELLATION_COMPLETED
+              : cancellationType);
     }
   }
 
