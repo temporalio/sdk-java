@@ -20,8 +20,6 @@
 package io.temporal.workflow;
 
 import io.temporal.internal.sync.WorkflowInternal;
-import java.util.Collection;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -148,9 +146,9 @@ public interface Promise<V> {
    * single promise failure causes resulting promise to deliver the failure immediately.
    *
    * @param promises promises to wait for.
-   * @return Promise that contains a list of results of all promises in the same order.
+   * @return Promise that is completed with null when all the argument promises become completed.
    */
-  static <U> Promise<List<U>> allOf(Collection<Promise<U>> promises) {
+  static Promise<Void> allOf(Iterable<Promise<?>> promises) {
     return WorkflowInternal.promiseAllOf(promises);
   }
 
