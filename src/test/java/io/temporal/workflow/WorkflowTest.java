@@ -5099,7 +5099,7 @@ public class WorkflowTest {
     public String execute(int activityCount, String taskList) {
       TestLargeWorkflowActivity activities =
           Workflow.newActivityStub(TestLargeWorkflowActivity.class, newActivityOptions1(taskList));
-      List<Promise<String>> results = new ArrayList<>();
+      List<Promise<?>> results = new ArrayList<>();
       for (int i = 0; i < activityCount; i++) {
         Promise<String> result = Async.function(activities::activity);
         results.add(result);

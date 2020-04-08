@@ -48,8 +48,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 import java.time.Duration;
-import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
@@ -290,8 +288,8 @@ public final class WorkflowInternal {
     return getWorkflowInterceptor().getVersion(changeId, minSupported, maxSupported);
   }
 
-  public static <U> Promise<List<U>> promiseAllOf(Collection<Promise<U>> promises) {
-    return new AllOfPromise<>(promises);
+  public static Promise<Void> promiseAllOf(Iterable<Promise<?>> promises) {
+    return new AllOfPromise(promises);
   }
 
   @SuppressWarnings("unchecked")

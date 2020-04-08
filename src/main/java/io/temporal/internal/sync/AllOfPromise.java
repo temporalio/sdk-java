@@ -23,45 +23,38 @@ import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-class AllOfPromise<G> implements Promise<List<G>> {
+class AllOfPromise implements Promise<Void> {
 
-  private G[] result;
-  private final CompletablePromise<List<G>> impl = Workflow.newPromise();
-
+  private final CompletablePromise<Void> impl = Workflow.newPromise();
   private int notReadyCount;
 
-  @SuppressWarnings("unchecked")
-  AllOfPromise(Promise<G>[] promises) {
-    // Using array to initialize it to the desired size with nulls.
-    result = (G[]) new Object[promises.length];
+  AllOfPromise(Promise<?>[] promises) {
     int index = 0;
-    for (Promise<G> f : promises) {
+    for (Promise<?> f : promises) {
       addPromise(index, f);
       index++;
     }
-  }
-
-  @SuppressWarnings("unchecked")
-  public AllOfPromise(Collection<Promise<G>> promises) {
-    // Using array to initialize it to the desired size with nulls.
-    result = (G[]) new Object[promises.size()];
-    int index = 0;
-    for (Promise<G> f : promises) {
-      addPromise(index, f);
-      index++;
+    if (notReadyCount == 0) {
+      impl.complete(null);
     }
   }
 
-  private void addPromise(int index, Promise<G> f) {
-    if (f.isCompleted()) {
-      result[index] = f.get();
-    } else {
+  public AllOfPromise(Iterable<Promise<?>> promises) {
+    int index = 0;
+    for (Promise<?> f : promises) {
+      addPromise(index, f);
+      index++;
+    }
+    if (notReadyCount == 0) {
+      impl.complete(null);
+    }
+  }
+
+  private void addPromise(int index, Promise<?> f) {
+    if (!f.isCompleted()) {
       notReadyCount++;
       final int i = index;
       f.handle(
@@ -75,33 +68,12 @@ class AllOfPromise<G> implements Promise<List<G>> {
             if (e != null) {
               impl.completeExceptionally(e);
             }
-            result[i] = r;
             if (--notReadyCount == 0) {
-              impl.complete(Arrays.asList(result));
+              impl.complete(null);
             }
             return null;
           });
     }
-  }
-
-  @Override
-  public <U> Promise<U> thenApply(Functions.Func1<? super List<G>, ? extends U> fn) {
-    return impl.thenApply(fn);
-  }
-
-  @Override
-  public <U> Promise<U> handle(Functions.Func2<? super List<G>, RuntimeException, ? extends U> fn) {
-    return impl.handle(fn);
-  }
-
-  @Override
-  public <U> Promise<U> thenCompose(Functions.Func1<? super List<G>, ? extends Promise<U>> func) {
-    return impl.thenCompose(func);
-  }
-
-  @Override
-  public Promise<List<G>> exceptionally(Functions.Func1<Throwable, ? extends List<G>> fn) {
-    return impl.exceptionally(fn);
   }
 
   @Override
@@ -110,27 +82,47 @@ class AllOfPromise<G> implements Promise<List<G>> {
   }
 
   @Override
-  public List<G> get() {
+  public Void get() {
     return impl.get();
   }
 
   @Override
-  public List<G> get(long timeout, TimeUnit unit) throws TimeoutException {
-    return impl.get(timeout, unit);
-  }
-
-  @Override
-  public List<G> cancellableGet() {
+  public Void cancellableGet() {
     return impl.cancellableGet();
   }
 
   @Override
-  public List<G> cancellableGet(long timeout, TimeUnit unit) throws TimeoutException {
+  public Void cancellableGet(long timeout, TimeUnit unit) throws TimeoutException {
     return impl.cancellableGet(timeout, unit);
+  }
+
+  @Override
+  public Void get(long timeout, TimeUnit unit) throws TimeoutException {
+    return impl.get(timeout, unit);
   }
 
   @Override
   public RuntimeException getFailure() {
     return impl.getFailure();
+  }
+
+  @Override
+  public <U> Promise<U> thenApply(Functions.Func1<? super Void, ? extends U> fn) {
+    return impl.thenApply(fn);
+  }
+
+  @Override
+  public <U> Promise<U> handle(Functions.Func2<? super Void, RuntimeException, ? extends U> fn) {
+    return impl.handle(fn);
+  }
+
+  @Override
+  public <U> Promise<U> thenCompose(Functions.Func1<? super Void, ? extends Promise<U>> fn) {
+    return impl.thenCompose(fn);
+  }
+
+  @Override
+  public Promise<Void> exceptionally(Functions.Func1<Throwable, ? extends Void> fn) {
+    return impl.exceptionally(fn);
   }
 }

@@ -25,6 +25,7 @@ import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.IllegalFormatCodePointException;
 import java.util.List;
 import java.util.concurrent.CancellationException;
@@ -358,17 +359,13 @@ public class PromiseTest {
                         trace.add("thread2 done");
                       })
                   .start();
-              List<Promise<String>> promises = new ArrayList<>();
+              List<Promise<?>> promises = new ArrayList<>();
               promises.add(f1);
               promises.add(f2);
               promises.add(f3);
               trace.add("root before allOf");
-              Promise<List<String>> all = Promise.allOf(promises);
-              List<String> expected = new ArrayList<>();
-              expected.add("value1");
-              expected.add("value2");
-              expected.add("value3");
-              assertEquals(expected, all.get());
+              Promise.allOf(promises).get();
+              assertTrue(f1.isCompleted() && f2.isCompleted() && f3.isCompleted());
               trace.add("root done");
             });
     r.runUntilAllBlocked();
@@ -382,6 +379,47 @@ public class PromiseTest {
           "thread3 done",
           "thread2 begin",
           "thread2 done",
+          "root done"
+        };
+    trace.setExpected(expected);
+  }
+
+  @Test
+  public void testAllOfImmediatelyReady() throws Throwable {
+    DeterministicRunner r =
+        DeterministicRunner.newRunner(
+            () -> {
+              trace.add("root begin");
+              {
+                Promise<Void> all =
+                    Promise.allOf(Workflow.newPromise("foo"), Workflow.newPromise("bar"));
+                trace.add("root array isCompleted=" + all.get());
+              }
+              {
+                Promise all = Promise.allOf();
+                trace.add("root empty array isCompleted=" + all.get());
+              }
+              {
+                Promise all = Promise.allOf(Collections.emptyList());
+                trace.add("root empty list isCompleted=" + all.get());
+              }
+              {
+                List<Promise<?>> list = new ArrayList<>();
+                list.add(Workflow.newPromise("foo"));
+                list.add(Workflow.newPromise("bar"));
+                Promise<Void> all = Promise.allOf(list);
+                trace.add("root collection isCompleted=" + all.get());
+              }
+              trace.add("root done");
+            });
+    r.runUntilAllBlocked();
+    String[] expected =
+        new String[] {
+          "root begin",
+          "root array isCompleted=null",
+          "root empty array isCompleted=null",
+          "root empty list isCompleted=null",
+          "root collection isCompleted=null",
           "root done"
         };
     trace.setExpected(expected);
@@ -563,6 +601,48 @@ public class PromiseTest {
           "thread3 done",
           "thread2 begin",
           "thread2 done",
+          "root done"
+        };
+    trace.setExpected(expected);
+  }
+
+  @Test
+  public void testAnyOfImmediatelyReady() throws Throwable {
+    DeterministicRunner r =
+        DeterministicRunner.newRunner(
+            () -> {
+              trace.add("root begin");
+              {
+                Promise all =
+                    Promise.anyOf(
+                        new Promise[] {Workflow.newPromise(), Workflow.newPromise("bar")});
+                trace.add("root array isCompleted=" + all.isCompleted());
+              }
+              {
+                Promise all = Promise.anyOf();
+                trace.add("root empty array isCompleted=" + all.isCompleted());
+              }
+              {
+                Promise all = Promise.anyOf(Collections.emptyList());
+                trace.add("root empty list isCompleted=" + all.isCompleted());
+              }
+              {
+                List<Promise<?>> list = new ArrayList<>();
+                list.add(Workflow.newPromise());
+                list.add(Workflow.newPromise("bar"));
+                Promise all = Promise.anyOf(list);
+                trace.add("root collection isCompleted=" + all.isCompleted());
+              }
+              trace.add("root done");
+            });
+    r.runUntilAllBlocked();
+    String[] expected =
+        new String[] {
+          "root begin",
+          "root array isCompleted=true",
+          "root empty array isCompleted=false",
+          "root empty list isCompleted=false",
+          "root collection isCompleted=true",
           "root done"
         };
     trace.setExpected(expected);
