@@ -598,7 +598,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       RequestCancelWorkflowExecutionRequest cancelRequest,
       StreamObserver<RequestCancelWorkflowExecutionResponse> responseObserver) {
     try {
-      requestCancelWorkflowExecution(cancelRequest);
+      requestCancelWorkflowExecution(cancelRequest, Optional.empty());
       responseObserver.onNext(RequestCancelWorkflowExecutionResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
@@ -606,11 +606,13 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
-  void requestCancelWorkflowExecution(RequestCancelWorkflowExecutionRequest cancelRequest) {
+  void requestCancelWorkflowExecution(
+      RequestCancelWorkflowExecutionRequest cancelRequest,
+      Optional<TestWorkflowMutableStateImpl.CancelExternalWorkflowExecutionCallerInfo> callerInfo) {
     ExecutionId executionId =
         new ExecutionId(cancelRequest.getNamespace(), cancelRequest.getWorkflowExecution());
     TestWorkflowMutableState mutableState = getMutableState(executionId);
-    mutableState.requestCancelWorkflowExecution(cancelRequest);
+    mutableState.requestCancelWorkflowExecution(cancelRequest, callerInfo);
   }
 
   @Override

@@ -148,7 +148,6 @@ class ReplayDecider implements Decider {
         break;
       case ExternalWorkflowExecutionCancelRequested:
         context.handleChildWorkflowExecutionCancelRequested(event);
-        decisionsHelper.handleExternalWorkflowExecutionCancelRequested(event);
         break;
       case ChildWorkflowExecutionCanceled:
         context.handleChildWorkflowExecutionCanceled(event);

@@ -90,15 +90,30 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
           emptyQueue = true;
         }
         TimerTask peekedTask = tasks.peek();
+        if (peekedTask != null) {
+          log.trace(
+              "peekedTask="
+                  + peekedTask.getTaskInfo()
+                  + ", executionTime="
+                  + peekedTask.getExecutionTime());
+        }
         if (peekedTask != null && peekedTask.getExecutionTime() <= currentTime) {
           try {
             LockHandle lockHandle = lockTimeSkippingLocked("runnable " + peekedTask.getTaskInfo());
             TimerTask polledTask = tasks.poll();
+            log.trace(
+                "running task="
+                    + peekedTask.getTaskInfo()
+                    + ", executionTime="
+                    + peekedTask.getExecutionTime());
+
             Runnable runnable = polledTask.getRunnable();
             executor.execute(
                 () -> {
                   try {
                     runnable.run();
+                  } catch (Throwable e) {
+                    log.error("Unexpected failure in timer callback", e);
                   } finally {
                     lockHandle.unlock();
                   }
