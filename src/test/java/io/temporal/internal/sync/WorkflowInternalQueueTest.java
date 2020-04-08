@@ -26,6 +26,7 @@ import io.temporal.workflow.QueueConsumer;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowQueue;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.TimeUnit;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -76,6 +77,7 @@ public class WorkflowInternalQueueTest {
           "thread1 take success",
         };
     trace.setExpected(expected);
+    r.close();
   }
 
   @Test
@@ -91,6 +93,39 @@ public class WorkflowInternalQueueTest {
                         trace.add("thread1 begin");
                         try {
                           assertTrue(f.take());
+                        } catch (CancellationException e) {
+                          trace.add("thread1 CancellationException");
+                        }
+                        trace.add("thread1 done");
+                      })
+                  .start();
+              trace.add("root done");
+            });
+    r.runUntilAllBlocked();
+    r.cancel("test");
+    r.runUntilAllBlocked();
+
+    String[] expected =
+        new String[] {
+          "root begin", "root done", "thread1 begin",
+        };
+    trace.setExpected(expected);
+    r.close();
+  }
+
+  @Test
+  public void testCancellableTakeCancelled() throws Throwable {
+    DeterministicRunner r =
+        DeterministicRunner.newRunner(
+            () -> {
+              WorkflowQueue<Boolean> f = WorkflowInternal.newQueue(1);
+              trace.add("root begin");
+              WorkflowInternal.newThread(
+                      false,
+                      () -> {
+                        trace.add("thread1 begin");
+                        try {
+                          assertTrue(f.cancellableTake());
                         } catch (CancellationException e) {
                           trace.add("thread1 CancellationException");
                         }
@@ -160,6 +195,53 @@ public class WorkflowInternalQueueTest {
           "thread1 take2 success",
         };
     trace.setExpected(expected);
+    r.close();
+  }
+
+  @Test
+  public void testOfferPollPeek() throws Throwable {
+    DeterministicRunner r =
+        DeterministicRunner.newRunner(
+            () -> currentTime,
+            () -> {
+              WorkflowQueue<Integer> f = WorkflowInternal.newQueue(1);
+              trace.add("root begin");
+              trace.add("peek " + f.peek());
+              trace.add("offer " + f.offer(12));
+              trace.add("offer " + f.offer(21));
+              trace.add("peek " + f.peek());
+              trace.add("poll " + f.poll());
+              trace.add("offer " + f.offer(23));
+              trace.add("offer " + f.offer(34, 100, TimeUnit.SECONDS));
+              trace.add("take " + f.take());
+              trace.add("root done");
+            });
+    r.runUntilAllBlocked();
+    {
+      String[] expected =
+          new String[] {
+            "root begin", "peek null", "offer true", "offer false", "peek 12", "poll 12, offer true"
+          };
+      trace.setExpected(expected);
+      trace.assertExpected();
+    }
+    currentTime += 101 * 1000;
+    r.runUntilAllBlocked();
+    String[] expected =
+        new String[] {
+          "root begin",
+          "peek null",
+          "offer true",
+          "offer false",
+          "peek 12",
+          "poll 12",
+          "offer true",
+          "offer false",
+          "take 23",
+          "root done",
+        };
+    trace.setExpected(expected);
+    r.close();
   }
 
   @Test
@@ -190,6 +272,40 @@ public class WorkflowInternalQueueTest {
 
     String[] expected =
         new String[] {
+          "root begin", "root done", "thread1 begin",
+        };
+    trace.setExpected(expected);
+    r.close();
+  }
+
+  @Test
+  public void testCancellablePutCancelled() throws Throwable {
+    DeterministicRunner r =
+        DeterministicRunner.newRunner(
+            () -> {
+              WorkflowQueue<Boolean> f = WorkflowInternal.newQueue(1);
+              trace.add("root begin");
+              WorkflowInternal.newThread(
+                      false,
+                      () -> {
+                        trace.add("thread1 begin");
+                        try {
+                          f.put(true);
+                          f.cancellablePut(true);
+                        } catch (CancellationException e) {
+                          trace.add("thread1 CancellationException");
+                        }
+                        trace.add("thread1 done");
+                      })
+                  .start();
+              trace.add("root done");
+            });
+    r.runUntilAllBlocked();
+    r.cancel("test");
+    r.runUntilAllBlocked();
+
+    String[] expected =
+        new String[] {
           "root begin",
           "root done",
           "thread1 begin",
@@ -197,6 +313,7 @@ public class WorkflowInternalQueueTest {
           "thread1 done",
         };
     trace.setExpected(expected);
+    r.close();
   }
 
   @Test
@@ -246,5 +363,6 @@ public class WorkflowInternalQueueTest {
           "thread1 done",
         };
     trace.setExpected(expected);
+    r.close();
   }
 }

@@ -41,8 +41,14 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
 
   @Override
   public E take() {
+    WorkflowThread.await("WorkflowQueue.take", () -> !queue.isEmpty());
+    return queue.pollLast();
+  }
+
+  @Override
+  public E cancellableTake() {
     WorkflowThread.await(
-        "WorkflowQueue.take",
+        "WorkflowQueue.cancellableTake",
         () -> {
           CancellationScope.throwCancelled();
           return !queue.isEmpty();
@@ -51,10 +57,36 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
   }
 
   @Override
+  public E poll() {
+    if (queue.isEmpty()) {
+      return null;
+    }
+    return queue.remove();
+  }
+
+  @Override
+  public E peek() {
+    if (queue.isEmpty()) {
+      return null;
+    }
+    return queue.peek();
+  }
+
+  @Override
   public E poll(long timeout, TimeUnit unit) {
+    WorkflowThread.await(unit.toMillis(timeout), "WorkflowQueue.poll", () -> !queue.isEmpty());
+
+    if (queue.isEmpty()) {
+      return null;
+    }
+    return queue.remove();
+  }
+
+  @Override
+  public E cancellablePoll(long timeout, TimeUnit unit) {
     WorkflowThread.await(
         unit.toMillis(timeout),
-        "WorkflowQueue.poll",
+        "WorkflowQueue.cancellablePoll",
         () -> {
           CancellationScope.throwCancelled();
           return !queue.isEmpty();
@@ -77,27 +109,37 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
 
   @Override
   public void put(E e) {
-    // This condition is excessive as await already checks it.
-    // But await can be called only from the sync owned thread.
-    // This condition allows puts outside the sync thread which
-    // is used by signal handling logic.
-    if (queue.size() >= capacity) {
-      WorkflowThread.await(
-          "WorkflowQueue.put",
-          () -> {
-            CancellationScope.throwCancelled();
-            return queue.size() < capacity;
-          });
-    }
+    WorkflowThread.await("WorkflowQueue.put", () -> queue.size() < capacity);
+    queue.addLast(e);
+  }
+
+  @Override
+  public void cancellablePut(E e) {
+    WorkflowThread.await(
+        "WorkflowQueue.cancellablePut",
+        () -> {
+          CancellationScope.throwCancelled();
+          return queue.size() < capacity;
+        });
     queue.addLast(e);
   }
 
   @Override
   public boolean offer(E e, long timeout, TimeUnit unit) {
-    boolean timedOut =
-        WorkflowThread.await(
-            unit.toMillis(timeout), "WorkflowQueue.offer", () -> queue.size() < capacity);
-    if (timedOut) {
+    WorkflowThread.await(
+        unit.toMillis(timeout), "WorkflowQueue.offer", () -> queue.size() < capacity);
+    if (queue.size() >= capacity) {
+      return false;
+    }
+    queue.addLast(e);
+    return true;
+  }
+
+  @Override
+  public boolean cancellableOffer(E e, long timeout, TimeUnit unit) {
+    WorkflowThread.await(
+        unit.toMillis(timeout), "WorkflowQueue.cancellableOffer", () -> queue.size() < capacity);
+    if (queue.size() >= capacity) {
       return false;
     }
     queue.addLast(e);
@@ -127,8 +169,41 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
     }
 
     @Override
+    public R cancellableTake() {
+      E element = source.cancellableTake();
+      return mapper.apply(element);
+    }
+
+    @Override
+    public R poll() {
+      E element = source.poll();
+      if (element == null) {
+        return null;
+      }
+      return mapper.apply(element);
+    }
+
+    @Override
+    public R peek() {
+      E element = source.peek();
+      if (element == null) {
+        return null;
+      }
+      return mapper.apply(element);
+    }
+
+    @Override
     public R poll(long timeout, TimeUnit unit) {
       E element = source.poll(timeout, unit);
+      if (element == null) {
+        return null;
+      }
+      return mapper.apply(element);
+    }
+
+    @Override
+    public R cancellablePoll(long timeout, TimeUnit unit) {
+      E element = source.cancellablePoll(timeout, unit);
       if (element == null) {
         return null;
       }
