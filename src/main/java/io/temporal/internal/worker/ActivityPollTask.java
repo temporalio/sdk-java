@@ -74,8 +74,8 @@ final class ActivityPollTask implements Poller.PollTask<PollForActivityTaskRespo
               .build());
     }
 
-    if (log.isDebugEnabled()) {
-      log.debug("poll request begin: " + pollRequest);
+    if (log.isTraceEnabled()) {
+      log.trace("poll request begin: " + pollRequest);
     }
     PollForActivityTaskResponse result;
     try {

@@ -35,6 +35,7 @@ import io.temporal.proto.decision.CompleteWorkflowExecutionDecisionAttributes;
 import io.temporal.proto.decision.ContinueAsNewWorkflowExecutionDecisionAttributes;
 import io.temporal.proto.decision.FailWorkflowExecutionDecisionAttributes;
 import io.temporal.proto.decision.RequestCancelActivityTaskDecisionAttributes;
+import io.temporal.proto.decision.RequestCancelExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.proto.decision.ScheduleActivityTaskDecisionAttributes;
 import io.temporal.proto.decision.SignalExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.proto.decision.StartChildWorkflowExecutionDecisionAttributes;
@@ -57,9 +58,12 @@ import io.temporal.proto.event.DecisionTaskScheduledEventAttributes;
 import io.temporal.proto.event.DecisionTaskStartedEventAttributes;
 import io.temporal.proto.event.DecisionTaskTimedOutEventAttributes;
 import io.temporal.proto.event.EventType;
+import io.temporal.proto.event.ExternalWorkflowExecutionCancelRequestedEventAttributes;
 import io.temporal.proto.event.ExternalWorkflowExecutionSignaledEventAttributes;
 import io.temporal.proto.event.History;
 import io.temporal.proto.event.HistoryEvent;
+import io.temporal.proto.event.RequestCancelExternalWorkflowExecutionFailedEventAttributes;
+import io.temporal.proto.event.RequestCancelExternalWorkflowExecutionInitiatedEventAttributes;
 import io.temporal.proto.event.SignalExternalWorkflowExecutionFailedEventAttributes;
 import io.temporal.proto.event.SignalExternalWorkflowExecutionInitiatedEventAttributes;
 import io.temporal.proto.event.StartChildWorkflowExecutionFailedEventAttributes;
@@ -200,9 +204,13 @@ class StateMachines {
   }
 
   static final class SignalExternalData {
-
     long initiatedEventId = NO_EVENT_ID;
     public SignalExternalWorkflowExecutionInitiatedEventAttributes initiatedEvent;
+  }
+
+  static final class CancelExternalData {
+    long initiatedEventId = NO_EVENT_ID;
+    public RequestCancelExternalWorkflowExecutionInitiatedEventAttributes initiatedEvent;
   }
 
   static final class ChildWorkflowData {
@@ -317,6 +325,13 @@ class StateMachines {
         .add(NONE, INITIATE, INITIATED, StateMachines::initiateExternalSignal)
         .add(INITIATED, FAIL, FAILED, StateMachines::failExternalSignal)
         .add(INITIATED, COMPLETE, COMPLETED, StateMachines::completeExternalSignal);
+  }
+
+  public static StateMachine<CancelExternalData> newCancelExternalStateMachine() {
+    return new StateMachine<>(new CancelExternalData())
+        .add(NONE, INITIATE, INITIATED, StateMachines::initiateExternalCancellation)
+        .add(INITIATED, FAIL, FAILED, StateMachines::failExternalCancellation)
+        .add(INITIATED, START, STARTED, StateMachines::reportExternalCancellationRequested);
   }
 
   private static void timeoutChildWorkflow(
@@ -1289,6 +1304,79 @@ class StateMachines {
         HistoryEvent.newBuilder()
             .setEventType(EventType.ExternalWorkflowExecutionSignaled)
             .setExternalWorkflowExecutionSignaledEventAttributes(a)
+            .build();
+    ctx.addEvent(event);
+  }
+
+  private static void initiateExternalCancellation(
+      RequestContext ctx,
+      CancelExternalData data,
+      RequestCancelExternalWorkflowExecutionDecisionAttributes d,
+      long decisionTaskCompletedEventId) {
+    RequestCancelExternalWorkflowExecutionInitiatedEventAttributes.Builder a =
+        RequestCancelExternalWorkflowExecutionInitiatedEventAttributes.newBuilder()
+            .setDecisionTaskCompletedEventId(decisionTaskCompletedEventId)
+            .setControl(d.getControl())
+            .setNamespace(d.getNamespace())
+            .setChildWorkflowOnly(d.getChildWorkflowOnly())
+            .setWorkflowExecution(
+                WorkflowExecution.newBuilder()
+                    .setWorkflowId(d.getWorkflowId())
+                    .setRunId(d.getRunId())
+                    .build());
+
+    HistoryEvent event =
+        HistoryEvent.newBuilder()
+            .setEventType(EventType.RequestCancelExternalWorkflowExecutionInitiated)
+            .setRequestCancelExternalWorkflowExecutionInitiatedEventAttributes(a)
+            .build();
+    long initiatedEventId = ctx.addEvent(event);
+    ctx.onCommit(
+        (historySize) -> {
+          data.initiatedEventId = initiatedEventId;
+          data.initiatedEvent = a.build();
+        });
+  }
+
+  private static void reportExternalCancellationRequested(
+      RequestContext ctx, CancelExternalData data, String runId, long notUsed) {
+    RequestCancelExternalWorkflowExecutionInitiatedEventAttributes initiatedEvent =
+        data.initiatedEvent;
+    ExternalWorkflowExecutionCancelRequestedEventAttributes.Builder a =
+        ExternalWorkflowExecutionCancelRequestedEventAttributes.newBuilder()
+            .setInitiatedEventId(data.initiatedEventId)
+            .setWorkflowExecution(
+                WorkflowExecution.newBuilder()
+                    .setRunId(runId)
+                    .setWorkflowId(initiatedEvent.getWorkflowExecution().getWorkflowId())
+                    .build())
+            .setNamespace(initiatedEvent.getNamespace());
+    HistoryEvent event =
+        HistoryEvent.newBuilder()
+            .setEventType(EventType.ExternalWorkflowExecutionCancelRequested)
+            .setExternalWorkflowExecutionCancelRequestedEventAttributes(a)
+            .build();
+    ctx.addEvent(event);
+  }
+
+  private static void failExternalCancellation(
+      RequestContext ctx,
+      CancelExternalData data,
+      WorkflowExecutionFailedCause cause,
+      long notUsed) {
+    RequestCancelExternalWorkflowExecutionInitiatedEventAttributes initiatedEvent =
+        data.initiatedEvent;
+    RequestCancelExternalWorkflowExecutionFailedEventAttributes.Builder a =
+        RequestCancelExternalWorkflowExecutionFailedEventAttributes.newBuilder()
+            .setInitiatedEventId(data.initiatedEventId)
+            .setWorkflowExecution(initiatedEvent.getWorkflowExecution())
+            .setControl(initiatedEvent.getControl())
+            .setCause(cause)
+            .setNamespace(initiatedEvent.getNamespace());
+    HistoryEvent event =
+        HistoryEvent.newBuilder()
+            .setEventType(EventType.RequestCancelExternalWorkflowExecutionFailed)
+            .setRequestCancelExternalWorkflowExecutionFailedEventAttributes(a)
             .build();
     ctx.addEvent(event);
   }

@@ -33,6 +33,7 @@ import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.StateMachines.Action;
 import io.temporal.internal.testservice.StateMachines.ActivityTaskData;
+import io.temporal.internal.testservice.StateMachines.CancelExternalData;
 import io.temporal.internal.testservice.StateMachines.ChildWorkflowData;
 import io.temporal.internal.testservice.StateMachines.DecisionTaskData;
 import io.temporal.internal.testservice.StateMachines.SignalExternalData;
@@ -65,6 +66,7 @@ import io.temporal.proto.event.ChildWorkflowExecutionStartedEventAttributes;
 import io.temporal.proto.event.ChildWorkflowExecutionTimedOutEventAttributes;
 import io.temporal.proto.event.DecisionTaskFailedCause;
 import io.temporal.proto.event.EventType;
+import io.temporal.proto.event.ExternalWorkflowExecutionCancelRequestedEventAttributes;
 import io.temporal.proto.event.HistoryEvent;
 import io.temporal.proto.event.MarkerRecordedEventAttributes;
 import io.temporal.proto.event.RequestCancelActivityTaskFailedEventAttributes;
@@ -145,6 +147,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private final Map<Long, StateMachine<ChildWorkflowData>> childWorkflows = new HashMap<>();
   private final Map<String, StateMachine<TimerData>> timers = new HashMap<>();
   private final Map<String, StateMachine<SignalExternalData>> externalSignals = new HashMap<>();
+  private final Map<String, StateMachine<CancelExternalData>> externalCancellations =
+      new HashMap<>();
   private StateMachine<WorkflowData> workflow;
   private volatile StateMachine<DecisionTaskData> decision;
   private long lastNonFailedDecisionStartEventId;
@@ -417,7 +421,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         break;
       case RequestCancelExternalWorkflowExecution:
         processRequestCancelExternalWorkflowExecution(
-            ctx, d.getRequestCancelExternalWorkflowExecutionDecisionAttributes());
+            ctx,
+            d.getRequestCancelExternalWorkflowExecutionDecisionAttributes(),
+            decisionTaskCompletedId);
         break;
       case UpsertWorkflowSearchAttributes:
         processUpsertWorkflowSearchAttributes(
@@ -427,7 +433,19 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   private void processRequestCancelExternalWorkflowExecution(
-      RequestContext ctx, RequestCancelExternalWorkflowExecutionDecisionAttributes attr) {
+      RequestContext ctx,
+      RequestCancelExternalWorkflowExecutionDecisionAttributes attr,
+      long decisionTaskCompletedId) {
+    if (externalCancellations.containsKey(attr.getWorkflowId())) {
+      // TODO: validate that this matches the service behavior
+      throw Status.FAILED_PRECONDITION
+          .withDescription("cancellation aready requested for workflowId=" + attr.getWorkflowId())
+          .asRuntimeException();
+    }
+    StateMachine<CancelExternalData> cancelStateMachine =
+        StateMachines.newCancelExternalStateMachine();
+    externalCancellations.put(attr.getWorkflowId(), cancelStateMachine);
+    cancelStateMachine.action(StateMachines.Action.INITIATE, ctx, attr, decisionTaskCompletedId);
     ForkJoinPool.commonPool()
         .execute(
             () -> {
@@ -437,12 +455,33 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                           WorkflowExecution.newBuilder().setWorkflowId(attr.getWorkflowId()))
                       .setNamespace(ctx.getNamespace())
                       .build();
+              CancelExternalWorkflowExecutionCallerInfo info =
+                  new CancelExternalWorkflowExecutionCallerInfo(
+                      ctx.getNamespace(),
+                      cancelStateMachine.getData().initiatedEventId,
+                      executionId.getExecution(),
+                      this);
               try {
-                service.requestCancelWorkflowExecution(request);
+                service.requestCancelWorkflowExecution(request, Optional.of(info));
               } catch (Exception e) {
                 log.error("Failure to request cancel external workflow", e);
               }
             });
+  }
+
+  @Override
+  public void reportCancelRequested(ExternalWorkflowExecutionCancelRequestedEventAttributes a) {
+    update(
+        ctx -> {
+          StateMachine<CancelExternalData> cancellationRequest =
+              externalCancellations.get(a.getWorkflowExecution().getWorkflowId());
+          cancellationRequest.action(
+              StateMachines.Action.START, ctx, a.getWorkflowExecution().getRunId(), 0);
+          scheduleDecision(ctx);
+          // No need to lock until completion as child workflow might skip
+          // time as well
+          //          ctx.unlockTimer();
+        });
   }
 
   private void processRecordMarker(
@@ -879,7 +918,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     try {
       {
         timer = timers.get(timerId);
-        if (timer == null || workflow.getState() != State.STARTED) {
+        if (timer == null
+            || (workflow.getState() != State.STARTED
+                && workflow.getState() != State.CANCELLATION_REQUESTED)) {
           return; // cancelled already
         }
       }
@@ -1222,6 +1263,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   private void scheduleDecision(RequestContext ctx) {
+    log.trace("scheduleDecision begin");
     if (decision != null) {
       if (decision.getState() == StateMachines.State.INITIATED) {
         return; // No need to schedule again
@@ -1552,13 +1594,66 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         });
   }
 
+  static class CancelExternalWorkflowExecutionCallerInfo {
+    private final String namespace;
+    private final long externalInitiatedEventId;
+    private final TestWorkflowMutableState caller;
+
+    CancelExternalWorkflowExecutionCallerInfo(
+        String namespace,
+        long externalInitiatedEventId,
+        WorkflowExecution workflowExecution,
+        TestWorkflowMutableState caller) {
+      this.namespace = namespace;
+      this.externalInitiatedEventId = externalInitiatedEventId;
+      this.caller = caller;
+    }
+
+    public String getNamespace() {
+      return namespace;
+    }
+
+    public long getExternalInitiatedEventId() {
+      return externalInitiatedEventId;
+    }
+
+    public TestWorkflowMutableState getCaller() {
+      return caller;
+    }
+  }
+
   @Override
-  public void requestCancelWorkflowExecution(RequestCancelWorkflowExecutionRequest cancelRequest) {
+  public void requestCancelWorkflowExecution(
+      RequestCancelWorkflowExecutionRequest cancelRequest,
+      Optional<CancelExternalWorkflowExecutionCallerInfo> callerInfo) {
     update(
         ctx -> {
           workflow.action(StateMachines.Action.REQUEST_CANCELLATION, ctx, cancelRequest, 0);
           scheduleDecision(ctx);
         });
+    if (callerInfo.isPresent()) {
+      CancelExternalWorkflowExecutionCallerInfo ci = callerInfo.get();
+      ExternalWorkflowExecutionCancelRequestedEventAttributes a =
+          ExternalWorkflowExecutionCancelRequestedEventAttributes.newBuilder()
+              .setInitiatedEventId(ci.getExternalInitiatedEventId())
+              .setWorkflowExecution(executionId.getExecution())
+              .setNamespace(ci.getNamespace())
+              .build();
+      ForkJoinPool.commonPool()
+          .execute(
+              () -> {
+                try {
+                  ci.getCaller().reportCancelRequested(a);
+                } catch (StatusRuntimeException e) {
+                  // NOT_FOUND is expected as the parent might just close by now.
+                  if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
+                    log.error("Failure reporting external cancellation requested", e);
+                  }
+                } catch (Throwable e) {
+                  log.error("Failure reporting external cancellation requested", e);
+                }
+              });
+    }
   }
 
   @Override

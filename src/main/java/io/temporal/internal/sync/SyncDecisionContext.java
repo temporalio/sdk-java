@@ -332,7 +332,8 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
         .withScheduleToStartTimeoutSeconds(options.getScheduleToStartTimeout().getSeconds())
         .withStartToCloseTimeoutSeconds(options.getStartToCloseTimeout().getSeconds())
         .withScheduleToCloseTimeoutSeconds(options.getScheduleToCloseTimeout().getSeconds())
-        .setHeartbeatTimeoutSeconds(options.getHeartbeatTimeout().getSeconds());
+        .withHeartbeatTimeoutSeconds(options.getHeartbeatTimeout().getSeconds())
+        .withCancellationType(options.getCancellationType());
     RetryOptions retryOptions = options.getRetryOptions();
     if (retryOptions != null) {
       parameters.setRetryParameters(new RetryParameters(retryOptions));
@@ -411,6 +412,14 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
       ChildWorkflowOptions options,
       byte[] input,
       CompletablePromise<WorkflowExecution> executionResult) {
+    CompletablePromise<byte[]> result = Workflow.newPromise();
+    if (CancellationScope.current().isCancelRequested()) {
+      CancellationException cancellationException =
+          new CancellationException("execute called from a cancelled scope");
+      executionResult.completeExceptionally(cancellationException);
+      result.completeExceptionally(cancellationException);
+      return result;
+    }
     RetryParameters retryParameters = null;
     RetryOptions retryOptions = options.getRetryOptions();
     if (retryOptions != null) {
@@ -436,8 +445,8 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
             .setCronSchedule(options.getCronSchedule())
             .setContext(extractContextsAndConvertToBytes(propagators))
             .setParentClosePolicy(options.getParentClosePolicy())
+            .setCancellationType(options.getCancellationType())
             .build();
-    CompletablePromise<byte[]> result = Workflow.newPromise();
     Consumer<Exception> cancellationCallback =
         context.startChildWorkflow(
             parameters,
