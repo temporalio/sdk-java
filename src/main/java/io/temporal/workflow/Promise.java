@@ -64,14 +64,19 @@ public interface Promise<V> {
   V get();
 
   /**
-   * Waits if necessary for the computation to complete or fail, and then returns its result or
-   * defaultValue in case of failure.
+   * Waits if necessary for the computation to complete or fail, and then returns its result. This
+   * call is going to throw {@link java.util.concurrent.CancellationException} without waiting for
+   * this Promise to become ready. Note that in the most situations it is better to let the
+   * operation that returned a Promise to perform cleanup and then complete the promise with
+   * CancellationException. So calling {@link #get()} on an asynchronous activity or child workflow
+   * invocation result is preferable.
    *
-   * @param defaultValue value to return in case of failure
    * @return the computed result
    * @throws RuntimeException if the computation failed.
+   * @throws java.util.concurrent.CancellationException if surrounding @{@link CancellationScope} is
+   *     cancelled.
    */
-  V get(V defaultValue);
+  V cancellableGet();
 
   /**
    * Waits if necessary for at most the given time for the computation to complete, and then returns
@@ -86,15 +91,23 @@ public interface Promise<V> {
   V get(long timeout, TimeUnit unit) throws TimeoutException;
 
   /**
-   * Waits if necessary for at most the given time for the computation to complete, and then
-   * retrieves its result, if available.
+   * Waits if necessary for at most the given time for the computation to complete, and then returns
+   * its result, if available. This call is going to throw {@link
+   * java.util.concurrent.CancellationException} without waiting for this Promise to become ready.
+   * Note that in the most situations it is better to let the operation that returned a Promise to
+   * perform cleanup and then complete the promise with CancellationException. So calling {@link
+   * #get(long, TimeUnit)} on an asynchronous activity or child workflow invocation result is
+   * preferable.
    *
    * @param timeout the maximum time to wait
    * @param unit the time unit of the timeout argument
-   * @param defaultValue value to return in case of timeout or failure
-   * @return the computed result or default value in case of any failure including timeout.
+   * @return the computed result
+   * @throws RuntimeException if the computation failed.
+   * @throws TimeoutException if the wait timed out
+   * @throws java.util.concurrent.CancellationException if surrounding @{@link CancellationScope} is
+   *     cancelled.
    */
-  V get(long timeout, TimeUnit unit, V defaultValue);
+  V cancellableGet(long timeout, TimeUnit unit) throws TimeoutException;
 
   /**
    * Waits if necessary for the computation to complete or fail, and then returns the failure or

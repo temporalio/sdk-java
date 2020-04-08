@@ -25,15 +25,15 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.metrics.ReplayAwareScope;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
-import io.temporal.proto.common.DecisionTaskFailedEventAttributes;
-import io.temporal.proto.common.HistoryEvent;
 import io.temporal.proto.common.SearchAttributes;
-import io.temporal.proto.common.TimerFiredEventAttributes;
-import io.temporal.proto.common.UpsertWorkflowSearchAttributesEventAttributes;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.common.WorkflowExecutionStartedEventAttributes;
 import io.temporal.proto.common.WorkflowType;
-import io.temporal.proto.enums.DecisionTaskFailedCause;
+import io.temporal.proto.event.DecisionTaskFailedCause;
+import io.temporal.proto.event.DecisionTaskFailedEventAttributes;
+import io.temporal.proto.event.HistoryEvent;
+import io.temporal.proto.event.TimerFiredEventAttributes;
+import io.temporal.proto.event.UpsertWorkflowSearchAttributesEventAttributes;
+import io.temporal.proto.event.WorkflowExecutionStartedEventAttributes;
+import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
@@ -321,7 +321,9 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   }
 
   @Override
-  public void handleChildWorkflowExecutionCancelRequested(HistoryEvent event) {}
+  public void handleChildWorkflowExecutionCancelRequested(HistoryEvent event) {
+    workflowClient.handleChildWorkflowExecutionCancelRequested(event);
+  }
 
   @Override
   public void handleChildWorkflowExecutionCanceled(HistoryEvent event) {
@@ -384,8 +386,7 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
 
   public void handleDecisionTaskFailed(HistoryEvent event) {
     DecisionTaskFailedEventAttributes attr = event.getDecisionTaskFailedEventAttributes();
-    if (attr != null
-        && attr.getCause() == DecisionTaskFailedCause.DecisionTaskFailedCauseResetWorkflow) {
+    if (attr != null && attr.getCause() == DecisionTaskFailedCause.ResetWorkflow) {
       workflowContext.setCurrentRunId(attr.getNewRunId());
     }
   }

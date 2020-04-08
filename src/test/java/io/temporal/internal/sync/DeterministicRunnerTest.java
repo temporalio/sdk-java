@@ -28,15 +28,15 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.StatsReporter;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.common.RetryOptions;
-import io.temporal.common.converter.JsonDataConverter;
+import io.temporal.common.converter.GsonJsonDataConverter;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.replay.Decider;
 import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.DecisionContext;
-import io.temporal.proto.common.WorkflowQuery;
 import io.temporal.proto.common.WorkflowType;
+import io.temporal.proto.query.WorkflowQuery;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
 import io.temporal.testUtils.HistoryUtils;
@@ -726,7 +726,8 @@ public class DeterministicRunnerTest {
     DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
             threadPool,
-            new SyncDecisionContext(decisionContext, JsonDataConverter.getInstance(), null, null),
+            new SyncDecisionContext(
+                decisionContext, GsonJsonDataConverter.getInstance(), null, null),
             () -> 0L, // clock override
             () -> {
               Promise<Void> thread =
@@ -750,7 +751,8 @@ public class DeterministicRunnerTest {
     DeterministicRunnerImpl d2 =
         new DeterministicRunnerImpl(
             threadPool,
-            new SyncDecisionContext(decisionContext, JsonDataConverter.getInstance(), null, null),
+            new SyncDecisionContext(
+                decisionContext, GsonJsonDataConverter.getInstance(), null, null),
             () -> 0L, // clock override
             () -> {
               Promise<Void> thread =

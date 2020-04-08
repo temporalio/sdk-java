@@ -32,7 +32,7 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
-import io.temporal.common.converter.JsonDataConverter;
+import io.temporal.common.converter.GsonJsonDataConverter;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.common.QueryResponse;
 import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
@@ -43,11 +43,11 @@ import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.external.GenericWorkflowClientExternal;
 import io.temporal.internal.replay.QueryWorkflowParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
-import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
-import io.temporal.proto.enums.QueryRejectCondition;
+import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.failure.QueryFailed;
 import io.temporal.proto.failure.WorkflowExecutionAlreadyStarted;
+import io.temporal.proto.query.QueryRejectCondition;
 import io.temporal.proto.workflowservice.QueryWorkflowResponse;
 import java.lang.reflect.Type;
 import java.util.HashMap;
@@ -189,7 +189,7 @@ class WorkflowStubImpl implements WorkflowStub {
   }
 
   private Map<String, byte[]> convertSearchAttributesFromObjectToBytes(Map<String, Object> map) {
-    return convertMapFromObjectToBytes(map, JsonDataConverter.getInstance());
+    return convertMapFromObjectToBytes(map, GsonJsonDataConverter.getInstance());
   }
 
   private Map<String, byte[]> extractContextsAndConvertToBytes(

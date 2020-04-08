@@ -19,6 +19,7 @@
 
 package io.temporal.internal.replay;
 
+import io.temporal.activity.ActivityCancellationType;
 import io.temporal.internal.common.RetryParameters;
 import io.temporal.proto.common.ActivityType;
 import java.util.Arrays;
@@ -37,6 +38,8 @@ public class ExecuteActivityParameters implements Cloneable {
   private String taskList;
   private RetryParameters retryParameters;
   private Map<String, byte[]> context;
+  private ActivityCancellationType cancellationType;
+
   //    private int taskPriority;
 
   public ExecuteActivityParameters() {}
@@ -363,6 +366,20 @@ public class ExecuteActivityParameters implements Cloneable {
     return this;
   }
 
+  public ActivityCancellationType getCancellationType() {
+    return cancellationType;
+  }
+
+  public void setCancellationType(ActivityCancellationType cancellationType) {
+    this.cancellationType = cancellationType;
+  }
+
+  public ExecuteActivityParameters withCancellationType(
+      ActivityCancellationType abandonOnCancellation) {
+    this.cancellationType = abandonOnCancellation;
+    return this;
+  }
+
   @Override
   public String toString() {
     return "ExecuteActivityParameters{"
@@ -386,25 +403,10 @@ public class ExecuteActivityParameters implements Cloneable {
         + '\''
         + ", retryParameters="
         + retryParameters
-        + ", context='"
+        + ", context="
         + context
+        + ", cancellationType="
+        + cancellationType
         + '}';
-  }
-
-  public ExecuteActivityParameters copy() {
-    ExecuteActivityParameters result = new ExecuteActivityParameters();
-    result.setActivityType(activityType);
-    result.setActivityId(activityId);
-    result.setInput(input);
-    //        result.setControl(control);
-    result.setHeartbeatTimeoutSeconds(heartbeatTimeoutSeconds);
-    result.setScheduleToStartTimeoutSeconds(scheduleToStartTimeoutSeconds);
-    result.setScheduleToCloseTimeoutSeconds(scheduleToCloseTimeoutSeconds);
-    result.setStartToCloseTimeoutSeconds(startToCloseTimeoutSeconds);
-    result.setTaskList(taskList);
-    result.setRetryParameters(retryParameters.copy());
-    result.setContext(context);
-    //        result.setTaskPriority(taskPriority);
-    return result;
   }
 }

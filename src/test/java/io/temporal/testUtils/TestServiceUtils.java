@@ -23,10 +23,10 @@ import static io.temporal.internal.common.InternalUtils.createNormalTaskList;
 import static io.temporal.internal.common.InternalUtils.createStickyTaskList;
 
 import com.google.protobuf.ByteString;
-import io.temporal.proto.common.StickyExecutionAttributes;
-import io.temporal.proto.common.TaskList;
-import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
+import io.temporal.proto.decision.StickyExecutionAttributes;
+import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.tasklist.TaskList;
 import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;

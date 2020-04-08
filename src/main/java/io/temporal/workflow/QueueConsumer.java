@@ -25,12 +25,50 @@ public interface QueueConsumer<E> {
 
   /**
    * Retrieves and removes the head of this queue, waiting if necessary until an element becomes
+   * available. It is not unblocked in case of the enclosing * CancellationScope cancellation. Use
+   * {@link #cancellableTake()} instead.
+   *
+   * @return the head of this queue
+   */
+  E take();
+
+  /**
+   * Retrieves and removes the head of this queue, waiting if necessary until an element becomes
    * available.
    *
    * @return the head of this queue
-   * @throws InterruptedException if interrupted while waiting
+   * @throws java.util.concurrent.CancellationException if surrounding @{@link CancellationScope} is
+   *     cancelled while waiting
    */
-  E take() throws InterruptedException;
+  E cancellableTake();
+
+  /**
+   * Retrieves and removes the head of this queue if it is not empty without blocking.
+   *
+   * @return the head of this queue, or {@code null} if the specified waiting time elapses before an
+   *     element is available
+   */
+  E poll();
+
+  /**
+   * Retrieves the head of this queue keeping it in the queue if it is not empty without blocking.
+   *
+   * @return the head of this queue, or {@code null} if the specified waiting time elapses before an
+   *     element is available
+   */
+  E peek();
+
+  /**
+   * Retrieves and removes the head of this queue, waiting up to the specified wait time if
+   * necessary for an element to become available. It is not unblocked in case of the enclosing
+   * CancellationScope cancellation. Use {@link #cancellablePoll(long, TimeUnit)} instead.
+   *
+   * @param timeout how long to wait before giving up, in units of {@code unit}
+   * @param unit a {@code TimeUnit} determining how to interpret the {@code timeout} parameter
+   * @return the head of this queue, or {@code null} if the specified waiting time elapses before an
+   *     element is available
+   */
+  E poll(long timeout, TimeUnit unit);
 
   /**
    * Retrieves and removes the head of this queue, waiting up to the specified wait time if
@@ -40,9 +78,10 @@ public interface QueueConsumer<E> {
    * @param unit a {@code TimeUnit} determining how to interpret the {@code timeout} parameter
    * @return the head of this queue, or {@code null} if the specified waiting time elapses before an
    *     element is available
-   * @throws InterruptedException if interrupted while waiting
+   * @throws java.util.concurrent.CancellationException if surrounding @{@link CancellationScope} is
+   *     cancelled while waiting
    */
-  E poll(long timeout, TimeUnit unit) throws InterruptedException;
+  E cancellablePoll(long timeout, TimeUnit unit);
 
   /**
    * Returns a queue consisting of the results of applying the given function to the elements of

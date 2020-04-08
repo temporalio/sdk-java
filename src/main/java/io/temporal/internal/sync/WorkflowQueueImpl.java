@@ -19,6 +19,7 @@
 
 package io.temporal.internal.sync;
 
+import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.QueueConsumer;
 import io.temporal.workflow.WorkflowQueue;
@@ -39,14 +40,58 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
   }
 
   @Override
-  public E take() throws InterruptedException {
+  public E take() {
     WorkflowThread.await("WorkflowQueue.take", () -> !queue.isEmpty());
     return queue.pollLast();
   }
 
   @Override
-  public E poll(long timeout, TimeUnit unit) throws InterruptedException {
+  public E cancellableTake() {
+    WorkflowThread.await(
+        "WorkflowQueue.cancellableTake",
+        () -> {
+          CancellationScope.throwCancelled();
+          return !queue.isEmpty();
+        });
+    return queue.pollLast();
+  }
+
+  @Override
+  public E poll() {
+    if (queue.isEmpty()) {
+      return null;
+    }
+    return queue.remove();
+  }
+
+  @Override
+  public E peek() {
+    if (queue.isEmpty()) {
+      return null;
+    }
+    return queue.peek();
+  }
+
+  @Override
+  public E poll(long timeout, TimeUnit unit) {
     WorkflowThread.await(unit.toMillis(timeout), "WorkflowQueue.poll", () -> !queue.isEmpty());
+
+    if (queue.isEmpty()) {
+      return null;
+    }
+    return queue.remove();
+  }
+
+  @Override
+  public E cancellablePoll(long timeout, TimeUnit unit) {
+    WorkflowThread.await(
+        unit.toMillis(timeout),
+        "WorkflowQueue.cancellablePoll",
+        () -> {
+          CancellationScope.throwCancelled();
+          return !queue.isEmpty();
+        });
+
     if (queue.isEmpty()) {
       return null;
     }
@@ -63,23 +108,38 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
   }
 
   @Override
-  public void put(E e) throws InterruptedException {
-    // This condition is excessive as await already checks it.
-    // But await can be called only from the sync owned thread.
-    // This condition allows puts outside the sync thread which
-    // is used by signal handling logic.
-    if (queue.size() >= capacity) {
-      WorkflowThread.await("WorkflowQueue.put", () -> queue.size() < capacity);
-    }
+  public void put(E e) {
+    WorkflowThread.await("WorkflowQueue.put", () -> queue.size() < capacity);
     queue.addLast(e);
   }
 
   @Override
-  public boolean offer(E e, long timeout, TimeUnit unit) throws InterruptedException {
-    boolean timedOut =
-        WorkflowThread.await(
-            unit.toMillis(timeout), "WorkflowQueue.offer", () -> queue.size() < capacity);
-    if (timedOut) {
+  public void cancellablePut(E e) {
+    WorkflowThread.await(
+        "WorkflowQueue.cancellablePut",
+        () -> {
+          CancellationScope.throwCancelled();
+          return queue.size() < capacity;
+        });
+    queue.addLast(e);
+  }
+
+  @Override
+  public boolean offer(E e, long timeout, TimeUnit unit) {
+    WorkflowThread.await(
+        unit.toMillis(timeout), "WorkflowQueue.offer", () -> queue.size() < capacity);
+    if (queue.size() >= capacity) {
+      return false;
+    }
+    queue.addLast(e);
+    return true;
+  }
+
+  @Override
+  public boolean cancellableOffer(E e, long timeout, TimeUnit unit) {
+    WorkflowThread.await(
+        unit.toMillis(timeout), "WorkflowQueue.cancellableOffer", () -> queue.size() < capacity);
+    if (queue.size() >= capacity) {
       return false;
     }
     queue.addLast(e);
@@ -103,26 +163,51 @@ final class WorkflowQueueImpl<E> implements WorkflowQueue<E> {
     }
 
     @Override
-    public R take() throws InterruptedException {
+    public R take() {
       E element = source.take();
-      try {
-        return mapper.apply(element);
-      } catch (Exception e) {
-        throw new RuntimeException("Failure mapping an element", e);
-      }
+      return mapper.apply(element);
     }
 
     @Override
-    public R poll(long timeout, TimeUnit unit) throws InterruptedException {
-      E element = source.poll(timeout, unit);
-      try {
-        if (element == null) {
-          return null;
-        }
-        return mapper.apply(element);
-      } catch (Exception e) {
-        throw new RuntimeException("Failure mapping an element", e);
+    public R cancellableTake() {
+      E element = source.cancellableTake();
+      return mapper.apply(element);
+    }
+
+    @Override
+    public R poll() {
+      E element = source.poll();
+      if (element == null) {
+        return null;
       }
+      return mapper.apply(element);
+    }
+
+    @Override
+    public R peek() {
+      E element = source.peek();
+      if (element == null) {
+        return null;
+      }
+      return mapper.apply(element);
+    }
+
+    @Override
+    public R poll(long timeout, TimeUnit unit) {
+      E element = source.poll(timeout, unit);
+      if (element == null) {
+        return null;
+      }
+      return mapper.apply(element);
+    }
+
+    @Override
+    public R cancellablePoll(long timeout, TimeUnit unit) {
+      E element = source.cancellablePoll(timeout, unit);
+      if (element == null) {
+        return null;
+      }
+      return mapper.apply(element);
     }
 
     @Override

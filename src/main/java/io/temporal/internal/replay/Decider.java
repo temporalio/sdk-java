@@ -19,8 +19,8 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.proto.common.Decision;
-import io.temporal.proto.common.WorkflowQuery;
+import io.temporal.proto.decision.Decision;
+import io.temporal.proto.query.WorkflowQuery;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
 import java.util.List;
 

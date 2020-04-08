@@ -28,56 +28,59 @@ import io.grpc.StatusRuntimeException;
 import io.temporal.internal.testservice.TestWorkflowStore.ActivityTask;
 import io.temporal.internal.testservice.TestWorkflowStore.DecisionTask;
 import io.temporal.internal.testservice.TestWorkflowStore.TaskListId;
-import io.temporal.proto.common.ActivityTaskCancelRequestedEventAttributes;
-import io.temporal.proto.common.ActivityTaskCanceledEventAttributes;
-import io.temporal.proto.common.ActivityTaskCompletedEventAttributes;
-import io.temporal.proto.common.ActivityTaskFailedEventAttributes;
-import io.temporal.proto.common.ActivityTaskScheduledEventAttributes;
-import io.temporal.proto.common.ActivityTaskStartedEventAttributes;
-import io.temporal.proto.common.ActivityTaskTimedOutEventAttributes;
-import io.temporal.proto.common.CancelTimerDecisionAttributes;
-import io.temporal.proto.common.CancelWorkflowExecutionDecisionAttributes;
-import io.temporal.proto.common.ChildWorkflowExecutionCanceledEventAttributes;
-import io.temporal.proto.common.ChildWorkflowExecutionCompletedEventAttributes;
-import io.temporal.proto.common.ChildWorkflowExecutionFailedEventAttributes;
-import io.temporal.proto.common.ChildWorkflowExecutionStartedEventAttributes;
-import io.temporal.proto.common.ChildWorkflowExecutionTimedOutEventAttributes;
-import io.temporal.proto.common.CompleteWorkflowExecutionDecisionAttributes;
-import io.temporal.proto.common.ContinueAsNewWorkflowExecutionDecisionAttributes;
-import io.temporal.proto.common.DecisionTaskCompletedEventAttributes;
-import io.temporal.proto.common.DecisionTaskFailedEventAttributes;
-import io.temporal.proto.common.DecisionTaskScheduledEventAttributes;
-import io.temporal.proto.common.DecisionTaskStartedEventAttributes;
-import io.temporal.proto.common.DecisionTaskTimedOutEventAttributes;
-import io.temporal.proto.common.ExternalWorkflowExecutionSignaledEventAttributes;
-import io.temporal.proto.common.FailWorkflowExecutionDecisionAttributes;
-import io.temporal.proto.common.History;
-import io.temporal.proto.common.HistoryEvent;
-import io.temporal.proto.common.RequestCancelActivityTaskDecisionAttributes;
 import io.temporal.proto.common.RetryPolicy;
-import io.temporal.proto.common.ScheduleActivityTaskDecisionAttributes;
-import io.temporal.proto.common.SignalExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.proto.common.SignalExternalWorkflowExecutionFailedEventAttributes;
-import io.temporal.proto.common.SignalExternalWorkflowExecutionInitiatedEventAttributes;
-import io.temporal.proto.common.StartChildWorkflowExecutionDecisionAttributes;
-import io.temporal.proto.common.StartChildWorkflowExecutionFailedEventAttributes;
-import io.temporal.proto.common.StartChildWorkflowExecutionInitiatedEventAttributes;
-import io.temporal.proto.common.StartTimerDecisionAttributes;
-import io.temporal.proto.common.TimerCanceledEventAttributes;
-import io.temporal.proto.common.TimerFiredEventAttributes;
-import io.temporal.proto.common.TimerStartedEventAttributes;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.common.WorkflowExecutionCancelRequestedEventAttributes;
-import io.temporal.proto.common.WorkflowExecutionCanceledEventAttributes;
-import io.temporal.proto.common.WorkflowExecutionCompletedEventAttributes;
-import io.temporal.proto.common.WorkflowExecutionContinuedAsNewEventAttributes;
-import io.temporal.proto.common.WorkflowExecutionFailedEventAttributes;
-import io.temporal.proto.common.WorkflowExecutionStartedEventAttributes;
-import io.temporal.proto.common.WorkflowExecutionTimedOutEventAttributes;
-import io.temporal.proto.enums.ChildWorkflowExecutionFailedCause;
-import io.temporal.proto.enums.EventType;
-import io.temporal.proto.enums.SignalExternalWorkflowExecutionFailedCause;
-import io.temporal.proto.enums.TimeoutType;
+import io.temporal.proto.decision.CancelTimerDecisionAttributes;
+import io.temporal.proto.decision.CancelWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.decision.CompleteWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.decision.ContinueAsNewWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.decision.FailWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.decision.RequestCancelActivityTaskDecisionAttributes;
+import io.temporal.proto.decision.RequestCancelExternalWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.decision.ScheduleActivityTaskDecisionAttributes;
+import io.temporal.proto.decision.SignalExternalWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.decision.StartChildWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.decision.StartTimerDecisionAttributes;
+import io.temporal.proto.event.ActivityTaskCancelRequestedEventAttributes;
+import io.temporal.proto.event.ActivityTaskCanceledEventAttributes;
+import io.temporal.proto.event.ActivityTaskCompletedEventAttributes;
+import io.temporal.proto.event.ActivityTaskFailedEventAttributes;
+import io.temporal.proto.event.ActivityTaskScheduledEventAttributes;
+import io.temporal.proto.event.ActivityTaskStartedEventAttributes;
+import io.temporal.proto.event.ActivityTaskTimedOutEventAttributes;
+import io.temporal.proto.event.ChildWorkflowExecutionCanceledEventAttributes;
+import io.temporal.proto.event.ChildWorkflowExecutionCompletedEventAttributes;
+import io.temporal.proto.event.ChildWorkflowExecutionFailedEventAttributes;
+import io.temporal.proto.event.ChildWorkflowExecutionStartedEventAttributes;
+import io.temporal.proto.event.ChildWorkflowExecutionTimedOutEventAttributes;
+import io.temporal.proto.event.DecisionTaskCompletedEventAttributes;
+import io.temporal.proto.event.DecisionTaskFailedEventAttributes;
+import io.temporal.proto.event.DecisionTaskScheduledEventAttributes;
+import io.temporal.proto.event.DecisionTaskStartedEventAttributes;
+import io.temporal.proto.event.DecisionTaskTimedOutEventAttributes;
+import io.temporal.proto.event.EventType;
+import io.temporal.proto.event.ExternalWorkflowExecutionCancelRequestedEventAttributes;
+import io.temporal.proto.event.ExternalWorkflowExecutionSignaledEventAttributes;
+import io.temporal.proto.event.History;
+import io.temporal.proto.event.HistoryEvent;
+import io.temporal.proto.event.RequestCancelExternalWorkflowExecutionFailedEventAttributes;
+import io.temporal.proto.event.RequestCancelExternalWorkflowExecutionInitiatedEventAttributes;
+import io.temporal.proto.event.SignalExternalWorkflowExecutionFailedEventAttributes;
+import io.temporal.proto.event.SignalExternalWorkflowExecutionInitiatedEventAttributes;
+import io.temporal.proto.event.StartChildWorkflowExecutionFailedEventAttributes;
+import io.temporal.proto.event.StartChildWorkflowExecutionInitiatedEventAttributes;
+import io.temporal.proto.event.TimeoutType;
+import io.temporal.proto.event.TimerCanceledEventAttributes;
+import io.temporal.proto.event.TimerFiredEventAttributes;
+import io.temporal.proto.event.TimerStartedEventAttributes;
+import io.temporal.proto.event.WorkflowExecutionCancelRequestedEventAttributes;
+import io.temporal.proto.event.WorkflowExecutionCanceledEventAttributes;
+import io.temporal.proto.event.WorkflowExecutionCompletedEventAttributes;
+import io.temporal.proto.event.WorkflowExecutionContinuedAsNewEventAttributes;
+import io.temporal.proto.event.WorkflowExecutionFailedCause;
+import io.temporal.proto.event.WorkflowExecutionFailedEventAttributes;
+import io.temporal.proto.event.WorkflowExecutionStartedEventAttributes;
+import io.temporal.proto.event.WorkflowExecutionTimedOutEventAttributes;
+import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
@@ -201,9 +204,13 @@ class StateMachines {
   }
 
   static final class SignalExternalData {
-
     long initiatedEventId = NO_EVENT_ID;
     public SignalExternalWorkflowExecutionInitiatedEventAttributes initiatedEvent;
+  }
+
+  static final class CancelExternalData {
+    long initiatedEventId = NO_EVENT_ID;
+    public RequestCancelExternalWorkflowExecutionInitiatedEventAttributes initiatedEvent;
   }
 
   static final class ChildWorkflowData {
@@ -320,6 +327,13 @@ class StateMachines {
         .add(INITIATED, COMPLETE, COMPLETED, StateMachines::completeExternalSignal);
   }
 
+  public static StateMachine<CancelExternalData> newCancelExternalStateMachine() {
+    return new StateMachine<>(new CancelExternalData())
+        .add(NONE, INITIATE, INITIATED, StateMachines::initiateExternalCancellation)
+        .add(INITIATED, FAIL, FAILED, StateMachines::failExternalCancellation)
+        .add(INITIATED, START, STARTED, StateMachines::reportExternalCancellationRequested);
+  }
+
   private static void timeoutChildWorkflow(
       RequestContext ctx, ChildWorkflowData data, TimeoutType timeoutType, long notUsed) {
     StartChildWorkflowExecutionInitiatedEventAttributes ie = data.initiatedEvent;
@@ -334,7 +348,7 @@ class StateMachines {
             .build();
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeChildWorkflowExecutionTimedOut)
+            .setEventType(EventType.ChildWorkflowExecutionTimedOut)
             .setChildWorkflowExecutionTimedOutEventAttributes(a)
             .build();
     ctx.addEvent(event);
@@ -355,7 +369,7 @@ class StateMachines {
     }
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeStartChildWorkflowExecutionFailed)
+            .setEventType(EventType.StartChildWorkflowExecutionFailed)
             .setStartChildWorkflowExecutionFailedEventAttributes(updatedAttr.build())
             .build();
     ctx.addEvent(event);
@@ -370,7 +384,7 @@ class StateMachines {
         a.toBuilder().setInitiatedEventId(data.initiatedEventId).build();
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeChildWorkflowExecutionStarted)
+            .setEventType(EventType.ChildWorkflowExecutionStarted)
             .setChildWorkflowExecutionStartedEventAttributes(updatedAttr)
             .build();
     long startedEventId = ctx.addEvent(event);
@@ -393,7 +407,7 @@ class StateMachines {
             .build();
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeChildWorkflowExecutionCompleted)
+            .setEventType(EventType.ChildWorkflowExecutionCompleted)
             .setChildWorkflowExecutionCompletedEventAttributes(updatedAttr)
             .build();
     ctx.addEvent(event);
@@ -415,7 +429,7 @@ class StateMachines {
     }
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeChildWorkflowExecutionFailed)
+            .setEventType(EventType.ChildWorkflowExecutionFailed)
             .setChildWorkflowExecutionFailedEventAttributes(updatedAttr.build())
             .build();
     ctx.addEvent(event);
@@ -433,7 +447,7 @@ class StateMachines {
             .build();
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeChildWorkflowExecutionCanceled)
+            .setEventType(EventType.ChildWorkflowExecutionCanceled)
             .setChildWorkflowExecutionCanceledEventAttributes(updatedAttr)
             .build();
     ctx.addEvent(event);
@@ -469,7 +483,7 @@ class StateMachines {
     }
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeStartChildWorkflowExecutionInitiated)
+            .setEventType(EventType.StartChildWorkflowExecutionInitiated)
             .setStartChildWorkflowExecutionInitiatedEventAttributes(a)
             .build();
     long initiatedEventId = ctx.addEvent(event);
@@ -524,9 +538,7 @@ class StateMachines {
                   StartChildWorkflowExecutionFailedEventAttributes failRequest =
                       StartChildWorkflowExecutionFailedEventAttributes.newBuilder()
                           .setInitiatedEventId(initiatedEventId)
-                          .setCause(
-                              ChildWorkflowExecutionFailedCause
-                                  .ChildWorkflowExecutionFailedCauseWorkflowAlreadyRunning)
+                          .setCause(WorkflowExecutionFailedCause.WorkflowAlreadyRunning)
                           .build();
                   try {
                     ctx.getWorkflowMutableState()
@@ -610,7 +622,7 @@ class StateMachines {
     }
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeWorkflowExecutionStarted)
+            .setEventType(EventType.WorkflowExecutionStarted)
             .setWorkflowExecutionStartedEventAttributes(a)
             .build();
     ctx.addEvent(event);
@@ -627,7 +639,7 @@ class StateMachines {
             .setDecisionTaskCompletedEventId(decisionTaskCompletedEventId);
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeWorkflowExecutionCompleted)
+            .setEventType(EventType.WorkflowExecutionCompleted)
             .setWorkflowExecutionCompletedEventAttributes(a)
             .build();
     ctx.addEvent(event);
@@ -668,7 +680,7 @@ class StateMachines {
     a.setNewExecutionRunId(UUID.randomUUID().toString());
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeWorkflowExecutionContinuedAsNew)
+            .setEventType(EventType.WorkflowExecutionContinuedAsNew)
             .setWorkflowExecutionContinuedAsNewEventAttributes(a)
             .build();
     ctx.addEvent(event);
@@ -686,7 +698,7 @@ class StateMachines {
             .setDecisionTaskCompletedEventId(decisionTaskCompletedEventId);
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeWorkflowExecutionFailed)
+            .setEventType(EventType.WorkflowExecutionFailed)
             .setWorkflowExecutionFailedEventAttributes(a)
             .build();
     ctx.addEvent(event);
@@ -698,7 +710,7 @@ class StateMachines {
         WorkflowExecutionTimedOutEventAttributes.newBuilder().setTimeoutType(timeoutType);
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeWorkflowExecutionTimedOut)
+            .setEventType(EventType.WorkflowExecutionTimedOut)
             .setWorkflowExecutionTimedOutEventAttributes(a)
             .build();
     ctx.addEvent(event);
@@ -715,7 +727,7 @@ class StateMachines {
             .setDecisionTaskCompletedEventId(decisionTaskCompletedEventId);
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeWorkflowExecutionCanceled)
+            .setEventType(EventType.WorkflowExecutionCanceled)
             .setWorkflowExecutionCanceledEventAttributes(a)
             .build();
     ctx.addEvent(event);
@@ -731,7 +743,7 @@ class StateMachines {
             .setIdentity(cancelRequest.getIdentity());
     HistoryEvent cancelRequested =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeWorkflowExecutionCancelRequested)
+            .setEventType(EventType.WorkflowExecutionCancelRequested)
             .setWorkflowExecutionCancelRequestedEventAttributes(a)
             .build();
     ctx.addEvent(cancelRequested);
@@ -785,13 +797,14 @@ class StateMachines {
     data.scheduledEvent = a.build();
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeActivityTaskScheduled)
+            .setEventType(EventType.ActivityTaskScheduled)
             .setActivityTaskScheduledEventAttributes(a)
             .build();
     long scheduledEventId = ctx.addEvent(event);
 
     PollForActivityTaskResponse.Builder taskResponse =
         PollForActivityTaskResponse.newBuilder()
+            .setWorkflowNamespace(ctx.getNamespace())
             .setWorkflowType(data.startWorkflowExecutionRequest.getWorkflowType())
             .setActivityType(d.getActivityType())
             .setWorkflowExecution(ctx.getExecution())
@@ -826,7 +839,7 @@ class StateMachines {
             .setDecisionTaskCompletedEventId(decisionTaskCompletedEventId);
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeActivityTaskCancelRequested)
+            .setEventType(EventType.ActivityTaskCancelRequested)
             .setActivityTaskCancelRequestedEventAttributes(a)
             .build();
     ctx.addEvent(event);
@@ -845,7 +858,7 @@ class StateMachines {
             .build();
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeDecisionTaskScheduled)
+            .setEventType(EventType.DecisionTaskScheduled)
             .setDecisionTaskScheduledEventAttributes(a)
             .build();
     long scheduledEventId = ctx.addEvent(event);
@@ -876,7 +889,7 @@ class StateMachines {
             .build();
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeDecisionTaskStarted)
+            .setEventType(EventType.DecisionTaskStarted)
             .setDecisionTaskStartedEventAttributes(a)
             .build();
     long startedEventId = ctx.addEvent(event);
@@ -921,7 +934,7 @@ class StateMachines {
     long timestamp = TimeUnit.MILLISECONDS.toNanos(data.store.currentTimeMillis());
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeActivityTaskStarted)
+            .setEventType(EventType.ActivityTaskStarted)
             .setTimestamp(timestamp)
             .setActivityTaskStartedEventAttributes(a)
             .build();
@@ -952,7 +965,7 @@ class StateMachines {
             .setScheduledEventId(data.scheduledEventId);
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeDecisionTaskCompleted)
+            .setEventType(EventType.DecisionTaskCompleted)
             .setDecisionTaskCompletedEventAttributes(a)
             .build();
     ctx.addEvent(event);
@@ -973,7 +986,7 @@ class StateMachines {
             .setScheduledEventId(data.scheduledEventId);
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeDecisionTaskFailed)
+            .setEventType(EventType.DecisionTaskFailed)
             .setDecisionTaskFailedEventAttributes(a)
             .build();
     ctx.addEvent(event);
@@ -984,11 +997,11 @@ class StateMachines {
     DecisionTaskTimedOutEventAttributes.Builder a =
         DecisionTaskTimedOutEventAttributes.newBuilder()
             .setStartedEventId(data.startedEventId)
-            .setTimeoutType(TimeoutType.TimeoutTypeStartToClose)
+            .setTimeoutType(TimeoutType.StartToClose)
             .setScheduledEventId(data.scheduledEventId);
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeDecisionTaskTimedOut)
+            .setEventType(EventType.DecisionTaskTimedOut)
             .setDecisionTaskTimedOutEventAttributes(a)
             .build();
     ctx.addEvent(event);
@@ -1019,7 +1032,7 @@ class StateMachines {
             .setStartedEventId(data.startedEventId);
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeActivityTaskCompleted)
+            .setEventType(EventType.ActivityTaskCompleted)
             .setActivityTaskCompletedEventAttributes(a)
             .build();
     ctx.addEvent(event);
@@ -1036,7 +1049,7 @@ class StateMachines {
             .setStartedEventId(data.startedEventId);
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeActivityTaskCompleted)
+            .setEventType(EventType.ActivityTaskCompleted)
             .setActivityTaskCompletedEventAttributes(a)
             .build();
     ctx.addEvent(event);
@@ -1068,7 +1081,7 @@ class StateMachines {
             .setStartedEventId(data.startedEventId);
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeActivityTaskFailed)
+            .setEventType(EventType.ActivityTaskFailed)
             .setActivityTaskFailedEventAttributes(a)
             .build();
     ctx.addEvent(event);
@@ -1090,7 +1103,7 @@ class StateMachines {
             .setStartedEventId(data.startedEventId);
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeActivityTaskFailed)
+            .setEventType(EventType.ActivityTaskFailed)
             .setActivityTaskFailedEventAttributes(a)
             .build();
     ctx.addEvent(event);
@@ -1101,7 +1114,7 @@ class StateMachines {
       RequestContext ctx, ActivityTaskData data, TimeoutType timeoutType, long notUsed) {
     // ScheduleToStart (queue timeout) is not retriable. Instead of the retry, a customer should set
     // a larger ScheduleToStart timeout.
-    if (timeoutType != TimeoutType.TimeoutTypeScheduleToStart
+    if (timeoutType != TimeoutType.ScheduleToStart
         && attemptActivityRetry(ctx, TIMEOUT_ERROR_REASON, data)) {
       return INITIATED;
     }
@@ -1115,7 +1128,7 @@ class StateMachines {
     }
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeActivityTaskTimedOut)
+            .setEventType(EventType.ActivityTaskTimedOut)
             .setActivityTaskTimedOutEventAttributes(a)
             .build();
     ctx.addEvent(event);
@@ -1162,7 +1175,7 @@ class StateMachines {
     }
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeActivityTaskCanceled)
+            .setEventType(EventType.ActivityTaskCanceled)
             .setActivityTaskCanceledEventAttributes(a)
             .build();
     ctx.addEvent(event);
@@ -1185,7 +1198,7 @@ class StateMachines {
             .setTimerId(d.getTimerId());
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeTimerStarted)
+            .setEventType(EventType.TimerStarted)
             .setTimerStartedEventAttributes(a)
             .build();
     long startedEventId = ctx.addEvent(event);
@@ -1203,7 +1216,7 @@ class StateMachines {
             .setStartedEventId(data.startedEventId);
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeTimerFired)
+            .setEventType(EventType.TimerFired)
             .setTimerFiredEventAttributes(a)
             .build();
     ctx.addEvent(event);
@@ -1221,7 +1234,7 @@ class StateMachines {
             .setStartedEventId(data.startedEventId);
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeTimerCanceled)
+            .setEventType(EventType.TimerCanceled)
             .setTimerCanceledEventAttributes(a)
             .build();
     ctx.addEvent(event);
@@ -1244,7 +1257,7 @@ class StateMachines {
 
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeSignalExternalWorkflowExecutionInitiated)
+            .setEventType(EventType.SignalExternalWorkflowExecutionInitiated)
             .setSignalExternalWorkflowExecutionInitiatedEventAttributes(a)
             .build();
     long initiatedEventId = ctx.addEvent(event);
@@ -1258,7 +1271,7 @@ class StateMachines {
   private static void failExternalSignal(
       RequestContext ctx,
       SignalExternalData data,
-      SignalExternalWorkflowExecutionFailedCause cause,
+      WorkflowExecutionFailedCause cause,
       long notUsed) {
     SignalExternalWorkflowExecutionInitiatedEventAttributes initiatedEvent = data.initiatedEvent;
     SignalExternalWorkflowExecutionFailedEventAttributes.Builder a =
@@ -1270,7 +1283,7 @@ class StateMachines {
             .setNamespace(initiatedEvent.getNamespace());
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeSignalExternalWorkflowExecutionFailed)
+            .setEventType(EventType.SignalExternalWorkflowExecutionFailed)
             .setSignalExternalWorkflowExecutionFailedEventAttributes(a)
             .build();
     ctx.addEvent(event);
@@ -1289,8 +1302,81 @@ class StateMachines {
             .setNamespace(initiatedEvent.getNamespace());
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.EventTypeExternalWorkflowExecutionSignaled)
+            .setEventType(EventType.ExternalWorkflowExecutionSignaled)
             .setExternalWorkflowExecutionSignaledEventAttributes(a)
+            .build();
+    ctx.addEvent(event);
+  }
+
+  private static void initiateExternalCancellation(
+      RequestContext ctx,
+      CancelExternalData data,
+      RequestCancelExternalWorkflowExecutionDecisionAttributes d,
+      long decisionTaskCompletedEventId) {
+    RequestCancelExternalWorkflowExecutionInitiatedEventAttributes.Builder a =
+        RequestCancelExternalWorkflowExecutionInitiatedEventAttributes.newBuilder()
+            .setDecisionTaskCompletedEventId(decisionTaskCompletedEventId)
+            .setControl(d.getControl())
+            .setNamespace(d.getNamespace())
+            .setChildWorkflowOnly(d.getChildWorkflowOnly())
+            .setWorkflowExecution(
+                WorkflowExecution.newBuilder()
+                    .setWorkflowId(d.getWorkflowId())
+                    .setRunId(d.getRunId())
+                    .build());
+
+    HistoryEvent event =
+        HistoryEvent.newBuilder()
+            .setEventType(EventType.RequestCancelExternalWorkflowExecutionInitiated)
+            .setRequestCancelExternalWorkflowExecutionInitiatedEventAttributes(a)
+            .build();
+    long initiatedEventId = ctx.addEvent(event);
+    ctx.onCommit(
+        (historySize) -> {
+          data.initiatedEventId = initiatedEventId;
+          data.initiatedEvent = a.build();
+        });
+  }
+
+  private static void reportExternalCancellationRequested(
+      RequestContext ctx, CancelExternalData data, String runId, long notUsed) {
+    RequestCancelExternalWorkflowExecutionInitiatedEventAttributes initiatedEvent =
+        data.initiatedEvent;
+    ExternalWorkflowExecutionCancelRequestedEventAttributes.Builder a =
+        ExternalWorkflowExecutionCancelRequestedEventAttributes.newBuilder()
+            .setInitiatedEventId(data.initiatedEventId)
+            .setWorkflowExecution(
+                WorkflowExecution.newBuilder()
+                    .setRunId(runId)
+                    .setWorkflowId(initiatedEvent.getWorkflowExecution().getWorkflowId())
+                    .build())
+            .setNamespace(initiatedEvent.getNamespace());
+    HistoryEvent event =
+        HistoryEvent.newBuilder()
+            .setEventType(EventType.ExternalWorkflowExecutionCancelRequested)
+            .setExternalWorkflowExecutionCancelRequestedEventAttributes(a)
+            .build();
+    ctx.addEvent(event);
+  }
+
+  private static void failExternalCancellation(
+      RequestContext ctx,
+      CancelExternalData data,
+      WorkflowExecutionFailedCause cause,
+      long notUsed) {
+    RequestCancelExternalWorkflowExecutionInitiatedEventAttributes initiatedEvent =
+        data.initiatedEvent;
+    RequestCancelExternalWorkflowExecutionFailedEventAttributes.Builder a =
+        RequestCancelExternalWorkflowExecutionFailedEventAttributes.newBuilder()
+            .setInitiatedEventId(data.initiatedEventId)
+            .setWorkflowExecution(initiatedEvent.getWorkflowExecution())
+            .setControl(initiatedEvent.getControl())
+            .setCause(cause)
+            .setNamespace(initiatedEvent.getNamespace());
+    HistoryEvent event =
+        HistoryEvent.newBuilder()
+            .setEventType(EventType.RequestCancelExternalWorkflowExecutionFailed)
+            .setRequestCancelExternalWorkflowExecutionFailedEventAttributes(a)
             .build();
     ctx.addEvent(event);
   }

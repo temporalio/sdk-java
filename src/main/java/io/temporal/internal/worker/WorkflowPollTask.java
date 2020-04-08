@@ -25,7 +25,7 @@ import com.uber.m3.util.Duration;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.proto.common.TaskList;
+import io.temporal.proto.tasklist.TaskList;
 import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -67,8 +67,8 @@ final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskRespo
             .setTaskList(TaskList.newBuilder().setName(taskList).build())
             .build();
 
-    if (log.isDebugEnabled()) {
-      log.debug("poll request begin: " + pollRequest);
+    if (log.isTraceEnabled()) {
+      log.trace("poll request begin: " + pollRequest);
     }
     PollForDecisionTaskResponse result;
     try {
@@ -86,8 +86,8 @@ final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskRespo
       }
       throw e;
     }
-    if (log.isDebugEnabled()) {
-      log.debug(
+    if (log.isTraceEnabled()) {
+      log.trace(
           "poll request returned decision task: workflowType="
               + result.getWorkflowType()
               + ", workflowExecution="

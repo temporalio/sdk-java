@@ -30,9 +30,9 @@ import io.temporal.client.ActivityWorkerShutdownException;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.proto.common.HistoryEvent;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.enums.EventType;
+import io.temporal.proto.event.EventType;
+import io.temporal.proto.event.HistoryEvent;
+import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -195,7 +195,7 @@ public class CleanWorkerShutdownTest {
     List<HistoryEvent> events = result.getHistory().getEventsList();
     boolean found = false;
     for (HistoryEvent e : events) {
-      if (e.getEventType() == EventType.EventTypeActivityTaskCompleted) {
+      if (e.getEventType() == EventType.ActivityTaskCompleted) {
         found = true;
         byte[] ar = e.getActivityTaskCompletedEventAttributes().getResult().toByteArray();
         assertEquals("\"completed\"", new String(ar, StandardCharsets.UTF_8));
@@ -253,7 +253,7 @@ public class CleanWorkerShutdownTest {
     List<HistoryEvent> events = result.getHistory().getEventsList();
     boolean found = false;
     for (HistoryEvent e : events) {
-      if (e.getEventType() == EventType.EventTypeActivityTaskCompleted) {
+      if (e.getEventType() == EventType.ActivityTaskCompleted) {
         found = true;
         byte[] ar = e.getActivityTaskCompletedEventAttributes().getResult().toByteArray();
         assertEquals("\"interrupted\"", new String(ar, StandardCharsets.UTF_8));
@@ -341,7 +341,7 @@ public class CleanWorkerShutdownTest {
     List<HistoryEvent> events = result.getHistory().getEventsList();
     boolean found = false;
     for (HistoryEvent e : events) {
-      if (e.getEventType() == EventType.EventTypeActivityTaskCompleted) {
+      if (e.getEventType() == EventType.ActivityTaskCompleted) {
         found = true;
         byte[] ar = e.getActivityTaskCompletedEventAttributes().getResult().toByteArray();
         assertEquals("\"workershutdown\"", new String(ar, StandardCharsets.UTF_8));

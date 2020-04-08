@@ -20,17 +20,17 @@
 package io.temporal.internal.testservice;
 
 import com.google.protobuf.ByteString;
-import io.temporal.internal.testservice.TestWorkflowMutableStateImpl.QueryId;
-import io.temporal.proto.common.ChildWorkflowExecutionCanceledEventAttributes;
-import io.temporal.proto.common.ChildWorkflowExecutionCompletedEventAttributes;
-import io.temporal.proto.common.ChildWorkflowExecutionFailedEventAttributes;
-import io.temporal.proto.common.ChildWorkflowExecutionStartedEventAttributes;
-import io.temporal.proto.common.ChildWorkflowExecutionTimedOutEventAttributes;
-import io.temporal.proto.common.SignalExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.proto.common.StartChildWorkflowExecutionFailedEventAttributes;
-import io.temporal.proto.common.StickyExecutionAttributes;
-import io.temporal.proto.enums.SignalExternalWorkflowExecutionFailedCause;
-import io.temporal.proto.enums.WorkflowExecutionStatus;
+import io.temporal.proto.decision.SignalExternalWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.decision.StickyExecutionAttributes;
+import io.temporal.proto.event.ChildWorkflowExecutionCanceledEventAttributes;
+import io.temporal.proto.event.ChildWorkflowExecutionCompletedEventAttributes;
+import io.temporal.proto.event.ChildWorkflowExecutionFailedEventAttributes;
+import io.temporal.proto.event.ChildWorkflowExecutionStartedEventAttributes;
+import io.temporal.proto.event.ChildWorkflowExecutionTimedOutEventAttributes;
+import io.temporal.proto.event.ExternalWorkflowExecutionCancelRequestedEventAttributes;
+import io.temporal.proto.event.StartChildWorkflowExecutionFailedEventAttributes;
+import io.temporal.proto.event.WorkflowExecutionFailedCause;
+import io.temporal.proto.execution.WorkflowExecutionStatus;
 import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponseOrBuilder;
 import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
@@ -64,10 +64,11 @@ interface TestWorkflowMutableState {
 
   void completeDecisionTask(int historySize, RespondDecisionTaskCompletedRequest request);
 
+  void reportCancelRequested(ExternalWorkflowExecutionCancelRequestedEventAttributes a);
+
   void completeSignalExternalWorkflowExecution(String signalId, String runId);
 
-  void failSignalExternalWorkflowExecution(
-      String signalId, SignalExternalWorkflowExecutionFailedCause cause);
+  void failSignalExternalWorkflowExecution(String signalId, WorkflowExecutionFailedCause cause);
 
   void failDecisionTask(RespondDecisionTaskFailedRequest request);
 
@@ -105,7 +106,9 @@ interface TestWorkflowMutableState {
 
   void signalFromWorkflow(SignalExternalWorkflowExecutionDecisionAttributes a);
 
-  void requestCancelWorkflowExecution(RequestCancelWorkflowExecutionRequest cancelRequest);
+  void requestCancelWorkflowExecution(
+      RequestCancelWorkflowExecutionRequest cancelRequest,
+      Optional<TestWorkflowMutableStateImpl.CancelExternalWorkflowExecutionCallerInfo> callerInfo);
 
   void cancelActivityTask(String id, RespondActivityTaskCanceledRequest canceledRequest);
 

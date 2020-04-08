@@ -37,24 +37,25 @@ import java.util.function.Function;
 
 /**
  * Implements conversion through GSON JSON processor. To extend use {@link
- * #JsonDataConverter(Function)} constructor.
+ * #GsonJsonDataConverter(Function)} constructor.
  *
  * @author fateev
  */
-public final class JsonDataConverter implements DataConverter {
+public final class GsonJsonDataConverter implements DataConverter {
 
-  private static final DataConverter INSTANCE = new JsonDataConverter();
+  private static final DataConverter INSTANCE = new GsonJsonDataConverter();
   private static final Object[] EMPTY_OBJECT_ARRAY = new Object[0];
   private static final String TYPE_FIELD_NAME = "type";
   private static final String JSON_CONVERTER_TYPE = "JSON";
   private static final String CLASS_NAME_FIELD_NAME = "className";
+
   private final Gson gson;
 
   public static DataConverter getInstance() {
     return INSTANCE;
   }
 
-  private JsonDataConverter() {
+  private GsonJsonDataConverter() {
     this((b) -> b);
   }
 
@@ -63,7 +64,7 @@ public final class JsonDataConverter implements DataConverter {
    *
    * @param builderInterceptor function that intercepts {@link GsonBuilder} construction.
    */
-  public JsonDataConverter(Function<GsonBuilder, GsonBuilder> builderInterceptor) {
+  public GsonJsonDataConverter(Function<GsonBuilder, GsonBuilder> builderInterceptor) {
     GsonBuilder gsonBuilder =
         new GsonBuilder()
             .serializeNulls()
@@ -192,7 +193,7 @@ public final class JsonDataConverter implements DataConverter {
                   "Cannot deserialize DataConverter. Expected type is JSON. " + "Found " + value);
             }
             in.endObject();
-            return (T) JsonDataConverter.getInstance();
+            return (T) GsonJsonDataConverter.getInstance();
           }
         };
       }

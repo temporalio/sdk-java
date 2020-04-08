@@ -21,17 +21,18 @@ package io.temporal.workflow;
 
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
+import com.google.common.base.Objects;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.common.OptionsUtils;
-import io.temporal.proto.enums.ParentClosePolicy;
-import io.temporal.proto.enums.WorkflowIdReusePolicy;
+import io.temporal.proto.common.ParentClosePolicy;
+import io.temporal.proto.common.WorkflowIdReusePolicy;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
+import java.util.concurrent.CancellationException;
 
 public final class ChildWorkflowOptions {
 
@@ -79,6 +80,8 @@ public final class ChildWorkflowOptions {
 
     private List<ContextPropagator> contextPropagators;
 
+    private ChildWorkflowCancellationType cancellationType;
+
     private Builder() {}
 
     private Builder(ChildWorkflowOptions options) {
@@ -97,6 +100,7 @@ public final class ChildWorkflowOptions {
       this.memo = options.getMemo();
       this.searchAttributes = options.getSearchAttributes();
       this.contextPropagators = options.getContextPropagators();
+      this.cancellationType = options.getCancellationType();
     }
 
     /**
@@ -213,6 +217,15 @@ public final class ChildWorkflowOptions {
       return this;
     }
 
+    /**
+     * In case of a child workflow cancellation it fails with a {@link CancellationException}. The
+     * type defines at which point the exception is thrown.
+     */
+    public Builder setCancellationType(ChildWorkflowCancellationType cancellationType) {
+      this.cancellationType = cancellationType;
+      return this;
+    }
+
     public Builder setWorkflowMethod(WorkflowMethod a) {
       workflowIdReusePolicy =
           OptionsUtils.merge(
@@ -250,7 +263,8 @@ public final class ChildWorkflowOptions {
           parentClosePolicy,
           memo,
           searchAttributes,
-          contextPropagators);
+          contextPropagators,
+          cancellationType);
     }
 
     public ChildWorkflowOptions validateAndBuildWithDefaults() {
@@ -266,7 +280,10 @@ public final class ChildWorkflowOptions {
           parentClosePolicy,
           memo,
           searchAttributes,
-          contextPropagators);
+          contextPropagators,
+          cancellationType == null
+              ? ChildWorkflowCancellationType.WAIT_CANCELLATION_COMPLETED
+              : cancellationType);
     }
   }
 
@@ -294,6 +311,8 @@ public final class ChildWorkflowOptions {
 
   private List<ContextPropagator> contextPropagators;
 
+  private final ChildWorkflowCancellationType cancellationType;
+
   private ChildWorkflowOptions(
       String namespace,
       String workflowId,
@@ -306,7 +325,8 @@ public final class ChildWorkflowOptions {
       ParentClosePolicy parentClosePolicy,
       Map<String, Object> memo,
       Map<String, Object> searchAttributes,
-      List<ContextPropagator> contextPropagators) {
+      List<ContextPropagator> contextPropagators,
+      ChildWorkflowCancellationType cancellationType) {
     this.namespace = namespace;
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
@@ -319,6 +339,7 @@ public final class ChildWorkflowOptions {
     this.memo = memo;
     this.searchAttributes = searchAttributes;
     this.contextPropagators = contextPropagators;
+    this.cancellationType = cancellationType;
   }
 
   public String getNamespace() {
@@ -369,29 +390,33 @@ public final class ChildWorkflowOptions {
     return contextPropagators;
   }
 
+  public ChildWorkflowCancellationType getCancellationType() {
+    return cancellationType;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
-
     ChildWorkflowOptions that = (ChildWorkflowOptions) o;
-    return Objects.equals(namespace, that.namespace)
-        && Objects.equals(workflowId, that.workflowId)
+    return Objects.equal(namespace, that.namespace)
+        && Objects.equal(workflowId, that.workflowId)
         && workflowIdReusePolicy == that.workflowIdReusePolicy
-        && Objects.equals(executionStartToCloseTimeout, that.executionStartToCloseTimeout)
-        && Objects.equals(taskStartToCloseTimeout, that.taskStartToCloseTimeout)
-        && Objects.equals(taskList, that.taskList)
-        && Objects.equals(retryOptions, that.retryOptions)
-        && Objects.equals(cronSchedule, that.cronSchedule)
-        && Objects.equals(parentClosePolicy, that.parentClosePolicy)
-        && Objects.equals(memo, that.memo)
-        && Objects.equals(searchAttributes, that.searchAttributes)
-        && Objects.equals(contextPropagators, that.contextPropagators);
+        && Objects.equal(executionStartToCloseTimeout, that.executionStartToCloseTimeout)
+        && Objects.equal(taskStartToCloseTimeout, that.taskStartToCloseTimeout)
+        && Objects.equal(taskList, that.taskList)
+        && Objects.equal(retryOptions, that.retryOptions)
+        && Objects.equal(cronSchedule, that.cronSchedule)
+        && parentClosePolicy == that.parentClosePolicy
+        && Objects.equal(memo, that.memo)
+        && Objects.equal(searchAttributes, that.searchAttributes)
+        && Objects.equal(contextPropagators, that.contextPropagators)
+        && cancellationType == that.cancellationType;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(
+    return Objects.hashCode(
         namespace,
         workflowId,
         workflowIdReusePolicy,
@@ -403,7 +428,8 @@ public final class ChildWorkflowOptions {
         parentClosePolicy,
         memo,
         searchAttributes,
-        contextPropagators);
+        contextPropagators,
+        cancellationType);
   }
 
   @Override
@@ -426,18 +452,19 @@ public final class ChildWorkflowOptions {
         + '\''
         + ", retryOptions="
         + retryOptions
-        + ", cronSchedule="
+        + ", cronSchedule='"
         + cronSchedule
+        + '\''
         + ", parentClosePolicy="
         + parentClosePolicy
-        + ", memo='"
+        + ", memo="
         + memo
-        + '\''
-        + ", searchAttributes='"
+        + ", searchAttributes="
         + searchAttributes
-        + ", contextPropagators='"
+        + ", contextPropagators="
         + contextPropagators
-        + '\''
+        + ", cancellationType="
+        + cancellationType
         + '}';
   }
 }

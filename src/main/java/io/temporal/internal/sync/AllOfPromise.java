@@ -87,18 +87,18 @@ class AllOfPromise implements Promise<Void> {
   }
 
   @Override
-  public Void get(Void defaultValue) {
-    return impl.get(defaultValue);
+  public Void cancellableGet() {
+    return impl.cancellableGet();
+  }
+
+  @Override
+  public Void cancellableGet(long timeout, TimeUnit unit) throws TimeoutException {
+    return impl.cancellableGet(timeout, unit);
   }
 
   @Override
   public Void get(long timeout, TimeUnit unit) throws TimeoutException {
     return impl.get(timeout, unit);
-  }
-
-  @Override
-  public Void get(long timeout, TimeUnit unit, Void defaultValue) {
-    return impl.get(timeout, unit, defaultValue);
   }
 
   @Override

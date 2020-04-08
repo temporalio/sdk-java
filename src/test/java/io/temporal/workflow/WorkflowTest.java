@@ -19,11 +19,13 @@
 
 package io.temporal.workflow;
 
+import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
 import static org.junit.Assert.*;
 
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.protobuf.ByteString;
 import io.temporal.activity.Activity;
+import io.temporal.activity.ActivityCancellationType;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
@@ -46,7 +48,7 @@ import io.temporal.client.WorkflowTimedOutException;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
-import io.temporal.common.converter.JsonDataConverter;
+import io.temporal.common.converter.GsonJsonDataConverter;
 import io.temporal.common.interceptors.BaseWorkflowInvoker;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInterceptor;
@@ -55,15 +57,17 @@ import io.temporal.common.interceptors.WorkflowInvoker;
 import io.temporal.internal.common.QueryResponse;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.sync.DeterministicRunnerTest;
-import io.temporal.proto.common.HistoryEvent;
 import io.temporal.proto.common.Memo;
 import io.temporal.proto.common.SearchAttributes;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.enums.QueryRejectCondition;
-import io.temporal.proto.enums.SignalExternalWorkflowExecutionFailedCause;
-import io.temporal.proto.enums.TimeoutType;
-import io.temporal.proto.enums.WorkflowExecutionStatus;
-import io.temporal.proto.enums.WorkflowIdReusePolicy;
+import io.temporal.proto.common.WorkflowIdReusePolicy;
+import io.temporal.proto.event.EventType;
+import io.temporal.proto.event.HistoryEvent;
+import io.temporal.proto.event.TimeoutType;
+import io.temporal.proto.event.WorkflowExecutionFailedCause;
+import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.execution.WorkflowExecutionStatus;
+import io.temporal.proto.query.QueryRejectCondition;
+import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
@@ -123,6 +127,7 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assume;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -184,17 +189,26 @@ public class WorkflowTest {
   private ScheduledExecutorService scheduledExecutor;
   private List<ScheduledFuture<?>> delayedCallbacks = new ArrayList<>();
   private AtomicReference<String> lastStartedWorkflowType = new AtomicReference<>();
-  private static final WorkflowServiceStubs service =
-      WorkflowServiceStubs.newInstance(
-          WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
+  private static WorkflowServiceStubs service;
+
+  @BeforeClass()
+  public static void startService() {
+    if (useExternalService) {
+      service =
+          WorkflowServiceStubs.newInstance(
+              WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
+    }
+  }
 
   @AfterClass
   public static void closeService() {
-    service.shutdownNow();
-    try {
-      service.awaitTermination(10, TimeUnit.SECONDS);
-    } catch (InterruptedException e) {
-      e.printStackTrace();
+    if (useExternalService) {
+      service.shutdownNow();
+      try {
+        service.awaitTermination(10, TimeUnit.SECONDS);
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
     }
   }
 
@@ -206,7 +220,7 @@ public class WorkflowTest {
           .setTaskList(taskList);
     } else {
       return WorkflowOptions.newBuilder()
-          .setExecutionStartToCloseTimeout(Duration.ofSeconds(30))
+          .setExecutionStartToCloseTimeout(Duration.ofHours(30))
           .setTaskStartToCloseTimeout(Duration.ofSeconds(5))
           .setTaskList(taskList);
     }
@@ -291,6 +305,7 @@ public class WorkflowTest {
       testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
       worker = testEnvironment.newWorker(taskList);
       workflowClient = testEnvironment.getWorkflowClient();
+      service = testEnvironment.getWorkflowService();
     }
 
     ActivityCompletionClient completionClient = workflowClient.newActivityCompletionClient();
@@ -913,7 +928,7 @@ public class WorkflowTest {
         // false for second argument means to heartbeat once to set details and then stop.
         activities.activityWithDelay(5000, false);
       } catch (ActivityTimeoutException e) {
-        assertEquals(TimeoutType.TimeoutTypeHeartbeat, e.getTimeoutType());
+        assertEquals(TimeoutType.Heartbeat, e.getTimeoutType());
         return e.getDetails(String.class);
       }
       throw new RuntimeException("unreachable");
@@ -938,12 +953,12 @@ public class WorkflowTest {
             "TestWorkflow1_execute", newWorkflowOptionsBuilder(taskList).build());
     WorkflowExecution execution = workflowStub.start(taskList);
     sleep(Duration.ofMillis(500));
-    String stackTrace = workflowStub.query(WorkflowClient.QUERY_TYPE_STACK_TRACE, String.class);
+    String stackTrace = workflowStub.query(QUERY_TYPE_STACK_TRACE, String.class);
     assertTrue(stackTrace, stackTrace.contains("WorkflowTest$TestSyncWorkflowImpl.execute"));
     assertTrue(stackTrace, stackTrace.contains("activityWithDelay"));
     // Test stub created from workflow execution.
     workflowStub = workflowClient.newUntypedWorkflowStub(execution, workflowStub.getWorkflowType());
-    stackTrace = workflowStub.query(WorkflowClient.QUERY_TYPE_STACK_TRACE, String.class);
+    stackTrace = workflowStub.query(QUERY_TYPE_STACK_TRACE, String.class);
     assertTrue(stackTrace, stackTrace.contains("WorkflowTest$TestSyncWorkflowImpl.execute"));
     assertTrue(stackTrace, stackTrace.contains("activityWithDelay"));
     String result = workflowStub.getResult(String.class);
@@ -1074,6 +1089,281 @@ public class WorkflowTest {
     } catch (CancellationException ignored) {
     }
     activitiesImpl.assertInvocations("activityWithDelay", "activity1", "activity2", "activity3");
+  }
+
+  public static class TestTryCancelActivity implements TestWorkflow1 {
+
+    @Override
+    public String execute(String taskList) {
+      TestActivities testActivities =
+          Workflow.newActivityStub(
+              TestActivities.class,
+              ActivityOptions.newBuilder(newActivityOptions1(taskList))
+                  .setHeartbeatTimeout(Duration.ofSeconds(10))
+                  .setCancellationType(ActivityCancellationType.TRY_CANCEL)
+                  .build());
+      testActivities.activityWithDelay(100000, true);
+      return "foo";
+    }
+  }
+
+  public static class TestAbandonOnCancelActivity implements TestWorkflow1 {
+
+    @Override
+    public String execute(String taskList) {
+      TestActivities testActivities =
+          Workflow.newActivityStub(
+              TestActivities.class,
+              ActivityOptions.newBuilder(newActivityOptions1(taskList))
+                  .setHeartbeatTimeout(Duration.ofSeconds(10))
+                  .setCancellationType(ActivityCancellationType.ABANDON)
+                  .build());
+      testActivities.activityWithDelay(100000, true);
+      return "foo";
+    }
+  }
+
+  @WorkflowInterface
+  public interface TestWorkflow {
+    @WorkflowMethod
+    void execute(ChildWorkflowCancellationType cancellationType);
+  }
+
+  public static class TestParentWorkflowImpl implements TestWorkflow {
+
+    @Override
+    public void execute(ChildWorkflowCancellationType cancellationType) {
+      TestChildWorkflow child =
+          Workflow.newChildWorkflowStub(
+              TestChildWorkflow.class,
+              ChildWorkflowOptions.newBuilder().setCancellationType(cancellationType).build());
+      child.execute();
+    }
+  }
+
+  @WorkflowInterface
+  public interface TestChildWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class TestChildWorkflowImpl implements TestChildWorkflow {
+    @Override
+    public void execute() {
+      try {
+        Workflow.sleep(Duration.ofHours(1));
+      } catch (CancellationException e) {
+        Workflow.newDetachedCancellationScope(
+                () -> {
+                  Workflow.sleep(Duration.ofSeconds(1));
+                })
+            .run();
+      }
+    }
+  }
+
+  @Test
+  public void testTryCancelActivity() {
+    startWorkerFor(TestTryCancelActivity.class);
+    TestWorkflow1 client =
+        workflowClient.newWorkflowStub(
+            TestWorkflow1.class, newWorkflowOptionsBuilder(taskList).build());
+    WorkflowClient.start(client::execute, taskList);
+    sleep(Duration.ofMillis(500)); // To let activityWithDelay start.
+    WorkflowStub stub = WorkflowStub.fromTyped(client);
+    waitForOKQuery(stub);
+    stub.cancel();
+    long start = currentTimeMillis();
+    try {
+      stub.getResult(String.class);
+      fail("unreachable");
+    } catch (CancellationException ignored) {
+    }
+    long elapsed = currentTimeMillis() - start;
+    assertTrue(elapsed < 500);
+    activitiesImpl.assertInvocations("activityWithDelay");
+  }
+
+  @Test
+  public void testAbandonOnCancelActivity() {
+    startWorkerFor(TestAbandonOnCancelActivity.class);
+    TestWorkflow1 client =
+        workflowClient.newWorkflowStub(
+            TestWorkflow1.class, newWorkflowOptionsBuilder(taskList).build());
+    WorkflowExecution execution = WorkflowClient.start(client::execute, taskList);
+    sleep(Duration.ofMillis(500)); // To let activityWithDelay start.
+    WorkflowStub stub = WorkflowStub.fromTyped(client);
+    waitForOKQuery(stub);
+    stub.cancel();
+    long start = currentTimeMillis();
+    try {
+      stub.getResult(String.class);
+      fail("unreachable");
+    } catch (CancellationException ignored) {
+    }
+    long elapsed = currentTimeMillis() - start;
+    assertTrue(elapsed < 500);
+    activitiesImpl.assertInvocations("activityWithDelay");
+    GetWorkflowExecutionHistoryRequest request =
+        GetWorkflowExecutionHistoryRequest.newBuilder()
+            .setNamespace(NAMESPACE)
+            .setExecution(execution)
+            .build();
+    GetWorkflowExecutionHistoryResponse response =
+        service.blockingStub().getWorkflowExecutionHistory(request);
+
+    for (HistoryEvent event : response.getHistory().getEventsList()) {
+      assertNotEquals(EventType.ActivityTaskCancelRequested, event.getEventType());
+    }
+  }
+
+  /** Used to ensure that workflow first decision is executed. */
+  private void waitForOKQuery(WorkflowStub stub) {
+    while (true) {
+      try {
+        String stackTrace = stub.query(QUERY_TYPE_STACK_TRACE, String.class);
+        if (!stackTrace.isEmpty()) {
+          break;
+        }
+      } catch (WorkflowQueryException e) {
+      }
+    }
+  }
+
+  @Test
+  public void testChildWorkflowWaitCancellationRequested() {
+    startWorkerFor(TestParentWorkflowImpl.class, TestChildWorkflowImpl.class);
+    WorkflowStub client =
+        workflowClient.newUntypedWorkflowStub(
+            "TestWorkflow_execute", newWorkflowOptionsBuilder(taskList).build());
+    WorkflowExecution execution =
+        client.start(ChildWorkflowCancellationType.WAIT_CANCELLATION_REQUESTED);
+    waitForOKQuery(client);
+    client.cancel();
+    try {
+      client.getResult(String.class);
+      fail("unreachable");
+    } catch (CancellationException ignored) {
+    }
+    GetWorkflowExecutionHistoryRequest request =
+        GetWorkflowExecutionHistoryRequest.newBuilder()
+            .setNamespace(NAMESPACE)
+            .setExecution(execution)
+            .build();
+    GetWorkflowExecutionHistoryResponse response =
+        service.blockingStub().getWorkflowExecutionHistory(request);
+
+    boolean hasChildCancelled = false;
+    boolean hasChildCancelRequested = false;
+    for (HistoryEvent event : response.getHistory().getEventsList()) {
+      if (event.getEventType() == EventType.ChildWorkflowExecutionCanceled) {
+        hasChildCancelled = true;
+      }
+      if (event.getEventType() == EventType.ExternalWorkflowExecutionCancelRequested) {
+        hasChildCancelRequested = true;
+      }
+    }
+    assertTrue(hasChildCancelRequested);
+    assertFalse(hasChildCancelled);
+  }
+
+  @Test
+  public void testChildWorkflowWaitCancellationCompleted() {
+    startWorkerFor(TestParentWorkflowImpl.class, TestChildWorkflowImpl.class);
+    WorkflowStub client =
+        workflowClient.newUntypedWorkflowStub(
+            "TestWorkflow_execute", newWorkflowOptionsBuilder(taskList).build());
+    WorkflowExecution execution =
+        client.start(ChildWorkflowCancellationType.WAIT_CANCELLATION_COMPLETED);
+    waitForOKQuery(client);
+    client.cancel();
+    try {
+      client.getResult(String.class);
+      fail("unreachable");
+    } catch (CancellationException ignored) {
+    }
+    GetWorkflowExecutionHistoryRequest request =
+        GetWorkflowExecutionHistoryRequest.newBuilder()
+            .setNamespace(NAMESPACE)
+            .setExecution(execution)
+            .build();
+    GetWorkflowExecutionHistoryResponse response =
+        service.blockingStub().getWorkflowExecutionHistory(request);
+
+    boolean hasChildCancelled = false;
+    for (HistoryEvent event : response.getHistory().getEventsList()) {
+      if (event.getEventType() == EventType.ChildWorkflowExecutionCanceled) {
+        hasChildCancelled = true;
+      }
+    }
+    assertTrue(hasChildCancelled);
+  }
+
+  @Test
+  public void testChildWorkflowCancellationAbandon() {
+    startWorkerFor(TestParentWorkflowImpl.class, TestChildWorkflowImpl.class);
+    WorkflowStub client =
+        workflowClient.newUntypedWorkflowStub(
+            "TestWorkflow_execute", newWorkflowOptionsBuilder(taskList).build());
+    WorkflowExecution execution = client.start(ChildWorkflowCancellationType.ABANDON);
+    waitForOKQuery(client);
+    client.cancel();
+    try {
+      client.getResult(String.class);
+      fail("unreachable");
+    } catch (CancellationException ignored) {
+    }
+    GetWorkflowExecutionHistoryRequest request =
+        GetWorkflowExecutionHistoryRequest.newBuilder()
+            .setNamespace(NAMESPACE)
+            .setExecution(execution)
+            .build();
+    GetWorkflowExecutionHistoryResponse response =
+        service.blockingStub().getWorkflowExecutionHistory(request);
+
+    boolean hasChildCancelInitiated = false;
+    for (HistoryEvent event : response.getHistory().getEventsList()) {
+      if (event.getEventType() == EventType.RequestCancelExternalWorkflowExecutionInitiated) {
+        hasChildCancelInitiated = true;
+      }
+    }
+    assertFalse(hasChildCancelInitiated);
+  }
+
+  @Test
+  public void testChildWorkflowCancellationTryCancel() {
+    startWorkerFor(TestParentWorkflowImpl.class, TestChildWorkflowImpl.class);
+    WorkflowStub client =
+        workflowClient.newUntypedWorkflowStub(
+            "TestWorkflow_execute", newWorkflowOptionsBuilder(taskList).build());
+    WorkflowExecution execution = client.start(ChildWorkflowCancellationType.TRY_CANCEL);
+    waitForOKQuery(client);
+    client.cancel();
+    try {
+      client.getResult(String.class);
+      fail("unreachable");
+    } catch (CancellationException ignored) {
+    }
+    GetWorkflowExecutionHistoryRequest request =
+        GetWorkflowExecutionHistoryRequest.newBuilder()
+            .setNamespace(NAMESPACE)
+            .setExecution(execution)
+            .build();
+    GetWorkflowExecutionHistoryResponse response =
+        service.blockingStub().getWorkflowExecutionHistory(request);
+
+    boolean hasChildCancelInitiated = false;
+    boolean hasChildCancelRequested = false;
+    for (HistoryEvent event : response.getHistory().getEventsList()) {
+      if (event.getEventType() == EventType.RequestCancelExternalWorkflowExecutionInitiated) {
+        hasChildCancelInitiated = true;
+      }
+      if (event.getEventType() == EventType.ExternalWorkflowExecutionCancelRequested) {
+        hasChildCancelRequested = true;
+      }
+    }
+    assertTrue(hasChildCancelInitiated);
+    assertFalse(hasChildCancelRequested);
   }
 
   @WorkflowInterface
@@ -1339,7 +1629,7 @@ public class WorkflowTest {
         workflowClient.newWorkflowStub(
             TestMultiargsWorkflowsFunc2.class,
             newWorkflowOptionsBuilder(taskList)
-                .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicate)
+                .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.AllowDuplicate)
                 .build());
     assertResult("12", WorkflowClient.start(stubF2::func2, "1", 2));
     try {
@@ -1413,7 +1703,7 @@ public class WorkflowTest {
       Memo memoFromEvent = startEvent.getWorkflowExecutionStartedEventAttributes().getMemo();
       byte[] memoBytes = memoFromEvent.getFieldsMap().get(testMemoKey).toByteArray();
       String memoRetrieved =
-          JsonDataConverter.getInstance().fromData(memoBytes, String.class, String.class);
+          GsonJsonDataConverter.getInstance().fromData(memoBytes, String.class, String.class);
       assertEquals(testMemoValue, memoRetrieved);
     }
   }
@@ -1457,27 +1747,27 @@ public class WorkflowTest {
       Map<String, ByteString> fieldsMap = searchAttrFromEvent.getIndexedFieldsMap();
       byte[] searchAttrStringBytes = fieldsMap.get(testKeyString).toByteArray();
       String retrievedString =
-          JsonDataConverter.getInstance()
+          GsonJsonDataConverter.getInstance()
               .fromData(searchAttrStringBytes, String.class, String.class);
       assertEquals(testValueString, retrievedString);
       byte[] searchAttrIntegerBytes = fieldsMap.get(testKeyInteger).toByteArray();
       Integer retrievedInteger =
-          JsonDataConverter.getInstance()
+          GsonJsonDataConverter.getInstance()
               .fromData(searchAttrIntegerBytes, Integer.class, Integer.class);
       assertEquals(testValueInteger, retrievedInteger);
       byte[] searchAttrDateTimeBytes = fieldsMap.get(testKeyDateTime).toByteArray();
       LocalDateTime retrievedDateTime =
-          JsonDataConverter.getInstance()
+          GsonJsonDataConverter.getInstance()
               .fromData(searchAttrDateTimeBytes, LocalDateTime.class, LocalDateTime.class);
       assertEquals(testValueDateTime, retrievedDateTime);
       byte[] searchAttrBoolBytes = fieldsMap.get(testKeyBool).toByteArray();
       Boolean retrievedBool =
-          JsonDataConverter.getInstance()
+          GsonJsonDataConverter.getInstance()
               .fromData(searchAttrBoolBytes, Boolean.class, Boolean.class);
       assertEquals(testValueBool, retrievedBool);
       byte[] searchAttrDoubleBytes = fieldsMap.get(testKeyDouble).toByteArray();
       Double retrievedDouble =
-          JsonDataConverter.getInstance()
+          GsonJsonDataConverter.getInstance()
               .fromData(searchAttrDoubleBytes, Double.class, Double.class);
       assertEquals(testValueDouble, retrievedDouble);
     }
@@ -1559,7 +1849,7 @@ public class WorkflowTest {
     // Setting WorkflowIdReusePolicy to AllowDuplicate will trigger new run.
     workflowOptions =
         newWorkflowOptionsBuilder(taskList)
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicate)
+            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.AllowDuplicate)
             .setWorkflowId(workflowId)
             .build();
     TestMultiargsWorkflowsFunc1 stubF1_3 =
@@ -2481,14 +2771,11 @@ public class WorkflowTest {
     assertEquals("Hello World!", client.getResult(String.class));
     assertEquals("World!", client.query("QueryableWorkflow_getState", String.class));
     QueryResponse<String> queryResponse =
-        client.query(
-            "QueryableWorkflow_getState",
-            String.class,
-            QueryRejectCondition.QueryRejectConditionNotOpen);
+        client.query("QueryableWorkflow_getState", String.class, QueryRejectCondition.NotOpen);
     assertNull(queryResponse.getResult());
     assertEquals(
         execution.toString(),
-        WorkflowExecutionStatus.WorkflowExecutionStatusCompleted,
+        WorkflowExecutionStatus.Completed,
         queryResponse.getQueryRejected().getStatus());
     log.info("testSignalUntyped completed");
   }
@@ -2697,8 +2984,7 @@ public class WorkflowTest {
         Workflow.newChildWorkflowStub(
             ITestChild.class,
             ChildWorkflowOptions.newBuilder()
-                .setWorkflowIdReusePolicy(
-                    WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate)
+                .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
                 .build());
     private final TestWorkflow1 self = Workflow.newContinueAsNewStub(TestWorkflow1.class);
 
@@ -2781,7 +3067,7 @@ public class WorkflowTest {
     WorkflowIdReusePolicyParent client =
         workflowClient.newWorkflowStub(WorkflowIdReusePolicyParent.class, options);
     try {
-      client.execute(false, WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate);
+      client.execute(false, WorkflowIdReusePolicy.RejectDuplicate);
       fail("unreachable");
     } catch (WorkflowFailureException e) {
       assertTrue(e.getCause() instanceof StartChildWorkflowFailedException);
@@ -2801,7 +3087,7 @@ public class WorkflowTest {
     WorkflowIdReusePolicyParent client =
         workflowClient.newWorkflowStub(WorkflowIdReusePolicyParent.class, options);
     try {
-      client.execute(true, WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate);
+      client.execute(true, WorkflowIdReusePolicy.RejectDuplicate);
       fail("unreachable");
     } catch (WorkflowFailureException e) {
       assertTrue(e.getCause() instanceof StartChildWorkflowFailedException);
@@ -2820,9 +3106,7 @@ public class WorkflowTest {
             .build();
     WorkflowIdReusePolicyParent client =
         workflowClient.newWorkflowStub(WorkflowIdReusePolicyParent.class, options);
-    assertEquals(
-        "HELLO WORLD!",
-        client.execute(false, WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicate));
+    assertEquals("HELLO WORLD!", client.execute(false, WorkflowIdReusePolicy.AllowDuplicate));
   }
 
   public static class TestChildWorkflowRetryWorkflow implements TestWorkflow1 {
@@ -3110,8 +3394,7 @@ public class WorkflowTest {
           "invalid id",
           ((SignalExternalWorkflowException) e.getCause()).getSignaledExecution().getWorkflowId());
       assertEquals(
-          SignalExternalWorkflowExecutionFailedCause
-              .SignalExternalWorkflowExecutionFailedCauseUnknownExternalWorkflowExecution,
+          WorkflowExecutionFailedCause.UnknownExternalWorkflowExecution,
           ((SignalExternalWorkflowException) e.getCause()).getFailureCause());
     }
   }
@@ -3614,7 +3897,6 @@ public class WorkflowTest {
               }
               completionClient.complete(taskToken, "activity");
             } catch (InterruptedException e) {
-              throw new RuntimeException("unexpected", e);
             } catch (ActivityNotExistsException | ActivityCancelledException e) {
               completionClient.reportCancellation(taskToken, null);
             }
@@ -3749,6 +4031,11 @@ public class WorkflowTest {
 
     @Override
     public void throwIO() {
+      assertEquals(NAMESPACE, Activity.getTask().getWorkflowNamespace());
+      assertNotNull(Activity.getTask().getWorkflowExecution());
+      assertNotNull(Activity.getTask().getWorkflowExecution().getWorkflowId());
+      assertFalse(Activity.getTask().getWorkflowExecution().getWorkflowId().isEmpty());
+      assertFalse(Activity.getTask().getWorkflowExecution().getRunId().isEmpty());
       lastAttempt = Activity.getTask().getAttempt();
       invocations.add("throwIO");
       try {
@@ -3803,7 +4090,7 @@ public class WorkflowTest {
     @WorkflowMethod(
       name = "func1",
       taskList = ANNOTATION_TASK_LIST,
-      workflowIdReusePolicy = WorkflowIdReusePolicy.WorkflowIdReusePolicyRejectDuplicate,
+      workflowIdReusePolicy = WorkflowIdReusePolicy.RejectDuplicate,
       executionStartToCloseTimeoutSeconds = 10
     )
     int func1(int input);
@@ -5657,7 +5944,14 @@ public class WorkflowTest {
       assertTrue(e.getMessage().contains("Unknown query type: SignalQueryBase_getSignal"));
     }
     stub.register();
-    assertEquals("a, b", signalStub.getSignal());
+    while (true) {
+      try {
+        assertEquals("a, b", signalStub.getSignal());
+        break;
+      } catch (WorkflowQueryException e) {
+        assertTrue(e.getMessage().contains("Unknown query type: SignalQueryBase_getSignal"));
+      }
+    }
   }
 
   private static class TracingWorkflowCallsInterceptor implements WorkflowCallsInterceptor {

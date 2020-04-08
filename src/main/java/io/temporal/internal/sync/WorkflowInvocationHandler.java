@@ -28,8 +28,8 @@ import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.external.GenericWorkflowClientExternal;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.enums.WorkflowIdReusePolicy;
+import io.temporal.proto.common.WorkflowIdReusePolicy;
+import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.WorkflowMethod;
@@ -182,16 +182,14 @@ class WorkflowInvocationHandler implements InvocationHandler {
     Optional<WorkflowOptions> options = untyped.getOptions();
     if (untyped.getExecution() == null
         || (options.isPresent()
-            && options.get().getWorkflowIdReusePolicy()
-                == WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicate)) {
+            && options.get().getWorkflowIdReusePolicy() == WorkflowIdReusePolicy.AllowDuplicate)) {
       try {
         untyped.start(args);
       } catch (DuplicateWorkflowException e) {
         // We do allow duplicated calls if policy is not AllowDuplicate. Semantic is to wait for
         // result.
         if (options.isPresent()
-            && options.get().getWorkflowIdReusePolicy()
-                == WorkflowIdReusePolicy.WorkflowIdReusePolicyAllowDuplicate) {
+            && options.get().getWorkflowIdReusePolicy() == WorkflowIdReusePolicy.AllowDuplicate) {
           throw e;
         }
       }

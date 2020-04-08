@@ -20,18 +20,19 @@
 package io.temporal.internal.replay;
 
 import com.google.protobuf.ByteString;
+import io.temporal.activity.ActivityCancellationType;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.RetryParameters;
-import io.temporal.proto.common.ActivityTaskCanceledEventAttributes;
-import io.temporal.proto.common.ActivityTaskCompletedEventAttributes;
-import io.temporal.proto.common.ActivityTaskFailedEventAttributes;
-import io.temporal.proto.common.ActivityTaskTimedOutEventAttributes;
 import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.Header;
-import io.temporal.proto.common.HistoryEvent;
-import io.temporal.proto.common.ScheduleActivityTaskDecisionAttributes;
-import io.temporal.proto.common.TaskList;
-import io.temporal.proto.enums.TimeoutType;
+import io.temporal.proto.decision.ScheduleActivityTaskDecisionAttributes;
+import io.temporal.proto.event.ActivityTaskCanceledEventAttributes;
+import io.temporal.proto.event.ActivityTaskCompletedEventAttributes;
+import io.temporal.proto.event.ActivityTaskFailedEventAttributes;
+import io.temporal.proto.event.ActivityTaskTimedOutEventAttributes;
+import io.temporal.proto.event.HistoryEvent;
+import io.temporal.proto.event.TimeoutType;
+import io.temporal.proto.tasklist.TaskList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
@@ -48,11 +49,17 @@ final class ActivityDecisionContext {
 
     private final BiConsumer<byte[], Exception> callback;
 
+    private final ActivityCancellationType cancellationType;
+
     private ActivityCancellationHandler(
-        long scheduledEventId, String activityId, BiConsumer<byte[], Exception> callaback) {
+        long scheduledEventId,
+        String activityId,
+        BiConsumer<byte[], Exception> callaback,
+        ActivityCancellationType cancellationType) {
       this.scheduledEventId = scheduledEventId;
       this.activityId = activityId;
       this.callback = callaback;
+      this.cancellationType = cancellationType;
     }
 
     @Override
@@ -61,8 +68,7 @@ final class ActivityDecisionContext {
         // Cancellation handlers are not deregistered. So they fire after an activity completion.
         return;
       }
-      decisions.requestCancelActivityTask(
-          scheduledEventId,
+      Runnable immediateCancellationCallback =
           () -> {
             OpenRequestInfo<byte[], ActivityType> scheduled =
                 scheduledActivities.remove(scheduledEventId);
@@ -73,7 +79,14 @@ final class ActivityDecisionContext {
                       activityId, scheduledEventId));
             }
             callback.accept(null, new CancellationException("Cancelled by request"));
-          });
+          };
+      if (cancellationType != ActivityCancellationType.WAIT_CANCELLATION_COMPLETED) {
+        immediateCancellationCallback.run();
+        immediateCancellationCallback = () -> {};
+      }
+      if (cancellationType != ActivityCancellationType.ABANDON) {
+        decisions.requestCancelActivityTask(scheduledEventId, immediateCancellationCallback);
+      }
     }
   }
 
@@ -133,7 +146,7 @@ final class ActivityDecisionContext {
     context.setCompletionHandle(callback);
     scheduledActivities.put(scheduledEventId, context);
     return new ActivityDecisionContext.ActivityCancellationHandler(
-        scheduledEventId, attributes.getActivityId(), callback);
+        scheduledEventId, attributes.getActivityId(), callback, parameters.getCancellationType());
   }
 
   void handleActivityTaskCanceled(HistoryEvent event) {

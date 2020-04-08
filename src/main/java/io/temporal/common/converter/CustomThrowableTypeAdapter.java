@@ -19,21 +19,23 @@
 
 package io.temporal.common.converter;
 
-import com.google.common.collect.ImmutableSet;
-import com.google.gson.*;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.TypeAdapter;
+import com.google.gson.TypeAdapterFactory;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
+import io.temporal.internal.common.DataConverterUtils;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.lang.reflect.Field;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class CustomThrowableTypeAdapter<T extends Throwable> extends TypeAdapter<T> {
+final class CustomThrowableTypeAdapter<T extends Throwable> extends TypeAdapter<T> {
   private static final Logger log = LoggerFactory.getLogger(CustomThrowableTypeAdapter.class);
 
   /** Used to parse a stack trace line. */
@@ -41,15 +43,6 @@ class CustomThrowableTypeAdapter<T extends Throwable> extends TypeAdapter<T> {
       "((?<className>.*)\\.(?<methodName>.*))\\(((?<fileName>.*?)(:(?<lineNumber>\\d+))?)\\)";
 
   private static final Pattern TRACE_ELEMENT_PATTERN = Pattern.compile(TRACE_ELEMENT_REGEXP);
-
-  /**
-   * Stop emitting stack trace after this line. Makes serialized stack traces more readable and
-   * compact as it omits most of framework level code.
-   */
-  private static final ImmutableSet<String> CUTOFF_METHOD_NAMES =
-      ImmutableSet.of(
-          "io.temporal.internal.worker.POJOActivityImplementationFactory$POJOActivityImplementation.execute",
-          "io.temporal.internal.sync.POJODecisionTaskHandler$POJOWorkflowImplementation.execute");
 
   private final Gson gson;
   private final TypeAdapterFactory skipPast;
@@ -62,31 +55,11 @@ class CustomThrowableTypeAdapter<T extends Throwable> extends TypeAdapter<T> {
   @Override
   @SuppressWarnings("unchecked")
   public void write(JsonWriter jsonWriter, T throwable) throws IOException {
-    StringWriter sw = new StringWriter();
-    PrintWriter pw = new PrintWriter(sw);
-    StackTraceElement[] trace = throwable.getStackTrace();
-    for (StackTraceElement element : trace) {
-      pw.println(element);
-      String fullMethodName = element.getClassName() + "." + element.getMethodName();
-      if (CUTOFF_METHOD_NAMES.contains(fullMethodName)) {
-        break;
-      }
-    }
-
     // We want to serialize the throwable and its cause separately, so that if the throwable
     // is serializable but the cause is not, we can still serialize them correctly (i.e. we
     // serialize the throwable correctly and convert the cause to a data converter exception).
-    Throwable cause = null;
-    if (throwable.getCause() != null && throwable.getCause() != throwable) {
-      try {
-        cause = throwable.getCause();
-        Field causeField = Throwable.class.getDeclaredField("cause");
-        causeField.setAccessible(true);
-        causeField.set(throwable, null);
-      } catch (Exception e) {
-        log.warn("Failed to clear cause in original throwable.", e);
-      }
-    }
+    // If existing cause is not detached due to security policy then null is returned.
+    Throwable cause = DataConverterUtils.detachCause(throwable);
 
     JsonObject object;
     try {
@@ -94,7 +67,8 @@ class CustomThrowableTypeAdapter<T extends Throwable> extends TypeAdapter<T> {
           gson.getDelegateAdapter(skipPast, TypeToken.get(throwable.getClass()));
       object = exceptionTypeAdapter.toJsonTree(throwable).getAsJsonObject();
       object.add("class", new JsonPrimitive(throwable.getClass().getName()));
-      object.add("stackTrace", new JsonPrimitive(sw.toString()));
+      String stackTrace = DataConverterUtils.serializeStackTrace(throwable);
+      object.add("stackTrace", new JsonPrimitive(stackTrace));
     } catch (Throwable e) {
       // In case a throwable is not serializable, we will convert it to a data converter exception.
       // The cause of the data converter exception will indicate why the serialization failed. On
@@ -168,47 +142,6 @@ class CustomThrowableTypeAdapter<T extends Throwable> extends TypeAdapter<T> {
       return new StackTraceElement[0];
     }
     String stackTrace = jsonStackTrace.getAsString();
-    if (stackTrace == null || stackTrace.isEmpty()) {
-      return new StackTraceElement[0];
-    }
-    try {
-      @SuppressWarnings("StringSplitter")
-      String[] lines = stackTrace.split("\r\n|\n");
-      StackTraceElement[] result = new StackTraceElement[lines.length];
-      for (int i = 0; i < lines.length; i++) {
-        result[i] = parseStackTraceElement(lines[i]);
-      }
-      return result;
-    } catch (Exception e) {
-      if (log.isWarnEnabled()) {
-        log.warn("Failed to parse stack trace: " + stackTrace);
-      }
-      return new StackTraceElement[0];
-    }
-  }
-
-  /**
-   * See {@link StackTraceElement#toString()} for input specification.
-   *
-   * @param line line of stack trace.
-   * @return StackTraceElement that contains data from that line.
-   */
-  private static StackTraceElement parseStackTraceElement(String line) {
-    Matcher matcher = TRACE_ELEMENT_PATTERN.matcher(line);
-    if (!matcher.matches()) {
-      return null;
-    }
-    String declaringClass = matcher.group("className");
-    String methodName = matcher.group("methodName");
-    String fileName = matcher.group("fileName");
-    int lineNumber = 0;
-    String lns = matcher.group("lineNumber");
-    if (lns != null && lns.length() > 0) {
-      try {
-        lineNumber = Integer.parseInt(matcher.group("lineNumber"));
-      } catch (NumberFormatException e) {
-      }
-    }
-    return new StackTraceElement(declaringClass, methodName, fileName, lineNumber);
+    return DataConverterUtils.parseStackTrace(stackTrace);
   }
 }

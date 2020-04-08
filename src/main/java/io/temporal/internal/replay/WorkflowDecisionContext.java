@@ -22,25 +22,27 @@ package io.temporal.internal.replay;
 import com.google.protobuf.ByteString;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.RetryParameters;
-import io.temporal.proto.common.ChildWorkflowExecutionCanceledEventAttributes;
-import io.temporal.proto.common.ChildWorkflowExecutionCompletedEventAttributes;
-import io.temporal.proto.common.ChildWorkflowExecutionFailedEventAttributes;
-import io.temporal.proto.common.ChildWorkflowExecutionStartedEventAttributes;
-import io.temporal.proto.common.ChildWorkflowExecutionTerminatedEventAttributes;
-import io.temporal.proto.common.ChildWorkflowExecutionTimedOutEventAttributes;
-import io.temporal.proto.common.ExternalWorkflowExecutionSignaledEventAttributes;
 import io.temporal.proto.common.Header;
-import io.temporal.proto.common.HistoryEvent;
-import io.temporal.proto.common.RequestCancelExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.proto.common.SignalExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.proto.common.SignalExternalWorkflowExecutionFailedEventAttributes;
-import io.temporal.proto.common.StartChildWorkflowExecutionDecisionAttributes;
-import io.temporal.proto.common.StartChildWorkflowExecutionFailedEventAttributes;
-import io.temporal.proto.common.TaskList;
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.common.ParentClosePolicy;
 import io.temporal.proto.common.WorkflowType;
-import io.temporal.proto.enums.ChildWorkflowExecutionFailedCause;
-import io.temporal.proto.enums.ParentClosePolicy;
+import io.temporal.proto.decision.RequestCancelExternalWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.decision.SignalExternalWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.decision.StartChildWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.event.ChildWorkflowExecutionCanceledEventAttributes;
+import io.temporal.proto.event.ChildWorkflowExecutionCompletedEventAttributes;
+import io.temporal.proto.event.ChildWorkflowExecutionFailedEventAttributes;
+import io.temporal.proto.event.ChildWorkflowExecutionStartedEventAttributes;
+import io.temporal.proto.event.ChildWorkflowExecutionTerminatedEventAttributes;
+import io.temporal.proto.event.ChildWorkflowExecutionTimedOutEventAttributes;
+import io.temporal.proto.event.ExternalWorkflowExecutionCancelRequestedEventAttributes;
+import io.temporal.proto.event.ExternalWorkflowExecutionSignaledEventAttributes;
+import io.temporal.proto.event.HistoryEvent;
+import io.temporal.proto.event.SignalExternalWorkflowExecutionFailedEventAttributes;
+import io.temporal.proto.event.StartChildWorkflowExecutionFailedEventAttributes;
+import io.temporal.proto.event.WorkflowExecutionFailedCause;
+import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.tasklist.TaskList;
+import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.ChildWorkflowTerminatedException;
 import io.temporal.workflow.ChildWorkflowTimedOutException;
 import io.temporal.workflow.SignalExternalWorkflowException;
@@ -61,24 +63,44 @@ final class WorkflowDecisionContext {
 
     private final long initiatedEventId;
     private final String workflowId;
+    private final ChildWorkflowCancellationType cancellationType;
 
-    private ChildWorkflowCancellationHandler(long initiatedEventId, String workflowId) {
+    private ChildWorkflowCancellationHandler(
+        long initiatedEventId, String workflowId, ChildWorkflowCancellationType cancellationType) {
       this.initiatedEventId = initiatedEventId;
       this.workflowId = Objects.requireNonNull(workflowId);
+      this.cancellationType = cancellationType;
     }
 
     @Override
     public void accept(Exception cause) {
-      if (!scheduledExternalWorkflows.containsKey(initiatedEventId)) {
+      OpenChildWorkflowRequestInfo scheduled = scheduledExternalWorkflows.get(initiatedEventId);
+
+      if (scheduled == null) {
         // Cancellation handlers are not deregistered. So they fire after a child completion.
         return;
       }
-      RequestCancelExternalWorkflowExecutionDecisionAttributes cancelAttributes =
-          RequestCancelExternalWorkflowExecutionDecisionAttributes.newBuilder()
-              .setWorkflowId(workflowId)
-              .setChildWorkflowOnly(true)
-              .build();
-      decisions.requestCancelExternalWorkflowExecution(cancelAttributes);
+      switch (cancellationType) {
+        case WAIT_CANCELLATION_REQUESTED:
+        case WAIT_CANCELLATION_COMPLETED:
+        case TRY_CANCEL:
+          RequestCancelExternalWorkflowExecutionDecisionAttributes cancelAttributes =
+              RequestCancelExternalWorkflowExecutionDecisionAttributes.newBuilder()
+                  .setWorkflowId(workflowId)
+                  .setChildWorkflowOnly(true)
+                  .build();
+          long cancellationInitiatedEventId =
+              decisions.requestCancelExternalWorkflowExecution(cancelAttributes);
+          scheduledExternalCancellations.put(cancellationInitiatedEventId, initiatedEventId);
+      }
+      switch (cancellationType) {
+        case ABANDON:
+        case TRY_CANCEL:
+          scheduledExternalWorkflows.remove(initiatedEventId);
+          CancellationException e = new CancellationException();
+          BiConsumer<byte[], Exception> completionCallback = scheduled.getCompletionCallback();
+          completionCallback.accept(null, e);
+      }
     }
   }
 
@@ -89,6 +111,8 @@ final class WorkflowDecisionContext {
   // key is initiatedEventId
   private final Map<Long, OpenChildWorkflowRequestInfo> scheduledExternalWorkflows =
       new HashMap<>();
+  /** Maps cancellationInitiatedEventId to child initiatedEventId */
+  private final Map<Long, Long> scheduledExternalCancellations = new HashMap<>();
 
   // key is initiatedEventId
   private final Map<Long, OpenRequestInfo<Void, Void>> scheduledSignals = new HashMap<>();
@@ -155,10 +179,11 @@ final class WorkflowDecisionContext {
 
     long initiatedEventId = decisions.startChildWorkflowExecution(attributes.build());
     final OpenChildWorkflowRequestInfo context =
-        new OpenChildWorkflowRequestInfo(executionCallback);
+        new OpenChildWorkflowRequestInfo(parameters.getCancellationType(), executionCallback);
     context.setCompletionHandle(callback);
     scheduledExternalWorkflows.put(initiatedEventId, context);
-    return new ChildWorkflowCancellationHandler(initiatedEventId, attributes.getWorkflowId());
+    return new ChildWorkflowCancellationHandler(
+        initiatedEventId, attributes.getWorkflowId(), parameters.getCancellationType());
   }
 
   private Header toHeaderGrpc(Map<String, byte[]> headers) {
@@ -237,6 +262,27 @@ final class WorkflowDecisionContext {
     return new Random(randomUUID().getLeastSignificantBits());
   }
 
+  void handleChildWorkflowExecutionCancelRequested(HistoryEvent event) {
+    ExternalWorkflowExecutionCancelRequestedEventAttributes attributes =
+        event.getExternalWorkflowExecutionCancelRequestedEventAttributes();
+    decisions.handleExternalWorkflowExecutionCancelRequested(event);
+    Long initiatedEventId = scheduledExternalCancellations.remove(attributes.getInitiatedEventId());
+    if (initiatedEventId == null) {
+      return;
+    }
+    OpenChildWorkflowRequestInfo scheduled = scheduledExternalWorkflows.get(initiatedEventId);
+    if (scheduled == null) {
+      return;
+    }
+    if (scheduled.getCancellationType()
+        == ChildWorkflowCancellationType.WAIT_CANCELLATION_REQUESTED) {
+      scheduledExternalWorkflows.remove(attributes.getInitiatedEventId());
+      CancellationException e = new CancellationException();
+      BiConsumer<byte[], Exception> completionCallback = scheduled.getCompletionCallback();
+      completionCallback.accept(null, e);
+    }
+  }
+
   void handleChildWorkflowExecutionCanceled(HistoryEvent event) {
     ChildWorkflowExecutionCanceledEventAttributes attributes =
         event.getChildWorkflowExecutionCanceledEventAttributes();
@@ -307,7 +353,7 @@ final class WorkflowDecisionContext {
         WorkflowExecution workflowExecution =
             WorkflowExecution.newBuilder().setWorkflowId(attributes.getWorkflowId()).build();
         WorkflowType workflowType = attributes.getWorkflowType();
-        ChildWorkflowExecutionFailedCause cause = attributes.getCause();
+        WorkflowExecutionFailedCause cause = attributes.getCause();
         RuntimeException failure =
             new StartChildWorkflowFailedException(
                 event.getEventId(), workflowExecution, workflowType, cause);

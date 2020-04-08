@@ -21,12 +21,13 @@ package io.temporal.activity;
 
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
+import com.google.common.base.Objects;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import java.time.Duration;
 import java.util.List;
-import java.util.Objects;
+import java.util.concurrent.CancellationException;
 
 /** Options used to configure how an activity is invoked. */
 public final class ActivityOptions {
@@ -65,6 +66,8 @@ public final class ActivityOptions {
 
     private List<ContextPropagator> contextPropagators;
 
+    private ActivityCancellationType cancellationType;
+
     private Builder() {}
 
     private Builder(ActivityOptions options) {
@@ -78,6 +81,7 @@ public final class ActivityOptions {
       this.scheduleToCloseTimeout = options.scheduleToCloseTimeout;
       this.startToCloseTimeout = options.startToCloseTimeout;
       this.scheduleToStartTimeout = options.scheduleToStartTimeout;
+      this.cancellationType = options.cancellationType;
     }
 
     /**
@@ -143,6 +147,17 @@ public final class ActivityOptions {
     }
 
     /**
+     * In case of an activity cancellation it fails with a {@link CancellationException}Exception.
+     * If this flag is set to false then the exception is thrown not immediately but only after an
+     * activity completes its cleanup. If true a CancellationException is thrown immediately and an
+     * activity cancellation is going to happen in the background.
+     */
+    public Builder setCancellationType(ActivityCancellationType cancellationType) {
+      this.cancellationType = cancellationType;
+      return this;
+    }
+
+    /**
      * Properties that are set on this builder take precedence over ones found in the annotation.
      */
     public Builder setMethodRetry(MethodRetry r) {
@@ -158,7 +173,8 @@ public final class ActivityOptions {
           startToCloseTimeout,
           taskList,
           retryOptions,
-          contextPropagators);
+          contextPropagators,
+          cancellationType);
     }
 
     public ActivityOptions validateAndBuildWithDefaults() {
@@ -196,7 +212,8 @@ public final class ActivityOptions {
           roundUpToSeconds(startToClose),
           taskList,
           ro,
-          contextPropagators);
+          contextPropagators,
+          cancellationType);
     }
   }
 
@@ -214,6 +231,8 @@ public final class ActivityOptions {
 
   private final List<ContextPropagator> contextPropagators;
 
+  private final ActivityCancellationType cancellationType;
+
   private ActivityOptions(
       Duration heartbeatTimeout,
       Duration scheduleToCloseTimeout,
@@ -221,7 +240,8 @@ public final class ActivityOptions {
       Duration startToCloseTimeout,
       String taskList,
       RetryOptions retryOptions,
-      List<ContextPropagator> contextPropagators) {
+      List<ContextPropagator> contextPropagators,
+      ActivityCancellationType cancellationType) {
     this.heartbeatTimeout = heartbeatTimeout;
     this.scheduleToCloseTimeout = scheduleToCloseTimeout;
     if (scheduleToCloseTimeout != null) {
@@ -242,6 +262,7 @@ public final class ActivityOptions {
     this.taskList = taskList;
     this.retryOptions = retryOptions;
     this.contextPropagators = contextPropagators;
+    this.cancellationType = cancellationType;
   }
 
   public Duration getHeartbeatTimeout() {
@@ -272,6 +293,38 @@ public final class ActivityOptions {
     return contextPropagators;
   }
 
+  public ActivityCancellationType getCancellationType() {
+    return cancellationType;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    ActivityOptions that = (ActivityOptions) o;
+    return cancellationType == that.cancellationType
+        && Objects.equal(heartbeatTimeout, that.heartbeatTimeout)
+        && Objects.equal(scheduleToCloseTimeout, that.scheduleToCloseTimeout)
+        && Objects.equal(scheduleToStartTimeout, that.scheduleToStartTimeout)
+        && Objects.equal(startToCloseTimeout, that.startToCloseTimeout)
+        && Objects.equal(taskList, that.taskList)
+        && Objects.equal(retryOptions, that.retryOptions)
+        && Objects.equal(contextPropagators, that.contextPropagators);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(
+        heartbeatTimeout,
+        scheduleToCloseTimeout,
+        scheduleToStartTimeout,
+        startToCloseTimeout,
+        taskList,
+        retryOptions,
+        contextPropagators,
+        cancellationType);
+  }
+
   @Override
   public String toString() {
     return "ActivityOptions{"
@@ -288,46 +341,10 @@ public final class ActivityOptions {
         + '\''
         + ", retryOptions="
         + retryOptions
-        + ", contextPropagators"
+        + ", contextPropagators="
         + contextPropagators
+        + ", abandonOnCancellation="
+        + cancellationType
         + '}';
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-
-    ActivityOptions that = (ActivityOptions) o;
-    return Objects.equals(heartbeatTimeout, that.heartbeatTimeout)
-        && Objects.equals(scheduleToCloseTimeout, that.scheduleToCloseTimeout)
-        && Objects.equals(scheduleToStartTimeout, that.scheduleToStartTimeout)
-        && Objects.equals(startToCloseTimeout, that.startToCloseTimeout)
-        && Objects.equals(taskList, that.taskList)
-        && Objects.equals(retryOptions, that.retryOptions)
-        && Objects.equals(contextPropagators, that.contextPropagators);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(
-        heartbeatTimeout,
-        scheduleToCloseTimeout,
-        scheduleToStartTimeout,
-        startToCloseTimeout,
-        taskList,
-        retryOptions,
-        contextPropagators);
-  }
-
-  static Duration mergeDuration(int annotationSeconds, Duration options) {
-    if (options == null) {
-      if (annotationSeconds == 0) {
-        return null;
-      }
-      return Duration.ofSeconds(annotationSeconds);
-    } else {
-      return options;
-    }
   }
 }

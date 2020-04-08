@@ -62,7 +62,7 @@ public final class Tracer implements TestRule {
 
   /** Set list of expected values. */
   public void setExpected(String... expected) {
-    this.expected = Arrays.asList(expected);
+    this.expected = new ArrayList<>(Arrays.asList(expected));
   }
 
   /**
@@ -70,11 +70,11 @@ public final class Tracer implements TestRule {
    * test. It can be called directly to evaluate a progress in the middle of a test.
    */
   public void assertExpected() {
-    Assert.assertEquals(expected, trace);
+    Assert.assertEquals(String.join(", ", expected), String.join(", ", trace));
   }
 
   @Override
   public String toString() {
-    return "expected " + String.join(",", expected) + " trace " + String.join(",", trace);
+    return "expected " + String.join(", ", expected) + " trace " + String.join(", ", trace);
   }
 }

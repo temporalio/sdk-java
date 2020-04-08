@@ -23,13 +23,13 @@ import com.google.protobuf.Int64Value;
 import io.grpc.Status;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.RequestContext.Timer;
-import io.temporal.proto.common.History;
-import io.temporal.proto.common.HistoryEvent;
-import io.temporal.proto.common.StickyExecutionAttributes;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.common.WorkflowExecutionInfo;
-import io.temporal.proto.enums.EventType;
-import io.temporal.proto.enums.HistoryEventFilterType;
+import io.temporal.proto.decision.StickyExecutionAttributes;
+import io.temporal.proto.event.EventType;
+import io.temporal.proto.event.History;
+import io.temporal.proto.event.HistoryEvent;
+import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.execution.WorkflowExecutionInfo;
+import io.temporal.proto.filter.HistoryEventFilterType;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
@@ -117,7 +117,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       try {
         while (true) {
           if (completed || getNextEventIdLocked() > expectedNextEventId) {
-            if (filterType == HistoryEventFilterType.HistoryEventFilterTypeCloseEvent) {
+            if (filterType == HistoryEventFilterType.CloseEvent) {
               if (completed) {
                 List<HistoryEvent> result = new ArrayList<>(1);
                 result.add(history.get(history.size() - 1));
@@ -186,7 +186,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       List<HistoryEvent> events = ctx.getEvents();
       if (history == null) {
         if (events.isEmpty()
-            || events.get(0).getEventType() != EventType.EventTypeWorkflowExecutionStarted) {
+            || events.get(0).getEventType() != EventType.WorkflowExecutionStarted) {
           throw new IllegalStateException("No history found for " + executionId);
         }
         history = new HistoryStore(executionId, lock);
@@ -236,6 +236,11 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     List<Timer> timers = ctx.getTimers();
     if (timers != null) {
       for (Timer t : timers) {
+        log.trace(
+            "scheduling timer with "
+                + t.getDelaySeconds()
+                + "seconds delay. Current time="
+                + this.currentTimeMillis());
         timerService.schedule(
             Duration.ofSeconds(t.getDelaySeconds()), t.getCallback(), t.getTaskInfo());
       }
@@ -360,8 +365,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     try {
       history = getHistoryStore(executionId);
       if (!getRequest.getWaitForNewEvent()
-          && getRequest.getHistoryEventFilterType()
-              != HistoryEventFilterType.HistoryEventFilterTypeCloseEvent) {
+          && getRequest.getHistoryEventFilterType() != HistoryEventFilterType.CloseEvent) {
         List<HistoryEvent> events = history.getEventsLocked();
         // Copy the list as it is mutable. Individual events assumed immutable.
         ArrayList<HistoryEvent> eventsCopy = new ArrayList<>(events);

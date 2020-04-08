@@ -32,12 +32,12 @@ public interface DataConverter {
   /**
    * Implements conversion of a list of values.
    *
-   * @param value Java value to convert to String.
+   * @param values Java values to convert to String.
    * @return converted value
    * @throws DataConverterException if conversion of the value passed as parameter failed for any
    *     reason.
    */
-  byte[] toData(Object... value) throws DataConverterException;
+  byte[] toData(Object... values) throws DataConverterException;
 
   /**
    * Implements conversion of a single value.

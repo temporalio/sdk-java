@@ -83,6 +83,68 @@ public class PromiseTest {
   }
 
   @Test
+  public void testGet() throws Throwable {
+    DeterministicRunner r =
+        DeterministicRunner.newRunner(
+            () -> {
+              CompletablePromise<String> f = Workflow.newPromise();
+              trace.add("root begin");
+              WorkflowInternal.newThread(false, () -> f.complete("thread1")).start();
+              trace.add(f.get());
+              trace.add("root done");
+            });
+    r.runUntilAllBlocked();
+    String[] expected =
+        new String[] {
+          "root begin", "thread1", "root done",
+        };
+    trace.setExpected(expected);
+  }
+
+  @Test
+  public void testCancellableGet() throws Throwable {
+    DeterministicRunner r =
+        DeterministicRunner.newRunner(
+            () -> {
+              CompletablePromise<String> f = Workflow.newPromise();
+              trace.add("root begin");
+              WorkflowInternal.newThread(false, () -> f.complete("thread1")).start();
+              trace.add(f.cancellableGet());
+              trace.add("root done");
+            });
+    r.runUntilAllBlocked();
+    String[] expected =
+        new String[] {
+          "root begin", "thread1", "root done",
+        };
+    trace.setExpected(expected);
+  }
+
+  @Test
+  public void testCancellableGetCancellation() throws Throwable {
+    DeterministicRunner r =
+        DeterministicRunner.newRunner(
+            () -> {
+              CompletablePromise<String> f = Workflow.newPromise();
+              trace.add("root begin");
+              try {
+                f.cancellableGet();
+              } catch (CancellationException e) {
+                trace.add("root CancellationException");
+              }
+              trace.add("root done");
+            });
+    r.runUntilAllBlocked();
+    r.cancel("test");
+    r.runUntilAllBlocked();
+    String[] expected =
+        new String[] {
+          "root begin", "root CancellationException", "root done",
+        };
+    trace.setExpected(expected);
+  }
+
+  @Test
   public void testGetTimeout() throws Throwable {
     ExecutorService threadPool =
         new ThreadPoolExecutor(1, 1000, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
@@ -129,118 +191,6 @@ public class PromiseTest {
     expected =
         new String[] {
           "root begin", "root done", "thread1 begin", "thread1 get timeout",
-        };
-    trace.setExpected(expected);
-    threadPool.shutdown();
-    threadPool.awaitTermination(1, TimeUnit.MINUTES);
-  }
-
-  @Test
-  public void testGetDefaultOnTimeout() throws Throwable {
-    ExecutorService threadPool =
-        new ThreadPoolExecutor(1, 1000, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
-
-    DeterministicRunner r =
-        DeterministicRunner.newRunner(
-            threadPool,
-            null,
-            () -> currentTime,
-            () -> {
-              CompletablePromise<String> f = Workflow.newPromise();
-              trace.add("root begin");
-              WorkflowInternal.newThread(
-                      false,
-                      () -> {
-                        trace.add("thread1 begin");
-                        assertEquals("default", f.get(10, TimeUnit.SECONDS, "default"));
-                        trace.add("thread1 get success");
-                      })
-                  .start();
-              trace.add("root done");
-            });
-    r.runUntilAllBlocked();
-    String[] expected =
-        new String[] {
-          "root begin", "root done", "thread1 begin",
-        };
-    trace.setExpected(expected);
-    trace.assertExpected();
-
-    currentTime += 11000;
-    r.runUntilAllBlocked();
-    expected =
-        new String[] {
-          "root begin", "root done", "thread1 begin", "thread1 get success",
-        };
-    trace.setExpected(expected);
-    threadPool.shutdown();
-    threadPool.awaitTermination(1, TimeUnit.MINUTES);
-  }
-
-  @Test
-  public void testTimedGetDefaultOnFailure() throws Throwable {
-    ExecutorService threadPool =
-        new ThreadPoolExecutor(1, 1000, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
-
-    DeterministicRunner r =
-        DeterministicRunner.newRunner(
-            threadPool,
-            null,
-            () -> currentTime,
-            () -> {
-              CompletablePromise<String> f = Workflow.newPromise();
-              trace.add("root begin");
-              WorkflowInternal.newThread(
-                      false,
-                      () -> {
-                        trace.add("thread1 begin");
-                        assertEquals("default", f.get(10, TimeUnit.SECONDS, "default"));
-                        trace.add("thread1 get success");
-                      })
-                  .start();
-              f.completeExceptionally(new RuntimeException("boo"));
-              trace.add("root done");
-            });
-    r.runUntilAllBlocked();
-    r.runUntilAllBlocked();
-    String[] expected =
-        new String[] {
-          "root begin", "root done", "thread1 begin", "thread1 get success",
-        };
-    trace.setExpected(expected);
-    threadPool.shutdown();
-    threadPool.awaitTermination(1, TimeUnit.MINUTES);
-  }
-
-  @Test
-  public void testGetDefaultOnFailure() throws Throwable {
-    ExecutorService threadPool =
-        new ThreadPoolExecutor(1, 1000, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
-
-    DeterministicRunner r =
-        DeterministicRunner.newRunner(
-            threadPool,
-            null,
-            () -> currentTime,
-            () -> {
-              CompletablePromise<String> f = Workflow.newPromise();
-              trace.add("root begin");
-              WorkflowInternal.newThread(
-                      false,
-                      () -> {
-                        trace.add("thread1 begin");
-                        assertEquals("default", f.get("default"));
-                        trace.add("thread1 get success");
-                      })
-                  .start();
-              f.completeExceptionally(new RuntimeException("boo"));
-              trace.add("root done");
-            });
-    r.runUntilAllBlocked();
-    r.runUntilAllBlocked();
-    String[] expected =
-        new String[] {
-          "root begin", "root done", "thread1 begin", "thread1 get success",
         };
     trace.setExpected(expected);
     threadPool.shutdown();

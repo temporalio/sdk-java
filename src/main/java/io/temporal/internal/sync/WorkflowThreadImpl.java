@@ -501,7 +501,8 @@ class WorkflowThreadImpl implements WorkflowThread {
       if (result) {
         return true;
       }
-      timedOut = WorkflowInternal.currentTimeMillis() >= blockedUntil;
+      long currentTimeMillis = WorkflowInternal.currentTimeMillis();
+      timedOut = currentTimeMillis >= blockedUntil;
       return timedOut;
     }
   }
