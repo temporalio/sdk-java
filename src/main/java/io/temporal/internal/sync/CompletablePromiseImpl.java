@@ -19,6 +19,7 @@
 
 package io.temporal.internal.sync;
 
+import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Promise;
@@ -69,8 +70,24 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
 
   @Override
   public V get() {
+    return getImpl(false);
+  }
+
+  @Override
+  public V cancellableGet() {
+    return getImpl(true);
+  }
+
+  private V getImpl(boolean cancellable) {
     if (!completed) {
-      WorkflowThread.await("Feature.get", () -> completed);
+      WorkflowThread.await(
+          "Feature.get",
+          () -> {
+            if (cancellable) {
+              CancellationScope.throwCancelled();
+            }
+            return completed;
+          });
     }
     if (failure != null) {
       unregisterWithRunner();
@@ -80,21 +97,27 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
   }
 
   @Override
-  public V get(V defaultValue) {
-    if (!completed) {
-      WorkflowThread.await("Feature.get", () -> completed);
-    }
-    if (failure != null) {
-      unregisterWithRunner();
-      return defaultValue;
-    }
-    return value;
+  public V get(long timeout, TimeUnit unit) throws TimeoutException {
+    return cancellableGetImpl(false, timeout, unit);
   }
 
   @Override
-  public V get(long timeout, TimeUnit unit) throws TimeoutException {
+  public V cancellableGet(long timeout, TimeUnit unit) throws TimeoutException {
+    return cancellableGetImpl(true, timeout, unit);
+  }
+
+  public V cancellableGetImpl(boolean cancellable, long timeout, TimeUnit unit)
+      throws TimeoutException {
     if (!completed) {
-      WorkflowThread.await(unit.toMillis(timeout), "Feature.get", () -> completed);
+      WorkflowThread.await(
+          unit.toMillis(timeout),
+          "Feature.get",
+          () -> {
+            if (cancellable) {
+              CancellationScope.throwCancelled();
+            }
+            return completed;
+          });
     }
     if (!completed) {
       throw new TimeoutException();
@@ -112,21 +135,6 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
       failure.setStackTrace(Thread.currentThread().getStackTrace());
     }
     throw failure;
-  }
-
-  @Override
-  public V get(long timeout, TimeUnit unit, V defaultValue) {
-    if (!completed) {
-      WorkflowThread.await(unit.toMillis(timeout), "Feature.get", () -> completed);
-    }
-    if (!completed) {
-      return defaultValue;
-    }
-    if (failure != null) {
-      unregisterWithRunner();
-      return defaultValue;
-    }
-    return value;
   }
 
   @Override

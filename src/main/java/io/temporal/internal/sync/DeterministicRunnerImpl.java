@@ -23,7 +23,7 @@ import com.google.common.primitives.Ints;
 import com.uber.m3.tally.Scope;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.JsonDataConverter;
+import io.temporal.common.converter.GsonJsonDataConverter;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.context.ContextThreadLocal;
 import io.temporal.internal.metrics.NoopScope;
@@ -200,7 +200,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
   private static SyncDecisionContext newDummySyncDecisionContext() {
     return new SyncDecisionContext(
-        new DummyDecisionContext(), JsonDataConverter.getInstance(), null, null);
+        new DummyDecisionContext(), GsonJsonDataConverter.getInstance(), null, null);
   }
 
   SyncDecisionContext getDecisionContext() {

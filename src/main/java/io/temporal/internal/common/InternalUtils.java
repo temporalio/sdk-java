@@ -22,7 +22,7 @@ package io.temporal.internal.common;
 import com.google.common.base.Defaults;
 import com.google.protobuf.ByteString;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.JsonDataConverter;
+import io.temporal.common.converter.GsonJsonDataConverter;
 import io.temporal.internal.worker.Shutdownable;
 import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.tasklist.TaskList;
@@ -87,7 +87,7 @@ public final class InternalUtils {
 
   public static SearchAttributes convertMapToSearchAttributes(
       Map<String, Object> searchAttributes) {
-    DataConverter converter = JsonDataConverter.getInstance();
+    DataConverter converter = GsonJsonDataConverter.getInstance();
     Map<String, ByteString> mapOfByteBuffer = new HashMap<>();
     searchAttributes.forEach(
         (key, value) -> {
