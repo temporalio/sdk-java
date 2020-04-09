@@ -5169,7 +5169,7 @@ public class WorkflowTest {
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
             .setExecutionStartToCloseTimeout(Duration.ofMinutes(5))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(5))
+            .setTaskStartToCloseTimeout(Duration.ofSeconds(20))
             .setTaskList(taskList)
             .build();
     TestWorkflow1 workflowStub = workflowClient.newWorkflowStub(TestWorkflow1.class, options);

@@ -158,6 +158,26 @@ class StateMachines {
       this.originalExecutionRunId = originalExecutionRunId;
       this.continuedExecutionRunId = continuedExecutionRunId;
     }
+
+    @Override
+    public String toString() {
+      return "WorkflowData{"
+          + "retryState="
+          + retryState
+          + ", backoffStartIntervalInSeconds="
+          + backoffStartIntervalInSeconds
+          + ", cronSchedule='"
+          + cronSchedule
+          + '\''
+          + ", lastCompletionResult="
+          + lastCompletionResult
+          + ", originalExecutionRunId='"
+          + originalExecutionRunId
+          + '\''
+          + ", continuedExecutionRunId="
+          + continuedExecutionRunId
+          + '}';
+    }
   }
 
   static final class DecisionTaskData {
@@ -177,6 +197,24 @@ class StateMachines {
     DecisionTaskData(long previousStartedEventId, TestWorkflowStore store) {
       this.previousStartedEventId = previousStartedEventId;
       this.store = store;
+    }
+
+    @Override
+    public String toString() {
+      return "DecisionTaskData{"
+          + "previousStartedEventId="
+          + previousStartedEventId
+          + ", store="
+          + store
+          + ", startedEventId="
+          + startedEventId
+          + ", decisionTask="
+          + decisionTask
+          + ", scheduledEventId="
+          + scheduledEventId
+          + ", attempt="
+          + attempt
+          + '}';
     }
   }
 
@@ -201,16 +239,64 @@ class StateMachines {
       this.store = store;
       this.startWorkflowExecutionRequest = startWorkflowExecutionRequest;
     }
+
+    @Override
+    public String toString() {
+      return "ActivityTaskData{"
+          + "startWorkflowExecutionRequest="
+          + startWorkflowExecutionRequest
+          + ", scheduledEvent="
+          + scheduledEvent
+          + ", activityTask="
+          + activityTask
+          + ", store="
+          + store
+          + ", scheduledEventId="
+          + scheduledEventId
+          + ", startedEventId="
+          + startedEventId
+          + ", startedEvent="
+          + startedEvent
+          + ", heartbeatDetails="
+          + heartbeatDetails
+          + ", lastHeartbeatTime="
+          + lastHeartbeatTime
+          + ", retryState="
+          + retryState
+          + ", nextBackoffIntervalSeconds="
+          + nextBackoffIntervalSeconds
+          + '}';
+    }
   }
 
   static final class SignalExternalData {
     long initiatedEventId = NO_EVENT_ID;
     public SignalExternalWorkflowExecutionInitiatedEventAttributes initiatedEvent;
+
+    @Override
+    public String toString() {
+      return "SignalExternalData{"
+          + "initiatedEventId="
+          + initiatedEventId
+          + ", initiatedEvent="
+          + initiatedEvent
+          + '}';
+    }
   }
 
   static final class CancelExternalData {
     long initiatedEventId = NO_EVENT_ID;
     public RequestCancelExternalWorkflowExecutionInitiatedEventAttributes initiatedEvent;
+
+    @Override
+    public String toString() {
+      return "CancelExternalData{"
+          + "initiatedEventId="
+          + initiatedEventId
+          + ", initiatedEvent="
+          + initiatedEvent
+          + '}';
+    }
   }
 
   static final class ChildWorkflowData {
@@ -224,12 +310,37 @@ class StateMachines {
     public ChildWorkflowData(TestWorkflowService service) {
       this.service = service;
     }
+
+    @Override
+    public String toString() {
+      return "ChildWorkflowData{"
+          + "service="
+          + service
+          + ", initiatedEvent="
+          + initiatedEvent
+          + ", initiatedEventId="
+          + initiatedEventId
+          + ", startedEventId="
+          + startedEventId
+          + ", execution="
+          + execution
+          + '}';
+    }
   }
 
   static final class TimerData {
-
     TimerStartedEventAttributes startedEvent;
     public long startedEventId;
+
+    @Override
+    public String toString() {
+      return "TimerData{"
+          + "startedEvent="
+          + startedEvent
+          + ", startedEventId="
+          + startedEventId
+          + '}';
+    }
   }
 
   static StateMachine<WorkflowData> newWorkflowStateMachine(WorkflowData data) {
