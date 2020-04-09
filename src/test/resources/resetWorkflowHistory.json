@@ -7,7 +7,7 @@
     "taskId": 1049398,
     "workflowExecutionStartedEventAttributes": {
       "workflowType": {
-        "name": "TestWorkflow1_execute"
+        "name": "TestWorkflow1"
       },
       "taskList": {
         "name": "WorkflowTest-testWorkflowReset[Docker Sticky OFF]-2ac130cd-f7fb-48db-8c06-a7b8db8906fd"
@@ -68,7 +68,7 @@
     "activityTaskScheduledEventAttributes": {
       "activityId": "1",
       "activityType": {
-        "name": "TestActivities_activity"
+        "name": "activity"
       },
       "taskList": {
         "name": "WorkflowTest-testWorkflowReset[Docker Sticky OFF]-2ac130cd-f7fb-48db-8c06-a7b8db8906fd"
@@ -339,7 +339,7 @@
     "activityTaskScheduledEventAttributes": {
       "activityId": "5",
       "activityType": {
-        "name": "TestActivities_activity"
+        "name": "activity"
       },
       "taskList": {
         "name": "WorkflowTest-testWorkflowReset[Docker Sticky OFF]-2ac130cd-f7fb-48db-8c06-a7b8db8906fd"
@@ -529,7 +529,7 @@
     "activityTaskScheduledEventAttributes": {
       "activityId": "9",
       "activityType": {
-        "name": "TestActivities_activity"
+        "name": "activity"
       },
       "taskList": {
         "name": "WorkflowTest-testWorkflowReset[Docker Sticky OFF]-2ac130cd-f7fb-48db-8c06-a7b8db8906fd"
@@ -757,7 +757,7 @@
     "activityTaskScheduledEventAttributes": {
       "activityId": "13",
       "activityType": {
-        "name": "TestActivities_activity"
+        "name": "activity"
       },
       "taskList": {
         "name": "WorkflowTest-testWorkflowReset[Docker Sticky OFF]-2ac130cd-f7fb-48db-8c06-a7b8db8906fd"
@@ -842,7 +842,7 @@
     "activityTaskScheduledEventAttributes": {
       "activityId": "15",
       "activityType": {
-        "name": "TestActivities_activity"
+        "name": "activity"
       },
       "taskList": {
         "name": "WorkflowTest-testWorkflowReset[Docker Sticky OFF]-2ac130cd-f7fb-48db-8c06-a7b8db8906fd"
@@ -970,7 +970,7 @@
     "activityTaskScheduledEventAttributes": {
       "activityId": "17",
       "activityType": {
-        "name": "TestActivities_activity"
+        "name": "activity"
       },
       "taskList": {
         "name": "WorkflowTest-testWorkflowReset[Docker Sticky OFF]-2ac130cd-f7fb-48db-8c06-a7b8db8906fd"

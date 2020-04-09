@@ -65,7 +65,7 @@ public class ActivityTestingTest {
     testEnvironment.registerActivitiesImplementations(new ActivityImpl());
     TestActivity activity = testEnvironment.newActivityStub(TestActivity.class);
     String result = activity.activity1("input1");
-    assertEquals("TestActivity_activity1-input1", result);
+    assertEquals("activity1-input1", result);
   }
 
   private static class AngryActivityImpl implements TestActivity {
@@ -84,7 +84,7 @@ public class ActivityTestingTest {
       activity.activity1("input1");
       fail("unreachable");
     } catch (ActivityFailureException e) {
-      assertTrue(e.getMessage().contains("TestActivity_activity1"));
+      assertTrue(e.getMessage().contains("activity1"));
       assertTrue(e.getCause() instanceof IOException);
       assertEquals("simulated", e.getCause().getMessage());
     }
@@ -266,7 +266,7 @@ public class ActivityTestingTest {
     void c();
   }
 
-  @ActivityInterface
+  @ActivityInterface(namePrefix = "D_")
   public interface D extends A {
     void d();
   }
@@ -410,7 +410,7 @@ public class ActivityTestingTest {
     try {
       testEnvironment.registerActivitiesImplementations(dImpl, eImpl);
     } catch (IllegalArgumentException e) {
-      assertTrue(e.getMessage().contains("D_a"));
+      assertTrue(e.getMessage().contains("a"));
       assertTrue(e.getMessage().contains("already registered"));
     }
   }

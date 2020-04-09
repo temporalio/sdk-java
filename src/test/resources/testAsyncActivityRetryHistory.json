@@ -6,7 +6,7 @@
     "version": -24,
     "workflowExecutionStartedEventAttributes": {
       "workflowType": {
-        "name": "TestWorkflow1_execute"
+        "name": "TestWorkflow1"
       },
       "taskList": {
         "name": "WorkflowTest-testAsyncActivityRetry[Docker Sticky ON]-3f9e1f99-7718-4975-a8a3-c0dfdaee42f7"
@@ -72,7 +72,7 @@
     "activityTaskScheduledEventAttributes": {
       "activityId": "1",
       "activityType": {
-        "name": "TestActivities_throwIO"
+        "name": "throwIO"
       },
       "taskList": {
         "name": "WorkflowTest-testAsyncActivityRetry[Docker Sticky ON]-3f9e1f99-7718-4975-a8a3-c0dfdaee42f7"
@@ -219,7 +219,7 @@
     "activityTaskScheduledEventAttributes": {
       "activityId": "3",
       "activityType": {
-        "name": "TestActivities_throwIO"
+        "name": "throwIO"
       },
       "taskList": {
         "name": "WorkflowTest-testAsyncActivityRetry[Docker Sticky ON]-3f9e1f99-7718-4975-a8a3-c0dfdaee42f7"
@@ -366,7 +366,7 @@
     "activityTaskScheduledEventAttributes": {
       "activityId": "5",
       "activityType": {
-        "name": "TestActivities_throwIO"
+        "name": "throwIO"
       },
       "taskList": {
         "name": "WorkflowTest-testAsyncActivityRetry[Docker Sticky ON]-3f9e1f99-7718-4975-a8a3-c0dfdaee42f7"

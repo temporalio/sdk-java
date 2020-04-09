@@ -99,9 +99,7 @@ public class WorkerStressTests {
             .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
             .build();
     WorkflowStub workflow =
-        wrapper
-            .getWorkflowClient()
-            .newUntypedWorkflowStub("ActivitiesWorkflow_execute", workflowOptions);
+        wrapper.getWorkflowClient().newUntypedWorkflowStub("ActivitiesWorkflow", workflowOptions);
 
     // Act
     // This will yeild around 10000 events which is above the page limit returned by the server.
@@ -140,9 +138,7 @@ public class WorkerStressTests {
             .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
             .build();
     WorkflowStub workflow =
-        wrapper
-            .getWorkflowClient()
-            .newUntypedWorkflowStub("ActivitiesWorkflow_execute", workflowOptions);
+        wrapper.getWorkflowClient().newUntypedWorkflowStub("ActivitiesWorkflow", workflowOptions);
 
     // Act
     WorkflowParams w = new WorkflowParams();
@@ -160,9 +156,7 @@ public class WorkerStressTests {
 
     // Start a second workflow and kick the previous one out
     WorkflowStub workflow2 =
-        wrapper
-            .getWorkflowClient()
-            .newUntypedWorkflowStub("ActivitiesWorkflow_execute", workflowOptions);
+        wrapper.getWorkflowClient().newUntypedWorkflowStub("ActivitiesWorkflow", workflowOptions);
     w.ConcurrentCount = 1;
     workflow2.start(w);
     assertNotNull("I'm done.", workflow2.getResult(String.class));

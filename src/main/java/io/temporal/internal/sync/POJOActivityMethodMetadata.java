@@ -20,6 +20,7 @@
 package io.temporal.internal.sync;
 
 import com.google.common.base.Strings;
+import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import java.lang.reflect.Method;
 import java.util.Objects;
@@ -30,7 +31,8 @@ public class POJOActivityMethodMetadata {
   private final Method method;
   private final Class<?> interfaceType;
 
-  POJOActivityMethodMetadata(Method method, Class<?> interfaceType) {
+  POJOActivityMethodMetadata(
+      Method method, Class<?> interfaceType, ActivityInterface activityAnnotation) {
     this.method = Objects.requireNonNull(method);
     this.interfaceType = Objects.requireNonNull(interfaceType);
     ActivityMethod activityMethod = method.getAnnotation(ActivityMethod.class);
@@ -40,7 +42,7 @@ public class POJOActivityMethodMetadata {
       name = activityMethod.name();
     } else {
       hasActivityMethodAnnotation = false;
-      name = interfaceType.getSimpleName() + "_" + method.getName();
+      name = activityAnnotation.namePrefix() + method.getName();
     }
     this.name = name;
   }

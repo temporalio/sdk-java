@@ -31,6 +31,11 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface SignalMethod {
-  /** Name of the signal type. Default is {short class name}::{method name}. */
+  /**
+   * Name of the signal type. Default is method name.
+   *
+   * <p>Be careful about names that contain special characters. These names can be used as metric
+   * tags. And systems like prometheus ignore metrics which have tags with unsupported characters.
+   */
   String name() default "";
 }

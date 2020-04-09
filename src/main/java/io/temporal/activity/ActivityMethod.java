@@ -32,6 +32,12 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 public @interface ActivityMethod {
 
-  /** Name of the workflow type. Default is {short class name}::{method name} */
+  /**
+   * Name of the activity type. Default is method name. Also consider using {@link
+   * ActivityInterface#namePrefix()}.
+   *
+   * <p>Be careful about names that contain special characters. These names can be used as metric
+   * tags. And systems like prometheus ignore metrics which have tags with unsupported characters.
+   */
   String name() default "";
 }

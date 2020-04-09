@@ -139,7 +139,7 @@ public class WorkflowTestingTest {
     WorkflowClient client = testEnvironment.getWorkflowClient();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class);
     String result = workflow.workflow1("input1");
-    assertEquals("TestWorkflow_workflow1-input1", result);
+    assertEquals("TestWorkflow-input1", result);
   }
 
   public static class FailingWorkflowImpl implements TestWorkflow {
@@ -164,7 +164,7 @@ public class WorkflowTestingTest {
       workflow.workflow1("input1");
       fail("unreacheable");
     } catch (WorkflowException e) {
-      assertEquals("TestWorkflow_workflow1-input1", e.getCause().getMessage());
+      assertEquals("TestWorkflow-input1", e.getCause().getMessage());
     }
   }
 
@@ -204,7 +204,7 @@ public class WorkflowTestingTest {
     WorkflowClient client = testEnvironment.getWorkflowClient();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class);
     String result = workflow.workflow1("input1");
-    assertEquals("TestActivity_activity1-input1", result);
+    assertEquals("activity1-input1", result);
   }
 
   private static class FailingActivityImpl implements TestActivity {
@@ -227,7 +227,7 @@ public class WorkflowTestingTest {
       workflow.workflow1("input1");
       fail("unreacheable");
     } catch (WorkflowException e) {
-      assertEquals("TestActivity_activity1-input1", e.getCause().getCause().getMessage());
+      assertEquals("activity1-input1", e.getCause().getCause().getMessage());
     }
   }
 
@@ -399,7 +399,7 @@ public class WorkflowTestingTest {
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class);
     long start = testEnvironment.currentTimeMillis();
     String result = workflow.workflow1("input1");
-    assertEquals("TestWorkflow_workflow1-input1", result);
+    assertEquals("TestWorkflow-input1", result);
     assertTrue(testEnvironment.currentTimeMillis() - start >= Duration.ofHours(2).toMillis());
   }
 
@@ -707,11 +707,9 @@ public class WorkflowTestingTest {
       List<WorkflowExecutionInfo> executions = listResponse.getExecutionsList();
       assertEquals(2, executions.size());
       String name0 = executions.get(0).getType().getName();
-      assertTrue(
-          name0, name0.equals("ParentWorkflow_workflow") || name0.equals("ChildWorkflow_workflow"));
+      assertTrue(name0, name0.equals("ParentWorkflow") || name0.equals("ChildWorkflow"));
       String name1 = executions.get(0).getType().getName();
-      assertTrue(
-          name1, name1.equals("ParentWorkflow_workflow") || name1.equals("ChildWorkflow_workflow"));
+      assertTrue(name1, name1.equals("ParentWorkflow") || name1.equals("ChildWorkflow"));
 
       try {
         result.get();
@@ -735,11 +733,9 @@ public class WorkflowTestingTest {
     List<WorkflowExecutionInfo> executions = listResponse.getExecutionsList();
     assertEquals(2, executions.size());
     String name0 = executions.get(0).getType().getName();
-    assertTrue(
-        name0, name0.equals("ParentWorkflow_workflow") || name0.equals("ChildWorkflow_workflow"));
+    assertTrue(name0, name0.equals("ParentWorkflow") || name0.equals("ChildWorkflow"));
     String name1 = executions.get(0).getType().getName();
-    assertTrue(
-        name1, name1.equals("ParentWorkflow_workflow") || name1.equals("ChildWorkflow_workflow"));
+    assertTrue(name1, name1.equals("ParentWorkflow") || name1.equals("ChildWorkflow"));
   }
 
   @Test
