@@ -271,8 +271,8 @@ public class MetricsTest {
         new ImmutableMap.Builder<String, String>(3)
             .put(MetricsTag.NAMESPACE, WorkflowTest.NAMESPACE)
             .put(MetricsTag.TASK_LIST, taskList)
-            .put(MetricsTag.ACTIVITY_TYPE, "TestActivity_runActivity")
-            .put(MetricsTag.WORKFLOW_TYPE, "TestWorkflow_execute")
+            .put(MetricsTag.ACTIVITY_TYPE, "runActivity")
+            .put(MetricsTag.WORKFLOW_TYPE, "TestWorkflow")
             .build();
     verify(reporter, times(1))
         .reportCounter("temporal-activity-task-completed", activityCompletionTags, 1);

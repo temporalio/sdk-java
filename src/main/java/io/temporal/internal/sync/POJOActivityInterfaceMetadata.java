@@ -149,7 +149,8 @@ class POJOActivityInterfaceMetadata {
       return result; // Not annotated just pass all the methods to the parent
     }
     for (Method method : result) {
-      POJOActivityMethodMetadata methodMetadata = new POJOActivityMethodMetadata(method, current);
+      POJOActivityMethodMetadata methodMetadata =
+          new POJOActivityMethodMetadata(method, current, annotation);
       EqualsByMethodName wrapped = new EqualsByMethodName(method);
       POJOActivityMethodMetadata registered = dedupeMap.put(wrapped, methodMetadata);
       if (registered != null) {

@@ -41,7 +41,7 @@ public class POJOActivityMetadataTest {
     void bb();
   }
 
-  @ActivityInterface
+  @ActivityInterface(namePrefix = "C_")
   interface C extends B, A {
     void c();
 
@@ -158,10 +158,9 @@ public class POJOActivityMetadataTest {
     expected.add("C_a");
     expected.add("C_b");
     expected.add("C_c");
-    expected.add("D_d");
-    expected.add("E_a");
-    expected.add("E_b");
-    expected.add("E_b");
+    expected.add("d");
+    expected.add("a");
+    expected.add("b");
 
     POJOActivityImplMetadata dMetadata = POJOActivityImplMetadata.newInstance(DImpl.class);
     Set<String> dTypes = dMetadata.getActivityTypes();
@@ -195,10 +194,9 @@ public class POJOActivityMetadataTest {
     expected.add("C_a");
     expected.add("C_b");
     expected.add("C_c");
-    expected.add("D_d");
-    expected.add("E_a");
-    expected.add("E_b");
-    expected.add("E_b");
+    expected.add("d");
+    expected.add("a");
+    expected.add("b");
 
     POJOActivityInterfaceMetadata dMetadata = POJOActivityInterfaceMetadata.newInstance(D.class);
     Method c = C.class.getDeclaredMethod("c");

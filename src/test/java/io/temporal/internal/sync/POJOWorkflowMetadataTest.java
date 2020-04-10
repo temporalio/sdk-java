@@ -169,14 +169,12 @@ public class POJOWorkflowMetadataTest {
     wExpected.add("AM_E_bb");
 
     Set<String> qExpected = new HashSet<>();
-    qExpected.add("C_b");
-    qExpected.add("E_b");
+    qExpected.add("b");
 
     Set<String> sExpected = new HashSet<>();
-    sExpected.add("C_a");
-    sExpected.add("C_c");
-    sExpected.add("D_d");
-    sExpected.add("E_a");
+    sExpected.add("a");
+    sExpected.add("c");
+    sExpected.add("d");
 
     POJOWorkflowImplMetadata dMetadata = POJOWorkflowImplMetadata.newInstance(DImpl.class);
     Set<String> wTypes = dMetadata.getWorkflowTypes();
@@ -222,6 +220,6 @@ public class POJOWorkflowMetadataTest {
     Method c = C.class.getDeclaredMethod("c");
     POJOWorkflowMethodMetadata cMethod = dMetadata.getMethodMetadata(c);
     assertEquals(c, cMethod.getWorkflowMethod());
-    assertEquals("C_c", cMethod.getName());
+    assertEquals("c", cMethod.getName());
   }
 }

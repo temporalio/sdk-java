@@ -86,8 +86,12 @@ class POJOActivityImplMetadata {
                   + methodMetadata.getName()
                   + "\" declared at \""
                   + registeredMM.getMethod()
+                  + "\" registered through \""
+                  + registeredMM.getInterfaceType()
                   + "\" and \""
                   + methodMetadata.getMethod()
+                  + "\" registered through \""
+                  + methodMetadata.getInterfaceType()
                   + "\"");
         }
       }

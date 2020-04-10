@@ -39,9 +39,11 @@ class POJOWorkflowMethodMetadata {
     }
     this.interfaceType = Objects.requireNonNull(interfaceType);
     Optional<String> nameFromAnnotation = workflowMethod.getNameFromAnnotation();
-    this.name =
-        nameFromAnnotation.orElse(
-            interfaceType.getSimpleName() + "_" + methodMetadata.getMethod().getName());
+    if (workflowMethod.getType() == WorkflowMethodType.WORKFLOW) {
+      this.name = nameFromAnnotation.orElse(interfaceType.getSimpleName());
+    } else {
+      this.name = nameFromAnnotation.orElse(methodMetadata.getMethod().getName());
+    }
   }
 
   public WorkflowMethodType getType() {

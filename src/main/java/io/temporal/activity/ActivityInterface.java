@@ -75,4 +75,13 @@ import java.lang.annotation.Target;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
-public @interface ActivityInterface {}
+public @interface ActivityInterface {
+  /**
+   * Prefix to prepend to method names to generate activity types. Default is empty string which
+   * means that method names are used as activity types.
+   *
+   * <p>Be careful about names that contain special characters. These names can be used as metric
+   * tags. And systems like prometheus ignore metrics which have tags with unsupported characters.
+   */
+  String namePrefix() default "";
+}

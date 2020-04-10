@@ -34,7 +34,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface WorkflowMethod {
-  /** Name of the workflow type. Default is {short class name}::{method name} */
+  /** Name of the workflow type. Default is {short class name} */
   String name() default "";
 
   /**

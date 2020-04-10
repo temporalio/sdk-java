@@ -28,10 +28,18 @@ import java.lang.annotation.Target;
  * Indicates that the method is a query method. Query method can be used to query a workflow state
  * by external process at any time during its execution. This annotation applies only to workflow
  * interface methods.
+ *
+ * <p>Query methods must never change any workflow state including starting activities or block
+ * threads in any way.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface QueryMethod {
-  /** Name of the query type. Default is {short class name}::{method name} */
+  /**
+   * Name of the query type. Default is method name.
+   *
+   * <p>Be careful about names that contain special characters. These names can be used as metric
+   * tags. And systems like prometheus ignore metrics which have tags with unsupported characters.
+   */
   String name() default "";
 }

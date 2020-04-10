@@ -73,7 +73,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     for (String activityType : activityMetadata.getActivityTypes()) {
       if (activities.containsKey(activityType)) {
         throw new IllegalArgumentException(
-            activityType + " activity type is already registered with the worker");
+            "\"" + activityType + "\" activity type is already registered with the worker");
       }
       Method method = activityMetadata.getMethodMetadata(activityType).getMethod();
       ActivityTaskExecutor implementation = newTaskExecutor.apply(method, activity);

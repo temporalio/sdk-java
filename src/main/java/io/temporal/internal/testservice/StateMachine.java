@@ -223,7 +223,7 @@ final class StateMachine<Data> {
         (TransitionDestination<Data, R>) transitions.get(transition);
     if (destination == null) {
       throw Status.INTERNAL
-          .withDescription("Invalid " + transition + ", history: " + transitionHistory)
+          .withDescription(this.data + "Invalid " + transition + ", history: " + transitionHistory)
           .asRuntimeException();
     }
     state = destination.apply(context, data, request, referenceId);
