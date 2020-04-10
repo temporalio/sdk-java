@@ -74,11 +74,11 @@ import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.WorkflowReplayer;
-import io.temporal.worker.NonDeterministicWorkflowPolicy;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.WorkflowErrorPolicy;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
@@ -4671,7 +4671,7 @@ public class WorkflowTest {
   public void testNonDeterministicWorkflowPolicyFailWorkflow() {
     WorkflowImplementationOptions implementationOptions =
         new WorkflowImplementationOptions.Builder()
-            .setNonDeterministicWorkflowPolicy(NonDeterministicWorkflowPolicy.FailWorkflow)
+            .setWorkflowErrorPolicy(WorkflowErrorPolicy.FailWorkflow)
             .build();
     worker.registerWorkflowImplementationTypes(
         implementationOptions, DeterminismFailingWorkflowImpl.class);
