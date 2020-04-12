@@ -26,10 +26,8 @@ import io.temporal.client.WorkflowClientInterceptor;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
-import io.temporal.internal.common.QueryResponse;
 import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.proto.execution.WorkflowExecution;
-import io.temporal.proto.query.QueryRejectCondition;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
@@ -316,25 +314,6 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
       @Override
       public <R> R query(String queryType, Class<R> resultClass, Type resultType, Object... args) {
         return next.query(queryType, resultClass, resultType, args);
-      }
-
-      @Override
-      public <R> QueryResponse<R> query(
-          String queryType,
-          Class<R> resultClass,
-          QueryRejectCondition queryRejectCondition,
-          Object... args) {
-        return next.query(queryType, resultClass, queryRejectCondition, args);
-      }
-
-      @Override
-      public <R> QueryResponse<R> query(
-          String queryType,
-          Class<R> resultClass,
-          Type resultType,
-          QueryRejectCondition queryRejectCondition,
-          Object... args) {
-        return next.query(queryType, resultClass, resultType, queryRejectCondition, args);
       }
 
       @Override

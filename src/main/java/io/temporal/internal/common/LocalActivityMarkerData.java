@@ -147,9 +147,6 @@ public final class LocalActivityMarkerData {
   private LocalActivityMarkerData(LocalActivityMarkerHeader headers, byte[] result) {
     this.headers = headers;
     this.result = result;
-    if (headers == null) {
-      System.out.println("test");
-    }
   }
 
   public String getActivityId() {

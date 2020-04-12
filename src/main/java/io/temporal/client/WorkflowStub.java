@@ -19,10 +19,8 @@
 
 package io.temporal.client;
 
-import io.temporal.internal.common.QueryResponse;
 import io.temporal.internal.sync.StubMarker;
 import io.temporal.proto.execution.WorkflowExecution;
-import io.temporal.proto.query.QueryRejectCondition;
 import java.lang.reflect.Type;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -127,19 +125,6 @@ public interface WorkflowStub {
   <R> R query(String queryType, Class<R> resultClass, Object... args);
 
   <R> R query(String queryType, Class<R> resultClass, Type resultType, Object... args);
-
-  <R> QueryResponse<R> query(
-      String queryType,
-      Class<R> resultClass,
-      QueryRejectCondition queryRejectCondition,
-      Object... args);
-
-  <R> QueryResponse<R> query(
-      String queryType,
-      Class<R> resultClass,
-      Type resultType,
-      QueryRejectCondition queryRejectCondition,
-      Object... args);
 
   /** Request cancellation. */
   void cancel();

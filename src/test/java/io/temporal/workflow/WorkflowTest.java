@@ -43,6 +43,7 @@ import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowFailureException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowQueryException;
+import io.temporal.client.WorkflowQueryRejectedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.client.WorkflowTimedOutException;
 import io.temporal.common.CronSchedule;
@@ -54,7 +55,6 @@ import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowInvocationInterceptor;
 import io.temporal.common.interceptors.WorkflowInvoker;
-import io.temporal.internal.common.QueryResponse;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.sync.DeterministicRunnerTest;
 import io.temporal.proto.common.Memo;
@@ -329,16 +329,6 @@ public class WorkflowTest {
     } else {
       workerFactory.shutdown();
     }
-    for (ScheduledFuture<?> result : delayedCallbacks) {
-      if (result.isDone() && !result.isCancelled()) {
-        try {
-          result.get();
-        } catch (InterruptedException e) {
-        } catch (ExecutionException e) {
-          throw e.getCause();
-        }
-      }
-    }
     if (tracer != null) {
       tracer.assertExpected();
     }
@@ -358,7 +348,16 @@ public class WorkflowTest {
   void registerDelayedCallback(Duration delay, Runnable r) {
     if (useExternalService) {
       ScheduledFuture<?> result =
-          scheduledExecutor.schedule(r, delay.toMillis(), TimeUnit.MILLISECONDS);
+          scheduledExecutor.schedule(
+              () -> {
+                try {
+                  r.run();
+                } catch (Throwable e) {
+                  log.error("Unexpected failure in a delayed callback", e);
+                }
+              },
+              delay.toMillis(),
+              TimeUnit.MILLISECONDS);
       delayedCallbacks.add(result);
     } else {
       testEnvironment.registerDelayedCallback(delay, r);
@@ -2696,7 +2695,7 @@ public class WorkflowTest {
     startWorkerFor(TestSignalWorkflowImpl.class);
     String workflowType = QueryableWorkflow.class.getSimpleName();
     AtomicReference<WorkflowExecution> execution = new AtomicReference<>();
-    WorkflowStub client =
+    WorkflowStub workflowStub =
         workflowClient.newUntypedWorkflowStub(
             workflowType, newWorkflowOptionsBuilder(taskList).build());
     // To execute workflow client.execute() would do. But we want to start workflow and immediately
@@ -2704,31 +2703,38 @@ public class WorkflowTest {
     registerDelayedCallback(
         Duration.ofSeconds(1),
         () -> {
-          assertEquals("initial", client.query("getState", String.class));
-          client.signal("testSignal", "Hello ");
+          assertEquals("initial", workflowStub.query("getState", String.class));
+          workflowStub.signal("testSignal", "Hello ");
           sleep(Duration.ofMillis(500));
-          while (!"Hello ".equals(client.query("getState", String.class))) {}
-          assertEquals("Hello ", client.query("getState", String.class));
-          client.signal("testSignal", "World!");
-          while (!"World!".equals(client.query("getState", String.class))) {}
-          assertEquals("World!", client.query("getState", String.class));
+          while (!"Hello ".equals(workflowStub.query("getState", String.class))) {}
+          assertEquals("Hello ", workflowStub.query("getState", String.class));
+          workflowStub.signal("testSignal", "World!");
+          while (!"World!".equals(workflowStub.query("getState", String.class))) {}
+          assertEquals("World!", workflowStub.query("getState", String.class));
           assertEquals(
               "Hello World!",
               workflowClient
                   .newUntypedWorkflowStub(execution.get(), Optional.of(workflowType))
                   .getResult(String.class));
         });
-    execution.set(client.start());
-    assertEquals("Hello World!", client.getResult(String.class));
-    assertEquals("World!", client.query("getState", String.class));
-    QueryResponse<String> queryResponse =
-        client.query("getState", String.class, QueryRejectCondition.NotOpen);
-    assertNull(queryResponse.getResult());
-    assertEquals(
-        execution.toString(),
-        WorkflowExecutionStatus.Completed,
-        queryResponse.getQueryRejected().getStatus());
-    log.info("testSignalUntyped completed");
+    execution.set(workflowStub.start());
+    assertEquals("Hello World!", workflowStub.getResult(String.class));
+    assertEquals("World!", workflowStub.query("getState", String.class));
+    WorkflowClient client =
+        WorkflowClient.newInstance(
+            service,
+            WorkflowClientOptions.newBuilder()
+                .setNamespace(NAMESPACE)
+                .setQueryRejectCondition(QueryRejectCondition.NotOpen)
+                .build());
+    WorkflowStub workflowStubNotOptionRejectCondition =
+        client.newUntypedWorkflowStub(execution.get(), Optional.of(workflowType));
+    try {
+      workflowStubNotOptionRejectCondition.query("getState", String.class);
+      fail("unreachable");
+    } catch (WorkflowQueryRejectedException e) {
+      assertEquals(WorkflowExecutionStatus.Completed, e.getWorkflowExecutionStatus());
+    }
   }
 
   static final AtomicInteger decisionCount = new AtomicInteger();

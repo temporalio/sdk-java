@@ -326,15 +326,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
             .build();
     return GrpcRetryer.retryWithResult(
         GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
-        () -> {
-          try {
-            QueryWorkflowResponse result = service.blockingStub().queryWorkflow(request);
-            System.out.println(result);
-            return result;
-          } catch (RuntimeException e) {
-            throw e;
-          }
-        });
+        () -> service.blockingStub().queryWorkflow(request));
   }
 
   @Override

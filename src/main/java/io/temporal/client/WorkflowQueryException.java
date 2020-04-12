@@ -22,7 +22,7 @@ package io.temporal.client;
 import io.temporal.proto.execution.WorkflowExecution;
 import java.util.Optional;
 
-public final class WorkflowQueryException extends WorkflowException {
+public class WorkflowQueryException extends WorkflowException {
 
   public WorkflowQueryException(WorkflowExecution execution, String message) {
     super(message, execution, Optional.empty(), null);
