@@ -140,6 +140,7 @@ import org.slf4j.LoggerFactory;
 
 // TODO(mfateev): Enable parallel tests
 // @RunWith(ParallelRunner.class)
+@SuppressWarnings("ALL")
 public class WorkflowTest {
 
   /**
@@ -5228,6 +5229,7 @@ public class WorkflowTest {
         result);
   }
 
+  @WorkflowInterface
   public interface TestWorkflowQuery {
 
     @WorkflowMethod()
@@ -5243,16 +5245,10 @@ public class WorkflowTest {
 
     @Override
     public String execute(String taskList) {
-
-      // Make sure decider is in the cache when we execute local activities.
-      TestActivities activities =
-          Workflow.newActivityStub(TestActivities.class, newActivityOptions1(taskList));
-      activities.activity();
-
       TestActivities localActivities =
           Workflow.newLocalActivityStub(TestActivities.class, newLocalActivityOptions1());
       for (int i = 0; i < 5; i++) {
-        localActivities.sleepActivity(2000, i);
+        localActivities.sleepActivity(1000, i);
         message = "run" + i;
       }
       return "done";
@@ -5265,44 +5261,33 @@ public class WorkflowTest {
   }
 
   @Test
-  @Ignore // TODO(maxim): Implement consistent query correctly
-  public void testLocalActivityAndQuery() throws InterruptedException {
+  public void testLocalActivityAndQuery() {
 
     startWorkerFor(TestLocalActivityAndQueryWorkflow.class);
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
             .setExecutionStartToCloseTimeout(Duration.ofMinutes(5))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(5))
+            .setTaskStartToCloseTimeout(Duration.ofSeconds(10))
             .setTaskList(taskList)
             .build();
     TestWorkflowQuery workflowStub =
         workflowClient.newWorkflowStub(TestWorkflowQuery.class, options);
     WorkflowClient.start(workflowStub::execute, taskList);
 
-    // Sleep for a while before querying, so that the first decision task is processed and cache is
-    // populated.
-    // This also makes sure that the query lands when the local activities are executing.
-    Thread.sleep(500);
-
-    // When sticky is on, query will block until the first batch completes (in 4sec),
-    // and the progress will be reflected in query result.
-    String queryResult = workflowStub.query();
-    assertEquals("run1", queryResult);
-
-    // By the time the next query processes, the next decision batch is complete.
-    // Again the progress will be reflected in query result.
-    assertEquals("run3", workflowStub.query());
-
+    // Ensure that query doesn't see intermediate results of the local activities execution
+    // as all these activities are executed in a single decision task.
+    while (true) {
+      String queryResult = workflowStub.query();
+      assertTrue(queryResult, queryResult.equals("run1") || queryResult.equals("run4"));
+      if (queryResult.equals("run4")) {
+        break;
+      }
+    }
     String result = workflowStub.execute(taskList);
     assertEquals("done", result);
     assertEquals("run4", workflowStub.query());
     activitiesImpl.assertInvocations(
-        "activity",
-        "sleepActivity",
-        "sleepActivity",
-        "sleepActivity",
-        "sleepActivity",
-        "sleepActivity");
+        "sleepActivity", "sleepActivity", "sleepActivity", "sleepActivity", "sleepActivity");
   }
 
   @WorkflowInterface

@@ -21,6 +21,7 @@ package io.temporal.internal.replay;
 
 import static io.temporal.internal.common.InternalUtils.createStickyTaskList;
 
+import com.google.common.base.Throwables;
 import com.google.protobuf.ByteString;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
@@ -111,10 +112,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
                 + ". If see continuously the workflow might be stuck.",
             e);
       }
-      StringWriter sw = new StringWriter();
-      PrintWriter pw = new PrintWriter(sw);
-      e.printStackTrace(pw);
-      String stackTrace = sw.toString();
+      String stackTrace = Throwables.getStackTraceAsString(e);
       RespondDecisionTaskFailedRequest failedRequest =
           RespondDecisionTaskFailedRequest.newBuilder()
               .setTaskToken(decisionTask.getTaskToken())
@@ -126,10 +124,10 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
 
   private Result handleDecisionTaskImpl(PollForDecisionTaskResponse.Builder decisionTask)
       throws Throwable {
-
     if (decisionTask.hasQuery()) {
       return processQuery(decisionTask);
     } else {
+      // Note that if decisionTask.getQueriesCount() > 0 this branch is taken as well
       return processDecision(decisionTask);
     }
   }
@@ -254,6 +252,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
         RespondDecisionTaskCompletedRequest.newBuilder()
             .setTaskToken(decisionTask.getTaskToken())
             .addAllDecisions(result.getDecisions())
+            .putAllQueryResults(result.getQueryResults())
             .setForceCreateNewDecisionTask(result.getForceCreateNewDecisionTask());
 
     if (stickyTaskListName != null) {

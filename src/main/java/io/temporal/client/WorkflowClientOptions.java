@@ -24,7 +24,6 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GsonJsonDataConverter;
 import io.temporal.internal.metrics.NoopScope;
-import io.temporal.proto.query.QueryConsistencyLevel;
 import io.temporal.proto.query.QueryRejectCondition;
 import java.lang.management.ManagementFactory;
 import java.util.Arrays;
@@ -62,7 +61,6 @@ public final class WorkflowClientOptions {
     private String identity;
     private List<ContextPropagator> contextPropagators;
     private QueryRejectCondition queryRejectCondition;
-    private QueryConsistencyLevel queryConsistencyLevel;
 
     private Builder() {}
 
@@ -77,7 +75,6 @@ public final class WorkflowClientOptions {
       identity = options.identity;
       contextPropagators = options.contextPropagators;
       queryRejectCondition = options.queryRejectCondition;
-      queryConsistencyLevel = options.queryConsistencyLevel;
     }
 
     public Builder setNamespace(String namespace) {
@@ -134,13 +131,14 @@ public final class WorkflowClientOptions {
       return this;
     }
 
+    /**
+     * Should a query be rejected by closed and failed workflows.
+     *
+     * <p>Default is {@link QueryRejectCondition#None} which means that closed and failed workflows
+     * are still queryable.
+     */
     public Builder setQueryRejectCondition(QueryRejectCondition queryRejectCondition) {
       this.queryRejectCondition = queryRejectCondition;
-      return this;
-    }
-
-    public Builder setQueryConsistencyLevel(QueryConsistencyLevel queryConsistencyLevel) {
-      this.queryConsistencyLevel = queryConsistencyLevel;
       return this;
     }
 
@@ -152,8 +150,7 @@ public final class WorkflowClientOptions {
           metricsScope,
           identity,
           contextPropagators,
-          queryRejectCondition,
-          queryConsistencyLevel);
+          queryRejectCondition);
     }
 
     public WorkflowClientOptions validateAndBuildWithDefaults() {
@@ -178,8 +175,7 @@ public final class WorkflowClientOptions {
           metricsScope == null ? NoopScope.getInstance() : metricsScope,
           name,
           contextPropagators == null ? EMPTY_CONTEXT_PROPAGATORS : contextPropagators,
-          queryRejectCondition == null ? QueryRejectCondition.None : queryRejectCondition,
-          queryConsistencyLevel == null ? QueryConsistencyLevel.Strong : queryConsistencyLevel);
+          queryRejectCondition == null ? QueryRejectCondition.None : queryRejectCondition);
     }
   }
 
@@ -202,8 +198,6 @@ public final class WorkflowClientOptions {
 
   private final QueryRejectCondition queryRejectCondition;
 
-  private final QueryConsistencyLevel queryConsistencyLevel;
-
   private WorkflowClientOptions(
       String namespace,
       DataConverter dataConverter,
@@ -211,8 +205,7 @@ public final class WorkflowClientOptions {
       Scope metricsScope,
       String identity,
       List<ContextPropagator> contextPropagators,
-      QueryRejectCondition queryRejectCondition,
-      QueryConsistencyLevel queryConsistencyLevel) {
+      QueryRejectCondition queryRejectCondition) {
     this.namespace = namespace;
     this.dataConverter = dataConverter;
     this.interceptors = interceptors;
@@ -220,7 +213,6 @@ public final class WorkflowClientOptions {
     this.identity = identity;
     this.contextPropagators = contextPropagators;
     this.queryRejectCondition = queryRejectCondition;
-    this.queryConsistencyLevel = queryConsistencyLevel;
   }
 
   public String getNamespace() {
@@ -251,10 +243,6 @@ public final class WorkflowClientOptions {
     return queryRejectCondition;
   }
 
-  public QueryConsistencyLevel getQueryConsistencyLevel() {
-    return queryConsistencyLevel;
-  }
-
   @Override
   public String toString() {
     return "WorkflowClientOptions{"
@@ -274,8 +262,6 @@ public final class WorkflowClientOptions {
         + contextPropagators
         + ", queryRejectCondition="
         + queryRejectCondition
-        + ", queryConsistencyLevel="
-        + queryConsistencyLevel
         + '}';
   }
 
@@ -290,8 +276,7 @@ public final class WorkflowClientOptions {
         && com.google.common.base.Objects.equal(metricsScope, that.metricsScope)
         && com.google.common.base.Objects.equal(identity, that.identity)
         && com.google.common.base.Objects.equal(contextPropagators, that.contextPropagators)
-        && queryRejectCondition == that.queryRejectCondition
-        && queryConsistencyLevel == that.queryConsistencyLevel;
+        && queryRejectCondition == that.queryRejectCondition;
   }
 
   @Override
@@ -303,7 +288,6 @@ public final class WorkflowClientOptions {
         metricsScope,
         identity,
         contextPropagators,
-        queryRejectCondition,
-        queryConsistencyLevel);
+        queryRejectCondition);
   }
 }

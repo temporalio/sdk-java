@@ -48,6 +48,7 @@ import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.failure.QueryFailed;
 import io.temporal.proto.failure.WorkflowExecutionAlreadyStarted;
+import io.temporal.proto.query.QueryConsistencyLevel;
 import io.temporal.proto.workflowservice.QueryWorkflowResponse;
 import java.lang.reflect.Type;
 import java.util.HashMap;
@@ -392,6 +393,8 @@ class WorkflowStubImpl implements WorkflowStub {
     p.setQueryType(queryType);
     p.setWorkflowId(execution.get().getWorkflowId());
     p.setQueryRejectCondition(clientOptions.getQueryRejectCondition());
+    // Hardcode strong as Eventual should be deprecated.
+    p.setQueryConsistencyLevel(QueryConsistencyLevel.Strong);
     QueryWorkflowResponse result;
     try {
       result = genericClient.queryWorkflow(p);

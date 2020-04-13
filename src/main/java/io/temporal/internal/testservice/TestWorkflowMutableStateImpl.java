@@ -116,6 +116,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -1657,7 +1658,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public QueryWorkflowResponse query(QueryWorkflowRequest queryRequest) {
+  public QueryWorkflowResponse query(QueryWorkflowRequest queryRequest, long deadline) {
     QueryId queryId = new QueryId(executionId);
 
     WorkflowExecutionStatus status = getWorkflowExecutionStatus();
@@ -1693,7 +1694,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     queries.put(queryId.getQueryId(), result);
     store.sendQueryTask(executionId, taskListId, task);
     try {
-      return result.get();
+      return result.get(deadline, TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {
       return QueryWorkflowResponse.getDefaultInstance();
     } catch (ExecutionException e) {
@@ -1705,6 +1706,12 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           .withCause(cause)
           .withDescription(cause.getMessage())
           .asRuntimeException();
+    } catch (TimeoutException e) {
+      result.cancel(true);
+      throw Status.DEADLINE_EXCEEDED
+          .withCause(e)
+          .withDescription("query deadline exceeded")
+          .asRuntimeException();
     }
   }
 
@@ -1715,6 +1722,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       throw Status.NOT_FOUND
           .withDescription("Unknown query id: " + queryId.getQueryId())
           .asRuntimeException();
+    }
+    if (result.isCancelled()) {
+      // query already timed out
+      return;
     }
     if (completeRequest.getCompletedType() == QueryResultType.Answered) {
       QueryWorkflowResponse response =
@@ -1728,13 +1739,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               Status.INVALID_ARGUMENT.withDescription(completeRequest.getErrorMessage()),
               QueryFailed.getDefaultInstance());
       result.completeExceptionally(error);
-    } else if (stickyExecutionAttributes != null) {
-      // TODO(maxim): This should happen on timeout only. I believe this branch is not reachable.
-      stickyExecutionAttributes = null;
-      PollForDecisionTaskResponse.Builder task = queryRequests.remove(queryId.getQueryId());
-      TaskListId taskListId =
-          new TaskListId(startRequest.getNamespace(), startRequest.getTaskList().getName());
-      store.sendQueryTask(executionId, taskListId, task);
     }
   }
 

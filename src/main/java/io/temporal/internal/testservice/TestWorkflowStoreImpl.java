@@ -45,6 +45,7 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -308,8 +309,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   }
 
   @Override
-  public PollForDecisionTaskResponse.Builder pollForDecisionTask(
-      PollForDecisionTaskRequest pollRequest) throws InterruptedException {
+  public Optional<PollForDecisionTaskResponse.Builder> pollForDecisionTask(
+      PollForDecisionTaskRequest pollRequest, long deadline) {
     TaskListId taskListId =
         new TaskListId(pollRequest.getNamespace(), pollRequest.getTaskList().getName());
     BlockingQueue<PollForDecisionTaskResponse.Builder> decisionsQueue =
@@ -318,19 +319,30 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       log.trace(
           "Poll request on decision task list about to block waiting for a task on " + taskListId);
     }
-    PollForDecisionTaskResponse.Builder result = decisionsQueue.take();
-    return result;
+    PollForDecisionTaskResponse.Builder result = null;
+    try {
+      result = decisionsQueue.poll(deadline, TimeUnit.MILLISECONDS);
+    } catch (InterruptedException e) {
+      // Intentionally left empty
+
+    }
+    return Optional.ofNullable(result);
   }
 
   @Override
-  public PollForActivityTaskResponse.Builder pollForActivityTask(
-      PollForActivityTaskRequest pollRequest) throws InterruptedException {
+  public Optional<PollForActivityTaskResponse.Builder> pollForActivityTask(
+      PollForActivityTaskRequest pollRequest, long deadline) {
     TaskListId taskListId =
         new TaskListId(pollRequest.getNamespace(), pollRequest.getTaskList().getName());
     BlockingQueue<PollForActivityTaskResponse.Builder> activityTaskQueue =
         getActivityTaskListQueue(taskListId);
-    PollForActivityTaskResponse.Builder result = activityTaskQueue.take();
-    return result;
+    PollForActivityTaskResponse.Builder result = null;
+    try {
+      result = activityTaskQueue.poll(deadline, TimeUnit.MILLISECONDS);
+    } catch (InterruptedException e) {
+      // Intentionally left empty
+    }
+    return Optional.ofNullable(result);
   }
 
   @Override

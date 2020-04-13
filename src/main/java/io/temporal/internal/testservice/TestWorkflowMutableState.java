@@ -114,7 +114,7 @@ interface TestWorkflowMutableState {
 
   void cancelActivityTaskById(String id, RespondActivityTaskCanceledByIdRequest canceledRequest);
 
-  QueryWorkflowResponse query(QueryWorkflowRequest queryRequest);
+  QueryWorkflowResponse query(QueryWorkflowRequest queryRequest, long l);
 
   void completeQuery(QueryId queryId, RespondQueryTaskCompletedRequest completeRequest);
 

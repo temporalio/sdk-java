@@ -142,11 +142,13 @@ interface TestWorkflowStore {
 
   void registerDelayedCallback(Duration delay, Runnable r);
 
-  PollForDecisionTaskResponse.Builder pollForDecisionTask(PollForDecisionTaskRequest pollRequest)
-      throws InterruptedException;
+  /** @return empty if deadline exprired */
+  Optional<PollForDecisionTaskResponse.Builder> pollForDecisionTask(
+      PollForDecisionTaskRequest pollRequest, long deadline);
 
-  PollForActivityTaskResponse.Builder pollForActivityTask(PollForActivityTaskRequest pollRequest)
-      throws InterruptedException;
+  /** @return empty if deadline exprired */
+  Optional<PollForActivityTaskResponse.Builder> pollForActivityTask(
+      PollForActivityTaskRequest pollRequest, long deadline);
 
   /** @return queryId */
   void sendQueryTask(
