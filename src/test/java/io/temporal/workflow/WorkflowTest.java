@@ -5248,7 +5248,7 @@ public class WorkflowTest {
       TestActivities localActivities =
           Workflow.newLocalActivityStub(TestActivities.class, newLocalActivityOptions1());
       for (int i = 0; i < 5; i++) {
-        localActivities.sleepActivity(200, i);
+        localActivities.sleepActivity(1000, i);
         message = "run" + i;
       }
       return "done";

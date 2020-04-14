@@ -1724,7 +1724,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .build();
       }
     }
-    if (queryRequest.getQueryConsistencyLevel() == QueryConsistencyLevel.Eventual) {
+    if (queryRequest.getQueryConsistencyLevel() == QueryConsistencyLevel.Eventual
+        || isTerminalState(workflow.getState())) {
       return eventuallyConsistentQuery(queryRequest, deadline);
     } else {
       return stronglyConsistentQuery(queryRequest, deadline);
