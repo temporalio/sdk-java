@@ -19,50 +19,47 @@
 
 package io.temporal.worker;
 
-import static io.temporal.worker.NonDeterministicWorkflowPolicy.BlockWorkflow;
-
 import java.util.Objects;
+
+import static io.temporal.worker.WorkflowErrorPolicy.BlockWorkflow;
 
 public final class WorkflowImplementationOptions {
 
   public static final class Builder {
 
-    private NonDeterministicWorkflowPolicy nonDeterministicWorkflowPolicy = BlockWorkflow;
+    private WorkflowErrorPolicy workflowErrorPolicy = BlockWorkflow;
 
     /**
-     * Optional: Sets how decision worker deals with non-deterministic history events (presumably
-     * arising from non-deterministic workflow definitions or non-backward compatible workflow
-     * definition changes). default: BlockWorkflow, which just logs error but reply nothing back to
-     * server.
+     * Optional: Sets how decision worker deals with Error thrown from the workflow code which
+     * include non-deterministic history events (presumably arising from non-deterministic workflow
+     * definitions or non-backward compatible workflow definition changes).
+     *
+     * <p>default: BlockWorkflow which lets fixing the problem (frequently by rollback) without
+     * failing open workflows.
      */
-    public Builder setNonDeterministicWorkflowPolicy(
-        NonDeterministicWorkflowPolicy nonDeterministicWorkflowPolicy) {
-      this.nonDeterministicWorkflowPolicy = Objects.requireNonNull(nonDeterministicWorkflowPolicy);
+    public Builder setWorkflowErrorPolicy(WorkflowErrorPolicy workflowErrorPolicy) {
+      this.workflowErrorPolicy = Objects.requireNonNull(workflowErrorPolicy);
       return this;
     }
 
     public WorkflowImplementationOptions build() {
-      return new WorkflowImplementationOptions(nonDeterministicWorkflowPolicy);
+      return new WorkflowImplementationOptions(workflowErrorPolicy);
     }
   }
 
-  private final NonDeterministicWorkflowPolicy nonDeterministicWorkflowPolicy;
+  private final WorkflowErrorPolicy workflowErrorPolicy;
 
-  public WorkflowImplementationOptions(
-      NonDeterministicWorkflowPolicy nonDeterministicWorkflowPolicy) {
-    this.nonDeterministicWorkflowPolicy = nonDeterministicWorkflowPolicy;
+  public WorkflowImplementationOptions(WorkflowErrorPolicy workflowErrorPolicy) {
+    this.workflowErrorPolicy = workflowErrorPolicy;
   }
 
-  public NonDeterministicWorkflowPolicy getNonDeterministicWorkflowPolicy() {
-    return nonDeterministicWorkflowPolicy;
+  public WorkflowErrorPolicy getWorkflowErrorPolicy() {
+    return workflowErrorPolicy;
   }
 
   @Override
   public String toString() {
-    return "WorkflowImplementationOptions{"
-        + "nonDeterministicWorkflowPolicy="
-        + nonDeterministicWorkflowPolicy
-        + '}';
+    return "WorkflowImplementationOptions{" + "workflowErrorPolicy=" + workflowErrorPolicy + '}';
   }
 
   @Override
@@ -70,11 +67,11 @@ public final class WorkflowImplementationOptions {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     WorkflowImplementationOptions that = (WorkflowImplementationOptions) o;
-    return nonDeterministicWorkflowPolicy == that.nonDeterministicWorkflowPolicy;
+    return workflowErrorPolicy == that.workflowErrorPolicy;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(nonDeterministicWorkflowPolicy);
+    return Objects.hash(workflowErrorPolicy);
   }
 }
