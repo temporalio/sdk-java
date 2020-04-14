@@ -19,6 +19,7 @@
 
 package io.temporal.internal.testservice;
 
+import com.google.common.base.Throwables;
 import com.google.protobuf.ByteString;
 import io.grpc.Context;
 import io.grpc.Deadline;
@@ -334,8 +335,10 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     forkJoinPool.execute(
         () -> {
           try {
+            Deadline deadline = Context.current().getDeadline();
             responseObserver.onNext(
-                store.getWorkflowExecutionHistory(mutableState.getExecutionId(), getRequest));
+                store.getWorkflowExecutionHistory(
+                    mutableState.getExecutionId(), getRequest, deadline));
             responseObserver.onCompleted();
           } catch (Exception e) {
             responseObserver.onError(e);
@@ -349,7 +352,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       StreamObserver<PollForDecisionTaskResponse> responseObserver) {
     Deadline deadline = Context.current().getDeadline();
     Optional<PollForDecisionTaskResponse.Builder> optionalTask =
-        store.pollForDecisionTask(pollRequest, deadline.timeRemaining(TimeUnit.MILLISECONDS));
+        store.pollForDecisionTask(pollRequest, deadline);
     if (!optionalTask.isPresent()) {
       responseObserver.onNext(PollForDecisionTaskResponse.getDefaultInstance());
       responseObserver.onCompleted();
@@ -366,7 +369,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       // may different
       // then the task list it was scheduled on as in the case of sticky execution.
       task.setWorkflowExecutionTaskList(mutableState.getStartRequest().getTaskList());
-      responseObserver.onNext(task.build());
+      PollForDecisionTaskResponse response = task.build();
+      log.error("PollForDecisionTask response=" + response);
+      responseObserver.onNext(response);
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
@@ -395,6 +400,12 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
       responseObserver.onError(e);
+    } catch (Throwable e) {
+      responseObserver.onError(
+          Status.INTERNAL
+              .withDescription(Throwables.getStackTraceAsString(e))
+              .withCause(e)
+              .asRuntimeException());
     }
   }
 
@@ -420,7 +431,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     while (true) {
       Deadline deadline = Context.current().getDeadline();
       Optional<PollForActivityTaskResponse.Builder> optionalTask =
-          store.pollForActivityTask(pollRequest, deadline.timeRemaining(TimeUnit.MILLISECONDS));
+          store.pollForActivityTask(pollRequest, deadline);
       if (!optionalTask.isPresent()) {
         responseObserver.onNext(PollForActivityTaskResponse.getDefaultInstance());
         responseObserver.onCompleted();

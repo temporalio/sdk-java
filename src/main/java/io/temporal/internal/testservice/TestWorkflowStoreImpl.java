@@ -20,6 +20,7 @@
 package io.temporal.internal.testservice;
 
 import com.google.protobuf.Int64Value;
+import io.grpc.Deadline;
 import io.grpc.Status;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.RequestContext.Timer;
@@ -113,7 +114,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     }
 
     List<HistoryEvent> waitForNewEvents(
-        long expectedNextEventId, HistoryEventFilterType filterType) {
+        long expectedNextEventId, HistoryEventFilterType filterType, Deadline deadline) {
+      long start = System.currentTimeMillis();
       lock.lock();
       try {
         while (true) {
@@ -135,7 +137,19 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
             return result;
           }
           try {
-            newEventsCondition.await();
+            long toWait;
+            if (deadline != null) {
+              toWait =
+                  deadline.timeRemaining(TimeUnit.MILLISECONDS)
+                      - System.currentTimeMillis()
+                      + start;
+              if (toWait <= 0) {
+                return null;
+              }
+              newEventsCondition.await(toWait, TimeUnit.MILLISECONDS);
+            } else {
+              newEventsCondition.await();
+            }
           } catch (InterruptedException e) {
             return null;
           }
@@ -310,7 +324,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
 
   @Override
   public Optional<PollForDecisionTaskResponse.Builder> pollForDecisionTask(
-      PollForDecisionTaskRequest pollRequest, long deadline) {
+      PollForDecisionTaskRequest pollRequest, Deadline deadline) {
     TaskListId taskListId =
         new TaskListId(pollRequest.getNamespace(), pollRequest.getTaskList().getName());
     BlockingQueue<PollForDecisionTaskResponse.Builder> decisionsQueue =
@@ -321,7 +335,13 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     }
     PollForDecisionTaskResponse.Builder result = null;
     try {
-      result = decisionsQueue.poll(deadline, TimeUnit.MILLISECONDS);
+      if (deadline == null) {
+        result = decisionsQueue.take();
+      } else {
+        result =
+            decisionsQueue.poll(
+                deadline.timeRemaining(TimeUnit.MILLISECONDS), TimeUnit.MILLISECONDS);
+      }
     } catch (InterruptedException e) {
       // Intentionally left empty
 
@@ -331,14 +351,20 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
 
   @Override
   public Optional<PollForActivityTaskResponse.Builder> pollForActivityTask(
-      PollForActivityTaskRequest pollRequest, long deadline) {
+      PollForActivityTaskRequest pollRequest, Deadline deadline) {
     TaskListId taskListId =
         new TaskListId(pollRequest.getNamespace(), pollRequest.getTaskList().getName());
     BlockingQueue<PollForActivityTaskResponse.Builder> activityTaskQueue =
         getActivityTaskListQueue(taskListId);
     PollForActivityTaskResponse.Builder result = null;
     try {
-      result = activityTaskQueue.poll(deadline, TimeUnit.MILLISECONDS);
+      if (deadline == null) {
+        result = activityTaskQueue.take();
+      } else {
+        result =
+            activityTaskQueue.poll(
+                deadline.timeRemaining(TimeUnit.MILLISECONDS), TimeUnit.MILLISECONDS);
+      }
     } catch (InterruptedException e) {
       // Intentionally left empty
     }
@@ -369,7 +395,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
 
   @Override
   public GetWorkflowExecutionHistoryResponse getWorkflowExecutionHistory(
-      ExecutionId executionId, GetWorkflowExecutionHistoryRequest getRequest) {
+      ExecutionId executionId, GetWorkflowExecutionHistoryRequest getRequest, Deadline deadline) {
     HistoryStore history;
     // Used to eliminate the race condition on waitForNewEvents
     long expectedNextEventId;
@@ -390,7 +416,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       lock.unlock();
     }
     List<HistoryEvent> events =
-        history.waitForNewEvents(expectedNextEventId, getRequest.getHistoryEventFilterType());
+        history.waitForNewEvents(
+            expectedNextEventId, getRequest.getHistoryEventFilterType(), deadline);
     GetWorkflowExecutionHistoryResponse.Builder result =
         GetWorkflowExecutionHistoryResponse.newBuilder();
     if (events != null) {

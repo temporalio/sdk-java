@@ -79,9 +79,11 @@ import io.temporal.proto.event.WorkflowExecutionSignaledEventAttributes;
 import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.execution.WorkflowExecutionStatus;
 import io.temporal.proto.failure.QueryFailed;
+import io.temporal.proto.query.QueryConsistencyLevel;
 import io.temporal.proto.query.QueryRejectCondition;
 import io.temporal.proto.query.QueryRejected;
 import io.temporal.proto.query.QueryResultType;
+import io.temporal.proto.query.WorkflowQueryResult;
 import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponseOrBuilder;
 import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
@@ -106,6 +108,7 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -153,9 +156,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private StateMachine<WorkflowData> workflow;
   private volatile StateMachine<DecisionTaskData> decision;
   private long lastNonFailedDecisionStartEventId;
+  private final Map<String, ConsistentQuery> consistentQueryRequests = new HashMap<>();
   private final Map<String, CompletableFuture<QueryWorkflowResponse>> queries =
-      new ConcurrentHashMap<>();
-  private final Map<String, PollForDecisionTaskResponse.Builder> queryRequests =
       new ConcurrentHashMap<>();
   public StickyExecutionAttributes stickyExecutionAttributes;
 
@@ -286,7 +288,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     if (!task.hasQuery()) {
       update(
           ctx -> {
-            long scheduledEventId = decision.getData().scheduledEventId;
+            DecisionTaskData data = decision.getData();
+            data.consistentQueryRequests.putAll(consistentQueryRequests);
+            log.error("startDecisionTask=" + consistentQueryRequests);
+            consistentQueryRequests.clear();
+            long scheduledEventId = data.scheduledEventId;
             decision.action(StateMachines.Action.START, ctx, pollRequest, 0);
             ctx.addTimer(
                 startRequest.getTaskStartToCloseTimeoutSeconds(),
@@ -337,26 +343,60 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 .withDescription("No outstanding decision")
                 .asRuntimeException();
           }
-          decision.action(StateMachines.Action.COMPLETE, ctx, request, 0);
-          for (Decision d : decisions) {
-            processDecision(ctx, d, request.getIdentity(), decisionTaskCompletedId);
+          try {
+            decision.action(StateMachines.Action.COMPLETE, ctx, request, 0);
+            for (Decision d : decisions) {
+              processDecision(ctx, d, request.getIdentity(), decisionTaskCompletedId);
+            }
+            for (RequestContext deferredCtx : this.concurrentToDecision) {
+              ctx.add(deferredCtx);
+            }
+            lastNonFailedDecisionStartEventId = this.decision.getData().startedEventId;
+            boolean completed =
+                workflow.getState() == StateMachines.State.COMPLETED
+                    || workflow.getState() == StateMachines.State.FAILED
+                    || workflow.getState() == StateMachines.State.CANCELED;
+            if (!completed
+                && ((ctx.isNeedDecision() || !this.concurrentToDecision.isEmpty())
+                    || request.getForceCreateNewDecisionTask())) {
+              scheduleDecision(ctx);
+            }
+            this.concurrentToDecision.clear();
+            Map<String, ConsistentQuery> queries = this.decision.getData().consistentQueryRequests;
+            Map<String, WorkflowQueryResult> queryResultsMap = request.getQueryResultsMap();
+            for (Map.Entry<String, WorkflowQueryResult> resultEntry : queryResultsMap.entrySet()) {
+              String key = resultEntry.getKey();
+              ConsistentQuery query = queries.remove(key);
+              if (query != null) {
+                WorkflowQueryResult result = resultEntry.getValue();
+                switch (result.getResultType()) {
+                  case Answered:
+                    QueryWorkflowResponse response =
+                        QueryWorkflowResponse.newBuilder()
+                            .setQueryResult(result.getAnswer())
+                            .build();
+                    query.getResult().complete(response);
+                    break;
+                  case Failed:
+                    query
+                        .getResult()
+                        .completeExceptionally(
+                            Status.UNKNOWN
+                                .withDescription(result.getErrorMessage())
+                                .asRuntimeException());
+                    break;
+                  case UNRECOGNIZED:
+                    throw Status.INVALID_ARGUMENT
+                        .withDescription(
+                            "URECOGNIZED query result type for =" + resultEntry.getKey())
+                        .asRuntimeException();
+                }
+              }
+            }
+          } finally {
+            decision = null;
+            ctx.unlockTimer();
           }
-          for (RequestContext deferredCtx : this.concurrentToDecision) {
-            ctx.add(deferredCtx);
-          }
-          lastNonFailedDecisionStartEventId = this.decision.getData().startedEventId;
-          this.decision = null;
-          boolean completed =
-              workflow.getState() == StateMachines.State.COMPLETED
-                  || workflow.getState() == StateMachines.State.FAILED
-                  || workflow.getState() == StateMachines.State.CANCELED;
-          if (!completed
-              && ((ctx.isNeedDecision() || !this.concurrentToDecision.isEmpty())
-                  || request.getForceCreateNewDecisionTask())) {
-            scheduleDecision(ctx);
-          }
-          this.concurrentToDecision.clear();
-          ctx.unlockTimer();
         },
         request.hasStickyAttributes() ? request.getStickyAttributes() : null);
   }
@@ -799,6 +839,16 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               // timeout for a previous decision
               return;
             }
+            Iterator<Map.Entry<String, ConsistentQuery>> queries =
+                decision.getData().consistentQueryRequests.entrySet().iterator();
+            while (queries.hasNext()) {
+              Map.Entry<String, ConsistentQuery> queryEntry = queries.next();
+              if (queryEntry.getValue().getResult().isCancelled()) {
+                queries.remove();
+              }
+            }
+            decision.getData().consistentQueryRequests.putAll(consistentQueryRequests);
+            consistentQueryRequests.clear();
             decision.action(StateMachines.Action.TIME_OUT, ctx, TimeoutType.StartToClose, 0);
             scheduleDecision(ctx);
           },
@@ -1659,7 +1709,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public QueryWorkflowResponse query(QueryWorkflowRequest queryRequest, long deadline) {
-    QueryId queryId = new QueryId(executionId);
 
     WorkflowExecutionStatus status = getWorkflowExecutionStatus();
     if (status != WorkflowExecutionStatus.Running
@@ -1675,7 +1724,57 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .build();
       }
     }
+    if (queryRequest.getQueryConsistencyLevel() == QueryConsistencyLevel.Eventual) {
+      return eventuallyConsistentQuery(queryRequest, deadline);
+    } else {
+      return stronglyConsistentQuery(queryRequest, deadline);
+    }
+  }
 
+  static class ConsistentQuery {
+    private final QueryWorkflowRequest request;
+    private final CompletableFuture<QueryWorkflowResponse> result = new CompletableFuture<>();
+
+    private ConsistentQuery(QueryWorkflowRequest request) {
+      this.request = request;
+    }
+
+    public QueryWorkflowRequest getRequest() {
+      return request;
+    }
+
+    public CompletableFuture<QueryWorkflowResponse> getResult() {
+      return result;
+    }
+
+    @Override
+    public String toString() {
+      return "ConsistentQuery{" + "request=" + request + ", result=" + result + '}';
+    }
+  }
+
+  private QueryWorkflowResponse stronglyConsistentQuery(
+      QueryWorkflowRequest queryRequest, long deadline) {
+    String queryRequestId = UUID.randomUUID().toString();
+    ConsistentQuery consistentQuery = new ConsistentQuery(queryRequest);
+    lock.lock();
+    try {
+      consistentQueryRequests.put(queryRequestId, consistentQuery);
+      log.error("stronglyConsistentQuery=" + consistentQueryRequests);
+
+    } finally {
+      lock.unlock();
+    }
+    update(ctx -> scheduleDecision(ctx));
+    CompletableFuture<QueryWorkflowResponse> result = consistentQuery.getResult();
+    return getQueryWorkflowResponse(deadline, result);
+  }
+
+  private QueryWorkflowResponse eventuallyConsistentQuery(
+      QueryWorkflowRequest queryRequest, long deadline) {
+    QueryId queryId = new QueryId(executionId);
+
+    CompletableFuture<QueryWorkflowResponse> result = new CompletableFuture<>();
     PollForDecisionTaskResponse.Builder task =
         PollForDecisionTaskResponse.newBuilder()
             .setTaskToken(queryId.toBytes())
@@ -1683,16 +1782,20 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setWorkflowType(startRequest.getWorkflowType())
             .setQuery(queryRequest.getQuery())
             .setWorkflowExecutionTaskList(startRequest.getTaskList());
-    TaskListId taskListId =
-        new TaskListId(
-            queryRequest.getNamespace(),
-            stickyExecutionAttributes == null
-                ? startRequest.getTaskList().getName()
-                : stickyExecutionAttributes.getWorkerTaskList().getName());
-    CompletableFuture<QueryWorkflowResponse> result = new CompletableFuture<>();
-    queryRequests.put(queryId.getQueryId(), task);
     queries.put(queryId.getQueryId(), result);
+    String taskList =
+        stickyExecutionAttributes == null
+            ? startRequest.getTaskList().getName()
+            : stickyExecutionAttributes.getWorkerTaskList().getName();
+    TaskListId taskListId = new TaskListId(queryRequest.getNamespace(), taskList);
+    // Note that sticky task list timeout is not implemented for this decision task
+    // as non consistent query is going away soon
     store.sendQueryTask(executionId, taskListId, task);
+    return getQueryWorkflowResponse(deadline, result);
+  }
+
+  private QueryWorkflowResponse getQueryWorkflowResponse(
+      long deadline, CompletableFuture<QueryWorkflowResponse> result) {
     try {
       return result.get(deadline, TimeUnit.MILLISECONDS);
     } catch (InterruptedException e) {

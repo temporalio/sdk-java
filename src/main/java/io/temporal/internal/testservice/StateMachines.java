@@ -86,6 +86,7 @@ import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
+import io.temporal.proto.workflowservice.QueryWorkflowRequest;
 import io.temporal.proto.workflowservice.RequestCancelWorkflowExecutionRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskCanceledByIdRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
@@ -96,7 +97,9 @@ import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
 import io.temporal.proto.workflowservice.StartWorkflowExecutionRequest;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.UUID;
@@ -193,6 +196,9 @@ class StateMachines {
     long scheduledEventId = NO_EVENT_ID;
 
     int attempt;
+
+    final Map<String, TestWorkflowMutableStateImpl.ConsistentQuery> consistentQueryRequests =
+        new HashMap<>();
 
     DecisionTaskData(long previousStartedEventId, TestWorkflowStore store) {
       this.previousStartedEventId = previousStartedEventId;
@@ -1017,7 +1023,7 @@ class StateMachines {
           List<HistoryEvent> events;
           events =
               data.store
-                  .getWorkflowExecutionHistory(ctx.getExecutionId(), getRequest)
+                  .getWorkflowExecutionHistory(ctx.getExecutionId(), getRequest, null)
                   .getHistory()
                   .getEventsList();
 
@@ -1026,6 +1032,14 @@ class StateMachines {
           }
           // get it from pervious started event id.
           data.decisionTask.setHistory(History.newBuilder().addAllEvents(events));
+          // Transfer the queries
+          Map<String, TestWorkflowMutableStateImpl.ConsistentQuery> queries =
+              data.consistentQueryRequests;
+          for (Map.Entry<String, TestWorkflowMutableStateImpl.ConsistentQuery> queryEntry :
+              queries.entrySet()) {
+            QueryWorkflowRequest queryWorkflowRequest = queryEntry.getValue().getRequest();
+            data.decisionTask.putQueries(queryEntry.getKey(), queryWorkflowRequest.getQuery());
+          }
           data.startedEventId = startedEventId;
           data.attempt++;
         });

@@ -147,7 +147,7 @@ public class WorkflowTest {
    * When set to true increases test, activity and workflow timeouts to large values to support
    * stepping through code in a debugger without timing out.
    */
-  private static final boolean DEBUGGER_TIMEOUTS = false;
+  private static final boolean DEBUGGER_TIMEOUTS = true;
 
   private static final String ANNOTATION_TASK_LIST = "WorkflowTest-testExecute[Docker]";
 
@@ -5248,7 +5248,7 @@ public class WorkflowTest {
       TestActivities localActivities =
           Workflow.newLocalActivityStub(TestActivities.class, newLocalActivityOptions1());
       for (int i = 0; i < 5; i++) {
-        localActivities.sleepActivity(1000, i);
+        localActivities.sleepActivity(200, i);
         message = "run" + i;
       }
       return "done";
