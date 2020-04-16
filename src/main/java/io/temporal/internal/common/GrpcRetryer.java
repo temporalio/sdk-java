@@ -24,6 +24,7 @@ import static io.temporal.internal.common.CheckedExceptionWrapper.unwrap;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import java.time.Duration;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -126,10 +127,10 @@ public final class GrpcRetryer {
         return result;
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
-        return null;
+        throw new CancellationException();
       } catch (StatusRuntimeException e) {
         if (e.getStatus().getCode() == Status.Code.CANCELLED) {
-          return null;
+          throw new CancellationException();
         }
         throttler.failure();
         for (RpcRetryOptions.DoNotRetryPair pair : options.getDoNotRetry()) {
