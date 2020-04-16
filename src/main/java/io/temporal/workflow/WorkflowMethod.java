@@ -60,10 +60,9 @@ public @interface WorkflowMethod {
    *   AllowDuplicateFailedOnly - Allow only if workflow didn't complete successfully.
    * </ul>
    *
-   * Default is AllowDuplicateFailedOnly.
+   * Default is AllowDuplicate.
    */
-  WorkflowIdReusePolicy workflowIdReusePolicy() default
-      WorkflowIdReusePolicy.AllowDuplicateFailedOnly;
+  WorkflowIdReusePolicy workflowIdReusePolicy() default WorkflowIdReusePolicy.AllowDuplicate;
 
   /**
    * Maximum workflow execution time. Must be specified either through {@link

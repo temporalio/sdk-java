@@ -22,6 +22,7 @@ package io.temporal.workflow;
 import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
 import static org.junit.Assert.*;
 
+import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.protobuf.ByteString;
 import io.temporal.activity.Activity;
@@ -1593,7 +1594,10 @@ public class WorkflowTest {
   @Test
   public void testStart() {
     startWorkerFor(TestMultiargsWorkflowsImpl.class);
-    WorkflowOptions workflowOptions = newWorkflowOptionsBuilder(taskList).build();
+    WorkflowOptions workflowOptions =
+        newWorkflowOptionsBuilder(taskList)
+            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
+            .build();
     TestMultiargsWorkflowsFunc stubF =
         workflowClient.newWorkflowStub(TestMultiargsWorkflowsFunc.class, workflowOptions);
     assertResult("func", WorkflowClient.start(stubF::func));
@@ -2643,6 +2647,34 @@ public class WorkflowTest {
     assertEquals(
         "Hello World!",
         workflowClient.newUntypedWorkflowStub(execution, Optional.empty()).getResult(String.class));
+
+    // Check if that it starts closed workflow (AllowDuplicate is default IdReusePolicy)
+    QueryableWorkflow client3 =
+        workflowClient.newWorkflowStub(QueryableWorkflow.class, optionsBuilder.build());
+    BatchRequest batch3 = workflowClient.newSignalWithStartRequest();
+    batch3.add(client3::mySignal, "Hello ");
+    batch3.add(client3::execute);
+    WorkflowExecution execution3 = workflowClient.signalWithStart(batch3);
+    assertEquals(execution.getWorkflowId(), execution3.getWorkflowId());
+    client3.mySignal("World!");
+    WorkflowStub untyped = WorkflowStub.fromTyped(client3);
+    String result = untyped.getResult(String.class);
+    assertEquals("Hello World!", result);
+
+    // Make sure that cannot start if closed and RejectDuplicate policy
+    QueryableWorkflow client4 =
+        workflowClient.newWorkflowStub(
+            QueryableWorkflow.class,
+            optionsBuilder.setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate).build());
+    BatchRequest batch4 = workflowClient.newSignalWithStartRequest();
+    batch4.add(client4::mySignal, "Hello ");
+    batch4.add(client4::execute);
+    try {
+      workflowClient.signalWithStart(batch4);
+      fail("DuplicateWorkflowException expected");
+    } catch (DuplicateWorkflowException e) {
+      assertEquals(execution3.getRunId(), e.getExecution().getRunId());
+    }
   }
 
   public static class TestNoQueryWorkflowImpl implements QueryableWorkflow {
@@ -2685,7 +2717,7 @@ public class WorkflowTest {
       }
     }
     client.mySignal("Hello ");
-    client.execute();
+    WorkflowStub.fromTyped(client).getResult(String.class);
     // Ensures that no threads were leaked due to query
     int threadsCreated = ManagementFactory.getThreadMXBean().getThreadCount() - threadCount;
     assertTrue("query leaks threads: " + threadsCreated, threadsCreated < queryCount);
@@ -5353,7 +5385,10 @@ public class WorkflowTest {
       testEnvironment.getWorkerFactory().resumePolling();
     }
 
-    List<String> result = workflowStub.run();
+    @SuppressWarnings("unchecked")
+    List<String> result =
+        WorkflowStub.fromTyped(workflowStub)
+            .getResult(List.class, new TypeToken<List<String>>() {}.getType());
     List<String> expected = Arrays.asList("test1", "test2", "test3");
     assertEquals(expected, result);
   }
@@ -5829,7 +5864,7 @@ public class WorkflowTest {
     SignalQueryBase signalStub =
         workflowClient.newWorkflowStub(SignalQueryBase.class, execution.getWorkflowId());
     signalStub.signal("Hello World!");
-    String result = stub.execute();
+    String result = WorkflowStub.fromTyped(stub).getResult(String.class);
     String queryResult = signalStub.getSignal();
     assertEquals("Hello World!", result);
     assertEquals(queryResult, result);

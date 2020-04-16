@@ -110,7 +110,9 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
         (int) startParameters.getExecutionStartToCloseTimeoutSeconds());
     request.setTaskStartToCloseTimeoutSeconds(
         (int) startParameters.getTaskStartToCloseTimeoutSeconds());
-    request.setWorkflowIdReusePolicy(startParameters.getWorkflowIdReusePolicy());
+    if (startParameters.getWorkflowIdReusePolicy() != null) {
+      request.setWorkflowIdReusePolicy(startParameters.getWorkflowIdReusePolicy());
+    }
     String taskList = startParameters.getTaskList();
     if (taskList != null && !taskList.isEmpty()) {
       request.setTaskList(TaskList.newBuilder().setName(taskList).build());
@@ -264,7 +266,9 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     if (startParameters.getInput() != null) {
       request.setInput(ByteString.copyFrom(startParameters.getInput()));
     }
-    request.setWorkflowIdReusePolicy(startParameters.getWorkflowIdReusePolicy());
+    if (startParameters.getWorkflowIdReusePolicy() != null) {
+      request.setWorkflowIdReusePolicy(startParameters.getWorkflowIdReusePolicy());
+    }
     String taskList = startParameters.getTaskList();
     if (taskList != null && !taskList.isEmpty()) {
       request.setTaskList(TaskList.newBuilder().setName(taskList).build());

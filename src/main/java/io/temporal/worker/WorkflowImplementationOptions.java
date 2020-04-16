@@ -19,9 +19,9 @@
 
 package io.temporal.worker;
 
-import java.util.Objects;
-
 import static io.temporal.worker.WorkflowErrorPolicy.BlockWorkflow;
+
+import java.util.Objects;
 
 public final class WorkflowImplementationOptions {
 

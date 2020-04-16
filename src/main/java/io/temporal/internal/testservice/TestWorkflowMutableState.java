@@ -121,4 +121,6 @@ interface TestWorkflowMutableState {
   StickyExecutionAttributes getStickyExecutionAttributes();
 
   Optional<TestWorkflowMutableState> getParent();
+
+  boolean isTerminalState();
 }
