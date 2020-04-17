@@ -163,7 +163,7 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
                   @Override
                   public void onMessage(RespT message) {
                     // Skip printing the whole history
-                    if (false && method == WorkflowServiceGrpc.getPollForDecisionTaskMethod()) {
+                    if (method == WorkflowServiceGrpc.getPollForDecisionTaskMethod()) {
                       log.trace("Returned " + method.getFullMethodName());
                     } else {
                       log.trace(

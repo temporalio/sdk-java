@@ -5866,6 +5866,7 @@ public class WorkflowTest {
   }
 
   @Test
+  //  @Ignore
   public void testSignalAndQueryListener() {
     startWorkerFor(TestSignalAndQueryListenerWorkflowImpl.class);
     WorkflowOptions options = newWorkflowOptionsBuilder(taskList).build();

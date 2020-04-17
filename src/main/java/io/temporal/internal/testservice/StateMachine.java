@@ -28,6 +28,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * State machine of a single server side entity like activity, decision or the whole workflow.
@@ -40,6 +42,8 @@ import java.util.Objects;
  * @see StateMachines for entity factories.
  */
 final class StateMachine<Data> {
+
+  private static final Logger log = LoggerFactory.getLogger(StateMachine.class);
 
   /** Function invoked when an action happens in a given state */
   @FunctionalInterface
@@ -227,6 +231,7 @@ final class StateMachine<Data> {
           .asRuntimeException();
     }
     state = destination.apply(context, data, request, referenceId);
+    log.info("Transition of " + data.getClass().getSimpleName() + ": " + transition);
     transitionHistory.add(transition);
   }
 }
