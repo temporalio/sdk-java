@@ -106,7 +106,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -146,7 +145,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private final TestWorkflowService service;
   private final StartWorkflowExecutionRequest startRequest;
   private long nextEventId;
-  private final List<RequestContext> concurrentToDecision = new ArrayList<>();
   private final Map<String, StateMachine<ActivityTaskData>> activities = new HashMap<>();
   private final Map<Long, StateMachine<ChildWorkflowData>> childWorkflows = new HashMap<>();
   private final Map<String, StateMachine<TimerData>> timers = new HashMap<>();
@@ -223,7 +221,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       RequestContext ctx = new RequestContext(clock, this, nextEventId);
       updater.apply(ctx);
       if (concurrentDecision && workflow.getState() != State.TIMED_OUT) {
-        concurrentToDecision.add(ctx);
+        decision.getData().concurrentToDecision.add(ctx);
         ctx.fireCallbacks(0);
         store.applyTimersAndLocks(ctx);
       } else {
@@ -318,7 +316,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           // Fail the decision if there are new events and the decision tries to complete the
           // workflow
           boolean newEvents = false;
-          for (RequestContext ctx2 : concurrentToDecision) {
+          for (RequestContext ctx2 : decision.getData().concurrentToDecision) {
             if (!ctx2.getEvents().isEmpty()) {
               newEvents = true;
               break;
@@ -331,10 +329,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                     .setIdentity(request.getIdentity())
                     .build();
             decision.action(Action.FAIL, ctx, failedRequest, decisionTaskCompletedId);
-            for (RequestContext deferredCtx : this.concurrentToDecision) {
+            for (RequestContext deferredCtx : decision.getData().concurrentToDecision) {
               ctx.add(deferredCtx);
             }
-            this.concurrentToDecision.clear();
+            decision.getData().concurrentToDecision.clear();
 
             // Reset sticky execution attributes on failure
             stickyExecutionAttributes = null;
@@ -346,7 +344,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             for (Decision d : decisions) {
               processDecision(ctx, d, request.getIdentity(), decisionTaskCompletedId);
             }
-            for (RequestContext deferredCtx : this.concurrentToDecision) {
+            for (RequestContext deferredCtx : decision.getData().concurrentToDecision) {
               ctx.add(deferredCtx);
             }
             lastNonFailedDecisionStartEventId = this.decision.getData().startedEventId;
@@ -355,11 +353,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                     || workflow.getState() == StateMachines.State.FAILED
                     || workflow.getState() == StateMachines.State.CANCELED;
             if (!completed
-                && ((ctx.isNeedDecision() || !this.concurrentToDecision.isEmpty())
+                && ((ctx.isNeedDecision() || !decision.getData().concurrentToDecision.isEmpty())
                     || request.getForceCreateNewDecisionTask())) {
               scheduleDecision(ctx);
             }
-            this.concurrentToDecision.clear();
+            decision.getData().concurrentToDecision.clear();
             Map<String, ConsistentQuery> queries = this.decision.getData().queryBuffer;
             Map<String, WorkflowQueryResult> queryResultsMap = request.getQueryResultsMap();
             for (Map.Entry<String, WorkflowQueryResult> resultEntry : queryResultsMap.entrySet()) {

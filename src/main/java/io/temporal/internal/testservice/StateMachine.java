@@ -231,7 +231,8 @@ final class StateMachine<Data> {
           .asRuntimeException();
     }
     state = destination.apply(context, data, request, referenceId);
-    log.info("Transition of " + data.getClass().getSimpleName() + ": " + transition);
+    log.info(
+        "Transition of " + data.getClass().getSimpleName() + ": " + transition + " to " + state);
     transitionHistory.add(transition);
   }
 }

@@ -99,7 +99,6 @@ import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
 import io.temporal.proto.workflowservice.StartWorkflowExecutionRequest;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -204,7 +203,7 @@ class StateMachines {
 
     PollForDecisionTaskResponse.Builder decisionTask;
 
-    private final List<RequestContext> concurrentToDecision = new ArrayList<>();
+    final List<RequestContext> concurrentToDecision = new ArrayList<>();
 
     long scheduledEventId = NO_EVENT_ID;
 
@@ -227,6 +226,7 @@ class StateMachines {
       decisionTask = null;
       scheduledEventId = NO_EVENT_ID;
       attempt = 0;
+      consistentQueryRequests.putAll(queryBuffer);
       queryBuffer.clear();
     }
 
@@ -395,7 +395,11 @@ class StateMachines {
   static StateMachine<DecisionTaskData> newDecisionStateMachine(
       TestWorkflowStore store, StartWorkflowExecutionRequest startRequest) {
     return new StateMachine<>(new DecisionTaskData(store, startRequest))
-        .add(NONE, INITIATE, new State[] {INITIATED, INITIATED_QUERY_ONLY}, StateMachines::scheduleDecisionTask)
+        .add(
+            NONE,
+            INITIATE,
+            new State[] {INITIATED, INITIATED_QUERY_ONLY},
+            StateMachines::scheduleDecisionTask)
         .add(NONE, QUERY, INITIATED_QUERY_ONLY, StateMachines::scheduleQueryDecisionTask)
         .add(
             INITIATED_QUERY_ONLY,
@@ -1009,20 +1013,28 @@ class StateMachines {
 
   private static State scheduleDecisionTask(
       RequestContext ctx, DecisionTaskData data, Object notUsed, long previousStartedEventId) {
-    if (data.())
     StartWorkflowExecutionRequest request = data.startRequest;
-    DecisionTaskScheduledEventAttributes a =
-        DecisionTaskScheduledEventAttributes.newBuilder()
-            .setStartToCloseTimeoutSeconds(request.getTaskStartToCloseTimeoutSeconds())
-            .setTaskList(request.getTaskList())
-            .setAttempt(data.attempt)
-            .build();
-    HistoryEvent event =
-        HistoryEvent.newBuilder()
-            .setEventType(EventType.DecisionTaskScheduled)
-            .setDecisionTaskScheduledEventAttributes(a)
-            .build();
-    long scheduledEventId = ctx.addEvent(event);
+    long scheduledEventId;
+    if (!ctx.getEvents().isEmpty() || !data.concurrentToDecision.isEmpty()) {
+      DecisionTaskScheduledEventAttributes a =
+          DecisionTaskScheduledEventAttributes.newBuilder()
+              .setStartToCloseTimeoutSeconds(request.getTaskStartToCloseTimeoutSeconds())
+              .setTaskList(request.getTaskList())
+              .setAttempt(data.attempt)
+              .build();
+      HistoryEvent event =
+          HistoryEvent.newBuilder()
+              .setEventType(EventType.DecisionTaskScheduled)
+              .setDecisionTaskScheduledEventAttributes(a)
+              .build();
+      scheduledEventId = ctx.addEvent(event);
+    } else {
+      if (data.consistentQueryRequests.isEmpty() && data.queryBuffer.isEmpty()) {
+        throw new IllegalStateException("No reason for scheduling the decision task");
+      }
+      scheduleQueryDecisionTask(ctx, data, null, NO_EVENT_ID);
+      return INITIATED_QUERY_ONLY;
+    }
     PollForDecisionTaskResponse.Builder decisionTaskResponse =
         PollForDecisionTaskResponse.newBuilder();
     if (data.previousStartedEventId > 0) {
@@ -1040,6 +1052,7 @@ class StateMachines {
           data.decisionTask = decisionTaskResponse;
           data.previousStartedEventId = previousStartedEventId;
         });
+    return INITIATED;
   }
 
   private static void convertQueryDecisionTaskToReal(
