@@ -925,6 +925,7 @@ class StateMachines {
             .setScheduleToCloseTimeoutSeconds(scheduleToCloseTimeoutSeconds)
             .setStartToCloseTimeoutSeconds(d.getStartToCloseTimeoutSeconds())
             .setScheduledTimestamp(ctx.currentTimeInNanoseconds())
+            .setScheduledTimestampOfThisAttempt(ctx.currentTimeInNanoseconds())
             .setHeader(d.getHeader())
             .setAttempt(0);
 
@@ -1253,13 +1254,15 @@ class StateMachines {
       data.nextBackoffIntervalSeconds =
           data.retryState.getBackoffIntervalInSeconds(errorReason, data.store.currentTimeMillis());
       if (data.nextBackoffIntervalSeconds > 0) {
+        PollForActivityTaskResponse.Builder task = data.activityTask.getTask();
         if (data.heartbeatDetails != null) {
-          data.activityTask.getTask().setHeartbeatDetails(data.heartbeatDetails);
+          task.setHeartbeatDetails(data.heartbeatDetails);
         }
         ctx.onCommit(
             (historySize) -> {
               data.retryState = nextAttempt;
-              data.activityTask.getTask().setAttempt(nextAttempt.getAttempt());
+              task.setAttempt(nextAttempt.getAttempt());
+              task.setScheduledTimestampOfThisAttempt(ctx.currentTimeInNanoseconds());
             });
         return true;
       } else {

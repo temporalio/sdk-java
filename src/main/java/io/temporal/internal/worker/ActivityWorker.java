@@ -183,10 +183,10 @@ public final class ActivityWorker implements SuspendableWorker {
         sendReply(task, response, metricsScope);
         sw.stop();
 
-        metricsScope
-            .timer(MetricsType.ACTIVITY_E2E_LATENCY)
-            .record(
-                Duration.ofNanos(System.nanoTime() - task.getScheduledTimestampOfThisAttempt()));
+        long nanoTime =
+            TimeUnit.NANOSECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
+        Duration duration = Duration.ofNanos(nanoTime - task.getScheduledTimestampOfThisAttempt());
+        metricsScope.timer(MetricsType.ACTIVITY_E2E_LATENCY).record(duration);
 
       } catch (CancellationException e) {
         RespondActivityTaskCanceledRequest cancelledRequest =
