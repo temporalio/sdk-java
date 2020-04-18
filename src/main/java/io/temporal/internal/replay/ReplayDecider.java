@@ -19,7 +19,7 @@
 
 package io.temporal.internal.replay;
 
-import static io.temporal.worker.NonDeterministicWorkflowPolicy.FailWorkflow;
+import static io.temporal.worker.WorkflowErrorPolicy.FailWorkflow;
 
 import com.google.common.base.Throwables;
 import com.google.protobuf.ByteString;
@@ -464,7 +464,7 @@ class ReplayDecider implements Decider {
       }
       return forceCreateNewDecisionTask;
     } catch (Error e) {
-      if (this.workflow.getWorkflowImplementationOptions().getNonDeterministicWorkflowPolicy()
+      if (this.workflow.getWorkflowImplementationOptions().getWorkflowErrorPolicy()
           == FailWorkflow) {
         // fail workflow
         failure = workflow.mapError(e);

@@ -724,7 +724,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               .setNamespace(r.getNamespace())
               .setIdentity(r.getIdentity())
               .build();
-      if (mutableState != null) {
+      if (mutableState != null && !mutableState.isTerminalState()) {
         mutableState.signal(signalRequest);
         responseObserver.onNext(
             SignalWithStartWorkflowExecutionResponse.newBuilder()

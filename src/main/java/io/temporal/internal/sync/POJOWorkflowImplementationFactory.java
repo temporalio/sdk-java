@@ -19,7 +19,7 @@
 
 package io.temporal.internal.sync;
 
-import static io.temporal.worker.NonDeterministicWorkflowPolicy.FailWorkflow;
+import static io.temporal.worker.WorkflowErrorPolicy.FailWorkflow;
 
 import com.google.common.base.Preconditions;
 import io.temporal.common.context.ContextPropagator;
@@ -101,9 +101,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
   <R> void addWorkflowImplementationFactory(Class<R> clazz, Functions.Func<R> factory) {
     WorkflowImplementationOptions unitTestingOptions =
-        new WorkflowImplementationOptions.Builder()
-            .setNonDeterministicWorkflowPolicy(FailWorkflow)
-            .build();
+        new WorkflowImplementationOptions.Builder().setWorkflowErrorPolicy(FailWorkflow).build();
     addWorkflowImplementationFactory(unitTestingOptions, clazz, factory);
   }
 

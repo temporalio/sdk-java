@@ -1332,6 +1332,12 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         });
   }
 
+  @Override
+  public boolean isTerminalState() {
+    State workflowState = workflow.getState();
+    return isTerminalState(workflowState);
+  }
+
   private void checkCompleted() {
     State workflowState = workflow.getState();
     if (isTerminalState(workflowState)) {

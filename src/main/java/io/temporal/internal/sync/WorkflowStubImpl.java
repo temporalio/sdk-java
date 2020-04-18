@@ -222,6 +222,20 @@ class WorkflowStubImpl implements WorkflowStub {
         new SignalWithStartWorkflowExecutionParameters(sp, signalName, signalInput);
     try {
       execution.set(genericClient.signalWithStartWorkflowExecution(p));
+    } catch (StatusRuntimeException e) {
+      WorkflowExecutionAlreadyStarted f =
+          StatusUtils.getFailure(e, WorkflowExecutionAlreadyStarted.class);
+      if (f != null) {
+        WorkflowExecution exe =
+            WorkflowExecution.newBuilder()
+                .setWorkflowId(sp.getWorkflowId())
+                .setRunId(f.getRunId())
+                .build();
+        execution.set(exe);
+        throw new DuplicateWorkflowException(exe, workflowType.get(), e.getMessage());
+      } else {
+        throw e;
+      }
     } catch (Exception e) {
       throw new WorkflowServiceException(execution.get(), workflowType, e);
     }

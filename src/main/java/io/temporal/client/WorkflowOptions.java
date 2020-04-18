@@ -248,10 +248,6 @@ public final class WorkflowOptions {
       if (taskList == null) {
         throw new IllegalArgumentException("Required property taskList is not set");
       }
-      WorkflowIdReusePolicy policy = workflowIdReusePolicy;
-      if (policy == null) {
-        policy = WorkflowIdReusePolicy.AllowDuplicateFailedOnly;
-      }
       if (retryOptions != null) {
         if (retryOptions.getInitialInterval() == null) {
           throw new IllegalArgumentException(
@@ -265,7 +261,7 @@ public final class WorkflowOptions {
 
       return new WorkflowOptions(
           workflowId,
-          policy,
+          workflowIdReusePolicy,
           roundUpToSeconds(executionStartToCloseTimeout),
           roundUpToSeconds(
               taskStartToCloseTimeout, OptionsUtils.DEFAULT_TASK_START_TO_CLOSE_TIMEOUT),
