@@ -104,6 +104,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.UUID;
@@ -401,6 +402,7 @@ class StateMachines {
             new State[] {INITIATED, INITIATED_QUERY_ONLY},
             StateMachines::scheduleDecisionTask)
         .add(NONE, QUERY, INITIATED_QUERY_ONLY, StateMachines::scheduleQueryDecisionTask)
+        // TODO: INITIATED_QUERY_ONLY, QUERY, INITIATED_QUERY_ONLY
         .add(
             INITIATED_QUERY_ONLY,
             INITIATE,
@@ -1083,6 +1085,8 @@ class StateMachines {
       DecisionTaskData data,
       TestWorkflowMutableStateImpl.ConsistentQuery query,
       long previousStartedEventId) {
+    Objects.requireNonNull(query);
+    ctx.lockTimer();
     StartWorkflowExecutionRequest request = data.startRequest;
     PollForDecisionTaskResponse.Builder decisionTaskResponse =
         PollForDecisionTaskResponse.newBuilder();
@@ -1190,7 +1194,8 @@ class StateMachines {
             data.decisionTask.setHistory(History.newBuilder().addAllEvents(events));
           }
           // Transfer the queries
-          Map<String, TestWorkflowMutableStateImpl.ConsistentQuery> queries = data.queryBuffer;
+          Map<String, TestWorkflowMutableStateImpl.ConsistentQuery> queries =
+              data.consistentQueryRequests;
           for (Map.Entry<String, TestWorkflowMutableStateImpl.ConsistentQuery> queryEntry :
               queries.entrySet()) {
             QueryWorkflowRequest queryWorkflowRequest = queryEntry.getValue().getRequest();
@@ -1260,29 +1265,30 @@ class StateMachines {
     for (Map.Entry<String, WorkflowQueryResult> resultEntry : responses.entrySet()) {
       TestWorkflowMutableStateImpl.ConsistentQuery query =
           data.consistentQueryRequests.remove(resultEntry.getKey());
-      if (query == null) {
-        throw Status.INVALID_ARGUMENT
-            .withDescription("Invalid query key: " + resultEntry.getKey())
-            .asRuntimeException();
-      }
-      WorkflowQueryResult value = resultEntry.getValue();
-      CompletableFuture<QueryWorkflowResponse> result = query.getResult();
-      switch (value.getResultType()) {
-        case Answered:
-          QueryWorkflowResponse response =
-              QueryWorkflowResponse.newBuilder().setQueryResult(value.getAnswer()).build();
-          result.complete(response);
-          break;
-        case Failed:
-          result.completeExceptionally(
-              Status.INTERNAL.withDescription(value.getErrorMessage()).asRuntimeException());
-        default:
-          throw Status.INVALID_ARGUMENT
-              .withDescription("Invalid query result type: " + value.getResultType())
-              .asRuntimeException();
+      if (query != null) {
+        WorkflowQueryResult value = resultEntry.getValue();
+        CompletableFuture<QueryWorkflowResponse> result = query.getResult();
+        switch (value.getResultType()) {
+          case Answered:
+            QueryWorkflowResponse response =
+                QueryWorkflowResponse.newBuilder().setQueryResult(value.getAnswer()).build();
+            result.complete(response);
+            break;
+          case Failed:
+            result.completeExceptionally(
+                Status.INTERNAL.withDescription(value.getErrorMessage()).asRuntimeException());
+          default:
+            throw Status.INVALID_ARGUMENT
+                .withDescription("Invalid query result type: " + value.getResultType())
+                .asRuntimeException();
+        }
       }
     }
-    ctx.onCommit((historySize) -> data.clear());
+    ctx.onCommit(
+        (historySize) -> {
+          data.clear();
+          ctx.unlockTimer();
+        });
   }
 
   private static void failQueryDecisionTask(
@@ -1299,6 +1305,7 @@ class StateMachines {
     if (!data.consistentQueryRequests.isEmpty()) {
       ctx.setNeedDecision(true);
     }
+    ctx.unlockTimer();
   }
 
   private static void failDecisionTask(
