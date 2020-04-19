@@ -113,6 +113,8 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -139,9 +141,6 @@ import org.junit.runner.Description;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// TODO(mfateev): Enable parallel tests
-// @RunWith(ParallelRunner.class)
-// @SuppressWarnings("ALL")
 public class WorkflowTest {
 
   /**
@@ -5296,7 +5295,7 @@ public class WorkflowTest {
   }
 
   @Test
-  public void testLocalActivityAndQuery() {
+  public void testLocalActivityAndQuery() throws ExecutionException, InterruptedException {
 
     startWorkerFor(TestLocalActivityAndQueryWorkflow.class);
     WorkflowOptions options =
@@ -5314,7 +5313,16 @@ public class WorkflowTest {
     while (true) {
       String queryResult = workflowStub.query();
       assertTrue(queryResult, queryResult.equals("run1") || queryResult.equals("run4"));
+      List<ForkJoinTask<String>> tasks = new ArrayList<>();
+      int threads = 30;
       if (queryResult.equals("run4")) {
+        for (int i = 0; i < threads; i++) {
+          ForkJoinTask<String> task = ForkJoinPool.commonPool().submit(() -> workflowStub.query());
+          tasks.add(task);
+        }
+        for (int i = 0; i < threads; i++) {
+          assertEquals("run4", tasks.get(i).get());
+        }
         break;
       }
     }
