@@ -153,7 +153,8 @@ class WorkflowStubImpl implements WorkflowStub {
           execution.get(),
           workflowType.get(),
           "Cannot reuse a stub instance to start more than one workflow execution. The stub "
-              + "points to already started execution.");
+              + "points to already started execution. If you are trying to wait for a workflow completion either "
+              + "change WorkflowIdReusePolicy from AllowDuplicate or use WorkflowStub.getResult");
     }
     StartWorkflowExecutionParameters p = StartWorkflowExecutionParameters.fromWorkflowOptions(o);
     if (o.getWorkflowId() == null) {

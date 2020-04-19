@@ -207,7 +207,7 @@ class ReplayDecider implements Decider {
         // NOOP
         break;
       case WorkflowExecutionTimedOut:
-        // NOOP
+        decisionsHelper.handleWorkflowExecutionCompleted(event);
         break;
       case ActivityTaskScheduled:
         decisionsHelper.handleActivityTaskScheduled(event);
@@ -222,12 +222,16 @@ class ReplayDecider implements Decider {
         context.handleMarkerRecorded(event);
         break;
       case WorkflowExecutionCompleted:
+        decisionsHelper.handleWorkflowExecutionCompleted(event);
         break;
       case WorkflowExecutionFailed:
+        decisionsHelper.handleWorkflowExecutionCompleted(event);
         break;
       case WorkflowExecutionCanceled:
+        decisionsHelper.handleWorkflowExecutionCompleted(event);
         break;
       case WorkflowExecutionContinuedAsNew:
+        decisionsHelper.handleWorkflowExecutionCompleted(event);
         break;
       case TimerStarted:
         decisionsHelper.handleTimerStarted(event);
@@ -388,6 +392,7 @@ class ReplayDecider implements Decider {
   public DecisionResult decide(PollForDecisionTaskResponseOrBuilder decisionTask) throws Throwable {
     lock.lock();
     try {
+      queryResults.clear();
       boolean forceCreateNewDecisionTask = decideImpl(decisionTask, null);
       return new DecisionResult(
           decisionsHelper.getDecisions(), queryResults, forceCreateNewDecisionTask);
@@ -477,28 +482,33 @@ class ReplayDecider implements Decider {
         throw e;
       }
     } finally {
-      if (decisionTask.getQueriesCount() > 0) {
-        Map<String, WorkflowQuery> queries = decisionTask.getQueriesMap();
-        for (Map.Entry<String, WorkflowQuery> entry : queries.entrySet()) {
-          WorkflowQuery query = entry.getValue();
-          try {
-            byte[] queryResult = workflow.query(query);
-            queryResults.put(
-                entry.getKey(),
-                WorkflowQueryResult.newBuilder()
-                    .setResultType(QueryResultType.Answered)
-                    .setAnswer(ByteString.copyFrom(queryResult))
-                    .build());
-          } catch (Exception e) {
-            String stackTrace = Throwables.getStackTraceAsString(e);
-            queryResults.put(
-                entry.getKey(),
-                WorkflowQueryResult.newBuilder()
-                    .setResultType(QueryResultType.Failed)
-                    .setErrorMessage(e.getMessage())
-                    .setAnswer(ByteString.copyFrom(stackTrace, StandardCharsets.UTF_8))
-                    .build());
+      Map<String, WorkflowQuery> queries = decisionTask.getQueriesMap();
+      for (Map.Entry<String, WorkflowQuery> entry : queries.entrySet()) {
+        WorkflowQuery query = entry.getValue();
+        try {
+          byte[] queryResult = workflow.query(query);
+          queryResults.put(
+              entry.getKey(),
+              WorkflowQueryResult.newBuilder()
+                  .setResultType(QueryResultType.Answered)
+                  .setAnswer(ByteString.copyFrom(queryResult))
+                  .build());
+        } catch (Exception e) {
+          String stackTrace = Throwables.getStackTraceAsString(e);
+          String message;
+          if (e != null) {
+            message = e.getMessage();
+          } else {
+            message = e.toString();
           }
+
+          queryResults.put(
+              entry.getKey(),
+              WorkflowQueryResult.newBuilder()
+                  .setResultType(QueryResultType.Failed)
+                  .setErrorMessage(message)
+                  .setAnswer(ByteString.copyFrom(stackTrace, StandardCharsets.UTF_8))
+                  .build());
         }
       }
       if (legacyQueryCallback != null) {

@@ -181,7 +181,13 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       TestWorkflowMutableState mutableState = executions.get(executionId);
       if (mutableState == null && failNotExists) {
         throw Status.NOT_FOUND
-            .withDescription("Execution not found in mutable state: " + executionId)
+            .withDescription(
+                "Execution \""
+                    + executionId
+                    + "\" not found in mutable state. Known executions: "
+                    + executions.values()
+                    + ", service="
+                    + this)
             .asRuntimeException();
       }
       return mutableState;

@@ -172,7 +172,6 @@ public class ActivityTestingTest {
         Activity.heartbeat(null);
         fail("unreachable");
       } catch (ActivityCancelledException e) {
-        System.out.println("activity cancelled");
       }
     }
   }

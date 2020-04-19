@@ -344,7 +344,6 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       }
     } catch (InterruptedException e) {
       // Intentionally left empty
-
     }
     return Optional.ofNullable(result);
   }

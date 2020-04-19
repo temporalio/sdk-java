@@ -19,6 +19,8 @@
 
 package io.temporal.internal.testservice;
 
+import static io.temporal.internal.testservice.StateMachines.NO_EVENT_ID;
+
 import com.cronutils.model.Cron;
 import com.cronutils.model.CronType;
 import com.cronutils.model.definition.CronDefinition;
@@ -40,7 +42,6 @@ import io.temporal.internal.testservice.StateMachines.SignalExternalData;
 import io.temporal.internal.testservice.StateMachines.State;
 import io.temporal.internal.testservice.StateMachines.TimerData;
 import io.temporal.internal.testservice.StateMachines.WorkflowData;
-import io.temporal.internal.testservice.TestWorkflowStore.TaskListId;
 import io.temporal.proto.common.RetryPolicy;
 import io.temporal.proto.decision.CancelTimerDecisionAttributes;
 import io.temporal.proto.decision.CancelWorkflowExecutionDecisionAttributes;
@@ -144,7 +145,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private final TestWorkflowStore store;
   private final TestWorkflowService service;
   private final StartWorkflowExecutionRequest startRequest;
-  private long nextEventId;
+  private long nextEventId = 1;
   private final Map<String, StateMachine<ActivityTaskData>> activities = new HashMap<>();
   private final Map<Long, StateMachine<ChildWorkflowData>> childWorkflows = new HashMap<>();
   private final Map<String, StateMachine<TimerData>> timers = new HashMap<>();
@@ -152,8 +153,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private final Map<String, StateMachine<CancelExternalData>> externalCancellations =
       new HashMap<>();
   private StateMachine<WorkflowData> workflow;
+  /** A single decison state machine is used for the whole workflow lifecycle. */
   private final StateMachine<DecisionTaskData> decision;
-  private long lastNonFailedDecisionStartEventId;
+
   private final Map<String, CompletableFuture<QueryWorkflowResponse>> queries =
       new ConcurrentHashMap<>();
   public StickyExecutionAttributes stickyExecutionAttributes;
@@ -214,7 +216,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     LockHandle lockHandle = selfAdvancingTimer.lockTimeSkipping(callerInfo);
 
     try {
-      checkCompleted();
       boolean concurrentDecision =
           !completeDecisionUpdate && (decision.getState() == StateMachines.State.STARTED);
 
@@ -347,7 +348,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             for (RequestContext deferredCtx : decision.getData().concurrentToDecision) {
               ctx.add(deferredCtx);
             }
-            lastNonFailedDecisionStartEventId = this.decision.getData().startedEventId;
+            DecisionTaskData data = this.decision.getData();
             boolean completed =
                 workflow.getState() == StateMachines.State.COMPLETED
                     || workflow.getState() == StateMachines.State.FAILED
@@ -358,7 +359,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               scheduleDecision(ctx);
             }
             decision.getData().concurrentToDecision.clear();
-            Map<String, ConsistentQuery> queries = this.decision.getData().queryBuffer;
+            Map<String, ConsistentQuery> queries = data.consistentQueryRequests;
             Map<String, WorkflowQueryResult> queryResultsMap = request.getQueryResultsMap();
             for (Map.Entry<String, WorkflowQueryResult> resultEntry : queryResultsMap.entrySet()) {
               String key = resultEntry.getKey();
@@ -377,9 +378,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                     query
                         .getResult()
                         .completeExceptionally(
-                            Status.UNKNOWN
-                                .withDescription(result.getErrorMessage())
-                                .asRuntimeException());
+                            StatusUtils.newException(
+                                Status.INTERNAL.withDescription(result.getErrorMessage()),
+                                QueryFailed.getDefaultInstance()));
                     break;
                   case UNRECOGNIZED:
                     throw Status.INVALID_ARGUMENT
@@ -389,6 +390,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 }
               }
             }
+            for (ConsistentQuery query : data.queryBuffer.values()) {
+              decision.action(Action.QUERY, ctx, query, NO_EVENT_ID);
+            }
+            data.queryBuffer.clear();
           } finally {
             ctx.unlockTimer();
           }
@@ -1017,6 +1022,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         }
         workflow.action(
             Action.CONTINUE_AS_NEW, ctx, continueAsNewAttr.build(), decisionTaskCompletedId);
+        decision.getData().workflowCompleted = true;
         HistoryEvent event = ctx.getEvents().get(ctx.getEvents().size() - 1);
         WorkflowExecutionContinuedAsNewEventAttributes continuedAsNewEventAttributes =
             event.getWorkflowExecutionContinuedAsNewEventAttributes();
@@ -1041,6 +1047,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     }
 
     workflow.action(StateMachines.Action.FAIL, ctx, d, decisionTaskCompletedId);
+    decision.getData().workflowCompleted = true;
     if (parent.isPresent()) {
       ctx.lockTimer(); // unlocked by the parent
       ChildWorkflowExecutionFailedEventAttributes a =
@@ -1083,6 +1090,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     }
 
     workflow.action(StateMachines.Action.COMPLETE, ctx, d, decisionTaskCompletedId);
+    decision.getData().workflowCompleted = true;
     if (parent.isPresent()) {
       ctx.lockTimer(); // unlocked by the parent
       ChildWorkflowExecutionCompletedEventAttributes a =
@@ -1146,6 +1154,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setLastCompletionResult(lastCompletionResult)
             .build();
     workflow.action(Action.CONTINUE_AS_NEW, ctx, continueAsNewAttr, decisionTaskCompletedId);
+    decision.getData().workflowCompleted = true;
     HistoryEvent event = ctx.getEvents().get(ctx.getEvents().size() - 1);
     WorkflowExecutionContinuedAsNewEventAttributes continuedAsNewEventAttributes =
         event.getWorkflowExecutionContinuedAsNewEventAttributes();
@@ -1172,6 +1181,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       CancelWorkflowExecutionDecisionAttributes d,
       long decisionTaskCompletedId) {
     workflow.action(StateMachines.Action.CANCEL, ctx, d, decisionTaskCompletedId);
+    decision.getData().workflowCompleted = true;
     if (parent.isPresent()) {
       ctx.lockTimer(); // unlocked by the parent
       ChildWorkflowExecutionCanceledEventAttributes a =
@@ -1208,6 +1218,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       long decisionTaskCompletedId,
       String identity) {
     workflow.action(Action.CONTINUE_AS_NEW, ctx, d, decisionTaskCompletedId);
+    decision.getData().workflowCompleted = true;
     HistoryEvent event = ctx.getEvents().get(ctx.getEvents().size() - 1);
     String runId =
         service.continueAsNew(
@@ -1570,6 +1581,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               return;
             }
             workflow.action(StateMachines.Action.TIME_OUT, ctx, TimeoutType.StartToClose, 0);
+            decision.getData().workflowCompleted = true;
             if (parent != null) {
               ctx.lockTimer(); // unlocked by the parent
             }
@@ -1687,7 +1699,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public QueryWorkflowResponse query(QueryWorkflowRequest queryRequest, long deadline) {
-
     WorkflowExecutionStatus status = getWorkflowExecutionStatus();
     if (status != WorkflowExecutionStatus.Running
         && queryRequest.getQueryRejectCondition() != null) {
@@ -1702,9 +1713,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .build();
       }
     }
-    if (queryRequest.getQueryConsistencyLevel() == QueryConsistencyLevel.Eventual
-        || isTerminalState(workflow.getState())) {
-      return eventuallyConsistentQuery(queryRequest, deadline);
+    if (queryRequest.getQueryConsistencyLevel() == QueryConsistencyLevel.Eventual) {
+      throw StatusUtils.newException(
+          Status.INVALID_ARGUMENT.withDescription("Eventually consistent query is deprecated"),
+          QueryFailed.getDefaultInstance());
     } else {
       return stronglyConsistentQuery(queryRequest, deadline);
     }
@@ -1750,30 +1762,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     ConsistentQuery consistentQuery = new ConsistentQuery(queryRequest);
     update(ctx -> decision.action(Action.QUERY, ctx, consistentQuery, 0));
     CompletableFuture<QueryWorkflowResponse> result = consistentQuery.getResult();
-    return getQueryWorkflowResponse(deadline, result);
-  }
-
-  private QueryWorkflowResponse eventuallyConsistentQuery(
-      QueryWorkflowRequest queryRequest, long deadline) {
-    QueryId queryId = new QueryId(executionId);
-
-    CompletableFuture<QueryWorkflowResponse> result = new CompletableFuture<>();
-    PollForDecisionTaskResponse.Builder task =
-        PollForDecisionTaskResponse.newBuilder()
-            .setTaskToken(queryId.toBytes())
-            .setWorkflowExecution(executionId.getExecution())
-            .setWorkflowType(startRequest.getWorkflowType())
-            .setQuery(queryRequest.getQuery())
-            .setWorkflowExecutionTaskList(startRequest.getTaskList());
-    queries.put(queryId.getQueryId(), result);
-    String taskList =
-        stickyExecutionAttributes == null
-            ? startRequest.getTaskList().getName()
-            : stickyExecutionAttributes.getWorkerTaskList().getName();
-    TaskListId taskListId = new TaskListId(queryRequest.getNamespace(), taskList);
-    // Note that sticky task list timeout is not implemented for this decision task
-    // as non consistent query is going away soon
-    store.sendQueryTask(executionId, taskListId, task);
     return getQueryWorkflowResponse(deadline, result);
   }
 

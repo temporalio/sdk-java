@@ -19,11 +19,9 @@
 
 package io.temporal.internal.replay;
 
-import static io.temporal.internal.common.InternalUtils.createStickyTaskList;
 import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertNotNull;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -116,36 +114,6 @@ public class ReplayDeciderTaskHandlerTests {
     StickyExecutionAttributes attributes = result.getTaskCompleted().getStickyAttributes();
     assertEquals("sticky", attributes.getWorkerTaskList().getName());
     assertEquals(5, attributes.getScheduleToStartTimeoutSeconds());
-  }
-
-  @Test
-  public void ifCacheIsEvictedAndPartialHistoryIsReceivedThenTaskFailedIsReturned()
-      throws Throwable {
-    // Arrange
-    DeciderCache cache = new DeciderCache(10, NoopScope.getInstance());
-    StickyExecutionAttributes attributes =
-        StickyExecutionAttributes.newBuilder()
-            .setWorkerTaskList(createStickyTaskList("sticky"))
-            .build();
-    DecisionTaskHandler taskHandler =
-        new ReplayDecisionTaskHandler(
-            "namespace",
-            setUpMockWorkflowFactory(),
-            cache,
-            SingleWorkerOptions.newBuilder().build(),
-            "sticky",
-            Duration.ofSeconds(5),
-            service,
-            null);
-
-    // Act
-    DecisionTaskHandler.Result result =
-        taskHandler.handleDecisionTask(HistoryUtils.generateDecisionTaskWithPartialHistory());
-
-    // Assert
-    assertEquals(0, cache.size());
-    assertNull(result.getTaskCompleted());
-    assertNotNull(result.getTaskFailed());
   }
 
   private ReplayWorkflowFactory setUpMockWorkflowFactory() throws Throwable {

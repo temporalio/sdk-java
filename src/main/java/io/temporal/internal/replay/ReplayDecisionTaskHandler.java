@@ -125,6 +125,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
   private Result handleDecisionTaskImpl(PollForDecisionTaskResponse.Builder decisionTask)
       throws Throwable {
     if (decisionTask.hasQuery()) {
+      // Legacy query codepath
       return processQuery(decisionTask);
     } else {
       // Note that if decisionTask.getQueriesCount() > 0 this branch is taken as well

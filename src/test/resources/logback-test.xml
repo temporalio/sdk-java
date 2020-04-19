@@ -28,7 +28,7 @@
     </appender>
     <logger name="io.grpc.netty" level="INFO"/>
     <!-- Modify root log level to get more info -->
-    <root level="TRACE">
+    <root level="INFO">
         <appender-ref ref="STDOUT" />
     </root>
 </configuration>

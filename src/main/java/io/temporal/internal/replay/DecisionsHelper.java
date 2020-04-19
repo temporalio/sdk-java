@@ -450,6 +450,16 @@ class DecisionsHelper {
     decision.handleInitiatedEvent(event);
   }
 
+  /** This happens during strongly consistent query processing for completed workflows */
+  public void handleWorkflowExecutionCompleted(HistoryEvent event) {
+    DecisionId decisionId = new DecisionId(DecisionTarget.SELF, 0);
+    DecisionStateMachine decision = getDecision(decisionId);
+    if (!(decision instanceof CompleteWorkflowStateMachine)) {
+      throw new IllegalStateException("Unexpected decision: " + decision);
+    }
+    decisions.clear();
+  }
+
   void completeWorkflowExecution(byte[] output) {
     addAllMissingVersionMarker(false, Optional.empty());
 

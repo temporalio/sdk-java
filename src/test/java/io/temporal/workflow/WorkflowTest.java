@@ -141,14 +141,14 @@ import org.slf4j.LoggerFactory;
 
 // TODO(mfateev): Enable parallel tests
 // @RunWith(ParallelRunner.class)
-@SuppressWarnings("ALL")
+// @SuppressWarnings("ALL")
 public class WorkflowTest {
 
   /**
    * When set to true increases test, activity and workflow timeouts to large values to support
    * stepping through code in a debugger without timing out.
    */
-  private static final boolean DEBUGGER_TIMEOUTS = true;
+  private static final boolean DEBUGGER_TIMEOUTS = false;
 
   private static final String ANNOTATION_TASK_LIST = "WorkflowTest-testExecute[Docker]";
 
@@ -331,6 +331,16 @@ public class WorkflowTest {
     } else {
       workerFactory.shutdown();
     }
+    for (ScheduledFuture<?> result : delayedCallbacks) {
+      if (result.isDone() && !result.isCancelled()) {
+        try {
+          result.get();
+        } catch (InterruptedException e) {
+        } catch (ExecutionException e) {
+          throw e.getCause();
+        }
+      }
+    }
     if (tracer != null) {
       tracer.assertExpected();
     }
@@ -350,16 +360,7 @@ public class WorkflowTest {
   void registerDelayedCallback(Duration delay, Runnable r) {
     if (useExternalService) {
       ScheduledFuture<?> result =
-          scheduledExecutor.schedule(
-              () -> {
-                try {
-                  r.run();
-                } catch (Throwable e) {
-                  log.error("Unexpected failure in a delayed callback", e);
-                }
-              },
-              delay.toMillis(),
-              TimeUnit.MILLISECONDS);
+          scheduledExecutor.schedule(r, delay.toMillis(), TimeUnit.MILLISECONDS);
       delayedCallbacks.add(result);
     } else {
       testEnvironment.registerDelayedCallback(delay, r);
@@ -2598,7 +2599,6 @@ public class WorkflowTest {
 
     @Override
     public void mySignal(String value) {
-      log.info("TestSignalWorkflowImpl.mySignal value=" + value);
       state = value;
       signals.add(value);
       if (signals.size() == 2) {
@@ -5064,18 +5064,18 @@ public class WorkflowTest {
     assertTrue(result.contains("NonSerializableException"));
   }
 
+  @WorkflowInterface
   public interface TestLargeWorkflow {
-
     @WorkflowMethod
     String execute(int activityCount, String taskList);
   }
 
+  @ActivityInterface
   public interface TestLargeWorkflowActivity {
     String activity();
   }
 
   public static class TestLargeWorkflowActivityImpl implements TestLargeWorkflowActivity {
-
     @Override
     public String activity() {
       return "done";
@@ -5106,7 +5106,10 @@ public class WorkflowTest {
     startWorkerFor(TestLargeHistory.class);
     TestLargeWorkflow workflowStub =
         workflowClient.newWorkflowStub(
-            TestLargeWorkflow.class, newWorkflowOptionsBuilder(taskList).build());
+            TestLargeWorkflow.class,
+            newWorkflowOptionsBuilder(taskList)
+                .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
+                .build());
     long start = System.currentTimeMillis();
     String result = workflowStub.execute(activityCount, taskList);
     long duration = System.currentTimeMillis() - start;
@@ -5315,7 +5318,7 @@ public class WorkflowTest {
         break;
       }
     }
-    String result = workflowStub.execute(taskList);
+    String result = WorkflowStub.fromTyped(workflowStub).getResult(String.class);
     assertEquals("done", result);
     assertEquals("run4", workflowStub.query());
     activitiesImpl.assertInvocations(
@@ -5462,8 +5465,8 @@ public class WorkflowTest {
     public String composeGreeting(String string) {
       try {
         Thread.sleep(10000);
-      } catch (Exception e) {
-        System.out.println("Exception");
+      } catch (InterruptedException e) {
+        throw new Error("Unexpected", e);
       }
       return "greetings: " + string;
     }
@@ -5633,8 +5636,8 @@ public class WorkflowTest {
 
     @Override
     public void signal1(String arg) {
-      for (int i = 0; i < 100; i++) {
-        Async.procedure(() -> System.out.println("test"));
+      for (int i = 0; i < 10; i++) {
+        Async.procedure(() -> Workflow.sleep(Duration.ofHours(1)));
       }
 
       throw new RuntimeException("exception in signal method");
@@ -5901,7 +5904,6 @@ public class WorkflowTest {
   }
 
   @Test
-  //  @Ignore
   public void testSignalAndQueryListener() {
     startWorkerFor(TestSignalAndQueryListenerWorkflowImpl.class);
     WorkflowOptions options = newWorkflowOptionsBuilder(taskList).build();
