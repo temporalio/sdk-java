@@ -23,6 +23,7 @@ import static junit.framework.TestCase.*;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.Mockito.*;
 
+import com.google.common.collect.Maps;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.StatsReporter;
@@ -854,7 +855,7 @@ public class DeterministicRunnerTest {
     @Override
     public DecisionResult decide(PollForDecisionTaskResponseOrBuilder decisionTask)
         throws Throwable {
-      return new DecisionResult(new ArrayList<>(), false);
+      return new DecisionResult(new ArrayList<>(), Maps.newHashMap(), false);
     }
 
     @Override

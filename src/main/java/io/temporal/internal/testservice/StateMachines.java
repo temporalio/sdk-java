@@ -25,6 +25,7 @@ import static io.temporal.internal.testservice.StateMachines.State.*;
 import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.testservice.TestWorkflowStore.ActivityTask;
 import io.temporal.internal.testservice.TestWorkflowStore.DecisionTask;
 import io.temporal.internal.testservice.TestWorkflowStore.TaskListId;
@@ -40,6 +41,7 @@ import io.temporal.proto.decision.ScheduleActivityTaskDecisionAttributes;
 import io.temporal.proto.decision.SignalExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.proto.decision.StartChildWorkflowExecutionDecisionAttributes;
 import io.temporal.proto.decision.StartTimerDecisionAttributes;
+import io.temporal.proto.decision.StickyExecutionAttributes;
 import io.temporal.proto.event.ActivityTaskCancelRequestedEventAttributes;
 import io.temporal.proto.event.ActivityTaskCanceledEventAttributes;
 import io.temporal.proto.event.ActivityTaskCompletedEventAttributes;
@@ -81,11 +83,15 @@ import io.temporal.proto.event.WorkflowExecutionFailedEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionStartedEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionTimedOutEventAttributes;
 import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.failure.QueryFailed;
+import io.temporal.proto.query.WorkflowQueryResult;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
+import io.temporal.proto.workflowservice.QueryWorkflowRequest;
+import io.temporal.proto.workflowservice.QueryWorkflowResponse;
 import io.temporal.proto.workflowservice.RequestCancelWorkflowExecutionRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskCanceledByIdRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
@@ -96,10 +102,15 @@ import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
 import io.temporal.proto.workflowservice.StartWorkflowExecutionRequest;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -109,13 +120,15 @@ class StateMachines {
 
   private static final Logger log = LoggerFactory.getLogger(StateMachines.class);
 
-  private static final int NO_EVENT_ID = -1;
+  static final int NO_EVENT_ID = -1;
   private static final String TIMEOUT_ERROR_REASON = "temporalInternal:Timeout";
 
   enum State {
     NONE,
     INITIATED,
+    INITIATED_QUERY_ONLY,
     STARTED,
+    STARTED_QUERY_ONLY,
     FAILED,
     TIMED_OUT,
     CANCELLATION_REQUESTED,
@@ -133,7 +146,8 @@ class StateMachines {
     CANCEL,
     UPDATE,
     COMPLETE,
-    CONTINUE_AS_NEW
+    CONTINUE_AS_NEW,
+    QUERY
   }
 
   static final class WorkflowData {
@@ -182,38 +196,68 @@ class StateMachines {
 
   static final class DecisionTaskData {
 
-    final long previousStartedEventId;
-
     final TestWorkflowStore store;
+
+    boolean workflowCompleted;
+
+    /** id of the last started event which completed successfully */
+    long lastSuccessfulStartedEventId;
+
+    final StartWorkflowExecutionRequest startRequest;
 
     long startedEventId = NO_EVENT_ID;
 
     PollForDecisionTaskResponse.Builder decisionTask;
 
+    final List<RequestContext> concurrentToDecision = new ArrayList<>();
+
     long scheduledEventId = NO_EVENT_ID;
 
     int attempt;
 
-    DecisionTaskData(long previousStartedEventId, TestWorkflowStore store) {
-      this.previousStartedEventId = previousStartedEventId;
+    /** Query requests received during decision task processing (after start) */
+    final Map<String, TestWorkflowMutableStateImpl.ConsistentQuery> queryBuffer = new HashMap<>();
+
+    final Map<String, TestWorkflowMutableStateImpl.ConsistentQuery> consistentQueryRequests =
+        new HashMap<>();
+
+    DecisionTaskData(TestWorkflowStore store, StartWorkflowExecutionRequest startRequest) {
       this.store = store;
+      this.startRequest = startRequest;
+    }
+
+    void clear() {
+      startedEventId = NO_EVENT_ID;
+      decisionTask = null;
+      scheduledEventId = NO_EVENT_ID;
+      attempt = 0;
     }
 
     @Override
     public String toString() {
       return "DecisionTaskData{"
-          + "previousStartedEventId="
-          + previousStartedEventId
-          + ", store="
+          + "store="
           + store
+          + ", workflowCompleted="
+          + workflowCompleted
+          + ", lastSuccessfulStartedEventId="
+          + lastSuccessfulStartedEventId
+          + ", startRequest="
+          + startRequest
           + ", startedEventId="
           + startedEventId
           + ", decisionTask="
           + decisionTask
+          + ", concurrentToDecision="
+          + concurrentToDecision
           + ", scheduledEventId="
           + scheduledEventId
           + ", attempt="
           + attempt
+          + ", queryBuffer="
+          + queryBuffer
+          + ", consistentQueryRequests="
+          + consistentQueryRequests
           + '}';
     }
   }
@@ -362,15 +406,34 @@ class StateMachines {
   }
 
   static StateMachine<DecisionTaskData> newDecisionStateMachine(
-      long previousStartedEventId, TestWorkflowStore store) {
-    return new StateMachine<>(new DecisionTaskData(previousStartedEventId, store))
+      TestWorkflowStore store, StartWorkflowExecutionRequest startRequest) {
+    return new StateMachine<>(new DecisionTaskData(store, startRequest))
         .add(NONE, INITIATE, INITIATED, StateMachines::scheduleDecisionTask)
+        .add(NONE, QUERY, INITIATED_QUERY_ONLY, StateMachines::scheduleQueryDecisionTask)
+        .add(INITIATED_QUERY_ONLY, QUERY, INITIATED_QUERY_ONLY, StateMachines::queryWhileScheduled)
+        .add(
+            INITIATED_QUERY_ONLY,
+            INITIATE,
+            INITIATED,
+            StateMachines::convertQueryDecisionTaskToReal)
+        .add(
+            INITIATED_QUERY_ONLY,
+            START,
+            STARTED_QUERY_ONLY,
+            StateMachines::startQueryOnlyDecisionTask)
+        .add(INITIATED, INITIATE, INITIATED, StateMachines::noop)
+        .add(INITIATED, QUERY, INITIATED, StateMachines::queryWhileScheduled)
         .add(INITIATED, START, STARTED, StateMachines::startDecisionTask)
-        .add(STARTED, COMPLETE, COMPLETED, StateMachines::completeDecisionTask)
-        .add(STARTED, FAIL, FAILED, StateMachines::failDecisionTask)
-        .add(STARTED, TIME_OUT, TIMED_OUT, StateMachines::timeoutDecisionTask)
-        .add(TIMED_OUT, INITIATE, INITIATED, StateMachines::scheduleDecisionTask)
-        .add(FAILED, INITIATE, INITIATED, StateMachines::scheduleDecisionTask);
+        .add(STARTED, COMPLETE, NONE, StateMachines::completeDecisionTask)
+        .add(STARTED, FAIL, NONE, StateMachines::failDecisionTask)
+        .add(STARTED, TIME_OUT, NONE, StateMachines::timeoutDecisionTask)
+        .add(STARTED, INITIATE, STARTED, StateMachines::needsDecision)
+        .add(STARTED, QUERY, STARTED, StateMachines::needsDecisionDueToQuery)
+        .add(STARTED_QUERY_ONLY, INITIATE, STARTED_QUERY_ONLY, StateMachines::needsDecision)
+        .add(STARTED_QUERY_ONLY, QUERY, STARTED_QUERY_ONLY, StateMachines::needsDecisionDueToQuery)
+        .add(STARTED_QUERY_ONLY, FAIL, NONE, StateMachines::failQueryDecisionTask)
+        .add(STARTED_QUERY_ONLY, TIME_OUT, NONE, StateMachines::failQueryDecisionTask)
+        .add(STARTED_QUERY_ONLY, COMPLETE, NONE, StateMachines::completeQuery);
   }
 
   public static StateMachine<ActivityTaskData> newActivityStateMachine(
@@ -444,6 +507,8 @@ class StateMachines {
         .add(INITIATED, FAIL, FAILED, StateMachines::failExternalCancellation)
         .add(INITIATED, START, STARTED, StateMachines::reportExternalCancellationRequested);
   }
+
+  private static <T, A> void noop(RequestContext ctx, T data, A a, long notUsed) {}
 
   private static void timeoutChildWorkflow(
       RequestContext ctx, ChildWorkflowData data, TimeoutType timeoutType, long notUsed) {
@@ -958,10 +1023,39 @@ class StateMachines {
   }
 
   private static void scheduleDecisionTask(
-      RequestContext ctx,
-      DecisionTaskData data,
-      StartWorkflowExecutionRequest request,
-      long notUsed) {
+      RequestContext ctx, DecisionTaskData data, Object notUsedRequest, long notUsed) {
+    StartWorkflowExecutionRequest request = data.startRequest;
+    long scheduledEventId;
+    DecisionTaskScheduledEventAttributes a =
+        DecisionTaskScheduledEventAttributes.newBuilder()
+            .setStartToCloseTimeoutSeconds(request.getTaskStartToCloseTimeoutSeconds())
+            .setTaskList(request.getTaskList())
+            .setAttempt(data.attempt)
+            .build();
+    HistoryEvent event =
+        HistoryEvent.newBuilder()
+            .setEventType(EventType.DecisionTaskScheduled)
+            .setDecisionTaskScheduledEventAttributes(a)
+            .build();
+    scheduledEventId = ctx.addEvent(event);
+    PollForDecisionTaskResponse.Builder decisionTaskResponse =
+        PollForDecisionTaskResponse.newBuilder();
+    decisionTaskResponse.setWorkflowExecution(ctx.getExecution());
+    decisionTaskResponse.setWorkflowType(request.getWorkflowType());
+    decisionTaskResponse.setAttempt(data.attempt);
+    TaskListId taskListId = new TaskListId(ctx.getNamespace(), request.getTaskList().getName());
+    DecisionTask decisionTask = new DecisionTask(taskListId, decisionTaskResponse);
+    ctx.setDecisionTask(decisionTask);
+    ctx.onCommit(
+        (historySize) -> {
+          data.scheduledEventId = scheduledEventId;
+          data.decisionTask = decisionTaskResponse;
+        });
+  }
+
+  private static void convertQueryDecisionTaskToReal(
+      RequestContext ctx, DecisionTaskData data, Object notUsedRequest, long notUsed) {
+    StartWorkflowExecutionRequest request = data.startRequest;
     DecisionTaskScheduledEventAttributes a =
         DecisionTaskScheduledEventAttributes.newBuilder()
             .setStartToCloseTimeoutSeconds(request.getTaskStartToCloseTimeoutSeconds())
@@ -974,22 +1068,61 @@ class StateMachines {
             .setDecisionTaskScheduledEventAttributes(a)
             .build();
     long scheduledEventId = ctx.addEvent(event);
+    ctx.onCommit((historySize) -> data.scheduledEventId = scheduledEventId);
+  }
+
+  private static void scheduleQueryDecisionTask(
+      RequestContext ctx,
+      DecisionTaskData data,
+      TestWorkflowMutableStateImpl.ConsistentQuery query,
+      long notUsed) {
+    ctx.lockTimer();
+    StartWorkflowExecutionRequest request = data.startRequest;
     PollForDecisionTaskResponse.Builder decisionTaskResponse =
         PollForDecisionTaskResponse.newBuilder();
-    if (data.previousStartedEventId > 0) {
-      decisionTaskResponse.setPreviousStartedEventId(data.previousStartedEventId);
-    }
+    StickyExecutionAttributes stickyAttributes =
+        ctx.getWorkflowMutableState().getStickyExecutionAttributes();
+    String taskList =
+        stickyAttributes == null
+            ? request.getTaskList().getName()
+            : stickyAttributes.getWorkerTaskList().getName();
     decisionTaskResponse.setWorkflowExecution(ctx.getExecution());
     decisionTaskResponse.setWorkflowType(request.getWorkflowType());
     decisionTaskResponse.setAttempt(data.attempt);
-    TaskListId taskListId = new TaskListId(ctx.getNamespace(), request.getTaskList().getName());
+    TaskListId taskListId = new TaskListId(ctx.getNamespace(), taskList);
     DecisionTask decisionTask = new DecisionTask(taskListId, decisionTaskResponse);
     ctx.setDecisionTask(decisionTask);
     ctx.onCommit(
         (historySize) -> {
-          data.scheduledEventId = scheduledEventId;
+          if (data.lastSuccessfulStartedEventId > 0) {
+            log.info(
+                "scheduleQueryDecisionTask lastSuccessfulStartedEventId="
+                    + data.lastSuccessfulStartedEventId);
+            decisionTaskResponse.setPreviousStartedEventId(data.lastSuccessfulStartedEventId);
+          }
+          data.scheduledEventId = NO_EVENT_ID;
           data.decisionTask = decisionTaskResponse;
+          if (query != null) {
+            data.consistentQueryRequests.put(query.getKey(), query);
+          }
         });
+  }
+
+  private static void queryWhileScheduled(
+      RequestContext ctx,
+      DecisionTaskData data,
+      TestWorkflowMutableStateImpl.ConsistentQuery query,
+      long notUsed) {
+    data.consistentQueryRequests.put(query.getKey(), query);
+  }
+
+  private static void needsDecisionDueToQuery(
+      RequestContext ctx,
+      DecisionTaskData data,
+      TestWorkflowMutableStateImpl.ConsistentQuery query,
+      long notUsed) {
+    data.queryBuffer.put(query.getKey(), query);
+    ctx.setNeedDecision(true);
   }
 
   private static void startDecisionTask(
@@ -1005,11 +1138,26 @@ class StateMachines {
             .setDecisionTaskStartedEventAttributes(a)
             .build();
     long startedEventId = ctx.addEvent(event);
+    startDecisionTaskImpl(ctx, data, request, startedEventId, false);
+  }
+
+  private static void startQueryOnlyDecisionTask(
+      RequestContext ctx, DecisionTaskData data, PollForDecisionTaskRequest request, long notUsed) {
+    startDecisionTaskImpl(ctx, data, request, NO_EVENT_ID, true);
+  }
+
+  private static void startDecisionTaskImpl(
+      RequestContext ctx,
+      DecisionTaskData data,
+      PollForDecisionTaskRequest request,
+      long not_used,
+      boolean queryOnly) {
     ctx.onCommit(
         (historySize) -> {
-          data.decisionTask.setStartedEventId(startedEventId);
+          PollForDecisionTaskResponse.Builder task = data.decisionTask;
+          task.setStartedEventId(data.scheduledEventId + 1);
           DecisionTaskToken taskToken = new DecisionTaskToken(ctx.getExecutionId(), historySize);
-          data.decisionTask.setTaskToken(taskToken.toBytes());
+          task.setTaskToken(taskToken.toBytes());
           GetWorkflowExecutionHistoryRequest getRequest =
               GetWorkflowExecutionHistoryRequest.newBuilder()
                   .setNamespace(request.getNamespace())
@@ -1018,17 +1166,65 @@ class StateMachines {
           List<HistoryEvent> events;
           events =
               data.store
-                  .getWorkflowExecutionHistory(ctx.getExecutionId(), getRequest)
+                  .getWorkflowExecutionHistory(ctx.getExecutionId(), getRequest, null)
                   .getHistory()
                   .getEventsList();
-
+          long lastEventId = events.get(events.size() - 1).getEventId();
           if (ctx.getWorkflowMutableState().getStickyExecutionAttributes() != null) {
-            events = events.subList((int) data.previousStartedEventId, events.size());
+            if (data.lastSuccessfulStartedEventId <= 0) {
+              throw new IllegalStateException(
+                  "Invalid previousStartedEventId: " + data.lastSuccessfulStartedEventId);
+            }
+            events = events.subList((int) data.lastSuccessfulStartedEventId, events.size());
+          }
+          if (queryOnly && !data.workflowCompleted) {
+            events = new ArrayList<>(events); // convert list to mutable
+            // Add "fake" decision task scheduled and started if workflow is not closed
+            DecisionTaskScheduledEventAttributes scheduledAttributes =
+                DecisionTaskScheduledEventAttributes.newBuilder()
+                    .setStartToCloseTimeoutSeconds(
+                        data.startRequest.getTaskStartToCloseTimeoutSeconds())
+                    .setTaskList(request.getTaskList())
+                    .setAttempt(data.attempt)
+                    .build();
+            HistoryEvent scheduledEvent =
+                HistoryEvent.newBuilder()
+                    .setEventType(EventType.DecisionTaskScheduled)
+                    .setEventId(lastEventId + 1)
+                    .setDecisionTaskScheduledEventAttributes(scheduledAttributes)
+                    .build();
+            events.add(scheduledEvent);
+            DecisionTaskStartedEventAttributes startedAttributes =
+                DecisionTaskStartedEventAttributes.newBuilder()
+                    .setIdentity(request.getIdentity())
+                    .setScheduledEventId(lastEventId + 1)
+                    .build();
+            HistoryEvent startedEvent =
+                HistoryEvent.newBuilder()
+                    .setEventId(lastEventId + 1)
+                    .setEventType(EventType.DecisionTaskStarted)
+                    .setDecisionTaskStartedEventAttributes(startedAttributes)
+                    .build();
+            events.add(startedEvent);
+            task.setStartedEventId(lastEventId + 2);
           }
           // get it from pervious started event id.
-          data.decisionTask.setHistory(History.newBuilder().addAllEvents(events));
-          data.startedEventId = startedEventId;
-          data.attempt++;
+          task.setHistory(History.newBuilder().addAllEvents(events));
+          // Transfer the queries
+          Map<String, TestWorkflowMutableStateImpl.ConsistentQuery> queries =
+              data.consistentQueryRequests;
+          for (Map.Entry<String, TestWorkflowMutableStateImpl.ConsistentQuery> queryEntry :
+              queries.entrySet()) {
+            QueryWorkflowRequest queryWorkflowRequest = queryEntry.getValue().getRequest();
+            task.putQueries(queryEntry.getKey(), queryWorkflowRequest.getQuery());
+          }
+          if (data.lastSuccessfulStartedEventId > 0) {
+            task.setPreviousStartedEventId(data.lastSuccessfulStartedEventId);
+          }
+          if (!queryOnly) {
+            data.startedEventId = data.scheduledEventId + 1;
+            data.attempt++;
+          }
         });
   }
 
@@ -1081,7 +1277,68 @@ class StateMachines {
             .setDecisionTaskCompletedEventAttributes(a)
             .build();
     ctx.addEvent(event);
-    ctx.onCommit((historySize) -> data.attempt = 0);
+    ctx.onCommit(
+        (historySize) -> {
+          log.info(
+              "completeDecisionTask commit lastSuccessfulStartedEventId=" + data.startedEventId);
+          data.lastSuccessfulStartedEventId = data.startedEventId;
+          data.clear();
+        });
+  }
+
+  private static void completeQuery(
+      RequestContext ctx,
+      DecisionTaskData data,
+      RespondDecisionTaskCompletedRequest request,
+      long notUsed) {
+    Map<String, WorkflowQueryResult> responses = request.getQueryResultsMap();
+    for (Map.Entry<String, WorkflowQueryResult> resultEntry : responses.entrySet()) {
+      TestWorkflowMutableStateImpl.ConsistentQuery query =
+          data.consistentQueryRequests.remove(resultEntry.getKey());
+      if (query != null) {
+        WorkflowQueryResult value = resultEntry.getValue();
+        CompletableFuture<QueryWorkflowResponse> result = query.getResult();
+        switch (value.getResultType()) {
+          case Answered:
+            QueryWorkflowResponse response =
+                QueryWorkflowResponse.newBuilder().setQueryResult(value.getAnswer()).build();
+            result.complete(response);
+            break;
+          case Failed:
+            result.completeExceptionally(
+                StatusUtils.newException(
+                    Status.INTERNAL.withDescription(value.getErrorMessage()),
+                    QueryFailed.getDefaultInstance()));
+            break;
+          default:
+            throw Status.INVALID_ARGUMENT
+                .withDescription("Invalid query result type: " + value.getResultType())
+                .asRuntimeException();
+        }
+      }
+    }
+    ctx.onCommit(
+        (historySize) -> {
+          data.clear();
+          ctx.unlockTimer();
+        });
+  }
+
+  private static void failQueryDecisionTask(
+      RequestContext ctx, DecisionTaskData data, Object unused, long notUsed) {
+    Iterator<Map.Entry<String, TestWorkflowMutableStateImpl.ConsistentQuery>> iterator =
+        data.consistentQueryRequests.entrySet().iterator();
+    while (iterator.hasNext()) {
+      Map.Entry<String, TestWorkflowMutableStateImpl.ConsistentQuery> entry = iterator.next();
+      if (entry.getValue().getResult().isCancelled()) {
+        iterator.remove();
+        continue;
+      }
+    }
+    if (!data.consistentQueryRequests.isEmpty()) {
+      ctx.setNeedDecision(true);
+    }
+    ctx.unlockTimer();
   }
 
   private static void failDecisionTask(
@@ -1102,6 +1359,7 @@ class StateMachines {
             .setDecisionTaskFailedEventAttributes(a)
             .build();
     ctx.addEvent(event);
+    ctx.setNeedDecision(true);
   }
 
   private static void timeoutDecisionTask(
@@ -1117,6 +1375,15 @@ class StateMachines {
             .setDecisionTaskTimedOutEventAttributes(a)
             .build();
     ctx.addEvent(event);
+    ctx.setNeedDecision(true);
+  }
+
+  private static void needsDecision(
+      RequestContext requestContext,
+      DecisionTaskData decisionTaskData,
+      Object notUsedRequest,
+      long notUsed) {
+    requestContext.setNeedDecision(true);
   }
 
   private static void completeActivityTask(

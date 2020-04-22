@@ -21,8 +21,10 @@ package io.temporal.internal.replay;
 
 import io.temporal.proto.decision.Decision;
 import io.temporal.proto.query.WorkflowQuery;
+import io.temporal.proto.query.WorkflowQueryResult;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
 import java.util.List;
+import java.util.Map;
 
 public interface Decider {
 
@@ -36,9 +38,14 @@ public interface Decider {
   class DecisionResult {
     private final List<Decision> decisions;
     private final boolean forceCreateNewDecisionTask;
+    private final Map<String, WorkflowQueryResult> queryResults;
 
-    public DecisionResult(List<Decision> decisions, boolean forceCreateNewDecisionTask) {
+    public DecisionResult(
+        List<Decision> decisions,
+        Map<String, WorkflowQueryResult> queryResults,
+        boolean forceCreateNewDecisionTask) {
       this.decisions = decisions;
+      this.queryResults = queryResults;
       this.forceCreateNewDecisionTask = forceCreateNewDecisionTask;
     }
 
@@ -48,6 +55,10 @@ public interface Decider {
 
     public boolean getForceCreateNewDecisionTask() {
       return forceCreateNewDecisionTask;
+    }
+
+    public Map<String, WorkflowQueryResult> getQueryResults() {
+      return queryResults;
     }
   }
 }

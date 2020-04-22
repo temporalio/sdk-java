@@ -20,6 +20,7 @@
 package io.temporal.internal.testservice;
 
 import com.google.protobuf.Int64Value;
+import io.grpc.Deadline;
 import io.grpc.Status;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.RequestContext.Timer;
@@ -45,6 +46,7 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -112,7 +114,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     }
 
     List<HistoryEvent> waitForNewEvents(
-        long expectedNextEventId, HistoryEventFilterType filterType) {
+        long expectedNextEventId, HistoryEventFilterType filterType, Deadline deadline) {
+      long start = System.currentTimeMillis();
       lock.lock();
       try {
         while (true) {
@@ -134,7 +137,19 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
             return result;
           }
           try {
-            newEventsCondition.await();
+            long toWait;
+            if (deadline != null) {
+              toWait =
+                  deadline.timeRemaining(TimeUnit.MILLISECONDS)
+                      - System.currentTimeMillis()
+                      + start;
+              if (toWait <= 0) {
+                return null;
+              }
+              newEventsCondition.await(toWait, TimeUnit.MILLISECONDS);
+            } else {
+              newEventsCondition.await();
+            }
           } catch (InterruptedException e) {
             return null;
           }
@@ -308,8 +323,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   }
 
   @Override
-  public PollForDecisionTaskResponse.Builder pollForDecisionTask(
-      PollForDecisionTaskRequest pollRequest) throws InterruptedException {
+  public Optional<PollForDecisionTaskResponse.Builder> pollForDecisionTask(
+      PollForDecisionTaskRequest pollRequest, Deadline deadline) {
     TaskListId taskListId =
         new TaskListId(pollRequest.getNamespace(), pollRequest.getTaskList().getName());
     BlockingQueue<PollForDecisionTaskResponse.Builder> decisionsQueue =
@@ -318,19 +333,41 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       log.trace(
           "Poll request on decision task list about to block waiting for a task on " + taskListId);
     }
-    PollForDecisionTaskResponse.Builder result = decisionsQueue.take();
-    return result;
+    PollForDecisionTaskResponse.Builder result = null;
+    try {
+      if (deadline == null) {
+        result = decisionsQueue.take();
+      } else {
+        result =
+            decisionsQueue.poll(
+                deadline.timeRemaining(TimeUnit.MILLISECONDS), TimeUnit.MILLISECONDS);
+      }
+    } catch (InterruptedException e) {
+      // Intentionally left empty
+    }
+    return Optional.ofNullable(result);
   }
 
   @Override
-  public PollForActivityTaskResponse.Builder pollForActivityTask(
-      PollForActivityTaskRequest pollRequest) throws InterruptedException {
+  public Optional<PollForActivityTaskResponse.Builder> pollForActivityTask(
+      PollForActivityTaskRequest pollRequest, Deadline deadline) {
     TaskListId taskListId =
         new TaskListId(pollRequest.getNamespace(), pollRequest.getTaskList().getName());
     BlockingQueue<PollForActivityTaskResponse.Builder> activityTaskQueue =
         getActivityTaskListQueue(taskListId);
-    PollForActivityTaskResponse.Builder result = activityTaskQueue.take();
-    return result;
+    PollForActivityTaskResponse.Builder result = null;
+    try {
+      if (deadline == null) {
+        result = activityTaskQueue.take();
+      } else {
+        result =
+            activityTaskQueue.poll(
+                deadline.timeRemaining(TimeUnit.MILLISECONDS), TimeUnit.MILLISECONDS);
+      }
+    } catch (InterruptedException e) {
+      // Intentionally left empty
+    }
+    return Optional.ofNullable(result);
   }
 
   @Override
@@ -357,7 +394,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
 
   @Override
   public GetWorkflowExecutionHistoryResponse getWorkflowExecutionHistory(
-      ExecutionId executionId, GetWorkflowExecutionHistoryRequest getRequest) {
+      ExecutionId executionId, GetWorkflowExecutionHistoryRequest getRequest, Deadline deadline) {
     HistoryStore history;
     // Used to eliminate the race condition on waitForNewEvents
     long expectedNextEventId;
@@ -378,7 +415,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       lock.unlock();
     }
     List<HistoryEvent> events =
-        history.waitForNewEvents(expectedNextEventId, getRequest.getHistoryEventFilterType());
+        history.waitForNewEvents(
+            expectedNextEventId, getRequest.getHistoryEventFilterType(), deadline);
     GetWorkflowExecutionHistoryResponse.Builder result =
         GetWorkflowExecutionHistoryResponse.newBuilder();
     if (events != null) {

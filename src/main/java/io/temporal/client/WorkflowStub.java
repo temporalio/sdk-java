@@ -19,7 +19,6 @@
 
 package io.temporal.client;
 
-import io.temporal.internal.common.QueryResponse;
 import io.temporal.internal.sync.StubMarker;
 import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.query.QueryRejectCondition;
@@ -124,22 +123,21 @@ public interface WorkflowStub {
 
   <R> CompletableFuture<R> getResultAsync(long timeout, TimeUnit unit, Class<R> resultClass);
 
+  /**
+   * Synchronously queries workflow by invoking its query handler. Usually a query handler is a
+   * method annotated with {@link io.temporal.workflow.QueryMethod}.
+   *
+   * @see WorkflowClientOptions.Builder#setQueryRejectCondition(QueryRejectCondition)
+   * @param queryType name of the query handler. Usually it is a method name.
+   * @param resultClass class of the query result type
+   * @param args optional query arguments
+   * @param <R> type of the query result
+   * @return query result
+   * @throws WorkflowQueryException if query failed for any reason
+   */
   <R> R query(String queryType, Class<R> resultClass, Object... args);
 
   <R> R query(String queryType, Class<R> resultClass, Type resultType, Object... args);
-
-  <R> QueryResponse<R> query(
-      String queryType,
-      Class<R> resultClass,
-      QueryRejectCondition queryRejectCondition,
-      Object... args);
-
-  <R> QueryResponse<R> query(
-      String queryType,
-      Class<R> resultClass,
-      Type resultType,
-      QueryRejectCondition queryRejectCondition,
-      Object... args);
 
   /** Request cancellation. */
   void cancel();

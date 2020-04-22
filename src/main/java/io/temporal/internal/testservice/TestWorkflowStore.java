@@ -19,6 +19,7 @@
 
 package io.temporal.internal.testservice;
 
+import io.grpc.Deadline;
 import io.temporal.proto.execution.WorkflowExecutionInfo;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
@@ -142,18 +143,20 @@ interface TestWorkflowStore {
 
   void registerDelayedCallback(Duration delay, Runnable r);
 
-  PollForDecisionTaskResponse.Builder pollForDecisionTask(PollForDecisionTaskRequest pollRequest)
-      throws InterruptedException;
+  /** @return empty if deadline exprired */
+  Optional<PollForDecisionTaskResponse.Builder> pollForDecisionTask(
+      PollForDecisionTaskRequest pollRequest, Deadline deadline);
 
-  PollForActivityTaskResponse.Builder pollForActivityTask(PollForActivityTaskRequest pollRequest)
-      throws InterruptedException;
+  /** @return empty if deadline exprired */
+  Optional<PollForActivityTaskResponse.Builder> pollForActivityTask(
+      PollForActivityTaskRequest pollRequest, Deadline deadline);
 
   /** @return queryId */
   void sendQueryTask(
       ExecutionId executionId, TaskListId taskList, PollForDecisionTaskResponse.Builder task);
 
   GetWorkflowExecutionHistoryResponse getWorkflowExecutionHistory(
-      ExecutionId executionId, GetWorkflowExecutionHistoryRequest getRequest);
+      ExecutionId executionId, GetWorkflowExecutionHistoryRequest getRequest, Deadline deadline);
 
   void getDiagnostics(StringBuilder result);
 

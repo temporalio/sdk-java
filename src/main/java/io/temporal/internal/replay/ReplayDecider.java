@@ -21,6 +21,7 @@ package io.temporal.internal.replay;
 
 import static io.temporal.worker.WorkflowErrorPolicy.FailWorkflow;
 
+import com.google.common.base.Throwables;
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
@@ -41,17 +42,22 @@ import io.temporal.proto.event.HistoryEvent;
 import io.temporal.proto.event.TimerFiredEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionSignaledEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionStartedEventAttributes;
+import io.temporal.proto.query.QueryResultType;
 import io.temporal.proto.query.WorkflowQuery;
+import io.temporal.proto.query.WorkflowQueryResult;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
@@ -83,6 +89,7 @@ class ReplayDecider implements Decider {
   private final WorkflowExecutionStartedEventAttributes startedEvent;
   private final Lock lock = new ReentrantLock();
   private final Consumer<HistoryEvent> localActivityCompletionSink;
+  private final Map<String, WorkflowQueryResult> queryResults = new HashMap<>();
 
   ReplayDecider(
       WorkflowServiceStubs service,
@@ -200,7 +207,7 @@ class ReplayDecider implements Decider {
         // NOOP
         break;
       case WorkflowExecutionTimedOut:
-        // NOOP
+        decisionsHelper.handleWorkflowExecutionCompleted(event);
         break;
       case ActivityTaskScheduled:
         decisionsHelper.handleActivityTaskScheduled(event);
@@ -215,12 +222,16 @@ class ReplayDecider implements Decider {
         context.handleMarkerRecorded(event);
         break;
       case WorkflowExecutionCompleted:
+        decisionsHelper.handleWorkflowExecutionCompleted(event);
         break;
       case WorkflowExecutionFailed:
+        decisionsHelper.handleWorkflowExecutionCompleted(event);
         break;
       case WorkflowExecutionCanceled:
+        decisionsHelper.handleWorkflowExecutionCompleted(event);
         break;
       case WorkflowExecutionContinuedAsNew:
+        decisionsHelper.handleWorkflowExecutionCompleted(event);
         break;
       case TimerStarted:
         decisionsHelper.handleTimerStarted(event);
@@ -381,8 +392,10 @@ class ReplayDecider implements Decider {
   public DecisionResult decide(PollForDecisionTaskResponseOrBuilder decisionTask) throws Throwable {
     lock.lock();
     try {
+      queryResults.clear();
       boolean forceCreateNewDecisionTask = decideImpl(decisionTask, null);
-      return new DecisionResult(decisionsHelper.getDecisions(), forceCreateNewDecisionTask);
+      return new DecisionResult(
+          decisionsHelper.getDecisions(), queryResults, forceCreateNewDecisionTask);
     } finally {
       lock.unlock();
     }
@@ -391,7 +404,8 @@ class ReplayDecider implements Decider {
   // Returns boolean to indicate whether we need to force create new decision task for local
   // activity heartbeating.
   private boolean decideImpl(
-      PollForDecisionTaskResponseOrBuilder decisionTask, Functions.Proc query) throws Throwable {
+      PollForDecisionTaskResponseOrBuilder decisionTask, Functions.Proc legacyQueryCallback)
+      throws Throwable {
     boolean forceCreateNewDecisionTask = false;
     try {
       long startTime = System.currentTimeMillis();
@@ -453,7 +467,6 @@ class ReplayDecider implements Decider {
         // Reset state to before running the event loop
         decisionsHelper.handleDecisionTaskStartedEvent(decision);
       }
-
       return forceCreateNewDecisionTask;
     } catch (Error e) {
       if (this.workflow.getWorkflowImplementationOptions().getWorkflowErrorPolicy()
@@ -469,8 +482,37 @@ class ReplayDecider implements Decider {
         throw e;
       }
     } finally {
-      if (query != null) {
-        query.apply();
+      Map<String, WorkflowQuery> queries = decisionTask.getQueriesMap();
+      for (Map.Entry<String, WorkflowQuery> entry : queries.entrySet()) {
+        WorkflowQuery query = entry.getValue();
+        try {
+          byte[] queryResult = workflow.query(query);
+          queryResults.put(
+              entry.getKey(),
+              WorkflowQueryResult.newBuilder()
+                  .setResultType(QueryResultType.Answered)
+                  .setAnswer(ByteString.copyFrom(queryResult))
+                  .build());
+        } catch (Exception e) {
+          String stackTrace = Throwables.getStackTraceAsString(e);
+          String message;
+          if (e != null) {
+            message = e.getMessage();
+          } else {
+            message = e.toString();
+          }
+
+          queryResults.put(
+              entry.getKey(),
+              WorkflowQueryResult.newBuilder()
+                  .setResultType(QueryResultType.Failed)
+                  .setErrorMessage(message)
+                  .setAnswer(ByteString.copyFrom(stackTrace, StandardCharsets.UTF_8))
+                  .build());
+        }
+      }
+      if (legacyQueryCallback != null) {
+        legacyQueryCallback.apply();
       }
       if (completed) {
         close();

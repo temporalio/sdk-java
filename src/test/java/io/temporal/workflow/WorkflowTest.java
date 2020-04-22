@@ -44,6 +44,7 @@ import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowFailureException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowQueryException;
+import io.temporal.client.WorkflowQueryRejectedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.client.WorkflowTimedOutException;
 import io.temporal.common.CronSchedule;
@@ -55,7 +56,6 @@ import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowInvocationInterceptor;
 import io.temporal.common.interceptors.WorkflowInvoker;
-import io.temporal.internal.common.QueryResponse;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.sync.DeterministicRunnerTest;
 import io.temporal.proto.common.Memo;
@@ -113,6 +113,8 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -139,8 +141,6 @@ import org.junit.runner.Description;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// TODO(mfateev): Enable parallel tests
-// @RunWith(ParallelRunner.class)
 public class WorkflowTest {
 
   /**
@@ -2598,7 +2598,6 @@ public class WorkflowTest {
 
     @Override
     public void mySignal(String value) {
-      log.info("TestSignalWorkflowImpl.mySignal value=" + value);
       state = value;
       signals.add(value);
       if (signals.size() == 2) {
@@ -2728,7 +2727,7 @@ public class WorkflowTest {
     startWorkerFor(TestSignalWorkflowImpl.class);
     String workflowType = QueryableWorkflow.class.getSimpleName();
     AtomicReference<WorkflowExecution> execution = new AtomicReference<>();
-    WorkflowStub client =
+    WorkflowStub workflowStub =
         workflowClient.newUntypedWorkflowStub(
             workflowType, newWorkflowOptionsBuilder(taskList).build());
     // To execute workflow client.execute() would do. But we want to start workflow and immediately
@@ -2736,31 +2735,38 @@ public class WorkflowTest {
     registerDelayedCallback(
         Duration.ofSeconds(1),
         () -> {
-          assertEquals("initial", client.query("getState", String.class));
-          client.signal("testSignal", "Hello ");
+          assertEquals("initial", workflowStub.query("getState", String.class));
+          workflowStub.signal("testSignal", "Hello ");
           sleep(Duration.ofMillis(500));
-          while (!"Hello ".equals(client.query("getState", String.class))) {}
-          assertEquals("Hello ", client.query("getState", String.class));
-          client.signal("testSignal", "World!");
-          while (!"World!".equals(client.query("getState", String.class))) {}
-          assertEquals("World!", client.query("getState", String.class));
+          while (!"Hello ".equals(workflowStub.query("getState", String.class))) {}
+          assertEquals("Hello ", workflowStub.query("getState", String.class));
+          workflowStub.signal("testSignal", "World!");
+          while (!"World!".equals(workflowStub.query("getState", String.class))) {}
+          assertEquals("World!", workflowStub.query("getState", String.class));
           assertEquals(
               "Hello World!",
               workflowClient
                   .newUntypedWorkflowStub(execution.get(), Optional.of(workflowType))
                   .getResult(String.class));
         });
-    execution.set(client.start());
-    assertEquals("Hello World!", client.getResult(String.class));
-    assertEquals("World!", client.query("getState", String.class));
-    QueryResponse<String> queryResponse =
-        client.query("getState", String.class, QueryRejectCondition.NotOpen);
-    assertNull(queryResponse.getResult());
-    assertEquals(
-        execution.toString(),
-        WorkflowExecutionStatus.Completed,
-        queryResponse.getQueryRejected().getStatus());
-    log.info("testSignalUntyped completed");
+    execution.set(workflowStub.start());
+    assertEquals("Hello World!", workflowStub.getResult(String.class));
+    assertEquals("World!", workflowStub.query("getState", String.class));
+    WorkflowClient client =
+        WorkflowClient.newInstance(
+            service,
+            WorkflowClientOptions.newBuilder()
+                .setNamespace(NAMESPACE)
+                .setQueryRejectCondition(QueryRejectCondition.NotOpen)
+                .build());
+    WorkflowStub workflowStubNotOptionRejectCondition =
+        client.newUntypedWorkflowStub(execution.get(), Optional.of(workflowType));
+    try {
+      workflowStubNotOptionRejectCondition.query("getState", String.class);
+      fail("unreachable");
+    } catch (WorkflowQueryRejectedException e) {
+      assertEquals(WorkflowExecutionStatus.Completed, e.getWorkflowExecutionStatus());
+    }
   }
 
   static final AtomicInteger decisionCount = new AtomicInteger();
@@ -5057,18 +5063,18 @@ public class WorkflowTest {
     assertTrue(result.contains("NonSerializableException"));
   }
 
+  @WorkflowInterface
   public interface TestLargeWorkflow {
-
     @WorkflowMethod
     String execute(int activityCount, String taskList);
   }
 
+  @ActivityInterface
   public interface TestLargeWorkflowActivity {
     String activity();
   }
 
   public static class TestLargeWorkflowActivityImpl implements TestLargeWorkflowActivity {
-
     @Override
     public String activity() {
       return "done";
@@ -5099,7 +5105,10 @@ public class WorkflowTest {
     startWorkerFor(TestLargeHistory.class);
     TestLargeWorkflow workflowStub =
         workflowClient.newWorkflowStub(
-            TestLargeWorkflow.class, newWorkflowOptionsBuilder(taskList).build());
+            TestLargeWorkflow.class,
+            newWorkflowOptionsBuilder(taskList)
+                .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
+                .build());
     long start = System.currentTimeMillis();
     String result = workflowStub.execute(activityCount, taskList);
     long duration = System.currentTimeMillis() - start;
@@ -5254,6 +5263,7 @@ public class WorkflowTest {
         result);
   }
 
+  @WorkflowInterface
   public interface TestWorkflowQuery {
 
     @WorkflowMethod()
@@ -5269,16 +5279,10 @@ public class WorkflowTest {
 
     @Override
     public String execute(String taskList) {
-
-      // Make sure decider is in the cache when we execute local activities.
-      TestActivities activities =
-          Workflow.newActivityStub(TestActivities.class, newActivityOptions1(taskList));
-      activities.activity();
-
       TestActivities localActivities =
           Workflow.newLocalActivityStub(TestActivities.class, newLocalActivityOptions1());
       for (int i = 0; i < 5; i++) {
-        localActivities.sleepActivity(2000, i);
+        localActivities.sleepActivity(1000, i);
         message = "run" + i;
       }
       return "done";
@@ -5291,44 +5295,42 @@ public class WorkflowTest {
   }
 
   @Test
-  @Ignore // TODO(maxim): Implement consistent query correctly
-  public void testLocalActivityAndQuery() throws InterruptedException {
+  public void testLocalActivityAndQuery() throws ExecutionException, InterruptedException {
 
     startWorkerFor(TestLocalActivityAndQueryWorkflow.class);
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
             .setExecutionStartToCloseTimeout(Duration.ofMinutes(5))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(5))
+            .setTaskStartToCloseTimeout(Duration.ofSeconds(10))
             .setTaskList(taskList)
             .build();
     TestWorkflowQuery workflowStub =
         workflowClient.newWorkflowStub(TestWorkflowQuery.class, options);
     WorkflowClient.start(workflowStub::execute, taskList);
 
-    // Sleep for a while before querying, so that the first decision task is processed and cache is
-    // populated.
-    // This also makes sure that the query lands when the local activities are executing.
-    Thread.sleep(500);
-
-    // When sticky is on, query will block until the first batch completes (in 4sec),
-    // and the progress will be reflected in query result.
-    String queryResult = workflowStub.query();
-    assertEquals("run1", queryResult);
-
-    // By the time the next query processes, the next decision batch is complete.
-    // Again the progress will be reflected in query result.
-    assertEquals("run3", workflowStub.query());
-
-    String result = workflowStub.execute(taskList);
+    // Ensure that query doesn't see intermediate results of the local activities execution
+    // as all these activities are executed in a single decision task.
+    while (true) {
+      String queryResult = workflowStub.query();
+      assertTrue(queryResult, queryResult.equals("run1") || queryResult.equals("run4"));
+      List<ForkJoinTask<String>> tasks = new ArrayList<>();
+      int threads = 30;
+      if (queryResult.equals("run4")) {
+        for (int i = 0; i < threads; i++) {
+          ForkJoinTask<String> task = ForkJoinPool.commonPool().submit(() -> workflowStub.query());
+          tasks.add(task);
+        }
+        for (int i = 0; i < threads; i++) {
+          assertEquals("run4", tasks.get(i).get());
+        }
+        break;
+      }
+    }
+    String result = WorkflowStub.fromTyped(workflowStub).getResult(String.class);
     assertEquals("done", result);
     assertEquals("run4", workflowStub.query());
     activitiesImpl.assertInvocations(
-        "activity",
-        "sleepActivity",
-        "sleepActivity",
-        "sleepActivity",
-        "sleepActivity",
-        "sleepActivity");
+        "sleepActivity", "sleepActivity", "sleepActivity", "sleepActivity", "sleepActivity");
   }
 
   @WorkflowInterface
@@ -5471,8 +5473,8 @@ public class WorkflowTest {
     public String composeGreeting(String string) {
       try {
         Thread.sleep(10000);
-      } catch (Exception e) {
-        System.out.println("Exception");
+      } catch (InterruptedException e) {
+        throw new Error("Unexpected", e);
       }
       return "greetings: " + string;
     }
@@ -5642,8 +5644,8 @@ public class WorkflowTest {
 
     @Override
     public void signal1(String arg) {
-      for (int i = 0; i < 100; i++) {
-        Async.procedure(() -> System.out.println("test"));
+      for (int i = 0; i < 10; i++) {
+        Async.procedure(() -> Workflow.sleep(Duration.ofHours(1)));
       }
 
       throw new RuntimeException("exception in signal method");

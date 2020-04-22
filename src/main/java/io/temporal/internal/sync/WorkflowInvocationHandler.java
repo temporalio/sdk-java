@@ -22,11 +22,11 @@ package io.temporal.internal.sync;
 import com.google.common.base.Defaults;
 import io.temporal.client.DuplicateWorkflowException;
 import io.temporal.client.WorkflowClientInterceptor;
+import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
-import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.external.GenericWorkflowClientExternal;
 import io.temporal.proto.common.WorkflowIdReusePolicy;
 import io.temporal.proto.execution.WorkflowExecution;
@@ -108,14 +108,13 @@ class WorkflowInvocationHandler implements InvocationHandler {
 
   WorkflowInvocationHandler(
       Class<?> workflowInterface,
+      WorkflowClientOptions clientOptions,
       GenericWorkflowClientExternal genericClient,
-      WorkflowExecution execution,
-      DataConverter dataConverter,
-      WorkflowClientInterceptor[] interceptors) {
+      WorkflowExecution execution) {
     workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
     Optional<String> workflowType = workflowMetadata.getWorkflowType();
-    WorkflowStub stub = new WorkflowStubImpl(genericClient, dataConverter, workflowType, execution);
-    for (WorkflowClientInterceptor i : interceptors) {
+    WorkflowStub stub = new WorkflowStubImpl(clientOptions, genericClient, workflowType, execution);
+    for (WorkflowClientInterceptor i : clientOptions.getInterceptors()) {
       stub = i.newUntypedWorkflowStub(execution, workflowType, stub);
     }
     this.untyped = stub;
@@ -123,10 +122,9 @@ class WorkflowInvocationHandler implements InvocationHandler {
 
   WorkflowInvocationHandler(
       Class<?> workflowInterface,
+      WorkflowClientOptions clientOptions,
       GenericWorkflowClientExternal genericClient,
-      WorkflowOptions options,
-      DataConverter dataConverter,
-      WorkflowClientInterceptor[] interceptors) {
+      WorkflowOptions options) {
     workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
     Optional<POJOWorkflowMethodMetadata> workflowMethodMetadata =
         workflowMetadata.getWorkflowMethod();
@@ -142,8 +140,8 @@ class WorkflowInvocationHandler implements InvocationHandler {
         WorkflowOptions.merge(annotation, methodRetry, cronSchedule, options);
     String workflowType = workflowMethodMetadata.get().getName();
     WorkflowStub stub =
-        new WorkflowStubImpl(genericClient, dataConverter, workflowType, mergedOptions);
-    for (WorkflowClientInterceptor i : interceptors) {
+        new WorkflowStubImpl(clientOptions, genericClient, workflowType, mergedOptions);
+    for (WorkflowClientInterceptor i : clientOptions.getInterceptors()) {
       stub = i.newUntypedWorkflowStub(workflowType, mergedOptions, stub);
     }
     this.untyped = stub;

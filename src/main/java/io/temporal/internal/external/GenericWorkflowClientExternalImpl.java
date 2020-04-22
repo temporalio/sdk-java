@@ -38,7 +38,6 @@ import io.temporal.proto.common.Memo;
 import io.temporal.proto.common.RetryPolicy;
 import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.execution.WorkflowExecution;
-import io.temporal.proto.query.QueryConsistencyLevel;
 import io.temporal.proto.query.WorkflowQuery;
 import io.temporal.proto.tasklist.TaskList;
 import io.temporal.proto.workflowservice.QueryWorkflowRequest;
@@ -325,20 +324,11 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
                     .setQueryArgs(OptionsUtils.toByteString(queryParameters.getInput()))
                     .setQueryType(queryParameters.getQueryType()))
             .setQueryRejectCondition(queryParameters.getQueryRejectCondition())
-            .setQueryConsistencyLevel(
-                QueryConsistencyLevel.Eventual) // TODO: Configurable and strong
+            .setQueryConsistencyLevel(queryParameters.getQueryConsistencyLevel())
             .build();
     return GrpcRetryer.retryWithResult(
         GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
-        () -> {
-          try {
-            QueryWorkflowResponse result = service.blockingStub().queryWorkflow(request);
-            System.out.println(result);
-            return result;
-          } catch (RuntimeException e) {
-            throw e;
-          }
-        });
+        () -> service.blockingStub().queryWorkflow(request));
   }
 
   @Override

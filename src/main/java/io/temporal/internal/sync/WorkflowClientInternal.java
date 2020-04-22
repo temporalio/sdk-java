@@ -108,8 +108,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
   public <T> T newWorkflowStub(Class<T> workflowInterface, WorkflowOptions options) {
     checkAnnotation(workflowInterface, WorkflowMethod.class);
     WorkflowInvocationHandler invocationHandler =
-        new WorkflowInvocationHandler(
-            workflowInterface, genericClient, options, dataConverter, interceptors);
+        new WorkflowInvocationHandler(workflowInterface, this.getOptions(), genericClient, options);
     return (T)
         Proxy.newProxyInstance(
             WorkflowInternal.class.getClassLoader(),
@@ -158,7 +157,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
 
     WorkflowInvocationHandler invocationHandler =
         new WorkflowInvocationHandler(
-            workflowInterface, genericClient, execution, dataConverter, interceptors);
+            workflowInterface, this.getOptions(), genericClient, execution);
     @SuppressWarnings("unchecked")
     T result =
         (T)
@@ -170,10 +169,11 @@ public final class WorkflowClientInternal implements WorkflowClient {
   }
 
   @Override
-  public WorkflowStub newUntypedWorkflowStub(String workflowType, WorkflowOptions options) {
-    WorkflowStub result = new WorkflowStubImpl(genericClient, dataConverter, workflowType, options);
+  public WorkflowStub newUntypedWorkflowStub(String workflowType, WorkflowOptions workflowOptions) {
+    WorkflowStub result =
+        new WorkflowStubImpl(options, genericClient, workflowType, workflowOptions);
     for (WorkflowClientInterceptor i : interceptors) {
-      result = i.newUntypedWorkflowStub(workflowType, options, result);
+      result = i.newUntypedWorkflowStub(workflowType, workflowOptions, result);
     }
     return result;
   }
@@ -189,7 +189,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
   @Override
   public WorkflowStub newUntypedWorkflowStub(
       WorkflowExecution execution, Optional<String> workflowType) {
-    return new WorkflowStubImpl(genericClient, dataConverter, workflowType, execution);
+    return new WorkflowStubImpl(options, genericClient, workflowType, execution);
   }
 
   @Override

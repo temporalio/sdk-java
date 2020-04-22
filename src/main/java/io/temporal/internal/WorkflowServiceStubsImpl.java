@@ -48,6 +48,12 @@ import org.slf4j.LoggerFactory;
 public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
 
   private static final Logger log = LoggerFactory.getLogger(WorkflowServiceStubsImpl.class);
+  /**
+   * Separate logger for PollForDecisionTask reply which includes history. It is separate to allow
+   * disabling independently through configuration.
+   */
+  private static final Logger decision_task_log =
+      LoggerFactory.getLogger(WorkflowServiceStubsImpl.class.getName() + ":history");
 
   /** refers to the name of the gRPC header that contains the client library version */
   private static final Metadata.Key<String> LIBRARY_VERSION_HEADER_KEY =
@@ -164,8 +170,13 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
                   public void onMessage(RespT message) {
                     // Skip printing the whole history
                     if (method == WorkflowServiceGrpc.getPollForDecisionTaskMethod()) {
-                      log.trace("Returned " + method.getFullMethodName());
-                    } else {
+                      if (decision_task_log.isTraceEnabled()) {
+                        decision_task_log.trace(
+                            "Returned " + method.getFullMethodName() + " with output: " + message);
+                      } else if (log.isTraceEnabled()) {
+                        log.trace("Returned " + method.getFullMethodName());
+                      }
+                    } else if (log.isTraceEnabled()) {
                       log.trace(
                           "Returned " + method.getFullMethodName() + " with output: " + message);
                     }

@@ -94,6 +94,9 @@ final class RequestContext {
     this.clock = Objects.requireNonNull(clock);
     this.workflowMutableState = Objects.requireNonNull(workflowMutableState);
     this.executionId = Objects.requireNonNull(workflowMutableState.getExecutionId());
+    if (initialEventId <= 0) {
+      throw new IllegalArgumentException("Invalid initialEventId: " + initialEventId);
+    }
     this.initialEventId = initialEventId;
   }
 
