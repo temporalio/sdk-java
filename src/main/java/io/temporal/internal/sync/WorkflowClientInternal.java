@@ -111,7 +111,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
         new WorkflowInvocationHandler(workflowInterface, this.getOptions(), genericClient, options);
     return (T)
         Proxy.newProxyInstance(
-            WorkflowInternal.class.getClassLoader(),
+            workflowInterface.getClassLoader(),
             new Class<?>[] {workflowInterface, StubMarker.class},
             invocationHandler);
   }
@@ -162,7 +162,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
     T result =
         (T)
             Proxy.newProxyInstance(
-                WorkflowInternal.class.getClassLoader(),
+                workflowInterface.getClassLoader(),
                 new Class<?>[] {workflowInterface, StubMarker.class},
                 invocationHandler);
     return result;
