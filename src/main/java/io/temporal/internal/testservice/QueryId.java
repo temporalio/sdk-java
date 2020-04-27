@@ -39,7 +39,7 @@ class QueryId {
     this.queryId = UUID.randomUUID().toString();
   }
 
-  private QueryId(ExecutionId executionId, String queryId) {
+  QueryId(ExecutionId executionId, String queryId) {
     this.executionId = Objects.requireNonNull(executionId);
     this.queryId = queryId;
   }
