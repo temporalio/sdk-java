@@ -19,7 +19,7 @@
 
 package io.temporal.workflow;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.*;
@@ -29,6 +29,8 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.StatsReporter;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.client.WorkflowClient;
@@ -42,12 +44,16 @@ import io.temporal.common.interceptors.WorkflowInvocationInterceptor;
 import io.temporal.common.interceptors.WorkflowInvoker;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
+import io.temporal.proto.workflowservice.DescribeNamespaceRequest;
+import io.temporal.proto.workflowservice.StartWorkflowExecutionRequest;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.interceptors.SignalWorkflowCallsInterceptor;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
 import org.junit.Rule;
 import org.junit.Test;
@@ -274,6 +280,21 @@ public class MetricsTest {
             .build();
     verify(reporter, times(1))
         .reportCounter("temporal-activity-task-completed", activityCompletionTags, 1);
+    verify(reporter, atLeastOnce())
+        .reportCounter("temporal-StartWorkflowExecution.temporal-request", new HashMap<>(), 1);
+    verify(reporter, atLeastOnce())
+        .reportTimer(
+            eq("temporal-StartWorkflowExecution.temporal-latency"), eq(new HashMap<>()), any());
+    verify(reporter, atLeastOnce())
+        .reportCounter("temporal-PollForDecisionTask.temporal-request", new HashMap<>(), 1);
+    verify(reporter, atLeastOnce())
+        .reportCounter(
+            "temporal-RespondDecisionTaskCompleted.temporal-request", new HashMap<>(), 1);
+    verify(reporter, atLeastOnce())
+        .reportCounter("temporal-PollForActivityTask.temporal-request", new HashMap<>(), 1);
+    verify(reporter, times(1))
+        .reportCounter(
+            "temporal-RespondActivityTaskCompleted.temporal-request", new HashMap<>(), 1);
 
     testEnvironment.close();
   }
@@ -332,5 +353,64 @@ public class MetricsTest {
               interceptor);
       return new BaseWorkflowInvoker(i, next);
     }
+  }
+
+  @Test
+  public void testTemporalFailureMetric() throws InterruptedException {
+    setUp(
+        com.uber.m3.util.Duration.ofMillis(300),
+        WorkerFactoryOptions.newBuilder()
+            .setWorkflowInterceptor(new CorruptedSignalWorkflowInterceptor())
+            .build());
+
+    try {
+      WorkflowServiceStubs serviceStubs =
+          testEnvironment.getWorkflowClient().getWorkflowServiceStubs();
+
+      serviceStubs.blockingStub().describeNamespace(DescribeNamespaceRequest.newBuilder().build());
+      fail("failure expected");
+    } catch (StatusRuntimeException e) {
+      assertEquals(Status.Code.UNIMPLEMENTED, e.getStatus().getCode());
+    }
+
+    // Wait for reporter
+    Thread.sleep(600);
+
+    verify(reporter, times(1))
+        .reportCounter("temporal-DescribeNamespace.temporal-request", new HashMap<>(), 1);
+    verify(reporter, times(1))
+        .reportCounter("temporal-DescribeNamespace.temporal-error", new HashMap<>(), 1);
+    testEnvironment.close();
+  }
+
+  @Test
+  public void testTemporalInvalidRequestMetric() throws InterruptedException {
+    setUp(
+        com.uber.m3.util.Duration.ofMillis(300),
+        WorkerFactoryOptions.newBuilder()
+            .setWorkflowInterceptor(new CorruptedSignalWorkflowInterceptor())
+            .build());
+
+    try {
+      WorkflowServiceStubs serviceStubs =
+          testEnvironment.getWorkflowClient().getWorkflowServiceStubs();
+
+      serviceStubs
+          .blockingStub()
+          .startWorkflowExecution(StartWorkflowExecutionRequest.newBuilder().build());
+      fail("failure expected");
+    } catch (StatusRuntimeException e) {
+      assertEquals(Status.Code.INVALID_ARGUMENT, e.getStatus().getCode());
+    }
+
+    // Wait for reporter
+    Thread.sleep(600);
+
+    verify(reporter, times(1))
+        .reportCounter("temporal-StartWorkflowExecution.temporal-request", new HashMap<>(), 1);
+    verify(reporter, times(1))
+        .reportCounter(
+            "temporal-StartWorkflowExecution.temporal-invalid-request", new HashMap<>(), 1);
+    testEnvironment.close();
   }
 }

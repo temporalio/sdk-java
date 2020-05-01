@@ -49,7 +49,8 @@ class GrpcMetricsInterceptor implements ClientInterceptor {
     String serviceName = descriptor.getName();
     Collection<MethodDescriptor<?, ?>> methods = descriptor.getMethods();
     for (MethodDescriptor<?, ?> method : methods) {
-      String name = method.getFullMethodName().substring(serviceName.length());
+      int beginIndex = serviceName.length() + 1;
+      String name = method.getFullMethodName().substring(beginIndex);
       String scopeName = MetricsType.TEMPORAL_METRICS_PREFIX + name;
       methodScopes.put(method, scope.subScope(scopeName));
     }
