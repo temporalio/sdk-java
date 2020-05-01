@@ -110,8 +110,8 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
               .build();
       channelNeedsShutdown = true;
     }
-    //    GrpcMetricsInterceptor metricsInterceptor =
-    //        new GrpcMetricsInterceptor(options.getMetricsScope());
+    GrpcMetricsInterceptor metricsInterceptor =
+        new GrpcMetricsInterceptor(options.getMetricsScope());
     ClientInterceptor deadlineInterceptor = new GrpcDeadlineInterceptor(options);
     GrpcTracingInterceptor tracingInterceptor = new GrpcTracingInterceptor();
     Metadata headers = new Metadata();
@@ -121,7 +121,7 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
     Channel interceptedChannel =
         ClientInterceptors.intercept(
             channel,
-            //            metricsInterceptor,
+            metricsInterceptor,
             deadlineInterceptor,
             MetadataUtils.newAttachHeadersInterceptor(headers));
     if (tracingInterceptor.isEnabled()) {
