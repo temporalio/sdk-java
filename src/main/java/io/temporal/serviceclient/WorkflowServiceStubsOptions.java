@@ -20,6 +20,8 @@
 package io.temporal.serviceclient;
 
 import com.google.common.collect.ImmutableMap;
+import com.uber.m3.tally.NoopScope;
+import com.uber.m3.tally.Scope;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.NameResolver;
@@ -73,6 +75,8 @@ public class WorkflowServiceStubsOptions {
   /** Optional TChannel headers */
   private final Map<String, String> headers;
 
+  private final Scope metricsScope;
+
   private final Function<
           WorkflowServiceGrpc.WorkflowServiceBlockingStub,
           WorkflowServiceGrpc.WorkflowServiceBlockingStub>
@@ -92,30 +96,25 @@ public class WorkflowServiceStubsOptions {
     this.blockingStubInterceptor = builder.blockingStubInterceptor;
     this.futureStubInterceptor = builder.futureStubInterceptor;
     this.headers = builder.headers;
+    this.metricsScope = builder.metricsScope;
   }
 
-  private WorkflowServiceStubsOptions(Builder builder, boolean validate) {
+  private WorkflowServiceStubsOptions(Builder builder, boolean ignore) {
     if (builder.target != null && builder.channel != null) {
       throw new IllegalStateException(
           "Only one of the target and channel options can be set at a time");
     }
-    if (builder.target == null && builder.channel == null) {
-      this.target = LOCAL_DOCKER_TARGET;
-    } else {
-      this.target = builder.target;
-    }
+    this.target =
+        builder.target == null && builder.channel == null ? LOCAL_DOCKER_TARGET : builder.target;
     this.channel = builder.channel;
     this.rpcLongPollTimeoutMillis = builder.rpcLongPollTimeoutMillis;
     this.rpcQueryTimeoutMillis = builder.rpcQueryTimeoutMillis;
     this.rpcTimeoutMillis = builder.rpcTimeoutMillis;
     this.blockingStubInterceptor = builder.blockingStubInterceptor;
     this.futureStubInterceptor = builder.futureStubInterceptor;
-
-    if (builder.headers != null) {
-      this.headers = ImmutableMap.copyOf(builder.headers);
-    } else {
-      this.headers = ImmutableMap.of();
-    }
+    this.headers =
+        builder.headers == null ? ImmutableMap.of() : ImmutableMap.copyOf(builder.headers);
+    this.metricsScope = builder.metricsScope == null ? new NoopScope() : builder.metricsScope;
   }
 
   public ManagedChannel getChannel() {
@@ -161,6 +160,10 @@ public class WorkflowServiceStubsOptions {
     return Optional.ofNullable(futureStubInterceptor);
   }
 
+  public Scope getMetricsScope() {
+    return metricsScope;
+  }
+
   /**
    * Builder is the builder for ClientOptions.
    *
@@ -171,7 +174,7 @@ public class WorkflowServiceStubsOptions {
     private String target;
     private long rpcTimeoutMillis = DEFAULT_RPC_TIMEOUT_MILLIS;
     private long rpcLongPollTimeoutMillis = DEFAULT_POLL_RPC_TIMEOUT_MILLIS;
-    public long rpcQueryTimeoutMillis = DEFAULT_QUERY_RPC_TIMEOUT_MILLIS;
+    private long rpcQueryTimeoutMillis = DEFAULT_QUERY_RPC_TIMEOUT_MILLIS;
     private Map<String, String> headers;
     private Function<
             WorkflowServiceGrpc.WorkflowServiceBlockingStub,
@@ -181,10 +184,11 @@ public class WorkflowServiceStubsOptions {
             WorkflowServiceGrpc.WorkflowServiceFutureStub,
             WorkflowServiceGrpc.WorkflowServiceFutureStub>
         futureStubInterceptor;
+    private Scope metricsScope;
 
     private Builder() {}
 
-    public Builder(WorkflowServiceStubsOptions options) {
+    private Builder(WorkflowServiceStubsOptions options) {
       this.target = options.target;
       this.channel = options.channel;
       this.rpcLongPollTimeoutMillis = options.rpcLongPollTimeoutMillis;
@@ -193,6 +197,7 @@ public class WorkflowServiceStubsOptions {
       this.blockingStubInterceptor = options.blockingStubInterceptor;
       this.futureStubInterceptor = options.futureStubInterceptor;
       this.headers = options.headers;
+      this.metricsScope = options.metricsScope;
     }
 
     /** Sets gRPC channel to use. Exclusive with target. */
@@ -265,6 +270,14 @@ public class WorkflowServiceStubsOptions {
                 WorkflowServiceGrpc.WorkflowServiceFutureStub>
             futureStubInterceptor) {
       this.futureStubInterceptor = futureStubInterceptor;
+      return this;
+    }
+
+    /**
+     * Sets the scope to be used for metrics reporting. Optional. Default is to not report metrics.
+     */
+    public Builder setMetricsScope(Scope metricsScope) {
+      this.metricsScope = metricsScope;
       return this;
     }
 

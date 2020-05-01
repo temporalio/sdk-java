@@ -212,11 +212,9 @@ public class MetricsTest {
 
     TestEnvironmentOptions testOptions =
         TestEnvironmentOptions.newBuilder()
+            .setMetricsScope(scope)
             .setWorkflowClientOptions(
-                WorkflowClientOptions.newBuilder()
-                    .setMetricsScope(scope)
-                    .setNamespace(WorkflowTest.NAMESPACE)
-                    .build())
+                WorkflowClientOptions.newBuilder().setNamespace(WorkflowTest.NAMESPACE).build())
             .setWorkerFactoryOptions(workerFactoryOptions)
             .build();
 

@@ -63,9 +63,8 @@ import java.util.Queue;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import org.junit.AfterClass;
+import org.junit.After;
 import org.junit.Assert;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -97,19 +96,23 @@ public class StickyWorkerTest {
 
   @Rule public TestName testName = new TestName();
 
-  private static WorkflowServiceStubs service;
+  private WorkflowServiceStubs service;
 
-  @BeforeClass
-  public static void setUp() {
+  // TODO(maxim): refactor all of this ugliness into a service based implementation of
+  // TestWorkflowEnvironment
+  public void startService(Scope metricScope) {
     if (useDockerService) {
       service =
           WorkflowServiceStubs.newInstance(
-              WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
+              WorkflowServiceStubsOptions.newBuilder()
+                  .setTarget(serviceAddress)
+                  .setMetricsScope(metricScope)
+                  .build());
     }
   }
 
-  @AfterClass
-  public static void tearDown() {
+  @After
+  public void tearDown() {
     if (service != null) {
       service.shutdownNow();
       try {
@@ -130,7 +133,6 @@ public class StickyWorkerTest {
         new RootScopeBuilder()
             .reporter(reporter)
             .reportEvery(com.uber.m3.util.Duration.ofMillis(300));
-
     String identity = UUID.randomUUID().toString();
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(scope, WorkerFactoryOptions.newBuilder().build());
@@ -529,17 +531,15 @@ public class StickyWorkerTest {
         options = WorkerFactoryOptions.newBuilder().build();
       }
       WorkflowClientOptions clientOptions =
-          WorkflowClientOptions.newBuilder()
-              .setNamespace(NAMESPACE)
-              .setIdentity(identity)
-              .setMetricsScope(scope)
-              .build();
+          WorkflowClientOptions.newBuilder().setNamespace(NAMESPACE).setIdentity(identity).build();
       if (useExternalService) {
+        startService(scope);
         WorkflowClient client = WorkflowClient.newInstance(service, clientOptions);
         factory = WorkerFactory.newInstance(client, options);
       } else {
         TestEnvironmentOptions testOptions =
             TestEnvironmentOptions.newBuilder()
+                .setMetricsScope(scope)
                 .setWorkflowClientOptions(clientOptions)
                 .setWorkerFactoryOptions(options)
                 .build();

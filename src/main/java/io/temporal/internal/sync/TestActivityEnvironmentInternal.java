@@ -109,7 +109,10 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     channel = InProcessChannelBuilder.forName(serverName).directExecutor().build();
     workflowServiceStubs =
         WorkflowServiceStubs.newInstance(
-            WorkflowServiceStubsOptions.newBuilder().setChannel(channel).build());
+            WorkflowServiceStubsOptions.newBuilder()
+                .setChannel(channel)
+                .setMetricsScope(options.getMetricsScope())
+                .build());
     activityTaskHandler =
         new POJOActivityTaskHandler(
             workflowServiceStubs,

@@ -99,6 +99,7 @@ public final class WorkerFactory {
 
     Scope metricsScope =
         this.workflowClient
+            .getWorkflowServiceStubs()
             .getOptions()
             .getMetricsScope()
             .tagged(

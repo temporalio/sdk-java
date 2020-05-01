@@ -19,18 +19,12 @@
 
 package io.temporal.internal;
 
-import io.grpc.CallOptions;
 import io.grpc.Channel;
-import io.grpc.ClientCall;
 import io.grpc.ClientInterceptor;
 import io.grpc.ClientInterceptors;
-import io.grpc.Deadline;
-import io.grpc.ForwardingClientCall;
-import io.grpc.ForwardingClientCallListener;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Metadata;
-import io.grpc.MethodDescriptor;
 import io.grpc.Server;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
@@ -48,12 +42,6 @@ import org.slf4j.LoggerFactory;
 public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
 
   private static final Logger log = LoggerFactory.getLogger(WorkflowServiceStubsImpl.class);
-  /**
-   * Separate logger for PollForDecisionTask reply which includes history. It is separate to allow
-   * disabling independently through configuration.
-   */
-  private static final Logger decision_task_log =
-      LoggerFactory.getLogger(WorkflowServiceStubsImpl.class.getName() + ":history");
 
   /** refers to the name of the gRPC header that contains the client library version */
   private static final Metadata.Key<String> LIBRARY_VERSION_HEADER_KEY =
@@ -69,6 +57,7 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
 
   private static final String CLIENT_IMPL_HEADER_VALUE = "temporal-java";
 
+  private final WorkflowServiceStubsOptions options;
   private final ManagedChannel channel;
   // Shutdown channel that was created by us
   private final boolean channelNeedsShutdown;
@@ -108,6 +97,7 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
       inProcessServer = null;
     }
     options = WorkflowServiceStubsOptions.newBuilder(options).validateAndBuildWithDefaults();
+    this.options = options;
     if (options.getChannel() != null) {
       this.channel = options.getChannel();
       // Do not shutdown a channel passed to the constructor from outside
@@ -120,16 +110,21 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
               .build();
       channelNeedsShutdown = true;
     }
+    //    GrpcMetricsInterceptor metricsInterceptor =
+    //        new GrpcMetricsInterceptor(options.getMetricsScope());
     ClientInterceptor deadlineInterceptor = new GrpcDeadlineInterceptor(options);
-    ClientInterceptor tracingInterceptor = newTracingInterceptor();
+    GrpcTracingInterceptor tracingInterceptor = new GrpcTracingInterceptor();
     Metadata headers = new Metadata();
     headers.put(LIBRARY_VERSION_HEADER_KEY, Version.LIBRARY_VERSION);
     headers.put(FEATURE_VERSION_HEADER_KEY, Version.FEATURE_VERSION);
     headers.put(CLIENT_IMPL_HEADER_KEY, CLIENT_IMPL_HEADER_VALUE);
     Channel interceptedChannel =
         ClientInterceptors.intercept(
-            channel, deadlineInterceptor, MetadataUtils.newAttachHeadersInterceptor(headers));
-    if (log.isTraceEnabled()) {
+            channel,
+            //            metricsInterceptor,
+            deadlineInterceptor,
+            MetadataUtils.newAttachHeadersInterceptor(headers));
+    if (tracingInterceptor.isEnabled()) {
       interceptedChannel = ClientInterceptors.intercept(interceptedChannel, tracingInterceptor);
     }
     WorkflowServiceGrpc.WorkflowServiceBlockingStub bs =
@@ -147,49 +142,6 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
     log.info(String.format("Created GRPC client for channel: %s", channel));
   }
 
-  private ClientInterceptor newTracingInterceptor() {
-    return new ClientInterceptor() {
-
-      @Override
-      public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
-          MethodDescriptor<ReqT, RespT> method, CallOptions callOptions, Channel next) {
-        return new ForwardingClientCall.SimpleForwardingClientCall<ReqT, RespT>(
-            next.newCall(method, callOptions)) {
-          @Override
-          public void sendMessage(ReqT message) {
-            log.trace("Invoking " + method.getFullMethodName() + "with input: " + message);
-            super.sendMessage(message);
-          }
-
-          @Override
-          public void start(Listener<RespT> responseListener, Metadata headers) {
-            Listener<RespT> listener =
-                new ForwardingClientCallListener.SimpleForwardingClientCallListener<RespT>(
-                    responseListener) {
-                  @Override
-                  public void onMessage(RespT message) {
-                    // Skip printing the whole history
-                    if (method == WorkflowServiceGrpc.getPollForDecisionTaskMethod()) {
-                      if (decision_task_log.isTraceEnabled()) {
-                        decision_task_log.trace(
-                            "Returned " + method.getFullMethodName() + " with output: " + message);
-                      } else if (log.isTraceEnabled()) {
-                        log.trace("Returned " + method.getFullMethodName());
-                      }
-                    } else if (log.isTraceEnabled()) {
-                      log.trace(
-                          "Returned " + method.getFullMethodName() + " with output: " + message);
-                    }
-                    super.onMessage(message);
-                  }
-                };
-            super.start(listener, headers);
-          }
-        };
-      }
-    };
-  }
-
   /** @return Blocking (synchronous) stub that allows direct calls to service. */
   public WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub() {
     return blockingStub;
@@ -202,6 +154,7 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
 
   @Override
   public void shutdown() {
+    log.info("shutdown");
     shutdownRequested.set(true);
     if (channelNeedsShutdown) {
       channel.shutdown();
@@ -213,6 +166,7 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
 
   @Override
   public void shutdownNow() {
+    log.info("shutdownNow");
     shutdownRequested.set(true);
     if (channelNeedsShutdown) {
       channel.shutdownNow();
@@ -233,6 +187,11 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
       inProcessServer.awaitTermination(left, TimeUnit.MILLISECONDS);
     }
     return true;
+  }
+
+  @Override
+  public WorkflowServiceStubsOptions getOptions() {
+    return options;
   }
 
   @Override
@@ -261,47 +220,5 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
       result = result && inProcessServer.isTerminated();
     }
     return result;
-  }
-
-  /** Set RPC call deadlines according to ServiceFactoryOptions. */
-  private static class GrpcDeadlineInterceptor implements ClientInterceptor {
-
-    private final WorkflowServiceStubsOptions options;
-
-    public GrpcDeadlineInterceptor(WorkflowServiceStubsOptions options) {
-      this.options = options;
-    }
-
-    @Override
-    public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
-        MethodDescriptor<ReqT, RespT> method, CallOptions callOptions, Channel next) {
-      Deadline deadline = callOptions.getDeadline();
-      long duration;
-      if (deadline == null) {
-        duration = options.getRpcTimeoutMillis();
-      } else {
-        duration = deadline.timeRemaining(TimeUnit.MILLISECONDS);
-      }
-      if (method == WorkflowServiceGrpc.getGetWorkflowExecutionHistoryMethod()) {
-        if (deadline == null) {
-          duration = options.getRpcLongPollTimeoutMillis();
-        } else {
-          duration = deadline.timeRemaining(TimeUnit.MILLISECONDS);
-          if (duration > options.getRpcLongPollTimeoutMillis()) {
-            duration = options.getRpcLongPollTimeoutMillis();
-          }
-        }
-      } else if (method == WorkflowServiceGrpc.getPollForDecisionTaskMethod()
-          || method == WorkflowServiceGrpc.getPollForActivityTaskMethod()) {
-        duration = options.getRpcLongPollTimeoutMillis();
-      } else if (method == WorkflowServiceGrpc.getQueryWorkflowMethod()) {
-        duration = options.getRpcQueryTimeoutMillis();
-      }
-      if (log.isTraceEnabled()) {
-        String name = method.getFullMethodName();
-        log.trace("TimeoutInterceptor method=" + name + ", timeoutMs=" + duration);
-      }
-      return next.newCall(method, callOptions.withDeadlineAfter(duration, TimeUnit.MILLISECONDS));
-    }
   }
 }
