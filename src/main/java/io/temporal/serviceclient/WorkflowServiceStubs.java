@@ -63,4 +63,6 @@ public interface WorkflowServiceStubs {
   boolean isTerminated();
 
   boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException;
+
+  WorkflowServiceStubsOptions getOptions();
 }

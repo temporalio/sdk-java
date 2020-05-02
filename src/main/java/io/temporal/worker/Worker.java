@@ -22,6 +22,7 @@ package io.temporal.worker;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
@@ -95,17 +96,33 @@ public final class Worker implements Suspendable {
     WorkflowServiceStubs service = client.getWorkflowServiceStubs();
     WorkflowClientOptions clientOptions = client.getOptions();
     String namespace = clientOptions.getNamespace();
+    Scope metricsScope = service.getOptions().getMetricsScope();
     SingleWorkerOptions activityOptions =
         toActivityOptions(
-            this.factoryOptions, this.options, clientOptions, taskList, contextPropagators);
+            this.factoryOptions,
+            this.options,
+            clientOptions,
+            taskList,
+            contextPropagators,
+            metricsScope);
     activityWorker = new SyncActivityWorker(service, namespace, taskList, activityOptions);
 
     SingleWorkerOptions workflowOptions =
         toWorkflowOptions(
-            this.factoryOptions, this.options, clientOptions, taskList, contextPropagators);
+            this.factoryOptions,
+            this.options,
+            clientOptions,
+            taskList,
+            contextPropagators,
+            metricsScope);
     SingleWorkerOptions localActivityOptions =
         toLocalActivityOptions(
-            this.factoryOptions, this.options, clientOptions, taskList, contextPropagators);
+            this.factoryOptions,
+            this.options,
+            clientOptions,
+            taskList,
+            contextPropagators,
+            metricsScope);
     workflowWorker =
         new SyncWorkflowWorker(
             service,
@@ -125,7 +142,8 @@ public final class Worker implements Suspendable {
       WorkerOptions options,
       WorkflowClientOptions clientOptions,
       String taskList,
-      List<ContextPropagator> contextPropagators) {
+      List<ContextPropagator> contextPropagators,
+      Scope metricsScope) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.NAMESPACE, clientOptions.getNamespace())
@@ -139,7 +157,7 @@ public final class Worker implements Suspendable {
                 .setMaximumPollRatePerSecond(options.getMaxActivitiesPerSecond())
                 .build())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentActivityExecutionSize())
-        .setMetricsScope(clientOptions.getMetricsScope().tagged(tags))
+        .setMetricsScope(metricsScope.tagged(tags))
         .setEnableLoggingInReplay(factoryOptions.isEnableLoggingInReplay())
         .setContextPropagators(contextPropagators)
         .build();
@@ -150,7 +168,8 @@ public final class Worker implements Suspendable {
       WorkerOptions options,
       WorkflowClientOptions clientOptions,
       String taskList,
-      List<ContextPropagator> contextPropagators) {
+      List<ContextPropagator> contextPropagators,
+      Scope metricsScope) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.NAMESPACE, clientOptions.getNamespace())
@@ -161,7 +180,7 @@ public final class Worker implements Suspendable {
         .setIdentity(clientOptions.getIdentity())
         .setPollerOptions(PollerOptions.newBuilder().build())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentWorkflowTaskExecutionSize())
-        .setMetricsScope(clientOptions.getMetricsScope().tagged(tags))
+        .setMetricsScope(metricsScope.tagged(tags))
         .setEnableLoggingInReplay(factoryOptions.isEnableLoggingInReplay())
         .setContextPropagators(contextPropagators)
         .build();
@@ -172,7 +191,8 @@ public final class Worker implements Suspendable {
       WorkerOptions options,
       WorkflowClientOptions clientOptions,
       String taskList,
-      List<ContextPropagator> contextPropagators) {
+      List<ContextPropagator> contextPropagators,
+      Scope metricsScope) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.NAMESPACE, clientOptions.getNamespace())
@@ -183,7 +203,7 @@ public final class Worker implements Suspendable {
         .setIdentity(clientOptions.getIdentity())
         .setPollerOptions(PollerOptions.newBuilder().build())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentLocalActivityExecutionSize())
-        .setMetricsScope(clientOptions.getMetricsScope().tagged(tags))
+        .setMetricsScope(metricsScope.tagged(tags))
         .setEnableLoggingInReplay(factoryOptions.isEnableLoggingInReplay())
         .setContextPropagators(contextPropagators)
         .build();

@@ -1282,8 +1282,13 @@ class StateMachines {
     ctx.addEvent(event);
     ctx.onCommit(
         (historySize) -> {
-          log.info(
-              "completeDecisionTask commit lastSuccessfulStartedEventId=" + data.startedEventId);
+          if (log.isTraceEnabled()) {
+            log.trace(
+                "completeDecisionTask commit workflowId="
+                    + data.startRequest.getWorkflowId()
+                    + ", lastSuccessfulStartedEventId="
+                    + data.startedEventId);
+          }
           data.lastSuccessfulStartedEventId = data.startedEventId;
           data.clear();
         });

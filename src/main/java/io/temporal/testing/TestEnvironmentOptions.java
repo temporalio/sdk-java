@@ -20,11 +20,10 @@
 package io.temporal.testing;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.uber.m3.tally.NoopScope;
+import com.uber.m3.tally.Scope;
 import io.temporal.client.WorkflowClientOptions;
-import io.temporal.common.context.ContextPropagator;
 import io.temporal.worker.WorkerFactoryOptions;
-import java.util.Arrays;
-import java.util.List;
 
 @VisibleForTesting
 public final class TestEnvironmentOptions {
@@ -47,13 +46,13 @@ public final class TestEnvironmentOptions {
     DEFAULT_INSTANCE = TestEnvironmentOptions.newBuilder().build();
   }
 
-  private static final List<ContextPropagator> EMPTY_CONTEXT_PROPAGATORS = Arrays.asList();
-
   public static final class Builder {
 
     private WorkerFactoryOptions workerFactoryOptions;
 
     private WorkflowClientOptions workflowClientOptions;
+
+    private Scope metricsScope;
 
     private Builder() {}
 
@@ -73,8 +72,13 @@ public final class TestEnvironmentOptions {
       return this;
     }
 
+    public Builder setMetricsScope(Scope metricsScope) {
+      this.metricsScope = metricsScope;
+      return this;
+    }
+
     public TestEnvironmentOptions build() {
-      return new TestEnvironmentOptions(workflowClientOptions, workerFactoryOptions);
+      return new TestEnvironmentOptions(workflowClientOptions, workerFactoryOptions, metricsScope);
     }
 
     public TestEnvironmentOptions validateAndBuildWithDefaults() {
@@ -84,17 +88,22 @@ public final class TestEnvironmentOptions {
               : workflowClientOptions,
           workerFactoryOptions == null
               ? WorkerFactoryOptions.newBuilder().validateAndBuildWithDefaults()
-              : workerFactoryOptions);
+              : workerFactoryOptions,
+          metricsScope == null ? new NoopScope() : metricsScope);
     }
   }
 
   private final WorkerFactoryOptions workerFactoryOptions;
   private final WorkflowClientOptions workflowClientOptions;
+  private final Scope metricsScope;
 
   private TestEnvironmentOptions(
-      WorkflowClientOptions workflowClientOptions, WorkerFactoryOptions workerFactoryOptions) {
+      WorkflowClientOptions workflowClientOptions,
+      WorkerFactoryOptions workerFactoryOptions,
+      Scope metricsScope) {
     this.workflowClientOptions = workflowClientOptions;
     this.workerFactoryOptions = workerFactoryOptions;
+    this.metricsScope = metricsScope;
   }
 
   public WorkerFactoryOptions getWorkerFactoryOptions() {
@@ -103,6 +112,10 @@ public final class TestEnvironmentOptions {
 
   public WorkflowClientOptions getWorkflowClientOptions() {
     return workflowClientOptions;
+  }
+
+  public Scope getMetricsScope() {
+    return metricsScope;
   }
 
   @Override
