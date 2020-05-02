@@ -28,6 +28,7 @@ apply plugin: 'com.google.protobuf'
 apply plugin: 'idea' // IntelliJ plugin to see files generated from protos
 apply plugin: 'maven-publish'
 apply plugin: 'de.marcphilipp.nexus-publish'
+apply plugin: 'java'
 
 if (hasProperty('signing.keyId')) {
     apply plugin: 'signing'
@@ -75,7 +76,7 @@ ext.getClientVersionName = { ->
 
 group = 'io.temporal'
 version = getVersionName()
-//archivesBaseName = "temporal-sdk"
+archivesBaseName = "temporal-sdk"
 
 description = '''Temporal Workflow Java SDK'''
 
@@ -97,11 +98,11 @@ dependencies {
     api group: 'io.micrometer', name: 'micrometer-core', version: '1.1.2'
     api group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
     api group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.10.3'
+    api 'io.grpc:grpc-protobuf:1.29.0'
+    api 'io.grpc:grpc-stub:1.29.0'
+    api group: 'io.grpc', name: 'grpc-testing', version: '1.28.0'
 
     implementation 'io.grpc:grpc-netty-shaded:1.29.0'
-    implementation 'io.grpc:grpc-protobuf:1.29.0'
-    implementation 'io.grpc:grpc-stub:1.29.0'
-    implementation group: 'io.grpc', name: 'grpc-testing', version: '1.28.0'
 
     testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
     testImplementation group: 'com.googlecode.junit-toolbox', name: 'junit-toolbox', version: '2.4'
@@ -204,10 +205,6 @@ javadoc {
     }
 }
 
-//artifacts {
-//    archives javadocJar, sourcesJar
-//}
-
 task registerNamespace(type: JavaExec) {
     main = 'io.temporal.RegisterTestNamespace'
     classpath = sourceSets.test.runtimeClasspath
@@ -230,8 +227,6 @@ publishing {
     publications {
         mavenJava(MavenPublication) {
             from components.java
-            artifact javadocJar
-            artifact sourcesJar
             versionMapping {
                 usage('java-api') {
                     fromResolutionOf('runtimeClasspath')
