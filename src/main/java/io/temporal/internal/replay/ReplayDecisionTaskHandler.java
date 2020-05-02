@@ -42,6 +42,7 @@ import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
 import io.temporal.proto.workflowservice.RespondQueryTaskCompletedRequest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.workflow.Functions;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
@@ -62,6 +63,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
   private final DeciderCache cache;
   private final SingleWorkerOptions options;
   private final Duration stickyTaskListScheduleToStartTimeout;
+  private final Functions.Func<Boolean> shutdownFn;
   private WorkflowServiceStubs service;
   private String stickyTaskListName;
   private final BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller;
@@ -74,6 +76,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
       String stickyTaskListName,
       Duration stickyTaskListScheduleToStartTimeout,
       WorkflowServiceStubs service,
+      Functions.Func<Boolean> shutdownFn,
       BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller) {
     this.namespace = namespace;
     this.workflowFactory = asyncWorkflowFactory;
@@ -81,6 +84,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     this.options = options;
     this.stickyTaskListName = stickyTaskListName;
     this.stickyTaskListScheduleToStartTimeout = stickyTaskListScheduleToStartTimeout;
+    this.shutdownFn = shutdownFn;
     this.service = Objects.requireNonNull(service);
     this.laTaskPoller = laTaskPoller;
   }
@@ -100,7 +104,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
         }
         throw (Exception) e;
       }
-      if (log.isErrorEnabled()) {
+      if (log.isErrorEnabled() && !shutdownFn.apply()) {
         WorkflowExecution execution = decisionTask.getWorkflowExecution();
         log.error(
             "Workflow task failure. startedEventId="

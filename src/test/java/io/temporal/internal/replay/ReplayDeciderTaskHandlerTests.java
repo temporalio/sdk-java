@@ -75,6 +75,7 @@ public class ReplayDeciderTaskHandlerTests {
             null,
             Duration.ofSeconds(5),
             service,
+            () -> false,
             null);
 
     // Act
@@ -100,6 +101,7 @@ public class ReplayDeciderTaskHandlerTests {
             "sticky",
             Duration.ofSeconds(5),
             service,
+            () -> false,
             null);
 
     PollForDecisionTaskResponse decisionTask =

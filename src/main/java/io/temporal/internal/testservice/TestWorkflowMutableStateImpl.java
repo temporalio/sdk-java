@@ -206,7 +206,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       UpdateProcedure updater, StickyExecutionAttributes attributes) {
     StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
     stickyExecutionAttributes = attributes;
-    update(true, updater, stackTraceElements[2].getMethodName());
+    try {
+      update(true, updater, stackTraceElements[2].getMethodName());
+    } catch (Exception e) {
+      stickyExecutionAttributes = null;
+    }
   }
 
   private void update(boolean completeDecisionUpdate, UpdateProcedure updater, String caller) {
@@ -534,6 +538,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   public void reportCancelRequested(ExternalWorkflowExecutionCancelRequestedEventAttributes a) {
     update(
         ctx -> {
+          if (isTerminalState()) {
+            return;
+          }
           StateMachine<CancelExternalData> cancellationRequest =
               externalCancellations.get(a.getWorkflowExecution().getWorkflowId());
           cancellationRequest.action(

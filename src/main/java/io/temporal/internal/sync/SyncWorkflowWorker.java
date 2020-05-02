@@ -91,6 +91,7 @@ public class SyncWorkflowWorker
             stickyTaskListName,
             stickyDecisionScheduleToStartTimeout,
             service,
+            this::isShutdown,
             laWorker.getLocalActivityTaskPoller());
 
     workflowWorker =

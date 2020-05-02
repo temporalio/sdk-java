@@ -3641,12 +3641,11 @@ public class WorkflowTest {
 
     @WorkflowMethod
     @MethodRetry(
-      initialIntervalSeconds = 1,
-      maximumIntervalSeconds = 1,
-      maximumAttempts = 30,
-      expirationSeconds = 100,
-      doNotRetry = IllegalArgumentException.class
-    )
+        initialIntervalSeconds = 1,
+        maximumIntervalSeconds = 1,
+        maximumAttempts = 30,
+        expirationSeconds = 100,
+        doNotRetry = IllegalArgumentException.class)
     String execute(String testName);
   }
 
@@ -3834,11 +3833,10 @@ public class WorkflowTest {
     void neverComplete();
 
     @MethodRetry(
-      initialIntervalSeconds = 1,
-      maximumIntervalSeconds = 1,
-      maximumAttempts = 3,
-      expirationSeconds = 100
-    )
+        initialIntervalSeconds = 1,
+        maximumIntervalSeconds = 1,
+        maximumAttempts = 3,
+        expirationSeconds = 100)
     void throwIOAnnotated();
 
     List<UUID> activityUUIDList(List<UUID> arg);
@@ -4076,11 +4074,10 @@ public class WorkflowTest {
   public interface TestMultiargsWorkflowsFunc1 {
 
     @WorkflowMethod(
-      name = "func1",
-      taskList = ANNOTATION_TASK_LIST,
-      workflowIdReusePolicy = WorkflowIdReusePolicy.RejectDuplicate,
-      executionStartToCloseTimeoutSeconds = 10
-    )
+        name = "func1",
+        taskList = ANNOTATION_TASK_LIST,
+        workflowIdReusePolicy = WorkflowIdReusePolicy.RejectDuplicate,
+        executionStartToCloseTimeoutSeconds = 10)
     int func1(int input);
   }
 

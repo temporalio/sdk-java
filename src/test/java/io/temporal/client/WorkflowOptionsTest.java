@@ -57,20 +57,18 @@ public class WorkflowOptionsTest {
   }
 
   @WorkflowMethod(
-    executionStartToCloseTimeoutSeconds = 1135,
-    taskList = "bar",
-    taskStartToCloseTimeoutSeconds = 34,
-    workflowId = "foo",
-    workflowIdReusePolicy = WorkflowIdReusePolicy.AllowDuplicate
-  )
+      executionStartToCloseTimeoutSeconds = 1135,
+      taskList = "bar",
+      taskStartToCloseTimeoutSeconds = 34,
+      workflowId = "foo",
+      workflowIdReusePolicy = WorkflowIdReusePolicy.AllowDuplicate)
   @MethodRetry(
-    initialIntervalSeconds = 12,
-    backoffCoefficient = 1.97,
-    expirationSeconds = 1231423,
-    maximumAttempts = 234567,
-    maximumIntervalSeconds = 22,
-    doNotRetry = {NullPointerException.class, UnsupportedOperationException.class}
-  )
+      initialIntervalSeconds = 12,
+      backoffCoefficient = 1.97,
+      expirationSeconds = 1231423,
+      maximumAttempts = 234567,
+      maximumIntervalSeconds = 22,
+      doNotRetry = {NullPointerException.class, UnsupportedOperationException.class})
   @CronSchedule("0 * * * *" /* hourly */)
   public void workflowOptions() {}
 
