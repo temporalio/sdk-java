@@ -56,6 +56,7 @@ import io.temporal.workflow.interceptors.SignalWorkflowCallsInterceptor;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestWatcher;
@@ -77,7 +78,7 @@ public class MetricsTest {
 
   private static final com.uber.m3.util.Duration REPORTING_FREQUENCY =
       com.uber.m3.util.Duration.ofMillis(10);
-  private static final long REPORTING_FLUSH_TIME = 500;
+  private static final long REPORTING_FLUSH_TIME = 600;
   private static final String TASK_LIST = "metrics-test";
 
   private TestWorkflowEnvironment testEnvironment;
@@ -232,6 +233,11 @@ public class MetricsTest {
     testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
   }
 
+  @After
+  public void tearDown() {
+    testEnvironment.close();
+  }
+
   @Test
   public void testWorkflowMetrics() throws InterruptedException {
     setUp(REPORTING_FREQUENCY, WorkerFactoryOptions.getDefaultInstance());
@@ -297,26 +303,24 @@ public class MetricsTest {
             any());
     verify(reporter, atLeastOnce())
         .reportCounter(
-            TEMPORAL_METRICS_PREFIX + "PollForDecisionTask." + TEMPORAL_REQUEST,
-            new HashMap<>(),
-            1);
+            eq(TEMPORAL_METRICS_PREFIX + "PollForDecisionTask." + TEMPORAL_REQUEST),
+            eq(new HashMap<>()),
+            anyLong());
     verify(reporter, atLeastOnce())
         .reportCounter(
-            TEMPORAL_METRICS_PREFIX + "RespondDecisionTaskCompleted." + TEMPORAL_REQUEST,
-            new HashMap<>(),
-            1);
+            eq(TEMPORAL_METRICS_PREFIX + "RespondDecisionTaskCompleted." + TEMPORAL_REQUEST),
+            eq(new HashMap<>()),
+            anyLong());
     verify(reporter, atLeastOnce())
         .reportCounter(
-            TEMPORAL_METRICS_PREFIX + "PollForActivityTask." + TEMPORAL_REQUEST,
-            new HashMap<>(),
-            1);
-    verify(reporter, times(1))
+            eq(TEMPORAL_METRICS_PREFIX + "PollForActivityTask." + TEMPORAL_REQUEST),
+            eq(new HashMap<>()),
+            anyLong());
+    verify(reporter, atLeastOnce())
         .reportCounter(
-            TEMPORAL_METRICS_PREFIX + "RespondActivityTaskCompleted." + TEMPORAL_REQUEST,
-            new HashMap<>(),
-            1);
-
-    testEnvironment.close();
+            eq(TEMPORAL_METRICS_PREFIX + "RespondActivityTaskCompleted." + TEMPORAL_REQUEST),
+            eq(new HashMap<>()),
+            anyLong());
   }
 
   @Test

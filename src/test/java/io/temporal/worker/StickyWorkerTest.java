@@ -70,6 +70,8 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
+import org.mockito.listeners.InvocationListener;
+import org.mockito.listeners.MethodInvocationReport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -116,7 +118,7 @@ public class StickyWorkerTest {
     if (service != null) {
       service.shutdownNow();
       try {
-        service.awaitTermination(1, TimeUnit.SECONDS);
+        service.awaitTermination(10, TimeUnit.SECONDS);
       } catch (InterruptedException e) {
         e.printStackTrace();
       }
@@ -128,7 +130,15 @@ public class StickyWorkerTest {
     // Arrange
     String taskListName = "cachedStickyTest_Signal";
 
-    StatsReporter reporter = mock(StatsReporter.class);
+    StatsReporter reporter =
+        mock(
+            StatsReporter.class,
+            withSettings()
+                .invocationListeners(
+                    new InvocationListener() {
+                      @Override
+                      public void reportInvocation(MethodInvocationReport methodInvocationReport) {}
+                    }));
     Scope scope =
         new RootScopeBuilder()
             .reporter(reporter)
