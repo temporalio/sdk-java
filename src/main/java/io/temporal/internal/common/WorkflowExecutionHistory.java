@@ -77,6 +77,12 @@ public final class WorkflowExecutionHistory {
     return gson.toJson(this);
   }
 
+  public String toPrettyPrintedJson() {
+    GsonBuilder gsonBuilder = new GsonBuilder().setPrettyPrinting();
+    Gson gson = gsonBuilder.create();
+    return gson.toJson(this);
+  }
+
   public WorkflowExecution getWorkflowExecution() {
     return WorkflowExecution.newBuilder()
         .setWorkflowId("workflow_id_in_replay")

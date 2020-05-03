@@ -56,6 +56,7 @@ import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowInvocationInterceptor;
 import io.temporal.common.interceptors.WorkflowInvoker;
+import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.sync.DeterministicRunnerTest;
 import io.temporal.proto.common.Memo;
@@ -152,8 +153,8 @@ public class WorkflowTest {
   private static final String ANNOTATION_TASK_LIST = "WorkflowTest-testExecute[Docker]";
 
   private TracingWorkflowInterceptor tracer;
-  private static final boolean useExternalService =
-      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+  private static final boolean useExternalService = true;
+  //      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
   private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
 
   @Rule public TestName testName = new TestName();
@@ -830,6 +831,19 @@ public class WorkflowTest {
       assertTrue(e.getCause().getCause() instanceof IOException);
     }
     assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
+    // Uncomment to regenerate the JSON file used by testAsyncActivityRetryReplay
+    if (useExternalService) {
+      GetWorkflowExecutionHistoryRequest request =
+          GetWorkflowExecutionHistoryRequest.newBuilder()
+              .setNamespace(NAMESPACE)
+              .setExecution(WorkflowStub.fromTyped(workflowStub).getExecution())
+              .build();
+      GetWorkflowExecutionHistoryResponse response =
+          service.blockingStub().getWorkflowExecutionHistory(request);
+      WorkflowExecutionHistory history =
+          new WorkflowExecutionHistory(response.getHistory().getEventsList());
+      log.info("!!!! hitory:\n" + history.toPrettyPrintedJson());
+    }
   }
 
   /**
@@ -837,7 +851,7 @@ public class WorkflowTest {
    * compatible with the client that supports the server side retry.
    */
   @Test
-  @Ignore // TODO(maxim): Replay from JSON
+  //  @Ignore // TODO(maxim): Replay from JSON
   public void testAsyncActivityRetryReplay() throws Exception {
     // Avoid executing 4 times
     Assume.assumeFalse("skipping for docker tests", useExternalService);
