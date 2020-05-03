@@ -125,6 +125,13 @@ task updateSubmodules(type: Exec) {
     commandLine 'git', 'submodule', 'update'
 }
 
+//TODO(maxim): For some reason the following doesn't exclude proto files from the lib jar.
+// But it should according to https://github.com/google/protobuf-gradle-plugin/issues/390
+jar {
+    exclude '**.proto'
+    includeEmptyDirs false
+}
+
 protobuf {
     protoc {
         artifact = 'com.google.protobuf:protoc:3.11.0'
@@ -151,6 +158,7 @@ clean {
 protobuf {
     generatedFilesBaseDir = "$buildDir/generated"
 }
+
 idea {
     module {
         sourceDirs += file("$buildDir/generated/main/java");
