@@ -31,11 +31,11 @@ import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
-import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.proto.common.ActivityType;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatRequest;
@@ -128,12 +128,15 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         StreamObserver<RecordActivityTaskHeartbeatResponse> responseObserver) {
       try {
         if (activityHeartbetListener != null) {
+          Optional<Payloads> requestDetails =
+              request.hasDetails() ? Optional.of(request.getDetails()) : Optional.empty();
+
           Object details =
               testEnvironmentOptions
                   .getWorkflowClientOptions()
                   .getDataConverter()
                   .fromData(
-                      request.getDetails().toByteArray(),
+                      requestDetails,
                       activityHeartbetListener.valueClass,
                       activityHeartbetListener.valueType);
           activityHeartbetListener.consumer.accept(details);
@@ -224,7 +227,9 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         Type resultType,
         Object[] args,
         ActivityOptions options) {
-      PollForActivityTaskResponse task =
+      Optional<Payloads> input =
+          testEnvironmentOptions.getWorkflowClientOptions().getDataConverter().toData(args);
+      PollForActivityTaskResponse.Builder taskBuilder =
           PollForActivityTaskResponse.newBuilder()
               .setScheduleToCloseTimeoutSeconds(
                   (int) options.getScheduleToCloseTimeout().getSeconds())
@@ -232,12 +237,6 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
               .setStartToCloseTimeoutSeconds((int) options.getStartToCloseTimeout().getSeconds())
               .setScheduledTimestamp(Duration.ofMillis(System.currentTimeMillis()).toNanos())
               .setStartedTimestamp(Duration.ofMillis(System.currentTimeMillis()).toNanos())
-              .setInput(
-                  OptionsUtils.toByteString(
-                      testEnvironmentOptions
-                          .getWorkflowClientOptions()
-                          .getDataConverter()
-                          .toData(args)))
               .setTaskToken(ByteString.copyFrom("test-task-token".getBytes(StandardCharsets.UTF_8)))
               .setActivityId(String.valueOf(idSequencer.incrementAndGet()))
               .setWorkflowExecution(
@@ -245,8 +244,11 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
                       .setWorkflowId("test-workflow-id")
                       .setRunId(UUID.randomUUID().toString())
                       .build())
-              .setActivityType(ActivityType.newBuilder().setName(activityType).build())
-              .build();
+              .setActivityType(ActivityType.newBuilder().setName(activityType).build());
+      if (input.isPresent()) {
+        taskBuilder.setInput(input.get());
+      }
+      PollForActivityTaskResponse task = taskBuilder.build();
       Result taskResult = activityTaskHandler.handle(task, NoopScope.getInstance(), false);
       return Workflow.newPromise(getReply(task, taskResult, resultClass, resultType));
     }
@@ -330,13 +332,20 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
-    public void registerQuery(String queryType, Type[] argTypes, Func1<Object[], Object> callback) {
+    public void registerQuery(
+        String queryType,
+        Class<?>[] argTypes,
+        Type[] genericArgTypes,
+        Func1<Object[], Object> callback) {
       throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
     public void registerSignal(
-        String signalType, Type[] argTypes, Functions.Proc1<Object[]> callback) {
+        String signalType,
+        Class<?>[] argTypes,
+        Type[] genericArgTypes,
+        Functions.Proc1<Object[]> callback) {
       throw new UnsupportedOperationException("not implemented");
     }
 
@@ -357,10 +366,12 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         Type resultType) {
       RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
+        Optional<Payloads> result =
+            taskCompleted.hasResult() ? Optional.of(taskCompleted.getResult()) : Optional.empty();
         return testEnvironmentOptions
             .getWorkflowClientOptions()
             .getDataConverter()
-            .fromData(taskCompleted.getResult().toByteArray(), resultClass, resultType);
+            .fromData(result, resultClass, resultType);
       } else {
         RespondActivityTaskFailedRequest taskFailed =
             response.getTaskFailed().getTaskFailedRequest();
@@ -373,11 +384,13 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
             Class<? extends Exception> cc =
                 (Class<? extends Exception>) Class.forName(causeClassName);
             causeClass = cc;
+            Optional<Payloads> details =
+                taskFailed.hasDetails() ? Optional.of(taskFailed.getDetails()) : Optional.empty();
             cause =
                 testEnvironmentOptions
                     .getWorkflowClientOptions()
                     .getDataConverter()
-                    .fromData(taskFailed.getDetails().toByteArray(), causeClass, causeClass);
+                    .fromData(details, causeClass, causeClass);
           } catch (Exception e) {
             cause = e;
           }

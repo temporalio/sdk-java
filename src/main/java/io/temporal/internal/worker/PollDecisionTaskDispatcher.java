@@ -19,12 +19,11 @@
 
 package io.temporal.internal.worker;
 
-import com.google.protobuf.ByteString;
+import io.temporal.common.converter.GsonJsonDataConverter;
 import io.temporal.proto.event.DecisionTaskFailedCause;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -75,7 +74,7 @@ public final class PollDecisionTaskDispatcher
           RespondDecisionTaskFailedRequest.newBuilder()
               .setTaskToken(t.getTaskToken())
               .setCause(DecisionTaskFailedCause.ResetStickyTasklist)
-              .setDetails(ByteString.copyFrom(message, StandardCharsets.UTF_8))
+              .setDetails(GsonJsonDataConverter.getInstance().toData(message).get())
               .build();
       log.warn(message);
 

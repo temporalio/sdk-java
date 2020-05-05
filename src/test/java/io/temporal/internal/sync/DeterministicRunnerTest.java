@@ -54,6 +54,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
@@ -171,9 +172,9 @@ public class DeterministicRunnerTest {
         RetryOptions.newBuilder()
             .setInitialInterval(Duration.ofSeconds(10))
             .setMaximumInterval(Duration.ofSeconds(100))
-            .setExpiration(Duration.ofMinutes(5))
             .setBackoffCoefficient(2.0)
             .build();
+    Duration expiration = Duration.ofMinutes(5);
     DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
             threadPool,
@@ -183,6 +184,7 @@ public class DeterministicRunnerTest {
               trace.add("started");
               Workflow.retry(
                   retryOptions,
+                  Optional.of(expiration),
                   () -> {
                     trace.add("retry at " + Workflow.currentTimeMillis());
                     throw new IllegalThreadStateException("simulated");
@@ -203,7 +205,7 @@ public class DeterministicRunnerTest {
     int attempt = 1;
     long time = 0;
     trace.addExpected("started");
-    while (time < retryOptions.getExpiration().toMillis()) {
+    while (time < expiration.toMillis()) {
       trace.addExpected("retry at " + time);
       long sleepMillis =
           (long)
@@ -860,9 +862,9 @@ public class DeterministicRunnerTest {
     }
 
     @Override
-    public Payloads query(PollForDecisionTaskResponseOrBuilder decisionTask, WorkflowQuery query)
-        throws Throwable {
-      return new byte[0];
+    public Optional<Payloads> query(
+        PollForDecisionTaskResponseOrBuilder decisionTask, WorkflowQuery query) throws Throwable {
+      return Optional.empty();
     }
 
     @Override

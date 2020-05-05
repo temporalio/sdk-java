@@ -100,10 +100,9 @@ public class MetricsTest {
       ActivityOptions activityOptions =
           ActivityOptions.newBuilder()
               .setTaskList(TASK_LIST)
-              .setScheduleToCloseTimeout(Duration.ofSeconds(1))
+              .setScheduleToCloseTimeout(Duration.ofSeconds(100))
               .setRetryOptions(
                   RetryOptions.newBuilder()
-                      .setExpiration(Duration.ofSeconds(100))
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
                       .setMaximumAttempts(3)

@@ -688,7 +688,7 @@ public class WorkflowTest {
                 .build();
       }
       TestActivities activities = Workflow.newActivityStub(TestActivities.class, options.build());
-      Workflow.retry(retryOptions, () -> activities.throwIO());
+      Workflow.retry(retryOptions, Optional.of(Duration.ofDays(1)), () -> activities.throwIO());
       return "ignored";
     }
   }
@@ -2254,6 +2254,7 @@ public class WorkflowTest {
       trace.add("started");
       Async.retry(
               retryOptions,
+              Optional.of(Duration.ofSeconds(2)),
               () -> {
                 trace.add("retry at " + Workflow.currentTimeMillis());
                 return Workflow.newFailedPromise(new IllegalThreadStateException("simulated"));
@@ -2321,6 +2322,7 @@ public class WorkflowTest {
       trace.add("started");
       Async.retry(
               retryOptions,
+              Optional.of(Duration.ofSeconds(2)),
               () -> {
                 trace.add("retry at " + Workflow.currentTimeMillis());
                 return Workflow.newFailedPromise(new IllegalThreadStateException("simulated"));
@@ -2521,7 +2523,7 @@ public class WorkflowTest {
   }
 
   @Test
-  public void testSignal() throws Exception {
+  public void testSignal() {
     // Test getTrace through replay by a local worker.
     Worker queryWorker;
     if (useExternalService) {
@@ -6022,16 +6024,23 @@ public class WorkflowTest {
     }
 
     @Override
-    public void registerQuery(String queryType, Type[] argTypes, Func1<Object[], Object> callback) {
+    public void registerQuery(
+        String queryType,
+        Class<?>[] argTypes,
+        Type[] genericArgTypes,
+        Func1<Object[], Object> callback) {
       trace.add("registerQuery " + queryType);
-      next.registerQuery(queryType, argTypes, callback);
+      next.registerQuery(queryType, argTypes, genericArgTypes, callback);
     }
 
     @Override
     public void registerSignal(
-        String signalType, Type[] argTypes, Functions.Proc1<Object[]> callback) {
+        String signalType,
+        Class<?>[] argTypes,
+        Type[] genericArgTypes,
+        Functions.Proc1<Object[]> callback) {
       trace.add("registerSignal " + signalType);
-      next.registerSignal(signalType, argTypes, callback);
+      next.registerSignal(signalType, argTypes, genericArgTypes, callback);
     }
 
     @Override

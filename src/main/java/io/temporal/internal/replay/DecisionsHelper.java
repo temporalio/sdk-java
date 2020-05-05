@@ -460,13 +460,17 @@ class DecisionsHelper {
     decisions.clear();
   }
 
-  void completeWorkflowExecution(Payloads output) {
+  void completeWorkflowExecution(Optional<Payloads> output) {
     addAllMissingVersionMarker(false, Optional.empty());
 
+    CompleteWorkflowExecutionDecisionAttributes.Builder attributes =
+        CompleteWorkflowExecutionDecisionAttributes.newBuilder();
+    if (output.isPresent()) {
+      attributes.setResult(output.get());
+    }
     Decision decision =
         Decision.newBuilder()
-            .setCompleteWorkflowExecutionDecisionAttributes(
-                CompleteWorkflowExecutionDecisionAttributes.newBuilder().setResult(output))
+            .setCompleteWorkflowExecutionDecisionAttributes(attributes)
             .setDecisionType(DecisionType.CompleteWorkflowExecution)
             .build();
     DecisionId decisionId = new DecisionId(DecisionTarget.SELF, 0);

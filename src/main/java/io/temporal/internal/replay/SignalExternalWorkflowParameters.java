@@ -20,12 +20,13 @@
 package io.temporal.internal.replay;
 
 import io.temporal.proto.common.Payloads;
+import java.util.Optional;
 
 public final class SignalExternalWorkflowParameters implements Cloneable {
 
   private String namespace;
 
-  private Payloads input;
+  private Optional<Payloads> input;
 
   private String runId;
 
@@ -42,15 +43,15 @@ public final class SignalExternalWorkflowParameters implements Cloneable {
     return this;
   }
 
-  public Payloads getInput() {
+  public Optional<Payloads> getInput() {
     return input;
   }
 
-  public void setInput(Payloads input) {
+  public void setInput(Optional<Payloads> input) {
     this.input = input;
   }
 
-  public SignalExternalWorkflowParameters withInput(Payloads input) {
+  public SignalExternalWorkflowParameters withInput(Optional<Payloads> input) {
     this.input = input;
     return this;
   }

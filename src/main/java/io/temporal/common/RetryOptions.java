@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 public final class RetryOptions {
 
@@ -373,7 +374,7 @@ public final class RetryOptions {
   }
 
   public boolean shouldRethrow(
-      Throwable e, long expiration, long attempt, long elapsed, long sleepTime) {
+      Throwable e, Optional<Duration> expiration, long attempt, long elapsed, long sleepTime) {
     if (e instanceof ActivityFailureException || e instanceof ChildWorkflowFailureException) {
       e = e.getCause();
     }
@@ -388,6 +389,6 @@ public final class RetryOptions {
     if (maximumAttempts != 0 && attempt >= maximumAttempts) {
       return true;
     }
-    return expiration != 0 && elapsed + sleepTime >= expiration;
+    return expiration.isPresent() && elapsed + sleepTime >= expiration.get().toMillis();
   }
 }

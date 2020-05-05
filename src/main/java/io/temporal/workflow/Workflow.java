@@ -767,26 +767,31 @@ public final class Workflow {
 
   /**
    * Invokes function retrying in case of failures according to retry options. Synchronous variant.
-   * Use {@link Async#retry(RetryOptions, Functions.Func)} for asynchronous functions.
+   * Use {@link Async#retry(RetryOptions, Optional, Func)} for asynchronous functions.
    *
    * @param options retry options that specify retry policy
+   * @param expiration stop retrying after this interval if provided
    * @param fn function to invoke and retry
    * @return result of the function or the last failure.
    */
-  public static <R> R retry(RetryOptions options, Functions.Func<R> fn) {
-    return WorkflowInternal.retry(options, fn);
+  public static <R> R retry(
+      RetryOptions options, Optional<Duration> expiration, Functions.Func<R> fn) {
+    return WorkflowInternal.retry(options, expiration, fn);
   }
 
   /**
    * Invokes function retrying in case of failures according to retry options. Synchronous variant.
-   * Use {@link Async#retry(RetryOptions, Functions.Func)} for asynchronous functions.
+   * Use {@link Async#retry(RetryOptions, Optional, Func)} for asynchronous functions.
    *
    * @param options retry options that specify retry policy
+   * @param expiration if specified stop retrying after this interval
    * @param proc procedure to invoke and retry
    */
-  public static void retry(RetryOptions options, Functions.Proc proc) {
+  public static void retry(
+      RetryOptions options, Optional<Duration> expiration, Functions.Proc proc) {
     WorkflowInternal.retry(
         options,
+        expiration,
         () -> {
           proc.apply();
           return null;

@@ -46,6 +46,7 @@ import java.io.StringWriter;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 import org.slf4j.Logger;
@@ -222,11 +223,13 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
                 });
       }
 
-      Payloads queryResult = decider.query(decisionTask, decisionTask.getQuery());
+      Optional<Payloads> queryResult = decider.query(decisionTask, decisionTask.getQuery());
       if (stickyTaskListName != null && createdNew.get()) {
         cache.addToCache(decisionTask, decider);
       }
-      queryCompletedRequest.setQueryResult(queryResult);
+      if (queryResult.isPresent()) {
+        queryCompletedRequest.setQueryResult(queryResult.get());
+      }
       queryCompletedRequest.setCompletedType(QueryResultType.Answered);
     } catch (Throwable e) {
       // TODO: Appropriate exception serialization.

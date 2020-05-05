@@ -41,6 +41,7 @@ import io.temporal.proto.event.History;
 import io.temporal.proto.event.HistoryEvent;
 import io.temporal.proto.event.HistoryEventOrBuilder;
 import io.temporal.proto.event.WorkflowExecutionCanceledEventAttributes;
+import io.temporal.proto.event.WorkflowExecutionCompletedEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionFailedEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionTerminatedEventAttributes;
@@ -111,7 +112,7 @@ public class WorkflowExecutionUtils {
    * @throws WorkflowTerminatedException if workflow execution was terminated through an external
    *     terminate command.
    */
-  public static Payloads getWorkflowExecutionResult(
+  public static Optional<Payloads> getWorkflowExecutionResult(
       WorkflowServiceStubs service,
       String namespace,
       WorkflowExecution workflowExecution,
@@ -127,7 +128,7 @@ public class WorkflowExecutionUtils {
     return getResultFromCloseEvent(workflowExecution, workflowType, closeEvent, converter);
   }
 
-  public static CompletableFuture<Payloads> getWorkflowExecutionResultAsync(
+  public static CompletableFuture<Optional<Payloads>> getWorkflowExecutionResultAsync(
       WorkflowServiceStubs service,
       String namespace,
       WorkflowExecution workflowExecution,
@@ -141,7 +142,7 @@ public class WorkflowExecutionUtils {
                 getResultFromCloseEvent(workflowExecution, workflowType, closeEvent, converter));
   }
 
-  private static Payloads getResultFromCloseEvent(
+  private static Optional<Payloads> getResultFromCloseEvent(
       WorkflowExecution workflowExecution,
       Optional<String> workflowType,
       HistoryEvent closeEvent,
@@ -151,7 +152,12 @@ public class WorkflowExecutionUtils {
     }
     switch (closeEvent.getEventType()) {
       case WorkflowExecutionCompleted:
-        return closeEvent.getWorkflowExecutionCompletedEventAttributes().getResult();
+        WorkflowExecutionCompletedEventAttributes completedEventAttributes =
+            closeEvent.getWorkflowExecutionCompletedEventAttributes();
+        if (completedEventAttributes.hasResult()) {
+          return Optional.of(completedEventAttributes.getResult());
+        }
+        return Optional.empty();
       case WorkflowExecutionCanceled:
         String message = null;
         WorkflowExecutionCanceledEventAttributes attributes =
@@ -166,7 +172,7 @@ public class WorkflowExecutionUtils {
             closeEvent.getWorkflowExecutionFailedEventAttributes();
         throw new WorkflowExecutionFailedException(
             failed.getReason(),
-            failed.getDetails().toByteArray(),
+            failed.hasDetails() ? Optional.of(failed.getDetails()) : Optional.empty(),
             failed.getDecisionTaskCompletedEventId());
       case WorkflowExecutionTerminated:
         WorkflowExecutionTerminatedEventAttributes terminated =

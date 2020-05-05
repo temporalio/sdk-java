@@ -21,9 +21,9 @@ package io.temporal.internal.replay;
 
 import static junit.framework.TestCase.assertEquals;
 
-import com.google.protobuf.ByteString;
-import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GsonJsonDataConverter;
+import io.temporal.common.converter.PayloadConverter;
+import io.temporal.proto.common.Payload;
 import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.event.WorkflowExecutionStartedEventAttributes;
 import io.temporal.workflow.WorkflowUtils;
@@ -39,9 +39,9 @@ public class WorkflowContextTest {
         WorkflowExecutionStartedEventAttributes.getDefaultInstance();
     WorkflowContext workflowContext = new WorkflowContext("namespace", null, startAttr, null);
 
-    DataConverter converter = GsonJsonDataConverter.getInstance();
-    Map<String, ByteString> indexedFields = new HashMap<>();
-    indexedFields.put("CustomKeywordField", ByteString.copyFrom(converter.toData("key")));
+    PayloadConverter converter = GsonJsonDataConverter.getInstance().getPayloadConverter();
+    Map<String, Payload> indexedFields = new HashMap<>();
+    indexedFields.put("CustomKeywordField", converter.toData("key").get());
 
     SearchAttributes searchAttributes =
         SearchAttributes.newBuilder().putAllIndexedFields(indexedFields).build();

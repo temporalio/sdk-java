@@ -242,9 +242,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
         throws CancellationException, WorkflowExecutionException {
       Object[] args =
           dataConverter.fromDataArray(
-              input.orElse(null),
-              workflowMethod.getParameterTypes(),
-              workflowMethod.getGenericParameterTypes());
+              input, workflowMethod.getParameterTypes(), workflowMethod.getGenericParameterTypes());
       Preconditions.checkNotNull(workflowInvoker, "initialize not called");
       Object result = workflowInvoker.execute(args);
       if (workflowMethod.getReturnType() == Void.TYPE) {

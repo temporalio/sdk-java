@@ -26,11 +26,12 @@ import io.temporal.workflow.Functions;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import java.time.Duration;
+import java.util.Optional;
 
 /**
  * Implements operation retry logic for both synchronous and asynchronous operations. Internal
- * class. Do not reference this class directly. Use {@link Workflow#retry(RetryOptions,
- * Functions.Func)} or Async{@link #retry(RetryOptions, Functions.Func)}.
+ * class. Do not reference this class directly. Use {@link Workflow#retry(RetryOptions, Optional,
+ * Functions.Func)} or Async{@link #retry(RetryOptions, Optional, Functions.Proc)}.
  */
 final class WorkflowRetryerInternal {
 
@@ -40,17 +41,20 @@ final class WorkflowRetryerInternal {
    * @param options retry options.
    * @param proc procedure to retry.
    */
-  public static void retry(RetryOptions options, Functions.Proc proc) {
+  public static void retry(
+      RetryOptions options, Optional<Duration> expiration, Functions.Proc proc) {
     retry(
         options,
+        expiration,
         () -> {
           proc.apply();
           return null;
         });
   }
 
-  public static <R> R validateOptionsAndRetry(RetryOptions options, Functions.Func<R> func) {
-    return retry(RetryOptions.merge(null, options), func);
+  public static <R> R validateOptionsAndRetry(
+      RetryOptions options, Optional<Duration> expiration, Functions.Func<R> func) {
+    return retry(RetryOptions.merge(null, options), expiration, func);
   }
 
   /**
@@ -60,7 +64,8 @@ final class WorkflowRetryerInternal {
    * @param func procedure to retry.
    * @return result of func if ever completed successfully.
    */
-  public static <R> R retry(RetryOptions options, Functions.Func<R> func) {
+  public static <R> R retry(
+      RetryOptions options, Optional<Duration> expiration, Functions.Func<R> func) {
     options.validate();
     int attempt = 1;
     long startTime = WorkflowInternal.currentTimeMillis();
@@ -75,7 +80,7 @@ final class WorkflowRetryerInternal {
         return func.apply();
       } catch (Exception e) {
         long elapsed = WorkflowInternal.currentTimeMillis() - startTime;
-        if (retryOptions.shouldRethrow(e, attempt, elapsed, nextSleepTime)) {
+        if (retryOptions.shouldRethrow(e, expiration, attempt, elapsed, nextSleepTime)) {
           throw WorkflowInternal.wrap(e);
         }
       }
@@ -88,18 +93,21 @@ final class WorkflowRetryerInternal {
    * Retry function asynchronously.
    *
    * @param options retry options.
+   * @param expiration if present limits duration of retries
    * @param func procedure to retry.
    * @return result promise to the result or failure if retries stopped according to options.
    */
-  public static <R> Promise<R> retryAsync(RetryOptions options, Functions.Func<Promise<R>> func) {
+  public static <R> Promise<R> retryAsync(
+      RetryOptions options, Optional<Duration> expiration, Functions.Func<Promise<R>> func) {
     String retryId = WorkflowInternal.randomUUID().toString();
     long startTime = WorkflowInternal.currentTimeMillis();
-    return retryAsync(retryId, options, func, startTime, 1);
+    return retryAsync(retryId, options, expiration, func, startTime, 1);
   }
 
   private static <R> Promise<R> retryAsync(
       String retryId,
       RetryOptions options,
+      Optional<Duration> expiration,
       Functions.Func<Promise<R>> func,
       long startTime,
       long attempt) {
@@ -122,14 +130,16 @@ final class WorkflowRetryerInternal {
               }
               long elapsed = WorkflowInternal.currentTimeMillis() - startTime;
               long sleepTime = retryOptions.calculateSleepTime(attempt);
-              if (retryOptions.shouldRethrow(e, attempt, elapsed, sleepTime)) {
+              if (retryOptions.shouldRethrow(e, expiration, attempt, elapsed, sleepTime)) {
                 throw e;
               }
               // newTimer runs in a separate thread, so it performs trampolining eliminating tail
               // recursion.
               return WorkflowInternal.newTimer(Duration.ofMillis(sleepTime))
                   .thenCompose(
-                      (nil) -> retryAsync(retryId, retryOptions, func, startTime, attempt + 1));
+                      (nil) ->
+                          retryAsync(
+                              retryId, retryOptions, expiration, func, startTime, attempt + 1));
             })
         .thenCompose((r) -> r);
   }

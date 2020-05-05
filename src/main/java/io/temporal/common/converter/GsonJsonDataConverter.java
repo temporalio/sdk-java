@@ -23,6 +23,7 @@ import com.google.common.base.Defaults;
 import io.temporal.proto.common.Payload;
 import io.temporal.proto.common.Payloads;
 import java.lang.reflect.Type;
+import java.util.Arrays;
 import java.util.Optional;
 
 /**
@@ -59,7 +60,7 @@ public final class GsonJsonDataConverter implements DataConverter {
    * single value do not wrap it into Json array. Exception stack traces are converted to a single
    * string stack trace to save space and make them more readable.
    *
-   * @return
+   * @return serialized values
    */
   @Override
   public Optional<Payloads> toData(Object... values) throws DataConverterException {
@@ -107,9 +108,9 @@ public final class GsonJsonDataConverter implements DataConverter {
           && (valueTypes == null || parameterTypes.length != valueTypes.length)) {
         throw new IllegalArgumentException(
             "parameterTypes don't match length of valueTypes: "
-                + parameterTypes
+                + Arrays.toString(parameterTypes)
                 + "<>"
-                + valueTypes);
+                + Arrays.toString(valueTypes));
       }
       if (!content.isPresent()) {
         if (valueTypes.length == 0) {

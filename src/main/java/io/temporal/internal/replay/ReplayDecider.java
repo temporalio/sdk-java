@@ -61,6 +61,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -315,7 +316,7 @@ class ReplayDecider implements Decider {
         decisionsHelper.continueAsNewWorkflowExecution(continueAsNewOnCompletion);
         metricsScope.counter(MetricsType.WORKFLOW_CONTINUE_AS_NEW_COUNTER).inc(1);
       } else {
-        Payloads workflowOutput = workflow.getOutput();
+        Optional<Payloads> workflowOutput = workflow.getOutput();
         decisionsHelper.completeWorkflowExecution(workflowOutput);
         metricsScope.counter(MetricsType.WORKFLOW_COMPLETED_COUNTER).inc(1);
       }
@@ -386,8 +387,9 @@ class ReplayDecider implements Decider {
     if (completed) {
       throw new IllegalStateException("Signal received after workflow is closed.");
     }
-    this.workflow.handleSignal(
-        signalAttributes.getSignalName(), signalAttributes.getInput(), event.getEventId());
+    Optional<Payloads> input =
+        signalAttributes.hasInput() ? Optional.of(signalAttributes.getInput()) : Optional.empty();
+    this.workflow.handleSignal(signalAttributes.getSignalName(), input, event.getEventId());
   }
 
   @Override
@@ -488,13 +490,13 @@ class ReplayDecider implements Decider {
       for (Map.Entry<String, WorkflowQuery> entry : queries.entrySet()) {
         WorkflowQuery query = entry.getValue();
         try {
-          Payloads queryResult = workflow.query(query);
-          queryResults.put(
-              entry.getKey(),
-              WorkflowQueryResult.newBuilder()
-                  .setResultType(QueryResultType.Answered)
-                  .setAnswer(queryResult)
-                  .build());
+          Optional<Payloads> queryResult = workflow.query(query);
+          WorkflowQueryResult.Builder result =
+              WorkflowQueryResult.newBuilder().setResultType(QueryResultType.Answered);
+          if (queryResult.isPresent()) {
+            result.setAnswer(queryResult.get());
+          }
+          queryResults.put(entry.getKey(), result.build());
         } catch (Exception e) {
           String stackTrace = Throwables.getStackTraceAsString(e);
           String message;
@@ -618,11 +620,11 @@ class ReplayDecider implements Decider {
   }
 
   @Override
-  public Payloads query(PollForDecisionTaskResponseOrBuilder response, WorkflowQuery query)
-      throws Throwable {
+  public Optional<Payloads> query(
+      PollForDecisionTaskResponseOrBuilder response, WorkflowQuery query) throws Throwable {
     lock.lock();
     try {
-      AtomicReference<Payloads> result = new AtomicReference<>();
+      AtomicReference<Optional<Payloads>> result = new AtomicReference<>();
       decideImpl(response, () -> result.set(workflow.query(query)));
       return result.get();
     } finally {

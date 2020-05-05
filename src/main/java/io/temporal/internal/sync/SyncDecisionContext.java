@@ -162,10 +162,15 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
       Object[] args,
       ActivityOptions options) {
     RetryOptions retryOptions = options.getRetryOptions();
+    Optional<Duration> expiration =
+        options.getScheduleToCloseTimeout() == null
+            ? Optional.empty()
+            : Optional.of(options.getScheduleToCloseTimeout());
     // Replays a legacy history that used the client side retry correctly
     if (retryOptions != null && !context.isServerSideActivityRetry()) {
       return WorkflowRetryerInternal.retryAsync(
           retryOptions,
+          expiration,
           () -> executeActivityOnce(activityName, options, args, resultClass, resultType));
     }
     return executeActivityOnce(activityName, options, args, resultClass, resultType);
@@ -416,7 +421,11 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
               .setParentClosePolicy(options.getParentClosePolicy())
               .build();
       return WorkflowRetryerInternal.retryAsync(
-          retryOptions, () -> executeChildWorkflowOnce(name, o1, input, executionResult));
+          retryOptions,
+          options.getWorkflowExecutionTimeout() == null
+              ? Optional.empty()
+              : Optional.of(options.getWorkflowExecutionTimeout()),
+          () -> executeChildWorkflowOnce(name, o1, input, executionResult));
     }
     return executeChildWorkflowOnce(name, options, input, executionResult);
   }
@@ -736,7 +745,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     parameters.setWorkflowId(execution.getWorkflowId());
     parameters.setRunId(execution.getRunId());
     Optional<Payloads> input = getDataConverter().toData(args);
-    parameters.setInput(input.orElse(null));
+    parameters.setInput(input);
     CompletablePromise<Void> result = Workflow.newPromise();
 
     Consumer<Exception> cancellationCallback =

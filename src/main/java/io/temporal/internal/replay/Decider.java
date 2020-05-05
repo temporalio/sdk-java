@@ -26,12 +26,13 @@ import io.temporal.proto.query.WorkflowQueryResult;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public interface Decider {
 
   DecisionResult decide(PollForDecisionTaskResponseOrBuilder decisionTask) throws Throwable;
 
-  Payloads query(PollForDecisionTaskResponseOrBuilder decisionTask, WorkflowQuery query)
+  Optional<Payloads> query(PollForDecisionTaskResponseOrBuilder decisionTask, WorkflowQuery query)
       throws Throwable;
 
   void close();

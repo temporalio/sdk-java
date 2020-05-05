@@ -34,7 +34,6 @@ import io.temporal.proto.event.HistoryEvent;
 import io.temporal.proto.event.MarkerRecordedEventAttributes;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
-
 import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
@@ -277,7 +276,9 @@ public final class LocalActivityWorker implements SuspendableWorker {
       long sleepMillis = retryOptions.calculateSleepTime(task.params.getAttempt());
       long elapsedTask = System.currentTimeMillis() - task.taskStartTime;
       long elapsedTotal = elapsedTask + task.params.getElapsedTime();
-      int expiration = (int) TimeUnit.SECONDS.toMillis(pollTask.getScheduleToCloseTimeoutSeconds());
+      int timeoutSeconds = pollTask.getScheduleToCloseTimeoutSeconds();
+      Optional<Duration> expiration =
+          timeoutSeconds > 0 ? Optional.of(Duration.ofSeconds(timeoutSeconds)) : Optional.empty();
       if (retryOptions.shouldRethrow(
           result.getTaskFailed().getFailure(),
           expiration,

@@ -135,9 +135,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
     Method workflowMethod = workflowMethodMetadata.get().getWorkflowMethod();
     MethodRetry methodRetry = workflowMethod.getAnnotation(MethodRetry.class);
     CronSchedule cronSchedule = workflowMethod.getAnnotation(CronSchedule.class);
-    WorkflowMethod annotation = workflowMethod.getAnnotation(WorkflowMethod.class);
-    WorkflowOptions mergedOptions =
-        WorkflowOptions.merge(annotation, methodRetry, cronSchedule, options);
+    WorkflowOptions mergedOptions = WorkflowOptions.merge(methodRetry, cronSchedule, options);
     String workflowType = workflowMethodMetadata.get().getName();
     WorkflowStub stub =
         new WorkflowStubImpl(clientOptions, genericClient, workflowType, mergedOptions);

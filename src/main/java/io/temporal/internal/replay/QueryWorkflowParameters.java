@@ -22,10 +22,11 @@ package io.temporal.internal.replay;
 import io.temporal.proto.common.Payloads;
 import io.temporal.proto.query.QueryConsistencyLevel;
 import io.temporal.proto.query.QueryRejectCondition;
+import java.util.Optional;
 
 public class QueryWorkflowParameters implements Cloneable {
 
-  private Payloads input;
+  private Optional<Payloads> input;
 
   private String runId;
 
@@ -39,15 +40,15 @@ public class QueryWorkflowParameters implements Cloneable {
 
   public QueryWorkflowParameters() {}
 
-  public Payloads getInput() {
+  public Optional<Payloads> getInput() {
     return input;
   }
 
-  public void setInput(Payloads input) {
+  public void setInput(Optional<Payloads> input) {
     this.input = input;
   }
 
-  public QueryWorkflowParameters withInput(Payloads input) {
+  public QueryWorkflowParameters withInput(Optional<Payloads> input) {
     this.input = input;
     return this;
   }

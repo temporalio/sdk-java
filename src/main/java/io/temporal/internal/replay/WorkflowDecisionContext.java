@@ -199,7 +199,10 @@ final class WorkflowDecisionContext {
     String signalId = decisions.getAndIncrementNextId();
     attributes.setControl(signalId);
     attributes.setSignalName(parameters.getSignalName());
-    attributes.setInput(parameters.getInput());
+    Optional<Payloads> input = parameters.getInput();
+    if (input.isPresent()) {
+      attributes.setInput(input.get());
+    }
     attributes.setExecution(
         WorkflowExecution.newBuilder()
             .setRunId(OptionsUtils.safeGet(parameters.getRunId()))

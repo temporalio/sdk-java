@@ -30,6 +30,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public final class StartWorkflowExecutionParameters {
 
@@ -39,7 +40,7 @@ public final class StartWorkflowExecutionParameters {
 
   private String taskList;
 
-  private Payloads input;
+  private Optional<Payloads> input;
 
   private long workflowRunTimeoutSeconds;
 
@@ -181,7 +182,7 @@ public final class StartWorkflowExecutionParameters {
    *
    * @return The value of the Input property for this object.
    */
-  public Payloads getInput() {
+  public Optional<Payloads> getInput() {
     return input;
   }
 
@@ -193,7 +194,7 @@ public final class StartWorkflowExecutionParameters {
    *
    * @param input The new value for the Input property for this object.
    */
-  public void setInput(Payloads input) {
+  public void setInput(Optional<Payloads> input) {
     this.input = input;
   }
 
@@ -208,7 +209,7 @@ public final class StartWorkflowExecutionParameters {
    * @param input The new value for the Input property for this object.
    * @return A reference to this updated object so that method calls can be chained together.
    */
-  public StartWorkflowExecutionParameters withInput(Payloads input) {
+  public StartWorkflowExecutionParameters withInput(Optional<Payloads> input) {
     this.input = input;
     return this;
   }

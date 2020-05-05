@@ -54,6 +54,7 @@ import io.temporal.proto.workflowservice.StartWorkflowExecutionResponse;
 import io.temporal.proto.workflowservice.TerminateWorkflowExecutionRequest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 public final class GenericWorkflowClientExternalImpl implements GenericWorkflowClientExternal {
@@ -104,8 +105,9 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
             .setNamespace(namespace)
             .setRequestId(UUID.randomUUID().toString())
             .setIdentity(identity);
-    if (startParameters.getInput() != null) {
-      request.setInput(startParameters.getInput());
+    Optional<Payloads> input = startParameters.getInput();
+    if (input.isPresent()) {
+      request.setInput(input.get());
     }
     request.setWorkflowRunTimeoutSeconds((int) startParameters.getWorkflowRunTimeoutSeconds());
     request.setWorkflowTaskTimeoutSeconds((int) startParameters.getWorkflowTaskTimeoutSeconds());
@@ -204,9 +206,9 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
                     .setRunId(OptionsUtils.safeGet(signalParameters.getRunId()))
                     .setWorkflowId(signalParameters.getWorkflowId()));
 
-    Payloads input = signalParameters.getInput();
-    if (input != null) {
-      request.setInput(input);
+    Optional<Payloads> input = signalParameters.getInput();
+    if (input.isPresent()) {
+      request.setInput(input.get());
     }
     GrpcRetryer.retry(
         GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
@@ -245,12 +247,13 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
             .setWorkflowTaskTimeoutSeconds((int) startParameters.getWorkflowTaskTimeoutSeconds())
             .setWorkflowType(startParameters.getWorkflowType());
 
-    Payloads signalInput = parameters.getSignalInput();
-    if (signalInput != null) {
-      request.setSignalInput(signalInput);
+    Optional<Payloads> signalInput = parameters.getSignalInput();
+    if (signalInput.isPresent()) {
+      request.setSignalInput(signalInput.get());
     }
-    if (startParameters.getInput() != null) {
-      request.setInput(startParameters.getInput());
+    Optional<Payloads> input = startParameters.getInput();
+    if (input.isPresent()) {
+      request.setInput(input.get());
     }
     if (startParameters.getWorkflowIdReusePolicy() != null) {
       request.setWorkflowIdReusePolicy(startParameters.getWorkflowIdReusePolicy());
@@ -301,9 +304,9 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   public QueryWorkflowResponse queryWorkflow(QueryWorkflowParameters queryParameters) {
     WorkflowQuery.Builder query =
         WorkflowQuery.newBuilder().setQueryType(queryParameters.getQueryType());
-    Payloads input = queryParameters.getInput();
-    if (input != null) {
-      query.setQueryArgs(input);
+    Optional<Payloads> input = queryParameters.getInput();
+    if (input.isPresent()) {
+      query.setQueryArgs(input.get());
     }
     QueryWorkflowRequest request =
         QueryWorkflowRequest.newBuilder()

@@ -32,7 +32,6 @@ public class ActivityOptionsTest {
   @MethodRetry(
     initialIntervalSeconds = 12,
     backoffCoefficient = 1.97,
-    expirationSeconds = 1231423,
     maximumAttempts = 234567,
     maximumIntervalSeconds = 22,
     doNotRetry = {NullPointerException.class, UnsupportedOperationException.class}
@@ -50,7 +49,6 @@ public class ActivityOptionsTest {
     RetryOptions rMerged = merged.getRetryOptions();
     Assert.assertEquals(r.maximumAttempts(), rMerged.getMaximumAttempts());
     Assert.assertEquals(r.backoffCoefficient(), rMerged.getBackoffCoefficient(), 0.0);
-    Assert.assertEquals(Duration.ofSeconds(r.expirationSeconds()), rMerged.getExpiration());
     Assert.assertEquals(
         Duration.ofSeconds(r.initialIntervalSeconds()), rMerged.getInitialInterval());
     Assert.assertEquals(

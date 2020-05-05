@@ -77,8 +77,12 @@ final class ActivityTaskImpl implements ActivityTask {
   }
 
   @Override
-  public byte[] getHeartbeatDetails() {
-    return response.getHeartbeatDetails().toByteArray();
+  public Optional<Payloads> getHeartbeatDetails() {
+    if (response.hasHeartbeatDetails()) {
+      return Optional.of(response.getHeartbeatDetails());
+    } else {
+      return Optional.empty();
+    }
   }
 
   @Override

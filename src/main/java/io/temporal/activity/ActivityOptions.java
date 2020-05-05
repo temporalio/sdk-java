@@ -184,34 +184,13 @@ public final class ActivityOptions {
             "Either ScheduleToClose or both ScheduleToStart and StartToClose "
                 + "timeouts are required: ");
       }
-      Duration scheduleToClose = scheduleToCloseTimeout;
-      if (scheduleToClose == null) {
-        scheduleToClose = scheduleToStartTimeout.plus(startToCloseTimeout);
-      }
-      Duration startToClose = startToCloseTimeout;
-      if (startToClose == null) {
-        startToClose = scheduleToCloseTimeout;
-      }
-      Duration scheduleToStart = scheduleToStartTimeout;
-      if (scheduleToStartTimeout == null) {
-        scheduleToStart = scheduleToClose;
-      }
-      // Temporal still requires it.
-      Duration heartbeat = heartbeatTimeout;
-      if (heartbeatTimeout == null) {
-        heartbeat = scheduleToClose;
-      }
-      RetryOptions ro = null;
-      if (retryOptions != null) {
-        ro = RetryOptions.newBuilder(retryOptions).validateBuildWithDefaults();
-      }
       return new ActivityOptions(
-          roundUpToSeconds(heartbeat),
-          roundUpToSeconds(scheduleToClose),
-          roundUpToSeconds(scheduleToStart),
-          roundUpToSeconds(startToClose),
+          roundUpToSeconds(heartbeatTimeout),
+          roundUpToSeconds(scheduleToCloseTimeout),
+          roundUpToSeconds(scheduleToStartTimeout),
+          roundUpToSeconds(startToCloseTimeout),
           taskList,
-          ro,
+          retryOptions,
           contextPropagators,
           cancellationType);
     }

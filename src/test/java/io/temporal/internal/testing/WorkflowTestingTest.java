@@ -34,7 +34,9 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.client.WorkflowTimedOutException;
 import io.temporal.common.context.ContextPropagator;
+import io.temporal.common.converter.GsonJsonDataConverter;
 import io.temporal.internal.common.WorkflowExecutionUtils;
+import io.temporal.proto.common.Payload;
 import io.temporal.proto.event.EventType;
 import io.temporal.proto.event.History;
 import io.temporal.proto.event.HistoryEvent;
@@ -58,8 +60,6 @@ import io.temporal.workflow.Promise;
 import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
@@ -117,8 +117,6 @@ public class WorkflowTestingTest {
 
   @WorkflowInterface
   public interface TestWorkflow {
-
-    @WorkflowMethod(workflowRunTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
     String workflow1(String input);
   }
 
@@ -260,8 +258,6 @@ public class WorkflowTestingTest {
 
   @WorkflowInterface
   public interface TestActivityTimeoutWorkflow {
-
-    @WorkflowMethod(workflowRunTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
     void workflow(
         long scheduleToCloseTimeoutSeconds,
         long scheduleToStartTimeoutSeconds,
@@ -405,8 +401,6 @@ public class WorkflowTestingTest {
 
   @WorkflowInterface
   public interface SignaledWorkflow {
-
-    @WorkflowMethod(workflowRunTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
     String workflow1(String input);
 
     @SignalMethod
@@ -601,8 +595,6 @@ public class WorkflowTestingTest {
 
   @WorkflowInterface
   public interface ParentWorkflow {
-
-    @WorkflowMethod(workflowRunTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
     String workflow(String input);
 
     @SignalMethod
@@ -630,8 +622,6 @@ public class WorkflowTestingTest {
 
   @WorkflowInterface
   public interface ChildWorkflow {
-
-    @WorkflowMethod(workflowRunTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
     String workflow(String input, String parentId);
   }
 
@@ -769,10 +759,12 @@ public class WorkflowTestingTest {
     }
 
     @Override
-    public Map<String, byte[]> serializeContext(Object context) {
+    public Map<String, Payload> serializeContext(Object context) {
       String testKey = (String) context;
       if (testKey != null) {
-        return Collections.singletonMap("test", testKey.getBytes(StandardCharsets.UTF_8));
+        return Collections.singletonMap(
+            "test",
+            GsonJsonDataConverter.getInstance().getPayloadConverter().toData(testKey).get());
       } else {
         return Collections.emptyMap();
       }
@@ -781,7 +773,10 @@ public class WorkflowTestingTest {
     @Override
     public Object deserializeContext(Map<String, Payload> context) {
       if (context.containsKey("test")) {
-        return new String(context.get("test"), StandardCharsets.UTF_8);
+        return GsonJsonDataConverter.getInstance()
+            .getPayloadConverter()
+            .fromData(context.get("test"), String.class, String.class);
+
       } else {
         return null;
       }
