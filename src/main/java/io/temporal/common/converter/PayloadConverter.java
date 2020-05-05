@@ -19,7 +19,7 @@
 
 package io.temporal.common.converter;
 
-import io.temporal.proto.common.Payloads;
+import io.temporal.proto.common.Payload;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
@@ -29,19 +29,17 @@ import java.util.Optional;
  *
  * @author fateev
  */
-public interface DataConverter {
-
-  PayloadConverter getPayloadConverter();
+public interface PayloadConverter {
 
   /**
    * Implements conversion of a list of values.
    *
-   * @param values Java values to convert to String.
+   * @param value Java value to convert.
    * @return converted value
    * @throws DataConverterException if conversion of the value passed as parameter failed for any
    *     reason.
    */
-  Optional<Payloads> toData(Object... values) throws DataConverterException;
+  Optional<Payload> toData(Object value) throws DataConverterException;
 
   /**
    * Implements conversion of a single value.
@@ -53,21 +51,6 @@ public interface DataConverter {
    * @throws DataConverterException if conversion of the data passed as parameter failed for any
    *     reason.
    */
-  <T> T fromData(Optional<Payloads> content, Class<T> valueClass, Type valueType)
-      throws DataConverterException;
-
-  /**
-   * Implements conversion of an array of values of different types. Useful for deserializing
-   * arguments of function invocations.
-   *
-   * @param parameterTypes
-   * @param genericParameterTypes
-   * @param content serialized value to convert to Java objects.
-   * @return array of converted Java objects
-   * @throws DataConverterException if conversion of the data passed as parameter failed for any
-   *     reason.
-   */
-  public Object[] fromDataArray(
-      Optional<Payloads> content, Class<?>[] parameterTypes, Type[] genericParameterTypes)
+  <T> T fromData(Payload content, Class<T> valueClass, Type valueType)
       throws DataConverterException;
 }

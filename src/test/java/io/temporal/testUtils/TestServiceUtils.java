@@ -50,16 +50,16 @@ public class TestServiceUtils {
       String namespace,
       String tasklistName,
       String workflowType,
-      int executionStartToCloseTimeoutSeconds,
-      int taskStartToCloseTimeoutSeconds,
+      int workflowRunTimeoutSeconds,
+      int workflowTaskTimeoutSeconds,
       WorkflowServiceStubs service)
       throws Exception {
     StartWorkflowExecutionRequest.Builder request = StartWorkflowExecutionRequest.newBuilder();
     request.setNamespace(namespace);
     request.setWorkflowId(UUID.randomUUID().toString());
     request.setTaskList(createNormalTaskList(tasklistName));
-    request.setExecutionStartToCloseTimeoutSeconds(executionStartToCloseTimeoutSeconds);
-    request.setTaskStartToCloseTimeoutSeconds(taskStartToCloseTimeoutSeconds);
+    request.setWorkflowRunTimeoutSeconds(workflowRunTimeoutSeconds);
+    request.setWorkflowTaskTimeoutSeconds(workflowTaskTimeoutSeconds);
     request.setWorkflowType(WorkflowType.newBuilder().setName(workflowType));
     service.blockingStub().startWorkflowExecution(request.build());
   }

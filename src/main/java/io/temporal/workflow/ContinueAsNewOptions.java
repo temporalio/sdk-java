@@ -44,7 +44,7 @@ public final class ContinueAsNewOptions {
 
   public static final class Builder {
 
-    private Duration executionStartToCloseTimeout;
+    private Duration workflowRunTimeout;
     private String taskList;
     private Duration taskStartToCloseTimeout;
 
@@ -54,13 +54,13 @@ public final class ContinueAsNewOptions {
       if (options == null) {
         return;
       }
-      this.executionStartToCloseTimeout = options.executionStartToCloseTimeout;
+      this.workflowRunTimeout = options.workflowRunTimeout;
       this.taskList = options.taskList;
       this.taskStartToCloseTimeout = options.taskStartToCloseTimeout;
     }
 
-    public Builder setExecutionStartToCloseTimeout(Duration executionStartToCloseTimeout) {
-      this.executionStartToCloseTimeout = executionStartToCloseTimeout;
+    public Builder setWorkflowRunTimeout(Duration workflowRunTimeout) {
+      this.workflowRunTimeout = workflowRunTimeout;
       return this;
     }
 
@@ -76,25 +76,25 @@ public final class ContinueAsNewOptions {
 
     public ContinueAsNewOptions build() {
       return new ContinueAsNewOptions(
-          OptionsUtils.roundUpToSeconds(executionStartToCloseTimeout),
+          OptionsUtils.roundUpToSeconds(workflowRunTimeout),
           taskList,
           OptionsUtils.roundUpToSeconds(taskStartToCloseTimeout));
     }
   }
 
-  private final Duration executionStartToCloseTimeout;
+  private final Duration workflowRunTimeout;
   private final String taskList;
   private final Duration taskStartToCloseTimeout;
 
   public ContinueAsNewOptions(
-      Duration executionStartToCloseTimeout, String taskList, Duration taskStartToCloseTimeout) {
-    this.executionStartToCloseTimeout = executionStartToCloseTimeout;
+      Duration workflowRunTimeout, String taskList, Duration taskStartToCloseTimeout) {
+    this.workflowRunTimeout = workflowRunTimeout;
     this.taskList = taskList;
     this.taskStartToCloseTimeout = taskStartToCloseTimeout;
   }
 
-  public Duration getExecutionStartToCloseTimeout() {
-    return executionStartToCloseTimeout;
+  public Duration getWorkflowRunTimeout() {
+    return workflowRunTimeout;
   }
 
   public String getTaskList() {

@@ -21,9 +21,11 @@ package io.temporal.workflow;
 
 import io.temporal.common.converter.DataConverter;
 import io.temporal.proto.common.ActivityType;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.event.TimeoutType;
 import java.lang.reflect.Type;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * ActivityTimeoutException indicates that an activity has timed out. If the timeout type is a
@@ -35,7 +37,7 @@ public final class ActivityTimeoutException extends ActivityException {
 
   private final TimeoutType timeoutType;
 
-  private final byte[] details;
+  private final Optional<Payloads> details;
   private final DataConverter dataConverter;
 
   public ActivityTimeoutException(
@@ -43,7 +45,7 @@ public final class ActivityTimeoutException extends ActivityException {
       ActivityType activityType,
       String activityId,
       TimeoutType timeoutType,
-      byte[] details,
+      Optional<Payloads> details,
       DataConverter dataConverter) {
     super("TimeoutType=" + String.valueOf(timeoutType), eventId, activityType, activityId);
     this.timeoutType = Objects.requireNonNull(timeoutType);

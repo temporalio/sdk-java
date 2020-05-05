@@ -25,6 +25,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.metrics.ReplayAwareScope;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.event.DecisionTaskFailedCause;
@@ -144,8 +145,8 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   }
 
   @Override
-  public int getExecutionStartToCloseTimeoutSeconds() {
-    return workflowContext.getExecutionStartToCloseTimeoutSeconds();
+  public int getWorkflowRunTimeoutSeconds() {
+    return workflowContext.getWorkflowRunTimeoutSeconds();
   }
 
   @Override
@@ -178,8 +179,8 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   }
 
   @Override
-  public Duration getExecutionStartToCloseTimeout() {
-    return Duration.ofSeconds(workflowContext.getExecutionStartToCloseTimeoutSeconds());
+  public Duration getWorkflowRunTimeout() {
+    return Duration.ofSeconds(workflowContext.getWorkflowRunTimeoutSeconds());
   }
 
   @Override
@@ -199,13 +200,14 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
 
   @Override
   public Consumer<Exception> scheduleActivityTask(
-      ExecuteActivityParameters parameters, BiConsumer<byte[], Exception> callback) {
+      ExecuteActivityParameters parameters, BiConsumer<Optional<Payloads>, Exception> callback) {
     return activityClient.scheduleActivityTask(parameters, callback);
   }
 
   @Override
   public Consumer<Exception> scheduleLocalActivityTask(
-      ExecuteLocalActivityParameters parameters, BiConsumer<byte[], Exception> callback) {
+      ExecuteLocalActivityParameters parameters,
+      BiConsumer<Optional<Payloads>, Exception> callback) {
     return workflowClock.scheduleLocalActivityTask(parameters, callback);
   }
 
@@ -213,7 +215,7 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   public Consumer<Exception> startChildWorkflow(
       StartChildWorkflowExecutionParameters parameters,
       Consumer<WorkflowExecution> executionCallback,
-      BiConsumer<byte[], Exception> callback) {
+      BiConsumer<Optional<Payloads>, Exception> callback) {
     return workflowClient.startChildWorkflow(parameters, executionCallback, callback);
   }
 
@@ -275,13 +277,13 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   }
 
   @Override
-  public byte[] sideEffect(Func<byte[]> func) {
+  public Optional<Payloads> sideEffect(Func<Optional<Payloads>> func) {
     return workflowClock.sideEffect(func);
   }
 
   @Override
-  public Optional<byte[]> mutableSideEffect(
-      String id, DataConverter converter, Func1<Optional<byte[]>, Optional<byte[]>> func) {
+  public Optional<Payloads> mutableSideEffect(
+      String id, DataConverter converter, Func1<Optional<Payloads>, Optional<Payloads>> func) {
     return workflowClock.mutableSideEffect(id, converter, func);
   }
 

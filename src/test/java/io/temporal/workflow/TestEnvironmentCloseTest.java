@@ -30,7 +30,7 @@ public class TestEnvironmentCloseTest {
 
   @WorkflowInterface
   public interface W {
-    @WorkflowMethod(executionStartToCloseTimeoutSeconds = 10, taskList = "WW")
+    @WorkflowMethod(workflowRunTimeoutSeconds = 10, taskList = "WW")
     void foo();
 
     @SignalMethod

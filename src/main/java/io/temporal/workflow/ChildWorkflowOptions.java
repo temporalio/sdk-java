@@ -62,7 +62,7 @@ public final class ChildWorkflowOptions {
 
     private WorkflowIdReusePolicy workflowIdReusePolicy;
 
-    private Duration executionStartToCloseTimeout;
+    private Duration workflowRunTimeout;
 
     private Duration taskStartToCloseTimeout;
 
@@ -91,7 +91,7 @@ public final class ChildWorkflowOptions {
       this.namespace = options.getNamespace();
       this.workflowId = options.getWorkflowId();
       this.workflowIdReusePolicy = options.getWorkflowIdReusePolicy();
-      this.executionStartToCloseTimeout = options.getExecutionStartToCloseTimeout();
+      this.workflowRunTimeout = options.getWorkflowRunTimeout();
       this.taskStartToCloseTimeout = options.getTaskStartToCloseTimeout();
       this.taskList = options.getTaskList();
       this.retryOptions = options.getRetryOptions();
@@ -152,8 +152,8 @@ public final class ChildWorkflowOptions {
      * not rely on execution timeout for business level timeouts. It is preferred to use in workflow
      * timers for this purpose.
      */
-    public Builder setExecutionStartToCloseTimeout(Duration executionStartToCloseTimeout) {
-      this.executionStartToCloseTimeout = executionStartToCloseTimeout;
+    public Builder setWorkflowRunTimeout(Duration workflowRunTimeout) {
+      this.workflowRunTimeout = workflowRunTimeout;
       return this;
     }
 
@@ -226,19 +226,6 @@ public final class ChildWorkflowOptions {
       return this;
     }
 
-    public Builder setWorkflowMethod(WorkflowMethod a) {
-      workflowIdReusePolicy =
-          OptionsUtils.merge(
-              a.workflowIdReusePolicy(), workflowIdReusePolicy, WorkflowIdReusePolicy.class);
-      workflowId = OptionsUtils.merge(a.workflowId(), workflowId, String.class);
-      taskStartToCloseTimeout =
-          OptionsUtils.merge(a.taskStartToCloseTimeoutSeconds(), taskStartToCloseTimeout);
-      executionStartToCloseTimeout =
-          OptionsUtils.merge(a.executionStartToCloseTimeoutSeconds(), executionStartToCloseTimeout);
-      taskList = OptionsUtils.merge(a.taskList(), taskList, String.class);
-      return this;
-    }
-
     public Builder setMethodRetry(MethodRetry r) {
       retryOptions = RetryOptions.merge(r, retryOptions);
       return this;
@@ -255,7 +242,7 @@ public final class ChildWorkflowOptions {
           namespace,
           workflowId,
           workflowIdReusePolicy,
-          executionStartToCloseTimeout,
+          workflowRunTimeout,
           taskStartToCloseTimeout,
           taskList,
           retryOptions,
@@ -272,7 +259,7 @@ public final class ChildWorkflowOptions {
           namespace,
           workflowId,
           workflowIdReusePolicy,
-          roundUpToSeconds(executionStartToCloseTimeout),
+          roundUpToSeconds(workflowRunTimeout),
           roundUpToSeconds(taskStartToCloseTimeout),
           taskList,
           retryOptions,
@@ -293,7 +280,7 @@ public final class ChildWorkflowOptions {
 
   private final WorkflowIdReusePolicy workflowIdReusePolicy;
 
-  private final Duration executionStartToCloseTimeout;
+  private final Duration workflowRunTimeout;
 
   private final Duration taskStartToCloseTimeout;
 
@@ -317,7 +304,7 @@ public final class ChildWorkflowOptions {
       String namespace,
       String workflowId,
       WorkflowIdReusePolicy workflowIdReusePolicy,
-      Duration executionStartToCloseTimeout,
+      Duration workflowRunTimeout,
       Duration taskStartToCloseTimeout,
       String taskList,
       RetryOptions retryOptions,
@@ -330,7 +317,7 @@ public final class ChildWorkflowOptions {
     this.namespace = namespace;
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
-    this.executionStartToCloseTimeout = executionStartToCloseTimeout;
+    this.workflowRunTimeout = workflowRunTimeout;
     this.taskStartToCloseTimeout = taskStartToCloseTimeout;
     this.taskList = taskList;
     this.retryOptions = retryOptions;
@@ -354,8 +341,8 @@ public final class ChildWorkflowOptions {
     return workflowIdReusePolicy;
   }
 
-  public Duration getExecutionStartToCloseTimeout() {
-    return executionStartToCloseTimeout;
+  public Duration getWorkflowRunTimeout() {
+    return workflowRunTimeout;
   }
 
   public Duration getTaskStartToCloseTimeout() {
@@ -402,7 +389,7 @@ public final class ChildWorkflowOptions {
     return Objects.equal(namespace, that.namespace)
         && Objects.equal(workflowId, that.workflowId)
         && workflowIdReusePolicy == that.workflowIdReusePolicy
-        && Objects.equal(executionStartToCloseTimeout, that.executionStartToCloseTimeout)
+        && Objects.equal(workflowRunTimeout, that.workflowRunTimeout)
         && Objects.equal(taskStartToCloseTimeout, that.taskStartToCloseTimeout)
         && Objects.equal(taskList, that.taskList)
         && Objects.equal(retryOptions, that.retryOptions)
@@ -420,7 +407,7 @@ public final class ChildWorkflowOptions {
         namespace,
         workflowId,
         workflowIdReusePolicy,
-        executionStartToCloseTimeout,
+        workflowRunTimeout,
         taskStartToCloseTimeout,
         taskList,
         retryOptions,
@@ -443,8 +430,8 @@ public final class ChildWorkflowOptions {
         + '\''
         + ", workflowIdReusePolicy="
         + workflowIdReusePolicy
-        + ", executionStartToCloseTimeout="
-        + executionStartToCloseTimeout
+        + ", workflowRunTimeout="
+        + workflowRunTimeout
         + ", taskStartToCloseTimeout="
         + taskStartToCloseTimeout
         + ", taskList='"

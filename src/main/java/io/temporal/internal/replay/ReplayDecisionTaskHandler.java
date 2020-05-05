@@ -22,13 +22,12 @@ package io.temporal.internal.replay;
 import static io.temporal.internal.common.InternalUtils.createStickyTaskList;
 
 import com.google.common.base.Throwables;
-import com.google.protobuf.ByteString;
-import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.DecisionTaskHandler;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.decision.StickyExecutionAttributes;
 import io.temporal.proto.event.HistoryEvent;
@@ -44,7 +43,6 @@ import io.temporal.proto.workflowservice.RespondQueryTaskCompletedRequest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
@@ -116,7 +114,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
       RespondDecisionTaskFailedRequest failedRequest =
           RespondDecisionTaskFailedRequest.newBuilder()
               .setTaskToken(decisionTask.getTaskToken())
-              .setDetails(ByteString.copyFrom(stackTrace, StandardCharsets.UTF_8))
+              .setDetails(options.getDataConverter().toData(stackTrace).get())
               .build();
       return new DecisionTaskHandler.Result(null, failedRequest, null, null);
     }
@@ -224,11 +222,11 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
                 });
       }
 
-      byte[] queryResult = decider.query(decisionTask, decisionTask.getQuery());
+      Payloads queryResult = decider.query(decisionTask, decisionTask.getQuery());
       if (stickyTaskListName != null && createdNew.get()) {
         cache.addToCache(decisionTask, decider);
       }
-      queryCompletedRequest.setQueryResult(OptionsUtils.toByteString(queryResult));
+      queryCompletedRequest.setQueryResult(queryResult);
       queryCompletedRequest.setCompletedType(QueryResultType.Answered);
     } catch (Throwable e) {
       // TODO: Appropriate exception serialization.

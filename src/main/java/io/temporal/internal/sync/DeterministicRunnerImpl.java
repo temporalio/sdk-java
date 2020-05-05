@@ -34,6 +34,7 @@ import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.execution.WorkflowExecution;
@@ -572,7 +573,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
 
     @Override
-    public int getExecutionStartToCloseTimeoutSeconds() {
+    public int getWorkflowRunTimeoutSeconds() {
       throw new UnsupportedOperationException("not implemented");
     }
 
@@ -597,7 +598,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
 
     @Override
-    public Duration getExecutionStartToCloseTimeout() {
+    public Duration getWorkflowRunTimeout() {
       throw new UnsupportedOperationException("not implemented");
     }
 
@@ -623,13 +624,14 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
     @Override
     public Consumer<Exception> scheduleActivityTask(
-        ExecuteActivityParameters parameters, BiConsumer<byte[], Exception> callback) {
+        ExecuteActivityParameters parameters, BiConsumer<Optional<Payloads>, Exception> callback) {
       throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
     public Consumer<Exception> scheduleLocalActivityTask(
-        ExecuteLocalActivityParameters parameters, BiConsumer<byte[], Exception> callback) {
+        ExecuteLocalActivityParameters parameters,
+        BiConsumer<Optional<Payloads>, Exception> callback) {
       throw new UnsupportedOperationException("not implemented");
     }
 
@@ -637,7 +639,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     public Consumer<Exception> startChildWorkflow(
         StartChildWorkflowExecutionParameters parameters,
         Consumer<WorkflowExecution> executionCallback,
-        BiConsumer<byte[], Exception> callback) {
+        BiConsumer<Optional<Payloads>, Exception> callback) {
       throw new UnsupportedOperationException("not implemented");
     }
 
@@ -668,8 +670,8 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
 
     @Override
-    public Optional<byte[]> mutableSideEffect(
-        String id, DataConverter converter, Func1<Optional<byte[]>, Optional<byte[]>> func) {
+    public Optional<Payloads> mutableSideEffect(
+        String id, DataConverter converter, Func1<Optional<Payloads>, Optional<Payloads>> func) {
       return func.apply(Optional.empty());
     }
 
@@ -689,7 +691,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
 
     @Override
-    public byte[] sideEffect(Func<byte[]> func) {
+    public Optional<Payloads> sideEffect(Func<Optional<Payloads>> func) {
       throw new UnsupportedOperationException("not implemented");
     }
 

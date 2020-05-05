@@ -114,6 +114,7 @@ public final class WorkflowInternal {
       getWorkflowInterceptor()
           .registerQuery(
               methodMetadata.getName(),
+              method.getParameterTypes(),
               method.getGenericParameterTypes(),
               (args) -> {
                 try {
@@ -130,6 +131,7 @@ public final class WorkflowInternal {
       getWorkflowInterceptor()
           .registerSignal(
               methodMetadata.getName(),
+              method.getParameterTypes(),
               method.getGenericParameterTypes(),
               (args) -> {
                 try {

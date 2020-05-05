@@ -19,11 +19,13 @@
 
 package io.temporal.internal.replay;
 
-import com.google.protobuf.ByteString;
+import static io.temporal.internal.common.DataConverterUtils.toHeaderGrpc;
+
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.RetryParameters;
 import io.temporal.proto.common.Header;
 import io.temporal.proto.common.ParentClosePolicy;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.decision.RequestCancelExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.proto.decision.SignalExternalWorkflowExecutionDecisionAttributes;
@@ -51,6 +53,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
@@ -98,8 +101,9 @@ final class WorkflowDecisionContext {
         case TRY_CANCEL:
           scheduledExternalWorkflows.remove(initiatedEventId);
           CancellationException e = new CancellationException();
-          BiConsumer<byte[], Exception> completionCallback = scheduled.getCompletionCallback();
-          completionCallback.accept(null, e);
+          BiConsumer<Optional<Payloads>, Exception> completionCallback =
+              scheduled.getCompletionCallback();
+          completionCallback.accept(Optional.empty(), e);
       }
     }
   }
@@ -125,7 +129,7 @@ final class WorkflowDecisionContext {
   Consumer<Exception> startChildWorkflow(
       StartChildWorkflowExecutionParameters parameters,
       Consumer<WorkflowExecution> executionCallback,
-      BiConsumer<byte[], Exception> callback) {
+      BiConsumer<Optional<Payloads>, Exception> callback) {
     final StartChildWorkflowExecutionDecisionAttributes.Builder attributes =
         StartChildWorkflowExecutionDecisionAttributes.newBuilder()
             .setWorkflowType(parameters.getWorkflowType());
@@ -135,20 +139,16 @@ final class WorkflowDecisionContext {
     }
     attributes.setWorkflowId(workflowId);
     attributes.setNamespace(OptionsUtils.safeGet(parameters.getNamespace()));
-    attributes.setInput(OptionsUtils.toByteString(parameters.getInput()));
-    if (parameters.getExecutionStartToCloseTimeoutSeconds() == 0) {
-      // TODO: Substract time passed since the parent start
-      attributes.setExecutionStartToCloseTimeoutSeconds(
-          workflowContext.getExecutionStartToCloseTimeoutSeconds());
+    attributes.setInput(parameters.getInput());
+    if (parameters.getWorkflowRunTimeoutSeconds() == 0) {
+      attributes.setWorkflowRunTimeoutSeconds(workflowContext.getWorkflowRunTimeoutSeconds());
     } else {
-      attributes.setExecutionStartToCloseTimeoutSeconds(
-          (int) parameters.getExecutionStartToCloseTimeoutSeconds());
+      attributes.setWorkflowRunTimeoutSeconds((int) parameters.getWorkflowRunTimeoutSeconds());
     }
-    if (parameters.getTaskStartToCloseTimeoutSeconds() == 0) {
-      attributes.setTaskStartToCloseTimeoutSeconds(workflowContext.getDecisionTaskTimeoutSeconds());
+    if (parameters.getWorkflowTaskTimeoutSeconds() == 0) {
+      attributes.setWorkflowTaskTimeoutSeconds(workflowContext.getDecisionTaskTimeoutSeconds());
     } else {
-      attributes.setTaskStartToCloseTimeoutSeconds(
-          (int) parameters.getTaskStartToCloseTimeoutSeconds());
+      attributes.setWorkflowTaskTimeoutSeconds((int) parameters.getWorkflowTaskTimeoutSeconds());
     }
     String taskList = parameters.getTaskList();
     TaskList.Builder tl = TaskList.newBuilder();
@@ -186,17 +186,6 @@ final class WorkflowDecisionContext {
         initiatedEventId, attributes.getWorkflowId(), parameters.getCancellationType());
   }
 
-  private Header toHeaderGrpc(Map<String, byte[]> headers) {
-    if (headers == null || headers.isEmpty()) {
-      return null;
-    }
-    Header.Builder headerGrpc = Header.newBuilder();
-    for (Map.Entry<String, byte[]> item : headers.entrySet()) {
-      headerGrpc.putFields(item.getKey(), OptionsUtils.toByteString(item.getValue()));
-    }
-    return headerGrpc.build();
-  }
-
   boolean isChildWorkflowExecutionStartedWithRetryOptions() {
     return decisions.isChildWorkflowExecutionInitiatedWithRetryOptions();
   }
@@ -208,9 +197,9 @@ final class WorkflowDecisionContext {
         SignalExternalWorkflowExecutionDecisionAttributes.newBuilder()
             .setNamespace(OptionsUtils.safeGet(parameters.getNamespace()));
     String signalId = decisions.getAndIncrementNextId();
-    attributes.setControl(ByteString.copyFrom(signalId, StandardCharsets.UTF_8));
+    attributes.setControl(signalId);
     attributes.setSignalName(parameters.getSignalName());
-    attributes.setInput(OptionsUtils.toByteString(parameters.getInput()));
+    attributes.setInput(parameters.getInput());
     attributes.setExecution(
         WorkflowExecution.newBuilder()
             .setRunId(OptionsUtils.safeGet(parameters.getRunId()))
@@ -278,8 +267,9 @@ final class WorkflowDecisionContext {
         == ChildWorkflowCancellationType.WAIT_CANCELLATION_REQUESTED) {
       scheduledExternalWorkflows.remove(attributes.getInitiatedEventId());
       CancellationException e = new CancellationException();
-      BiConsumer<byte[], Exception> completionCallback = scheduled.getCompletionCallback();
-      completionCallback.accept(null, e);
+      BiConsumer<Optional<Payloads>, Exception> completionCallback =
+          scheduled.getCompletionCallback();
+      completionCallback.accept(Optional.empty(), e);
     }
   }
 
@@ -291,8 +281,9 @@ final class WorkflowDecisionContext {
           scheduledExternalWorkflows.remove(attributes.getInitiatedEventId());
       if (scheduled != null) {
         CancellationException e = new CancellationException();
-        BiConsumer<byte[], Exception> completionCallback = scheduled.getCompletionCallback();
-        completionCallback.accept(null, e);
+        BiConsumer<Optional<Payloads>, Exception> completionCallback =
+            scheduled.getCompletionCallback();
+        completionCallback.accept(Optional.empty(), e);
       }
     }
   }
@@ -320,8 +311,9 @@ final class WorkflowDecisionContext {
                 event.getEventId(),
                 attributes.getWorkflowExecution(),
                 attributes.getWorkflowType());
-        BiConsumer<byte[], Exception> completionCallback = scheduled.getCompletionCallback();
-        completionCallback.accept(null, failure);
+        BiConsumer<Optional<Payloads>, Exception> completionCallback =
+            scheduled.getCompletionCallback();
+        completionCallback.accept(Optional.empty(), failure);
       }
     }
   }
@@ -337,8 +329,9 @@ final class WorkflowDecisionContext {
         RuntimeException failure =
             new ChildWorkflowTerminatedException(
                 event.getEventId(), execution, attributes.getWorkflowType());
-        BiConsumer<byte[], Exception> completionCallback = scheduled.getCompletionCallback();
-        completionCallback.accept(null, failure);
+        BiConsumer<Optional<Payloads>, Exception> completionCallback =
+            scheduled.getCompletionCallback();
+        completionCallback.accept(Optional.empty(), failure);
       }
     }
   }
@@ -357,8 +350,9 @@ final class WorkflowDecisionContext {
         RuntimeException failure =
             new StartChildWorkflowFailedException(
                 event.getEventId(), workflowExecution, workflowType, cause);
-        BiConsumer<byte[], Exception> completionCallback = scheduled.getCompletionCallback();
-        completionCallback.accept(null, failure);
+        BiConsumer<Optional<Payloads>, Exception> completionCallback =
+            scheduled.getCompletionCallback();
+        completionCallback.accept(Optional.empty(), failure);
       }
     }
   }
@@ -371,7 +365,8 @@ final class WorkflowDecisionContext {
           scheduledExternalWorkflows.remove(attributes.getInitiatedEventId());
       if (scheduled != null) {
         String reason = attributes.getReason();
-        byte[] details = attributes.getDetails().toByteArray();
+        Optional<Payloads> details =
+            attributes.hasDetails() ? Optional.of(attributes.getDetails()) : Optional.empty();
         RuntimeException failure =
             new ChildWorkflowTaskFailedException(
                 event.getEventId(),
@@ -379,8 +374,9 @@ final class WorkflowDecisionContext {
                 attributes.getWorkflowType(),
                 reason,
                 details);
-        BiConsumer<byte[], Exception> completionCallback = scheduled.getCompletionCallback();
-        completionCallback.accept(null, failure);
+        BiConsumer<Optional<Payloads>, Exception> completionCallback =
+            scheduled.getCompletionCallback();
+        completionCallback.accept(Optional.empty(), failure);
       }
     }
   }
@@ -392,8 +388,10 @@ final class WorkflowDecisionContext {
       OpenChildWorkflowRequestInfo scheduled =
           scheduledExternalWorkflows.remove(attributes.getInitiatedEventId());
       if (scheduled != null) {
-        BiConsumer<byte[], Exception> completionCallback = scheduled.getCompletionCallback();
-        byte[] result = attributes.getResult().toByteArray();
+        BiConsumer<Optional<Payloads>, Exception> completionCallback =
+            scheduled.getCompletionCallback();
+        Optional<Payloads> result =
+            attributes.hasResult() ? Optional.of(attributes.getResult()) : Optional.empty();
         completionCallback.accept(result, null);
       }
     }

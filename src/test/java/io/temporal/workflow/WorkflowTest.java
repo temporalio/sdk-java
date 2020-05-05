@@ -50,7 +50,7 @@ import io.temporal.client.WorkflowTimedOutException;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
-import io.temporal.common.converter.GsonJsonDataConverter;
+import io.temporal.common.converter.GsonJsonPayloadConverter;
 import io.temporal.common.interceptors.BaseWorkflowInvoker;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInterceptor;
@@ -59,6 +59,7 @@ import io.temporal.common.interceptors.WorkflowInvoker;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.sync.DeterministicRunnerTest;
 import io.temporal.proto.common.Memo;
+import io.temporal.proto.common.Payload;
 import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.common.WorkflowIdReusePolicy;
 import io.temporal.proto.event.EventType;
@@ -216,13 +217,13 @@ public class WorkflowTest {
   private static WorkflowOptions.Builder newWorkflowOptionsBuilder(String taskList) {
     if (DEBUGGER_TIMEOUTS) {
       return WorkflowOptions.newBuilder()
-          .setExecutionStartToCloseTimeout(Duration.ofSeconds(1000))
-          .setTaskStartToCloseTimeout(Duration.ofSeconds(60))
+          .setWorkflowRunTimeout(Duration.ofSeconds(1000))
+          .setWorkflowTaskTimeout(Duration.ofSeconds(60))
           .setTaskList(taskList);
     } else {
       return WorkflowOptions.newBuilder()
-          .setExecutionStartToCloseTimeout(Duration.ofHours(30))
-          .setTaskStartToCloseTimeout(Duration.ofSeconds(5))
+          .setWorkflowRunTimeout(Duration.ofHours(30))
+          .setWorkflowTaskTimeout(Duration.ofSeconds(5))
           .setTaskList(taskList);
     }
   }
@@ -530,7 +531,6 @@ public class WorkflowTest {
               .setScheduleToCloseTimeout(Duration.ofSeconds(3))
               .setRetryOptions(
                   RetryOptions.newBuilder()
-                      .setExpiration(Duration.ofSeconds(3))
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
                       .setDoNotRetry(AssertionError.class)
@@ -574,7 +574,6 @@ public class WorkflowTest {
               .setScheduleToCloseTimeout(Duration.ofSeconds(5))
               .setRetryOptions(
                   RetryOptions.newBuilder()
-                      .setExpiration(Duration.ofSeconds(100))
                       .setMaximumInterval(Duration.ofSeconds(20))
                       .setInitialInterval(Duration.ofSeconds(1))
                       .setMaximumAttempts(5)
@@ -595,7 +594,7 @@ public class WorkflowTest {
         workflowClient.newWorkflowStub(
             TestWorkflow1.class,
             newWorkflowOptionsBuilder(taskList)
-                .setTaskStartToCloseTimeout(Duration.ofSeconds(5))
+                .setWorkflowTaskTimeout(Duration.ofSeconds(5))
                 .build());
     try {
       workflowStub.execute(taskList);
@@ -619,7 +618,6 @@ public class WorkflowTest {
               .setScheduleToCloseTimeout(Duration.ofSeconds(1))
               .setRetryOptions(
                   RetryOptions.newBuilder()
-                      .setExpiration(Duration.ofSeconds(100))
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
                       .setMaximumAttempts(3)
@@ -679,7 +677,6 @@ public class WorkflowTest {
             RetryOptions.newBuilder()
                 .setMaximumInterval(Duration.ofSeconds(1))
                 .setInitialInterval(Duration.ofSeconds(1))
-                .setExpiration(Duration.ofDays(1))
                 .setMaximumAttempts(3)
                 .build();
       } else {
@@ -687,7 +684,6 @@ public class WorkflowTest {
             RetryOptions.newBuilder()
                 .setMaximumInterval(Duration.ofSeconds(1))
                 .setInitialInterval(Duration.ofSeconds(1))
-                .setExpiration(Duration.ofDays(1))
                 .setMaximumAttempts(2)
                 .build();
       }
@@ -725,7 +721,6 @@ public class WorkflowTest {
               .setStartToCloseTimeout(Duration.ofSeconds(10))
               .setRetryOptions(
                   RetryOptions.newBuilder()
-                      .setExpiration(Duration.ofSeconds(100))
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
                       .setMaximumAttempts(3)
@@ -805,7 +800,6 @@ public class WorkflowTest {
               .setStartToCloseTimeout(Duration.ofSeconds(10))
               .setRetryOptions(
                   RetryOptions.newBuilder()
-                      .setExpiration(Duration.ofSeconds(100))
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
                       .setMaximumAttempts(3)
@@ -876,7 +870,6 @@ public class WorkflowTest {
       if (Workflow.isReplaying()) {
         options.setRetryOptions(
             RetryOptions.newBuilder()
-                .setExpiration(Duration.ofSeconds(100))
                 .setMaximumInterval(Duration.ofSeconds(1))
                 .setInitialInterval(Duration.ofSeconds(1))
                 .setDoNotRetry(NullPointerException.class)
@@ -885,7 +878,6 @@ public class WorkflowTest {
       } else {
         options.setRetryOptions(
             RetryOptions.newBuilder()
-                .setExpiration(Duration.ofSeconds(10))
                 .setMaximumInterval(Duration.ofSeconds(1))
                 .setInitialInterval(Duration.ofSeconds(1))
                 .setMaximumAttempts(2)
@@ -1687,9 +1679,9 @@ public class WorkflowTest {
               testEnvironment.getWorkflowService(), NAMESPACE, executionF, ByteString.EMPTY);
       HistoryEvent startEvent = historyResp.getHistory().getEvents(0);
       Memo memoFromEvent = startEvent.getWorkflowExecutionStartedEventAttributes().getMemo();
-      byte[] memoBytes = memoFromEvent.getFieldsMap().get(testMemoKey).toByteArray();
+      Payload memoBytes = memoFromEvent.getFieldsMap().get(testMemoKey);
       String memoRetrieved =
-          GsonJsonDataConverter.getInstance().fromData(memoBytes, String.class, String.class);
+          GsonJsonPayloadConverter.getInstance().fromData(memoBytes, String.class, String.class);
       assertEquals(testMemoValue, memoRetrieved);
     }
   }
@@ -1730,30 +1722,30 @@ public class WorkflowTest {
       SearchAttributes searchAttrFromEvent =
           startEvent.getWorkflowExecutionStartedEventAttributes().getSearchAttributes();
 
-      Map<String, ByteString> fieldsMap = searchAttrFromEvent.getIndexedFieldsMap();
-      byte[] searchAttrStringBytes = fieldsMap.get(testKeyString).toByteArray();
+      Map<String, Payload> fieldsMap = searchAttrFromEvent.getIndexedFieldsMap();
+      Payload searchAttrStringBytes = fieldsMap.get(testKeyString);
       String retrievedString =
-          GsonJsonDataConverter.getInstance()
+          GsonJsonPayloadConverter.getInstance()
               .fromData(searchAttrStringBytes, String.class, String.class);
       assertEquals(testValueString, retrievedString);
-      byte[] searchAttrIntegerBytes = fieldsMap.get(testKeyInteger).toByteArray();
+      Payload searchAttrIntegerBytes = fieldsMap.get(testKeyInteger);
       Integer retrievedInteger =
-          GsonJsonDataConverter.getInstance()
+          GsonJsonPayloadConverter.getInstance()
               .fromData(searchAttrIntegerBytes, Integer.class, Integer.class);
       assertEquals(testValueInteger, retrievedInteger);
-      byte[] searchAttrDateTimeBytes = fieldsMap.get(testKeyDateTime).toByteArray();
+      Payload searchAttrDateTimeBytes = fieldsMap.get(testKeyDateTime);
       LocalDateTime retrievedDateTime =
-          GsonJsonDataConverter.getInstance()
+          GsonJsonPayloadConverter.getInstance()
               .fromData(searchAttrDateTimeBytes, LocalDateTime.class, LocalDateTime.class);
       assertEquals(testValueDateTime, retrievedDateTime);
-      byte[] searchAttrBoolBytes = fieldsMap.get(testKeyBool).toByteArray();
+      Payload searchAttrBoolBytes = fieldsMap.get(testKeyBool);
       Boolean retrievedBool =
-          GsonJsonDataConverter.getInstance()
+          GsonJsonPayloadConverter.getInstance()
               .fromData(searchAttrBoolBytes, Boolean.class, Boolean.class);
       assertEquals(testValueBool, retrievedBool);
-      byte[] searchAttrDoubleBytes = fieldsMap.get(testKeyDouble).toByteArray();
+      Payload searchAttrDoubleBytes = fieldsMap.get(testKeyDouble);
       Double retrievedDouble =
-          GsonJsonDataConverter.getInstance()
+          GsonJsonPayloadConverter.getInstance()
               .fromData(searchAttrDoubleBytes, Double.class, Double.class);
       assertEquals(testValueDouble, retrievedDouble);
     }
@@ -1904,8 +1896,8 @@ public class WorkflowTest {
     startWorkerFor(TestChildAsyncWorkflow.class, TestMultiargsWorkflowsImpl.class);
 
     WorkflowOptions.Builder options = WorkflowOptions.newBuilder();
-    options.setExecutionStartToCloseTimeout(Duration.ofSeconds(200));
-    options.setTaskStartToCloseTimeout(Duration.ofSeconds(60));
+    options.setWorkflowRunTimeout(Duration.ofSeconds(200));
+    options.setWorkflowTaskTimeout(Duration.ofSeconds(60));
     options.setTaskList(taskList);
     TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
     assertEquals(null, client.execute(taskList));
@@ -1945,7 +1937,7 @@ public class WorkflowTest {
     public String execute(String taskList) {
       ChildWorkflowOptions workflowOptions =
           ChildWorkflowOptions.newBuilder()
-              .setExecutionStartToCloseTimeout(Duration.ofSeconds(100))
+              .setWorkflowRunTimeout(Duration.ofSeconds(100))
               .setTaskStartToCloseTimeout(Duration.ofSeconds(60))
               .setTaskList(taskList)
               .build();
@@ -1974,8 +1966,8 @@ public class WorkflowTest {
     startWorkerFor(TestChildAsyncLambdaWorkflow.class, TestWaitOnSignalWorkflowImpl.class);
 
     WorkflowOptions.Builder options = WorkflowOptions.newBuilder();
-    options.setExecutionStartToCloseTimeout(Duration.ofSeconds(200));
-    options.setTaskStartToCloseTimeout(Duration.ofSeconds(60));
+    options.setWorkflowRunTimeout(Duration.ofSeconds(200));
+    options.setWorkflowTaskTimeout(Duration.ofSeconds(60));
     options.setTaskList(taskList);
     TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
     assertEquals(null, client.execute(taskList));
@@ -2039,8 +2031,8 @@ public class WorkflowTest {
     startWorkerFor(TestUntypedChildStubWorkflow.class, TestMultiargsWorkflowsImpl.class);
 
     WorkflowOptions.Builder options = WorkflowOptions.newBuilder();
-    options.setExecutionStartToCloseTimeout(Duration.ofSeconds(200));
-    options.setTaskStartToCloseTimeout(Duration.ofSeconds(60));
+    options.setWorkflowRunTimeout(Duration.ofSeconds(200));
+    options.setWorkflowTaskTimeout(Duration.ofSeconds(60));
     options.setTaskList(taskList);
     TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
     assertEquals(null, client.execute(taskList));
@@ -2104,8 +2096,8 @@ public class WorkflowTest {
     startWorkerFor(TestUntypedChildStubWorkflowAsync.class, TestMultiargsWorkflowsImpl.class);
 
     WorkflowOptions.Builder options = WorkflowOptions.newBuilder();
-    options.setExecutionStartToCloseTimeout(Duration.ofSeconds(200));
-    options.setTaskStartToCloseTimeout(Duration.ofSeconds(60));
+    options.setWorkflowRunTimeout(Duration.ofSeconds(200));
+    options.setWorkflowTaskTimeout(Duration.ofSeconds(60));
     options.setTaskList(taskList);
     TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
     assertEquals(null, client.execute(taskList));
@@ -2165,8 +2157,8 @@ public class WorkflowTest {
     startWorkerFor(TestUntypedChildStubWorkflowAsyncInvoke.class, TestMultiargsWorkflowsImpl.class);
 
     WorkflowOptions.Builder options = WorkflowOptions.newBuilder();
-    options.setExecutionStartToCloseTimeout(Duration.ofSeconds(200));
-    options.setTaskStartToCloseTimeout(Duration.ofSeconds(60));
+    options.setWorkflowRunTimeout(Duration.ofSeconds(200));
+    options.setWorkflowTaskTimeout(Duration.ofSeconds(60));
     options.setTaskList(taskList);
     TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options.build());
     assertEquals(null, client.execute(taskList));
@@ -2223,9 +2215,7 @@ public class WorkflowTest {
       options = newWorkflowOptionsBuilder(taskList).build();
     } else {
       options =
-          newWorkflowOptionsBuilder(taskList)
-              .setExecutionStartToCloseTimeout(Duration.ofDays(1))
-              .build();
+          newWorkflowOptionsBuilder(taskList).setWorkflowRunTimeout(Duration.ofDays(1)).build();
     }
     TestWorkflow2 client = workflowClient.newWorkflowStub(TestWorkflow2.class, options);
     String result = client.execute(useExternalService);
@@ -2251,7 +2241,6 @@ public class WorkflowTest {
       RetryOptions.newBuilder()
           .setInitialInterval(Duration.ofSeconds(1))
           .setMaximumInterval(Duration.ofSeconds(1))
-          .setExpiration(Duration.ofSeconds(2))
           .setBackoffCoefficient(1)
           .build();
 
@@ -2411,9 +2400,7 @@ public class WorkflowTest {
     @SuppressWarnings("AssertionFailureIgnored")
     public void execute(String taskList) {
       ChildWorkflowOptions options =
-          ChildWorkflowOptions.newBuilder()
-              .setExecutionStartToCloseTimeout(Duration.ofHours(1))
-              .build();
+          ChildWorkflowOptions.newBuilder().setWorkflowRunTimeout(Duration.ofHours(1)).build();
       TestWorkflow1 child = Workflow.newChildWorkflowStub(TestWorkflow1.class, options);
       try {
         child.execute(taskList);
@@ -2852,8 +2839,8 @@ public class WorkflowTest {
     startWorkerFor(TestTimerCallbackBlockedWorkflowImpl.class);
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(10))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(1))
+            .setWorkflowRunTimeout(Duration.ofSeconds(10))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(1))
             .setTaskList(taskList)
             .build();
     TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options);
@@ -2903,9 +2890,7 @@ public class WorkflowTest {
 
     public TestParentWorkflowWithChildTimeout() {
       ChildWorkflowOptions options =
-          ChildWorkflowOptions.newBuilder()
-              .setExecutionStartToCloseTimeout(Duration.ofSeconds(1))
-              .build();
+          ChildWorkflowOptions.newBuilder().setWorkflowRunTimeout(Duration.ofSeconds(1)).build();
       child = Workflow.newChildWorkflowStub(ITestChild.class, options);
     }
 
@@ -2944,8 +2929,8 @@ public class WorkflowTest {
 
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(200))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(60))
+            .setWorkflowRunTimeout(Duration.ofSeconds(200))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(60))
             .setTaskList(taskList)
             .build();
     TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options);
@@ -2959,8 +2944,8 @@ public class WorkflowTest {
 
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(200))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(60))
+            .setWorkflowRunTimeout(Duration.ofSeconds(200))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(60))
             .setTaskList(taskList)
             .build();
     TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options);
@@ -2995,8 +2980,8 @@ public class WorkflowTest {
 
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(200))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(60))
+            .setWorkflowRunTimeout(Duration.ofSeconds(200))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(60))
             .setTaskList(taskList)
             .build();
     TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options);
@@ -3049,8 +3034,8 @@ public class WorkflowTest {
 
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(200))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(60))
+            .setWorkflowRunTimeout(Duration.ofSeconds(200))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(60))
             .setTaskList(taskList)
             .build();
     WorkflowIdReusePolicyParent client =
@@ -3069,8 +3054,8 @@ public class WorkflowTest {
 
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(200))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(60))
+            .setWorkflowRunTimeout(Duration.ofSeconds(200))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(60))
             .setTaskList(taskList)
             .build();
     WorkflowIdReusePolicyParent client =
@@ -3089,8 +3074,8 @@ public class WorkflowTest {
 
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(200))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(60))
+            .setWorkflowRunTimeout(Duration.ofSeconds(200))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(60))
             .setTaskList(taskList)
             .build();
     WorkflowIdReusePolicyParent client =
@@ -3108,7 +3093,7 @@ public class WorkflowTest {
     public String execute(String taskList) {
       ChildWorkflowOptions options =
           ChildWorkflowOptions.newBuilder()
-              .setExecutionStartToCloseTimeout(Duration.ofSeconds(500))
+              .setWorkflowRunTimeout(Duration.ofSeconds(500))
               .setTaskStartToCloseTimeout(Duration.ofSeconds(2))
               .setTaskList(taskList)
               .setRetryOptions(
@@ -3116,7 +3101,6 @@ public class WorkflowTest {
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
                       .setMaximumAttempts(3)
-                      .setExpiration(Duration.ofDays(1))
                       .build())
               .build();
       child = Workflow.newChildWorkflowStub(ITestChild.class, options);
@@ -3170,8 +3154,8 @@ public class WorkflowTest {
 
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(20))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(2))
+            .setWorkflowRunTimeout(Duration.ofSeconds(20))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(2))
             .setTaskList(taskList)
             .build();
     TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options);
@@ -3236,8 +3220,8 @@ public class WorkflowTest {
     }
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(20))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(2))
+            .setWorkflowRunTimeout(Duration.ofSeconds(20))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(2))
             .setTaskList(taskList)
             .build();
     TestWorkflow1 client = wc.newWorkflowStub(TestWorkflow1.class, options);
@@ -3291,8 +3275,8 @@ public class WorkflowTest {
     startWorkerFor(TestSignalExternalWorkflow.class, SignalingChildImpl.class);
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(2000))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(60))
+            .setWorkflowRunTimeout(Duration.ofSeconds(2000))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(60))
             .setTaskList(taskList)
             .build();
     TestWorkflowSignaled client =
@@ -3341,8 +3325,8 @@ public class WorkflowTest {
     startWorkerFor(TestUntypedSignalExternalWorkflow.class, UntypedSignalingChildImpl.class);
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(20))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(2))
+            .setWorkflowRunTimeout(Duration.ofSeconds(20))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(2))
             .setTaskList(taskList)
             .build();
     TestWorkflowSignaled client =
@@ -3368,8 +3352,8 @@ public class WorkflowTest {
     startWorkerFor(TestSignalExternalWorkflowFailure.class);
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(20))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(2))
+            .setWorkflowRunTimeout(Duration.ofSeconds(20))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(2))
             .setTaskList(taskList)
             .build();
     TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options);
@@ -3415,8 +3399,8 @@ public class WorkflowTest {
     startWorkerFor(TestSignalExternalWorkflowImmediateCancellation.class);
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(20))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(2))
+            .setWorkflowRunTimeout(Duration.ofSeconds(20))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(2))
             .setTaskList(taskList)
             .build();
     TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options);
@@ -3438,14 +3422,13 @@ public class WorkflowTest {
     public String execute(String taskList) {
       ChildWorkflowOptions options =
           ChildWorkflowOptions.newBuilder()
-              .setExecutionStartToCloseTimeout(Duration.ofSeconds(5))
+              .setWorkflowRunTimeout(Duration.ofSeconds(5))
               .setTaskStartToCloseTimeout(Duration.ofSeconds(2))
               .setTaskList(taskList)
               .setRetryOptions(
                   RetryOptions.newBuilder()
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
-                      .setExpiration(Duration.ofDays(1))
                       .setMaximumAttempts(3)
                       .build())
               .build();
@@ -3462,8 +3445,8 @@ public class WorkflowTest {
 
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(20))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(2))
+            .setWorkflowRunTimeout(Duration.ofSeconds(20))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(2))
             .setTaskList(taskList)
             .build();
     TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options);
@@ -3497,8 +3480,8 @@ public class WorkflowTest {
     startWorkerFor(TestDecisionFailureBackoff.class);
     WorkflowOptions o =
         WorkflowOptions.newBuilder()
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(10))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(1))
+            .setWorkflowRunTimeout(Duration.ofSeconds(10))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(1))
             .setTaskList(taskList)
             .build();
 
@@ -3574,7 +3557,6 @@ public class WorkflowTest {
     RetryOptions workflowRetryOptions =
         RetryOptions.newBuilder()
             .setInitialInterval(Duration.ofSeconds(1))
-            .setExpiration(Duration.ofSeconds(10))
             .setMaximumAttempts(3)
             .setBackoffCoefficient(1.0)
             .build();
@@ -3618,7 +3600,6 @@ public class WorkflowTest {
     RetryOptions workflowRetryOptions =
         RetryOptions.newBuilder()
             .setInitialInterval(Duration.ofSeconds(1))
-            .setExpiration(Duration.ofSeconds(10))
             .setDoNotRetry(IllegalArgumentException.class)
             .setMaximumAttempts(100)
             .setBackoffCoefficient(1.0)
@@ -3644,7 +3625,6 @@ public class WorkflowTest {
       initialIntervalSeconds = 1,
       maximumIntervalSeconds = 1,
       maximumAttempts = 30,
-      expirationSeconds = 100,
       doNotRetry = IllegalArgumentException.class
     )
     String execute(String testName);
@@ -3736,7 +3716,7 @@ public class WorkflowTest {
         workflowClient.newUntypedWorkflowStub(
             "TestWorkflowWithCronSchedule",
             newWorkflowOptionsBuilder(taskList)
-                .setExecutionStartToCloseTimeout(Duration.ofHours(1))
+                .setWorkflowRunTimeout(Duration.ofHours(1))
                 .setCronSchedule("0 * * * *")
                 .build());
     registerDelayedCallback(Duration.ofHours(3), client::cancel);
@@ -3775,7 +3755,7 @@ public class WorkflowTest {
         workflowClient.newUntypedWorkflowStub(
             "TestWorkflow1",
             newWorkflowOptionsBuilder(taskList)
-                .setExecutionStartToCloseTimeout(Duration.ofHours(10))
+                .setWorkflowRunTimeout(Duration.ofHours(10))
                 .build());
     client.start(testName.getMethodName());
     testEnvironment.sleep(Duration.ofHours(3));
@@ -3833,12 +3813,7 @@ public class WorkflowTest {
 
     void neverComplete();
 
-    @MethodRetry(
-      initialIntervalSeconds = 1,
-      maximumIntervalSeconds = 1,
-      maximumAttempts = 3,
-      expirationSeconds = 100
-    )
+    @MethodRetry(initialIntervalSeconds = 1, maximumIntervalSeconds = 1, maximumAttempts = 3)
     void throwIOAnnotated();
 
     List<UUID> activityUUIDList(List<UUID> arg);
@@ -4075,12 +4050,7 @@ public class WorkflowTest {
   @WorkflowInterface
   public interface TestMultiargsWorkflowsFunc1 {
 
-    @WorkflowMethod(
-      name = "func1",
-      taskList = ANNOTATION_TASK_LIST,
-      workflowIdReusePolicy = WorkflowIdReusePolicy.RejectDuplicate,
-      executionStartToCloseTimeoutSeconds = 10
-    )
+    @WorkflowMethod(name = "func1")
     int func1(int input);
   }
 
@@ -4473,9 +4443,7 @@ public class WorkflowTest {
     TestWorkflow1 workflowStub =
         workflowClient.newWorkflowStub(
             TestWorkflow1.class,
-            newWorkflowOptionsBuilder(taskList)
-                .setExecutionStartToCloseTimeout(Duration.ofHours(2))
-                .build());
+            newWorkflowOptionsBuilder(taskList).setWorkflowRunTimeout(Duration.ofHours(2)).build());
     workflowStub.execute(taskList);
   }
 
@@ -4680,8 +4648,8 @@ public class WorkflowTest {
     startWorkerFor(DeterminismFailingWorkflowImpl.class);
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(10))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(1))
+            .setWorkflowRunTimeout(Duration.ofSeconds(10))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(1))
             .setTaskList(taskList)
             .build();
     DeterminismFailingWorkflow workflowStub =
@@ -4720,8 +4688,8 @@ public class WorkflowTest {
     }
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(1))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(1))
+            .setWorkflowRunTimeout(Duration.ofSeconds(1))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(1))
             .setTaskList(taskList)
             .build();
     DeterminismFailingWorkflow workflowStub =
@@ -5107,7 +5075,7 @@ public class WorkflowTest {
         workflowClient.newWorkflowStub(
             TestLargeWorkflow.class,
             newWorkflowOptionsBuilder(taskList)
-                .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
+                .setWorkflowTaskTimeout(Duration.ofSeconds(30))
                 .build());
     long start = System.currentTimeMillis();
     String result = workflowStub.execute(activityCount, taskList);
@@ -5118,7 +5086,6 @@ public class WorkflowTest {
 
   @WorkflowInterface
   public interface DecisionTimeoutWorkflow {
-    @WorkflowMethod(executionStartToCloseTimeoutSeconds = 10000)
     String execute(String testName) throws InterruptedException;
   }
 
@@ -5145,7 +5112,7 @@ public class WorkflowTest {
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
             .setTaskList(taskList)
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(1))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(1))
             .build();
 
     DecisionTimeoutWorkflow stub =
@@ -5209,8 +5176,8 @@ public class WorkflowTest {
     startWorkerFor(TestLocalActivityMultiBatchWorkflowImpl.class);
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
-            .setExecutionStartToCloseTimeout(Duration.ofMinutes(5))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(20))
+            .setWorkflowRunTimeout(Duration.ofMinutes(5))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(20))
             .setTaskList(taskList)
             .build();
     TestWorkflow1 workflowStub = workflowClient.newWorkflowStub(TestWorkflow1.class, options);
@@ -5252,8 +5219,8 @@ public class WorkflowTest {
     startWorkerFor(TestParallelLocalActivityExecutionWorkflowImpl.class);
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
-            .setExecutionStartToCloseTimeout(Duration.ofMinutes(5))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(5))
+            .setWorkflowRunTimeout(Duration.ofMinutes(5))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(5))
             .setTaskList(taskList)
             .build();
     TestWorkflow1 workflowStub = workflowClient.newWorkflowStub(TestWorkflow1.class, options);
@@ -5300,8 +5267,8 @@ public class WorkflowTest {
     startWorkerFor(TestLocalActivityAndQueryWorkflow.class);
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
-            .setExecutionStartToCloseTimeout(Duration.ofMinutes(5))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(10))
+            .setWorkflowRunTimeout(Duration.ofMinutes(5))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(10))
             .setTaskList(taskList)
             .build();
     TestWorkflowQuery workflowStub =
@@ -5362,8 +5329,8 @@ public class WorkflowTest {
     startWorkerFor(SignalOrderingWorkflowImpl.class);
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
-            .setExecutionStartToCloseTimeout(Duration.ofMinutes(1))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(10))
+            .setWorkflowRunTimeout(Duration.ofMinutes(1))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(10))
             .setTaskList(taskList)
             .build();
     SignalOrderingWorkflow workflowStub =
@@ -5753,7 +5720,7 @@ public class WorkflowTest {
     public String func() {
       ChildWorkflowOptions workflowOptions =
           ChildWorkflowOptions.newBuilder()
-              .setExecutionStartToCloseTimeout(Duration.ofSeconds(100))
+              .setWorkflowRunTimeout(Duration.ofSeconds(100))
               .setTaskStartToCloseTimeout(Duration.ofSeconds(60))
               .build();
       TestMultiargsWorkflowsFunc2 child =

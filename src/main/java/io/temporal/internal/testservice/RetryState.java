@@ -36,8 +36,7 @@ final class RetryState {
 
   private RetryState(RetryPolicy retryPolicy, long expirationTime, int attempt) {
     this.retryPolicy = retryPolicy;
-    this.expirationTime =
-        retryPolicy.getExpirationIntervalInSeconds() == 0 ? Long.MAX_VALUE : expirationTime;
+    this.expirationTime = expirationTime == 0 ? Long.MAX_VALUE : expirationTime;
     this.attempt = attempt;
   }
 
@@ -132,12 +131,6 @@ final class RetryState {
     if (policy.getMaximumAttempts() < 0) {
       throw Status.INVALID_ARGUMENT
           .withDescription("MaximumAttempts cannot be less than 0 on retry policy.")
-          .asRuntimeException();
-    }
-    if (policy.getMaximumAttempts() == 0 && policy.getExpirationIntervalInSeconds() == 0) {
-      throw Status.INVALID_ARGUMENT
-          .withDescription(
-              "MaximumAttempts and ExpirationIntervalInSeconds are both 0. At least one of them must be specified.")
           .asRuntimeException();
     }
     return policy;

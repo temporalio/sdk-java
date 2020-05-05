@@ -19,14 +19,16 @@
 
 package io.temporal.internal.common;
 
+import io.temporal.proto.common.Payloads;
+
 public class SignalWithStartWorkflowExecutionParameters {
 
   private final StartWorkflowExecutionParameters startParameters;
   private final String signalName;
-  private final byte[] signalInput;
+  private final Payloads signalInput;
 
   public SignalWithStartWorkflowExecutionParameters(
-      StartWorkflowExecutionParameters startParameters, String signalName, byte[] signalInput) {
+      StartWorkflowExecutionParameters startParameters, String signalName, Payloads signalInput) {
     this.startParameters = startParameters;
     this.signalName = signalName;
     this.signalInput = signalInput;
@@ -40,7 +42,7 @@ public class SignalWithStartWorkflowExecutionParameters {
     return signalName;
   }
 
-  public byte[] getSignalInput() {
+  public Payloads getSignalInput() {
     return signalInput;
   }
 }

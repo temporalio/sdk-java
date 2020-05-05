@@ -46,13 +46,6 @@ public @interface MethodRetry {
   long initialIntervalSeconds() default 0;
 
   /**
-   * Maximum time to retry. When exceeded the retries stop even if maximum retries is not reached
-   * yet. If not specified here must be provided through {@link
-   * io.temporal.common.RetryOptions.Builder#setExpiration(Duration)}.
-   */
-  long expirationSeconds() default 0;
-
-  /**
    * Coefficient used to calculate the next retry interval. The next retry interval is previous
    * interval multiplied by this coefficient. Must be 1 or larger. Default is 2.0.
    */

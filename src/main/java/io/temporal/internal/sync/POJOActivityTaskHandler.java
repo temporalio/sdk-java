@@ -25,9 +25,9 @@ import com.uber.m3.tally.Scope;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.CheckedExceptionWrapper;
-import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.ActivityTaskHandler;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
@@ -38,6 +38,7 @@ import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -116,13 +117,14 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
 
     failure = CheckedExceptionWrapper.unwrap(failure);
-    RespondActivityTaskFailedRequest result =
-        RespondActivityTaskFailedRequest.newBuilder()
-            .setReason(failure.getClass().getName())
-            .setDetails(OptionsUtils.toByteString(dataConverter.toData(failure)))
-            .build();
+    RespondActivityTaskFailedRequest.Builder result =
+        RespondActivityTaskFailedRequest.newBuilder().setReason(failure.getClass().getName());
+    Optional<Payloads> payloads = dataConverter.toData(failure);
+    if (payloads.isPresent()) {
+      result.setDetails(payloads.get());
+    }
     return new ActivityTaskHandler.Result(
-        null, new Result.TaskFailedResult(result, failure), null, null);
+        null, new Result.TaskFailedResult(result.build(), failure), null, null);
   }
 
   @Override
@@ -187,10 +189,12 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
       ActivityExecutionContext context =
           new ActivityExecutionContextImpl(
               service, namespace, task, dataConverter, heartbeatExecutor);
-      byte[] input = task.getInput();
+      Optional<Payloads> input = task.getInput();
       CurrentActivityExecutionContext.set(context);
       try {
-        Object[] args = dataConverter.fromDataArray(input, method.getGenericParameterTypes());
+        Object[] args =
+            dataConverter.fromDataArray(
+                input, method.getParameterTypes(), method.getGenericParameterTypes());
         Object result = method.invoke(activity, args);
         if (context.isDoNotCompleteOnReturn()) {
           return new ActivityTaskHandler.Result(null, null, null, null);
@@ -198,7 +202,10 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
         RespondActivityTaskCompletedRequest.Builder request =
             RespondActivityTaskCompletedRequest.newBuilder();
         if (method.getReturnType() != Void.TYPE) {
-          request.setResult(OptionsUtils.toByteString(dataConverter.toData(result)));
+          Optional<Payloads> serialized = dataConverter.toData(result);
+          if (serialized.isPresent()) {
+            request.setResult(serialized.get());
+          }
         }
         return new ActivityTaskHandler.Result(request.build(), null, null, null);
       } catch (RuntimeException | IllegalAccessException e) {
@@ -225,14 +232,19 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
       ActivityExecutionContext context =
           new LocalActivityExecutionContextImpl(service, namespace, task);
       CurrentActivityExecutionContext.set(context);
-      byte[] input = task.getInput();
+      Optional<Payloads> input = task.getInput();
       try {
-        Object[] args = dataConverter.fromDataArray(input, method.getGenericParameterTypes());
+        Object[] args =
+            dataConverter.fromDataArray(
+                input, method.getParameterTypes(), method.getGenericParameterTypes());
         Object result = method.invoke(activity, args);
         RespondActivityTaskCompletedRequest.Builder request =
             RespondActivityTaskCompletedRequest.newBuilder();
         if (method.getReturnType() != Void.TYPE) {
-          request.setResult(OptionsUtils.toByteString(dataConverter.toData(result)));
+          Optional<Payloads> payloads = dataConverter.toData(result);
+          if (payloads.isPresent()) {
+            request.setResult(payloads.get());
+          }
         }
         return new ActivityTaskHandler.Result(request.build(), null, null, null);
       } catch (RuntimeException | IllegalAccessException e) {

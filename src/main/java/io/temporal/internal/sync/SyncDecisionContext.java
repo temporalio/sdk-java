@@ -42,6 +42,8 @@ import io.temporal.internal.replay.ExecuteLocalActivityParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
 import io.temporal.proto.common.ActivityType;
+import io.temporal.proto.common.Payload;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.execution.WorkflowExecution;
@@ -82,15 +84,15 @@ import org.slf4j.LoggerFactory;
 final class SyncDecisionContext implements WorkflowCallsInterceptor {
 
   private static class SignalData {
-    private final byte[] payload;
+    private final Optional<Payloads> payload;
     private final long eventId;
 
-    private SignalData(byte[] payload, long eventId) {
+    private SignalData(Optional<Payloads> payload, long eventId) {
       this.payload = payload;
       this.eventId = eventId;
     }
 
-    public byte[] getPayload() {
+    public Optional<Payloads> getPayload() {
       return payload;
     }
 
@@ -107,20 +109,22 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
   private final List<ContextPropagator> contextPropagators;
   private WorkflowCallsInterceptor headInterceptor;
   private final WorkflowTimers timers = new WorkflowTimers();
-  private final Map<String, Functions.Func1<byte[], byte[]>> queryCallbacks = new HashMap<>();
-  private final Map<String, Functions.Proc2<byte[], Long>> signalCallbacks = new HashMap<>();
+  private final Map<String, Functions.Func1<Optional<Payloads>, Optional<Payloads>>>
+      queryCallbacks = new HashMap<>();
+  private final Map<String, Functions.Proc2<Optional<Payloads>, Long>> signalCallbacks =
+      new HashMap<>();
   /**
    * Buffers signals which don't have registered listener. Key is signal type. Value is signal data.
    */
   private final Map<String, List<SignalData>> signalBuffers = new HashMap<>();
 
-  private final byte[] lastCompletionResult;
+  private final Optional<Payloads> lastCompletionResult;
 
   public SyncDecisionContext(
       DecisionContext context,
       DataConverter converter,
       List<ContextPropagator> contextPropagators,
-      byte[] lastCompletionResult) {
+      Optional<Payloads> lastCompletionResult) {
     this.context = context;
     this.converter = converter;
     this.contextPropagators = contextPropagators;
@@ -169,15 +173,16 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
 
   private <T> Promise<T> executeActivityOnce(
       String name, ActivityOptions options, Object[] args, Class<T> returnClass, Type returnType) {
-    byte[] input = converter.toData(args);
-    Promise<byte[]> binaryResult = executeActivityOnce(name, options, input);
+    Optional<Payloads> input = converter.toData(args);
+    Promise<Optional<Payloads>> binaryResult = executeActivityOnce(name, options, input);
     if (returnClass == Void.TYPE) {
       return binaryResult.thenApply((r) -> null);
     }
     return binaryResult.thenApply((r) -> converter.fromData(r, returnClass, returnType));
   }
 
-  private Promise<byte[]> executeActivityOnce(String name, ActivityOptions options, byte[] input) {
+  private Promise<Optional<Payloads>> executeActivityOnce(
+      String name, ActivityOptions options, Optional<Payloads> input) {
     ActivityCallback callback = new ActivityCallback();
     ExecuteActivityParameters params = constructExecuteActivityParameters(name, options, input);
     Consumer<Exception> cancellationCallback =
@@ -193,9 +198,9 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
   }
 
   private class ActivityCallback {
-    private CompletablePromise<byte[]> result = Workflow.newPromise();
+    private CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
 
-    public void invoke(byte[] output, Exception failure) {
+    public void invoke(Optional<Payloads> output, Exception failure) {
       if (failure != null) {
         runner.executeInWorkflowThread(
             "activity failure callback",
@@ -292,16 +297,21 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
       Type returnType,
       long elapsed,
       int attempt) {
-    byte[] input = converter.toData(args);
-    Promise<byte[]> binaryResult = executeLocalActivityOnce(name, options, input, elapsed, attempt);
+    Optional<Payloads> input = converter.toData(args);
+    Promise<Optional<Payloads>> binaryResult =
+        executeLocalActivityOnce(name, options, input, elapsed, attempt);
     if (returnClass == Void.TYPE) {
       return binaryResult.thenApply((r) -> null);
     }
     return binaryResult.thenApply((r) -> converter.fromData(r, returnClass, returnType));
   }
 
-  private Promise<byte[]> executeLocalActivityOnce(
-      String name, LocalActivityOptions options, byte[] input, long elapsed, int attempt) {
+  private Promise<Optional<Payloads>> executeLocalActivityOnce(
+      String name,
+      LocalActivityOptions options,
+      Optional<Payloads> input,
+      long elapsed,
+      int attempt) {
     ActivityCallback callback = new ActivityCallback();
     ExecuteLocalActivityParameters params =
         constructExecuteLocalActivityParameters(name, options, input, elapsed, attempt);
@@ -318,7 +328,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
   }
 
   private ExecuteActivityParameters constructExecuteActivityParameters(
-      String name, ActivityOptions options, byte[] input) {
+      String name, ActivityOptions options, Optional<Payloads> input) {
     ExecuteActivityParameters parameters = new ExecuteActivityParameters();
     // TODO: Real task list
     String taskList = options.getTaskList();
@@ -327,7 +337,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     }
     parameters
         .withActivityType(ActivityType.newBuilder().setName(name).build())
-        .withInput(input)
+        .withInput(input.orElse(null))
         .withTaskList(taskList)
         .withScheduleToStartTimeoutSeconds(options.getScheduleToStartTimeout().getSeconds())
         .withStartToCloseTimeoutSeconds(options.getStartToCloseTimeout().getSeconds())
@@ -351,11 +361,15 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
   }
 
   private ExecuteLocalActivityParameters constructExecuteLocalActivityParameters(
-      String name, LocalActivityOptions options, byte[] input, long elapsed, int attempt) {
+      String name,
+      LocalActivityOptions options,
+      Optional<Payloads> input,
+      long elapsed,
+      int attempt) {
     ExecuteLocalActivityParameters parameters = new ExecuteLocalActivityParameters();
     parameters
         .withActivityType(ActivityType.newBuilder().setName(name).build())
-        .withInput(input)
+        .withInput(input.orElse(null))
         .withScheduleToCloseTimeoutSeconds(options.getScheduleToCloseTimeout().getSeconds());
     RetryOptions retryOptions = options.getRetryOptions();
     if (retryOptions != null) {
@@ -375,17 +389,18 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
       Type returnType,
       Object[] args,
       ChildWorkflowOptions options) {
-    byte[] input = converter.toData(args);
+    Optional<Payloads> input = converter.toData(args);
     CompletablePromise<WorkflowExecution> execution = Workflow.newPromise();
-    Promise<byte[]> output = executeChildWorkflow(workflowType, options, input, execution);
+    Promise<Optional<Payloads>> output =
+        executeChildWorkflow(workflowType, options, input, execution);
     Promise<R> result = output.thenApply((b) -> converter.fromData(b, returnClass, returnType));
     return new WorkflowResult<>(result, execution);
   }
 
-  private Promise<byte[]> executeChildWorkflow(
+  private Promise<Optional<Payloads>> executeChildWorkflow(
       String name,
       ChildWorkflowOptions options,
-      byte[] input,
+      Optional<Payloads> input,
       CompletablePromise<WorkflowExecution> executionResult) {
     RetryOptions retryOptions = options.getRetryOptions();
     // This condition is for backwards compatibility with the code that
@@ -394,7 +409,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
       ChildWorkflowOptions o1 =
           ChildWorkflowOptions.newBuilder()
               .setTaskList(options.getTaskList())
-              .setExecutionStartToCloseTimeout(options.getExecutionStartToCloseTimeout())
+              .setWorkflowRunTimeout(options.getWorkflowRunTimeout())
               .setTaskStartToCloseTimeout(options.getTaskStartToCloseTimeout())
               .setWorkflowId(options.getWorkflowId())
               .setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy())
@@ -406,13 +421,16 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     return executeChildWorkflowOnce(name, options, input, executionResult);
   }
 
-  /** @param executionResult promise that is set bu this method when child workflow is started. */
-  private Promise<byte[]> executeChildWorkflowOnce(
+  /**
+   * @param input
+   * @param executionResult promise that is set bu this method when child workflow is started.
+   */
+  private Promise<Optional<Payloads>> executeChildWorkflowOnce(
       String name,
       ChildWorkflowOptions options,
-      byte[] input,
+      Optional<Payloads> input,
       CompletablePromise<WorkflowExecution> executionResult) {
-    CompletablePromise<byte[]> result = Workflow.newPromise();
+    CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
     if (CancellationScope.current().isCancelRequested()) {
       CancellationException cancellationException =
           new CancellationException("execute called from a cancelled scope");
@@ -434,12 +452,11 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
         new StartChildWorkflowExecutionParameters.Builder()
             .setWorkflowType(WorkflowType.newBuilder().setName(name).build())
             .setWorkflowId(options.getWorkflowId())
-            .setInput(input)
-            .setExecutionStartToCloseTimeoutSeconds(
-                options.getExecutionStartToCloseTimeout().getSeconds())
+            .setInput(input.orElse(null))
+            .setWorkflowRunTimeoutSeconds(options.getWorkflowRunTimeout().getSeconds())
             .setNamespace(options.getNamespace())
             .setTaskList(options.getTaskList())
-            .setTaskStartToCloseTimeoutSeconds(options.getTaskStartToCloseTimeout().getSeconds())
+            .setWorkflowTaskTimeoutSeconds(options.getTaskStartToCloseTimeout().getSeconds())
             .setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy())
             .setRetryParameters(retryParameters)
             .setCronSchedule(options.getCronSchedule())
@@ -473,12 +490,12 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     return result;
   }
 
-  private Map<String, byte[]> extractContextsAndConvertToBytes(
+  private Map<String, Payload> extractContextsAndConvertToBytes(
       List<ContextPropagator> contextPropagators) {
     if (contextPropagators == null) {
       return null;
     }
-    Map<String, byte[]> result = new HashMap<>();
+    Map<String, Payload> result = new HashMap<>();
     for (ContextPropagator propagator : contextPropagators) {
       result.putAll(propagator.serializeContext(propagator.getCurrentContext()));
     }
@@ -548,7 +565,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
   @Override
   public <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func) {
     DataConverter dataConverter = getDataConverter();
-    byte[] result =
+    Optional<Payloads> result =
         context.sideEffect(
             () -> {
               R r = func.apply();
@@ -561,37 +578,35 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
   public <R> R mutableSideEffect(
       String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
     AtomicReference<R> unserializedResult = new AtomicReference<>();
-    // As lambda below never returns Optional.empty() if there is a stored value
-    // it is safe to call get on mutableSideEffect result.
-    Optional<byte[]> optionalBytes =
+    Optional<Payloads> payloads =
         context.mutableSideEffect(
             id,
             converter,
             (storedBinary) -> {
               Optional<R> stored =
-                  storedBinary.map((b) -> converter.fromData(b, resultClass, resultType));
+                  storedBinary.map(
+                      (b) -> converter.fromData(Optional.of(b), resultClass, resultType));
               R funcResult =
                   Objects.requireNonNull(
                       func.apply(), "mutableSideEffect function " + "returned null");
               if (!stored.isPresent() || updated.test(stored.get(), funcResult)) {
                 unserializedResult.set(funcResult);
-                return Optional.of(converter.toData(funcResult));
+                return converter.toData(funcResult);
               }
               return Optional.empty(); // returned only when value doesn't need to be updated
             });
-    if (!optionalBytes.isPresent()) {
+    if (!payloads.isPresent()) {
       throw new IllegalArgumentException(
           "No value found for mutableSideEffectId="
               + id
               + ", during replay it usually indicates a different workflow runId than the original one");
     }
-    byte[] binaryResult = optionalBytes.get();
     // An optimization that avoids unnecessary deserialization of the result.
     R unserialized = unserializedResult.get();
     if (unserialized != null) {
       return unserialized;
     }
-    return converter.fromData(binaryResult, resultClass, resultType);
+    return converter.fromData(payloads, resultClass, resultType);
   }
 
   @Override
@@ -611,8 +626,8 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     return timers.getNextFireTime();
   }
 
-  public byte[] query(String type, byte[] args) {
-    Functions.Func1<byte[], byte[]> callback = queryCallbacks.get(type);
+  public Optional<Payloads> query(String type, Optional<Payloads> args) {
+    Functions.Func1<Optional<Payloads>, Optional<Payloads>> callback = queryCallbacks.get(type);
     if (callback == null) {
       throw new IllegalArgumentException(
           "Unknown query type: " + type + ", knownTypes=" + queryCallbacks.keySet());
@@ -620,8 +635,8 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     return callback.apply(args);
   }
 
-  public void signal(String signalName, byte[] args, long eventId) {
-    Functions.Proc2<byte[], Long> callback = signalCallbacks.get(signalName);
+  public void signal(String signalName, Optional<Payloads> args, long eventId) {
+    Functions.Proc2<Optional<Payloads>, Long> callback = signalCallbacks.get(signalName);
     if (callback == null) {
       List<SignalData> buffer = signalBuffers.get(signalName);
       if (buffer == null) {
@@ -636,14 +651,17 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
 
   @Override
   public void registerQuery(
-      String queryType, Type[] argTypes, Functions.Func1<Object[], Object> callback) {
+      String queryType,
+      Class<?>[] argTypes,
+      Type[] genericArgTypes,
+      Functions.Func1<Object[], Object> callback) {
     if (queryCallbacks.containsKey(queryType)) {
       throw new IllegalStateException("Query \"" + queryType + "\" is already registered");
     }
     queryCallbacks.put(
         queryType,
         (input) -> {
-          Object[] args = converter.fromDataArray(input, argTypes);
+          Object[] args = converter.fromDataArray(input, argTypes, genericArgTypes);
           Object result = callback.apply(args);
           return converter.toData(result);
         });
@@ -651,14 +669,17 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
 
   @Override
   public void registerSignal(
-      String signalType, Type[] argTypes, Functions.Proc1<Object[]> callback) {
+      String signalType,
+      Class<?>[] argTypes,
+      Type[] genericArgTypes,
+      Functions.Proc1<Object[]> callback) {
     if (signalCallbacks.containsKey(signalType)) {
       throw new IllegalStateException("Signal \"" + signalType + "\" is already registered");
     }
-    Functions.Proc2<byte[], Long> signalCallback =
+    Functions.Proc2<Optional<Payloads>, Long> signalCallback =
         (input, eventId) -> {
           try {
-            Object[] args = converter.fromDataArray(input, argTypes);
+            Object[] args = converter.fromDataArray(input, argTypes, genericArgTypes);
             callback.apply(args);
           } catch (DataConverterException e) {
             logSerializationException(signalType, eventId, e);
@@ -714,8 +735,8 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     parameters.setSignalName(signalName);
     parameters.setWorkflowId(execution.getWorkflowId());
     parameters.setRunId(execution.getRunId());
-    byte[] input = getDataConverter().toData(args);
-    parameters.setInput(input);
+    Optional<Payloads> input = getDataConverter().toData(args);
+    parameters.setInput(input.orElse(null));
     CompletablePromise<Void> result = Workflow.newPromise();
 
     Consumer<Exception> cancellationCallback =
@@ -772,13 +793,11 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     }
     if (options.isPresent()) {
       ContinueAsNewOptions ops = options.get();
-      parameters.setExecutionStartToCloseTimeoutSeconds(
-          (int) ops.getExecutionStartToCloseTimeout().getSeconds());
-      parameters.setTaskStartToCloseTimeoutSeconds(
-          (int) ops.getTaskStartToCloseTimeout().getSeconds());
+      parameters.setWorkflowRunTimeoutSeconds((int) ops.getWorkflowRunTimeout().getSeconds());
+      parameters.setWorkflowTaskTimeoutSeconds((int) ops.getTaskStartToCloseTimeout().getSeconds());
       parameters.setTaskList(ops.getTaskList());
     }
-    parameters.setInput(getDataConverter().toData(args));
+    parameters.setInput(getDataConverter().toData(args).orElse(null));
     context.continueAsNewOnCompletion(parameters);
     WorkflowThread.exit(null);
   }
@@ -811,10 +830,6 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
   }
 
   public <R> R getLastCompletionResult(Class<R> resultClass, Type resultType) {
-    if (lastCompletionResult == null || lastCompletionResult.length == 0) {
-      return null;
-    }
-
     DataConverter dataConverter = getDataConverter();
     return dataConverter.fromData(lastCompletionResult, resultClass, resultType);
   }
@@ -825,7 +840,9 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
       throw new IllegalArgumentException("Empty search attributes");
     }
 
-    SearchAttributes attr = InternalUtils.convertMapToSearchAttributes(searchAttributes);
+    SearchAttributes attr =
+        InternalUtils.convertMapToSearchAttributes(
+            searchAttributes, getDataConverter().getPayloadConverter());
     context.upsertSearchAttributes(attr);
   }
 }

@@ -50,8 +50,8 @@ import org.slf4j.Logger;
  * <ul>
  *   <li>{@literal @}{@link WorkflowMethod} indicates an entry point to a workflow. It contains
  *       parameters such as timeouts and a task list. Required parameters (like {@code
- *       executionStartToCloseTimeoutSeconds}) that are not specified through the annotation must be
- *       provided at runtime.
+ *       workflowRunTimeoutSeconds}) that are not specified through the annotation must be provided
+ *       at runtime.
  *   <li>{@literal @}{@link SignalMethod} indicates a method that reacts to external signals. It
  *       must have a {@code void} return type.
  *   <li>{@literal @}{@link QueryMethod} indicates a method that reacts to synchronous query
@@ -61,7 +61,7 @@ import org.slf4j.Logger;
  * <pre><code>
  * public interface FileProcessingWorkflow {
  *
- *    {@literal @}WorkflowMethod(executionStartToCloseTimeoutSeconds = 10, taskList = "file-processing")
+ *    {@literal @}WorkflowMethod(workflowRunTimeoutSeconds = 10, taskList = "file-processing")
  *     String processFile(Arguments args);
  *
  *    {@literal @}QueryMethod(name="history")

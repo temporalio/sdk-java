@@ -20,15 +20,17 @@
 package io.temporal.internal.common;
 
 import com.google.common.base.Strings;
-import com.google.protobuf.ByteString;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.PayloadConverter;
 import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.Header;
+import io.temporal.proto.common.Payload;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.event.MarkerRecordedEventAttributes;
 import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Optional;
 
 public final class LocalActivityMarkerData {
   private static final String LOCAL_ACTIVITY_HEADER_KEY = "LocalActivityHeader";
@@ -37,7 +39,7 @@ public final class LocalActivityMarkerData {
     private String activityId;
     private String activityType;
     private String errReason;
-    private byte[] result;
+    private Optional<Payloads> result;
     private long replayTimeMillis;
     private int attempt;
     private Duration backoff;
@@ -55,18 +57,23 @@ public final class LocalActivityMarkerData {
 
     public Builder setTaskFailedRequest(RespondActivityTaskFailedRequest request) {
       this.errReason = request.getReason();
-      this.result = request.getDetails().toByteArray();
+      this.result = request.hasDetails() ? Optional.of(request.getDetails()) : Optional.empty();
       return this;
     }
 
-    public Builder setTaskCancelledRequest(RespondActivityTaskCanceledRequest request) {
-      this.errReason = request.getDetails().toString(StandardCharsets.UTF_8);
-      this.result = request.getDetails().toByteArray();
+    public Builder setTaskCancelledRequest(
+        RespondActivityTaskCanceledRequest request, DataConverter converter) {
+      if (request.hasDetails()) {
+        Payloads details = request.getDetails();
+        String message = converter.fromData(Optional.of(details), String.class, String.class);
+        this.errReason = message;
+      }
+      this.result = request.hasDetails() ? Optional.of(request.getDetails()) : Optional.empty();
       this.isCancelled = true;
       return this;
     }
 
-    public Builder setResult(byte[] result) {
+    public Builder setResult(Optional<Payloads> result) {
       this.result = result;
       return this;
     }
@@ -127,13 +134,13 @@ public final class LocalActivityMarkerData {
   }
 
   private final LocalActivityMarkerHeader headers;
-  private final byte[] result;
+  private final Optional<Payloads> result;
 
   private LocalActivityMarkerData(
       String activityId,
       String activityType,
       long replayTimeMillis,
-      byte[] result,
+      Optional<Payloads> result,
       String errReason,
       int attempt,
       Duration backoff,
@@ -144,7 +151,7 @@ public final class LocalActivityMarkerData {
     this.result = result;
   }
 
-  private LocalActivityMarkerData(LocalActivityMarkerHeader headers, byte[] result) {
+  private LocalActivityMarkerData(LocalActivityMarkerHeader headers, Optional<Payloads> result) {
     this.headers = headers;
     this.result = result;
   }
@@ -161,11 +168,11 @@ public final class LocalActivityMarkerData {
     return headers.errReason;
   }
 
-  public byte[] getErrJson() {
-    return Strings.isNullOrEmpty(headers.errReason) ? null : result;
+  public Optional<Payloads> getErrJson() {
+    return Strings.isNullOrEmpty(headers.errReason) ? Optional.empty() : result;
   }
 
-  public byte[] getResult() {
+  public Optional<Payloads> getResult() {
     return result;
   }
 
@@ -185,19 +192,23 @@ public final class LocalActivityMarkerData {
     return headers.isCancelled;
   }
 
-  public Header getHeader(DataConverter converter) {
-    byte[] headerData = converter.toData(headers);
-    return Header.newBuilder()
-        .putFields(LOCAL_ACTIVITY_HEADER_KEY, ByteString.copyFrom(headerData))
-        .build();
+  public Header getHeader(PayloadConverter converter) {
+    Optional<Payload> headerData = converter.toData(headers);
+    Header.Builder result = Header.newBuilder();
+    if (headerData.isPresent()) {
+      result.putFields(LOCAL_ACTIVITY_HEADER_KEY, headerData.get());
+    }
+    return result.build();
   }
 
   public static LocalActivityMarkerData fromEventAttributes(
-      MarkerRecordedEventAttributes attributes, DataConverter converter) {
-    ByteString bytes = attributes.getHeader().getFieldsOrThrow(LOCAL_ACTIVITY_HEADER_KEY);
+      MarkerRecordedEventAttributes attributes, PayloadConverter converter) {
+    Payload payload = attributes.getHeader().getFieldsOrThrow(LOCAL_ACTIVITY_HEADER_KEY);
     LocalActivityMarkerHeader header =
         converter.fromData(
-            bytes.toByteArray(), LocalActivityMarkerHeader.class, LocalActivityMarkerHeader.class);
-    return new LocalActivityMarkerData(header, attributes.getDetails().toByteArray());
+            payload, LocalActivityMarkerHeader.class, LocalActivityMarkerHeader.class);
+    Optional<Payloads> details =
+        attributes.hasDetails() ? Optional.of(attributes.getDetails()) : Optional.empty();
+    return new LocalActivityMarkerData(header, details);
   }
 }

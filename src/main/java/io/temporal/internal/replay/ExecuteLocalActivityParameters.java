@@ -21,8 +21,8 @@ package io.temporal.internal.replay;
 
 import io.temporal.common.RetryOptions;
 import io.temporal.proto.common.ActivityType;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.execution.WorkflowExecution;
-import java.util.Arrays;
 
 public class ExecuteLocalActivityParameters {
 
@@ -30,7 +30,7 @@ public class ExecuteLocalActivityParameters {
   private WorkflowExecution workflowExecution;
   private String activityId;
   private ActivityType activityType;
-  private byte[] input;
+  private Payloads input;
   private long scheduleToCloseTimeoutSeconds;
   private RetryOptions retryOptions;
   private long elapsedTime;
@@ -117,7 +117,7 @@ public class ExecuteLocalActivityParameters {
    *
    * @return The value of the Input property for this object.
    */
-  public byte[] getInput() {
+  public Payloads getInput() {
     return input;
   }
 
@@ -129,7 +129,7 @@ public class ExecuteLocalActivityParameters {
    *
    * @param input The new value for the Input property for this object.
    */
-  public void setInput(byte[] input) {
+  public void setInput(Payloads input) {
     this.input = input;
   }
 
@@ -144,7 +144,7 @@ public class ExecuteLocalActivityParameters {
    * @param input The new value for the Input property for this object.
    * @return A reference to this updated object so that method calls can be chained together.
    */
-  public ExecuteLocalActivityParameters withInput(byte[] input) {
+  public ExecuteLocalActivityParameters withInput(Payloads input) {
     this.input = input;
     return this;
   }
@@ -246,7 +246,7 @@ public class ExecuteLocalActivityParameters {
         + ", activityType="
         + activityType
         + ", input="
-        + Arrays.toString(input)
+        + input
         + ", scheduleToCloseTimeoutSeconds="
         + scheduleToCloseTimeoutSeconds
         + ", retryOptions="

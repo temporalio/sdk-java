@@ -19,16 +19,17 @@
 
 package io.temporal.internal.common;
 
+import com.google.common.base.Objects;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
+import io.temporal.proto.common.Payload;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.WorkflowIdReusePolicy;
 import io.temporal.proto.common.WorkflowType;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 public final class StartWorkflowExecutionParameters {
 
@@ -38,11 +39,11 @@ public final class StartWorkflowExecutionParameters {
 
   private String taskList;
 
-  private byte[] input;
+  private Payloads input;
 
-  private long executionStartToCloseTimeoutSeconds;
+  private long workflowRunTimeoutSeconds;
 
-  private long taskStartToCloseTimeoutSeconds;
+  private long workflowTaskTimeoutSeconds;
 
   private WorkflowIdReusePolicy workflowIdReusePolicy;
 
@@ -50,11 +51,11 @@ public final class StartWorkflowExecutionParameters {
 
   private String cronSchedule;
 
-  private Map<String, byte[]> memo;
+  private Map<String, Payload> memo;
 
-  private Map<String, byte[]> searchAttributes;
+  private Map<String, Payload> searchAttributes;
 
-  private Map<String, byte[]> context;
+  private Map<String, Payload> context;
 
   /**
    * Returns the value of the WorkflowId property for this object.
@@ -180,7 +181,7 @@ public final class StartWorkflowExecutionParameters {
    *
    * @return The value of the Input property for this object.
    */
-  public byte[] getInput() {
+  public Payloads getInput() {
     return input;
   }
 
@@ -192,7 +193,7 @@ public final class StartWorkflowExecutionParameters {
    *
    * @param input The new value for the Input property for this object.
    */
-  public void setInput(byte[] input) {
+  public void setInput(Payloads input) {
     this.input = input;
   }
 
@@ -207,7 +208,7 @@ public final class StartWorkflowExecutionParameters {
    * @param input The new value for the Input property for this object.
    * @return A reference to this updated object so that method calls can be chained together.
    */
-  public StartWorkflowExecutionParameters withInput(byte[] input) {
+  public StartWorkflowExecutionParameters withInput(Payloads input) {
     this.input = input;
     return this;
   }
@@ -220,8 +221,8 @@ public final class StartWorkflowExecutionParameters {
    *
    * @return The value of the StartToCloseTimeout property for this object.
    */
-  public long getExecutionStartToCloseTimeoutSeconds() {
-    return executionStartToCloseTimeoutSeconds;
+  public long getWorkflowRunTimeoutSeconds() {
+    return workflowRunTimeoutSeconds;
   }
 
   /**
@@ -230,11 +231,11 @@ public final class StartWorkflowExecutionParameters {
    * <p><b>Constraints:</b><br>
    * <b>Length: </b>0 - 64<br>
    *
-   * @param executionStartToCloseTimeoutSeconds The new value for the StartToCloseTimeout property
-   *     for this object.
+   * @param workflowRunTimeoutSeconds The new value for the StartToCloseTimeout property for this
+   *     object.
    */
-  public void setExecutionStartToCloseTimeoutSeconds(long executionStartToCloseTimeoutSeconds) {
-    this.executionStartToCloseTimeoutSeconds = executionStartToCloseTimeoutSeconds;
+  public void setWorkflowRunTimeoutSeconds(long workflowRunTimeoutSeconds) {
+    this.workflowRunTimeoutSeconds = workflowRunTimeoutSeconds;
   }
 
   /**
@@ -245,27 +246,27 @@ public final class StartWorkflowExecutionParameters {
    * <p><b>Constraints:</b><br>
    * <b>Length: </b>0 - 64<br>
    *
-   * @param executionStartToCloseTimeoutSeconds The new value for the StartToCloseTimeout property
-   *     for this object.
+   * @param workflowRunTimeoutSeconds The new value for the StartToCloseTimeout property for this
+   *     object.
    * @return A reference to this updated object so that method calls can be chained together.
    */
-  public StartWorkflowExecutionParameters withExecutionStartToCloseTimeoutSeconds(
-      long executionStartToCloseTimeoutSeconds) {
-    this.executionStartToCloseTimeoutSeconds = executionStartToCloseTimeoutSeconds;
+  public StartWorkflowExecutionParameters withWorkflowRunTimeoutSeconds(
+      long workflowRunTimeoutSeconds) {
+    this.workflowRunTimeoutSeconds = workflowRunTimeoutSeconds;
     return this;
   }
 
-  public long getTaskStartToCloseTimeoutSeconds() {
-    return taskStartToCloseTimeoutSeconds;
+  public long getWorkflowTaskTimeoutSeconds() {
+    return workflowTaskTimeoutSeconds;
   }
 
-  public void setTaskStartToCloseTimeoutSeconds(long taskStartToCloseTimeoutSeconds) {
-    this.taskStartToCloseTimeoutSeconds = taskStartToCloseTimeoutSeconds;
+  public void setWorkflowTaskTimeoutSeconds(long workflowTaskTimeoutSeconds) {
+    this.workflowTaskTimeoutSeconds = workflowTaskTimeoutSeconds;
   }
 
-  public StartWorkflowExecutionParameters withTaskStartToCloseTimeoutSeconds(
-      int taskStartToCloseTimeoutSeconds) {
-    this.taskStartToCloseTimeoutSeconds = taskStartToCloseTimeoutSeconds;
+  public StartWorkflowExecutionParameters withWorkflowTaskTimeoutSeconds(
+      int workflowTaskTimeoutSeconds) {
+    this.workflowTaskTimeoutSeconds = workflowTaskTimeoutSeconds;
     return this;
   }
 
@@ -285,27 +286,27 @@ public final class StartWorkflowExecutionParameters {
     this.cronSchedule = cronSchedule;
   }
 
-  public Map<String, byte[]> getMemo() {
+  public Map<String, Payload> getMemo() {
     return memo;
   }
 
-  public void setMemo(Map<String, byte[]> memo) {
+  public void setMemo(Map<String, Payload> memo) {
     this.memo = memo;
   }
 
-  public Map<String, byte[]> getSearchAttributes() {
+  public Map<String, Payload> getSearchAttributes() {
     return searchAttributes;
   }
 
-  public void setSearchAttributes(Map<String, byte[]> searchAttributes) {
+  public void setSearchAttributes(Map<String, Payload> searchAttributes) {
     this.searchAttributes = searchAttributes;
   }
 
-  public Map<String, byte[]> getContext() {
+  public Map<String, Payload> getContext() {
     return context;
   }
 
-  public void setContext(Map<String, byte[]> context) {
+  public void setContext(Map<String, Payload> context) {
     this.context = context;
   }
 
@@ -316,16 +317,14 @@ public final class StartWorkflowExecutionParameters {
 
   public static StartWorkflowExecutionParameters fromWorkflowOptions(WorkflowOptions options) {
     StartWorkflowExecutionParameters parameters = new StartWorkflowExecutionParameters();
-    parameters.setExecutionStartToCloseTimeoutSeconds(
-        getSeconds(options.getExecutionStartToCloseTimeout()));
-    parameters.setTaskStartToCloseTimeoutSeconds(getSeconds(options.getTaskStartToCloseTimeout()));
+    parameters.setWorkflowRunTimeoutSeconds(getSeconds(options.getWorkflowRunTimeout()));
+    parameters.setWorkflowTaskTimeoutSeconds(getSeconds(options.getTaskStartToCloseTimeout()));
     parameters.setTaskList(options.getTaskList());
     parameters.setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy());
     RetryOptions retryOptions = options.getRetryOptions();
     if (retryOptions != null) {
       RetryParameters rp = new RetryParameters();
       rp.setBackoffCoefficient(retryOptions.getBackoffCoefficient());
-      rp.setExpirationIntervalInSeconds(getSeconds(retryOptions.getExpiration()));
       rp.setInitialIntervalInSeconds(getSeconds(retryOptions.getInitialInterval()));
       rp.setMaximumIntervalInSeconds(getSeconds(retryOptions.getMaximumInterval()));
       rp.setMaximumAttempts(retryOptions.getMaximumAttempts());
@@ -366,11 +365,11 @@ public final class StartWorkflowExecutionParameters {
         + taskList
         + '\''
         + ", input="
-        + Arrays.toString(input)
-        + ", executionStartToCloseTimeoutSeconds="
-        + executionStartToCloseTimeoutSeconds
-        + ", taskStartToCloseTimeoutSeconds="
-        + taskStartToCloseTimeoutSeconds
+        + input
+        + ", workflowRunTimeoutSeconds="
+        + workflowRunTimeoutSeconds
+        + ", workflowTaskTimeoutSeconds="
+        + workflowTaskTimeoutSeconds
         + ", workflowIdReusePolicy="
         + workflowIdReusePolicy
         + ", retryParameters="
@@ -394,36 +393,34 @@ public final class StartWorkflowExecutionParameters {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     StartWorkflowExecutionParameters that = (StartWorkflowExecutionParameters) o;
-    return executionStartToCloseTimeoutSeconds == that.executionStartToCloseTimeoutSeconds
-        && taskStartToCloseTimeoutSeconds == that.taskStartToCloseTimeoutSeconds
-        && Objects.equals(workflowId, that.workflowId)
-        && Objects.equals(workflowType, that.workflowType)
-        && Objects.equals(taskList, that.taskList)
-        && Arrays.equals(input, that.input)
+    return workflowRunTimeoutSeconds == that.workflowRunTimeoutSeconds
+        && workflowTaskTimeoutSeconds == that.workflowTaskTimeoutSeconds
+        && Objects.equal(workflowId, that.workflowId)
+        && Objects.equal(workflowType, that.workflowType)
+        && Objects.equal(taskList, that.taskList)
+        && Objects.equal(input, that.input)
         && workflowIdReusePolicy == that.workflowIdReusePolicy
-        && Objects.equals(retryParameters, that.retryParameters)
-        && Objects.equals(cronSchedule, that.cronSchedule)
-        && Objects.equals(memo, that.memo)
-        && Objects.equals(searchAttributes, that.searchAttributes)
-        && Objects.equals(context, that.context);
+        && Objects.equal(retryParameters, that.retryParameters)
+        && Objects.equal(cronSchedule, that.cronSchedule)
+        && Objects.equal(memo, that.memo)
+        && Objects.equal(searchAttributes, that.searchAttributes)
+        && Objects.equal(context, that.context);
   }
 
   @Override
   public int hashCode() {
-    int result =
-        Objects.hash(
-            workflowId,
-            workflowType,
-            taskList,
-            executionStartToCloseTimeoutSeconds,
-            taskStartToCloseTimeoutSeconds,
-            workflowIdReusePolicy,
-            retryParameters,
-            cronSchedule,
-            memo,
-            searchAttributes,
-            context);
-    result = 31 * result + Arrays.hashCode(input);
-    return result;
+    return Objects.hashCode(
+        workflowId,
+        workflowType,
+        taskList,
+        input,
+        workflowRunTimeoutSeconds,
+        workflowTaskTimeoutSeconds,
+        workflowIdReusePolicy,
+        retryParameters,
+        cronSchedule,
+        memo,
+        searchAttributes,
+        context);
   }
 }

@@ -118,7 +118,7 @@ public class WorkflowTestingTest {
   @WorkflowInterface
   public interface TestWorkflow {
 
-    @WorkflowMethod(executionStartToCloseTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
+    @WorkflowMethod(workflowRunTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
     String workflow1(String input);
   }
 
@@ -261,7 +261,7 @@ public class WorkflowTestingTest {
   @WorkflowInterface
   public interface TestActivityTimeoutWorkflow {
 
-    @WorkflowMethod(executionStartToCloseTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
+    @WorkflowMethod(workflowRunTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
     void workflow(
         long scheduleToCloseTimeoutSeconds,
         long scheduleToStartTimeoutSeconds,
@@ -370,7 +370,7 @@ public class WorkflowTestingTest {
     testEnvironment.start();
     WorkflowClient client = testEnvironment.getWorkflowClient();
     WorkflowOptions options =
-        WorkflowOptions.newBuilder().setExecutionStartToCloseTimeout(Duration.ofSeconds(1)).build();
+        WorkflowOptions.newBuilder().setWorkflowRunTimeout(Duration.ofSeconds(1)).build();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class, options);
     try {
       workflow.workflow1("bar");
@@ -406,7 +406,7 @@ public class WorkflowTestingTest {
   @WorkflowInterface
   public interface SignaledWorkflow {
 
-    @WorkflowMethod(executionStartToCloseTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
+    @WorkflowMethod(workflowRunTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
     String workflow1(String input);
 
     @SignalMethod
@@ -602,7 +602,7 @@ public class WorkflowTestingTest {
   @WorkflowInterface
   public interface ParentWorkflow {
 
-    @WorkflowMethod(executionStartToCloseTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
+    @WorkflowMethod(workflowRunTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
     String workflow(String input);
 
     @SignalMethod
@@ -631,7 +631,7 @@ public class WorkflowTestingTest {
   @WorkflowInterface
   public interface ChildWorkflow {
 
-    @WorkflowMethod(executionStartToCloseTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
+    @WorkflowMethod(workflowRunTimeoutSeconds = 3600 * 24, taskList = TASK_LIST)
     String workflow(String input, String parentId);
   }
 
@@ -779,7 +779,7 @@ public class WorkflowTestingTest {
     }
 
     @Override
-    public Object deserializeContext(Map<String, byte[]> context) {
+    public Object deserializeContext(Map<String, Payload> context) {
       if (context.containsKey("test")) {
         return new String(context.get("test"), StandardCharsets.UTF_8);
       } else {

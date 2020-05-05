@@ -20,10 +20,12 @@
 package io.temporal.internal.sync;
 
 import io.temporal.activity.ActivityTask;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 final class ActivityTaskImpl implements ActivityTask {
@@ -94,7 +96,10 @@ final class ActivityTaskImpl implements ActivityTask {
     return response.getAttempt();
   }
 
-  public byte[] getInput() {
-    return response.getInput().toByteArray();
+  public Optional<Payloads> getInput() {
+    if (response.hasInput()) {
+      return Optional.of(response.getInput());
+    }
+    return Optional.empty();
   }
 }

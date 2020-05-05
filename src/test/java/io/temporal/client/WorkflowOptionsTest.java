@@ -43,8 +43,8 @@ public class WorkflowOptionsTest {
     WorkflowOptions o =
         WorkflowOptions.newBuilder()
             .setTaskList("foo")
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(321))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
+            .setWorkflowRunTimeout(Duration.ofSeconds(321))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(13))
             .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
             .setMemo(getTestMemo())
             .setSearchAttributes(getTestSearchAttributes())
@@ -57,9 +57,9 @@ public class WorkflowOptionsTest {
   }
 
   @WorkflowMethod(
-    executionStartToCloseTimeoutSeconds = 1135,
+    workflowRunTimeoutSeconds = 1135,
     taskList = "bar",
-    taskStartToCloseTimeoutSeconds = 34,
+    workflowTaskTimeoutSeconds = 34,
     workflowId = "foo",
     workflowIdReusePolicy = WorkflowIdReusePolicy.AllowDuplicate
   )
@@ -83,11 +83,9 @@ public class WorkflowOptionsTest {
     WorkflowOptions o = WorkflowOptions.newBuilder().build();
     WorkflowOptions merged = WorkflowOptions.merge(a, r, c, o);
     Assert.assertEquals(a.taskList(), merged.getTaskList());
+    Assert.assertEquals(a.workflowRunTimeoutSeconds(), merged.getWorkflowRunTimeout().getSeconds());
     Assert.assertEquals(
-        a.executionStartToCloseTimeoutSeconds(),
-        merged.getExecutionStartToCloseTimeout().getSeconds());
-    Assert.assertEquals(
-        a.taskStartToCloseTimeoutSeconds(), merged.getTaskStartToCloseTimeout().getSeconds());
+        a.workflowTaskTimeoutSeconds(), merged.getTaskStartToCloseTimeout().getSeconds());
     Assert.assertEquals(a.workflowId(), merged.getWorkflowId());
     Assert.assertEquals(a.workflowIdReusePolicy(), merged.getWorkflowIdReusePolicy());
     Assert.assertEquals("0 * * * *", merged.getCronSchedule());
@@ -111,8 +109,8 @@ public class WorkflowOptionsTest {
     WorkflowOptions o =
         WorkflowOptions.newBuilder()
             .setTaskList("foo")
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(321))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
+            .setWorkflowRunTimeout(Duration.ofSeconds(321))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(13))
             .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
             .setWorkflowId("bar")
             .setRetryOptions(retryOptions)
@@ -148,7 +146,7 @@ public class WorkflowOptionsTest {
     ChildWorkflowOptions o =
         ChildWorkflowOptions.newBuilder()
             .setTaskList("foo")
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(321))
+            .setWorkflowRunTimeout(Duration.ofSeconds(321))
             .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
             .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
             .setWorkflowId("bar")

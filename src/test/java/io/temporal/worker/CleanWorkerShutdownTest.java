@@ -103,7 +103,7 @@ public class CleanWorkerShutdownTest {
 
   @WorkflowInterface
   public interface TestWorkflow {
-    @WorkflowMethod(executionStartToCloseTimeoutSeconds = 100)
+    @WorkflowMethod(workflowRunTimeoutSeconds = 100)
     String execute();
   }
 

@@ -27,7 +27,6 @@ import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.proto.common.WorkflowIdReusePolicy;
-import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -54,27 +53,12 @@ public final class WorkflowOptions {
   }
 
   public static WorkflowOptions merge(
-      WorkflowMethod a, MethodRetry methodRetry, CronSchedule cronSchedule, WorkflowOptions o) {
-    if (a == null) {
-      return new WorkflowOptions.Builder(o).validateBuildWithDefaults();
-    }
+      MethodRetry methodRetry, CronSchedule cronSchedule, WorkflowOptions o) {
     if (o == null) {
       o = WorkflowOptions.newBuilder().build();
     }
     String cronAnnotation = cronSchedule == null ? "" : cronSchedule.value();
     return WorkflowOptions.newBuilder()
-        .setWorkflowIdReusePolicy(
-            OptionsUtils.merge(
-                a.workflowIdReusePolicy(),
-                o.getWorkflowIdReusePolicy(),
-                WorkflowIdReusePolicy.class))
-        .setWorkflowId(OptionsUtils.merge(a.workflowId(), o.getWorkflowId(), String.class))
-        .setTaskStartToCloseTimeout(
-            OptionsUtils.merge(a.taskStartToCloseTimeoutSeconds(), o.getTaskStartToCloseTimeout()))
-        .setExecutionStartToCloseTimeout(
-            OptionsUtils.merge(
-                a.executionStartToCloseTimeoutSeconds(), o.getExecutionStartToCloseTimeout()))
-        .setTaskList(OptionsUtils.merge(a.taskList(), o.getTaskList(), String.class))
         .setRetryOptions(RetryOptions.merge(methodRetry, o.getRetryOptions()))
         .setCronSchedule(OptionsUtils.merge(cronAnnotation, o.getCronSchedule(), String.class))
         .setMemo(o.getMemo())
@@ -89,9 +73,9 @@ public final class WorkflowOptions {
 
     private WorkflowIdReusePolicy workflowIdReusePolicy;
 
-    private Duration executionStartToCloseTimeout;
+    private Duration workflowRunTimeout;
 
-    private Duration taskStartToCloseTimeout;
+    private Duration workflowTaskTimeout;
 
     private String taskList;
 
@@ -113,8 +97,8 @@ public final class WorkflowOptions {
       }
       this.workflowIdReusePolicy = options.workflowIdReusePolicy;
       this.workflowId = options.workflowId;
-      this.taskStartToCloseTimeout = options.taskStartToCloseTimeout;
-      this.executionStartToCloseTimeout = options.executionStartToCloseTimeout;
+      this.workflowTaskTimeout = options.taskStartToCloseTimeout;
+      this.workflowRunTimeout = options.workflowRunTimeout;
       this.taskList = options.taskList;
       this.retryOptions = options.retryOptions;
       this.cronSchedule = options.cronSchedule;
@@ -162,8 +146,8 @@ public final class WorkflowOptions {
      * not rely on execution timeout for business level timeouts. It is preferred to use in workflow
      * timers for this purpose.
      */
-    public Builder setExecutionStartToCloseTimeout(Duration executionStartToCloseTimeout) {
-      this.executionStartToCloseTimeout = executionStartToCloseTimeout;
+    public Builder setWorkflowRunTimeout(Duration workflowRunTimeout) {
+      this.workflowRunTimeout = workflowRunTimeout;
       return this;
     }
 
@@ -171,12 +155,12 @@ public final class WorkflowOptions {
      * Maximum execution time of a single decision task. Default is 10 seconds. Maximum accepted
      * value is 60 seconds.
      */
-    public Builder setTaskStartToCloseTimeout(Duration taskStartToCloseTimeout) {
-      if (roundUpToSeconds(taskStartToCloseTimeout).getSeconds() > 60) {
+    public Builder setWorkflowTaskTimeout(Duration workflowTaskTimeout) {
+      if (roundUpToSeconds(workflowTaskTimeout).getSeconds() > 60) {
         throw new IllegalArgumentException(
-            "TaskStartToCloseTimeout over one minute: " + taskStartToCloseTimeout);
+            "TaskStartToCloseTimeout over one minute: " + workflowTaskTimeout);
       }
-      this.taskStartToCloseTimeout = taskStartToCloseTimeout;
+      this.workflowTaskTimeout = workflowTaskTimeout;
       return this;
     }
 
@@ -227,8 +211,8 @@ public final class WorkflowOptions {
       return new WorkflowOptions(
           workflowId,
           workflowIdReusePolicy,
-          executionStartToCloseTimeout,
-          taskStartToCloseTimeout,
+          workflowRunTimeout,
+          workflowTaskTimeout,
           taskList,
           retryOptions,
           cronSchedule,
@@ -241,30 +225,11 @@ public final class WorkflowOptions {
      * Validates that all required properties are set and fills all other with default parameters.
      */
     public WorkflowOptions validateBuildWithDefaults() {
-      if (executionStartToCloseTimeout == null) {
-        throw new IllegalStateException(
-            "Required property executionStartToCloseTimeout is not set");
-      }
-      if (taskList == null) {
-        throw new IllegalArgumentException("Required property taskList is not set");
-      }
-      if (retryOptions != null) {
-        if (retryOptions.getInitialInterval() == null) {
-          throw new IllegalArgumentException(
-              "RetryOptions missing required initialInterval property");
-        }
-        if (retryOptions.getExpiration() == null && retryOptions.getMaximumAttempts() == 0) {
-          throw new IllegalArgumentException(
-              "RetryOptions must specify either expiration or maximum attempts");
-        }
-      }
-
       return new WorkflowOptions(
           workflowId,
           workflowIdReusePolicy,
-          roundUpToSeconds(executionStartToCloseTimeout),
-          roundUpToSeconds(
-              taskStartToCloseTimeout, OptionsUtils.DEFAULT_TASK_START_TO_CLOSE_TIMEOUT),
+          roundUpToSeconds(workflowRunTimeout),
+          roundUpToSeconds(workflowTaskTimeout),
           taskList,
           retryOptions,
           cronSchedule,
@@ -278,7 +243,7 @@ public final class WorkflowOptions {
 
   private final WorkflowIdReusePolicy workflowIdReusePolicy;
 
-  private final Duration executionStartToCloseTimeout;
+  private final Duration workflowRunTimeout;
 
   private final Duration taskStartToCloseTimeout;
 
@@ -297,7 +262,7 @@ public final class WorkflowOptions {
   private WorkflowOptions(
       String workflowId,
       WorkflowIdReusePolicy workflowIdReusePolicy,
-      Duration executionStartToCloseTimeout,
+      Duration workflowRunTimeout,
       Duration taskStartToCloseTimeout,
       String taskList,
       RetryOptions retryOptions,
@@ -307,7 +272,7 @@ public final class WorkflowOptions {
       List<ContextPropagator> contextPropagators) {
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
-    this.executionStartToCloseTimeout = executionStartToCloseTimeout;
+    this.workflowRunTimeout = workflowRunTimeout;
     this.taskStartToCloseTimeout = taskStartToCloseTimeout;
     this.taskList = taskList;
     this.retryOptions = retryOptions;
@@ -325,8 +290,8 @@ public final class WorkflowOptions {
     return workflowIdReusePolicy;
   }
 
-  public Duration getExecutionStartToCloseTimeout() {
-    return executionStartToCloseTimeout;
+  public Duration getWorkflowRunTimeout() {
+    return workflowRunTimeout;
   }
 
   public Duration getTaskStartToCloseTimeout() {
@@ -364,7 +329,7 @@ public final class WorkflowOptions {
     WorkflowOptions that = (WorkflowOptions) o;
     return Objects.equals(workflowId, that.workflowId)
         && workflowIdReusePolicy == that.workflowIdReusePolicy
-        && Objects.equals(executionStartToCloseTimeout, that.executionStartToCloseTimeout)
+        && Objects.equals(workflowRunTimeout, that.workflowRunTimeout)
         && Objects.equals(taskStartToCloseTimeout, that.taskStartToCloseTimeout)
         && Objects.equals(taskList, that.taskList)
         && Objects.equals(retryOptions, that.retryOptions)
@@ -379,7 +344,7 @@ public final class WorkflowOptions {
     return Objects.hash(
         workflowId,
         workflowIdReusePolicy,
-        executionStartToCloseTimeout,
+        workflowRunTimeout,
         taskStartToCloseTimeout,
         taskList,
         retryOptions,
@@ -397,8 +362,8 @@ public final class WorkflowOptions {
         + '\''
         + ", workflowIdReusePolicy="
         + workflowIdReusePolicy
-        + ", executionStartToCloseTimeout="
-        + executionStartToCloseTimeout
+        + ", workflowRunTimeout="
+        + workflowRunTimeout
         + ", taskStartToCloseTimeout="
         + taskStartToCloseTimeout
         + ", taskList='"

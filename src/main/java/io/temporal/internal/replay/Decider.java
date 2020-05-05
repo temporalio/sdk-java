@@ -19,6 +19,7 @@
 
 package io.temporal.internal.replay;
 
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.decision.Decision;
 import io.temporal.proto.query.WorkflowQuery;
 import io.temporal.proto.query.WorkflowQueryResult;
@@ -30,7 +31,7 @@ public interface Decider {
 
   DecisionResult decide(PollForDecisionTaskResponseOrBuilder decisionTask) throws Throwable;
 
-  byte[] query(PollForDecisionTaskResponseOrBuilder decisionTask, WorkflowQuery query)
+  Payloads query(PollForDecisionTaskResponseOrBuilder decisionTask, WorkflowQuery query)
       throws Throwable;
 
   void close();

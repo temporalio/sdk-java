@@ -19,7 +19,9 @@
 
 package io.temporal.internal.sync;
 
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.event.TimeoutType;
+import java.util.Optional;
 
 /**
  * SimulatedTimeoutExceptionInternal is created from a SimulatedTimeoutException. The main
@@ -29,9 +31,9 @@ final class SimulatedTimeoutExceptionInternal extends RuntimeException {
 
   private final TimeoutType timeoutType;
 
-  private final byte[] details;
+  private final Optional<Payloads> details;
 
-  SimulatedTimeoutExceptionInternal(TimeoutType timeoutType, byte[] details) {
+  SimulatedTimeoutExceptionInternal(TimeoutType timeoutType, Optional<Payloads> details) {
     this.timeoutType = timeoutType;
     this.details = details;
   }
@@ -45,7 +47,7 @@ final class SimulatedTimeoutExceptionInternal extends RuntimeException {
     return timeoutType;
   }
 
-  byte[] getDetails() {
+  Optional<Payloads> getDetails() {
     return details;
   }
 }

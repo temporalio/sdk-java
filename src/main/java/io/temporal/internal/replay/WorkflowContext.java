@@ -19,9 +19,9 @@
 
 package io.temporal.internal.replay;
 
-import com.google.protobuf.ByteString;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.proto.common.Header;
+import io.temporal.proto.common.Payload;
 import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.event.WorkflowExecutionStartedEventAttributes;
@@ -84,16 +84,16 @@ final class WorkflowContext {
       continueParameters = new ContinueAsNewWorkflowExecutionParameters();
     }
     //            continueParameters.setChildPolicy(startedAttributes);
-    if (continueParameters.getExecutionStartToCloseTimeoutSeconds() == 0) {
-      continueParameters.setExecutionStartToCloseTimeoutSeconds(
-          startedAttributes.getExecutionStartToCloseTimeoutSeconds());
+    if (continueParameters.getWorkflowRunTimeoutSeconds() == 0) {
+      continueParameters.setWorkflowRunTimeoutSeconds(
+          startedAttributes.getWorkflowRunTimeoutSeconds());
     }
     if (continueParameters.getTaskList() == null) {
       continueParameters.setTaskList(startedAttributes.getTaskList().getName());
     }
-    if (continueParameters.getTaskStartToCloseTimeoutSeconds() == 0) {
-      continueParameters.setTaskStartToCloseTimeoutSeconds(
-          startedAttributes.getTaskStartToCloseTimeoutSeconds());
+    if (continueParameters.getWorkflowTaskTimeoutSeconds() == 0) {
+      continueParameters.setWorkflowTaskTimeoutSeconds(
+          startedAttributes.getWorkflowTaskTimeoutSeconds());
     }
     this.continueAsNewOnCompletion = continueParameters;
   }
@@ -109,13 +109,13 @@ final class WorkflowContext {
     return attributes.hasParentWorkflowExecution() ? attributes.getParentWorkflowExecution() : null;
   }
 
-  int getExecutionStartToCloseTimeoutSeconds() {
+  int getWorkflowRunTimeoutSeconds() {
     WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-    return attributes.getExecutionStartToCloseTimeoutSeconds();
+    return attributes.getWorkflowRunTimeoutSeconds();
   }
 
   int getDecisionTaskTimeoutSeconds() {
-    return startedAttributes.getTaskStartToCloseTimeoutSeconds();
+    return startedAttributes.getWorkflowTaskTimeoutSeconds();
   }
 
   String getTaskList() {
@@ -160,9 +160,9 @@ final class WorkflowContext {
       return new HashMap<>();
     }
 
-    Map<String, byte[]> headerData = new HashMap<>();
-    for (Map.Entry<String, ByteString> pair : headers.getFieldsMap().entrySet()) {
-      headerData.put(pair.getKey(), pair.getValue().toByteArray());
+    Map<String, Payload> headerData = new HashMap<>();
+    for (Map.Entry<String, Payload> pair : headers.getFieldsMap().entrySet()) {
+      headerData.put(pair.getKey(), pair.getValue());
     }
 
     Map<String, Object> contextData = new HashMap<>();
@@ -180,7 +180,7 @@ final class WorkflowContext {
     if (this.searchAttributes == null) {
       this.searchAttributes = SearchAttributes.newBuilder();
     }
-    for (Map.Entry<String, ByteString> pair : searchAttributes.getIndexedFieldsMap().entrySet()) {
+    for (Map.Entry<String, Payload> pair : searchAttributes.getIndexedFieldsMap().entrySet()) {
       this.searchAttributes.putIndexedFields(pair.getKey(), pair.getValue());
     }
     if (searchAttributes.getIndexedFieldsCount() == 0) {

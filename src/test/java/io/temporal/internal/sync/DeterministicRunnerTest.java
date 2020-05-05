@@ -36,6 +36,7 @@ import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.replay.Decider;
 import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.DecisionContext;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.query.WorkflowQuery;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
@@ -859,7 +860,7 @@ public class DeterministicRunnerTest {
     }
 
     @Override
-    public byte[] query(PollForDecisionTaskResponseOrBuilder decisionTask, WorkflowQuery query)
+    public Payloads query(PollForDecisionTaskResponseOrBuilder decisionTask, WorkflowQuery query)
         throws Throwable {
       return new byte[0];
     }

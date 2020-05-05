@@ -12,8 +12,8 @@
         "name": "WorkflowTest-testChildWorkflowRetry[Docker Sticky ON]-7f1642a9-9092-4ab1-9820-ffdf9eec95ce"
       },
       "input": "IldvcmtmbG93VGVzdC10ZXN0Q2hpbGRXb3JrZmxvd1JldHJ5W0RvY2tlciBTdGlja3kgT05dLTdmMTY0MmE5LTkwOTItNGFiMS05ODIwLWZmZGY5ZWVjOTVjZSI=",
-      "executionStartToCloseTimeoutSeconds": 20,
-      "taskStartToCloseTimeoutSeconds": 2,
+      "workflowRunTimeoutSeconds": 20,
+      "workflowTaskTimeoutSeconds": 2,
       "originalExecutionRunId": "a13822f0-716a-4963-8f1f-596f2f112bbd",
       "identity": ""
     }
@@ -79,8 +79,8 @@
         "name": "WorkflowTest-testChildWorkflowRetry[Docker Sticky ON]-7f1642a9-9092-4ab1-9820-ffdf9eec95ce"
       },
       "input": "IldvcmtmbG93VGVzdC10ZXN0Q2hpbGRXb3JrZmxvd1JldHJ5W0RvY2tlciBTdGlja3kgT05dLTdmMTY0MmE5LTkwOTItNGFiMS05ODIwLWZmZGY5ZWVjOTVjZSI=",
-      "executionStartToCloseTimeoutSeconds": 500,
-      "taskStartToCloseTimeoutSeconds": 2,
+      "workflowRunTimeoutSeconds": 500,
+      "workflowTaskTimeoutSeconds": 2,
       "parentClosePolicy": "TERMINATE",
       "decisionTaskCompletedEventId": 4,
       "workflowIdReusePolicy": "AllowDuplicateFailedOnly"
@@ -275,8 +275,8 @@
         "name": "WorkflowTest-testChildWorkflowRetry[Docker Sticky ON]-7f1642a9-9092-4ab1-9820-ffdf9eec95ce"
       },
       "input": "IldvcmtmbG93VGVzdC10ZXN0Q2hpbGRXb3JrZmxvd1JldHJ5W0RvY2tlciBTdGlja3kgT05dLTdmMTY0MmE5LTkwOTItNGFiMS05ODIwLWZmZGY5ZWVjOTVjZSI=",
-      "executionStartToCloseTimeoutSeconds": 500,
-      "taskStartToCloseTimeoutSeconds": 2,
+      "workflowRunTimeoutSeconds": 500,
+      "workflowTaskTimeoutSeconds": 2,
       "parentClosePolicy": "TERMINATE",
       "decisionTaskCompletedEventId": 19,
       "workflowIdReusePolicy": "AllowDuplicateFailedOnly"
@@ -471,8 +471,8 @@
         "name": "WorkflowTest-testChildWorkflowRetry[Docker Sticky ON]-7f1642a9-9092-4ab1-9820-ffdf9eec95ce"
       },
       "input": "IldvcmtmbG93VGVzdC10ZXN0Q2hpbGRXb3JrZmxvd1JldHJ5W0RvY2tlciBTdGlja3kgT05dLTdmMTY0MmE5LTkwOTItNGFiMS05ODIwLWZmZGY5ZWVjOTVjZSI=",
-      "executionStartToCloseTimeoutSeconds": 500,
-      "taskStartToCloseTimeoutSeconds": 2,
+      "workflowRunTimeoutSeconds": 500,
+      "workflowTaskTimeoutSeconds": 2,
       "parentClosePolicy": "TERMINATE",
       "decisionTaskCompletedEventId": 34,
       "workflowIdReusePolicy": "AllowDuplicateFailedOnly"
