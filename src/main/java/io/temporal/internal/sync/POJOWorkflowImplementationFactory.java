@@ -357,10 +357,17 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     // Only expected during unit tests.
     if (failure instanceof SimulatedTimeoutException) {
       SimulatedTimeoutException timeoutException = (SimulatedTimeoutException) failure;
-      failure =
-          new SimulatedTimeoutExceptionInternal(
-              timeoutException.getTimeoutType(),
-              dataConverter.toData(timeoutException.getDetails()));
+      // As SimulatedTimeoutExceptionInternal is serialized to Payloads store detail
+      // payloads as byte array which json serializer understands.
+      Object d = timeoutException.getDetails();
+      Optional<Payloads> payloads = dataConverter.toData(d);
+      byte[] details;
+      if (payloads.isPresent()) {
+        details = payloads.get().toByteArray();
+      } else {
+        details = new byte[0];
+      }
+      failure = new SimulatedTimeoutExceptionInternal(timeoutException.getTimeoutType(), details);
     }
 
     return new WorkflowExecutionException(

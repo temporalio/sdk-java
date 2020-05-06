@@ -95,10 +95,15 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     // Only expected during unit tests.
     if (failure instanceof SimulatedTimeoutException) {
       SimulatedTimeoutException timeoutException = (SimulatedTimeoutException) failure;
-      failure =
-          new SimulatedTimeoutExceptionInternal(
-              timeoutException.getTimeoutType(),
-              dataConverter.toData(timeoutException.getDetails()));
+      Object d = timeoutException.getDetails();
+      Optional<Payloads> payloads = dataConverter.toData(d);
+      byte[] details;
+      if (payloads.isPresent()) {
+        details = payloads.get().toByteArray();
+      } else {
+        details = new byte[0];
+      }
+      failure = new SimulatedTimeoutExceptionInternal(timeoutException.getTimeoutType(), details);
     }
 
     if (failure instanceof Error) {

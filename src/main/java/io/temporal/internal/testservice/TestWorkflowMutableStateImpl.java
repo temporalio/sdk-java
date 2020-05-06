@@ -19,7 +19,8 @@
 
 package io.temporal.internal.testservice;
 
-import static io.temporal.internal.testservice.StateMachines.NO_EVENT_ID;
+import static io.temporal.internal.testservice.RetryState.validateRetryPolicy;
+import static io.temporal.internal.testservice.StateMachines.*;
 
 import com.cronutils.model.Cron;
 import com.cronutils.model.CronType;
@@ -32,15 +33,7 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
-import io.temporal.internal.testservice.StateMachines.Action;
-import io.temporal.internal.testservice.StateMachines.ActivityTaskData;
-import io.temporal.internal.testservice.StateMachines.CancelExternalData;
-import io.temporal.internal.testservice.StateMachines.ChildWorkflowData;
-import io.temporal.internal.testservice.StateMachines.DecisionTaskData;
-import io.temporal.internal.testservice.StateMachines.SignalExternalData;
-import io.temporal.internal.testservice.StateMachines.State;
-import io.temporal.internal.testservice.StateMachines.TimerData;
-import io.temporal.internal.testservice.StateMachines.WorkflowData;
+import io.temporal.internal.testservice.StateMachines.*;
 import io.temporal.proto.common.Payloads;
 import io.temporal.proto.decision.CancelTimerDecisionAttributes;
 import io.temporal.proto.decision.CancelWorkflowExecutionDecisionAttributes;
@@ -175,6 +168,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       Optional<String> continuedExecutionRunId,
       TestWorkflowService service,
       TestWorkflowStore store) {
+    startRequest = overrideStartWorkflowExecutionRequest(startRequest);
     this.startRequest = startRequest;
     this.parent = parent;
     this.parentChildInitiatedEventId = parentChildInitiatedEventId;
@@ -195,6 +189,78 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             continuedExecutionRunId);
     this.workflow = StateMachines.newWorkflowStateMachine(data);
     this.decision = StateMachines.newDecisionStateMachine(store, startRequest);
+  }
+
+  /** Based on overrideStartWorkflowExecutionRequest from historyEngine.go */
+  private StartWorkflowExecutionRequest overrideStartWorkflowExecutionRequest(
+      StartWorkflowExecutionRequest r) {
+    StartWorkflowExecutionRequest.Builder request =
+        validateStartWorkflowExecutionRequest(r).toBuilder();
+    int executionTimeoutSeconds = request.getWorkflowExecutionTimeoutSeconds();
+    if (executionTimeoutSeconds == 0) {
+      executionTimeoutSeconds = DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_SECONDS;
+    }
+    executionTimeoutSeconds =
+        Math.min(executionTimeoutSeconds, DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_SECONDS);
+    if (executionTimeoutSeconds != request.getWorkflowExecutionTimeoutSeconds()) {
+      request.setWorkflowExecutionTimeoutSeconds(executionTimeoutSeconds);
+    }
+
+    int runTimeoutSeconds = request.getWorkflowRunTimeoutSeconds();
+    if (runTimeoutSeconds == 0) {
+      runTimeoutSeconds = DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_SECONDS;
+    }
+    runTimeoutSeconds = Math.min(runTimeoutSeconds, DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_SECONDS);
+    runTimeoutSeconds = Math.min(runTimeoutSeconds, executionTimeoutSeconds);
+    if (runTimeoutSeconds != request.getWorkflowRunTimeoutSeconds()) {
+      request.setWorkflowRunTimeoutSeconds(runTimeoutSeconds);
+    }
+
+    int taskTimeout = request.getWorkflowTaskTimeoutSeconds();
+    if (taskTimeout == 0) {
+      taskTimeout = DEFAULT_WORKFLOW_TASK_TIMEOUT_SECONDS;
+    }
+    taskTimeout = Math.min(taskTimeout, MAX_WORKFLOW_TASK_TIMEOUT_SECONDS);
+    taskTimeout = Math.min(taskTimeout, runTimeoutSeconds);
+
+    if (taskTimeout != request.getWorkflowTaskTimeoutSeconds()) {
+      request.setWorkflowTaskTimeoutSeconds(taskTimeout);
+    }
+    return request.build();
+  }
+
+  /** Based on validateStartWorkflowExecutionRequest from historyEngine.go */
+  private StartWorkflowExecutionRequest validateStartWorkflowExecutionRequest(
+      StartWorkflowExecutionRequest request) {
+
+    if (request.getRequestId().isEmpty()) {
+      throw Status.INVALID_ARGUMENT.withDescription("Missing request ID.").asRuntimeException();
+    }
+    if (request.getWorkflowExecutionTimeoutSeconds() < 0) {
+      throw Status.INVALID_ARGUMENT
+          .withDescription("Invalid WorkflowExecutionTimeoutSeconds.")
+          .asRuntimeException();
+    }
+    if (request.getWorkflowRunTimeoutSeconds() < 0) {
+      throw Status.INVALID_ARGUMENT
+          .withDescription("Invalid WorkflowRunTimeoutSeconds.")
+          .asRuntimeException();
+    }
+    if (request.getWorkflowTaskTimeoutSeconds() < 0) {
+      throw Status.INVALID_ARGUMENT
+          .withDescription("Invalid WorkflowTaskTimeoutSeconds.")
+          .asRuntimeException();
+    }
+    if (!request.hasTaskList() || request.getTaskList().getName().isEmpty()) {
+      throw Status.INVALID_ARGUMENT.withDescription("Missing Tasklist.").asRuntimeException();
+    }
+    if (!request.hasWorkflowType() || request.getWorkflowType().getName().isEmpty()) {
+      throw Status.INVALID_ARGUMENT.withDescription("Missing WorkflowType.").asRuntimeException();
+    }
+    if (request.hasRetryPolicy()) {
+      validateRetryPolicy(request.getRetryPolicy());
+    }
+    return request;
   }
 
   private void update(UpdateProcedure updater) {
@@ -758,7 +824,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
     StartChildWorkflowExecutionDecisionAttributes.Builder ab = a.toBuilder();
     if (a.hasRetryPolicy()) {
-      ab.setRetryPolicy(RetryState.validateRetryPolicy(a.getRetryPolicy()));
+      ab.setRetryPolicy(validateRetryPolicy(a.getRetryPolicy()));
     }
 
     // Inherit tasklist from parent workflow execution if not provided on decision

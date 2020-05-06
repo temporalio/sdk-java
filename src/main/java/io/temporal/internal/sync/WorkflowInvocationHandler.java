@@ -35,6 +35,7 @@ import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -125,6 +126,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
       WorkflowClientOptions clientOptions,
       GenericWorkflowClientExternal genericClient,
       WorkflowOptions options) {
+    Objects.requireNonNull(options, "options");
     workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
     Optional<POJOWorkflowMethodMetadata> workflowMethodMetadata =
         workflowMetadata.getWorkflowMethod();

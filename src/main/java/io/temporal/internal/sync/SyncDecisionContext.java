@@ -21,6 +21,7 @@ package io.temporal.internal.sync;
 
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
@@ -240,12 +241,22 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
       if (cause instanceof SimulatedTimeoutExceptionInternal) {
         // This exception is thrown only in unit tests to mock the activity timeouts
         SimulatedTimeoutExceptionInternal testTimeout = (SimulatedTimeoutExceptionInternal) cause;
+        Optional<Payloads> details;
+        if (testTimeout.getDetails().length == 0) {
+          details = Optional.empty();
+        } else {
+          try {
+            details = Optional.of(Payloads.parseFrom(testTimeout.getDetails()));
+          } catch (InvalidProtocolBufferException e) {
+            throw new DataConverterException(e);
+          }
+        }
         return new ActivityTimeoutException(
             taskFailed.getEventId(),
             taskFailed.getActivityType(),
             taskFailed.getActivityId(),
             testTimeout.getTimeoutType(),
-            testTimeout.getDetails(),
+            details,
             getDataConverter());
       }
       return new ActivityFailureException(

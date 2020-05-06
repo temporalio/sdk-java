@@ -92,6 +92,9 @@ public final class GsonJsonDataConverter implements DataConverter {
       return null;
     }
     Payloads c = content.get();
+    if (c.getPayloadsCount() == 0) {
+      return null;
+    }
     if (c.getPayloadsCount() != 1) {
       throw new DataConverterException(
           "Found multiple payloads while a single one expected", content, valueType);

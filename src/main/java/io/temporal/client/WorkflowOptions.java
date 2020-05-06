@@ -21,6 +21,7 @@ package io.temporal.client;
 
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
+import com.google.common.base.Objects;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
@@ -30,16 +31,11 @@ import io.temporal.proto.common.WorkflowIdReusePolicy;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 public final class WorkflowOptions {
 
   public static Builder newBuilder() {
     return new Builder();
-  }
-
-  public static Builder newBuilder(WorkflowOptions options) {
-    return new Builder(options);
   }
 
   public static WorkflowOptions getDefaultInstance() {
@@ -59,6 +55,12 @@ public final class WorkflowOptions {
     }
     String cronAnnotation = cronSchedule == null ? "" : cronSchedule.value();
     return WorkflowOptions.newBuilder()
+        .setWorkflowIdReusePolicy(o.getWorkflowIdReusePolicy())
+        .setWorkflowId(o.getWorkflowId())
+        .setWorkflowTaskTimeout(o.getTaskStartToCloseTimeout())
+        .setWorkflowRunTimeout(o.getWorkflowRunTimeout())
+        .setWorkflowExecutionTimeout(o.getWorkflowExecutionTimeout())
+        .setTaskList(o.getTaskList())
         .setRetryOptions(RetryOptions.merge(methodRetry, o.getRetryOptions()))
         .setCronSchedule(OptionsUtils.merge(cronAnnotation, o.getCronSchedule(), String.class))
         .setMemo(o.getMemo())
@@ -74,6 +76,8 @@ public final class WorkflowOptions {
     private WorkflowIdReusePolicy workflowIdReusePolicy;
 
     private Duration workflowRunTimeout;
+
+    private Duration workflowExecutionTimeout;
 
     private Duration workflowTaskTimeout;
 
@@ -99,6 +103,7 @@ public final class WorkflowOptions {
       this.workflowId = options.workflowId;
       this.workflowTaskTimeout = options.taskStartToCloseTimeout;
       this.workflowRunTimeout = options.workflowRunTimeout;
+      this.workflowExecutionTimeout = options.workflowExecutionTimeout;
       this.taskList = options.taskList;
       this.retryOptions = options.retryOptions;
       this.cronSchedule = options.cronSchedule;
@@ -142,12 +147,22 @@ public final class WorkflowOptions {
     }
 
     /**
-     * The time after which workflow execution is automatically terminated by Temporal service. Do
-     * not rely on execution timeout for business level timeouts. It is preferred to use in workflow
-     * timers for this purpose.
+     * The time after which workflow run is automatically terminated by Temporal service. Do not
+     * rely on run timeout for business level timeouts. It is preferred to use in workflow timers
+     * for this purpose.
      */
     public Builder setWorkflowRunTimeout(Duration workflowRunTimeout) {
       this.workflowRunTimeout = workflowRunTimeout;
+      return this;
+    }
+
+    /**
+     * The time after which workflow execution (which includes run retries and continue as new) is
+     * automatically terminated by Temporal service. Do not rely on execution timeout for business
+     * level timeouts. It is preferred to use in workflow timers for this purpose.
+     */
+    public Builder setWorkflowExecutionTimeout(Duration workflowExecutionTimeout) {
+      this.workflowExecutionTimeout = workflowExecutionTimeout;
       return this;
     }
 
@@ -212,6 +227,7 @@ public final class WorkflowOptions {
           workflowId,
           workflowIdReusePolicy,
           workflowRunTimeout,
+          workflowExecutionTimeout,
           workflowTaskTimeout,
           taskList,
           retryOptions,
@@ -229,6 +245,7 @@ public final class WorkflowOptions {
           workflowId,
           workflowIdReusePolicy,
           roundUpToSeconds(workflowRunTimeout),
+          roundUpToSeconds(workflowExecutionTimeout),
           roundUpToSeconds(workflowTaskTimeout),
           taskList,
           retryOptions,
@@ -244,6 +261,8 @@ public final class WorkflowOptions {
   private final WorkflowIdReusePolicy workflowIdReusePolicy;
 
   private final Duration workflowRunTimeout;
+
+  private final Duration workflowExecutionTimeout;
 
   private final Duration taskStartToCloseTimeout;
 
@@ -263,6 +282,7 @@ public final class WorkflowOptions {
       String workflowId,
       WorkflowIdReusePolicy workflowIdReusePolicy,
       Duration workflowRunTimeout,
+      Duration workflowExecutionTimeout,
       Duration taskStartToCloseTimeout,
       String taskList,
       RetryOptions retryOptions,
@@ -273,6 +293,7 @@ public final class WorkflowOptions {
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
     this.workflowRunTimeout = workflowRunTimeout;
+    this.workflowExecutionTimeout = workflowExecutionTimeout;
     this.taskStartToCloseTimeout = taskStartToCloseTimeout;
     this.taskList = taskList;
     this.retryOptions = retryOptions;
@@ -292,6 +313,10 @@ public final class WorkflowOptions {
 
   public Duration getWorkflowRunTimeout() {
     return workflowRunTimeout;
+  }
+
+  public Duration getWorkflowExecutionTimeout() {
+    return workflowExecutionTimeout;
   }
 
   public Duration getTaskStartToCloseTimeout() {
@@ -322,29 +347,35 @@ public final class WorkflowOptions {
     return contextPropagators;
   }
 
+  public Builder toBuilder() {
+    return new Builder(this);
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     WorkflowOptions that = (WorkflowOptions) o;
-    return Objects.equals(workflowId, that.workflowId)
+    return Objects.equal(workflowId, that.workflowId)
         && workflowIdReusePolicy == that.workflowIdReusePolicy
-        && Objects.equals(workflowRunTimeout, that.workflowRunTimeout)
-        && Objects.equals(taskStartToCloseTimeout, that.taskStartToCloseTimeout)
-        && Objects.equals(taskList, that.taskList)
-        && Objects.equals(retryOptions, that.retryOptions)
-        && Objects.equals(cronSchedule, that.cronSchedule)
-        && Objects.equals(memo, that.memo)
-        && Objects.equals(searchAttributes, that.searchAttributes)
-        && Objects.equals(contextPropagators, that.contextPropagators);
+        && Objects.equal(workflowRunTimeout, that.workflowRunTimeout)
+        && Objects.equal(workflowExecutionTimeout, that.workflowExecutionTimeout)
+        && Objects.equal(taskStartToCloseTimeout, that.taskStartToCloseTimeout)
+        && Objects.equal(taskList, that.taskList)
+        && Objects.equal(retryOptions, that.retryOptions)
+        && Objects.equal(cronSchedule, that.cronSchedule)
+        && Objects.equal(memo, that.memo)
+        && Objects.equal(searchAttributes, that.searchAttributes)
+        && Objects.equal(contextPropagators, that.contextPropagators);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(
+    return Objects.hashCode(
         workflowId,
         workflowIdReusePolicy,
         workflowRunTimeout,
+        workflowExecutionTimeout,
         taskStartToCloseTimeout,
         taskList,
         retryOptions,
@@ -364,6 +395,8 @@ public final class WorkflowOptions {
         + workflowIdReusePolicy
         + ", workflowRunTimeout="
         + workflowRunTimeout
+        + ", workflowExecutionTimeout="
+        + workflowExecutionTimeout
         + ", taskStartToCloseTimeout="
         + taskStartToCloseTimeout
         + ", taskList='"
@@ -374,14 +407,12 @@ public final class WorkflowOptions {
         + ", cronSchedule='"
         + cronSchedule
         + '\''
-        + ", memo='"
+        + ", memo="
         + memo
-        + '\''
-        + ", searchAttributes='"
+        + ", searchAttributes="
         + searchAttributes
-        + ", contextPropagators='"
+        + ", contextPropagators="
         + contextPropagators
-        + '\''
         + '}';
   }
 }

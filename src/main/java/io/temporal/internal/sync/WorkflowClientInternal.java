@@ -90,11 +90,6 @@ public final class WorkflowClientInternal implements WorkflowClient {
   }
 
   @Override
-  public <T> T newWorkflowStub(Class<T> workflowInterface) {
-    return newWorkflowStub(workflowInterface, (WorkflowOptions) null);
-  }
-
-  @Override
   public WorkflowClientOptions getOptions() {
     return options;
   }

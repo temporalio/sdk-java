@@ -241,6 +241,7 @@ public final class Async {
    * Use {@link Workflow#retry(RetryOptions, Optional, Functions.Func)} for synchronous functions.
    *
    * @param options retry options that specify retry policy
+   * @param expiration if provided limits duration of retries
    * @param fn function to invoke and retry
    * @return result of the function or the last failure.
    */

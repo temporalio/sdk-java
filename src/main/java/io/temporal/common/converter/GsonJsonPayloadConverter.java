@@ -175,12 +175,15 @@ public final class GsonJsonPayloadConverter implements PayloadConverter {
               throw new IOException("Cannot deserialize DataConverter. Missing type field");
             }
             String value = in.nextString();
-            if (!"JSON".equals(value)) {
+            if (!METADATA_ENCODING_JSON_NAME.equals(value)) {
               throw new IOException(
-                  "Cannot deserialize DataConverter. Expected type is JSON. " + "Found " + value);
+                  "Cannot deserialize DataConverter. Expected type is \""
+                      + METADATA_ENCODING_JSON_NAME
+                      + "\". Found "
+                      + value);
             }
             in.endObject();
-            return (T) GsonJsonPayloadConverter.getInstance();
+            return (T) GsonJsonDataConverter.getInstance();
           }
         };
       }

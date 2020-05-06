@@ -1594,8 +1594,9 @@ public class WorkflowTest {
         workflowClient.newWorkflowStub(TestMultiargsWorkflowsFunc.class, workflowOptions);
     assertResult("func", WorkflowClient.start(stubF::func));
     assertEquals("func", stubF.func()); // Check that duplicated start just returns the result.
+    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskList(taskList).build();
     TestMultiargsWorkflowsFunc1 stubF1 =
-        workflowClient.newWorkflowStub(TestMultiargsWorkflowsFunc1.class);
+        workflowClient.newWorkflowStub(TestMultiargsWorkflowsFunc1.class, options);
 
     if (!useExternalService) {
       // Use worker that polls on a task list configured through @WorkflowMethod annotation of func1

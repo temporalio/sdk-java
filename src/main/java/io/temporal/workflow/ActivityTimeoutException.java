@@ -19,7 +19,9 @@
 
 package io.temporal.workflow;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DataConverterException;
 import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.Payloads;
 import io.temporal.proto.event.TimeoutType;
@@ -37,8 +39,8 @@ public final class ActivityTimeoutException extends ActivityException {
 
   private final TimeoutType timeoutType;
 
-  private final Optional<Payloads> details;
-  private final DataConverter dataConverter;
+  private final byte[] details;
+  private DataConverter dataConverter;
 
   public ActivityTimeoutException(
       long eventId,
@@ -47,9 +49,10 @@ public final class ActivityTimeoutException extends ActivityException {
       TimeoutType timeoutType,
       Optional<Payloads> details,
       DataConverter dataConverter) {
-    super("TimeoutType=" + String.valueOf(timeoutType), eventId, activityType, activityId);
+    super("TimeoutType=" + timeoutType, eventId, activityType, activityId);
     this.timeoutType = Objects.requireNonNull(timeoutType);
-    this.details = details;
+    // Serialize to byte array as the exception itself has to be serialized
+    this.details = details.isPresent() ? details.get().toByteArray() : null;
     this.dataConverter = Objects.requireNonNull(dataConverter);
   }
 
@@ -59,11 +62,17 @@ public final class ActivityTimeoutException extends ActivityException {
 
   /** @return The value from the last activity heartbeat details field. */
   public <V> V getDetails(Class<V> detailsClass) {
-    return dataConverter.fromData(details, detailsClass, detailsClass);
+    return getDetails(detailsClass, detailsClass);
   }
 
   /** @return The value from the last activity heartbeat details field. */
   public <V> V getDetails(Class<V> detailsClass, Type detailsType) {
-    return dataConverter.fromData(details, detailsClass, detailsType);
+    Optional<Payloads> payloads;
+    try {
+      payloads = details == null ? Optional.empty() : Optional.of(Payloads.parseFrom(details));
+    } catch (InvalidProtocolBufferException e) {
+      throw new DataConverterException(e);
+    }
+    return dataConverter.fromData(payloads, detailsClass, detailsType);
   }
 }

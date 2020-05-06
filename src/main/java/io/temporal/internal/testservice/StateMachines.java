@@ -124,6 +124,7 @@ class StateMachines {
   private static final String TIMEOUT_ERROR_REASON = "temporalInternal:Timeout";
   public static final int DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_SECONDS = 10 * 365 * 24 * 3600;
   public static final int DEFAULT_WORKFLOW_TASK_TIMEOUT_SECONDS = 10;
+  public static final int MAX_WORKFLOW_TASK_TIMEOUT_SECONDS = 60;
 
   enum State {
     NONE,
@@ -676,6 +677,7 @@ class StateMachines {
           data.initiatedEvent = a.build();
           StartWorkflowExecutionRequest.Builder startChild =
               StartWorkflowExecutionRequest.newBuilder()
+                  .setRequestId(UUID.randomUUID().toString())
                   .setNamespace(d.getNamespace().isEmpty() ? ctx.getNamespace() : d.getNamespace())
                   .setWorkflowExecutionTimeoutSeconds(d.getWorkflowExecutionTimeoutSeconds())
                   .setWorkflowRunTimeoutSeconds(d.getWorkflowRunTimeoutSeconds())
