@@ -19,8 +19,6 @@
 
 package io.temporal.activity;
 
-import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
-
 import com.google.common.base.Objects;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
@@ -185,10 +183,10 @@ public final class ActivityOptions {
                 + "timeouts are required: ");
       }
       return new ActivityOptions(
-          roundUpToSeconds(heartbeatTimeout),
-          roundUpToSeconds(scheduleToCloseTimeout),
-          roundUpToSeconds(scheduleToStartTimeout),
-          roundUpToSeconds(startToCloseTimeout),
+          heartbeatTimeout,
+          scheduleToCloseTimeout,
+          scheduleToStartTimeout,
+          startToCloseTimeout,
           taskList,
           RetryOptions.newBuilder(retryOptions).validateBuildWithDefaults(),
           contextPropagators,

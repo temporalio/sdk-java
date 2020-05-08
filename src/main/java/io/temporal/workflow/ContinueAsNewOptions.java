@@ -19,7 +19,6 @@
 
 package io.temporal.workflow;
 
-import io.temporal.internal.common.OptionsUtils;
 import java.time.Duration;
 
 public final class ContinueAsNewOptions {
@@ -75,10 +74,7 @@ public final class ContinueAsNewOptions {
     }
 
     public ContinueAsNewOptions build() {
-      return new ContinueAsNewOptions(
-          OptionsUtils.roundUpToSeconds(workflowRunTimeout),
-          taskList,
-          OptionsUtils.roundUpToSeconds(workflowTaskTimeout));
+      return new ContinueAsNewOptions(workflowRunTimeout, taskList, workflowTaskTimeout);
     }
   }
 

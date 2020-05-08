@@ -109,8 +109,8 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     if (input.isPresent()) {
       request.setInput(input.get());
     }
-    request.setWorkflowRunTimeoutSeconds((int) startParameters.getWorkflowRunTimeoutSeconds());
-    request.setWorkflowTaskTimeoutSeconds((int) startParameters.getWorkflowTaskTimeoutSeconds());
+    request.setWorkflowRunTimeoutSeconds(startParameters.getWorkflowRunTimeoutSeconds());
+    request.setWorkflowTaskTimeoutSeconds(startParameters.getWorkflowTaskTimeoutSeconds());
     if (startParameters.getWorkflowIdReusePolicy() != null) {
       request.setWorkflowIdReusePolicy(startParameters.getWorkflowIdReusePolicy());
     }
@@ -243,8 +243,8 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
             .setRequestId(UUID.randomUUID().toString())
             .setIdentity(identity)
             .setSignalName(parameters.getSignalName())
-            .setWorkflowRunTimeoutSeconds((int) startParameters.getWorkflowRunTimeoutSeconds())
-            .setWorkflowTaskTimeoutSeconds((int) startParameters.getWorkflowTaskTimeoutSeconds())
+            .setWorkflowRunTimeoutSeconds(startParameters.getWorkflowRunTimeoutSeconds())
+            .setWorkflowTaskTimeoutSeconds(startParameters.getWorkflowTaskTimeoutSeconds())
             .setWorkflowType(startParameters.getWorkflowType());
 
     Optional<Payloads> signalInput = parameters.getSignalInput();

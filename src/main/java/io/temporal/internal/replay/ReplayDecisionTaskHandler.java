@@ -20,6 +20,7 @@
 package io.temporal.internal.replay;
 
 import static io.temporal.internal.common.InternalUtils.createStickyTaskList;
+import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
 import com.google.common.base.Throwables;
 import io.temporal.internal.common.WorkflowExecutionUtils;
@@ -262,7 +263,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
           StickyExecutionAttributes.newBuilder()
               .setWorkerTaskList(createStickyTaskList(stickyTaskListName))
               .setScheduleToStartTimeoutSeconds(
-                  (int) stickyTaskListScheduleToStartTimeout.getSeconds());
+                  roundUpToSeconds(stickyTaskListScheduleToStartTimeout));
       completedRequest.setStickyAttributes(attributes);
     }
     return new Result(completedRequest.build(), null, null, null);

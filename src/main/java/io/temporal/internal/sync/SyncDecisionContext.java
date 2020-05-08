@@ -351,10 +351,10 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
         .withActivityType(ActivityType.newBuilder().setName(name).build())
         .withInput(input.orElse(null))
         .withTaskList(taskList)
-        .withScheduleToStartTimeoutSeconds(options.getScheduleToStartTimeout().getSeconds())
-        .withStartToCloseTimeoutSeconds(options.getStartToCloseTimeout().getSeconds())
-        .withScheduleToCloseTimeoutSeconds(options.getScheduleToCloseTimeout().getSeconds())
-        .withHeartbeatTimeoutSeconds(options.getHeartbeatTimeout().getSeconds())
+        .withScheduleToStartTimeoutSeconds(roundUpToSeconds(options.getScheduleToStartTimeout()))
+        .withStartToCloseTimeoutSeconds(roundUpToSeconds(options.getStartToCloseTimeout()))
+        .withScheduleToCloseTimeoutSeconds(roundUpToSeconds(options.getScheduleToCloseTimeout()))
+        .withHeartbeatTimeoutSeconds(roundUpToSeconds(options.getHeartbeatTimeout()))
         .withCancellationType(options.getCancellationType());
     RetryOptions retryOptions = options.getRetryOptions();
     if (retryOptions != null) {
@@ -471,11 +471,12 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
             .setWorkflowType(WorkflowType.newBuilder().setName(name).build())
             .setWorkflowId(options.getWorkflowId())
             .setInput(input.orElse(null))
-            .setWorkflowRunTimeoutSeconds(options.getWorkflowRunTimeout().getSeconds())
-            .setWorkflowExecutionTimeoutSeconds(options.getWorkflowExecutionTimeout().getSeconds())
+            .setWorkflowRunTimeoutSeconds(roundUpToSeconds(options.getWorkflowRunTimeout()))
+            .setWorkflowExecutionTimeoutSeconds(
+                roundUpToSeconds(options.getWorkflowExecutionTimeout()))
             .setNamespace(options.getNamespace())
             .setTaskList(options.getTaskList())
-            .setWorkflowTaskTimeoutSeconds(options.getWorkflowTaskTimeout().getSeconds())
+            .setWorkflowTaskTimeoutSeconds(roundUpToSeconds(options.getWorkflowTaskTimeout()))
             .setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy())
             .setRetryParameters(retryParameters)
             .setCronSchedule(options.getCronSchedule())
@@ -560,7 +561,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
   @Override
   public Promise<Void> newTimer(Duration delay) {
     Objects.requireNonNull(delay);
-    long delaySeconds = roundUpToSeconds(delay).getSeconds();
+    long delaySeconds = roundUpToSeconds(delay);
     if (delaySeconds < 0) {
       throw new IllegalArgumentException("negative delay");
     }
@@ -812,8 +813,8 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     }
     if (options.isPresent()) {
       ContinueAsNewOptions ops = options.get();
-      parameters.setWorkflowRunTimeoutSeconds((int) ops.getWorkflowRunTimeout().getSeconds());
-      parameters.setWorkflowTaskTimeoutSeconds((int) ops.getWorkflowTaskTimeout().getSeconds());
+      parameters.setWorkflowRunTimeoutSeconds(roundUpToSeconds(ops.getWorkflowRunTimeout()));
+      parameters.setWorkflowTaskTimeoutSeconds(roundUpToSeconds(ops.getWorkflowTaskTimeout()));
       parameters.setTaskList(ops.getTaskList());
     }
     parameters.setInput(getDataConverter().toData(args).orElse(null));

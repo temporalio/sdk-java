@@ -175,7 +175,7 @@ public final class ChildWorkflowOptions {
      * value is 60 seconds.
      */
     public Builder setWorkflowTaskTimeout(Duration workflowTaskTimeout) {
-      if (roundUpToSeconds(workflowTaskTimeout).getSeconds() > 60) {
+      if (roundUpToSeconds(workflowTaskTimeout) > 60) {
         throw new IllegalArgumentException(
             "WorkflowTaskTimeout over one minute: " + workflowTaskTimeout);
       }
@@ -273,9 +273,9 @@ public final class ChildWorkflowOptions {
           namespace,
           workflowId,
           workflowIdReusePolicy,
-          roundUpToSeconds(workflowRunTimeout),
-          roundUpToSeconds(workflowExecutionTimeout),
-          roundUpToSeconds(workflowTaskTimeout),
+          workflowRunTimeout,
+          workflowExecutionTimeout,
+          workflowTaskTimeout,
           taskList,
           retryOptions,
           cronSchedule,

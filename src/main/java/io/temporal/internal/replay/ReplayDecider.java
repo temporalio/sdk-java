@@ -345,8 +345,7 @@ class ReplayDecider implements Decider {
     }
     // Round up to the nearest second as we don't want to deliver a timer
     // earlier than requested.
-    long delaySeconds =
-        OptionsUtils.roundUpToSeconds(Duration.ofMillis(delayMilliseconds)).getSeconds();
+    long delaySeconds = OptionsUtils.roundUpToSeconds(Duration.ofMillis(delayMilliseconds));
     if (timerCancellationHandler != null) {
       timerCancellationHandler.accept(null);
       timerCancellationHandler = null;

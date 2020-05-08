@@ -19,6 +19,8 @@
 
 package io.temporal.internal.sync;
 
+import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
+
 import com.google.common.base.Defaults;
 import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
@@ -232,9 +234,9 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
       PollForActivityTaskResponse.Builder taskBuilder =
           PollForActivityTaskResponse.newBuilder()
               .setScheduleToCloseTimeoutSeconds(
-                  (int) options.getScheduleToCloseTimeout().getSeconds())
-              .setHeartbeatTimeoutSeconds((int) options.getHeartbeatTimeout().getSeconds())
-              .setStartToCloseTimeoutSeconds((int) options.getStartToCloseTimeout().getSeconds())
+                  roundUpToSeconds(options.getScheduleToCloseTimeout()))
+              .setHeartbeatTimeoutSeconds(roundUpToSeconds(options.getHeartbeatTimeout()))
+              .setStartToCloseTimeoutSeconds(roundUpToSeconds(options.getStartToCloseTimeout()))
               .setScheduledTimestamp(Duration.ofMillis(System.currentTimeMillis()).toNanos())
               .setStartedTimestamp(Duration.ofMillis(System.currentTimeMillis()).toNanos())
               .setTaskToken(ByteString.copyFrom("test-task-token".getBytes(StandardCharsets.UTF_8)))

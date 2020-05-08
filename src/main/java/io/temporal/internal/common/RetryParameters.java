@@ -38,10 +38,8 @@ public final class RetryParameters {
   public RetryParameters(RetryOptions retryOptions) {
     setBackoffCoefficient(retryOptions.getBackoffCoefficient());
     setMaximumAttempts(retryOptions.getMaximumAttempts());
-    setInitialIntervalInSeconds(
-        (int) roundUpToSeconds(retryOptions.getInitialInterval()).getSeconds());
-    setMaximumIntervalInSeconds(
-        (int) roundUpToSeconds(retryOptions.getMaximumInterval()).getSeconds());
+    setInitialIntervalInSeconds(roundUpToSeconds(retryOptions.getInitialInterval()));
+    setMaximumIntervalInSeconds(roundUpToSeconds(retryOptions.getMaximumInterval()));
     // Use exception type name as the reason
     List<String> reasons = new ArrayList<>();
     // Use exception type name as the reason

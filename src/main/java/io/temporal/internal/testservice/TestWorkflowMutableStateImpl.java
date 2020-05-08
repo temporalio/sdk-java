@@ -19,6 +19,7 @@
 
 package io.temporal.internal.testservice;
 
+import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 import static io.temporal.internal.testservice.RetryState.valiateAndOverrideRetryPolicy;
 import static io.temporal.internal.testservice.StateMachines.*;
 
@@ -1228,11 +1229,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
     ExecutionTime executionTime = ExecutionTime.forCron(cron);
     Optional<Duration> backoff = executionTime.timeToNextExecution(now);
-    int backoffIntervalSeconds = (int) backoff.get().getSeconds();
+    int backoffIntervalSeconds = roundUpToSeconds(backoff.get());
 
     if (backoffIntervalSeconds == 0) {
       backoff = executionTime.timeToNextExecution(now.plusSeconds(1));
-      backoffIntervalSeconds = (int) backoff.get().getSeconds() + 1;
+      backoffIntervalSeconds = roundUpToSeconds(backoff.get()) + 1;
     }
 
     ContinueAsNewWorkflowExecutionDecisionAttributes continueAsNewAttr =

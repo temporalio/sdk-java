@@ -19,8 +19,6 @@
 
 package io.temporal.client;
 
-import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
-
 import com.google.common.base.Objects;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
@@ -241,9 +239,9 @@ public final class WorkflowOptions {
       return new WorkflowOptions(
           workflowId,
           workflowIdReusePolicy,
-          roundUpToSeconds(workflowRunTimeout),
-          roundUpToSeconds(workflowExecutionTimeout),
-          roundUpToSeconds(workflowTaskTimeout),
+          workflowRunTimeout,
+          workflowExecutionTimeout,
+          workflowTaskTimeout,
           taskList,
           retryOptions,
           cronSchedule,

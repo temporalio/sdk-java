@@ -26,11 +26,13 @@ import io.temporal.proto.common.Payload;
 import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.WorkflowIdReusePolicy;
 import io.temporal.proto.common.WorkflowType;
-import java.time.Duration;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
 public final class StartWorkflowExecutionParameters {
 
@@ -42,9 +44,11 @@ public final class StartWorkflowExecutionParameters {
 
   private Optional<Payloads> input;
 
-  private long workflowRunTimeoutSeconds;
+  private int workflowRunTimeoutSeconds;
 
-  private long workflowTaskTimeoutSeconds;
+  private int workflowExecutionTimeoutSeconds;
+
+  private int workflowTaskTimeoutSeconds;
 
   private WorkflowIdReusePolicy workflowIdReusePolicy;
 
@@ -222,7 +226,7 @@ public final class StartWorkflowExecutionParameters {
    *
    * @return The value of the StartToCloseTimeout property for this object.
    */
-  public long getWorkflowRunTimeoutSeconds() {
+  public int getWorkflowRunTimeoutSeconds() {
     return workflowRunTimeoutSeconds;
   }
 
@@ -235,7 +239,7 @@ public final class StartWorkflowExecutionParameters {
    * @param workflowRunTimeoutSeconds The new value for the StartToCloseTimeout property for this
    *     object.
    */
-  public void setWorkflowRunTimeoutSeconds(long workflowRunTimeoutSeconds) {
+  public void setWorkflowRunTimeoutSeconds(int workflowRunTimeoutSeconds) {
     this.workflowRunTimeoutSeconds = workflowRunTimeoutSeconds;
   }
 
@@ -252,16 +256,30 @@ public final class StartWorkflowExecutionParameters {
    * @return A reference to this updated object so that method calls can be chained together.
    */
   public StartWorkflowExecutionParameters withWorkflowRunTimeoutSeconds(
-      long workflowRunTimeoutSeconds) {
+      int workflowRunTimeoutSeconds) {
     this.workflowRunTimeoutSeconds = workflowRunTimeoutSeconds;
     return this;
   }
 
-  public long getWorkflowTaskTimeoutSeconds() {
+  public int getWorkflowExecutionTimeoutSeconds() {
+    return workflowExecutionTimeoutSeconds;
+  }
+
+  public void setWorkflowExecutionTimeoutSeconds(int workflowExecutionTimeoutSeconds) {
+    this.workflowExecutionTimeoutSeconds = workflowExecutionTimeoutSeconds;
+  }
+
+  public StartWorkflowExecutionParameters withWorkflowExecutionTimeoutSeconds(
+      int workflowExecutionTimeoutSeconds) {
+    this.workflowExecutionTimeoutSeconds = workflowExecutionTimeoutSeconds;
+    return this;
+  }
+
+  public int getWorkflowTaskTimeoutSeconds() {
     return workflowTaskTimeoutSeconds;
   }
 
-  public void setWorkflowTaskTimeoutSeconds(long workflowTaskTimeoutSeconds) {
+  public void setWorkflowTaskTimeoutSeconds(int workflowTaskTimeoutSeconds) {
     this.workflowTaskTimeoutSeconds = workflowTaskTimeoutSeconds;
   }
 
@@ -270,7 +288,7 @@ public final class StartWorkflowExecutionParameters {
     this.workflowTaskTimeoutSeconds = workflowTaskTimeoutSeconds;
     return this;
   }
-
+x
   public RetryParameters getRetryParameters() {
     return retryParameters;
   }
@@ -318,16 +336,18 @@ public final class StartWorkflowExecutionParameters {
 
   public static StartWorkflowExecutionParameters fromWorkflowOptions(WorkflowOptions options) {
     StartWorkflowExecutionParameters parameters = new StartWorkflowExecutionParameters();
-    parameters.setWorkflowRunTimeoutSeconds(getSeconds(options.getWorkflowRunTimeout()));
-    parameters.setWorkflowTaskTimeoutSeconds(getSeconds(options.getWorkflowTaskTimeout()));
+    parameters.setWorkflowRunTimeoutSeconds(roundUpToSeconds(options.getWorkflowRunTimeout()));
+    parameters.setWorkflowRunTimeoutSeconds(
+        roundUpToSeconds(options.getWorkflowExecutionTimeout()));
+    parameters.setWorkflowTaskTimeoutSeconds(roundUpToSeconds(options.getWorkflowTaskTimeout()));
     parameters.setTaskList(options.getTaskList());
     parameters.setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy());
     RetryOptions retryOptions = options.getRetryOptions();
     if (retryOptions != null) {
       RetryParameters rp = new RetryParameters();
       rp.setBackoffCoefficient(retryOptions.getBackoffCoefficient());
-      rp.setInitialIntervalInSeconds(getSeconds(retryOptions.getInitialInterval()));
-      rp.setMaximumIntervalInSeconds(getSeconds(retryOptions.getMaximumInterval()));
+      rp.setInitialIntervalInSeconds(roundUpToSeconds(retryOptions.getInitialInterval()));
+      rp.setMaximumIntervalInSeconds(roundUpToSeconds(retryOptions.getMaximumInterval()));
       rp.setMaximumAttempts(retryOptions.getMaximumAttempts());
       List<String> reasons = new ArrayList<>();
       // Use exception type name as the reason
@@ -345,13 +365,6 @@ public final class StartWorkflowExecutionParameters {
       parameters.setCronSchedule(options.getCronSchedule());
     }
     return parameters;
-  }
-
-  private static int getSeconds(Duration expiration) {
-    if (expiration == null) {
-      return 0;
-    }
-    return (int) expiration.getSeconds();
   }
 
   @Override
