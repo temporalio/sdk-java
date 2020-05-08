@@ -573,11 +573,6 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
 
     @Override
-    public int getWorkflowRunTimeoutSeconds() {
-      throw new UnsupportedOperationException("not implemented");
-    }
-
-    @Override
     public String getTaskList() {
       return "dummy-task-list";
     }

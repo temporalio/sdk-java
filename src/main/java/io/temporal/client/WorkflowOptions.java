@@ -170,9 +170,7 @@ public final class WorkflowOptions {
       return this;
     }
 
-    /**
-     * Maximum execution time of a single decision task. Default is 10 seconds.
-     */
+    /** Maximum execution time of a single decision task. Default is 10 seconds. */
     public Builder setWorkflowTaskTimeout(Duration workflowTaskTimeout) {
       this.workflowTaskTimeout = workflowTaskTimeout;
       return this;

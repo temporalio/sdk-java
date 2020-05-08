@@ -53,7 +53,6 @@ import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -502,14 +501,12 @@ class ReplayDecider implements Decider {
           } else {
             message = e.toString();
           }
-
-          ByteString answer = ByteString.copyFrom(stackTrace, StandardCharsets.UTF_8);
           queryResults.put(
               entry.getKey(),
               WorkflowQueryResult.newBuilder()
                   .setResultType(QueryResultType.Failed)
                   .setErrorMessage(message)
-                  .setAnswer(converter.toData(answer).get())
+                  .setAnswer(converter.toData(stackTrace).get())
                   .build());
         }
       }

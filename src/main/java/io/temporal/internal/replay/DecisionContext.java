@@ -59,8 +59,6 @@ public interface DecisionContext extends ReplayAware {
 
   String getContinuedExecutionRunId();
 
-  int getWorkflowRunTimeoutSeconds();
-
   String getTaskList();
 
   String getNamespace();

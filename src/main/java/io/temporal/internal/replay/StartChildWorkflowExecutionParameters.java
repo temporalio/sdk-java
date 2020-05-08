@@ -37,6 +37,8 @@ public final class StartChildWorkflowExecutionParameters {
 
     private long workflowRunTimeoutSeconds;
 
+    private long workflowExecutionTimeoutSeconds;
+
     private Payloads input;
 
     private String taskList;
@@ -66,6 +68,11 @@ public final class StartChildWorkflowExecutionParameters {
 
     public Builder setWorkflowRunTimeoutSeconds(long workflowRunTimeoutSeconds) {
       this.workflowRunTimeoutSeconds = workflowRunTimeoutSeconds;
+      return this;
+    }
+
+    public Builder setWorkflowExecutionTimeoutSeconds(long workflowExecutionTimeoutSeconds) {
+      this.workflowExecutionTimeoutSeconds = workflowExecutionTimeoutSeconds;
       return this;
     }
 
@@ -129,6 +136,7 @@ public final class StartChildWorkflowExecutionParameters {
           namespace,
           input,
           workflowRunTimeoutSeconds,
+          workflowExecutionTimeoutSeconds,
           taskList,
           workflowTaskTimeoutSeconds,
           workflowId,
@@ -145,6 +153,8 @@ public final class StartChildWorkflowExecutionParameters {
   private final String namespace;
 
   private final long workflowRunTimeoutSeconds;
+
+  private final long workflowExecutionTimeoutSeconds;
 
   private final Payloads input;
 
@@ -172,6 +182,7 @@ public final class StartChildWorkflowExecutionParameters {
       String namespace,
       Payloads input,
       long workflowRunTimeoutSeconds,
+      long workflowExecutionTimeoutSeconds,
       String taskList,
       long workflowTaskTimeoutSeconds,
       String workflowId,
@@ -185,6 +196,7 @@ public final class StartChildWorkflowExecutionParameters {
     this.namespace = namespace;
     this.input = input;
     this.workflowRunTimeoutSeconds = workflowRunTimeoutSeconds;
+    this.workflowExecutionTimeoutSeconds = workflowExecutionTimeoutSeconds;
     this.taskList = taskList;
     this.workflowTaskTimeoutSeconds = workflowTaskTimeoutSeconds;
     this.workflowId = workflowId;
@@ -203,6 +215,10 @@ public final class StartChildWorkflowExecutionParameters {
 
   public long getWorkflowRunTimeoutSeconds() {
     return workflowRunTimeoutSeconds;
+  }
+
+  public long getWorkflowExecutionTimeoutSeconds() {
+    return workflowExecutionTimeoutSeconds;
   }
 
   public Payloads getInput() {
@@ -255,8 +271,8 @@ public final class StartChildWorkflowExecutionParameters {
     if (o == null || getClass() != o.getClass()) return false;
     StartChildWorkflowExecutionParameters that = (StartChildWorkflowExecutionParameters) o;
     return workflowRunTimeoutSeconds == that.workflowRunTimeoutSeconds
+        && workflowExecutionTimeoutSeconds == that.workflowExecutionTimeoutSeconds
         && workflowTaskTimeoutSeconds == that.workflowTaskTimeoutSeconds
-        && cancellationType == that.cancellationType
         && Objects.equal(namespace, that.namespace)
         && Objects.equal(input, that.input)
         && Objects.equal(taskList, that.taskList)
@@ -266,7 +282,8 @@ public final class StartChildWorkflowExecutionParameters {
         && Objects.equal(retryParameters, that.retryParameters)
         && Objects.equal(cronSchedule, that.cronSchedule)
         && Objects.equal(context, that.context)
-        && parentClosePolicy == that.parentClosePolicy;
+        && parentClosePolicy == that.parentClosePolicy
+        && cancellationType == that.cancellationType;
   }
 
   @Override
@@ -274,6 +291,7 @@ public final class StartChildWorkflowExecutionParameters {
     return Objects.hashCode(
         namespace,
         workflowRunTimeoutSeconds,
+        workflowExecutionTimeoutSeconds,
         input,
         taskList,
         workflowTaskTimeoutSeconds,
@@ -295,6 +313,8 @@ public final class StartChildWorkflowExecutionParameters {
         + '\''
         + ", workflowRunTimeoutSeconds="
         + workflowRunTimeoutSeconds
+        + ", workflowExecutionTimeoutSeconds="
+        + workflowExecutionTimeoutSeconds
         + ", input="
         + input
         + ", taskList='"

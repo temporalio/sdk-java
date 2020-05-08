@@ -142,14 +142,14 @@ final class WorkflowDecisionContext {
     if (parameters.getInput() != null) {
       attributes.setInput(parameters.getInput());
     }
-    if (parameters.getWorkflowRunTimeoutSeconds() == 0) {
-      attributes.setWorkflowRunTimeoutSeconds(workflowContext.getWorkflowRunTimeoutSeconds());
-    } else {
+    if (parameters.getWorkflowRunTimeoutSeconds() > 0) {
       attributes.setWorkflowRunTimeoutSeconds((int) parameters.getWorkflowRunTimeoutSeconds());
     }
-    if (parameters.getWorkflowTaskTimeoutSeconds() == 0) {
-      attributes.setWorkflowTaskTimeoutSeconds(workflowContext.getDecisionTaskTimeoutSeconds());
-    } else {
+    if (parameters.getWorkflowExecutionTimeoutSeconds() > 0) {
+      attributes.setWorkflowExecutionTimeoutSeconds(
+          (int) parameters.getWorkflowExecutionTimeoutSeconds());
+    }
+    if (parameters.getWorkflowTaskTimeoutSeconds() > 0) {
       attributes.setWorkflowTaskTimeoutSeconds((int) parameters.getWorkflowTaskTimeoutSeconds());
     }
     String taskList = parameters.getTaskList();

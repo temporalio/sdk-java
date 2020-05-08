@@ -145,11 +145,6 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   }
 
   @Override
-  public int getWorkflowRunTimeoutSeconds() {
-    return workflowContext.getWorkflowRunTimeoutSeconds();
-  }
-
-  @Override
   public Duration getDecisionTaskTimeout() {
     return Duration.ofSeconds(workflowContext.getDecisionTaskTimeoutSeconds());
   }
