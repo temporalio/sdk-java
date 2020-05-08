@@ -19,6 +19,8 @@
 
 package io.temporal.internal.common;
 
+import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
+
 import com.google.common.base.Objects;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
@@ -26,13 +28,10 @@ import io.temporal.proto.common.Payload;
 import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.WorkflowIdReusePolicy;
 import io.temporal.proto.common.WorkflowType;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-
-import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
 public final class StartWorkflowExecutionParameters {
 
@@ -288,7 +287,7 @@ public final class StartWorkflowExecutionParameters {
     this.workflowTaskTimeoutSeconds = workflowTaskTimeoutSeconds;
     return this;
   }
-x
+
   public RetryParameters getRetryParameters() {
     return retryParameters;
   }
