@@ -638,17 +638,16 @@ class ReplayDecider implements Decider {
     private final Duration retryServiceOperationInitialInterval = Duration.ofMillis(200);
     private final Duration retryServiceOperationMaxInterval = Duration.ofSeconds(4);
     private final Duration paginationStart = Duration.ofMillis(System.currentTimeMillis());
-    private Duration decisionTaskStartToCloseTimeout;
+    private Duration decisionWorkflowTaskTimeout;
 
     private final PollForDecisionTaskResponseOrBuilder task;
     private Iterator<HistoryEvent> current;
     private ByteString nextPageToken;
 
     DecisionTaskWithHistoryIteratorImpl(
-        PollForDecisionTaskResponseOrBuilder task, Duration decisionTaskStartToCloseTimeout) {
+        PollForDecisionTaskResponseOrBuilder task, Duration decisionWorkflowTaskTimeout) {
       this.task = Objects.requireNonNull(task);
-      this.decisionTaskStartToCloseTimeout =
-          Objects.requireNonNull(decisionTaskStartToCloseTimeout);
+      this.decisionWorkflowTaskTimeout = Objects.requireNonNull(decisionWorkflowTaskTimeout);
 
       History history = task.getHistory();
       current = history.getEventsList().iterator();
@@ -682,7 +681,7 @@ class ReplayDecider implements Decider {
           metricsScope.counter(MetricsType.WORKFLOW_GET_HISTORY_COUNTER).inc(1);
           Stopwatch sw = metricsScope.timer(MetricsType.WORKFLOW_GET_HISTORY_LATENCY).start();
           Duration passed = Duration.ofMillis(System.currentTimeMillis()).minus(paginationStart);
-          Duration expiration = decisionTaskStartToCloseTimeout.minus(passed);
+          Duration expiration = decisionWorkflowTaskTimeout.minus(passed);
           if (expiration.isZero() || expiration.isNegative()) {
             throw Status.DEADLINE_EXCEEDED
                 .withDescription(

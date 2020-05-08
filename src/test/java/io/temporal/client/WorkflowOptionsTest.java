@@ -126,7 +126,7 @@ public class WorkflowOptionsTest {
         ChildWorkflowOptions.newBuilder()
             .setTaskList("foo")
             .setWorkflowRunTimeout(Duration.ofSeconds(321))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(13))
             .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
             .setWorkflowId("bar")
             .setRetryOptions(retryOptions)

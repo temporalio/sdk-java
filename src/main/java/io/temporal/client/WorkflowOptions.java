@@ -61,7 +61,7 @@ public final class WorkflowOptions {
     return WorkflowOptions.newBuilder()
         .setWorkflowIdReusePolicy(o.getWorkflowIdReusePolicy())
         .setWorkflowId(o.getWorkflowId())
-        .setWorkflowTaskTimeout(o.getTaskStartToCloseTimeout())
+        .setWorkflowTaskTimeout(o.getWorkflowTaskTimeout())
         .setWorkflowRunTimeout(o.getWorkflowRunTimeout())
         .setWorkflowExecutionTimeout(o.getWorkflowExecutionTimeout())
         .setTaskList(o.getTaskList())
@@ -105,7 +105,7 @@ public final class WorkflowOptions {
       }
       this.workflowIdReusePolicy = options.workflowIdReusePolicy;
       this.workflowId = options.workflowId;
-      this.workflowTaskTimeout = options.taskStartToCloseTimeout;
+      this.workflowTaskTimeout = options.workflowTaskTimeout;
       this.workflowRunTimeout = options.workflowRunTimeout;
       this.workflowExecutionTimeout = options.workflowExecutionTimeout;
       this.taskList = options.taskList;
@@ -171,14 +171,9 @@ public final class WorkflowOptions {
     }
 
     /**
-     * Maximum execution time of a single decision task. Default is 10 seconds. Maximum accepted
-     * value is 60 seconds.
+     * Maximum execution time of a single decision task. Default is 10 seconds.
      */
     public Builder setWorkflowTaskTimeout(Duration workflowTaskTimeout) {
-      if (roundUpToSeconds(workflowTaskTimeout).getSeconds() > 60) {
-        throw new IllegalArgumentException(
-            "TaskStartToCloseTimeout over one minute: " + workflowTaskTimeout);
-      }
       this.workflowTaskTimeout = workflowTaskTimeout;
       return this;
     }
@@ -268,7 +263,7 @@ public final class WorkflowOptions {
 
   private final Duration workflowExecutionTimeout;
 
-  private final Duration taskStartToCloseTimeout;
+  private final Duration workflowTaskTimeout;
 
   private final String taskList;
 
@@ -287,7 +282,7 @@ public final class WorkflowOptions {
       WorkflowIdReusePolicy workflowIdReusePolicy,
       Duration workflowRunTimeout,
       Duration workflowExecutionTimeout,
-      Duration taskStartToCloseTimeout,
+      Duration workflowTaskTimeout,
       String taskList,
       RetryOptions retryOptions,
       String cronSchedule,
@@ -298,7 +293,7 @@ public final class WorkflowOptions {
     this.workflowIdReusePolicy = workflowIdReusePolicy;
     this.workflowRunTimeout = workflowRunTimeout;
     this.workflowExecutionTimeout = workflowExecutionTimeout;
-    this.taskStartToCloseTimeout = taskStartToCloseTimeout;
+    this.workflowTaskTimeout = workflowTaskTimeout;
     this.taskList = taskList;
     this.retryOptions = retryOptions;
     this.cronSchedule = cronSchedule;
@@ -323,8 +318,8 @@ public final class WorkflowOptions {
     return workflowExecutionTimeout;
   }
 
-  public Duration getTaskStartToCloseTimeout() {
-    return taskStartToCloseTimeout;
+  public Duration getWorkflowTaskTimeout() {
+    return workflowTaskTimeout;
   }
 
   public String getTaskList() {
@@ -364,7 +359,7 @@ public final class WorkflowOptions {
         && workflowIdReusePolicy == that.workflowIdReusePolicy
         && Objects.equal(workflowRunTimeout, that.workflowRunTimeout)
         && Objects.equal(workflowExecutionTimeout, that.workflowExecutionTimeout)
-        && Objects.equal(taskStartToCloseTimeout, that.taskStartToCloseTimeout)
+        && Objects.equal(workflowTaskTimeout, that.workflowTaskTimeout)
         && Objects.equal(taskList, that.taskList)
         && Objects.equal(retryOptions, that.retryOptions)
         && Objects.equal(cronSchedule, that.cronSchedule)
@@ -380,7 +375,7 @@ public final class WorkflowOptions {
         workflowIdReusePolicy,
         workflowRunTimeout,
         workflowExecutionTimeout,
-        taskStartToCloseTimeout,
+        workflowTaskTimeout,
         taskList,
         retryOptions,
         cronSchedule,
@@ -401,8 +396,8 @@ public final class WorkflowOptions {
         + workflowRunTimeout
         + ", workflowExecutionTimeout="
         + workflowExecutionTimeout
-        + ", taskStartToCloseTimeout="
-        + taskStartToCloseTimeout
+        + ", workflowTaskTimeout="
+        + workflowTaskTimeout
         + ", taskList='"
         + taskList
         + '\''

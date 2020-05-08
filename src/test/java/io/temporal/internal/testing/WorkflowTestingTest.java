@@ -508,7 +508,6 @@ public class WorkflowTestingTest {
     CompletableFuture<String> result = WorkflowClient.execute(workflow::workflow1, "input1");
     workflow.ProcessSignal("signalInput");
     assertEquals("signalInput-input1", result.get());
-    log.info(testEnvironment.getDiagnostics());
   }
 
   @ActivityInterface

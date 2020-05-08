@@ -66,7 +66,7 @@ public final class ChildWorkflowOptions {
 
     private Duration workflowExecutionTimeout;
 
-    private Duration taskStartToCloseTimeout;
+    private Duration workflowTaskTimeout;
 
     private String taskList;
 
@@ -95,7 +95,7 @@ public final class ChildWorkflowOptions {
       this.workflowIdReusePolicy = options.getWorkflowIdReusePolicy();
       this.workflowRunTimeout = options.getWorkflowRunTimeout();
       this.workflowExecutionTimeout = options.getWorkflowExecutionTimeout();
-      this.taskStartToCloseTimeout = options.getTaskStartToCloseTimeout();
+      this.workflowTaskTimeout = options.getWorkflowTaskTimeout();
       this.taskList = options.getTaskList();
       this.retryOptions = options.getRetryOptions();
       this.cronSchedule = options.getCronSchedule();
@@ -174,12 +174,12 @@ public final class ChildWorkflowOptions {
      * Maximum execution time of a single decision task. Default is 10 seconds. Maximum accepted
      * value is 60 seconds.
      */
-    public Builder setTaskStartToCloseTimeout(Duration taskStartToCloseTimeout) {
-      if (roundUpToSeconds(taskStartToCloseTimeout).getSeconds() > 60) {
+    public Builder setWorkflowTaskTimeout(Duration workflowTaskTimeout) {
+      if (roundUpToSeconds(workflowTaskTimeout).getSeconds() > 60) {
         throw new IllegalArgumentException(
-            "TaskStartToCloseTimeout over one minute: " + taskStartToCloseTimeout);
+            "WorkflowTaskTimeout over one minute: " + workflowTaskTimeout);
       }
-      this.taskStartToCloseTimeout = taskStartToCloseTimeout;
+      this.workflowTaskTimeout = workflowTaskTimeout;
       return this;
     }
 
@@ -257,7 +257,7 @@ public final class ChildWorkflowOptions {
           workflowIdReusePolicy,
           workflowRunTimeout,
           workflowExecutionTimeout,
-          taskStartToCloseTimeout,
+          workflowTaskTimeout,
           taskList,
           retryOptions,
           cronSchedule,
@@ -275,7 +275,7 @@ public final class ChildWorkflowOptions {
           workflowIdReusePolicy,
           roundUpToSeconds(workflowRunTimeout),
           roundUpToSeconds(workflowExecutionTimeout),
-          roundUpToSeconds(taskStartToCloseTimeout),
+          roundUpToSeconds(workflowTaskTimeout),
           taskList,
           retryOptions,
           cronSchedule,
@@ -299,7 +299,7 @@ public final class ChildWorkflowOptions {
 
   private final Duration workflowExecutionTimeout;
 
-  private final Duration taskStartToCloseTimeout;
+  private final Duration workflowTaskTimeout;
 
   private final String taskList;
 
@@ -323,7 +323,7 @@ public final class ChildWorkflowOptions {
       WorkflowIdReusePolicy workflowIdReusePolicy,
       Duration workflowRunTimeout,
       Duration workflowExecutionTimeout,
-      Duration taskStartToCloseTimeout,
+      Duration workflowTaskTimeout,
       String taskList,
       RetryOptions retryOptions,
       String cronSchedule,
@@ -337,7 +337,7 @@ public final class ChildWorkflowOptions {
     this.workflowIdReusePolicy = workflowIdReusePolicy;
     this.workflowRunTimeout = workflowRunTimeout;
     this.workflowExecutionTimeout = workflowExecutionTimeout;
-    this.taskStartToCloseTimeout = taskStartToCloseTimeout;
+    this.workflowTaskTimeout = workflowTaskTimeout;
     this.taskList = taskList;
     this.retryOptions = retryOptions;
     this.cronSchedule = cronSchedule;
@@ -368,8 +368,8 @@ public final class ChildWorkflowOptions {
     return workflowExecutionTimeout;
   }
 
-  public Duration getTaskStartToCloseTimeout() {
-    return taskStartToCloseTimeout;
+  public Duration getWorkflowTaskTimeout() {
+    return workflowTaskTimeout;
   }
 
   public String getTaskList() {
@@ -418,7 +418,7 @@ public final class ChildWorkflowOptions {
         && workflowIdReusePolicy == that.workflowIdReusePolicy
         && Objects.equal(workflowRunTimeout, that.workflowRunTimeout)
         && Objects.equal(workflowExecutionTimeout, that.workflowExecutionTimeout)
-        && Objects.equal(taskStartToCloseTimeout, that.taskStartToCloseTimeout)
+        && Objects.equal(workflowTaskTimeout, that.workflowTaskTimeout)
         && Objects.equal(taskList, that.taskList)
         && Objects.equal(retryOptions, that.retryOptions)
         && Objects.equal(cronSchedule, that.cronSchedule)
@@ -437,7 +437,7 @@ public final class ChildWorkflowOptions {
         workflowIdReusePolicy,
         workflowRunTimeout,
         workflowExecutionTimeout,
-        taskStartToCloseTimeout,
+        workflowTaskTimeout,
         taskList,
         retryOptions,
         cronSchedule,
@@ -463,8 +463,8 @@ public final class ChildWorkflowOptions {
         + workflowRunTimeout
         + ", workflowExecutionTimeout="
         + workflowExecutionTimeout
-        + ", taskStartToCloseTimeout="
-        + taskStartToCloseTimeout
+        + ", workflowTaskTimeout="
+        + workflowTaskTimeout
         + ", taskList='"
         + taskList
         + '\''

@@ -424,7 +424,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
           ChildWorkflowOptions.newBuilder()
               .setTaskList(options.getTaskList())
               .setWorkflowRunTimeout(options.getWorkflowRunTimeout())
-              .setTaskStartToCloseTimeout(options.getTaskStartToCloseTimeout())
+              .setWorkflowTaskTimeout(options.getWorkflowTaskTimeout())
               .setWorkflowId(options.getWorkflowId())
               .setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy())
               .setParentClosePolicy(options.getParentClosePolicy())
@@ -474,7 +474,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
             .setWorkflowRunTimeoutSeconds(options.getWorkflowRunTimeout().getSeconds())
             .setNamespace(options.getNamespace())
             .setTaskList(options.getTaskList())
-            .setWorkflowTaskTimeoutSeconds(options.getTaskStartToCloseTimeout().getSeconds())
+            .setWorkflowTaskTimeoutSeconds(options.getWorkflowTaskTimeout().getSeconds())
             .setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy())
             .setRetryParameters(retryParameters)
             .setCronSchedule(options.getCronSchedule())
@@ -812,7 +812,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     if (options.isPresent()) {
       ContinueAsNewOptions ops = options.get();
       parameters.setWorkflowRunTimeoutSeconds((int) ops.getWorkflowRunTimeout().getSeconds());
-      parameters.setWorkflowTaskTimeoutSeconds((int) ops.getTaskStartToCloseTimeout().getSeconds());
+      parameters.setWorkflowTaskTimeoutSeconds((int) ops.getWorkflowTaskTimeout().getSeconds());
       parameters.setTaskList(ops.getTaskList());
     }
     parameters.setInput(getDataConverter().toData(args).orElse(null));

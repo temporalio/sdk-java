@@ -154,7 +154,7 @@ class StateMachines {
   }
 
   static final class WorkflowData {
-    Optional<RetryState> retryState = Optional.empty();
+    Optional<RetryState> retryState;
     int backoffStartIntervalInSeconds;
     String cronSchedule;
     Payloads lastCompletionResult;
@@ -313,6 +313,10 @@ class StateMachines {
           + ", nextBackoffIntervalSeconds="
           + nextBackoffIntervalSeconds
           + '}';
+    }
+
+    public int getAttempt() {
+      return retryState != null ? retryState.getAttempt() : 0;
     }
   }
 
@@ -1228,9 +1232,7 @@ class StateMachines {
         ActivityTaskStartedEventAttributes.newBuilder()
             .setIdentity(request.getIdentity())
             .setScheduledEventId(data.scheduledEventId);
-    if (data.retryState != null) {
-      a.setAttempt(data.retryState.getAttempt());
-    }
+    a.setAttempt(data.getAttempt());
     // Setting timestamp here as the default logic will set it to the time when it is added to the
     // history. But in the case of retry it happens only after an activity completion.
     long timestamp = TimeUnit.MILLISECONDS.toNanos(data.store.currentTimeMillis());

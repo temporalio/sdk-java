@@ -279,8 +279,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     String callerInfo = "Decision Update from " + caller;
     lock.lock();
     LockHandle lockHandle = selfAdvancingTimer.lockTimeSkipping(callerInfo);
-
     try {
+      if (isTerminalState()) {
+        throw Status.NOT_FOUND.withDescription("Completed workflow").asRuntimeException();
+      }
       boolean concurrentDecision =
           !completeDecisionUpdate && (decision.getState() == StateMachines.State.STARTED);
 
@@ -699,13 +701,16 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     activities.put(activityId, activity);
     activity.action(StateMachines.Action.INITIATE, ctx, a, decisionTaskCompletedId);
     ActivityTaskScheduledEventAttributes scheduledEvent = activity.getData().scheduledEvent;
+    int attempt = activity.getData().getAttempt();
     ctx.addTimer(
         scheduledEvent.getScheduleToCloseTimeoutSeconds(),
-        () -> timeoutActivity(activityId, TimeoutType.ScheduleToClose),
+        () -> {
+          timeoutActivity(activityId, TimeoutType.ScheduleToClose, attempt);
+        },
         "Activity ScheduleToCloseTimeout");
     ctx.addTimer(
         scheduledEvent.getScheduleToStartTimeoutSeconds(),
-        () -> timeoutActivity(activityId, TimeoutType.ScheduleToStart),
+        () -> timeoutActivity(activityId, TimeoutType.ScheduleToStart, attempt),
         "Activity ScheduleToStartTimeout");
     ctx.lockTimer();
   }
@@ -1424,7 +1429,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           if (startToCloseTimeout > 0) {
             ctx.addTimer(
                 startToCloseTimeout,
-                () -> timeoutActivity(activityId, TimeoutType.StartToClose),
+                () -> timeoutActivity(activityId, TimeoutType.StartToClose, data.getAttempt()),
                 "Activity StartToCloseTimeout");
           }
           updateHeartbeatTimer(ctx, activityId, activity, startToCloseTimeout, heartbeatTimeout);
@@ -1461,10 +1466,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       int startToCloseTimeout,
       int heartbeatTimeout) {
     if (heartbeatTimeout > 0 && heartbeatTimeout < startToCloseTimeout) {
-      activity.getData().lastHeartbeatTime = clock.getAsLong();
+      ActivityTaskData data = activity.getData();
+      data.lastHeartbeatTime = clock.getAsLong();
       ctx.addTimer(
           heartbeatTimeout,
-          () -> timeoutActivity(activityId, TimeoutType.Heartbeat),
+          () -> timeoutActivity(activityId, TimeoutType.Heartbeat, data.getAttempt()),
           "Activity Heartbeat Timeout");
     }
   }
@@ -1513,12 +1519,12 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   private void addActivityRetryTimer(RequestContext ctx, StateMachine<ActivityTaskData> activity) {
     ActivityTaskData data = activity.getData();
-    int attempt = data.retryState.getAttempt();
+    int attempt = data.getAttempt();
     ctx.addTimer(
         data.nextBackoffIntervalSeconds,
         () -> {
           // Timers are not removed, so skip if it is not for this attempt.
-          if (activity.getState() != State.INITIATED && data.retryState.getAttempt() != attempt) {
+          if (activity.getState() != State.INITIATED && data.getAttempt() != attempt) {
             return;
           }
           selfAdvancingTimer.lockTimeSkipping(
@@ -1613,12 +1619,16 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     return result.get();
   }
 
-  private void timeoutActivity(String activityId, TimeoutType timeoutType) {
+  private void timeoutActivity(String activityId, TimeoutType timeoutType, int timeoutAttempt) {
     boolean unlockTimer = true;
     try {
       update(
           ctx -> {
             StateMachine<ActivityTaskData> activity = getActivity(activityId);
+            int attempt = activity.getData().getAttempt();
+            if (timeoutAttempt != attempt) {
+              throw Status.NOT_FOUND.withDescription("Outdated timer").asRuntimeException();
+            }
             if (timeoutType == TimeoutType.ScheduleToStart
                 && activity.getState() != StateMachines.State.INITIATED) {
               throw Status.INTERNAL.withDescription("Not in INITIATED").asRuntimeException();
@@ -1629,7 +1639,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   TimeUnit.SECONDS.toMillis(
                       activity.getData().scheduledEvent.getHeartbeatTimeoutSeconds());
               if (clock.getAsLong() - activity.getData().lastHeartbeatTime < heartbeatTimeout) {
-                throw Status.NOT_FOUND.withDescription("Outdated timer").asRuntimeException();
+                throw Status.INTERNAL.withDescription("Timer fired earlier").asRuntimeException();
               }
             }
             activity.action(StateMachines.Action.TIME_OUT, ctx, timeoutType, 0);

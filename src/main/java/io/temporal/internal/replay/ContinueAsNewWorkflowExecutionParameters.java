@@ -98,7 +98,7 @@ public final class ContinueAsNewWorkflowExecutionParameters {
     sb.append("{");
     sb.append("Input: " + String.valueOf(input).substring(0, 512) + ", ");
     sb.append("WorkflowRunTimeout: " + workflowRunTimeoutSeconds + ", ");
-    sb.append("TaskStartToCloseTimeout: " + workflowTaskTimeoutSeconds + ", ");
+    sb.append("WorkflowTaskTimeout: " + workflowTaskTimeoutSeconds + ", ");
     sb.append("TaskList: " + taskList + ", ");
     sb.append("}");
     return sb.toString();

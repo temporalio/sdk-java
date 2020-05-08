@@ -46,7 +46,7 @@ public final class ContinueAsNewOptions {
 
     private Duration workflowRunTimeout;
     private String taskList;
-    private Duration taskStartToCloseTimeout;
+    private Duration workflowTaskTimeout;
 
     private Builder() {}
 
@@ -56,7 +56,7 @@ public final class ContinueAsNewOptions {
       }
       this.workflowRunTimeout = options.workflowRunTimeout;
       this.taskList = options.taskList;
-      this.taskStartToCloseTimeout = options.taskStartToCloseTimeout;
+      this.workflowTaskTimeout = options.workflowTaskTimeout;
     }
 
     public Builder setWorkflowRunTimeout(Duration workflowRunTimeout) {
@@ -69,8 +69,8 @@ public final class ContinueAsNewOptions {
       return this;
     }
 
-    public Builder setTaskStartToCloseTimeout(Duration taskStartToCloseTimeout) {
-      this.taskStartToCloseTimeout = taskStartToCloseTimeout;
+    public Builder setWorkflowTaskTimeout(Duration workflowTaskTimeout) {
+      this.workflowTaskTimeout = workflowTaskTimeout;
       return this;
     }
 
@@ -78,19 +78,19 @@ public final class ContinueAsNewOptions {
       return new ContinueAsNewOptions(
           OptionsUtils.roundUpToSeconds(workflowRunTimeout),
           taskList,
-          OptionsUtils.roundUpToSeconds(taskStartToCloseTimeout));
+          OptionsUtils.roundUpToSeconds(workflowTaskTimeout));
     }
   }
 
   private final Duration workflowRunTimeout;
   private final String taskList;
-  private final Duration taskStartToCloseTimeout;
+  private final Duration workflowTaskTimeout;
 
   public ContinueAsNewOptions(
-      Duration workflowRunTimeout, String taskList, Duration taskStartToCloseTimeout) {
+      Duration workflowRunTimeout, String taskList, Duration workflowTaskTimeout) {
     this.workflowRunTimeout = workflowRunTimeout;
     this.taskList = taskList;
-    this.taskStartToCloseTimeout = taskStartToCloseTimeout;
+    this.workflowTaskTimeout = workflowTaskTimeout;
   }
 
   public Duration getWorkflowRunTimeout() {
@@ -101,7 +101,7 @@ public final class ContinueAsNewOptions {
     return taskList;
   }
 
-  public Duration getTaskStartToCloseTimeout() {
-    return taskStartToCloseTimeout;
+  public Duration getWorkflowTaskTimeout() {
+    return workflowTaskTimeout;
   }
 }

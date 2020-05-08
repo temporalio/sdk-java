@@ -319,7 +319,7 @@ public final class StartWorkflowExecutionParameters {
   public static StartWorkflowExecutionParameters fromWorkflowOptions(WorkflowOptions options) {
     StartWorkflowExecutionParameters parameters = new StartWorkflowExecutionParameters();
     parameters.setWorkflowRunTimeoutSeconds(getSeconds(options.getWorkflowRunTimeout()));
-    parameters.setWorkflowTaskTimeoutSeconds(getSeconds(options.getTaskStartToCloseTimeout()));
+    parameters.setWorkflowTaskTimeoutSeconds(getSeconds(options.getWorkflowTaskTimeout()));
     parameters.setTaskList(options.getTaskList());
     parameters.setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy());
     RetryOptions retryOptions = options.getRetryOptions();

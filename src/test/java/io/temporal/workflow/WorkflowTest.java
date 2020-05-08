@@ -1949,7 +1949,7 @@ public class WorkflowTest {
       ChildWorkflowOptions workflowOptions =
           ChildWorkflowOptions.newBuilder()
               .setWorkflowRunTimeout(Duration.ofSeconds(100))
-              .setTaskStartToCloseTimeout(Duration.ofSeconds(60))
+              .setWorkflowTaskTimeout(Duration.ofSeconds(60))
               .setTaskList(taskList)
               .build();
 
@@ -3107,7 +3107,7 @@ public class WorkflowTest {
       ChildWorkflowOptions options =
           ChildWorkflowOptions.newBuilder()
               .setWorkflowRunTimeout(Duration.ofSeconds(500))
-              .setTaskStartToCloseTimeout(Duration.ofSeconds(2))
+              .setWorkflowTaskTimeout(Duration.ofSeconds(2))
               .setTaskList(taskList)
               .setRetryOptions(
                   RetryOptions.newBuilder()
@@ -3436,7 +3436,7 @@ public class WorkflowTest {
       ChildWorkflowOptions options =
           ChildWorkflowOptions.newBuilder()
               .setWorkflowRunTimeout(Duration.ofSeconds(5))
-              .setTaskStartToCloseTimeout(Duration.ofSeconds(2))
+              .setWorkflowTaskTimeout(Duration.ofSeconds(2))
               .setTaskList(taskList)
               .setRetryOptions(
                   RetryOptions.newBuilder()
@@ -5736,7 +5736,7 @@ public class WorkflowTest {
       ChildWorkflowOptions workflowOptions =
           ChildWorkflowOptions.newBuilder()
               .setWorkflowRunTimeout(Duration.ofSeconds(100))
-              .setTaskStartToCloseTimeout(Duration.ofSeconds(60))
+              .setWorkflowTaskTimeout(Duration.ofSeconds(60))
               .build();
       TestMultiargsWorkflowsFunc2 child =
           Workflow.newChildWorkflowStub(TestMultiargsWorkflowsFunc2.class, workflowOptions);

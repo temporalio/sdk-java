@@ -47,22 +47,22 @@ public interface DataConverter {
    * Implements conversion of a single value.
    *
    * @param content Serialized value to convert to a Java object.
-   * @param valueClass
-   * @param valueType
+   * @param parameterType type of the parameter stored in the content
+   * @param genericParameterType generic type of the parameter stored in the content
    * @return converted Java object
    * @throws DataConverterException if conversion of the data passed as parameter failed for any
    *     reason.
    */
-  <T> T fromData(Optional<Payloads> content, Class<T> valueClass, Type valueType)
+  <T> T fromData(Optional<Payloads> content, Class<T> parameterType, Type genericParameterType)
       throws DataConverterException;
 
   /**
    * Implements conversion of an array of values of different types. Useful for deserializing
    * arguments of function invocations.
    *
-   * @param parameterTypes
-   * @param genericParameterTypes
    * @param content serialized value to convert to Java objects.
+   * @param parameterTypes types of the parameters stored in the content
+   * @param genericParameterTypes generic types of the parameters stored in the content
    * @return array of converted Java objects
    * @throws DataConverterException if conversion of the data passed as parameter failed for any
    *     reason.
