@@ -66,14 +66,17 @@ final class WorkflowRetryerInternal {
    */
   public static <R> R retry(
       RetryOptions options, Optional<Duration> expiration, Functions.Func<R> func) {
-    options.validate();
     int attempt = 1;
     long startTime = WorkflowInternal.currentTimeMillis();
     // Records retry options in the history allowing changing them without breaking determinism.
     String retryId = WorkflowInternal.randomUUID().toString();
     RetryOptions retryOptions =
         WorkflowInternal.mutableSideEffect(
-            retryId, RetryOptions.class, RetryOptions.class, Object::equals, () -> options);
+            retryId,
+            RetryOptions.class,
+            RetryOptions.class,
+            Object::equals,
+            () -> RetryOptions.newBuilder(options).validateBuildWithDefaults());
     while (true) {
       long nextSleepTime = retryOptions.calculateSleepTime(attempt);
       try {
@@ -111,10 +114,13 @@ final class WorkflowRetryerInternal {
       Functions.Func<Promise<R>> func,
       long startTime,
       long attempt) {
-    options.validate();
     RetryOptions retryOptions =
         WorkflowInternal.mutableSideEffect(
-            retryId, RetryOptions.class, RetryOptions.class, Object::equals, () -> options);
+            retryId,
+            RetryOptions.class,
+            RetryOptions.class,
+            Object::equals,
+            () -> RetryOptions.newBuilder(options).validateBuildWithDefaults());
 
     CompletablePromise<R> funcResult = WorkflowInternal.newCompletablePromise();
     try {

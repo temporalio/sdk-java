@@ -44,6 +44,7 @@ public class WorkflowOptionsTest {
         WorkflowOptions.newBuilder()
             .setTaskList("foo")
             .setWorkflowRunTimeout(Duration.ofSeconds(321))
+            .setWorkflowExecutionTimeout(Duration.ofSeconds(456))
             .setWorkflowTaskTimeout(Duration.ofSeconds(13))
             .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
             .setMemo(getTestMemo())

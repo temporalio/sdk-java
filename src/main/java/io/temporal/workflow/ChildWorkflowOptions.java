@@ -404,6 +404,10 @@ public final class ChildWorkflowOptions {
     return cancellationType;
   }
 
+  public Builder toBuilder() {
+    return new Builder(this);
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;

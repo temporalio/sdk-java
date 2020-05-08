@@ -760,25 +760,13 @@ class StateMachines {
 
     WorkflowExecutionStartedEventAttributes.Builder a =
         WorkflowExecutionStartedEventAttributes.newBuilder()
+            .setWorkflowType(request.getWorkflowType())
+            .setWorkflowRunTimeoutSeconds(request.getWorkflowRunTimeoutSeconds())
+            .setWorkflowTaskTimeoutSeconds(request.getWorkflowTaskTimeoutSeconds())
+            .setWorkflowExecutionTimeoutSeconds(request.getWorkflowExecutionTimeoutSeconds())
             .setIdentity(request.getIdentity())
-            .setInput(request.getInput());
-    if (!request.hasWorkflowType()) {
-      throw Status.INVALID_ARGUMENT.withDescription("missing workflowType").asRuntimeException();
-    }
-    a.setWorkflowType(request.getWorkflowType());
-    if (!request.hasTaskList()) {
-      throw Status.INVALID_ARGUMENT.withDescription("missing taskList").asRuntimeException();
-    }
-    if (request.getWorkflowExecutionTimeoutSeconds() == 0) {
-      a.setWorkflowExecutionTimeoutSeconds(DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_SECONDS);
-    }
-    if (request.getWorkflowRunTimeoutSeconds() == 0) {
-      a.setWorkflowRunTimeoutSeconds(a.getWorkflowExecutionTimeoutSeconds());
-    }
-    if (request.getWorkflowTaskTimeoutSeconds() == 0) {
-      a.setWorkflowTaskTimeoutSeconds(DEFAULT_WORKFLOW_TASK_TIMEOUT_SECONDS);
-    }
-    a.setTaskList(request.getTaskList());
+            .setInput(request.getInput())
+            .setTaskList(request.getTaskList());
     if (data.retryState.isPresent()) {
       a.setAttempt(data.retryState.get().getAttempt());
     }
@@ -788,6 +776,15 @@ class StateMachines {
     }
     if (data.lastCompletionResult != null) {
       a.setLastCompletionResult(data.lastCompletionResult);
+    }
+    if (request.hasMemo()) {
+      a.setMemo(request.getMemo());
+    }
+    if (request.hasSearchAttributes()) {
+      a.setSearchAttributes((request.getSearchAttributes()));
+    }
+    if (request.hasHeader()) {
+      a.setHeader(request.getHeader());
     }
     String cronSchedule = request.getCronSchedule();
     if (!cronSchedule.trim().isEmpty()) {
@@ -800,15 +797,6 @@ class StateMachines {
             .withCause(e)
             .asRuntimeException();
       }
-    }
-    if (request.hasMemo()) {
-      a.setMemo(request.getMemo());
-    }
-    if (request.hasSearchAttributes()) {
-      a.setSearchAttributes((request.getSearchAttributes()));
-    }
-    if (request.hasHeader()) {
-      a.setHeader(request.getHeader());
     }
     Optional<TestWorkflowMutableState> parent = ctx.getWorkflowMutableState().getParent();
     if (parent.isPresent()) {

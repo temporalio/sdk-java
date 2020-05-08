@@ -52,9 +52,7 @@ class LocalActivityInvocationHandler extends ActivityInvocationHandlerBase {
       Method method, MethodRetry methodRetry, String activityName) {
     Function<Object[], Object> function;
     LocalActivityOptions mergedOptions =
-        LocalActivityOptions.newBuilder(options)
-            .setMethodRetry(methodRetry)
-            .validateAndBuildWithDefaults();
+        options.toBuilder().setMethodRetry(methodRetry).validateAndBuildWithDefaults();
     ActivityStub stub = LocalActivityStubImpl.newInstance(mergedOptions, activityExecutor);
     function =
         (a) -> stub.execute(activityName, method.getReturnType(), method.getGenericReturnType(), a);

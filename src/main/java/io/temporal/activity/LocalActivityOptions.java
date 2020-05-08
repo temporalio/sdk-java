@@ -19,18 +19,16 @@
 
 package io.temporal.activity;
 
-import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
-
+import com.google.common.base.Objects;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import java.time.Duration;
-import java.util.Objects;
 
 /** Options used to configure how an local activity is invoked. */
 public final class LocalActivityOptions {
 
   public static Builder newBuilder() {
-    return new Builder();
+    return new Builder(null);
   }
 
   public static Builder newBuilder(LocalActivityOptions o) {
@@ -49,22 +47,27 @@ public final class LocalActivityOptions {
 
   public static final class Builder {
     private Duration scheduleToCloseTimeout;
+    private Duration startToCloseTimeout;
     private RetryOptions retryOptions;
 
-    public Builder() {}
-
     /** Copy Builder fields from the options. */
-    public Builder(LocalActivityOptions options) {
+    private Builder(LocalActivityOptions options) {
       if (options == null) {
         return;
       }
       this.scheduleToCloseTimeout = options.getScheduleToCloseTimeout();
+      this.startToCloseTimeout = options.getStartToCloseTimeout();
       this.retryOptions = options.retryOptions;
     }
 
     /** Overall timeout workflow is willing to wait for activity to complete. */
     public Builder setScheduleToCloseTimeout(Duration scheduleToCloseTimeout) {
       this.scheduleToCloseTimeout = scheduleToCloseTimeout;
+      return this;
+    }
+
+    public Builder setStartToCloseTimeout(Duration startToCloseTimeout) {
+      this.startToCloseTimeout = startToCloseTimeout;
       return this;
     }
 
@@ -89,7 +92,7 @@ public final class LocalActivityOptions {
     }
 
     public LocalActivityOptions build() {
-      return new LocalActivityOptions(scheduleToCloseTimeout, retryOptions);
+      return new LocalActivityOptions(scheduleToCloseTimeout, startToCloseTimeout, retryOptions);
     }
 
     public LocalActivityOptions validateAndBuildWithDefaults() {
@@ -97,15 +100,18 @@ public final class LocalActivityOptions {
       if (retryOptions != null) {
         ro = RetryOptions.newBuilder(retryOptions).validateBuildWithDefaults();
       }
-      return new LocalActivityOptions(roundUpToSeconds(scheduleToCloseTimeout), ro);
+      return new LocalActivityOptions(scheduleToCloseTimeout, startToCloseTimeout, ro);
     }
   }
 
   private final Duration scheduleToCloseTimeout;
+  private final Duration startToCloseTimeout;
   private final RetryOptions retryOptions;
 
-  private LocalActivityOptions(Duration scheduleToCloseTimeout, RetryOptions retryOptions) {
+  private LocalActivityOptions(
+      Duration scheduleToCloseTimeout, Duration startToCloseTimeout, RetryOptions retryOptions) {
     this.scheduleToCloseTimeout = scheduleToCloseTimeout;
+    this.startToCloseTimeout = startToCloseTimeout;
     this.retryOptions = retryOptions;
   }
 
@@ -113,8 +119,31 @@ public final class LocalActivityOptions {
     return scheduleToCloseTimeout;
   }
 
+  public Duration getStartToCloseTimeout() {
+    return startToCloseTimeout;
+  }
+
   public RetryOptions getRetryOptions() {
     return retryOptions;
+  }
+
+  public Builder toBuilder() {
+    return new Builder(this);
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    LocalActivityOptions that = (LocalActivityOptions) o;
+    return Objects.equal(scheduleToCloseTimeout, that.scheduleToCloseTimeout)
+        && Objects.equal(startToCloseTimeout, that.startToCloseTimeout)
+        && Objects.equal(retryOptions, that.retryOptions);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(scheduleToCloseTimeout, startToCloseTimeout, retryOptions);
   }
 
   @Override
@@ -122,23 +151,10 @@ public final class LocalActivityOptions {
     return "LocalActivityOptions{"
         + "scheduleToCloseTimeout="
         + scheduleToCloseTimeout
+        + ", startToCloseTimeout="
+        + startToCloseTimeout
         + ", retryOptions="
         + retryOptions
         + '}';
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-
-    LocalActivityOptions that = (LocalActivityOptions) o;
-    return Objects.equals(scheduleToCloseTimeout, that.scheduleToCloseTimeout)
-        && Objects.equals(retryOptions, that.retryOptions);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hash(scheduleToCloseTimeout, retryOptions);
   }
 }

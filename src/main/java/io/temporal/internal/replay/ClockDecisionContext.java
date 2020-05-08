@@ -263,7 +263,7 @@ public final class ClockDecisionContext {
       Exception failure = null;
       if (marker.getIsCancelled()) {
         failure = new CancellationException(marker.getErrReason());
-      } else if (marker.getErrJson() != null) {
+      } else if (marker.getErrJson().isPresent()) {
         Throwable cause =
             dataConverter.fromData(marker.getErrJson(), Throwable.class, Throwable.class);
         ActivityType activityType =

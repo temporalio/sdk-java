@@ -241,48 +241,64 @@ public final class LocalActivityWorker implements SuspendableWorker {
     }
 
     private ActivityTaskHandler.Result handleLocalActivity(Task task) throws InterruptedException {
+      ExecuteLocalActivityParameters p = task.params;
       Map<String, String> activityTypeTag =
           new ImmutableMap.Builder<String, String>(1)
-              .put(MetricsTag.ACTIVITY_TYPE, task.params.getActivityType().getName())
+              .put(MetricsTag.ACTIVITY_TYPE, p.getActivityType().getName())
               .build();
 
       Scope metricsScope = options.getMetricsScope().tagged(activityTypeTag);
       metricsScope.counter(MetricsType.LOCAL_ACTIVITY_TOTAL_COUNTER).inc(1);
 
-      PollForActivityTaskResponse pollTask =
+      PollForActivityTaskResponse.Builder pollTask =
           PollForActivityTaskResponse.newBuilder()
-              .setWorkflowNamespace(task.params.getWorkflowNamespace())
-              .setActivityId(task.params.getActivityId())
-              .setWorkflowExecution(task.params.getWorkflowExecution())
+              .setWorkflowNamespace(p.getWorkflowNamespace())
+              .setActivityId(p.getActivityId())
+              .setWorkflowExecution(p.getWorkflowExecution())
               .setScheduledTimestamp(System.currentTimeMillis())
               .setStartedTimestamp(System.currentTimeMillis())
-              .setActivityType(task.params.getActivityType())
-              .setInput(task.params.getInput())
-              .setAttempt(task.params.getAttempt())
-              .build();
+              .setActivityType(p.getActivityType())
+              .setAttempt(p.getAttempt());
 
+      Duration scheduleToCloseTimeout = p.getScheduleToCloseTimeout();
+      if (scheduleToCloseTimeout != null) {
+        pollTask.setScheduleToCloseTimeoutSeconds(
+            (int) Math.ceil(scheduleToCloseTimeout.toMillis() / 1000f));
+      } else {
+        pollTask.setScheduleToCloseTimeoutSeconds(task.decisionTimeoutSeconds);
+      }
+      Duration startToCloseTimeout = p.getStartToCloseTimeout();
+      if (startToCloseTimeout != null) {
+        pollTask.setStartToCloseTimeoutSeconds(
+            (int) Math.ceil(startToCloseTimeout.toMillis() / 1000f));
+      } else {
+        pollTask.setStartToCloseTimeoutSeconds(pollTask.getScheduleToCloseTimeoutSeconds());
+      }
+      if (p.getInput() != null) {
+        pollTask.setInput(p.getInput());
+      }
       Stopwatch sw = metricsScope.timer(MetricsType.LOCAL_ACTIVITY_EXECUTION_LATENCY).start();
-      ActivityTaskHandler.Result result = handler.handle(pollTask, metricsScope, true);
+      ActivityTaskHandler.Result result = handler.handle(pollTask.build(), metricsScope, true);
       sw.stop();
-      result.setAttempt(task.params.getAttempt());
+      result.setAttempt(p.getAttempt());
 
       if (result.getTaskCompleted() != null
           || result.getTaskCancelled() != null
-          || task.params.getRetryOptions() == null) {
+          || p.getRetryOptions() == null) {
         return result;
       }
 
-      RetryOptions retryOptions = task.params.getRetryOptions();
-      long sleepMillis = retryOptions.calculateSleepTime(task.params.getAttempt());
+      RetryOptions retryOptions = p.getRetryOptions();
+      long sleepMillis = retryOptions.calculateSleepTime(p.getAttempt());
       long elapsedTask = System.currentTimeMillis() - task.taskStartTime;
-      long elapsedTotal = elapsedTask + task.params.getElapsedTime();
+      long elapsedTotal = elapsedTask + p.getElapsedTime();
       int timeoutSeconds = pollTask.getScheduleToCloseTimeoutSeconds();
       Optional<Duration> expiration =
           timeoutSeconds > 0 ? Optional.of(Duration.ofSeconds(timeoutSeconds)) : Optional.empty();
       if (retryOptions.shouldRethrow(
           result.getTaskFailed().getFailure(),
           expiration,
-          task.params.getAttempt(),
+          p.getAttempt(),
           elapsedTotal,
           sleepMillis)) {
         return result;
@@ -293,7 +309,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
       // For small backoff we do local retry. Otherwise we will schedule timer on server side.
       if (elapsedTask + sleepMillis < task.decisionTimeoutSeconds * 1000) {
         Thread.sleep(sleepMillis);
-        task.params.setAttempt(task.params.getAttempt() + 1);
+        p.setAttempt(p.getAttempt() + 1);
         return handleLocalActivity(task);
       } else {
         return result;

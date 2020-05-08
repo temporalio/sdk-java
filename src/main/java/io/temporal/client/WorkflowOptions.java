@@ -38,6 +38,10 @@ public final class WorkflowOptions {
     return new Builder();
   }
 
+  public static Builder newBuilder(WorkflowOptions options) {
+    return new Builder(options);
+  }
+
   public static WorkflowOptions getDefaultInstance() {
     return DEFAULT_INSTANCE;
   }

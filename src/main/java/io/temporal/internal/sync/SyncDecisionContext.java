@@ -286,10 +286,6 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
       Type resultType,
       Object[] args,
       LocalActivityOptions options) {
-    if (options.getRetryOptions() != null) {
-      options.getRetryOptions().validate();
-    }
-
     long startTime = WorkflowInternal.currentTimeMillis();
     return WorkflowRetryerInternal.retryAsync(
         (attempt, currentStart) ->
@@ -382,11 +378,13 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
       Optional<Payloads> input,
       long elapsed,
       int attempt) {
+    options = LocalActivityOptions.newBuilder(options).validateAndBuildWithDefaults();
     ExecuteLocalActivityParameters parameters = new ExecuteLocalActivityParameters();
     parameters
         .withActivityType(ActivityType.newBuilder().setName(name).build())
         .withInput(input.orElse(null))
-        .withScheduleToCloseTimeoutSeconds(options.getScheduleToCloseTimeout().getSeconds());
+        .withStartToCloseTimeout(options.getStartToCloseTimeout())
+        .withScheduleToCloseTimeout(options.getScheduleToCloseTimeout());
     RetryOptions retryOptions = options.getRetryOptions();
     if (retryOptions != null) {
       parameters.setRetryOptions(retryOptions);

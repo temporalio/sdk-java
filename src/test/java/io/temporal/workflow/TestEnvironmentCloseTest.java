@@ -30,6 +30,7 @@ public class TestEnvironmentCloseTest {
 
   @WorkflowInterface
   public interface W {
+    @WorkflowMethod
     void foo();
 
     @SignalMethod

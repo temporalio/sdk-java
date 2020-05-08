@@ -55,6 +55,7 @@ public class TestServiceUtils {
       WorkflowServiceStubs service)
       throws Exception {
     StartWorkflowExecutionRequest.Builder request = StartWorkflowExecutionRequest.newBuilder();
+    request.setRequestId(UUID.randomUUID().toString());
     request.setNamespace(namespace);
     request.setWorkflowId(UUID.randomUUID().toString());
     request.setTaskList(createNormalTaskList(tasklistName));

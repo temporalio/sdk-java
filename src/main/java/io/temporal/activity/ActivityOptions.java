@@ -190,7 +190,7 @@ public final class ActivityOptions {
           roundUpToSeconds(scheduleToStartTimeout),
           roundUpToSeconds(startToCloseTimeout),
           taskList,
-          retryOptions,
+          RetryOptions.newBuilder(retryOptions).validateBuildWithDefaults(),
           contextPropagators,
           cancellationType);
     }
@@ -274,6 +274,10 @@ public final class ActivityOptions {
 
   public ActivityCancellationType getCancellationType() {
     return cancellationType;
+  }
+
+  public Builder toBuilder() {
+    return new Builder(this);
   }
 
   @Override

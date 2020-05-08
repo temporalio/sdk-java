@@ -742,6 +742,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       }
       StartWorkflowExecutionRequest.Builder startRequest =
           StartWorkflowExecutionRequest.newBuilder()
+              .setRequestId(r.getRequestId())
               .setInput(r.getInput())
               .setWorkflowExecutionTimeoutSeconds(r.getWorkflowExecutionTimeoutSeconds())
               .setWorkflowRunTimeoutSeconds(r.getWorkflowRunTimeoutSeconds())
@@ -828,6 +829,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       OptionalLong parentChildInitiatedEventId) {
     StartWorkflowExecutionRequest.Builder startRequestBuilder =
         StartWorkflowExecutionRequest.newBuilder()
+            .setRequestId(UUID.randomUUID().toString())
             .setWorkflowType(a.getWorkflowType())
             .setWorkflowRunTimeoutSeconds(a.getWorkflowRunTimeoutSeconds())
             .setWorkflowTaskTimeoutSeconds(a.getWorkflowTaskTimeoutSeconds())
@@ -836,8 +838,10 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             .setWorkflowId(executionId.getWorkflowId().getWorkflowId())
             .setWorkflowIdReusePolicy(previousRunStartRequest.getWorkflowIdReusePolicy())
             .setIdentity(identity)
-            .setRetryPolicy(previousRunStartRequest.getRetryPolicy())
             .setCronSchedule(previousRunStartRequest.getCronSchedule());
+    if (previousRunStartRequest.hasRetryPolicy()) {
+      startRequestBuilder.setRetryPolicy(previousRunStartRequest.getRetryPolicy());
+    }
     if (a.hasInput()) {
       startRequestBuilder.setInput(a.getInput());
     }

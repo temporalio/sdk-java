@@ -634,6 +634,7 @@ public class StickyWorkerTest {
 
   @WorkflowInterface
   public interface GreetingParentWorkflow {
+    @WorkflowMethod
     String getGreeting(String name);
   }
 

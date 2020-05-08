@@ -139,7 +139,9 @@ final class WorkflowDecisionContext {
     }
     attributes.setWorkflowId(workflowId);
     attributes.setNamespace(OptionsUtils.safeGet(parameters.getNamespace()));
-    attributes.setInput(parameters.getInput());
+    if (parameters.getInput() != null) {
+      attributes.setInput(parameters.getInput());
+    }
     if (parameters.getWorkflowRunTimeoutSeconds() == 0) {
       attributes.setWorkflowRunTimeoutSeconds(workflowContext.getWorkflowRunTimeoutSeconds());
     } else {

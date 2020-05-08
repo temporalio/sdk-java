@@ -29,7 +29,7 @@ class WorkflowExecuteRunnable implements Runnable {
   private final SyncWorkflowDefinition workflow;
   private final WorkflowExecutionStartedEventAttributes attributes;
 
-  private Optional<Payloads> output;
+  private Optional<Payloads> output = Optional.empty();
   private boolean done;
 
   public WorkflowExecuteRunnable(

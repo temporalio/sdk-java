@@ -420,16 +420,13 @@ class ReplayDecider implements Decider {
           new HistoryHelper(
               decisionTaskWithHistoryIterator, context.getReplayCurrentTimeMilliseconds());
       DecisionEventsIterator iterator = historyHelper.getIterator();
-      if ((decisionsHelper.getNextDecisionEventId()
-              != historyHelper.getPreviousStartedEventId()
-                  + 2) // getNextDecisionEventId() skips over completed.
-          && (decisionsHelper.getNextDecisionEventId() != 0
-              && historyHelper.getPreviousStartedEventId() != 0)
-          && (decisionTask.getHistory().getEventsCount() > 0)) {
+      if (decisionsHelper.getLastStartedEventId() > 0
+          && decisionsHelper.getLastStartedEventId() != historyHelper.getPreviousStartedEventId()
+          && decisionTask.getHistory().getEventsCount() > 0) {
         throw new IllegalStateException(
             String.format(
-                "ReplayDecider expects next event id at %d. History's previous started event id is %d",
-                decisionsHelper.getNextDecisionEventId(),
+                "ReplayDecider processed up to event id %d. History's previous started event id is %d",
+                decisionsHelper.getLastStartedEventId(),
                 historyHelper.getPreviousStartedEventId()));
       }
 

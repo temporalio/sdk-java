@@ -19,7 +19,7 @@
 
 package io.temporal.internal.testservice;
 
-import static io.temporal.internal.testservice.RetryState.validateRetryPolicy;
+import static io.temporal.internal.testservice.RetryState.valiateAndOverrideRetryPolicy;
 import static io.temporal.internal.testservice.StateMachines.*;
 
 import com.cronutils.model.Cron;
@@ -258,7 +258,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       throw Status.INVALID_ARGUMENT.withDescription("Missing WorkflowType.").asRuntimeException();
     }
     if (request.hasRetryPolicy()) {
-      validateRetryPolicy(request.getRetryPolicy());
+      valiateAndOverrideRetryPolicy(request.getRetryPolicy());
     }
     return request;
   }
@@ -368,14 +368,17 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     completeDecisionUpdate(
         ctx -> {
           if (ctx.getInitialEventId() != historySize + 1) {
-
+            StringBuilder diagnostics = new StringBuilder();
+            store.getDiagnostics(diagnostics);
             throw Status.NOT_FOUND
                 .withDescription(
                     "Expired decision: expectedHistorySize="
                         + historySize
                         + ","
                         + " actualHistorySize="
-                        + ctx.getInitialEventId())
+                        + ctx.getInitialEventId()
+                        + " history="
+                        + diagnostics)
                 .asRuntimeException();
           }
           long decisionTaskCompletedId = ctx.getNextEventId() - 1;
@@ -824,7 +827,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
     StartChildWorkflowExecutionDecisionAttributes.Builder ab = a.toBuilder();
     if (a.hasRetryPolicy()) {
-      ab.setRetryPolicy(validateRetryPolicy(a.getRetryPolicy()));
+      ab.setRetryPolicy(valiateAndOverrideRetryPolicy(a.getRetryPolicy()));
     }
 
     // Inherit tasklist from parent workflow execution if not provided on decision
@@ -1592,6 +1595,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     update(
         ctx -> {
           StateMachine<ActivityTaskData> activity = getActivity(activityId);
+          if (activity.getState() != State.STARTED) {
+            throw Status.NOT_FOUND
+                .withDescription("Activity is in " + activity.getState() + "  state")
+                .asRuntimeException();
+          }
           activity.action(StateMachines.Action.UPDATE, ctx, details, 0);
           if (activity.getState() == StateMachines.State.CANCELLATION_REQUESTED) {
             result.set(true);
@@ -1621,7 +1629,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   TimeUnit.SECONDS.toMillis(
                       activity.getData().scheduledEvent.getHeartbeatTimeoutSeconds());
               if (clock.getAsLong() - activity.getData().lastHeartbeatTime < heartbeatTimeout) {
-                throw Status.INTERNAL.withDescription("Not heartbeat timeout").asRuntimeException();
+                throw Status.NOT_FOUND.withDescription("Outdated timer").asRuntimeException();
               }
             }
             activity.action(StateMachines.Action.TIME_OUT, ctx, timeoutType, 0);

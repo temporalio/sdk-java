@@ -97,6 +97,8 @@ class DecisionsHelper {
    */
   private long nextDecisionEventId;
 
+  private long lastStartedEventId;
+
   private long idCounter;
 
   private DecisionEvents decisionEvents;
@@ -114,6 +116,10 @@ class DecisionsHelper {
 
   long getNextDecisionEventId() {
     return nextDecisionEventId;
+  }
+
+  public long getLastStartedEventId() {
+    return lastStartedEventId;
   }
 
   long scheduleActivityTask(ScheduleActivityTaskDecisionAttributes schedule) {
@@ -637,6 +643,8 @@ class DecisionsHelper {
   public void handleDecisionTaskStartedEvent(DecisionEvents decision) {
     this.decisionEvents = decision;
     this.nextDecisionEventId = decision.getNextDecisionEventId();
+    // Account for DecisionCompleted
+    this.lastStartedEventId = decision.getNextDecisionEventId() - 2;
   }
 
   void notifyDecisionSent() {

@@ -35,9 +35,14 @@ public final class RetryOptions {
   private static final int DEFAULT_MAXIMUM_MULTIPLIER = 100;
 
   public static Builder newBuilder() {
-    return new Builder();
+    return new Builder(null);
   }
 
+  /**
+   * Creates builder with fields pre-populated from passed options.
+   *
+   * @param options can be null
+   */
   public static Builder newBuilder(RetryOptions options) {
     return new Builder(options);
   }
@@ -128,6 +133,8 @@ public final class RetryOptions {
 
   public static final class Builder {
 
+    private static final Duration DEFAULT_INITIAL_INTERVAL = Duration.ofSeconds(1);
+
     private Duration initialInterval;
 
     private double backoffCoefficient;
@@ -137,8 +144,6 @@ public final class RetryOptions {
     private Duration maximumInterval;
 
     private List<Class<? extends Throwable>> doNotRetry;
-
-    private Builder() {}
 
     private Builder(RetryOptions options) {
       if (options == null) {
@@ -234,10 +239,14 @@ public final class RetryOptions {
       if (backoff == 0d) {
         backoff = DEFAULT_BACKOFF_COEFFICIENT;
       }
-      RetryOptions result =
-          new RetryOptions(initialInterval, backoff, maximumAttempts, maximumInterval, doNotRetry);
-      result.validate();
-      return result;
+      return new RetryOptions(
+          initialInterval == null || initialInterval.isZero()
+              ? DEFAULT_INITIAL_INTERVAL
+              : initialInterval,
+          backoff,
+          maximumAttempts,
+          maximumInterval,
+          doNotRetry);
     }
   }
 
@@ -280,14 +289,16 @@ public final class RetryOptions {
     return maximumInterval;
   }
 
-  public void validate() {}
-
   /**
    * @return null if not configured. When merging with annotation it makes a difference. null means
    *     use values from an annotation. Empty list means do not retry on anything.
    */
   public List<Class<? extends Throwable>> getDoNotRetry() {
     return doNotRetry;
+  }
+
+  public Builder toBuilder() {
+    return new Builder(this);
   }
 
   @Override

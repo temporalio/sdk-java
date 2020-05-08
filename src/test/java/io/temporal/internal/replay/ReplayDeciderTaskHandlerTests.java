@@ -35,6 +35,7 @@ import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.HistoryUtils;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.junit.After;
 import org.junit.Before;
@@ -122,6 +123,7 @@ public class ReplayDeciderTaskHandlerTests {
 
     when(mockFactory.getWorkflow(any())).thenReturn(mockWorkflow);
     when(mockWorkflow.eventLoop()).thenReturn(true);
+    when(mockWorkflow.getOutput()).thenReturn(Optional.empty());
     return mockFactory;
   }
 }

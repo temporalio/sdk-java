@@ -112,8 +112,10 @@ final class ActivityDecisionContext {
         new OpenRequestInfo<>(parameters.getActivityType());
     final ScheduleActivityTaskDecisionAttributes.Builder attributes =
         ScheduleActivityTaskDecisionAttributes.newBuilder()
-            .setActivityType(parameters.getActivityType())
-            .setInput(parameters.getInput());
+            .setActivityType(parameters.getActivityType());
+    if (parameters.getInput() != null) {
+      attributes.setInput(parameters.getInput());
+    }
     if (parameters.getHeartbeatTimeoutSeconds() > 0) {
       attributes.setHeartbeatTimeoutSeconds((int) parameters.getHeartbeatTimeoutSeconds());
     }

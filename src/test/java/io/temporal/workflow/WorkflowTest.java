@@ -22,6 +22,7 @@ package io.temporal.workflow;
 import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
 import static org.junit.Assert.*;
 
+import com.google.common.base.Throwables;
 import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.protobuf.ByteString;
@@ -250,11 +251,11 @@ public class WorkflowTest {
 
   private static LocalActivityOptions newLocalActivityOptions1() {
     if (DEBUGGER_TIMEOUTS) {
-      return new LocalActivityOptions.Builder()
+      return LocalActivityOptions.newBuilder()
           .setScheduleToCloseTimeout(Duration.ofSeconds(1000))
           .build();
     } else {
-      return new LocalActivityOptions.Builder()
+      return LocalActivityOptions.newBuilder()
           .setScheduleToCloseTimeout(Duration.ofSeconds(5))
           .build();
     }
@@ -570,11 +571,12 @@ public class WorkflowTest {
     @SuppressWarnings("Finally")
     public String execute(String taskList) {
       LocalActivityOptions options =
-          new LocalActivityOptions.Builder()
-              .setScheduleToCloseTimeout(Duration.ofSeconds(5))
+          LocalActivityOptions.newBuilder()
+              .setScheduleToCloseTimeout(Duration.ofSeconds(100))
+              .setStartToCloseTimeout(Duration.ofSeconds(1))
               .setRetryOptions(
                   RetryOptions.newBuilder()
-                      .setMaximumInterval(Duration.ofSeconds(20))
+                      .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
                       .setMaximumAttempts(5)
                       .setDoNotRetry(AssertionError.class)
@@ -615,7 +617,8 @@ public class WorkflowTest {
       ActivityOptions options =
           ActivityOptions.newBuilder()
               .setTaskList(taskList)
-              .setScheduleToCloseTimeout(Duration.ofSeconds(1))
+              .setScheduleToCloseTimeout(Duration.ofSeconds(100))
+              .setStartToCloseTimeout(Duration.ofSeconds(1))
               .setRetryOptions(
                   RetryOptions.newBuilder()
                       .setMaximumInterval(Duration.ofSeconds(1))
@@ -651,7 +654,7 @@ public class WorkflowTest {
       workflowStub.execute(taskList);
       fail("unreachable");
     } catch (WorkflowException e) {
-      assertTrue(e.getCause() instanceof ActivityTimeoutException);
+      assertTrue(String.valueOf(e.getCause()), e.getCause() instanceof ActivityTimeoutException);
     }
     assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
     long elapsed = System.currentTimeMillis() - start;
@@ -668,9 +671,10 @@ public class WorkflowTest {
           ActivityOptions.newBuilder()
               .setTaskList(taskList)
               .setHeartbeatTimeout(Duration.ofSeconds(5))
-              .setScheduleToCloseTimeout(Duration.ofSeconds(5))
-              .setScheduleToStartTimeout(Duration.ofSeconds(5))
-              .setStartToCloseTimeout(Duration.ofSeconds(10));
+              .setScheduleToCloseTimeout(Duration.ofDays(5))
+              .setScheduleToStartTimeout(Duration.ofSeconds(1))
+              .setStartToCloseTimeout(Duration.ofSeconds(1))
+              .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build());
       RetryOptions retryOptions;
       if (Workflow.isReplaying()) {
         retryOptions =
@@ -703,7 +707,9 @@ public class WorkflowTest {
       workflowStub.execute(taskList);
       fail("unreachable");
     } catch (WorkflowException e) {
-      assertTrue(e.getCause().getCause() instanceof IOException);
+      assertTrue(
+          String.valueOf(Throwables.getStackTraceAsString(e)),
+          e.getCause().getCause() instanceof IOException);
     }
     assertEquals(activitiesImpl.toString(), 2, activitiesImpl.invocations.size());
   }
@@ -721,7 +727,7 @@ public class WorkflowTest {
               .setStartToCloseTimeout(Duration.ofSeconds(10))
               .setRetryOptions(
                   RetryOptions.newBuilder()
-                      .setMaximumInterval(Duration.ofSeconds(1))
+                      .setMaximumInterval(Duration.ofSeconds(20))
                       .setInitialInterval(Duration.ofSeconds(1))
                       .setMaximumAttempts(3)
                       .build())
@@ -1814,10 +1820,14 @@ public class WorkflowTest {
   public void testWorkflowIdResuePolicy() {
     startWorkerFor(TestMultiargsWorkflowsImpl.class);
 
-    // Without setting WorkflowIdReusePolicy, the semantics is to get result for the previous run.
+    // When WorkflowIdReusePolicy is not AllowDuplicate the semantics is to get result for the
+    // previous run.
     String workflowId = UUID.randomUUID().toString();
     WorkflowOptions workflowOptions =
-        newWorkflowOptionsBuilder(taskList).setWorkflowId(workflowId).build();
+        newWorkflowOptionsBuilder(taskList)
+            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.AllowDuplicateFailedOnly)
+            .setWorkflowId(workflowId)
+            .build();
     TestMultiargsWorkflowsFunc1 stubF1_1 =
         workflowClient.newWorkflowStub(TestMultiargsWorkflowsFunc1.class, workflowOptions);
     assertEquals(1, stubF1_1.func1(1));
@@ -3457,7 +3467,8 @@ public class WorkflowTest {
       client.execute(taskList);
       fail("unreachable");
     } catch (WorkflowException e) {
-      assertTrue(e.getCause() instanceof ChildWorkflowFailureException);
+      assertTrue(
+          String.valueOf(e.getCause()), e.getCause() instanceof ChildWorkflowFailureException);
       assertTrue(e.getCause().getCause() instanceof UnsupportedOperationException);
       assertEquals("simulated failure", e.getCause().getCause().getMessage());
     }
@@ -4960,7 +4971,7 @@ public class WorkflowTest {
                   .build());
       ActivityStub localActivity =
           Workflow.newUntypedLocalActivityStub(
-              new LocalActivityOptions.Builder()
+              LocalActivityOptions.newBuilder()
                   .setScheduleToCloseTimeout(Duration.ofSeconds(5))
                   .build());
       try {
@@ -5089,6 +5100,7 @@ public class WorkflowTest {
 
   @WorkflowInterface
   public interface DecisionTimeoutWorkflow {
+    @WorkflowMethod
     String execute(String testName) throws InterruptedException;
   }
 
@@ -5271,7 +5283,7 @@ public class WorkflowTest {
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
             .setWorkflowRunTimeout(Duration.ofMinutes(5))
-            .setWorkflowTaskTimeout(Duration.ofSeconds(10))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(30))
             .setTaskList(taskList)
             .build();
     TestWorkflowQuery workflowStub =
@@ -5282,7 +5294,7 @@ public class WorkflowTest {
     // as all these activities are executed in a single decision task.
     while (true) {
       String queryResult = workflowStub.query();
-      assertTrue(queryResult, queryResult.equals("run1") || queryResult.equals("run4"));
+      assertTrue(queryResult, queryResult.equals("run4"));
       List<ForkJoinTask<String>> tasks = new ArrayList<>();
       int threads = 30;
       if (queryResult.equals("run4")) {

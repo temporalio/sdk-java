@@ -156,7 +156,6 @@ public final class Retryer {
       int attempt,
       long startTime,
       AsyncBackoffThrottler throttler) {
-    options.validate();
     return throttler
         .throttle()
         .thenCompose(
@@ -184,7 +183,15 @@ public final class Retryer {
             })
         .handle(
             (r, e) ->
-                failOrRetry(options, expiration, function, attempt, startTime, throttler, r, e))
+                failOrRetry(
+                    options.toBuilder().validateBuildWithDefaults(),
+                    expiration,
+                    function,
+                    attempt,
+                    startTime,
+                    throttler,
+                    r,
+                    e))
         .thenCompose(
             (pair) -> {
               if (pair.getException() != null) {
