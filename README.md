@@ -43,7 +43,7 @@ Until the official release use the version from the temporal-java-samples [build
 
 ## Documentation
 
-The documentation on how to use the Temporal Java client is [here](https://docs.temporal.io/06_javaclient/).
+The documentation on how to use the Temporal Java client is [here](http://docs.temporal.io/docs/java-quick-start).
 
 Javadocs for the client API are located [here](https://www.javadoc.io/doc/io.temporal/temporal-sdk).
 
