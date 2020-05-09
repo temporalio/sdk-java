@@ -21,6 +21,7 @@ package io.temporal.internal.sync;
 
 import com.google.common.base.Strings;
 import com.google.common.reflect.TypeToken;
+import com.uber.m3.tally.Scope;
 import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.BatchRequest;
 import io.temporal.client.WorkflowClient;
@@ -45,7 +46,6 @@ import java.lang.reflect.Proxy;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class WorkflowClientInternal implements WorkflowClient {
 
@@ -55,8 +55,6 @@ public final class WorkflowClientInternal implements WorkflowClient {
   private final DataConverter dataConverter;
   private final WorkflowClientInterceptor[] interceptors;
   private final WorkflowServiceStubs workflowServiceStubs;
-
-  private AtomicBoolean shutdown = new AtomicBoolean();
 
   /**
    * Creates client that connects to an instance of the Temporal Service.
@@ -75,17 +73,15 @@ public final class WorkflowClientInternal implements WorkflowClient {
     options = WorkflowClientOptions.newBuilder(options).validateAndBuildWithDefaults();
     this.options = options;
     this.workflowServiceStubs = workflowServiceStubs;
+    Scope metricsScope = workflowServiceStubs.getOptions().getMetricsScope();
     this.genericClient =
         new GenericWorkflowClientExternalImpl(
-            workflowServiceStubs,
-            options.getNamespace(),
-            options.getIdentity(),
-            options.getMetricsScope());
+            workflowServiceStubs, options.getNamespace(), options.getIdentity(), metricsScope);
     this.dataConverter = options.getDataConverter();
     this.interceptors = options.getInterceptors();
     this.manualActivityCompletionClientFactory =
         new ManualActivityCompletionClientFactoryImpl(
-            workflowServiceStubs, options.getNamespace(), dataConverter, options.getMetricsScope());
+            workflowServiceStubs, options.getNamespace(), dataConverter, metricsScope);
   }
 
   @Override

@@ -19,11 +19,9 @@
 
 package io.temporal.client;
 
-import com.uber.m3.tally.Scope;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GsonJsonDataConverter;
-import io.temporal.internal.metrics.NoopScope;
 import io.temporal.proto.query.QueryRejectCondition;
 import java.lang.management.ManagementFactory;
 import java.util.Arrays;
@@ -57,7 +55,6 @@ public final class WorkflowClientOptions {
     private String namespace;
     private DataConverter dataConverter;
     private WorkflowClientInterceptor[] interceptors;
-    private Scope metricsScope;
     private String identity;
     private List<ContextPropagator> contextPropagators;
     private QueryRejectCondition queryRejectCondition;
@@ -71,7 +68,6 @@ public final class WorkflowClientOptions {
       namespace = options.namespace;
       dataConverter = options.dataConverter;
       interceptors = options.interceptors;
-      metricsScope = options.metricsScope;
       identity = options.identity;
       contextPropagators = options.contextPropagators;
       queryRejectCondition = options.queryRejectCondition;
@@ -100,16 +96,6 @@ public final class WorkflowClientOptions {
      */
     public Builder setInterceptors(WorkflowClientInterceptor... interceptors) {
       this.interceptors = Objects.requireNonNull(interceptors);
-      return this;
-    }
-
-    /**
-     * Sets the scope to be used for the workflow client for metrics reporting.
-     *
-     * @param metricsScope the scope to be used. Not null.
-     */
-    public Builder setMetricsScope(Scope metricsScope) {
-      this.metricsScope = Objects.requireNonNull(metricsScope);
       return this;
     }
 
@@ -147,7 +133,6 @@ public final class WorkflowClientOptions {
           namespace,
           dataConverter,
           interceptors,
-          metricsScope,
           identity,
           contextPropagators,
           queryRejectCondition);
@@ -172,7 +157,6 @@ public final class WorkflowClientOptions {
           namespace == null ? DEFAULT_NAMESPACE : namespace,
           dataConverter == null ? GsonJsonDataConverter.getInstance() : dataConverter,
           interceptors == null ? EMPTY_INTERCEPTOR_ARRAY : interceptors,
-          metricsScope == null ? NoopScope.getInstance() : metricsScope,
           name,
           contextPropagators == null ? EMPTY_CONTEXT_PROPAGATORS : contextPropagators,
           queryRejectCondition == null ? QueryRejectCondition.None : queryRejectCondition);
@@ -190,8 +174,6 @@ public final class WorkflowClientOptions {
 
   private final WorkflowClientInterceptor[] interceptors;
 
-  private final Scope metricsScope;
-
   private final String identity;
 
   private final List<ContextPropagator> contextPropagators;
@@ -202,14 +184,12 @@ public final class WorkflowClientOptions {
       String namespace,
       DataConverter dataConverter,
       WorkflowClientInterceptor[] interceptors,
-      Scope metricsScope,
       String identity,
       List<ContextPropagator> contextPropagators,
       QueryRejectCondition queryRejectCondition) {
     this.namespace = namespace;
     this.dataConverter = dataConverter;
     this.interceptors = interceptors;
-    this.metricsScope = metricsScope;
     this.identity = identity;
     this.contextPropagators = contextPropagators;
     this.queryRejectCondition = queryRejectCondition;
@@ -225,10 +205,6 @@ public final class WorkflowClientOptions {
 
   public WorkflowClientInterceptor[] getInterceptors() {
     return interceptors;
-  }
-
-  public Scope getMetricsScope() {
-    return metricsScope;
   }
 
   public String getIdentity() {
@@ -253,8 +229,6 @@ public final class WorkflowClientOptions {
         + dataConverter
         + ", interceptors="
         + Arrays.toString(interceptors)
-        + ", metricsScope="
-        + metricsScope
         + ", identity='"
         + identity
         + '\''
@@ -273,7 +247,6 @@ public final class WorkflowClientOptions {
     return com.google.common.base.Objects.equal(namespace, that.namespace)
         && com.google.common.base.Objects.equal(dataConverter, that.dataConverter)
         && Arrays.equals(interceptors, that.interceptors)
-        && com.google.common.base.Objects.equal(metricsScope, that.metricsScope)
         && com.google.common.base.Objects.equal(identity, that.identity)
         && com.google.common.base.Objects.equal(contextPropagators, that.contextPropagators)
         && queryRejectCondition == that.queryRejectCondition;
@@ -285,7 +258,6 @@ public final class WorkflowClientOptions {
         namespace,
         dataConverter,
         Arrays.hashCode(interceptors),
-        metricsScope,
         identity,
         contextPropagators,
         queryRejectCondition);

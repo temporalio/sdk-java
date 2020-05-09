@@ -31,6 +31,8 @@ import io.temporal.internal.logging.LoggerTag;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -113,7 +115,9 @@ public class LoggerTest {
 
   private int matchingLines(String message) {
     int i = 0;
-    for (ILoggingEvent event : listAppender.list) {
+    // Make copy to avoid ConcurrentModificationException
+    List<ILoggingEvent> list = new ArrayList<>(listAppender.list);
+    for (ILoggingEvent event : list) {
       if (event.getFormattedMessage().contains(message)) {
         assertTrue(event.getMDCPropertyMap().containsKey(LoggerTag.WORKFLOW_ID));
         assertTrue(event.getMDCPropertyMap().containsKey(LoggerTag.WORKFLOW_TYPE));

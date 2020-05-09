@@ -68,7 +68,11 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     service = new TestWorkflowService();
     service.lockTimeSkipping("TestWorkflowEnvironmentInternal constructor");
     workflowServiceStubs =
-        WorkflowServiceStubs.newInstance(service, WorkflowServiceStubsOptions.getDefaultInstance());
+        WorkflowServiceStubs.newInstance(
+            service,
+            WorkflowServiceStubsOptions.newBuilder()
+                .setMetricsScope(options.getMetricsScope())
+                .build());
 
     WorkflowClient client = WorkflowClient.newInstance(workflowServiceStubs, workflowClientOptions);
     workerFactory = WorkerFactory.newInstance(client, options.getWorkerFactoryOptions());

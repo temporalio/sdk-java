@@ -409,31 +409,35 @@ class StateMachines {
       TestWorkflowStore store, StartWorkflowExecutionRequest startRequest) {
     return new StateMachine<>(new DecisionTaskData(store, startRequest))
         .add(NONE, INITIATE, INITIATED, StateMachines::scheduleDecisionTask)
-        .add(NONE, QUERY, INITIATED_QUERY_ONLY, StateMachines::scheduleQueryDecisionTask)
-        .add(INITIATED_QUERY_ONLY, QUERY, INITIATED_QUERY_ONLY, StateMachines::queryWhileScheduled)
-        .add(
-            INITIATED_QUERY_ONLY,
-            INITIATE,
-            INITIATED,
-            StateMachines::convertQueryDecisionTaskToReal)
-        .add(
-            INITIATED_QUERY_ONLY,
-            START,
-            STARTED_QUERY_ONLY,
-            StateMachines::startQueryOnlyDecisionTask)
+        // TODO(maxim): Uncomment once the server supports consistent query only decision tasks
+        //        .add(NONE, QUERY, INITIATED_QUERY_ONLY, StateMachines::scheduleQueryDecisionTask)
+        //        .add(INITIATED_QUERY_ONLY, QUERY, INITIATED_QUERY_ONLY,
+        // StateMachines::queryWhileScheduled)
+        //        .add(
+        //            INITIATED_QUERY_ONLY,
+        //            INITIATE,
+        //            INITIATED,
+        //            StateMachines::convertQueryDecisionTaskToReal)
+        //        .add(
+        //            INITIATED_QUERY_ONLY,
+        //            START,
+        //            STARTED_QUERY_ONLY,
+        //            StateMachines::startQueryOnlyDecisionTask)
+        //        .add(STARTED_QUERY_ONLY, INITIATE, STARTED_QUERY_ONLY,
+        // StateMachines::needsDecision)
+        //        .add(STARTED_QUERY_ONLY, QUERY, STARTED_QUERY_ONLY,
+        // StateMachines::needsDecisionDueToQuery)
+        //        .add(STARTED_QUERY_ONLY, FAIL, NONE, StateMachines::failQueryDecisionTask)
+        //        .add(STARTED_QUERY_ONLY, TIME_OUT, NONE, StateMachines::failQueryDecisionTask)
+        //        .add(STARTED_QUERY_ONLY, COMPLETE, NONE, StateMachines::completeQuery)
+        .add(STARTED, QUERY, STARTED, StateMachines::bufferQuery)
         .add(INITIATED, INITIATE, INITIATED, StateMachines::noop)
         .add(INITIATED, QUERY, INITIATED, StateMachines::queryWhileScheduled)
         .add(INITIATED, START, STARTED, StateMachines::startDecisionTask)
         .add(STARTED, COMPLETE, NONE, StateMachines::completeDecisionTask)
         .add(STARTED, FAIL, NONE, StateMachines::failDecisionTask)
         .add(STARTED, TIME_OUT, NONE, StateMachines::timeoutDecisionTask)
-        .add(STARTED, INITIATE, STARTED, StateMachines::needsDecision)
-        .add(STARTED, QUERY, STARTED, StateMachines::needsDecisionDueToQuery)
-        .add(STARTED_QUERY_ONLY, INITIATE, STARTED_QUERY_ONLY, StateMachines::needsDecision)
-        .add(STARTED_QUERY_ONLY, QUERY, STARTED_QUERY_ONLY, StateMachines::needsDecisionDueToQuery)
-        .add(STARTED_QUERY_ONLY, FAIL, NONE, StateMachines::failQueryDecisionTask)
-        .add(STARTED_QUERY_ONLY, TIME_OUT, NONE, StateMachines::failQueryDecisionTask)
-        .add(STARTED_QUERY_ONLY, COMPLETE, NONE, StateMachines::completeQuery);
+        .add(STARTED, INITIATE, STARTED, StateMachines::needsDecision);
   }
 
   public static StateMachine<ActivityTaskData> newActivityStateMachine(
@@ -1116,13 +1120,12 @@ class StateMachines {
     data.consistentQueryRequests.put(query.getKey(), query);
   }
 
-  private static void needsDecisionDueToQuery(
+  private static void bufferQuery(
       RequestContext ctx,
       DecisionTaskData data,
       TestWorkflowMutableStateImpl.ConsistentQuery query,
       long notUsed) {
     data.queryBuffer.put(query.getKey(), query);
-    ctx.setNeedDecision(true);
   }
 
   private static void startDecisionTask(
@@ -1150,7 +1153,7 @@ class StateMachines {
       RequestContext ctx,
       DecisionTaskData data,
       PollForDecisionTaskRequest request,
-      long not_used,
+      long startedEventId,
       boolean queryOnly) {
     ctx.onCommit(
         (historySize) -> {
@@ -1222,7 +1225,7 @@ class StateMachines {
             task.setPreviousStartedEventId(data.lastSuccessfulStartedEventId);
           }
           if (!queryOnly) {
-            data.startedEventId = data.scheduledEventId + 1;
+            data.startedEventId = startedEventId;
             data.attempt++;
           }
         });
@@ -1279,8 +1282,13 @@ class StateMachines {
     ctx.addEvent(event);
     ctx.onCommit(
         (historySize) -> {
-          log.info(
-              "completeDecisionTask commit lastSuccessfulStartedEventId=" + data.startedEventId);
+          if (log.isTraceEnabled()) {
+            log.trace(
+                "completeDecisionTask commit workflowId="
+                    + data.startRequest.getWorkflowId()
+                    + ", lastSuccessfulStartedEventId="
+                    + data.startedEventId);
+          }
           data.lastSuccessfulStartedEventId = data.startedEventId;
           data.clear();
         });

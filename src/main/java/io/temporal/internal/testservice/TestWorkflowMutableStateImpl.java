@@ -83,7 +83,6 @@ import io.temporal.proto.failure.QueryFailed;
 import io.temporal.proto.query.QueryConsistencyLevel;
 import io.temporal.proto.query.QueryRejectCondition;
 import io.temporal.proto.query.QueryRejected;
-import io.temporal.proto.query.QueryResultType;
 import io.temporal.proto.query.WorkflowQueryResult;
 import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponseOrBuilder;
@@ -390,8 +389,29 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 }
               }
             }
-            for (ConsistentQuery query : data.queryBuffer.values()) {
-              decision.action(Action.QUERY, ctx, query, NO_EVENT_ID);
+            if (decision.getState() == State.INITIATED) {
+              for (ConsistentQuery query : data.queryBuffer.values()) {
+                decision.action(Action.QUERY, ctx, query, NO_EVENT_ID);
+              }
+            } else {
+              for (ConsistentQuery consistent : data.queryBuffer.values()) {
+                QueryId queryId = new QueryId(executionId, consistent.getKey());
+                PollForDecisionTaskResponse.Builder task =
+                    PollForDecisionTaskResponse.newBuilder()
+                        .setTaskToken(queryId.toBytes())
+                        .setWorkflowExecution(executionId.getExecution())
+                        .setWorkflowType(startRequest.getWorkflowType())
+                        .setQuery(consistent.getRequest().getQuery())
+                        .setWorkflowExecutionTaskList(startRequest.getTaskList());
+                TestWorkflowStore.TaskListId taskListId =
+                    new TestWorkflowStore.TaskListId(
+                        consistent.getRequest().getNamespace(),
+                        stickyExecutionAttributes == null
+                            ? startRequest.getTaskList().getName()
+                            : stickyExecutionAttributes.getWorkerTaskList().getName());
+                store.sendQueryTask(executionId, taskListId, task);
+                this.queries.put(queryId.getQueryId(), consistent.getResult());
+              }
             }
             data.queryBuffer.clear();
           } finally {
@@ -1713,12 +1733,59 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .build();
       }
     }
-    if (queryRequest.getQueryConsistencyLevel() == QueryConsistencyLevel.Eventual) {
-      throw StatusUtils.newException(
-          Status.INVALID_ARGUMENT.withDescription("Eventually consistent query is deprecated"),
-          QueryFailed.getDefaultInstance());
+    lock.lock();
+    boolean safeToDispatchDirectly =
+        isTerminalState()
+            || queryRequest.getQueryConsistencyLevel() == QueryConsistencyLevel.Eventual
+            || (decision.getState() != State.INITIATED && decision.getState() != State.STARTED);
+
+    if (safeToDispatchDirectly) {
+      return directQuery(queryRequest, deadline);
     } else {
       return stronglyConsistentQuery(queryRequest, deadline);
+    }
+  }
+
+  private QueryWorkflowResponse directQuery(QueryWorkflowRequest queryRequest, long deadline) {
+    CompletableFuture<QueryWorkflowResponse> result = new CompletableFuture<>();
+    try {
+      QueryId queryId = new QueryId(executionId);
+      PollForDecisionTaskResponse.Builder task =
+          PollForDecisionTaskResponse.newBuilder()
+              .setTaskToken(queryId.toBytes())
+              .setWorkflowExecution(executionId.getExecution())
+              .setWorkflowType(startRequest.getWorkflowType())
+              .setQuery(queryRequest.getQuery())
+              .setWorkflowExecutionTaskList(startRequest.getTaskList());
+      TestWorkflowStore.TaskListId taskListId =
+          new TestWorkflowStore.TaskListId(
+              queryRequest.getNamespace(),
+              stickyExecutionAttributes == null
+                  ? startRequest.getTaskList().getName()
+                  : stickyExecutionAttributes.getWorkerTaskList().getName());
+      queries.put(queryId.getQueryId(), result);
+      store.sendQueryTask(executionId, taskListId, task);
+    } finally {
+      lock.unlock(); // locked in the query method
+    }
+    try {
+      return result.get(deadline, TimeUnit.MILLISECONDS);
+    } catch (InterruptedException e) {
+      return QueryWorkflowResponse.getDefaultInstance();
+    } catch (ExecutionException e) {
+      Throwable cause = e.getCause();
+      if (cause instanceof StatusRuntimeException) {
+        throw (StatusRuntimeException) cause;
+      }
+      throw Status.INTERNAL
+          .withCause(cause)
+          .withDescription(cause.getMessage())
+          .asRuntimeException();
+    } catch (TimeoutException e) {
+      throw Status.DEADLINE_EXCEEDED
+          .withCause(e)
+          .withDescription("Query deadline of " + deadline + "milliseconds exceeded")
+          .asRuntimeException();
     }
   }
 
@@ -1760,7 +1827,12 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private QueryWorkflowResponse stronglyConsistentQuery(
       QueryWorkflowRequest queryRequest, long deadline) {
     ConsistentQuery consistentQuery = new ConsistentQuery(queryRequest);
-    update(ctx -> decision.action(Action.QUERY, ctx, consistentQuery, 0));
+    try {
+      update(ctx -> decision.action(Action.QUERY, ctx, consistentQuery, 0));
+    } finally {
+      // Locked in the query method
+      lock.unlock();
+    }
     CompletableFuture<QueryWorkflowResponse> result = consistentQuery.getResult();
     return getQueryWorkflowResponse(deadline, result);
   }
@@ -1791,7 +1863,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public void completeQuery(QueryId queryId, RespondQueryTaskCompletedRequest completeRequest) {
-    CompletableFuture<QueryWorkflowResponse> result = queries.get(queryId.getQueryId());
+    CompletableFuture<QueryWorkflowResponse> result = queries.remove(queryId.getQueryId());
     if (result == null) {
       throw Status.NOT_FOUND
           .withDescription("Unknown query id: " + queryId.getQueryId())
@@ -1801,18 +1873,21 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       // query already timed out
       return;
     }
-    if (completeRequest.getCompletedType() == QueryResultType.Answered) {
-      QueryWorkflowResponse response =
-          QueryWorkflowResponse.newBuilder()
-              .setQueryResult(completeRequest.getQueryResult())
-              .build();
-      result.complete(response);
-    } else if (completeRequest.getCompletedType() == QueryResultType.Failed) {
-      StatusRuntimeException error =
-          StatusUtils.newException(
-              Status.INVALID_ARGUMENT.withDescription(completeRequest.getErrorMessage()),
-              QueryFailed.getDefaultInstance());
-      result.completeExceptionally(error);
+    switch (completeRequest.getCompletedType()) {
+      case Answered:
+        QueryWorkflowResponse response =
+            QueryWorkflowResponse.newBuilder()
+                .setQueryResult(completeRequest.getQueryResult())
+                .build();
+        result.complete(response);
+        break;
+      case Failed:
+        StatusRuntimeException error =
+            StatusUtils.newException(
+                Status.INVALID_ARGUMENT.withDescription(completeRequest.getErrorMessage()),
+                QueryFailed.getDefaultInstance());
+        result.completeExceptionally(error);
+        break;
     }
   }
 

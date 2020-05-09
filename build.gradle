@@ -70,9 +70,9 @@ ext.getClientVersionName = { ->
     return split[0]
 }
 
-group='io.temporal'
+group = 'io.temporal'
 version = getVersionName()
-archivesBaseName="temporal-sdk"
+archivesBaseName = "temporal-sdk"
 
 description = '''Temporal Workflow Java SDK'''
 
@@ -229,6 +229,8 @@ test {
         // Uncomment the following line if you want to see test logs in gradlew run.
         showStandardStreams true
     }
+    forkEvery = 1
+    maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
 }
 
 uploadArchives {
