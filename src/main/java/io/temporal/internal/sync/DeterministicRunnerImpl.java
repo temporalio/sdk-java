@@ -598,7 +598,22 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
 
     @Override
-    public Duration getDecisionTaskTimeout() {
+    public Duration getWorkflowExecutionTimeout() {
+      return Duration.ZERO;
+    }
+
+    @Override
+    public long getRunStartedTimestampMillis() {
+      return 0;
+    }
+
+    @Override
+    public long getWorkflowExecutionExpirationTimestampMillis() {
+      return 0;
+    }
+
+    @Override
+    public Duration getWorkflowTaskTimeout() {
       throw new UnsupportedOperationException("not implemented");
     }
 

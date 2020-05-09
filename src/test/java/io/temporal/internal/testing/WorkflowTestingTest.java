@@ -33,6 +33,7 @@ import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.client.WorkflowTimedOutException;
+import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.GsonJsonDataConverter;
 import io.temporal.internal.common.WorkflowExecutionUtils;
@@ -290,6 +291,7 @@ public class WorkflowTestingTest {
               .setScheduleToCloseTimeout(Duration.ofSeconds(scheduleToCloseTimeoutSeconds))
               .setStartToCloseTimeout(Duration.ofSeconds(startToCloseTimeoutSeconds))
               .setScheduleToStartTimeout(Duration.ofSeconds(scheduleToStartTimeoutSeconds))
+              .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
               .build();
       TestActivity activity = Workflow.newActivityStub(TestActivity.class, options);
       Workflow.sleep(Duration.ofHours(1)); // test time skipping

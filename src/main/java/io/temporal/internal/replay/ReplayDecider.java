@@ -118,7 +118,14 @@ class ReplayDecider implements Decider {
 
     context =
         new DecisionContextImpl(
-            decisionsHelper, namespace, decisionTask, startedEvent, options, laTaskPoller, this);
+            decisionsHelper,
+            namespace,
+            decisionTask,
+            startedEvent,
+            Duration.ofNanos(firstEvent.getTimestamp()).toMillis(),
+            options,
+            laTaskPoller,
+            this);
 
     localActivityCompletionSink =
         historyEvent -> {
@@ -494,17 +501,11 @@ class ReplayDecider implements Decider {
           queryResults.put(entry.getKey(), result.build());
         } catch (Exception e) {
           String stackTrace = Throwables.getStackTraceAsString(e);
-          String message;
-          if (e != null) {
-            message = e.getMessage();
-          } else {
-            message = e.toString();
-          }
           queryResults.put(
               entry.getKey(),
               WorkflowQueryResult.newBuilder()
                   .setResultType(QueryResultType.Failed)
-                  .setErrorMessage(message)
+                  .setErrorMessage(e.getMessage())
                   .setAnswer(converter.toData(stackTrace).get())
                   .build());
         }
@@ -598,7 +599,7 @@ class ReplayDecider implements Decider {
     return false;
   }
 
-  int getDecisionTimeoutSeconds() {
+  int getWorkflowTaskTimeoutSeconds() {
     return startedEvent.getWorkflowTaskTimeoutSeconds();
   }
 
@@ -634,16 +635,16 @@ class ReplayDecider implements Decider {
     private final Duration retryServiceOperationInitialInterval = Duration.ofMillis(200);
     private final Duration retryServiceOperationMaxInterval = Duration.ofSeconds(4);
     private final Duration paginationStart = Duration.ofMillis(System.currentTimeMillis());
-    private Duration decisionWorkflowTaskTimeout;
+    private Duration workflowTaskTimeout;
 
     private final PollForDecisionTaskResponseOrBuilder task;
     private Iterator<HistoryEvent> current;
     private ByteString nextPageToken;
 
     DecisionTaskWithHistoryIteratorImpl(
-        PollForDecisionTaskResponseOrBuilder task, Duration decisionWorkflowTaskTimeout) {
+        PollForDecisionTaskResponseOrBuilder task, Duration workflowTaskTimeout) {
       this.task = Objects.requireNonNull(task);
-      this.decisionWorkflowTaskTimeout = Objects.requireNonNull(decisionWorkflowTaskTimeout);
+      this.workflowTaskTimeout = Objects.requireNonNull(workflowTaskTimeout);
 
       History history = task.getHistory();
       current = history.getEventsList().iterator();
@@ -677,7 +678,7 @@ class ReplayDecider implements Decider {
           metricsScope.counter(MetricsType.WORKFLOW_GET_HISTORY_COUNTER).inc(1);
           Stopwatch sw = metricsScope.timer(MetricsType.WORKFLOW_GET_HISTORY_LATENCY).start();
           Duration passed = Duration.ofMillis(System.currentTimeMillis()).minus(paginationStart);
-          Duration expiration = decisionWorkflowTaskTimeout.minus(passed);
+          Duration expiration = workflowTaskTimeout.minus(passed);
           if (expiration.isZero() || expiration.isNegative()) {
             throw Status.DEADLINE_EXCEEDED
                 .withDescription(

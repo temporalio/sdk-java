@@ -44,7 +44,7 @@ public class ActivityOptionsTest {
     ActivityMethod a = method.getAnnotation(ActivityMethod.class);
     MethodRetry r = method.getAnnotation(MethodRetry.class);
     ActivityOptions o = ActivityOptions.newBuilder().build();
-    ActivityOptions merged = ActivityOptions.newBuilder(o).setMethodRetry(r).build();
+    ActivityOptions merged = ActivityOptions.newBuilder(o).mergeMethodRetry(r).build();
 
     RetryOptions rMerged = merged.getRetryOptions();
     Assert.assertEquals(r.maximumAttempts(), rMerged.getMaximumAttempts());

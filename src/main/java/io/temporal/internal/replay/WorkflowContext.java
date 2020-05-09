@@ -27,6 +27,7 @@ import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.event.WorkflowExecutionStartedEventAttributes;
 import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,7 @@ import java.util.Map;
 final class WorkflowContext {
 
   private final PollForDecisionTaskResponseOrBuilder decisionTask;
+  private final long runStartedTimestampMillis;
   private boolean cancelRequested;
   private ContinueAsNewWorkflowExecutionParameters continueAsNewOnCompletion;
   private WorkflowExecutionStartedEventAttributes startedAttributes;
@@ -48,6 +50,7 @@ final class WorkflowContext {
       String namespace,
       PollForDecisionTaskResponseOrBuilder decisionTask,
       WorkflowExecutionStartedEventAttributes startedAttributes,
+      long runStartedTimestampMillis,
       List<ContextPropagator> contextPropagators) {
     this.namespace = namespace;
     this.decisionTask = decisionTask;
@@ -56,6 +59,7 @@ final class WorkflowContext {
     if (startedAttributes.hasSearchAttributes()) {
       this.searchAttributes = startedAttributes.getSearchAttributes().toBuilder();
     }
+    this.runStartedTimestampMillis = runStartedTimestampMillis;
     this.contextPropagators = contextPropagators;
   }
 
@@ -112,6 +116,20 @@ final class WorkflowContext {
   int getWorkflowRunTimeoutSeconds() {
     WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
     return attributes.getWorkflowRunTimeoutSeconds();
+  }
+
+  int getWorkflowExecutionTimeoutSeconds() {
+    WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
+    return attributes.getWorkflowExecutionTimeoutSeconds();
+  }
+
+  long getWorkflowExecutionExpirationTimestampMillis() {
+    WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
+    return Duration.ofNanos(attributes.getWorkflowExecutionExpirationTimestamp()).toMillis();
+  }
+
+  long getRunStartedTimestampMillis() {
+    return runStartedTimestampMillis;
   }
 
   int getDecisionTaskTimeoutSeconds() {

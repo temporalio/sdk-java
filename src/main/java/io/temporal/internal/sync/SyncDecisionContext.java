@@ -424,6 +424,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
           ChildWorkflowOptions.newBuilder()
               .setTaskList(options.getTaskList())
               .setWorkflowRunTimeout(options.getWorkflowRunTimeout())
+              .setWorkflowExecutionTimeout(options.getWorkflowExecutionTimeout())
               .setWorkflowTaskTimeout(options.getWorkflowTaskTimeout())
               .setWorkflowId(options.getWorkflowId())
               .setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy())

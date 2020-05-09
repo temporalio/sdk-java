@@ -158,7 +158,7 @@ public final class ActivityOptions {
     /**
      * Properties that are set on this builder take precedence over ones found in the annotation.
      */
-    public Builder setMethodRetry(MethodRetry r) {
+    public Builder mergeMethodRetry(MethodRetry r) {
       retryOptions = RetryOptions.merge(r, retryOptions);
       return this;
     }

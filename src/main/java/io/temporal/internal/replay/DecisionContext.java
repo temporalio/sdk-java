@@ -69,7 +69,13 @@ public interface DecisionContext extends ReplayAware {
 
   Duration getWorkflowRunTimeout();
 
-  Duration getDecisionTaskTimeout();
+  Duration getWorkflowExecutionTimeout();
+
+  long getRunStartedTimestampMillis();
+
+  long getWorkflowExecutionExpirationTimestampMillis();
+
+  Duration getWorkflowTaskTimeout();
 
   /**
    * Used to retrieve search attributes.

@@ -336,7 +336,7 @@ public final class StartWorkflowExecutionParameters {
   public static StartWorkflowExecutionParameters fromWorkflowOptions(WorkflowOptions options) {
     StartWorkflowExecutionParameters parameters = new StartWorkflowExecutionParameters();
     parameters.setWorkflowRunTimeoutSeconds(roundUpToSeconds(options.getWorkflowRunTimeout()));
-    parameters.setWorkflowRunTimeoutSeconds(
+    parameters.setWorkflowExecutionTimeoutSeconds(
         roundUpToSeconds(options.getWorkflowExecutionTimeout()));
     parameters.setWorkflowTaskTimeoutSeconds(roundUpToSeconds(options.getWorkflowTaskTimeout()));
     parameters.setTaskList(options.getTaskList());

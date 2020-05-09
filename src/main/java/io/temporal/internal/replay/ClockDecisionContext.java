@@ -350,7 +350,7 @@ public final class ClockDecisionContext {
               new LocalActivityWorker.Task(
                   params,
                   replayDecider.getLocalActivityCompletionSink(),
-                  replayDecider.getDecisionTimeoutSeconds(),
+                  replayDecider.getWorkflowTaskTimeoutSeconds(),
                   this::currentTimeMillis,
                   this::replayTimeUpdatedAtMillis),
               maxWaitAllowed);

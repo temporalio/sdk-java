@@ -110,6 +110,8 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
       request.setInput(input.get());
     }
     request.setWorkflowRunTimeoutSeconds(startParameters.getWorkflowRunTimeoutSeconds());
+    request.setWorkflowExecutionTimeoutSeconds(
+        startParameters.getWorkflowExecutionTimeoutSeconds());
     request.setWorkflowTaskTimeoutSeconds(startParameters.getWorkflowTaskTimeoutSeconds());
     if (startParameters.getWorkflowIdReusePolicy() != null) {
       request.setWorkflowIdReusePolicy(startParameters.getWorkflowIdReusePolicy());
@@ -244,6 +246,8 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
             .setIdentity(identity)
             .setSignalName(parameters.getSignalName())
             .setWorkflowRunTimeoutSeconds(startParameters.getWorkflowRunTimeoutSeconds())
+            .setWorkflowExecutionTimeoutSeconds(
+                startParameters.getWorkflowExecutionTimeoutSeconds())
             .setWorkflowTaskTimeoutSeconds(startParameters.getWorkflowTaskTimeoutSeconds())
             .setWorkflowType(startParameters.getWorkflowType());
 

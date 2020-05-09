@@ -68,13 +68,18 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
       String namespace,
       PollForDecisionTaskResponseOrBuilder decisionTask,
       WorkflowExecutionStartedEventAttributes startedAttributes,
+      long runStartedTimestampMillis,
       SingleWorkerOptions options,
       BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller,
       ReplayDecider replayDecider) {
     this.activityClient = new ActivityDecisionContext(decisionsHelper);
     this.workflowContext =
         new WorkflowContext(
-            namespace, decisionTask, startedAttributes, options.getContextPropagators());
+            namespace,
+            decisionTask,
+            startedAttributes,
+            runStartedTimestampMillis,
+            options.getContextPropagators());
     this.workflowClient = new WorkflowDecisionContext(decisionsHelper, workflowContext);
     this.workflowClock =
         new ClockDecisionContext(
@@ -145,7 +150,7 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   }
 
   @Override
-  public Duration getDecisionTaskTimeout() {
+  public Duration getWorkflowTaskTimeout() {
     return Duration.ofSeconds(workflowContext.getDecisionTaskTimeoutSeconds());
   }
 
@@ -176,6 +181,21 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   @Override
   public Duration getWorkflowRunTimeout() {
     return Duration.ofSeconds(workflowContext.getWorkflowRunTimeoutSeconds());
+  }
+
+  @Override
+  public Duration getWorkflowExecutionTimeout() {
+    return Duration.ofSeconds(workflowContext.getWorkflowExecutionTimeoutSeconds());
+  }
+
+  @Override
+  public long getRunStartedTimestampMillis() {
+    return workflowContext.getRunStartedTimestampMillis();
+  }
+
+  @Override
+  public long getWorkflowExecutionExpirationTimestampMillis() {
+    return workflowContext.getWorkflowExecutionExpirationTimestampMillis();
   }
 
   @Override
