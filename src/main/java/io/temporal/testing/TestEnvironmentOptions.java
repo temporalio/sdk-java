@@ -83,12 +83,8 @@ public final class TestEnvironmentOptions {
 
     public TestEnvironmentOptions validateAndBuildWithDefaults() {
       return new TestEnvironmentOptions(
-          workflowClientOptions == null
-              ? WorkflowClientOptions.newBuilder().validateAndBuildWithDefaults()
-              : workflowClientOptions,
-          workerFactoryOptions == null
-              ? WorkerFactoryOptions.newBuilder().validateAndBuildWithDefaults()
-              : workerFactoryOptions,
+          WorkflowClientOptions.newBuilder(workflowClientOptions).validateAndBuildWithDefaults(),
+          WorkerFactoryOptions.newBuilder(workerFactoryOptions).validateAndBuildWithDefaults(),
           metricsScope == null ? new NoopScope() : metricsScope);
     }
   }

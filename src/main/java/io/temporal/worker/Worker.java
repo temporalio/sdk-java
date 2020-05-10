@@ -92,7 +92,8 @@ public final class Worker implements Suspendable {
 
     this.taskList = taskList;
     this.options = WorkerOptions.newBuilder(options).validateAndBuildWithDefaults();
-    this.factoryOptions = factoryOptions;
+    this.factoryOptions =
+        WorkerFactoryOptions.newBuilder(factoryOptions).validateAndBuildWithDefaults();
     WorkflowServiceStubs service = client.getWorkflowServiceStubs();
     WorkflowClientOptions clientOptions = client.getOptions();
     String namespace = clientOptions.getNamespace();
@@ -105,7 +106,13 @@ public final class Worker implements Suspendable {
             taskList,
             contextPropagators,
             metricsScope);
-    activityWorker = new SyncActivityWorker(service, namespace, taskList, activityOptions);
+    activityWorker =
+        new SyncActivityWorker(
+            service,
+            namespace,
+            taskList,
+            this.options.getTaskListActivitiesPerSecond(),
+            activityOptions);
 
     SingleWorkerOptions workflowOptions =
         toWorkflowOptions(
@@ -128,12 +135,13 @@ public final class Worker implements Suspendable {
             service,
             namespace,
             taskList,
-            factoryOptions.getWorkflowInterceptor(),
+            this.factoryOptions.getWorkflowInterceptor(),
             workflowOptions,
             localActivityOptions,
             this.cache,
             this.stickyTaskListName,
-            Duration.ofSeconds(factoryOptions.getStickyDecisionScheduleToStartTimeoutInSeconds()),
+            Duration.ofSeconds(
+                this.factoryOptions.getStickyDecisionScheduleToStartTimeoutInSeconds()),
             this.threadPoolExecutor);
   }
 
@@ -155,6 +163,7 @@ public final class Worker implements Suspendable {
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setMaximumPollRatePerSecond(options.getMaxActivitiesPerSecond())
+                .setPollThreadCount(options.getActivityPollThreadCount())
                 .build())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentActivityExecutionSize())
         .setMetricsScope(metricsScope.tagged(tags))
@@ -178,7 +187,10 @@ public final class Worker implements Suspendable {
     return SingleWorkerOptions.newBuilder()
         .setDataConverter(clientOptions.getDataConverter())
         .setIdentity(clientOptions.getIdentity())
-        .setPollerOptions(PollerOptions.newBuilder().build())
+        .setPollerOptions(
+            PollerOptions.newBuilder()
+                .setPollThreadCount(options.getWorkflowPollThreadCount())
+                .build())
         .setTaskExecutorThreadPoolSize(options.getMaxConcurrentWorkflowTaskExecutionSize())
         .setMetricsScope(metricsScope.tagged(tags))
         .setEnableLoggingInReplay(factoryOptions.isEnableLoggingInReplay())

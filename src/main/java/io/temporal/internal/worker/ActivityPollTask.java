@@ -40,17 +40,20 @@ final class ActivityPollTask implements Poller.PollTask<PollForActivityTaskRespo
   private final String taskList;
   private final SingleWorkerOptions options;
   private static final Logger log = LoggerFactory.getLogger(ActivityPollTask.class);
+  private final double taskListActivitiesPerSecond;
 
   public ActivityPollTask(
       WorkflowServiceStubs service,
       String namespace,
       String taskList,
-      SingleWorkerOptions options) {
+      SingleWorkerOptions options,
+      double taskListActivitiesPerSecond) {
 
     this.service = service;
     this.namespace = namespace;
     this.taskList = taskList;
     this.options = options;
+    this.taskListActivitiesPerSecond = taskListActivitiesPerSecond;
   }
 
   @Override
@@ -63,6 +66,13 @@ final class ActivityPollTask implements Poller.PollTask<PollForActivityTaskRespo
             .setNamespace(namespace)
             .setIdentity(options.getIdentity())
             .setTaskList(TaskList.newBuilder().setName(taskList));
+    if (taskListActivitiesPerSecond > 0) {
+      pollRequest.setTaskListMetadata(
+          TaskListMetadata.newBuilder()
+              .setMaxTasksPerSecond(
+                  DoubleValue.newBuilder().setValue(taskListActivitiesPerSecond).build())
+              .build());
+    }
 
     if (options.getTaskListActivitiesPerSecond() > 0) {
       pollRequest.setTaskListMetadata(

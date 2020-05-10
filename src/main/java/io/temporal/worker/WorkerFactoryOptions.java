@@ -19,6 +19,7 @@
 
 package io.temporal.worker;
 
+import com.google.common.base.Preconditions;
 import io.temporal.common.interceptors.NoopWorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowInterceptor;
 
@@ -36,6 +37,8 @@ public class WorkerFactoryOptions {
     return DEFAULT_INSTANCE;
   }
 
+  private static final int DEFAULT_HOST_LOCAL_WORKFLOW_POLL_THREAD_COUNT = 5;
+
   private static final WorkerFactoryOptions DEFAULT_INSTANCE;
 
   static {
@@ -48,6 +51,7 @@ public class WorkerFactoryOptions {
     private int maxWorkflowThreadCount;
     private WorkflowInterceptor workflowInterceptor;
     private boolean enableLoggingInReplay;
+    private int workflowHostLocalPollThreadCount;
 
     private Builder() {}
 
@@ -61,6 +65,7 @@ public class WorkerFactoryOptions {
       this.maxWorkflowThreadCount = options.maxWorkflowThreadCount;
       this.workflowInterceptor = options.workflowInterceptor;
       this.enableLoggingInReplay = options.enableLoggingInReplay;
+      this.workflowHostLocalPollThreadCount = options.workflowHostLocalPollThreadCount;
     }
 
     /**
@@ -103,6 +108,11 @@ public class WorkerFactoryOptions {
       return this;
     }
 
+    public Builder setWorkflowHostLocalPollThreadCount(int workflowHostLocalPollThreadCount) {
+      this.workflowHostLocalPollThreadCount = workflowHostLocalPollThreadCount;
+      return this;
+    }
+
     public WorkerFactoryOptions build() {
       return new WorkerFactoryOptions(
           cacheMaximumSize,
@@ -110,6 +120,7 @@ public class WorkerFactoryOptions {
           stickyDecisionScheduleToStartTimeoutInSeconds,
           workflowInterceptor,
           enableLoggingInReplay,
+          workflowHostLocalPollThreadCount,
           false);
     }
 
@@ -120,6 +131,7 @@ public class WorkerFactoryOptions {
           stickyDecisionScheduleToStartTimeoutInSeconds,
           workflowInterceptor,
           enableLoggingInReplay,
+          workflowHostLocalPollThreadCount,
           true);
     }
   }
@@ -129,6 +141,7 @@ public class WorkerFactoryOptions {
   private final int stickyDecisionScheduleToStartTimeoutInSeconds;
   private final WorkflowInterceptor workflowInterceptor;
   private final boolean enableLoggingInReplay;
+  private final int workflowHostLocalPollThreadCount;
 
   private WorkerFactoryOptions(
       int cacheMaximumSize,
@@ -136,6 +149,7 @@ public class WorkerFactoryOptions {
       int stickyDecisionScheduleToStartTimeoutInSeconds,
       WorkflowInterceptor workflowInterceptor,
       boolean enableLoggingInReplay,
+      int workflowHostLocalPollThreadCount,
       boolean validate) {
     if (validate) {
       if (cacheMaximumSize <= 0) {
@@ -144,11 +158,20 @@ public class WorkerFactoryOptions {
       if (maxWorkflowThreadCount <= 0) {
         maxWorkflowThreadCount = 600;
       }
-      if (stickyDecisionScheduleToStartTimeoutInSeconds <= 0) {
+      Preconditions.checkState(
+          stickyDecisionScheduleToStartTimeoutInSeconds >= 0,
+          "negative stickyDecisionScheduleToStartTimeoutInSeconds");
+
+      if (stickyDecisionScheduleToStartTimeoutInSeconds == 0) {
         stickyDecisionScheduleToStartTimeoutInSeconds = 5;
       }
       if (workflowInterceptor == null) {
         workflowInterceptor = new NoopWorkflowInterceptor();
+      }
+      Preconditions.checkState(
+          workflowHostLocalPollThreadCount >= 0, "negative workflowHostLocalPollThreadCount");
+      if (workflowHostLocalPollThreadCount == 0) {
+        workflowHostLocalPollThreadCount = DEFAULT_HOST_LOCAL_WORKFLOW_POLL_THREAD_COUNT;
       }
     }
     this.cacheMaximumSize = cacheMaximumSize;
@@ -157,6 +180,7 @@ public class WorkerFactoryOptions {
         stickyDecisionScheduleToStartTimeoutInSeconds;
     this.workflowInterceptor = workflowInterceptor;
     this.enableLoggingInReplay = enableLoggingInReplay;
+    this.workflowHostLocalPollThreadCount = workflowHostLocalPollThreadCount;
   }
 
   public int getCacheMaximumSize() {
@@ -177,5 +201,13 @@ public class WorkerFactoryOptions {
 
   public boolean isEnableLoggingInReplay() {
     return enableLoggingInReplay;
+  }
+
+  public int getWorkflowHostLocalPollThreadCount() {
+    return workflowHostLocalPollThreadCount;
+  }
+
+  public Builder toBuilder() {
+    return new Builder(this);
   }
 }

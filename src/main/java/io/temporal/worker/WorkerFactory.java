@@ -57,6 +57,8 @@ public final class WorkerFactory {
     return new WorkerFactory(workflowClient, options);
   }
 
+  private static final String POLL_THREAD_NAME = "Host Local Workflow Poller";
+
   private final List<Worker> workers = new ArrayList<>();
   private final WorkflowClient workflowClient;
   private final UUID id =
@@ -122,7 +124,10 @@ public final class WorkerFactory {
                     id.toString())
                 .get(),
             dispatcher,
-            PollerOptions.newBuilder().build(),
+            PollerOptions.newBuilder()
+                .setPollThreadNamePrefix(POLL_THREAD_NAME)
+                .setPollThreadCount(this.factoryOptions.getWorkflowHostLocalPollThreadCount())
+                .build(),
             metricsScope);
   }
 
