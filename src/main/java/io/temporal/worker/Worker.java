@@ -141,7 +141,7 @@ public final class Worker implements Suspendable {
             this.cache,
             this.stickyTaskListName,
             Duration.ofSeconds(
-                this.factoryOptions.getStickyDecisionScheduleToStartTimeoutInSeconds()),
+                this.factoryOptions.getWorkflowHostLocalTaskListScheduleToStartTimeoutSeconds()),
             this.threadPoolExecutor);
   }
 

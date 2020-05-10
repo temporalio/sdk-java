@@ -46,12 +46,15 @@ public final class WorkerOptions {
 
     private static final int DEFAULT_WORKFLOW_POLL_THREAD_COUNT = 2;
     private static final int DEFAULT_ACTIVITY_POLL_THREAD_COUNT = 5;
+    private static final int DEFAULT_MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE = 200;
+    private static final int DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE = 200;
+    private static final int DEFAULT_MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE = 200;
 
     private double maxActivitiesPerSecond;
-    private int maxConcurrentActivityExecutionSize = 100;
-    private int maxConcurrentWorkflowTaskExecutionSize = 50;
-    private int maxConcurrentLocalActivityExecutionSize = 100;
-    private double taskListActivitiesPerSecond = 100000;
+    private int maxConcurrentActivityExecutionSize;
+    private int maxConcurrentWorkflowTaskExecutionSize;
+    private int maxConcurrentLocalActivityExecutionSize;
+    private double taskListActivitiesPerSecond;
     private int workflowPollThreadCount;
     private int activityPollThreadCount;
 
@@ -72,7 +75,8 @@ public final class WorkerOptions {
 
     /**
      * Maximum number of activities started per second by this worker. Default is 0 which means
-     * unlimited.
+     * unlimited. If worker is not fully loaded while tasks are backing up on the service consider
+     * increasing {@link #setActivityPollThreadCount(int)}.
      *
      * <p>Note that this is a per worker limit. Use {@link #setTaskListActivitiesPerSecond(double)}
      * to set per task list limit across multiple workers.
@@ -85,7 +89,11 @@ public final class WorkerOptions {
       return this;
     }
 
-    /** Maximum number of parallely executed activities. */
+    /**
+     * Maximum number of parallely executed activities.
+     *
+     * <p>Default is 200.
+     */
     public Builder setMaxConcurrentActivityExecutionSize(int maxConcurrentActivityExecutionSize) {
       if (maxConcurrentActivityExecutionSize <= 0) {
         throw new IllegalArgumentException(
@@ -99,6 +107,8 @@ public final class WorkerOptions {
      * Maximum number of simultaneously executed workflow tasks. Note that this is not related to
      * the total number of open workflows which do not need to be loaded in a worker when they are
      * not making state transitions.
+     *
+     * <p>Default is 200.
      */
     public Builder setMaxConcurrentWorkflowTaskExecutionSize(
         int maxConcurrentWorkflowTaskExecutionSize) {
@@ -110,7 +120,11 @@ public final class WorkerOptions {
       return this;
     }
 
-    /** Maximum number of parallely executed local activities. */
+    /**
+     * Maximum number of parallely executed local activities.
+     *
+     * <p>Default is 200.
+     */
     public Builder setMaxConcurrentLocalActivityExecutionSize(
         int maxConcurrentLocalActivityExecutionSize) {
       if (maxConcurrentLocalActivityExecutionSize <= 0) {
@@ -127,18 +141,32 @@ public final class WorkerOptions {
      * Notice that the number is represented in double, so that you can set it to less than 1 if
      * needed. For example, set the number to 0.1 means you want your activity to be executed once
      * every 10 seconds. This can be used to protect down stream services from flooding. The zero
-     * value of this uses the default value. Default: 100k
+     * value of this uses the default value. Default is unlimited.
      */
     public Builder setTaskListActivitiesPerSecond(double taskListActivitiesPerSecond) {
       this.taskListActivitiesPerSecond = taskListActivitiesPerSecond;
       return this;
     }
 
+    /**
+     * Number of simultaneous poll requests on workflow task list. Note that the majority of the
+     * workflow tasks will be using host local task list due to caching. So try incrementing {@link
+     * WorkerFactoryOptions.Builder#setWorkflowHostLocalPollThreadCount(int)} before this one.
+     *
+     * <p>Default is 2.
+     */
     public Builder setWorkflowPollThreadCount(int workflowPollThreadCount) {
       this.workflowPollThreadCount = workflowPollThreadCount;
       return this;
     }
 
+    /**
+     * Number of simultaneous poll requests on activity task list. Consider incrementing if the
+     * worker is not throttled due to `MaxActivitiesPerSecond` or
+     * `MaxConcurrentActivityExecutionSize` options and still cannot keep up with the request rate.
+     *
+     * <p>Default is 5.
+     */
     public Builder setActivityPollThreadCount(int activityPollThreadCount) {
       this.activityPollThreadCount = activityPollThreadCount;
       return this;
@@ -148,8 +176,8 @@ public final class WorkerOptions {
       return new WorkerOptions(
           maxActivitiesPerSecond,
           maxConcurrentActivityExecutionSize,
-          maxConcurrentWorkflowTaskExecutionSize,
-          maxConcurrentLocalActivityExecutionSize,
+          DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE,
+          DEFAULT_MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE,
           taskListActivitiesPerSecond,
           workflowPollThreadCount,
           activityPollThreadCount);
@@ -171,9 +199,15 @@ public final class WorkerOptions {
       Preconditions.checkState(activityPollThreadCount >= 0, "negative activityPollThreadCount");
       return new WorkerOptions(
           maxActivitiesPerSecond,
-          maxConcurrentActivityExecutionSize,
-          maxConcurrentWorkflowTaskExecutionSize,
-          maxConcurrentLocalActivityExecutionSize,
+          maxConcurrentActivityExecutionSize == 0
+              ? DEFAULT_MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE
+              : maxConcurrentActivityExecutionSize,
+          maxConcurrentWorkflowTaskExecutionSize == 0
+              ? DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE
+              : maxConcurrentWorkflowTaskExecutionSize,
+          maxConcurrentLocalActivityExecutionSize == 0
+              ? DEFAULT_MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE
+              : maxConcurrentLocalActivityExecutionSize,
           taskListActivitiesPerSecond,
           workflowPollThreadCount == 0
               ? DEFAULT_WORKFLOW_POLL_THREAD_COUNT

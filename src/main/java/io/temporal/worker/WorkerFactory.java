@@ -110,7 +110,7 @@ public final class WorkerFactory {
                     .put(MetricsTag.TASK_LIST, workflowClient.getOptions().getIdentity())
                     .build());
 
-    this.cache = new DeciderCache(this.factoryOptions.getCacheMaximumSize(), metricsScope);
+    this.cache = new DeciderCache(this.factoryOptions.getWorkflowCacheSize(), metricsScope);
 
     dispatcher = new PollDecisionTaskDispatcher(workflowClient.getWorkflowServiceStubs());
     stickyPoller =
