@@ -43,7 +43,7 @@ public class WorkerFactoryOptions {
   }
 
   public static class Builder {
-    private int stickyDecisionScheduleToStartTimeoutInSeconds;
+    private int stickyDecisionScheduleToStartTimeoutInSeconds = 10;
     private int cacheMaximumSize;
     private int maxWorkflowThreadCount;
     private WorkflowInterceptor workflowInterceptor;
@@ -143,9 +143,6 @@ public class WorkerFactoryOptions {
       }
       if (maxWorkflowThreadCount <= 0) {
         maxWorkflowThreadCount = 600;
-      }
-      if (stickyDecisionScheduleToStartTimeoutInSeconds <= 0) {
-        stickyDecisionScheduleToStartTimeoutInSeconds = 5;
       }
       if (workflowInterceptor == null) {
         workflowInterceptor = new NoopWorkflowInterceptor();

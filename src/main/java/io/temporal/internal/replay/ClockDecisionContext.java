@@ -44,7 +44,6 @@ import java.util.concurrent.locks.Condition;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -187,7 +186,7 @@ public final class ClockDecisionContext {
   }
 
   byte[] sideEffect(Func<byte[]> func) {
-    decisions.addAllMissingVersionMarker(false, Optional.empty());
+    decisions.addAllMissingVersionMarker();
     long sideEffectEventId = decisions.getNextDecisionEventId();
     byte[] result;
     if (replaying) {
@@ -216,7 +215,7 @@ public final class ClockDecisionContext {
    */
   Optional<byte[]> mutableSideEffect(
       String id, DataConverter converter, Func1<Optional<byte[]>, Optional<byte[]>> func) {
-    decisions.addAllMissingVersionMarker(false, Optional.empty());
+    decisions.addAllMissingVersionMarker();
     return mutableSideEffectHandler.handle(id, converter, func);
   }
 
@@ -281,14 +280,24 @@ public final class ClockDecisionContext {
     }
   }
 
+  /**
+   * During replay getVersion should account for the following situations at the current eventId.
+   *
+   * <ul>
+   *   <li>There is correspondent Marker with the same changeId: return version from the marker.
+   *   <li>There is no Marker with the same changeId: return DEFAULT_VERSION,
+   *   <li>There is marker with a different changeId (possibly more than one) and the marker with
+   *       matching changeId follows them: add fake decisions for all the version markers that
+   *       precede the matching one as the correspondent getVersion calls were removed
+   *   <li>There is marker with a different changeId (possibly more than one) and no marker with
+   *       matching changeId follows them: return DEFAULT_VERSION as it looks like the getVersion
+   *       was added after that part of code has executed
+   *   <li>Another case is when there is no call to getVersion and there is a version marker: insert
+   *       fake decisions for all version markers up to the event that caused the lookup.
+   * </ul>
+   */
   int getVersion(String changeId, DataConverter converter, int minSupported, int maxSupported) {
-    Predicate<MarkerRecordedEventAttributes> changeIdEquals =
-        (attributes) -> {
-          MarkerHandler.MarkerInterface markerData =
-              MarkerHandler.MarkerInterface.fromEventAttributes(attributes, converter);
-          return markerData.getId().equals(changeId);
-        };
-    decisions.addAllMissingVersionMarker(true, Optional.of(changeIdEquals));
+    decisions.addAllMissingVersionMarker(Optional.of(changeId), Optional.of(converter));
 
     Optional<byte[]> result =
         versionHandler.handle(
