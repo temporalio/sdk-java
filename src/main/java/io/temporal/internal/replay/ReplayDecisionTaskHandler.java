@@ -260,7 +260,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
             .putAllQueryResults(result.getQueryResults())
             .setForceCreateNewDecisionTask(result.getForceCreateNewDecisionTask());
 
-    if (stickyTaskListName != null) {
+    if (stickyTaskListName != null && !stickyTaskListScheduleToStartTimeout.isZero()) {
       StickyExecutionAttributes.Builder attributes =
           StickyExecutionAttributes.newBuilder()
               .setWorkerTaskList(createStickyTaskList(stickyTaskListName))
