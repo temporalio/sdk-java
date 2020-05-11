@@ -49,7 +49,8 @@ public class WorkerFactoryOptions {
   }
 
   public static class Builder {
-    private int workflowHostLocalTaskListScheduleToStartTimeoutSeconds;
+    private int workflowHostLocalTaskListScheduleToStartTimeoutSeconds =
+        DEFAULT_WORKFLOW_HOST_LOCAL_TASK_LIST_SCHEDULE_TO_START_TIMEOUT;
     private int workflowCacheSize;
     private int maxWorkflowThreadCount;
     private WorkflowInterceptor workflowInterceptor;
@@ -172,14 +173,9 @@ public class WorkerFactoryOptions {
       if (maxWorkflowThreadCount == 0) {
         maxWorkflowThreadCount = DEFAULT_MAX_WORKFLOW_THREAD_COUNT;
       }
-
       Preconditions.checkState(
           workflowHostLocalTaskListScheduleToStartTimeoutSeconds >= 0,
           "negative workflowHostLocalTaskListScheduleToStartTimeoutSeconds");
-      if (workflowHostLocalTaskListScheduleToStartTimeoutSeconds == 0) {
-        workflowHostLocalTaskListScheduleToStartTimeoutSeconds =
-            DEFAULT_WORKFLOW_HOST_LOCAL_TASK_LIST_SCHEDULE_TO_START_TIMEOUT;
-      }
 
       if (workflowInterceptor == null) {
         workflowInterceptor = new NoopWorkflowInterceptor();
