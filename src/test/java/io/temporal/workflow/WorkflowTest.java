@@ -287,7 +287,7 @@ public class WorkflowTest {
                 })
             .setNamespace(NAMESPACE)
             .build();
-    boolean versionTest = testMethod.contains("GetVersion");
+    boolean versionTest = testMethod.contains("GetVersion") || testMethod.contains("Deterministic");
     WorkerFactoryOptions factoryOptions =
         WorkerFactoryOptions.newBuilder()
             .setWorkflowInterceptor(tracer)
@@ -4853,8 +4853,8 @@ public class WorkflowTest {
     }
   }
 
+  @WorkflowInterface
   public interface DeterminismFailingWorkflow {
-
     @WorkflowMethod
     void execute(String taskList);
   }
@@ -4872,9 +4872,7 @@ public class WorkflowTest {
   }
 
   @Test
-  @Ignore
   public void testNonDeterministicWorkflowPolicyBlockWorkflow() {
-    // TODO(maxim): Force replay
     startWorkerFor(DeterminismFailingWorkflowImpl.class);
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
@@ -4903,7 +4901,6 @@ public class WorkflowTest {
   }
 
   @Test
-  @Ignore // TODO: force replay
   public void testNonDeterministicWorkflowPolicyFailWorkflow() {
     WorkflowImplementationOptions implementationOptions =
         new WorkflowImplementationOptions.Builder()
