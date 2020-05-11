@@ -147,7 +147,7 @@ public class WorkflowTest {
    * When set to true increases test, activity and workflow timeouts to large values to support
    * stepping through code in a debugger without timing out.
    */
-  private static final boolean DEBUGGER_TIMEOUTS = false;
+  private static final boolean DEBUGGER_TIMEOUTS = true;
 
   private static final String ANNOTATION_TASK_LIST = "WorkflowTest-testExecute[Docker]";
 
@@ -287,8 +287,12 @@ public class WorkflowTest {
                 })
             .setNamespace(NAMESPACE)
             .build();
+    boolean versionTest = testMethod.contains("GetVersion");
     WorkerFactoryOptions factoryOptions =
-        WorkerFactoryOptions.newBuilder().setWorkflowInterceptor(tracer).build();
+        WorkerFactoryOptions.newBuilder()
+            .setWorkflowInterceptor(tracer)
+            .setStickyDecisionScheduleToStartTimeoutInSeconds(versionTest ? 0 : 10)
+            .build();
     if (useExternalService) {
       workflowClient = WorkflowClient.newInstance(service, workflowClientOptions);
       workerFactory = WorkerFactory.newInstance(workflowClient, factoryOptions);
@@ -4479,6 +4483,135 @@ public class WorkflowTest {
     workflowStub.execute(taskList);
   }
 
+  public static class TestGetVersionWorkflowAddNewBefore implements TestWorkflow1 {
+
+    @Override
+    public String execute(String taskList) {
+      log.info("TestGetVersionWorkflow3Impl this=" + this.hashCode());
+      // Test adding a version check in replay code.
+      if (!getVersionExecuted.contains(taskList + "-test_change_2")) {
+        getVersionExecuted.add(taskList + "-test_change_2");
+        // The first version of the code
+        int changeFoo = Workflow.getVersion("changeFoo", Workflow.DEFAULT_VERSION, 1);
+        if (changeFoo != 1) {
+          throw new IllegalStateException("Unexpected version: " + 1);
+        }
+      } else {
+        // The updated code
+        int changeBar = Workflow.getVersion("changeBar", Workflow.DEFAULT_VERSION, 1);
+        if (changeBar != Workflow.DEFAULT_VERSION) {
+          throw new IllegalStateException("Unexpected version: " + changeBar);
+        }
+        int changeFoo = Workflow.getVersion("changeFoo", Workflow.DEFAULT_VERSION, 1);
+        if (changeFoo != 1) {
+          throw new IllegalStateException("Unexpected version: " + changeFoo);
+        }
+      }
+      Workflow.sleep(1000); // forces new decision
+      return "test";
+    }
+  }
+
+  @Test
+  public void testGetVersionAddNewBefore() {
+    Assume.assumeFalse("skipping for docker tests", useExternalService);
+
+    startWorkerFor(TestGetVersionWorkflowAddNewBefore.class);
+    TestWorkflow1 workflowStub =
+        workflowClient.newWorkflowStub(
+            TestWorkflow1.class,
+            newWorkflowOptionsBuilder(taskList)
+                .setExecutionStartToCloseTimeout(Duration.ofHours(2))
+                .build());
+    workflowStub.execute(taskList);
+  }
+
+  public static class TestGetVersionWorkflowReplaceGetVersionId implements TestWorkflow1 {
+
+    @Override
+    public String execute(String taskList) {
+      log.info("TestGetVersionWorkflow3Impl this=" + this.hashCode());
+      // Test adding a version check in replay code.
+      if (!getVersionExecuted.contains(taskList + "-test_change_2")) {
+        getVersionExecuted.add(taskList + "-test_change_2");
+        // The first version of the code
+        int changeFoo1 = Workflow.getVersion("changeFoo0", Workflow.DEFAULT_VERSION, 2);
+        if (changeFoo1 != 2) {
+          throw new IllegalStateException("Unexpected version: " + changeFoo1);
+        }
+        int changeFoo2 = Workflow.getVersion("changeFoo1", Workflow.DEFAULT_VERSION, 111);
+        if (changeFoo2 != 111) {
+          throw new IllegalStateException("Unexpected version: " + changeFoo2);
+        }
+      } else {
+        // The updated code
+        int changeBar = Workflow.getVersion("changeBar", Workflow.DEFAULT_VERSION, 1);
+        if (changeBar != Workflow.DEFAULT_VERSION) {
+          throw new IllegalStateException("Unexpected version: " + changeBar);
+        }
+        int changeFoo = Workflow.getVersion("changeFoo1", Workflow.DEFAULT_VERSION, 123);
+        if (changeFoo != 111) {
+          throw new IllegalStateException("Unexpected version: " + changeFoo);
+        }
+      }
+      Workflow.sleep(1000); // forces new decision
+      return "test";
+    }
+  }
+
+  @Test
+  public void testGetVersionWorkflowReplaceGetVersionId() {
+    Assume.assumeFalse("skipping for docker tests", useExternalService);
+
+    startWorkerFor(TestGetVersionWorkflowReplaceGetVersionId.class);
+    TestWorkflow1 workflowStub =
+        workflowClient.newWorkflowStub(
+            TestWorkflow1.class,
+            newWorkflowOptionsBuilder(taskList)
+                .setExecutionStartToCloseTimeout(Duration.ofHours(2))
+                .build());
+    workflowStub.execute(taskList);
+  }
+
+  public static class TestGetVersionWorkflowRemove implements TestWorkflow1 {
+
+    @Override
+    public String execute(String taskList) {
+      TestActivities activities =
+          Workflow.newActivityStub(TestActivities.class, newActivityOptions1(taskList));
+      String result;
+      // Test adding a version check in replay code.
+      if (!getVersionExecuted.contains(taskList + "-test_change_2")) {
+        getVersionExecuted.add(taskList + "-test_change_2");
+        // The first version of the code
+        int changeFoo = Workflow.getVersion("changeFoo", Workflow.DEFAULT_VERSION, 1);
+        if (changeFoo != 1) {
+          throw new IllegalStateException("Unexpected version: " + 1);
+        }
+        result = activities.activity2("foo", 10);
+      } else {
+        // No getVersionCall
+        result = activities.activity2("foo", 10);
+      }
+      Workflow.sleep(1000); // forces new decision
+      return result;
+    }
+  }
+
+  @Test
+  public void testGetVersionWorkflowRemove() {
+    Assume.assumeFalse("skipping for docker tests", useExternalService);
+
+    startWorkerFor(TestGetVersionWorkflowRemove.class);
+    TestWorkflow1 workflowStub =
+        workflowClient.newWorkflowStub(
+            TestWorkflow1.class,
+            newWorkflowOptionsBuilder(taskList)
+                .setExecutionStartToCloseTimeout(Duration.ofHours(2))
+                .build());
+    assertEquals("foo10", workflowStub.execute(taskList));
+  }
+
   static CompletableFuture<Boolean> executionStarted = new CompletableFuture<>();
 
   public static class TestGetVersionWithoutDecisionEventWorkflowImpl
@@ -4519,9 +4652,7 @@ public class WorkflowTest {
   }
 
   @Test
-  @Ignore
   public void testGetVersionWithoutDecisionEvent() throws Exception {
-    // TODO(maxim): force replay
     executionStarted = new CompletableFuture<>();
     getVersionExecuted.remove("getVersionWithoutDecisionEvent");
     startWorkerFor(TestGetVersionWithoutDecisionEventWorkflowImpl.class);
@@ -4531,7 +4662,7 @@ public class WorkflowTest {
     WorkflowClient.start(workflowStub::execute);
     executionStarted.get();
     workflowStub.signal1("test signal");
-    String result = workflowStub.execute();
+    String result = WorkflowStub.fromTyped(workflowStub).getResult(String.class);
     assertEquals("result 1", result);
   }
 
