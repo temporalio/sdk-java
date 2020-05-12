@@ -293,7 +293,7 @@ public class WorkflowTest {
     WorkerFactoryOptions factoryOptions =
         WorkerFactoryOptions.newBuilder()
             .setWorkflowInterceptor(tracer)
-            .setStickyDecisionScheduleToStartTimeoutInSeconds(versionTest ? 0 : 10)
+            .setWorkflowHostLocalTaskListScheduleToStartTimeoutSeconds(versionTest ? 0 : 10)
             .build();
     if (useExternalService) {
       workflowClient = WorkflowClient.newInstance(service, workflowClientOptions);
