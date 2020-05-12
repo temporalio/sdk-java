@@ -56,16 +56,19 @@ public final class ActivityWorker implements SuspendableWorker {
   private final String namespace;
   private final String taskList;
   private final SingleWorkerOptions options;
+  private final double taskListActivitiesPerSecond;
 
   public ActivityWorker(
       WorkflowServiceStubs service,
       String namespace,
       String taskList,
+      double taskListActivitiesPerSecond,
       SingleWorkerOptions options,
       ActivityTaskHandler handler) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskList = Objects.requireNonNull(taskList);
+    this.taskListActivitiesPerSecond = taskListActivitiesPerSecond;
     this.handler = handler;
 
     PollerOptions pollerOptions = options.getPollerOptions();
@@ -85,7 +88,8 @@ public final class ActivityWorker implements SuspendableWorker {
       poller =
           new Poller<>(
               options.getIdentity(),
-              new ActivityPollTask(service, namespace, taskList, options),
+              new ActivityPollTask(
+                  service, namespace, taskList, options, taskListActivitiesPerSecond),
               new PollTaskExecutor<>(namespace, taskList, options, new TaskHandlerImpl(handler)),
               options.getPollerOptions(),
               options.getMetricsScope());

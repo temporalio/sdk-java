@@ -1174,10 +1174,6 @@ class StateMachines {
                   .getEventsList();
           long lastEventId = events.get(events.size() - 1).getEventId();
           if (ctx.getWorkflowMutableState().getStickyExecutionAttributes() != null) {
-            if (data.lastSuccessfulStartedEventId <= 0) {
-              throw new IllegalStateException(
-                  "Invalid previousStartedEventId: " + data.lastSuccessfulStartedEventId);
-            }
             events = events.subList((int) data.lastSuccessfulStartedEventId, events.size());
           }
           if (queryOnly && !data.workflowCompleted) {

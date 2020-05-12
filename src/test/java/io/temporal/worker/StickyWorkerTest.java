@@ -204,7 +204,7 @@ public class StickyWorkerTest {
             scope,
             WorkerFactoryOptions.newBuilder()
                 .setMaxWorkflowThreadCount(10)
-                .setCacheMaximumSize(100)
+                .setWorkflowCacheSize(100)
                 .build());
     WorkerFactory factory = wrapper.getWorkerFactory();
     Worker worker =

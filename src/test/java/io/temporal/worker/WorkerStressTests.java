@@ -43,7 +43,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -75,8 +74,6 @@ public class WorkerStressTests {
 
   @Rule public TestName testName = new TestName();
 
-  // Todo: Write a unit test specifically to test DecisionTaskWithHistoryIteratorImpl
-  @Ignore("Takes a long time to run")
   @Test
   public void longHistoryWorkflowsCompleteSuccessfully() throws InterruptedException {
 
@@ -171,9 +168,7 @@ public class WorkerStressTests {
     private WorkerFactory factory;
 
     public TestEnvironmentWrapper(WorkerFactoryOptions options) {
-      if (options == null) {
-        options = WorkerFactoryOptions.newBuilder().build();
-      }
+      options = WorkerFactoryOptions.newBuilder(options).validateAndBuildWithDefaults();
       WorkflowClientOptions clientOptions =
           WorkflowClientOptions.newBuilder().setNamespace(NAMESPACE).build();
       if (useDockerService) {
@@ -271,7 +266,7 @@ public class WorkerStressTests {
 
     @Override
     public void sleep(int chain, int concurrency, byte[] bytes) {
-      log.info("sleep called");
+      log.trace("sleep called");
     }
   }
 }
