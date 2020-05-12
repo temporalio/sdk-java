@@ -74,13 +74,11 @@ final class ActivityPollTask implements Poller.PollTask<PollForActivityTaskRespo
               .build());
     }
 
-    if (options.getTaskListActivitiesPerSecond() > 0) {
+    if (taskListActivitiesPerSecond > 0) {
       pollRequest.setTaskListMetadata(
           TaskListMetadata.newBuilder()
               .setMaxTasksPerSecond(
-                  DoubleValue.newBuilder()
-                      .setValue(options.getTaskListActivitiesPerSecond())
-                      .build())
+                  DoubleValue.newBuilder().setValue(taskListActivitiesPerSecond).build())
               .build());
     }
 
