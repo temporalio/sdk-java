@@ -43,8 +43,12 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BiFunction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class POJOActivityTaskHandler implements ActivityTaskHandler {
+
+  private static final Logger log = LoggerFactory.getLogger(POJOActivityTaskHandler.class);
 
   private final DataConverter dataConverter;
   private final ScheduledExecutorService heartbeatExecutor;

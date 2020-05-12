@@ -273,7 +273,12 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       UpdateProcedure updater, StickyExecutionAttributes attributes) {
     StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
     stickyExecutionAttributes = attributes;
-    update(true, updater, stackTraceElements[2].getMethodName());
+    try {
+      update(true, updater, stackTraceElements[2].getMethodName());
+    } catch (RuntimeException e) {
+      stickyExecutionAttributes = null;
+      throw e;
+    }
   }
 
   private void update(boolean completeDecisionUpdate, UpdateProcedure updater, String caller) {
@@ -366,17 +371,18 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   @Override
-  public void completeDecisionTask(int historySize, RespondDecisionTaskCompletedRequest request) {
+  public void completeDecisionTask(
+      int historySizeFromToken, RespondDecisionTaskCompletedRequest request) {
     List<Decision> decisions = request.getDecisionsList();
     completeDecisionUpdate(
         ctx -> {
-          if (ctx.getInitialEventId() != historySize + 1) {
+          if (ctx.getInitialEventId() != historySizeFromToken + 1) {
             StringBuilder diagnostics = new StringBuilder();
             store.getDiagnostics(diagnostics);
             throw Status.NOT_FOUND
                 .withDescription(
                     "Expired decision: expectedHistorySize="
-                        + historySize
+                        + historySizeFromToken
                         + ","
                         + " actualHistorySize="
                         + ctx.getInitialEventId()
@@ -405,9 +411,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               ctx.add(deferredCtx);
             }
             decision.getData().concurrentToDecision.clear();
-
-            // Reset sticky execution attributes on failure
-            stickyExecutionAttributes = null;
             scheduleDecision(ctx);
             return;
           }
@@ -920,6 +923,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         ctx -> {
           decision.action(Action.FAIL, ctx, request, 0);
           scheduleDecision(ctx);
+          ctx.unlockTimer(); // Unlock timer associated with the decision
         },
         null); // reset sticky attributes to null
   }
@@ -945,6 +949,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             }
             decision.action(StateMachines.Action.TIME_OUT, ctx, TimeoutType.StartToClose, 0);
             scheduleDecision(ctx);
+            ctx.unlockTimer(); // Unlock timer associated with the decision
           },
           null); // reset sticky attributes to null
     } catch (StatusRuntimeException e) {

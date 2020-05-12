@@ -188,10 +188,6 @@ final class WorkflowDecisionContext {
         initiatedEventId, attributes.getWorkflowId(), parameters.getCancellationType());
   }
 
-  boolean isChildWorkflowExecutionStartedWithRetryOptions() {
-    return decisions.isChildWorkflowExecutionInitiatedWithRetryOptions();
-  }
-
   Consumer<Exception> signalWorkflowExecution(
       final SignalExternalWorkflowParameters parameters, BiConsumer<Void, Exception> callback) {
     final OpenRequestInfo<Void, Void> context = new OpenRequestInfo<>();

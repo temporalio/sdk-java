@@ -158,33 +158,16 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
   @Override
   public <T> Promise<T> executeActivity(
       String activityName,
-      Class<T> resultClass,
+      Class<T> returnClass,
       Type resultType,
       Object[] args,
       ActivityOptions options) {
-    RetryOptions retryOptions = options.getRetryOptions();
-    Optional<Duration> expiration =
-        options.getScheduleToCloseTimeout() == null
-            ? Optional.empty()
-            : Optional.of(options.getScheduleToCloseTimeout());
-    // Replays a legacy history that used the client side retry correctly
-    if (retryOptions != null && !context.isServerSideActivityRetry()) {
-      return WorkflowRetryerInternal.retryAsync(
-          retryOptions,
-          expiration,
-          () -> executeActivityOnce(activityName, options, args, resultClass, resultType));
-    }
-    return executeActivityOnce(activityName, options, args, resultClass, resultType);
-  }
-
-  private <T> Promise<T> executeActivityOnce(
-      String name, ActivityOptions options, Object[] args, Class<T> returnClass, Type returnType) {
     Optional<Payloads> input = converter.toData(args);
-    Promise<Optional<Payloads>> binaryResult = executeActivityOnce(name, options, input);
+    Promise<Optional<Payloads>> binaryResult = executeActivityOnce(activityName, options, input);
     if (returnClass == Void.TYPE) {
       return binaryResult.thenApply((r) -> null);
     }
-    return binaryResult.thenApply((r) -> converter.fromData(r, returnClass, returnType));
+    return binaryResult.thenApply((r) -> converter.fromData(r, returnClass, resultType));
   }
 
   private Promise<Optional<Payloads>> executeActivityOnce(
@@ -412,39 +395,6 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
   }
 
   private Promise<Optional<Payloads>> executeChildWorkflow(
-      String name,
-      ChildWorkflowOptions options,
-      Optional<Payloads> input,
-      CompletablePromise<WorkflowExecution> executionResult) {
-    RetryOptions retryOptions = options.getRetryOptions();
-    // This condition is for backwards compatibility with the code that
-    // used client side retry before the server side retry existed.
-    if (retryOptions != null && !context.isServerSideChildWorkflowRetry()) {
-      ChildWorkflowOptions o1 =
-          ChildWorkflowOptions.newBuilder()
-              .setTaskList(options.getTaskList())
-              .setWorkflowRunTimeout(options.getWorkflowRunTimeout())
-              .setWorkflowExecutionTimeout(options.getWorkflowExecutionTimeout())
-              .setWorkflowTaskTimeout(options.getWorkflowTaskTimeout())
-              .setWorkflowId(options.getWorkflowId())
-              .setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy())
-              .setParentClosePolicy(options.getParentClosePolicy())
-              .build();
-      return WorkflowRetryerInternal.retryAsync(
-          retryOptions,
-          options.getWorkflowExecutionTimeout() == null
-              ? Optional.empty()
-              : Optional.of(options.getWorkflowExecutionTimeout()),
-          () -> executeChildWorkflowOnce(name, o1, input, executionResult));
-    }
-    return executeChildWorkflowOnce(name, options, input, executionResult);
-  }
-
-  /**
-   * @param input
-   * @param executionResult promise that is set bu this method when child workflow is started.
-   */
-  private Promise<Optional<Payloads>> executeChildWorkflowOnce(
       String name,
       ChildWorkflowOptions options,
       Optional<Payloads> input,

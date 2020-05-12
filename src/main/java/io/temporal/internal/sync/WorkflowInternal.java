@@ -187,7 +187,7 @@ public final class WorkflowInternal {
       Class<T> workflowInterface, ChildWorkflowOptions options) {
     return (T)
         Proxy.newProxyInstance(
-            WorkflowInternal.class.getClassLoader(),
+            workflowInterface.getClassLoader(),
             new Class<?>[] {workflowInterface, StubMarker.class, AsyncMarker.class},
             new ChildWorkflowInvocationHandler(
                 workflowInterface, options, getWorkflowInterceptor()));
@@ -198,7 +198,7 @@ public final class WorkflowInternal {
       Class<T> workflowInterface, WorkflowExecution execution) {
     return (T)
         Proxy.newProxyInstance(
-            WorkflowInternal.class.getClassLoader(),
+            workflowInterface.getClassLoader(),
             new Class<?>[] {workflowInterface, StubMarker.class, AsyncMarker.class},
             new ExternalWorkflowInvocationHandler(
                 workflowInterface, execution, getWorkflowInterceptor()));
@@ -232,7 +232,7 @@ public final class WorkflowInternal {
       Class<T> workflowInterface, ContinueAsNewOptions options) {
     return (T)
         Proxy.newProxyInstance(
-            WorkflowInternal.class.getClassLoader(),
+            workflowInterface.getClassLoader(),
             new Class<?>[] {workflowInterface},
             new ContinueAsNewWorkflowInvocationHandler(
                 workflowInterface, options, getWorkflowInterceptor()));

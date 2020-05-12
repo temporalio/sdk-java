@@ -102,10 +102,6 @@ final class ActivityDecisionContext {
     this.decisions = decisions;
   }
 
-  public boolean isActivityScheduledWithRetryOptions() {
-    return decisions.isActivityScheduledWithRetryOptions();
-  }
-
   Consumer<Exception> scheduleActivityTask(
       ExecuteActivityParameters parameters, BiConsumer<Optional<Payloads>, Exception> callback) {
     final OpenRequestInfo<Optional<Payloads>, ActivityType> context =
