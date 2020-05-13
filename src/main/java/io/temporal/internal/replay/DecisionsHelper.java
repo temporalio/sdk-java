@@ -52,7 +52,6 @@ import io.temporal.proto.event.ChildWorkflowExecutionTimedOutEventAttributes;
 import io.temporal.proto.event.EventType;
 import io.temporal.proto.event.ExternalWorkflowExecutionCancelRequestedEventAttributes;
 import io.temporal.proto.event.HistoryEvent;
-import io.temporal.proto.event.RequestCancelActivityTaskFailedEventAttributes;
 import io.temporal.proto.event.RequestCancelExternalWorkflowExecutionFailedEventAttributes;
 import io.temporal.proto.event.StartChildWorkflowExecutionFailedEventAttributes;
 import io.temporal.proto.event.TimerCanceledEventAttributes;
@@ -165,8 +164,7 @@ class DecisionsHelper {
   boolean handleActivityTaskCancelRequested(HistoryEvent event) {
     ActivityTaskCancelRequestedEventAttributes attributes =
         event.getActivityTaskCancelRequestedEventAttributes();
-    String activityId = attributes.getActivityId();
-    long scheduledEventId = getActivityScheduledEventId(activityId);
+    long scheduledEventId = attributes.getScheduledEventId();
     DecisionStateMachine decision =
         getDecision(new DecisionId(DecisionTarget.ACTIVITY, scheduledEventId));
     decision.handleCancellationInitiatedEvent();
@@ -186,17 +184,6 @@ class DecisionsHelper {
     DecisionStateMachine decision =
         getDecision(new DecisionId(DecisionTarget.ACTIVITY, attributes.getScheduledEventId()));
     decision.handleCancellationEvent();
-    return decision.isDone();
-  }
-
-  boolean handleRequestCancelActivityTaskFailed(HistoryEvent event) {
-    RequestCancelActivityTaskFailedEventAttributes attributes =
-        event.getRequestCancelActivityTaskFailedEventAttributes();
-    String activityId = attributes.getActivityId();
-    long scheduledEventId = getActivityScheduledEventId(activityId);
-    DecisionStateMachine decision =
-        getDecision(new DecisionId(DecisionTarget.ACTIVITY, scheduledEventId));
-    decision.handleCancellationFailureEvent(event);
     return decision.isDone();
   }
 

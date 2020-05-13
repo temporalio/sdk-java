@@ -227,8 +227,7 @@ class ReplayDecider implements Decider {
         decisionsHelper.handleActivityTaskCancelRequested(event);
         break;
       case RequestCancelActivityTaskFailed:
-        decisionsHelper.handleRequestCancelActivityTaskFailed(event);
-        break;
+        throw new Error("unexpected event");
       case MarkerRecorded:
         context.handleMarkerRecorded(event);
         break;

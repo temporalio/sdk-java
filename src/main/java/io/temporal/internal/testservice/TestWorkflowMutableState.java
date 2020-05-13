@@ -91,16 +91,18 @@ interface TestWorkflowMutableState {
   void startActivityTask(
       PollForActivityTaskResponseOrBuilder task, PollForActivityTaskRequest pollRequest);
 
-  void completeActivityTask(String activityId, RespondActivityTaskCompletedRequest request);
+  void completeActivityTask(long scheduledEventId, RespondActivityTaskCompletedRequest request);
 
   void completeActivityTaskById(String activityId, RespondActivityTaskCompletedByIdRequest request);
 
-  void failActivityTask(String activityId, RespondActivityTaskFailedRequest request);
+  void failActivityTask(long scheduledEventId, RespondActivityTaskFailedRequest request);
 
   void failActivityTaskById(String id, RespondActivityTaskFailedByIdRequest failRequest);
 
   /** @return is cancel requested? */
-  boolean heartbeatActivityTask(String activityId, Payloads details);
+  boolean heartbeatActivityTask(long scheduledEventId, Payloads details);
+
+  boolean heartbeatActivityTaskById(String id, Payloads details);
 
   void signal(SignalWorkflowExecutionRequest signalRequest);
 
@@ -110,7 +112,8 @@ interface TestWorkflowMutableState {
       RequestCancelWorkflowExecutionRequest cancelRequest,
       Optional<TestWorkflowMutableStateImpl.CancelExternalWorkflowExecutionCallerInfo> callerInfo);
 
-  void cancelActivityTask(String id, RespondActivityTaskCanceledRequest canceledRequest);
+  void cancelActivityTask(
+      long scheduledEventId, RespondActivityTaskCanceledRequest canceledRequest);
 
   void cancelActivityTaskById(String id, RespondActivityTaskCanceledByIdRequest canceledRequest);
 
