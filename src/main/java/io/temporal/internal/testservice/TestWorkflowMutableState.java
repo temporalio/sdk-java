@@ -19,7 +19,7 @@
 
 package io.temporal.internal.testservice;
 
-import com.google.protobuf.ByteString;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.decision.SignalExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.proto.decision.StickyExecutionAttributes;
 import io.temporal.proto.event.ChildWorkflowExecutionCanceledEventAttributes;
@@ -100,7 +100,7 @@ interface TestWorkflowMutableState {
   void failActivityTaskById(String id, RespondActivityTaskFailedByIdRequest failRequest);
 
   /** @return is cancel requested? */
-  boolean heartbeatActivityTask(String activityId, ByteString details);
+  boolean heartbeatActivityTask(String activityId, Payloads details);
 
   void signal(SignalWorkflowExecutionRequest signalRequest);
 

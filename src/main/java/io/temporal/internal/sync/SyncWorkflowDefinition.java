@@ -19,10 +19,13 @@
 
 package io.temporal.internal.sync;
 
+import io.temporal.proto.common.Payloads;
+import java.util.Optional;
+
 interface SyncWorkflowDefinition {
 
   /** Always called first. */
   void initialize();
 
-  byte[] execute(byte[] input);
+  Optional<Payloads> execute(Optional<Payloads> input);
 }

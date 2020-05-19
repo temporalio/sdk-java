@@ -19,19 +19,16 @@
 
 package io.temporal.client;
 
-import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
-
+import com.google.common.base.Objects;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.proto.common.WorkflowIdReusePolicy;
-import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 public final class WorkflowOptions {
 
@@ -54,27 +51,18 @@ public final class WorkflowOptions {
   }
 
   public static WorkflowOptions merge(
-      WorkflowMethod a, MethodRetry methodRetry, CronSchedule cronSchedule, WorkflowOptions o) {
-    if (a == null) {
-      return new WorkflowOptions.Builder(o).validateBuildWithDefaults();
-    }
+      MethodRetry methodRetry, CronSchedule cronSchedule, WorkflowOptions o) {
     if (o == null) {
       o = WorkflowOptions.newBuilder().build();
     }
     String cronAnnotation = cronSchedule == null ? "" : cronSchedule.value();
     return WorkflowOptions.newBuilder()
-        .setWorkflowIdReusePolicy(
-            OptionsUtils.merge(
-                a.workflowIdReusePolicy(),
-                o.getWorkflowIdReusePolicy(),
-                WorkflowIdReusePolicy.class))
-        .setWorkflowId(OptionsUtils.merge(a.workflowId(), o.getWorkflowId(), String.class))
-        .setTaskStartToCloseTimeout(
-            OptionsUtils.merge(a.taskStartToCloseTimeoutSeconds(), o.getTaskStartToCloseTimeout()))
-        .setExecutionStartToCloseTimeout(
-            OptionsUtils.merge(
-                a.executionStartToCloseTimeoutSeconds(), o.getExecutionStartToCloseTimeout()))
-        .setTaskList(OptionsUtils.merge(a.taskList(), o.getTaskList(), String.class))
+        .setWorkflowIdReusePolicy(o.getWorkflowIdReusePolicy())
+        .setWorkflowId(o.getWorkflowId())
+        .setWorkflowTaskTimeout(o.getWorkflowTaskTimeout())
+        .setWorkflowRunTimeout(o.getWorkflowRunTimeout())
+        .setWorkflowExecutionTimeout(o.getWorkflowExecutionTimeout())
+        .setTaskList(o.getTaskList())
         .setRetryOptions(RetryOptions.merge(methodRetry, o.getRetryOptions()))
         .setCronSchedule(OptionsUtils.merge(cronAnnotation, o.getCronSchedule(), String.class))
         .setMemo(o.getMemo())
@@ -89,9 +77,11 @@ public final class WorkflowOptions {
 
     private WorkflowIdReusePolicy workflowIdReusePolicy;
 
-    private Duration executionStartToCloseTimeout;
+    private Duration workflowRunTimeout;
 
-    private Duration taskStartToCloseTimeout;
+    private Duration workflowExecutionTimeout;
+
+    private Duration workflowTaskTimeout;
 
     private String taskList;
 
@@ -113,8 +103,9 @@ public final class WorkflowOptions {
       }
       this.workflowIdReusePolicy = options.workflowIdReusePolicy;
       this.workflowId = options.workflowId;
-      this.taskStartToCloseTimeout = options.taskStartToCloseTimeout;
-      this.executionStartToCloseTimeout = options.executionStartToCloseTimeout;
+      this.workflowTaskTimeout = options.workflowTaskTimeout;
+      this.workflowRunTimeout = options.workflowRunTimeout;
+      this.workflowExecutionTimeout = options.workflowExecutionTimeout;
       this.taskList = options.taskList;
       this.retryOptions = options.retryOptions;
       this.cronSchedule = options.cronSchedule;
@@ -158,25 +149,28 @@ public final class WorkflowOptions {
     }
 
     /**
-     * The time after which workflow execution is automatically terminated by Temporal service. Do
-     * not rely on execution timeout for business level timeouts. It is preferred to use in workflow
-     * timers for this purpose.
+     * The time after which workflow run is automatically terminated by Temporal service. Do not
+     * rely on run timeout for business level timeouts. It is preferred to use in workflow timers
+     * for this purpose.
      */
-    public Builder setExecutionStartToCloseTimeout(Duration executionStartToCloseTimeout) {
-      this.executionStartToCloseTimeout = executionStartToCloseTimeout;
+    public Builder setWorkflowRunTimeout(Duration workflowRunTimeout) {
+      this.workflowRunTimeout = workflowRunTimeout;
       return this;
     }
 
     /**
-     * Maximum execution time of a single decision task. Default is 10 seconds. Maximum accepted
-     * value is 60 seconds.
+     * The time after which workflow execution (which includes run retries and continue as new) is
+     * automatically terminated by Temporal service. Do not rely on execution timeout for business
+     * level timeouts. It is preferred to use in workflow timers for this purpose.
      */
-    public Builder setTaskStartToCloseTimeout(Duration taskStartToCloseTimeout) {
-      if (roundUpToSeconds(taskStartToCloseTimeout).getSeconds() > 60) {
-        throw new IllegalArgumentException(
-            "TaskStartToCloseTimeout over one minute: " + taskStartToCloseTimeout);
-      }
-      this.taskStartToCloseTimeout = taskStartToCloseTimeout;
+    public Builder setWorkflowExecutionTimeout(Duration workflowExecutionTimeout) {
+      this.workflowExecutionTimeout = workflowExecutionTimeout;
+      return this;
+    }
+
+    /** Maximum execution time of a single decision task. Default is 10 seconds. */
+    public Builder setWorkflowTaskTimeout(Duration workflowTaskTimeout) {
+      this.workflowTaskTimeout = workflowTaskTimeout;
       return this;
     }
 
@@ -227,8 +221,9 @@ public final class WorkflowOptions {
       return new WorkflowOptions(
           workflowId,
           workflowIdReusePolicy,
-          executionStartToCloseTimeout,
-          taskStartToCloseTimeout,
+          workflowRunTimeout,
+          workflowExecutionTimeout,
+          workflowTaskTimeout,
           taskList,
           retryOptions,
           cronSchedule,
@@ -241,30 +236,12 @@ public final class WorkflowOptions {
      * Validates that all required properties are set and fills all other with default parameters.
      */
     public WorkflowOptions validateBuildWithDefaults() {
-      if (executionStartToCloseTimeout == null) {
-        throw new IllegalStateException(
-            "Required property executionStartToCloseTimeout is not set");
-      }
-      if (taskList == null) {
-        throw new IllegalArgumentException("Required property taskList is not set");
-      }
-      if (retryOptions != null) {
-        if (retryOptions.getInitialInterval() == null) {
-          throw new IllegalArgumentException(
-              "RetryOptions missing required initialInterval property");
-        }
-        if (retryOptions.getExpiration() == null && retryOptions.getMaximumAttempts() == 0) {
-          throw new IllegalArgumentException(
-              "RetryOptions must specify either expiration or maximum attempts");
-        }
-      }
-
       return new WorkflowOptions(
           workflowId,
           workflowIdReusePolicy,
-          roundUpToSeconds(executionStartToCloseTimeout),
-          roundUpToSeconds(
-              taskStartToCloseTimeout, OptionsUtils.DEFAULT_TASK_START_TO_CLOSE_TIMEOUT),
+          workflowRunTimeout,
+          workflowExecutionTimeout,
+          workflowTaskTimeout,
           taskList,
           retryOptions,
           cronSchedule,
@@ -278,9 +255,11 @@ public final class WorkflowOptions {
 
   private final WorkflowIdReusePolicy workflowIdReusePolicy;
 
-  private final Duration executionStartToCloseTimeout;
+  private final Duration workflowRunTimeout;
 
-  private final Duration taskStartToCloseTimeout;
+  private final Duration workflowExecutionTimeout;
+
+  private final Duration workflowTaskTimeout;
 
   private final String taskList;
 
@@ -297,8 +276,9 @@ public final class WorkflowOptions {
   private WorkflowOptions(
       String workflowId,
       WorkflowIdReusePolicy workflowIdReusePolicy,
-      Duration executionStartToCloseTimeout,
-      Duration taskStartToCloseTimeout,
+      Duration workflowRunTimeout,
+      Duration workflowExecutionTimeout,
+      Duration workflowTaskTimeout,
       String taskList,
       RetryOptions retryOptions,
       String cronSchedule,
@@ -307,8 +287,9 @@ public final class WorkflowOptions {
       List<ContextPropagator> contextPropagators) {
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
-    this.executionStartToCloseTimeout = executionStartToCloseTimeout;
-    this.taskStartToCloseTimeout = taskStartToCloseTimeout;
+    this.workflowRunTimeout = workflowRunTimeout;
+    this.workflowExecutionTimeout = workflowExecutionTimeout;
+    this.workflowTaskTimeout = workflowTaskTimeout;
     this.taskList = taskList;
     this.retryOptions = retryOptions;
     this.cronSchedule = cronSchedule;
@@ -325,12 +306,16 @@ public final class WorkflowOptions {
     return workflowIdReusePolicy;
   }
 
-  public Duration getExecutionStartToCloseTimeout() {
-    return executionStartToCloseTimeout;
+  public Duration getWorkflowRunTimeout() {
+    return workflowRunTimeout;
   }
 
-  public Duration getTaskStartToCloseTimeout() {
-    return taskStartToCloseTimeout;
+  public Duration getWorkflowExecutionTimeout() {
+    return workflowExecutionTimeout;
+  }
+
+  public Duration getWorkflowTaskTimeout() {
+    return workflowTaskTimeout;
   }
 
   public String getTaskList() {
@@ -357,30 +342,36 @@ public final class WorkflowOptions {
     return contextPropagators;
   }
 
+  public Builder toBuilder() {
+    return new Builder(this);
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     WorkflowOptions that = (WorkflowOptions) o;
-    return Objects.equals(workflowId, that.workflowId)
+    return Objects.equal(workflowId, that.workflowId)
         && workflowIdReusePolicy == that.workflowIdReusePolicy
-        && Objects.equals(executionStartToCloseTimeout, that.executionStartToCloseTimeout)
-        && Objects.equals(taskStartToCloseTimeout, that.taskStartToCloseTimeout)
-        && Objects.equals(taskList, that.taskList)
-        && Objects.equals(retryOptions, that.retryOptions)
-        && Objects.equals(cronSchedule, that.cronSchedule)
-        && Objects.equals(memo, that.memo)
-        && Objects.equals(searchAttributes, that.searchAttributes)
-        && Objects.equals(contextPropagators, that.contextPropagators);
+        && Objects.equal(workflowRunTimeout, that.workflowRunTimeout)
+        && Objects.equal(workflowExecutionTimeout, that.workflowExecutionTimeout)
+        && Objects.equal(workflowTaskTimeout, that.workflowTaskTimeout)
+        && Objects.equal(taskList, that.taskList)
+        && Objects.equal(retryOptions, that.retryOptions)
+        && Objects.equal(cronSchedule, that.cronSchedule)
+        && Objects.equal(memo, that.memo)
+        && Objects.equal(searchAttributes, that.searchAttributes)
+        && Objects.equal(contextPropagators, that.contextPropagators);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(
+    return Objects.hashCode(
         workflowId,
         workflowIdReusePolicy,
-        executionStartToCloseTimeout,
-        taskStartToCloseTimeout,
+        workflowRunTimeout,
+        workflowExecutionTimeout,
+        workflowTaskTimeout,
         taskList,
         retryOptions,
         cronSchedule,
@@ -397,10 +388,12 @@ public final class WorkflowOptions {
         + '\''
         + ", workflowIdReusePolicy="
         + workflowIdReusePolicy
-        + ", executionStartToCloseTimeout="
-        + executionStartToCloseTimeout
-        + ", taskStartToCloseTimeout="
-        + taskStartToCloseTimeout
+        + ", workflowRunTimeout="
+        + workflowRunTimeout
+        + ", workflowExecutionTimeout="
+        + workflowExecutionTimeout
+        + ", workflowTaskTimeout="
+        + workflowTaskTimeout
         + ", taskList='"
         + taskList
         + '\''
@@ -409,14 +402,12 @@ public final class WorkflowOptions {
         + ", cronSchedule='"
         + cronSchedule
         + '\''
-        + ", memo='"
+        + ", memo="
         + memo
-        + '\''
-        + ", searchAttributes='"
+        + ", searchAttributes="
         + searchAttributes
-        + ", contextPropagators='"
+        + ", contextPropagators="
         + contextPropagators
-        + '\''
         + '}';
   }
 }

@@ -19,14 +19,17 @@
 
 package io.temporal.internal.common;
 
+import io.temporal.proto.common.Payloads;
+import java.util.Optional;
+
 /** Framework level exception. Do not throw or catch in the application level code. */
 public final class WorkflowExecutionFailedException extends RuntimeException {
 
-  private final byte[] details;
+  private final Optional<Payloads> details;
   private final long decisionTaskCompletedEventId;
 
   WorkflowExecutionFailedException(
-      String reason, byte[] details, long decisionTaskCompletedEventId) {
+      String reason, Optional<Payloads> details, long decisionTaskCompletedEventId) {
     super(reason);
     this.details = details;
     this.decisionTaskCompletedEventId = decisionTaskCompletedEventId;
@@ -36,7 +39,7 @@ public final class WorkflowExecutionFailedException extends RuntimeException {
     return getMessage();
   }
 
-  public byte[] getDetails() {
+  public Optional<Payloads> getDetails() {
     return details;
   }
 

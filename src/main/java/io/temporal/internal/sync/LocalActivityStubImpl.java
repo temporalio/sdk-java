@@ -32,7 +32,7 @@ public class LocalActivityStubImpl extends ActivityStubBase {
   static ActivityStub newInstance(
       LocalActivityOptions options, WorkflowCallsInterceptor activityExecutor) {
     LocalActivityOptions validatedOptions =
-        new LocalActivityOptions.Builder(options).validateAndBuildWithDefaults();
+        LocalActivityOptions.newBuilder(options).validateAndBuildWithDefaults();
     return new LocalActivityStubImpl(validatedOptions, activityExecutor);
   }
 

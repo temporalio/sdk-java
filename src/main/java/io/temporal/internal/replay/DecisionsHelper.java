@@ -20,11 +20,11 @@
 package io.temporal.internal.replay;
 
 import io.temporal.common.converter.DataConverter;
-import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.replay.HistoryHelper.DecisionEvents;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.proto.common.Header;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.decision.CancelWorkflowExecutionDecisionAttributes;
@@ -42,7 +42,6 @@ import io.temporal.proto.decision.StartTimerDecisionAttributes;
 import io.temporal.proto.decision.UpsertWorkflowSearchAttributesDecisionAttributes;
 import io.temporal.proto.event.ActivityTaskCancelRequestedEventAttributes;
 import io.temporal.proto.event.ActivityTaskCanceledEventAttributes;
-import io.temporal.proto.event.ActivityTaskScheduledEventAttributes;
 import io.temporal.proto.event.ActivityTaskStartedEventAttributes;
 import io.temporal.proto.event.ChildWorkflowExecutionCanceledEventAttributes;
 import io.temporal.proto.event.ChildWorkflowExecutionCompletedEventAttributes;
@@ -56,7 +55,6 @@ import io.temporal.proto.event.HistoryEvent;
 import io.temporal.proto.event.RequestCancelActivityTaskFailedEventAttributes;
 import io.temporal.proto.event.RequestCancelExternalWorkflowExecutionFailedEventAttributes;
 import io.temporal.proto.event.StartChildWorkflowExecutionFailedEventAttributes;
-import io.temporal.proto.event.StartChildWorkflowExecutionInitiatedEventAttributes;
 import io.temporal.proto.event.TimerCanceledEventAttributes;
 import io.temporal.proto.event.TimerFiredEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionStartedEventAttributes;
@@ -96,6 +94,8 @@ class DecisionsHelper {
    */
   private long nextDecisionEventId;
 
+  private long lastStartedEventId;
+
   private long idCounter;
 
   private DecisionEvents decisionEvents;
@@ -113,6 +113,10 @@ class DecisionsHelper {
 
   long getNextDecisionEventId() {
     return nextDecisionEventId;
+  }
+
+  public long getLastStartedEventId() {
+    return lastStartedEventId;
   }
 
   long scheduleActivityTask(ScheduleActivityTaskDecisionAttributes schedule) {
@@ -203,47 +207,6 @@ class DecisionsHelper {
     DecisionId decisionId = new DecisionId(DecisionTarget.CHILD_WORKFLOW, nextDecisionEventId);
     addDecision(decisionId, new ChildWorkflowDecisionStateMachine(decisionId, childWorkflow));
     return nextDecisionEventId;
-  }
-
-  /**
-   * @return true if it is not replay or retryOptions are present in the
-   *     StartChildWorkflowExecutionInitiated event.
-   */
-  boolean isChildWorkflowExecutionInitiatedWithRetryOptions() {
-    Optional<HistoryEvent> optionalEvent = getOptionalDecisionEvent(nextDecisionEventId);
-    if (!optionalEvent.isPresent()) {
-      return true;
-    }
-    HistoryEvent event = optionalEvent.get();
-    if (event.getEventType() != EventType.StartChildWorkflowExecutionInitiated) {
-      return false;
-    }
-    if (!event.hasStartChildWorkflowExecutionInitiatedEventAttributes()) {
-      throw new Error("Corrupted event: " + event);
-    }
-    StartChildWorkflowExecutionInitiatedEventAttributes attr =
-        event.getStartChildWorkflowExecutionInitiatedEventAttributes();
-    return attr.hasRetryPolicy();
-  }
-
-  /**
-   * @return true if it is not replay or retryOptions are present in the ActivityTaskScheduled
-   *     event. false is only for the legacy code that used client side retry.
-   */
-  boolean isActivityScheduledWithRetryOptions() {
-    Optional<HistoryEvent> optionalEvent = getOptionalDecisionEvent(nextDecisionEventId);
-    if (!optionalEvent.isPresent()) {
-      return true;
-    }
-    HistoryEvent event = optionalEvent.get();
-    if (event.getEventType() != EventType.ActivityTaskScheduled) {
-      return false;
-    }
-    if (!event.hasActivityTaskScheduledEventAttributes()) {
-      throw new Error("Corrupted event: " + event);
-    }
-    ActivityTaskScheduledEventAttributes attr = event.getActivityTaskScheduledEventAttributes();
-    return attr.hasRetryPolicy();
   }
 
   void handleStartChildWorkflowExecutionInitiated(HistoryEvent event) {
@@ -459,14 +422,17 @@ class DecisionsHelper {
     decisions.clear();
   }
 
-  void completeWorkflowExecution(byte[] output) {
+  void completeWorkflowExecution(Optional<Payloads> output) {
     addAllMissingVersionMarker();
 
+    CompleteWorkflowExecutionDecisionAttributes.Builder attributes =
+        CompleteWorkflowExecutionDecisionAttributes.newBuilder();
+    if (output.isPresent()) {
+      attributes.setResult(output.get());
+    }
     Decision decision =
         Decision.newBuilder()
-            .setCompleteWorkflowExecutionDecisionAttributes(
-                CompleteWorkflowExecutionDecisionAttributes.newBuilder()
-                    .setResult(OptionsUtils.toByteString(output)))
+            .setCompleteWorkflowExecutionDecisionAttributes(attributes)
             .setDecisionType(DecisionType.CompleteWorkflowExecution)
             .build();
     DecisionId decisionId = new DecisionId(DecisionTarget.SELF, 0);
@@ -485,23 +451,23 @@ class DecisionsHelper {
         firstEvent.getWorkflowExecutionStartedEventAttributes();
     ContinueAsNewWorkflowExecutionDecisionAttributes.Builder attributes =
         ContinueAsNewWorkflowExecutionDecisionAttributes.newBuilder();
-    attributes.setInput(OptionsUtils.toByteString(continueParameters.getInput()));
+    attributes.setInput(continueParameters.getInput());
     String workflowType = continueParameters.getWorkflowType();
     if (workflowType != null && !workflowType.isEmpty()) {
       attributes.setWorkflowType(WorkflowType.newBuilder().setName(workflowType));
     } else {
       attributes.setWorkflowType(task.getWorkflowType());
     }
-    int executionStartToClose = continueParameters.getExecutionStartToCloseTimeoutSeconds();
+    int executionStartToClose = continueParameters.getWorkflowRunTimeoutSeconds();
     if (executionStartToClose == 0) {
-      executionStartToClose = startedEvent.getExecutionStartToCloseTimeoutSeconds();
+      executionStartToClose = startedEvent.getWorkflowRunTimeoutSeconds();
     }
-    attributes.setExecutionStartToCloseTimeoutSeconds(executionStartToClose);
-    int taskStartToClose = continueParameters.getTaskStartToCloseTimeoutSeconds();
+    attributes.setWorkflowRunTimeoutSeconds(executionStartToClose);
+    int taskStartToClose = continueParameters.getWorkflowTaskTimeoutSeconds();
     if (taskStartToClose == 0) {
-      taskStartToClose = startedEvent.getTaskStartToCloseTimeoutSeconds();
+      taskStartToClose = startedEvent.getWorkflowTaskTimeoutSeconds();
     }
-    attributes.setTaskStartToCloseTimeoutSeconds(taskStartToClose);
+    attributes.setWorkflowTaskTimeoutSeconds(taskStartToClose);
     String taskList = continueParameters.getTaskList();
     if (taskList == null || taskList.isEmpty()) {
       taskList = startedEvent.getTaskList().getName();
@@ -523,12 +489,15 @@ class DecisionsHelper {
   void failWorkflowExecution(WorkflowExecutionException failure) {
     addAllMissingVersionMarker();
 
+    FailWorkflowExecutionDecisionAttributes.Builder attributes =
+        FailWorkflowExecutionDecisionAttributes.newBuilder().setReason(failure.getReason());
+    Optional<Payloads> details = failure.getDetails();
+    if (details.isPresent()) {
+      attributes.setDetails(details.get());
+    }
     Decision decision =
         Decision.newBuilder()
-            .setFailWorkflowExecutionDecisionAttributes(
-                FailWorkflowExecutionDecisionAttributes.newBuilder()
-                    .setReason(failure.getReason())
-                    .setDetails(OptionsUtils.toByteString(failure.getDetails())))
+            .setFailWorkflowExecutionDecisionAttributes(attributes)
             .setDecisionType(DecisionType.FailWorkflowExecution)
             .build();
     DecisionId decisionId = new DecisionId(DecisionTarget.SELF, 0);
@@ -552,13 +521,14 @@ class DecisionsHelper {
     addDecision(decisionId, new CompleteWorkflowStateMachine(decisionId, decision));
   }
 
-  void recordMarker(String markerName, Header header, byte[] details) {
+  void recordMarker(String markerName, Header header, Optional<Payloads> details) {
     // no need to call addAllMissingVersionMarker here as all the callers are already doing it.
 
     RecordMarkerDecisionAttributes.Builder marker =
-        RecordMarkerDecisionAttributes.newBuilder()
-            .setMarkerName(markerName)
-            .setDetails(OptionsUtils.toByteString(details));
+        RecordMarkerDecisionAttributes.newBuilder().setMarkerName(markerName);
+    if (details.isPresent()) {
+      marker.setDetails(details.get());
+    }
     if (header != null) {
       marker.setHeader(header);
     }
@@ -629,6 +599,8 @@ class DecisionsHelper {
   public void handleDecisionTaskStartedEvent(DecisionEvents decision) {
     this.decisionEvents = decision;
     this.nextDecisionEventId = decision.getNextDecisionEventId();
+    // Account for DecisionCompleted
+    this.lastStartedEventId = decision.getNextDecisionEventId() - 2;
   }
 
   void notifyDecisionSent() {

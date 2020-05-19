@@ -35,6 +35,7 @@ import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -125,6 +126,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
       WorkflowClientOptions clientOptions,
       GenericWorkflowClientExternal genericClient,
       WorkflowOptions options) {
+    Objects.requireNonNull(options, "options");
     workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
     Optional<POJOWorkflowMethodMetadata> workflowMethodMetadata =
         workflowMetadata.getWorkflowMethod();
@@ -135,9 +137,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
     Method workflowMethod = workflowMethodMetadata.get().getWorkflowMethod();
     MethodRetry methodRetry = workflowMethod.getAnnotation(MethodRetry.class);
     CronSchedule cronSchedule = workflowMethod.getAnnotation(CronSchedule.class);
-    WorkflowMethod annotation = workflowMethod.getAnnotation(WorkflowMethod.class);
-    WorkflowOptions mergedOptions =
-        WorkflowOptions.merge(annotation, methodRetry, cronSchedule, options);
+    WorkflowOptions mergedOptions = WorkflowOptions.merge(methodRetry, cronSchedule, options);
     String workflowType = workflowMethodMetadata.get().getName();
     WorkflowStub stub =
         new WorkflowStubImpl(clientOptions, genericClient, workflowType, mergedOptions);

@@ -37,12 +37,12 @@ public final class DeciderCache {
   private Lock cacheLock = new ReentrantLock();
   private Set<String> inProcessing = new HashSet<>();
 
-  public DeciderCache(int maxCacheSize, Scope scope) {
-    Preconditions.checkArgument(maxCacheSize > 0, "Max cache size must be greater than 0");
+  public DeciderCache(int workflowCacheSize, Scope scope) {
+    Preconditions.checkArgument(workflowCacheSize > 0, "Max cache size must be greater than 0");
     this.metricsScope = Objects.requireNonNull(scope);
     this.cache =
         CacheBuilder.newBuilder()
-            .maximumSize(maxCacheSize)
+            .maximumSize(workflowCacheSize)
             .removalListener(
                 e -> {
                   Decider entry = (Decider) e.getValue();

@@ -19,10 +19,12 @@
 
 package io.temporal.common.converter;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 import com.google.common.base.Objects;
 import io.temporal.activity.Activity;
+import io.temporal.proto.common.Payloads;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -31,6 +33,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.Test;
 
@@ -43,16 +46,17 @@ public class JsonDataConverterTest {
   @Test
   public void testUUIDList() throws NoSuchMethodException {
     Method m = JsonDataConverterTest.class.getDeclaredMethod("foo", List.class);
-    Type arg = m.getGenericParameterTypes()[0];
+    Class<?> parameterType = m.getParameterTypes()[0];
+    Type genericParameterType = m.getGenericParameterTypes()[0];
 
     List<UUID> list = new ArrayList<>();
     for (int i = 0; i < 2; i++) {
       list.add(UUID.randomUUID());
     }
 
-    byte[] data = converter.toData(list);
+    Optional<Payloads> data = converter.toData(list);
     @SuppressWarnings("unchecked")
-    List<UUID> result = (List<UUID>) converter.fromDataArray(data, arg)[0];
+    List<UUID> result = (List<UUID>) converter.fromData(data, parameterType, genericParameterType);
     assertEquals(result.toString(), list, result);
   }
 
@@ -99,14 +103,15 @@ public class JsonDataConverterTest {
     Method m =
         JsonDataConverterTest.class.getDeclaredMethod(
             "fourArguments", int.class, Struct1.class, String.class, List.class);
-    Type[] arg = m.getGenericParameterTypes();
 
     Struct1 struct1 = new Struct1(123, "Bar");
     List<Struct1> list = new ArrayList<>();
     list.add(new Struct1(234, "s1"));
     list.add(new Struct1(567, "s2"));
-    byte[] data = converter.toData(1234, struct1, "a string", list, "an extra string :o!!!");
-    Object[] deserializedArguments = converter.fromDataArray(data, arg);
+    Optional<Payloads> data =
+        converter.toData(1234, struct1, "a string", list, "an extra string :o!!!");
+    Object[] deserializedArguments =
+        converter.fromDataArray(data, m.getParameterTypes(), m.getGenericParameterTypes());
     assertEquals(4, deserializedArguments.length);
     assertEquals(1234, (int) deserializedArguments[0]);
     assertEquals(struct1, deserializedArguments[1]);
@@ -121,11 +126,10 @@ public class JsonDataConverterTest {
     Method m =
         JsonDataConverterTest.class.getDeclaredMethod(
             "aLotOfArguments", int.class, Struct1.class, String.class, Object.class, int[].class);
-    Type[] arg = m.getGenericParameterTypes();
-
-    byte[] data = converter.toData(1);
+    Optional<Payloads> data = converter.toData(1);
     @SuppressWarnings("unchecked")
-    Object[] deserializedArguments = converter.fromDataArray(data, arg);
+    Object[] deserializedArguments =
+        converter.fromDataArray(data, m.getParameterTypes(), m.getGenericParameterTypes());
     assertEquals(5, deserializedArguments.length);
     assertEquals(1, (int) deserializedArguments[0]);
     assertEquals(null, deserializedArguments[1]);
@@ -137,7 +141,7 @@ public class JsonDataConverterTest {
   @Test
   public void testClass() {
 
-    byte[] data = converter.toData(this.getClass());
+    Optional<Payloads> data = converter.toData(this.getClass());
     @SuppressWarnings("unchecked")
     Class result = converter.fromData(data, Class.class, Class.class);
     assertEquals(result.toString(), this.getClass(), result);
@@ -166,7 +170,7 @@ public class JsonDataConverterTest {
     NonSerializableException nonSerializableCause = new NonSerializableException(rootException);
     RuntimeException e = new RuntimeException("application exception", nonSerializableCause);
 
-    byte[] converted = converter.toData(e);
+    Optional<Payloads> converted = converter.toData(e);
     RuntimeException fromConverted =
         converter.fromData(converted, RuntimeException.class, RuntimeException.class);
     assertEquals(RuntimeException.class, fromConverted.getClass());

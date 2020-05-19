@@ -135,14 +135,21 @@ public class WorkflowCallsInterceptorBase implements WorkflowCallsInterceptor {
   }
 
   @Override
-  public void registerQuery(String queryType, Type[] argTypes, Func1<Object[], Object> callback) {
-    next.registerQuery(queryType, argTypes, callback);
+  public void registerQuery(
+      String queryType,
+      Class<?>[] argTypes,
+      Type[] genericArgTypes,
+      Func1<Object[], Object> callback) {
+    next.registerQuery(queryType, argTypes, genericArgTypes, callback);
   }
 
   @Override
   public void registerSignal(
-      String signalType, Type[] argTypes, Functions.Proc1<Object[]> callback) {
-    next.registerSignal(signalType, argTypes, callback);
+      String signalType,
+      Class<?>[] argTypes,
+      Type[] genericArgTypes,
+      Functions.Proc1<Object[]> callback) {
+    next.registerSignal(signalType, argTypes, genericArgTypes, callback);
   }
 
   @Override

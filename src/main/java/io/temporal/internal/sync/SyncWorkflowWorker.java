@@ -30,6 +30,7 @@ import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.SuspendableWorker;
 import io.temporal.internal.worker.WorkflowWorker;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -38,6 +39,7 @@ import io.temporal.workflow.Functions.Func;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -183,8 +185,9 @@ public class SyncWorkflowWorker
       Type resultType,
       Object[] args)
       throws Exception {
-    byte[] serializedArgs = dataConverter.toData(args);
-    byte[] result = workflowWorker.queryWorkflowExecution(execution, queryType, serializedArgs);
+    Optional<Payloads> serializedArgs = dataConverter.toData(args);
+    Optional<Payloads> result =
+        workflowWorker.queryWorkflowExecution(execution, queryType, serializedArgs);
     return dataConverter.fromData(result, resultClass, resultType);
   }
 
@@ -195,8 +198,9 @@ public class SyncWorkflowWorker
       Type resultType,
       Object[] args)
       throws Exception {
-    byte[] serializedArgs = dataConverter.toData(args);
-    byte[] result = workflowWorker.queryWorkflowExecution(history, queryType, serializedArgs);
+    Optional<Payloads> serializedArgs = dataConverter.toData(args);
+    Optional<Payloads> result =
+        workflowWorker.queryWorkflowExecution(history, queryType, serializedArgs);
     return dataConverter.fromData(result, resultClass, resultType);
   }
 

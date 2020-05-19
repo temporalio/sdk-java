@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 public final class RetryOptions {
 
@@ -34,9 +35,14 @@ public final class RetryOptions {
   private static final int DEFAULT_MAXIMUM_MULTIPLIER = 100;
 
   public static Builder newBuilder() {
-    return new Builder();
+    return new Builder(null);
   }
 
+  /**
+   * Creates builder with fields pre-populated from passed options.
+   *
+   * @param options can be null
+   */
   public static Builder newBuilder(RetryOptions options) {
     return new Builder(options);
   }
@@ -70,10 +76,6 @@ public final class RetryOptions {
     if (initial != null) {
       builder.setInitialInterval(initial);
     }
-    Duration expiration = merge(r.expirationSeconds(), o.getExpiration());
-    if (expiration != null) {
-      builder.setExpiration(expiration);
-    }
     Duration maximum = merge(r.maximumIntervalSeconds(), o.getMaximumInterval());
     if (maximum != null) {
       builder.setMaximumInterval(maximum);
@@ -97,7 +99,6 @@ public final class RetryOptions {
     }
     return RetryOptions.newBuilder()
         .setInitialInterval(merge(getInitialInterval(), o.getInitialInterval(), Duration.class))
-        .setExpiration(merge(getExpiration(), o.getExpiration(), Duration.class))
         .setMaximumInterval(merge(getMaximumInterval(), o.getMaximumInterval(), Duration.class))
         .setBackoffCoefficient(
             merge(getBackoffCoefficient(), o.getBackoffCoefficient(), double.class))
@@ -120,7 +121,6 @@ public final class RetryOptions {
     RetryOptions.Builder builder =
         RetryOptions.newBuilder()
             .setInitialInterval(getInitialInterval())
-            .setExpiration(getExpiration())
             .setMaximumInterval(getMaximumInterval())
             .setBackoffCoefficient(backoffCoefficient)
             .setDoNotRetry(merge(getDoNotRetry(), Arrays.asList(doNotRetry)));
@@ -133,9 +133,9 @@ public final class RetryOptions {
 
   public static final class Builder {
 
-    private Duration initialInterval;
+    private static final Duration DEFAULT_INITIAL_INTERVAL = Duration.ofSeconds(1);
 
-    private Duration expiration;
+    private Duration initialInterval;
 
     private double backoffCoefficient;
 
@@ -145,15 +145,12 @@ public final class RetryOptions {
 
     private List<Class<? extends Throwable>> doNotRetry;
 
-    private Builder() {}
-
     private Builder(RetryOptions options) {
       if (options == null) {
         return;
       }
       this.backoffCoefficient = options.getBackoffCoefficient();
       this.maximumAttempts = options.getMaximumAttempts();
-      this.expiration = options.getExpiration();
       this.initialInterval = options.getInitialInterval();
       this.maximumInterval = options.getMaximumInterval();
       this.doNotRetry = options.getDoNotRetry();
@@ -168,19 +165,6 @@ public final class RetryOptions {
         throw new IllegalArgumentException("Invalid interval: " + initialInterval);
       }
       this.initialInterval = initialInterval;
-      return this;
-    }
-
-    /**
-     * Maximum time to retry. Required. When exceeded the retries stop even if maximum retries is
-     * not reached yet.
-     */
-    public Builder setExpiration(Duration expiration) {
-      Objects.requireNonNull(expiration);
-      if (expiration.isNegative() || expiration.isZero()) {
-        throw new IllegalArgumentException("Invalid interval: " + expiration);
-      }
-      this.expiration = expiration;
       return this;
     }
 
@@ -246,12 +230,7 @@ public final class RetryOptions {
      */
     public RetryOptions build() {
       return new RetryOptions(
-          initialInterval,
-          backoffCoefficient,
-          expiration,
-          maximumAttempts,
-          maximumInterval,
-          doNotRetry);
+          initialInterval, backoffCoefficient, maximumAttempts, maximumInterval, doNotRetry);
     }
 
     /** Validates property values and builds RetryOptions with default values. */
@@ -260,19 +239,20 @@ public final class RetryOptions {
       if (backoff == 0d) {
         backoff = DEFAULT_BACKOFF_COEFFICIENT;
       }
-      RetryOptions result =
-          new RetryOptions(
-              initialInterval, backoff, expiration, maximumAttempts, maximumInterval, doNotRetry);
-      result.validate();
-      return result;
+      return new RetryOptions(
+          initialInterval == null || initialInterval.isZero()
+              ? DEFAULT_INITIAL_INTERVAL
+              : initialInterval,
+          backoff,
+          maximumAttempts,
+          maximumInterval,
+          doNotRetry);
     }
   }
 
   private final Duration initialInterval;
 
   private final double backoffCoefficient;
-
-  private final Duration expiration;
 
   private final int maximumAttempts;
 
@@ -283,13 +263,11 @@ public final class RetryOptions {
   private RetryOptions(
       Duration initialInterval,
       double backoffCoefficient,
-      Duration expiration,
       int maximumAttempts,
       Duration maximumInterval,
       List<Class<? extends Throwable>> doNotRetry) {
     this.initialInterval = initialInterval;
     this.backoffCoefficient = backoffCoefficient;
-    this.expiration = expiration;
     this.maximumAttempts = maximumAttempts;
     this.maximumInterval = maximumInterval;
     this.doNotRetry = doNotRetry != null ? Collections.unmodifiableList(doNotRetry) : null;
@@ -303,39 +281,12 @@ public final class RetryOptions {
     return backoffCoefficient;
   }
 
-  public Duration getExpiration() {
-    return expiration;
-  }
-
   public int getMaximumAttempts() {
     return maximumAttempts;
   }
 
   public Duration getMaximumInterval() {
     return maximumInterval;
-  }
-
-  public void validate() {
-    if (initialInterval == null) {
-      throw new IllegalStateException("required property initialInterval not set");
-    }
-    if (expiration == null && maximumAttempts <= 0) {
-      throw new IllegalArgumentException(
-          "both MaximumAttempts and Expiration on retry policy are not set, at least one of them must be set");
-    }
-    if (maximumInterval != null && maximumInterval.compareTo(initialInterval) < 0) {
-      throw new IllegalStateException(
-          "maximumInterval("
-              + maximumInterval
-              + ") cannot be smaller than initialInterval("
-              + initialInterval);
-    }
-    if (backoffCoefficient != 0d && backoffCoefficient < 1.0) {
-      throw new IllegalArgumentException("coefficient less than 1");
-    }
-    if (maximumAttempts != 0 && maximumAttempts < 0) {
-      throw new IllegalArgumentException("negative maximum attempts");
-    }
   }
 
   /**
@@ -346,6 +297,10 @@ public final class RetryOptions {
     return doNotRetry;
   }
 
+  public Builder toBuilder() {
+    return new Builder(this);
+  }
+
   @Override
   public String toString() {
     return "RetryOptions{"
@@ -353,8 +308,6 @@ public final class RetryOptions {
         + initialInterval
         + ", backoffCoefficient="
         + backoffCoefficient
-        + ", expiration="
-        + expiration
         + ", maximumAttempts="
         + maximumAttempts
         + ", maximumInterval="
@@ -372,7 +325,6 @@ public final class RetryOptions {
     return Double.compare(that.backoffCoefficient, backoffCoefficient) == 0
         && maximumAttempts == that.maximumAttempts
         && Objects.equals(initialInterval, that.initialInterval)
-        && Objects.equals(expiration, that.expiration)
         && Objects.equals(maximumInterval, that.maximumInterval)
         && Objects.equals(doNotRetry, that.doNotRetry);
   }
@@ -380,12 +332,7 @@ public final class RetryOptions {
   @Override
   public int hashCode() {
     return Objects.hash(
-        initialInterval,
-        backoffCoefficient,
-        expiration,
-        maximumAttempts,
-        maximumInterval,
-        doNotRetry);
+        initialInterval, backoffCoefficient, maximumAttempts, maximumInterval, doNotRetry);
   }
 
   private static <G> G merge(G annotation, G options, Class<G> type) {
@@ -437,7 +384,8 @@ public final class RetryOptions {
     return Math.min((long) sleepMillis, maximumInterval.toMillis());
   }
 
-  public boolean shouldRethrow(Throwable e, long attempt, long elapsed, long sleepTime) {
+  public boolean shouldRethrow(
+      Throwable e, Optional<Duration> expiration, long attempt, long elapsed, long sleepTime) {
     if (e instanceof ActivityFailureException || e instanceof ChildWorkflowFailureException) {
       e = e.getCause();
     }
@@ -452,6 +400,6 @@ public final class RetryOptions {
     if (maximumAttempts != 0 && attempt >= maximumAttempts) {
       return true;
     }
-    return expiration != null && elapsed + sleepTime >= expiration.toMillis();
+    return expiration.isPresent() && elapsed + sleepTime >= expiration.get().toMillis();
   }
 }

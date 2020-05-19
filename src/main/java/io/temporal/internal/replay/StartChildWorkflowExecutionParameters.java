@@ -22,10 +22,11 @@ package io.temporal.internal.replay;
 import com.google.common.base.Objects;
 import io.temporal.internal.common.RetryParameters;
 import io.temporal.proto.common.ParentClosePolicy;
+import io.temporal.proto.common.Payload;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.WorkflowIdReusePolicy;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.workflow.ChildWorkflowCancellationType;
-import java.util.Arrays;
 import java.util.Map;
 
 public final class StartChildWorkflowExecutionParameters {
@@ -34,13 +35,15 @@ public final class StartChildWorkflowExecutionParameters {
 
     private String namespace;
 
-    private long executionStartToCloseTimeoutSeconds;
+    private long workflowRunTimeoutSeconds;
 
-    private byte[] input;
+    private long workflowExecutionTimeoutSeconds;
+
+    private Payloads input;
 
     private String taskList;
 
-    private long taskStartToCloseTimeoutSeconds;
+    private long workflowTaskTimeoutSeconds;
 
     private String workflowId;
 
@@ -52,7 +55,7 @@ public final class StartChildWorkflowExecutionParameters {
 
     private String cronSchedule;
 
-    private Map<String, byte[]> context;
+    private Map<String, Payload> context;
 
     private ParentClosePolicy parentClosePolicy;
 
@@ -63,13 +66,17 @@ public final class StartChildWorkflowExecutionParameters {
       return this;
     }
 
-    public Builder setExecutionStartToCloseTimeoutSeconds(
-        long executionStartToCloseTimeoutSeconds) {
-      this.executionStartToCloseTimeoutSeconds = executionStartToCloseTimeoutSeconds;
+    public Builder setWorkflowRunTimeoutSeconds(long workflowRunTimeoutSeconds) {
+      this.workflowRunTimeoutSeconds = workflowRunTimeoutSeconds;
       return this;
     }
 
-    public Builder setInput(byte[] input) {
+    public Builder setWorkflowExecutionTimeoutSeconds(long workflowExecutionTimeoutSeconds) {
+      this.workflowExecutionTimeoutSeconds = workflowExecutionTimeoutSeconds;
+      return this;
+    }
+
+    public Builder setInput(Payloads input) {
       this.input = input;
       return this;
     }
@@ -79,8 +86,8 @@ public final class StartChildWorkflowExecutionParameters {
       return this;
     }
 
-    public Builder setTaskStartToCloseTimeoutSeconds(long taskStartToCloseTimeoutSeconds) {
-      this.taskStartToCloseTimeoutSeconds = taskStartToCloseTimeoutSeconds;
+    public Builder setWorkflowTaskTimeoutSeconds(long workflowTaskTimeoutSeconds) {
+      this.workflowTaskTimeoutSeconds = workflowTaskTimeoutSeconds;
       return this;
     }
 
@@ -109,7 +116,7 @@ public final class StartChildWorkflowExecutionParameters {
       return this;
     }
 
-    public Builder setContext(Map<String, byte[]> context) {
+    public Builder setContext(Map<String, Payload> context) {
       this.context = context;
       return this;
     }
@@ -128,9 +135,10 @@ public final class StartChildWorkflowExecutionParameters {
       return new StartChildWorkflowExecutionParameters(
           namespace,
           input,
-          executionStartToCloseTimeoutSeconds,
+          workflowRunTimeoutSeconds,
+          workflowExecutionTimeoutSeconds,
           taskList,
-          taskStartToCloseTimeoutSeconds,
+          workflowTaskTimeoutSeconds,
           workflowId,
           workflowType,
           workflowIdReusePolicy,
@@ -144,13 +152,15 @@ public final class StartChildWorkflowExecutionParameters {
 
   private final String namespace;
 
-  private final long executionStartToCloseTimeoutSeconds;
+  private final long workflowRunTimeoutSeconds;
 
-  private final byte[] input;
+  private final long workflowExecutionTimeoutSeconds;
+
+  private final Payloads input;
 
   private final String taskList;
 
-  private final long taskStartToCloseTimeoutSeconds;
+  private final long workflowTaskTimeoutSeconds;
 
   private final String workflowId;
 
@@ -162,7 +172,7 @@ public final class StartChildWorkflowExecutionParameters {
 
   private final String cronSchedule;
 
-  private Map<String, byte[]> context;
+  private Map<String, Payload> context;
 
   private final ParentClosePolicy parentClosePolicy;
 
@@ -170,23 +180,25 @@ public final class StartChildWorkflowExecutionParameters {
 
   private StartChildWorkflowExecutionParameters(
       String namespace,
-      byte[] input,
-      long executionStartToCloseTimeoutSeconds,
+      Payloads input,
+      long workflowRunTimeoutSeconds,
+      long workflowExecutionTimeoutSeconds,
       String taskList,
-      long taskStartToCloseTimeoutSeconds,
+      long workflowTaskTimeoutSeconds,
       String workflowId,
       WorkflowType workflowType,
       WorkflowIdReusePolicy workflowIdReusePolicy,
       RetryParameters retryParameters,
       String cronSchedule,
-      Map<String, byte[]> context,
+      Map<String, Payload> context,
       ParentClosePolicy parentClosePolicy,
       ChildWorkflowCancellationType cancellationType) {
     this.namespace = namespace;
     this.input = input;
-    this.executionStartToCloseTimeoutSeconds = executionStartToCloseTimeoutSeconds;
+    this.workflowRunTimeoutSeconds = workflowRunTimeoutSeconds;
+    this.workflowExecutionTimeoutSeconds = workflowExecutionTimeoutSeconds;
     this.taskList = taskList;
-    this.taskStartToCloseTimeoutSeconds = taskStartToCloseTimeoutSeconds;
+    this.workflowTaskTimeoutSeconds = workflowTaskTimeoutSeconds;
     this.workflowId = workflowId;
     this.workflowType = workflowType;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
@@ -201,11 +213,15 @@ public final class StartChildWorkflowExecutionParameters {
     return namespace;
   }
 
-  public long getExecutionStartToCloseTimeoutSeconds() {
-    return executionStartToCloseTimeoutSeconds;
+  public long getWorkflowRunTimeoutSeconds() {
+    return workflowRunTimeoutSeconds;
   }
 
-  public byte[] getInput() {
+  public long getWorkflowExecutionTimeoutSeconds() {
+    return workflowExecutionTimeoutSeconds;
+  }
+
+  public Payloads getInput() {
     return input;
   }
 
@@ -213,8 +229,8 @@ public final class StartChildWorkflowExecutionParameters {
     return taskList;
   }
 
-  public long getTaskStartToCloseTimeoutSeconds() {
-    return taskStartToCloseTimeoutSeconds;
+  public long getWorkflowTaskTimeoutSeconds() {
+    return workflowTaskTimeoutSeconds;
   }
 
   public String getWorkflowId() {
@@ -237,7 +253,7 @@ public final class StartChildWorkflowExecutionParameters {
     return cronSchedule;
   }
 
-  public Map<String, byte[]> getContext() {
+  public Map<String, Payload> getContext() {
     return context;
   }
 
@@ -254,11 +270,11 @@ public final class StartChildWorkflowExecutionParameters {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     StartChildWorkflowExecutionParameters that = (StartChildWorkflowExecutionParameters) o;
-    return executionStartToCloseTimeoutSeconds == that.executionStartToCloseTimeoutSeconds
-        && taskStartToCloseTimeoutSeconds == that.taskStartToCloseTimeoutSeconds
-        && cancellationType == that.cancellationType
+    return workflowRunTimeoutSeconds == that.workflowRunTimeoutSeconds
+        && workflowExecutionTimeoutSeconds == that.workflowExecutionTimeoutSeconds
+        && workflowTaskTimeoutSeconds == that.workflowTaskTimeoutSeconds
         && Objects.equal(namespace, that.namespace)
-        && Arrays.equals(input, that.input)
+        && Objects.equal(input, that.input)
         && Objects.equal(taskList, that.taskList)
         && Objects.equal(workflowId, that.workflowId)
         && Objects.equal(workflowType, that.workflowType)
@@ -266,17 +282,19 @@ public final class StartChildWorkflowExecutionParameters {
         && Objects.equal(retryParameters, that.retryParameters)
         && Objects.equal(cronSchedule, that.cronSchedule)
         && Objects.equal(context, that.context)
-        && parentClosePolicy == that.parentClosePolicy;
+        && parentClosePolicy == that.parentClosePolicy
+        && cancellationType == that.cancellationType;
   }
 
   @Override
   public int hashCode() {
     return Objects.hashCode(
         namespace,
-        executionStartToCloseTimeoutSeconds,
-        Arrays.hashCode(input),
+        workflowRunTimeoutSeconds,
+        workflowExecutionTimeoutSeconds,
+        input,
         taskList,
-        taskStartToCloseTimeoutSeconds,
+        workflowTaskTimeoutSeconds,
         workflowId,
         workflowType,
         workflowIdReusePolicy,
@@ -293,15 +311,17 @@ public final class StartChildWorkflowExecutionParameters {
         + "namespace='"
         + namespace
         + '\''
-        + ", executionStartToCloseTimeoutSeconds="
-        + executionStartToCloseTimeoutSeconds
+        + ", workflowRunTimeoutSeconds="
+        + workflowRunTimeoutSeconds
+        + ", workflowExecutionTimeoutSeconds="
+        + workflowExecutionTimeoutSeconds
         + ", input="
-        + Arrays.toString(input)
+        + input
         + ", taskList='"
         + taskList
         + '\''
-        + ", taskStartToCloseTimeoutSeconds="
-        + taskStartToCloseTimeoutSeconds
+        + ", workflowTaskTimeoutSeconds="
+        + workflowTaskTimeoutSeconds
         + ", workflowId='"
         + workflowId
         + '\''

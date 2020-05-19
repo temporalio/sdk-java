@@ -13,8 +13,8 @@
         "name": "WorkflowTest-testWorkflowReset[Docker Sticky OFF]-2ac130cd-f7fb-48db-8c06-a7b8db8906fd"
       },
       "input": "IldvcmtmbG93VGVzdC10ZXN0V29ya2Zsb3dSZXNldFtEb2NrZXIgU3RpY2t5IE9GRl0tMmFjMTMwY2QtZjdmYi00OGRiLThjMDYtYTdiOGRiODkwNmZkIg==",
-      "executionStartToCloseTimeoutSeconds": 1000,
-      "taskStartToCloseTimeoutSeconds": 60,
+      "workflowRunTimeoutSeconds": 1000,
+      "workflowTaskTimeoutSeconds": 60,
       "originalExecutionRunId": "5df3badd-0459-4c0e-85ed-6ebfca069db0",
       "identity": "",
       "attempt": 0,
@@ -159,8 +159,8 @@
       "taskList": {
         "name": "WorkflowTest-testWorkflowReset[Docker Sticky OFF]-2ac130cd-f7fb-48db-8c06-a7b8db8906fd"
       },
-      "executionStartToCloseTimeoutSeconds": 1000,
-      "taskStartToCloseTimeoutSeconds": 10,
+      "workflowRunTimeoutSeconds": 1000,
+      "workflowTaskTimeoutSeconds": 10,
       "parentClosePolicy": "TERMINATE",
       "decisionTaskCompletedEventId": 10,
       "workflowIdReusePolicy": "AllowDuplicateFailedOnly",
@@ -430,8 +430,8 @@
       "taskList": {
         "name": "WorkflowTest-testWorkflowReset[Docker Sticky OFF]-2ac130cd-f7fb-48db-8c06-a7b8db8906fd"
       },
-      "executionStartToCloseTimeoutSeconds": 1000,
-      "taskStartToCloseTimeoutSeconds": 10,
+      "workflowRunTimeoutSeconds": 1000,
+      "workflowTaskTimeoutSeconds": 10,
       "parentClosePolicy": "TERMINATE",
       "decisionTaskCompletedEventId": 28,
       "workflowIdReusePolicy": "AllowDuplicateFailedOnly",
@@ -620,8 +620,8 @@
       "taskList": {
         "name": "WorkflowTest-testWorkflowReset[Docker Sticky OFF]-2ac130cd-f7fb-48db-8c06-a7b8db8906fd"
       },
-      "executionStartToCloseTimeoutSeconds": 1000,
-      "taskStartToCloseTimeoutSeconds": 10,
+      "workflowRunTimeoutSeconds": 1000,
+      "workflowTaskTimeoutSeconds": 10,
       "parentClosePolicy": "TERMINATE",
       "decisionTaskCompletedEventId": 40,
       "workflowIdReusePolicy": "AllowDuplicateFailedOnly",
@@ -1061,8 +1061,8 @@
       "taskList": {
         "name": "WorkflowTest-testWorkflowReset[Docker Sticky OFF]-2ac130cd-f7fb-48db-8c06-a7b8db8906fd"
       },
-      "executionStartToCloseTimeoutSeconds": 1000,
-      "taskStartToCloseTimeoutSeconds": 10,
+      "workflowRunTimeoutSeconds": 1000,
+      "workflowTaskTimeoutSeconds": 10,
       "parentClosePolicy": "TERMINATE",
       "decisionTaskCompletedEventId": 70,
       "workflowIdReusePolicy": "AllowDuplicateFailedOnly",

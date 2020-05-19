@@ -19,12 +19,12 @@
 
 package io.temporal.internal.worker;
 
-import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.common.context.ContextPropagator;
+import io.temporal.common.converter.GsonJsonDataConverter;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.RpcRetryOptions;
@@ -32,13 +32,13 @@ import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
+import io.temporal.proto.common.Payload;
 import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -56,16 +56,19 @@ public final class ActivityWorker implements SuspendableWorker {
   private final String namespace;
   private final String taskList;
   private final SingleWorkerOptions options;
+  private final double taskListActivitiesPerSecond;
 
   public ActivityWorker(
       WorkflowServiceStubs service,
       String namespace,
       String taskList,
+      double taskListActivitiesPerSecond,
       SingleWorkerOptions options,
       ActivityTaskHandler handler) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskList = Objects.requireNonNull(taskList);
+    this.taskListActivitiesPerSecond = taskListActivitiesPerSecond;
     this.handler = handler;
 
     PollerOptions pollerOptions = options.getPollerOptions();
@@ -85,7 +88,8 @@ public final class ActivityWorker implements SuspendableWorker {
       poller =
           new Poller<>(
               options.getIdentity(),
-              new ActivityPollTask(service, namespace, taskList, options),
+              new ActivityPollTask(
+                  service, namespace, taskList, options, taskListActivitiesPerSecond),
               new PollTaskExecutor<>(namespace, taskList, options, new TaskHandlerImpl(handler)),
               options.getPollerOptions(),
               options.getMetricsScope());
@@ -192,8 +196,9 @@ public final class ActivityWorker implements SuspendableWorker {
         RespondActivityTaskCanceledRequest cancelledRequest =
             RespondActivityTaskCanceledRequest.newBuilder()
                 .setDetails(
-                    ByteString.copyFrom(
-                        OptionsUtils.safeGet(e.getMessage()), StandardCharsets.UTF_8))
+                    GsonJsonDataConverter.getInstance()
+                        .toData(OptionsUtils.safeGet(e.getMessage()))
+                        .get())
                 .build();
         Stopwatch sw = metricsScope.timer(MetricsType.ACTIVITY_RESP_LATENCY).start();
         sendReply(task, new Result(null, null, cancelledRequest, null), metricsScope);
@@ -214,9 +219,9 @@ public final class ActivityWorker implements SuspendableWorker {
       if (!response.hasHeader()) {
         return;
       }
-      Map<String, byte[]> headerData = new HashMap<>();
-      for (Map.Entry<String, ByteString> entry : response.getHeader().getFieldsMap().entrySet()) {
-        headerData.put(entry.getKey(), entry.getValue().toByteArray());
+      Map<String, Payload> headerData = new HashMap<>();
+      for (Map.Entry<String, Payload> entry : response.getHeader().getFieldsMap().entrySet()) {
+        headerData.put(entry.getKey(), entry.getValue());
       }
       for (ContextPropagator propagator : options.getContextPropagators()) {
         propagator.setCurrentContext(propagator.deserializeContext(headerData));

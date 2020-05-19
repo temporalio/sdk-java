@@ -100,10 +100,9 @@ public class MetricsTest {
       ActivityOptions activityOptions =
           ActivityOptions.newBuilder()
               .setTaskList(TASK_LIST)
-              .setScheduleToCloseTimeout(Duration.ofSeconds(1))
+              .setScheduleToCloseTimeout(Duration.ofSeconds(100))
               .setRetryOptions(
                   RetryOptions.newBuilder()
-                      .setExpiration(Duration.ofSeconds(100))
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
                       .setMaximumAttempts(3)
@@ -251,7 +250,7 @@ public class MetricsTest {
     WorkflowClient workflowClient = testEnvironment.getWorkflowClient();
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(1000))
+            .setWorkflowRunTimeout(Duration.ofSeconds(1000))
             .setTaskList(TASK_LIST)
             .build();
     TestWorkflow workflow = workflowClient.newWorkflowStub(TestWorkflow.class, options);
@@ -339,7 +338,7 @@ public class MetricsTest {
 
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(1000))
+            .setWorkflowRunTimeout(Duration.ofSeconds(1000))
             .setTaskList(TASK_LIST)
             .build();
 

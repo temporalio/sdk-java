@@ -81,9 +81,9 @@ public final class OptionsUtils {
    * Convert milliseconds to seconds rounding up. Used by timers to ensure that they never fire
    * earlier than requested.
    */
-  public static Duration roundUpToSeconds(Duration duration, Duration defaultValue) {
+  public static int roundUpToSeconds(Duration duration, Duration defaultValue) {
     if (duration == null) {
-      return defaultValue;
+      return roundUpToSeconds(defaultValue);
     }
     return roundUpToSeconds(duration);
   }
@@ -92,12 +92,11 @@ public final class OptionsUtils {
    * Round durations to seconds rounding up. As all timeouts and timers resolution is in seconds
    * ensures that nothing times out or fires before the requested time.
    */
-  public static Duration roundUpToSeconds(Duration duration) {
+  public static int roundUpToSeconds(Duration duration) {
     if (duration == null) {
-      return Duration.ZERO;
+      return 0;
     }
-    Duration result = Duration.ofMillis((long) (Math.ceil(duration.toMillis() / SECOND) * SECOND));
-    return result;
+    return (int) (Math.ceil(duration.toMillis() / SECOND));
   }
 
   /** Prohibits instantiation. */

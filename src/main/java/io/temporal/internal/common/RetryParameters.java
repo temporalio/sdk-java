@@ -34,17 +34,12 @@ public final class RetryParameters {
   public int maximumIntervalInSeconds;
   public int maximumAttempts;
   public List<String> nonRetriableErrorReasons;
-  public int expirationIntervalInSeconds;
 
   public RetryParameters(RetryOptions retryOptions) {
     setBackoffCoefficient(retryOptions.getBackoffCoefficient());
-    setExpirationIntervalInSeconds(
-        (int) roundUpToSeconds(retryOptions.getExpiration()).getSeconds());
     setMaximumAttempts(retryOptions.getMaximumAttempts());
-    setInitialIntervalInSeconds(
-        (int) roundUpToSeconds(retryOptions.getInitialInterval()).getSeconds());
-    setMaximumIntervalInSeconds(
-        (int) roundUpToSeconds(retryOptions.getMaximumInterval()).getSeconds());
+    setInitialIntervalInSeconds(roundUpToSeconds(retryOptions.getInitialInterval()));
+    setMaximumIntervalInSeconds(roundUpToSeconds(retryOptions.getMaximumInterval()));
     // Use exception type name as the reason
     List<String> reasons = new ArrayList<>();
     // Use exception type name as the reason
@@ -99,21 +94,12 @@ public final class RetryParameters {
     this.nonRetriableErrorReasons = nonRetriableErrorReasons;
   }
 
-  public int getExpirationIntervalInSeconds() {
-    return expirationIntervalInSeconds;
-  }
-
-  public void setExpirationIntervalInSeconds(int expirationIntervalInSeconds) {
-    this.expirationIntervalInSeconds = expirationIntervalInSeconds;
-  }
-
   public RetryParameters copy() {
     RetryParameters result = new RetryParameters();
     result.setMaximumIntervalInSeconds(maximumIntervalInSeconds);
     result.setNonRetriableErrorReasons(new ImmutableList<>(nonRetriableErrorReasons));
     result.setInitialIntervalInSeconds(initialIntervalInSeconds);
     result.setMaximumAttempts(maximumAttempts);
-    result.setExpirationIntervalInSeconds(expirationIntervalInSeconds);
     result.setBackoffCoefficient(backoffCoefficient);
     return result;
   }
@@ -128,7 +114,6 @@ public final class RetryParameters {
         .addAllNonRetriableErrorReasons(getNonRetriableErrorReasons())
         .setMaximumAttempts(getMaximumAttempts())
         .setInitialIntervalInSeconds(getInitialIntervalInSeconds())
-        .setExpirationIntervalInSeconds(getExpirationIntervalInSeconds())
         .setBackoffCoefficient(getBackoffCoefficient())
         .setMaximumIntervalInSeconds(getMaximumIntervalInSeconds())
         .build();
@@ -147,8 +132,6 @@ public final class RetryParameters {
         + maximumAttempts
         + ", nonRetriableErrorReasons="
         + nonRetriableErrorReasons
-        + ", expirationIntervalInSeconds="
-        + expirationIntervalInSeconds
         + '}';
   }
 }

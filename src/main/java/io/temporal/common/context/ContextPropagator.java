@@ -19,6 +19,7 @@
 
 package io.temporal.common.context;
 
+import io.temporal.proto.common.Payload;
 import java.util.Map;
 
 /**
@@ -61,7 +62,7 @@ import java.util.Map;
  *         return serializedContext;
  *     }
  *
- *     public Object deserializeContext(Map<String, byte[]> context) {
+ *     public Object deserializeContext(Map<String, Payload> context) {
  *         Map<String, String> contextMap = new HashMap<>();
  *         for (Map.Entry<String, byte[]> entry : context.entrySet()) {
  *             contextMap.put(entry.getKey(), new String(entry.getValue(), StandardCharsets.UTF_8));
@@ -115,10 +116,10 @@ public interface ContextPropagator {
   String getName();
 
   /** Given context data, serialize it for transmission in the RPC header */
-  Map<String, byte[]> serializeContext(Object context);
+  Map<String, Payload> serializeContext(Object context);
 
   /** Turn the serialized header data into context object(s) */
-  Object deserializeContext(Map<String, byte[]> context);
+  Object deserializeContext(Map<String, Payload> context);
 
   /** Returns the current context in object form */
   Object getCurrentContext();

@@ -19,7 +19,6 @@
 
 package io.temporal.workflow;
 
-import io.temporal.internal.common.OptionsUtils;
 import java.time.Duration;
 
 public final class ContinueAsNewOptions {
@@ -44,9 +43,9 @@ public final class ContinueAsNewOptions {
 
   public static final class Builder {
 
-    private Duration executionStartToCloseTimeout;
+    private Duration workflowRunTimeout;
     private String taskList;
-    private Duration taskStartToCloseTimeout;
+    private Duration workflowTaskTimeout;
 
     private Builder() {}
 
@@ -54,13 +53,13 @@ public final class ContinueAsNewOptions {
       if (options == null) {
         return;
       }
-      this.executionStartToCloseTimeout = options.executionStartToCloseTimeout;
+      this.workflowRunTimeout = options.workflowRunTimeout;
       this.taskList = options.taskList;
-      this.taskStartToCloseTimeout = options.taskStartToCloseTimeout;
+      this.workflowTaskTimeout = options.workflowTaskTimeout;
     }
 
-    public Builder setExecutionStartToCloseTimeout(Duration executionStartToCloseTimeout) {
-      this.executionStartToCloseTimeout = executionStartToCloseTimeout;
+    public Builder setWorkflowRunTimeout(Duration workflowRunTimeout) {
+      this.workflowRunTimeout = workflowRunTimeout;
       return this;
     }
 
@@ -69,39 +68,36 @@ public final class ContinueAsNewOptions {
       return this;
     }
 
-    public Builder setTaskStartToCloseTimeout(Duration taskStartToCloseTimeout) {
-      this.taskStartToCloseTimeout = taskStartToCloseTimeout;
+    public Builder setWorkflowTaskTimeout(Duration workflowTaskTimeout) {
+      this.workflowTaskTimeout = workflowTaskTimeout;
       return this;
     }
 
     public ContinueAsNewOptions build() {
-      return new ContinueAsNewOptions(
-          OptionsUtils.roundUpToSeconds(executionStartToCloseTimeout),
-          taskList,
-          OptionsUtils.roundUpToSeconds(taskStartToCloseTimeout));
+      return new ContinueAsNewOptions(workflowRunTimeout, taskList, workflowTaskTimeout);
     }
   }
 
-  private final Duration executionStartToCloseTimeout;
+  private final Duration workflowRunTimeout;
   private final String taskList;
-  private final Duration taskStartToCloseTimeout;
+  private final Duration workflowTaskTimeout;
 
   public ContinueAsNewOptions(
-      Duration executionStartToCloseTimeout, String taskList, Duration taskStartToCloseTimeout) {
-    this.executionStartToCloseTimeout = executionStartToCloseTimeout;
+      Duration workflowRunTimeout, String taskList, Duration workflowTaskTimeout) {
+    this.workflowRunTimeout = workflowRunTimeout;
     this.taskList = taskList;
-    this.taskStartToCloseTimeout = taskStartToCloseTimeout;
+    this.workflowTaskTimeout = workflowTaskTimeout;
   }
 
-  public Duration getExecutionStartToCloseTimeout() {
-    return executionStartToCloseTimeout;
+  public Duration getWorkflowRunTimeout() {
+    return workflowRunTimeout;
   }
 
   public String getTaskList() {
     return taskList;
   }
 
-  public Duration getTaskStartToCloseTimeout() {
-    return taskStartToCloseTimeout;
+  public Duration getWorkflowTaskTimeout() {
+    return workflowTaskTimeout;
   }
 }

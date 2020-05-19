@@ -20,14 +20,14 @@
 package io.temporal.internal.replay;
 
 import io.temporal.internal.common.OptionsUtils;
-import java.nio.charset.StandardCharsets;
+import io.temporal.proto.common.Payloads;
 
 public final class ContinueAsNewWorkflowExecutionParameters {
 
-  private int executionStartToCloseTimeoutSeconds;
-  private byte[] input;
+  private int workflowRunTimeoutSeconds;
+  private Payloads input;
   private String taskList;
-  private int taskStartToCloseTimeoutSeconds;
+  private int workflowTaskTimeoutSeconds;
   private String workflowType;
 
   public void setWorkflowType(String workflowType) {
@@ -38,30 +38,30 @@ public final class ContinueAsNewWorkflowExecutionParameters {
     return workflowType;
   }
 
-  public int getExecutionStartToCloseTimeoutSeconds() {
-    return executionStartToCloseTimeoutSeconds;
+  public int getWorkflowRunTimeoutSeconds() {
+    return workflowRunTimeoutSeconds;
   }
 
-  public void setExecutionStartToCloseTimeoutSeconds(int executionStartToCloseTimeoutSeconds) {
-    this.executionStartToCloseTimeoutSeconds = executionStartToCloseTimeoutSeconds;
+  public void setWorkflowRunTimeoutSeconds(int workflowRunTimeoutSeconds) {
+    this.workflowRunTimeoutSeconds = workflowRunTimeoutSeconds;
   }
 
-  public ContinueAsNewWorkflowExecutionParameters withExecutionStartToCloseTimeoutSeconds(
-      int executionStartToCloseTimeoutSeconds) {
-    this.executionStartToCloseTimeoutSeconds = executionStartToCloseTimeoutSeconds;
+  public ContinueAsNewWorkflowExecutionParameters withWorkflowRunTimeoutSeconds(
+      int workflowRunTimeoutSeconds) {
+    this.workflowRunTimeoutSeconds = workflowRunTimeoutSeconds;
     return this;
   }
 
-  public ContinueAsNewWorkflowExecutionParameters withInput(byte[] input) {
+  public ContinueAsNewWorkflowExecutionParameters withInput(Payloads input) {
     this.input = input;
     return this;
   }
 
-  public byte[] getInput() {
+  public Payloads getInput() {
     return input;
   }
 
-  public void setInput(byte[] input) {
+  public void setInput(Payloads input) {
     this.input = input;
   }
 
@@ -78,17 +78,17 @@ public final class ContinueAsNewWorkflowExecutionParameters {
     return this;
   }
 
-  public int getTaskStartToCloseTimeoutSeconds() {
-    return taskStartToCloseTimeoutSeconds;
+  public int getWorkflowTaskTimeoutSeconds() {
+    return workflowTaskTimeoutSeconds;
   }
 
-  public void setTaskStartToCloseTimeoutSeconds(int taskStartToCloseTimeoutSeconds) {
-    this.taskStartToCloseTimeoutSeconds = taskStartToCloseTimeoutSeconds;
+  public void setWorkflowTaskTimeoutSeconds(int workflowTaskTimeoutSeconds) {
+    this.workflowTaskTimeoutSeconds = workflowTaskTimeoutSeconds;
   }
 
-  public ContinueAsNewWorkflowExecutionParameters withTaskStartToCloseTimeoutSeconds(
-      int taskStartToCloseTimeoutSeconds) {
-    this.taskStartToCloseTimeoutSeconds = taskStartToCloseTimeoutSeconds;
+  public ContinueAsNewWorkflowExecutionParameters withWorkflowTaskTimeoutSeconds(
+      int workflowTaskTimeoutSeconds) {
+    this.workflowTaskTimeoutSeconds = workflowTaskTimeoutSeconds;
     return this;
   }
 
@@ -96,9 +96,9 @@ public final class ContinueAsNewWorkflowExecutionParameters {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("{");
-    sb.append("Input: " + new String(input, 0, 512, StandardCharsets.UTF_8) + ", ");
-    sb.append("ExecutionStartToCloseTimeout: " + executionStartToCloseTimeoutSeconds + ", ");
-    sb.append("TaskStartToCloseTimeout: " + taskStartToCloseTimeoutSeconds + ", ");
+    sb.append("Input: " + String.valueOf(input).substring(0, 512) + ", ");
+    sb.append("WorkflowRunTimeout: " + workflowRunTimeoutSeconds + ", ");
+    sb.append("WorkflowTaskTimeout: " + workflowTaskTimeoutSeconds + ", ");
     sb.append("TaskList: " + taskList + ", ");
     sb.append("}");
     return sb.toString();
@@ -107,10 +107,10 @@ public final class ContinueAsNewWorkflowExecutionParameters {
   public ContinueAsNewWorkflowExecutionParameters copy() {
     ContinueAsNewWorkflowExecutionParameters result =
         new ContinueAsNewWorkflowExecutionParameters();
-    result.setExecutionStartToCloseTimeoutSeconds(executionStartToCloseTimeoutSeconds);
+    result.setWorkflowRunTimeoutSeconds(workflowRunTimeoutSeconds);
     result.setInput(input);
     result.setTaskList(taskList);
-    result.setTaskStartToCloseTimeoutSeconds(taskStartToCloseTimeoutSeconds);
+    result.setWorkflowTaskTimeoutSeconds(workflowTaskTimeoutSeconds);
     return result;
   }
 }

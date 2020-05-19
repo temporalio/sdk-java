@@ -64,8 +64,18 @@ final class WorkflowInfoImpl implements WorkflowInfo {
   }
 
   @Override
-  public Duration getExecutionStartToCloseTimeout() {
-    return context.getExecutionStartToCloseTimeout();
+  public Duration getWorkflowRunTimeout() {
+    return context.getWorkflowRunTimeout();
+  }
+
+  @Override
+  public Duration getWorkflowExecutionTimeout() {
+    return context.getWorkflowExecutionTimeout();
+  }
+
+  @Override
+  public long getRunStartedTimestampMillis() {
+    return context.getRunStartedTimestampMillis();
   }
 
   @Override
