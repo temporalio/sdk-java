@@ -296,8 +296,8 @@ publishing {
 nexusPublishing {
     repositories {
         sonatype {
-            username = project.getProperty('ossrhUsername')
-            password = project.getProperty('ossrhPassword')
+            username = hasProperty('ossrhUsername') ? ossrhUsername : ''
+            password = hasProperty('ossrhPassword') ? ossrhPassword : ''
             nexusUrl = uri("https://oss.sonatype.org/service/local/staging/deploy/maven2/")
             snapshotRepositoryUrl = uri("https://oss.sonatype.org/content/repositories/snapshots/")
         }
