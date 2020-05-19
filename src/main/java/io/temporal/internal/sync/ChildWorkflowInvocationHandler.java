@@ -26,7 +26,6 @@ import io.temporal.common.MethodRetry;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ChildWorkflowStub;
-import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.util.Optional;
@@ -52,10 +51,8 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
     Method workflowMethod = workflowMethodMetadata.get().getWorkflowMethod();
     MethodRetry retryAnnotation = workflowMethod.getAnnotation(MethodRetry.class);
     CronSchedule cronSchedule = workflowMethod.getAnnotation(CronSchedule.class);
-    WorkflowMethod workflowAnnotation = workflowMethod.getAnnotation(WorkflowMethod.class);
     ChildWorkflowOptions merged =
         ChildWorkflowOptions.newBuilder(options)
-            .setWorkflowMethod(workflowAnnotation)
             .setMethodRetry(retryAnnotation)
             .setCronSchedule(cronSchedule)
             .validateAndBuildWithDefaults();

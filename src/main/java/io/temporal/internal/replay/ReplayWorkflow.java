@@ -20,21 +20,23 @@
 package io.temporal.internal.replay;
 
 import io.temporal.internal.worker.WorkflowExecutionException;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.event.HistoryEvent;
 import io.temporal.proto.query.WorkflowQuery;
 import io.temporal.worker.WorkflowImplementationOptions;
+import java.util.Optional;
 
 public interface ReplayWorkflow {
 
   void start(HistoryEvent event, DecisionContext context);
 
   /** Handle an external signal event. */
-  void handleSignal(String signalName, byte[] input, long eventId);
+  void handleSignal(String signalName, Optional<Payloads> input, long eventId);
 
   boolean eventLoop() throws Throwable;
 
   /** @return null means no output yet */
-  byte[] getOutput();
+  Optional<Payloads> getOutput();
 
   void cancel(String reason);
 
@@ -50,9 +52,10 @@ public interface ReplayWorkflow {
    * Called after all history is replayed and workflow cannot make any progress if decision task is
    * a query.
    *
-   * @param query
+   * @param query arguments
+   * @return query result
    */
-  byte[] query(WorkflowQuery query);
+  Optional<Payloads> query(WorkflowQuery query);
 
   /**
    * Convert exception that happened in the framework code to the format that ReplayWorkflow

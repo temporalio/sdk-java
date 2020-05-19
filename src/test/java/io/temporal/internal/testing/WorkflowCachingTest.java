@@ -36,7 +36,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-public class WorkflowStickynessTest {
+public class WorkflowCachingTest {
 
   private final String NAMESPACE = "namespace";
   private final String TASK_LIST = "taskList";

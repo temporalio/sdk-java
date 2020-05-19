@@ -32,6 +32,8 @@ import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import java.lang.invoke.MethodHandleInfo;
 import java.lang.invoke.SerializedLambda;
+import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -273,8 +275,9 @@ public final class AsyncInternal {
     return procedure(isAsync(procedure), () -> procedure.apply(arg1, arg2, arg3, arg4, arg5, arg6));
   }
 
-  public static <R> Promise<R> retry(RetryOptions options, Functions.Func<Promise<R>> fn) {
-    return WorkflowRetryerInternal.retryAsync(options, fn);
+  public static <R> Promise<R> retry(
+      RetryOptions options, Optional<Duration> expiration, Functions.Func<Promise<R>> fn) {
+    return WorkflowRetryerInternal.retryAsync(options, expiration, fn);
   }
 
   private static <R> Promise<R> execute(boolean async, Functions.Func<R> func) {

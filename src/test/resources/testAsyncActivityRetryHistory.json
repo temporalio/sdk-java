@@ -12,8 +12,8 @@
         "name": "WorkflowTest-testAsyncActivityRetry[Docker Sticky ON]-3f9e1f99-7718-4975-a8a3-c0dfdaee42f7"
       },
       "input": "IldvcmtmbG93VGVzdC10ZXN0QXN5bmNBY3Rpdml0eVJldHJ5W0RvY2tlciBTdGlja3kgT05dLTNmOWUxZjk5LTc3MTgtNDk3NS1hOGEzLWMwZGZkYWVlNDJmNyI=",
-      "executionStartToCloseTimeoutSeconds": 30,
-      "taskStartToCloseTimeoutSeconds": 5,
+      "workflowRunTimeoutSeconds": 30,
+      "workflowTaskTimeoutSeconds": 5,
       "originalExecutionRunId": "3382defe-f168-49e7-ab5d-761268729983",
       "identity": ""
     }

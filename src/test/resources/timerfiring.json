@@ -12,8 +12,8 @@
         "name": "HelloQuery"
       },
       "input": "IldvcmxkIg==",
-      "executionStartToCloseTimeoutSeconds": 60,
-      "taskStartToCloseTimeoutSeconds": 10,
+      "workflowRunTimeoutSeconds": 60,
+      "workflowTaskTimeoutSeconds": 10,
       "identity": "",
       "attempt": 0,
       "firstDecisionTaskBackoffSeconds": 0

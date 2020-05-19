@@ -35,6 +35,7 @@ import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowFactory;
 import io.temporal.internal.worker.WorkflowExecutionException;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.testing.SimulatedTimeoutException;
 import io.temporal.worker.WorkflowImplementationOptions;
@@ -49,6 +50,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
@@ -236,12 +238,15 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     }
 
     @Override
-    public byte[] execute(byte[] input) throws CancellationException, WorkflowExecutionException {
-      Object[] args = dataConverter.fromDataArray(input, workflowMethod.getGenericParameterTypes());
+    public Optional<Payloads> execute(Optional<Payloads> input)
+        throws CancellationException, WorkflowExecutionException {
+      Object[] args =
+          dataConverter.fromDataArray(
+              input, workflowMethod.getParameterTypes(), workflowMethod.getGenericParameterTypes());
       Preconditions.checkNotNull(workflowInvoker, "initialize not called");
       Object result = workflowInvoker.execute(args);
       if (workflowMethod.getReturnType() == Void.TYPE) {
-        return EMPTY_BLOB;
+        return Optional.empty();
       }
       return dataConverter.toData(result);
     }
@@ -352,10 +357,17 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     // Only expected during unit tests.
     if (failure instanceof SimulatedTimeoutException) {
       SimulatedTimeoutException timeoutException = (SimulatedTimeoutException) failure;
-      failure =
-          new SimulatedTimeoutExceptionInternal(
-              timeoutException.getTimeoutType(),
-              dataConverter.toData(timeoutException.getDetails()));
+      // As SimulatedTimeoutExceptionInternal is serialized to Payloads the details
+      // is stored as byte array which json serializer understands.
+      Object d = timeoutException.getDetails();
+      Optional<Payloads> payloads = dataConverter.toData(d);
+      byte[] details;
+      if (payloads.isPresent()) {
+        details = payloads.get().toByteArray();
+      } else {
+        details = new byte[0];
+      }
+      failure = new SimulatedTimeoutExceptionInternal(timeoutException.getTimeoutType(), details);
     }
 
     return new WorkflowExecutionException(

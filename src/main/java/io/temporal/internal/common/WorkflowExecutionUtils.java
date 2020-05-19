@@ -32,12 +32,16 @@ import io.grpc.Deadline;
 import io.grpc.Status;
 import io.temporal.client.WorkflowTerminatedException;
 import io.temporal.client.WorkflowTimedOutException;
+import io.temporal.common.converter.DataConverter;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.decision.Decision;
 import io.temporal.proto.decision.DecisionType;
 import io.temporal.proto.event.EventType;
 import io.temporal.proto.event.History;
 import io.temporal.proto.event.HistoryEvent;
 import io.temporal.proto.event.HistoryEventOrBuilder;
+import io.temporal.proto.event.WorkflowExecutionCanceledEventAttributes;
+import io.temporal.proto.event.WorkflowExecutionCompletedEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionFailedEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionTerminatedEventAttributes;
@@ -108,51 +112,67 @@ public class WorkflowExecutionUtils {
    * @throws WorkflowTerminatedException if workflow execution was terminated through an external
    *     terminate command.
    */
-  public static byte[] getWorkflowExecutionResult(
+  public static Optional<Payloads> getWorkflowExecutionResult(
       WorkflowServiceStubs service,
       String namespace,
       WorkflowExecution workflowExecution,
       Optional<String> workflowType,
       long timeout,
-      TimeUnit unit)
+      TimeUnit unit,
+      DataConverter converter)
       throws TimeoutException, CancellationException, WorkflowExecutionFailedException,
           WorkflowTerminatedException, WorkflowTimedOutException {
     // getIntanceCloseEvent waits for workflow completion including new runs.
     HistoryEvent closeEvent =
         getInstanceCloseEvent(service, namespace, workflowExecution, timeout, unit);
-    return getResultFromCloseEvent(workflowExecution, workflowType, closeEvent);
+    return getResultFromCloseEvent(workflowExecution, workflowType, closeEvent, converter);
   }
 
-  public static CompletableFuture<byte[]> getWorkflowExecutionResultAsync(
+  public static CompletableFuture<Optional<Payloads>> getWorkflowExecutionResultAsync(
       WorkflowServiceStubs service,
       String namespace,
       WorkflowExecution workflowExecution,
       Optional<String> workflowType,
       long timeout,
-      TimeUnit unit) {
+      TimeUnit unit,
+      DataConverter converter) {
     return getInstanceCloseEventAsync(service, namespace, workflowExecution, timeout, unit)
         .thenApply(
-            (closeEvent) -> getResultFromCloseEvent(workflowExecution, workflowType, closeEvent));
+            (closeEvent) ->
+                getResultFromCloseEvent(workflowExecution, workflowType, closeEvent, converter));
   }
 
-  private static byte[] getResultFromCloseEvent(
-      WorkflowExecution workflowExecution, Optional<String> workflowType, HistoryEvent closeEvent) {
+  private static Optional<Payloads> getResultFromCloseEvent(
+      WorkflowExecution workflowExecution,
+      Optional<String> workflowType,
+      HistoryEvent closeEvent,
+      DataConverter converter) {
     if (closeEvent == null) {
       throw new IllegalStateException("Workflow is still running");
     }
     switch (closeEvent.getEventType()) {
       case WorkflowExecutionCompleted:
-        return closeEvent.getWorkflowExecutionCompletedEventAttributes().getResult().toByteArray();
+        WorkflowExecutionCompletedEventAttributes completedEventAttributes =
+            closeEvent.getWorkflowExecutionCompletedEventAttributes();
+        if (completedEventAttributes.hasResult()) {
+          return Optional.of(completedEventAttributes.getResult());
+        }
+        return Optional.empty();
       case WorkflowExecutionCanceled:
-        ByteString details = closeEvent.getWorkflowExecutionCanceledEventAttributes().getDetails();
-        String message = details != null ? details.toString(UTF_8) : null;
+        String message = null;
+        WorkflowExecutionCanceledEventAttributes attributes =
+            closeEvent.getWorkflowExecutionCanceledEventAttributes();
+        if (attributes.hasDetails()) {
+          Payloads details = attributes.getDetails();
+          message = converter.fromData(Optional.of(details), String.class, String.class);
+        }
         throw new CancellationException(message);
       case WorkflowExecutionFailed:
         WorkflowExecutionFailedEventAttributes failed =
             closeEvent.getWorkflowExecutionFailedEventAttributes();
         throw new WorkflowExecutionFailedException(
             failed.getReason(),
-            failed.getDetails().toByteArray(),
+            failed.hasDetails() ? Optional.of(failed.getDetails()) : Optional.empty(),
             failed.getDecisionTaskCompletedEventId());
       case WorkflowExecutionTerminated:
         WorkflowExecutionTerminatedEventAttributes terminated =

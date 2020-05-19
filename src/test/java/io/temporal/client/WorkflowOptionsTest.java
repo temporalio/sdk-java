@@ -43,30 +43,19 @@ public class WorkflowOptionsTest {
     WorkflowOptions o =
         WorkflowOptions.newBuilder()
             .setTaskList("foo")
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(321))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
+            .setWorkflowRunTimeout(Duration.ofSeconds(321))
+            .setWorkflowExecutionTimeout(Duration.ofSeconds(456))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(13))
             .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
             .setMemo(getTestMemo())
             .setSearchAttributes(getTestSearchAttributes())
             .build();
-    WorkflowMethod a =
-        WorkflowOptionsTest.class
-            .getMethod("defaultWorkflowOptions")
-            .getAnnotation(WorkflowMethod.class);
-    Assert.assertEquals(o, WorkflowOptions.merge(a, null, null, o));
+    Assert.assertEquals(o, WorkflowOptions.merge(null, null, o));
   }
 
-  @WorkflowMethod(
-    executionStartToCloseTimeoutSeconds = 1135,
-    taskList = "bar",
-    taskStartToCloseTimeoutSeconds = 34,
-    workflowId = "foo",
-    workflowIdReusePolicy = WorkflowIdReusePolicy.AllowDuplicate
-  )
   @MethodRetry(
     initialIntervalSeconds = 12,
     backoffCoefficient = 1.97,
-    expirationSeconds = 1231423,
     maximumAttempts = 234567,
     maximumIntervalSeconds = 22,
     doNotRetry = {NullPointerException.class, UnsupportedOperationException.class}
@@ -77,19 +66,10 @@ public class WorkflowOptionsTest {
   @Test
   public void testOnlyAnnotationsPresent() throws NoSuchMethodException {
     Method method = WorkflowOptionsTest.class.getMethod("workflowOptions");
-    WorkflowMethod a = method.getAnnotation(WorkflowMethod.class);
     MethodRetry r = method.getAnnotation(MethodRetry.class);
     CronSchedule c = method.getAnnotation(CronSchedule.class);
     WorkflowOptions o = WorkflowOptions.newBuilder().build();
-    WorkflowOptions merged = WorkflowOptions.merge(a, r, c, o);
-    Assert.assertEquals(a.taskList(), merged.getTaskList());
-    Assert.assertEquals(
-        a.executionStartToCloseTimeoutSeconds(),
-        merged.getExecutionStartToCloseTimeout().getSeconds());
-    Assert.assertEquals(
-        a.taskStartToCloseTimeoutSeconds(), merged.getTaskStartToCloseTimeout().getSeconds());
-    Assert.assertEquals(a.workflowId(), merged.getWorkflowId());
-    Assert.assertEquals(a.workflowIdReusePolicy(), merged.getWorkflowIdReusePolicy());
+    WorkflowOptions merged = WorkflowOptions.merge(r, c, o);
     Assert.assertEquals("0 * * * *", merged.getCronSchedule());
   }
 
@@ -101,7 +81,6 @@ public class WorkflowOptionsTest {
             .setMaximumAttempts(11111)
             .setBackoffCoefficient(1.55)
             .setMaximumInterval(Duration.ofDays(3))
-            .setExpiration(Duration.ofDays(365))
             .setInitialInterval(Duration.ofMinutes(12))
             .build();
 
@@ -111,8 +90,8 @@ public class WorkflowOptionsTest {
     WorkflowOptions o =
         WorkflowOptions.newBuilder()
             .setTaskList("foo")
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(321))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
+            .setWorkflowRunTimeout(Duration.ofSeconds(321))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(13))
             .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
             .setWorkflowId("bar")
             .setRetryOptions(retryOptions)
@@ -121,10 +100,9 @@ public class WorkflowOptionsTest {
             .setSearchAttributes(searchAttributes)
             .build();
     Method method = WorkflowOptionsTest.class.getMethod("workflowOptions");
-    WorkflowMethod a = method.getAnnotation(WorkflowMethod.class);
     MethodRetry r = method.getAnnotation(MethodRetry.class);
     CronSchedule c = method.getAnnotation(CronSchedule.class);
-    WorkflowOptions merged = WorkflowOptions.merge(a, r, c, o);
+    WorkflowOptions merged = WorkflowOptions.merge(r, c, o);
     Assert.assertEquals(retryOptions, merged.getRetryOptions());
     Assert.assertEquals("* 1 * * *", merged.getCronSchedule());
     Assert.assertEquals(memo, merged.getMemo());
@@ -139,7 +117,6 @@ public class WorkflowOptionsTest {
             .setMaximumAttempts(11111)
             .setBackoffCoefficient(1.55)
             .setMaximumInterval(Duration.ofDays(3))
-            .setExpiration(Duration.ofDays(365))
             .setInitialInterval(Duration.ofMinutes(12))
             .build();
 
@@ -148,8 +125,8 @@ public class WorkflowOptionsTest {
     ChildWorkflowOptions o =
         ChildWorkflowOptions.newBuilder()
             .setTaskList("foo")
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(321))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(13))
+            .setWorkflowRunTimeout(Duration.ofSeconds(321))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(13))
             .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
             .setWorkflowId("bar")
             .setRetryOptions(retryOptions)
@@ -165,7 +142,6 @@ public class WorkflowOptionsTest {
         ChildWorkflowOptions.newBuilder(o)
             .setMethodRetry(r)
             .setCronSchedule(c)
-            .setWorkflowMethod(a)
             .validateAndBuildWithDefaults();
     Assert.assertEquals(retryOptions, merged.getRetryOptions());
     Assert.assertEquals("* 1 * * *", merged.getCronSchedule());

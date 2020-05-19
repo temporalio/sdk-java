@@ -20,7 +20,6 @@
 package io.temporal.internal.testservice;
 
 import com.google.common.base.Throwables;
-import com.google.protobuf.ByteString;
 import io.grpc.Context;
 import io.grpc.Deadline;
 import io.grpc.ManagedChannel;
@@ -32,6 +31,7 @@ import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.testservice.TestWorkflowStore.WorkflowState;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.RetryPolicy;
 import io.temporal.proto.common.WorkflowIdReusePolicy;
 import io.temporal.proto.decision.SignalExternalWorkflowExecutionDecisionAttributes;
@@ -261,7 +261,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       }
       Optional<RetryState> retryState;
       if (startRequest.hasRetryPolicy()) {
-        retryState = newRetryStateLocked(startRequest.getRetryPolicy());
+        long expirationInterval = startRequest.getWorkflowExecutionTimeoutSeconds();
+        retryState = newRetryStateLocked(startRequest.getRetryPolicy(), expirationInterval);
       } else {
         retryState = Optional.empty();
       }
@@ -281,10 +282,10 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
-  private Optional<RetryState> newRetryStateLocked(RetryPolicy retryPolicy) {
-    long expirationInterval =
-        TimeUnit.SECONDS.toMillis(retryPolicy.getExpirationIntervalInSeconds());
-    long expirationTime = store.currentTimeMillis() + expirationInterval;
+  private Optional<RetryState> newRetryStateLocked(
+      RetryPolicy retryPolicy, long expirationInterval) {
+    long expirationTime =
+        expirationInterval == 0 ? 0 : store.currentTimeMillis() + expirationInterval;
     return Optional.of(new RetryState(retryPolicy, expirationTime));
   }
 
@@ -309,7 +310,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       Optional<String> continuedExecutionRunId,
       Optional<RetryState> retryState,
       int backoffStartIntervalInSeconds,
-      ByteString lastCompletionResult,
+      Payloads lastCompletionResult,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
       Optional<SignalWorkflowExecutionRequest> signalWithStartSignal,
@@ -741,9 +742,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       }
       StartWorkflowExecutionRequest.Builder startRequest =
           StartWorkflowExecutionRequest.newBuilder()
+              .setRequestId(r.getRequestId())
               .setInput(r.getInput())
-              .setExecutionStartToCloseTimeoutSeconds(r.getExecutionStartToCloseTimeoutSeconds())
-              .setTaskStartToCloseTimeoutSeconds(r.getTaskStartToCloseTimeoutSeconds())
+              .setWorkflowExecutionTimeoutSeconds(r.getWorkflowExecutionTimeoutSeconds())
+              .setWorkflowRunTimeoutSeconds(r.getWorkflowRunTimeoutSeconds())
+              .setWorkflowTaskTimeoutSeconds(r.getWorkflowTaskTimeoutSeconds())
               .setNamespace(r.getNamespace())
               .setTaskList(r.getTaskList())
               .setWorkflowId(r.getWorkflowId())
@@ -826,17 +829,20 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       OptionalLong parentChildInitiatedEventId) {
     StartWorkflowExecutionRequest.Builder startRequestBuilder =
         StartWorkflowExecutionRequest.newBuilder()
+            .setRequestId(UUID.randomUUID().toString())
             .setWorkflowType(a.getWorkflowType())
-            .setExecutionStartToCloseTimeoutSeconds(a.getExecutionStartToCloseTimeoutSeconds())
-            .setTaskStartToCloseTimeoutSeconds(a.getTaskStartToCloseTimeoutSeconds())
+            .setWorkflowRunTimeoutSeconds(a.getWorkflowRunTimeoutSeconds())
+            .setWorkflowTaskTimeoutSeconds(a.getWorkflowTaskTimeoutSeconds())
             .setNamespace(executionId.getNamespace())
             .setTaskList(a.getTaskList())
             .setWorkflowId(executionId.getWorkflowId().getWorkflowId())
             .setWorkflowIdReusePolicy(previousRunStartRequest.getWorkflowIdReusePolicy())
             .setIdentity(identity)
-            .setRetryPolicy(previousRunStartRequest.getRetryPolicy())
             .setCronSchedule(previousRunStartRequest.getCronSchedule());
-    if (!a.getInput().isEmpty()) {
+    if (previousRunStartRequest.hasRetryPolicy()) {
+      startRequestBuilder.setRetryPolicy(previousRunStartRequest.getRetryPolicy());
+    }
+    if (a.hasInput()) {
       startRequestBuilder.setInput(a.getInput());
     }
     StartWorkflowExecutionRequest startRequest = startRequestBuilder.build();

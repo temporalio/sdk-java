@@ -92,8 +92,8 @@ public class WorkerStressTests {
     WorkflowOptions workflowOptions =
         WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(250))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
+            .setWorkflowRunTimeout(Duration.ofSeconds(250))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(30))
             .build();
     WorkflowStub workflow =
         wrapper.getWorkflowClient().newUntypedWorkflowStub("ActivitiesWorkflow", workflowOptions);
@@ -131,8 +131,8 @@ public class WorkerStressTests {
     WorkflowOptions workflowOptions =
         WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(250))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
+            .setWorkflowRunTimeout(Duration.ofSeconds(250))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(30))
             .build();
     WorkflowStub workflow =
         wrapper.getWorkflowClient().newUntypedWorkflowStub("ActivitiesWorkflow", workflowOptions);

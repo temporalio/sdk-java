@@ -19,7 +19,7 @@
 
 package io.temporal.common.converter;
 
-import io.temporal.proto.common.Payloads;
+import io.temporal.proto.common.Payload;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
@@ -29,45 +29,28 @@ import java.util.Optional;
  *
  * @author fateev
  */
-public interface DataConverter {
-
-  PayloadConverter getPayloadConverter();
+public interface PayloadConverter {
 
   /**
    * Implements conversion of a list of values.
    *
-   * @param values Java values to convert to String.
+   * @param value Java value to convert.
    * @return converted value
    * @throws DataConverterException if conversion of the value passed as parameter failed for any
    *     reason.
    */
-  Optional<Payloads> toData(Object... values) throws DataConverterException;
+  Optional<Payload> toData(Object value) throws DataConverterException;
 
   /**
    * Implements conversion of a single value.
    *
    * @param content Serialized value to convert to a Java object.
-   * @param parameterType type of the parameter stored in the content
-   * @param genericParameterType generic type of the parameter stored in the content
+   * @param valueClass
+   * @param valueType
    * @return converted Java object
    * @throws DataConverterException if conversion of the data passed as parameter failed for any
    *     reason.
    */
-  <T> T fromData(Optional<Payloads> content, Class<T> parameterType, Type genericParameterType)
-      throws DataConverterException;
-
-  /**
-   * Implements conversion of an array of values of different types. Useful for deserializing
-   * arguments of function invocations.
-   *
-   * @param content serialized value to convert to Java objects.
-   * @param parameterTypes types of the parameters stored in the content
-   * @param genericParameterTypes generic types of the parameters stored in the content
-   * @return array of converted Java objects
-   * @throws DataConverterException if conversion of the data passed as parameter failed for any
-   *     reason.
-   */
-  public Object[] fromDataArray(
-      Optional<Payloads> content, Class<?>[] parameterTypes, Type[] genericParameterTypes)
+  <T> T fromData(Payload content, Class<T> valueClass, Type valueType)
       throws DataConverterException;
 }

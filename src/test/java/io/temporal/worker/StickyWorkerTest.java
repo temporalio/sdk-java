@@ -154,8 +154,8 @@ public class StickyWorkerTest {
     WorkflowOptions workflowOptions =
         WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
-            .setExecutionStartToCloseTimeout(Duration.ofDays(30))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
+            .setWorkflowRunTimeout(Duration.ofDays(30))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(30))
             .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
             .build();
     GreetingSignalWorkflow workflow =
@@ -218,8 +218,8 @@ public class StickyWorkerTest {
     WorkflowOptions workflowOptions =
         WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
-            .setExecutionStartToCloseTimeout(Duration.ofDays(30))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(1))
+            .setWorkflowRunTimeout(Duration.ofDays(30))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(1))
             .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
             .build();
 
@@ -268,8 +268,8 @@ public class StickyWorkerTest {
     WorkflowOptions workflowOptions =
         WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
-            .setExecutionStartToCloseTimeout(Duration.ofDays(30))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
+            .setWorkflowRunTimeout(Duration.ofDays(30))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(30))
             .build();
     ActivitiesWorkflow workflow =
         wrapper.getWorkflowClient().newWorkflowStub(ActivitiesWorkflow.class, workflowOptions);
@@ -322,8 +322,8 @@ public class StickyWorkerTest {
     WorkflowOptions workflowOptions =
         WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
-            .setExecutionStartToCloseTimeout(Duration.ofDays(30))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
+            .setWorkflowRunTimeout(Duration.ofDays(30))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(30))
             .build();
     GreetingParentWorkflow workflow =
         wrapper.getWorkflowClient().newWorkflowStub(GreetingParentWorkflow.class, workflowOptions);
@@ -368,8 +368,8 @@ public class StickyWorkerTest {
     WorkflowOptions workflowOptions =
         WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
-            .setExecutionStartToCloseTimeout(Duration.ofDays(30))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
+            .setWorkflowRunTimeout(Duration.ofDays(30))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(30))
             .build();
     TestMutableSideEffectWorkflow workflow =
         wrapper
@@ -417,8 +417,8 @@ public class StickyWorkerTest {
     WorkflowOptions workflowOptions =
         WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
-            .setExecutionStartToCloseTimeout(Duration.ofDays(30))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
+            .setWorkflowRunTimeout(Duration.ofDays(30))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(30))
             .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
             .build();
     GreetingSignalWorkflow workflow =
@@ -458,8 +458,8 @@ public class StickyWorkerTest {
     WorkflowOptions workflowOptions =
         WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
-            .setExecutionStartToCloseTimeout(Duration.ofDays(30))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
+            .setWorkflowRunTimeout(Duration.ofDays(30))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(30))
             .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
             .build();
     GreetingSignalWorkflow workflow =
@@ -500,8 +500,8 @@ public class StickyWorkerTest {
     WorkflowOptions workflowOptions =
         WorkflowOptions.newBuilder()
             .setTaskList(taskListName)
-            .setExecutionStartToCloseTimeout(Duration.ofDays(30))
-            .setTaskStartToCloseTimeout(Duration.ofSeconds(30))
+            .setWorkflowRunTimeout(Duration.ofDays(30))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(30))
             .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
             .build();
     GreetingSignalWorkflow workflow =
@@ -634,7 +634,7 @@ public class StickyWorkerTest {
 
   @WorkflowInterface
   public interface GreetingParentWorkflow {
-    @WorkflowMethod(executionStartToCloseTimeoutSeconds = 10)
+    @WorkflowMethod
     String getGreeting(String name);
   }
 

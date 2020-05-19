@@ -21,6 +21,7 @@ package io.temporal.workflow;
 
 import static junit.framework.TestCase.assertEquals;
 
+import io.temporal.common.converter.GsonJsonDataConverter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.proto.common.SearchAttributes;
 import java.util.HashMap;
@@ -46,7 +47,9 @@ public class WorkflowUtilsTest {
     attr.put("CustomDoubleField", doubleVal);
     Boolean boolVal = Boolean.TRUE;
     attr.put("CustomBooleanField", boolVal);
-    SearchAttributes searchAttributes = InternalUtils.convertMapToSearchAttributes(attr);
+    SearchAttributes searchAttributes =
+        InternalUtils.convertMapToSearchAttributes(
+            attr, GsonJsonDataConverter.getInstance().getPayloadConverter());
 
     assertEquals(
         stringVal,
@@ -71,7 +74,9 @@ public class WorkflowUtilsTest {
     Map<String, Object> attr = new HashMap<>();
     String stringVal = "keyword";
     attr.put("CustomKeywordField", stringVal);
-    SearchAttributes searchAttributes = InternalUtils.convertMapToSearchAttributes(attr);
+    SearchAttributes searchAttributes =
+        InternalUtils.convertMapToSearchAttributes(
+            attr, GsonJsonDataConverter.getInstance().getPayloadConverter());
     assertEquals(
         stringVal,
         WorkflowUtils.getValueFromSearchAttributes(

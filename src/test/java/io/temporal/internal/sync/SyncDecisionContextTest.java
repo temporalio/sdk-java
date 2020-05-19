@@ -45,7 +45,9 @@ public class SyncDecisionContextTest {
   public void testUpsertSearchAttributes() throws Throwable {
     Map<String, Object> attr = new HashMap<>();
     attr.put("CustomKeywordField", "keyword");
-    SearchAttributes serializedAttr = InternalUtils.convertMapToSearchAttributes(attr);
+    SearchAttributes serializedAttr =
+        InternalUtils.convertMapToSearchAttributes(
+            attr, GsonJsonDataConverter.getInstance().getPayloadConverter());
 
     context.upsertSearchAttributes(attr);
     verify(mockDecisionContext, times(1)).upsertSearchAttributes(serializedAttr);

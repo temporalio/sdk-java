@@ -30,6 +30,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.metrics.MetricsType;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatByIdRequest;
 import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatByIdResponse;
@@ -42,6 +43,7 @@ import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedByIdRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,13 +96,13 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
 
   @Override
   public void complete(Object result) {
-    byte[] convertedResult = dataConverter.toData(result);
+    Optional<Payloads> convertedResult = dataConverter.toData(result);
     if (taskToken != null) {
       RespondActivityTaskCompletedRequest.Builder request =
           RespondActivityTaskCompletedRequest.newBuilder()
               .setTaskToken(ByteString.copyFrom(taskToken));
-      if (result != null) {
-        request.setResult(ByteString.copyFrom(convertedResult));
+      if (convertedResult.isPresent()) {
+        request.setResult(convertedResult.get());
       }
       try {
         GrpcRetryer.retry(
@@ -125,8 +127,8 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
               .setNamespace(namespace)
               .setWorkflowId(execution.getWorkflowId())
               .setRunId(execution.getRunId());
-      if (result != null) {
-        request.setResult(ByteString.copyFrom(convertedResult));
+      if (convertedResult.isPresent()) {
+        request.setResult(convertedResult.get());
       }
       try {
         service.blockingStub().respondActivityTaskCompletedById(request.build());
@@ -152,7 +154,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       RespondActivityTaskFailedRequest request =
           RespondActivityTaskFailedRequest.newBuilder()
               .setReason(failure.getClass().getName())
-              .setDetails(OptionsUtils.toByteString(dataConverter.toData(failure)))
+              .setDetails(dataConverter.toData(failure).get())
               .setTaskToken(ByteString.copyFrom(taskToken))
               .build();
       try {
@@ -175,7 +177,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       RespondActivityTaskFailedByIdRequest request =
           RespondActivityTaskFailedByIdRequest.newBuilder()
               .setReason(failure.getClass().getName())
-              .setDetails(OptionsUtils.toByteString(dataConverter.toData(failure)))
+              .setDetails(dataConverter.toData(failure).get())
               .setNamespace(namespace)
               .setWorkflowId(execution.getWorkflowId())
               .setRunId(execution.getRunId())
@@ -199,13 +201,13 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
 
   @Override
   public void recordHeartbeat(Object details) throws CancellationException {
-    byte[] convertedDetails = dataConverter.toData(details);
+    Optional<Payloads> convertedDetails = dataConverter.toData(details);
     if (taskToken != null) {
       RecordActivityTaskHeartbeatRequest.Builder request =
           RecordActivityTaskHeartbeatRequest.newBuilder()
               .setTaskToken(ByteString.copyFrom(taskToken));
-      if (convertedDetails != null) {
-        request.setDetails(ByteString.copyFrom(convertedDetails));
+      if (convertedDetails.isPresent()) {
+        request.setDetails(convertedDetails.get());
       }
       RecordActivityTaskHeartbeatResponse status;
       try {
@@ -228,8 +230,8 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
               .setWorkflowId(execution.getWorkflowId())
               .setRunId(execution.getRunId())
               .setActivityId(activityId);
-      if (convertedDetails != null) {
-        request.setDetails(ByteString.copyFrom(convertedDetails));
+      if (convertedDetails.isPresent()) {
+        request.setDetails(convertedDetails.get());
       }
       RecordActivityTaskHeartbeatByIdResponse status = null;
       try {
@@ -250,13 +252,13 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
 
   @Override
   public void reportCancellation(Object details) {
-    byte[] convertedDetails = dataConverter.toData(details);
+    Optional<Payloads> convertedDetails = dataConverter.toData(details);
     if (taskToken != null) {
       RespondActivityTaskCanceledRequest.Builder request =
           RespondActivityTaskCanceledRequest.newBuilder()
               .setTaskToken(ByteString.copyFrom(taskToken));
-      if (convertedDetails != null) {
-        request.setDetails(ByteString.copyFrom(convertedDetails));
+      if (convertedDetails.isPresent()) {
+        request.setDetails(convertedDetails.get());
       }
       try {
         GrpcRetryer.retry(
@@ -278,8 +280,8 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
               .setWorkflowId(execution.getWorkflowId())
               .setRunId(OptionsUtils.safeGet(execution.getRunId()))
               .setActivityId(activityId);
-      if (convertedDetails != null) {
-        request.setDetails(ByteString.copyFrom(convertedDetails));
+      if (convertedDetails.isPresent()) {
+        request.setDetails(convertedDetails.get());
       }
       try {
         GrpcRetryer.retry(

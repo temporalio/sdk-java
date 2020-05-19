@@ -21,8 +21,9 @@ package io.temporal.internal.replay;
 
 import io.temporal.common.RetryOptions;
 import io.temporal.proto.common.ActivityType;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.execution.WorkflowExecution;
-import java.util.Arrays;
+import java.time.Duration;
 
 public class ExecuteLocalActivityParameters {
 
@@ -30,8 +31,9 @@ public class ExecuteLocalActivityParameters {
   private WorkflowExecution workflowExecution;
   private String activityId;
   private ActivityType activityType;
-  private byte[] input;
-  private long scheduleToCloseTimeoutSeconds;
+  private Payloads input;
+  private Duration scheduleToCloseTimeout;
+  private Duration startToCloseTimeout;
   private RetryOptions retryOptions;
   private long elapsedTime;
   private int attempt;
@@ -117,7 +119,7 @@ public class ExecuteLocalActivityParameters {
    *
    * @return The value of the Input property for this object.
    */
-  public byte[] getInput() {
+  public Payloads getInput() {
     return input;
   }
 
@@ -129,7 +131,7 @@ public class ExecuteLocalActivityParameters {
    *
    * @param input The new value for the Input property for this object.
    */
-  public void setInput(byte[] input) {
+  public void setInput(Payloads input) {
     this.input = input;
   }
 
@@ -144,7 +146,7 @@ public class ExecuteLocalActivityParameters {
    * @param input The new value for the Input property for this object.
    * @return A reference to this updated object so that method calls can be chained together.
    */
-  public ExecuteLocalActivityParameters withInput(byte[] input) {
+  public ExecuteLocalActivityParameters withInput(Payloads input) {
     this.input = input;
     return this;
   }
@@ -157,8 +159,8 @@ public class ExecuteLocalActivityParameters {
    *
    * @return The value of the ScheduleToCloseTimeout property for this object.
    */
-  public long getScheduleToCloseTimeoutSeconds() {
-    return scheduleToCloseTimeoutSeconds;
+  public Duration getScheduleToCloseTimeout() {
+    return scheduleToCloseTimeout;
   }
 
   /**
@@ -167,11 +169,11 @@ public class ExecuteLocalActivityParameters {
    * <p><b>Constraints:</b><br>
    * <b>Length: </b>1 - 64<br>
    *
-   * @param scheduleToCloseTimeoutSeconds The new value for the ScheduleToCloseTimeout property for
-   *     this object.
+   * @param scheduleToCloseTimeout The new value for the ScheduleToCloseTimeout property for this
+   *     object.
    */
-  public void setScheduleToCloseTimeoutSeconds(long scheduleToCloseTimeoutSeconds) {
-    this.scheduleToCloseTimeoutSeconds = scheduleToCloseTimeoutSeconds;
+  public void setScheduleToCloseTimeout(Duration scheduleToCloseTimeout) {
+    this.scheduleToCloseTimeout = scheduleToCloseTimeout;
   }
 
   /**
@@ -182,13 +184,27 @@ public class ExecuteLocalActivityParameters {
    * <p><b>Constraints:</b><br>
    * <b>Length: </b>1 - 64<br>
    *
-   * @param scheduleToCloseTimeoutSeconds The new value for the ScheduleToCloseTimeout property for
-   *     this object.
+   * @param scheduleToCloseTimeout The new value for the ScheduleToCloseTimeout property for this
+   *     object.
    * @return A reference to this updated object so that method calls can be chained together.
    */
-  public ExecuteLocalActivityParameters withScheduleToCloseTimeoutSeconds(
-      long scheduleToCloseTimeoutSeconds) {
-    this.scheduleToCloseTimeoutSeconds = scheduleToCloseTimeoutSeconds;
+  public ExecuteLocalActivityParameters withScheduleToCloseTimeout(
+      Duration scheduleToCloseTimeout) {
+    this.scheduleToCloseTimeout = scheduleToCloseTimeout;
+    return this;
+  }
+
+  public Duration getStartToCloseTimeout() {
+    return startToCloseTimeout;
+  }
+
+  public void setStartToCloseTimeout(Duration startToCloseTimeout) {
+    this.startToCloseTimeout = startToCloseTimeout;
+  }
+
+  public ExecuteLocalActivityParameters withStartToCloseTimeout(
+      Duration startToCloseTimeoutSeconds) {
+    this.startToCloseTimeout = startToCloseTimeoutSeconds;
     return this;
   }
 
@@ -246,9 +262,9 @@ public class ExecuteLocalActivityParameters {
         + ", activityType="
         + activityType
         + ", input="
-        + Arrays.toString(input)
+        + input
         + ", scheduleToCloseTimeoutSeconds="
-        + scheduleToCloseTimeoutSeconds
+        + scheduleToCloseTimeout
         + ", retryOptions="
         + retryOptions
         + ", elapsedTime="

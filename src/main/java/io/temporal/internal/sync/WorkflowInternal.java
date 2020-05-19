@@ -25,6 +25,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.RetryOptions;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.logging.ReplayAwareLogger;
@@ -114,6 +115,7 @@ public final class WorkflowInternal {
       getWorkflowInterceptor()
           .registerQuery(
               methodMetadata.getName(),
+              method.getParameterTypes(),
               method.getGenericParameterTypes(),
               (args) -> {
                 try {
@@ -130,6 +132,7 @@ public final class WorkflowInternal {
       getWorkflowInterceptor()
           .registerSignal(
               methodMetadata.getName(),
+              method.getParameterTypes(),
               method.getGenericParameterTypes(),
               (args) -> {
                 try {
@@ -337,8 +340,9 @@ public final class WorkflowInternal {
     return new WorkflowInfoImpl(getRootDecisionContext().getContext());
   }
 
-  public static <R> R retry(RetryOptions options, Functions.Func<R> fn) {
-    return WorkflowRetryerInternal.validateOptionsAndRetry(options, fn);
+  public static <R> R retry(
+      RetryOptions options, Optional<Duration> expiration, Functions.Func<R> fn) {
+    return WorkflowRetryerInternal.validateOptionsAndRetry(options, expiration, fn);
   }
 
   public static void continueAsNew(
@@ -396,5 +400,9 @@ public final class WorkflowInternal {
 
   public static void upsertSearchAttributes(Map<String, Object> searchAttributes) {
     getWorkflowInterceptor().upsertSearchAttributes(searchAttributes);
+  }
+
+  public static DataConverter getDataConverter() {
+    return getRootDecisionContext().getDataConverter();
   }
 }

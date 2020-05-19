@@ -19,16 +19,19 @@
 
 package io.temporal.internal.worker;
 
+import io.temporal.proto.common.Payloads;
+import java.util.Optional;
+
 /** Internal. Do not throw or catch in application level code. */
 public final class WorkflowExecutionException extends RuntimeException {
-  private final byte[] details;
+  private final Optional<Payloads> details;
 
-  public WorkflowExecutionException(String reason, byte[] details) {
+  public WorkflowExecutionException(String reason, Optional<Payloads> details) {
     super(reason);
     this.details = details;
   }
 
-  public byte[] getDetails() {
+  public Optional<Payloads> getDetails() {
     return details;
   }
 

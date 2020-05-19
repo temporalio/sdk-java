@@ -25,6 +25,7 @@ import static org.junit.Assert.fail;
 
 import io.temporal.common.RetryOptions;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.junit.Test;
@@ -37,12 +38,12 @@ public class RetryerTest {
         RetryOptions.newBuilder()
             .setInitialInterval(Duration.ofMillis(10))
             .setMaximumInterval(Duration.ofMillis(100))
-            .setExpiration(Duration.ofMillis(500))
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     try {
       Retryer.retryWithResultAsync(
               options,
+              Optional.of(Duration.ofMillis(500)),
               () -> {
                 throw new IllegalArgumentException("simulated");
               })
@@ -61,12 +62,12 @@ public class RetryerTest {
         RetryOptions.newBuilder()
             .setInitialInterval(Duration.ofMillis(10))
             .setMaximumInterval(Duration.ofMillis(100))
-            .setExpiration(Duration.ofMillis(500))
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     try {
       Retryer.retryWithResultAsync(
               options,
+              Optional.of(Duration.ofMillis(500)),
               () -> {
                 CompletableFuture<Void> result = new CompletableFuture<>();
                 result.completeExceptionally(new IllegalArgumentException("simulated"));
@@ -87,13 +88,13 @@ public class RetryerTest {
         RetryOptions.newBuilder()
             .setInitialInterval(Duration.ofMillis(10))
             .setMaximumInterval(Duration.ofMillis(100))
-            .setExpiration(Duration.ofSeconds(100))
             .setDoNotRetry(InterruptedException.class)
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     try {
       Retryer.retryWithResultAsync(
               options,
+              Optional.of(Duration.ofMillis(100)),
               () -> {
                 CompletableFuture<Void> result = new CompletableFuture<>();
                 result.completeExceptionally(new InterruptedException("simulated"));
