@@ -28,6 +28,8 @@ import io.grpc.Metadata;
 import io.grpc.Server;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
+import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
+import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
 import io.grpc.stub.MetadataUtils;
 import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -103,11 +105,19 @@ public final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
       // Do not shutdown a channel passed to the constructor from outside
       channelNeedsShutdown = serviceImpl != null;
     } else {
-      this.channel =
-          ManagedChannelBuilder.forTarget(options.getTarget())
-              .defaultLoadBalancingPolicy("round_robin")
-              .usePlaintext()
-              .build();
+      NettyChannelBuilder builder =
+          NettyChannelBuilder.forTarget(options.getTarget())
+              .defaultLoadBalancingPolicy("round_robin");
+
+      if (options.getSslContext() == null && !options.getEnableHttps()) {
+        builder.usePlaintext();
+      } else if (options.getSslContext() != null) {
+        builder.sslContext(options.getSslContext());
+      } else {
+        builder.useTransportSecurity();
+      }
+
+      this.channel = builder.build();
       channelNeedsShutdown = true;
     }
     GrpcMetricsInterceptor metricsInterceptor =
