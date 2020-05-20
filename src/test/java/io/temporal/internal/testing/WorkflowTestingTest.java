@@ -74,6 +74,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestWatcher;
@@ -350,6 +351,7 @@ public class WorkflowTestingTest {
   }
 
   @Test
+  @Ignore // After the retry policy expiration changes this test doesn't make sense as it is.
   public void testActivityScheduleToCloseTimeout() {
     Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(TestActivityTimeoutWorkflowImpl.class);

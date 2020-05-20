@@ -3640,11 +3640,10 @@ public class WorkflowTest {
 
     @WorkflowMethod
     @MethodRetry(
-      initialIntervalSeconds = 1,
-      maximumIntervalSeconds = 1,
-      maximumAttempts = 30,
-      doNotRetry = IllegalArgumentException.class
-    )
+        initialIntervalSeconds = 1,
+        maximumIntervalSeconds = 1,
+        maximumAttempts = 30,
+        doNotRetry = IllegalArgumentException.class)
     String execute(String testName);
   }
 
@@ -4067,7 +4066,6 @@ public class WorkflowTest {
 
   @WorkflowInterface
   public interface TestMultiargsWorkflowsFunc1 {
-
     @WorkflowMethod(name = "func1")
     int func1(int input);
   }

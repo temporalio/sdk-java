@@ -609,6 +609,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   public void reportCancelRequested(ExternalWorkflowExecutionCancelRequestedEventAttributes a) {
     update(
         ctx -> {
+          if (isTerminalState()) {
+            return;
+          }
           StateMachine<CancelExternalData> cancellationRequest =
               externalCancellations.get(a.getWorkflowExecution().getWorkflowId());
           cancellationRequest.action(

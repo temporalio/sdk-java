@@ -85,8 +85,7 @@ public class MicrometerClientStatsReporter implements StatsReporter {
   }
 
   private Iterable<Tag> getTags(Map<String, String> tags) {
-    return tags.entrySet()
-        .stream()
+    return tags.entrySet().stream()
         .map(entry -> Tag.of(entry.getKey(), entry.getValue()))
         .collect(Collectors.toList());
   }
