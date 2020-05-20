@@ -86,9 +86,7 @@ public class WorkerPollerThreadCountTest {
     env.start();
     Thread.sleep(1000);
     Map<String, Long> threads =
-        Thread.getAllStackTraces()
-            .keySet()
-            .stream()
+        Thread.getAllStackTraces().keySet().stream()
             .map((t) -> t.getName().substring(0, Math.min(20, t.getName().length())))
             .collect(groupingBy(Function.identity(), Collectors.counting()));
     assertEquals(hostLocalThreadCount, (long) threads.get(workflowHostLocalPollerThreadNamePrefix));

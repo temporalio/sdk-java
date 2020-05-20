@@ -54,12 +54,11 @@ public class WorkflowOptionsTest {
   }
 
   @MethodRetry(
-    initialIntervalSeconds = 12,
-    backoffCoefficient = 1.97,
-    maximumAttempts = 234567,
-    maximumIntervalSeconds = 22,
-    doNotRetry = {NullPointerException.class, UnsupportedOperationException.class}
-  )
+      initialIntervalSeconds = 12,
+      backoffCoefficient = 1.97,
+      maximumAttempts = 234567,
+      maximumIntervalSeconds = 22,
+      doNotRetry = {NullPointerException.class, UnsupportedOperationException.class})
   @CronSchedule("0 * * * *" /* hourly */)
   public void workflowOptions() {}
 
