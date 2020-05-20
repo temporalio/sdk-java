@@ -27,7 +27,6 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.NameResolver;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
 import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
-
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -65,10 +64,10 @@ public class WorkflowServiceStubsOptions {
 
   private final String target;
 
-  /** The user provided context for SSL/TLS over gRPC **/
+  /** The user provided context for SSL/TLS over gRPC * */
   private final SslContext sslContext;
 
-  /** Indicates whether basic HTTPS/SSL/TLS should be enabled **/
+  /** Indicates whether basic HTTPS/SSL/TLS should be enabled * */
   private final boolean enableHttps;
 
   /** The gRPC timeout in milliseconds */
@@ -117,12 +116,12 @@ public class WorkflowServiceStubsOptions {
 
     if (builder.sslContext != null && builder.channel != null) {
       throw new IllegalStateException(
-              "Only one of the sslContext and channel options can be set at a time");
+          "Only one of the sslContext and channel options can be set at a time");
     }
 
     if (builder.enableHttps && builder.channel != null) {
       throw new IllegalStateException(
-              "Only one of the enableHttps and channel options can be set at a time");
+          "Only one of the enableHttps and channel options can be set at a time");
     }
 
     this.target =
@@ -148,12 +147,12 @@ public class WorkflowServiceStubsOptions {
     return target;
   }
 
-  /** @return Returns the gRPC SSL Context to use. **/
+  /** @return Returns the gRPC SSL Context to use. * */
   public SslContext getSslContext() {
     return sslContext;
   }
 
-  /** @return Returns a boolean indicating whether gRPC should use SSL/TLS. **/
+  /** @return Returns a boolean indicating whether gRPC should use SSL/TLS. * */
   public boolean getEnableHttps() {
     return enableHttps;
   }
@@ -242,15 +241,19 @@ public class WorkflowServiceStubsOptions {
       return this;
     }
 
-    /** Sets gRPC SSL Context to use, used for more advanced scenarios such as mTLS.
-     *  Supercedes enableHttps; Exclusive with channel. */
+    /**
+     * Sets gRPC SSL Context to use, used for more advanced scenarios such as mTLS. Supercedes
+     * enableHttps; Exclusive with channel.
+     */
     public Builder setSslContext(SslContext sslContext) {
       this.sslContext = sslContext;
       return this;
     }
 
-    /** Sets option to enable SSL/TLS/HTTPS for gRPC.
-     * Exclusive with channel; Ignored if SSLContext is specified */
+    /**
+     * Sets option to enable SSL/TLS/HTTPS for gRPC. Exclusive with channel; Ignored if SSLContext
+     * is specified
+     */
     public Builder setEnableHttps(boolean enableHttps) {
       this.enableHttps = enableHttps;
       return this;
