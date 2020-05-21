@@ -19,7 +19,7 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.proto.event.TimeoutType;
+import io.temporal.proto.common.TimeoutType;
 
 /**
  * SimulatedTimeoutExceptionInternal is created from a SimulatedTimeoutException. The main

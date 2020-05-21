@@ -94,7 +94,7 @@ final class RetryState {
     }
 
     // check if error is non-retriable
-    List<String> nonRetriableErrorReasons = retryPolicy.getNonRetriableErrorReasonsList();
+    List<String> nonRetriableErrorReasons = retryPolicy.getNonRetryableErrorTypesList();
     if (nonRetriableErrorReasons != null) {
       for (String err : nonRetriableErrorReasons) {
         if (errReason.equals(err)) {

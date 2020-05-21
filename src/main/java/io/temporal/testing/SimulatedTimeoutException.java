@@ -20,7 +20,7 @@
 package io.temporal.testing;
 
 import com.google.common.annotations.VisibleForTesting;
-import io.temporal.proto.event.TimeoutType;
+import io.temporal.proto.common.TimeoutType;
 
 /**
  * SimulatedTimeoutException can be thrown from an activity or child workflow implementation to

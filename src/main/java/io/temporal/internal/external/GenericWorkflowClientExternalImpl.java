@@ -40,7 +40,7 @@ import io.temporal.proto.common.Payload;
 import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.RetryPolicy;
 import io.temporal.proto.common.SearchAttributes;
-import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.query.WorkflowQuery;
 import io.temporal.proto.tasklist.TaskList;
 import io.temporal.proto.workflowservice.QueryWorkflowRequest;
@@ -188,7 +188,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
         .setInitialIntervalInSeconds(retryParameters.getInitialIntervalInSeconds())
         .setMaximumAttempts(retryParameters.getMaximumAttempts())
         .setMaximumIntervalInSeconds(retryParameters.getMaximumIntervalInSeconds())
-        .addAllNonRetriableErrorReasons(retryParameters.getNonRetriableErrorReasons())
+        .addAllNonRetryableErrorTypes(retryParameters.getNonRetriableErrorTypes())
         .build();
   }
 

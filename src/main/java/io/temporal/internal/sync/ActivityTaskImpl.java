@@ -21,8 +21,8 @@ package io.temporal.internal.sync;
 
 import io.temporal.activity.ActivityTask;
 import io.temporal.proto.common.Payloads;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
-import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import java.time.Duration;
 import java.util.Optional;

@@ -30,6 +30,8 @@ import io.temporal.internal.testservice.TestWorkflowStore.DecisionTask;
 import io.temporal.internal.testservice.TestWorkflowStore.TaskListId;
 import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.RetryPolicy;
+import io.temporal.proto.common.TimeoutType;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.decision.CancelTimerDecisionAttributes;
 import io.temporal.proto.decision.CancelWorkflowExecutionDecisionAttributes;
 import io.temporal.proto.decision.CompleteWorkflowExecutionDecisionAttributes;
@@ -42,6 +44,7 @@ import io.temporal.proto.decision.SignalExternalWorkflowExecutionDecisionAttribu
 import io.temporal.proto.decision.StartChildWorkflowExecutionDecisionAttributes;
 import io.temporal.proto.decision.StartTimerDecisionAttributes;
 import io.temporal.proto.decision.StickyExecutionAttributes;
+import io.temporal.proto.errordetails.QueryFailedFailure;
 import io.temporal.proto.event.ActivityTaskCancelRequestedEventAttributes;
 import io.temporal.proto.event.ActivityTaskCanceledEventAttributes;
 import io.temporal.proto.event.ActivityTaskCompletedEventAttributes;
@@ -70,7 +73,6 @@ import io.temporal.proto.event.SignalExternalWorkflowExecutionFailedEventAttribu
 import io.temporal.proto.event.SignalExternalWorkflowExecutionInitiatedEventAttributes;
 import io.temporal.proto.event.StartChildWorkflowExecutionFailedEventAttributes;
 import io.temporal.proto.event.StartChildWorkflowExecutionInitiatedEventAttributes;
-import io.temporal.proto.event.TimeoutType;
 import io.temporal.proto.event.TimerCanceledEventAttributes;
 import io.temporal.proto.event.TimerFiredEventAttributes;
 import io.temporal.proto.event.TimerStartedEventAttributes;
@@ -82,8 +84,6 @@ import io.temporal.proto.event.WorkflowExecutionFailedCause;
 import io.temporal.proto.event.WorkflowExecutionFailedEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionStartedEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionTimedOutEventAttributes;
-import io.temporal.proto.execution.WorkflowExecution;
-import io.temporal.proto.failure.QueryFailed;
 import io.temporal.proto.query.WorkflowQueryResult;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
@@ -1305,7 +1305,7 @@ class StateMachines {
             result.completeExceptionally(
                 StatusUtils.newException(
                     Status.INTERNAL.withDescription(value.getErrorMessage()),
-                    QueryFailed.getDefaultInstance()));
+                    QueryFailedFailure.getDefaultInstance()));
             break;
           default:
             throw Status.INVALID_ARGUMENT

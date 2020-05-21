@@ -36,6 +36,8 @@ import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.StateMachines.*;
 import io.temporal.proto.common.Payloads;
+import io.temporal.proto.common.TimeoutType;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.decision.CancelTimerDecisionAttributes;
 import io.temporal.proto.decision.CancelWorkflowExecutionDecisionAttributes;
 import io.temporal.proto.decision.CompleteWorkflowExecutionDecisionAttributes;
@@ -51,6 +53,7 @@ import io.temporal.proto.decision.StartChildWorkflowExecutionDecisionAttributes;
 import io.temporal.proto.decision.StartTimerDecisionAttributes;
 import io.temporal.proto.decision.StickyExecutionAttributes;
 import io.temporal.proto.decision.UpsertWorkflowSearchAttributesDecisionAttributes;
+import io.temporal.proto.errordetails.QueryFailedFailure;
 import io.temporal.proto.event.ActivityTaskScheduledEventAttributes;
 import io.temporal.proto.event.CancelTimerFailedEventAttributes;
 import io.temporal.proto.event.ChildWorkflowExecutionCanceledEventAttributes;
@@ -64,14 +67,11 @@ import io.temporal.proto.event.ExternalWorkflowExecutionCancelRequestedEventAttr
 import io.temporal.proto.event.HistoryEvent;
 import io.temporal.proto.event.MarkerRecordedEventAttributes;
 import io.temporal.proto.event.StartChildWorkflowExecutionFailedEventAttributes;
-import io.temporal.proto.event.TimeoutType;
 import io.temporal.proto.event.UpsertWorkflowSearchAttributesEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionFailedCause;
 import io.temporal.proto.event.WorkflowExecutionSignaledEventAttributes;
-import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.execution.WorkflowExecutionStatus;
-import io.temporal.proto.failure.QueryFailed;
 import io.temporal.proto.query.QueryConsistencyLevel;
 import io.temporal.proto.query.QueryRejectCondition;
 import io.temporal.proto.query.QueryRejected;
@@ -454,7 +454,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                         .completeExceptionally(
                             StatusUtils.newException(
                                 Status.INTERNAL.withDescription(result.getErrorMessage()),
-                                QueryFailed.getDefaultInstance()));
+                                QueryFailedFailure.getDefaultInstance()));
                     break;
                   case UNRECOGNIZED:
                     throw Status.INVALID_ARGUMENT
@@ -1982,7 +1982,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         StatusRuntimeException error =
             StatusUtils.newException(
                 Status.INVALID_ARGUMENT.withDescription(completeRequest.getErrorMessage()),
-                QueryFailed.getDefaultInstance());
+                QueryFailedFailure.getDefaultInstance());
         result.completeExceptionally(error);
         break;
     }

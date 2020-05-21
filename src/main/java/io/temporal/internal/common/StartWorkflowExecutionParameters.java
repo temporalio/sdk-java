@@ -355,7 +355,7 @@ public final class StartWorkflowExecutionParameters {
         for (Class<? extends Throwable> r : doNotRetry) {
           reasons.add(r.getName());
         }
-        rp.setNonRetriableErrorReasons(reasons);
+        rp.setNonRetriableErrorTypes(reasons);
       }
       parameters.setRetryParameters(rp);
     }

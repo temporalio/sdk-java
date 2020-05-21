@@ -21,7 +21,7 @@ package io.temporal.internal.replay;
 
 import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.Payloads;
-import io.temporal.proto.event.TimeoutType;
+import io.temporal.proto.common.TimeoutType;
 import java.util.Optional;
 
 /** Exception that indicates Activity time out. */

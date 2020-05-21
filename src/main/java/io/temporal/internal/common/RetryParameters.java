@@ -48,7 +48,7 @@ public final class RetryParameters {
       for (Class<? extends Throwable> r : doNotRetry) {
         reasons.add(r.getName());
       }
-      setNonRetriableErrorReasons(reasons);
+      setNonRetriableErrorTypes(reasons);
     }
   }
 
@@ -86,18 +86,18 @@ public final class RetryParameters {
     this.maximumAttempts = maximumAttempts;
   }
 
-  public List<String> getNonRetriableErrorReasons() {
+  public List<String> getNonRetriableErrorTypes() {
     return nonRetriableErrorReasons == null ? new ArrayList<>() : nonRetriableErrorReasons;
   }
 
-  public void setNonRetriableErrorReasons(List<String> nonRetriableErrorReasons) {
+  public void setNonRetriableErrorTypes(List<String> nonRetriableErrorReasons) {
     this.nonRetriableErrorReasons = nonRetriableErrorReasons;
   }
 
   public RetryParameters copy() {
     RetryParameters result = new RetryParameters();
     result.setMaximumIntervalInSeconds(maximumIntervalInSeconds);
-    result.setNonRetriableErrorReasons(new ImmutableList<>(nonRetriableErrorReasons));
+    result.setNonRetriableErrorTypes(new ImmutableList<>(nonRetriableErrorReasons));
     result.setInitialIntervalInSeconds(initialIntervalInSeconds);
     result.setMaximumAttempts(maximumAttempts);
     result.setBackoffCoefficient(backoffCoefficient);
@@ -111,7 +111,7 @@ public final class RetryParameters {
               + getInitialIntervalInSeconds());
     }
     return RetryPolicy.newBuilder()
-        .addAllNonRetriableErrorReasons(getNonRetriableErrorReasons())
+        .addAllNonRetryableErrorTypes(getNonRetriableErrorTypes())
         .setMaximumAttempts(getMaximumAttempts())
         .setInitialIntervalInSeconds(getInitialIntervalInSeconds())
         .setBackoffCoefficient(getBackoffCoefficient())

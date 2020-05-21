@@ -124,7 +124,8 @@ class DecisionsHelper {
     long nextDecisionEventId = getNextDecisionEventId();
     DecisionId decisionId = new DecisionId(DecisionTarget.ACTIVITY, nextDecisionEventId);
     activityIdToScheduledEventId.put(schedule.getActivityId(), nextDecisionEventId);
-    addDecision(decisionId, new ActivityDecisionStateMachine(decisionId, schedule));
+    addDecision(
+        decisionId, new ActivityDecisionStateMachine(decisionId, schedule, nextDecisionEventId));
     return nextDecisionEventId;
   }
 

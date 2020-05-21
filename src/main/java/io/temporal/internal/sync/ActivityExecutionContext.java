@@ -40,7 +40,7 @@ public interface ActivityExecutionContext {
   byte[] getTaskToken();
 
   /** @return workfow execution that requested the activity execution */
-  io.temporal.proto.execution.WorkflowExecution getWorkflowExecution();
+  io.temporal.proto.common.WorkflowExecution getWorkflowExecution();
 
   /** @return task that caused activity execution */
   ActivityTask getTask();
