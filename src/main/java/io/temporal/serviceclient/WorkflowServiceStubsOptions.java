@@ -226,6 +226,7 @@ public class WorkflowServiceStubsOptions {
       this.target = options.target;
       this.channel = options.channel;
       this.enableHttps = options.enableHttps;
+      this.sslContext = options.sslContext;
       this.rpcLongPollTimeoutMillis = options.rpcLongPollTimeoutMillis;
       this.rpcQueryTimeoutMillis = options.rpcQueryTimeoutMillis;
       this.rpcTimeoutMillis = options.rpcTimeoutMillis;
