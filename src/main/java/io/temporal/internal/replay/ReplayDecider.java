@@ -403,7 +403,7 @@ class ReplayDecider implements Decider {
       queryResults.clear();
       boolean forceCreateNewDecisionTask = decideImpl(decisionTask, null);
       return new DecisionResult(
-          decisionsHelper.getDecisions(), queryResults, forceCreateNewDecisionTask);
+          decisionsHelper.getDecisions(), queryResults, forceCreateNewDecisionTask, completed);
     } finally {
       lock.unlock();
     }
