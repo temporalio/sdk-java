@@ -496,7 +496,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       ActivityId activityId = ActivityId.fromBytes(heartbeatRequest.getTaskToken());
       TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
       boolean cancelRequested =
-          mutableState.heartbeatActivityTask(activityId.getId(), heartbeatRequest.getDetails());
+          mutableState.heartbeatActivityTask(
+              activityId.getScheduledEventId(), heartbeatRequest.getDetails());
       responseObserver.onNext(
           RecordActivityTaskHeartbeatResponse.newBuilder()
               .setCancelRequested(cancelRequested)
@@ -522,7 +523,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               heartbeatRequest.getRunId());
       TestWorkflowMutableState mutableState = getMutableState(execution);
       boolean cancelRequested =
-          mutableState.heartbeatActivityTask(
+          mutableState.heartbeatActivityTaskById(
               heartbeatRequest.getActivityId(), heartbeatRequest.getDetails());
       responseObserver.onNext(
           RecordActivityTaskHeartbeatByIdResponse.newBuilder()
@@ -544,7 +545,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     try {
       ActivityId activityId = ActivityId.fromBytes(completeRequest.getTaskToken());
       TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
-      mutableState.completeActivityTask(activityId.getId(), completeRequest);
+      mutableState.completeActivityTask(activityId.getScheduledEventId(), completeRequest);
       responseObserver.onNext(RespondActivityTaskCompletedResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
@@ -560,14 +561,13 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       RespondActivityTaskCompletedByIdRequest completeRequest,
       StreamObserver<RespondActivityTaskCompletedByIdResponse> responseObserver) {
     try {
-      ActivityId activityId =
-          new ActivityId(
+      ExecutionId executionId =
+          new ExecutionId(
               completeRequest.getNamespace(),
               completeRequest.getWorkflowId(),
-              completeRequest.getRunId(),
-              completeRequest.getActivityId());
-      TestWorkflowMutableState mutableState = getMutableState(activityId.getWorkflowId());
-      mutableState.completeActivityTaskById(activityId.getId(), completeRequest);
+              completeRequest.getRunId());
+      TestWorkflowMutableState mutableState = getMutableState(executionId);
+      mutableState.completeActivityTaskById(completeRequest.getActivityId(), completeRequest);
       responseObserver.onNext(RespondActivityTaskCompletedByIdResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
@@ -585,7 +585,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     try {
       ActivityId activityId = ActivityId.fromBytes(failRequest.getTaskToken());
       TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
-      mutableState.failActivityTask(activityId.getId(), failRequest);
+      mutableState.failActivityTask(activityId.getScheduledEventId(), failRequest);
       responseObserver.onNext(RespondActivityTaskFailedResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
@@ -601,14 +601,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       RespondActivityTaskFailedByIdRequest failRequest,
       StreamObserver<RespondActivityTaskFailedByIdResponse> responseObserver) {
     try {
-      ActivityId activityId =
-          new ActivityId(
-              failRequest.getNamespace(),
-              failRequest.getWorkflowId(),
-              failRequest.getRunId(),
-              failRequest.getActivityId());
-      TestWorkflowMutableState mutableState = getMutableState(activityId.getWorkflowId());
-      mutableState.failActivityTaskById(activityId.getId(), failRequest);
+      ExecutionId executionId =
+          new ExecutionId(
+              failRequest.getNamespace(), failRequest.getWorkflowId(), failRequest.getRunId());
+      TestWorkflowMutableState mutableState = getMutableState(executionId);
+      mutableState.failActivityTaskById(failRequest.getActivityId(), failRequest);
       responseObserver.onNext(RespondActivityTaskFailedByIdResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
@@ -626,7 +623,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     try {
       ActivityId activityId = ActivityId.fromBytes(canceledRequest.getTaskToken());
       TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
-      mutableState.cancelActivityTask(activityId.getId(), canceledRequest);
+      mutableState.cancelActivityTask(activityId.getScheduledEventId(), canceledRequest);
       responseObserver.onNext(RespondActivityTaskCanceledResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
@@ -642,14 +639,13 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       RespondActivityTaskCanceledByIdRequest canceledRequest,
       StreamObserver<RespondActivityTaskCanceledByIdResponse> responseObserver) {
     try {
-      ActivityId activityId =
-          new ActivityId(
+      ExecutionId executionId =
+          new ExecutionId(
               canceledRequest.getNamespace(),
               canceledRequest.getWorkflowId(),
-              canceledRequest.getRunId(),
-              canceledRequest.getActivityId());
-      TestWorkflowMutableState mutableState = getMutableState(activityId.getWorkflowId());
-      mutableState.cancelActivityTaskById(activityId.getId(), canceledRequest);
+              canceledRequest.getRunId());
+      TestWorkflowMutableState mutableState = getMutableState(executionId);
+      mutableState.cancelActivityTaskById(canceledRequest.getActivityId(), canceledRequest);
       responseObserver.onNext(RespondActivityTaskCanceledByIdResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {

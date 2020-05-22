@@ -37,16 +37,19 @@ public interface DecisionTaskHandler {
     private final RespondDecisionTaskFailedRequest taskFailed;
     private final RespondQueryTaskCompletedRequest queryCompleted;
     private final RpcRetryOptions requestRetryOptions;
+    private final boolean finalDecision;
 
     public Result(
         RespondDecisionTaskCompletedRequest taskCompleted,
         RespondDecisionTaskFailedRequest taskFailed,
         RespondQueryTaskCompletedRequest queryCompleted,
-        RpcRetryOptions requestRetryOptions) {
+        RpcRetryOptions requestRetryOptions,
+        boolean finalDecision) {
       this.taskCompleted = taskCompleted;
       this.taskFailed = taskFailed;
       this.queryCompleted = queryCompleted;
       this.requestRetryOptions = requestRetryOptions;
+      this.finalDecision = finalDecision;
     }
 
     public RespondDecisionTaskCompletedRequest getTaskCompleted() {
@@ -63,6 +66,10 @@ public interface DecisionTaskHandler {
 
     public RpcRetryOptions getRequestRetryOptions() {
       return requestRetryOptions;
+    }
+
+    public boolean isFinalDecision() {
+      return finalDecision;
     }
 
     @Override

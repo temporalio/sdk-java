@@ -227,8 +227,7 @@ class ReplayDecider implements Decider {
         decisionsHelper.handleActivityTaskCancelRequested(event);
         break;
       case RequestCancelActivityTaskFailed:
-        decisionsHelper.handleRequestCancelActivityTaskFailed(event);
-        break;
+        throw new Error("unexpected event");
       case MarkerRecorded:
         context.handleMarkerRecorded(event);
         break;
@@ -404,7 +403,7 @@ class ReplayDecider implements Decider {
       queryResults.clear();
       boolean forceCreateNewDecisionTask = decideImpl(decisionTask, null);
       return new DecisionResult(
-          decisionsHelper.getDecisions(), queryResults, forceCreateNewDecisionTask);
+          decisionsHelper.getDecisions(), queryResults, forceCreateNewDecisionTask, completed);
     } finally {
       lock.unlock();
     }

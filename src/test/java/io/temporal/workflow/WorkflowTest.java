@@ -149,7 +149,7 @@ public class WorkflowTest {
    * When set to true increases test, activity and workflow timeouts to large values to support
    * stepping through code in a debugger without timing out.
    */
-  private static final boolean DEBUGGER_TIMEOUTS = true;
+  private static final boolean DEBUGGER_TIMEOUTS = false;
 
   private static final String ANNOTATION_TASK_LIST = "WorkflowTest-testExecute[Docker]";
 
@@ -4066,6 +4066,7 @@ public class WorkflowTest {
 
   @WorkflowInterface
   public interface TestMultiargsWorkflowsFunc1 {
+
     @WorkflowMethod(name = "func1")
     int func1(int input);
   }

@@ -171,7 +171,7 @@ public class StickyWorkerTest {
     // Assert
     DeciderCache cache = factory.getCache();
     assertNotNull(cache);
-    assertEquals(1, cache.size());
+    assertEquals(0, cache.size()); // removed from cache on completion
 
     // Verify the workflow succeeded without having to recover from a failure
     Map<String, String> tags =

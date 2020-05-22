@@ -277,7 +277,8 @@ public class WorkflowTestingTest {
     void workflow(
         long scheduleToCloseTimeoutSeconds,
         long scheduleToStartTimeoutSeconds,
-        long startToCloseTimeoutSeconds);
+        long startToCloseTimeoutSeconds,
+        boolean disableRetries);
   }
 
   public static class TestActivityTimeoutWorkflowImpl implements TestActivityTimeoutWorkflow {
@@ -286,15 +287,17 @@ public class WorkflowTestingTest {
     public void workflow(
         long scheduleToCloseTimeoutSeconds,
         long scheduleToStartTimeoutSeconds,
-        long startToCloseTimeoutSeconds) {
-      ActivityOptions options =
+        long startToCloseTimeoutSeconds,
+        boolean disableRetries) {
+      ActivityOptions.Builder options =
           ActivityOptions.newBuilder()
               .setScheduleToCloseTimeout(Duration.ofSeconds(scheduleToCloseTimeoutSeconds))
               .setStartToCloseTimeout(Duration.ofSeconds(startToCloseTimeoutSeconds))
-              .setScheduleToStartTimeout(Duration.ofSeconds(scheduleToStartTimeoutSeconds))
-              .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
-              .build();
-      TestActivity activity = Workflow.newActivityStub(TestActivity.class, options);
+              .setScheduleToStartTimeout(Duration.ofSeconds(scheduleToStartTimeoutSeconds));
+      if (disableRetries) {
+        options.setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build());
+      }
+      TestActivity activity = Workflow.newActivityStub(TestActivity.class, options.build());
       Workflow.sleep(Duration.ofHours(1)); // test time skipping
       activity.activity1("foo");
     }
@@ -306,6 +309,11 @@ public class WorkflowTestingTest {
     public String activity1(String input) {
       long start = System.currentTimeMillis();
       while (true) {
+        try {
+          Thread.sleep(500);
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+        }
         Activity.heartbeat(System.currentTimeMillis() - start);
       }
     }
@@ -322,7 +330,7 @@ public class WorkflowTestingTest {
     TestActivityTimeoutWorkflow workflow =
         client.newWorkflowStub(TestActivityTimeoutWorkflow.class, options);
     try {
-      workflow.workflow(10, 10, 1);
+      workflow.workflow(10, 10, 1, true);
       fail("unreacheable");
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ActivityTimeoutException);
@@ -341,7 +349,7 @@ public class WorkflowTestingTest {
     TestActivityTimeoutWorkflow workflow =
         client.newWorkflowStub(TestActivityTimeoutWorkflow.class, options);
     try {
-      workflow.workflow(10, 1, 10);
+      workflow.workflow(10, 1, 10, true);
       fail("unreacheable");
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ActivityTimeoutException);
@@ -351,7 +359,7 @@ public class WorkflowTestingTest {
   }
 
   @Test
-  @Ignore // After the retry policy expiration changes this test doesn't make sense as it is.
+  @Ignore // ScheduleToClose or StartToClose timeouts should be unified.
   public void testActivityScheduleToCloseTimeout() {
     Worker worker = testEnvironment.newWorker(TASK_LIST);
     worker.registerWorkflowImplementationTypes(TestActivityTimeoutWorkflowImpl.class);
@@ -362,7 +370,7 @@ public class WorkflowTestingTest {
     TestActivityTimeoutWorkflow workflow =
         client.newWorkflowStub(TestActivityTimeoutWorkflow.class, options);
     try {
-      workflow.workflow(1, 10, 10);
+      workflow.workflow(2, 10, 1, false);
       fail("unreacheable");
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ActivityTimeoutException);

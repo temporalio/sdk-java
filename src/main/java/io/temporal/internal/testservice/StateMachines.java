@@ -1011,7 +1011,7 @@ class StateMachines {
       long decisionTaskCompletedEventId) {
     ActivityTaskCancelRequestedEventAttributes.Builder a =
         ActivityTaskCancelRequestedEventAttributes.newBuilder()
-            .setActivityId(d.getActivityId())
+            .setScheduledEventId(d.getScheduledEventId())
             .setDecisionTaskCompletedEventId(decisionTaskCompletedEventId);
     HistoryEvent event =
         HistoryEvent.newBuilder()
@@ -1249,7 +1249,7 @@ class StateMachines {
           data.startedEventId = startedEventId;
           data.startedEvent = event;
           PollForActivityTaskResponse.Builder task = data.activityTask.getTask();
-          task.setTaskToken(new ActivityId(ctx.getExecutionId(), task.getActivityId()).toBytes());
+          task.setTaskToken(new ActivityId(ctx.getExecutionId(), data.scheduledEventId).toBytes());
           task.setStartedTimestamp(timestamp);
         });
   }

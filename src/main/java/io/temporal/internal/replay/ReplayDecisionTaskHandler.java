@@ -122,7 +122,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
               .setTaskToken(decisionTask.getTaskToken())
               .setDetails(options.getDataConverter().toData(stackTrace).get())
               .build();
-      return new DecisionTaskHandler.Result(null, failedRequest, null, null);
+      return new DecisionTaskHandler.Result(null, failedRequest, null, null, false);
     }
   }
 
@@ -156,7 +156,9 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
 
       Decider.DecisionResult result = decider.decide(decisionTask);
 
-      if (stickyTaskListName != null && createdNew.get()) {
+      if (result.isFinalDecision()) {
+        cache.invalidate(decisionTask.getWorkflowExecution().getRunId());
+      } else if (stickyTaskListName != null && createdNew.get()) {
         cache.addToCache(decisionTask, decider);
       }
 
@@ -250,7 +252,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
         cache.markProcessingDone(decisionTask);
       }
     }
-    return new Result(null, null, queryCompletedRequest.build(), null);
+    return new Result(null, null, queryCompletedRequest.build(), null, false);
   }
 
   private Result createCompletedRequest(
@@ -270,7 +272,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
                   roundUpToSeconds(stickyTaskListScheduleToStartTimeout));
       completedRequest.setStickyAttributes(attributes);
     }
-    return new Result(completedRequest.build(), null, null, null);
+    return new Result(completedRequest.build(), null, null, null, result.isFinalDecision());
   }
 
   @Override

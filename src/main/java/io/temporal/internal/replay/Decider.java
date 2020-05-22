@@ -40,15 +40,18 @@ public interface Decider {
   class DecisionResult {
     private final List<Decision> decisions;
     private final boolean forceCreateNewDecisionTask;
+    private final boolean finalDecision;
     private final Map<String, WorkflowQueryResult> queryResults;
 
     public DecisionResult(
         List<Decision> decisions,
         Map<String, WorkflowQueryResult> queryResults,
-        boolean forceCreateNewDecisionTask) {
+        boolean forceCreateNewDecisionTask,
+        boolean finalDecision) {
       this.decisions = decisions;
       this.queryResults = queryResults;
       this.forceCreateNewDecisionTask = forceCreateNewDecisionTask;
+      this.finalDecision = finalDecision;
     }
 
     public List<Decision> getDecisions() {
@@ -61,6 +64,11 @@ public interface Decider {
 
     public Map<String, WorkflowQueryResult> getQueryResults() {
       return queryResults;
+    }
+
+    /** Is this result contain a workflow completion decision */
+    public boolean isFinalDecision() {
+      return finalDecision;
     }
   }
 }
