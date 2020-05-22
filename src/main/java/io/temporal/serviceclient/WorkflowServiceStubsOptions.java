@@ -25,6 +25,7 @@ import com.uber.m3.tally.Scope;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.NameResolver;
+import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
 import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
 import java.util.Map;
 import java.util.Optional;
@@ -63,16 +64,22 @@ public class WorkflowServiceStubsOptions {
 
   private final String target;
 
-  /** The tChannel timeout in milliseconds */
+  /** The user provided context for SSL/TLS over gRPC * */
+  private final SslContext sslContext;
+
+  /** Indicates whether basic HTTPS/SSL/TLS should be enabled * */
+  private final boolean enableHttps;
+
+  /** The gRPC timeout in milliseconds */
   private final long rpcTimeoutMillis;
 
-  /** The tChannel timeout for long poll calls in milliseconds */
+  /** The gRPC timeout for long poll calls in milliseconds */
   private final long rpcLongPollTimeoutMillis;
 
-  /** The tChannel timeout for query workflow call in milliseconds */
+  /** The gRPC timeout for query workflow call in milliseconds */
   private final long rpcQueryTimeoutMillis;
 
-  /** Optional TChannel headers */
+  /** Optional gRPC headers */
   private final Map<String, String> headers;
 
   private final Scope metricsScope;
@@ -89,6 +96,8 @@ public class WorkflowServiceStubsOptions {
 
   private WorkflowServiceStubsOptions(Builder builder) {
     this.target = builder.target;
+    this.sslContext = builder.sslContext;
+    this.enableHttps = builder.enableHttps;
     this.channel = builder.channel;
     this.rpcLongPollTimeoutMillis = builder.rpcLongPollTimeoutMillis;
     this.rpcQueryTimeoutMillis = builder.rpcQueryTimeoutMillis;
@@ -104,8 +113,21 @@ public class WorkflowServiceStubsOptions {
       throw new IllegalStateException(
           "Only one of the target and channel options can be set at a time");
     }
+
+    if (builder.sslContext != null && builder.channel != null) {
+      throw new IllegalStateException(
+          "Only one of the sslContext and channel options can be set at a time");
+    }
+
+    if (builder.enableHttps && builder.channel != null) {
+      throw new IllegalStateException(
+          "Only one of the enableHttps and channel options can be set at a time");
+    }
+
     this.target =
         builder.target == null && builder.channel == null ? LOCAL_DOCKER_TARGET : builder.target;
+    this.sslContext = builder.sslContext;
+    this.enableHttps = builder.enableHttps;
     this.channel = builder.channel;
     this.rpcLongPollTimeoutMillis = builder.rpcLongPollTimeoutMillis;
     this.rpcQueryTimeoutMillis = builder.rpcQueryTimeoutMillis;
@@ -123,6 +145,16 @@ public class WorkflowServiceStubsOptions {
 
   public String getTarget() {
     return target;
+  }
+
+  /** @return Returns the gRPC SSL Context to use. * */
+  public SslContext getSslContext() {
+    return sslContext;
+  }
+
+  /** @return Returns a boolean indicating whether gRPC should use SSL/TLS. * */
+  public boolean getEnableHttps() {
+    return enableHttps;
   }
 
   /** @return Returns the rpc timeout value in millis. */
@@ -171,6 +203,8 @@ public class WorkflowServiceStubsOptions {
    */
   public static class Builder {
     private ManagedChannel channel;
+    private SslContext sslContext;
+    private boolean enableHttps;
     private String target;
     private long rpcTimeoutMillis = DEFAULT_RPC_TIMEOUT_MILLIS;
     private long rpcLongPollTimeoutMillis = DEFAULT_POLL_RPC_TIMEOUT_MILLIS;
@@ -191,6 +225,8 @@ public class WorkflowServiceStubsOptions {
     private Builder(WorkflowServiceStubsOptions options) {
       this.target = options.target;
       this.channel = options.channel;
+      this.enableHttps = options.enableHttps;
+      this.sslContext = options.sslContext;
       this.rpcLongPollTimeoutMillis = options.rpcLongPollTimeoutMillis;
       this.rpcQueryTimeoutMillis = options.rpcQueryTimeoutMillis;
       this.rpcTimeoutMillis = options.rpcTimeoutMillis;
@@ -200,9 +236,27 @@ public class WorkflowServiceStubsOptions {
       this.metricsScope = options.metricsScope;
     }
 
-    /** Sets gRPC channel to use. Exclusive with target. */
+    /** Sets gRPC channel to use. Exclusive with target and sslContext. */
     public Builder setChannel(ManagedChannel channel) {
       this.channel = channel;
+      return this;
+    }
+
+    /**
+     * Sets gRPC SSL Context to use, used for more advanced scenarios such as mTLS. Supercedes
+     * enableHttps; Exclusive with channel.
+     */
+    public Builder setSslContext(SslContext sslContext) {
+      this.sslContext = sslContext;
+      return this;
+    }
+
+    /**
+     * Sets option to enable SSL/TLS/HTTPS for gRPC. Exclusive with channel; Ignored if SSLContext
+     * is specified
+     */
+    public Builder setEnableHttps(boolean enableHttps) {
+      this.enableHttps = enableHttps;
       return this;
     }
 
