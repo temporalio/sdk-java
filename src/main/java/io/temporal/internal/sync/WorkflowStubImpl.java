@@ -46,10 +46,10 @@ import io.temporal.internal.replay.QueryWorkflowParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
 import io.temporal.proto.common.Payload;
 import io.temporal.proto.common.Payloads;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
-import io.temporal.proto.execution.WorkflowExecution;
-import io.temporal.proto.failure.QueryFailed;
-import io.temporal.proto.failure.WorkflowExecutionAlreadyStarted;
+import io.temporal.proto.errordetails.QueryFailedFailure;
+import io.temporal.proto.errordetails.WorkflowExecutionAlreadyStartedFailure;
 import io.temporal.proto.query.QueryConsistencyLevel;
 import io.temporal.proto.workflowservice.QueryWorkflowResponse;
 import java.lang.reflect.Type;
@@ -129,8 +129,8 @@ class WorkflowStubImpl implements WorkflowStub {
     try {
       execution.set(genericClient.startWorkflow(p));
     } catch (StatusRuntimeException e) {
-      WorkflowExecutionAlreadyStarted f =
-          StatusUtils.getFailure(e, WorkflowExecutionAlreadyStarted.class);
+      WorkflowExecutionAlreadyStartedFailure f =
+          StatusUtils.getFailure(e, WorkflowExecutionAlreadyStartedFailure.class);
       if (f != null) {
         WorkflowExecution exe =
             WorkflowExecution.newBuilder()
@@ -227,8 +227,8 @@ class WorkflowStubImpl implements WorkflowStub {
     try {
       execution.set(genericClient.signalWithStartWorkflowExecution(p));
     } catch (StatusRuntimeException e) {
-      WorkflowExecutionAlreadyStarted f =
-          StatusUtils.getFailure(e, WorkflowExecutionAlreadyStarted.class);
+      WorkflowExecutionAlreadyStartedFailure f =
+          StatusUtils.getFailure(e, WorkflowExecutionAlreadyStartedFailure.class);
       if (f != null) {
         WorkflowExecution exe =
             WorkflowExecution.newBuilder()
@@ -418,7 +418,7 @@ class WorkflowStubImpl implements WorkflowStub {
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
         throw new WorkflowNotFoundException(execution.get(), workflowType, e.getMessage());
-      } else if (StatusUtils.hasFailure(e, QueryFailed.class)) {
+      } else if (StatusUtils.hasFailure(e, QueryFailedFailure.class)) {
         throw new WorkflowQueryException(execution.get(), e.getMessage());
       }
       throw new WorkflowServiceException(execution.get(), workflowType, e);

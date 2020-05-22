@@ -20,7 +20,7 @@
 package io.temporal.internal.replay;
 
 import io.temporal.proto.common.Payloads;
-import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.workflow.ChildWorkflowCancellationType;
 import java.util.Optional;
 import java.util.function.Consumer;

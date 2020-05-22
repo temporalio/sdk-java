@@ -23,7 +23,7 @@ import static io.temporal.internal.common.CheckedExceptionWrapper.unwrap;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.temporal.proto.failure.QueryFailed;
+import io.temporal.proto.errordetails.QueryFailedFailure;
 import java.time.Duration;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -61,7 +61,7 @@ public final class GrpcRetryer {
         .addDoNotRetry(Status.Code.UNAUTHENTICATED, null)
         .addDoNotRetry(Status.Code.UNIMPLEMENTED, null)
         .addDoNotRetry(Status.Code.CANCELLED, null)
-        .addDoNotRetry(Status.Code.INTERNAL, QueryFailed.class);
+        .addDoNotRetry(Status.Code.INTERNAL, QueryFailedFailure.class);
     DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS = roBuilder.validateBuildWithDefaults();
   }
 

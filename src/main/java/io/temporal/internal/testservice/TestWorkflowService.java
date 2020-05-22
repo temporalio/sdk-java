@@ -33,14 +33,14 @@ import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.testservice.TestWorkflowStore.WorkflowState;
 import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.RetryPolicy;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowIdReusePolicy;
 import io.temporal.proto.decision.SignalExternalWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.errordetails.WorkflowExecutionAlreadyStartedFailure;
 import io.temporal.proto.event.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionFailedCause;
-import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.execution.WorkflowExecutionInfo;
 import io.temporal.proto.execution.WorkflowExecutionStatus;
-import io.temporal.proto.failure.WorkflowExecutionAlreadyStarted;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.proto.workflowservice.ListClosedWorkflowExecutionsRequest;
@@ -292,8 +292,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   private StartWorkflowExecutionResponse throwDuplicatedWorkflow(
       StartWorkflowExecutionRequest startRequest, TestWorkflowMutableState existing) {
     WorkflowExecution execution = existing.getExecutionId().getExecution();
-    WorkflowExecutionAlreadyStarted error =
-        WorkflowExecutionAlreadyStarted.newBuilder()
+    WorkflowExecutionAlreadyStartedFailure error =
+        WorkflowExecutionAlreadyStartedFailure.newBuilder()
             .setRunId(execution.getRunId())
             .setStartRequestId(startRequest.getRequestId())
             .build();

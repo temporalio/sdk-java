@@ -31,18 +31,23 @@ final class ActivityDecisionStateMachine extends DecisionStateMachineBase {
   private long scheduledEventId;
 
   public ActivityDecisionStateMachine(
-      DecisionId id, ScheduleActivityTaskDecisionAttributes scheduleAttributes) {
+      DecisionId id,
+      ScheduleActivityTaskDecisionAttributes scheduleAttributes,
+      long scheduledEventId) {
     super(id);
     this.scheduleAttributes = scheduleAttributes;
+    this.scheduledEventId = scheduledEventId;
   }
 
   /** Used for unit testing */
   ActivityDecisionStateMachine(
       DecisionId id,
       ScheduleActivityTaskDecisionAttributes scheduleAttributes,
-      DecisionState state) {
+      DecisionState state,
+      long scheduledEventId) {
     super(id, state);
     this.scheduleAttributes = scheduleAttributes;
+    this.scheduledEventId = scheduledEventId;
   }
 
   @Override

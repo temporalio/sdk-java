@@ -19,8 +19,8 @@
 
 package io.temporal.workflow;
 
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
-import io.temporal.proto.execution.WorkflowExecution;
 
 /**
  * Indicates that child workflow was forcefully terminated by an external command to Temporal

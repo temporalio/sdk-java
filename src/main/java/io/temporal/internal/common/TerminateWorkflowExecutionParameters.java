@@ -20,7 +20,7 @@
 package io.temporal.internal.common;
 
 import io.temporal.proto.common.Payloads;
-import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecution;
 
 public class TerminateWorkflowExecutionParameters {
 

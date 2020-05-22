@@ -22,7 +22,7 @@ package io.temporal.activity;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.internal.sync.ActivityInternal;
 import io.temporal.internal.sync.WorkflowInternal;
-import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.ActivityException;
 import io.temporal.workflow.ActivityTimeoutException;

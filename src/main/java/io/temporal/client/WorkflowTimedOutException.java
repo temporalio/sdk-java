@@ -19,8 +19,8 @@
 
 package io.temporal.client;
 
-import io.temporal.proto.event.TimeoutType;
-import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.common.TimeoutType;
+import io.temporal.proto.common.WorkflowExecution;
 import java.util.Optional;
 
 /**

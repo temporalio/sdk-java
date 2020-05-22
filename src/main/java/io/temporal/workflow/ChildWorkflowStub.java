@@ -20,7 +20,7 @@
 package io.temporal.workflow;
 
 import io.temporal.internal.sync.StubMarker;
-import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecution;
 import java.lang.reflect.Type;
 
 /**

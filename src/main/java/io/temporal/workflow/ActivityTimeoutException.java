@@ -24,7 +24,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
 import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.Payloads;
-import io.temporal.proto.event.TimeoutType;
+import io.temporal.proto.common.TimeoutType;
 import java.lang.reflect.Type;
 import java.util.Objects;
 import java.util.Optional;
