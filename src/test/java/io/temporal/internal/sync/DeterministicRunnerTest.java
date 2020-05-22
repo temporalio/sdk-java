@@ -856,9 +856,8 @@ public class DeterministicRunnerTest {
     }
 
     @Override
-    public DecisionResult decide(PollForDecisionTaskResponseOrBuilder decisionTask)
-        throws Throwable {
-      return new DecisionResult(new ArrayList<>(), Maps.newHashMap(), false);
+    public DecisionResult decide(PollForDecisionTaskResponseOrBuilder decisionTask) {
+      return new DecisionResult(new ArrayList<>(), Maps.newHashMap(), false, false);
     }
 
     @Override

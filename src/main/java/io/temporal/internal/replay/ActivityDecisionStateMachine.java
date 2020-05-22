@@ -28,6 +28,7 @@ import io.temporal.proto.event.HistoryEvent;
 final class ActivityDecisionStateMachine extends DecisionStateMachineBase {
 
   private ScheduleActivityTaskDecisionAttributes scheduleAttributes;
+  private long scheduledEventId;
 
   public ActivityDecisionStateMachine(
       DecisionId id, ScheduleActivityTaskDecisionAttributes scheduleAttributes) {
@@ -86,12 +87,13 @@ final class ActivityDecisionStateMachine extends DecisionStateMachineBase {
     return Decision.newBuilder()
         .setRequestCancelActivityTaskDecisionAttributes(
             RequestCancelActivityTaskDecisionAttributes.newBuilder()
-                .setActivityId(scheduleAttributes.getActivityId()))
+                .setScheduledEventId(scheduledEventId))
         .setDecisionType(DecisionType.RequestCancelActivityTask)
         .build();
   }
 
   private Decision createScheduleActivityTaskDecision() {
+    scheduledEventId = getId().getDecisionEventId();
     return Decision.newBuilder()
         .setScheduleActivityTaskDecisionAttributes(scheduleAttributes)
         .setDecisionType(DecisionType.ScheduleActivityTask)

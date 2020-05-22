@@ -22,6 +22,7 @@ package io.temporal.internal.replay;
 import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertNotNull;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -111,8 +112,8 @@ public class ReplayDeciderTaskHandlerTests {
     // Act
     DecisionTaskHandler.Result result = taskHandler.handleDecisionTask(decisionTask);
 
-    // Assert
-    assertEquals(1, cache.size());
+    assertTrue(result.isFinalDecision());
+    assertEquals(0, cache.size()); // do not cache if final decision
     assertNotNull(result.getTaskCompleted());
     StickyExecutionAttributes attributes = result.getTaskCompleted().getStickyAttributes();
     assertEquals("sticky", attributes.getWorkerTaskList().getName());
