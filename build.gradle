@@ -11,6 +11,9 @@ plugins {
     id 'net.ltgt.errorprone' version '1.1.1'
     id 'net.minecrell.licenser' version '0.4.1'
     id 'com.palantir.git-version' version '0.12.3'
+    id 'maven-publish'
+    id 'signing'
+    id "de.marcphilipp.nexus-publish" version "0.3.0"
 }
 
 repositories {
@@ -23,8 +26,9 @@ repositories {
 apply plugin: 'com.github.sherter.google-java-format'
 apply plugin: 'com.google.protobuf'
 apply plugin: 'idea' // IntelliJ plugin to see files generated from protos
-apply plugin: 'maven'
 apply plugin: 'maven-publish'
+apply plugin: 'de.marcphilipp.nexus-publish'
+apply plugin: 'java'
 
 if (hasProperty('signing.keyId')) {
     apply plugin: 'signing'
@@ -34,7 +38,7 @@ if (hasProperty('signing.keyId')) {
 }
 
 googleJavaFormat {
-    toolVersion '1.5'
+    toolVersion '1.7'
     include '**/*.java'
     exclude '**/generated/*'
     exclude '**/.idea/**'
@@ -79,30 +83,28 @@ description = '''Temporal Workflow Java SDK'''
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
+    withJavadocJar()
+    withSourcesJar()
 }
 
 dependencies {
     errorproneJavac('com.google.errorprone:javac:9+181-r4173-1')
     errorprone('com.google.errorprone:error_prone_core:2.3.4')
 
-    compile group: 'com.cronutils', name: 'cron-utils', version: '9.0.0'
-    compile group: 'com.google.code.gson', name: 'gson', version: '2.8.6'
-    compile group: 'com.google.guava', name: 'guava', version: '28.1-jre'
-    compile group: 'com.google.protobuf', name: 'protobuf-java', version: '3.8.0'
-    compile group: 'com.google.api.grpc', name: 'proto-google-common-protos', version: '1.17.0'
-    compile group: 'com.uber.m3', name: 'tally-core', version: '0.4.0'
-    compile group: 'io.grpc', name: 'grpc-testing', version: '1.28.0'
-    compile group: 'io.micrometer', name: 'micrometer-core', version: '1.1.2'
-    compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
-    compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.10.3'
+    api group: 'com.google.code.gson', name: 'gson', version: '2.8.6'
+    api group: 'com.uber.m3', name: 'tally-core', version: '0.4.0'
+    api group: 'io.micrometer', name: 'micrometer-core', version: '1.1.2'
+    api group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
+    api 'io.grpc:grpc-protobuf:1.29.0'
+    api 'io.grpc:grpc-stub:1.29.0'
 
-    implementation 'io.grpc:grpc-netty-shaded:1.28.0'
-    implementation 'io.grpc:grpc-protobuf:1.28.0'
-    implementation 'io.grpc:grpc-stub:1.28.0'
+    implementation group: 'com.google.guava', name: 'guava', version: '28.1-jre'
+    implementation group: 'com.cronutils', name: 'cron-utils', version: '9.0.0'
+    implementation 'io.grpc:grpc-netty-shaded:1.29.0'
 
-    testCompile group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
-    testCompile group: 'com.googlecode.junit-toolbox', name: 'junit-toolbox', version: '2.4'
-    testCompile group: 'junit', name: 'junit', version: '4.12'
+    testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
+    testImplementation group: 'com.googlecode.junit-toolbox', name: 'junit-toolbox', version: '2.4'
+    testImplementation group: 'junit', name: 'junit', version: '4.12'
 }
 
 license {
@@ -119,6 +121,13 @@ task updateSubmodules(type: Exec) {
     dependsOn initSubmodules
     description = 'Update submodules'
     commandLine 'git', 'submodule', 'update'
+}
+
+//TODO(maxim): For some reason the following doesn't exclude proto files from the lib jar.
+// But it should according to https://github.com/google/protobuf-gradle-plugin/issues/390
+jar {
+    exclude '**.proto'
+    includeEmptyDirs false
 }
 
 protobuf {
@@ -147,6 +156,7 @@ clean {
 protobuf {
     generatedFilesBaseDir = "$buildDir/generated"
 }
+
 idea {
     module {
         sourceDirs += file("$buildDir/generated/main/java");
@@ -196,24 +206,10 @@ if (JavaVersion.current().isJava8Compatible()) {
 
 javadoc {
     options.encoding = 'UTF-8'
+    if (JavaVersion.current().isJava9Compatible()) {
+        options.addBooleanOption('html5', true)
+    }
 }
-
-task javadocJar(type: Jar, dependsOn: javadoc) {
-    archiveClassifier = 'javadoc'
-    from javadoc
-}
-
-task sourcesJar(type: Jar, dependsOn: classes) {
-    archiveClassifier = 'sources'
-    from sourceSets.main.allSource
-}
-
-artifacts {
-    archives javadocJar, sourcesJar
-}
-
-def ossrhUsername = hasProperty('ossrhUsername') ? property('ossrhUsername') : ''
-def ossrhPassword = hasProperty('ossrhPassword') ? property('ossrhPassword') : ''
 
 task registerNamespace(type: JavaExec) {
     main = 'io.temporal.RegisterTestNamespace'
@@ -233,52 +229,77 @@ test {
     maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
 }
 
-uploadArchives {
-    repositories {
-        mavenDeployer {
-            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
-
-            repository(url: 'https://oss.sonatype.org/service/local/staging/deploy/maven2/') {
-                authentication(userName: ossrhUsername, password: ossrhPassword)
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            versionMapping {
+                usage('java-api') {
+                    fromResolutionOf('runtimeClasspath')
+                }
+                usage('java-runtime') {
+                    fromResolutionResult()
+                }
             }
-
-            snapshotRepository(url: 'https://oss.sonatype.org/content/repositories/snapshots/') {
-                authentication(userName: ossrhUsername, password: ossrhPassword)
-            }
-
-            pom.project {
-                name 'Temporal Java SDK'
-                packaging 'jar'
+            pom {
+                name = 'Temporal Java SDK'
+                packaging = 'jar'
                 // optionally artifactId can be defined here
                 description 'Temporal Workflow Java SDK'
-                url 'https://github.com/temporalio/temporal-java-sdk'
+                url = 'https://github.com/temporalio/temporal-java-sdk'
 
                 scm {
-                    connection 'scm:git@github.com:temporalio/temporal-java-sdk.git'
-                    developerConnection 'scm:git@github.com:temporalio/temporal-java-sdk.git'
-                    url 'https://github.com/temporalio/temporal-java-sdk.git'
+                    connection = 'scm:git@github.com:temporalio/temporal-java-sdk.git'
+                    developerConnection = 'scm:git@github.com:temporalio/temporal-java-sdk.git'
+                    url = 'https://github.com/temporalio/temporal-java-sdk.git'
                 }
 
                 licenses {
                     license {
-                        name 'The Apache License, Version 2.0'
-                        url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                        name = 'The Apache License, Version 2.0'
+                        url = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
                     }
                 }
 
                 developers {
                     developer {
-                        id 'mfateev'
-                        name 'Maxim Fateev'
-                        email 'maxim@temporal.io'
+                        id = 'mfateev'
+                        name = 'Maxim Fateev'
+                        email = 'maxim@temporal.io'
                     }
                     developer {
-                        id 'samarabbas'
-                        name 'Samar Abbas'
-                        email 'samar@temporal.io'
+                        id = 'samarabbas'
+                        name = 'Samar Abbas'
+                        email = 'samar@temporal.io'
                     }
                 }
             }
+        }
+
+    }
+
+    signing {
+        sign publishing.publications.mavenJava
+    }
+
+    // Uncomment to test local publishing and comment nexusPublishing
+//    repositories {
+//        maven {
+//            def releasesRepoUrl = "$System.env.HOME/repos/releases"
+//            def snapshotsRepoUrl = "$System.env.HOME/repos/snapshots"
+//            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+//        }
+//    }
+
+}
+
+nexusPublishing {
+    repositories {
+        sonatype {
+            username = hasProperty('ossrhUsername') ? ossrhUsername : ''
+            password = hasProperty('ossrhPassword') ? ossrhPassword : ''
+            nexusUrl = uri("https://oss.sonatype.org/service/local/staging/deploy/maven2/")
+            snapshotRepositoryUrl = uri("https://oss.sonatype.org/content/repositories/snapshots/")
         }
     }
 }

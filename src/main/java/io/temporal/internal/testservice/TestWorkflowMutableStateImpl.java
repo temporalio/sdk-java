@@ -609,6 +609,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   public void reportCancelRequested(ExternalWorkflowExecutionCancelRequestedEventAttributes a) {
     update(
         ctx -> {
+          if (isTerminalState()) {
+            return;
+          }
           StateMachine<CancelExternalData> cancellationRequest =
               externalCancellations.get(a.getWorkflowExecution().getWorkflowId());
           cancellationRequest.action(
@@ -1429,9 +1432,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           if (startToCloseTimeout > 0) {
             ctx.addTimer(
                 startToCloseTimeout,
-                () -> {
-                  timeoutActivity(scheduledEventId, TimeoutType.StartToClose, data.getAttempt());
-                },
+                () ->
+                    timeoutActivity(scheduledEventId, TimeoutType.StartToClose, data.getAttempt()),
                 "Activity StartToCloseTimeout");
           }
           updateHeartbeatTimer(
@@ -1651,7 +1653,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   TimeUnit.SECONDS.toMillis(
                       activity.getData().scheduledEvent.getHeartbeatTimeoutSeconds());
               if (clock.getAsLong() - activity.getData().lastHeartbeatTime < heartbeatTimeout) {
-                throw Status.INTERNAL.withDescription("Timer fired earlier").asRuntimeException();
+                throw Status.NOT_FOUND.withDescription("Timer fired earlier").asRuntimeException();
               }
             }
             activity.action(StateMachines.Action.TIME_OUT, ctx, timeoutType, 0);

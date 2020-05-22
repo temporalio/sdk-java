@@ -19,6 +19,7 @@
 
 package io.temporal.internal.testservice;
 
+import io.grpc.Status;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.TestWorkflowStore.ActivityTask;
 import io.temporal.internal.testservice.TestWorkflowStore.DecisionTask;
@@ -129,6 +130,11 @@ final class RequestContext {
 
   /** Returns eventId of the added event; */
   long addEvent(HistoryEvent event) {
+    if (workflowMutableState.isTerminalState()) {
+      throw Status.NOT_FOUND
+          .withDescription("workflow execution already completed")
+          .asRuntimeException();
+    }
     long eventId = initialEventId + events.size();
     if (WorkflowExecutionUtils.isWorkflowExecutionCompletedEvent(event)) {
       workflowCompletedAtEventId = eventId;

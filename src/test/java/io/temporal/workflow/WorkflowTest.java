@@ -3640,11 +3640,10 @@ public class WorkflowTest {
 
     @WorkflowMethod
     @MethodRetry(
-      initialIntervalSeconds = 1,
-      maximumIntervalSeconds = 1,
-      maximumAttempts = 30,
-      doNotRetry = IllegalArgumentException.class
-    )
+        initialIntervalSeconds = 1,
+        maximumIntervalSeconds = 1,
+        maximumAttempts = 30,
+        doNotRetry = IllegalArgumentException.class)
     String execute(String testName);
   }
 
