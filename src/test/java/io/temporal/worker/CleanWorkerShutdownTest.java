@@ -30,9 +30,11 @@ import io.temporal.client.ActivityWorkerShutdownException;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.common.converter.GsonJsonDataConverter;
+import io.temporal.proto.common.Payloads;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.event.EventType;
 import io.temporal.proto.event.HistoryEvent;
-import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -42,9 +44,9 @@ import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -103,7 +105,7 @@ public class CleanWorkerShutdownTest {
 
   @WorkflowInterface
   public interface TestWorkflow {
-    @WorkflowMethod(executionStartToCloseTimeoutSeconds = 100)
+    @WorkflowMethod
     String execute();
   }
 
@@ -197,8 +199,11 @@ public class CleanWorkerShutdownTest {
     for (HistoryEvent e : events) {
       if (e.getEventType() == EventType.ActivityTaskCompleted) {
         found = true;
-        byte[] ar = e.getActivityTaskCompletedEventAttributes().getResult().toByteArray();
-        assertEquals("\"completed\"", new String(ar, StandardCharsets.UTF_8));
+        Payloads ar = e.getActivityTaskCompletedEventAttributes().getResult();
+        String r =
+            GsonJsonDataConverter.getInstance()
+                .fromData(Optional.of(ar), String.class, String.class);
+        assertEquals("completed", r);
       }
     }
     assertTrue("Contains ActivityTaskCompleted", found);
@@ -255,8 +260,11 @@ public class CleanWorkerShutdownTest {
     for (HistoryEvent e : events) {
       if (e.getEventType() == EventType.ActivityTaskCompleted) {
         found = true;
-        byte[] ar = e.getActivityTaskCompletedEventAttributes().getResult().toByteArray();
-        assertEquals("\"interrupted\"", new String(ar, StandardCharsets.UTF_8));
+        Payloads ar = e.getActivityTaskCompletedEventAttributes().getResult();
+        String r =
+            GsonJsonDataConverter.getInstance()
+                .fromData(Optional.of(ar), String.class, String.class);
+        assertEquals(r, "interrupted", r);
       }
     }
     assertTrue("Contains ActivityTaskCompleted", found);
@@ -343,8 +351,11 @@ public class CleanWorkerShutdownTest {
     for (HistoryEvent e : events) {
       if (e.getEventType() == EventType.ActivityTaskCompleted) {
         found = true;
-        byte[] ar = e.getActivityTaskCompletedEventAttributes().getResult().toByteArray();
-        assertEquals("\"workershutdown\"", new String(ar, StandardCharsets.UTF_8));
+        Payloads ar = e.getActivityTaskCompletedEventAttributes().getResult();
+        String r =
+            GsonJsonDataConverter.getInstance()
+                .fromData(Optional.of(ar), String.class, String.class);
+        assertEquals("workershutdown", r);
       }
     }
     assertTrue("Contains ActivityTaskCompleted", found);

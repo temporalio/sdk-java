@@ -29,7 +29,8 @@ import io.temporal.client.ActivityNotExistsException;
 import io.temporal.client.ActivityWorkerShutdownException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.OptionsUtils;
-import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.common.Payloads;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatRequest;
 import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -117,10 +118,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
         Optional<V> result = (Optional<V>) this.lastDetails;
         return result;
       }
-      byte[] details = task.getHeartbeatDetails();
-      if (details == null) {
-        return Optional.empty();
-      }
+      Optional<Payloads> details = task.getHeartbeatDetails();
       return Optional.ofNullable(dataConverter.fromData(details, detailsClass, detailsType));
     } finally {
       lock.unlock();
@@ -173,14 +171,16 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   }
 
   private void sendHeartbeatRequest(Object details) {
-    RecordActivityTaskHeartbeatRequest r =
+    RecordActivityTaskHeartbeatRequest.Builder r =
         RecordActivityTaskHeartbeatRequest.newBuilder()
-            .setTaskToken(OptionsUtils.toByteString(task.getTaskToken()))
-            .setDetails(OptionsUtils.toByteString(dataConverter.toData(details)))
-            .build();
+            .setTaskToken(OptionsUtils.toByteString(task.getTaskToken()));
+    Optional<Payloads> payloads = dataConverter.toData(details);
+    if (payloads.isPresent()) {
+      r.setDetails(payloads.get());
+    }
     RecordActivityTaskHeartbeatResponse status;
     try {
-      status = service.blockingStub().recordActivityTaskHeartbeat(r);
+      status = service.blockingStub().recordActivityTaskHeartbeat(r.build());
       if (status.getCancelRequested()) {
         lastException = new ActivityCancelledException(task);
       } else {

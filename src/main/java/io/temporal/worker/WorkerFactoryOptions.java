@@ -19,6 +19,7 @@
 
 package io.temporal.worker;
 
+import com.google.common.base.Preconditions;
 import io.temporal.common.interceptors.NoopWorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowInterceptor;
 
@@ -36,6 +37,11 @@ public class WorkerFactoryOptions {
     return DEFAULT_INSTANCE;
   }
 
+  private static final int DEFAULT_HOST_LOCAL_WORKFLOW_POLL_THREAD_COUNT = 5;
+  private static final int DEFAULT_WORKFLOW_CACHE_SIZE = 600;
+  private static final int DEFAULT_MAX_WORKFLOW_THREAD_COUNT = 600;
+  private static final int DEFAULT_WORKFLOW_HOST_LOCAL_TASK_LIST_SCHEDULE_TO_START_TIMEOUT = 10;
+
   private static final WorkerFactoryOptions DEFAULT_INSTANCE;
 
   static {
@@ -43,11 +49,13 @@ public class WorkerFactoryOptions {
   }
 
   public static class Builder {
-    private int stickyDecisionScheduleToStartTimeoutInSeconds;
-    private int cacheMaximumSize;
+    private int workflowHostLocalTaskListScheduleToStartTimeoutSeconds =
+        DEFAULT_WORKFLOW_HOST_LOCAL_TASK_LIST_SCHEDULE_TO_START_TIMEOUT;
+    private int workflowCacheSize;
     private int maxWorkflowThreadCount;
     private WorkflowInterceptor workflowInterceptor;
     private boolean enableLoggingInReplay;
+    private int workflowHostLocalPollThreadCount;
 
     private Builder() {}
 
@@ -55,26 +63,33 @@ public class WorkerFactoryOptions {
       if (options == null) {
         return;
       }
-      this.stickyDecisionScheduleToStartTimeoutInSeconds =
-          options.stickyDecisionScheduleToStartTimeoutInSeconds;
-      this.cacheMaximumSize = options.cacheMaximumSize;
+      this.workflowHostLocalTaskListScheduleToStartTimeoutSeconds =
+          options.workflowHostLocalTaskListScheduleToStartTimeoutSeconds;
+      this.workflowCacheSize = options.workflowCacheSize;
       this.maxWorkflowThreadCount = options.maxWorkflowThreadCount;
       this.workflowInterceptor = options.workflowInterceptor;
       this.enableLoggingInReplay = options.enableLoggingInReplay;
+      this.workflowHostLocalPollThreadCount = options.workflowHostLocalPollThreadCount;
     }
 
     /**
-     * When Sticky execution is enabled this will set the maximum allowed number of workflows
-     * cached. This cache is shared by all workers created by the Factory. Default value is 600
+     * To avoid constant replay of code the workflow objects are cached on a worker. This cache is
+     * shared by all workers created by the Factory. Note that in the majority of situations the
+     * number of cached workflows is limited not by this value, but by the number of the threads
+     * defined through {@link #setMaxWorkflowThreadCount(int)}.
+     *
+     * <p>Default value is 600
      */
-    public Builder setCacheMaximumSize(int cacheMaximumSize) {
-      this.cacheMaximumSize = cacheMaximumSize;
+    public Builder setWorkflowCacheSize(int workflowCacheSize) {
+      this.workflowCacheSize = workflowCacheSize;
       return this;
     }
 
     /**
      * Maximum number of threads available for workflow execution across all workers created by the
-     * Factory.
+     * Factory. This includes cached workflows.
+     *
+     * <p>Default is 600
      */
     public Builder setMaxWorkflowThreadCount(int maxWorkflowThreadCount) {
       this.maxWorkflowThreadCount = maxWorkflowThreadCount;
@@ -82,13 +97,15 @@ public class WorkerFactoryOptions {
     }
 
     /**
-     * Timeout for sticky workflow decision to be picked up by the host assigned to it. Once it
-     * times out then it can be picked up by any worker. Default value is 5 seconds.
+     * Timeout for a workflow task routed to the the host that caches a workflow object. Once it
+     * times out then it can be picked up by any worker.
+     *
+     * <p>Default value is 10 seconds.
      */
-    public Builder setStickyDecisionScheduleToStartTimeoutInSeconds(
-        int stickyDecisionScheduleToStartTimeoutInSeconds) {
-      this.stickyDecisionScheduleToStartTimeoutInSeconds =
-          stickyDecisionScheduleToStartTimeoutInSeconds;
+    public Builder setWorkflowHostLocalTaskListScheduleToStartTimeoutSeconds(
+        int workflowHostLocalTaskListScheduleToStartTimeoutSeconds) {
+      this.workflowHostLocalTaskListScheduleToStartTimeoutSeconds =
+          workflowHostLocalTaskListScheduleToStartTimeoutSeconds;
       return this;
     }
 
@@ -103,72 +120,92 @@ public class WorkerFactoryOptions {
       return this;
     }
 
+    public Builder setWorkflowHostLocalPollThreadCount(int workflowHostLocalPollThreadCount) {
+      this.workflowHostLocalPollThreadCount = workflowHostLocalPollThreadCount;
+      return this;
+    }
+
     public WorkerFactoryOptions build() {
       return new WorkerFactoryOptions(
-          cacheMaximumSize,
+          workflowCacheSize,
           maxWorkflowThreadCount,
-          stickyDecisionScheduleToStartTimeoutInSeconds,
+          workflowHostLocalTaskListScheduleToStartTimeoutSeconds,
           workflowInterceptor,
           enableLoggingInReplay,
+          workflowHostLocalPollThreadCount,
           false);
     }
 
     public WorkerFactoryOptions validateAndBuildWithDefaults() {
       return new WorkerFactoryOptions(
-          cacheMaximumSize,
+          workflowCacheSize,
           maxWorkflowThreadCount,
-          stickyDecisionScheduleToStartTimeoutInSeconds,
+          workflowHostLocalTaskListScheduleToStartTimeoutSeconds,
           workflowInterceptor,
           enableLoggingInReplay,
+          workflowHostLocalPollThreadCount,
           true);
     }
   }
 
-  private final int cacheMaximumSize;
+  private final int workflowCacheSize;
   private final int maxWorkflowThreadCount;
-  private final int stickyDecisionScheduleToStartTimeoutInSeconds;
+  private final int workflowHostLocalTaskListScheduleToStartTimeoutSeconds;
   private final WorkflowInterceptor workflowInterceptor;
   private final boolean enableLoggingInReplay;
+  private final int workflowHostLocalPollThreadCount;
 
   private WorkerFactoryOptions(
-      int cacheMaximumSize,
+      int workflowCacheSize,
       int maxWorkflowThreadCount,
-      int stickyDecisionScheduleToStartTimeoutInSeconds,
+      int workflowHostLocalTaskListScheduleToStartTimeoutSeconds,
       WorkflowInterceptor workflowInterceptor,
       boolean enableLoggingInReplay,
+      int workflowHostLocalPollThreadCount,
       boolean validate) {
     if (validate) {
-      if (cacheMaximumSize <= 0) {
-        cacheMaximumSize = 600;
+      Preconditions.checkState(workflowCacheSize >= 0, "negative workflowCacheSize");
+      if (workflowCacheSize <= 0) {
+        workflowCacheSize = DEFAULT_WORKFLOW_CACHE_SIZE;
       }
-      if (maxWorkflowThreadCount <= 0) {
-        maxWorkflowThreadCount = 600;
+
+      Preconditions.checkState(maxWorkflowThreadCount >= 0, "negative maxWorkflowThreadCount");
+      if (maxWorkflowThreadCount == 0) {
+        maxWorkflowThreadCount = DEFAULT_MAX_WORKFLOW_THREAD_COUNT;
       }
-      if (stickyDecisionScheduleToStartTimeoutInSeconds <= 0) {
-        stickyDecisionScheduleToStartTimeoutInSeconds = 5;
-      }
+      Preconditions.checkState(
+          workflowHostLocalTaskListScheduleToStartTimeoutSeconds >= 0,
+          "negative workflowHostLocalTaskListScheduleToStartTimeoutSeconds");
+
       if (workflowInterceptor == null) {
         workflowInterceptor = new NoopWorkflowInterceptor();
       }
+
+      Preconditions.checkState(
+          workflowHostLocalPollThreadCount >= 0, "negative workflowHostLocalPollThreadCount");
+      if (workflowHostLocalPollThreadCount == 0) {
+        workflowHostLocalPollThreadCount = DEFAULT_HOST_LOCAL_WORKFLOW_POLL_THREAD_COUNT;
+      }
     }
-    this.cacheMaximumSize = cacheMaximumSize;
+    this.workflowCacheSize = workflowCacheSize;
     this.maxWorkflowThreadCount = maxWorkflowThreadCount;
-    this.stickyDecisionScheduleToStartTimeoutInSeconds =
-        stickyDecisionScheduleToStartTimeoutInSeconds;
+    this.workflowHostLocalTaskListScheduleToStartTimeoutSeconds =
+        workflowHostLocalTaskListScheduleToStartTimeoutSeconds;
     this.workflowInterceptor = workflowInterceptor;
     this.enableLoggingInReplay = enableLoggingInReplay;
+    this.workflowHostLocalPollThreadCount = workflowHostLocalPollThreadCount;
   }
 
-  public int getCacheMaximumSize() {
-    return cacheMaximumSize;
+  public int getWorkflowCacheSize() {
+    return workflowCacheSize;
   }
 
   public int getMaxWorkflowThreadCount() {
     return maxWorkflowThreadCount;
   }
 
-  public int getStickyDecisionScheduleToStartTimeoutInSeconds() {
-    return stickyDecisionScheduleToStartTimeoutInSeconds;
+  public int getWorkflowHostLocalTaskListScheduleToStartTimeoutSeconds() {
+    return workflowHostLocalTaskListScheduleToStartTimeoutSeconds;
   }
 
   public WorkflowInterceptor getWorkflowInterceptor() {
@@ -177,5 +214,13 @@ public class WorkerFactoryOptions {
 
   public boolean isEnableLoggingInReplay() {
     return enableLoggingInReplay;
+  }
+
+  public int getWorkflowHostLocalPollThreadCount() {
+    return workflowHostLocalPollThreadCount;
+  }
+
+  public Builder toBuilder() {
+    return new Builder(this);
   }
 }

@@ -24,7 +24,7 @@ import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.internal.sync.WorkflowInternal;
-import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Functions.Func;
 import java.lang.reflect.Type;
@@ -50,8 +50,8 @@ import org.slf4j.Logger;
  * <ul>
  *   <li>{@literal @}{@link WorkflowMethod} indicates an entry point to a workflow. It contains
  *       parameters such as timeouts and a task list. Required parameters (like {@code
- *       executionStartToCloseTimeoutSeconds}) that are not specified through the annotation must be
- *       provided at runtime.
+ *       workflowRunTimeoutSeconds}) that are not specified through the annotation must be provided
+ *       at runtime.
  *   <li>{@literal @}{@link SignalMethod} indicates a method that reacts to external signals. It
  *       must have a {@code void} return type.
  *   <li>{@literal @}{@link QueryMethod} indicates a method that reacts to synchronous query
@@ -61,7 +61,7 @@ import org.slf4j.Logger;
  * <pre><code>
  * public interface FileProcessingWorkflow {
  *
- *    {@literal @}WorkflowMethod(executionStartToCloseTimeoutSeconds = 10, taskList = "file-processing")
+ *    {@literal @}WorkflowMethod(workflowRunTimeoutSeconds = 10, taskList = "file-processing")
  *     String processFile(Arguments args);
  *
  *    {@literal @}QueryMethod(name="history")
@@ -767,26 +767,31 @@ public final class Workflow {
 
   /**
    * Invokes function retrying in case of failures according to retry options. Synchronous variant.
-   * Use {@link Async#retry(RetryOptions, Functions.Func)} for asynchronous functions.
+   * Use {@link Async#retry(RetryOptions, Optional, Func)} for asynchronous functions.
    *
    * @param options retry options that specify retry policy
+   * @param expiration stop retrying after this interval if provided
    * @param fn function to invoke and retry
    * @return result of the function or the last failure.
    */
-  public static <R> R retry(RetryOptions options, Functions.Func<R> fn) {
-    return WorkflowInternal.retry(options, fn);
+  public static <R> R retry(
+      RetryOptions options, Optional<Duration> expiration, Functions.Func<R> fn) {
+    return WorkflowInternal.retry(options, expiration, fn);
   }
 
   /**
    * Invokes function retrying in case of failures according to retry options. Synchronous variant.
-   * Use {@link Async#retry(RetryOptions, Functions.Func)} for asynchronous functions.
+   * Use {@link Async#retry(RetryOptions, Optional, Func)} for asynchronous functions.
    *
    * @param options retry options that specify retry policy
+   * @param expiration if specified stop retrying after this interval
    * @param proc procedure to invoke and retry
    */
-  public static void retry(RetryOptions options, Functions.Proc proc) {
+  public static void retry(
+      RetryOptions options, Optional<Duration> expiration, Functions.Proc proc) {
     WorkflowInternal.retry(
         options,
+        expiration,
         () -> {
           proc.apply();
           return null;

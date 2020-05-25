@@ -22,6 +22,7 @@ package io.temporal.workflow;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
@@ -48,6 +49,7 @@ public class LoggerTest {
     listAppender.setContext(context);
     listAppender.start();
     logger.addAppender(listAppender);
+    logger.setLevel(Level.INFO);
   }
 
   private static final String taskList = "logger-test";
@@ -100,7 +102,7 @@ public class LoggerTest {
     WorkflowClient workflowClient = env.getWorkflowClient();
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
-            .setExecutionStartToCloseTimeout(Duration.ofSeconds(1000))
+            .setWorkflowRunTimeout(Duration.ofSeconds(1000))
             .setTaskList(taskList)
             .build();
     LoggerTest.TestWorkflow workflow =

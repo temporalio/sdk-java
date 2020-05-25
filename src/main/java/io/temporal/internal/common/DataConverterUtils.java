@@ -21,9 +21,12 @@ package io.temporal.internal.common;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
+import io.temporal.proto.common.Header;
+import io.temporal.proto.common.Payload;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Field;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
@@ -149,6 +152,17 @@ public class DataConverterUtils {
       }
     }
     return cause;
+  }
+
+  public static Header toHeaderGrpc(Map<String, Payload> headers) {
+    if (headers == null || headers.isEmpty()) {
+      return null;
+    }
+    Header.Builder builder = Header.newBuilder();
+    for (Map.Entry<String, Payload> item : headers.entrySet()) {
+      builder.putFields(item.getKey(), item.getValue());
+    }
+    return builder.build();
   }
 
   private DataConverterUtils() {}

@@ -19,11 +19,13 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.common.Payloads;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.workflow.ChildWorkflowCancellationType;
+import java.util.Optional;
 import java.util.function.Consumer;
 
-class OpenChildWorkflowRequestInfo extends OpenRequestInfo<byte[], String> {
+class OpenChildWorkflowRequestInfo extends OpenRequestInfo<Optional<Payloads>, String> {
 
   private final ChildWorkflowCancellationType cancellationType;
   private final Consumer<WorkflowExecution> executionCallback;

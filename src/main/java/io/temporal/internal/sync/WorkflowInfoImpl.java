@@ -21,7 +21,7 @@ package io.temporal.internal.sync;
 
 import io.temporal.internal.replay.DecisionContext;
 import io.temporal.proto.common.SearchAttributes;
-import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.workflow.WorkflowInfo;
 import java.time.Duration;
 
@@ -64,8 +64,18 @@ final class WorkflowInfoImpl implements WorkflowInfo {
   }
 
   @Override
-  public Duration getExecutionStartToCloseTimeout() {
-    return context.getExecutionStartToCloseTimeout();
+  public Duration getWorkflowRunTimeout() {
+    return context.getWorkflowRunTimeout();
+  }
+
+  @Override
+  public Duration getWorkflowExecutionTimeout() {
+    return context.getWorkflowExecutionTimeout();
+  }
+
+  @Override
+  public long getRunStartedTimestampMillis() {
+    return context.getRunStartedTimestampMillis();
   }
 
   @Override

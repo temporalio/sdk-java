@@ -20,7 +20,6 @@
 package io.temporal.internal.testservice;
 
 import com.google.common.base.Throwables;
-import com.google.protobuf.ByteString;
 import io.grpc.Context;
 import io.grpc.Deadline;
 import io.grpc.ManagedChannel;
@@ -32,15 +31,16 @@ import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.testservice.TestWorkflowStore.WorkflowState;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.RetryPolicy;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowIdReusePolicy;
 import io.temporal.proto.decision.SignalExternalWorkflowExecutionDecisionAttributes;
+import io.temporal.proto.errordetails.WorkflowExecutionAlreadyStartedFailure;
 import io.temporal.proto.event.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionFailedCause;
-import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.execution.WorkflowExecutionInfo;
 import io.temporal.proto.execution.WorkflowExecutionStatus;
-import io.temporal.proto.failure.WorkflowExecutionAlreadyStarted;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.proto.workflowservice.ListClosedWorkflowExecutionsRequest;
@@ -261,7 +261,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       }
       Optional<RetryState> retryState;
       if (startRequest.hasRetryPolicy()) {
-        retryState = newRetryStateLocked(startRequest.getRetryPolicy());
+        long expirationInterval = startRequest.getWorkflowExecutionTimeoutSeconds();
+        retryState = newRetryStateLocked(startRequest.getRetryPolicy(), expirationInterval);
       } else {
         retryState = Optional.empty();
       }
@@ -281,18 +282,18 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
-  private Optional<RetryState> newRetryStateLocked(RetryPolicy retryPolicy) {
-    long expirationInterval =
-        TimeUnit.SECONDS.toMillis(retryPolicy.getExpirationIntervalInSeconds());
-    long expirationTime = store.currentTimeMillis() + expirationInterval;
+  private Optional<RetryState> newRetryStateLocked(
+      RetryPolicy retryPolicy, long expirationInterval) {
+    long expirationTime =
+        expirationInterval == 0 ? 0 : store.currentTimeMillis() + expirationInterval;
     return Optional.of(new RetryState(retryPolicy, expirationTime));
   }
 
   private StartWorkflowExecutionResponse throwDuplicatedWorkflow(
       StartWorkflowExecutionRequest startRequest, TestWorkflowMutableState existing) {
     WorkflowExecution execution = existing.getExecutionId().getExecution();
-    WorkflowExecutionAlreadyStarted error =
-        WorkflowExecutionAlreadyStarted.newBuilder()
+    WorkflowExecutionAlreadyStartedFailure error =
+        WorkflowExecutionAlreadyStartedFailure.newBuilder()
             .setRunId(execution.getRunId())
             .setStartRequestId(startRequest.getRequestId())
             .build();
@@ -309,7 +310,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       Optional<String> continuedExecutionRunId,
       Optional<RetryState> retryState,
       int backoffStartIntervalInSeconds,
-      ByteString lastCompletionResult,
+      Payloads lastCompletionResult,
       Optional<TestWorkflowMutableState> parent,
       OptionalLong parentChildInitiatedEventId,
       Optional<SignalWorkflowExecutionRequest> signalWithStartSignal,
@@ -495,7 +496,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       ActivityId activityId = ActivityId.fromBytes(heartbeatRequest.getTaskToken());
       TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
       boolean cancelRequested =
-          mutableState.heartbeatActivityTask(activityId.getId(), heartbeatRequest.getDetails());
+          mutableState.heartbeatActivityTask(
+              activityId.getScheduledEventId(), heartbeatRequest.getDetails());
       responseObserver.onNext(
           RecordActivityTaskHeartbeatResponse.newBuilder()
               .setCancelRequested(cancelRequested)
@@ -521,7 +523,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               heartbeatRequest.getRunId());
       TestWorkflowMutableState mutableState = getMutableState(execution);
       boolean cancelRequested =
-          mutableState.heartbeatActivityTask(
+          mutableState.heartbeatActivityTaskById(
               heartbeatRequest.getActivityId(), heartbeatRequest.getDetails());
       responseObserver.onNext(
           RecordActivityTaskHeartbeatByIdResponse.newBuilder()
@@ -543,7 +545,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     try {
       ActivityId activityId = ActivityId.fromBytes(completeRequest.getTaskToken());
       TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
-      mutableState.completeActivityTask(activityId.getId(), completeRequest);
+      mutableState.completeActivityTask(activityId.getScheduledEventId(), completeRequest);
       responseObserver.onNext(RespondActivityTaskCompletedResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
@@ -559,14 +561,13 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       RespondActivityTaskCompletedByIdRequest completeRequest,
       StreamObserver<RespondActivityTaskCompletedByIdResponse> responseObserver) {
     try {
-      ActivityId activityId =
-          new ActivityId(
+      ExecutionId executionId =
+          new ExecutionId(
               completeRequest.getNamespace(),
               completeRequest.getWorkflowId(),
-              completeRequest.getRunId(),
-              completeRequest.getActivityId());
-      TestWorkflowMutableState mutableState = getMutableState(activityId.getWorkflowId());
-      mutableState.completeActivityTaskById(activityId.getId(), completeRequest);
+              completeRequest.getRunId());
+      TestWorkflowMutableState mutableState = getMutableState(executionId);
+      mutableState.completeActivityTaskById(completeRequest.getActivityId(), completeRequest);
       responseObserver.onNext(RespondActivityTaskCompletedByIdResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
@@ -584,7 +585,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     try {
       ActivityId activityId = ActivityId.fromBytes(failRequest.getTaskToken());
       TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
-      mutableState.failActivityTask(activityId.getId(), failRequest);
+      mutableState.failActivityTask(activityId.getScheduledEventId(), failRequest);
       responseObserver.onNext(RespondActivityTaskFailedResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
@@ -600,14 +601,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       RespondActivityTaskFailedByIdRequest failRequest,
       StreamObserver<RespondActivityTaskFailedByIdResponse> responseObserver) {
     try {
-      ActivityId activityId =
-          new ActivityId(
-              failRequest.getNamespace(),
-              failRequest.getWorkflowId(),
-              failRequest.getRunId(),
-              failRequest.getActivityId());
-      TestWorkflowMutableState mutableState = getMutableState(activityId.getWorkflowId());
-      mutableState.failActivityTaskById(activityId.getId(), failRequest);
+      ExecutionId executionId =
+          new ExecutionId(
+              failRequest.getNamespace(), failRequest.getWorkflowId(), failRequest.getRunId());
+      TestWorkflowMutableState mutableState = getMutableState(executionId);
+      mutableState.failActivityTaskById(failRequest.getActivityId(), failRequest);
       responseObserver.onNext(RespondActivityTaskFailedByIdResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
@@ -625,7 +623,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     try {
       ActivityId activityId = ActivityId.fromBytes(canceledRequest.getTaskToken());
       TestWorkflowMutableState mutableState = getMutableState(activityId.getExecutionId());
-      mutableState.cancelActivityTask(activityId.getId(), canceledRequest);
+      mutableState.cancelActivityTask(activityId.getScheduledEventId(), canceledRequest);
       responseObserver.onNext(RespondActivityTaskCanceledResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
@@ -641,14 +639,13 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       RespondActivityTaskCanceledByIdRequest canceledRequest,
       StreamObserver<RespondActivityTaskCanceledByIdResponse> responseObserver) {
     try {
-      ActivityId activityId =
-          new ActivityId(
+      ExecutionId executionId =
+          new ExecutionId(
               canceledRequest.getNamespace(),
               canceledRequest.getWorkflowId(),
-              canceledRequest.getRunId(),
-              canceledRequest.getActivityId());
-      TestWorkflowMutableState mutableState = getMutableState(activityId.getWorkflowId());
-      mutableState.cancelActivityTaskById(activityId.getId(), canceledRequest);
+              canceledRequest.getRunId());
+      TestWorkflowMutableState mutableState = getMutableState(executionId);
+      mutableState.cancelActivityTaskById(canceledRequest.getActivityId(), canceledRequest);
       responseObserver.onNext(RespondActivityTaskCanceledByIdResponse.getDefaultInstance());
       responseObserver.onCompleted();
     } catch (StatusRuntimeException e) {
@@ -741,9 +738,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       }
       StartWorkflowExecutionRequest.Builder startRequest =
           StartWorkflowExecutionRequest.newBuilder()
+              .setRequestId(r.getRequestId())
               .setInput(r.getInput())
-              .setExecutionStartToCloseTimeoutSeconds(r.getExecutionStartToCloseTimeoutSeconds())
-              .setTaskStartToCloseTimeoutSeconds(r.getTaskStartToCloseTimeoutSeconds())
+              .setWorkflowExecutionTimeoutSeconds(r.getWorkflowExecutionTimeoutSeconds())
+              .setWorkflowRunTimeoutSeconds(r.getWorkflowRunTimeoutSeconds())
+              .setWorkflowTaskTimeoutSeconds(r.getWorkflowTaskTimeoutSeconds())
               .setNamespace(r.getNamespace())
               .setTaskList(r.getTaskList())
               .setWorkflowId(r.getWorkflowId())
@@ -826,17 +825,20 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       OptionalLong parentChildInitiatedEventId) {
     StartWorkflowExecutionRequest.Builder startRequestBuilder =
         StartWorkflowExecutionRequest.newBuilder()
+            .setRequestId(UUID.randomUUID().toString())
             .setWorkflowType(a.getWorkflowType())
-            .setExecutionStartToCloseTimeoutSeconds(a.getExecutionStartToCloseTimeoutSeconds())
-            .setTaskStartToCloseTimeoutSeconds(a.getTaskStartToCloseTimeoutSeconds())
+            .setWorkflowRunTimeoutSeconds(a.getWorkflowRunTimeoutSeconds())
+            .setWorkflowTaskTimeoutSeconds(a.getWorkflowTaskTimeoutSeconds())
             .setNamespace(executionId.getNamespace())
             .setTaskList(a.getTaskList())
             .setWorkflowId(executionId.getWorkflowId().getWorkflowId())
             .setWorkflowIdReusePolicy(previousRunStartRequest.getWorkflowIdReusePolicy())
             .setIdentity(identity)
-            .setRetryPolicy(previousRunStartRequest.getRetryPolicy())
             .setCronSchedule(previousRunStartRequest.getCronSchedule());
-    if (!a.getInput().isEmpty()) {
+    if (previousRunStartRequest.hasRetryPolicy()) {
+      startRequestBuilder.setRetryPolicy(previousRunStartRequest.getRetryPolicy());
+    }
+    if (a.hasInput()) {
       startRequestBuilder.setInput(a.getInput());
     }
     StartWorkflowExecutionRequest startRequest = startRequestBuilder.build();

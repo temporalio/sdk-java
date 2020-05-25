@@ -42,7 +42,6 @@ public final class SingleWorkerOptions {
     private String identity;
     private DataConverter dataConverter;
     private int taskExecutorThreadPoolSize = 100;
-    private double taskListActivitiesPerSecond;
     private PollerOptions pollerOptions;
     private Scope metricsScope;
     private boolean enableLoggingInReplay;
@@ -57,7 +56,6 @@ public final class SingleWorkerOptions {
       this.identity = options.getIdentity();
       this.dataConverter = options.getDataConverter();
       this.pollerOptions = options.getPollerOptions();
-      this.taskListActivitiesPerSecond = options.getTaskListActivitiesPerSecond();
       this.taskExecutorThreadPoolSize = options.getTaskExecutorThreadPoolSize();
       this.metricsScope = options.getMetricsScope();
       this.enableLoggingInReplay = options.getEnableLoggingInReplay();
@@ -94,11 +92,6 @@ public final class SingleWorkerOptions {
       return this;
     }
 
-    public Builder setTaskListActivitiesPerSecond(double taskListActivitiesPerSecond) {
-      this.taskListActivitiesPerSecond = taskListActivitiesPerSecond;
-      return this;
-    }
-
     /** Specifies the list of context propagators to use during this workflow. */
     public Builder setContextPropagators(List<ContextPropagator> contextPropagators) {
       this.contextPropagators = contextPropagators;
@@ -127,7 +120,6 @@ public final class SingleWorkerOptions {
           identity,
           dataConverter,
           taskExecutorThreadPoolSize,
-          taskListActivitiesPerSecond,
           pollerOptions,
           metricsScope,
           enableLoggingInReplay,
@@ -138,7 +130,6 @@ public final class SingleWorkerOptions {
   private final String identity;
   private final DataConverter dataConverter;
   private final int taskExecutorThreadPoolSize;
-  private final double taskListActivitiesPerSecond;
   private final PollerOptions pollerOptions;
   private final Scope metricsScope;
   private final boolean enableLoggingInReplay;
@@ -148,7 +139,6 @@ public final class SingleWorkerOptions {
       String identity,
       DataConverter dataConverter,
       int taskExecutorThreadPoolSize,
-      double taskListActivitiesPerSecond,
       PollerOptions pollerOptions,
       Scope metricsScope,
       boolean enableLoggingInReplay,
@@ -156,7 +146,6 @@ public final class SingleWorkerOptions {
     this.identity = identity;
     this.dataConverter = dataConverter;
     this.taskExecutorThreadPoolSize = taskExecutorThreadPoolSize;
-    this.taskListActivitiesPerSecond = taskListActivitiesPerSecond;
     this.pollerOptions = pollerOptions;
     this.metricsScope = metricsScope;
     this.enableLoggingInReplay = enableLoggingInReplay;
@@ -177,10 +166,6 @@ public final class SingleWorkerOptions {
 
   PollerOptions getPollerOptions() {
     return pollerOptions;
-  }
-
-  double getTaskListActivitiesPerSecond() {
-    return taskListActivitiesPerSecond;
   }
 
   public Scope getMetricsScope() {

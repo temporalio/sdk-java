@@ -20,9 +20,11 @@
 package io.temporal.internal.replay;
 
 import io.temporal.common.converter.DataConverter;
-import io.temporal.internal.common.OptionsUtils;
+import io.temporal.common.converter.PayloadConverter;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.proto.common.Header;
+import io.temporal.proto.common.Payload;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.event.EventType;
 import io.temporal.proto.event.HistoryEvent;
 import io.temporal.proto.event.MarkerRecordedEventAttributes;
@@ -37,7 +39,7 @@ class MarkerHandler {
 
   private static final class MarkerResult {
 
-    private final byte[] data;
+    private final Optional<Payloads> data;
 
     /**
      * Count of how many times handle was called since the last marker recorded. It is used to
@@ -46,11 +48,11 @@ class MarkerHandler {
      */
     private int accessCount;
 
-    private MarkerResult(byte[] data) {
+    private MarkerResult(Optional<Payloads> data) {
       this.data = data;
     }
 
-    public byte[] getData() {
+    public Optional<Payloads> getData() {
       accessCount++;
       return data;
     }
@@ -67,23 +69,27 @@ class MarkerHandler {
 
     int getAccessCount();
 
-    byte[] getData();
+    Optional<Payloads> getData();
 
     static MarkerInterface fromEventAttributes(
         MarkerRecordedEventAttributes attributes, DataConverter converter) {
+      Optional<Payloads> details =
+          attributes.hasDetails() ? Optional.of(attributes.getDetails()) : Optional.empty();
       if (attributes.hasHeader()) {
         Header markerHeader = attributes.getHeader();
         if (markerHeader.containsFields(MUTABLE_MARKER_HEADER_KEY)) {
           MarkerData.MarkerHeader header =
-              converter.fromData(
-                  markerHeader.getFieldsOrThrow(MUTABLE_MARKER_HEADER_KEY).toByteArray(),
-                  MarkerData.MarkerHeader.class,
-                  MarkerData.MarkerHeader.class);
-          return new MarkerData(header, attributes.getDetails().toByteArray());
+              converter
+                  .getPayloadConverter()
+                  .fromData(
+                      markerHeader.getFieldsOrThrow(MUTABLE_MARKER_HEADER_KEY),
+                      MarkerData.MarkerHeader.class,
+                      MarkerData.MarkerHeader.class);
+
+          return new MarkerData(header, details);
         }
       }
-      return converter.fromData(
-          attributes.getDetails().toByteArray(), PlainMarkerData.class, PlainMarkerData.class);
+      return converter.fromData(details, PlainMarkerData.class, PlainMarkerData.class);
     }
   }
 
@@ -102,14 +108,14 @@ class MarkerHandler {
     }
 
     private final MarkerHeader header;
-    private final byte[] data;
+    private final Optional<Payloads> data;
 
-    MarkerData(String id, long eventId, byte[] data, int accessCount) {
+    MarkerData(String id, long eventId, Optional<Payloads> data, int accessCount) {
       this.header = new MarkerHeader(id, eventId, accessCount);
       this.data = data;
     }
 
-    MarkerData(MarkerHeader header, byte[] data) {
+    MarkerData(MarkerHeader header, Optional<Payloads> data) {
       this.header = header;
       this.data = data;
     }
@@ -125,7 +131,7 @@ class MarkerHandler {
     }
 
     @Override
-    public byte[] getData() {
+    public Optional<Payloads> getData() {
       return data;
     }
 
@@ -134,11 +140,9 @@ class MarkerHandler {
       return header.accessCount;
     }
 
-    Header getHeader(DataConverter converter) {
-      byte[] headerData = converter.toData(header);
-      return Header.newBuilder()
-          .putFields(MUTABLE_MARKER_HEADER_KEY, OptionsUtils.toByteString(headerData))
-          .build();
+    Header getHeader(PayloadConverter converter) {
+      Optional<Payload> headerData = converter.toData(header);
+      return Header.newBuilder().putFields(MUTABLE_MARKER_HEADER_KEY, headerData.get()).build();
     }
   }
 
@@ -146,10 +150,10 @@ class MarkerHandler {
 
     private final String id;
     private final long eventId;
-    private final byte[] data;
+    private final Optional<Payloads> data;
     private final int accessCount;
 
-    PlainMarkerData(String id, long eventId, byte[] data, int accessCount) {
+    PlainMarkerData(String id, long eventId, Optional<Payloads> data, int accessCount) {
       this.id = id;
       this.eventId = eventId;
       this.data = data;
@@ -167,7 +171,7 @@ class MarkerHandler {
     }
 
     @Override
-    public byte[] getData() {
+    public Optional<Payloads> getData() {
       return data;
     }
 
@@ -196,23 +200,23 @@ class MarkerHandler {
    *     nothing is recorded into the history.
    * @return the latest value returned by func
    */
-  Optional<byte[]> handle(
-      String id, DataConverter converter, Func1<Optional<byte[]>, Optional<byte[]>> func) {
+  Optional<Payloads> handle(
+      String id, DataConverter converter, Func1<Optional<Payloads>, Optional<Payloads>> func) {
     MarkerResult result = mutableMarkerResults.get(id);
-    Optional<byte[]> stored;
+    Optional<Payloads> stored;
     if (result == null) {
       stored = Optional.empty();
     } else {
-      stored = Optional.of(result.getData());
+      stored = result.getData();
     }
     long eventId = decisions.getNextDecisionEventId();
     int accessCount = result == null ? 0 : result.getAccessCount();
 
     if (replayContext.isReplaying()) {
-      Optional<byte[]> data = getMarkerDataFromHistory(eventId, id, accessCount, converter);
+      Optional<Payloads> data = getMarkerDataFromHistory(eventId, id, accessCount, converter);
       if (data.isPresent()) {
         // Need to insert marker to ensure that eventId is incremented
-        recordMutableMarker(id, eventId, data.get(), accessCount, converter);
+        recordMutableMarker(id, eventId, data, accessCount, converter);
         return data;
       }
 
@@ -224,16 +228,15 @@ class MarkerHandler {
 
       return stored;
     }
-    Optional<byte[]> toStore = func.apply(stored);
+    Optional<Payloads> toStore = func.apply(stored);
     if (toStore.isPresent()) {
-      byte[] data = toStore.get();
-      recordMutableMarker(id, eventId, data, accessCount, converter);
+      recordMutableMarker(id, eventId, toStore, accessCount, converter);
       return toStore;
     }
     return stored;
   }
 
-  private Optional<byte[]> getMarkerDataFromHistory(
+  private Optional<Payloads> getMarkerDataFromHistory(
       long eventId, String markerId, int expectedAcccessCount, DataConverter converter) {
     Optional<HistoryEvent> event = decisions.getOptionalDecisionEvent(eventId);
     if (!event.isPresent() || event.get().getEventType() != EventType.MarkerRecorded) {
@@ -252,13 +255,13 @@ class MarkerHandler {
         || markerData.getAccessCount() > expectedAcccessCount) {
       return Optional.empty();
     }
-    return Optional.of(markerData.getData());
+    return markerData.getData();
   }
 
   private void recordMutableMarker(
-      String id, long eventId, byte[] data, int accessCount, DataConverter converter) {
+      String id, long eventId, Optional<Payloads> data, int accessCount, DataConverter converter) {
     MarkerData marker = new MarkerData(id, eventId, data, accessCount);
     mutableMarkerResults.put(id, new MarkerResult(data));
-    decisions.recordMarker(markerName, marker.getHeader(converter), data);
+    decisions.recordMarker(markerName, marker.getHeader(converter.getPayloadConverter()), data);
   }
 }

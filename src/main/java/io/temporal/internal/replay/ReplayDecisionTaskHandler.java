@@ -20,19 +20,19 @@
 package io.temporal.internal.replay;
 
 import static io.temporal.internal.common.InternalUtils.createStickyTaskList;
+import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
 import com.google.common.base.Throwables;
-import com.google.protobuf.ByteString;
-import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.DecisionTaskHandler;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
+import io.temporal.proto.common.Payloads;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.decision.StickyExecutionAttributes;
 import io.temporal.proto.event.HistoryEvent;
-import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.query.QueryResultType;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
@@ -42,12 +42,13 @@ import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
 import io.temporal.proto.workflowservice.RespondQueryTaskCompletedRequest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.workflow.Functions;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 import org.slf4j.Logger;
@@ -62,6 +63,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
   private final DeciderCache cache;
   private final SingleWorkerOptions options;
   private final Duration stickyTaskListScheduleToStartTimeout;
+  private final Functions.Func<Boolean> shutdownFn;
   private WorkflowServiceStubs service;
   private String stickyTaskListName;
   private final BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller;
@@ -74,6 +76,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
       String stickyTaskListName,
       Duration stickyTaskListScheduleToStartTimeout,
       WorkflowServiceStubs service,
+      Functions.Func<Boolean> shutdownFn,
       BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller) {
     this.namespace = namespace;
     this.workflowFactory = asyncWorkflowFactory;
@@ -81,6 +84,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     this.options = options;
     this.stickyTaskListName = stickyTaskListName;
     this.stickyTaskListScheduleToStartTimeout = stickyTaskListScheduleToStartTimeout;
+    this.shutdownFn = shutdownFn;
     this.service = Objects.requireNonNull(service);
     this.laTaskPoller = laTaskPoller;
   }
@@ -100,7 +104,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
         }
         throw (Exception) e;
       }
-      if (log.isErrorEnabled()) {
+      if (log.isErrorEnabled() && !shutdownFn.apply()) {
         WorkflowExecution execution = decisionTask.getWorkflowExecution();
         log.error(
             "Workflow task failure. startedEventId="
@@ -116,9 +120,9 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
       RespondDecisionTaskFailedRequest failedRequest =
           RespondDecisionTaskFailedRequest.newBuilder()
               .setTaskToken(decisionTask.getTaskToken())
-              .setDetails(ByteString.copyFrom(stackTrace, StandardCharsets.UTF_8))
+              .setDetails(options.getDataConverter().toData(stackTrace).get())
               .build();
-      return new DecisionTaskHandler.Result(null, failedRequest, null, null);
+      return new DecisionTaskHandler.Result(null, failedRequest, null, null, false);
     }
   }
 
@@ -152,7 +156,9 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
 
       Decider.DecisionResult result = decider.decide(decisionTask);
 
-      if (stickyTaskListName != null && createdNew.get()) {
+      if (result.isFinalDecision()) {
+        cache.invalidate(decisionTask.getWorkflowExecution().getRunId());
+      } else if (stickyTaskListName != null && createdNew.get()) {
         cache.addToCache(decisionTask, decider);
       }
 
@@ -224,11 +230,13 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
                 });
       }
 
-      byte[] queryResult = decider.query(decisionTask, decisionTask.getQuery());
+      Optional<Payloads> queryResult = decider.query(decisionTask, decisionTask.getQuery());
       if (stickyTaskListName != null && createdNew.get()) {
         cache.addToCache(decisionTask, decider);
       }
-      queryCompletedRequest.setQueryResult(OptionsUtils.toByteString(queryResult));
+      if (queryResult.isPresent()) {
+        queryCompletedRequest.setQueryResult(queryResult.get());
+      }
       queryCompletedRequest.setCompletedType(QueryResultType.Answered);
     } catch (Throwable e) {
       // TODO: Appropriate exception serialization.
@@ -244,7 +252,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
         cache.markProcessingDone(decisionTask);
       }
     }
-    return new Result(null, null, queryCompletedRequest.build(), null);
+    return new Result(null, null, queryCompletedRequest.build(), null, false);
   }
 
   private Result createCompletedRequest(
@@ -256,15 +264,15 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
             .putAllQueryResults(result.getQueryResults())
             .setForceCreateNewDecisionTask(result.getForceCreateNewDecisionTask());
 
-    if (stickyTaskListName != null) {
+    if (stickyTaskListName != null && !stickyTaskListScheduleToStartTimeout.isZero()) {
       StickyExecutionAttributes.Builder attributes =
           StickyExecutionAttributes.newBuilder()
               .setWorkerTaskList(createStickyTaskList(stickyTaskListName))
               .setScheduleToStartTimeoutSeconds(
-                  (int) stickyTaskListScheduleToStartTimeout.getSeconds());
+                  roundUpToSeconds(stickyTaskListScheduleToStartTimeout));
       completedRequest.setStickyAttributes(attributes);
     }
-    return new Result(completedRequest.build(), null, null, null);
+    return new Result(completedRequest.build(), null, null, null, result.isFinalDecision());
   }
 
   @Override

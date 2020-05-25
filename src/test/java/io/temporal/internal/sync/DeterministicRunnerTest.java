@@ -36,6 +36,7 @@ import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.replay.Decider;
 import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.DecisionContext;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.query.WorkflowQuery;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
@@ -53,6 +54,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
@@ -170,9 +172,9 @@ public class DeterministicRunnerTest {
         RetryOptions.newBuilder()
             .setInitialInterval(Duration.ofSeconds(10))
             .setMaximumInterval(Duration.ofSeconds(100))
-            .setExpiration(Duration.ofMinutes(5))
             .setBackoffCoefficient(2.0)
             .build();
+    Duration expiration = Duration.ofMinutes(5);
     DeterministicRunnerImpl d =
         new DeterministicRunnerImpl(
             threadPool,
@@ -182,6 +184,7 @@ public class DeterministicRunnerTest {
               trace.add("started");
               Workflow.retry(
                   retryOptions,
+                  Optional.of(expiration),
                   () -> {
                     trace.add("retry at " + Workflow.currentTimeMillis());
                     throw new IllegalThreadStateException("simulated");
@@ -202,7 +205,7 @@ public class DeterministicRunnerTest {
     int attempt = 1;
     long time = 0;
     trace.addExpected("started");
-    while (time < retryOptions.getExpiration().toMillis()) {
+    while (time < expiration.toMillis()) {
       trace.addExpected("retry at " + time);
       long sleepMillis =
           (long)
@@ -853,15 +856,14 @@ public class DeterministicRunnerTest {
     }
 
     @Override
-    public DecisionResult decide(PollForDecisionTaskResponseOrBuilder decisionTask)
-        throws Throwable {
-      return new DecisionResult(new ArrayList<>(), Maps.newHashMap(), false);
+    public DecisionResult decide(PollForDecisionTaskResponseOrBuilder decisionTask) {
+      return new DecisionResult(new ArrayList<>(), Maps.newHashMap(), false, false);
     }
 
     @Override
-    public byte[] query(PollForDecisionTaskResponseOrBuilder decisionTask, WorkflowQuery query)
-        throws Throwable {
-      return new byte[0];
+    public Optional<Payloads> query(
+        PollForDecisionTaskResponseOrBuilder decisionTask, WorkflowQuery query) throws Throwable {
+      return Optional.empty();
     }
 
     @Override

@@ -19,18 +19,20 @@
 
 package io.temporal.internal.replay;
 
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.decision.Decision;
 import io.temporal.proto.query.WorkflowQuery;
 import io.temporal.proto.query.WorkflowQueryResult;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public interface Decider {
 
   DecisionResult decide(PollForDecisionTaskResponseOrBuilder decisionTask) throws Throwable;
 
-  byte[] query(PollForDecisionTaskResponseOrBuilder decisionTask, WorkflowQuery query)
+  Optional<Payloads> query(PollForDecisionTaskResponseOrBuilder decisionTask, WorkflowQuery query)
       throws Throwable;
 
   void close();
@@ -38,15 +40,18 @@ public interface Decider {
   class DecisionResult {
     private final List<Decision> decisions;
     private final boolean forceCreateNewDecisionTask;
+    private final boolean finalDecision;
     private final Map<String, WorkflowQueryResult> queryResults;
 
     public DecisionResult(
         List<Decision> decisions,
         Map<String, WorkflowQueryResult> queryResults,
-        boolean forceCreateNewDecisionTask) {
+        boolean forceCreateNewDecisionTask,
+        boolean finalDecision) {
       this.decisions = decisions;
       this.queryResults = queryResults;
       this.forceCreateNewDecisionTask = forceCreateNewDecisionTask;
+      this.finalDecision = finalDecision;
     }
 
     public List<Decision> getDecisions() {
@@ -59,6 +64,11 @@ public interface Decider {
 
     public Map<String, WorkflowQueryResult> getQueryResults() {
       return queryResults;
+    }
+
+    /** Is this result contain a workflow completion decision */
+    public boolean isFinalDecision() {
+      return finalDecision;
     }
   }
 }

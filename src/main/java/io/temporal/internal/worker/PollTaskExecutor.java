@@ -72,10 +72,12 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
           try {
             handler.handle(task);
           } catch (Throwable ee) {
-            options
-                .getPollerOptions()
-                .getUncaughtExceptionHandler()
-                .uncaughtException(Thread.currentThread(), handler.wrapFailure(task, ee));
+            if (!isShutdown()) {
+              options
+                  .getPollerOptions()
+                  .getUncaughtExceptionHandler()
+                  .uncaughtException(Thread.currentThread(), handler.wrapFailure(task, ee));
+            }
           } finally {
             MDC.remove(LoggerTag.NAMESPACE);
             MDC.remove(LoggerTag.TASK_LIST);

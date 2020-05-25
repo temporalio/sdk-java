@@ -36,14 +36,16 @@ import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.WorkflowExecutionException;
+import io.temporal.proto.common.Payloads;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.event.HistoryEvent;
-import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.query.WorkflowQuery;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.HistoryUtils;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import junit.framework.TestCase;
 import org.junit.Test;
@@ -278,7 +280,7 @@ public class ReplayDeciderCacheTests {
           public void start(HistoryEvent event, DecisionContext context) {}
 
           @Override
-          public void handleSignal(String signalName, byte[] input, long eventId) {}
+          public void handleSignal(String signalName, Optional<Payloads> input, long eventId) {}
 
           @Override
           public boolean eventLoop() throws Throwable {
@@ -286,8 +288,8 @@ public class ReplayDeciderCacheTests {
           }
 
           @Override
-          public byte[] getOutput() {
-            return new byte[0];
+          public Optional<Payloads> getOutput() {
+            return Optional.empty();
           }
 
           @Override
@@ -302,8 +304,8 @@ public class ReplayDeciderCacheTests {
           }
 
           @Override
-          public byte[] query(WorkflowQuery query) {
-            return new byte[0];
+          public Optional<Payloads> query(WorkflowQuery query) {
+            return Optional.empty();
           }
 
           @Override

@@ -25,6 +25,7 @@ import io.temporal.internal.common.LocalActivityMarkerData;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.proto.common.ActivityType;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.decision.StartTimerDecisionAttributes;
 import io.temporal.proto.event.HistoryEvent;
@@ -44,7 +45,6 @@ import java.util.concurrent.locks.Condition;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,11 +80,12 @@ public final class ClockDecisionContext {
   private long replayTimeUpdatedAtMillis = -1;
   private boolean replaying = true;
   // Key is side effect marker eventId
-  private final Map<Long, byte[]> sideEffectResults = new HashMap<>();
+  private final Map<Long, Optional<Payloads>> sideEffectResults = new HashMap<>();
   private final MarkerHandler mutableSideEffectHandler;
   private final MarkerHandler versionHandler;
   private final BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller;
-  private final Map<String, OpenRequestInfo<byte[], ActivityType>> pendingLaTasks = new HashMap<>();
+  private final Map<String, OpenRequestInfo<Optional<Payloads>, ActivityType>> pendingLaTasks =
+      new HashMap<>();
   private final Map<String, ExecuteLocalActivityParameters> unstartedLaTasks = new HashMap<>();
   private final ReplayDecider replayDecider;
   private final DataConverter dataConverter;
@@ -186,10 +187,10 @@ public final class ClockDecisionContext {
     context.accept(null, exception);
   }
 
-  byte[] sideEffect(Func<byte[]> func) {
-    decisions.addAllMissingVersionMarker(false, Optional.empty());
+  Optional<Payloads> sideEffect(Func<Optional<Payloads>> func) {
+    decisions.addAllMissingVersionMarker();
     long sideEffectEventId = decisions.getNextDecisionEventId();
-    byte[] result;
+    Optional<Payloads> result;
     if (replaying) {
       result = sideEffectResults.get(sideEffectEventId);
       if (result == null) {
@@ -214,9 +215,9 @@ public final class ClockDecisionContext {
    *     nothing is recorded into the history.
    * @return the latest value returned by func
    */
-  Optional<byte[]> mutableSideEffect(
-      String id, DataConverter converter, Func1<Optional<byte[]>, Optional<byte[]>> func) {
-    decisions.addAllMissingVersionMarker(false, Optional.empty());
+  Optional<Payloads> mutableSideEffect(
+      String id, DataConverter converter, Func1<Optional<Payloads>, Optional<Payloads>> func) {
+    decisions.addAllMissingVersionMarker();
     return mutableSideEffectHandler.handle(id, converter, func);
   }
 
@@ -228,7 +229,9 @@ public final class ClockDecisionContext {
     MarkerRecordedEventAttributes attributes = event.getMarkerRecordedEventAttributes();
     String name = attributes.getMarkerName();
     if (SIDE_EFFECT_MARKER_NAME.equals(name)) {
-      sideEffectResults.put(event.getEventId(), attributes.getDetails().toByteArray());
+      Optional<Payloads> details =
+          attributes.hasDetails() ? Optional.of(attributes.getDetails()) : Optional.empty();
+      sideEffectResults.put(event.getEventId(), details);
     } else if (LOCAL_ACTIVITY_MARKER_NAME.equals(name)) {
       handleLocalActivityMarker(attributes);
     } else if (!MUTABLE_SIDE_EFFECT_MARKER_NAME.equals(name) && !VERSION_MARKER_NAME.equals(name)) {
@@ -240,23 +243,26 @@ public final class ClockDecisionContext {
 
   private void handleLocalActivityMarker(MarkerRecordedEventAttributes attributes) {
     LocalActivityMarkerData marker =
-        LocalActivityMarkerData.fromEventAttributes(attributes, dataConverter);
+        LocalActivityMarkerData.fromEventAttributes(
+            attributes, dataConverter.getPayloadConverter());
     if (pendingLaTasks.containsKey(marker.getActivityId())) {
       log.debug("Handle LocalActivityMarker for activity " + marker.getActivityId());
 
+      Optional<Payloads> details =
+          attributes.hasDetails() ? Optional.of(attributes.getDetails()) : Optional.empty();
       decisions.recordMarker(
           LOCAL_ACTIVITY_MARKER_NAME,
-          marker.getHeader(dataConverter),
-          attributes.getDetails().toByteArray());
+          marker.getHeader(dataConverter.getPayloadConverter()),
+          details);
 
-      OpenRequestInfo<byte[], ActivityType> scheduled =
+      OpenRequestInfo<Optional<Payloads>, ActivityType> scheduled =
           pendingLaTasks.remove(marker.getActivityId());
       unstartedLaTasks.remove(marker.getActivityId());
 
       Exception failure = null;
       if (marker.getIsCancelled()) {
         failure = new CancellationException(marker.getErrReason());
-      } else if (marker.getErrJson() != null) {
+      } else if (marker.getErrJson().isPresent()) {
         Throwable cause =
             dataConverter.fromData(marker.getErrJson(), Throwable.class, Throwable.class);
         ActivityType activityType =
@@ -271,7 +277,8 @@ public final class ClockDecisionContext {
                 marker.getBackoff());
       }
 
-      BiConsumer<byte[], Exception> completionHandle = scheduled.getCompletionCallback();
+      BiConsumer<Optional<Payloads>, Exception> completionHandle =
+          scheduled.getCompletionCallback();
       completionHandle.accept(marker.getResult(), failure);
       setReplayCurrentTimeMilliseconds(marker.getReplayTimeMillis());
 
@@ -281,16 +288,26 @@ public final class ClockDecisionContext {
     }
   }
 
+  /**
+   * During replay getVersion should account for the following situations at the current eventId.
+   *
+   * <ul>
+   *   <li>There is correspondent Marker with the same changeId: return version from the marker.
+   *   <li>There is no Marker with the same changeId: return DEFAULT_VERSION,
+   *   <li>There is marker with a different changeId (possibly more than one) and the marker with
+   *       matching changeId follows them: add fake decisions for all the version markers that
+   *       precede the matching one as the correspondent getVersion calls were removed
+   *   <li>There is marker with a different changeId (possibly more than one) and no marker with
+   *       matching changeId follows them: return DEFAULT_VERSION as it looks like the getVersion
+   *       was added after that part of code has executed
+   *   <li>Another case is when there is no call to getVersion and there is a version marker: insert
+   *       fake decisions for all version markers up to the event that caused the lookup.
+   * </ul>
+   */
   int getVersion(String changeId, DataConverter converter, int minSupported, int maxSupported) {
-    Predicate<MarkerRecordedEventAttributes> changeIdEquals =
-        (attributes) -> {
-          MarkerHandler.MarkerInterface markerData =
-              MarkerHandler.MarkerInterface.fromEventAttributes(attributes, converter);
-          return markerData.getId().equals(changeId);
-        };
-    decisions.addAllMissingVersionMarker(true, Optional.of(changeIdEquals));
+    decisions.addAllMissingVersionMarker(Optional.of(changeId), Optional.of(converter));
 
-    Optional<byte[]> result =
+    Optional<Payloads> result =
         versionHandler.handle(
             changeId,
             converter,
@@ -298,13 +315,13 @@ public final class ClockDecisionContext {
               if (stored.isPresent()) {
                 return Optional.empty();
               }
-              return Optional.of(converter.toData(maxSupported));
+              return converter.toData(maxSupported);
             });
 
     if (!result.isPresent()) {
       return WorkflowInternal.DEFAULT_VERSION;
     }
-    int version = converter.fromData(result.get(), Integer.class, Integer.class);
+    int version = converter.fromData(result, Integer.class, Integer.class);
     validateVersion(changeId, version, minSupported, maxSupported);
     return version;
   }
@@ -320,8 +337,8 @@ public final class ClockDecisionContext {
   }
 
   Consumer<Exception> scheduleLocalActivityTask(
-      ExecuteLocalActivityParameters params, BiConsumer<byte[], Exception> callback) {
-    final OpenRequestInfo<byte[], ActivityType> context =
+      ExecuteLocalActivityParameters params, BiConsumer<Optional<Payloads>, Exception> callback) {
+    final OpenRequestInfo<Optional<Payloads>, ActivityType> context =
         new OpenRequestInfo<>(params.getActivityType());
     context.setCompletionHandle(callback);
     if (Strings.isNullOrEmpty(params.getActivityId())) {
@@ -342,7 +359,7 @@ public final class ClockDecisionContext {
               new LocalActivityWorker.Task(
                   params,
                   replayDecider.getLocalActivityCompletionSink(),
-                  replayDecider.getDecisionTimeoutSeconds(),
+                  replayDecider.getWorkflowTaskTimeoutSeconds(),
                   this::currentTimeMillis,
                   this::replayTimeUpdatedAtMillis),
               maxWaitAllowed);

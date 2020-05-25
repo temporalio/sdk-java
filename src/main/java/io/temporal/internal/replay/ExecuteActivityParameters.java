@@ -22,7 +22,8 @@ package io.temporal.internal.replay;
 import io.temporal.activity.ActivityCancellationType;
 import io.temporal.internal.common.RetryParameters;
 import io.temporal.proto.common.ActivityType;
-import java.util.Arrays;
+import io.temporal.proto.common.Payload;
+import io.temporal.proto.common.Payloads;
 import java.util.Map;
 
 public class ExecuteActivityParameters implements Cloneable {
@@ -31,13 +32,13 @@ public class ExecuteActivityParameters implements Cloneable {
   private ActivityType activityType;
   //    private String control;
   private long heartbeatTimeoutSeconds;
-  private byte[] input;
+  private Payloads input;
   private long scheduleToCloseTimeoutSeconds;
   private long scheduleToStartTimeoutSeconds;
   private long startToCloseTimeoutSeconds;
   private String taskList;
   private RetryParameters retryParameters;
-  private Map<String, byte[]> context;
+  private Map<String, Payload> context;
   private ActivityCancellationType cancellationType;
 
   //    private int taskPriority;
@@ -165,7 +166,7 @@ public class ExecuteActivityParameters implements Cloneable {
    *
    * @return The value of the Input property for this object.
    */
-  public byte[] getInput() {
+  public Payloads getInput() {
     return input;
   }
 
@@ -177,7 +178,7 @@ public class ExecuteActivityParameters implements Cloneable {
    *
    * @param input The new value for the Input property for this object.
    */
-  public void setInput(byte[] input) {
+  public void setInput(Payloads input) {
     this.input = input;
   }
 
@@ -192,7 +193,7 @@ public class ExecuteActivityParameters implements Cloneable {
    * @param input The new value for the Input property for this object.
    * @return A reference to this updated object so that method calls can be chained together.
    */
-  public ExecuteActivityParameters withInput(byte[] input) {
+  public ExecuteActivityParameters withInput(Payloads input) {
     this.input = input;
     return this;
   }
@@ -353,15 +354,15 @@ public class ExecuteActivityParameters implements Cloneable {
     return this;
   }
 
-  public Map<String, byte[]> getContext() {
+  public Map<String, Payload> getContext() {
     return context;
   }
 
-  public void setContext(Map<String, byte[]> context) {
+  public void setContext(Map<String, Payload> context) {
     this.context = context;
   }
 
-  public ExecuteActivityParameters withContext(Map<String, byte[]> context) {
+  public ExecuteActivityParameters withContext(Map<String, Payload> context) {
     this.context = context;
     return this;
   }
@@ -391,7 +392,7 @@ public class ExecuteActivityParameters implements Cloneable {
         + ", heartbeatTimeoutSeconds="
         + heartbeatTimeoutSeconds
         + ", input="
-        + Arrays.toString(input)
+        + input
         + ", scheduleToCloseTimeoutSeconds="
         + scheduleToCloseTimeoutSeconds
         + ", scheduleToStartTimeoutSeconds="

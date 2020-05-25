@@ -23,6 +23,7 @@ import static io.temporal.internal.common.CheckedExceptionWrapper.unwrap;
 
 import io.temporal.common.RetryOptions;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.BiFunction;
@@ -69,10 +70,11 @@ public final class Retryer {
 
   private static final Logger log = LoggerFactory.getLogger(Retryer.class);
 
-  public static <T extends Throwable> void retry(RetryOptions options, RetryableProc<T> r)
-      throws T {
+  public static <T extends Throwable> void retry(
+      RetryOptions options, Optional<Duration> expiration, RetryableProc<T> r) throws T {
     retryWithResult(
         options,
+        expiration,
         () -> {
           r.apply();
           return null;
@@ -80,7 +82,7 @@ public final class Retryer {
   }
 
   public static <R, T extends Throwable> R retryWithResult(
-      RetryOptions options, RetryableFunc<R, T> r) throws T {
+      RetryOptions options, Optional<Duration> expiration, RetryableFunc<R, T> r) throws T {
     int attempt = 0;
     long startTime = System.currentTimeMillis();
     BackoffThrottler throttler =
@@ -109,9 +111,8 @@ public final class Retryer {
         }
         long elapsed = System.currentTimeMillis() - startTime;
         int maxAttempts = options.getMaximumAttempts();
-        Duration expiration = options.getExpiration();
         if ((maxAttempts > 0 && attempt >= maxAttempts)
-            || (expiration != null && elapsed >= expiration.toMillis())) {
+            || (expiration.isPresent() && elapsed >= expiration.get().toMillis())) {
           rethrow(e);
         }
         log.warn("Retrying after failure", e);
@@ -120,7 +121,9 @@ public final class Retryer {
   }
 
   public static <R> CompletableFuture<R> retryWithResultAsync(
-      RetryOptions options, Supplier<CompletableFuture<R>> function) {
+      RetryOptions options,
+      Optional<Duration> expiration,
+      Supplier<CompletableFuture<R>> function) {
     int attempt = 0;
     long startTime = System.currentTimeMillis();
     AsyncBackoffThrottler throttler =
@@ -131,7 +134,7 @@ public final class Retryer {
     // Need this to unwrap checked exception.
     CompletableFuture<R> unwrappedExceptionResult = new CompletableFuture<>();
     CompletableFuture<R> result =
-        retryWithResultAsync(options, function, attempt + 1, startTime, throttler);
+        retryWithResultAsync(options, expiration, function, attempt + 1, startTime, throttler);
     @SuppressWarnings({"FutureReturnValueIgnored", "unused"})
     CompletableFuture<Void> ignored =
         result.handle(
@@ -148,11 +151,11 @@ public final class Retryer {
 
   private static <R> CompletableFuture<R> retryWithResultAsync(
       RetryOptions options,
+      Optional<Duration> expiration,
       Supplier<CompletableFuture<R>> function,
       int attempt,
       long startTime,
       AsyncBackoffThrottler throttler) {
-    options.validate();
     return throttler
         .throttle()
         .thenCompose(
@@ -178,7 +181,17 @@ public final class Retryer {
                 throw CheckedExceptionWrapper.wrap(e);
               }
             })
-        .handle((r, e) -> failOrRetry(options, function, attempt, startTime, throttler, r, e))
+        .handle(
+            (r, e) ->
+                failOrRetry(
+                    options.toBuilder().validateBuildWithDefaults(),
+                    expiration,
+                    function,
+                    attempt,
+                    startTime,
+                    throttler,
+                    r,
+                    e))
         .thenCompose(
             (pair) -> {
               if (pair.getException() != null) {
@@ -191,6 +204,7 @@ public final class Retryer {
   /** Using {@link ValueExceptionPair} as future#thenCompose doesn't include exception parameter. */
   private static <R> ValueExceptionPair<R> failOrRetry(
       RetryOptions options,
+      Optional<Duration> expiration,
       Supplier<CompletableFuture<R>> function,
       int attempt,
       long startTime,
@@ -218,12 +232,12 @@ public final class Retryer {
     }
     int maxAttempts = options.getMaximumAttempts();
     if ((maxAttempts > 0 && attempt >= maxAttempts)
-        || (options.getExpiration() != null && elapsed >= options.getExpiration().toMillis())) {
+        || (expiration.isPresent() && elapsed >= expiration.get().toMillis())) {
       return new ValueExceptionPair<>(null, e);
     }
     log.debug("Retrying after failure", e);
     CompletableFuture<R> next =
-        retryWithResultAsync(options, function, attempt + 1, startTime, throttler);
+        retryWithResultAsync(options, expiration, function, attempt + 1, startTime, throttler);
     return new ValueExceptionPair<>(next, null);
   }
 

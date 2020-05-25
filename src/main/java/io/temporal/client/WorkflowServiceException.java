@@ -20,7 +20,7 @@
 package io.temporal.client;
 
 import io.temporal.internal.common.CheckedExceptionWrapper;
-import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecution;
 import java.util.Optional;
 
 public final class WorkflowServiceException extends WorkflowException {

@@ -19,8 +19,6 @@
 
 package io.temporal.activity;
 
-import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
-
 import com.google.common.base.Objects;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
@@ -160,7 +158,7 @@ public final class ActivityOptions {
     /**
      * Properties that are set on this builder take precedence over ones found in the annotation.
      */
-    public Builder setMethodRetry(MethodRetry r) {
+    public Builder mergeMethodRetry(MethodRetry r) {
       retryOptions = RetryOptions.merge(r, retryOptions);
       return this;
     }
@@ -184,34 +182,13 @@ public final class ActivityOptions {
             "Either ScheduleToClose or both ScheduleToStart and StartToClose "
                 + "timeouts are required: ");
       }
-      Duration scheduleToClose = scheduleToCloseTimeout;
-      if (scheduleToClose == null) {
-        scheduleToClose = scheduleToStartTimeout.plus(startToCloseTimeout);
-      }
-      Duration startToClose = startToCloseTimeout;
-      if (startToClose == null) {
-        startToClose = scheduleToCloseTimeout;
-      }
-      Duration scheduleToStart = scheduleToStartTimeout;
-      if (scheduleToStartTimeout == null) {
-        scheduleToStart = scheduleToClose;
-      }
-      // Temporal still requires it.
-      Duration heartbeat = heartbeatTimeout;
-      if (heartbeatTimeout == null) {
-        heartbeat = scheduleToClose;
-      }
-      RetryOptions ro = null;
-      if (retryOptions != null) {
-        ro = RetryOptions.newBuilder(retryOptions).validateBuildWithDefaults();
-      }
       return new ActivityOptions(
-          roundUpToSeconds(heartbeat),
-          roundUpToSeconds(scheduleToClose),
-          roundUpToSeconds(scheduleToStart),
-          roundUpToSeconds(startToClose),
+          heartbeatTimeout,
+          scheduleToCloseTimeout,
+          scheduleToStartTimeout,
+          startToCloseTimeout,
           taskList,
-          ro,
+          RetryOptions.newBuilder(retryOptions).validateBuildWithDefaults(),
           contextPropagators,
           cancellationType);
     }
@@ -295,6 +272,10 @@ public final class ActivityOptions {
 
   public ActivityCancellationType getCancellationType() {
     return cancellationType;
+  }
+
+  public Builder toBuilder() {
+    return new Builder(this);
   }
 
   @Override

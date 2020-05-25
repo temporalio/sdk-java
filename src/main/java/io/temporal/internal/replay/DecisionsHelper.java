@@ -19,11 +19,12 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.internal.common.OptionsUtils;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.replay.HistoryHelper.DecisionEvents;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.proto.common.Header;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.decision.CancelWorkflowExecutionDecisionAttributes;
@@ -41,7 +42,6 @@ import io.temporal.proto.decision.StartTimerDecisionAttributes;
 import io.temporal.proto.decision.UpsertWorkflowSearchAttributesDecisionAttributes;
 import io.temporal.proto.event.ActivityTaskCancelRequestedEventAttributes;
 import io.temporal.proto.event.ActivityTaskCanceledEventAttributes;
-import io.temporal.proto.event.ActivityTaskScheduledEventAttributes;
 import io.temporal.proto.event.ActivityTaskStartedEventAttributes;
 import io.temporal.proto.event.ChildWorkflowExecutionCanceledEventAttributes;
 import io.temporal.proto.event.ChildWorkflowExecutionCompletedEventAttributes;
@@ -52,11 +52,8 @@ import io.temporal.proto.event.ChildWorkflowExecutionTimedOutEventAttributes;
 import io.temporal.proto.event.EventType;
 import io.temporal.proto.event.ExternalWorkflowExecutionCancelRequestedEventAttributes;
 import io.temporal.proto.event.HistoryEvent;
-import io.temporal.proto.event.MarkerRecordedEventAttributes;
-import io.temporal.proto.event.RequestCancelActivityTaskFailedEventAttributes;
 import io.temporal.proto.event.RequestCancelExternalWorkflowExecutionFailedEventAttributes;
 import io.temporal.proto.event.StartChildWorkflowExecutionFailedEventAttributes;
-import io.temporal.proto.event.StartChildWorkflowExecutionInitiatedEventAttributes;
 import io.temporal.proto.event.TimerCanceledEventAttributes;
 import io.temporal.proto.event.TimerFiredEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionStartedEventAttributes;
@@ -70,7 +67,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Predicate;
 
 class DecisionsHelper {
 
@@ -97,6 +93,8 @@ class DecisionsHelper {
    */
   private long nextDecisionEventId;
 
+  private long lastStartedEventId;
+
   private long idCounter;
 
   private DecisionEvents decisionEvents;
@@ -116,13 +114,18 @@ class DecisionsHelper {
     return nextDecisionEventId;
   }
 
+  public long getLastStartedEventId() {
+    return lastStartedEventId;
+  }
+
   long scheduleActivityTask(ScheduleActivityTaskDecisionAttributes schedule) {
-    addAllMissingVersionMarker(false, Optional.empty());
+    addAllMissingVersionMarker();
 
     long nextDecisionEventId = getNextDecisionEventId();
     DecisionId decisionId = new DecisionId(DecisionTarget.ACTIVITY, nextDecisionEventId);
     activityIdToScheduledEventId.put(schedule.getActivityId(), nextDecisionEventId);
-    addDecision(decisionId, new ActivityDecisionStateMachine(decisionId, schedule));
+    addDecision(
+        decisionId, new ActivityDecisionStateMachine(decisionId, schedule, nextDecisionEventId));
     return nextDecisionEventId;
   }
 
@@ -162,8 +165,7 @@ class DecisionsHelper {
   boolean handleActivityTaskCancelRequested(HistoryEvent event) {
     ActivityTaskCancelRequestedEventAttributes attributes =
         event.getActivityTaskCancelRequestedEventAttributes();
-    String activityId = attributes.getActivityId();
-    long scheduledEventId = getActivityScheduledEventId(activityId);
+    long scheduledEventId = attributes.getScheduledEventId();
     DecisionStateMachine decision =
         getDecision(new DecisionId(DecisionTarget.ACTIVITY, scheduledEventId));
     decision.handleCancellationInitiatedEvent();
@@ -186,65 +188,13 @@ class DecisionsHelper {
     return decision.isDone();
   }
 
-  boolean handleRequestCancelActivityTaskFailed(HistoryEvent event) {
-    RequestCancelActivityTaskFailedEventAttributes attributes =
-        event.getRequestCancelActivityTaskFailedEventAttributes();
-    String activityId = attributes.getActivityId();
-    long scheduledEventId = getActivityScheduledEventId(activityId);
-    DecisionStateMachine decision =
-        getDecision(new DecisionId(DecisionTarget.ACTIVITY, scheduledEventId));
-    decision.handleCancellationFailureEvent(event);
-    return decision.isDone();
-  }
-
   long startChildWorkflowExecution(StartChildWorkflowExecutionDecisionAttributes childWorkflow) {
-    addAllMissingVersionMarker(false, Optional.empty());
+    addAllMissingVersionMarker();
 
     long nextDecisionEventId = getNextDecisionEventId();
     DecisionId decisionId = new DecisionId(DecisionTarget.CHILD_WORKFLOW, nextDecisionEventId);
     addDecision(decisionId, new ChildWorkflowDecisionStateMachine(decisionId, childWorkflow));
     return nextDecisionEventId;
-  }
-
-  /**
-   * @return true if it is not replay or retryOptions are present in the
-   *     StartChildWorkflowExecutionInitiated event.
-   */
-  boolean isChildWorkflowExecutionInitiatedWithRetryOptions() {
-    Optional<HistoryEvent> optionalEvent = getOptionalDecisionEvent(nextDecisionEventId);
-    if (!optionalEvent.isPresent()) {
-      return true;
-    }
-    HistoryEvent event = optionalEvent.get();
-    if (event.getEventType() != EventType.StartChildWorkflowExecutionInitiated) {
-      return false;
-    }
-    if (!event.hasStartChildWorkflowExecutionInitiatedEventAttributes()) {
-      throw new Error("Corrupted event: " + event);
-    }
-    StartChildWorkflowExecutionInitiatedEventAttributes attr =
-        event.getStartChildWorkflowExecutionInitiatedEventAttributes();
-    return attr.hasRetryPolicy();
-  }
-
-  /**
-   * @return true if it is not replay or retryOptions are present in the ActivityTaskScheduled
-   *     event. false is only for the legacy code that used client side retry.
-   */
-  boolean isActivityScheduledWithRetryOptions() {
-    Optional<HistoryEvent> optionalEvent = getOptionalDecisionEvent(nextDecisionEventId);
-    if (!optionalEvent.isPresent()) {
-      return true;
-    }
-    HistoryEvent event = optionalEvent.get();
-    if (event.getEventType() != EventType.ActivityTaskScheduled) {
-      return false;
-    }
-    if (!event.hasActivityTaskScheduledEventAttributes()) {
-      throw new Error("Corrupted event: " + event);
-    }
-    ActivityTaskScheduledEventAttributes attr = event.getActivityTaskScheduledEventAttributes();
-    return attr.hasRetryPolicy();
   }
 
   void handleStartChildWorkflowExecutionInitiated(HistoryEvent event) {
@@ -269,7 +219,7 @@ class DecisionsHelper {
    */
   long requestCancelExternalWorkflowExecution(
       RequestCancelExternalWorkflowExecutionDecisionAttributes schedule) {
-    addAllMissingVersionMarker(false, Optional.empty());
+    addAllMissingVersionMarker();
 
     long nextDecisionEventId = getNextDecisionEventId();
     DecisionId decisionId =
@@ -306,7 +256,7 @@ class DecisionsHelper {
   }
 
   long signalExternalWorkflowExecution(SignalExternalWorkflowExecutionDecisionAttributes signal) {
-    addAllMissingVersionMarker(false, Optional.empty());
+    addAllMissingVersionMarker();
 
     long nextDecisionEventId = getNextDecisionEventId();
     DecisionId decisionId =
@@ -339,7 +289,7 @@ class DecisionsHelper {
   }
 
   long startTimer(StartTimerDecisionAttributes request) {
-    addAllMissingVersionMarker(false, Optional.empty());
+    addAllMissingVersionMarker();
 
     long startEventId = getNextDecisionEventId();
     DecisionId decisionId = new DecisionId(DecisionTarget.TIMER, startEventId);
@@ -460,14 +410,17 @@ class DecisionsHelper {
     decisions.clear();
   }
 
-  void completeWorkflowExecution(byte[] output) {
-    addAllMissingVersionMarker(false, Optional.empty());
+  void completeWorkflowExecution(Optional<Payloads> output) {
+    addAllMissingVersionMarker();
 
+    CompleteWorkflowExecutionDecisionAttributes.Builder attributes =
+        CompleteWorkflowExecutionDecisionAttributes.newBuilder();
+    if (output.isPresent()) {
+      attributes.setResult(output.get());
+    }
     Decision decision =
         Decision.newBuilder()
-            .setCompleteWorkflowExecutionDecisionAttributes(
-                CompleteWorkflowExecutionDecisionAttributes.newBuilder()
-                    .setResult(OptionsUtils.toByteString(output)))
+            .setCompleteWorkflowExecutionDecisionAttributes(attributes)
             .setDecisionType(DecisionType.CompleteWorkflowExecution)
             .build();
     DecisionId decisionId = new DecisionId(DecisionTarget.SELF, 0);
@@ -475,7 +428,7 @@ class DecisionsHelper {
   }
 
   void continueAsNewWorkflowExecution(ContinueAsNewWorkflowExecutionParameters continueParameters) {
-    addAllMissingVersionMarker(false, Optional.empty());
+    addAllMissingVersionMarker();
 
     HistoryEvent firstEvent = task.getHistory().getEvents(0);
     if (!firstEvent.hasWorkflowExecutionStartedEventAttributes()) {
@@ -486,23 +439,23 @@ class DecisionsHelper {
         firstEvent.getWorkflowExecutionStartedEventAttributes();
     ContinueAsNewWorkflowExecutionDecisionAttributes.Builder attributes =
         ContinueAsNewWorkflowExecutionDecisionAttributes.newBuilder();
-    attributes.setInput(OptionsUtils.toByteString(continueParameters.getInput()));
+    attributes.setInput(continueParameters.getInput());
     String workflowType = continueParameters.getWorkflowType();
     if (workflowType != null && !workflowType.isEmpty()) {
       attributes.setWorkflowType(WorkflowType.newBuilder().setName(workflowType));
     } else {
       attributes.setWorkflowType(task.getWorkflowType());
     }
-    int executionStartToClose = continueParameters.getExecutionStartToCloseTimeoutSeconds();
+    int executionStartToClose = continueParameters.getWorkflowRunTimeoutSeconds();
     if (executionStartToClose == 0) {
-      executionStartToClose = startedEvent.getExecutionStartToCloseTimeoutSeconds();
+      executionStartToClose = startedEvent.getWorkflowRunTimeoutSeconds();
     }
-    attributes.setExecutionStartToCloseTimeoutSeconds(executionStartToClose);
-    int taskStartToClose = continueParameters.getTaskStartToCloseTimeoutSeconds();
+    attributes.setWorkflowRunTimeoutSeconds(executionStartToClose);
+    int taskStartToClose = continueParameters.getWorkflowTaskTimeoutSeconds();
     if (taskStartToClose == 0) {
-      taskStartToClose = startedEvent.getTaskStartToCloseTimeoutSeconds();
+      taskStartToClose = startedEvent.getWorkflowTaskTimeoutSeconds();
     }
-    attributes.setTaskStartToCloseTimeoutSeconds(taskStartToClose);
+    attributes.setWorkflowTaskTimeoutSeconds(taskStartToClose);
     String taskList = continueParameters.getTaskList();
     if (taskList == null || taskList.isEmpty()) {
       taskList = startedEvent.getTaskList().getName();
@@ -522,14 +475,17 @@ class DecisionsHelper {
   }
 
   void failWorkflowExecution(WorkflowExecutionException failure) {
-    addAllMissingVersionMarker(false, Optional.empty());
+    addAllMissingVersionMarker();
 
+    FailWorkflowExecutionDecisionAttributes.Builder attributes =
+        FailWorkflowExecutionDecisionAttributes.newBuilder().setReason(failure.getReason());
+    Optional<Payloads> details = failure.getDetails();
+    if (details.isPresent()) {
+      attributes.setDetails(details.get());
+    }
     Decision decision =
         Decision.newBuilder()
-            .setFailWorkflowExecutionDecisionAttributes(
-                FailWorkflowExecutionDecisionAttributes.newBuilder()
-                    .setReason(failure.getReason())
-                    .setDetails(OptionsUtils.toByteString(failure.getDetails())))
+            .setFailWorkflowExecutionDecisionAttributes(attributes)
             .setDecisionType(DecisionType.FailWorkflowExecution)
             .build();
     DecisionId decisionId = new DecisionId(DecisionTarget.SELF, 0);
@@ -541,7 +497,7 @@ class DecisionsHelper {
    *     CancelWorkflowExecution was created.
    */
   void cancelWorkflowExecution() {
-    addAllMissingVersionMarker(false, Optional.empty());
+    addAllMissingVersionMarker();
 
     Decision decision =
         Decision.newBuilder()
@@ -553,13 +509,14 @@ class DecisionsHelper {
     addDecision(decisionId, new CompleteWorkflowStateMachine(decisionId, decision));
   }
 
-  void recordMarker(String markerName, Header header, byte[] details) {
+  void recordMarker(String markerName, Header header, Optional<Payloads> details) {
     // no need to call addAllMissingVersionMarker here as all the callers are already doing it.
 
     RecordMarkerDecisionAttributes.Builder marker =
-        RecordMarkerDecisionAttributes.newBuilder()
-            .setMarkerName(markerName)
-            .setDetails(OptionsUtils.toByteString(details));
+        RecordMarkerDecisionAttributes.newBuilder().setMarkerName(markerName);
+    if (details.isPresent()) {
+      marker.setDetails(details.get());
+    }
     if (header != null) {
       marker.setHeader(header);
     }
@@ -630,6 +587,8 @@ class DecisionsHelper {
   public void handleDecisionTaskStartedEvent(DecisionEvents decision) {
     this.decisionEvents = decision;
     this.nextDecisionEventId = decision.getNextDecisionEventId();
+    // Account for DecisionCompleted
+    this.lastStartedEventId = decision.getNextDecisionEventId() - 2;
   }
 
   void notifyDecisionSent() {
@@ -685,60 +644,90 @@ class DecisionsHelper {
     nextDecisionEventId++;
   }
 
-  // This is to support the case where a getVersion call presents during workflow execution but
-  // is removed in replay.
-  void addAllMissingVersionMarker(
-      boolean isNextDecisionVersionMarker,
-      Optional<Predicate<MarkerRecordedEventAttributes>> isDifferentChange) {
-    boolean added;
-    do {
-      added = addMissingVersionMarker(isNextDecisionVersionMarker, isDifferentChange);
-    } while (added);
+  void addAllMissingVersionMarker() {
+    addAllMissingVersionMarker(Optional.empty(), Optional.empty());
   }
 
-  private boolean addMissingVersionMarker(
-      boolean isNextDecisionVersionMarker,
-      Optional<Predicate<MarkerRecordedEventAttributes>> changeIdEquals) {
-    Optional<HistoryEvent> optionalEvent = getOptionalDecisionEvent(nextDecisionEventId);
+  Optional<HistoryEvent> getVersionMakerEvent(long eventId) {
+    Optional<HistoryEvent> optionalEvent = getOptionalDecisionEvent(eventId);
     if (!optionalEvent.isPresent()) {
-      return false;
+      return Optional.empty();
     }
 
     HistoryEvent event = optionalEvent.get();
     if (event.getEventType() != EventType.MarkerRecorded) {
-      return false;
+      return Optional.empty();
     }
 
     if (!event
         .getMarkerRecordedEventAttributes()
         .getMarkerName()
         .equals(ClockDecisionContext.VERSION_MARKER_NAME)) {
-      return false;
+      return Optional.empty();
+    }
+    return Optional.of(event);
+  }
+
+  /**
+   * As getVersion calls can be added and removed any time this method inserts missing decision
+   * events that correspond to removed getVersion calls.
+   *
+   * @param changeId optional getVersion change id to compare
+   * @param converter must be present if changeId is present
+   */
+  void addAllMissingVersionMarker(Optional<String> changeId, Optional<DataConverter> converter) {
+    Optional<HistoryEvent> markerEvent = getVersionMakerEvent(nextDecisionEventId);
+
+    if (!markerEvent.isPresent()) {
+      return;
     }
 
-    // Next decision is for version marker and the event is for the same.
-    if (isNextDecisionVersionMarker
-        && (!changeIdEquals.isPresent()
-            || changeIdEquals.get().test(event.getMarkerRecordedEventAttributes()))) {
-      return false;
-    }
+    // Look ahead to see if there is a marker with changeId following current version marker
+    // If it is the case then all the markers that precede it should be added as decisions
+    // as their correspondent getVersion calls were removed.
+    long changeIdMarkerEventId = -1;
+    if (changeId.isPresent()) {
+      String id = changeId.get();
+      long eventId = nextDecisionEventId;
+      while (true) {
+        MarkerHandler.MarkerInterface markerData =
+            MarkerHandler.MarkerInterface.fromEventAttributes(
+                markerEvent.get().getMarkerRecordedEventAttributes(), converter.get());
 
-    // If we have a version marker in history event but not in decisions, let's add one.
-    RecordMarkerDecisionAttributes.Builder marker =
-        RecordMarkerDecisionAttributes.newBuilder()
-            .setMarkerName(ClockDecisionContext.VERSION_MARKER_NAME)
-            .setHeader(event.getMarkerRecordedEventAttributes().getHeader())
-            .setDetails(event.getMarkerRecordedEventAttributes().getDetails());
-    Decision markerDecision =
-        Decision.newBuilder()
-            .setDecisionType(DecisionType.RecordMarker)
-            .setRecordMarkerDecisionAttributes(marker)
-            .build();
-    DecisionId markerDecisionId = new DecisionId(DecisionTarget.MARKER, nextDecisionEventId);
-    decisions.put(
-        markerDecisionId, new MarkerDecisionStateMachine(markerDecisionId, markerDecision));
-    nextDecisionEventId++;
-    return true;
+        if (id.equals(markerData.getId())) {
+          changeIdMarkerEventId = eventId;
+          break;
+        }
+        eventId++;
+        markerEvent = getVersionMakerEvent(eventId);
+        if (!markerEvent.isPresent()) {
+          break;
+        }
+      }
+      // There are no version markers preceding a marker with the changeId
+      if (changeIdMarkerEventId < 0 || changeIdMarkerEventId == nextDecisionEventId) {
+        return;
+      }
+    }
+    do {
+      // If we have a version marker in history event but not in decisions, let's add one.
+      RecordMarkerDecisionAttributes.Builder attributes =
+          RecordMarkerDecisionAttributes.newBuilder()
+              .setMarkerName(ClockDecisionContext.VERSION_MARKER_NAME)
+              .setHeader(markerEvent.get().getMarkerRecordedEventAttributes().getHeader())
+              .setDetails(markerEvent.get().getMarkerRecordedEventAttributes().getDetails());
+      Decision markerDecision =
+          Decision.newBuilder()
+              .setDecisionType(DecisionType.RecordMarker)
+              .setRecordMarkerDecisionAttributes(attributes)
+              .build();
+      DecisionId markerDecisionId = new DecisionId(DecisionTarget.MARKER, nextDecisionEventId);
+      decisions.put(
+          markerDecisionId, new MarkerDecisionStateMachine(markerDecisionId, markerDecision));
+      nextDecisionEventId++;
+      markerEvent = getVersionMakerEvent(nextDecisionEventId);
+    } while (markerEvent.isPresent()
+        && (changeIdMarkerEventId < 0 || nextDecisionEventId < changeIdMarkerEventId));
   }
 
   private DecisionStateMachine getDecision(DecisionId decisionId) {

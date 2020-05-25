@@ -23,9 +23,9 @@ import static io.temporal.internal.common.InternalUtils.createNormalTaskList;
 import static io.temporal.internal.common.InternalUtils.createStickyTaskList;
 
 import com.google.protobuf.ByteString;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.decision.StickyExecutionAttributes;
-import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.tasklist.TaskList;
 import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
@@ -50,16 +50,17 @@ public class TestServiceUtils {
       String namespace,
       String tasklistName,
       String workflowType,
-      int executionStartToCloseTimeoutSeconds,
-      int taskStartToCloseTimeoutSeconds,
+      int workflowRunTimeoutSeconds,
+      int workflowTaskTimeoutSeconds,
       WorkflowServiceStubs service)
       throws Exception {
     StartWorkflowExecutionRequest.Builder request = StartWorkflowExecutionRequest.newBuilder();
+    request.setRequestId(UUID.randomUUID().toString());
     request.setNamespace(namespace);
     request.setWorkflowId(UUID.randomUUID().toString());
     request.setTaskList(createNormalTaskList(tasklistName));
-    request.setExecutionStartToCloseTimeoutSeconds(executionStartToCloseTimeoutSeconds);
-    request.setTaskStartToCloseTimeoutSeconds(taskStartToCloseTimeoutSeconds);
+    request.setWorkflowRunTimeoutSeconds(workflowRunTimeoutSeconds);
+    request.setWorkflowTaskTimeoutSeconds(workflowTaskTimeoutSeconds);
     request.setWorkflowType(WorkflowType.newBuilder().setName(workflowType));
     service.blockingStub().startWorkflowExecution(request.build());
   }

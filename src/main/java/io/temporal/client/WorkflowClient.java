@@ -21,7 +21,7 @@ package io.temporal.client;
 
 import io.temporal.activity.Activity;
 import io.temporal.internal.sync.WorkflowClientInternal;
-import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
@@ -130,18 +130,6 @@ public interface WorkflowClient {
   }
 
   WorkflowClientOptions getOptions();
-
-  /**
-   * Creates workflow client stub that can be used to start a single workflow execution. The first
-   * call must be to a method annotated with @WorkflowMethod. After workflow is started it can be
-   * also used to send signals or queries to it. IMPORTANT! Stub is per workflow instance. So new
-   * stub should be created for each new one.
-   *
-   * @param workflowInterface interface that given workflow implements
-   * @return Stub that implements workflowInterface and can be used to start workflow and later to
-   *     signal or query it.
-   */
-  <T> T newWorkflowStub(Class<T> workflowInterface);
 
   /**
    * Creates workflow client stub that can be used to start a single workflow execution. The first

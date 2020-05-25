@@ -22,7 +22,7 @@ package io.temporal.workflow.interceptors;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
-import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.Functions;
@@ -151,14 +151,20 @@ public class SignalWorkflowCallsInterceptor implements WorkflowCallsInterceptor 
 
   @Override
   public void registerQuery(
-      String queryType, Type[] argTypes, Functions.Func1<Object[], Object> callback) {
-    next.registerQuery(queryType, argTypes, callback);
+      String queryType,
+      Class<?>[] argTypes,
+      Type[] genericArgTypes,
+      Functions.Func1<Object[], Object> callback) {
+    next.registerQuery(queryType, argTypes, genericArgTypes, callback);
   }
 
   @Override
   public void registerSignal(
-      String signalType, Type[] argTypes, Functions.Proc1<Object[]> callback) {
-    next.registerSignal(signalType, argTypes, callback);
+      String signalType,
+      Class<?>[] argTypes,
+      Type[] genericArgTypes,
+      Functions.Proc1<Object[]> callback) {
+    next.registerSignal(signalType, argTypes, genericArgTypes, callback);
   }
 
   @Override

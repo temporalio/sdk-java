@@ -26,6 +26,7 @@ import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.DecisionContext;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.worker.WorkflowExecutionException;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.event.EventType;
 import io.temporal.proto.event.HistoryEvent;
@@ -34,6 +35,7 @@ import io.temporal.proto.query.WorkflowQuery;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,12 +95,12 @@ class SyncWorkflow implements ReplayWorkflow {
       throw new IllegalArgumentException("Unknown workflow type: " + workflowType);
     }
 
+    Optional<Payloads> result =
+        startEvent.hasLastCompletionResult()
+            ? Optional.of(startEvent.getLastCompletionResult())
+            : Optional.empty();
     SyncDecisionContext syncContext =
-        new SyncDecisionContext(
-            context,
-            dataConverter,
-            contextPropagators,
-            startEvent.getLastCompletionResult().toByteArray());
+        new SyncDecisionContext(context, dataConverter, contextPropagators, result);
 
     workflowProc = new WorkflowExecuteRunnable(syncContext, workflow, startEvent);
     // The following order is ensured by this code and DeterministicRunner implementation:
@@ -119,7 +121,7 @@ class SyncWorkflow implements ReplayWorkflow {
   }
 
   @Override
-  public void handleSignal(String signalName, byte[] input, long eventId) {
+  public void handleSignal(String signalName, Optional<Payloads> input, long eventId) {
     runner.executeInWorkflowThread(
         "signal " + signalName, () -> workflowProc.processSignal(signalName, input, eventId));
   }
@@ -135,7 +137,7 @@ class SyncWorkflow implements ReplayWorkflow {
   }
 
   @Override
-  public byte[] getOutput() {
+  public Optional<Payloads> getOutput() {
     return workflowProc.getOutput();
   }
 
@@ -160,14 +162,16 @@ class SyncWorkflow implements ReplayWorkflow {
   }
 
   @Override
-  public byte[] query(WorkflowQuery query) {
+  public Optional<Payloads> query(WorkflowQuery query) {
     if (WorkflowClient.QUERY_TYPE_REPLAY_ONLY.equals(query.getQueryType())) {
-      return new byte[] {};
+      return Optional.empty();
     }
     if (WorkflowClient.QUERY_TYPE_STACK_TRACE.equals(query.getQueryType())) {
       return dataConverter.toData(runner.stackTrace());
     }
-    return workflowProc.query(query.getQueryType(), query.getQueryArgs().toByteArray());
+    Optional<Payloads> args =
+        query.hasQueryArgs() ? Optional.of(query.getQueryArgs()) : Optional.empty();
+    return workflowProc.query(query.getQueryType(), args);
   }
 
   @Override

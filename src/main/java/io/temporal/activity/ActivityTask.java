@@ -19,9 +19,11 @@
 
 package io.temporal.activity;
 
+import io.temporal.proto.common.Payloads;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
-import io.temporal.proto.execution.WorkflowExecution;
 import java.time.Duration;
+import java.util.Optional;
 
 /**
  * The information about the activity task that the current activity is handling. Use {@link
@@ -60,7 +62,7 @@ public interface ActivityTask {
 
   Duration getHeartbeatTimeout();
 
-  byte[] getHeartbeatDetails();
+  Optional<Payloads> getHeartbeatDetails();
 
   WorkflowType getWorkflowType();
 

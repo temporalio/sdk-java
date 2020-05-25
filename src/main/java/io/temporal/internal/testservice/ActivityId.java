@@ -21,7 +21,7 @@ package io.temporal.internal.testservice;
 
 import com.google.protobuf.ByteString;
 import io.grpc.Status;
-import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecution;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -32,61 +32,56 @@ import java.util.Objects;
 final class ActivityId {
 
   private final ExecutionId executionId;
-  private final String id;
+  private final long scheduledEventId;
 
-  ActivityId(String namespace, WorkflowExecution execution, String id) {
+  ActivityId(String namespace, WorkflowExecution execution, long scheduledEventId) {
     this.executionId =
         new ExecutionId(Objects.requireNonNull(namespace), Objects.requireNonNull(execution));
-    this.id = Objects.requireNonNull(id);
+    this.scheduledEventId = scheduledEventId;
   }
 
-  ActivityId(String namespace, String workflowId, String runId, String id) {
+  ActivityId(String namespace, String workflowId, String runId, long scheduledEventId) {
     this(
         namespace,
         WorkflowExecution.newBuilder().setWorkflowId(workflowId).setRunId(runId).build(),
-        id);
+        scheduledEventId);
   }
 
-  public ActivityId(ExecutionId executionId, String id) {
+  public ActivityId(ExecutionId executionId, long scheduledEventId) {
     this.executionId = executionId;
-    this.id = id;
+    this.scheduledEventId = scheduledEventId;
   }
 
   public ExecutionId getExecutionId() {
     return executionId;
   }
 
-  public String getId() {
-    return id;
+  public long getScheduledEventId() {
+    return scheduledEventId;
   }
 
   @Override
   public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
     ActivityId that = (ActivityId) o;
-
-    if (!executionId.equals(that.executionId)) {
-      return false;
-    }
-    return id.equals(that.id);
+    return scheduledEventId == that.scheduledEventId
+        && com.google.common.base.Objects.equal(executionId, that.executionId);
   }
 
   @Override
   public int hashCode() {
-    int result = executionId.hashCode();
-    result = 31 * result + id.hashCode();
-    return result;
+    return com.google.common.base.Objects.hashCode(executionId, scheduledEventId);
   }
 
   @Override
   public String toString() {
-    return "ActivityId{" + "executionId=" + executionId + ", id='" + id + '\'' + '}';
+    return "ActivityId{"
+        + "executionId="
+        + executionId
+        + ", scheduledEventId="
+        + scheduledEventId
+        + '}';
   }
 
   /** Used for task tokens. */
@@ -98,7 +93,7 @@ final class ActivityId {
       WorkflowExecution execution = executionId.getExecution();
       out.writeUTF(execution.getWorkflowId());
       out.writeUTF(execution.getRunId());
-      out.writeUTF(id);
+      out.writeLong(scheduledEventId);
       return ByteString.copyFrom(bout.toByteArray());
     } catch (IOException e) {
       throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
@@ -116,8 +111,8 @@ final class ActivityId {
       String namespace = in.readUTF();
       String workflowId = in.readUTF();
       String runId = in.readUTF();
-      String id = in.readUTF();
-      return new ActivityId(namespace, workflowId, runId, id);
+      long scheduledEventId = in.readLong();
+      return new ActivityId(namespace, workflowId, runId, scheduledEventId);
     } catch (IOException e) {
       throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
     }

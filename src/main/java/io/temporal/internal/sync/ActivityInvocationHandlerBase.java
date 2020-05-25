@@ -39,7 +39,7 @@ abstract class ActivityInvocationHandlerBase implements InvocationHandler {
   static <T> T newProxy(Class<T> activityInterface, InvocationHandler invocationHandler) {
     return (T)
         Proxy.newProxyInstance(
-            WorkflowInternal.class.getClassLoader(),
+            activityInterface.getClassLoader(),
             new Class<?>[] {activityInterface, AsyncMarker.class},
             invocationHandler);
   }

@@ -20,7 +20,9 @@
 package io.temporal.internal.replay;
 
 import io.temporal.proto.common.ActivityType;
-import io.temporal.proto.event.TimeoutType;
+import io.temporal.proto.common.Payloads;
+import io.temporal.proto.common.TimeoutType;
+import java.util.Optional;
 
 /** Exception that indicates Activity time out. */
 @SuppressWarnings("serial")
@@ -30,7 +32,7 @@ public final class ActivityTaskTimeoutException extends RuntimeException {
 
   private final TimeoutType timeoutType;
 
-  private final byte[] details;
+  private final Optional<Payloads> details;
 
   private final ActivityType activityType;
 
@@ -41,7 +43,7 @@ public final class ActivityTaskTimeoutException extends RuntimeException {
       ActivityType activityType,
       String activityId,
       TimeoutType timeoutType,
-      byte[] details) {
+      Optional<Payloads> details) {
     super(String.valueOf(timeoutType));
     this.eventId = eventId;
     this.activityType = activityType;
@@ -51,7 +53,7 @@ public final class ActivityTaskTimeoutException extends RuntimeException {
   }
 
   /** @return The value from the last activity heartbeat details field. */
-  public byte[] getDetails() {
+  public Optional<Payloads> getDetails() {
     return details;
   }
 

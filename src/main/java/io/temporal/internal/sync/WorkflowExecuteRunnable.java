@@ -19,15 +19,17 @@
 
 package io.temporal.internal.sync;
 
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.event.WorkflowExecutionStartedEventAttributes;
 import java.util.Objects;
+import java.util.Optional;
 
 class WorkflowExecuteRunnable implements Runnable {
   private final SyncDecisionContext context;
   private final SyncWorkflowDefinition workflow;
   private final WorkflowExecutionStartedEventAttributes attributes;
 
-  private byte[] output;
+  private Optional<Payloads> output = Optional.empty();
   private boolean done;
 
   public WorkflowExecuteRunnable(
@@ -45,7 +47,9 @@ class WorkflowExecuteRunnable implements Runnable {
   @Override
   public void run() {
     try {
-      output = workflow.execute(attributes.getInput().toByteArray());
+      Optional<Payloads> input =
+          attributes.hasInput() ? Optional.of(attributes.getInput()) : Optional.empty();
+      output = workflow.execute(input);
     } finally {
       done = true;
     }
@@ -57,17 +61,17 @@ class WorkflowExecuteRunnable implements Runnable {
     return done;
   }
 
-  public byte[] getOutput() {
+  public Optional<Payloads> getOutput() {
     return output;
   }
 
   public void close() {}
 
-  public void processSignal(String signalName, byte[] input, long eventId) {
+  public void processSignal(String signalName, Optional<Payloads> input, long eventId) {
     context.signal(signalName, input, eventId);
   }
 
-  public byte[] query(String type, byte[] args) {
+  public Optional<Payloads> query(String type, Optional<Payloads> args) {
     return context.query(type, args);
   }
 

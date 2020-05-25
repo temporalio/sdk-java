@@ -33,11 +33,12 @@ import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
+import io.temporal.proto.common.Payloads;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.event.History;
 import io.temporal.proto.event.HistoryEvent;
 import io.temporal.proto.event.WorkflowExecutionStartedEventAttributes;
-import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.query.WorkflowQuery;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
@@ -45,9 +46,9 @@ import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
 import io.temporal.proto.workflowservice.RespondQueryTaskCompletedRequest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Consumer;
@@ -134,8 +135,8 @@ public final class WorkflowWorker
     return poller.isTerminated();
   }
 
-  public byte[] queryWorkflowExecution(WorkflowExecution exec, String queryType, byte[] args)
-      throws Exception {
+  public Optional<Payloads> queryWorkflowExecution(
+      WorkflowExecution exec, String queryType, Optional<Payloads> args) throws Exception {
     GetWorkflowExecutionHistoryResponse historyResponse =
         WorkflowExecutionUtils.getHistoryPage(service, namespace, exec, ByteString.EMPTY);
     History history = historyResponse.getHistory();
@@ -145,30 +146,35 @@ public final class WorkflowWorker
         queryType, args, workflowExecutionHistory, historyResponse.getNextPageToken());
   }
 
-  public byte[] queryWorkflowExecution(String jsonSerializedHistory, String queryType, byte[] args)
-      throws Exception {
+  public Optional<Payloads> queryWorkflowExecution(
+      String jsonSerializedHistory, String queryType, Optional<Payloads> args) throws Exception {
     WorkflowExecutionHistory history = WorkflowExecutionHistory.fromJson(jsonSerializedHistory);
     return queryWorkflowExecution(queryType, args, history, ByteString.EMPTY);
   }
 
-  public byte[] queryWorkflowExecution(
-      WorkflowExecutionHistory history, String queryType, byte[] args) throws Exception {
+  public Optional<Payloads> queryWorkflowExecution(
+      WorkflowExecutionHistory history, String queryType, Optional<Payloads> args)
+      throws Exception {
     return queryWorkflowExecution(queryType, args, history, ByteString.EMPTY);
   }
 
-  private byte[] queryWorkflowExecution(
-      String queryType, byte[] args, WorkflowExecutionHistory history, ByteString nextPageToken)
+  private Optional<Payloads> queryWorkflowExecution(
+      String queryType,
+      Optional<Payloads> args,
+      WorkflowExecutionHistory history,
+      ByteString nextPageToken)
       throws Exception {
+    WorkflowQuery.Builder query = WorkflowQuery.newBuilder().setQueryType(queryType);
+    if (args.isPresent()) {
+      query.setQueryArgs(args.get());
+    }
     PollForDecisionTaskResponse.Builder task =
         PollForDecisionTaskResponse.newBuilder()
             .setWorkflowExecution(history.getWorkflowExecution())
             .setStartedEventId(Long.MAX_VALUE)
             .setPreviousStartedEventId(Long.MAX_VALUE)
             .setNextPageToken(nextPageToken)
-            .setQuery(
-                WorkflowQuery.newBuilder()
-                    .setQueryType(queryType)
-                    .setQueryArgs(ByteString.copyFrom(args)));
+            .setQuery(query);
     List<HistoryEvent> events = history.getEvents();
     HistoryEvent startedEvent = events.get(0);
     WorkflowExecutionStartedEventAttributes started =
@@ -190,11 +196,15 @@ public final class WorkflowWorker
                 + ", queryType="
                 + queryType
                 + ", args="
-                + Arrays.toString(args)
+                + args
                 + ", error="
                 + r.getErrorMessage());
       }
-      return r.getQueryResult().toByteArray();
+      if (r.hasQueryResult()) {
+        return Optional.of(r.getQueryResult());
+      } else {
+        return Optional.empty();
+      }
     }
     throw new RuntimeException("Query returned wrong response: " + result);
   }

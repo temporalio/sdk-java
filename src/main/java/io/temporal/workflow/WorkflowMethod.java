@@ -19,8 +19,6 @@
 
 package io.temporal.workflow;
 
-import io.temporal.client.WorkflowOptions;
-import io.temporal.proto.common.WorkflowIdReusePolicy;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -36,51 +34,4 @@ import java.lang.annotation.Target;
 public @interface WorkflowMethod {
   /** Name of the workflow type. Default is {short class name} */
   String name() default "";
-
-  /**
-   * Workflow ID to use. Default is random UUID. Specifying workflow in the annotation makes sense
-   * only for singleton workflows that would ever have one instance per type running. Make sure that
-   * {@link WorkflowIdReusePolicy} is AllowDuplicate in this case.
-   */
-  String workflowId() default "";
-
-  /**
-   * How to react if there is completed workflow with the same ID.
-   * <li>
-   *
-   *     <ul>
-   *       AllowDuplicate - Always start a new run
-   * </ul>
-   *
-   * <ul>
-   *   RejectDuplicate - Never allow a second run
-   * </ul>
-   *
-   * <ul>
-   *   AllowDuplicateFailedOnly - Allow only if workflow didn't complete successfully.
-   * </ul>
-   *
-   * Default is AllowDuplicate.
-   */
-  WorkflowIdReusePolicy workflowIdReusePolicy() default WorkflowIdReusePolicy.AllowDuplicate;
-
-  /**
-   * Maximum workflow execution time. Must be specified either through {@link
-   * WorkflowMethod#executionStartToCloseTimeoutSeconds()} or {@link
-   * WorkflowOptions#getExecutionStartToCloseTimeout()}.
-   */
-  int executionStartToCloseTimeoutSeconds() default 0;
-
-  /**
-   * Maximum execution time of a single workflow task. Workflow tasks are reactions to a new events
-   * in the workflow history. Usually they are pretty short. Default is 10 seconds. Maximum allowed
-   * value is 1 minute.
-   */
-  int taskStartToCloseTimeoutSeconds() default 10;
-
-  /**
-   * Task list to use when delivering workflow tasks. Must be specified either through this
-   * annotation or through WorkflowOptions.
-   */
-  String taskList() default "";
 }

@@ -36,7 +36,15 @@ public interface WorkflowInfo {
 
   String getTaskList();
 
-  Duration getExecutionStartToCloseTimeout();
+  Duration getWorkflowRunTimeout();
+
+  Duration getWorkflowExecutionTimeout();
+
+  /**
+   * The time workflow run has started. Note that this time can be different from the time workflow
+   * function started actual execution.
+   */
+  long getRunStartedTimestampMillis();
 
   SearchAttributes getSearchAttributes();
 

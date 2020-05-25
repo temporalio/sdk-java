@@ -19,7 +19,8 @@
 
 package io.temporal.internal.common;
 
-import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.common.Payloads;
+import io.temporal.proto.common.WorkflowExecution;
 
 public class TerminateWorkflowExecutionParameters {
 
@@ -27,12 +28,12 @@ public class TerminateWorkflowExecutionParameters {
 
   private String reason;
 
-  private byte[] details;
+  private Payloads details;
 
   public TerminateWorkflowExecutionParameters() {}
 
   public TerminateWorkflowExecutionParameters(
-      WorkflowExecution workflowExecution, String reason, byte[] details) {
+      WorkflowExecution workflowExecution, String reason, Payloads details) {
     this.workflowExecution = workflowExecution;
     this.reason = reason;
     this.details = details;
@@ -65,15 +66,15 @@ public class TerminateWorkflowExecutionParameters {
     return this;
   }
 
-  public byte[] getDetails() {
+  public Payloads getDetails() {
     return details;
   }
 
-  public void setDetails(byte[] details) {
+  public void setDetails(Payloads details) {
     this.details = details;
   }
 
-  public TerminateWorkflowExecutionParameters withDetails(byte[] details) {
+  public TerminateWorkflowExecutionParameters withDetails(Payloads details) {
     this.details = details;
     return this;
   }

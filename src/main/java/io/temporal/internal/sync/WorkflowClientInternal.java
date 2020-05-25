@@ -34,7 +34,7 @@ import io.temporal.internal.external.GenericWorkflowClientExternalImpl;
 import io.temporal.internal.external.ManualActivityCompletionClientFactory;
 import io.temporal.internal.external.ManualActivityCompletionClientFactoryImpl;
 import io.temporal.internal.sync.WorkflowInvocationHandler.InvocationType;
-import io.temporal.proto.execution.WorkflowExecution;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.QueryMethod;
@@ -90,11 +90,6 @@ public final class WorkflowClientInternal implements WorkflowClient {
   }
 
   @Override
-  public <T> T newWorkflowStub(Class<T> workflowInterface) {
-    return newWorkflowStub(workflowInterface, (WorkflowOptions) null);
-  }
-
-  @Override
   public WorkflowClientOptions getOptions() {
     return options;
   }
@@ -107,7 +102,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
         new WorkflowInvocationHandler(workflowInterface, this.getOptions(), genericClient, options);
     return (T)
         Proxy.newProxyInstance(
-            WorkflowInternal.class.getClassLoader(),
+            workflowInterface.getClassLoader(),
             new Class<?>[] {workflowInterface, StubMarker.class},
             invocationHandler);
   }
@@ -158,7 +153,7 @@ public final class WorkflowClientInternal implements WorkflowClient {
     T result =
         (T)
             Proxy.newProxyInstance(
-                WorkflowInternal.class.getClassLoader(),
+                workflowInterface.getClassLoader(),
                 new Class<?>[] {workflowInterface, StubMarker.class},
                 invocationHandler);
     return result;

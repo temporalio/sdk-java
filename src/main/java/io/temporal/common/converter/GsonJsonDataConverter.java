@@ -20,24 +20,15 @@
 package io.temporal.common.converter;
 
 import com.google.common.base.Defaults;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParser;
-import com.google.gson.TypeAdapter;
-import com.google.gson.TypeAdapterFactory;
-import com.google.gson.reflect.TypeToken;
-import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonWriter;
-import java.io.IOException;
+import io.temporal.proto.common.Payload;
+import io.temporal.proto.common.Payloads;
 import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
-import java.util.function.Function;
+import java.util.Arrays;
+import java.util.Optional;
 
 /**
  * Implements conversion through GSON JSON processor. To extend use {@link
- * #GsonJsonDataConverter(Function)} constructor.
+ * #GsonJsonDataConverter(PayloadConverter)} constructor.
  *
  * @author fateev
  */
@@ -45,52 +36,48 @@ public final class GsonJsonDataConverter implements DataConverter {
 
   private static final DataConverter INSTANCE = new GsonJsonDataConverter();
   private static final Object[] EMPTY_OBJECT_ARRAY = new Object[0];
-  private static final String TYPE_FIELD_NAME = "type";
-  private static final String JSON_CONVERTER_TYPE = "JSON";
-  private static final String CLASS_NAME_FIELD_NAME = "className";
-
-  private final Gson gson;
+  private final PayloadConverter converter;
 
   public static DataConverter getInstance() {
     return INSTANCE;
   }
 
   private GsonJsonDataConverter() {
-    this((b) -> b);
+    this(GsonJsonPayloadConverter.getInstance());
   }
 
-  /**
-   * Constructs an instance giving an ability to override {@link Gson} initialization.
-   *
-   * @param builderInterceptor function that intercepts {@link GsonBuilder} construction.
-   */
-  public GsonJsonDataConverter(Function<GsonBuilder, GsonBuilder> builderInterceptor) {
-    GsonBuilder gsonBuilder =
-        new GsonBuilder()
-            .serializeNulls()
-            .registerTypeAdapterFactory(new ThrowableTypeAdapterFactory());
-    GsonBuilder intercepted = builderInterceptor.apply(gsonBuilder);
-    gson = intercepted.create();
+  public GsonJsonDataConverter(PayloadConverter converter) {
+    this.converter = converter;
+  }
+
+  @Override
+  public PayloadConverter getPayloadConverter() {
+    return converter;
   }
 
   /**
    * When values is empty or it contains a single value and it is null then return empty blob. If a
    * single value do not wrap it into Json array. Exception stack traces are converted to a single
    * string stack trace to save space and make them more readable.
+   *
+   * @return serialized values
    */
   @Override
-  public byte[] toData(Object... values) throws DataConverterException {
+  public Optional<Payloads> toData(Object... values) throws DataConverterException {
     if (values == null || values.length == 0) {
-      return null;
+      return Optional.empty();
     }
     try {
-      if (values.length == 1) {
-        Object value = values[0];
-        String json = gson.toJson(value);
-        return json.getBytes(StandardCharsets.UTF_8);
+      Payloads.Builder result = Payloads.newBuilder();
+      for (Object value : values) {
+        Optional<Payload> payload = converter.toData(value);
+        if (payload.isPresent()) {
+          result.addPayloads(payload.get());
+        } else {
+          result.addPayloads(Payload.getDefaultInstance());
+        }
       }
-      String json = gson.toJson(values);
-      return json.getBytes(StandardCharsets.UTF_8);
+      return Optional.of(result.build());
     } catch (DataConverterException e) {
       throw e;
     } catch (Throwable e) {
@@ -99,138 +86,60 @@ public final class GsonJsonDataConverter implements DataConverter {
   }
 
   @Override
-  public <T> T fromData(byte[] content, Class<T> valueClass, Type valueType)
+  public <T> T fromData(Optional<Payloads> content, Class<T> valueClass, Type valueType)
       throws DataConverterException {
-    if (content == null) {
+    if (!content.isPresent()) {
       return null;
     }
-    try {
-      return gson.fromJson(new String(content, StandardCharsets.UTF_8), valueType);
-    } catch (Exception e) {
-      throw new DataConverterException(content, new Type[] {valueType}, e);
+    Payloads c = content.get();
+    if (c.getPayloadsCount() == 0) {
+      return null;
     }
+    if (c.getPayloadsCount() != 1) {
+      throw new DataConverterException(
+          "Found multiple payloads while a single one expected", content, valueType);
+    }
+    return converter.fromData(c.getPayloads(0), valueClass, valueType);
   }
 
   @Override
-  public Object[] fromDataArray(byte[] content, Type... valueTypes) throws DataConverterException {
+  public Object[] fromDataArray(
+      Optional<Payloads> content, Class<?>[] parameterTypes, Type[] valueTypes)
+      throws DataConverterException {
     try {
-      if (content == null) {
+      if (parameterTypes != null
+          && (valueTypes == null || parameterTypes.length != valueTypes.length)) {
+        throw new IllegalArgumentException(
+            "parameterTypes don't match length of valueTypes: "
+                + Arrays.toString(parameterTypes)
+                + "<>"
+                + Arrays.toString(valueTypes));
+      }
+      if (!content.isPresent()) {
         if (valueTypes.length == 0) {
           return EMPTY_OBJECT_ARRAY;
-        }
-        throw new DataConverterException(
-            "Content doesn't match expected arguments", content, valueTypes);
-      }
-      if (valueTypes.length == 1) {
-        Object result = gson.fromJson(new String(content, StandardCharsets.UTF_8), valueTypes[0]);
-        return new Object[] {result};
-      }
-
-      JsonElement element = JsonParser.parseString(new String(content, StandardCharsets.UTF_8));
-      JsonArray array;
-      if (element instanceof JsonArray) {
-        array = element.getAsJsonArray();
-      } else {
-        array = new JsonArray();
-        array.add(element);
-      }
-
-      Object[] result = new Object[valueTypes.length];
-      for (int i = 0; i < valueTypes.length; i++) {
-
-        if (i >= array.size()) { // Missing arugments => add defaults
-          Type t = valueTypes[i];
-          if (t instanceof Class) {
-            result[i] = Defaults.defaultValue((Class<?>) t);
-          } else {
-            result[i] = null;
-          }
         } else {
-          result[i] = gson.fromJson(array.get(i), valueTypes[i]);
+          throw new DataConverterException("Empty content", content, valueTypes);
+        }
+      }
+      Payloads c = content.get();
+      int count = c.getPayloadsCount();
+      int length = valueTypes.length;
+      Object[] result = new Object[length];
+      for (int i = 0; i < length; i++) {
+        Type vt = valueTypes[i];
+        Class<?> pt = parameterTypes[i];
+        if (i >= count) {
+          result[i] = Defaults.defaultValue((Class<?>) vt);
+        } else {
+          result[i] = converter.fromData(c.getPayloads(i), pt, vt);
         }
       }
       return result;
     } catch (DataConverterException e) {
       throw e;
-    } catch (Exception e) {
-      throw new DataConverterException(content, valueTypes, e);
-    }
-  }
-
-  /**
-   * Special handling of exception serialization and deserialization. Default JSON for stack traces
-   * is very space consuming and not readable by humans. So convert it into single text field and
-   * then parse it back into StackTraceElement array.
-   *
-   * <p>Implementation idea is based on https://github.com/google/gson/issues/43
-   */
-  private static class ThrowableTypeAdapterFactory implements TypeAdapterFactory {
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> typeToken) {
-      // Special handling of fields of DataConverter type.
-      // Needed to serialize exceptions like ActivityTimeoutException.
-      if (DataConverter.class.isAssignableFrom(typeToken.getRawType())) {
-        return new TypeAdapter<T>() {
-          @Override
-          public void write(JsonWriter out, T value) throws IOException {
-            out.beginObject();
-            out.name(TYPE_FIELD_NAME).value(JSON_CONVERTER_TYPE);
-            out.endObject();
-          }
-
-          @Override
-          @SuppressWarnings("unchecked")
-          public T read(JsonReader in) throws IOException {
-            in.beginObject();
-            if (!in.nextName().equals(TYPE_FIELD_NAME)) {
-              throw new IOException("Cannot deserialize DataConverter. Missing type field");
-            }
-            String value = in.nextString();
-            if (!"JSON".equals(value)) {
-              throw new IOException(
-                  "Cannot deserialize DataConverter. Expected type is JSON. " + "Found " + value);
-            }
-            in.endObject();
-            return (T) GsonJsonDataConverter.getInstance();
-          }
-        };
-      }
-      if (Class.class.isAssignableFrom(typeToken.getRawType())) {
-        return new TypeAdapter<T>() {
-          @Override
-          public void write(JsonWriter out, T value) throws IOException {
-            out.beginObject();
-            String className = ((Class) value).getName();
-            out.name(CLASS_NAME_FIELD_NAME).value(className);
-            out.endObject();
-          }
-
-          @Override
-          public T read(JsonReader in) throws IOException {
-            in.beginObject();
-            if (!in.nextName().equals(CLASS_NAME_FIELD_NAME)) {
-              throw new IOException(
-                  "Cannot deserialize class. Missing " + CLASS_NAME_FIELD_NAME + " field");
-            }
-            String className = in.nextString();
-            try {
-              @SuppressWarnings("unchecked")
-              T result = (T) Class.forName(className);
-              in.endObject();
-              return result;
-            } catch (ClassNotFoundException e) {
-              throw new RuntimeException(e);
-            }
-          }
-        };
-      }
-      if (!Throwable.class.isAssignableFrom(typeToken.getRawType())) {
-        return null; // this class only serializes 'Throwable' and its subtypes
-      }
-
-      return new CustomThrowableTypeAdapter(gson, this).nullSafe();
+    } catch (Throwable e) {
+      throw new DataConverterException(e);
     }
   }
 }

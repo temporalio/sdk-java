@@ -22,9 +22,10 @@ package io.temporal.internal.replay;
 import com.uber.m3.tally.Scope;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.SearchAttributes;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
-import io.temporal.proto.execution.WorkflowExecution;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
@@ -58,8 +59,6 @@ public interface DecisionContext extends ReplayAware {
 
   String getContinuedExecutionRunId();
 
-  int getExecutionStartToCloseTimeoutSeconds();
-
   String getTaskList();
 
   String getNamespace();
@@ -68,9 +67,15 @@ public interface DecisionContext extends ReplayAware {
 
   String getRunId();
 
-  Duration getExecutionStartToCloseTimeout();
+  Duration getWorkflowRunTimeout();
 
-  Duration getDecisionTaskTimeout();
+  Duration getWorkflowExecutionTimeout();
+
+  long getRunStartedTimestampMillis();
+
+  long getWorkflowExecutionExpirationTimestampMillis();
+
+  Duration getWorkflowTaskTimeout();
 
   /**
    * Used to retrieve search attributes.
@@ -100,10 +105,11 @@ public interface DecisionContext extends ReplayAware {
    * @return cancellation handle. Invoke {@link Consumer#accept(Object)} to cancel activity task.
    */
   Consumer<Exception> scheduleActivityTask(
-      ExecuteActivityParameters parameters, BiConsumer<byte[], Exception> callback);
+      ExecuteActivityParameters parameters, BiConsumer<Optional<Payloads>, Exception> callback);
 
   Consumer<Exception> scheduleLocalActivityTask(
-      ExecuteLocalActivityParameters parameters, BiConsumer<byte[], Exception> callback);
+      ExecuteLocalActivityParameters parameters,
+      BiConsumer<Optional<Payloads>, Exception> callback);
 
   /**
    * Start child workflow.
@@ -116,21 +122,7 @@ public interface DecisionContext extends ReplayAware {
   Consumer<Exception> startChildWorkflow(
       StartChildWorkflowExecutionParameters parameters,
       Consumer<WorkflowExecution> executionCallback,
-      BiConsumer<byte[], Exception> callback);
-
-  /**
-   * Is the next event in the history is child workflow initiated event and it has an attached retry
-   * policy. Used for backwards compatibility with the code that used local workflow retry when
-   * RetryOptions were specified.
-   */
-  boolean isServerSideChildWorkflowRetry();
-
-  /**
-   * Is the next event in the history is an activity scheduled event and it has an attached retry
-   * policy. Used for the backwards compatibility with the code that used local activity retry when
-   * RetryOptions were specified.
-   */
-  boolean isServerSideActivityRetry();
+      BiConsumer<Optional<Payloads>, Exception> callback);
 
   Consumer<Exception> signalWorkflowExecution(
       SignalExternalWorkflowParameters signalParameters, BiConsumer<Void, Exception> callback);
@@ -139,8 +131,8 @@ public interface DecisionContext extends ReplayAware {
 
   void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionParameters parameters);
 
-  Optional<byte[]> mutableSideEffect(
-      String id, DataConverter dataConverter, Func1<Optional<byte[]>, Optional<byte[]>> func);
+  Optional<Payloads> mutableSideEffect(
+      String id, DataConverter dataConverter, Func1<Optional<Payloads>, Optional<Payloads>> func);
 
   /**
    * @return time of the {@link PollForDecisionTaskResponse} start event of the decision being
@@ -170,7 +162,7 @@ public interface DecisionContext extends ReplayAware {
    * @param func function that is called once to return a value.
    * @return value of the side effect.
    */
-  byte[] sideEffect(Func<byte[]> func);
+  Optional<Payloads> sideEffect(Func<Optional<Payloads>> func);
 
   /**
    * GetVersion is used to safely perform backwards incompatible changes to workflow definitions. It

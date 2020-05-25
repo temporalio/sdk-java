@@ -28,20 +28,26 @@ import io.temporal.proto.event.HistoryEvent;
 final class ActivityDecisionStateMachine extends DecisionStateMachineBase {
 
   private ScheduleActivityTaskDecisionAttributes scheduleAttributes;
+  private long scheduledEventId;
 
   public ActivityDecisionStateMachine(
-      DecisionId id, ScheduleActivityTaskDecisionAttributes scheduleAttributes) {
+      DecisionId id,
+      ScheduleActivityTaskDecisionAttributes scheduleAttributes,
+      long scheduledEventId) {
     super(id);
     this.scheduleAttributes = scheduleAttributes;
+    this.scheduledEventId = scheduledEventId;
   }
 
   /** Used for unit testing */
   ActivityDecisionStateMachine(
       DecisionId id,
       ScheduleActivityTaskDecisionAttributes scheduleAttributes,
-      DecisionState state) {
+      DecisionState state,
+      long scheduledEventId) {
     super(id, state);
     this.scheduleAttributes = scheduleAttributes;
+    this.scheduledEventId = scheduledEventId;
   }
 
   @Override
@@ -86,12 +92,13 @@ final class ActivityDecisionStateMachine extends DecisionStateMachineBase {
     return Decision.newBuilder()
         .setRequestCancelActivityTaskDecisionAttributes(
             RequestCancelActivityTaskDecisionAttributes.newBuilder()
-                .setActivityId(scheduleAttributes.getActivityId()))
+                .setScheduledEventId(scheduledEventId))
         .setDecisionType(DecisionType.RequestCancelActivityTask)
         .build();
   }
 
   private Decision createScheduleActivityTaskDecision() {
+    scheduledEventId = getId().getDecisionEventId();
     return Decision.newBuilder()
         .setScheduleActivityTaskDecisionAttributes(scheduleAttributes)
         .setDecisionType(DecisionType.ScheduleActivityTask)

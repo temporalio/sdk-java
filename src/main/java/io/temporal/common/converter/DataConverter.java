@@ -19,7 +19,9 @@
 
 package io.temporal.common.converter;
 
+import io.temporal.proto.common.Payloads;
 import java.lang.reflect.Type;
+import java.util.Optional;
 
 /**
  * Used by the framework to serialize/deserialize method parameters that need to be sent over the
@@ -29,6 +31,8 @@ import java.lang.reflect.Type;
  */
 public interface DataConverter {
 
+  PayloadConverter getPayloadConverter();
+
   /**
    * Implements conversion of a list of values.
    *
@@ -37,28 +41,33 @@ public interface DataConverter {
    * @throws DataConverterException if conversion of the value passed as parameter failed for any
    *     reason.
    */
-  byte[] toData(Object... values) throws DataConverterException;
+  Optional<Payloads> toData(Object... values) throws DataConverterException;
 
   /**
    * Implements conversion of a single value.
    *
    * @param content Serialized value to convert to a Java object.
-   * @param valueClass
-   * @param valueType
+   * @param parameterType type of the parameter stored in the content
+   * @param genericParameterType generic type of the parameter stored in the content
    * @return converted Java object
    * @throws DataConverterException if conversion of the data passed as parameter failed for any
    *     reason.
    */
-  <T> T fromData(byte[] content, Class<T> valueClass, Type valueType) throws DataConverterException;
+  <T> T fromData(Optional<Payloads> content, Class<T> parameterType, Type genericParameterType)
+      throws DataConverterException;
 
   /**
    * Implements conversion of an array of values of different types. Useful for deserializing
    * arguments of function invocations.
    *
    * @param content serialized value to convert to Java objects.
+   * @param parameterTypes types of the parameters stored in the content
+   * @param genericParameterTypes generic types of the parameters stored in the content
    * @return array of converted Java objects
    * @throws DataConverterException if conversion of the data passed as parameter failed for any
    *     reason.
    */
-  Object[] fromDataArray(byte[] content, Type... valueType) throws DataConverterException;
+  public Object[] fromDataArray(
+      Optional<Payloads> content, Class<?>[] parameterTypes, Type[] genericParameterTypes)
+      throws DataConverterException;
 }

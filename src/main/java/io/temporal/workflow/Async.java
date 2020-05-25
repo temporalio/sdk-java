@@ -21,6 +21,8 @@ package io.temporal.workflow;
 
 import io.temporal.common.RetryOptions;
 import io.temporal.internal.sync.AsyncInternal;
+import java.time.Duration;
+import java.util.Optional;
 
 /** Supports invoking lambdas and activity and child workflow references asynchronously. */
 public final class Async {
@@ -236,14 +238,16 @@ public final class Async {
 
   /**
    * Invokes function retrying in case of failures according to retry options. Asynchronous variant.
-   * Use {@link Workflow#retry(RetryOptions, Functions.Func)} for synchronous functions.
+   * Use {@link Workflow#retry(RetryOptions, Optional, Functions.Func)} for synchronous functions.
    *
    * @param options retry options that specify retry policy
+   * @param expiration if provided limits duration of retries
    * @param fn function to invoke and retry
    * @return result of the function or the last failure.
    */
-  public static <R> Promise<R> retry(RetryOptions options, Functions.Func<Promise<R>> fn) {
-    return AsyncInternal.retry(options, fn);
+  public static <R> Promise<R> retry(
+      RetryOptions options, Optional<Duration> expiration, Functions.Func<Promise<R>> fn) {
+    return AsyncInternal.retry(options, expiration, fn);
   }
 
   /** Prohibits instantiation. */

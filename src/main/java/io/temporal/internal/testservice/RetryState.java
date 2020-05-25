@@ -31,13 +31,12 @@ final class RetryState {
   private final int attempt;
 
   RetryState(RetryPolicy retryPolicy, long expirationTime) {
-    this(validateRetryPolicy(retryPolicy), expirationTime, 0);
+    this(valiateAndOverrideRetryPolicy(retryPolicy), expirationTime, 0);
   }
 
   private RetryState(RetryPolicy retryPolicy, long expirationTime, int attempt) {
     this.retryPolicy = retryPolicy;
-    this.expirationTime =
-        retryPolicy.getExpirationIntervalInSeconds() == 0 ? Long.MAX_VALUE : expirationTime;
+    this.expirationTime = expirationTime == 0 ? Long.MAX_VALUE : expirationTime;
     this.attempt = attempt;
   }
 
@@ -95,7 +94,7 @@ final class RetryState {
     }
 
     // check if error is non-retriable
-    List<String> nonRetriableErrorReasons = retryPolicy.getNonRetriableErrorReasonsList();
+    List<String> nonRetriableErrorReasons = retryPolicy.getNonRetryableErrorTypesList();
     if (nonRetriableErrorReasons != null) {
       for (String err : nonRetriableErrorReasons) {
         if (errReason.equals(err)) {
@@ -106,16 +105,23 @@ final class RetryState {
     return (int) TimeUnit.MILLISECONDS.toSeconds((long) Math.ceil((double) backoffInterval));
   }
 
-  static RetryPolicy validateRetryPolicy(RetryPolicy policy) {
-    if (policy.getInitialIntervalInSeconds() <= 0) {
+  static RetryPolicy valiateAndOverrideRetryPolicy(RetryPolicy p) {
+    RetryPolicy.Builder policy = p.toBuilder();
+    if (policy.getInitialIntervalInSeconds() < 0) {
       throw Status.INVALID_ARGUMENT
           .withDescription("InitialIntervalInSeconds must be greater than 0 on retry policy.")
           .asRuntimeException();
     }
-    if (policy.getBackoffCoefficient() < 1) {
+    if (policy.getInitialIntervalInSeconds() == 0) {
+      policy.setInitialIntervalInSeconds(1);
+    }
+    if (policy.getBackoffCoefficient() != 0 && policy.getBackoffCoefficient() < 1) {
       throw Status.INVALID_ARGUMENT
           .withDescription("BackoffCoefficient cannot be less than 1 on retry policy.")
           .asRuntimeException();
+    }
+    if (policy.getBackoffCoefficient() == 0) {
+      policy.setBackoffCoefficient(2d);
     }
     if (policy.getMaximumIntervalInSeconds() < 0) {
       throw Status.INVALID_ARGUMENT
@@ -134,12 +140,6 @@ final class RetryState {
           .withDescription("MaximumAttempts cannot be less than 0 on retry policy.")
           .asRuntimeException();
     }
-    if (policy.getMaximumAttempts() == 0 && policy.getExpirationIntervalInSeconds() == 0) {
-      throw Status.INVALID_ARGUMENT
-          .withDescription(
-              "MaximumAttempts and ExpirationIntervalInSeconds are both 0. At least one of them must be specified.")
-          .asRuntimeException();
-    }
-    return policy;
+    return policy.build();
   }
 }

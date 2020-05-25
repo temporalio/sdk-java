@@ -32,10 +32,8 @@ public class WorkflowUtils {
     if (searchAttributes == null || StringUtils.isEmpty(key)) {
       return null;
     }
-    return jsonConverter.fromData(getValueBytes(searchAttributes, key), classType, classType);
-  }
-
-  private static byte[] getValueBytes(SearchAttributes searchAttributes, String key) {
-    return searchAttributes.getIndexedFieldsOrThrow(key).toByteArray();
+    return jsonConverter
+        .getPayloadConverter()
+        .fromData(searchAttributes.getIndexedFieldsOrThrow(key), classType, classType);
   }
 }

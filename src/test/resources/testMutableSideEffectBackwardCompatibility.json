@@ -15,8 +15,8 @@
           "name": "WorkflowTest-testMutableSideEffect[Docker Sticky ON]-53e839aa-7dab-4cb0-9e65-a73c97a53815"
         },
         "input": "IldvcmtmbG93VGVzdC10ZXN0TXV0YWJsZVNpZGVFZmZlY3RbRG9ja2VyIFN0aWNreSBPTl0tNTNlODM5YWEtN2RhYi00Y2IwLTllNjUtYTczYzk3YTUzODE1Ig==",
-        "executionStartToCloseTimeoutSeconds": 30,
-        "taskStartToCloseTimeoutSeconds": 5,
+        "workflowRunTimeoutSeconds": 30,
+        "workflowTaskTimeoutSeconds": 5,
         "identity": "",
         "attempt": 0,
         "firstDecisionTaskBackoffSeconds": 0

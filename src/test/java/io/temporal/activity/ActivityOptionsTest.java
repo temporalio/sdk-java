@@ -30,13 +30,11 @@ import org.junit.Test;
 public class ActivityOptionsTest {
 
   @MethodRetry(
-    initialIntervalSeconds = 12,
-    backoffCoefficient = 1.97,
-    expirationSeconds = 1231423,
-    maximumAttempts = 234567,
-    maximumIntervalSeconds = 22,
-    doNotRetry = {NullPointerException.class, UnsupportedOperationException.class}
-  )
+      initialIntervalSeconds = 12,
+      backoffCoefficient = 1.97,
+      maximumAttempts = 234567,
+      maximumIntervalSeconds = 22,
+      doNotRetry = {NullPointerException.class, UnsupportedOperationException.class})
   public void activityAndRetryOptions() {}
 
   @Test
@@ -45,12 +43,11 @@ public class ActivityOptionsTest {
     ActivityMethod a = method.getAnnotation(ActivityMethod.class);
     MethodRetry r = method.getAnnotation(MethodRetry.class);
     ActivityOptions o = ActivityOptions.newBuilder().build();
-    ActivityOptions merged = ActivityOptions.newBuilder(o).setMethodRetry(r).build();
+    ActivityOptions merged = ActivityOptions.newBuilder(o).mergeMethodRetry(r).build();
 
     RetryOptions rMerged = merged.getRetryOptions();
     Assert.assertEquals(r.maximumAttempts(), rMerged.getMaximumAttempts());
     Assert.assertEquals(r.backoffCoefficient(), rMerged.getBackoffCoefficient(), 0.0);
-    Assert.assertEquals(Duration.ofSeconds(r.expirationSeconds()), rMerged.getExpiration());
     Assert.assertEquals(
         Duration.ofSeconds(r.initialIntervalSeconds()), rMerged.getInitialInterval());
     Assert.assertEquals(
