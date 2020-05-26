@@ -19,45 +19,39 @@
 
 package io.temporal.internal.common;
 
-import com.google.common.collect.ImmutableList;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonPrimitive;
-import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
-import com.google.gson.reflect.TypeToken;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
+import io.temporal.common.converter.DataConverterException;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.event.EventType;
+import io.temporal.proto.event.History;
 import io.temporal.proto.event.HistoryEvent;
-import java.lang.reflect.Type;
-import java.nio.ByteBuffer;
-import java.util.Base64;
 import java.util.List;
 
 /** Contains workflow execution ids and the history */
 public final class WorkflowExecutionHistory {
-  private final List<HistoryEvent> events;
+  private final History history;
 
-  public WorkflowExecutionHistory(List<HistoryEvent> events) {
-    checkHistory(events);
-    this.events = ImmutableList.copyOf(events);
+  public WorkflowExecutionHistory(History history) {
+    checkHistory(history);
+    this.history = history;
   }
 
   public static WorkflowExecutionHistory fromJson(String serialized) {
-    GsonBuilder gsonBuilder = new GsonBuilder();
-    gsonBuilder.registerTypeAdapter(ByteBuffer.class, new ByteBufferJsonDeserializer());
-    Gson gson = gsonBuilder.create();
-    Type eventsType = new TypeToken<List<HistoryEvent>>() {}.getType();
-    List<HistoryEvent> events = gson.fromJson(serialized, eventsType);
-    checkHistory(events);
-    return new WorkflowExecutionHistory(events);
+    JsonFormat.Parser parser = JsonFormat.parser();
+    History.Builder historyBuilder = History.newBuilder();
+    try {
+      parser.merge(serialized, historyBuilder);
+    } catch (InvalidProtocolBufferException e) {
+      throw new DataConverterException(e);
+    }
+    History history = historyBuilder.build();
+    checkHistory(history);
+    return new WorkflowExecutionHistory(history);
   }
 
-  private static void checkHistory(List<HistoryEvent> events) {
+  private static void checkHistory(History history) {
+    List<HistoryEvent> events = history.getEventsList();
     if (events == null || events.size() == 0) {
       throw new IllegalArgumentException("Empty history");
     }
@@ -72,9 +66,16 @@ public final class WorkflowExecutionHistory {
   }
 
   public String toJson() {
-    GsonBuilder gsonBuilder = new GsonBuilder();
-    Gson gson = gsonBuilder.create();
-    return gson.toJson(this);
+    JsonFormat.Printer printer = JsonFormat.printer();
+    try {
+      return printer.print(history);
+    } catch (InvalidProtocolBufferException e) {
+      throw new DataConverterException(e);
+    }
+  }
+
+  public String toPrettyPrintedJson() {
+    return toJson();
   }
 
   public WorkflowExecution getWorkflowExecution() {
@@ -85,24 +86,11 @@ public final class WorkflowExecutionHistory {
   }
 
   public List<HistoryEvent> getEvents() {
-    return events;
+    return history.getEventsList();
   }
 
-  private static final class ByteBufferJsonDeserializer
-      implements JsonDeserializer<ByteBuffer>, JsonSerializer<ByteBuffer> {
-
-    @Override
-    public JsonElement serialize(ByteBuffer value, Type type, JsonSerializationContext ctx) {
-      if (value.arrayOffset() > 0) {
-        throw new IllegalArgumentException("non zero value array offset: " + value.arrayOffset());
-      }
-      return new JsonPrimitive(Base64.getEncoder().encodeToString(value.array()));
-    }
-
-    @Override
-    public ByteBuffer deserialize(JsonElement e, Type type, JsonDeserializationContext ctx)
-        throws JsonParseException {
-      return ByteBuffer.wrap(Base64.getDecoder().decode(e.getAsString()));
-    }
+  @Override
+  public String toString() {
+    return "WorkflowExecutionHistory{" + "history=" + history + '}';
   }
 }

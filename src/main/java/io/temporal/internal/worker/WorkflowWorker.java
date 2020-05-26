@@ -140,8 +140,7 @@ public final class WorkflowWorker
     GetWorkflowExecutionHistoryResponse historyResponse =
         WorkflowExecutionUtils.getHistoryPage(service, namespace, exec, ByteString.EMPTY);
     History history = historyResponse.getHistory();
-    WorkflowExecutionHistory workflowExecutionHistory =
-        new WorkflowExecutionHistory(history.getEventsList());
+    WorkflowExecutionHistory workflowExecutionHistory = new WorkflowExecutionHistory(history);
     return queryWorkflowExecution(
         queryType, args, workflowExecutionHistory, historyResponse.getNextPageToken());
   }
@@ -189,7 +188,7 @@ public final class WorkflowWorker
     DecisionTaskHandler.Result result = handler.handleDecisionTask(task.build());
     if (result.getQueryCompleted() != null) {
       RespondQueryTaskCompletedRequest r = result.getQueryCompleted();
-      if (r.getErrorMessage() != null) {
+      if (!r.getErrorMessage().isEmpty()) {
         throw new RuntimeException(
             "query failure for "
                 + history.getWorkflowExecution()

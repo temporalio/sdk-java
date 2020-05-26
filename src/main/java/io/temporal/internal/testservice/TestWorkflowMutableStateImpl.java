@@ -1639,8 +1639,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       update(
           ctx -> {
             StateMachine<ActivityTaskData> activity = getActivity(scheduledEventId);
+
             int attempt = activity.getData().getAttempt();
-            if (timeoutAttempt != attempt) {
+            if (timeoutAttempt != attempt
+                || (activity.getState() != State.INITIATED
+                    && activity.getState() != State.STARTED)) {
               throw Status.NOT_FOUND.withDescription("Outdated timer").asRuntimeException();
             }
             if (timeoutType == TimeoutType.ScheduleToStart

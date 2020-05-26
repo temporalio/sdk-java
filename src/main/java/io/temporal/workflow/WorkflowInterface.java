@@ -20,6 +20,7 @@
 package io.temporal.workflow;
 
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowOptions;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -28,7 +29,8 @@ import java.lang.annotation.Target;
 /**
  * WorkflowInterface annotation indicates that an interface is a Workflow interface. Only interfaces
  * annotated with this annotation can be used as parameters to {@link
- * WorkflowClient#newWorkflowStub(Class)} and {@link Workflow#newChildWorkflowStub(Class)} methods.
+ * WorkflowClient#newWorkflowStub(Class, WorkflowOptions)} and {@link
+ * Workflow#newChildWorkflowStub(Class)} methods.
  *
  * <p>All methods of an interface annotated with WorkflowInterface must have one of the following
  * annotations: {@literal @}WorkflowMethod, {@literal @}SignalMethod or {@literal @}QueryMethod

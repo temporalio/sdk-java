@@ -367,12 +367,16 @@ public final class Worker implements Suspendable {
    * @throws Exception if replay failed for any reason
    */
   public void replayWorkflowExecution(WorkflowExecutionHistory history) throws Exception {
-    workflowWorker.queryWorkflowExecution(
-        history,
-        WorkflowClient.QUERY_TYPE_REPLAY_ONLY,
-        String.class,
-        String.class,
-        new Object[] {});
+    try {
+      workflowWorker.queryWorkflowExecution(
+          history,
+          WorkflowClient.QUERY_TYPE_REPLAY_ONLY,
+          String.class,
+          String.class,
+          new Object[] {});
+    } catch (Exception e) {
+
+    }
   }
 
   /**
