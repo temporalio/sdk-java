@@ -38,7 +38,7 @@ public interface WorkflowStub {
 
   /**
    * Extracts untyped WorkflowStub from a typed workflow stub created through {@link
-   * WorkflowClient#newWorkflowStub(Class)}.
+   * WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
    *
    * @param typed typed workflow stub
    * @param <T> type of the workflow stub interface

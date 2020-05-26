@@ -22,7 +22,10 @@ package io.temporal.workflow;
 import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
 import static org.junit.Assert.*;
 
+import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
+import com.google.common.io.CharSink;
+import com.google.common.io.Files;
 import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.protobuf.ByteString;
@@ -155,9 +158,12 @@ public class WorkflowTest {
   private static final String ANNOTATION_TASK_LIST = "WorkflowTest-testExecute[Docker]";
 
   private TracingWorkflowInterceptor tracer;
-  private static final boolean useExternalService = true;
-  //      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+  private static final boolean useExternalService =
+      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
   private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
+  // Enable to regenerate JsonFiles used for replay testing.
+  // Only enable when USE_DOCKER_SERVICE is true
+  private static boolean regenerateJsonFiles = false;
 
   @Rule public TestName testName = new TestName();
 
@@ -197,6 +203,10 @@ public class WorkflowTest {
 
   @BeforeClass()
   public static void startService() {
+    if (regenerateJsonFiles && !useExternalService) {
+      throw new IllegalStateException(
+          "regenerateJsonFiles is true when useExternalService is false");
+    }
     if (useExternalService) {
       service =
           WorkflowServiceStubs.newInstance(
@@ -823,7 +833,7 @@ public class WorkflowTest {
   }
 
   @Test
-  public void testAsyncActivityRetry() {
+  public void testAsyncActivityRetry() throws IOException {
     startWorkerFor(TestAsyncActivityRetry.class);
     TestWorkflow1 workflowStub =
         workflowClient.newWorkflowStub(
@@ -835,47 +845,40 @@ public class WorkflowTest {
       assertTrue(e.getCause().getCause() instanceof IOException);
     }
     assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
-    // Uncomment to regenerate the JSON file used by testAsyncActivityRetryReplay
-    if (useExternalService) {
+    WorkflowExecution execution = WorkflowStub.fromTyped(workflowStub).getExecution();
+    regenerateHistoryForReplay(execution, "testAsyncActivityRetryHistory");
+  }
+
+  private void regenerateHistoryForReplay(WorkflowExecution execution, String fileName) {
+    if (regenerateJsonFiles) {
       GetWorkflowExecutionHistoryRequest request =
           GetWorkflowExecutionHistoryRequest.newBuilder()
               .setNamespace(NAMESPACE)
-              .setExecution(WorkflowStub.fromTyped(workflowStub).getExecution())
+              .setExecution(execution)
               .build();
       GetWorkflowExecutionHistoryResponse response =
           service.blockingStub().getWorkflowExecutionHistory(request);
-      WorkflowExecutionHistory history =
-          new WorkflowExecutionHistory(response.getHistory().getEventsList());
-      log.info("!!!! hitory:\n" + history.toPrettyPrintedJson());
+      WorkflowExecutionHistory history = new WorkflowExecutionHistory(response.getHistory());
+      String json = history.toPrettyPrintedJson();
+      String projectPath = System.getProperty("user.dir");
+      String resourceFile = projectPath + "/src/test/resources/" + fileName + ".json";
+      File file = new File(resourceFile);
+      CharSink sink = Files.asCharSink(file, Charsets.UTF_8);
+      try {
+        sink.write(json);
+      } catch (IOException e) {
+        Throwables.propagateIfPossible(e, RuntimeException.class);
+      }
+      log.info("Regenerated history file: " + resourceFile);
     }
   }
 
-  /**
-   * Tests that history that was created before server side retry was supported is backwards
-   * compatible with the client that supports the server side retry.
-   */
   @Test
-  //  @Ignore // TODO(maxim): Replay from JSON
   public void testAsyncActivityRetryReplay() throws Exception {
     // Avoid executing 4 times
     Assume.assumeFalse("skipping for docker tests", useExternalService);
     WorkflowReplayer.replayWorkflowExecutionFromResource(
         "testAsyncActivityRetryHistory.json", TestAsyncActivityRetry.class);
-  }
-
-  /**
-   * Tests that history created before marker header change is backwards compatible with old markers
-   * generated without headers.
-   */
-  @Test
-  @Ignore // TODO(maxim): Replay from JSON
-  public void testMutableSideEffectReplay() throws Exception {
-    // Avoid executing 4 times
-    if (!testName.getMethodName().equals("testAsyncActivityRetryReplay[Docker Sticky OFF]")) {
-      return;
-    }
-    WorkflowReplayer.replayWorkflowExecutionFromResource(
-        "testMutableSideEffectBackwardCompatibility.json", TestMutableSideEffectWorkflowImpl.class);
   }
 
   public static class TestAsyncActivityRetryOptionsChange implements TestWorkflow1 {
@@ -945,6 +948,7 @@ public class WorkflowTest {
         // false for second argument means to heartbeat once to set details and then stop.
         activities.activityWithDelay(5000, false);
       } catch (ActivityTimeoutException e) {
+        log.info("TestHeartbeatTimeoutDetails expected timeout", e);
         assertEquals(TimeoutType.Heartbeat, e.getTimeoutType());
         return e.getDetails(String.class);
       }
@@ -3200,6 +3204,8 @@ public class WorkflowTest {
     }
     assertEquals("TestWorkflow1", lastStartedWorkflowType.get());
     assertEquals(3, angryChildActivity.getInvocationCount());
+    WorkflowExecution execution = WorkflowStub.fromTyped(client).getExecution();
+    regenerateHistoryForReplay(execution, "testChildWorkflowRetryHistory");
   }
 
   /**
@@ -3207,7 +3213,6 @@ public class WorkflowTest {
    * compatible with the client that supports the server side retry.
    */
   @Test
-  @Ignore // TODO(maxim): Fix history JSON serialization
   public void testChildWorkflowRetryReplay() throws Exception {
     Assume.assumeFalse("skipping for docker tests", useExternalService);
 
@@ -5569,68 +5574,6 @@ public class WorkflowTest {
     assertEquals(expected, result);
   }
 
-  public static class TestWorkflowResetReplayWorkflow implements TestWorkflow1 {
-    @Override
-    public String execute(String taskList) {
-      ChildWorkflowOptions workflowOptions =
-          ChildWorkflowOptions.newBuilder()
-              .setTaskList(taskList)
-              .setRetryOptions(
-                  RetryOptions.newBuilder()
-                      .setMaximumAttempts(3)
-                      .setInitialInterval(Duration.ofSeconds(1))
-                      .build())
-              .build();
-
-      ActivityOptions options =
-          ActivityOptions.newBuilder()
-              .setTaskList(taskList)
-              .setHeartbeatTimeout(Duration.ofSeconds(5))
-              .setScheduleToCloseTimeout(Duration.ofSeconds(5))
-              .setScheduleToStartTimeout(Duration.ofSeconds(5))
-              .setStartToCloseTimeout(Duration.ofSeconds(10))
-              .build();
-
-      for (int i = 0; i < 10; i++) {
-        if (Workflow.newRandom().nextDouble() > 0.5) {
-          Workflow.getLogger("test").info("Execute child workflow");
-          TestMultiargsWorkflowsFunc stubF =
-              Workflow.newChildWorkflowStub(TestMultiargsWorkflowsFunc.class, workflowOptions);
-          stubF.func();
-        } else {
-          Workflow.getLogger("test").info("Execute activity");
-          TestActivities activities = Workflow.newActivityStub(TestActivities.class, options);
-          activities.activity();
-        }
-      }
-
-      return "done";
-    }
-  }
-
-  @Test
-  @Ignore // TODO(maxim): Fix history JSON serialization
-  public void testWorkflowReset() throws Exception {
-    // Leave the following code to generate history.
-    //    startWorkerFor(TestWorkflowResetReplayWorkflow.class, TestMultiargsWorkflowsImpl.class);
-    //    TestWorkflow1 workflowStub =
-    //        workflowClient.newWorkflowStub(
-    //            TestWorkflow1.class, newWorkflowOptionsBuilder(taskList).build());
-    //    workflowStub.execute(taskList);
-    //
-    //    try {
-    //      Thread.sleep(60000000);
-    //    } catch (InterruptedException e) {
-    //      e.printStackTrace();
-    //    }
-
-    // Avoid executing 4 times
-    Assume.assumeFalse("skipping for docker tests", useExternalService);
-
-    WorkflowReplayer.replayWorkflowExecutionFromResource(
-        "resetWorkflowHistory.json", TestWorkflowResetReplayWorkflow.class);
-  }
-
   public interface GreetingWorkflow {
 
     @WorkflowMethod
@@ -5652,44 +5595,6 @@ public class WorkflowTest {
       }
       return "greetings: " + string;
     }
-  }
-
-  /** GreetingWorkflow implementation that updates greeting after sleeping for 5 seconds. */
-  public static class TimerFiringWorkflowImpl implements GreetingWorkflow {
-
-    private final GreetingActivities activities =
-        Workflow.newActivityStub(
-            GreetingActivities.class,
-            ActivityOptions.newBuilder().setScheduleToCloseTimeout(Duration.ofSeconds(5)).build());
-
-    @Override
-    public void createGreeting(String name) {
-      Promise<String> promiseString1 = Async.function(() -> activities.composeGreeting("1"));
-      Promise<String> promiseString2 = Async.function(() -> "aString2");
-
-      Set<Promise<String>> promiseSet = new HashSet<>();
-      promiseSet.add(promiseString1);
-      promiseSet.add(promiseString2);
-      Workflow.await(
-          Duration.ofSeconds(30), () -> promiseSet.stream().anyMatch(Promise::isCompleted));
-
-      promiseString1.get();
-      Workflow.sleep(Duration.ofSeconds(20));
-      promiseString2.get();
-    }
-  }
-
-  // Server doesn't guarantee that the timer fire timestamp is larger or equal of the
-  // expected fire time. This test ensures that client still fires timer in this case.
-  @Test
-  @Ignore // TODO: Fix replay from JSON.
-  public void testTimerFiringTimestampEarlierThanExpected() throws Exception {
-
-    // Avoid executing 4 times
-    Assume.assumeFalse("skipping for docker tests", useExternalService);
-
-    WorkflowReplayer.replayWorkflowExecutionFromResource(
-        "timerfiring.json", TimerFiringWorkflowImpl.class);
   }
 
   private static class FilteredTrace {
