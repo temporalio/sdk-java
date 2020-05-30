@@ -1094,8 +1094,12 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     WorkflowData data = workflow.getData();
     if (data.retryState.isPresent()) {
       RetryState rs = data.retryState.get();
-      int backoffIntervalSeconds =
-          rs.getBackoffIntervalInSeconds(d.getReason(), store.currentTimeMillis());
+      int backoffIntervalSeconds = 0;
+      if (d.getFailure().hasApplicationFailureInfo()) {
+        backoffIntervalSeconds =
+            rs.getBackoffIntervalInSeconds(
+                d.getFailure().getApplicationFailureInfo().getType(), store.currentTimeMillis());
+      }
       if (backoffIntervalSeconds > 0) {
         ContinueAsNewWorkflowExecutionDecisionAttributes.Builder continueAsNewAttr =
             ContinueAsNewWorkflowExecutionDecisionAttributes.newBuilder()
@@ -1149,8 +1153,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       ChildWorkflowExecutionFailedEventAttributes a =
           ChildWorkflowExecutionFailedEventAttributes.newBuilder()
               .setInitiatedEventId(parentChildInitiatedEventId.getAsLong())
-              .setDetails(d.getDetails())
-              .setReason(d.getReason())
+              .setFailure(d.getFailure())
               .setWorkflowType(startRequest.getWorkflowType())
               .setNamespace(ctx.getNamespace())
               .setWorkflowExecution(ctx.getExecution())

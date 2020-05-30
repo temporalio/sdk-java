@@ -19,6 +19,7 @@
 
 package io.temporal.client;
 
+import io.temporal.failure.TemporalException;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.workflow.ChildWorkflowException;
 import java.util.Optional;
@@ -27,7 +28,7 @@ import java.util.Optional;
  * Base exception for all workflow failures returned by an external client. Note that inside a
  * workflow implementation child workflows throw subclasses of {@link ChildWorkflowException}.
  */
-public class WorkflowException extends RuntimeException {
+public class WorkflowException extends TemporalException {
 
   private final WorkflowExecution execution;
   private final Optional<String> workflowType;

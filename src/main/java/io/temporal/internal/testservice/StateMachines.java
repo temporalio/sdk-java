@@ -881,9 +881,10 @@ class StateMachines {
       long decisionTaskCompletedEventId) {
     WorkflowExecutionFailedEventAttributes.Builder a =
         WorkflowExecutionFailedEventAttributes.newBuilder()
-            .setReason(d.getReason())
-            .setDetails(d.getDetails())
             .setDecisionTaskCompletedEventId(decisionTaskCompletedEventId);
+    if (d.hasFailure()) {
+      a.setFailure(d.getFailure());
+    }
     HistoryEvent event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.WorkflowExecutionFailed)
@@ -1346,10 +1347,11 @@ class StateMachines {
     DecisionTaskFailedEventAttributes.Builder a =
         DecisionTaskFailedEventAttributes.newBuilder()
             .setIdentity(request.getIdentity())
-            .setCause(request.getCause())
-            .setDetails(request.getDetails())
             .setStartedEventId(data.startedEventId)
             .setScheduledEventId(data.scheduledEventId);
+    if (request.hasFailure()) {
+      a.setFailure(request.getFailure());
+    }
     HistoryEvent event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.DecisionTaskFailed)
@@ -1444,15 +1446,16 @@ class StateMachines {
 
   private static State failActivityTaskByTaskToken(
       RequestContext ctx, ActivityTaskData data, RespondActivityTaskFailedRequest request) {
-    if (attemptActivityRetry(ctx, request.getReason(), data)) {
+    if (request.getFailure().hasApplicationFailureInfo()
+        && attemptActivityRetry(
+            ctx, request.getFailure().getApplicationFailureInfo().getType(), data)) {
       return INITIATED;
     }
     ActivityTaskFailedEventAttributes.Builder a =
         ActivityTaskFailedEventAttributes.newBuilder()
             .setIdentity(request.getIdentity())
             .setScheduledEventId(data.scheduledEventId)
-            .setDetails(request.getDetails())
-            .setReason(request.getReason())
+            .setFailure(request.getFailure())
             .setIdentity(request.getIdentity())
             .setStartedEventId(data.startedEventId);
     HistoryEvent event =
@@ -1466,15 +1469,16 @@ class StateMachines {
 
   private static State failActivityTaskById(
       RequestContext ctx, ActivityTaskData data, RespondActivityTaskFailedByIdRequest request) {
-    if (attemptActivityRetry(ctx, request.getReason(), data)) {
+    if (request.getFailure().hasApplicationFailureInfo()
+        && attemptActivityRetry(
+            ctx, request.getFailure().getApplicationFailureInfo().getType(), data)) {
       return INITIATED;
     }
     ActivityTaskFailedEventAttributes.Builder a =
         ActivityTaskFailedEventAttributes.newBuilder()
             .setIdentity(request.getIdentity())
             .setScheduledEventId(data.scheduledEventId)
-            .setDetails(request.getDetails())
-            .setReason(request.getReason())
+            .setFailure(request.getFailure())
             .setIdentity(request.getIdentity())
             .setStartedEventId(data.startedEventId);
     HistoryEvent event =
@@ -1500,7 +1504,7 @@ class StateMachines {
             .setTimeoutType(timeoutType)
             .setStartedEventId(data.startedEventId);
     if (data.heartbeatDetails != null) {
-      a.setDetails(data.heartbeatDetails);
+      a.setLastHeartbeatDetails(data.heartbeatDetails);
     }
     HistoryEvent event =
         HistoryEvent.newBuilder()

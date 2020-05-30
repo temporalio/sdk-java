@@ -19,12 +19,11 @@
 
 package io.temporal.workflow;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.DataConverterException;
 import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.TimeoutType;
+
 import java.lang.reflect.Type;
 import java.util.Objects;
 import java.util.Optional;
@@ -39,7 +38,7 @@ public final class ActivityTimeoutException extends ActivityException {
 
   private final TimeoutType timeoutType;
 
-  private final byte[] details;
+  private final Optional<Payloads> details;
   private DataConverter dataConverter;
 
   public ActivityTimeoutException(
@@ -52,7 +51,7 @@ public final class ActivityTimeoutException extends ActivityException {
     super("TimeoutType=" + timeoutType, eventId, activityType, activityId);
     this.timeoutType = Objects.requireNonNull(timeoutType);
     // Serialize to byte array as the exception itself has to be serialized
-    this.details = details.isPresent() ? details.get().toByteArray() : null;
+    this.details = details;
     this.dataConverter = Objects.requireNonNull(dataConverter);
   }
 
@@ -67,12 +66,6 @@ public final class ActivityTimeoutException extends ActivityException {
 
   /** @return The value from the last activity heartbeat details field. */
   public <V> V getDetails(Class<V> detailsClass, Type detailsType) {
-    Optional<Payloads> payloads;
-    try {
-      payloads = details == null ? Optional.empty() : Optional.of(Payloads.parseFrom(details));
-    } catch (InvalidProtocolBufferException e) {
-      throw new DataConverterException(e);
-    }
-    return dataConverter.fromData(payloads, detailsClass, detailsType);
+    return dataConverter.fromData(details, detailsClass, detailsType);
   }
 }

@@ -27,8 +27,11 @@ import io.temporal.proto.common.Header;
 import io.temporal.proto.common.Payload;
 import io.temporal.proto.common.Payloads;
 import io.temporal.proto.event.MarkerRecordedEventAttributes;
+import io.temporal.proto.failure.CanceledFailureInfo;
+import io.temporal.proto.failure.Failure;
 import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
+
 import java.time.Duration;
 import java.util.Optional;
 
@@ -38,7 +41,7 @@ public final class LocalActivityMarkerData {
   public static final class Builder {
     private String activityId;
     private String activityType;
-    private String errReason;
+    private Optional<Failure> failure;
     private Optional<Payloads> result;
     private long replayTimeMillis;
     private int attempt;
@@ -56,19 +59,19 @@ public final class LocalActivityMarkerData {
     }
 
     public Builder setTaskFailedRequest(RespondActivityTaskFailedRequest request) {
-      this.errReason = request.getReason();
-      this.result = request.hasDetails() ? Optional.of(request.getDetails()) : Optional.empty();
+      this.failure = Optional.of(request.getFailure());
       return this;
     }
 
     public Builder setTaskCancelledRequest(
         RespondActivityTaskCanceledRequest request, DataConverter converter) {
+      CanceledFailureInfo.Builder failureInfo =
+          CanceledFailureInfo.newBuilder().setDetails(request.getDetails());
       if (request.hasDetails()) {
-        Payloads details = request.getDetails();
-        String message = converter.fromData(Optional.of(details), String.class, String.class);
-        this.errReason = message;
+        failureInfo.setDetails(request.getDetails());
       }
-      this.result = request.hasDetails() ? Optional.of(request.getDetails()) : Optional.empty();
+      this.failure = Optional.of(Failure.newBuilder().setCanceledFailureInfo(failureInfo).build());
+      this.result = Optional.empty();
       this.isCancelled = true;
       return this;
     }

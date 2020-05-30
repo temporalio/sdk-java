@@ -24,7 +24,7 @@ import io.grpc.StatusRuntimeException;
 import io.temporal.client.DuplicateWorkflowException;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowException;
-import io.temporal.client.WorkflowFailureException;
+import io.temporal.client.WorkflowTemporalException;
 import io.temporal.client.WorkflowNotFoundException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowQueryException;
@@ -372,14 +372,14 @@ class WorkflowStubImpl implements WorkflowStub {
                 "Couldn't deserialize failure cause "
                     + "as the reason field is expected to contain an exception class name",
                 executionFailed);
-        throw new WorkflowFailureException(
+        throw new WorkflowTemporalException(
             execution.get(), workflowType, executionFailed.getDecisionTaskCompletedEventId(), ee);
       }
       Throwable cause =
           clientOptions
               .getDataConverter()
               .fromData(executionFailed.getDetails(), detailsClass, detailsClass);
-      throw new WorkflowFailureException(
+      throw new WorkflowTemporalException(
           execution.get(), workflowType, executionFailed.getDecisionTaskCompletedEventId(), cause);
     } else if (failure instanceof StatusRuntimeException) {
       StatusRuntimeException sre = (StatusRuntimeException) failure;
