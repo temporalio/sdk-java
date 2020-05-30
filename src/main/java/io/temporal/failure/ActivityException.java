@@ -3,7 +3,7 @@ package io.temporal.failure;
 import io.temporal.proto.failure.ActivityTaskFailureInfo;
 import io.temporal.proto.failure.Failure;
 
-public final class ActivityException extends TemporalException {
+public final class ActivityException extends RemoteException {
 
   private final long scheduledEventId;
   private final long startedEventId;

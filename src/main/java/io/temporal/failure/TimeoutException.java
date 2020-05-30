@@ -5,11 +5,10 @@ import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.TimeoutType;
 import io.temporal.proto.failure.Failure;
 import io.temporal.proto.failure.TimeoutFailureInfo;
-
 import java.lang.reflect.Type;
 import java.util.Optional;
 
-public final class TimeoutException extends TemporalException {
+public final class TimeoutException extends RemoteException {
   private final TimeoutType timeoutType;
   private final Optional<Payloads> lastHeartbeatDetails;
   private final DataConverter dataConverter;

@@ -4,11 +4,10 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.proto.common.Payloads;
 import io.temporal.proto.failure.Failure;
 import io.temporal.proto.failure.ResetWorkflowFailureInfo;
-
 import java.lang.reflect.Type;
 import java.util.Optional;
 
-public final class ResetWorkflowException extends TemporalException {
+public final class ResetWorkflowException extends RemoteException {
   private final Optional<Payloads> lastHeartbeatDetails;
   private final DataConverter dataConverter;
 

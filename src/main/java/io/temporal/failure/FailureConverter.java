@@ -12,14 +12,16 @@ import io.temporal.proto.failure.ResetWorkflowFailureInfo;
 import io.temporal.proto.failure.ServerFailureInfo;
 import io.temporal.proto.failure.TerminatedFailureInfo;
 import io.temporal.proto.failure.TimeoutFailureInfo;
-
 import java.util.Optional;
 
 public class FailureConverter {
 
   static final String JAVA_SDK = "JavaSDK";
 
-  public static TemporalException failureToException(Failure failure, DataConverter dataConverter) {
+  public static RemoteException failureToException(Failure failure, DataConverter dataConverter) {
+    if (failure == null) {
+      return null;
+    }
     Exception cause =
         failure.hasCause() ? failureToException(failure.getCause(), dataConverter) : null;
     switch (failure.getFailureInfoCase()) {
@@ -47,8 +49,8 @@ public class FailureConverter {
 
   public static Failure exceptionToFailure(Throwable e, DataConverter dataConverter) {
     Failure.Builder result = Failure.newBuilder();
-    if (e instanceof TemporalException) {
-      TemporalException te = (TemporalException) e;
+    if (e instanceof RemoteException) {
+      RemoteException te = (RemoteException) e;
       result
           .setMessage(te.getMessage())
           .setSource(te.getFailureSource())
@@ -65,7 +67,7 @@ public class FailureConverter {
   }
 
   private static void setTemporalException(
-      Failure.Builder result, TemporalException te, DataConverter dataConverter) {
+      Failure.Builder result, RemoteException te, DataConverter dataConverter) {
     // TimeoutException contains cause in lastFailure
     if (te.getCause() != null && !(te instanceof TimeoutException)) {
       result.setCause(exceptionToFailure(te.getCause(), dataConverter));

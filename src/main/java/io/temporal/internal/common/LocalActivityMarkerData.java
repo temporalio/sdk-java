@@ -31,7 +31,6 @@ import io.temporal.proto.failure.CanceledFailureInfo;
 import io.temporal.proto.failure.Failure;
 import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
-
 import java.time.Duration;
 import java.util.Optional;
 

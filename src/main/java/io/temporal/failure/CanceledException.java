@@ -4,11 +4,10 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.proto.common.Payloads;
 import io.temporal.proto.failure.CanceledFailureInfo;
 import io.temporal.proto.failure.Failure;
-
 import java.lang.reflect.Type;
 import java.util.Optional;
 
-public final class CanceledException extends TemporalException {
+public final class CanceledException extends RemoteException {
   private final Optional<Payloads> details;
   private final DataConverter dataConverter;
 

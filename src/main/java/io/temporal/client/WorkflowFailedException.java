@@ -26,11 +26,11 @@ import java.util.Optional;
  * Indicates that a workflow failed. An original cause of the workflow failure can be retrieved
  * through {@link #getCause()}.
  */
-public final class WorkflowTemporalException extends WorkflowException {
+public final class WorkflowFailedException extends WorkflowException {
 
   private final long decisionTaskCompletedEventId;
 
-  public WorkflowTemporalException(
+  public WorkflowFailedException(
       WorkflowExecution execution,
       Optional<String> workflowType,
       long decisionTaskCompletedEventId,

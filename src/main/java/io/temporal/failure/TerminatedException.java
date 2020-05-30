@@ -2,7 +2,7 @@ package io.temporal.failure;
 
 import io.temporal.proto.failure.Failure;
 
-public final class TerminatedException extends TemporalException {
+public final class TerminatedException extends RemoteException {
   public TerminatedException(Failure failure, Exception cause) {
     super(failure, cause);
     if (!failure.hasTerminatedFailureInfo()) {

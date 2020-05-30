@@ -52,8 +52,7 @@ import java.util.Optional;
  */
 public final class DuplicateWorkflowException extends WorkflowException {
 
-  public DuplicateWorkflowException(
-      WorkflowExecution execution, String workflowType, String message) {
-    super(message, execution, Optional.of(workflowType), null);
+  public DuplicateWorkflowException(WorkflowExecution execution, String workflowType) {
+    super(execution, Optional.of(workflowType), null);
   }
 }

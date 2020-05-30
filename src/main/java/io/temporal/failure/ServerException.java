@@ -2,7 +2,7 @@ package io.temporal.failure;
 
 import io.temporal.proto.failure.Failure;
 
-public final class ServerException extends TemporalException {
+public final class ServerException extends RemoteException {
   private final boolean nonRetryable;
 
   public ServerException(Failure failure, Exception cause) {

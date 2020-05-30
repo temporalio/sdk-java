@@ -45,7 +45,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientInterceptorBase;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowException;
-import io.temporal.client.WorkflowTemporalException;
+import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowQueryException;
 import io.temporal.client.WorkflowQueryRejectedException;
@@ -2475,7 +2475,7 @@ public class WorkflowTest {
    * through a WorkflowClient:
    *
    * <pre>
-   * {@link WorkflowTemporalException}
+   * {@link WorkflowFailedException}
    *     ->{@link ChildWorkflowFailureException}
    *         ->{@link ActivityFailureException}
    *             ->OriginalActivityException
@@ -2493,7 +2493,7 @@ public class WorkflowTest {
     try {
       client.execute(taskList);
       fail("Unreachable");
-    } catch (WorkflowTemporalException e) {
+    } catch (WorkflowFailedException e) {
       // Rethrow the assertion failure
       if (e.getCause().getCause() instanceof AssertionError) {
         throw (AssertionError) e.getCause().getCause();
@@ -3078,7 +3078,7 @@ public class WorkflowTest {
     try {
       client.execute(false, WorkflowIdReusePolicy.RejectDuplicate);
       fail("unreachable");
-    } catch (WorkflowTemporalException e) {
+    } catch (WorkflowFailedException e) {
       assertTrue(e.getCause() instanceof StartChildWorkflowFailedException);
     }
   }
@@ -3098,7 +3098,7 @@ public class WorkflowTest {
     try {
       client.execute(true, WorkflowIdReusePolicy.RejectDuplicate);
       fail("unreachable");
-    } catch (WorkflowTemporalException e) {
+    } catch (WorkflowFailedException e) {
       assertTrue(e.getCause() instanceof StartChildWorkflowFailedException);
     }
   }
@@ -3396,7 +3396,7 @@ public class WorkflowTest {
     try {
       client.execute(taskList);
       fail("unreachable");
-    } catch (WorkflowTemporalException e) {
+    } catch (WorkflowFailedException e) {
       assertTrue(e.getCause() instanceof SignalExternalWorkflowException);
       assertEquals(
           "invalid id",
@@ -3443,7 +3443,7 @@ public class WorkflowTest {
     try {
       client.execute(taskList);
       fail("unreachable");
-    } catch (WorkflowTemporalException e) {
+    } catch (WorkflowFailedException e) {
       assertTrue(e.getCause() instanceof CancellationException);
     }
   }
@@ -4908,7 +4908,7 @@ public class WorkflowTest {
     try {
       workflowStub.execute(taskList);
       fail("unreachable");
-    } catch (WorkflowTemporalException e) {
+    } catch (WorkflowFailedException e) {
       // expected to fail on non deterministic error
       assertTrue(e.getCause() instanceof Error);
       String causeMsg = e.getCause().getMessage();

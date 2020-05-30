@@ -5,7 +5,7 @@ import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.failure.ChildWorkflowExecutionFailureInfo;
 import io.temporal.proto.failure.Failure;
 
-public final class ChildWorkflowException extends TemporalException {
+public final class ChildWorkflowException extends RemoteException {
 
   private final long initiatedEventId;
   private final long startedEventId;
