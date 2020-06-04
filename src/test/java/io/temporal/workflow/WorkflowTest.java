@@ -50,7 +50,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowQueryException;
 import io.temporal.client.WorkflowQueryRejectedException;
 import io.temporal.client.WorkflowStub;
-import io.temporal.client.WorkflowTimedOutException;
+import io.temporal.client.WorkflowTimeoutException;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
@@ -4869,7 +4869,7 @@ public class WorkflowTest {
     try {
       workflowStub.execute(taskList);
       fail("unreachable");
-    } catch (WorkflowTimedOutException e) {
+    } catch (WorkflowTimeoutException e) {
       // expected to timeout as workflow is going get blocked.
     }
 

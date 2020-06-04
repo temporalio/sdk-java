@@ -27,6 +27,7 @@ import io.temporal.client.ActivityCancelledException;
 import io.temporal.client.ActivityCompletionFailureException;
 import io.temporal.client.ActivityNotExistsException;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.metrics.MetricsType;
@@ -145,16 +146,15 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
   }
 
   @Override
-  public void fail(Throwable failure) {
-    if (failure == null) {
-      throw new IllegalArgumentException("null failure");
+  public void fail(Throwable exception) {
+    if (exception == null) {
+      throw new IllegalArgumentException("null exception");
     }
     // When converting failures reason is class name, details are serialized exception.
     if (taskToken != null) {
       RespondActivityTaskFailedRequest request =
           RespondActivityTaskFailedRequest.newBuilder()
-              .setReason(failure.getClass().getName())
-              .setDetails(dataConverter.toData(failure).get())
+              .setFailure(FailureConverter.exceptionToFailure(exception, dataConverter))
               .setTaskToken(ByteString.copyFrom(taskToken))
               .build();
       try {
@@ -176,8 +176,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       }
       RespondActivityTaskFailedByIdRequest request =
           RespondActivityTaskFailedByIdRequest.newBuilder()
-              .setReason(failure.getClass().getName())
-              .setDetails(dataConverter.toData(failure).get())
+              .setFailure(FailureConverter.exceptionToFailure(exception, dataConverter))
               .setNamespace(namespace)
               .setWorkflowId(execution.getWorkflowId())
               .setRunId(execution.getRunId())

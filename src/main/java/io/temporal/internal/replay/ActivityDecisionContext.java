@@ -193,12 +193,9 @@ final class ActivityDecisionContext {
       OpenRequestInfo<Optional<Payloads>, ActivityType> scheduled =
           scheduledActivities.remove(attributes.getScheduledEventId());
       if (scheduled != null) {
-        String reason = attributes.getReason();
-        Optional<Payloads> details =
-            attributes.hasDetails() ? Optional.of(attributes.getDetails()) : Optional.empty();
         ActivityTaskFailedException failure =
             new ActivityTaskFailedException(
-                event.getEventId(), scheduled.getUserContext(), null, reason, details);
+                event.getEventId(), scheduled.getUserContext(), null, attributes.getFailure());
         BiConsumer<Optional<Payloads>, Exception> completionHandle =
             scheduled.getCompletionCallback();
         completionHandle.accept(Optional.empty(), failure);
@@ -214,7 +211,9 @@ final class ActivityDecisionContext {
       if (scheduled != null) {
         TimeoutType timeoutType = attributes.getTimeoutType();
         Optional<Payloads> details =
-            attributes.hasDetails() ? Optional.of(attributes.getDetails()) : Optional.empty();
+            attributes.hasLastHeartbeatDetails()
+                ? Optional.of(attributes.getLastHeartbeatDetails())
+                : Optional.empty();
         ActivityTaskTimeoutException failure =
             new ActivityTaskTimeoutException(
                 event.getEventId(), scheduled.getUserContext(), null, timeoutType, details);

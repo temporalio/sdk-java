@@ -20,8 +20,7 @@
 package io.temporal.internal.replay;
 
 import io.temporal.proto.common.ActivityType;
-import io.temporal.proto.common.Payloads;
-import java.util.Optional;
+import io.temporal.proto.failure.Failure;
 
 /**
  * Internal. Do not catch or throw in application level code. Exception used to communicate failure
@@ -33,21 +32,14 @@ public class ActivityTaskFailedException extends RuntimeException {
   private final long eventId;
   private final ActivityType activityType;
   private final String activityId;
-  private final Optional<Payloads> details;
-  private final String reason;
+  private final Failure failure;
 
   ActivityTaskFailedException(
-      long eventId,
-      ActivityType activityType,
-      String activityId,
-      String reason,
-      Optional<Payloads> details) {
-    super(reason);
+      long eventId, ActivityType activityType, String activityId, Failure failure) {
     this.eventId = eventId;
     this.activityType = activityType;
     this.activityId = activityId;
-    this.reason = reason;
-    this.details = details;
+    this.failure = failure;
   }
 
   public long getEventId() {
@@ -62,11 +54,7 @@ public class ActivityTaskFailedException extends RuntimeException {
     return activityId;
   }
 
-  public Optional<Payloads> getDetails() {
-    return details;
-  }
-
-  public String getReason() {
-    return reason;
+  public Failure getFailure() {
+    return failure;
   }
 }

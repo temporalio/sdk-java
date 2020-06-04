@@ -365,16 +365,12 @@ final class WorkflowDecisionContext {
       OpenChildWorkflowRequestInfo scheduled =
           scheduledExternalWorkflows.remove(attributes.getInitiatedEventId());
       if (scheduled != null) {
-        String reason = attributes.getReason();
-        Optional<Payloads> details =
-            attributes.hasDetails() ? Optional.of(attributes.getDetails()) : Optional.empty();
         RuntimeException failure =
             new ChildWorkflowTaskFailedException(
                 event.getEventId(),
                 attributes.getWorkflowExecution(),
                 attributes.getWorkflowType(),
-                reason,
-                details);
+                attributes.getFailure());
         BiConsumer<Optional<Payloads>, Exception> completionCallback =
             scheduled.getCompletionCallback();
         completionCallback.accept(Optional.empty(), failure);

@@ -22,6 +22,7 @@ package io.temporal.internal.sync;
 import static io.temporal.worker.WorkflowErrorPolicy.FailWorkflow;
 
 import com.google.common.base.Preconditions;
+import io.temporal.client.WorkflowTimeoutException;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
@@ -29,14 +30,16 @@ import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowInvocationInterceptor;
 import io.temporal.common.interceptors.WorkflowInvoker;
-import io.temporal.internal.common.CheckedExceptionWrapper;
+import io.temporal.failure.FailureConverter;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowFactory;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.proto.common.Payloads;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
+import io.temporal.proto.failure.Failure;
 import io.temporal.testing.SimulatedTimeoutException;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions;
@@ -282,7 +285,14 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
         try {
           return workflowMethod.invoke(workflow, arguments);
         } catch (IllegalAccessException e) {
-          throw new Error(mapToWorkflowExecutionException(e, dataConverter));
+          WorkflowExecution workflowExecution =
+              WorkflowExecution.newBuilder()
+                  .setWorkflowId(context.getWorkflowId())
+                  .setRunId(context.getRunId())
+                  .build();
+          throw new Error(
+              mapToWorkflowExecutionException(
+                  e, context.getWorkflowType(), workflowExecution, dataConverter));
         } catch (InvocationTargetException e) {
           Throwable targetException = e.getTargetException();
           if (targetException instanceof Error) {
@@ -305,7 +315,16 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
                 targetException);
           }
           // Cast to Exception is safe as Error is handled above.
-          throw mapToWorkflowExecutionException((Exception) targetException, dataConverter);
+          WorkflowExecution workflowExecution =
+              WorkflowExecution.newBuilder()
+                  .setWorkflowId(context.getWorkflowId())
+                  .setRunId(context.getRunId())
+                  .build();
+          throw mapToWorkflowExecutionException(
+              (Exception) targetException,
+              context.getWorkflowType(),
+              workflowExecution,
+              dataConverter);
         }
       }
 
@@ -352,31 +371,26 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   }
 
   static WorkflowExecutionException mapToWorkflowExecutionException(
-      Exception failure, DataConverter dataConverter) {
-    failure = CheckedExceptionWrapper.unwrap(failure);
+      Throwable exception,
+      String workflowType,
+      WorkflowExecution workflowExecution,
+      DataConverter dataConverter) {
     // Only expected during unit tests.
-    if (failure instanceof SimulatedTimeoutException) {
-      SimulatedTimeoutException timeoutException = (SimulatedTimeoutException) failure;
-      // As SimulatedTimeoutExceptionInternal is serialized to Payloads the details
-      // is stored as byte array which json serializer understands.
-      Object d = timeoutException.getDetails();
-      Optional<Payloads> payloads = dataConverter.toData(d);
-      byte[] details;
-      if (payloads.isPresent()) {
-        details = payloads.get().toByteArray();
-      } else {
-        details = new byte[0];
-      }
-      failure = new SimulatedTimeoutExceptionInternal(timeoutException.getTimeoutType(), details);
-    }
+    if (exception instanceof SimulatedTimeoutException) {
+      SimulatedTimeoutException timeoutException = (SimulatedTimeoutException) exception;
+      WorkflowTimeoutException wt =
+          new WorkflowTimeoutException(
+              workflowExecution, Optional.of(workflowType), timeoutException.getTimeoutType());
 
-    return new WorkflowExecutionException(
-        failure.getClass().getName(), dataConverter.toData(failure));
+      exception = new SimulatedTimeoutExceptionInternal(wt);
+    }
+    Failure failure = FailureConverter.exceptionToFailure(exception, dataConverter);
+    return new WorkflowExecutionException(failure);
   }
 
-  static WorkflowExecutionException mapError(Error failure, DataConverter dataConverter) {
-    return new WorkflowExecutionException(
-        failure.getClass().getName(), dataConverter.toData(failure));
+  static WorkflowExecutionException mapError(Error error, DataConverter dataConverter) {
+    Failure failure = FailureConverter.exceptionToFailure(error, dataConverter);
+    return new WorkflowExecutionException(failure);
   }
 
   @Override

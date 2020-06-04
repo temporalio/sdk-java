@@ -21,7 +21,6 @@ package io.temporal.internal.sync;
 
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
@@ -30,6 +29,9 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
+import io.temporal.failure.ApplicationException;
+import io.temporal.failure.FailureConverter;
+import io.temporal.failure.TimeoutException;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.RetryParameters;
 import io.temporal.internal.metrics.MetricsType;
@@ -210,40 +212,29 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     }
     if (failure instanceof ActivityTaskFailedException) {
       ActivityTaskFailedException taskFailed = (ActivityTaskFailedException) failure;
-      String causeClassName = taskFailed.getReason();
-      Class<? extends Exception> causeClass;
-      Exception cause;
-      try {
-        @SuppressWarnings("unchecked") // cc is just to have a place to put this annotation
-        Class<? extends Exception> cc = (Class<? extends Exception>) Class.forName(causeClassName);
-        causeClass = cc;
-        cause = getDataConverter().fromData(taskFailed.getDetails(), causeClass, causeClass);
-      } catch (Exception e) {
-        cause = e;
-      }
-      if (cause instanceof SimulatedTimeoutExceptionInternal) {
+      Throwable cause =
+          FailureConverter.failureToException(taskFailed.getFailure(), getDataConverter());
+      if (cause instanceof ApplicationException) {
+        ApplicationException appE = (ApplicationException) cause;
         // This exception is thrown only in unit tests to mock the activity timeouts
-        SimulatedTimeoutExceptionInternal testTimeout = (SimulatedTimeoutExceptionInternal) cause;
-        Optional<Payloads> details;
-        if (testTimeout.getDetails().length == 0) {
-          details = Optional.empty();
-        } else {
-          try {
-            details = Optional.of(Payloads.parseFrom(testTimeout.getDetails()));
-          } catch (InvalidProtocolBufferException e) {
-            throw new DataConverterException(e);
-          }
+        if (SimulatedTimeoutExceptionInternal.class.getName().equals(appE.getType())) {
+          TimeoutException appECause = (TimeoutException) appE.getCause();
+          Optional<Payloads> details = appECause.getLastHeartbeatDetails();
+          return new ActivityTimeoutException(
+              taskFailed.getEventId(),
+              taskFailed.getActivityType(),
+              taskFailed.getActivityId(),
+              appECause.getTimeoutType(),
+              details,
+              getDataConverter());
         }
-        return new ActivityTimeoutException(
+        return new ActivityFailureException(
+            taskFailed.getFailure().getMessage(),
             taskFailed.getEventId(),
             taskFailed.getActivityType(),
             taskFailed.getActivityId(),
-            testTimeout.getTimeoutType(),
-            details,
-            getDataConverter());
+            cause);
       }
-      return new ActivityFailureException(
-          taskFailed.getEventId(), taskFailed.getActivityType(), taskFailed.getActivityId(), cause);
     }
     if (failure instanceof ActivityTaskTimeoutException) {
       ActivityTaskTimeoutException timedOut = (ActivityTaskTimeoutException) failure;
@@ -252,7 +243,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
           timedOut.getActivityType(),
           timedOut.getActivityId(),
           timedOut.getTimeoutType(),
-          timedOut.getDetails(),
+          timedOut.getLastHeartbeatDetails(),
           getDataConverter());
     }
     if (failure instanceof ActivityException) {
@@ -487,16 +478,8 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
       return new IllegalArgumentException("Unexpected exception type: ", failure);
     }
     ChildWorkflowTaskFailedException taskFailed = (ChildWorkflowTaskFailedException) failure;
-    String causeClassName = taskFailed.getReason();
-    Exception cause;
-    try {
-      @SuppressWarnings("unchecked")
-      Class<? extends Exception> causeClass =
-          (Class<? extends Exception>) Class.forName(causeClassName);
-      cause = getDataConverter().fromData(taskFailed.getDetails(), causeClass, causeClass);
-    } catch (Exception e) {
-      cause = e;
-    }
+    Throwable cause =
+        FailureConverter.failureToException(taskFailed.getFailure(), getDataConverter());
     if (cause instanceof SimulatedTimeoutExceptionInternal) {
       // This exception is thrown only in unit tests to mock the child workflow timeouts
       return new ChildWorkflowTimedOutException(

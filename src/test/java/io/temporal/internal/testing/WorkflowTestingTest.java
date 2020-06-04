@@ -32,7 +32,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
-import io.temporal.client.WorkflowTimedOutException;
+import io.temporal.client.WorkflowTimeoutException;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.GsonJsonDataConverter;
@@ -169,6 +169,7 @@ public class WorkflowTestingTest {
       workflow.workflow1("input1");
       fail("unreacheable");
     } catch (WorkflowException e) {
+      e.printStackTrace();
       assertEquals("TestWorkflow-input1", e.getCause().getMessage());
     }
   }
@@ -404,8 +405,8 @@ public class WorkflowTestingTest {
       workflow.workflow1("bar");
       fail("unreacheable");
     } catch (WorkflowException e) {
-      assertTrue(e instanceof WorkflowTimedOutException);
-      assertEquals(TimeoutType.StartToClose, ((WorkflowTimedOutException) e).getTimeoutType());
+      assertTrue(e instanceof WorkflowTimeoutException);
+      assertEquals(TimeoutType.StartToClose, ((WorkflowTimeoutException) e).getTimeoutType());
     }
   }
 

@@ -32,8 +32,8 @@ public final class ActivityFailureException extends ActivityException {
   private Duration backoff;
 
   public ActivityFailureException(
-      long eventId, ActivityType activityType, String activityId, Throwable cause) {
-    super("ActivityFailureException", eventId, activityType, activityId);
+      String message, long eventId, ActivityType activityType, String activityId, Throwable cause) {
+    super(message, eventId, activityType, activityId);
     initCause(cause);
   }
 
@@ -44,11 +44,7 @@ public final class ActivityFailureException extends ActivityException {
       Throwable cause,
       int attempt,
       Duration backoff) {
-    super(
-        "ActivityFailureException Attempt=\"" + attempt + "\", Backoff=\"" + backoff,
-        eventId,
-        activityType,
-        activityId);
+    super(null, eventId, activityType, activityId);
     initCause(cause);
     this.attempt = attempt;
     this.backoff = backoff;

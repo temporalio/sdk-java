@@ -19,10 +19,9 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
-import java.util.Optional;
+import io.temporal.proto.failure.Failure;
 
 /** Internal. Do not catch or throw by application level code. */
 @SuppressWarnings("serial")
@@ -34,19 +33,17 @@ public class ChildWorkflowTaskFailedException extends RuntimeException {
 
   private final WorkflowType workflowType;
 
-  private final Optional<Payloads> details;
+  private final Failure failure;
 
   public ChildWorkflowTaskFailedException(
       long eventId,
       WorkflowExecution workflowExecution,
       WorkflowType workflowType,
-      String reason,
-      Optional<Payloads> details) {
-    super(reason);
+      Failure failure) {
     this.eventId = eventId;
     this.workflowExecution = workflowExecution;
     this.workflowType = workflowType;
-    this.details = details;
+    this.failure = failure;
   }
 
   public long getEventId() {
@@ -61,11 +58,7 @@ public class ChildWorkflowTaskFailedException extends RuntimeException {
     return workflowType;
   }
 
-  public Optional<Payloads> getDetails() {
-    return details;
-  }
-
-  public String getReason() {
-    return getMessage();
+  public Failure getFailure() {
+    return failure;
   }
 }

@@ -19,33 +19,13 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.proto.common.TimeoutType;
-
 /**
  * SimulatedTimeoutExceptionInternal is created from a SimulatedTimeoutException. The main
  * difference is that the details are in a serialized form.
  */
 final class SimulatedTimeoutExceptionInternal extends RuntimeException {
 
-  private final TimeoutType timeoutType;
-
-  private final byte[] details;
-
-  SimulatedTimeoutExceptionInternal(TimeoutType timeoutType, byte[] details) {
-    this.timeoutType = timeoutType;
-    this.details = details;
-  }
-
-  SimulatedTimeoutExceptionInternal(TimeoutType timeoutType) {
-    this.timeoutType = timeoutType;
-    this.details = null;
-  }
-
-  TimeoutType getTimeoutType() {
-    return timeoutType;
-  }
-
-  byte[] getDetails() {
-    return details;
+  SimulatedTimeoutExceptionInternal(Throwable cause) {
+    super(cause);
   }
 }

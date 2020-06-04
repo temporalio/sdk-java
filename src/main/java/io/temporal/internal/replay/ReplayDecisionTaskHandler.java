@@ -22,7 +22,7 @@ package io.temporal.internal.replay;
 import static io.temporal.internal.common.InternalUtils.createStickyTaskList;
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
-import com.google.common.base.Throwables;
+import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.DecisionTaskHandler;
@@ -33,6 +33,7 @@ import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.decision.StickyExecutionAttributes;
 import io.temporal.proto.event.HistoryEvent;
+import io.temporal.proto.failure.Failure;
 import io.temporal.proto.query.QueryResultType;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
@@ -116,11 +117,11 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
                 + ". If see continuously the workflow might be stuck.",
             e);
       }
-      String stackTrace = Throwables.getStackTraceAsString(e);
+      Failure failure = FailureConverter.exceptionToFailure(e, null);
       RespondDecisionTaskFailedRequest failedRequest =
           RespondDecisionTaskFailedRequest.newBuilder()
               .setTaskToken(decisionTask.getTaskToken())
-              .setDetails(options.getDataConverter().toData(stackTrace).get())
+              .setFailure(failure)
               .build();
       return new DecisionTaskHandler.Result(null, failedRequest, null, null, false);
     }

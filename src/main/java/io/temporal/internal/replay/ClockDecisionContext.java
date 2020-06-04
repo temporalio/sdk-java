@@ -21,6 +21,7 @@ package io.temporal.internal.replay;
 
 import com.google.common.base.Strings;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.LocalActivityMarkerData;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.worker.LocalActivityWorker;
@@ -246,7 +247,9 @@ public final class ClockDecisionContext {
         LocalActivityMarkerData.fromEventAttributes(
             attributes, dataConverter.getPayloadConverter());
     if (pendingLaTasks.containsKey(marker.getActivityId())) {
-      log.debug("Handle LocalActivityMarker for activity " + marker.getActivityId());
+      if (log.isDebugEnabled()) {
+        log.debug("Handle LocalActivityMarker for activity " + marker.getActivityId());
+      }
 
       Optional<Payloads> details =
           attributes.hasDetails() ? Optional.of(attributes.getDetails()) : Optional.empty();
@@ -260,11 +263,9 @@ public final class ClockDecisionContext {
       unstartedLaTasks.remove(marker.getActivityId());
 
       Exception failure = null;
-      if (marker.getIsCancelled()) {
-        failure = new CancellationException(marker.getErrReason());
-      } else if (marker.getErrJson().isPresent()) {
+      if (marker.getFailure().isPresent()) {
         Throwable cause =
-            dataConverter.fromData(marker.getErrJson(), Throwable.class, Throwable.class);
+            FailureConverter.failureToException(marker.getFailure().get(), dataConverter);
         ActivityType activityType =
             ActivityType.newBuilder().setName(marker.getActivityType()).build();
         failure =

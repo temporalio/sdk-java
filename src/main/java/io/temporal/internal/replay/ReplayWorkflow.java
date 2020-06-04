@@ -21,6 +21,7 @@ package io.temporal.internal.replay;
 
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.proto.common.Payloads;
+import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.event.HistoryEvent;
 import io.temporal.proto.query.WorkflowQuery;
 import io.temporal.worker.WorkflowImplementationOptions;
@@ -65,7 +66,8 @@ public interface ReplayWorkflow {
    * @param failure Unexpected failure cause
    * @return Serialized failure
    */
-  WorkflowExecutionException mapUnexpectedException(Exception failure);
+  WorkflowExecutionException mapUnexpectedException(
+      Throwable failure, String workflowType, WorkflowExecution workflowExecution);
 
   WorkflowExecutionException mapError(Error failure);
 

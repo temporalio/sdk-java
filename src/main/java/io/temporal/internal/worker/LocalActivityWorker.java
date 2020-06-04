@@ -26,12 +26,8 @@ import io.temporal.common.RetryOptions;
 import io.temporal.internal.common.LocalActivityMarkerData;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.internal.replay.ClockDecisionContext;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
-import io.temporal.proto.common.Payloads;
-import io.temporal.proto.event.EventType;
 import io.temporal.proto.event.HistoryEvent;
-import io.temporal.proto.event.MarkerRecordedEventAttributes;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
 import java.time.Duration;
@@ -205,33 +201,18 @@ public final class LocalActivityWorker implements SuspendableWorker {
 
       RespondActivityTaskCompletedRequest taskCompleted = result.getTaskCompleted();
       if (taskCompleted != null) {
-        Optional<Payloads> r =
-            taskCompleted.hasResult() ? Optional.of(taskCompleted.getResult()) : Optional.empty();
-        markerBuilder.setResult(r);
+        if (taskCompleted.hasResult()) {
+          markerBuilder.setResult(taskCompleted.getResult());
+        }
       } else if (result.getTaskFailed() != null) {
         markerBuilder.setTaskFailedRequest(result.getTaskFailed().getTaskFailedRequest());
         markerBuilder.setAttempt(result.getAttempt());
         markerBuilder.setBackoff(result.getBackoff());
       } else {
-        markerBuilder.setTaskCancelledRequest(
-            result.getTaskCancelled(), options.getDataConverter());
+        markerBuilder.setTaskCancelledRequest(result.getTaskCancelled());
       }
-
       LocalActivityMarkerData marker = markerBuilder.build();
-
-      MarkerRecordedEventAttributes.Builder attributes =
-          MarkerRecordedEventAttributes.newBuilder()
-              .setMarkerName(ClockDecisionContext.LOCAL_ACTIVITY_MARKER_NAME)
-              .setHeader(marker.getHeader(options.getDataConverter().getPayloadConverter()));
-      Optional<Payloads> r = marker.getResult();
-      if (r.isPresent()) {
-        attributes.setDetails(r.get());
-      }
-      HistoryEvent event =
-          HistoryEvent.newBuilder()
-              .setEventType(EventType.MarkerRecorded)
-              .setMarkerRecordedEventAttributes(attributes)
-              .build();
+      HistoryEvent event = marker.toEvent(options.getDataConverter());
       task.eventConsumer.accept(event);
     }
 

@@ -32,7 +32,7 @@ public final class ActivityTaskTimeoutException extends RuntimeException {
 
   private final TimeoutType timeoutType;
 
-  private final Optional<Payloads> details;
+  private final Optional<Payloads> lastHeartbeatDetails;
 
   private final ActivityType activityType;
 
@@ -43,18 +43,18 @@ public final class ActivityTaskTimeoutException extends RuntimeException {
       ActivityType activityType,
       String activityId,
       TimeoutType timeoutType,
-      Optional<Payloads> details) {
+      Optional<Payloads> lastHeartbeatDetails) {
     super(String.valueOf(timeoutType));
     this.eventId = eventId;
     this.activityType = activityType;
     this.activityId = activityId;
     this.timeoutType = timeoutType;
-    this.details = details;
+    this.lastHeartbeatDetails = lastHeartbeatDetails;
   }
 
   /** @return The value from the last activity heartbeat details field. */
-  public Optional<Payloads> getDetails() {
-    return details;
+  public Optional<Payloads> getLastHeartbeatDetails() {
+    return lastHeartbeatDetails;
   }
 
   public long getEventId() {

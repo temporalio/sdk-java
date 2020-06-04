@@ -19,12 +19,14 @@
 
 package io.temporal.workflow;
 
+import io.temporal.failure.TemporalException;
+
 /**
  * Base exception used to communicate a failure that can be thrown by operations requested by a
  * workflow code.
  */
 @SuppressWarnings("serial")
-public abstract class WorkflowOperationException extends RuntimeException {
+public abstract class WorkflowOperationException extends TemporalException {
 
   private long eventId;
 

@@ -24,15 +24,18 @@ import com.google.common.base.Joiner;
 import com.uber.m3.tally.Scope;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.internal.common.CheckedExceptionWrapper;
+import io.temporal.failure.FailureConverter;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.ActivityTaskHandler;
+import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.Payloads;
+import io.temporal.proto.failure.Failure;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.SimulatedTimeoutException;
+import io.temporal.workflow.ActivityTimeoutException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -87,36 +90,42 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
   }
 
   private ActivityTaskHandler.Result mapToActivityFailure(
-      Throwable failure, Scope metricsScope, boolean isLocalActivity) {
+      Throwable exception,
+      String activityType,
+      String activityId,
+      Scope metricsScope,
+      boolean isLocalActivity) {
 
-    if (failure instanceof ActivityCancelledException) {
+    if (exception instanceof ActivityCancelledException) {
       if (isLocalActivity) {
         metricsScope.counter(MetricsType.LOCAL_ACTIVITY_CANCELED_COUNTER).inc(1);
       }
-      throw new CancellationException(failure.getMessage());
+      throw new CancellationException(exception.getMessage());
     }
 
     // Only expected during unit tests.
-    if (failure instanceof SimulatedTimeoutException) {
-      SimulatedTimeoutException timeoutException = (SimulatedTimeoutException) failure;
+    if (exception instanceof SimulatedTimeoutException) {
+      SimulatedTimeoutException timeoutException = (SimulatedTimeoutException) exception;
       Object d = timeoutException.getDetails();
       Optional<Payloads> payloads = dataConverter.toData(d);
-      byte[] details;
-      if (payloads.isPresent()) {
-        details = payloads.get().toByteArray();
-      } else {
-        details = new byte[0];
-      }
-      failure = new SimulatedTimeoutExceptionInternal(timeoutException.getTimeoutType(), details);
+      ActivityTimeoutException at =
+          new ActivityTimeoutException(
+              0,
+              ActivityType.newBuilder().setName(activityType).build(),
+              activityId,
+              timeoutException.getTimeoutType(),
+              payloads,
+              dataConverter);
+      exception = new SimulatedTimeoutExceptionInternal(at);
     }
 
-    if (failure instanceof Error) {
+    if (exception instanceof Error) {
       if (isLocalActivity) {
         metricsScope.counter(MetricsType.LOCAL_ACTIVITY_ERROR_COUNTER).inc(1);
       } else {
         metricsScope.counter(MetricsType.ACTIVITY_TASK_ERROR_COUNTER).inc(1);
       }
-      throw (Error) failure;
+      throw (Error) exception;
     }
 
     if (isLocalActivity) {
@@ -125,15 +134,11 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
       metricsScope.counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
     }
 
-    failure = CheckedExceptionWrapper.unwrap(failure);
+    Failure failure = FailureConverter.exceptionToFailure(exception, dataConverter);
     RespondActivityTaskFailedRequest.Builder result =
-        RespondActivityTaskFailedRequest.newBuilder().setReason(failure.getClass().getName());
-    Optional<Payloads> payloads = dataConverter.toData(failure);
-    if (payloads.isPresent()) {
-      result.setDetails(payloads.get());
-    }
+        RespondActivityTaskFailedRequest.newBuilder().setFailure(failure);
     return new ActivityTaskHandler.Result(
-        null, new Result.TaskFailedResult(result.build(), failure), null, null);
+        null, new Result.TaskFailedResult(result.build(), exception), null, null);
   }
 
   @Override
@@ -174,6 +179,8 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
                   + activityType
                   + "\" is not registered with a worker. Known types are: "
                   + knownTypes),
+          activityType,
+          pollResponse.getActivityId(),
           metricsScope,
           isLocalActivity);
     }
@@ -218,9 +225,15 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
         }
         return new ActivityTaskHandler.Result(request.build(), null, null, null);
       } catch (RuntimeException | IllegalAccessException e) {
-        return mapToActivityFailure(e, metricsScope, false);
+        return mapToActivityFailure(
+            e, task.getActivityType(), task.getActivityId(), metricsScope, false);
       } catch (InvocationTargetException e) {
-        return mapToActivityFailure(e.getTargetException(), metricsScope, false);
+        return mapToActivityFailure(
+            e.getTargetException(),
+            task.getActivityType(),
+            task.getActivityId(),
+            metricsScope,
+            false);
       } finally {
         CurrentActivityExecutionContext.unset();
       }
@@ -257,9 +270,15 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
         }
         return new ActivityTaskHandler.Result(request.build(), null, null, null);
       } catch (RuntimeException | IllegalAccessException e) {
-        return mapToActivityFailure(e, metricsScope, true);
+        return mapToActivityFailure(
+            e, task.getActivityType(), task.getActivityId(), metricsScope, true);
       } catch (InvocationTargetException e) {
-        return mapToActivityFailure(e.getTargetException(), metricsScope, true);
+        return mapToActivityFailure(
+            e.getTargetException(),
+            task.getActivityType(),
+            task.getActivityId(),
+            metricsScope,
+            true);
       } finally {
         CurrentActivityExecutionContext.unset();
       }

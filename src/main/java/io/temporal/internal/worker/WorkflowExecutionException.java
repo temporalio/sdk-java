@@ -19,23 +19,18 @@
 
 package io.temporal.internal.worker;
 
-import io.temporal.proto.common.Payloads;
-import java.util.Optional;
+import io.temporal.proto.failure.Failure;
 
 /** Internal. Do not throw or catch in application level code. */
 public final class WorkflowExecutionException extends RuntimeException {
-  private final Optional<Payloads> details;
+  private final Failure failure;
 
-  public WorkflowExecutionException(String reason, Optional<Payloads> details) {
-    super(reason);
-    this.details = details;
+  public WorkflowExecutionException(Failure failure) {
+    super(failure.getMessage());
+    this.failure = failure;
   }
 
-  public Optional<Payloads> getDetails() {
-    return details;
-  }
-
-  public String getReason() {
-    return getMessage();
+  public Failure getFailure() {
+    return failure;
   }
 }

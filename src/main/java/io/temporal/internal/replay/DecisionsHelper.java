@@ -474,15 +474,11 @@ class DecisionsHelper {
     addDecision(decisionId, new CompleteWorkflowStateMachine(decisionId, decision));
   }
 
-  void failWorkflowExecution(WorkflowExecutionException failure) {
+  void failWorkflowExecution(WorkflowExecutionException exception) {
     addAllMissingVersionMarker();
 
     FailWorkflowExecutionDecisionAttributes.Builder attributes =
-        FailWorkflowExecutionDecisionAttributes.newBuilder().setReason(failure.getReason());
-    Optional<Payloads> details = failure.getDetails();
-    if (details.isPresent()) {
-      attributes.setDetails(details.get());
-    }
+        FailWorkflowExecutionDecisionAttributes.newBuilder().setFailure(exception.getFailure());
     Decision decision =
         Decision.newBuilder()
             .setFailWorkflowExecutionDecisionAttributes(attributes)

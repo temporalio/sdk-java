@@ -19,28 +19,21 @@
 
 package io.temporal.internal.common;
 
-import io.temporal.proto.common.Payloads;
-import java.util.Optional;
+import io.temporal.proto.failure.Failure;
 
 /** Framework level exception. Do not throw or catch in the application level code. */
 public final class WorkflowExecutionFailedException extends RuntimeException {
 
-  private final Optional<Payloads> details;
   private final long decisionTaskCompletedEventId;
+  private final Failure failure;
 
-  WorkflowExecutionFailedException(
-      String reason, Optional<Payloads> details, long decisionTaskCompletedEventId) {
-    super(reason);
-    this.details = details;
+  WorkflowExecutionFailedException(Failure failure, long decisionTaskCompletedEventId) {
+    this.failure = failure;
     this.decisionTaskCompletedEventId = decisionTaskCompletedEventId;
   }
 
-  public String getReason() {
-    return getMessage();
-  }
-
-  public Optional<Payloads> getDetails() {
-    return details;
+  public Failure getFailure() {
+    return failure;
   }
 
   public long getDecisionTaskCompletedEventId() {

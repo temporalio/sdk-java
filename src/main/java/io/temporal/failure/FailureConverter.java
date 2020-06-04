@@ -1,7 +1,27 @@
+/*
+ *  Copyright (C) 2020 Temporal Technologies, Inc. All Rights Reserved.
+ *
+ *  Copyright 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ *  Modifications copyright (C) 2017 Uber Technologies, Inc.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License"). You may not
+ *  use this file except in compliance with the License. A copy of the License is
+ *  located at
+ *
+ *  http://aws.amazon.com/apache2.0
+ *
+ *  or in the "license" file accompanying this file. This file is distributed on
+ *  an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ *  express or implied. See the License for the specific language governing
+ *  permissions and limitations under the License.
+ */
+
 package io.temporal.failure;
 
-import com.google.common.base.Throwables;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.internal.common.CheckedExceptionWrapper;
+import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.Payloads;
 import io.temporal.proto.failure.ActivityTaskFailureInfo;
 import io.temporal.proto.failure.ApplicationFailureInfo;
@@ -12,13 +32,14 @@ import io.temporal.proto.failure.ResetWorkflowFailureInfo;
 import io.temporal.proto.failure.ServerFailureInfo;
 import io.temporal.proto.failure.TerminatedFailureInfo;
 import io.temporal.proto.failure.TimeoutFailureInfo;
+import io.temporal.workflow.ActivityFailureException;
 import java.util.Optional;
 
 public class FailureConverter {
 
   static final String JAVA_SDK = "JavaSDK";
 
-  public static RemoteException failureToException(Failure failure, DataConverter dataConverter) {
+  public static Exception failureToException(Failure failure, DataConverter dataConverter) {
     if (failure == null) {
       return null;
     }
@@ -38,7 +59,14 @@ public class FailureConverter {
       case RESETWORKFLOWFAILUREINFO:
         return new ResetWorkflowException(failure, dataConverter, cause);
       case ACTIVITYTASKFAILUREINFO:
-        return new ActivityException(failure, cause);
+        ActivityTaskFailureInfo info = failure.getActivityTaskFailureInfo();
+        // TODO(maxim): Fix activity type and activityid arguments.
+        return new ActivityFailureException(
+            failure.getMessage(),
+            info.getScheduledEventId(),
+            ActivityType.newBuilder().setName("unknown").build(),
+            "unknown",
+            cause);
       case CHILDWORKFLOWEXECUTIONFAILUREINFO:
         return new ChildWorkflowException(failure, cause);
       case FAILUREINFO_NOT_SET:
@@ -48,6 +76,7 @@ public class FailureConverter {
   }
 
   public static Failure exceptionToFailure(Throwable e, DataConverter dataConverter) {
+    e = CheckedExceptionWrapper.unwrap(e);
     Failure.Builder result = Failure.newBuilder();
     if (e instanceof RemoteException) {
       RemoteException te = (RemoteException) e;
@@ -57,10 +86,12 @@ public class FailureConverter {
           .setStackTrace(te.getFailureStackTrace());
       setTemporalException(result, te, dataConverter);
     } else {
-      result
-          .setMessage(e.getMessage())
-          .setSource(JAVA_SDK)
-          .setStackTrace(Throwables.getStackTraceAsString(e));
+      StringBuilder st = new StringBuilder();
+      for (StackTraceElement traceElement : e.getStackTrace()) {
+        st.append(traceElement);
+        st.append("\n");
+      }
+      result.setMessage(e.getMessage()).setSource(JAVA_SDK).setStackTrace(st.toString());
       setApplicationFailureFromUnknownException(result, e);
     }
     return result.build();

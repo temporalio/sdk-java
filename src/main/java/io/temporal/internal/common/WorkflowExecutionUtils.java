@@ -31,7 +31,7 @@ import com.google.protobuf.TextFormat;
 import io.grpc.Deadline;
 import io.grpc.Status;
 import io.temporal.client.WorkflowTerminatedException;
-import io.temporal.client.WorkflowTimedOutException;
+import io.temporal.client.WorkflowTimeoutException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.WorkflowExecution;
@@ -107,7 +107,7 @@ public class WorkflowExecutionUtils {
    * @throws TimeoutException if workflow didn't complete within specified timeout
    * @throws CancellationException if workflow was cancelled
    * @throws WorkflowExecutionFailedException if workflow execution failed
-   * @throws WorkflowTimedOutException if workflow execution exceeded its execution timeout and was
+   * @throws WorkflowTimeoutException if workflow execution exceeded its execution timeout and was
    *     forcefully terminated by the Temporal server.
    * @throws WorkflowTerminatedException if workflow execution was terminated through an external
    *     terminate command.
@@ -121,7 +121,7 @@ public class WorkflowExecutionUtils {
       TimeUnit unit,
       DataConverter converter)
       throws TimeoutException, CancellationException, WorkflowExecutionFailedException,
-          WorkflowTerminatedException, WorkflowTimedOutException {
+          WorkflowTerminatedException, WorkflowTimeoutException {
     // getIntanceCloseEvent waits for workflow completion including new runs.
     HistoryEvent closeEvent =
         getInstanceCloseEvent(service, namespace, workflowExecution, timeout, unit);
@@ -171,9 +171,7 @@ public class WorkflowExecutionUtils {
         WorkflowExecutionFailedEventAttributes failed =
             closeEvent.getWorkflowExecutionFailedEventAttributes();
         throw new WorkflowExecutionFailedException(
-            failed.getReason(),
-            failed.hasDetails() ? Optional.of(failed.getDetails()) : Optional.empty(),
-            failed.getDecisionTaskCompletedEventId());
+            failed.getFailure(), failed.getDecisionTaskCompletedEventId());
       case WorkflowExecutionTerminated:
         WorkflowExecutionTerminatedEventAttributes terminated =
             closeEvent.getWorkflowExecutionTerminatedEventAttributes();
@@ -186,7 +184,7 @@ public class WorkflowExecutionUtils {
       case WorkflowExecutionTimedOut:
         WorkflowExecutionTimedOutEventAttributes timedOut =
             closeEvent.getWorkflowExecutionTimedOutEventAttributes();
-        throw new WorkflowTimedOutException(
+        throw new WorkflowTimeoutException(
             workflowExecution, workflowType, timedOut.getTimeoutType());
       default:
         throw new RuntimeException(

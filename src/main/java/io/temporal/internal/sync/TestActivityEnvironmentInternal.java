@@ -33,6 +33,7 @@ import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
+import io.temporal.failure.FailureConverter;
 import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
@@ -378,26 +379,16 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         RespondActivityTaskFailedRequest taskFailed =
             response.getTaskFailed().getTaskFailedRequest();
         if (taskFailed != null) {
-          String causeClassName = taskFailed.getReason();
-          Class<? extends Exception> causeClass;
-          Exception cause;
-          try {
-            @SuppressWarnings("unchecked") // cc is just to have a place to put this annotation
-            Class<? extends Exception> cc =
-                (Class<? extends Exception>) Class.forName(causeClassName);
-            causeClass = cc;
-            Optional<Payloads> details =
-                taskFailed.hasDetails() ? Optional.of(taskFailed.getDetails()) : Optional.empty();
-            cause =
-                testEnvironmentOptions
-                    .getWorkflowClientOptions()
-                    .getDataConverter()
-                    .fromData(details, causeClass, causeClass);
-          } catch (Exception e) {
-            cause = e;
-          }
+          Exception cause =
+              FailureConverter.failureToException(
+                  taskFailed.getFailure(),
+                  testEnvironmentOptions.getWorkflowClientOptions().getDataConverter());
           throw new ActivityFailureException(
-              0, task.getActivityType(), task.getActivityId(), cause);
+              taskFailed.getFailure().getMessage(),
+              0,
+              task.getActivityType(),
+              task.getActivityId(),
+              cause);
 
         } else {
           RespondActivityTaskCanceledRequest taskCancelled = response.getTaskCancelled();

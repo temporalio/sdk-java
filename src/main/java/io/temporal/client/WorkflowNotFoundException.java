@@ -19,7 +19,6 @@
 
 package io.temporal.client;
 
-import io.temporal.common.converter.DataConverter;
 import io.temporal.proto.common.WorkflowExecution;
 import java.util.Optional;
 
@@ -29,8 +28,7 @@ import java.util.Optional;
  */
 public final class WorkflowNotFoundException extends WorkflowException {
 
-  public WorkflowNotFoundException(
-      WorkflowExecution execution, Optional<String> workflowType, DataConverter dataConverter) {
-    super(execution, workflowType, null, dataConverter);
+  public WorkflowNotFoundException(WorkflowExecution execution, Optional<String> workflowType) {
+    super(null, execution, workflowType, null);
   }
 }
