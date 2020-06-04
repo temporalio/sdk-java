@@ -3052,6 +3052,7 @@ public class WorkflowTest {
       }
       ITestNamedChild child2 = Workflow.newChildWorkflowStub(ITestNamedChild.class, options);
       ChildWorkflowStub child2Stub = ChildWorkflowStub.fromTyped(child2);
+      child2Stub.getExecution().get();
       // Same as String r2 = child2.execute("World!");
       String r2 = child2Stub.execute(String.class, "World!");
       if (parallel) {

@@ -43,16 +43,6 @@ import java.util.function.Function;
 public final class GsonJsonPayloadConverter implements PayloadConverter {
 
   private static final PayloadConverter INSTANCE = new GsonJsonPayloadConverter();
-  private static final String METADATA_ENCODING_KEY = "encoding";
-
-  private static final String METADATA_ENCODING_RAW_NAME = "raw";
-
-  private static final ByteString METADATA_ENCODING_RAW =
-      ByteString.copyFrom(METADATA_ENCODING_RAW_NAME, StandardCharsets.UTF_8);
-  private static final String METADATA_ENCODING_JSON_NAME = "json";
-
-  private static final ByteString METADATA_ENCODING_JSON =
-      ByteString.copyFrom(METADATA_ENCODING_JSON_NAME, StandardCharsets.UTF_8);
 
   private static final String TYPE_FIELD_NAME = "type";
   private static final String CLASS_NAME_FIELD_NAME = "className";
@@ -94,14 +84,14 @@ public final class GsonJsonPayloadConverter implements PayloadConverter {
       if (value instanceof byte[]) {
         return Optional.of(
             Payload.newBuilder()
-                .putMetadata(METADATA_ENCODING_KEY, METADATA_ENCODING_RAW)
+                .putMetadata(EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_RAW)
                 .setData(ByteString.copyFrom((byte[]) value))
                 .build());
       }
       String json = gson.toJson(value);
       return Optional.of(
           Payload.newBuilder()
-              .putMetadata(METADATA_ENCODING_KEY, METADATA_ENCODING_JSON)
+              .putMetadata(EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_JSON)
               .setData(ByteString.copyFrom(json, StandardCharsets.UTF_8))
               .build());
     } catch (DataConverterException e) {
@@ -124,13 +114,13 @@ public final class GsonJsonPayloadConverter implements PayloadConverter {
     try {
       String encoding =
           content
-              .getMetadataOrDefault(METADATA_ENCODING_KEY, METADATA_ENCODING_JSON)
+              .getMetadataOrDefault(EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_JSON)
               .toString(StandardCharsets.UTF_8);
-      if (METADATA_ENCODING_JSON_NAME.equals(encoding)) {
+      if (EncodingKeys.METADATA_ENCODING_JSON_NAME.equals(encoding)) {
         String json = data.toString(StandardCharsets.UTF_8);
         return gson.fromJson(json, valueType);
       }
-      if (METADATA_ENCODING_RAW_NAME.equals(encoding)) {
+      if (EncodingKeys.METADATA_ENCODING_RAW_NAME.equals(encoding)) {
         if (valueClass != byte[].class) {
           throw new IllegalArgumentException(
               "Raw encoding can be deserialized only to a byte array. valueClass="
@@ -163,7 +153,7 @@ public final class GsonJsonPayloadConverter implements PayloadConverter {
           @Override
           public void write(JsonWriter out, T value) throws IOException {
             out.beginObject();
-            out.name(TYPE_FIELD_NAME).value(METADATA_ENCODING_JSON_NAME);
+            out.name(TYPE_FIELD_NAME).value(EncodingKeys.METADATA_ENCODING_JSON_NAME);
             out.endObject();
           }
 
@@ -175,10 +165,10 @@ public final class GsonJsonPayloadConverter implements PayloadConverter {
               throw new IOException("Cannot deserialize DataConverter. Missing type field");
             }
             String value = in.nextString();
-            if (!METADATA_ENCODING_JSON_NAME.equals(value)) {
+            if (!EncodingKeys.METADATA_ENCODING_JSON_NAME.equals(value)) {
               throw new IOException(
                   "Cannot deserialize DataConverter. Expected type is \""
-                      + METADATA_ENCODING_JSON_NAME
+                      + EncodingKeys.METADATA_ENCODING_JSON_NAME
                       + "\". Found "
                       + value);
             }
