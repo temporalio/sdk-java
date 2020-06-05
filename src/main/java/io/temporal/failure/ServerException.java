@@ -25,7 +25,7 @@ public final class ServerException extends RemoteException {
   private final boolean nonRetryable;
 
   public ServerException(Failure failure, Exception cause) {
-    super(failure, cause);
+    super(failure.getMessage(), failure, cause);
     if (!failure.hasServerFailureInfo()) {
       throw new IllegalArgumentException(
           "Server failure expected: " + failure.getFailureInfoCase());

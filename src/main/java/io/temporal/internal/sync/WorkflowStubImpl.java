@@ -34,7 +34,7 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
-import io.temporal.common.converter.GsonJsonDataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
@@ -179,8 +179,7 @@ class WorkflowStubImpl implements WorkflowStub {
     Map<String, Payload> result = new HashMap<>();
     for (Map.Entry<String, Object> item : map.entrySet()) {
       try {
-        result.put(
-            item.getKey(), dataConverter.getPayloadConverter().toData(item.getValue()).get());
+        result.put(item.getKey(), dataConverter.toPayload(item.getValue()).get());
       } catch (DataConverterException e) {
         throw new DataConverterException("Cannot serialize key " + item.getKey(), e.getCause());
       }
@@ -193,7 +192,7 @@ class WorkflowStubImpl implements WorkflowStub {
   }
 
   private Map<String, Payload> convertSearchAttributesFromObjectToBytes(Map<String, Object> map) {
-    return convertMapFromObjectToBytes(map, GsonJsonDataConverter.getInstance());
+    return convertMapFromObjectToBytes(map, DefaultDataConverter.getInstance());
   }
 
   private Map<String, Payload> extractContextsAndConvertToBytes(

@@ -20,7 +20,6 @@
 package io.temporal.internal.common;
 
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.PayloadConverter;
 import io.temporal.internal.replay.ClockDecisionContext;
 import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.Header;
@@ -179,14 +178,14 @@ public final class LocalActivityMarkerData {
     return headers.backoff;
   }
 
-  public Header getHeader(PayloadConverter converter) {
-    Optional<Payload> headerData = converter.toData(headers);
+  public Header getHeader(DataConverter converter) {
+    Optional<Payload> headerData = converter.toPayload(headers);
     Header.Builder result = Header.newBuilder();
     if (headerData.isPresent()) {
       result.putFields(LOCAL_ACTIVITY_HEADER_KEY, headerData.get());
     }
     if (failure.isPresent()) {
-      Optional<Payload> failureData = converter.toData(failure.get());
+      Optional<Payload> failureData = converter.toPayload(failure.get());
       if (failureData.isPresent()) {
         result.putFields(LOCAL_ACTIVITY_FAILURE_KEY, failureData.get());
       }
@@ -198,7 +197,7 @@ public final class LocalActivityMarkerData {
     MarkerRecordedEventAttributes.Builder attributes =
         MarkerRecordedEventAttributes.newBuilder()
             .setMarkerName(ClockDecisionContext.LOCAL_ACTIVITY_MARKER_NAME)
-            .setHeader(getHeader(converter.getPayloadConverter()));
+            .setHeader(getHeader(converter));
     if (result.isPresent()) {
       attributes.setDetails(result.get());
     }
@@ -209,18 +208,18 @@ public final class LocalActivityMarkerData {
   }
 
   public static LocalActivityMarkerData fromEventAttributes(
-      MarkerRecordedEventAttributes attributes, PayloadConverter converter) {
+      MarkerRecordedEventAttributes attributes, DataConverter converter) {
     Header header = attributes.getHeader();
     Payload payload = header.getFieldsOrThrow(LOCAL_ACTIVITY_HEADER_KEY);
     LocalActivityMarkerHeader laHeader =
-        converter.fromData(
+        converter.fromPayload(
             payload, LocalActivityMarkerHeader.class, LocalActivityMarkerHeader.class);
     Optional<Payloads> details =
         attributes.hasDetails() ? Optional.of(attributes.getDetails()) : Optional.empty();
     Optional<Failure> failure = Optional.empty();
     if (header.containsFields(LOCAL_ACTIVITY_FAILURE_KEY)) {
       Payload failurePayload = header.getFieldsOrThrow(LOCAL_ACTIVITY_FAILURE_KEY);
-      failure = Optional.of(converter.fromData(failurePayload, Failure.class, Failure.class));
+      failure = Optional.of(converter.fromPayload(failurePayload, Failure.class, Failure.class));
     }
     return new LocalActivityMarkerData(laHeader, details, failure);
   }

@@ -19,6 +19,7 @@
 
 package io.temporal.common.converter;
 
+import io.temporal.proto.common.Payload;
 import io.temporal.proto.common.Payloads;
 import java.lang.reflect.Type;
 import java.util.Optional;
@@ -31,7 +32,9 @@ import java.util.Optional;
  */
 public interface DataConverter {
 
-  PayloadConverter getPayloadConverter();
+  <T> Optional<Payload> toPayload(T value);
+
+  <T> T fromPayload(Payload payload, Class<T> valueClass, Type valueType);
 
   /**
    * Implements conversion of a list of values.

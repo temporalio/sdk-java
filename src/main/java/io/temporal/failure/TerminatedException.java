@@ -23,7 +23,7 @@ import io.temporal.proto.failure.Failure;
 
 public final class TerminatedException extends RemoteException {
   public TerminatedException(Failure failure, Exception cause) {
-    super(failure, cause);
+    super(failure.getMessage(), failure, cause);
     if (!failure.hasTerminatedFailureInfo()) {
       throw new IllegalArgumentException(
           "Terminated failure expected: " + failure.getFailureInfoCase());

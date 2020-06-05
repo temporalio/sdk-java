@@ -31,7 +31,7 @@ public final class ResetWorkflowException extends RemoteException {
   private final DataConverter dataConverter;
 
   ResetWorkflowException(Failure failure, DataConverter dataConverter, Exception cause) {
-    super(failure);
+    super(failure.getMessage(), failure, cause);
     if (!failure.hasResetWorkflowFailureInfo()) {
       throw new IllegalArgumentException(
           "Timeout failure expected: " + failure.getFailureInfoCase());

@@ -29,7 +29,7 @@ public final class ActivityException extends RemoteException {
   private final String identity;
 
   public ActivityException(Failure failure, Exception cause) {
-    super(failure, cause);
+    super(toString(failure), failure, cause);
     if (!failure.hasActivityTaskFailureInfo()) {
       throw new IllegalArgumentException(
           "Activity failure expected: " + failure.getFailureInfoCase());
@@ -50,5 +50,21 @@ public final class ActivityException extends RemoteException {
 
   public String getIdentity() {
     return identity;
+  }
+
+  private static String toString(Failure failure) {
+    ActivityTaskFailureInfo info = failure.getActivityTaskFailureInfo();
+    return "scheduledEventId="
+        + info.getScheduledEventId()
+        + ", startedEventId="
+        + info.getStartedEventId()
+        + ", identity='"
+        + info.getIdentity()
+        + '\'';
+  }
+
+  @Override
+  public String toString() {
+    return "ActivityException{" + toString(failure) + '}';
   }
 }

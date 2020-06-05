@@ -33,18 +33,8 @@ public final class TimeoutException extends RemoteException {
   private final DataConverter dataConverter;
 
   TimeoutException(Failure failure, DataConverter dataConverter, Exception cause) {
-    super(failure);
-    if (!failure.hasTimeoutFailureInfo()) {
-      throw new IllegalArgumentException(
-          "Timeout failure expected: " + failure.getFailureInfoCase());
-    }
+    super(toString(failure), failure, cause);
     TimeoutFailureInfo info = failure.getTimeoutFailureInfo();
-    if (info.hasLastFailure()) {
-      initCause(FailureConverter.failureToException(info.getLastFailure(), dataConverter));
-      addSuppressed(cause);
-    } else {
-      initCause(cause);
-    }
     this.timeoutType = info.getTimeoutType();
     this.lastHeartbeatDetails =
         info.hasLastHeartbeatDetails()
@@ -67,5 +57,19 @@ public final class TimeoutException extends RemoteException {
 
   public <V> V getLastHeartbeatDetails(Class<V> detailsClass, Type detailsType) {
     return dataConverter.fromData(lastHeartbeatDetails, detailsClass, detailsType);
+  }
+
+  private static String toString(Failure failure) {
+    if (!failure.hasTimeoutFailureInfo()) {
+      throw new IllegalArgumentException(
+          "Timeout failure expected: " + failure.getFailureInfoCase());
+    }
+    TimeoutFailureInfo info = failure.getTimeoutFailureInfo();
+    return "timeoutType=" + info.getTimeoutType();
+  }
+
+  @Override
+  public String toString() {
+    return "TimeoutException{" + "timeoutType=" + timeoutType + '}';
   }
 }

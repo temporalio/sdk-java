@@ -31,6 +31,8 @@ import java.util.Optional;
  */
 public interface PayloadConverter {
 
+  String getEncodingType();
+
   /**
    * Implements conversion of a list of values.
    *

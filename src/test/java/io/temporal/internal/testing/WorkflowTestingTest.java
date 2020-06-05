@@ -35,7 +35,7 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.client.WorkflowTimeoutException;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
-import io.temporal.common.converter.GsonJsonDataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.proto.common.Payload;
 import io.temporal.proto.common.TimeoutType;
@@ -808,8 +808,7 @@ public class WorkflowTestingTest {
       String testKey = (String) context;
       if (testKey != null) {
         return Collections.singletonMap(
-            "test",
-            GsonJsonDataConverter.getInstance().getPayloadConverter().toData(testKey).get());
+            "test", DefaultDataConverter.getInstance().toPayload(testKey).get());
       } else {
         return Collections.emptyMap();
       }
@@ -818,9 +817,8 @@ public class WorkflowTestingTest {
     @Override
     public Object deserializeContext(Map<String, Payload> context) {
       if (context.containsKey("test")) {
-        return GsonJsonDataConverter.getInstance()
-            .getPayloadConverter()
-            .fromData(context.get("test"), String.class, String.class);
+        return DefaultDataConverter.getInstance()
+            .fromPayload(context.get("test"), String.class, String.class);
 
       } else {
         return null;

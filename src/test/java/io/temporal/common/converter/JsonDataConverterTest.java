@@ -20,7 +20,6 @@
 package io.temporal.common.converter;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 
 import com.google.common.base.Objects;
 import io.temporal.activity.Activity;
@@ -39,7 +38,7 @@ import org.junit.Test;
 
 public class JsonDataConverterTest {
 
-  private final DataConverter converter = GsonJsonDataConverter.getInstance();
+  private final DataConverter converter = DefaultDataConverter.getInstance();
 
   public static void foo(List<UUID> arg) {}
 
@@ -162,29 +161,5 @@ public class JsonDataConverterTest {
       }
       foo = "bar";
     }
-  }
-
-  @Test
-  public void testException() {
-    RuntimeException rootException = new IllegalArgumentException("root exception");
-    NonSerializableException nonSerializableCause = new NonSerializableException(rootException);
-    RuntimeException e = new RuntimeException("application exception", nonSerializableCause);
-
-    Optional<Payloads> converted = converter.toData(e);
-    RuntimeException fromConverted =
-        converter.fromData(converted, RuntimeException.class, RuntimeException.class);
-    assertEquals(RuntimeException.class, fromConverted.getClass());
-    assertEquals("application exception", fromConverted.getMessage());
-
-    Throwable causeFromConverted = fromConverted.getCause();
-    assertNotNull(causeFromConverted);
-    assertEquals(DataConverterException.class, causeFromConverted.getClass());
-    assertNotNull(causeFromConverted.getCause());
-    assertEquals(StackOverflowError.class, causeFromConverted.getCause().getClass());
-
-    assertNotNull(causeFromConverted.getSuppressed());
-    assertEquals(1, causeFromConverted.getSuppressed().length);
-
-    assertEquals("root exception", causeFromConverted.getSuppressed()[0].getMessage());
   }
 }

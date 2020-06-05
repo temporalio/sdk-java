@@ -20,7 +20,6 @@
 package io.temporal.internal.replay;
 
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.PayloadConverter;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.proto.common.Header;
 import io.temporal.proto.common.Payload;
@@ -79,12 +78,10 @@ class MarkerHandler {
         Header markerHeader = attributes.getHeader();
         if (markerHeader.containsFields(MUTABLE_MARKER_HEADER_KEY)) {
           MarkerData.MarkerHeader header =
-              converter
-                  .getPayloadConverter()
-                  .fromData(
-                      markerHeader.getFieldsOrThrow(MUTABLE_MARKER_HEADER_KEY),
-                      MarkerData.MarkerHeader.class,
-                      MarkerData.MarkerHeader.class);
+              converter.fromPayload(
+                  markerHeader.getFieldsOrThrow(MUTABLE_MARKER_HEADER_KEY),
+                  MarkerData.MarkerHeader.class,
+                  MarkerData.MarkerHeader.class);
 
           return new MarkerData(header, details);
         }
@@ -140,8 +137,8 @@ class MarkerHandler {
       return header.accessCount;
     }
 
-    Header getHeader(PayloadConverter converter) {
-      Optional<Payload> headerData = converter.toData(header);
+    Header getHeader(DataConverter converter) {
+      Optional<Payload> headerData = converter.toPayload(header);
       return Header.newBuilder().putFields(MUTABLE_MARKER_HEADER_KEY, headerData.get()).build();
     }
   }
@@ -262,6 +259,6 @@ class MarkerHandler {
       String id, long eventId, Optional<Payloads> data, int accessCount, DataConverter converter) {
     MarkerData marker = new MarkerData(id, eventId, data, accessCount);
     mutableMarkerResults.put(id, new MarkerResult(data));
-    decisions.recordMarker(markerName, marker.getHeader(converter.getPayloadConverter()), data);
+    decisions.recordMarker(markerName, marker.getHeader(converter), data);
   }
 }

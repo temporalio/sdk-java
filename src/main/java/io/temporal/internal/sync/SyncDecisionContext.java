@@ -795,8 +795,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     }
 
     SearchAttributes attr =
-        InternalUtils.convertMapToSearchAttributes(
-            searchAttributes, getDataConverter().getPayloadConverter());
+        InternalUtils.convertMapToSearchAttributes(searchAttributes, getDataConverter());
     context.upsertSearchAttributes(attr);
   }
 }

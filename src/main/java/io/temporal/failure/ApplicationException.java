@@ -33,11 +33,7 @@ public final class ApplicationException extends RemoteException {
   private final boolean nonRetryable;
 
   ApplicationException(Failure failure, DataConverter dataConverter, Exception cause) {
-    super(failure, cause);
-    if (!failure.hasApplicationFailureInfo()) {
-      throw new IllegalArgumentException(
-          "Application failure expected: " + failure.getFailureInfoCase());
-    }
+    super(toString(failure), failure, cause);
     ApplicationFailureInfo info = failure.getApplicationFailureInfo();
     this.type = info.getType();
     this.details = info.hasDetails() ? Optional.of(info.getDetails()) : Optional.empty();
@@ -65,18 +61,32 @@ public final class ApplicationException extends RemoteException {
     return dataConverter.fromData(details, detailsClass, detailsType);
   }
 
+  private static String toString(Failure failure) {
+    if (!failure.hasApplicationFailureInfo()) {
+      throw new IllegalArgumentException(
+          "Application failure expected: " + failure.getFailureInfoCase());
+    }
+    ApplicationFailureInfo info = failure.getApplicationFailureInfo();
+
+    StringBuilder result = new StringBuilder();
+    result.append("type=\"");
+    result.append(info.getType());
+    result.append('"');
+    if (info.hasDetails()) {
+      result.append(", details=\"");
+      result.append(info.getDetails());
+      result.append('"');
+    }
+    result.append('}');
+    return result.toString();
+  }
+
   @Override
   public String toString() {
     StringBuilder result = new StringBuilder();
     result.append(this.getClass().getName());
-    result.append(" {type=\"");
-    result.append(type);
-    result.append('"');
-    if (details.isPresent()) {
-      result.append(", details=\"");
-      result.append(details);
-      result.append('"');
-    }
+    result.append(" ");
+    result.append(toString(failure));
     result.append('}');
     return result.toString();
   }

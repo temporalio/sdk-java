@@ -19,40 +19,66 @@
 
 package io.temporal.common.converter;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import com.google.common.base.Defaults;
 import io.temporal.proto.common.Payload;
 import io.temporal.proto.common.Payloads;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Implements conversion through GSON JSON processor. To extend use {@link
- * #GsonJsonDataConverter(PayloadConverter)} constructor.
- *
- * @author fateev
- */
-public final class GsonJsonDataConverter implements DataConverter {
+/** @author fateev */
+public class DefaultDataConverter implements DataConverter {
 
-  private static final DataConverter INSTANCE = new GsonJsonDataConverter();
+  private static final DataConverter INSTANCE =
+      new DefaultDataConverter(new ByteArrayPayloadConverter(), new JacksonJsonPayloadConverter());
   private static final Object[] EMPTY_OBJECT_ARRAY = new Object[0];
-  private final PayloadConverter converter;
+  private final Map<String, PayloadConverter> converterMap = new ConcurrentHashMap<>();
+  private final List<PayloadConverter> converters = new ArrayList<>();
 
   public static DataConverter getInstance() {
     return INSTANCE;
   }
 
-  private GsonJsonDataConverter() {
-    this(GsonJsonPayloadConverter.getInstance());
-  }
-
-  public GsonJsonDataConverter(PayloadConverter converter) {
-    this.converter = converter;
+  public DefaultDataConverter(PayloadConverter... converters) {
+    for (PayloadConverter converter : converters) {
+      this.converters.add(converter);
+      this.converterMap.put(converter.getEncodingType(), converter);
+    }
   }
 
   @Override
-  public PayloadConverter getPayloadConverter() {
-    return converter;
+  public <T> Optional<Payload> toPayload(T value) {
+    if (value == null) {
+      return Optional.empty();
+    }
+    for (PayloadConverter converter : converters) {
+      Optional<Payload> result = converter.toData(value);
+      if (result.isPresent()) {
+        return result;
+      }
+    }
+    throw new IllegalArgumentException("Failure serializing " + value);
+  }
+
+  @Override
+  public <T> T fromPayload(Payload payload, Class<T> valueClass, Type valueType) {
+    try {
+      String encoding =
+          payload.getMetadataOrThrow(EncodingKeys.METADATA_ENCODING_KEY).toString(UTF_8);
+      PayloadConverter converter = converterMap.get(encoding);
+      if (converter == null) {
+        throw new IllegalArgumentException("Unknown encoding: " + encoding);
+      }
+      return converter.fromData(payload, valueClass, valueType);
+    } catch (Throwable e) {
+      throw new DataConverterException(e);
+    }
   }
 
   /**
@@ -70,7 +96,7 @@ public final class GsonJsonDataConverter implements DataConverter {
     try {
       Payloads.Builder result = Payloads.newBuilder();
       for (Object value : values) {
-        Optional<Payload> payload = converter.toData(value);
+        Optional<Payload> payload = toPayload(value);
         if (payload.isPresent()) {
           result.addPayloads(payload.get());
         } else {
@@ -99,7 +125,7 @@ public final class GsonJsonDataConverter implements DataConverter {
       throw new DataConverterException(
           "Found multiple payloads while a single one expected", content, valueType);
     }
-    return converter.fromData(c.getPayloads(0), valueClass, valueType);
+    return fromPayload(c.getPayloads(0), valueClass, valueType);
   }
 
   @Override
@@ -132,7 +158,7 @@ public final class GsonJsonDataConverter implements DataConverter {
         if (i >= count) {
           result[i] = Defaults.defaultValue((Class<?>) vt);
         } else {
-          result[i] = converter.fromData(c.getPayloads(i), pt, vt);
+          result[i] = fromPayload(c.getPayloads(i), pt, vt);
         }
       }
       return result;

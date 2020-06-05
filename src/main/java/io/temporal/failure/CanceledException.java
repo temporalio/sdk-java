@@ -31,7 +31,7 @@ public final class CanceledException extends RemoteException {
   private final DataConverter dataConverter;
 
   CanceledException(Failure failure, DataConverter dataConverter, Exception cause) {
-    super(failure, cause);
+    super(failure.getMessage(), failure, cause);
     if (!failure.hasCanceledFailureInfo()) {
       throw new IllegalArgumentException(
           "Canceled failure expected: " + failure.getCanceledFailureInfo());

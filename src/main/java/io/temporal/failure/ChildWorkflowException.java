@@ -33,11 +33,7 @@ public final class ChildWorkflowException extends RemoteException {
   private final String namespace;
 
   public ChildWorkflowException(Failure failure, Exception cause) {
-    super(failure, cause);
-    if (!failure.hasChildWorkflowExecutionFailureInfo()) {
-      throw new IllegalArgumentException(
-          "Activity failure expected: " + failure.getFailureInfoCase());
-    }
+    super(toString(failure), failure, cause);
     ChildWorkflowExecutionFailureInfo info = failure.getChildWorkflowExecutionFailureInfo();
     this.initiatedEventId = info.getInitiatedEventId();
     this.startedEventId = info.getStartedEventId();
@@ -64,5 +60,30 @@ public final class ChildWorkflowException extends RemoteException {
 
   public String getNamespace() {
     return namespace;
+  }
+
+  private static String toString(Failure failure) {
+    if (!failure.hasChildWorkflowExecutionFailureInfo()) {
+      throw new IllegalArgumentException(
+          "Activity failure expected: " + failure.getFailureInfoCase());
+    }
+    ChildWorkflowExecutionFailureInfo info = failure.getChildWorkflowExecutionFailureInfo();
+
+    return "initiatedEventId="
+        + info.getInitiatedEventId()
+        + ", startedEventId="
+        + info.getStartedEventId()
+        + ", workflowType="
+        + info.getWorkflowType()
+        + ", workflowExecution="
+        + info.getWorkflowExecution()
+        + ", namespace='"
+        + info.getNamespace()
+        + '\'';
+  }
+
+  @Override
+  public String toString() {
+    return "ChildWorkflowException{" + toString(failure) + '}';
   }
 }

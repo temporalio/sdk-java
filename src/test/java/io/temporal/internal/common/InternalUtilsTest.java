@@ -22,7 +22,7 @@ package io.temporal.internal.common;
 import static junit.framework.TestCase.assertEquals;
 
 import io.temporal.common.converter.DataConverterException;
-import io.temporal.common.converter.GsonJsonDataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.proto.common.SearchAttributes;
 import io.temporal.workflow.WorkflowUtils;
 import java.io.FileOutputStream;
@@ -39,8 +39,7 @@ public class InternalUtilsTest {
     attr.put("CustomKeywordField", value);
 
     SearchAttributes result =
-        InternalUtils.convertMapToSearchAttributes(
-            attr, GsonJsonDataConverter.getInstance().getPayloadConverter());
+        InternalUtils.convertMapToSearchAttributes(attr, DefaultDataConverter.getInstance());
     assertEquals(
         value,
         WorkflowUtils.getValueFromSearchAttributes(result, "CustomKeywordField", String.class));
@@ -50,7 +49,6 @@ public class InternalUtilsTest {
   public void testConvertMapToSearchAttributesException() throws Throwable {
     Map<String, Object> attr = new HashMap<>();
     attr.put("InvalidValue", new FileOutputStream("dummy"));
-    InternalUtils.convertMapToSearchAttributes(
-        attr, GsonJsonDataConverter.getInstance().getPayloadConverter());
+    InternalUtils.convertMapToSearchAttributes(attr, DefaultDataConverter.getInstance());
   }
 }

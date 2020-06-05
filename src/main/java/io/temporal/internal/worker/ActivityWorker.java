@@ -24,7 +24,7 @@ import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.common.context.ContextPropagator;
-import io.temporal.common.converter.GsonJsonDataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.RpcRetryOptions;
@@ -196,7 +196,7 @@ public final class ActivityWorker implements SuspendableWorker {
         RespondActivityTaskCanceledRequest cancelledRequest =
             RespondActivityTaskCanceledRequest.newBuilder()
                 .setDetails(
-                    GsonJsonDataConverter.getInstance()
+                    DefaultDataConverter.getInstance()
                         .toData(OptionsUtils.safeGet(e.getMessage()))
                         .get())
                 .build();

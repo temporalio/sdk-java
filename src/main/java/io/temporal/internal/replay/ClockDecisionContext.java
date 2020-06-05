@@ -244,8 +244,7 @@ public final class ClockDecisionContext {
 
   private void handleLocalActivityMarker(MarkerRecordedEventAttributes attributes) {
     LocalActivityMarkerData marker =
-        LocalActivityMarkerData.fromEventAttributes(
-            attributes, dataConverter.getPayloadConverter());
+        LocalActivityMarkerData.fromEventAttributes(attributes, dataConverter);
     if (pendingLaTasks.containsKey(marker.getActivityId())) {
       if (log.isDebugEnabled()) {
         log.debug("Handle LocalActivityMarker for activity " + marker.getActivityId());
@@ -253,10 +252,7 @@ public final class ClockDecisionContext {
 
       Optional<Payloads> details =
           attributes.hasDetails() ? Optional.of(attributes.getDetails()) : Optional.empty();
-      decisions.recordMarker(
-          LOCAL_ACTIVITY_MARKER_NAME,
-          marker.getHeader(dataConverter.getPayloadConverter()),
-          details);
+      decisions.recordMarker(LOCAL_ACTIVITY_MARKER_NAME, marker.getHeader(dataConverter), details);
 
       OpenRequestInfo<Optional<Payloads>, ActivityType> scheduled =
           pendingLaTasks.remove(marker.getActivityId());
