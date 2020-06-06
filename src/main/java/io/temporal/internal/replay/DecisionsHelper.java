@@ -52,11 +52,13 @@ import io.temporal.proto.event.ChildWorkflowExecutionTimedOutEventAttributes;
 import io.temporal.proto.event.EventType;
 import io.temporal.proto.event.ExternalWorkflowExecutionCancelRequestedEventAttributes;
 import io.temporal.proto.event.HistoryEvent;
+import io.temporal.proto.event.MarkerRecordedEventAttributes;
 import io.temporal.proto.event.RequestCancelExternalWorkflowExecutionFailedEventAttributes;
 import io.temporal.proto.event.StartChildWorkflowExecutionFailedEventAttributes;
 import io.temporal.proto.event.TimerCanceledEventAttributes;
 import io.temporal.proto.event.TimerFiredEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionStartedEventAttributes;
+import io.temporal.proto.failure.Failure;
 import io.temporal.proto.tasklist.TaskList;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import java.util.ArrayList;
@@ -505,16 +507,21 @@ class DecisionsHelper {
     addDecision(decisionId, new CompleteWorkflowStateMachine(decisionId, decision));
   }
 
-  void recordMarker(String markerName, Header header, Optional<Payloads> details) {
+  void recordMarker(
+      String markerName,
+      Optional<Header> header,
+      Map<String, Payloads> details,
+      Optional<Failure> failure) {
     // no need to call addAllMissingVersionMarker here as all the callers are already doing it.
 
     RecordMarkerDecisionAttributes.Builder marker =
         RecordMarkerDecisionAttributes.newBuilder().setMarkerName(markerName);
-    if (details.isPresent()) {
-      marker.setDetails(details.get());
+    marker.putAllDetails(details);
+    if (header.isPresent()) {
+      marker.setHeader(header.get());
     }
-    if (header != null) {
-      marker.setHeader(header);
+    if (failure.isPresent()) {
+      marker.setFailure(failure.get());
     }
     Decision decision =
         Decision.newBuilder()
@@ -682,13 +689,14 @@ class DecisionsHelper {
     // If it is the case then all the markers that precede it should be added as decisions
     // as their correspondent getVersion calls were removed.
     long changeIdMarkerEventId = -1;
+    MarkerRecordedEventAttributes eventAttributes =
+        markerEvent.get().getMarkerRecordedEventAttributes();
     if (changeId.isPresent()) {
       String id = changeId.get();
       long eventId = nextDecisionEventId;
       while (true) {
-        MarkerHandler.MarkerInterface markerData =
-            MarkerHandler.MarkerInterface.fromEventAttributes(
-                markerEvent.get().getMarkerRecordedEventAttributes(), converter.get());
+        MarkerHandler.MarkerData markerData =
+            MarkerHandler.MarkerData.fromEventAttributes(eventAttributes, converter.get());
 
         if (id.equals(markerData.getId())) {
           changeIdMarkerEventId = eventId;
@@ -709,9 +717,14 @@ class DecisionsHelper {
       // If we have a version marker in history event but not in decisions, let's add one.
       RecordMarkerDecisionAttributes.Builder attributes =
           RecordMarkerDecisionAttributes.newBuilder()
-              .setMarkerName(ClockDecisionContext.VERSION_MARKER_NAME)
-              .setHeader(markerEvent.get().getMarkerRecordedEventAttributes().getHeader())
-              .setDetails(markerEvent.get().getMarkerRecordedEventAttributes().getDetails());
+              .setMarkerName(ClockDecisionContext.VERSION_MARKER_NAME);
+      if (eventAttributes.hasHeader()) {
+        attributes.setHeader(eventAttributes.getHeader());
+      }
+      if (eventAttributes.hasFailure()) {
+        attributes.setFailure(eventAttributes.getFailure());
+      }
+      attributes.putAllDetails(eventAttributes.getDetailsMap());
       Decision markerDecision =
           Decision.newBuilder()
               .setDecisionType(DecisionType.RecordMarker)

@@ -22,8 +22,6 @@ package io.temporal.internal.common;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.replay.ClockDecisionContext;
 import io.temporal.proto.common.ActivityType;
-import io.temporal.proto.common.Header;
-import io.temporal.proto.common.Payload;
 import io.temporal.proto.common.Payloads;
 import io.temporal.proto.event.EventType;
 import io.temporal.proto.event.HistoryEvent;
@@ -36,8 +34,8 @@ import java.time.Duration;
 import java.util.Optional;
 
 public final class LocalActivityMarkerData {
-  private static final String LOCAL_ACTIVITY_HEADER_KEY = "LocalActivityHeader";
-  private static final String LOCAL_ACTIVITY_FAILURE_KEY = "LocalActivityFailure";
+  static final String MARKER_RESULT_KEY = "result";
+  static final String MARKER_DATA_KEY = "data";
 
   public static final class Builder {
     private String activityId;
@@ -104,14 +102,14 @@ public final class LocalActivityMarkerData {
     }
   }
 
-  private static class LocalActivityMarkerHeader {
+  private static class DataValue {
     private final String activityId;
     private final String activityType;
     private final long replayTimeMillis;
     private final int attempt;
-    private final Duration backoff;
+    private final long backoffMillis;
 
-    LocalActivityMarkerHeader(
+    DataValue(
         String activityId,
         String activityType,
         long replayTimeMillis,
@@ -121,11 +119,11 @@ public final class LocalActivityMarkerData {
       this.activityType = activityType;
       this.replayTimeMillis = replayTimeMillis;
       this.attempt = attempt;
-      this.backoff = backoff;
+      this.backoffMillis = backoff.toMillis();
     }
   }
 
-  private final LocalActivityMarkerHeader headers;
+  private final DataValue data;
   private final Optional<Payloads> result;
   private final Optional<Failure> failure;
 
@@ -137,25 +135,24 @@ public final class LocalActivityMarkerData {
       Optional<Failure> failure,
       int attempt,
       Duration backoff) {
-    this.headers =
-        new LocalActivityMarkerHeader(activityId, activityType, replayTimeMillis, attempt, backoff);
+    this.data = new DataValue(activityId, activityType, replayTimeMillis, attempt, backoff);
     this.result = result;
     this.failure = failure;
   }
 
   private LocalActivityMarkerData(
-      LocalActivityMarkerHeader headers, Optional<Payloads> result, Optional<Failure> failure) {
-    this.headers = headers;
+      DataValue data, Optional<Payloads> result, Optional<Failure> failure) {
+    this.data = data;
     this.result = result;
     this.failure = failure;
   }
 
   public String getActivityId() {
-    return headers.activityId;
+    return data.activityId;
   }
 
   public String getActivityType() {
-    return headers.activityType;
+    return data.activityType;
   }
 
   public Optional<Failure> getFailure() {
@@ -167,39 +164,28 @@ public final class LocalActivityMarkerData {
   }
 
   public long getReplayTimeMillis() {
-    return headers.replayTimeMillis;
+    return data.replayTimeMillis;
   }
 
   public int getAttempt() {
-    return headers.attempt;
+    return data.attempt;
   }
 
   public Duration getBackoff() {
-    return headers.backoff;
-  }
-
-  public Header getHeader(DataConverter converter) {
-    Optional<Payload> headerData = converter.toPayload(headers);
-    Header.Builder result = Header.newBuilder();
-    if (headerData.isPresent()) {
-      result.putFields(LOCAL_ACTIVITY_HEADER_KEY, headerData.get());
-    }
-    if (failure.isPresent()) {
-      Optional<Payload> failureData = converter.toPayload(failure.get());
-      if (failureData.isPresent()) {
-        result.putFields(LOCAL_ACTIVITY_FAILURE_KEY, failureData.get());
-      }
-    }
-    return result.build();
+    return Duration.ofMillis(data.backoffMillis);
   }
 
   public HistoryEvent toEvent(DataConverter converter) {
+    Payloads data = converter.toData(this.data).get();
     MarkerRecordedEventAttributes.Builder attributes =
         MarkerRecordedEventAttributes.newBuilder()
             .setMarkerName(ClockDecisionContext.LOCAL_ACTIVITY_MARKER_NAME)
-            .setHeader(getHeader(converter));
+            .putDetails(MARKER_DATA_KEY, data);
     if (result.isPresent()) {
-      attributes.setDetails(result.get());
+      attributes.putDetails(MARKER_RESULT_KEY, result.get());
+    }
+    if (failure.isPresent()) {
+      attributes.setFailure(failure.get());
     }
     return HistoryEvent.newBuilder()
         .setEventType(EventType.MarkerRecorded)
@@ -209,18 +195,14 @@ public final class LocalActivityMarkerData {
 
   public static LocalActivityMarkerData fromEventAttributes(
       MarkerRecordedEventAttributes attributes, DataConverter converter) {
-    Header header = attributes.getHeader();
-    Payload payload = header.getFieldsOrThrow(LOCAL_ACTIVITY_HEADER_KEY);
-    LocalActivityMarkerHeader laHeader =
-        converter.fromPayload(
-            payload, LocalActivityMarkerHeader.class, LocalActivityMarkerHeader.class);
-    Optional<Payloads> details =
-        attributes.hasDetails() ? Optional.of(attributes.getDetails()) : Optional.empty();
-    Optional<Failure> failure = Optional.empty();
-    if (header.containsFields(LOCAL_ACTIVITY_FAILURE_KEY)) {
-      Payload failurePayload = header.getFieldsOrThrow(LOCAL_ACTIVITY_FAILURE_KEY);
-      failure = Optional.of(converter.fromPayload(failurePayload, Failure.class, Failure.class));
-    }
-    return new LocalActivityMarkerData(laHeader, details, failure);
+    Payloads data = attributes.getDetailsOrThrow(MARKER_DATA_KEY);
+    DataValue laHeader = converter.fromData(Optional.of(data), DataValue.class, DataValue.class);
+    Optional<Payloads> result =
+        attributes.containsDetails(MARKER_RESULT_KEY)
+            ? Optional.of(attributes.getDetailsOrThrow(MARKER_RESULT_KEY))
+            : Optional.empty();
+    Optional<Failure> failure =
+        attributes.hasFailure() ? Optional.of(attributes.getFailure()) : Optional.empty();
+    return new LocalActivityMarkerData(laHeader, result, failure);
   }
 }

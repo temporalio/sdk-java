@@ -41,8 +41,8 @@ import io.temporal.proto.event.ExternalWorkflowExecutionCancelRequestedEventAttr
 import io.temporal.proto.event.ExternalWorkflowExecutionSignaledEventAttributes;
 import io.temporal.proto.event.HistoryEvent;
 import io.temporal.proto.event.SignalExternalWorkflowExecutionFailedEventAttributes;
+import io.temporal.proto.event.StartChildWorkflowExecutionFailedCause;
 import io.temporal.proto.event.StartChildWorkflowExecutionFailedEventAttributes;
-import io.temporal.proto.event.WorkflowExecutionFailedCause;
 import io.temporal.proto.tasklist.TaskList;
 import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.ChildWorkflowTerminatedException;
@@ -347,7 +347,7 @@ final class WorkflowDecisionContext {
         WorkflowExecution workflowExecution =
             WorkflowExecution.newBuilder().setWorkflowId(attributes.getWorkflowId()).build();
         WorkflowType workflowType = attributes.getWorkflowType();
-        WorkflowExecutionFailedCause cause = attributes.getCause();
+        StartChildWorkflowExecutionFailedCause cause = attributes.getCause();
         RuntimeException failure =
             new StartChildWorkflowFailedException(
                 event.getEventId(), workflowExecution, workflowType, cause);

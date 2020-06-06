@@ -19,7 +19,7 @@
 
 package io.temporal.client;
 
-import io.temporal.proto.common.TimeoutType;
+import io.temporal.proto.common.RetryStatus;
 import io.temporal.proto.common.WorkflowExecution;
 import java.util.Optional;
 
@@ -29,15 +29,15 @@ import java.util.Optional;
  */
 public final class WorkflowTimeoutException extends WorkflowException {
 
-  private final TimeoutType timeoutType;
+  private final RetryStatus retryStatus;
 
   public WorkflowTimeoutException(
-      WorkflowExecution execution, Optional<String> workflowType, TimeoutType timeoutType) {
-    super(timeoutType + " timeout type", execution, workflowType, null);
-    this.timeoutType = timeoutType;
+      WorkflowExecution execution, Optional<String> workflowType, RetryStatus retryStatus) {
+    super(retryStatus + " timeout type", execution, workflowType, null);
+    this.retryStatus = retryStatus;
   }
 
-  public TimeoutType getTimeoutType() {
-    return timeoutType;
+  public RetryStatus getRetryStatus() {
+    return retryStatus;
   }
 }

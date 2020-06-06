@@ -21,8 +21,6 @@ package io.temporal.internal.replay;
 
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.sync.WorkflowInternal;
-import io.temporal.proto.common.Header;
-import io.temporal.proto.common.Payload;
 import io.temporal.proto.common.Payloads;
 import io.temporal.proto.event.EventType;
 import io.temporal.proto.event.HistoryEvent;
@@ -30,11 +28,13 @@ import io.temporal.proto.event.MarkerRecordedEventAttributes;
 import io.temporal.workflow.Functions.Func1;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 class MarkerHandler {
   // Including mutable side effect and version marker.
-  private static final String MUTABLE_MARKER_HEADER_KEY = "MutableMarkerHeader";
+  static final String MUTABLE_MARKER_HEADER_KEY = "header";
+  static final String MUTABLE_MARKER_DATA_KEY = "data";
 
   private static final class MarkerResult {
 
@@ -61,36 +61,7 @@ class MarkerHandler {
     }
   }
 
-  interface MarkerInterface {
-    String getId();
-
-    long getEventId();
-
-    int getAccessCount();
-
-    Optional<Payloads> getData();
-
-    static MarkerInterface fromEventAttributes(
-        MarkerRecordedEventAttributes attributes, DataConverter converter) {
-      Optional<Payloads> details =
-          attributes.hasDetails() ? Optional.of(attributes.getDetails()) : Optional.empty();
-      if (attributes.hasHeader()) {
-        Header markerHeader = attributes.getHeader();
-        if (markerHeader.containsFields(MUTABLE_MARKER_HEADER_KEY)) {
-          MarkerData.MarkerHeader header =
-              converter.fromPayload(
-                  markerHeader.getFieldsOrThrow(MUTABLE_MARKER_HEADER_KEY),
-                  MarkerData.MarkerHeader.class,
-                  MarkerData.MarkerHeader.class);
-
-          return new MarkerData(header, details);
-        }
-      }
-      return converter.fromData(details, PlainMarkerData.class, PlainMarkerData.class);
-    }
-  }
-
-  static final class MarkerData implements MarkerInterface {
+  static final class MarkerData {
 
     private static final class MarkerHeader {
       private final String id;
@@ -107,74 +78,49 @@ class MarkerHandler {
     private final MarkerHeader header;
     private final Optional<Payloads> data;
 
+    static MarkerData fromEventAttributes(
+        MarkerRecordedEventAttributes attributes, DataConverter converter) {
+      Optional<Payloads> details =
+          attributes.containsDetails(MUTABLE_MARKER_DATA_KEY)
+              ? Optional.of(attributes.getDetailsOrThrow(MUTABLE_MARKER_DATA_KEY))
+              : Optional.empty();
+      MarkerData.MarkerHeader header =
+          converter.fromData(
+              Optional.of(attributes.getDetailsOrThrow(MUTABLE_MARKER_HEADER_KEY)),
+              MarkerData.MarkerHeader.class,
+              MarkerData.MarkerHeader.class);
+
+      return new MarkerData(header, details);
+    }
+
     MarkerData(String id, long eventId, Optional<Payloads> data, int accessCount) {
       this.header = new MarkerHeader(id, eventId, accessCount);
-      this.data = data;
+      this.data = Objects.requireNonNull(data);
     }
 
     MarkerData(MarkerHeader header, Optional<Payloads> data) {
       this.header = header;
-      this.data = data;
+      this.data = Objects.requireNonNull(data);
     }
 
-    @Override
+    public MarkerHeader getHeader() {
+      return header;
+    }
+
     public String getId() {
       return header.id;
     }
 
-    @Override
     public long getEventId() {
       return header.eventId;
     }
 
-    @Override
-    public Optional<Payloads> getData() {
-      return data;
-    }
-
-    @Override
     public int getAccessCount() {
       return header.accessCount;
     }
 
-    Header getHeader(DataConverter converter) {
-      Optional<Payload> headerData = converter.toPayload(header);
-      return Header.newBuilder().putFields(MUTABLE_MARKER_HEADER_KEY, headerData.get()).build();
-    }
-  }
-
-  static final class PlainMarkerData implements MarkerInterface {
-
-    private final String id;
-    private final long eventId;
-    private final Optional<Payloads> data;
-    private final int accessCount;
-
-    PlainMarkerData(String id, long eventId, Optional<Payloads> data, int accessCount) {
-      this.id = id;
-      this.eventId = eventId;
-      this.data = data;
-      this.accessCount = accessCount;
-    }
-
-    @Override
-    public String getId() {
-      return id;
-    }
-
-    @Override
-    public long getEventId() {
-      return eventId;
-    }
-
-    @Override
     public Optional<Payloads> getData() {
       return data;
-    }
-
-    @Override
-    public int getAccessCount() {
-      return accessCount;
     }
   }
 
@@ -246,7 +192,7 @@ class MarkerHandler {
       return Optional.empty();
     }
 
-    MarkerInterface markerData = MarkerInterface.fromEventAttributes(attributes, converter);
+    MarkerData markerData = MarkerData.fromEventAttributes(attributes, converter);
     // access count is used to not return data from the marker before the recorded number of calls
     if (!markerId.equals(markerData.getId())
         || markerData.getAccessCount() > expectedAcccessCount) {
@@ -259,6 +205,11 @@ class MarkerHandler {
       String id, long eventId, Optional<Payloads> data, int accessCount, DataConverter converter) {
     MarkerData marker = new MarkerData(id, eventId, data, accessCount);
     mutableMarkerResults.put(id, new MarkerResult(data));
-    decisions.recordMarker(markerName, marker.getHeader(converter), data);
+    Map<String, Payloads> details = new HashMap<>();
+    if (data.isPresent()) {
+      details.put(MUTABLE_MARKER_DATA_KEY, data.get());
+    }
+    details.put(MUTABLE_MARKER_HEADER_KEY, converter.toData(marker.getHeader()).get());
+    decisions.recordMarker(markerName, Optional.empty(), details, Optional.empty());
   }
 }

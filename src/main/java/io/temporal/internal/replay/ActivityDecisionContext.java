@@ -33,6 +33,8 @@ import io.temporal.proto.event.ActivityTaskCompletedEventAttributes;
 import io.temporal.proto.event.ActivityTaskFailedEventAttributes;
 import io.temporal.proto.event.ActivityTaskTimedOutEventAttributes;
 import io.temporal.proto.event.HistoryEvent;
+import io.temporal.proto.failure.Failure;
+import io.temporal.proto.failure.TimeoutFailureInfo;
 import io.temporal.proto.tasklist.TaskList;
 import java.util.HashMap;
 import java.util.Map;
@@ -209,17 +211,19 @@ final class ActivityDecisionContext {
       OpenRequestInfo<Optional<Payloads>, ActivityType> scheduled =
           scheduledActivities.remove(attributes.getScheduledEventId());
       if (scheduled != null) {
-        TimeoutType timeoutType = attributes.getTimeoutType();
+        Failure failure = attributes.getFailure();
+        TimeoutFailureInfo info = failure.getTimeoutFailureInfo();
+        TimeoutType timeoutType = info.getTimeoutType();
         Optional<Payloads> details =
-            attributes.hasLastHeartbeatDetails()
-                ? Optional.of(attributes.getLastHeartbeatDetails())
+            info.hasLastHeartbeatDetails()
+                ? Optional.of(info.getLastHeartbeatDetails())
                 : Optional.empty();
-        ActivityTaskTimeoutException failure =
+        ActivityTaskTimeoutException timeoutException =
             new ActivityTaskTimeoutException(
                 event.getEventId(), scheduled.getUserContext(), null, timeoutType, details);
         BiConsumer<Optional<Payloads>, Exception> completionHandle =
             scheduled.getCompletionCallback();
-        completionHandle.accept(Optional.empty(), failure);
+        completionHandle.accept(Optional.empty(), timeoutException);
       }
     }
   }

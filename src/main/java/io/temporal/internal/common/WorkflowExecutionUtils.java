@@ -185,7 +185,7 @@ public class WorkflowExecutionUtils {
         WorkflowExecutionTimedOutEventAttributes timedOut =
             closeEvent.getWorkflowExecutionTimedOutEventAttributes();
         throw new WorkflowTimeoutException(
-            workflowExecution, workflowType, timedOut.getTimeoutType());
+            workflowExecution, workflowType, timedOut.getRetryStatus());
       default:
         throw new RuntimeException(
             "Workflow end state is not completed: " + prettyPrintObject(closeEvent));

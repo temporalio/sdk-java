@@ -37,8 +37,8 @@ import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowIdReusePolicy;
 import io.temporal.proto.decision.SignalExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.proto.errordetails.WorkflowExecutionAlreadyStartedFailure;
+import io.temporal.proto.event.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.proto.event.WorkflowExecutionContinuedAsNewEventAttributes;
-import io.temporal.proto.event.WorkflowExecutionFailedCause;
 import io.temporal.proto.execution.WorkflowExecutionInfo;
 import io.temporal.proto.execution.WorkflowExecutionStatus;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
@@ -803,7 +803,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
         source.failSignalExternalWorkflowExecution(
-            signalId, WorkflowExecutionFailedCause.UnknownExternalWorkflowExecution);
+            signalId,
+            SignalExternalWorkflowExecutionFailedCause.ExternalWorkflowExecutionNotFound2);
       } else {
         throw e;
       }

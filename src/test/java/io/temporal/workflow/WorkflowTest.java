@@ -71,7 +71,7 @@ import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowIdReusePolicy;
 import io.temporal.proto.event.EventType;
 import io.temporal.proto.event.HistoryEvent;
-import io.temporal.proto.event.WorkflowExecutionFailedCause;
+import io.temporal.proto.event.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.proto.execution.WorkflowExecutionStatus;
 import io.temporal.proto.query.QueryRejectCondition;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
@@ -3403,7 +3403,7 @@ public class WorkflowTest {
           "invalid id",
           ((SignalExternalWorkflowException) e.getCause()).getSignaledExecution().getWorkflowId());
       assertEquals(
-          WorkflowExecutionFailedCause.UnknownExternalWorkflowExecution,
+          SignalExternalWorkflowExecutionFailedCause.ExternalWorkflowExecutionNotFound2,
           ((SignalExternalWorkflowException) e.getCause()).getFailureCause());
     }
   }

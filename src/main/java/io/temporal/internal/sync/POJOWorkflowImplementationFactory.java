@@ -37,6 +37,7 @@ import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowFactory;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.proto.common.Payloads;
+import io.temporal.proto.common.RetryStatus;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.failure.Failure;
@@ -380,7 +381,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       SimulatedTimeoutException timeoutException = (SimulatedTimeoutException) exception;
       WorkflowTimeoutException wt =
           new WorkflowTimeoutException(
-              workflowExecution, Optional.of(workflowType), timeoutException.getTimeoutType());
+              workflowExecution, Optional.of(workflowType), RetryStatus.Timeout);
 
       exception = new SimulatedTimeoutExceptionInternal(wt);
     }

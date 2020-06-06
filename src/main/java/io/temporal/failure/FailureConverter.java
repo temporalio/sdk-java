@@ -23,7 +23,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.Payloads;
-import io.temporal.proto.failure.ActivityTaskFailureInfo;
+import io.temporal.proto.failure.ActivityFailureInfo;
 import io.temporal.proto.failure.ApplicationFailureInfo;
 import io.temporal.proto.failure.CanceledFailureInfo;
 import io.temporal.proto.failure.Failure;
@@ -54,8 +54,8 @@ public class FailureConverter {
         return new ServerException(failure, cause);
       case RESETWORKFLOWFAILUREINFO:
         return new ResetWorkflowException(failure, dataConverter, cause);
-      case ACTIVITYTASKFAILUREINFO:
-        ActivityTaskFailureInfo info = failure.getActivityTaskFailureInfo();
+      case ACTIVITYFAILUREINFO:
+        ActivityFailureInfo info = failure.getActivityFailureInfo();
         // TODO(maxim): Fix activity type and activityid arguments.
         return new ActivityFailureException(
             failure.getMessage(),
@@ -71,7 +71,7 @@ public class FailureConverter {
     }
   }
 
-  public static Failure exceptionToFailure(Throwable e) {
+  public static Failure exceptionToFailure(Throwable e, DataConverter dataConverter) {
     e = CheckedExceptionWrapper.unwrap(e);
     if (e instanceof RemoteException) {
       RemoteException te = (RemoteException) e;
@@ -149,12 +149,12 @@ public class FailureConverter {
   //  }
   //
   //  private static void setActivityTaskFailure(Failure.Builder result, ActivityException e) {
-  //    ActivityTaskFailureInfo.Builder failureInfo =
-  //        ActivityTaskFailureInfo.newBuilder()
+  //    ActivityFailureInfo.Builder failureInfo =
+  //        ActivityFailureInfo.newBuilder()
   //            .setScheduledEventId(e.getScheduledEventId())
   //            .setStartedEventId(e.getStartedEventId())
   //            .setIdentity(e.getIdentity());
-  //    result.setActivityTaskFailureInfo(failureInfo);
+  //    result.setActivityFailureInfo(failureInfo);
   //  }
   //
   //  private static void setChildWorkflowFailure(Failure.Builder result, ChildWorkflowException e)

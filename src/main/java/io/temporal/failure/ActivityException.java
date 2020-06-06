@@ -19,7 +19,7 @@
 
 package io.temporal.failure;
 
-import io.temporal.proto.failure.ActivityTaskFailureInfo;
+import io.temporal.proto.failure.ActivityFailureInfo;
 import io.temporal.proto.failure.Failure;
 
 public final class ActivityException extends RemoteException {
@@ -30,11 +30,11 @@ public final class ActivityException extends RemoteException {
 
   public ActivityException(Failure failure, Exception cause) {
     super(toString(failure), failure, cause);
-    if (!failure.hasActivityTaskFailureInfo()) {
+    if (!failure.hasActivityFailureInfo()) {
       throw new IllegalArgumentException(
           "Activity failure expected: " + failure.getFailureInfoCase());
     }
-    ActivityTaskFailureInfo info = failure.getActivityTaskFailureInfo();
+    ActivityFailureInfo info = failure.getActivityFailureInfo();
     this.scheduledEventId = info.getScheduledEventId();
     this.startedEventId = info.getStartedEventId();
     this.identity = info.getIdentity();
@@ -53,7 +53,7 @@ public final class ActivityException extends RemoteException {
   }
 
   private static String toString(Failure failure) {
-    ActivityTaskFailureInfo info = failure.getActivityTaskFailureInfo();
+    ActivityFailureInfo info = failure.getActivityFailureInfo();
     return "scheduledEventId="
         + info.getScheduledEventId()
         + ", startedEventId="

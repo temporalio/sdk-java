@@ -20,24 +20,26 @@
 package io.temporal.workflow;
 
 import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.event.WorkflowExecutionFailedCause;
+import io.temporal.proto.event.SignalExternalWorkflowExecutionFailedCause;
 
 /** Exception used to communicate failure of a request to signal an external workflow. */
 @SuppressWarnings("serial")
 public final class SignalExternalWorkflowException extends WorkflowOperationException {
 
-  private WorkflowExecutionFailedCause failureCause;
+  private SignalExternalWorkflowExecutionFailedCause failureCause;
 
   private WorkflowExecution signaledExecution;
 
   public SignalExternalWorkflowException(
-      long eventId, WorkflowExecution signaledExecution, WorkflowExecutionFailedCause cause) {
+      long eventId,
+      WorkflowExecution signaledExecution,
+      SignalExternalWorkflowExecutionFailedCause cause) {
     super(cause + " for signaledExecution=\"" + signaledExecution, eventId);
     this.signaledExecution = signaledExecution;
     this.failureCause = cause;
   }
 
-  public WorkflowExecutionFailedCause getFailureCause() {
+  public SignalExternalWorkflowExecutionFailedCause getFailureCause() {
     return failureCause;
   }
 

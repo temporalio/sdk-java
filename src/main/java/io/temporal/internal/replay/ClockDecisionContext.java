@@ -19,6 +19,8 @@
 
 package io.temporal.internal.replay;
 
+import static io.temporal.internal.replay.MarkerHandler.MUTABLE_MARKER_DATA_KEY;
+
 import com.google.common.base.Strings;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.FailureConverter;
@@ -26,6 +28,7 @@ import io.temporal.internal.common.LocalActivityMarkerData;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.proto.common.ActivityType;
+import io.temporal.proto.common.Header;
 import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.decision.StartTimerDecisionAttributes;
@@ -206,7 +209,11 @@ public final class ClockDecisionContext {
         throw new Error("sideEffect function failed", e);
       }
     }
-    decisions.recordMarker(SIDE_EFFECT_MARKER_NAME, null, result);
+    Map<String, Payloads> details = new HashMap<>();
+    if (result.isPresent()) {
+      details.put(MUTABLE_MARKER_DATA_KEY, result.get());
+    }
+    decisions.recordMarker(SIDE_EFFECT_MARKER_NAME, Optional.empty(), details, Optional.empty());
     return result;
   }
 
@@ -231,7 +238,9 @@ public final class ClockDecisionContext {
     String name = attributes.getMarkerName();
     if (SIDE_EFFECT_MARKER_NAME.equals(name)) {
       Optional<Payloads> details =
-          attributes.hasDetails() ? Optional.of(attributes.getDetails()) : Optional.empty();
+          attributes.containsDetails(MUTABLE_MARKER_DATA_KEY)
+              ? Optional.of(attributes.getDetailsOrThrow(MUTABLE_MARKER_DATA_KEY))
+              : Optional.empty();
       sideEffectResults.put(event.getEventId(), details);
     } else if (LOCAL_ACTIVITY_MARKER_NAME.equals(name)) {
       handleLocalActivityMarker(attributes);
@@ -249,10 +258,10 @@ public final class ClockDecisionContext {
       if (log.isDebugEnabled()) {
         log.debug("Handle LocalActivityMarker for activity " + marker.getActivityId());
       }
-
-      Optional<Payloads> details =
-          attributes.hasDetails() ? Optional.of(attributes.getDetails()) : Optional.empty();
-      decisions.recordMarker(LOCAL_ACTIVITY_MARKER_NAME, marker.getHeader(dataConverter), details);
+      Map<String, Payloads> details = attributes.getDetailsMap();
+      Optional<Header> header =
+          attributes.hasHeader() ? Optional.of(attributes.getHeader()) : Optional.empty();
+      decisions.recordMarker(LOCAL_ACTIVITY_MARKER_NAME, header, details, marker.getFailure());
 
       OpenRequestInfo<Optional<Payloads>, ActivityType> scheduled =
           pendingLaTasks.remove(marker.getActivityId());

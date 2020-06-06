@@ -38,6 +38,7 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.proto.common.Payload;
+import io.temporal.proto.common.RetryStatus;
 import io.temporal.proto.common.TimeoutType;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.event.EventType;
@@ -406,7 +407,7 @@ public class WorkflowTestingTest {
       fail("unreacheable");
     } catch (WorkflowException e) {
       assertTrue(e instanceof WorkflowTimeoutException);
-      assertEquals(TimeoutType.StartToClose, ((WorkflowTimeoutException) e).getTimeoutType());
+      assertEquals(RetryStatus.Timeout, ((WorkflowTimeoutException) e).getRetryStatus());
     }
   }
 

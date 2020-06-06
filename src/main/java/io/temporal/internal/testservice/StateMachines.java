@@ -53,6 +53,7 @@ import io.temporal.proto.event.ActivityTaskFailedEventAttributes;
 import io.temporal.proto.event.ActivityTaskScheduledEventAttributes;
 import io.temporal.proto.event.ActivityTaskStartedEventAttributes;
 import io.temporal.proto.event.ActivityTaskTimedOutEventAttributes;
+import io.temporal.proto.event.CancelExternalWorkflowExecutionFailedCause;
 import io.temporal.proto.event.ChildWorkflowExecutionCanceledEventAttributes;
 import io.temporal.proto.event.ChildWorkflowExecutionCompletedEventAttributes;
 import io.temporal.proto.event.ChildWorkflowExecutionFailedEventAttributes;
@@ -70,8 +71,10 @@ import io.temporal.proto.event.History;
 import io.temporal.proto.event.HistoryEvent;
 import io.temporal.proto.event.RequestCancelExternalWorkflowExecutionFailedEventAttributes;
 import io.temporal.proto.event.RequestCancelExternalWorkflowExecutionInitiatedEventAttributes;
+import io.temporal.proto.event.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.proto.event.SignalExternalWorkflowExecutionFailedEventAttributes;
 import io.temporal.proto.event.SignalExternalWorkflowExecutionInitiatedEventAttributes;
+import io.temporal.proto.event.StartChildWorkflowExecutionFailedCause;
 import io.temporal.proto.event.StartChildWorkflowExecutionFailedEventAttributes;
 import io.temporal.proto.event.StartChildWorkflowExecutionInitiatedEventAttributes;
 import io.temporal.proto.event.TimerCanceledEventAttributes;
@@ -81,7 +84,6 @@ import io.temporal.proto.event.WorkflowExecutionCancelRequestedEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionCanceledEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionCompletedEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionContinuedAsNewEventAttributes;
-import io.temporal.proto.event.WorkflowExecutionFailedCause;
 import io.temporal.proto.event.WorkflowExecutionFailedEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionStartedEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionTimedOutEventAttributes;
@@ -524,7 +526,7 @@ class StateMachines {
   private static <T, A> void noop(RequestContext ctx, T data, A a, long notUsed) {}
 
   private static void timeoutChildWorkflow(
-      RequestContext ctx, ChildWorkflowData data, TimeoutType timeoutType, long notUsed) {
+      RequestContext ctx, ChildWorkflowData data, RetryStatus retryStatus, long notUsed) {
     StartChildWorkflowExecutionInitiatedEventAttributes ie = data.initiatedEvent;
     ChildWorkflowExecutionTimedOutEventAttributes a =
         ChildWorkflowExecutionTimedOutEventAttributes.newBuilder()
@@ -532,7 +534,7 @@ class StateMachines {
             .setStartedEventId(data.startedEventId)
             .setWorkflowExecution(data.execution)
             .setWorkflowType(ie.getWorkflowType())
-            .setTimeoutType(timeoutType)
+            .setRetryStatus(retryStatus)
             .setInitiatedEventId(data.initiatedEventId)
             .build();
     HistoryEvent event =
@@ -729,7 +731,7 @@ class StateMachines {
                   StartChildWorkflowExecutionFailedEventAttributes failRequest =
                       StartChildWorkflowExecutionFailedEventAttributes.newBuilder()
                           .setInitiatedEventId(initiatedEventId)
-                          .setCause(WorkflowExecutionFailedCause.WorkflowAlreadyRunning)
+                          .setCause(StartChildWorkflowExecutionFailedCause.WorkflowAlreadyExists)
                           .build();
                   try {
                     ctx.getWorkflowMutableState()
@@ -896,9 +898,9 @@ class StateMachines {
   }
 
   private static void timeoutWorkflow(
-      RequestContext ctx, WorkflowData data, TimeoutType timeoutType, long notUsed) {
+      RequestContext ctx, WorkflowData data, RetryStatus retryStatus, long notUsed) {
     WorkflowExecutionTimedOutEventAttributes.Builder a =
-        WorkflowExecutionTimedOutEventAttributes.newBuilder().setTimeoutType(timeoutType);
+        WorkflowExecutionTimedOutEventAttributes.newBuilder().setRetryStatus(retryStatus);
     HistoryEvent event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.WorkflowExecutionTimedOut)
@@ -1688,7 +1690,7 @@ class StateMachines {
   private static void failExternalSignal(
       RequestContext ctx,
       SignalExternalData data,
-      WorkflowExecutionFailedCause cause,
+      SignalExternalWorkflowExecutionFailedCause cause,
       long notUsed) {
     SignalExternalWorkflowExecutionInitiatedEventAttributes initiatedEvent = data.initiatedEvent;
     SignalExternalWorkflowExecutionFailedEventAttributes.Builder a =
@@ -1779,7 +1781,7 @@ class StateMachines {
   private static void failExternalCancellation(
       RequestContext ctx,
       CancelExternalData data,
-      WorkflowExecutionFailedCause cause,
+      CancelExternalWorkflowExecutionFailedCause cause,
       long notUsed) {
     RequestCancelExternalWorkflowExecutionInitiatedEventAttributes initiatedEvent =
         data.initiatedEvent;
