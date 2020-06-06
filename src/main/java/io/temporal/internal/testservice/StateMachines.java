@@ -30,6 +30,7 @@ import io.temporal.internal.testservice.TestWorkflowStore.DecisionTask;
 import io.temporal.internal.testservice.TestWorkflowStore.TaskListId;
 import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.RetryPolicy;
+import io.temporal.proto.common.RetryStatus;
 import io.temporal.proto.common.TimeoutType;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.decision.CancelTimerDecisionAttributes;
@@ -84,6 +85,8 @@ import io.temporal.proto.event.WorkflowExecutionFailedCause;
 import io.temporal.proto.event.WorkflowExecutionFailedEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionStartedEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionTimedOutEventAttributes;
+import io.temporal.proto.failure.Failure;
+import io.temporal.proto.failure.TimeoutFailureInfo;
 import io.temporal.proto.query.WorkflowQueryResult;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
 import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
@@ -121,7 +124,6 @@ class StateMachines {
   private static final Logger log = LoggerFactory.getLogger(StateMachines.class);
 
   static final int NO_EVENT_ID = -1;
-  private static final String TIMEOUT_ERROR_REASON = "temporalInternal:Timeout";
   public static final int DEFAULT_WORKFLOW_EXECUTION_TIMEOUT_SECONDS = 10 * 365 * 24 * 3600;
   public static final int DEFAULT_WORKFLOW_TASK_TIMEOUT_SECONDS = 10;
   public static final int MAX_WORKFLOW_TASK_TIMEOUT_SECONDS = 60;
@@ -1446,9 +1448,13 @@ class StateMachines {
 
   private static State failActivityTaskByTaskToken(
       RequestContext ctx, ActivityTaskData data, RespondActivityTaskFailedRequest request) {
-    if (request.getFailure().hasApplicationFailureInfo()
-        && attemptActivityRetry(
-            ctx, request.getFailure().getApplicationFailureInfo().getType(), data)) {
+    if (!request.getFailure().hasApplicationFailureInfo()) {
+      throw new IllegalArgumentException("application failure expected: " + request.getFailure());
+    }
+    RetryState.BackoffInterval backoffInterval =
+        attemptActivityRetry(
+            ctx, Optional.of(request.getFailure().getApplicationFailureInfo().getType()), data);
+    if (backoffInterval.getRetryStatus() == RetryStatus.InProgress) {
       return INITIATED;
     }
     ActivityTaskFailedEventAttributes.Builder a =
@@ -1456,6 +1462,7 @@ class StateMachines {
             .setIdentity(request.getIdentity())
             .setScheduledEventId(data.scheduledEventId)
             .setFailure(request.getFailure())
+            .setRetryStatus(backoffInterval.getRetryStatus())
             .setIdentity(request.getIdentity())
             .setStartedEventId(data.startedEventId);
     HistoryEvent event =
@@ -1469,9 +1476,13 @@ class StateMachines {
 
   private static State failActivityTaskById(
       RequestContext ctx, ActivityTaskData data, RespondActivityTaskFailedByIdRequest request) {
-    if (request.getFailure().hasApplicationFailureInfo()
-        && attemptActivityRetry(
-            ctx, request.getFailure().getApplicationFailureInfo().getType(), data)) {
+    if (!request.getFailure().hasApplicationFailureInfo()) {
+      throw new IllegalArgumentException("application failure expected: " + request.getFailure());
+    }
+    RetryState.BackoffInterval backoffInterval =
+        attemptActivityRetry(
+            ctx, Optional.of(request.getFailure().getApplicationFailureInfo().getType()), data);
+    if (backoffInterval.getRetryStatus() == RetryStatus.InProgress) {
       return INITIATED;
     }
     ActivityTaskFailedEventAttributes.Builder a =
@@ -1479,6 +1490,7 @@ class StateMachines {
             .setIdentity(request.getIdentity())
             .setScheduledEventId(data.scheduledEventId)
             .setFailure(request.getFailure())
+            .setRetryStatus(backoffInterval.getRetryStatus())
             .setIdentity(request.getIdentity())
             .setStartedEventId(data.startedEventId);
     HistoryEvent event =
@@ -1494,18 +1506,19 @@ class StateMachines {
       RequestContext ctx, ActivityTaskData data, TimeoutType timeoutType, long notUsed) {
     // ScheduleToStart (queue timeout) is not retriable. Instead of the retry, a customer should set
     // a larger ScheduleToStart timeout.
-    if (timeoutType != TimeoutType.ScheduleToStart
-        && attemptActivityRetry(ctx, TIMEOUT_ERROR_REASON, data)) {
+    if (timeoutType == TimeoutType.ScheduleToStart) {
+      return TIMED_OUT;
+    }
+    RetryState.BackoffInterval backoffInterval = attemptActivityRetry(ctx, Optional.empty(), data);
+    if (backoffInterval.getRetryStatus() == RetryStatus.InProgress) {
       return INITIATED;
     }
     ActivityTaskTimedOutEventAttributes.Builder a =
         ActivityTaskTimedOutEventAttributes.newBuilder()
             .setScheduledEventId(data.scheduledEventId)
-            .setTimeoutType(timeoutType)
-            .setStartedEventId(data.startedEventId);
-    if (data.heartbeatDetails != null) {
-      a.setLastHeartbeatDetails(data.heartbeatDetails);
-    }
+            .setRetryStatus(backoffInterval.getRetryStatus())
+            .setStartedEventId(data.startedEventId)
+            .setFailure(newTimeoutFailure(timeoutType, Optional.ofNullable(data.heartbeatDetails)));
     HistoryEvent event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.ActivityTaskTimedOut)
@@ -1515,13 +1528,23 @@ class StateMachines {
     return TIMED_OUT;
   }
 
-  private static boolean attemptActivityRetry(
-      RequestContext ctx, String errorReason, ActivityTaskData data) {
+  private static Failure newTimeoutFailure(
+      TimeoutType timeoutType, Optional<Payloads> lastHeartbeatDetails) {
+    TimeoutFailureInfo.Builder info = TimeoutFailureInfo.newBuilder().setTimeoutType(timeoutType);
+    if (lastHeartbeatDetails.isPresent()) {
+      info.setLastHeartbeatDetails(lastHeartbeatDetails.get());
+    }
+    return Failure.newBuilder().setTimeoutFailureInfo(info).build();
+  }
+
+  private static RetryState.BackoffInterval attemptActivityRetry(
+      RequestContext ctx, Optional<String> errorType, ActivityTaskData data) {
     if (data.retryState != null) {
       RetryState nextAttempt = data.retryState.getNextAttempt();
-      data.nextBackoffIntervalSeconds =
-          data.retryState.getBackoffIntervalInSeconds(errorReason, data.store.currentTimeMillis());
-      if (data.nextBackoffIntervalSeconds > 0) {
+      RetryState.BackoffInterval backoffInterval =
+          data.retryState.getBackoffIntervalInSeconds(errorType, data.store.currentTimeMillis());
+      if (backoffInterval.getRetryStatus() == RetryStatus.InProgress) {
+        data.nextBackoffIntervalSeconds = backoffInterval.getIntervalSeconds();
         PollForActivityTaskResponse.Builder task = data.activityTask.getTask();
         if (data.heartbeatDetails != null) {
           task.setHeartbeatDetails(data.heartbeatDetails);
@@ -1532,12 +1555,13 @@ class StateMachines {
               task.setAttempt(nextAttempt.getAttempt());
               task.setScheduledTimestampOfThisAttempt(ctx.currentTimeInNanoseconds());
             });
-        return true;
       } else {
         data.startedEventId = ctx.addEvent(data.startedEvent);
+        data.nextBackoffIntervalSeconds = 0;
       }
+      return backoffInterval;
     }
-    return false;
+    return new RetryState.BackoffInterval(RetryStatus.RetryPolicyNotSet);
   }
 
   private static void reportActivityTaskCancellation(
