@@ -19,33 +19,35 @@
 
 package io.temporal.failure;
 
-import io.temporal.common.converter.DataConverter;
-import io.temporal.proto.common.Payloads;
-import io.temporal.proto.failure.ApplicationFailureInfo;
-import io.temporal.proto.failure.Failure;
-import java.lang.reflect.Type;
-import java.util.Optional;
+import io.temporal.common.converter.Value;
+import io.temporal.common.converter.WrappedValue;
 
-public final class ApplicationException extends RemoteException {
+public final class ApplicationException extends TemporalFailure {
   private final String type;
-  private final Optional<Payloads> details;
-  private final DataConverter dataConverter;
+  private final Value details;
   private final boolean nonRetryable;
 
-  ApplicationException(Failure failure, DataConverter dataConverter, Exception cause) {
-    super(toString(failure), failure, cause);
-    ApplicationFailureInfo info = failure.getApplicationFailureInfo();
-    this.type = info.getType();
-    this.details = info.hasDetails() ? Optional.of(info.getDetails()) : Optional.empty();
-    this.dataConverter = dataConverter;
-    this.nonRetryable = info.getNonRetryable();
+  public ApplicationException(
+      String message, String type, Object details, boolean nonRetryable, Exception cause) {
+    super(message, cause);
+    this.type = type;
+    this.details = new WrappedValue(details);
+    this.nonRetryable = nonRetryable;
+  }
+
+  ApplicationException(
+      String message, String type, Value details, boolean nonRetryable, Exception cause) {
+    super(message, cause);
+    this.type = type;
+    this.details = details;
+    this.nonRetryable = nonRetryable;
   }
 
   public String getType() {
     return type;
   }
 
-  Optional<Payloads> getDetails() {
+  Value getDetails() {
     return details;
   }
 
@@ -53,41 +55,15 @@ public final class ApplicationException extends RemoteException {
     return nonRetryable;
   }
 
-  public <V> V getDetails(Class<V> detailsClass) {
-    return getDetails(detailsClass, detailsClass);
-  }
-
-  public <V> V getDetails(Class<V> detailsClass, Type detailsType) {
-    return dataConverter.fromData(details, detailsClass, detailsType);
-  }
-
-  private static String toString(Failure failure) {
-    if (!failure.hasApplicationFailureInfo()) {
-      throw new IllegalArgumentException(
-          "Application failure expected: " + failure.getFailureInfoCase());
-    }
-    ApplicationFailureInfo info = failure.getApplicationFailureInfo();
-
-    StringBuilder result = new StringBuilder();
-    result.append("type=\"");
-    result.append(info.getType());
-    result.append('"');
-    if (info.hasDetails()) {
-      result.append(", details=\"");
-      result.append(info.getDetails());
-      result.append('"');
-    }
-    result.append('}');
-    return result.toString();
-  }
-
   @Override
   public String toString() {
-    StringBuilder result = new StringBuilder();
-    result.append(this.getClass().getName());
-    result.append(" ");
-    result.append(toString(failure));
-    result.append('}');
-    return result.toString();
+    return "ApplicationException{"
+        + (getMessage() == null ? "" : "message='" + getMessage() + "\', ")
+        + "type='"
+        + type
+        + '\''
+        + ", nonRetryable="
+        + nonRetryable
+        + '}';
   }
 }

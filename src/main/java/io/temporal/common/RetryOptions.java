@@ -20,12 +20,12 @@
 package io.temporal.common;
 
 import com.google.common.base.Defaults;
-import io.temporal.workflow.ActivityFailureException;
-import io.temporal.workflow.ChildWorkflowFailureException;
+import com.google.common.collect.ObjectArrays;
+import io.temporal.failure.ActivityException;
+import io.temporal.failure.ApplicationException;
+import io.temporal.failure.ChildWorkflowException;
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -88,7 +88,7 @@ public final class RetryOptions {
     }
     return builder
         .setMaximumAttempts(merge(r.maximumAttempts(), o.getMaximumAttempts(), int.class))
-        .setDoNotRetry(merge(r.doNotRetry(), o.getDoNotRetry()))
+        .setDoNotRetry(ObjectArrays.concat(r.doNotRetry(), o.getDoNotRetry(), String.class))
         .validateBuildWithDefaults();
   }
 
@@ -103,12 +103,12 @@ public final class RetryOptions {
         .setBackoffCoefficient(
             merge(getBackoffCoefficient(), o.getBackoffCoefficient(), double.class))
         .setMaximumAttempts(merge(getMaximumAttempts(), o.getMaximumAttempts(), int.class))
-        .setDoNotRetry(merge(getDoNotRetry(), o.getDoNotRetry()))
+        .setDoNotRetry(ObjectArrays.concat(getDoNotRetry(), o.getDoNotRetry(), String.class))
         .validateBuildWithDefaults();
   }
 
   @SafeVarargs
-  public final RetryOptions addDoNotRetry(Class<? extends Throwable>... doNotRetry) {
+  public final RetryOptions addDoNotRetry(String... doNotRetry) {
     if (doNotRetry == null) {
       return this;
     }
@@ -123,7 +123,7 @@ public final class RetryOptions {
             .setInitialInterval(getInitialInterval())
             .setMaximumInterval(getMaximumInterval())
             .setBackoffCoefficient(backoffCoefficient)
-            .setDoNotRetry(merge(getDoNotRetry(), Arrays.asList(doNotRetry)));
+            .setDoNotRetry(ObjectArrays.concat(doNotRetry, getDoNotRetry(), String.class));
 
     if (getMaximumAttempts() > 0) {
       builder.setMaximumAttempts(getMaximumAttempts());
@@ -143,7 +143,7 @@ public final class RetryOptions {
 
     private Duration maximumInterval;
 
-    private List<Class<? extends Throwable>> doNotRetry;
+    private String[] doNotRetry;
 
     private Builder(RetryOptions options) {
       if (options == null) {
@@ -206,20 +206,16 @@ public final class RetryOptions {
     }
 
     /**
-     * List of exceptions to retry. When matching an exact match is used. So adding
-     * RuntimeException.class to this list is going to include only RuntimeException itself, not all
-     * of its subclasses. The reason for such behaviour is to be able to support server side retries
-     * without knowledge of Java exception hierarchy. When considering an exception type a cause of
-     * {@link io.temporal.workflow.ActivityFailureException} and {@link
-     * io.temporal.workflow.ChildWorkflowFailureException} is looked at.
+     * List of exceptions application failures types to retry. Application failures are converted to
+     * {@link ApplicationException#getType()}.
      *
      * <p>{@link Error} and {@link java.util.concurrent.CancellationException} are never retried and
      * are not even passed to this filter.
      */
     @SafeVarargs
-    public final Builder setDoNotRetry(Class<? extends Throwable>... doNotRetry) {
+    public final Builder setDoNotRetry(String... doNotRetry) {
       if (doNotRetry != null) {
-        this.doNotRetry = Arrays.asList(doNotRetry);
+        this.doNotRetry = doNotRetry;
       }
       return this;
     }
@@ -258,19 +254,19 @@ public final class RetryOptions {
 
   private final Duration maximumInterval;
 
-  private final List<Class<? extends Throwable>> doNotRetry;
+  private final String[] doNotRetry;
 
   private RetryOptions(
       Duration initialInterval,
       double backoffCoefficient,
       int maximumAttempts,
       Duration maximumInterval,
-      List<Class<? extends Throwable>> doNotRetry) {
+      String[] doNotRetry) {
     this.initialInterval = initialInterval;
     this.backoffCoefficient = backoffCoefficient;
     this.maximumAttempts = maximumAttempts;
     this.maximumInterval = maximumInterval;
-    this.doNotRetry = doNotRetry != null ? Collections.unmodifiableList(doNotRetry) : null;
+    this.doNotRetry = doNotRetry;
   }
 
   public Duration getInitialInterval() {
@@ -293,7 +289,7 @@ public final class RetryOptions {
    * @return null if not configured. When merging with annotation it makes a difference. null means
    *     use values from an annotation. Empty list means do not retry on anything.
    */
-  public List<Class<? extends Throwable>> getDoNotRetry() {
+  public String[] getDoNotRetry() {
     return doNotRetry;
   }
 
@@ -313,7 +309,7 @@ public final class RetryOptions {
         + ", maximumInterval="
         + maximumInterval
         + ", doNotRetry="
-        + doNotRetry
+        + Arrays.toString(doNotRetry)
         + '}';
   }
 
@@ -326,13 +322,17 @@ public final class RetryOptions {
         && maximumAttempts == that.maximumAttempts
         && Objects.equals(initialInterval, that.initialInterval)
         && Objects.equals(maximumInterval, that.maximumInterval)
-        && Objects.equals(doNotRetry, that.doNotRetry);
+        && Arrays.equals(doNotRetry, that.doNotRetry);
   }
 
   @Override
   public int hashCode() {
     return Objects.hash(
-        initialInterval, backoffCoefficient, maximumAttempts, maximumInterval, doNotRetry);
+        initialInterval,
+        backoffCoefficient,
+        maximumAttempts,
+        maximumInterval,
+        Arrays.hashCode(doNotRetry));
   }
 
   private static <G> G merge(G annotation, G options, Class<G> type) {
@@ -349,31 +349,6 @@ public final class RetryOptions {
     return aSeconds == 0 ? null : Duration.ofSeconds(aSeconds);
   }
 
-  private static Class<? extends Throwable>[] merge(
-      Class<? extends Throwable>[] a, List<Class<? extends Throwable>> o) {
-    if (o != null) {
-      @SuppressWarnings("unchecked")
-      Class<? extends Throwable>[] result = new Class[o.size()];
-      return o.toArray(result);
-    }
-    return a.length == 0 ? null : a;
-  }
-
-  private Class<? extends Throwable>[] merge(
-      List<Class<? extends Throwable>> o1, List<Class<? extends Throwable>> o2) {
-    if (o2 != null) {
-      @SuppressWarnings("unchecked")
-      Class<? extends Throwable>[] result = new Class[o2.size()];
-      return o2.toArray(result);
-    }
-    if (o1.size() > 0) {
-      @SuppressWarnings("unchecked")
-      Class<? extends Throwable>[] result = new Class[o1.size()];
-      return o1.toArray(result);
-    }
-    return null;
-  }
-
   public long calculateSleepTime(long attempt) {
     double coefficient =
         backoffCoefficient == 0d ? DEFAULT_BACKOFF_COEFFICIENT : backoffCoefficient;
@@ -386,12 +361,18 @@ public final class RetryOptions {
 
   public boolean shouldRethrow(
       Throwable e, Optional<Duration> expiration, long attempt, long elapsed, long sleepTime) {
-    if (e instanceof ActivityFailureException || e instanceof ChildWorkflowFailureException) {
+    String type;
+    if (e instanceof ActivityException || e instanceof ChildWorkflowException) {
       e = e.getCause();
     }
+    if (e instanceof ApplicationException) {
+      type = ((ApplicationException) e).getType();
+    } else {
+      type = e.getClass().getName();
+    }
     if (doNotRetry != null) {
-      for (Class<? extends Throwable> doNotRetry : doNotRetry) {
-        if (doNotRetry.equals(e.getClass())) {
+      for (String doNotRetry : doNotRetry) {
+        if (doNotRetry.equals(type)) {
           return true;
         }
       }

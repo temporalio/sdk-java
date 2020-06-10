@@ -25,8 +25,9 @@ import io.grpc.Status;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.client.ActivityCancelledException;
+import io.temporal.failure.ActivityException;
+import io.temporal.failure.ApplicationException;
 import io.temporal.testing.TestActivityEnvironment;
-import io.temporal.workflow.ActivityFailureException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -83,10 +84,14 @@ public class ActivityTestingTest {
     try {
       activity.activity1("input1");
       fail("unreachable");
-    } catch (ActivityFailureException e) {
+    } catch (ActivityException e) {
       assertTrue(e.getMessage().contains("activity1"));
-      assertTrue(e.getCause() instanceof IOException);
+      assertTrue(e.getCause() instanceof ApplicationException);
+      assertTrue(
+          ((ApplicationException) e.getCause()).getType().equals(IOException.class.getName()));
+
       assertEquals("simulated", e.getCause().getMessage());
+      e.printStackTrace();
     }
   }
 

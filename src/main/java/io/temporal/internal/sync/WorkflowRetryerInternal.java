@@ -20,7 +20,6 @@
 package io.temporal.internal.sync;
 
 import io.temporal.common.RetryOptions;
-import io.temporal.workflow.ActivityFailureException;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Promise;
@@ -166,22 +165,7 @@ final class WorkflowRetryerInternal {
               if (e == null) {
                 return WorkflowInternal.newPromise(r);
               }
-
-              if (!(e instanceof ActivityFailureException)) {
-                throw e;
-              }
-
-              ActivityFailureException afe = (ActivityFailureException) e;
-
-              if (afe.getBackoff() == null) {
-                throw e;
-              }
-
-              // newTimer runs in a separate thread, so it performs trampolining eliminating tail
-              // recursion.
-              long nextStart = WorkflowInternal.currentTimeMillis() + afe.getBackoff().toMillis();
-              return WorkflowInternal.newTimer(afe.getBackoff())
-                  .thenCompose((nil) -> retryAsync(func, afe.getAttempt() + 1, nextStart));
+              throw e;
             })
         .thenCompose((r) -> r);
   }

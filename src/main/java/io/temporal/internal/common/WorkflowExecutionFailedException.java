@@ -19,6 +19,7 @@
 
 package io.temporal.internal.common;
 
+import io.temporal.proto.common.RetryStatus;
 import io.temporal.proto.failure.Failure;
 
 /** Framework level exception. Do not throw or catch in the application level code. */
@@ -26,10 +27,13 @@ public final class WorkflowExecutionFailedException extends RuntimeException {
 
   private final long decisionTaskCompletedEventId;
   private final Failure failure;
+  private final RetryStatus retryStatus;
 
-  WorkflowExecutionFailedException(Failure failure, long decisionTaskCompletedEventId) {
+  WorkflowExecutionFailedException(
+      Failure failure, long decisionTaskCompletedEventId, RetryStatus retryStatus) {
     this.failure = failure;
     this.decisionTaskCompletedEventId = decisionTaskCompletedEventId;
+    this.retryStatus = retryStatus;
   }
 
   public Failure getFailure() {
@@ -38,5 +42,9 @@ public final class WorkflowExecutionFailedException extends RuntimeException {
 
   public long getDecisionTaskCompletedEventId() {
     return decisionTaskCompletedEventId;
+  }
+
+  public RetryStatus getRetryStatus() {
+    return retryStatus;
   }
 }

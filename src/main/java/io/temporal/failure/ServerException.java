@@ -19,18 +19,12 @@
 
 package io.temporal.failure;
 
-import io.temporal.proto.failure.Failure;
-
-public final class ServerException extends RemoteException {
+public final class ServerException extends TemporalFailure {
   private final boolean nonRetryable;
 
-  public ServerException(Failure failure, Exception cause) {
-    super(failure.getMessage(), failure, cause);
-    if (!failure.hasServerFailureInfo()) {
-      throw new IllegalArgumentException(
-          "Server failure expected: " + failure.getFailureInfoCase());
-    }
-    this.nonRetryable = failure.getServerFailureInfo().getNonRetryable();
+  public ServerException(String message, boolean nonRetryable, Throwable cause) {
+    super(message, cause);
+    this.nonRetryable = nonRetryable;
   }
 
   public boolean isNonRetryable() {

@@ -32,13 +32,14 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
-import io.temporal.client.WorkflowTimeoutException;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.failure.ActivityException;
+import io.temporal.failure.ChildWorkflowException;
+import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.proto.common.Payload;
-import io.temporal.proto.common.RetryStatus;
 import io.temporal.proto.common.TimeoutType;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.event.EventType;
@@ -54,11 +55,8 @@ import io.temporal.testing.SimulatedTimeoutException;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
-import io.temporal.workflow.ActivityFailureException;
-import io.temporal.workflow.ActivityTimeoutException;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.ChildWorkflowOptions;
-import io.temporal.workflow.ChildWorkflowTimedOutException;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.Workflow;
@@ -200,7 +198,7 @@ public class WorkflowTestingTest {
       Workflow.sleep(Duration.ofHours(1)); // test time skipping
       try {
         return activity.activity1(input);
-      } catch (ActivityFailureException e) {
+      } catch (ActivityException e) {
         log.info("Failure", e);
         throw e;
       }
@@ -266,10 +264,10 @@ public class WorkflowTestingTest {
       workflow.workflow1("input1");
       fail("unreacheable");
     } catch (WorkflowException e) {
-      assertTrue(e.getCause() instanceof ActivityTimeoutException);
-      ActivityTimeoutException te = (ActivityTimeoutException) e.getCause();
+      assertTrue(e.getCause() instanceof ActivityException);
+      TimeoutFailure te = (TimeoutFailure) e.getCause().getCause();
       assertEquals(TimeoutType.Heartbeat, te.getTimeoutType());
-      assertEquals("progress1", te.getDetails(String.class));
+      assertEquals("progress1", te.getLastHeartbeatDetails().get(String.class));
     }
   }
 
@@ -335,9 +333,9 @@ public class WorkflowTestingTest {
       workflow.workflow(10, 10, 1, true);
       fail("unreacheable");
     } catch (WorkflowException e) {
-      assertTrue(e.getCause() instanceof ActivityTimeoutException);
+      assertTrue(e.getCause() instanceof ActivityException);
       assertEquals(
-          TimeoutType.StartToClose, ((ActivityTimeoutException) e.getCause()).getTimeoutType());
+          TimeoutType.StartToClose, ((TimeoutFailure) e.getCause().getCause()).getTimeoutType());
     }
   }
 
@@ -354,9 +352,9 @@ public class WorkflowTestingTest {
       workflow.workflow(10, 1, 10, true);
       fail("unreacheable");
     } catch (WorkflowException e) {
-      assertTrue(e.getCause() instanceof ActivityTimeoutException);
+      assertTrue(e.getCause() instanceof ActivityException);
       assertEquals(
-          TimeoutType.ScheduleToStart, ((ActivityTimeoutException) e.getCause()).getTimeoutType());
+          TimeoutType.ScheduleToStart, ((TimeoutFailure) e.getCause().getCause()).getTimeoutType());
     }
   }
 
@@ -375,9 +373,9 @@ public class WorkflowTestingTest {
       workflow.workflow(2, 10, 1, false);
       fail("unreacheable");
     } catch (WorkflowException e) {
-      assertTrue(e.getCause() instanceof ActivityTimeoutException);
+      assertTrue(e.getCause() instanceof ActivityException);
       assertEquals(
-          TimeoutType.ScheduleToClose, ((ActivityTimeoutException) e.getCause()).getTimeoutType());
+          TimeoutType.ScheduleToClose, ((TimeoutFailure) e.getCause().getCause()).getTimeoutType());
     }
   }
 
@@ -406,8 +404,8 @@ public class WorkflowTestingTest {
       workflow.workflow1("bar");
       fail("unreacheable");
     } catch (WorkflowException e) {
-      assertTrue(e instanceof WorkflowTimeoutException);
-      assertEquals(RetryStatus.Timeout, ((WorkflowTimeoutException) e).getRetryStatus());
+      assertTrue(e instanceof WorkflowException);
+      assertEquals(TimeoutType.StartToClose, ((TimeoutFailure) e.getCause()).getTimeoutType());
     }
   }
 
@@ -752,7 +750,8 @@ public class WorkflowTestingTest {
       }
       fail("unreacheable");
     } catch (WorkflowException e) {
-      assertTrue(e.getCause() instanceof ChildWorkflowTimedOutException);
+      assertTrue(e.getCause() instanceof ChildWorkflowException);
+      assertTrue(e.getCause().getCause() instanceof TimeoutFailure);
     }
     // List closed workflows and validate their types
     ListClosedWorkflowExecutionsRequest listRequest =
@@ -793,7 +792,8 @@ public class WorkflowTestingTest {
       workflow.workflow("input1");
       fail("unreacheable");
     } catch (WorkflowException e) {
-      assertTrue(e.getCause() instanceof ChildWorkflowTimedOutException);
+      assertTrue(e.getCause() instanceof ChildWorkflowException);
+      assertTrue(e.getCause().getCause() instanceof TimeoutFailure);
     }
   }
 

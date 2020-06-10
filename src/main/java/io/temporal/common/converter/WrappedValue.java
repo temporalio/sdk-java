@@ -17,25 +17,25 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow;
+package io.temporal.common.converter;
 
-import io.temporal.failure.TemporalException;
+import java.lang.reflect.Type;
 
-/**
- * Base exception used to communicate a failure that can be thrown by operations requested by a
- * workflow code.
- */
-@SuppressWarnings("serial")
-public abstract class WorkflowOperationException extends TemporalException {
+public final class WrappedValue implements Value {
+  private final Object value;
 
-  private long eventId;
-
-  protected WorkflowOperationException(String message, long eventId) {
-    super(message);
-    this.eventId = eventId;
+  public WrappedValue(Object value) {
+    this.value = value;
   }
 
-  public long getEventId() {
-    return eventId;
+  @Override
+  public <T> T get(Class<T> parameterType) throws DataConverterException {
+    return (T) value;
+  }
+
+  @Override
+  public <T> T get(Class<T> parameterType, Type genericParameterType)
+      throws DataConverterException {
+    return (T) value;
   }
 }

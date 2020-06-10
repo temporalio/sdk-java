@@ -21,9 +21,9 @@ package io.temporal.internal.sync;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.temporal.client.DuplicateWorkflowException;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowException;
+import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowNotFoundException;
 import io.temporal.client.WorkflowOptions;
@@ -116,12 +116,12 @@ class WorkflowStubImpl implements WorkflowStub {
       genericClient.signalWorkflowExecution(p);
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
-        throw new WorkflowNotFoundException(execution.get(), workflowType);
+        throw new WorkflowNotFoundException(execution.get(), workflowType.orElse(null));
       } else {
-        throw new WorkflowServiceException(execution.get(), workflowType, e);
+        throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), e);
       }
     } catch (Exception e) {
-      throw new WorkflowServiceException(execution.get(), workflowType, e);
+      throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), e);
     }
   }
 
@@ -139,12 +139,12 @@ class WorkflowStubImpl implements WorkflowStub {
                 .setRunId(f.getRunId())
                 .build();
         execution.set(exe);
-        throw new DuplicateWorkflowException(exe, workflowType.get());
+        throw new WorkflowExecutionAlreadyStarted(exe, workflowType.get(), e);
       } else {
         throw e;
       }
     } catch (Exception e) {
-      throw new WorkflowServiceException(execution.get(), workflowType, e);
+      throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), e);
     }
     return execution.get();
   }
@@ -234,12 +234,12 @@ class WorkflowStubImpl implements WorkflowStub {
                 .setRunId(f.getRunId())
                 .build();
         execution.set(exe);
-        throw new DuplicateWorkflowException(exe, workflowType.get());
+        throw new WorkflowExecutionAlreadyStarted(exe, workflowType.get(), e);
       } else {
         throw e;
       }
     } catch (Exception e) {
-      throw new WorkflowServiceException(execution.get(), workflowType, e);
+      throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), e);
     }
     return execution.get();
   }
@@ -364,20 +364,25 @@ class WorkflowStubImpl implements WorkflowStub {
           FailureConverter.failureToException(
               executionFailed.getFailure(), clientOptions.getDataConverter());
       throw new WorkflowFailedException(
-          execution.get(), workflowType, executionFailed.getDecisionTaskCompletedEventId(), cause);
+          failure.getMessage(),
+          execution.get(),
+          workflowType.orElse(null),
+          executionFailed.getDecisionTaskCompletedEventId(),
+          executionFailed.getRetryStatus(),
+          cause);
     } else if (failure instanceof StatusRuntimeException) {
       StatusRuntimeException sre = (StatusRuntimeException) failure;
       if (sre.getStatus().getCode() == Status.Code.NOT_FOUND) {
-        throw new WorkflowNotFoundException(execution.get(), workflowType);
+        throw new WorkflowNotFoundException(execution.get(), workflowType.orElse(null));
       } else {
-        throw new WorkflowServiceException(execution.get(), workflowType, failure);
+        throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), failure);
       }
     } else if (failure instanceof CancellationException) {
       throw (CancellationException) failure;
     } else if (failure instanceof WorkflowException) {
       throw (WorkflowException) failure;
     } else {
-      throw new WorkflowServiceException(execution.get(), workflowType, failure);
+      throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), failure);
     }
   }
 
@@ -401,13 +406,13 @@ class WorkflowStubImpl implements WorkflowStub {
       result = genericClient.queryWorkflow(p);
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
-        throw new WorkflowNotFoundException(execution.get(), workflowType);
+        throw new WorkflowNotFoundException(execution.get(), workflowType.orElse(null));
       } else if (StatusUtils.hasFailure(e, QueryFailedFailure.class)) {
-        throw new WorkflowQueryException(execution.get(), e.getMessage());
+        throw new WorkflowQueryException(execution.get(), workflowType.orElse(null), e);
       }
-      throw new WorkflowServiceException(execution.get(), workflowType, e);
+      throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), e);
     } catch (Exception e) {
-      throw new WorkflowServiceException(execution.get(), workflowType, e);
+      throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), e);
     }
     if (!result.hasQueryRejected()) {
       Optional<Payloads> queryResult =
@@ -416,8 +421,10 @@ class WorkflowStubImpl implements WorkflowStub {
     } else {
       throw new WorkflowQueryRejectedException(
           execution.get(),
+          workflowType.orElse(null),
           clientOptions.getQueryRejectCondition(),
-          result.getQueryRejected().getStatus());
+          result.getQueryRejected().getStatus(),
+          null);
     }
   }
 

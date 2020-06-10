@@ -28,10 +28,13 @@ import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
+import io.temporal.common.converter.EncodedValue;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
+import io.temporal.failure.ActivityException;
 import io.temporal.failure.ApplicationException;
+import io.temporal.failure.ChildWorkflowException;
 import io.temporal.failure.FailureConverter;
-import io.temporal.failure.TimeoutException;
+import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.RetryParameters;
 import io.temporal.internal.metrics.MetricsType;
@@ -47,17 +50,12 @@ import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
 import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.Payload;
 import io.temporal.proto.common.Payloads;
+import io.temporal.proto.common.RetryStatus;
 import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
-import io.temporal.workflow.ActivityException;
-import io.temporal.workflow.ActivityFailureException;
-import io.temporal.workflow.ActivityTimeoutException;
 import io.temporal.workflow.CancellationScope;
-import io.temporal.workflow.ChildWorkflowException;
-import io.temporal.workflow.ChildWorkflowFailureException;
 import io.temporal.workflow.ChildWorkflowOptions;
-import io.temporal.workflow.ChildWorkflowTimedOutException;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.Functions;
@@ -212,39 +210,48 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     }
     if (failure instanceof ActivityTaskFailedException) {
       ActivityTaskFailedException taskFailed = (ActivityTaskFailedException) failure;
-      Throwable cause =
+      Throwable exception =
           FailureConverter.failureToException(taskFailed.getFailure(), getDataConverter());
-      if (cause instanceof ApplicationException) {
-        ApplicationException appE = (ApplicationException) cause;
+      if (exception instanceof ApplicationException) {
+        ApplicationException appE = (ApplicationException) exception;
+        // TODO(maxim): Simulated timeouts
         // This exception is thrown only in unit tests to mock the activity timeouts
-        if (SimulatedTimeoutExceptionInternal.class.getName().equals(appE.getType())) {
-          TimeoutException appECause = (TimeoutException) appE.getCause();
-          Optional<Payloads> details = appECause.getLastHeartbeatDetails();
-          return new ActivityTimeoutException(
-              taskFailed.getEventId(),
-              taskFailed.getActivityType(),
-              taskFailed.getActivityId(),
-              appECause.getTimeoutType(),
-              details,
-              getDataConverter());
-        }
-        return new ActivityFailureException(
-            taskFailed.getFailure().getMessage(),
-            taskFailed.getEventId(),
-            taskFailed.getActivityType(),
+        //        if (SimulatedTimeoutExceptionInternal.class.getName().equals(appE.getType())) {
+        //          TimeoutException appECause = (TimeoutException) appE.getCause();
+        //          return new ActivityException(
+        //              "Simulated Timeout",
+        //              taskFailed.getScheduledEventId(),
+        //              taskFailed.getStartedEventId(),
+        //              taskFailed.getActivityType().getName(),
+        //              taskFailed.getActivityId(),
+        //              RetryStatus.Timeout,
+        //              "",
+        //              appECause);
+        //        }
+        return new ActivityException(
+            taskFailed.getScheduledEventId(),
+            taskFailed.getStartedEventId(),
+            taskFailed.getActivityType().getName(),
             taskFailed.getActivityId(),
-            cause);
+            RetryStatus.Timeout,
+            "",
+            exception);
       }
     }
     if (failure instanceof ActivityTaskTimeoutException) {
       ActivityTaskTimeoutException timedOut = (ActivityTaskTimeoutException) failure;
-      return new ActivityTimeoutException(
-          timedOut.getEventId(),
-          timedOut.getActivityType(),
+      return new ActivityException(
+          timedOut.getScheduledEventId(),
+          timedOut.getStartedEventId(),
+          timedOut.getActivityType().getName(),
           timedOut.getActivityId(),
-          timedOut.getTimeoutType(),
-          timedOut.getLastHeartbeatDetails(),
-          getDataConverter());
+          timedOut.getRetryStatus(),
+          "",
+          new TimeoutFailure(
+              "Activity timeout",
+              new EncodedValue(timedOut.getLastHeartbeatDetails(), getDataConverter()),
+              timedOut.getTimeoutType(),
+              null));
     }
     if (failure instanceof ActivityException) {
       return (ActivityException) failure;
@@ -480,15 +487,32 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     ChildWorkflowTaskFailedException taskFailed = (ChildWorkflowTaskFailedException) failure;
     Throwable cause =
         FailureConverter.failureToException(taskFailed.getFailure(), getDataConverter());
-    if (cause instanceof SimulatedTimeoutExceptionInternal) {
+    if (cause instanceof ApplicationException
+        && ((ApplicationException) cause).getType() == "SimulatedTimeoutException") {
+      // TODO(maxim): Add support for simulated timeouts
+      throw new Error("unimplemented");
       // This exception is thrown only in unit tests to mock the child workflow timeouts
-      return new ChildWorkflowTimedOutException(
-          taskFailed.getEventId(), taskFailed.getWorkflowExecution(), taskFailed.getWorkflowType());
+      //      return new ChildWorkflowException(
+      //          "Simulated child workflow timeout",
+      //          0,
+      //          0,
+      //          taskFailed.getWorkflowType().getName(),
+      //          taskFailed.getWorkflowExecution(),
+      //          null,
+      //          taskFailed.getRetryStatus(),
+      //          new TimeoutException(
+      //              "Activity timeout",
+      //              new EncodedValue(timedOut.getLastHeartbeatDetails(), getDataConverter()),
+      //              timedOut.getTimeoutType(),
+      //              null));
     }
-    return new ChildWorkflowFailureException(
-        taskFailed.getEventId(),
+    return new ChildWorkflowException(
+        0,
+        0,
+        taskFailed.getWorkflowType().getName(),
         taskFailed.getWorkflowExecution(),
-        taskFailed.getWorkflowType(),
+        null,
+        taskFailed.getRetryStatus(),
         cause);
   }
 

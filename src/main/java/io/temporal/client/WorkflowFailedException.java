@@ -19,8 +19,8 @@
 
 package io.temporal.client;
 
+import io.temporal.proto.common.RetryStatus;
 import io.temporal.proto.common.WorkflowExecution;
-import java.util.Optional;
 
 /**
  * Indicates that a workflow failed. An original cause of the workflow failure can be retrieved
@@ -28,32 +28,41 @@ import java.util.Optional;
  */
 public final class WorkflowFailedException extends WorkflowException {
 
+  private final RetryStatus retryStatus;
   private final long decisionTaskCompletedEventId;
 
   public WorkflowFailedException(
-      WorkflowExecution execution,
-      Optional<String> workflowType,
+      String message,
+      WorkflowExecution workflowExecution,
+      String workflowType,
       long decisionTaskCompletedEventId,
-      Throwable failure) {
-    super(getMessage(execution, workflowType), execution, workflowType, failure);
+      RetryStatus retryStatus,
+      Throwable cause) {
+    super(workflowExecution, workflowType, cause);
+    this.retryStatus = retryStatus;
     this.decisionTaskCompletedEventId = decisionTaskCompletedEventId;
   }
 
-  private static String getMessage(WorkflowExecution execution, Optional<String> workflowType) {
-    StringBuilder result = new StringBuilder();
-    if (workflowType.isPresent()) {
-      result.append("WorkflowType=\"");
-      result.append(workflowType.get());
-      result.append("\", ");
-    }
-    result.append("WorkflowId=\"");
-    result.append(execution.getWorkflowId());
-    result.append("\", RunId=\"");
-    result.append(execution.getRunId());
-    return result.toString();
+  public RetryStatus getRetryStatus() {
+    return retryStatus;
   }
 
   public long getDecisionTaskCompletedEventId() {
     return decisionTaskCompletedEventId;
+  }
+
+  @Override
+  public String toString() {
+    return "WorkflowFailedException{"
+        + "execution="
+        + getExecution()
+        + ", workflowType='"
+        + getWorkflowType()
+        + '\''
+        + "retryStatus="
+        + retryStatus
+        + ", decisionTaskCompletedEventId="
+        + decisionTaskCompletedEventId
+        + '}';
   }
 }

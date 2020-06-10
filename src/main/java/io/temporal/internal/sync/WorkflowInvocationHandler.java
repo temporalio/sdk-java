@@ -20,9 +20,9 @@
 package io.temporal.internal.sync;
 
 import com.google.common.base.Defaults;
-import io.temporal.client.DuplicateWorkflowException;
 import io.temporal.client.WorkflowClientInterceptor;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.CronSchedule;
@@ -183,7 +183,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
             && options.get().getWorkflowIdReusePolicy() == WorkflowIdReusePolicy.AllowDuplicate)) {
       try {
         untyped.start(args);
-      } catch (DuplicateWorkflowException e) {
+      } catch (WorkflowExecutionAlreadyStarted e) {
         // We do allow duplicated calls if policy is not AllowDuplicate. Semantic is to wait for
         // result.
         if (options.isPresent()

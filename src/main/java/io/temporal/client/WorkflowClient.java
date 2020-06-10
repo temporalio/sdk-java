@@ -87,10 +87,9 @@ import java.util.concurrent.CompletableFuture;
  * If you need to wait for a workflow completion after an asynchronous start, maybe even from a
  * different process, the simplest way is to call the blocking version again. If {@link
  * WorkflowOptions#getWorkflowIdReusePolicy()} is not {@code AllowDuplicate} then instead of
- * throwing {@link io.temporal.client.DuplicateWorkflowException}, it reconnects to an existing
- * workflow and waits for its completion. The following example shows how to do this from a
- * different process than the one that started the workflow. All this process needs is a {@code
- * WorkflowId}.
+ * throwing {@link WorkflowExecutionAlreadyStarted}, it reconnects to an existing workflow and waits
+ * for its completion. The following example shows how to do this from a different process than the
+ * one that started the workflow. All this process needs is a {@code WorkflowId}.
  *
  * <pre><code>
  * FileProcessingWorkflow workflow = workflowClient.newWorkflowStub(FileProcessingWorkflow.class, workflowId);

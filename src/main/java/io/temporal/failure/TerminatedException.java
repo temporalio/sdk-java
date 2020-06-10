@@ -19,14 +19,9 @@
 
 package io.temporal.failure;
 
-import io.temporal.proto.failure.Failure;
+public final class TerminatedException extends TemporalFailure {
 
-public final class TerminatedException extends RemoteException {
-  public TerminatedException(Failure failure, Exception cause) {
-    super(failure.getMessage(), failure, cause);
-    if (!failure.hasTerminatedFailureInfo()) {
-      throw new IllegalArgumentException(
-          "Terminated failure expected: " + failure.getFailureInfoCase());
-    }
+  public TerminatedException(String message, Throwable cause) {
+    super(message, cause);
   }
 }

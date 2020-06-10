@@ -34,7 +34,7 @@ public class ActivityOptionsTest {
       backoffCoefficient = 1.97,
       maximumAttempts = 234567,
       maximumIntervalSeconds = 22,
-      doNotRetry = {NullPointerException.class, UnsupportedOperationException.class})
+      doNotRetry = {"java.lang.NullPointerException", "java.lang.UnsupportedOperationException"})
   public void activityAndRetryOptions() {}
 
   @Test

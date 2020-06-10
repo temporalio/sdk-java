@@ -17,24 +17,12 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow;
+package io.temporal.common.converter;
 
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.common.WorkflowType;
+import java.lang.reflect.Type;
 
-/**
- * Indicates that a child workflow failed. An original cause of the child workflow failure can be
- * retrieved through {@link #getCause()}.
- */
-@SuppressWarnings("serial")
-public final class ChildWorkflowFailureException extends ChildWorkflowException {
+public interface Value {
+  <T> T get(Class<T> parameterType) throws DataConverterException;
 
-  public ChildWorkflowFailureException(
-      long eventId,
-      WorkflowExecution workflowExecution,
-      WorkflowType workflowType,
-      Throwable cause) {
-    super(cause.getMessage(), eventId, workflowExecution, workflowType);
-    initCause(cause);
-  }
+  <T> T get(Class<T> parameterType, Type genericParameterType) throws DataConverterException;
 }

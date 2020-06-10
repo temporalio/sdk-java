@@ -21,52 +21,37 @@ package io.temporal.client;
 
 import io.temporal.failure.TemporalException;
 import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.workflow.ChildWorkflowException;
-import java.util.Optional;
+import java.util.Objects;
 
-/**
- * Base exception for all workflow failures returned by an external client. Note that inside a
- * workflow implementation child workflows throw subclasses of {@link ChildWorkflowException}.
- */
-public class WorkflowException extends TemporalException {
+/** Base exception for all workflow failures. */
+public abstract class WorkflowException extends TemporalException {
 
   private final WorkflowExecution execution;
-  private final Optional<String> workflowType;
+  private final String workflowType;
 
-  protected WorkflowException(
-      String message, WorkflowExecution execution, Optional<String> workflowType, Throwable cause) {
-    super(getMessage(message, execution, workflowType), cause);
-    this.execution = execution;
-    this.workflowType = workflowType;
-  }
-
-  private static String getMessage(
-      String message, WorkflowExecution execution, Optional<String> workflowType) {
-    StringBuilder result = new StringBuilder();
-    if (message != null) {
-      result.append(message);
-      result.append(", ");
-    }
-    if (workflowType.isPresent()) {
-      result.append("WorkflowType=\"");
-      result.append(workflowType.get());
-    }
-    if (execution != null) {
-      if (result.length() > 0) {
-        result.append("\", ");
-      }
-      result.append("WorkflowExecution=\"");
-      result.append(execution);
-      result.append("\"");
-    }
-    return result.toString();
+  protected WorkflowException(WorkflowExecution execution, String workflowType, Throwable cause) {
+    super(null, cause);
+    this.execution = Objects.requireNonNull(execution);
+    this.workflowType = Objects.requireNonNull(workflowType);
   }
 
   public WorkflowExecution getExecution() {
     return execution;
   }
 
-  public Optional<String> getWorkflowType() {
+  /** Not always known and might return null. */
+  public String getWorkflowType() {
     return workflowType;
+  }
+
+  @Override
+  public String toString() {
+    return "WorkflowException{"
+        + "execution="
+        + execution
+        + ", workflowType='"
+        + workflowType
+        + '\''
+        + '}';
   }
 }

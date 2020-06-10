@@ -19,25 +19,32 @@
 
 package io.temporal.failure;
 
-import io.temporal.proto.failure.ActivityFailureInfo;
-import io.temporal.proto.failure.Failure;
+import io.temporal.proto.common.RetryStatus;
 
-public final class ActivityException extends RemoteException {
+public final class ActivityException extends TemporalException {
 
   private final long scheduledEventId;
   private final long startedEventId;
+  private final String activityType;
+  private final String activityId;
   private final String identity;
+  private final RetryStatus retryStatus;
 
-  public ActivityException(Failure failure, Exception cause) {
-    super(toString(failure), failure, cause);
-    if (!failure.hasActivityFailureInfo()) {
-      throw new IllegalArgumentException(
-          "Activity failure expected: " + failure.getFailureInfoCase());
-    }
-    ActivityFailureInfo info = failure.getActivityFailureInfo();
-    this.scheduledEventId = info.getScheduledEventId();
-    this.startedEventId = info.getStartedEventId();
-    this.identity = info.getIdentity();
+  public ActivityException(
+      long scheduledEventId,
+      long startedEventId,
+      String activityType,
+      String activityId,
+      RetryStatus retryStatus,
+      String identity,
+      Throwable cause) {
+    super(null, cause);
+    this.scheduledEventId = scheduledEventId;
+    this.startedEventId = startedEventId;
+    this.activityType = activityType;
+    this.activityId = activityId;
+    this.identity = identity;
+    this.retryStatus = retryStatus;
   }
 
   public long getScheduledEventId() {
@@ -48,23 +55,45 @@ public final class ActivityException extends RemoteException {
     return startedEventId;
   }
 
+  public String getActivityType() {
+    return activityType;
+  }
+
+  public String getActivityId() {
+    return activityId;
+  }
+
   public String getIdentity() {
     return identity;
   }
 
-  private static String toString(Failure failure) {
-    ActivityFailureInfo info = failure.getActivityFailureInfo();
-    return "scheduledEventId="
-        + info.getScheduledEventId()
-        + ", startedEventId="
-        + info.getStartedEventId()
-        + ", identity='"
-        + info.getIdentity()
-        + '\'';
+  public RetryStatus getRetryStatus() {
+    return retryStatus;
+  }
+
+  @Override
+  public String getMessage() {
+    return toString();
   }
 
   @Override
   public String toString() {
-    return "ActivityException{" + toString(failure) + '}';
+    return "ActivityException{"
+        + "scheduledEventId="
+        + scheduledEventId
+        + ", startedEventId="
+        + startedEventId
+        + ", activityType='"
+        + activityType
+        + '\''
+        + ", activityId='"
+        + activityId
+        + '\''
+        + ", identity='"
+        + identity
+        + '\''
+        + ", retryStatus="
+        + retryStatus
+        + '}';
   }
 }

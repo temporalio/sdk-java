@@ -30,14 +30,11 @@ public final class WorkflowQueryRejectedException extends WorkflowQueryException
 
   public WorkflowQueryRejectedException(
       WorkflowExecution execution,
+      String workflowType,
       QueryRejectCondition queryRejectCondition,
-      WorkflowExecutionStatus workflowExecutionStatus) {
-    super(
-        execution,
-        "Query invoked with "
-            + queryRejectCondition
-            + " reject condition. The workflow execution status is "
-            + workflowExecutionStatus);
+      WorkflowExecutionStatus workflowExecutionStatus,
+      Throwable cause) {
+    super(execution, workflowType, cause);
     this.queryRejectCondition = queryRejectCondition;
     this.workflowExecutionStatus = workflowExecutionStatus;
   }

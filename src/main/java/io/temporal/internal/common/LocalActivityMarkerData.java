@@ -19,6 +19,8 @@
 
 package io.temporal.internal.common;
 
+import static io.temporal.failure.FailureConverter.JAVA_SDK;
+
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.replay.ClockDecisionContext;
 import io.temporal.proto.common.ActivityType;
@@ -26,11 +28,13 @@ import io.temporal.proto.common.Payloads;
 import io.temporal.proto.event.EventType;
 import io.temporal.proto.event.HistoryEvent;
 import io.temporal.proto.event.MarkerRecordedEventAttributes;
+import io.temporal.proto.failure.ActivityFailureInfo;
 import io.temporal.proto.failure.CanceledFailureInfo;
 import io.temporal.proto.failure.Failure;
 import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
 import java.time.Duration;
+import java.util.Objects;
 import java.util.Optional;
 
 public final class LocalActivityMarkerData {
@@ -57,7 +61,20 @@ public final class LocalActivityMarkerData {
     }
 
     public Builder setTaskFailedRequest(RespondActivityTaskFailedRequest request) {
-      this.failure = Optional.of(request.getFailure());
+      // assumes that activityId and activityType are already set
+      this.failure =
+          Optional.of(
+              Failure.newBuilder()
+                  .setMessage(request.getFailure().getMessage())
+                  .setSource(JAVA_SDK)
+                  .setActivityFailureInfo(
+                      ActivityFailureInfo.newBuilder()
+                          .setActivityId(Objects.requireNonNull(activityId))
+                          .setActivityType(
+                              ActivityType.newBuilder()
+                                  .setName(Objects.requireNonNull(activityType)))
+                          .setIdentity(request.getIdentity()))
+                  .build());
       return this;
     }
 

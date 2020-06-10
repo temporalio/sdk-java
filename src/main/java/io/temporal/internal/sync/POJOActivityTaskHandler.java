@@ -24,18 +24,17 @@ import com.google.common.base.Joiner;
 import com.uber.m3.tally.Scope;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.WrappedValue;
+import io.temporal.failure.CanceledException;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.ActivityTaskHandler;
-import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.Payloads;
 import io.temporal.proto.failure.Failure;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.testing.SimulatedTimeoutException;
-import io.temporal.workflow.ActivityTimeoutException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -43,7 +42,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BiFunction;
 import org.slf4j.Logger;
@@ -100,24 +98,23 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
       if (isLocalActivity) {
         metricsScope.counter(MetricsType.LOCAL_ACTIVITY_CANCELED_COUNTER).inc(1);
       }
-      throw new CancellationException(exception.getMessage());
+      throw new CanceledException(exception.getMessage(), new WrappedValue(null), null);
     }
 
     // Only expected during unit tests.
-    if (exception instanceof SimulatedTimeoutException) {
-      SimulatedTimeoutException timeoutException = (SimulatedTimeoutException) exception;
-      Object d = timeoutException.getDetails();
-      Optional<Payloads> payloads = dataConverter.toData(d);
-      ActivityTimeoutException at =
-          new ActivityTimeoutException(
-              0,
-              ActivityType.newBuilder().setName(activityType).build(),
-              activityId,
-              timeoutException.getTimeoutType(),
-              payloads,
-              dataConverter);
-      exception = new SimulatedTimeoutExceptionInternal(at);
-    }
+    // TODO(maxim): simulated timeouts
+    //    if (exception instanceof SimulatedTimeoutException) {
+    //      SimulatedTimeoutException timeoutException = (SimulatedTimeoutException) exception;
+    //      Object d = timeoutException.getDetails();
+    //      Optional<Payloads> payloads = dataConverter.toData(d);
+    //      TimeoutException te =
+    //          new TimeoutException(
+    //              exception.getMessage(),
+    //              new EncodedValue(payloads, dataConverter),
+    //              timeoutException.getTimeoutType(),
+    //              null);
+    //      exception = new SimulatedTimeoutExceptionInternal(te);
+    //    }
 
     if (exception instanceof Error) {
       if (isLocalActivity) {

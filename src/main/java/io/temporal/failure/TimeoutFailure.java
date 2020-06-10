@@ -17,27 +17,27 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.client;
+package io.temporal.failure;
 
-import io.temporal.proto.common.RetryStatus;
-import io.temporal.proto.common.WorkflowExecution;
-import java.util.Optional;
+import io.temporal.common.converter.Value;
+import io.temporal.proto.common.TimeoutType;
 
-/**
- * Indicates that a workflow exceeded its execution timeout and was forcefully terminated by the
- * Temporal service.
- */
-public final class WorkflowTimeoutException extends WorkflowException {
+public final class TimeoutFailure extends TemporalFailure {
+  private final Value lastHeartbeatDetails;
+  private final TimeoutType timeoutType;
 
-  private final RetryStatus retryStatus;
-
-  public WorkflowTimeoutException(
-      WorkflowExecution execution, Optional<String> workflowType, RetryStatus retryStatus) {
-    super(retryStatus + " timeout type", execution, workflowType, null);
-    this.retryStatus = retryStatus;
+  public TimeoutFailure(
+      String message, Value lastHeartbeatDetails, TimeoutType timeoutType, Throwable cause) {
+    super(message, cause);
+    this.lastHeartbeatDetails = lastHeartbeatDetails;
+    this.timeoutType = timeoutType;
   }
 
-  public RetryStatus getRetryStatus() {
-    return retryStatus;
+  public Value getLastHeartbeatDetails() {
+    return lastHeartbeatDetails;
+  }
+
+  public TimeoutType getTimeoutType() {
+    return timeoutType;
   }
 }

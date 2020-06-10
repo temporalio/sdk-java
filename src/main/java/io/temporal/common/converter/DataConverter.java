@@ -70,7 +70,7 @@ public interface DataConverter {
    * @throws DataConverterException if conversion of the data passed as parameter failed for any
    *     reason.
    */
-  public Object[] fromDataArray(
+  Object[] fromDataArray(
       Optional<Payloads> content, Class<?>[] parameterTypes, Type[] genericParameterTypes)
       throws DataConverterException;
 }

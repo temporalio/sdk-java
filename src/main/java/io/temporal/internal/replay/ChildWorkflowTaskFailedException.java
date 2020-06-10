@@ -19,6 +19,7 @@
 
 package io.temporal.internal.replay;
 
+import io.temporal.proto.common.RetryStatus;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.failure.Failure;
@@ -33,16 +34,20 @@ public class ChildWorkflowTaskFailedException extends RuntimeException {
 
   private final WorkflowType workflowType;
 
+  private final RetryStatus retryStatus;
+
   private final Failure failure;
 
   public ChildWorkflowTaskFailedException(
       long eventId,
       WorkflowExecution workflowExecution,
       WorkflowType workflowType,
+      RetryStatus retryStatus,
       Failure failure) {
     this.eventId = eventId;
     this.workflowExecution = workflowExecution;
     this.workflowType = workflowType;
+    this.retryStatus = retryStatus;
     this.failure = failure;
   }
 
@@ -60,5 +65,9 @@ public class ChildWorkflowTaskFailedException extends RuntimeException {
 
   public Failure getFailure() {
     return failure;
+  }
+
+  public RetryStatus getRetryStatus() {
+    return retryStatus;
   }
 }

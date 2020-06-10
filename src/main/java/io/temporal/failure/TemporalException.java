@@ -19,12 +19,8 @@
 
 package io.temporal.failure;
 
-public abstract class TemporalException extends RuntimeException {
-  protected TemporalException(String message, Throwable cause) {
-    super(message, cause, true, true);
-  }
-
-  public TemporalException(String message) {
-    super(message);
+public class TemporalException extends RuntimeException {
+  public TemporalException(String message, Throwable cause) {
+    super(message, cause, false, true);
   }
 }

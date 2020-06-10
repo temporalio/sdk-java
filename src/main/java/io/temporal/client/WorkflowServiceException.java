@@ -19,14 +19,22 @@
 
 package io.temporal.client;
 
-import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.proto.common.WorkflowExecution;
-import java.util.Optional;
 
-public final class WorkflowServiceException extends WorkflowException {
-
+public class WorkflowServiceException extends WorkflowException {
   public WorkflowServiceException(
-      WorkflowExecution execution, Optional<String> workflowType, Throwable failure) {
-    super(null, execution, workflowType, CheckedExceptionWrapper.unwrap(failure));
+      WorkflowExecution execution, String workflowType, Throwable cause) {
+    super(execution, workflowType, cause);
+  }
+
+  @Override
+  public String toString() {
+    return "WorkflowServiceException{"
+        + "execution="
+        + getExecution()
+        + ", workflowType='"
+        + getWorkflowType()
+        + '\''
+        + '}';
   }
 }

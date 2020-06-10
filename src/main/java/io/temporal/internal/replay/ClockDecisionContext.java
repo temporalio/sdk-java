@@ -36,7 +36,6 @@ import io.temporal.proto.event.HistoryEvent;
 import io.temporal.proto.event.MarkerRecordedEventAttributes;
 import io.temporal.proto.event.TimerCanceledEventAttributes;
 import io.temporal.proto.event.TimerFiredEventAttributes;
-import io.temporal.workflow.ActivityFailureException;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import java.time.Duration;
@@ -243,7 +242,7 @@ public final class ClockDecisionContext {
               : Optional.empty();
       sideEffectResults.put(event.getEventId(), details);
     } else if (LOCAL_ACTIVITY_MARKER_NAME.equals(name)) {
-      handleLocalActivityMarker(attributes);
+      handleLocalActivityMarker(event.getEventId(), attributes);
     } else if (!MUTABLE_SIDE_EFFECT_MARKER_NAME.equals(name) && !VERSION_MARKER_NAME.equals(name)) {
       if (log.isWarnEnabled()) {
         log.warn("Unexpected marker: " + event);
@@ -251,7 +250,7 @@ public final class ClockDecisionContext {
     }
   }
 
-  private void handleLocalActivityMarker(MarkerRecordedEventAttributes attributes) {
+  private void handleLocalActivityMarker(long eventId, MarkerRecordedEventAttributes attributes) {
     LocalActivityMarkerData marker =
         LocalActivityMarkerData.fromEventAttributes(attributes, dataConverter);
     if (pendingLaTasks.containsKey(marker.getActivityId())) {
@@ -269,18 +268,7 @@ public final class ClockDecisionContext {
 
       Exception failure = null;
       if (marker.getFailure().isPresent()) {
-        Throwable cause =
-            FailureConverter.failureToException(marker.getFailure().get(), dataConverter);
-        ActivityType activityType =
-            ActivityType.newBuilder().setName(marker.getActivityType()).build();
-        failure =
-            new ActivityFailureException(
-                attributes.getDecisionTaskCompletedEventId(),
-                activityType,
-                marker.getActivityId(),
-                cause,
-                marker.getAttempt(),
-                marker.getBackoff());
+        failure = FailureConverter.failureToException(marker.getFailure().get(), dataConverter);
       }
 
       BiConsumer<Optional<Payloads>, Exception> completionHandle =

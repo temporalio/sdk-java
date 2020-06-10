@@ -29,17 +29,34 @@ import io.temporal.proto.failure.Failure;
 @SuppressWarnings("serial")
 public class ActivityTaskFailedException extends RuntimeException {
 
+  private final long scheduledEventId;
+  private final long startedEventId;
   private final long eventId;
   private final ActivityType activityType;
   private final String activityId;
   private final Failure failure;
 
   ActivityTaskFailedException(
-      long eventId, ActivityType activityType, String activityId, Failure failure) {
+      long eventId,
+      long scheduledEventId,
+      long startedEventId,
+      ActivityType activityType,
+      String activityId,
+      Failure failure) {
+    this.scheduledEventId = scheduledEventId;
+    this.startedEventId = startedEventId;
     this.eventId = eventId;
     this.activityType = activityType;
     this.activityId = activityId;
     this.failure = failure;
+  }
+
+  public long getScheduledEventId() {
+    return scheduledEventId;
+  }
+
+  public long getStartedEventId() {
+    return startedEventId;
   }
 
   public long getEventId() {

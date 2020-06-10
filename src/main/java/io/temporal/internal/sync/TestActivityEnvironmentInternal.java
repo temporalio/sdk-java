@@ -32,13 +32,17 @@ import io.grpc.stub.StreamObserver;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
+import io.temporal.common.converter.EncodedValue;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
+import io.temporal.failure.ActivityException;
+import io.temporal.failure.CanceledException;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.Payloads;
+import io.temporal.proto.common.RetryStatus;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatRequest;
@@ -51,7 +55,6 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestActivityEnvironment;
 import io.temporal.testing.TestEnvironmentOptions;
-import io.temporal.workflow.ActivityFailureException;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.Functions;
@@ -69,7 +72,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -383,18 +385,25 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
               FailureConverter.failureToException(
                   taskFailed.getFailure(),
                   testEnvironmentOptions.getWorkflowClientOptions().getDataConverter());
-          throw new ActivityFailureException(
-              taskFailed.getFailure().getMessage(),
+          throw new ActivityException(
               0,
-              task.getActivityType(),
+              0,
+              task.getActivityType().getName(),
               task.getActivityId(),
+              RetryStatus.NonRetryableFailure,
+              "TestActivityEnvironment",
               cause);
-
         } else {
           RespondActivityTaskCanceledRequest taskCancelled = response.getTaskCancelled();
           if (taskCancelled != null) {
-            throw new CancellationException(
-                new String(taskCancelled.getDetails().toByteArray(), StandardCharsets.UTF_8));
+            throw new CanceledException(
+                "canceled",
+                new EncodedValue(
+                    taskCancelled.hasDetails()
+                        ? Optional.of(taskCancelled.getDetails())
+                        : Optional.empty(),
+                    testEnvironmentOptions.getWorkflowClientOptions().getDataConverter()),
+                null);
           }
         }
       }

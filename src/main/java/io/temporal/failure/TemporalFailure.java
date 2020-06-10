@@ -17,35 +17,23 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.client;
+package io.temporal.failure;
 
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.failure.Failure;
 import java.util.Optional;
 
-/**
- * Indicates that a workflow was forcefully terminated by an external command to Temporal service.
- */
-public final class WorkflowTerminatedException extends WorkflowException {
+public abstract class TemporalFailure extends TemporalException {
+  private Optional<Failure> failure = Optional.empty();
 
-  private final byte[] details;
-  private final String identity;
-
-  public WorkflowTerminatedException(
-      WorkflowExecution execution,
-      Optional<String> workflowType,
-      String reason,
-      String identity,
-      byte[] details) {
-    super("Terminated by " + identity + " for \"" + reason + "\"", execution, workflowType, null);
-    this.identity = identity;
-    this.details = details;
+  protected TemporalFailure(String message, Throwable cause) {
+    super(message, cause);
   }
 
-  public String getIdentity() {
-    return identity;
+  Optional<Failure> getFailure() {
+    return failure;
   }
 
-  public byte[] getDetails() {
-    return details;
+  void setFailure(Failure failure) {
+    this.failure = Optional.of(failure);
   }
 }

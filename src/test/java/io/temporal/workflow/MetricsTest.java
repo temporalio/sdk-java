@@ -106,7 +106,7 @@ public class MetricsTest {
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
                       .setMaximumAttempts(3)
-                      .setDoNotRetry(AssertionError.class)
+                      .setDoNotRetry(AssertionError.class.getName())
                       .build())
               .build();
       TestActivity activity = Workflow.newActivityStub(TestActivity.class, activityOptions);

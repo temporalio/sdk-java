@@ -40,17 +40,16 @@ import io.temporal.client.ActivityCancelledException;
 import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.ActivityNotExistsException;
 import io.temporal.client.BatchRequest;
-import io.temporal.client.DuplicateWorkflowException;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientInterceptorBase;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowException;
+import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowQueryException;
 import io.temporal.client.WorkflowQueryRejectedException;
 import io.temporal.client.WorkflowStub;
-import io.temporal.client.WorkflowTimeoutException;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
@@ -60,6 +59,9 @@ import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowInvocationInterceptor;
 import io.temporal.common.interceptors.WorkflowInvoker;
+import io.temporal.failure.ActivityException;
+import io.temporal.failure.ChildWorkflowException;
+import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.sync.DeterministicRunnerTest;
@@ -71,7 +73,6 @@ import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowIdReusePolicy;
 import io.temporal.proto.event.EventType;
 import io.temporal.proto.event.HistoryEvent;
-import io.temporal.proto.event.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.proto.execution.WorkflowExecutionStatus;
 import io.temporal.proto.query.QueryRejectCondition;
 import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
@@ -504,7 +505,7 @@ public class WorkflowTest {
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
                       .setMaximumAttempts(3)
-                      .setDoNotRetry(AssertionError.class)
+                      .setDoNotRetry(AssertionError.class.getName())
                       .build())
               .build();
       TestActivities activities = Workflow.newActivityStub(TestActivities.class, options);
@@ -549,7 +550,7 @@ public class WorkflowTest {
                   RetryOptions.newBuilder()
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
-                      .setDoNotRetry(AssertionError.class)
+                      .setDoNotRetry(AssertionError.class.getName())
                       .build())
               .build();
       TestActivities activities = Workflow.newActivityStub(TestActivities.class, options);
@@ -594,7 +595,7 @@ public class WorkflowTest {
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
                       .setMaximumAttempts(5)
-                      .setDoNotRetry(AssertionError.class)
+                      .setDoNotRetry(AssertionError.class.getName())
                       .build())
               .build();
       TestActivities activities = Workflow.newLocalActivityStub(TestActivities.class, options);
@@ -639,7 +640,7 @@ public class WorkflowTest {
                       .setMaximumInterval(Duration.ofSeconds(1))
                       .setInitialInterval(Duration.ofSeconds(1))
                       .setMaximumAttempts(3)
-                      .setDoNotRetry(AssertionError.class)
+                      .setDoNotRetry(AssertionError.class.getName())
                       .build())
               .build();
       TestActivities activities = Workflow.newActivityStub(TestActivities.class, options);
@@ -647,7 +648,7 @@ public class WorkflowTest {
       try {
         activities.neverComplete(); // should timeout as scheduleToClose is 1 second
         throw new IllegalStateException("unreachable");
-      } catch (ActivityTimeoutException e) {
+      } catch (ActivityException e) {
         long elapsed = Workflow.currentTimeMillis() - start;
         if (elapsed < 5000) {
           throw new RuntimeException("Activity retried without delay: " + elapsed);
@@ -669,7 +670,8 @@ public class WorkflowTest {
       workflowStub.execute(taskList);
       fail("unreachable");
     } catch (WorkflowException e) {
-      assertTrue(String.valueOf(e.getCause()), e.getCause() instanceof ActivityTimeoutException);
+      assertTrue(String.valueOf(e.getCause()), e.getCause() instanceof ActivityException);
+      assertTrue(String.valueOf(e.getCause()), e.getCause().getCause() instanceof TimeoutFailure);
     }
     assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
     long elapsed = System.currentTimeMillis() - start;
@@ -899,7 +901,7 @@ public class WorkflowTest {
             RetryOptions.newBuilder()
                 .setMaximumInterval(Duration.ofSeconds(1))
                 .setInitialInterval(Duration.ofSeconds(1))
-                .setDoNotRetry(NullPointerException.class)
+                .setDoNotRetry(NullPointerException.class.getName())
                 .setMaximumAttempts(3)
                 .build());
       } else {
@@ -908,7 +910,7 @@ public class WorkflowTest {
                 .setMaximumInterval(Duration.ofSeconds(1))
                 .setInitialInterval(Duration.ofSeconds(1))
                 .setMaximumAttempts(2)
-                .setDoNotRetry(NullPointerException.class)
+                .setDoNotRetry(NullPointerException.class.getName())
                 .build());
       }
       this.activities = Workflow.newActivityStub(TestActivities.class, options.build());
@@ -947,10 +949,11 @@ public class WorkflowTest {
       try {
         // false for second argument means to heartbeat once to set details and then stop.
         activities.activityWithDelay(5000, false);
-      } catch (ActivityTimeoutException e) {
+      } catch (ActivityException e) {
+        TimeoutFailure te = (TimeoutFailure) e.getCause();
         log.info("TestHeartbeatTimeoutDetails expected timeout", e);
-        assertEquals(TimeoutType.Heartbeat, e.getTimeoutType());
-        return e.getDetails(String.class);
+        assertEquals(TimeoutType.Heartbeat, te.getTimeoutType());
+        return te.getLastHeartbeatDetails().get(String.class);
       }
       throw new RuntimeException("unreachable");
     }
@@ -1642,7 +1645,7 @@ public class WorkflowTest {
     try {
       stubF2.func2("1", 2);
       fail("unreachable");
-    } catch (DuplicateWorkflowException e) {
+    } catch (WorkflowExecutionAlreadyStarted e) {
       // expected
     }
     TestMultiargsWorkflowsFunc3 stubF3 =
@@ -2413,7 +2416,7 @@ public class WorkflowTest {
         testActivities.throwIO();
         fail("unreachable");
         return "ignored";
-      } catch (ActivityFailureException e) {
+      } catch (ActivityException e) {
         try {
           assertTrue(e.getMessage().contains("throwIO"));
           assertTrue(e.getCause() instanceof IOException);
@@ -2446,7 +2449,7 @@ public class WorkflowTest {
           assertTrue(e.getMessage().contains("TestWorkflow1"));
           assertTrue(e instanceof ChildWorkflowException);
           assertTrue(e.getCause() instanceof NumberFormatException);
-          assertTrue(e.getCause().getCause() instanceof ActivityFailureException);
+          assertTrue(e.getCause().getCause() instanceof ActivityException);
           assertTrue(e.getCause().getCause().getCause() instanceof IOException);
           assertEquals("simulated IO problem", e.getCause().getCause().getCause().getMessage());
         } catch (AssertionError ae) {
@@ -2476,8 +2479,8 @@ public class WorkflowTest {
    *
    * <pre>
    * {@link WorkflowFailedException}
-   *     ->{@link ChildWorkflowFailureException}
-   *         ->{@link ActivityFailureException}
+   *     ->{@link ChildWorkflowException}
+   *         ->{@link ActivityException}
    *             ->OriginalActivityException
    * </pre>
    *
@@ -2506,7 +2509,7 @@ public class WorkflowTest {
       assertTrue(e.getCause() instanceof FileNotFoundException);
       assertTrue(e.getCause().getCause() instanceof ChildWorkflowException);
       assertTrue(e.getCause().getCause().getCause() instanceof NumberFormatException);
-      assertTrue(e.getCause().getCause().getCause().getCause() instanceof ActivityFailureException);
+      assertTrue(e.getCause().getCause().getCause().getCause() instanceof ActivityException);
       assertTrue(e.getCause().getCause().getCause().getCause().getCause() instanceof IOException);
       assertEquals(
           "simulated IO problem",
@@ -2693,7 +2696,7 @@ public class WorkflowTest {
     try {
       workflowClient.signalWithStart(batch4);
       fail("DuplicateWorkflowException expected");
-    } catch (DuplicateWorkflowException e) {
+    } catch (WorkflowExecutionAlreadyStarted e) {
       assertEquals(execution3.getRunId(), e.getExecution().getRunId());
     }
   }
@@ -3080,7 +3083,7 @@ public class WorkflowTest {
       client.execute(false, WorkflowIdReusePolicy.RejectDuplicate);
       fail("unreachable");
     } catch (WorkflowFailedException e) {
-      assertTrue(e.getCause() instanceof StartChildWorkflowFailedException);
+      assertTrue(e.getCause() instanceof ChildWorkflowException);
     }
   }
 
@@ -3100,7 +3103,7 @@ public class WorkflowTest {
       client.execute(true, WorkflowIdReusePolicy.RejectDuplicate);
       fail("unreachable");
     } catch (WorkflowFailedException e) {
-      assertTrue(e.getCause() instanceof StartChildWorkflowFailedException);
+      assertTrue(e.getCause() instanceof ChildWorkflowException);
     }
   }
 
@@ -3199,7 +3202,7 @@ public class WorkflowTest {
       client.execute(taskList);
       fail("unreachable");
     } catch (WorkflowException e) {
-      assertTrue(e.toString(), e.getCause() instanceof ChildWorkflowFailureException);
+      assertTrue(e.toString(), e.getCause() instanceof ChildWorkflowException);
       assertTrue(e.toString(), e.getCause().getCause() instanceof UnsupportedOperationException);
       assertEquals("simulated failure", e.getCause().getCause().getMessage());
     }
@@ -3401,10 +3404,7 @@ public class WorkflowTest {
       assertTrue(e.getCause() instanceof SignalExternalWorkflowException);
       assertEquals(
           "invalid id",
-          ((SignalExternalWorkflowException) e.getCause()).getSignaledExecution().getWorkflowId());
-      assertEquals(
-          SignalExternalWorkflowExecutionFailedCause.ExternalWorkflowExecutionNotFound2,
-          ((SignalExternalWorkflowException) e.getCause()).getFailureCause());
+          ((SignalExternalWorkflowException) e.getCause()).getExecution().getWorkflowId());
     }
   }
 
@@ -3491,8 +3491,7 @@ public class WorkflowTest {
       client.execute(taskList);
       fail("unreachable");
     } catch (WorkflowException e) {
-      assertTrue(
-          String.valueOf(e.getCause()), e.getCause() instanceof ChildWorkflowFailureException);
+      assertTrue(String.valueOf(e.getCause()), e.getCause() instanceof ChildWorkflowException);
       assertTrue(e.getCause().getCause() instanceof UnsupportedOperationException);
       assertEquals("simulated failure", e.getCause().getCause().getMessage());
     }
@@ -3638,7 +3637,7 @@ public class WorkflowTest {
     RetryOptions workflowRetryOptions =
         RetryOptions.newBuilder()
             .setInitialInterval(Duration.ofSeconds(1))
-            .setDoNotRetry(IllegalArgumentException.class)
+            .setDoNotRetry(IllegalArgumentException.class.getName())
             .setMaximumAttempts(100)
             .setBackoffCoefficient(1.0)
             .build();
@@ -3663,7 +3662,7 @@ public class WorkflowTest {
         initialIntervalSeconds = 1,
         maximumIntervalSeconds = 1,
         maximumAttempts = 30,
-        doNotRetry = IllegalArgumentException.class)
+        doNotRetry = "java.lang.IllegalArgumentException")
     String execute(String testName);
   }
 
@@ -4870,7 +4869,7 @@ public class WorkflowTest {
     try {
       workflowStub.execute(taskList);
       fail("unreachable");
-    } catch (WorkflowTimeoutException e) {
+    } catch (WorkflowException e) {
       // expected to timeout as workflow is going get blocked.
     }
 
@@ -5126,7 +5125,7 @@ public class WorkflowTest {
                   .build());
       try {
         activity.execute();
-      } catch (ActivityFailureException e) {
+      } catch (ActivityException e) {
         return e.getCause().getMessage();
       }
       return "done";
@@ -5174,13 +5173,13 @@ public class WorkflowTest {
                   .build());
       try {
         activity.execute("execute", Void.class, "boo");
-      } catch (ActivityFailureException e) {
+      } catch (ActivityException e) {
         result.append(e.getCause().getClass().getSimpleName());
       }
       result.append("-");
       try {
         localActivity.execute("execute", Void.class, "boo");
-      } catch (ActivityFailureException e) {
+      } catch (ActivityException e) {
         result.append(e.getCause().getClass().getSimpleName());
       }
       return result.toString();
@@ -5223,7 +5222,7 @@ public class WorkflowTest {
           Workflow.newChildWorkflowStub(NonSerializableExceptionChildWorkflow.class);
       try {
         child.execute(taskList);
-      } catch (ChildWorkflowFailureException e) {
+      } catch (ChildWorkflowException e) {
         return e.getMessage();
       }
       return "done";
@@ -5341,7 +5340,7 @@ public class WorkflowTest {
           Workflow.newLocalActivityStub(TestActivities.class, newLocalActivityOptions1());
       try {
         localActivities.throwIO();
-      } catch (ActivityFailureException e) {
+      } catch (ActivityException e) {
         try {
           assertTrue(e.getMessage().contains("throwIO"));
           assertTrue(e.getCause() instanceof IOException);

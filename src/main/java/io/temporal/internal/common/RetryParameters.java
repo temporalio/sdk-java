@@ -25,6 +25,7 @@ import com.uber.m3.util.ImmutableList;
 import io.temporal.common.RetryOptions;
 import io.temporal.proto.common.RetryPolicy;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public final class RetryParameters {
@@ -40,16 +41,8 @@ public final class RetryParameters {
     setMaximumAttempts(retryOptions.getMaximumAttempts());
     setInitialIntervalInSeconds(roundUpToSeconds(retryOptions.getInitialInterval()));
     setMaximumIntervalInSeconds(roundUpToSeconds(retryOptions.getMaximumInterval()));
-    // Use exception type name as the reason
-    List<String> reasons = new ArrayList<>();
-    // Use exception type name as the reason
-    List<Class<? extends Throwable>> doNotRetry = retryOptions.getDoNotRetry();
-    if (doNotRetry != null) {
-      for (Class<? extends Throwable> r : doNotRetry) {
-        reasons.add(r.getName());
-      }
-      setNonRetriableErrorTypes(reasons);
-    }
+    List<String> types = new ArrayList<>(Arrays.asList(retryOptions.getDoNotRetry()));
+    setNonRetriableErrorTypes(types);
   }
 
   public RetryParameters() {}

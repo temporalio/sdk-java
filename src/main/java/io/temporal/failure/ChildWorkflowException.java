@@ -19,27 +19,30 @@
 
 package io.temporal.failure;
 
+import io.temporal.client.WorkflowException;
+import io.temporal.proto.common.RetryStatus;
 import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.common.WorkflowType;
-import io.temporal.proto.failure.ChildWorkflowExecutionFailureInfo;
-import io.temporal.proto.failure.Failure;
 
-public final class ChildWorkflowException extends RemoteException {
+public final class ChildWorkflowException extends WorkflowException {
 
   private final long initiatedEventId;
   private final long startedEventId;
-  private final WorkflowType workflowType;
-  private final WorkflowExecution workflowExecution;
   private final String namespace;
+  private final RetryStatus retryStatus;
 
-  public ChildWorkflowException(Failure failure, Exception cause) {
-    super(toString(failure), failure, cause);
-    ChildWorkflowExecutionFailureInfo info = failure.getChildWorkflowExecutionFailureInfo();
-    this.initiatedEventId = info.getInitiatedEventId();
-    this.startedEventId = info.getStartedEventId();
-    this.workflowType = info.getWorkflowType();
-    this.workflowExecution = info.getWorkflowExecution();
-    this.namespace = info.getNamespace();
+  public ChildWorkflowException(
+      long initiatedEventId,
+      long startedEventId,
+      String workflowType,
+      WorkflowExecution workflowExecution,
+      String namespace,
+      RetryStatus retryStatus,
+      Throwable cause) {
+    super(workflowExecution, workflowType, cause);
+    this.initiatedEventId = initiatedEventId;
+    this.startedEventId = startedEventId;
+    this.namespace = namespace;
+    this.retryStatus = retryStatus;
   }
 
   public long getInitiatedEventId() {
@@ -50,40 +53,31 @@ public final class ChildWorkflowException extends RemoteException {
     return startedEventId;
   }
 
-  public WorkflowType getWorkflowType() {
-    return workflowType;
-  }
-
-  public WorkflowExecution getWorkflowExecution() {
-    return workflowExecution;
-  }
-
   public String getNamespace() {
     return namespace;
   }
 
-  private static String toString(Failure failure) {
-    if (!failure.hasChildWorkflowExecutionFailureInfo()) {
-      throw new IllegalArgumentException(
-          "Activity failure expected: " + failure.getFailureInfoCase());
-    }
-    ChildWorkflowExecutionFailureInfo info = failure.getChildWorkflowExecutionFailureInfo();
-
-    return "initiatedEventId="
-        + info.getInitiatedEventId()
-        + ", startedEventId="
-        + info.getStartedEventId()
-        + ", workflowType="
-        + info.getWorkflowType()
-        + ", workflowExecution="
-        + info.getWorkflowExecution()
-        + ", namespace='"
-        + info.getNamespace()
-        + '\'';
+  public RetryStatus getRetryStatus() {
+    return retryStatus;
   }
 
   @Override
   public String toString() {
-    return "ChildWorkflowException{" + toString(failure) + '}';
+    return "ChildWorkflowException{"
+        + "execution="
+        + getExecution()
+        + ", workflowType='"
+        + getWorkflowType()
+        + '\''
+        + "initiatedEventId="
+        + initiatedEventId
+        + ", startedEventId="
+        + startedEventId
+        + ", namespace='"
+        + namespace
+        + '\''
+        + ", retryStatus="
+        + retryStatus
+        + '}';
   }
 }

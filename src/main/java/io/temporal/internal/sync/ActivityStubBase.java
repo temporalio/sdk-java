@@ -20,7 +20,7 @@
 package io.temporal.internal.sync;
 
 import com.google.common.base.Defaults;
-import io.temporal.workflow.ActivityException;
+import io.temporal.failure.ActivityException;
 import io.temporal.workflow.ActivityStub;
 import io.temporal.workflow.Promise;
 import java.lang.reflect.Type;
