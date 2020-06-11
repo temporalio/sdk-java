@@ -60,6 +60,7 @@ import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowInvocationInterceptor;
 import io.temporal.common.interceptors.WorkflowInvoker;
 import io.temporal.failure.ActivityException;
+import io.temporal.failure.ApplicationException;
 import io.temporal.failure.ChildWorkflowException;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.common.WorkflowExecutionHistory;
@@ -159,8 +160,8 @@ public class WorkflowTest {
   private static final String ANNOTATION_TASK_LIST = "WorkflowTest-testExecute[Docker]";
 
   private TracingWorkflowInterceptor tracer;
-  private static final boolean useExternalService =
-      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+  private static final boolean useExternalService = false;
+  //      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
   private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
   // Enable to regenerate JsonFiles used for replay testing.
   // Only enable when USE_DOCKER_SERVICE is true
@@ -844,7 +845,9 @@ public class WorkflowTest {
       workflowStub.execute(taskList);
       fail("unreachable");
     } catch (WorkflowException e) {
-      assertTrue(e.getCause().getCause() instanceof IOException);
+      assertTrue(e.getCause().getCause() instanceof ApplicationException);
+      assertEquals(
+          IOException.class.getName(), ((ApplicationException) e.getCause().getCause()).getType());
     }
     assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
     WorkflowExecution execution = WorkflowStub.fromTyped(workflowStub).getExecution();
@@ -1645,7 +1648,7 @@ public class WorkflowTest {
     try {
       stubF2.func2("1", 2);
       fail("unreachable");
-    } catch (WorkflowExecutionAlreadyStarted e) {
+    } catch (IllegalStateException e) {
       // expected
     }
     TestMultiargsWorkflowsFunc3 stubF3 =
@@ -2320,8 +2323,13 @@ public class WorkflowTest {
       result = client.execute(useExternalService);
       fail("unreachable");
     } catch (WorkflowException e) {
-      assertTrue(e.getCause() instanceof IllegalThreadStateException);
-      assertEquals("simulated", e.getCause().getMessage());
+      assertTrue(e.getCause() instanceof ApplicationException);
+      assertEquals(
+          IllegalThreadStateException.class.getName(),
+          ((ApplicationException) e.getCause()).getType());
+      assertEquals(
+          "message='simulated', type='java.lang.IllegalThreadStateException', nonRetryable=false",
+          e.getCause().getMessage());
     }
     assertNull(result);
     List<String> trace = client.getTrace();
@@ -2419,8 +2427,12 @@ public class WorkflowTest {
       } catch (ActivityException e) {
         try {
           assertTrue(e.getMessage().contains("throwIO"));
-          assertTrue(e.getCause() instanceof IOException);
-          assertEquals("simulated IO problem", e.getCause().getMessage());
+          assertTrue(e.getCause() instanceof ApplicationException);
+          assertEquals(
+              IOException.class.getName(), ((ApplicationException) e.getCause()).getType());
+          assertEquals(
+              "message='simulated IO problem', type='java.io.IOException', nonRetryable=false",
+              e.getCause().getMessage());
         } catch (AssertionError ae) {
           // Errors cause decision to fail. But we want workflow to fail in this case.
           throw new RuntimeException(ae);
@@ -2448,10 +2460,18 @@ public class WorkflowTest {
           assertNoEmptyStacks(e);
           assertTrue(e.getMessage().contains("TestWorkflow1"));
           assertTrue(e instanceof ChildWorkflowException);
-          assertTrue(e.getCause() instanceof NumberFormatException);
+          assertTrue(e.getCause() instanceof ApplicationException);
+          assertEquals(
+              NumberFormatException.class.getName(),
+              ((ApplicationException) e.getCause()).getType());
           assertTrue(e.getCause().getCause() instanceof ActivityException);
-          assertTrue(e.getCause().getCause().getCause() instanceof IOException);
-          assertEquals("simulated IO problem", e.getCause().getCause().getCause().getMessage());
+          assertTrue(e.getCause().getCause().getCause() instanceof ApplicationException);
+          assertEquals(
+              IOException.class.getName(),
+              ((ApplicationException) e.getCause().getCause().getCause()).getType());
+          assertEquals(
+              "message='simulated IO problem', type='java.io.IOException', nonRetryable=false",
+              e.getCause().getCause().getCause().getMessage());
         } catch (AssertionError ae) {
           // Errors cause decision to fail. But we want workflow to fail in this case.
           throw new RuntimeException(ae);
@@ -2506,13 +2526,23 @@ public class WorkflowTest {
       //            e.printStackTrace();
       assertTrue(e.getMessage(), e.getMessage().contains("TestExceptionPropagation"));
       assertTrue(e.getStackTrace().length > 0);
-      assertTrue(e.getCause() instanceof FileNotFoundException);
-      assertTrue(e.getCause().getCause() instanceof ChildWorkflowException);
-      assertTrue(e.getCause().getCause().getCause() instanceof NumberFormatException);
-      assertTrue(e.getCause().getCause().getCause().getCause() instanceof ActivityException);
-      assertTrue(e.getCause().getCause().getCause().getCause().getCause() instanceof IOException);
+      assertTrue(e.getCause() instanceof ApplicationException);
       assertEquals(
-          "simulated IO problem",
+          FileNotFoundException.class.getName(), ((ApplicationException) e.getCause()).getType());
+      assertTrue(e.getCause().getCause() instanceof ChildWorkflowException);
+      assertTrue(e.getCause().getCause().getCause() instanceof ApplicationException);
+      assertEquals(
+          NumberFormatException.class.getName(),
+          ((ApplicationException) e.getCause().getCause().getCause()).getType());
+      assertTrue(e.getCause().getCause().getCause().getCause() instanceof ActivityException);
+      assertTrue(
+          e.getCause().getCause().getCause().getCause().getCause() instanceof ApplicationException);
+      assertEquals(
+          IOException.class.getName(),
+          ((ApplicationException) e.getCause().getCause().getCause().getCause().getCause())
+              .getType());
+      assertEquals(
+          "message='simulated IO problem', type='java.io.IOException', nonRetryable=false",
           e.getCause().getCause().getCause().getCause().getCause().getMessage());
     }
   }
@@ -3055,7 +3085,6 @@ public class WorkflowTest {
       }
       ITestNamedChild child2 = Workflow.newChildWorkflowStub(ITestNamedChild.class, options);
       ChildWorkflowStub child2Stub = ChildWorkflowStub.fromTyped(child2);
-      child2Stub.getExecution().get();
       // Same as String r2 = child2.execute("World!");
       String r2 = child2Stub.execute(String.class, "World!");
       if (parallel) {
@@ -3401,10 +3430,11 @@ public class WorkflowTest {
       client.execute(taskList);
       fail("unreachable");
     } catch (WorkflowFailedException e) {
-      assertTrue(e.getCause() instanceof SignalExternalWorkflowException);
+      assertTrue(e.getCause() instanceof ApplicationException);
       assertEquals(
-          "invalid id",
-          ((SignalExternalWorkflowException) e.getCause()).getExecution().getWorkflowId());
+          SignalExternalWorkflowException.class.getName(),
+          ((ApplicationException) e.getCause()).getType());
+      assertTrue(e.getCause().getMessage().contains("invalid id"));
     }
   }
 
@@ -3492,8 +3522,13 @@ public class WorkflowTest {
       fail("unreachable");
     } catch (WorkflowException e) {
       assertTrue(String.valueOf(e.getCause()), e.getCause() instanceof ChildWorkflowException);
-      assertTrue(e.getCause().getCause() instanceof UnsupportedOperationException);
-      assertEquals("simulated failure", e.getCause().getCause().getMessage());
+      assertTrue(e.getCause().getCause() instanceof ApplicationException);
+      assertEquals(
+          UnsupportedOperationException.class.getName(),
+          ((ApplicationException) e.getCause().getCause()).getType());
+      assertEquals(
+          "message='simulated failure', type='java.lang.UnsupportedOperationException', nonRetryable=false",
+          e.getCause().getCause().getMessage());
     }
     assertEquals(3, angryChildActivity.getInvocationCount());
   }
@@ -3606,7 +3641,10 @@ public class WorkflowTest {
       workflowStub.execute(testName.getMethodName());
       fail("unreachable");
     } catch (WorkflowException e) {
-      assertEquals(e.toString(), "simulated 3", e.getCause().getMessage());
+      assertEquals(
+          e.toString(),
+          "message='simulated 3', type='java.lang.IllegalStateException', nonRetryable=false",
+          e.getCause().getMessage());
     } finally {
       long elapsed = currentTimeMillis() - start;
       assertTrue(String.valueOf(elapsed), elapsed >= 2000); // Ensure that retry delays the restart
@@ -3649,8 +3687,13 @@ public class WorkflowTest {
       workflowStub.execute(testName.getMethodName());
       fail("unreachable");
     } catch (WorkflowException e) {
-      assertTrue(e.getCause() instanceof IllegalArgumentException);
-      assertEquals("simulated 3", e.getCause().getMessage());
+      assertTrue(e.getCause() instanceof ApplicationException);
+      assertEquals(
+          IllegalArgumentException.class.getName(),
+          ((ApplicationException) e.getCause()).getType());
+      assertEquals(
+          "message='simulated 3', type='java.lang.IllegalArgumentException', nonRetryable=false",
+          e.getCause().getMessage());
     }
   }
 
@@ -4833,7 +4876,9 @@ public class WorkflowTest {
       workflowStub.execute(taskList);
       fail("unreachable");
     } catch (WorkflowException e) {
-      assertEquals("unsupported change version", e.getCause().getMessage());
+      assertEquals(
+          "message='unsupported change version', type='java.lang.Exception', nonRetryable=false",
+          e.getCause().getMessage());
     }
   }
 
@@ -5341,10 +5386,15 @@ public class WorkflowTest {
       try {
         localActivities.throwIO();
       } catch (ActivityException e) {
+        e.printStackTrace();
         try {
           assertTrue(e.getMessage().contains("throwIO"));
-          assertTrue(e.getCause() instanceof IOException);
-          assertEquals("simulated IO problem", e.getCause().getMessage());
+          assertTrue(e.getCause() instanceof ApplicationException);
+          assertEquals(
+              IOException.class.getName(), ((ApplicationException) e.getCause()).getType());
+          assertEquals(
+              "message='simulated IO problem', type='java.io.IOException', nonRetryable=false",
+              e.getCause().getMessage());
         } catch (AssertionError ae) {
           // Errors cause decision to fail. But we want workflow to fail in this case.
           throw new RuntimeException(ae);
@@ -6007,7 +6057,7 @@ public class WorkflowTest {
       signalStub.getSignal();
       fail("unreachable"); // as not listener is not registered yet
     } catch (WorkflowQueryException e) {
-      assertTrue(e.getMessage().contains("Unknown query type: getSignal"));
+      assertTrue(e.getCause().getMessage().contains("Unknown query type: getSignal"));
     }
     stub.register();
     while (true) {

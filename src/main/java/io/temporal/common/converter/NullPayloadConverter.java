@@ -17,29 +17,32 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.failure;
+package io.temporal.common.converter;
 
-import io.temporal.proto.failure.Failure;
+import io.temporal.proto.common.Payload;
+import java.lang.reflect.Type;
 import java.util.Optional;
 
-public abstract class TemporalFailure extends TemporalException {
-  private Optional<Failure> failure = Optional.empty();
-  private final String originalMessage;
-
-  protected TemporalFailure(String message, String originalMessage, Throwable cause) {
-    super(message, cause);
-    this.originalMessage = originalMessage;
+public class NullPayloadConverter implements PayloadConverter {
+  @Override
+  public String getEncodingType() {
+    return EncodingKeys.METADATA_ENCODING_NULL_NAME;
   }
 
-  Optional<Failure> getFailure() {
-    return failure;
+  @Override
+  public Optional<Payload> toData(Object value) throws DataConverterException {
+    if (value == null) {
+      return Optional.of(
+          Payload.newBuilder()
+              .putMetadata(EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_NULL)
+              .build());
+    }
+    return Optional.empty();
   }
 
-  void setFailure(Failure failure) {
-    this.failure = Optional.of(failure);
-  }
-
-  public String getOriginalMessage() {
-    return originalMessage == null ? "" : originalMessage;
+  @Override
+  public <T> T fromData(Payload content, Class<T> valueClass, Type valueType)
+      throws DataConverterException {
+    return null;
   }
 }

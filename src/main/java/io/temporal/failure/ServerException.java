@@ -23,7 +23,7 @@ public final class ServerException extends TemporalFailure {
   private final boolean nonRetryable;
 
   public ServerException(String message, boolean nonRetryable, Throwable cause) {
-    super(message, cause);
+    super(message, message, cause);
     this.nonRetryable = nonRetryable;
   }
 

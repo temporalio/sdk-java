@@ -24,6 +24,7 @@ import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
+import io.temporal.client.WorkflowException;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
@@ -478,6 +479,9 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     if (failure instanceof CancellationException) {
       return (CancellationException) failure;
     }
+    if (failure instanceof WorkflowException) {
+      return (RuntimeException) failure;
+    }
     if (failure instanceof ChildWorkflowException) {
       return (ChildWorkflowException) failure;
     }
@@ -487,6 +491,10 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     ChildWorkflowTaskFailedException taskFailed = (ChildWorkflowTaskFailedException) failure;
     Throwable cause =
         FailureConverter.failureToException(taskFailed.getFailure(), getDataConverter());
+    // To support WorkflowExecutionAlreadyStarted set at handleStartChildWorkflowExecutionFailed
+    if (cause == null) {
+      cause = failure.getCause();
+    }
     if (cause instanceof ApplicationException
         && ((ApplicationException) cause).getType() == "SimulatedTimeoutException") {
       // TODO(maxim): Add support for simulated timeouts

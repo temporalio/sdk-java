@@ -19,6 +19,7 @@
 
 package io.temporal.failure;
 
+import com.google.common.base.Strings;
 import io.temporal.common.converter.Value;
 import io.temporal.common.converter.WrappedValue;
 
@@ -29,7 +30,7 @@ public final class ApplicationException extends TemporalFailure {
 
   public ApplicationException(
       String message, String type, Object details, boolean nonRetryable, Exception cause) {
-    super(message, cause);
+    super(getMessage(message, type, nonRetryable), message, cause);
     this.type = type;
     this.details = new WrappedValue(details);
     this.nonRetryable = nonRetryable;
@@ -37,7 +38,7 @@ public final class ApplicationException extends TemporalFailure {
 
   ApplicationException(
       String message, String type, Value details, boolean nonRetryable, Exception cause) {
-    super(message, cause);
+    super(getMessage(message, type, nonRetryable), message, cause);
     this.type = type;
     this.details = details;
     this.nonRetryable = nonRetryable;
@@ -55,15 +56,12 @@ public final class ApplicationException extends TemporalFailure {
     return nonRetryable;
   }
 
-  @Override
-  public String toString() {
-    return "ApplicationException{"
-        + (getMessage() == null ? "" : "message='" + getMessage() + "\', ")
+  private static String getMessage(String message, String type, boolean nonRetryable) {
+    return (Strings.isNullOrEmpty(message) ? "" : "message='" + message + "\', ")
         + "type='"
         + type
         + '\''
         + ", nonRetryable="
-        + nonRetryable
-        + '}';
+        + nonRetryable;
   }
 }

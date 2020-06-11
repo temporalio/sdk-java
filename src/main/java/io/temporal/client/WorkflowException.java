@@ -30,9 +30,16 @@ public abstract class WorkflowException extends TemporalException {
   private final String workflowType;
 
   protected WorkflowException(WorkflowExecution execution, String workflowType, Throwable cause) {
-    super(null, cause);
+    super(getMessage(execution, workflowType), cause);
     this.execution = Objects.requireNonNull(execution);
-    this.workflowType = Objects.requireNonNull(workflowType);
+    this.workflowType = workflowType;
+  }
+
+  protected WorkflowException(
+      String message, WorkflowExecution execution, String workflowType, Throwable cause) {
+    super(message, cause);
+    this.execution = Objects.requireNonNull(execution);
+    this.workflowType = workflowType;
   }
 
   public WorkflowExecution getExecution() {
@@ -44,14 +51,12 @@ public abstract class WorkflowException extends TemporalException {
     return workflowType;
   }
 
-  @Override
-  public String toString() {
-    return "WorkflowException{"
-        + "execution="
-        + execution
-        + ", workflowType='"
-        + workflowType
-        + '\''
+  public static String getMessage(WorkflowExecution execution, String workflowType) {
+    return "workflowId='"
+        + execution.getWorkflowId()
+        + "', runId='"
+        + execution.getRunId()
+        + (workflowType == null ? "" : "', workflowType='" + workflowType + '\'')
         + '}';
   }
 }

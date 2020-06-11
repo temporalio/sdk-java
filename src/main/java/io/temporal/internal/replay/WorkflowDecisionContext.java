@@ -356,11 +356,18 @@ final class WorkflowDecisionContext {
       OpenChildWorkflowRequestInfo scheduled =
           scheduledExternalWorkflows.remove(attributes.getInitiatedEventId());
       if (scheduled != null) {
-        RuntimeException failure =
+        Exception failure =
+            new ChildWorkflowTaskFailedException(
+                event.getEventId(),
+                WorkflowExecution.newBuilder().setWorkflowId(attributes.getWorkflowId()).build(),
+                attributes.getWorkflowType(),
+                RetryStatus.NonRetryableFailure,
+                null);
+        failure.initCause(
             new WorkflowExecutionAlreadyStarted(
                 WorkflowExecution.newBuilder().setWorkflowId(attributes.getWorkflowId()).build(),
                 attributes.getWorkflowType().getName(),
-                null);
+                null));
         BiConsumer<Optional<Payloads>, Exception> completionCallback =
             scheduled.getCompletionCallback();
         completionCallback.accept(Optional.empty(), failure);
@@ -418,8 +425,7 @@ final class WorkflowDecisionContext {
                 .setWorkflowId(attributes.getWorkflowExecution().getWorkflowId())
                 .setRunId(attributes.getWorkflowExecution().getRunId())
                 .build();
-        RuntimeException failure =
-            new SignalExternalWorkflowException(signaledExecution, null, null);
+        RuntimeException failure = new SignalExternalWorkflowException(signaledExecution, null);
         signalContextAndResult.getCompletionCallback().accept(null, failure);
       }
     }

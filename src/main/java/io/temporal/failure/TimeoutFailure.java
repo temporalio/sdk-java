@@ -28,7 +28,7 @@ public final class TimeoutFailure extends TemporalFailure {
 
   public TimeoutFailure(
       String message, Value lastHeartbeatDetails, TimeoutType timeoutType, Throwable cause) {
-    super(message, cause);
+    super(getMessage(message, timeoutType), message, cause);
     this.lastHeartbeatDetails = lastHeartbeatDetails;
     this.timeoutType = timeoutType;
   }
@@ -39,5 +39,9 @@ public final class TimeoutFailure extends TemporalFailure {
 
   public TimeoutType getTimeoutType() {
     return timeoutType;
+  }
+
+  public static String getMessage(String message, TimeoutType timeoutType) {
+    return (message == null ? "" : "message='" + message + "', ") + "timeoutType=" + timeoutType;
   }
 }

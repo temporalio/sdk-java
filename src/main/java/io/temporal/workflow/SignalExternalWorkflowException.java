@@ -26,19 +26,16 @@ import io.temporal.proto.common.WorkflowExecution;
 @SuppressWarnings("serial")
 public final class SignalExternalWorkflowException extends WorkflowException {
 
-  public SignalExternalWorkflowException(
-      WorkflowExecution execution, String workflowType, Throwable cause) {
-    super(execution, workflowType, cause);
+  public SignalExternalWorkflowException(WorkflowExecution execution, String workflowType) {
+    super(getMessage(execution, workflowType), execution, workflowType, null);
   }
 
-  @Override
-  public String toString() {
-    return "SignalExternalWorkflowException{"
-        + "execution="
-        + getExecution()
-        + ", workflowType='"
-        + getWorkflowType()
-        + '\''
-        + '}';
+  public static String getMessage(WorkflowExecution execution, String workflowType) {
+    return "message='Open execution not found', workflowId='"
+        + execution.getWorkflowId()
+        + "', runId='"
+        + execution.getRunId()
+        + "'"
+        + (workflowType == null ? "" : "', workflowType='" + workflowType + '\'');
   }
 }

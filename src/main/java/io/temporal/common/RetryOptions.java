@@ -88,7 +88,7 @@ public final class RetryOptions {
     }
     return builder
         .setMaximumAttempts(merge(r.maximumAttempts(), o.getMaximumAttempts(), int.class))
-        .setDoNotRetry(ObjectArrays.concat(r.doNotRetry(), o.getDoNotRetry(), String.class))
+        .setDoNotRetry(merge(r.doNotRetry(), o.getDoNotRetry()))
         .validateBuildWithDefaults();
   }
 
@@ -242,7 +242,7 @@ public final class RetryOptions {
           backoff,
           maximumAttempts,
           maximumInterval,
-          doNotRetry);
+          doNotRetry == null ? new String[0] : doNotRetry);
     }
   }
 
@@ -347,6 +347,13 @@ public final class RetryOptions {
       return o;
     }
     return aSeconds == 0 ? null : Duration.ofSeconds(aSeconds);
+  }
+
+  private static String[] merge(String[] fromAnnotation, String[] fromOptions) {
+    if (fromOptions != null) {
+      return fromOptions;
+    }
+    return fromAnnotation;
   }
 
   public long calculateSleepTime(long attempt) {

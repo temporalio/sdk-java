@@ -36,7 +36,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DefaultDataConverter implements DataConverter {
 
   private static final DataConverter INSTANCE =
-      new DefaultDataConverter(new ByteArrayPayloadConverter(), new JacksonJsonPayloadConverter());
+      new DefaultDataConverter(
+          new NullPayloadConverter(),
+          new ByteArrayPayloadConverter(),
+          new JacksonJsonPayloadConverter());
   private static final Object[] EMPTY_OBJECT_ARRAY = new Object[0];
   private final Map<String, PayloadConverter> converterMap = new ConcurrentHashMap<>();
   private final List<PayloadConverter> converters = new ArrayList<>();
@@ -54,9 +57,6 @@ public class DefaultDataConverter implements DataConverter {
 
   @Override
   public <T> Optional<Payload> toPayload(T value) {
-    if (value == null) {
-      return Optional.empty();
-    }
     for (PayloadConverter converter : converters) {
       Optional<Payload> result = converter.toData(value);
       if (result.isPresent()) {

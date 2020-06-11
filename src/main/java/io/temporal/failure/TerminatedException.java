@@ -22,6 +22,6 @@ package io.temporal.failure;
 public final class TerminatedException extends TemporalFailure {
 
   public TerminatedException(String message, Throwable cause) {
-    super(message, cause);
+    super(message, message, cause);
   }
 }

@@ -364,7 +364,6 @@ class WorkflowStubImpl implements WorkflowStub {
           FailureConverter.failureToException(
               executionFailed.getFailure(), clientOptions.getDataConverter());
       throw new WorkflowFailedException(
-          failure.getMessage(),
           execution.get(),
           workflowType.orElse(null),
           executionFailed.getDecisionTaskCompletedEventId(),

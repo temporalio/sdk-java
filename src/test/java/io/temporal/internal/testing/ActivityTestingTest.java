@@ -90,7 +90,9 @@ public class ActivityTestingTest {
       assertTrue(
           ((ApplicationException) e.getCause()).getType().equals(IOException.class.getName()));
 
-      assertEquals("simulated", e.getCause().getMessage());
+      assertEquals(
+          "message='simulated', type='java.io.IOException', nonRetryable=false",
+          e.getCause().getMessage());
       e.printStackTrace();
     }
   }

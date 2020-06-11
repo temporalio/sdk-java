@@ -34,6 +34,53 @@ import java.util.Optional;
  */
 final class WorkflowRetryerInternal {
 
+  static class SerializableRetryOptions {
+    private long initialIntervalMillis;
+
+    private double backoffCoefficient;
+
+    private int maximumAttempts;
+
+    private long maximumIntervalMillis;
+
+    private String[] doNotRetry;
+
+    public SerializableRetryOptions() {}
+
+    public SerializableRetryOptions(
+        long initialIntervalMillis,
+        double backoffCoefficient,
+        int maximumAttempts,
+        long maximumIntervalMillis,
+        String[] doNotRetry) {
+      this.initialIntervalMillis = initialIntervalMillis;
+      this.backoffCoefficient = backoffCoefficient;
+      this.maximumAttempts = maximumAttempts;
+      this.maximumIntervalMillis = maximumIntervalMillis;
+      this.doNotRetry = doNotRetry;
+    }
+
+    public long getInitialIntervalMillis() {
+      return initialIntervalMillis;
+    }
+
+    public double getBackoffCoefficient() {
+      return backoffCoefficient;
+    }
+
+    public int getMaximumAttempts() {
+      return maximumAttempts;
+    }
+
+    public long getMaximumIntervalMillis() {
+      return maximumIntervalMillis;
+    }
+
+    public String[] getDoNotRetry() {
+      return doNotRetry;
+    }
+  }
+
   /**
    * Retry procedure synchronously.
    *
@@ -69,13 +116,7 @@ final class WorkflowRetryerInternal {
     long startTime = WorkflowInternal.currentTimeMillis();
     // Records retry options in the history allowing changing them without breaking determinism.
     String retryId = WorkflowInternal.randomUUID().toString();
-    RetryOptions retryOptions =
-        WorkflowInternal.mutableSideEffect(
-            retryId,
-            RetryOptions.class,
-            RetryOptions.class,
-            Object::equals,
-            () -> RetryOptions.newBuilder(options).validateBuildWithDefaults());
+    RetryOptions retryOptions = getRetryOptionsSideEffect(retryId, options);
     while (true) {
       long nextSleepTime = retryOptions.calculateSleepTime(attempt);
       try {
@@ -113,13 +154,7 @@ final class WorkflowRetryerInternal {
       Functions.Func<Promise<R>> func,
       long startTime,
       long attempt) {
-    RetryOptions retryOptions =
-        WorkflowInternal.mutableSideEffect(
-            retryId,
-            RetryOptions.class,
-            RetryOptions.class,
-            Object::equals,
-            () -> RetryOptions.newBuilder(options).validateBuildWithDefaults());
+    RetryOptions retryOptions = getRetryOptionsSideEffect(retryId, options);
 
     CompletablePromise<R> funcResult = WorkflowInternal.newCompletablePromise();
     try {
@@ -147,6 +182,39 @@ final class WorkflowRetryerInternal {
                               retryId, retryOptions, expiration, func, startTime, attempt + 1));
             })
         .thenCompose((r) -> r);
+  }
+
+  private static RetryOptions getRetryOptionsSideEffect(String retryId, RetryOptions options) {
+    options = RetryOptions.newBuilder(options).validateBuildWithDefaults();
+    SerializableRetryOptions sOptions =
+        new SerializableRetryOptions(
+            options.getInitialInterval().toMillis(),
+            options.getBackoffCoefficient(),
+            options.getMaximumAttempts(),
+            options.getMaximumInterval().toMillis(),
+            options.getDoNotRetry());
+    SerializableRetryOptions sRetryOptions =
+        WorkflowInternal.mutableSideEffect(
+            retryId,
+            SerializableRetryOptions.class,
+            SerializableRetryOptions.class,
+            Object::equals,
+            () -> sOptions);
+    RetryOptions.Builder result =
+        RetryOptions.newBuilder()
+            .setBackoffCoefficient(sRetryOptions.getBackoffCoefficient())
+            .setInitialInterval(Duration.ofMillis(sRetryOptions.getInitialIntervalMillis()))
+            .setDoNotRetry(sRetryOptions.getDoNotRetry());
+    if (sRetryOptions.getMaximumIntervalMillis() > 0) {
+      result.setMaximumInterval(Duration.ofMillis(sRetryOptions.getMaximumIntervalMillis()));
+    }
+    if (sRetryOptions.getInitialIntervalMillis() > 0) {
+      result.setInitialInterval(Duration.ofMillis(sRetryOptions.getInitialIntervalMillis()));
+    }
+    if (sRetryOptions.getMaximumAttempts() > 0) {
+      result.setMaximumAttempts(sRetryOptions.getMaximumAttempts());
+    }
+    return result.build();
   }
 
   static <R> Promise<R> retryAsync(

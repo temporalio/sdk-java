@@ -19,26 +19,34 @@
 
 package io.temporal.failure;
 
-import io.temporal.client.WorkflowException;
 import io.temporal.proto.common.RetryStatus;
 import io.temporal.proto.common.WorkflowExecution;
+import java.util.Objects;
 
-public final class ChildWorkflowException extends WorkflowException {
+public final class ChildWorkflowException extends TemporalFailure {
 
   private final long initiatedEventId;
   private final long startedEventId;
   private final String namespace;
   private final RetryStatus retryStatus;
+  private final WorkflowExecution execution;
+  private final String workflowType;
 
   public ChildWorkflowException(
       long initiatedEventId,
       long startedEventId,
       String workflowType,
-      WorkflowExecution workflowExecution,
+      WorkflowExecution execution,
       String namespace,
       RetryStatus retryStatus,
       Throwable cause) {
-    super(workflowExecution, workflowType, cause);
+    super(
+        getMessage(
+            execution, workflowType, initiatedEventId, startedEventId, namespace, retryStatus),
+        null,
+        cause);
+    this.execution = Objects.requireNonNull(execution);
+    this.workflowType = Objects.requireNonNull(workflowType);
     this.initiatedEventId = initiatedEventId;
     this.startedEventId = startedEventId;
     this.namespace = namespace;
@@ -61,15 +69,31 @@ public final class ChildWorkflowException extends WorkflowException {
     return retryStatus;
   }
 
-  @Override
-  public String toString() {
-    return "ChildWorkflowException{"
-        + "execution="
-        + getExecution()
-        + ", workflowType='"
-        + getWorkflowType()
+  public WorkflowExecution getExecution() {
+    return execution;
+  }
+
+  public String getWorkflowType() {
+    return workflowType;
+  }
+
+  public static String getMessage(
+      WorkflowExecution execution,
+      String workflowType,
+      long initiatedEventId,
+      long startedEventId,
+      String namespace,
+      RetryStatus retryStatus) {
+    return "workflowId='"
+        + execution.getWorkflowId()
         + '\''
-        + "initiatedEventId="
+        + ", runId='"
+        + execution.getRunId()
+        + '\''
+        + ", workflowType='"
+        + workflowType
+        + '\''
+        + ", initiatedEventId="
         + initiatedEventId
         + ", startedEventId="
         + startedEventId
@@ -77,7 +101,6 @@ public final class ChildWorkflowException extends WorkflowException {
         + namespace
         + '\''
         + ", retryStatus="
-        + retryStatus
-        + '}';
+        + retryStatus;
   }
 }

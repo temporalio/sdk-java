@@ -64,9 +64,12 @@ class MarkerHandler {
   static final class MarkerData {
 
     private static final class MarkerHeader {
-      private final String id;
-      private final long eventId;
-      private final int accessCount;
+      private String id;
+      private long eventId;
+      private int accessCount;
+
+      // Needed for Jackson deserialization
+      MarkerHeader() {}
 
       MarkerHeader(String id, long eventId, int accessCount) {
         this.id = id;

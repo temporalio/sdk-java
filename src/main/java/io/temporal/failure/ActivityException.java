@@ -21,7 +21,7 @@ package io.temporal.failure;
 
 import io.temporal.proto.common.RetryStatus;
 
-public final class ActivityException extends TemporalException {
+public final class ActivityException extends TemporalFailure {
 
   private final long scheduledEventId;
   private final long startedEventId;
@@ -38,7 +38,11 @@ public final class ActivityException extends TemporalException {
       RetryStatus retryStatus,
       String identity,
       Throwable cause) {
-    super(null, cause);
+    super(
+        getMessage(
+            scheduledEventId, startedEventId, activityType, activityId, retryStatus, identity),
+        null,
+        cause);
     this.scheduledEventId = scheduledEventId;
     this.startedEventId = startedEventId;
     this.activityType = activityType;
@@ -71,29 +75,25 @@ public final class ActivityException extends TemporalException {
     return retryStatus;
   }
 
-  @Override
-  public String getMessage() {
-    return toString();
-  }
-
-  @Override
-  public String toString() {
-    return "ActivityException{"
-        + "scheduledEventId="
+  public static String getMessage(
+      long scheduledEventId,
+      long startedEventId,
+      String activityType,
+      String activityId,
+      RetryStatus retryStatus,
+      String identity) {
+    return "scheduledEventId="
         + scheduledEventId
         + ", startedEventId="
         + startedEventId
         + ", activityType='"
         + activityType
         + '\''
-        + ", activityId='"
-        + activityId
-        + '\''
+        + (activityId == null ? "" : ", activityId='" + activityId + '\'')
         + ", identity='"
         + identity
         + '\''
         + ", retryStatus="
-        + retryStatus
-        + '}';
+        + retryStatus;
   }
 }

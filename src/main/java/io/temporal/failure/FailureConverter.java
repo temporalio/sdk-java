@@ -19,6 +19,8 @@
 
 package io.temporal.failure;
 
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableSet;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValue;
 import io.temporal.internal.common.CheckedExceptionWrapper;
@@ -34,11 +36,33 @@ import io.temporal.proto.failure.ResetWorkflowFailureInfo;
 import io.temporal.proto.failure.ServerFailureInfo;
 import io.temporal.proto.failure.TerminatedFailureInfo;
 import io.temporal.proto.failure.TimeoutFailureInfo;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class FailureConverter {
 
+  private static final Logger log = LoggerFactory.getLogger(FailureConverter.class);
+
   public static final String JAVA_SDK = "JavaSDK";
+  /**
+   * Stop emitting stack trace after this line. Makes serialized stack traces more readable and
+   * compact as it omits most of framework level code.
+   */
+  private static final ImmutableSet<String> CUTOFF_METHOD_NAMES =
+      ImmutableSet.of(
+          "io.temporal.internal.worker.POJOActivityImplementationFactory$POJOActivityImplementation.execute",
+          "io.temporal.internal.sync.POJODecisionTaskHandler$POJOWorkflowImplementation.execute");
+
+  /** Used to parse a stack trace line. */
+  private static final String TRACE_ELEMENT_REGEXP =
+      "((?<className>.*)\\.(?<methodName>.*))\\(((?<fileName>.*?)(:(?<lineNumber>\\d+))?)\\)";
+
+  private static final Pattern TRACE_ELEMENT_PATTERN = Pattern.compile(TRACE_ELEMENT_REGEXP);
 
   public static Exception failureToException(Failure failure, DataConverter dataConverter) {
     if (failure == null) {
@@ -47,6 +71,10 @@ public class FailureConverter {
     Exception result = failureToExceptionImpl(failure, dataConverter);
     if (result instanceof TemporalFailure) {
       ((TemporalFailure) result).setFailure(failure);
+    }
+    if (failure.getSource().equals(JAVA_SDK) && !failure.getStackTrace().isEmpty()) {
+      StackTraceElement[] stackTrace = parseStackTrace(failure.getStackTrace());
+      result.setStackTrace(stackTrace);
     }
     return result;
   }
@@ -137,22 +165,19 @@ public class FailureConverter {
 
   public static Failure exceptionToFailure(Throwable e, DataConverter dataConverter) {
     e = CheckedExceptionWrapper.unwrap(e);
+    String message;
     if (e instanceof TemporalFailure) {
       TemporalFailure tf = (TemporalFailure) e;
       if (tf.getFailure().isPresent()) {
         return tf.getFailure().get();
       }
+      message = tf.getOriginalMessage();
+    } else {
+      message = e.getMessage() == null ? "" : e.getMessage();
     }
-    StringBuilder st = new StringBuilder();
-    for (StackTraceElement traceElement : e.getStackTrace()) {
-      st.append(traceElement);
-      st.append("\n");
-    }
+    String stackTrace = serializeStackTrace(e);
     Failure.Builder failure =
-        Failure.newBuilder()
-            .setMessage(e.getMessage())
-            .setSource(JAVA_SDK)
-            .setStackTrace(st.toString());
+        Failure.newBuilder().setMessage(message).setSource(JAVA_SDK).setStackTrace(stackTrace);
     if (e.getCause() != null) {
       failure.setCause(exceptionToFailure(e.getCause(), dataConverter));
     }
@@ -195,7 +220,7 @@ public class FailureConverter {
       ActivityException ae = (ActivityException) e;
       ActivityFailureInfo.Builder info =
           ActivityFailureInfo.newBuilder()
-              .setActivityId(ae.getActivityId())
+              .setActivityId(ae.getActivityId() == null ? "" : ae.getActivityId())
               .setActivityType(ActivityType.newBuilder().setName(ae.getActivityType()))
               .setIdentity(ae.getIdentity())
               .setRetryStatus(ae.getRetryStatus())
@@ -208,7 +233,7 @@ public class FailureConverter {
           ChildWorkflowExecutionFailureInfo.newBuilder()
               .setInitiatedEventId(ce.getInitiatedEventId())
               .setStartedEventId(ce.getStartedEventId())
-              .setNamespace(ce.getNamespace())
+              .setNamespace(ce.getNamespace() == null ? "" : ce.getNamespace())
               .setRetryStatus(ce.getRetryStatus())
               .setWorkflowType(WorkflowType.newBuilder().setName(ce.getWorkflowType()))
               .setWorkflowExecution(ce.getExecution());
@@ -221,5 +246,65 @@ public class FailureConverter {
       failure.setApplicationFailureInfo(info);
     }
     return failure.build();
+  }
+
+  /** Parses stack trace serialized using {@link #serializeStackTrace(Throwable)}. */
+  public static StackTraceElement[] parseStackTrace(String stackTrace) {
+    if (Strings.isNullOrEmpty(stackTrace)) {
+      return new StackTraceElement[0];
+    }
+    try {
+      @SuppressWarnings("StringSplitter")
+      String[] lines = stackTrace.split("\r\n|\n");
+      StackTraceElement[] result = new StackTraceElement[lines.length];
+      for (int i = 0; i < lines.length; i++) {
+        result[i] = parseStackTraceElement(lines[i]);
+      }
+      return result;
+    } catch (Exception e) {
+      if (log.isWarnEnabled()) {
+        log.warn("Failed to parse stack trace: " + stackTrace);
+      }
+      return new StackTraceElement[0];
+    }
+  }
+
+  /**
+   * See {@link StackTraceElement#toString()} for input specification.
+   *
+   * @param line line of stack trace.
+   * @return StackTraceElement that contains data from that line.
+   */
+  private static StackTraceElement parseStackTraceElement(String line) {
+    Matcher matcher = TRACE_ELEMENT_PATTERN.matcher(line);
+    if (!matcher.matches()) {
+      return null;
+    }
+    String declaringClass = matcher.group("className");
+    String methodName = matcher.group("methodName");
+    String fileName = matcher.group("fileName");
+    int lineNumber = 0;
+    String lns = matcher.group("lineNumber");
+    if (lns != null && lns.length() > 0) {
+      try {
+        lineNumber = Integer.parseInt(matcher.group("lineNumber"));
+      } catch (NumberFormatException e) {
+      }
+    }
+    return new StackTraceElement(declaringClass, methodName, fileName, lineNumber);
+  }
+
+  public static String serializeStackTrace(Throwable e) {
+    StringWriter sw = new StringWriter();
+    PrintWriter pw = new PrintWriter(sw);
+    StackTraceElement[] trace = e.getStackTrace();
+    for (StackTraceElement element : trace) {
+      pw.println(element);
+      String fullMethodName = element.getClassName() + "." + element.getMethodName();
+      if (CUTOFF_METHOD_NAMES.contains(fullMethodName)) {
+        break;
+      }
+    }
+    return sw.toString();
   }
 }

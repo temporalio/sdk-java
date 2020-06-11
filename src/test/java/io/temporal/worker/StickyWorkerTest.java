@@ -226,7 +226,7 @@ public class StickyWorkerTest {
     int count = 100;
     ActivitiesWorkflow[] workflows = new ActivitiesWorkflow[count];
     WorkflowParams w = new WorkflowParams();
-    w.TemporalSleep = Duration.ofSeconds(1);
+    w.TemporalSleepMillis = 1000;
     w.ChainSequence = 2;
     w.ConcurrentCount = 1;
     w.PayloadSizeBytes = 10;
@@ -276,7 +276,7 @@ public class StickyWorkerTest {
 
     // Act
     WorkflowParams w = new WorkflowParams();
-    w.TemporalSleep = Duration.ofSeconds(1);
+    w.TemporalSleepMillis = 1000;
     w.ChainSequence = 2;
     w.ConcurrentCount = 1;
     w.PayloadSizeBytes = 10;
@@ -585,7 +585,7 @@ public class StickyWorkerTest {
     public int ConcurrentCount;
     public String TaskListName;
     public int PayloadSizeBytes;
-    public Duration TemporalSleep; // nano
+    public long TemporalSleepMillis;
   }
 
   @WorkflowInterface
@@ -699,7 +699,7 @@ public class StickyWorkerTest {
           promise.get();
         }
 
-        Workflow.sleep(params.TemporalSleep);
+        Workflow.sleep(params.TemporalSleepMillis);
       }
     }
   }

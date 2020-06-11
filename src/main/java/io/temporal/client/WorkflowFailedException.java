@@ -32,13 +32,16 @@ public final class WorkflowFailedException extends WorkflowException {
   private final long decisionTaskCompletedEventId;
 
   public WorkflowFailedException(
-      String message,
       WorkflowExecution workflowExecution,
       String workflowType,
       long decisionTaskCompletedEventId,
       RetryStatus retryStatus,
       Throwable cause) {
-    super(workflowExecution, workflowType, cause);
+    super(
+        getMessage(workflowExecution, workflowType, decisionTaskCompletedEventId, retryStatus),
+        workflowExecution,
+        workflowType,
+        cause);
     this.retryStatus = retryStatus;
     this.decisionTaskCompletedEventId = decisionTaskCompletedEventId;
   }
@@ -51,18 +54,21 @@ public final class WorkflowFailedException extends WorkflowException {
     return decisionTaskCompletedEventId;
   }
 
-  @Override
-  public String toString() {
-    return "WorkflowFailedException{"
-        + "execution="
-        + getExecution()
-        + ", workflowType='"
-        + getWorkflowType()
+  public static String getMessage(
+      WorkflowExecution workflowExecution,
+      String workflowType,
+      long decisionTaskCompletedEventId,
+      RetryStatus retryStatus) {
+    return "workflowId='"
+        + workflowExecution.getWorkflowId()
+        + "', runId='"
+        + workflowExecution.getRunId()
+        + "', workflowType='"
+        + workflowType
         + '\''
-        + "retryStatus="
+        + ", retryStatus="
         + retryStatus
         + ", decisionTaskCompletedEventId="
-        + decisionTaskCompletedEventId
-        + '}';
+        + decisionTaskCompletedEventId;
   }
 }

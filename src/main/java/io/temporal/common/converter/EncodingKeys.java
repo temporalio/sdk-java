@@ -24,6 +24,10 @@ import java.nio.charset.StandardCharsets;
 
 class EncodingKeys {
   static final String METADATA_ENCODING_KEY = "encoding";
+  static final String METADATA_ENCODING_NULL_NAME = "null";
+  static final ByteString METADATA_ENCODING_NULL =
+      ByteString.copyFrom(METADATA_ENCODING_NULL_NAME, StandardCharsets.UTF_8);
+
   static final String METADATA_ENCODING_RAW_NAME = "raw";
   static final ByteString METADATA_ENCODING_RAW =
       ByteString.copyFrom(METADATA_ENCODING_RAW_NAME, StandardCharsets.UTF_8);

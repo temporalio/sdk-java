@@ -175,7 +175,6 @@ public class WorkflowExecutionUtils {
         WorkflowExecutionTerminatedEventAttributes terminated =
             closeEvent.getWorkflowExecutionTerminatedEventAttributes();
         throw new WorkflowFailedException(
-            "Terminated",
             workflowExecution,
             workflowType.orElse(null),
             0,
@@ -185,7 +184,6 @@ public class WorkflowExecutionUtils {
         WorkflowExecutionTimedOutEventAttributes timedOut =
             closeEvent.getWorkflowExecutionTimedOutEventAttributes();
         throw new WorkflowFailedException(
-            "Timed out",
             workflowExecution,
             workflowType.orElse(null),
             0,

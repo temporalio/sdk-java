@@ -23,7 +23,6 @@ import static io.temporal.internal.replay.MarkerHandler.MUTABLE_MARKER_DATA_KEY;
 
 import com.google.common.base.Strings;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.LocalActivityMarkerData;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.worker.LocalActivityWorker;
@@ -268,7 +267,14 @@ public final class ClockDecisionContext {
 
       Exception failure = null;
       if (marker.getFailure().isPresent()) {
-        failure = FailureConverter.failureToException(marker.getFailure().get(), dataConverter);
+        failure =
+            new ActivityTaskFailedException(
+                eventId,
+                0,
+                0,
+                ActivityType.newBuilder().setName(marker.getActivityType()).build(),
+                marker.getActivityId(),
+                marker.getFailure().get());
       }
 
       BiConsumer<Optional<Payloads>, Exception> completionHandle =

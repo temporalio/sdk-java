@@ -34,6 +34,7 @@ public final class WrappedValue implements Value {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public <T> T get(Class<T> parameterType, Type genericParameterType)
       throws DataConverterException {
     return (T) value;
