@@ -676,7 +676,7 @@ public final class Workflow {
    * are rounded <b>up</b> to the nearest second.
    *
    * @return feature that becomes ready when at least specified number of seconds passes. promise is
-   *     failed with {@link java.util.concurrent.CanceledException} if enclosing scope is cancelled.
+   *     failed with {@link io.temporal.failure.CanceledException} if enclosing scope is cancelled.
    */
   public static Promise<Void> newTimer(Duration delay) {
     return WorkflowInternal.newTimer(delay);
@@ -766,7 +766,7 @@ public final class Workflow {
 
   /**
    * Invokes function retrying in case of failures according to retry options. Synchronous variant.
-   * Use {@link Async#retry(RetryOptions, Optional, Func)} for asynchronous functions.
+   * Use {@link Async#retry(RetryOptions, Optional, Functions.Func)} for asynchronous functions.
    *
    * @param options retry options that specify retry policy
    * @param expiration stop retrying after this interval if provided
@@ -780,7 +780,8 @@ public final class Workflow {
 
   /**
    * Invokes function retrying in case of failures according to retry options. Synchronous variant.
-   * Use {@link Async#retry(RetryOptions, Optional, Func)} for asynchronous functions.
+   * Use {@link Async#retry(RetryOptions, Optional, Functions.Func)} (RetryOptions, Optional, Func)}
+   * for asynchronous functions.
    *
    * @param options retry options that specify retry policy
    * @param expiration if specified stop retrying after this interval
@@ -807,8 +808,8 @@ public final class Workflow {
    * <p>The reason for such design is that returning originally thrown exception from a remote call
    * (which child workflow and activity invocations are ) would not allow adding context information
    * about a failure, like activity and child workflow id. So stubs always throw a subclass of
-   * {@link ActivityException} from calls to an activity and subclass of {@link
-   * io.temporal.workflow.ChildWorkflowException} from calls to a child workflow. The original
+   * {@link io.temporal.failure.ActivityException} from calls to an activity and subclass of {@link
+   * io.temporal.failure.ChildWorkflowException} from calls to a child workflow. The original
    * exception is attached as a cause to these wrapper exceptions. So as exceptions are always
    * wrapped adding checked ones to method signature causes more pain than benefit.
    *

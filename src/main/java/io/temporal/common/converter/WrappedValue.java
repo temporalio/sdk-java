@@ -30,6 +30,7 @@ public final class WrappedValue implements Value {
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public <T> T get(Class<T> parameterType) throws DataConverterException {
     return (T) value;
   }

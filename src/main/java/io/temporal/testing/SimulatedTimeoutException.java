@@ -25,9 +25,10 @@ import io.temporal.proto.common.TimeoutType;
 /**
  * SimulatedTimeoutException can be thrown from an activity or child workflow implementation to
  * simulate a timeout. To be used only in unit tests. If thrown from an activity the workflow code
- * is going to receive it as {@link io.temporal.workflow.ActivityTimeoutException}. If thrown from a
- * child workflow the workflow code is going to receive it as {@link
- * io.temporal.workflow.ChildWorkflowTimedOutException}.
+ * is going to receive it as {@link io.temporal.failure.ActivityException} with {@link
+ * io.temporal.failure.TimeoutFailure} as a cause. If thrown from a child workflow the workflow code
+ * is going to receive it as {@link io.temporal.failure.ChildWorkflowException} with {@link
+ * io.temporal.failure.TimeoutFailure} as a cause.
  */
 @VisibleForTesting
 public final class SimulatedTimeoutException extends RuntimeException {

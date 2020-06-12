@@ -162,8 +162,8 @@ public class WorkflowTest {
   private static final String ANNOTATION_TASK_LIST = "WorkflowTest-testExecute[Docker]";
 
   private TracingWorkflowInterceptor tracer;
-  private static final boolean useExternalService = false;
-  //      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+  private static final boolean useExternalService =
+      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
   private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
   // Enable to regenerate JsonFiles used for replay testing.
   // Only enable when USE_DOCKER_SERVICE is true
