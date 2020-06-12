@@ -695,8 +695,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       RequestContext ctx, ScheduleActivityTaskDecisionAttributes a, long decisionTaskCompletedId) {
     a = validateScheduleActivityTask(a);
     String activityId = a.getActivityId();
-    Long activityscheduledEventId = activityById.get(activityId);
-    if (activityscheduledEventId != null) {
+    Long activityScheduledEventId = activityById.get(activityId);
+    if (activityScheduledEventId != null) {
       throw Status.FAILED_PRECONDITION
           .withDescription("Already open activity with " + activityId)
           .asRuntimeException();

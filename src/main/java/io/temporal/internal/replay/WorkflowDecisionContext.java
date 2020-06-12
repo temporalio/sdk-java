@@ -22,7 +22,8 @@ package io.temporal.internal.replay;
 import static io.temporal.internal.common.DataConverterUtils.toHeaderGrpc;
 
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
-import io.temporal.common.converter.WrappedValue;
+import io.temporal.common.converter.Value;
+import io.temporal.failure.CanceledException;
 import io.temporal.failure.ChildWorkflowException;
 import io.temporal.failure.TerminatedException;
 import io.temporal.failure.TimeoutFailure;
@@ -58,7 +59,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
-import java.util.concurrent.CancellationException;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -102,7 +102,7 @@ final class WorkflowDecisionContext {
         case ABANDON:
         case TRY_CANCEL:
           scheduledExternalWorkflows.remove(initiatedEventId);
-          CancellationException e = new CancellationException();
+          CanceledException e = new CanceledException("Canceled without waiting");
           BiConsumer<Optional<Payloads>, Exception> completionCallback =
               scheduled.getCompletionCallback();
           completionCallback.accept(Optional.empty(), e);
@@ -269,7 +269,7 @@ final class WorkflowDecisionContext {
     if (scheduled.getCancellationType()
         == ChildWorkflowCancellationType.WAIT_CANCELLATION_REQUESTED) {
       scheduledExternalWorkflows.remove(attributes.getInitiatedEventId());
-      CancellationException e = new CancellationException();
+      CanceledException e = new CanceledException("Child workflow cancellation requested");
       BiConsumer<Optional<Payloads>, Exception> completionCallback =
           scheduled.getCompletionCallback();
       completionCallback.accept(Optional.empty(), e);
@@ -283,7 +283,8 @@ final class WorkflowDecisionContext {
       OpenChildWorkflowRequestInfo scheduled =
           scheduledExternalWorkflows.remove(attributes.getInitiatedEventId());
       if (scheduled != null) {
-        CancellationException e = new CancellationException();
+        // TODO(maxim): Add support for passing details without using converter here
+        CanceledException e = new CanceledException("Child canceled");
         BiConsumer<Optional<Payloads>, Exception> completionCallback =
             scheduled.getCompletionCallback();
         completionCallback.accept(Optional.empty(), e);
@@ -317,7 +318,7 @@ final class WorkflowDecisionContext {
                 attributes.getWorkflowExecution(),
                 attributes.getNamespace(),
                 attributes.getRetryStatus(),
-                new TimeoutFailure(null, new WrappedValue(null), TimeoutType.StartToClose, null));
+                new TimeoutFailure(null, Value.NULL, TimeoutType.StartToClose, null));
         BiConsumer<Optional<Payloads>, Exception> completionCallback =
             scheduled.getCompletionCallback();
         completionCallback.accept(Optional.empty(), failure);

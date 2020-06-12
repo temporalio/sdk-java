@@ -30,6 +30,7 @@ import com.uber.m3.tally.StatsReporter;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.failure.CanceledException;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.metrics.NoopScope;
@@ -55,7 +56,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -353,7 +353,7 @@ public class DeterministicRunnerTest {
               try {
                 var.get();
                 trace.add("after get");
-              } catch (CancellationException e) {
+              } catch (CanceledException e) {
                 trace.add("scope cancelled");
               }
               trace.add("root done");
@@ -395,7 +395,7 @@ public class DeterministicRunnerTest {
               try {
                 var.get();
                 trace.add("after get");
-              } catch (CancellationException e) {
+              } catch (CanceledException e) {
                 trace.add("scope cancelled");
               }
               trace.add("root done");
@@ -422,7 +422,7 @@ public class DeterministicRunnerTest {
           try {
             Workflow.sleep(milliseconds);
             trace.add("timer fired");
-          } catch (CancellationException e) {
+          } catch (CanceledException e) {
             trace.add("timer cancelled");
             throw e;
           }
@@ -523,7 +523,7 @@ public class DeterministicRunnerTest {
           "thread1 started",
           "thread2 started",
           "thread2 done",
-          "thread1 exception: CancellationException",
+          "thread1 exception: CanceledException",
           "thread1 done",
           "root done"
         };
@@ -548,7 +548,7 @@ public class DeterministicRunnerTest {
                                   () ->
                                       unblock1 || CancellationScope.current().isCancelRequested());
                               if (CancellationScope.current().isCancelRequested()) {
-                                done.completeExceptionally(new CancellationException());
+                                done.completeExceptionally(new CanceledException("test"));
                               } else {
                                 done.complete(null);
                               }
@@ -558,7 +558,7 @@ public class DeterministicRunnerTest {
                   .run();
               try {
                 done.get();
-              } catch (CancellationException e) {
+              } catch (CanceledException e) {
                 trace.add("done cancelled");
               }
               trace.add("root done");

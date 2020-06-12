@@ -19,6 +19,7 @@
 
 package io.temporal.failure;
 
+import com.google.common.base.Strings;
 import io.temporal.common.converter.Value;
 import io.temporal.proto.common.TimeoutType;
 
@@ -42,6 +43,8 @@ public final class TimeoutFailure extends TemporalFailure {
   }
 
   public static String getMessage(String message, TimeoutType timeoutType) {
-    return (message == null ? "" : "message='" + message + "', ") + "timeoutType=" + timeoutType;
+    return (Strings.isNullOrEmpty(message) ? "" : "message='" + message + "', ")
+        + "timeoutType="
+        + timeoutType;
   }
 }

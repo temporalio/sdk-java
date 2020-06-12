@@ -27,6 +27,7 @@ import io.temporal.client.ActivityCancelledException;
 import io.temporal.client.ActivityCompletionFailureException;
 import io.temporal.client.ActivityNotExistsException;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.failure.CanceledException;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.OptionsUtils;
@@ -45,7 +46,6 @@ import io.temporal.proto.workflowservice.RespondActivityTaskFailedByIdRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.Optional;
-import java.util.concurrent.CancellationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -199,7 +199,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
   }
 
   @Override
-  public void recordHeartbeat(Object details) throws CancellationException {
+  public void recordHeartbeat(Object details) throws CanceledException {
     Optional<Payloads> convertedDetails = dataConverter.toData(details);
     if (taskToken != null) {
       RecordActivityTaskHeartbeatRequest.Builder request =

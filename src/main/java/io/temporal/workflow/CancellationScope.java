@@ -19,8 +19,8 @@
 
 package io.temporal.workflow;
 
+import io.temporal.failure.CanceledException;
 import io.temporal.internal.sync.WorkflowInternal;
-import java.util.concurrent.CancellationException;
 
 /**
  * Handle to a cancellation scope created through {@link Workflow#newCancellationScope(Runnable)} or
@@ -43,7 +43,7 @@ public interface CancellationScope extends Runnable {
    * Cancels the scope as well as all its children.
    *
    * @param reason human readable reason for the cancellation. Becomes message of the
-   *     CancellationException thrown.
+   *     CanceledException thrown.
    */
   void cancel(String reason);
 
@@ -68,13 +68,10 @@ public interface CancellationScope extends Runnable {
     return WorkflowInternal.currentCancellationScope();
   }
 
-  /**
-   * Throws {@link java.util.concurrent.CancellationException} if scope is cancelled. Noop if not
-   * cancelled.
-   */
-  static void throwCancelled() throws CancellationException {
+  /** Throws {@link CanceledException} if scope is cancelled. Noop if not cancelled. */
+  static void throwCancelled() throws CanceledException {
     if (current().isCancelRequested()) {
-      throw new CancellationException();
+      throw new CanceledException(current().getCancellationReason());
     }
   }
 }

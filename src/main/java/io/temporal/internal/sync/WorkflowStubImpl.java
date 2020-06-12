@@ -35,6 +35,7 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.failure.CanceledException;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
@@ -59,7 +60,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
@@ -376,8 +376,8 @@ class WorkflowStubImpl implements WorkflowStub {
       } else {
         throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), failure);
       }
-    } else if (failure instanceof CancellationException) {
-      throw (CancellationException) failure;
+    } else if (failure instanceof CanceledException) {
+      throw (CanceledException) failure;
     } else if (failure instanceof WorkflowException) {
       throw (WorkflowException) failure;
     } else {

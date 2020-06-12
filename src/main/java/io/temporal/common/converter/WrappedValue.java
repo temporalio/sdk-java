@@ -21,6 +21,7 @@ package io.temporal.common.converter;
 
 import java.lang.reflect.Type;
 
+/** Wraps a Java object into the Value interface. */
 public final class WrappedValue implements Value {
   private final Object value;
 

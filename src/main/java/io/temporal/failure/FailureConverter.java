@@ -165,6 +165,10 @@ public class FailureConverter {
 
   public static Failure exceptionToFailure(Throwable e, DataConverter dataConverter) {
     e = CheckedExceptionWrapper.unwrap(e);
+    return exceptionToFailureNoUnwrapping(e, dataConverter);
+  }
+
+  public static Failure exceptionToFailureNoUnwrapping(Throwable e, DataConverter dataConverter) {
     String message;
     if (e instanceof TemporalFailure) {
       TemporalFailure tf = (TemporalFailure) e;

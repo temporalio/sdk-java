@@ -689,12 +689,12 @@ class DecisionsHelper {
     // If it is the case then all the markers that precede it should be added as decisions
     // as their correspondent getVersion calls were removed.
     long changeIdMarkerEventId = -1;
-    MarkerRecordedEventAttributes eventAttributes =
-        markerEvent.get().getMarkerRecordedEventAttributes();
     if (changeId.isPresent()) {
       String id = changeId.get();
       long eventId = nextDecisionEventId;
       while (true) {
+        MarkerRecordedEventAttributes eventAttributes =
+            markerEvent.get().getMarkerRecordedEventAttributes();
         MarkerHandler.MarkerData markerData =
             MarkerHandler.MarkerData.fromEventAttributes(eventAttributes, converter.get());
 
@@ -714,6 +714,8 @@ class DecisionsHelper {
       }
     }
     do {
+      MarkerRecordedEventAttributes eventAttributes =
+          markerEvent.get().getMarkerRecordedEventAttributes();
       // If we have a version marker in history event but not in decisions, let's add one.
       RecordMarkerDecisionAttributes.Builder attributes =
           RecordMarkerDecisionAttributes.newBuilder()

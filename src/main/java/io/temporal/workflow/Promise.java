@@ -38,7 +38,7 @@ import java.util.concurrent.TimeoutException;
  *       exceptions. So wrapping must be done by the caller of that method.
  *   <li>Promise doesn't directly supports cancellation. Use {@link CancellationScope} to cancel and
  *       handle cancellations. The pattern is that a cancelled operation completes its Promise with
- *       {@link java.util.concurrent.CancellationException} when cancelled.
+ *       {@link java.util.concurrent.CanceledException} when cancelled.
  *   <li>{@link #handle(Functions.Func2)} and similar callback operations do not allow blocking
  *       calls inside functions
  * </ul>
@@ -65,15 +65,15 @@ public interface Promise<V> {
 
   /**
    * Waits if necessary for the computation to complete or fail, and then returns its result. This
-   * call is going to throw {@link java.util.concurrent.CancellationException} without waiting for
-   * this Promise to become ready. Note that in the most situations it is better to let the
-   * operation that returned a Promise to perform cleanup and then complete the promise with
-   * CancellationException. So calling {@link #get()} on an asynchronous activity or child workflow
+   * call is going to throw {@link java.util.concurrent.CanceledException} without waiting for this
+   * Promise to become ready. Note that in the most situations it is better to let the operation
+   * that returned a Promise to perform cleanup and then complete the promise with
+   * CanceledException. So calling {@link #get()} on an asynchronous activity or child workflow
    * invocation result is preferable.
    *
    * @return the computed result
    * @throws RuntimeException if the computation failed.
-   * @throws java.util.concurrent.CancellationException if surrounding @{@link CancellationScope} is
+   * @throws java.util.concurrent.CanceledException if surrounding @{@link CancellationScope} is
    *     cancelled.
    */
   V cancellableGet();
@@ -93,9 +93,9 @@ public interface Promise<V> {
   /**
    * Waits if necessary for at most the given time for the computation to complete, and then returns
    * its result, if available. This call is going to throw {@link
-   * java.util.concurrent.CancellationException} without waiting for this Promise to become ready.
-   * Note that in the most situations it is better to let the operation that returned a Promise to
-   * perform cleanup and then complete the promise with CancellationException. So calling {@link
+   * java.util.concurrent.CanceledException} without waiting for this Promise to become ready. Note
+   * that in the most situations it is better to let the operation that returned a Promise to
+   * perform cleanup and then complete the promise with CanceledException. So calling {@link
    * #get(long, TimeUnit)} on an asynchronous activity or child workflow invocation result is
    * preferable.
    *
@@ -104,7 +104,7 @@ public interface Promise<V> {
    * @return the computed result
    * @throws RuntimeException if the computation failed.
    * @throws TimeoutException if the wait timed out
-   * @throws java.util.concurrent.CancellationException if surrounding @{@link CancellationScope} is
+   * @throws java.util.concurrent.CanceledException if surrounding @{@link CancellationScope} is
    *     cancelled.
    */
   V cancellableGet(long timeout, TimeUnit unit) throws TimeoutException;

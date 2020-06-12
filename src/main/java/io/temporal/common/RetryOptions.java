@@ -20,9 +20,9 @@
 package io.temporal.common;
 
 import com.google.common.base.Defaults;
-import com.google.common.collect.ObjectArrays;
 import io.temporal.failure.ActivityException;
 import io.temporal.failure.ApplicationException;
+import io.temporal.failure.CanceledException;
 import io.temporal.failure.ChildWorkflowException;
 import java.time.Duration;
 import java.util.Arrays;
@@ -103,7 +103,7 @@ public final class RetryOptions {
         .setBackoffCoefficient(
             merge(getBackoffCoefficient(), o.getBackoffCoefficient(), double.class))
         .setMaximumAttempts(merge(getMaximumAttempts(), o.getMaximumAttempts(), int.class))
-        .setDoNotRetry(ObjectArrays.concat(getDoNotRetry(), o.getDoNotRetry(), String.class))
+        .setDoNotRetry(merge(getDoNotRetry(), o.getDoNotRetry()))
         .validateBuildWithDefaults();
   }
 
@@ -123,7 +123,7 @@ public final class RetryOptions {
             .setInitialInterval(getInitialInterval())
             .setMaximumInterval(getMaximumInterval())
             .setBackoffCoefficient(backoffCoefficient)
-            .setDoNotRetry(ObjectArrays.concat(doNotRetry, getDoNotRetry(), String.class));
+            .setDoNotRetry(merge(doNotRetry, getDoNotRetry()));
 
     if (getMaximumAttempts() > 0) {
       builder.setMaximumAttempts(getMaximumAttempts());
@@ -209,8 +209,8 @@ public final class RetryOptions {
      * List of exceptions application failures types to retry. Application failures are converted to
      * {@link ApplicationException#getType()}.
      *
-     * <p>{@link Error} and {@link java.util.concurrent.CancellationException} are never retried and
-     * are not even passed to this filter.
+     * <p>{@link Error} and {@link CanceledException} are never retried and are not even passed to
+     * this filter.
      */
     @SafeVarargs
     public final Builder setDoNotRetry(String... doNotRetry) {

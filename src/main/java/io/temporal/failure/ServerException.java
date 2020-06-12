@@ -19,6 +19,7 @@
 
 package io.temporal.failure;
 
+/** Exceptions originated at the Temporal service. */
 public final class ServerException extends TemporalFailure {
   private final boolean nonRetryable;
 

@@ -53,6 +53,8 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
+import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.GsonJsonPayloadConverter;
 import io.temporal.common.interceptors.BaseWorkflowInvoker;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
@@ -61,6 +63,7 @@ import io.temporal.common.interceptors.WorkflowInvocationInterceptor;
 import io.temporal.common.interceptors.WorkflowInvoker;
 import io.temporal.failure.ActivityException;
 import io.temporal.failure.ApplicationException;
+import io.temporal.failure.CanceledException;
 import io.temporal.failure.ChildWorkflowException;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.common.WorkflowExecutionHistory;
@@ -117,7 +120,6 @@ import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -532,8 +534,10 @@ public class WorkflowTest {
       workflowStub.execute(taskList);
       fail("unreachable");
     } catch (WorkflowException e) {
-      assertTrue(e.getCause() instanceof ApplicationException);
-      assertEquals(IOException.class.getName(), ((ApplicationException) e.getCause()).getType());
+      assertTrue(e.getCause() instanceof ActivityException);
+      assertTrue(e.getCause().getCause() instanceof ApplicationException);
+      assertEquals(
+          IOException.class.getName(), ((ApplicationException) e.getCause().getCause()).getType());
     }
     assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
   }
@@ -578,8 +582,10 @@ public class WorkflowTest {
       workflowStub.execute(taskList);
       fail("unreachable");
     } catch (WorkflowException e) {
-      assertTrue(e.getCause() instanceof ApplicationException);
-      assertEquals(IOException.class.getName(), ((ApplicationException) e.getCause()).getType());
+      assertTrue(e.getCause() instanceof ActivityException);
+      assertTrue(e.getCause().getCause() instanceof ApplicationException);
+      assertEquals(
+          IOException.class.getName(), ((ApplicationException) e.getCause().getCause()).getType());
     }
     assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
   }
@@ -770,8 +776,10 @@ public class WorkflowTest {
       workflowStub.execute(taskList);
       fail("unreachable");
     } catch (WorkflowException e) {
-      assertTrue(e.getCause() instanceof ApplicationException);
-      assertEquals(IOException.class.getName(), ((ApplicationException) e.getCause()).getType());
+      assertTrue(e.getCause() instanceof ActivityException);
+      assertTrue(e.getCause().getCause() instanceof ApplicationException);
+      assertEquals(
+          IOException.class.getName(), ((ApplicationException) e.getCause().getCause()).getType());
     }
     assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
   }
@@ -966,8 +974,10 @@ public class WorkflowTest {
       } catch (ActivityException e) {
         TimeoutFailure te = (TimeoutFailure) e.getCause();
         log.info("TestHeartbeatTimeoutDetails expected timeout", e);
-        assertEquals(TimeoutType.Heartbeat, te.getTimeoutType());
-        return te.getLastHeartbeatDetails().get(String.class);
+        assertEquals(TimeoutType.ScheduleToClose, te.getTimeoutType());
+        assertTrue(te.getCause() instanceof TimeoutFailure);
+        assertEquals(TimeoutType.Heartbeat, ((TimeoutFailure) te.getCause()).getTimeoutType());
+        return (te.getLastHeartbeatDetails().get(String.class));
       }
       throw new RuntimeException("unreachable");
     }
@@ -1033,7 +1043,7 @@ public class WorkflowTest {
     try {
       client.getResult(String.class);
       fail("unreachable");
-    } catch (CancellationException ignored) {
+    } catch (CanceledException ignored) {
     }
   }
 
@@ -1048,7 +1058,7 @@ public class WorkflowTest {
     try {
       client.getResult(String.class);
       fail("unreachable");
-    } catch (CancellationException ignored) {
+    } catch (CanceledException ignored) {
     }
   }
 
@@ -1073,7 +1083,7 @@ public class WorkflowTest {
     try {
       client.getResult(String.class);
       fail("unreachable");
-    } catch (CancellationException ignored) {
+    } catch (CanceledException ignored) {
     }
   }
 
@@ -1086,14 +1096,14 @@ public class WorkflowTest {
       try {
         testActivities.activityWithDelay(100000, true);
         fail("unreachable");
-      } catch (CancellationException e) {
+      } catch (CanceledException e) {
         Workflow.newDetachedCancellationScope(() -> assertEquals(1, testActivities.activity1(1)))
             .run();
       }
       try {
         Workflow.sleep(Duration.ofHours(1));
         fail("unreachable");
-      } catch (CancellationException e) {
+      } catch (CanceledException e) {
         Workflow.newDetachedCancellationScope(
                 () -> assertEquals("a12", testActivities.activity2("a1", 2)))
             .run();
@@ -1102,7 +1112,7 @@ public class WorkflowTest {
       try {
         Workflow.newTimer(Duration.ofHours(1)).get();
         fail("unreachable");
-      } catch (CancellationException e) {
+      } catch (CanceledException e) {
         Workflow.newDetachedCancellationScope(
                 () -> assertEquals("a123", testActivities.activity3("a1", 2, 3)))
             .run();
@@ -1124,7 +1134,7 @@ public class WorkflowTest {
     try {
       client.getResult(String.class);
       fail("unreachable");
-    } catch (CancellationException ignored) {
+    } catch (CanceledException ignored) {
     }
     activitiesImpl.assertInvocations("activityWithDelay", "activity1", "activity2", "activity3");
   }
@@ -1190,7 +1200,7 @@ public class WorkflowTest {
     public void execute() {
       try {
         Workflow.sleep(Duration.ofHours(1));
-      } catch (CancellationException e) {
+      } catch (CanceledException e) {
         Workflow.newDetachedCancellationScope(
                 () -> {
                   Workflow.sleep(Duration.ofSeconds(1));
@@ -1215,7 +1225,7 @@ public class WorkflowTest {
     try {
       stub.getResult(String.class);
       fail("unreachable");
-    } catch (CancellationException ignored) {
+    } catch (CanceledException ignored) {
     }
     long elapsed = currentTimeMillis() - start;
     assertTrue(elapsed < 500);
@@ -1237,7 +1247,7 @@ public class WorkflowTest {
     try {
       stub.getResult(String.class);
       fail("unreachable");
-    } catch (CancellationException ignored) {
+    } catch (CanceledException ignored) {
     }
     long elapsed = currentTimeMillis() - start;
     assertTrue(elapsed < 500);
@@ -1281,7 +1291,7 @@ public class WorkflowTest {
     try {
       client.getResult(String.class);
       fail("unreachable");
-    } catch (CancellationException ignored) {
+    } catch (CanceledException ignored) {
     }
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
@@ -1318,7 +1328,7 @@ public class WorkflowTest {
     try {
       client.getResult(String.class);
       fail("unreachable");
-    } catch (CancellationException ignored) {
+    } catch (CanceledException ignored) {
     }
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
@@ -1349,7 +1359,7 @@ public class WorkflowTest {
     try {
       client.getResult(String.class);
       fail("unreachable");
-    } catch (CancellationException ignored) {
+    } catch (CanceledException ignored) {
     }
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
@@ -1380,7 +1390,7 @@ public class WorkflowTest {
     try {
       client.getResult(String.class);
       fail("unreachable");
-    } catch (CancellationException ignored) {
+    } catch (CanceledException ignored) {
     }
     GetWorkflowExecutionHistoryRequest request =
         GetWorkflowExecutionHistoryRequest.newBuilder()
@@ -1770,29 +1780,25 @@ public class WorkflowTest {
 
       Map<String, Payload> fieldsMap = searchAttrFromEvent.getIndexedFieldsMap();
       Payload searchAttrStringBytes = fieldsMap.get(testKeyString);
+      DataConverter converter = DefaultDataConverter.getInstance();
       String retrievedString =
-          GsonJsonPayloadConverter.getInstance()
-              .fromData(searchAttrStringBytes, String.class, String.class);
+          converter.fromPayload(searchAttrStringBytes, String.class, String.class);
       assertEquals(testValueString, retrievedString);
       Payload searchAttrIntegerBytes = fieldsMap.get(testKeyInteger);
       Integer retrievedInteger =
-          GsonJsonPayloadConverter.getInstance()
-              .fromData(searchAttrIntegerBytes, Integer.class, Integer.class);
+          converter.fromPayload(searchAttrIntegerBytes, Integer.class, Integer.class);
       assertEquals(testValueInteger, retrievedInteger);
       Payload searchAttrDateTimeBytes = fieldsMap.get(testKeyDateTime);
       LocalDateTime retrievedDateTime =
-          GsonJsonPayloadConverter.getInstance()
-              .fromData(searchAttrDateTimeBytes, LocalDateTime.class, LocalDateTime.class);
+          converter.fromPayload(searchAttrDateTimeBytes, LocalDateTime.class, LocalDateTime.class);
       assertEquals(testValueDateTime, retrievedDateTime);
       Payload searchAttrBoolBytes = fieldsMap.get(testKeyBool);
       Boolean retrievedBool =
-          GsonJsonPayloadConverter.getInstance()
-              .fromData(searchAttrBoolBytes, Boolean.class, Boolean.class);
+          converter.fromPayload(searchAttrBoolBytes, Boolean.class, Boolean.class);
       assertEquals(testValueBool, retrievedBool);
       Payload searchAttrDoubleBytes = fieldsMap.get(testKeyDouble);
       Double retrievedDouble =
-          GsonJsonPayloadConverter.getInstance()
-              .fromData(searchAttrDoubleBytes, Double.class, Double.class);
+          converter.fromPayload(searchAttrDoubleBytes, Double.class, Double.class);
       assertEquals(testValueDouble, retrievedDouble);
     }
   }
@@ -2983,7 +2989,7 @@ public class WorkflowTest {
       try {
         child.execute("Hello ", (int) Duration.ofDays(1).toMillis());
       } catch (Exception e) {
-        return e.getClass().getSimpleName();
+        return Throwables.getStackTraceAsString(e);
       }
       throw new RuntimeException("not reachable");
     }
@@ -3033,7 +3039,9 @@ public class WorkflowTest {
             .setTaskList(taskList)
             .build();
     TestWorkflow1 client = workflowClient.newWorkflowStub(TestWorkflow1.class, options);
-    assertEquals("ChildWorkflowTimedOutException", client.execute(taskList));
+    String result = client.execute(taskList);
+    assertTrue(result, result.contains("ChildWorkflowException"));
+    assertTrue(result, result.contains("TimeoutFailure"));
   }
 
   public static class TestParentWorkflowContinueAsNew implements TestWorkflow1 {
@@ -3246,10 +3254,16 @@ public class WorkflowTest {
     try {
       client.execute(taskList);
       fail("unreachable");
-    } catch (WorkflowException e) {
+    } catch (WorkflowFailedException e) {
+      e.printStackTrace();
       assertTrue(e.toString(), e.getCause() instanceof ChildWorkflowException);
-      assertTrue(e.toString(), e.getCause().getCause() instanceof UnsupportedOperationException);
-      assertEquals("simulated failure", e.getCause().getCause().getMessage());
+      assertTrue(e.toString(), e.getCause().getCause() instanceof ApplicationException);
+      assertEquals(
+          UnsupportedOperationException.class.getName(),
+          ((ApplicationException) e.getCause().getCause()).getType());
+      assertEquals(
+          "message='simulated failure', type='java.lang.UnsupportedOperationException', nonRetryable=false",
+          e.getCause().getCause().getMessage());
     }
     assertEquals("TestWorkflow1", lastStartedWorkflowType.get());
     assertEquals(3, angryChildActivity.getInvocationCount());
@@ -3491,7 +3505,7 @@ public class WorkflowTest {
       client.execute(taskList);
       fail("unreachable");
     } catch (WorkflowFailedException e) {
-      assertTrue(e.getCause() instanceof CancellationException);
+      assertTrue(e.getCause() instanceof CanceledException);
     }
   }
 
@@ -3825,7 +3839,7 @@ public class WorkflowTest {
     try {
       client.getResult(String.class);
       fail("unreachable");
-    } catch (CancellationException ignored) {
+    } catch (CanceledException ignored) {
     }
 
     // Run 3 failed. So on run 4 we get the last completion result from run 2.
@@ -3864,7 +3878,7 @@ public class WorkflowTest {
     try {
       client.getResult(String.class);
       fail("unreachable");
-    } catch (CancellationException ignored) {
+    } catch (CanceledException ignored) {
     }
 
     // Run 3 failed. So on run 4 we get the last completion result from run 2.
@@ -4976,7 +4990,10 @@ public class WorkflowTest {
       fail("unreachable");
     } catch (WorkflowFailedException e) {
       // expected to fail on non deterministic error
-      assertTrue(e.getCause() instanceof Error);
+      assertTrue(e.getCause() instanceof ApplicationException);
+      assertEquals(
+          "io.temporal.internal.replay.NonDeterminisicWorkflowError",
+          ((ApplicationException) e.getCause()).getType());
       String causeMsg = e.getCause().getMessage();
       assertTrue(causeMsg, causeMsg.contains("nondeterministic"));
     }
@@ -5246,7 +5263,7 @@ public class WorkflowTest {
       try {
         localActivity.execute("execute", Void.class, "boo");
       } catch (ActivityException e) {
-        result.append(e.getCause().getClass().getSimpleName());
+        result.append(((ApplicationException) e.getCause()).getType());
       }
       return result.toString();
     }
@@ -5261,7 +5278,8 @@ public class WorkflowTest {
             TestWorkflow1.class, newWorkflowOptionsBuilder(taskList).build());
 
     String result = workflowStub.execute(taskList);
-    assertEquals("DataConverterException-DataConverterException", result);
+    assertEquals(
+        "ApplicationException-io.temporal.common.converter.DataConverterException", result);
   }
 
   @WorkflowInterface

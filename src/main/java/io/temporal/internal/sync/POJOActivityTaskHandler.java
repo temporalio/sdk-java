@@ -24,7 +24,6 @@ import com.google.common.base.Joiner;
 import com.uber.m3.tally.Scope;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.WrappedValue;
 import io.temporal.failure.CanceledException;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.metrics.MetricsType;
@@ -98,7 +97,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
       if (isLocalActivity) {
         metricsScope.counter(MetricsType.LOCAL_ACTIVITY_CANCELED_COUNTER).inc(1);
       }
-      throw new CanceledException(exception.getMessage(), new WrappedValue(null), null);
+      throw new CanceledException(exception.getMessage());
     }
 
     // Only expected during unit tests.

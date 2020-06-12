@@ -25,6 +25,7 @@ import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.failure.CanceledException;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.RpcRetryOptions;
@@ -42,7 +43,6 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.MDC;
 
@@ -192,7 +192,7 @@ public final class ActivityWorker implements SuspendableWorker {
         Duration duration = Duration.ofNanos(nanoTime - task.getScheduledTimestampOfThisAttempt());
         metricsScope.timer(MetricsType.ACTIVITY_E2E_LATENCY).record(duration);
 
-      } catch (CancellationException e) {
+      } catch (CanceledException e) {
         RespondActivityTaskCanceledRequest cancelledRequest =
             RespondActivityTaskCanceledRequest.newBuilder()
                 .setDetails(

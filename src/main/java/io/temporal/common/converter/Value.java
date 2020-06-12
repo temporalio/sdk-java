@@ -21,7 +21,10 @@ package io.temporal.common.converter;
 
 import java.lang.reflect.Type;
 
+/** Value that can be extracted to an appropriate type. */
 public interface Value {
+  Value NULL = new WrappedValue(null);
+
   <T> T get(Class<T> parameterType) throws DataConverterException;
 
   <T> T get(Class<T> parameterType, Type genericParameterType) throws DataConverterException;

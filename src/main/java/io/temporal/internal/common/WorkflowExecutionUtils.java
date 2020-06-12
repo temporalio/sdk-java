@@ -32,7 +32,9 @@ import io.grpc.Deadline;
 import io.grpc.Status;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.WrappedValue;
+import io.temporal.common.converter.EncodedValue;
+import io.temporal.common.converter.Value;
+import io.temporal.failure.CanceledException;
 import io.temporal.failure.TerminatedException;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.proto.common.Payloads;
@@ -68,7 +70,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Optional;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
@@ -109,7 +110,7 @@ public class WorkflowExecutionUtils {
    *
    * @param workflowType is optional.
    * @throws TimeoutException if workflow didn't complete within specified timeout
-   * @throws CancellationException if workflow was cancelled
+   * @throws CanceledException if workflow was cancelled
    * @throws WorkflowExecutionFailedException if workflow execution failed
    */
   public static Optional<Payloads> getWorkflowExecutionResult(
@@ -161,11 +162,10 @@ public class WorkflowExecutionUtils {
         String message = null;
         WorkflowExecutionCanceledEventAttributes attributes =
             closeEvent.getWorkflowExecutionCanceledEventAttributes();
-        if (attributes.hasDetails()) {
-          Payloads details = attributes.getDetails();
-          message = converter.fromData(Optional.of(details), String.class, String.class);
-        }
-        throw new CancellationException(message);
+        Optional<Payloads> details =
+            attributes.hasDetails() ? Optional.of(attributes.getDetails()) : Optional.empty();
+        throw new CanceledException(
+            "Workflow canceled", new EncodedValue(details, converter), null);
       case WorkflowExecutionFailed:
         WorkflowExecutionFailedEventAttributes failed =
             closeEvent.getWorkflowExecutionFailedEventAttributes();
@@ -188,7 +188,7 @@ public class WorkflowExecutionUtils {
             workflowType.orElse(null),
             0,
             timedOut.getRetryStatus(),
-            new TimeoutFailure(null, new WrappedValue(null), TimeoutType.StartToClose, null));
+            new TimeoutFailure(null, Value.NULL, TimeoutType.StartToClose, null));
       default:
         throw new RuntimeException(
             "Workflow end state is not completed: " + prettyPrintObject(closeEvent));

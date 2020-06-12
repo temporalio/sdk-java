@@ -28,14 +28,20 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
+import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
 import com.google.protobuf.ByteString;
 import io.temporal.proto.common.Payload;
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +56,15 @@ public class JacksonJsonPayloadConverter implements PayloadConverter {
 
   public JacksonJsonPayloadConverter() {
     mapper = new ObjectMapper();
+    mapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
+    JavaTimeModule timeModule = new JavaTimeModule();
+    DateTimeFormatter pattern = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+    LocalDateTimeDeserializer localDateTimeDeserializer = new LocalDateTimeDeserializer(pattern);
+    timeModule.addDeserializer(LocalDateTime.class, localDateTimeDeserializer);
+    LocalDateTimeSerializer localDateTimeSerializer = new LocalDateTimeSerializer(pattern);
+    timeModule.addSerializer(LocalDateTime.class, localDateTimeSerializer);
+    mapper.registerModule(timeModule);
+
     SimpleModule module =
         new SimpleModule() {
           @Override
@@ -112,7 +127,6 @@ public class JacksonJsonPayloadConverter implements PayloadConverter {
     @Override
     public void serialize(DataConverter value, JsonGenerator gen, SerializerProvider provider)
         throws IOException {
-      System.out.println("DataConverterSerializer: " + value.getClass().getName());
       gen.writeStartObject();
       gen.writeFieldName(TYPE_FIELD_NAME);
       gen.writeRawValue(JSON_CONVERTER_TYPE);
@@ -145,4 +159,47 @@ public class JacksonJsonPayloadConverter implements PayloadConverter {
       return converter;
     }
   }
+
+  //  private static class LocalDateTimeSerializer extends StdSerializer<LocalDateTime> {
+  //
+  //    protected LocalDateTimeSerializer() {
+  //      super(LocalDateTime.class);
+  //    }
+  //
+  //    @Override
+  //    public void serialize(LocalDateTime value, JsonGenerator gen, SerializerProvider provider)
+  //        throws IOException {
+  //      System.out.println("DataConverterSerializer: " + value.getClass().getName());
+  //      gen.writeStartObject();
+  //      gen.writeFieldName(TYPE_FIELD_NAME);
+  //      gen.writeRawValue(JSON_CONVERTER_TYPE);
+  //      gen.writeEndObject();
+  //    }
+  //  }
+  //
+  //  private static class LocalDateTimeDeserializer extends StdDeserializer<LocalDateTime> {
+  //
+  //    private final LocalDateTime converter;
+  //
+  //    protected LocalDateTimeDeserializer(LocalDateTime converter) {
+  //      super(DataConverter.class);
+  //      this.converter = converter;
+  //    }
+  //
+  //    @Override
+  //    public LocalDateTime deserialize(JsonParser p, DeserializationContext ctxt)
+  //        throws IOException, JsonProcessingException {
+  //      JsonNode tree = p.getCodec().readTree(p);
+  //      JsonNode node = tree.get(TYPE_FIELD_NAME);
+  //      if (node == null) {
+  //        throw new IOException("Cannot deserialize DataConverter. Missing type field");
+  //      }
+  //      String value = node.textValue();
+  //      if (!"JSON".equals(value)) {
+  //        throw new IOException(
+  //            "Cannot deserialize DataConverter. Expected type is JSON. " + "Found " + value);
+  //      }
+  //      return converter;
+  //    }
+  //  }
 }

@@ -29,6 +29,11 @@ public final class CanceledException extends TemporalFailure {
     this.details = details;
   }
 
+  public CanceledException(String message) {
+    super(message, message, null);
+    this.details = Value.NULL;
+  }
+
   public Value getDetails() {
     return details;
   }

@@ -30,15 +30,4 @@ public final class WorkflowNotFoundException extends WorkflowException {
   public WorkflowNotFoundException(WorkflowExecution execution, String workflowType) {
     super(execution, workflowType, null);
   }
-
-  @Override
-  public String toString() {
-    return "WorkflowNotFoundException{"
-        + "execution="
-        + getExecution()
-        + ", workflowType='"
-        + getWorkflowType()
-        + '\''
-        + '}';
-  }
 }

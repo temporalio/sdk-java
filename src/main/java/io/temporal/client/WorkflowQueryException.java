@@ -26,15 +26,4 @@ public class WorkflowQueryException extends WorkflowException {
   public WorkflowQueryException(WorkflowExecution execution, String workflowType, Throwable cause) {
     super(execution, workflowType, cause);
   }
-
-  @Override
-  public String toString() {
-    return "WorkflowQueryException{"
-        + "execution="
-        + getExecution()
-        + ", workflowType='"
-        + getWorkflowType()
-        + '\''
-        + '}';
-  }
 }

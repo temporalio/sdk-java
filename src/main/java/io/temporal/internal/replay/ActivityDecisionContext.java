@@ -22,11 +22,11 @@ package io.temporal.internal.replay;
 import static io.temporal.internal.common.DataConverterUtils.toHeaderGrpc;
 
 import io.temporal.activity.ActivityCancellationType;
+import io.temporal.failure.CanceledException;
 import io.temporal.internal.common.RetryParameters;
 import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.Header;
 import io.temporal.proto.common.Payloads;
-import io.temporal.proto.common.TimeoutType;
 import io.temporal.proto.decision.ScheduleActivityTaskDecisionAttributes;
 import io.temporal.proto.event.ActivityTaskCanceledEventAttributes;
 import io.temporal.proto.event.ActivityTaskCompletedEventAttributes;
@@ -34,12 +34,10 @@ import io.temporal.proto.event.ActivityTaskFailedEventAttributes;
 import io.temporal.proto.event.ActivityTaskTimedOutEventAttributes;
 import io.temporal.proto.event.HistoryEvent;
 import io.temporal.proto.failure.Failure;
-import io.temporal.proto.failure.TimeoutFailureInfo;
 import io.temporal.proto.tasklist.TaskList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CancellationException;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -82,7 +80,7 @@ final class ActivityDecisionContext {
                       "Activity with activityId=%s and scheduledEventId=%d wasn't found",
                       activityId, scheduledEventId));
             }
-            callback.accept(null, new CancellationException("Cancelled by request"));
+            callback.accept(null, new CanceledException("Cancelled by request"));
           };
       if (cancellationType != ActivityCancellationType.WAIT_CANCELLATION_COMPLETED) {
         immediateCancellationCallback.run();
@@ -189,13 +187,13 @@ final class ActivityDecisionContext {
   void handleActivityTaskCanceled(HistoryEvent event) {
     ActivityTaskCanceledEventAttributes attributes = event.getActivityTaskCanceledEventAttributes();
     if (decisions.handleActivityTaskCanceled(event)) {
-      CancellationException e = new CancellationException();
+      CanceledException e = new CanceledException("Activity canceled");
       OpenRequestInfo<Optional<Payloads>, OpenActivityInfo> scheduled =
           scheduledActivities.remove(attributes.getScheduledEventId());
       if (scheduled != null) {
         BiConsumer<Optional<Payloads>, Exception> completionHandle =
             scheduled.getCompletionCallback();
-        // It is OK to fail with subclass of CancellationException when cancellation requested.
+        // It is OK to fail with subclass of CanceledException when cancellation requested.
         // It allows passing information about cancellation (details in this case) to the
         // surrounding doCatch block
         completionHandle.accept(Optional.empty(), e);
@@ -253,12 +251,6 @@ final class ActivityDecisionContext {
           scheduledActivities.remove(attributes.getScheduledEventId());
       if (scheduled != null) {
         Failure failure = attributes.getFailure();
-        TimeoutFailureInfo info = failure.getTimeoutFailureInfo();
-        TimeoutType timeoutType = info.getTimeoutType();
-        Optional<Payloads> details =
-            info.hasLastHeartbeatDetails()
-                ? Optional.of(info.getLastHeartbeatDetails())
-                : Optional.empty();
         OpenActivityInfo context = scheduled.getUserContext();
         ActivityTaskTimeoutException timeoutException =
             new ActivityTaskTimeoutException(
@@ -267,9 +259,8 @@ final class ActivityDecisionContext {
                 context.getStartedEventId(),
                 context.getActivityType(),
                 context.getActivityId(),
-                timeoutType,
                 attributes.getRetryStatus(),
-                details);
+                failure);
         BiConsumer<Optional<Payloads>, Exception> completionHandle =
             scheduled.getCompletionCallback();
         completionHandle.accept(Optional.empty(), timeoutException);

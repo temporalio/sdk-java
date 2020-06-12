@@ -21,6 +21,7 @@ package io.temporal.internal.sync;
 
 import com.google.common.util.concurrent.RateLimiter;
 import io.temporal.common.context.ContextPropagator;
+import io.temporal.failure.CanceledException;
 import io.temporal.internal.context.ContextThreadLocal;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsType;
@@ -33,7 +34,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -119,7 +119,7 @@ class WorkflowThreadImpl implements WorkflowThread {
               String.format("Workflow thread \"%s\" run failed with Error:\n%s", name, stackTrace));
         }
         threadContext.setUnhandledException(e);
-      } catch (CancellationException e) {
+      } catch (CanceledException e) {
         if (!isCancelRequested()) {
           threadContext.setUnhandledException(e);
         }

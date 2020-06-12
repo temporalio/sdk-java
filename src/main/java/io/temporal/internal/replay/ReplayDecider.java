@@ -27,6 +27,7 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import io.grpc.Status;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.failure.CanceledException;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.RpcRetryOptions;
@@ -61,7 +62,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
@@ -287,7 +287,7 @@ class ReplayDecider implements Decider {
     } catch (WorkflowExecutionException e) {
       failure = e;
       completed = true;
-    } catch (CancellationException e) {
+    } catch (CanceledException e) {
       if (!cancelRequested) {
         failure =
             workflow.mapUnexpectedException(

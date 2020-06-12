@@ -23,7 +23,8 @@ import io.temporal.proto.common.Payload;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
-public class NullPayloadConverter implements PayloadConverter {
+/** Encodes and decodes null values. */
+public final class NullPayloadConverter implements PayloadConverter {
   @Override
   public String getEncodingType() {
     return EncodingKeys.METADATA_ENCODING_NULL_NAME;

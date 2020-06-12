@@ -32,7 +32,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** @author fateev */
+/**
+ * DataConverter that delegates conversion to type specific PayloadConverter instance.
+ *
+ * @author fateev
+ */
 public class DefaultDataConverter implements DataConverter {
 
   private static final DataConverter INSTANCE =
@@ -48,6 +52,11 @@ public class DefaultDataConverter implements DataConverter {
     return INSTANCE;
   }
 
+  /**
+   * Creates instance from ordered array of converters. When converting an object to payload the
+   * array of converters is iterated from the beginning until one of the converters succesfully
+   * converts the value.
+   */
   public DefaultDataConverter(PayloadConverter... converters) {
     for (PayloadConverter converter : converters) {
       this.converters.add(converter);

@@ -20,10 +20,8 @@
 package io.temporal.internal.replay;
 
 import io.temporal.proto.common.ActivityType;
-import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.RetryStatus;
-import io.temporal.proto.common.TimeoutType;
-import java.util.Optional;
+import io.temporal.proto.failure.Failure;
 
 /** Exception that indicates Activity time out. */
 @SuppressWarnings("serial")
@@ -33,10 +31,9 @@ public final class ActivityTaskTimeoutException extends RuntimeException {
   private final long startedEventId;
   private final long eventId;
 
-  private final TimeoutType timeoutType;
   private final RetryStatus retryStatus;
 
-  private final Optional<Payloads> lastHeartbeatDetails;
+  private final Failure failure;
 
   private final ActivityType activityType;
 
@@ -48,23 +45,19 @@ public final class ActivityTaskTimeoutException extends RuntimeException {
       long startedEventId,
       ActivityType activityType,
       String activityId,
-      TimeoutType timeoutType,
       RetryStatus retryStatus,
-      Optional<Payloads> lastHeartbeatDetails) {
-    super(String.valueOf(timeoutType));
+      Failure failure) {
     this.scheduledEventId = scheduledEventId;
     this.startedEventId = startedEventId;
     this.eventId = eventId;
     this.activityType = activityType;
     this.activityId = activityId;
-    this.timeoutType = timeoutType;
     this.retryStatus = retryStatus;
-    this.lastHeartbeatDetails = lastHeartbeatDetails;
+    this.failure = failure;
   }
 
-  /** @return The value from the last activity heartbeat details field. */
-  public Optional<Payloads> getLastHeartbeatDetails() {
-    return lastHeartbeatDetails;
+  public Failure getFailure() {
+    return failure;
   }
 
   public long getScheduledEventId() {
@@ -77,10 +70,6 @@ public final class ActivityTaskTimeoutException extends RuntimeException {
 
   public long getEventId() {
     return eventId;
-  }
-
-  public TimeoutType getTimeoutType() {
-    return timeoutType;
   }
 
   public RetryStatus getRetryStatus() {

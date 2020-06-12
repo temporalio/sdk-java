@@ -29,13 +29,12 @@ import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
-import io.temporal.common.converter.EncodedValue;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.failure.ActivityException;
 import io.temporal.failure.ApplicationException;
+import io.temporal.failure.CanceledException;
 import io.temporal.failure.ChildWorkflowException;
 import io.temporal.failure.FailureConverter;
-import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.RetryParameters;
 import io.temporal.internal.metrics.MetricsType;
@@ -74,7 +73,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
@@ -181,7 +179,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
         .getCancellationRequest()
         .thenApply(
             (reason) -> {
-              cancellationCallback.accept(new CancellationException(reason));
+              cancellationCallback.accept(new CanceledException(reason));
               return null;
             });
     return callback.result;
@@ -206,8 +204,8 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     if (failure == null) {
       return null;
     }
-    if (failure instanceof CancellationException) {
-      return (CancellationException) failure;
+    if (failure instanceof CanceledException) {
+      return (CanceledException) failure;
     }
     if (failure instanceof ActivityTaskFailedException) {
       ActivityTaskFailedException taskFailed = (ActivityTaskFailedException) failure;
@@ -248,11 +246,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
           timedOut.getActivityId(),
           timedOut.getRetryStatus(),
           "",
-          new TimeoutFailure(
-              "Activity timeout",
-              new EncodedValue(timedOut.getLastHeartbeatDetails(), getDataConverter()),
-              timedOut.getTimeoutType(),
-              null));
+          FailureConverter.failureToException(timedOut.getFailure(), converter));
     }
     if (failure instanceof ActivityException) {
       return (ActivityException) failure;
@@ -315,7 +309,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
         .getCancellationRequest()
         .thenApply(
             (reason) -> {
-              cancellationCallback.accept(new CancellationException(reason));
+              cancellationCallback.accept(new CanceledException(reason));
               return null;
             });
     return callback.result;
@@ -400,10 +394,10 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
       CompletablePromise<WorkflowExecution> executionResult) {
     CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
     if (CancellationScope.current().isCancelRequested()) {
-      CancellationException cancellationException =
-          new CancellationException("execute called from a cancelled scope");
-      executionResult.completeExceptionally(cancellationException);
-      result.completeExceptionally(cancellationException);
+      CanceledException CanceledException =
+          new CanceledException("execute called from a cancelled scope");
+      executionResult.completeExceptionally(CanceledException);
+      result.completeExceptionally(CanceledException);
       return result;
     }
     RetryParameters retryParameters = null;
@@ -454,7 +448,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
         .getCancellationRequest()
         .thenApply(
             (reason) -> {
-              cancellationCallback.accept(new CancellationException(reason));
+              cancellationCallback.accept(new CanceledException(reason));
               return null;
             });
     return result;
@@ -476,8 +470,8 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     if (failure == null) {
       return null;
     }
-    if (failure instanceof CancellationException) {
-      return (CancellationException) failure;
+    if (failure instanceof CanceledException) {
+      return (CanceledException) failure;
     }
     if (failure instanceof WorkflowException) {
       return (RuntimeException) failure;
@@ -542,7 +536,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
         .thenApply(
             (reason) -> {
               timers.removeTimer(fireTime, timer);
-              timer.completeExceptionally(new CancellationException(reason));
+              timer.completeExceptionally(new CanceledException(reason));
               return null;
             });
     return timer;
@@ -742,7 +736,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
         .getCancellationRequest()
         .thenApply(
             (reason) -> {
-              cancellationCallback.accept(new CancellationException(reason));
+              cancellationCallback.accept(new CanceledException(reason));
               return null;
             });
     return result;
@@ -797,8 +791,8 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     if (failure == null) {
       return null;
     }
-    if (failure instanceof CancellationException) {
-      return (CancellationException) failure;
+    if (failure instanceof CanceledException) {
+      return (CanceledException) failure;
     }
 
     if (!(failure instanceof SignalExternalWorkflowException)) {

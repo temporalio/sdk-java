@@ -145,7 +145,7 @@ public interface DecisionContext extends ReplayAware {
    *
    * @param delaySeconds time-interval after which the Value becomes ready in seconds.
    * @param callback Callback that is called with null parameter after the specified delay.
-   *     CancellationException is passed as a parameter in case of a cancellation.
+   *     CanceledException is passed as a parameter in case of a cancellation.
    * @return cancellation handle. Invoke {@link Consumer#accept(Object)} to cancel timer.
    */
   Consumer<Exception> createTimer(long delaySeconds, Consumer<Exception> callback);

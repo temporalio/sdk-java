@@ -36,6 +36,7 @@ import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.ActivityException;
+import io.temporal.failure.CanceledException;
 import io.temporal.failure.ChildWorkflowException;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.common.WorkflowExecutionUtils;
@@ -68,7 +69,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.junit.After;
@@ -577,7 +577,7 @@ public class WorkflowTestingTest {
       untyped.cancel();
       untyped.getResult(String.class);
       fail("unreacheable");
-    } catch (CancellationException e) {
+    } catch (CanceledException e) {
     }
   }
 

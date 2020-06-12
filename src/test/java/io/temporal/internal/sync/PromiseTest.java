@@ -21,6 +21,7 @@ package io.temporal.internal.sync;
 
 import static org.junit.Assert.*;
 
+import io.temporal.failure.CanceledException;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
@@ -28,7 +29,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IllegalFormatCodePointException;
 import java.util.List;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -129,8 +129,8 @@ public class PromiseTest {
               trace.add("root begin");
               try {
                 f.cancellableGet();
-              } catch (CancellationException e) {
-                trace.add("root CancellationException");
+              } catch (CanceledException e) {
+                trace.add("root CanceledException");
               }
               trace.add("root done");
             });
@@ -139,7 +139,7 @@ public class PromiseTest {
     r.runUntilAllBlocked();
     String[] expected =
         new String[] {
-          "root begin", "root CancellationException", "root done",
+          "root begin", "root CanceledException", "root done",
         };
     trace.setExpected(expected);
   }
@@ -165,7 +165,7 @@ public class PromiseTest {
                           assertEquals("bar", f.get(10, TimeUnit.SECONDS));
                           trace.add("thread1 get success");
                           fail("failure expected");
-                        } catch (CancellationException e) {
+                        } catch (CanceledException e) {
                           trace.add("thread1 get cancellation");
                         } catch (TimeoutException e) {
                           trace.add("thread1 get timeout");

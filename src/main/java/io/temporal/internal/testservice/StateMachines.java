@@ -1506,14 +1506,16 @@ class StateMachines {
 
   private static State timeoutActivityTask(
       RequestContext ctx, ActivityTaskData data, TimeoutType timeoutType, long notUsed) {
-    // ScheduleToStart (queue timeout) is not retriable. Instead of the retry, a customer should set
+    // ScheduleToStart (queue timeout) is not retryable. Instead of the retry, a customer should set
     // a larger ScheduleToStart timeout.
-    if (timeoutType == TimeoutType.ScheduleToStart) {
-      return TIMED_OUT;
-    }
-    RetryState.BackoffInterval backoffInterval = attemptActivityRetry(ctx, Optional.empty(), data);
-    if (backoffInterval.getRetryStatus() == RetryStatus.InProgress) {
-      return INITIATED;
+    RetryState.BackoffInterval backoffInterval;
+    if (timeoutType != TimeoutType.ScheduleToStart) {
+      backoffInterval = attemptActivityRetry(ctx, Optional.empty(), data);
+      if (backoffInterval.getRetryStatus() == RetryStatus.InProgress) {
+        return INITIATED;
+      }
+    } else {
+      backoffInterval = new RetryState.BackoffInterval(RetryStatus.NonRetryableFailure);
     }
     ActivityTaskTimedOutEventAttributes.Builder a =
         ActivityTaskTimedOutEventAttributes.newBuilder()

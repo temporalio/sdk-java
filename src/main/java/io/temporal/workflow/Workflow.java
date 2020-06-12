@@ -23,6 +23,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.RetryOptions;
+import io.temporal.failure.CanceledException;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.worker.WorkerOptions;
@@ -33,7 +34,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
-import java.util.concurrent.CancellationException;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -580,10 +580,10 @@ public final class Workflow {
    * CancellationScope#run()} calls {@link Runnable#run()} on the wrapped Runnable. The returned
    * CancellationScope can be used to cancel the wrapped code. The cancellation semantic depends on
    * the operation the code is blocked on. For example activity or child workflow is first cancelled
-   * then throws a {@link CancellationException}. The same applies for {@link Workflow#sleep(long)}
+   * then throws a {@link CanceledException}. The same applies for {@link Workflow#sleep(long)}
    * operation. When an activity or a child workflow is invoked asynchronously then they get
-   * cancelled and a {@link Promise} that contains their result will throw CancellationException
-   * when {@link Promise#get()} is called.
+   * cancelled and a {@link Promise} that contains their result will throw CanceledException when
+   * {@link Promise#get()} is called.
    *
    * <p>The new cancellation scope is linked to the parent one (available as {@link
    * CancellationScope#current()}. If the parent one is cancelled then all the children scopes are
@@ -655,7 +655,7 @@ public final class Workflow {
    * <pre><code>
    *  try {
    *     // workflow logic
-   *  } catch (CancellationException e) {
+   *  } catch (CanceledException e) {
    *     CancellationScope detached = Workflow.newDetachedCancellationScope(() -&gt; {
    *         // cleanup logic
    *     });
@@ -676,8 +676,7 @@ public final class Workflow {
    * are rounded <b>up</b> to the nearest second.
    *
    * @return feature that becomes ready when at least specified number of seconds passes. promise is
-   *     failed with {@link java.util.concurrent.CancellationException} if enclosing scope is
-   *     cancelled.
+   *     failed with {@link java.util.concurrent.CanceledException} if enclosing scope is cancelled.
    */
   public static Promise<Void> newTimer(Duration delay) {
     return WorkflowInternal.newTimer(delay);
@@ -737,7 +736,7 @@ public final class Workflow {
    *
    * @param unblockCondition condition that should return true to indicate that thread should
    *     unblock.
-   * @throws CancellationException if thread (or current {@link CancellationScope} was cancelled).
+   * @throws CanceledException if thread (or current {@link CancellationScope} was cancelled).
    */
   public static void await(Supplier<Boolean> unblockCondition) {
     WorkflowInternal.await(
@@ -753,7 +752,7 @@ public final class Workflow {
    * passes.
    *
    * @return false if timed out.
-   * @throws CancellationException if thread (or current {@link CancellationScope} was cancelled).
+   * @throws CanceledException if thread (or current {@link CancellationScope} was cancelled).
    */
   public static boolean await(Duration timeout, Supplier<Boolean> unblockCondition) {
     return WorkflowInternal.await(

@@ -29,6 +29,7 @@ import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowInvocationInterceptor;
 import io.temporal.common.interceptors.WorkflowInvoker;
+import io.temporal.failure.CanceledException;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.DeciderCache;
@@ -53,7 +54,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -240,7 +240,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
     @Override
     public Optional<Payloads> execute(Optional<Payloads> input)
-        throws CancellationException, WorkflowExecutionException {
+        throws CanceledException, WorkflowExecutionException {
       Object[] args =
           dataConverter.fromDataArray(
               input, workflowMethod.getParameterTypes(), workflowMethod.getGenericParameterTypes());
@@ -298,8 +298,8 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
           }
           // Cancellation should be delivered as it impacts which decision closes a
           // workflow.
-          if (targetException instanceof CancellationException) {
-            throw (CancellationException) targetException;
+          if (targetException instanceof CanceledException) {
+            throw (CanceledException) targetException;
           }
           if (log.isErrorEnabled()) {
             log.error(
@@ -386,7 +386,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   }
 
   static WorkflowExecutionException mapError(Error error, DataConverter dataConverter) {
-    Failure failure = FailureConverter.exceptionToFailure(error, dataConverter);
+    Failure failure = FailureConverter.exceptionToFailureNoUnwrapping(error, dataConverter);
     return new WorkflowExecutionException(failure);
   }
 
