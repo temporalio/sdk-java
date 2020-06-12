@@ -1517,12 +1517,25 @@ class StateMachines {
     } else {
       backoffInterval = new RetryState.BackoffInterval(RetryStatus.NonRetryableFailure);
     }
+    Failure failure;
+    if (timeoutType == TimeoutType.Heartbeat) {
+      failure =
+          newTimeoutFailure(
+              TimeoutType.ScheduleToClose,
+              Optional.ofNullable(data.heartbeatDetails),
+              Optional.of(
+                  newTimeoutFailure(TimeoutType.Heartbeat, Optional.empty(), Optional.empty())));
+    } else {
+      failure =
+          newTimeoutFailure(
+              timeoutType, Optional.ofNullable(data.heartbeatDetails), Optional.empty());
+    }
     ActivityTaskTimedOutEventAttributes.Builder a =
         ActivityTaskTimedOutEventAttributes.newBuilder()
             .setScheduledEventId(data.scheduledEventId)
             .setRetryStatus(backoffInterval.getRetryStatus())
             .setStartedEventId(data.startedEventId)
-            .setFailure(newTimeoutFailure(timeoutType, Optional.ofNullable(data.heartbeatDetails)));
+            .setFailure(failure);
     HistoryEvent event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.ActivityTaskTimedOut)
@@ -1533,12 +1546,16 @@ class StateMachines {
   }
 
   private static Failure newTimeoutFailure(
-      TimeoutType timeoutType, Optional<Payloads> lastHeartbeatDetails) {
+      TimeoutType timeoutType, Optional<Payloads> lastHeartbeatDetails, Optional<Failure> cause) {
     TimeoutFailureInfo.Builder info = TimeoutFailureInfo.newBuilder().setTimeoutType(timeoutType);
     if (lastHeartbeatDetails.isPresent()) {
       info.setLastHeartbeatDetails(lastHeartbeatDetails.get());
     }
-    return Failure.newBuilder().setTimeoutFailureInfo(info).build();
+    Failure.Builder result = Failure.newBuilder().setTimeoutFailureInfo(info);
+    if (cause.isPresent()) {
+      result.setCause(cause.get());
+    }
+    return result.build();
   }
 
   private static RetryState.BackoffInterval attemptActivityRetry(
