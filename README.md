@@ -1,4 +1,5 @@
 # Temporal Java SDK  [![Build status](https://badge.buildkite.com/182afcb377dc16cf9d41b263620446719de2d96d6cd9d43882.svg?branch=master)](https://buildkite.com/temporal/temporal-java-sdk)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Ftemporalio%2Ftemporal-java-sdk.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Ftemporalio%2Ftemporal-java-sdk?ref=badge_shield)
 
 
 [Temporal](https://github.com/temporalio/temporal) is a Workflow as Code platform used to build and operate 
@@ -52,3 +53,6 @@ We'd love your help in making the Temporal Java SDKL great. Please review our [c
 
 ## License
 Apache License, please see [LICENSE](LICENSE) for details.
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Ftemporalio%2Ftemporal-java-sdk.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Ftemporalio%2Ftemporal-java-sdk?ref=badge_large)
