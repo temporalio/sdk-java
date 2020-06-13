@@ -27,7 +27,7 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import io.grpc.Status;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.failure.CanceledException;
+import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.RpcRetryOptions;
@@ -287,7 +287,7 @@ class ReplayDecider implements Decider {
     } catch (WorkflowExecutionException e) {
       failure = e;
       completed = true;
-    } catch (CanceledException e) {
+    } catch (CanceledFailure e) {
       if (!cancelRequested) {
         failure =
             workflow.mapUnexpectedException(

@@ -24,8 +24,9 @@ import com.google.common.base.Joiner;
 import com.uber.m3.tally.Scope;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.failure.CanceledException;
+import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
+import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.proto.common.Payloads;
@@ -34,6 +35,7 @@ import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.testing.SimulatedTimeoutFailure;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -97,24 +99,8 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
       if (isLocalActivity) {
         metricsScope.counter(MetricsType.LOCAL_ACTIVITY_CANCELED_COUNTER).inc(1);
       }
-      throw new CanceledException(exception.getMessage());
+      throw new CanceledFailure(exception.getMessage());
     }
-
-    // Only expected during unit tests.
-    // TODO(maxim): simulated timeouts
-    //    if (exception instanceof SimulatedTimeoutException) {
-    //      SimulatedTimeoutException timeoutException = (SimulatedTimeoutException) exception;
-    //      Object d = timeoutException.getDetails();
-    //      Optional<Payloads> payloads = dataConverter.toData(d);
-    //      TimeoutException te =
-    //          new TimeoutException(
-    //              exception.getMessage(),
-    //              new EncodedValue(payloads, dataConverter),
-    //              timeoutException.getTimeoutType(),
-    //              null);
-    //      exception = new SimulatedTimeoutExceptionInternal(te);
-    //    }
-
     if (exception instanceof Error) {
       if (isLocalActivity) {
         metricsScope.counter(MetricsType.LOCAL_ACTIVITY_ERROR_COUNTER).inc(1);
@@ -129,7 +115,9 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     } else {
       metricsScope.counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
     }
-
+    if (exception instanceof TimeoutFailure) {
+      exception = new SimulatedTimeoutFailure((TimeoutFailure) exception);
+    }
     Failure failure = FailureConverter.exceptionToFailure(exception, dataConverter);
     RespondActivityTaskFailedRequest.Builder result =
         RespondActivityTaskFailedRequest.newBuilder().setFailure(failure);

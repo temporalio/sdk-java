@@ -2042,7 +2042,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   private void removeActivity(long scheduledEventId) {
-    StateMachine<ActivityTaskData> activity = activities.get(scheduledEventId);
+    StateMachine<ActivityTaskData> activity = activities.remove(scheduledEventId);
     if (activity == null) {
       return;
     }

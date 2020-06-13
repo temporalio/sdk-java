@@ -19,9 +19,9 @@
 
 package io.temporal.failure;
 
-public final class TerminatedException extends TemporalFailure {
+public final class TerminatedFailure extends TemporalFailure {
 
-  public TerminatedException(String message, Throwable cause) {
+  public TerminatedFailure(String message, Throwable cause) {
     super(message, message, cause);
   }
 }

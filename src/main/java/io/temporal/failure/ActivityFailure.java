@@ -21,7 +21,7 @@ package io.temporal.failure;
 
 import io.temporal.proto.common.RetryStatus;
 
-public final class ActivityException extends TemporalFailure {
+public final class ActivityFailure extends TemporalFailure {
 
   private final long scheduledEventId;
   private final long startedEventId;
@@ -30,7 +30,7 @@ public final class ActivityException extends TemporalFailure {
   private final String identity;
   private final RetryStatus retryStatus;
 
-  public ActivityException(
+  public ActivityFailure(
       long scheduledEventId,
       long startedEventId,
       String activityType,

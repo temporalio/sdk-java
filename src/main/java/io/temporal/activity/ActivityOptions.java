@@ -23,7 +23,7 @@ import com.google.common.base.Objects;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
-import io.temporal.failure.CanceledException;
+import io.temporal.failure.CanceledFailure;
 import java.time.Duration;
 import java.util.List;
 
@@ -145,10 +145,10 @@ public final class ActivityOptions {
     }
 
     /**
-     * In case of an activity cancellation it fails with a {@link CanceledException}Exception. If
-     * this flag is set to false then the exception is thrown not immediately but only after an
-     * activity completes its cleanup. If true a CanceledException is thrown immediately and an
-     * activity cancellation is going to happen in the background.
+     * In case of an activity cancellation it fails with a {@link CanceledFailure}Exception. If this
+     * flag is set to false then the exception is thrown not immediately but only after an activity
+     * completes its cleanup. If true a CanceledException is thrown immediately and an activity
+     * cancellation is going to happen in the background.
      */
     public Builder setCancellationType(ActivityCancellationType cancellationType) {
       this.cancellationType = cancellationType;

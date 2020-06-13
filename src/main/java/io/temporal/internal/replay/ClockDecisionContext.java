@@ -23,7 +23,7 @@ import static io.temporal.internal.replay.MarkerHandler.MUTABLE_MARKER_DATA_KEY;
 
 import com.google.common.base.Strings;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.failure.CanceledException;
+import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.LocalActivityMarkerData;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.worker.LocalActivityWorker;
@@ -184,7 +184,7 @@ public final class ClockDecisionContext {
       return;
     }
     BiConsumer<?, Exception> context = scheduled.getCompletionCallback();
-    CanceledException exception = new CanceledException("Cancelled by request");
+    CanceledFailure exception = new CanceledFailure("Cancelled by request");
     if (reason != null) {
       exception.initCause(reason);
     }

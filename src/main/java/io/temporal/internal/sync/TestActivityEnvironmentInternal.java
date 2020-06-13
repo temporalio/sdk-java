@@ -34,8 +34,8 @@ import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.converter.EncodedValue;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
-import io.temporal.failure.ActivityException;
-import io.temporal.failure.CanceledException;
+import io.temporal.failure.ActivityFailure;
+import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.worker.ActivityTaskHandler;
@@ -385,7 +385,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
               FailureConverter.failureToException(
                   taskFailed.getFailure(),
                   testEnvironmentOptions.getWorkflowClientOptions().getDataConverter());
-          throw new ActivityException(
+          throw new ActivityFailure(
               0,
               0,
               task.getActivityType().getName(),
@@ -396,7 +396,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         } else {
           RespondActivityTaskCanceledRequest taskCancelled = response.getTaskCancelled();
           if (taskCancelled != null) {
-            throw new CanceledException(
+            throw new CanceledFailure(
                 "canceled",
                 new EncodedValue(
                     taskCancelled.hasDetails()

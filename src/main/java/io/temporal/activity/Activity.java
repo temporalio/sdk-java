@@ -20,6 +20,8 @@
 package io.temporal.activity;
 
 import io.temporal.client.ActivityCompletionException;
+import io.temporal.failure.ActivityFailure;
+import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.sync.ActivityInternal;
 import io.temporal.internal.sync.WorkflowInternal;
@@ -290,10 +292,10 @@ public final class Activity {
    * <p>The reason for such design is that returning originally thrown exception from a remote call
    * (which child workflow and activity invocations are ) would not allow adding context information
    * about a failure, like activity and child workflow id. So stubs always throw a subclass of
-   * {@link io.temporal.failure.ActivityException} from calls to an activity and subclass of {@link
-   * io.temporal.failure.ChildWorkflowException} from calls to a child workflow. The original
-   * exception is attached as a cause to these wrapper exceptions. So as exceptions are always
-   * wrapped adding checked ones to method signature causes more pain than benefit.
+   * {@link ActivityFailure} from calls to an activity and subclass of {@link ChildWorkflowFailure}
+   * from calls to a child workflow. The original exception is attached as a cause to these wrapper
+   * exceptions. So as exceptions are always wrapped adding checked ones to method signature causes
+   * more pain than benefit.
    *
    * <p>Throws original exception if e is {@link RuntimeException} or {@link Error}. Never returns.
    * But return type is not empty to be able to use it as:

@@ -21,15 +21,15 @@ package io.temporal.failure;
 
 import io.temporal.common.converter.Value;
 
-public final class CanceledException extends TemporalFailure {
+public final class CanceledFailure extends TemporalFailure {
   private final Value details;
 
-  public CanceledException(String message, Value details, Throwable cause) {
+  public CanceledFailure(String message, Value details, Throwable cause) {
     super(message, message, cause);
     this.details = details;
   }
 
-  public CanceledException(String message) {
+  public CanceledFailure(String message) {
     super(message, message, null);
     this.details = Value.NULL;
   }

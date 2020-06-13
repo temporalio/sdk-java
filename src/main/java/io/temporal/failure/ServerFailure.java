@@ -17,31 +17,18 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.common.converter;
+package io.temporal.failure;
 
-import java.lang.reflect.Type;
+/** Exceptions originated at the Temporal service. */
+public final class ServerFailure extends TemporalFailure {
+  private final boolean nonRetryable;
 
-/** Wraps a Java object into the Value interface. */
-public final class WrappedValue implements Value {
-  private final Object value;
-
-  public WrappedValue(Object value) {
-    if (value instanceof WrappedValue) {
-      throw new IllegalArgumentException("double wrapping: " + value);
-    }
-    this.value = value;
+  public ServerFailure(String message, boolean nonRetryable, Throwable cause) {
+    super(message, message, cause);
+    this.nonRetryable = nonRetryable;
   }
 
-  @Override
-  @SuppressWarnings("unchecked")
-  public <T> T get(Class<T> parameterType) throws DataConverterException {
-    return (T) value;
-  }
-
-  @Override
-  @SuppressWarnings("unchecked")
-  public <T> T get(Class<T> parameterType, Type genericParameterType)
-      throws DataConverterException {
-    return (T) value;
+  public boolean isNonRetryable() {
+    return nonRetryable;
   }
 }

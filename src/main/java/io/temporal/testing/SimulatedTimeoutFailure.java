@@ -17,18 +17,17 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.failure;
+package io.temporal.testing;
 
-/** Exceptions originated at the Temporal service. */
-public final class ServerException extends TemporalFailure {
-  private final boolean nonRetryable;
+import com.google.common.annotations.VisibleForTesting;
+import io.temporal.failure.TimeoutFailure;
 
-  public ServerException(String message, boolean nonRetryable, Throwable cause) {
-    super(message, message, cause);
-    this.nonRetryable = nonRetryable;
-  }
+/** Internal do not use in application code. */
+@VisibleForTesting
+public final class SimulatedTimeoutFailure extends RuntimeException {
 
-  public boolean isNonRetryable() {
-    return nonRetryable;
+  public SimulatedTimeoutFailure(TimeoutFailure cause) {
+    super(null, cause, false, true);
+    setStackTrace(cause.getStackTrace());
   }
 }

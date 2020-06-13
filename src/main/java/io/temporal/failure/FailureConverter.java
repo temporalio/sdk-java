@@ -36,6 +36,7 @@ import io.temporal.proto.failure.ResetWorkflowFailureInfo;
 import io.temporal.proto.failure.ServerFailureInfo;
 import io.temporal.proto.failure.TerminatedFailureInfo;
 import io.temporal.proto.failure.TimeoutFailureInfo;
+import io.temporal.testing.SimulatedTimeoutFailure;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Optional;
@@ -86,9 +87,15 @@ public class FailureConverter {
       case APPLICATIONFAILUREINFO:
         {
           ApplicationFailureInfo info = failure.getApplicationFailureInfo();
+          // Unwrap SimulatedTimeoutFailure
+          if (failure.getSource().equals(JAVA_SDK)
+              && info.getType().equals(SimulatedTimeoutFailure.class.getName())
+              && cause != null) {
+            return cause;
+          }
           Optional<Payloads> details =
               info.hasDetails() ? Optional.of(info.getDetails()) : Optional.empty();
-          return new ApplicationException(
+          return new ApplicationFailure(
               failure.getMessage(),
               info.getType(),
               new EncodedValue(details, dataConverter),
@@ -102,26 +109,29 @@ public class FailureConverter {
               info.hasLastHeartbeatDetails()
                   ? Optional.of(info.getLastHeartbeatDetails())
                   : Optional.empty();
-          return new TimeoutFailure(
-              failure.getMessage(),
-              new EncodedValue(lastHeartbeatDetails, dataConverter),
-              info.getTimeoutType(),
-              cause);
+          TimeoutFailure tf =
+              new TimeoutFailure(
+                  failure.getMessage(),
+                  new EncodedValue(lastHeartbeatDetails, dataConverter),
+                  info.getTimeoutType(),
+                  cause);
+          tf.setStackTrace(new StackTraceElement[0]);
+          return tf;
         }
       case CANCELEDFAILUREINFO:
         {
           CanceledFailureInfo info = failure.getCanceledFailureInfo();
           Optional<Payloads> details =
               info.hasDetails() ? Optional.of(info.getDetails()) : Optional.empty();
-          return new CanceledException(
+          return new CanceledFailure(
               failure.getMessage(), new EncodedValue(details, dataConverter), cause);
         }
       case TERMINATEDFAILUREINFO:
-        return new TerminatedException(failure.getMessage(), cause);
+        return new TerminatedFailure(failure.getMessage(), cause);
       case SERVERFAILUREINFO:
         {
           ServerFailureInfo info = failure.getServerFailureInfo();
-          return new ServerException(failure.getMessage(), info.getNonRetryable(), cause);
+          return new ServerFailure(failure.getMessage(), info.getNonRetryable(), cause);
         }
       case RESETWORKFLOWFAILUREINFO:
         {
@@ -130,13 +140,13 @@ public class FailureConverter {
               info.hasLastHeartbeatDetails()
                   ? Optional.of(info.getLastHeartbeatDetails())
                   : Optional.empty();
-          return new ApplicationException(
+          return new ApplicationFailure(
               failure.getMessage(), "ResetWorkflow", details, false, cause);
         }
       case ACTIVITYFAILUREINFO:
         {
           ActivityFailureInfo info = failure.getActivityFailureInfo();
-          return new ActivityException(
+          return new ActivityFailure(
               info.getScheduledEventId(),
               info.getStartedEventId(),
               info.getActivityType().getName(),
@@ -148,7 +158,7 @@ public class FailureConverter {
       case CHILDWORKFLOWEXECUTIONFAILUREINFO:
         {
           ChildWorkflowExecutionFailureInfo info = failure.getChildWorkflowExecutionFailureInfo();
-          return new ChildWorkflowException(
+          return new ChildWorkflowFailure(
               info.getInitiatedEventId(),
               info.getStartedEventId(),
               info.getWorkflowType().getName(),
@@ -185,8 +195,8 @@ public class FailureConverter {
     if (e.getCause() != null) {
       failure.setCause(exceptionToFailure(e.getCause(), dataConverter));
     }
-    if (e instanceof ApplicationException) {
-      ApplicationException ae = (ApplicationException) e;
+    if (e instanceof ApplicationFailure) {
+      ApplicationFailure ae = (ApplicationFailure) e;
       ApplicationFailureInfo.Builder info =
           ApplicationFailureInfo.newBuilder().setType(ae.getType());
       Object value = ae.getDetails().get(Object.class);
@@ -197,15 +207,16 @@ public class FailureConverter {
       failure.setApplicationFailureInfo(info);
     } else if (e instanceof TimeoutFailure) {
       TimeoutFailure te = (TimeoutFailure) e;
-      TimeoutFailureInfo.Builder info = TimeoutFailureInfo.newBuilder();
+      TimeoutFailureInfo.Builder info =
+          TimeoutFailureInfo.newBuilder().setTimeoutType(te.getTimeoutType());
       Object value = te.getLastHeartbeatDetails().get(Object.class);
       Optional<Payloads> details = dataConverter.toData(value);
       if (details.isPresent()) {
         info.setLastHeartbeatDetails(details.get());
       }
       failure.setTimeoutFailureInfo(info);
-    } else if (e instanceof CanceledException) {
-      CanceledException ce = (CanceledException) e;
+    } else if (e instanceof CanceledFailure) {
+      CanceledFailure ce = (CanceledFailure) e;
       CanceledFailureInfo.Builder info = CanceledFailureInfo.newBuilder();
       Object value = ce.getDetails().get(Object.class);
       Optional<Payloads> details = dataConverter.toData(value);
@@ -213,15 +224,15 @@ public class FailureConverter {
         info.setDetails(details.get());
       }
       failure.setCanceledFailureInfo(info);
-    } else if (e instanceof TerminatedException) {
-      TerminatedException te = (TerminatedException) e;
+    } else if (e instanceof TerminatedFailure) {
+      TerminatedFailure te = (TerminatedFailure) e;
       failure.setTerminatedFailureInfo(TerminatedFailureInfo.getDefaultInstance());
-    } else if (e instanceof ServerException) {
-      ServerException se = (ServerException) e;
+    } else if (e instanceof ServerFailure) {
+      ServerFailure se = (ServerFailure) e;
       failure.setServerFailureInfo(
           ServerFailureInfo.newBuilder().setNonRetryable(se.isNonRetryable()));
-    } else if (e instanceof ActivityException) {
-      ActivityException ae = (ActivityException) e;
+    } else if (e instanceof ActivityFailure) {
+      ActivityFailure ae = (ActivityFailure) e;
       ActivityFailureInfo.Builder info =
           ActivityFailureInfo.newBuilder()
               .setActivityId(ae.getActivityId() == null ? "" : ae.getActivityId())
@@ -231,8 +242,8 @@ public class FailureConverter {
               .setScheduledEventId(ae.getScheduledEventId())
               .setStartedEventId(ae.getStartedEventId());
       failure.setActivityFailureInfo(info);
-    } else if (e instanceof ChildWorkflowException) {
-      ChildWorkflowException ce = (ChildWorkflowException) e;
+    } else if (e instanceof ChildWorkflowFailure) {
+      ChildWorkflowFailure ce = (ChildWorkflowFailure) e;
       ChildWorkflowExecutionFailureInfo.Builder info =
           ChildWorkflowExecutionFailureInfo.newBuilder()
               .setInitiatedEventId(ce.getInitiatedEventId())

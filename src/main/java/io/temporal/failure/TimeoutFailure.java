@@ -21,13 +21,18 @@ package io.temporal.failure;
 
 import com.google.common.base.Strings;
 import io.temporal.common.converter.Value;
+import io.temporal.common.converter.WrappedValue;
 import io.temporal.proto.common.TimeoutType;
 
 public final class TimeoutFailure extends TemporalFailure {
   private final Value lastHeartbeatDetails;
   private final TimeoutType timeoutType;
 
-  public TimeoutFailure(
+  public TimeoutFailure(String message, Object lastHeartbeatDetails, TimeoutType timeoutType) {
+    this(message, new WrappedValue(lastHeartbeatDetails), timeoutType, null);
+  }
+
+  TimeoutFailure(
       String message, Value lastHeartbeatDetails, TimeoutType timeoutType, Throwable cause) {
     super(getMessage(message, timeoutType), message, cause);
     this.lastHeartbeatDetails = lastHeartbeatDetails;

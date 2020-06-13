@@ -21,7 +21,7 @@ package io.temporal.internal.sync;
 
 import io.temporal.activity.ActivityTask;
 import io.temporal.client.ActivityCompletionException;
-import io.temporal.failure.CanceledException;
+import io.temporal.failure.CanceledFailure;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.lang.reflect.Type;
 import java.util.Optional;
@@ -50,7 +50,7 @@ public interface ActivityExecutionContext {
    *
    * @param details In case of activity timeout details are returned as a field of the exception
    *     thrown.
-   * @throws CanceledException Indicates that activity cancellation was requested by the
+   * @throws CanceledFailure Indicates that activity cancellation was requested by the
    *     workflow.Should be rethrown from activity implementation to indicate successful
    *     cancellation.
    */

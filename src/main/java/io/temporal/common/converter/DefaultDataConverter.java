@@ -85,8 +85,10 @@ public class DefaultDataConverter implements DataConverter {
         throw new IllegalArgumentException("Unknown encoding: " + encoding);
       }
       return converter.fromData(payload, valueClass, valueType);
-    } catch (Throwable e) {
-      throw new DataConverterException(e);
+    } catch (DataConverterException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new DataConverterException(payload, valueClass, e);
     }
   }
 

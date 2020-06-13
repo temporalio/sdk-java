@@ -21,7 +21,7 @@ package io.temporal.internal.sync;
 
 import com.google.common.util.concurrent.RateLimiter;
 import io.temporal.common.context.ContextPropagator;
-import io.temporal.failure.CanceledException;
+import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.context.ContextThreadLocal;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsType;
@@ -119,7 +119,7 @@ class WorkflowThreadImpl implements WorkflowThread {
               String.format("Workflow thread \"%s\" run failed with Error:\n%s", name, stackTrace));
         }
         threadContext.setUnhandledException(e);
-      } catch (CanceledException e) {
+      } catch (CanceledFailure e) {
         if (!isCancelRequested()) {
           threadContext.setUnhandledException(e);
         }

@@ -20,10 +20,11 @@
 package io.temporal.client;
 
 import io.temporal.activity.ActivityTask;
+import io.temporal.failure.TemporalException;
 import io.temporal.proto.common.WorkflowExecution;
 
 /** Base exception for all failures returned by an activity completion client. */
-public class ActivityCompletionException extends RuntimeException {
+public class ActivityCompletionException extends TemporalException {
 
   private final WorkflowExecution execution;
 
@@ -32,9 +33,7 @@ public class ActivityCompletionException extends RuntimeException {
   private final String activityId;
 
   protected ActivityCompletionException(ActivityTask task) {
-    execution = task.getWorkflowExecution();
-    activityType = task.getActivityType();
-    activityId = task.getActivityId();
+    this(task, null);
   }
 
   protected ActivityCompletionException(ActivityTask task, Throwable cause) {
@@ -60,7 +59,7 @@ public class ActivityCompletionException extends RuntimeException {
   }
 
   protected ActivityCompletionException(String activityId, Throwable cause) {
-    super("ActivityId" + activityId, cause);
+    super("ActivityId=" + activityId, cause);
     this.execution = null;
     this.activityType = null;
     this.activityId = activityId;
@@ -71,7 +70,7 @@ public class ActivityCompletionException extends RuntimeException {
   }
 
   protected ActivityCompletionException() {
-    super();
+    super(null, null);
     execution = null;
     activityType = null;
     activityId = null;

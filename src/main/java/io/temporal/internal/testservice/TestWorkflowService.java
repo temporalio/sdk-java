@@ -163,7 +163,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     try {
       channel.awaitTermination(1, TimeUnit.SECONDS);
     } catch (InterruptedException e) {
-      e.printStackTrace();
+      log.debug("interrupted", e);
     }
     store.close();
   }

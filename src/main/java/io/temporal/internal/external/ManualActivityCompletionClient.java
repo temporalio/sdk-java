@@ -19,7 +19,7 @@
 
 package io.temporal.internal.external;
 
-import io.temporal.failure.CanceledException;
+import io.temporal.failure.CanceledFailure;
 
 public interface ManualActivityCompletionClient {
 
@@ -27,7 +27,7 @@ public interface ManualActivityCompletionClient {
 
   void fail(Throwable failure);
 
-  void recordHeartbeat(Object details) throws CanceledException;
+  void recordHeartbeat(Object details) throws CanceledFailure;
 
   void reportCancellation(Object details);
 }

@@ -23,7 +23,9 @@ import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.RetryOptions;
-import io.temporal.failure.CanceledException;
+import io.temporal.failure.ActivityFailure;
+import io.temporal.failure.CanceledFailure;
+import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.worker.WorkerOptions;
@@ -580,7 +582,7 @@ public final class Workflow {
    * CancellationScope#run()} calls {@link Runnable#run()} on the wrapped Runnable. The returned
    * CancellationScope can be used to cancel the wrapped code. The cancellation semantic depends on
    * the operation the code is blocked on. For example activity or child workflow is first cancelled
-   * then throws a {@link CanceledException}. The same applies for {@link Workflow#sleep(long)}
+   * then throws a {@link CanceledFailure}. The same applies for {@link Workflow#sleep(long)}
    * operation. When an activity or a child workflow is invoked asynchronously then they get
    * cancelled and a {@link Promise} that contains their result will throw CanceledException when
    * {@link Promise#get()} is called.
@@ -676,7 +678,7 @@ public final class Workflow {
    * are rounded <b>up</b> to the nearest second.
    *
    * @return feature that becomes ready when at least specified number of seconds passes. promise is
-   *     failed with {@link io.temporal.failure.CanceledException} if enclosing scope is cancelled.
+   *     failed with {@link CanceledFailure} if enclosing scope is cancelled.
    */
   public static Promise<Void> newTimer(Duration delay) {
     return WorkflowInternal.newTimer(delay);
@@ -736,7 +738,7 @@ public final class Workflow {
    *
    * @param unblockCondition condition that should return true to indicate that thread should
    *     unblock.
-   * @throws CanceledException if thread (or current {@link CancellationScope} was cancelled).
+   * @throws CanceledFailure if thread (or current {@link CancellationScope} was cancelled).
    */
   public static void await(Supplier<Boolean> unblockCondition) {
     WorkflowInternal.await(
@@ -752,7 +754,7 @@ public final class Workflow {
    * passes.
    *
    * @return false if timed out.
-   * @throws CanceledException if thread (or current {@link CancellationScope} was cancelled).
+   * @throws CanceledFailure if thread (or current {@link CancellationScope} was cancelled).
    */
   public static boolean await(Duration timeout, Supplier<Boolean> unblockCondition) {
     return WorkflowInternal.await(
@@ -808,10 +810,10 @@ public final class Workflow {
    * <p>The reason for such design is that returning originally thrown exception from a remote call
    * (which child workflow and activity invocations are ) would not allow adding context information
    * about a failure, like activity and child workflow id. So stubs always throw a subclass of
-   * {@link io.temporal.failure.ActivityException} from calls to an activity and subclass of {@link
-   * io.temporal.failure.ChildWorkflowException} from calls to a child workflow. The original
-   * exception is attached as a cause to these wrapper exceptions. So as exceptions are always
-   * wrapped adding checked ones to method signature causes more pain than benefit.
+   * {@link ActivityFailure} from calls to an activity and subclass of {@link ChildWorkflowFailure}
+   * from calls to a child workflow. The original exception is attached as a cause to these wrapper
+   * exceptions. So as exceptions are always wrapped adding checked ones to method signature causes
+   * more pain than benefit.
    *
    * <p>
    *

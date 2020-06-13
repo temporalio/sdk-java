@@ -60,6 +60,10 @@ public class DataConverterException extends RuntimeException {
     super(toMessage(message, content, valueTypes));
   }
 
+  public <T> DataConverterException(Payload payload, Class<T> valueClass, Throwable e) {
+    super(toMessage(e.getMessage(), payload, new Type[] {valueClass}), e);
+  }
+
   private static String toMessage(String message, Optional<Payloads> content, Type[] valueTypes) {
     if (content == null && valueTypes == null || valueTypes.length == 0) {
       return message;

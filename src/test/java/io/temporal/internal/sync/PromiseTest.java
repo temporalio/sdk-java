@@ -21,7 +21,7 @@ package io.temporal.internal.sync;
 
 import static org.junit.Assert.*;
 
-import io.temporal.failure.CanceledException;
+import io.temporal.failure.CanceledFailure;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
@@ -129,7 +129,7 @@ public class PromiseTest {
               trace.add("root begin");
               try {
                 f.cancellableGet();
-              } catch (CanceledException e) {
+              } catch (CanceledFailure e) {
                 trace.add("root CanceledException");
               }
               trace.add("root done");
@@ -165,7 +165,7 @@ public class PromiseTest {
                           assertEquals("bar", f.get(10, TimeUnit.SECONDS));
                           trace.add("thread1 get success");
                           fail("failure expected");
-                        } catch (CanceledException e) {
+                        } catch (CanceledFailure e) {
                           trace.add("thread1 get cancellation");
                         } catch (TimeoutException e) {
                           trace.add("thread1 get timeout");

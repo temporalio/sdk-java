@@ -19,13 +19,13 @@
 
 package io.temporal.workflow;
 
-import io.temporal.failure.CanceledException;
+import io.temporal.failure.CanceledFailure;
 import io.temporal.proto.common.ParentClosePolicy;
 
 /**
  * Defines behaviour of the parent workflow when {@link CancellationScope} that wraps child workflow
  * execution request is cancelled. The result of the cancellation independently of the type is a
- * {@link CanceledException} thrown from the child workflow method.
+ * {@link CanceledFailure} thrown from the child workflow method.
  */
 public enum ChildWorkflowCancellationType {
   /** Wait for child cancellation completion. */

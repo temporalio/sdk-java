@@ -22,7 +22,7 @@ package io.temporal.internal.replay;
 import static io.temporal.internal.common.DataConverterUtils.toHeaderGrpc;
 
 import io.temporal.activity.ActivityCancellationType;
-import io.temporal.failure.CanceledException;
+import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.RetryParameters;
 import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.Header;
@@ -80,7 +80,7 @@ final class ActivityDecisionContext {
                       "Activity with activityId=%s and scheduledEventId=%d wasn't found",
                       activityId, scheduledEventId));
             }
-            callback.accept(null, new CanceledException("Cancelled by request"));
+            callback.accept(null, new CanceledFailure("Cancelled by request"));
           };
       if (cancellationType != ActivityCancellationType.WAIT_CANCELLATION_COMPLETED) {
         immediateCancellationCallback.run();
@@ -187,7 +187,7 @@ final class ActivityDecisionContext {
   void handleActivityTaskCanceled(HistoryEvent event) {
     ActivityTaskCanceledEventAttributes attributes = event.getActivityTaskCanceledEventAttributes();
     if (decisions.handleActivityTaskCanceled(event)) {
-      CanceledException e = new CanceledException("Activity canceled");
+      CanceledFailure e = new CanceledFailure("Activity canceled");
       OpenRequestInfo<Optional<Payloads>, OpenActivityInfo> scheduled =
           scheduledActivities.remove(attributes.getScheduledEventId());
       if (scheduled != null) {

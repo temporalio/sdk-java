@@ -22,7 +22,7 @@ package io.temporal.internal.common;
 import static io.temporal.internal.common.CheckedExceptionWrapper.unwrap;
 
 import io.temporal.common.RetryOptions;
-import io.temporal.failure.ApplicationException;
+import io.temporal.failure.ApplicationFailure;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -105,8 +105,8 @@ public final class Retryer {
         throttler.failure();
         if (options.getDoNotRetry() != null) {
           String type;
-          if (e instanceof ApplicationException) {
-            type = ((ApplicationException) e).getType();
+          if (e instanceof ApplicationFailure) {
+            type = ((ApplicationFailure) e).getType();
           } else {
             type = e.getClass().getName();
           }
@@ -232,8 +232,8 @@ public final class Retryer {
     long elapsed = System.currentTimeMillis() - startTime;
     if (options.getDoNotRetry() != null) {
       String type;
-      if (e instanceof ApplicationException) {
-        type = ((ApplicationException) e).getType();
+      if (e instanceof ApplicationFailure) {
+        type = ((ApplicationFailure) e).getType();
       } else {
         type = e.getClass().getName();
       }

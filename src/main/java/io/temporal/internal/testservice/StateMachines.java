@@ -1518,13 +1518,12 @@ class StateMachines {
       backoffInterval = new RetryState.BackoffInterval(RetryStatus.NonRetryableFailure);
     }
     Failure failure;
-    if (timeoutType == TimeoutType.Heartbeat) {
+    if (timeoutType == TimeoutType.Heartbeat || timeoutType == TimeoutType.Heartbeat.StartToClose) {
       failure =
           newTimeoutFailure(
               TimeoutType.ScheduleToClose,
               Optional.ofNullable(data.heartbeatDetails),
-              Optional.of(
-                  newTimeoutFailure(TimeoutType.Heartbeat, Optional.empty(), Optional.empty())));
+              Optional.of(newTimeoutFailure(timeoutType, Optional.empty(), Optional.empty())));
     } else {
       failure =
           newTimeoutFailure(

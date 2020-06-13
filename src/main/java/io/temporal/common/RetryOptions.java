@@ -20,10 +20,10 @@
 package io.temporal.common;
 
 import com.google.common.base.Defaults;
-import io.temporal.failure.ActivityException;
-import io.temporal.failure.ApplicationException;
-import io.temporal.failure.CanceledException;
-import io.temporal.failure.ChildWorkflowException;
+import io.temporal.failure.ActivityFailure;
+import io.temporal.failure.ApplicationFailure;
+import io.temporal.failure.CanceledFailure;
+import io.temporal.failure.ChildWorkflowFailure;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Objects;
@@ -207,9 +207,9 @@ public final class RetryOptions {
 
     /**
      * List of exceptions application failures types to retry. Application failures are converted to
-     * {@link ApplicationException#getType()}.
+     * {@link ApplicationFailure#getType()}.
      *
-     * <p>{@link Error} and {@link CanceledException} are never retried and are not even passed to
+     * <p>{@link Error} and {@link CanceledFailure} are never retried and are not even passed to
      * this filter.
      */
     @SafeVarargs
@@ -369,11 +369,11 @@ public final class RetryOptions {
   public boolean shouldRethrow(
       Throwable e, Optional<Duration> expiration, long attempt, long elapsed, long sleepTime) {
     String type;
-    if (e instanceof ActivityException || e instanceof ChildWorkflowException) {
+    if (e instanceof ActivityFailure || e instanceof ChildWorkflowFailure) {
       e = e.getCause();
     }
-    if (e instanceof ApplicationException) {
-      type = ((ApplicationException) e).getType();
+    if (e instanceof ApplicationFailure) {
+      type = ((ApplicationFailure) e).getType();
     } else {
       type = e.getClass().getName();
     }

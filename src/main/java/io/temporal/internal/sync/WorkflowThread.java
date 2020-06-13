@@ -21,7 +21,7 @@ package io.temporal.internal.sync;
 
 import static io.temporal.internal.sync.DeterministicRunnerImpl.currentThreadInternal;
 
-import io.temporal.failure.CanceledException;
+import io.temporal.failure.CanceledFailure;
 import io.temporal.workflow.CancellationScope;
 import java.util.Optional;
 import java.util.concurrent.Future;
@@ -37,7 +37,7 @@ interface WorkflowThread extends CancellationScope {
    * @param reason reason for blocking
    * @param unblockCondition condition that should return true to indicate that thread should
    *     unblock.
-   * @throws CanceledException if thread (or current cancellation scope was cancelled).
+   * @throws CanceledFailure if thread (or current cancellation scope was cancelled).
    * @throws DestroyWorkflowThreadError if thread was asked to be destroyed.
    */
   static void await(String reason, Supplier<Boolean> unblockCondition)

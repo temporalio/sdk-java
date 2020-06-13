@@ -23,7 +23,7 @@ import io.temporal.proto.common.RetryStatus;
 import io.temporal.proto.common.WorkflowExecution;
 import java.util.Objects;
 
-public final class ChildWorkflowException extends TemporalFailure {
+public final class ChildWorkflowFailure extends TemporalFailure {
 
   private final long initiatedEventId;
   private final long startedEventId;
@@ -32,7 +32,7 @@ public final class ChildWorkflowException extends TemporalFailure {
   private final WorkflowExecution execution;
   private final String workflowType;
 
-  public ChildWorkflowException(
+  public ChildWorkflowFailure(
       long initiatedEventId,
       long startedEventId,
       String workflowType,

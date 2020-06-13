@@ -19,7 +19,7 @@
 
 package io.temporal.workflow;
 
-import io.temporal.failure.CanceledException;
+import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.sync.WorkflowInternal;
 
 /**
@@ -68,10 +68,10 @@ public interface CancellationScope extends Runnable {
     return WorkflowInternal.currentCancellationScope();
   }
 
-  /** Throws {@link CanceledException} if scope is cancelled. Noop if not cancelled. */
-  static void throwCancelled() throws CanceledException {
+  /** Throws {@link CanceledFailure} if scope is cancelled. Noop if not cancelled. */
+  static void throwCancelled() throws CanceledFailure {
     if (current().isCancelRequested()) {
-      throw new CanceledException(current().getCancellationReason());
+      throw new CanceledFailure(current().getCancellationReason());
     }
   }
 }

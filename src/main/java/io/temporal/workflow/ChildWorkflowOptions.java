@@ -26,7 +26,7 @@ import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
-import io.temporal.failure.CanceledException;
+import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.proto.common.ParentClosePolicy;
 import io.temporal.proto.common.WorkflowIdReusePolicy;
@@ -231,7 +231,7 @@ public final class ChildWorkflowOptions {
     }
 
     /**
-     * In case of a child workflow cancellation it fails with a {@link CanceledException}. The type
+     * In case of a child workflow cancellation it fails with a {@link CanceledFailure}. The type
      * defines at which point the exception is thrown.
      */
     public Builder setCancellationType(ChildWorkflowCancellationType cancellationType) {

@@ -29,7 +29,7 @@ import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowInvocationInterceptor;
 import io.temporal.common.interceptors.WorkflowInvoker;
-import io.temporal.failure.CanceledException;
+import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.DeciderCache;
@@ -240,7 +240,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
     @Override
     public Optional<Payloads> execute(Optional<Payloads> input)
-        throws CanceledException, WorkflowExecutionException {
+        throws CanceledFailure, WorkflowExecutionException {
       Object[] args =
           dataConverter.fromDataArray(
               input, workflowMethod.getParameterTypes(), workflowMethod.getGenericParameterTypes());
@@ -298,8 +298,8 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
           }
           // Cancellation should be delivered as it impacts which decision closes a
           // workflow.
-          if (targetException instanceof CanceledException) {
-            throw (CanceledException) targetException;
+          if (targetException instanceof CanceledFailure) {
+            throw (CanceledFailure) targetException;
           }
           if (log.isErrorEnabled()) {
             log.error(
@@ -373,15 +373,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       String workflowType,
       WorkflowExecution workflowExecution,
       DataConverter dataConverter) {
-    Failure failure;
-    // TODO(maxim): simulated timeouts
-    // Only expected during unit tests.
-    //    if (exception instanceof SimulatedTimeoutException) {
-    //      SimulatedTimeoutException timeoutException = (SimulatedTimeoutException) exception;
-    //      failure = Failure.newBuilder().setbuild();
-    //    } else {
-    failure = FailureConverter.exceptionToFailure(exception, dataConverter);
-    //    }
+    Failure failure = FailureConverter.exceptionToFailure(exception, dataConverter);
     return new WorkflowExecutionException(failure);
   }
 

@@ -20,6 +20,7 @@
 package io.temporal.common;
 
 import io.temporal.activity.ActivityOptions;
+import io.temporal.failure.ApplicationFailure;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -65,7 +66,7 @@ public @interface MethodRetry {
 
   /**
    * List of failure types to not retry. The failure type of an exception is its full class name. It
-   * can be also explicitly specified by throwing {@link io.temporal.failure.ApplicationException}
+   * can be also explicitly specified by throwing {@link ApplicationFailure}
    */
   String[] doNotRetry() default {};
 }

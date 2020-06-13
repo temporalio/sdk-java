@@ -23,12 +23,12 @@ import com.google.common.base.Strings;
 import io.temporal.common.converter.Value;
 import io.temporal.common.converter.WrappedValue;
 
-public final class ApplicationException extends TemporalFailure {
+public final class ApplicationFailure extends TemporalFailure {
   private final String type;
   private final Value details;
   private final boolean nonRetryable;
 
-  public ApplicationException(
+  public ApplicationFailure(
       String message, String type, Object details, boolean nonRetryable, Exception cause) {
     super(getMessage(message, type, nonRetryable), message, cause);
     this.type = type;
@@ -36,7 +36,7 @@ public final class ApplicationException extends TemporalFailure {
     this.nonRetryable = nonRetryable;
   }
 
-  ApplicationException(
+  ApplicationFailure(
       String message, String type, Value details, boolean nonRetryable, Exception cause) {
     super(getMessage(message, type, nonRetryable), message, cause);
     this.type = type;

@@ -27,7 +27,7 @@ import io.temporal.client.ActivityCancelledException;
 import io.temporal.client.ActivityCompletionFailureException;
 import io.temporal.client.ActivityNotExistsException;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.failure.CanceledException;
+import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.OptionsUtils;
@@ -199,7 +199,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
   }
 
   @Override
-  public void recordHeartbeat(Object details) throws CanceledException {
+  public void recordHeartbeat(Object details) throws CanceledFailure {
     Optional<Payloads> convertedDetails = dataConverter.toData(details);
     if (taskToken != null) {
       RecordActivityTaskHeartbeatRequest.Builder request =

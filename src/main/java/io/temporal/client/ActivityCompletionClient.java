@@ -20,7 +20,7 @@
 package io.temporal.client;
 
 import io.temporal.activity.Activity;
-import io.temporal.failure.CanceledException;
+import io.temporal.failure.CanceledFailure;
 import io.temporal.proto.common.WorkflowExecution;
 
 /**
@@ -52,7 +52,7 @@ public interface ActivityCompletionClient {
   /**
    * Warning: heartbeating by ids is not implemented yet.
    *
-   * @throws CanceledException if activity is cancelled.
+   * @throws CanceledFailure if activity is cancelled.
    */
   <V> void heartbeat(WorkflowExecution execution, String activityId, V details)
       throws ActivityCompletionException;
