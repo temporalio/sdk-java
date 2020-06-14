@@ -21,6 +21,7 @@ package io.temporal.failure;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
+import io.temporal.client.ActivityCancelledException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValue;
 import io.temporal.internal.common.CheckedExceptionWrapper;
@@ -253,6 +254,9 @@ public class FailureConverter {
               .setWorkflowType(WorkflowType.newBuilder().setName(ce.getWorkflowType()))
               .setWorkflowExecution(ce.getExecution());
       failure.setChildWorkflowExecutionFailureInfo(info);
+    } else if (e instanceof ActivityCancelledException) {
+      CanceledFailureInfo.Builder info = CanceledFailureInfo.newBuilder();
+      failure.setCanceledFailureInfo(info);
     } else {
       ApplicationFailureInfo.Builder info =
           ApplicationFailureInfo.newBuilder()

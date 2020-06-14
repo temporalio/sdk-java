@@ -22,12 +22,7 @@ package io.temporal.common.converter;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.base.Objects;
-import io.temporal.activity.Activity;
 import io.temporal.proto.common.Payloads;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -135,31 +130,5 @@ public class JsonDataConverterTest {
     assertEquals(null, deserializedArguments[2]);
     assertEquals(null, deserializedArguments[3]);
     assertEquals(null, deserializedArguments[4]);
-  }
-
-  @Test
-  public void testClass() {
-
-    Optional<Payloads> data = converter.toData(this.getClass());
-    @SuppressWarnings("unchecked")
-    Class result = converter.fromData(data, Class.class, Class.class);
-    assertEquals(result.toString(), this.getClass(), result);
-  }
-
-  public static class NonSerializableException extends RuntimeException {
-    @SuppressWarnings("unused")
-    private final InputStream file; // gson chokes on this field
-
-    private final String foo;
-
-    public NonSerializableException(Throwable cause) {
-      super(cause);
-      try {
-        file = new FileInputStream(File.createTempFile("foo", "bar"));
-      } catch (IOException e) {
-        throw Activity.wrap(e);
-      }
-      foo = "bar";
-    }
   }
 }

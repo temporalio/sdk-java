@@ -19,6 +19,7 @@
 
 package io.temporal.failure;
 
+import io.temporal.common.converter.EncodedValue;
 import io.temporal.common.converter.Value;
 
 public final class CanceledFailure extends TemporalFailure {
@@ -29,9 +30,12 @@ public final class CanceledFailure extends TemporalFailure {
     this.details = details;
   }
 
+  public CanceledFailure(String message, Object details) {
+    this(message, new EncodedValue(details), null);
+  }
+
   public CanceledFailure(String message) {
-    super(message, message, null);
-    this.details = Value.NULL;
+    this(message, null);
   }
 
   public Value getDetails() {

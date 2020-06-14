@@ -101,7 +101,7 @@ final class WorkflowDecisionContext {
         case ABANDON:
         case TRY_CANCEL:
           scheduledExternalWorkflows.remove(initiatedEventId);
-          CanceledFailure e = new CanceledFailure("Canceled without waiting");
+          CanceledFailure e = new CanceledFailure("Canceled without waiting", null);
           BiConsumer<Optional<Payloads>, Exception> completionCallback =
               scheduled.getCompletionCallback();
           completionCallback.accept(Optional.empty(), e);

@@ -19,10 +19,12 @@
 
 package io.temporal.internal.replay;
 
+import static io.temporal.failure.FailureConverter.JAVA_SDK;
 import static io.temporal.internal.common.DataConverterUtils.toHeaderGrpc;
 
 import io.temporal.activity.ActivityCancellationType;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.failure.FailureWrapperException;
 import io.temporal.internal.common.RetryParameters;
 import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.Header;
@@ -33,6 +35,7 @@ import io.temporal.proto.event.ActivityTaskCompletedEventAttributes;
 import io.temporal.proto.event.ActivityTaskFailedEventAttributes;
 import io.temporal.proto.event.ActivityTaskTimedOutEventAttributes;
 import io.temporal.proto.event.HistoryEvent;
+import io.temporal.proto.failure.CanceledFailureInfo;
 import io.temporal.proto.failure.Failure;
 import io.temporal.proto.tasklist.TaskList;
 import java.util.HashMap;
@@ -187,7 +190,13 @@ final class ActivityDecisionContext {
   void handleActivityTaskCanceled(HistoryEvent event) {
     ActivityTaskCanceledEventAttributes attributes = event.getActivityTaskCanceledEventAttributes();
     if (decisions.handleActivityTaskCanceled(event)) {
-      CanceledFailure e = new CanceledFailure("Activity canceled");
+      Failure failure =
+          Failure.newBuilder()
+              .setSource(JAVA_SDK)
+              .setCanceledFailureInfo(
+                  CanceledFailureInfo.newBuilder().setDetails(attributes.getDetails()))
+              .build();
+      FailureWrapperException e = new FailureWrapperException(failure);
       OpenRequestInfo<Optional<Payloads>, OpenActivityInfo> scheduled =
           scheduledActivities.remove(attributes.getScheduledEventId());
       if (scheduled != null) {

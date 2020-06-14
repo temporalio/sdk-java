@@ -40,6 +40,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DefaultDataConverter implements DataConverter {
 
   private static final DataConverter INSTANCE =
+      // Order is important as the first converter that can convert the payload is used
       new DefaultDataConverter(
           new NullPayloadConverter(),
           new ByteArrayPayloadConverter(),

@@ -19,6 +19,7 @@
 
 package io.temporal.internal.replay;
 
+import io.temporal.failure.FailureWrapperException;
 import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.failure.Failure;
 
@@ -27,14 +28,13 @@ import io.temporal.proto.failure.Failure;
  * of remote activity. TODO: Make package level visibility.
  */
 @SuppressWarnings("serial")
-public class ActivityTaskFailedException extends RuntimeException {
+public class ActivityTaskFailedException extends FailureWrapperException {
 
   private final long scheduledEventId;
   private final long startedEventId;
   private final long eventId;
   private final ActivityType activityType;
   private final String activityId;
-  private final Failure failure;
 
   ActivityTaskFailedException(
       long eventId,
@@ -43,12 +43,12 @@ public class ActivityTaskFailedException extends RuntimeException {
       ActivityType activityType,
       String activityId,
       Failure failure) {
+    super(failure);
     this.scheduledEventId = scheduledEventId;
     this.startedEventId = startedEventId;
     this.eventId = eventId;
     this.activityType = activityType;
     this.activityId = activityId;
-    this.failure = failure;
   }
 
   public long getScheduledEventId() {
@@ -69,9 +69,5 @@ public class ActivityTaskFailedException extends RuntimeException {
 
   public String getActivityId() {
     return activityId;
-  }
-
-  public Failure getFailure() {
-    return failure;
   }
 }

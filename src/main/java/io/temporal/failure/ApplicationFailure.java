@@ -20,8 +20,8 @@
 package io.temporal.failure;
 
 import com.google.common.base.Strings;
+import io.temporal.common.converter.EncodedValue;
 import io.temporal.common.converter.Value;
-import io.temporal.common.converter.WrappedValue;
 
 public final class ApplicationFailure extends TemporalFailure {
   private final String type;
@@ -32,7 +32,7 @@ public final class ApplicationFailure extends TemporalFailure {
       String message, String type, Object details, boolean nonRetryable, Exception cause) {
     super(getMessage(message, type, nonRetryable), message, cause);
     this.type = type;
-    this.details = new WrappedValue(details);
+    this.details = new EncodedValue(details);
     this.nonRetryable = nonRetryable;
   }
 

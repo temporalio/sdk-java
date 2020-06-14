@@ -34,7 +34,6 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
-import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.CheckedExceptionWrapper;
@@ -192,7 +191,7 @@ class WorkflowStubImpl implements WorkflowStub {
   }
 
   private Map<String, Payload> convertSearchAttributesFromObjectToBytes(Map<String, Object> map) {
-    return convertMapFromObjectToBytes(map, DefaultDataConverter.getInstance());
+    return convertMapFromObjectToBytes(map, clientOptions.getDataConverter());
   }
 
   private Map<String, Payload> extractContextsAndConvertToBytes(

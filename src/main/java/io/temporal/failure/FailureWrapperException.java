@@ -17,31 +17,19 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.common.converter;
+package io.temporal.failure;
 
-import java.lang.reflect.Type;
+import io.temporal.proto.failure.Failure;
 
-/** Wraps a Java object into the Value interface. */
-public final class WrappedValue implements Value {
-  private final Object value;
+public class FailureWrapperException extends RuntimeException {
 
-  public WrappedValue(Object value) {
-    if (value instanceof WrappedValue) {
-      throw new IllegalArgumentException("double wrapping: " + value);
-    }
-    this.value = value;
+  private final Failure failure;
+
+  public FailureWrapperException(Failure failure) {
+    this.failure = failure;
   }
 
-  @Override
-  @SuppressWarnings("unchecked")
-  public <T> T get(Class<T> parameterType) throws DataConverterException {
-    return (T) value;
-  }
-
-  @Override
-  @SuppressWarnings("unchecked")
-  public <T> T get(Class<T> parameterType, Type genericParameterType)
-      throws DataConverterException {
-    return (T) value;
+  public Failure getFailure() {
+    return failure;
   }
 }

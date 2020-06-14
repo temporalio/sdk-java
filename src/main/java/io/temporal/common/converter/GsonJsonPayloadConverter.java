@@ -44,7 +44,7 @@ public final class GsonJsonPayloadConverter implements PayloadConverter {
     return INSTANCE;
   }
 
-  private GsonJsonPayloadConverter() {
+  public GsonJsonPayloadConverter() {
     this((b) -> b);
   }
 

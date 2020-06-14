@@ -26,10 +26,12 @@ import io.temporal.client.ActivityCancelledException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
+import io.temporal.failure.FailureWrapperException;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.proto.common.Payloads;
+import io.temporal.proto.failure.CanceledFailureInfo;
 import io.temporal.proto.failure.Failure;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
@@ -99,7 +101,12 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
       if (isLocalActivity) {
         metricsScope.counter(MetricsType.LOCAL_ACTIVITY_CANCELED_COUNTER).inc(1);
       }
-      throw new CanceledFailure(exception.getMessage());
+      String stackTrace = FailureConverter.serializeStackTrace(exception);
+      throw new FailureWrapperException(
+          Failure.newBuilder()
+              .setStackTrace(stackTrace)
+              .setCanceledFailureInfo(CanceledFailureInfo.newBuilder())
+              .build());
     }
     if (exception instanceof Error) {
       if (isLocalActivity) {
@@ -168,7 +175,12 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
           metricsScope,
           isLocalActivity);
     }
-    return activity.execute(activityTask, metricsScope);
+    try {
+      return activity.execute(activityTask, metricsScope);
+    } catch (CanceledFailure e) {
+      e.getDetails().setDataConverter(dataConverter);
+      throw e;
+    }
   }
 
   interface ActivityTaskExecutor {

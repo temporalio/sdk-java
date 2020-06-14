@@ -21,20 +21,51 @@ package io.temporal.common.converter;
 
 import io.temporal.proto.common.Payloads;
 import java.lang.reflect.Type;
+import java.util.Objects;
 import java.util.Optional;
 
 public final class EncodedValue implements Value {
-  private final Optional<Payloads> payloads;
-  private final DataConverter converter;
+  private Optional<Payloads> payloads;
+  private DataConverter converter;
+  private final Optional<Object> value;
 
   public EncodedValue(Optional<Payloads> payloads, DataConverter converter) {
-    this.payloads = payloads;
+    this.payloads = Objects.requireNonNull(payloads);
     this.converter = converter;
+    this.value = null;
+  }
+
+  public <T> EncodedValue(T value) {
+    this.value = Optional.ofNullable(value);
+    this.payloads = null;
+  }
+
+  @Override
+  public Optional<Payloads> toPayloads() {
+    if (payloads == null) {
+      if (converter == null) {
+        throw new IllegalStateException("converter not set");
+      }
+      payloads = converter.toData(value);
+    }
+    return payloads;
+  }
+
+  @Override
+  public void setDataConverter(DataConverter converter) {
+    this.converter = Objects.requireNonNull(converter);
   }
 
   @Override
   public <T> T get(Class<T> parameterType) throws DataConverterException {
-    return converter.fromData(payloads, parameterType, parameterType);
+    if (value != null) {
+      return (T) value.orElse(null);
+    } else {
+      if (converter == null) {
+        throw new IllegalStateException("converter not set");
+      }
+      return converter.fromData(payloads, parameterType, parameterType);
+    }
   }
 
   @Override

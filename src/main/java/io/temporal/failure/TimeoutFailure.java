@@ -20,8 +20,8 @@
 package io.temporal.failure;
 
 import com.google.common.base.Strings;
+import io.temporal.common.converter.EncodedValue;
 import io.temporal.common.converter.Value;
-import io.temporal.common.converter.WrappedValue;
 import io.temporal.proto.common.TimeoutType;
 
 public final class TimeoutFailure extends TemporalFailure {
@@ -29,7 +29,7 @@ public final class TimeoutFailure extends TemporalFailure {
   private final TimeoutType timeoutType;
 
   public TimeoutFailure(String message, Object lastHeartbeatDetails, TimeoutType timeoutType) {
-    this(message, new WrappedValue(lastHeartbeatDetails), timeoutType, null);
+    this(message, new EncodedValue(lastHeartbeatDetails), timeoutType, null);
   }
 
   TimeoutFailure(

@@ -19,11 +19,17 @@
 
 package io.temporal.common.converter;
 
+import io.temporal.proto.common.Payloads;
 import java.lang.reflect.Type;
+import java.util.Optional;
 
 /** Value that can be extracted to an appropriate type. */
 public interface Value {
-  Value NULL = new WrappedValue(null);
+  Value NULL = new EncodedValue(null);
+
+  Optional<Payloads> toPayloads();
+
+  void setDataConverter(DataConverter converter);
 
   <T> T get(Class<T> parameterType) throws DataConverterException;
 
