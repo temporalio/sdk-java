@@ -155,7 +155,7 @@ public final class WorkflowClientOptions {
       }
       return new WorkflowClientOptions(
           namespace == null ? DEFAULT_NAMESPACE : namespace,
-          dataConverter == null ? DefaultDataConverter.getInstance() : dataConverter,
+          dataConverter == null ? DataConverter.getDefaultInstance() : dataConverter,
           interceptors == null ? EMPTY_INTERCEPTOR_ARRAY : interceptors,
           name,
           contextPropagators == null ? EMPTY_CONTEXT_PROPAGATORS : contextPropagators,

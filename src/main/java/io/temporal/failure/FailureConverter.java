@@ -201,7 +201,7 @@ public class FailureConverter {
       ApplicationFailureInfo.Builder info =
           ApplicationFailureInfo.newBuilder().setType(ae.getType());
       Object value = ae.getDetails().get(Object.class);
-      Optional<Payloads> details = dataConverter.toData(value);
+      Optional<Payloads> details = dataConverter.toPayloads(value);
       if (details.isPresent()) {
         info.setDetails(details.get());
       }
@@ -211,7 +211,7 @@ public class FailureConverter {
       TimeoutFailureInfo.Builder info =
           TimeoutFailureInfo.newBuilder().setTimeoutType(te.getTimeoutType());
       Object value = te.getLastHeartbeatDetails().get(Object.class);
-      Optional<Payloads> details = dataConverter.toData(value);
+      Optional<Payloads> details = dataConverter.toPayloads(value);
       if (details.isPresent()) {
         info.setLastHeartbeatDetails(details.get());
       }
@@ -220,7 +220,7 @@ public class FailureConverter {
       CanceledFailure ce = (CanceledFailure) e;
       CanceledFailureInfo.Builder info = CanceledFailureInfo.newBuilder();
       Object value = ce.getDetails().get(Object.class);
-      Optional<Payloads> details = dataConverter.toData(value);
+      Optional<Payloads> details = dataConverter.toPayloads(value);
       if (details.isPresent()) {
         info.setDetails(details.get());
       }

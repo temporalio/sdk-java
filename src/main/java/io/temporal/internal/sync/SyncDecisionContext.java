@@ -160,12 +160,12 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
       Type resultType,
       Object[] args,
       ActivityOptions options) {
-    Optional<Payloads> input = converter.toData(args);
+    Optional<Payloads> input = converter.toPayloads(args);
     Promise<Optional<Payloads>> binaryResult = executeActivityOnce(activityName, options, input);
     if (returnClass == Void.TYPE) {
       return binaryResult.thenApply((r) -> null);
     }
-    return binaryResult.thenApply((r) -> converter.fromData(r, returnClass, resultType));
+    return binaryResult.thenApply((r) -> converter.fromPayloads(r, returnClass, resultType));
   }
 
   private Promise<Optional<Payloads>> executeActivityOnce(
@@ -267,13 +267,13 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
       Type returnType,
       long elapsed,
       int attempt) {
-    Optional<Payloads> input = converter.toData(args);
+    Optional<Payloads> input = converter.toPayloads(args);
     Promise<Optional<Payloads>> binaryResult =
         executeLocalActivityOnce(name, options, input, elapsed, attempt);
     if (returnClass == Void.TYPE) {
       return binaryResult.thenApply((r) -> null);
     }
-    return binaryResult.thenApply((r) -> converter.fromData(r, returnClass, returnType));
+    return binaryResult.thenApply((r) -> converter.fromPayloads(r, returnClass, returnType));
   }
 
   private Promise<Optional<Payloads>> executeLocalActivityOnce(
@@ -361,11 +361,11 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
       Type returnType,
       Object[] args,
       ChildWorkflowOptions options) {
-    Optional<Payloads> input = converter.toData(args);
+    Optional<Payloads> input = converter.toPayloads(args);
     CompletablePromise<WorkflowExecution> execution = Workflow.newPromise();
     Promise<Optional<Payloads>> output =
         executeChildWorkflow(workflowType, options, input, execution);
-    Promise<R> result = output.thenApply((b) -> converter.fromData(b, returnClass, returnType));
+    Promise<R> result = output.thenApply((b) -> converter.fromPayloads(b, returnClass, returnType));
     return new WorkflowResult<>(result, execution);
   }
 
@@ -512,9 +512,9 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
         context.sideEffect(
             () -> {
               R r = func.apply();
-              return dataConverter.toData(r);
+              return dataConverter.toPayloads(r);
             });
-    return dataConverter.fromData(result, resultClass, resultType);
+    return dataConverter.fromPayloads(result, resultClass, resultType);
   }
 
   @Override
@@ -528,13 +528,13 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
             (storedBinary) -> {
               Optional<R> stored =
                   storedBinary.map(
-                      (b) -> converter.fromData(Optional.of(b), resultClass, resultType));
+                      (b) -> converter.fromPayloads(Optional.of(b), resultClass, resultType));
               R funcResult =
                   Objects.requireNonNull(
                       func.apply(), "mutableSideEffect function " + "returned null");
               if (!stored.isPresent() || updated.test(stored.get(), funcResult)) {
                 unserializedResult.set(funcResult);
-                return converter.toData(funcResult);
+                return converter.toPayloads(funcResult);
               }
               return Optional.empty(); // returned only when value doesn't need to be updated
             });
@@ -549,7 +549,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     if (unserialized != null) {
       return unserialized;
     }
-    return converter.fromData(payloads, resultClass, resultType);
+    return converter.fromPayloads(payloads, resultClass, resultType);
   }
 
   @Override
@@ -604,9 +604,9 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     queryCallbacks.put(
         queryType,
         (input) -> {
-          Object[] args = converter.fromDataArray(input, argTypes, genericArgTypes);
+          Object[] args = converter.arrayFromPayloads(input, argTypes, genericArgTypes);
           Object result = callback.apply(args);
-          return converter.toData(result);
+          return converter.toPayloads(result);
         });
   }
 
@@ -622,7 +622,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     Functions.Proc2<Optional<Payloads>, Long> signalCallback =
         (input, eventId) -> {
           try {
-            Object[] args = converter.fromDataArray(input, argTypes, genericArgTypes);
+            Object[] args = converter.arrayFromPayloads(input, argTypes, genericArgTypes);
             callback.apply(args);
           } catch (DataConverterException e) {
             logSerializationException(signalType, eventId, e);
@@ -678,7 +678,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     parameters.setSignalName(signalName);
     parameters.setWorkflowId(execution.getWorkflowId());
     parameters.setRunId(execution.getRunId());
-    Optional<Payloads> input = getDataConverter().toData(args);
+    Optional<Payloads> input = getDataConverter().toPayloads(args);
     parameters.setInput(input);
     CompletablePromise<Void> result = Workflow.newPromise();
 
@@ -740,7 +740,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
       parameters.setWorkflowTaskTimeoutSeconds(roundUpToSeconds(ops.getWorkflowTaskTimeout()));
       parameters.setTaskList(ops.getTaskList());
     }
-    parameters.setInput(getDataConverter().toData(args).orElse(null));
+    parameters.setInput(getDataConverter().toPayloads(args).orElse(null));
     context.continueAsNewOnCompletion(parameters);
     WorkflowThread.exit(null);
   }
@@ -774,7 +774,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
 
   public <R> R getLastCompletionResult(Class<R> resultClass, Type resultType) {
     DataConverter dataConverter = getDataConverter();
-    return dataConverter.fromData(lastCompletionResult, resultClass, resultType);
+    return dataConverter.fromPayloads(lastCompletionResult, resultClass, resultType);
   }
 
   @Override

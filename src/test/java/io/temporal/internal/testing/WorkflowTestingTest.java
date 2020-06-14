@@ -34,7 +34,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
-import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
@@ -816,7 +816,7 @@ public class WorkflowTestingTest {
       String testKey = (String) context;
       if (testKey != null) {
         return Collections.singletonMap(
-            "test", DefaultDataConverter.getInstance().toPayload(testKey).get());
+            "test", DataConverter.getDefaultInstance().toPayload(testKey).get());
       } else {
         return Collections.emptyMap();
       }
@@ -825,7 +825,7 @@ public class WorkflowTestingTest {
     @Override
     public Object deserializeContext(Map<String, Payload> context) {
       if (context.containsKey("test")) {
-        return DefaultDataConverter.getInstance()
+        return DataConverter.getDefaultInstance()
             .fromPayload(context.get("test"), String.class, String.class);
 
       } else {

@@ -317,13 +317,13 @@ public final class ClockDecisionContext {
               if (stored.isPresent()) {
                 return Optional.empty();
               }
-              return converter.toData(maxSupported);
+              return converter.toPayloads(maxSupported);
             });
 
     if (!result.isPresent()) {
       return WorkflowInternal.DEFAULT_VERSION;
     }
-    int version = converter.fromData(result, Integer.class, Integer.class);
+    int version = converter.fromPayloads(result, Integer.class, Integer.class);
     validateVersion(changeId, version, minSupported, maxSupported);
     return version;
   }

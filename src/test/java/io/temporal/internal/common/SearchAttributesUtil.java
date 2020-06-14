@@ -17,15 +17,14 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow;
+package io.temporal.internal.common;
 
 import com.cronutils.utils.StringUtils;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.proto.common.SearchAttributes;
 
-public class WorkflowUtils {
-  private static final DataConverter jsonConverter = DefaultDataConverter.getInstance();
+public class SearchAttributesUtil {
+  private static final DataConverter jsonConverter = DataConverter.getDefaultInstance();
 
   public static <T> T getValueFromSearchAttributes(
       SearchAttributes searchAttributes, String key, Class<T> classType) {

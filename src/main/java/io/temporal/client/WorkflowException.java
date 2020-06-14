@@ -22,32 +22,32 @@ package io.temporal.client;
 import io.temporal.failure.TemporalException;
 import io.temporal.proto.common.WorkflowExecution;
 import java.util.Objects;
+import java.util.Optional;
 
 /** Base exception for all workflow failures. */
 public abstract class WorkflowException extends TemporalException {
 
   private final WorkflowExecution execution;
-  private final String workflowType;
+  private final Optional<String> workflowType;
 
   protected WorkflowException(WorkflowExecution execution, String workflowType, Throwable cause) {
     super(getMessage(execution, workflowType), cause);
     this.execution = Objects.requireNonNull(execution);
-    this.workflowType = workflowType;
+    this.workflowType = Optional.ofNullable(workflowType);
   }
 
   protected WorkflowException(
       String message, WorkflowExecution execution, String workflowType, Throwable cause) {
     super(message, cause);
     this.execution = Objects.requireNonNull(execution);
-    this.workflowType = workflowType;
+    this.workflowType = Optional.ofNullable(workflowType);
   }
 
   public WorkflowExecution getExecution() {
     return execution;
   }
 
-  /** Not always known and might return null. */
-  public String getWorkflowType() {
+  public Optional<String> getWorkflowType() {
     return workflowType;
   }
 

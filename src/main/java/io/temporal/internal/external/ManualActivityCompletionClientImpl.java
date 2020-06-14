@@ -97,7 +97,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
 
   @Override
   public void complete(Object result) {
-    Optional<Payloads> convertedResult = dataConverter.toData(result);
+    Optional<Payloads> convertedResult = dataConverter.toPayloads(result);
     if (taskToken != null) {
       RespondActivityTaskCompletedRequest.Builder request =
           RespondActivityTaskCompletedRequest.newBuilder()
@@ -200,7 +200,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
 
   @Override
   public void recordHeartbeat(Object details) throws CanceledFailure {
-    Optional<Payloads> convertedDetails = dataConverter.toData(details);
+    Optional<Payloads> convertedDetails = dataConverter.toPayloads(details);
     if (taskToken != null) {
       RecordActivityTaskHeartbeatRequest.Builder request =
           RecordActivityTaskHeartbeatRequest.newBuilder()
@@ -251,7 +251,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
 
   @Override
   public void reportCancellation(Object details) {
-    Optional<Payloads> convertedDetails = dataConverter.toData(details);
+    Optional<Payloads> convertedDetails = dataConverter.toPayloads(details);
     if (taskToken != null) {
       RespondActivityTaskCanceledRequest.Builder request =
           RespondActivityTaskCanceledRequest.newBuilder()

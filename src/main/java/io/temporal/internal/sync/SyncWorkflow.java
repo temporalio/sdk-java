@@ -168,7 +168,7 @@ class SyncWorkflow implements ReplayWorkflow {
       return Optional.empty();
     }
     if (WorkflowClient.QUERY_TYPE_STACK_TRACE.equals(query.getQueryType())) {
-      return dataConverter.toData(runner.stackTrace());
+      return dataConverter.toPayloads(runner.stackTrace());
     }
     Optional<Payloads> args =
         query.hasQueryArgs() ? Optional.of(query.getQueryArgs()) : Optional.empty();

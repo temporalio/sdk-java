@@ -205,7 +205,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
       CurrentActivityExecutionContext.set(context);
       try {
         Object[] args =
-            dataConverter.fromDataArray(
+            dataConverter.arrayFromPayloads(
                 input, method.getParameterTypes(), method.getGenericParameterTypes());
         Object result = method.invoke(activity, args);
         if (context.isDoNotCompleteOnReturn()) {
@@ -214,7 +214,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
         RespondActivityTaskCompletedRequest.Builder request =
             RespondActivityTaskCompletedRequest.newBuilder();
         if (method.getReturnType() != Void.TYPE) {
-          Optional<Payloads> serialized = dataConverter.toData(result);
+          Optional<Payloads> serialized = dataConverter.toPayloads(result);
           if (serialized.isPresent()) {
             request.setResult(serialized.get());
           }
@@ -253,13 +253,13 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
       Optional<Payloads> input = task.getInput();
       try {
         Object[] args =
-            dataConverter.fromDataArray(
+            dataConverter.arrayFromPayloads(
                 input, method.getParameterTypes(), method.getGenericParameterTypes());
         Object result = method.invoke(activity, args);
         RespondActivityTaskCompletedRequest.Builder request =
             RespondActivityTaskCompletedRequest.newBuilder();
         if (method.getReturnType() != Void.TYPE) {
-          Optional<Payloads> payloads = dataConverter.toData(result);
+          Optional<Payloads> payloads = dataConverter.toPayloads(result);
           if (payloads.isPresent()) {
             request.setResult(payloads.get());
           }

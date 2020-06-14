@@ -33,7 +33,7 @@ import org.junit.Test;
 
 public class JsonDataConverterTest {
 
-  private final DataConverter converter = DefaultDataConverter.getInstance();
+  private final DataConverter converter = DataConverter.getDefaultInstance();
 
   public static void foo(List<UUID> arg) {}
 
@@ -48,9 +48,10 @@ public class JsonDataConverterTest {
       list.add(UUID.randomUUID());
     }
 
-    Optional<Payloads> data = converter.toData(list);
+    Optional<Payloads> data = converter.toPayloads(list);
     @SuppressWarnings("unchecked")
-    List<UUID> result = (List<UUID>) converter.fromData(data, parameterType, genericParameterType);
+    List<UUID> result =
+        (List<UUID>) converter.fromPayloads(data, parameterType, genericParameterType);
     assertEquals(result.toString(), list, result);
   }
 
@@ -103,9 +104,9 @@ public class JsonDataConverterTest {
     list.add(new Struct1(234, "s1"));
     list.add(new Struct1(567, "s2"));
     Optional<Payloads> data =
-        converter.toData(1234, struct1, "a string", list, "an extra string :o!!!");
+        converter.toPayloads(1234, struct1, "a string", list, "an extra string :o!!!");
     Object[] deserializedArguments =
-        converter.fromDataArray(data, m.getParameterTypes(), m.getGenericParameterTypes());
+        converter.arrayFromPayloads(data, m.getParameterTypes(), m.getGenericParameterTypes());
     assertEquals(4, deserializedArguments.length);
     assertEquals(1234, (int) deserializedArguments[0]);
     assertEquals(struct1, deserializedArguments[1]);
@@ -120,10 +121,10 @@ public class JsonDataConverterTest {
     Method m =
         JsonDataConverterTest.class.getDeclaredMethod(
             "aLotOfArguments", int.class, Struct1.class, String.class, Object.class, int[].class);
-    Optional<Payloads> data = converter.toData(1);
+    Optional<Payloads> data = converter.toPayloads(1);
     @SuppressWarnings("unchecked")
     Object[] deserializedArguments =
-        converter.fromDataArray(data, m.getParameterTypes(), m.getGenericParameterTypes());
+        converter.arrayFromPayloads(data, m.getParameterTypes(), m.getGenericParameterTypes());
     assertEquals(5, deserializedArguments.length);
     assertEquals(1, (int) deserializedArguments[0]);
     assertEquals(null, deserializedArguments[1]);

@@ -88,7 +88,7 @@ class MarkerHandler {
               ? Optional.of(attributes.getDetailsOrThrow(MUTABLE_MARKER_DATA_KEY))
               : Optional.empty();
       MarkerData.MarkerHeader header =
-          converter.fromData(
+          converter.fromPayloads(
               Optional.of(attributes.getDetailsOrThrow(MUTABLE_MARKER_HEADER_KEY)),
               MarkerData.MarkerHeader.class,
               MarkerData.MarkerHeader.class);
@@ -169,7 +169,7 @@ class MarkerHandler {
       // TODO(maxim): Verify why this is necessary.
       if (!stored.isPresent()) {
         mutableMarkerResults.put(
-            id, new MarkerResult(converter.toData(WorkflowInternal.DEFAULT_VERSION)));
+            id, new MarkerResult(converter.toPayloads(WorkflowInternal.DEFAULT_VERSION)));
       }
 
       return stored;
@@ -212,7 +212,7 @@ class MarkerHandler {
     if (data.isPresent()) {
       details.put(MUTABLE_MARKER_DATA_KEY, data.get());
     }
-    details.put(MUTABLE_MARKER_HEADER_KEY, converter.toData(marker.getHeader()).get());
+    details.put(MUTABLE_MARKER_HEADER_KEY, converter.toPayloads(marker.getHeader()).get());
     decisions.recordMarker(markerName, Optional.empty(), details, Optional.empty());
   }
 }

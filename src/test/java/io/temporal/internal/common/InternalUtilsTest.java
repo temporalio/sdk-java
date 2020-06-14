@@ -21,10 +21,9 @@ package io.temporal.internal.common;
 
 import static junit.framework.TestCase.assertEquals;
 
+import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
-import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.proto.common.SearchAttributes;
-import io.temporal.workflow.WorkflowUtils;
 import java.io.FileOutputStream;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,16 +38,17 @@ public class InternalUtilsTest {
     attr.put("CustomKeywordField", value);
 
     SearchAttributes result =
-        InternalUtils.convertMapToSearchAttributes(attr, DefaultDataConverter.getInstance());
+        InternalUtils.convertMapToSearchAttributes(attr, DataConverter.getDefaultInstance());
     assertEquals(
         value,
-        WorkflowUtils.getValueFromSearchAttributes(result, "CustomKeywordField", String.class));
+        SearchAttributesUtil.getValueFromSearchAttributes(
+            result, "CustomKeywordField", String.class));
   }
 
   @Test(expected = DataConverterException.class)
   public void testConvertMapToSearchAttributesException() throws Throwable {
     Map<String, Object> attr = new HashMap<>();
     attr.put("InvalidValue", new FileOutputStream("dummy"));
-    InternalUtils.convertMapToSearchAttributes(attr, DefaultDataConverter.getInstance());
+    InternalUtils.convertMapToSearchAttributes(attr, DataConverter.getDefaultInstance());
   }
 }

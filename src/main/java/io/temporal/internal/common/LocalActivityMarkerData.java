@@ -179,7 +179,7 @@ public final class LocalActivityMarkerData {
   }
 
   public HistoryEvent toEvent(DataConverter converter) {
-    Payloads data = converter.toData(this.data).get();
+    Payloads data = converter.toPayloads(this.data).get();
     MarkerRecordedEventAttributes.Builder attributes =
         MarkerRecordedEventAttributes.newBuilder()
             .setMarkerName(ClockDecisionContext.LOCAL_ACTIVITY_MARKER_NAME)
@@ -199,7 +199,8 @@ public final class LocalActivityMarkerData {
   public static LocalActivityMarkerData fromEventAttributes(
       MarkerRecordedEventAttributes attributes, DataConverter converter) {
     Payloads data = attributes.getDetailsOrThrow(MARKER_DATA_KEY);
-    DataValue laHeader = converter.fromData(Optional.of(data), DataValue.class, DataValue.class);
+    DataValue laHeader =
+        converter.fromPayloads(Optional.of(data), DataValue.class, DataValue.class);
     Optional<Payloads> result =
         attributes.containsDetails(MARKER_RESULT_KEY)
             ? Optional.of(attributes.getDetailsOrThrow(MARKER_RESULT_KEY))

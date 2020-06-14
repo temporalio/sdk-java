@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * DataConverter that delegates conversion to type specific PayloadConverter instance.
@@ -39,18 +40,31 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class DefaultDataConverter implements DataConverter {
 
-  private static final DataConverter INSTANCE =
-      // Order is important as the first converter that can convert the payload is used
-      new DefaultDataConverter(
-          new NullPayloadConverter(),
-          new ByteArrayPayloadConverter(),
-          new JacksonJsonPayloadConverter());
+  private static final AtomicReference<DataConverter> defaultDataConverterInstance =
+      new AtomicReference<>(
+          // Order is important as the first converter that can convert the payload is used
+          new DefaultDataConverter(
+              new NullPayloadConverter(),
+              new ByteArrayPayloadConverter(),
+              new JacksonJsonPayloadConverter()));
   private static final Object[] EMPTY_OBJECT_ARRAY = new Object[0];
   private final Map<String, PayloadConverter> converterMap = new ConcurrentHashMap<>();
   private final List<PayloadConverter> converters = new ArrayList<>();
 
-  public static DataConverter getInstance() {
-    return INSTANCE;
+  static DataConverter getDefaultInstance() {
+    return defaultDataConverterInstance.get();
+  }
+
+  /**
+   * Override the global data converter default. Consider overriding data converter per client
+   * instance (using {@link
+   * io.temporal.client.WorkflowClientOptions.Builder#setDataConverter(DataConverter)} to avoid
+   * potential conflicts.
+   *
+   * @param converter
+   */
+  public static void setDefaultDataConverter(DataConverter converter) {
+    defaultDataConverterInstance.set(converter);
   }
 
   /**
@@ -101,7 +115,7 @@ public class DefaultDataConverter implements DataConverter {
    * @return serialized values
    */
   @Override
-  public Optional<Payloads> toData(Object... values) throws DataConverterException {
+  public Optional<Payloads> toPayloads(Object... values) throws DataConverterException {
     if (values == null || values.length == 0) {
       return Optional.empty();
     }
@@ -124,7 +138,7 @@ public class DefaultDataConverter implements DataConverter {
   }
 
   @Override
-  public <T> T fromData(Optional<Payloads> content, Class<T> valueClass, Type valueType)
+  public <T> T fromPayloads(Optional<Payloads> content, Class<T> valueClass, Type valueType)
       throws DataConverterException {
     if (!content.isPresent()) {
       return null;
@@ -141,7 +155,7 @@ public class DefaultDataConverter implements DataConverter {
   }
 
   @Override
-  public Object[] fromDataArray(
+  public Object[] arrayFromPayloads(
       Optional<Payloads> content, Class<?>[] parameterTypes, Type[] valueTypes)
       throws DataConverterException {
     try {

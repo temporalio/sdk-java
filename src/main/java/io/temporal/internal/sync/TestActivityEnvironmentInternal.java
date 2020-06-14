@@ -140,7 +140,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
               testEnvironmentOptions
                   .getWorkflowClientOptions()
                   .getDataConverter()
-                  .fromData(
+                  .fromPayloads(
                       requestDetails,
                       activityHeartbetListener.valueClass,
                       activityHeartbetListener.valueType);
@@ -233,7 +233,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         Object[] args,
         ActivityOptions options) {
       Optional<Payloads> input =
-          testEnvironmentOptions.getWorkflowClientOptions().getDataConverter().toData(args);
+          testEnvironmentOptions.getWorkflowClientOptions().getDataConverter().toPayloads(args);
       PollForActivityTaskResponse.Builder taskBuilder =
           PollForActivityTaskResponse.newBuilder()
               .setScheduleToCloseTimeoutSeconds(
@@ -376,7 +376,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         return testEnvironmentOptions
             .getWorkflowClientOptions()
             .getDataConverter()
-            .fromData(result, resultClass, resultType);
+            .fromPayloads(result, resultClass, resultType);
       } else {
         RespondActivityTaskFailedRequest taskFailed =
             response.getTaskFailed().getTaskFailedRequest();

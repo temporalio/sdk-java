@@ -119,7 +119,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
         return result;
       }
       Optional<Payloads> details = task.getHeartbeatDetails();
-      return Optional.ofNullable(dataConverter.fromData(details, detailsClass, detailsType));
+      return Optional.ofNullable(dataConverter.fromPayloads(details, detailsClass, detailsType));
     } finally {
       lock.unlock();
     }
@@ -174,7 +174,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
     RecordActivityTaskHeartbeatRequest.Builder r =
         RecordActivityTaskHeartbeatRequest.newBuilder()
             .setTaskToken(OptionsUtils.toByteString(task.getTaskToken()));
-    Optional<Payloads> payloads = dataConverter.toData(details);
+    Optional<Payloads> payloads = dataConverter.toPayloads(details);
     if (payloads.isPresent()) {
       r.setDetails(payloads.get());
     }

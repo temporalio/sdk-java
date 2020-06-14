@@ -63,9 +63,7 @@ public final class WorkflowFailedException extends WorkflowException {
         + workflowExecution.getWorkflowId()
         + "', runId='"
         + workflowExecution.getRunId()
-        + "', workflowType='"
-        + workflowType
-        + '\''
+        + (workflowType == null ? "'" : "', workflowType='" + workflowType + '\'')
         + ", retryStatus="
         + retryStatus
         + ", decisionTaskCompletedEventId="

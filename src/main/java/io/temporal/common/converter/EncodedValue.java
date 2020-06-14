@@ -46,7 +46,7 @@ public final class EncodedValue implements Value {
       if (converter == null) {
         throw new IllegalStateException("converter not set");
       }
-      payloads = converter.toData(value);
+      payloads = converter.toPayloads(value);
     }
     return payloads;
   }
@@ -64,13 +64,13 @@ public final class EncodedValue implements Value {
       if (converter == null) {
         throw new IllegalStateException("converter not set");
       }
-      return converter.fromData(payloads, parameterType, parameterType);
+      return converter.fromPayloads(payloads, parameterType, parameterType);
     }
   }
 
   @Override
   public <T> T get(Class<T> parameterType, Type genericParameterType)
       throws DataConverterException {
-    return converter.fromData(payloads, parameterType, genericParameterType);
+    return converter.fromPayloads(payloads, parameterType, genericParameterType);
   }
 }

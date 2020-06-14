@@ -509,7 +509,7 @@ class ReplayDecider implements Decider {
               WorkflowQueryResult.newBuilder()
                   .setResultType(QueryResultType.Failed)
                   .setErrorMessage(e.getMessage())
-                  .setAnswer(converter.toData(stackTrace).get())
+                  .setAnswer(converter.toPayloads(stackTrace).get())
                   .build());
         }
       }

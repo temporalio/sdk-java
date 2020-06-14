@@ -54,7 +54,6 @@ import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.GsonJsonPayloadConverter;
 import io.temporal.common.interceptors.BaseWorkflowInvoker;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
@@ -66,6 +65,7 @@ import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.failure.TimeoutFailure;
+import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.sync.DeterministicRunnerTest;
@@ -1780,7 +1780,7 @@ public class WorkflowTest {
 
       Map<String, Payload> fieldsMap = searchAttrFromEvent.getIndexedFieldsMap();
       Payload searchAttrStringBytes = fieldsMap.get(testKeyString);
-      DataConverter converter = DefaultDataConverter.getInstance();
+      DataConverter converter = DataConverter.getDefaultInstance();
       String retrievedString =
           converter.fromPayload(searchAttrStringBytes, String.class, String.class);
       assertEquals(testValueString, retrievedString);
@@ -5872,7 +5872,7 @@ public class WorkflowTest {
       searchAttributes = Workflow.getWorkflowInfo().getSearchAttributes();
       assertEquals(
           "testKey",
-          WorkflowUtils.getValueFromSearchAttributes(
+          SearchAttributesUtil.getValueFromSearchAttributes(
               searchAttributes, "CustomKeywordField", String.class));
 
       // Running the activity below ensures that we have one more decision task to be executed after

@@ -29,7 +29,7 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.StatsReporter;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.common.RetryOptions;
-import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
@@ -731,7 +731,7 @@ public class DeterministicRunnerTest {
         new DeterministicRunnerImpl(
             threadPool,
             new SyncDecisionContext(
-                decisionContext, DefaultDataConverter.getInstance(), null, null),
+                decisionContext, DataConverter.getDefaultInstance(), null, null),
             () -> 0L, // clock override
             () -> {
               Promise<Void> thread =
@@ -756,7 +756,7 @@ public class DeterministicRunnerTest {
         new DeterministicRunnerImpl(
             threadPool,
             new SyncDecisionContext(
-                decisionContext, DefaultDataConverter.getInstance(), null, null),
+                decisionContext, DataConverter.getDefaultInstance(), null, null),
             () -> 0L, // clock override
             () -> {
               Promise<Void> thread =
