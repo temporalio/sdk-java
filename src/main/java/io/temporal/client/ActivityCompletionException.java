@@ -23,7 +23,7 @@ import io.temporal.activity.ActivityTask;
 import io.temporal.failure.TemporalException;
 import io.temporal.proto.common.WorkflowExecution;
 
-/** Base exception for all failures returned by an activity completion client. */
+/** Base exception for all failures returned by an activity completion client. Do not extend! */
 public class ActivityCompletionException extends TemporalException {
 
   private final WorkflowExecution execution;

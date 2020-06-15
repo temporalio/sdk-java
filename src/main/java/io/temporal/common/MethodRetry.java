@@ -66,7 +66,7 @@ public @interface MethodRetry {
 
   /**
    * List of failure types to not retry. The failure type of an exception is its full class name. It
-   * can be also explicitly specified by throwing {@link ApplicationFailure}
+   * can be also explicitly specified by throwing an {@link ApplicationFailure}
    */
   String[] doNotRetry() default {};
 }

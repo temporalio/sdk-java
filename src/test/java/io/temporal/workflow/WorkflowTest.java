@@ -162,8 +162,8 @@ public class WorkflowTest {
   private static final String ANNOTATION_TASK_LIST = "WorkflowTest-testExecute[Docker]";
 
   private TracingWorkflowInterceptor tracer;
-  private static final boolean useExternalService =
-      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+  private static final boolean useExternalService = true;
+  //      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
   private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
   // Enable to regenerate JsonFiles used for replay testing.
   // Only enable when USE_DOCKER_SERVICE is true
@@ -823,6 +823,38 @@ public class WorkflowTest {
           IOException.class.getName(), ((ApplicationFailure) e.getCause().getCause()).getType());
     }
     assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
+  }
+
+  public static class TestActivityApplicationFailureRetry implements TestWorkflow1 {
+
+    private TestActivities activities;
+
+    @Override
+    public String execute(String taskList) {
+      activities = Workflow.newActivityStub(TestActivities.class, newActivityOptions1(taskList));
+      activities.throwApplicationFailureThreeTimes();
+      return "ignored";
+    }
+  }
+
+  @Test
+  public void testActivityApplicationFailureRetry() {
+    startWorkerFor(TestActivityApplicationFailureRetry.class);
+    TestWorkflow1 workflowStub =
+        workflowClient.newWorkflowStub(
+            TestWorkflow1.class, newWorkflowOptionsBuilder(taskList).build());
+    try {
+      workflowStub.execute(taskList);
+      fail("unreachable");
+    } catch (WorkflowException e) {
+      assertTrue(e.getCause() instanceof ActivityFailure);
+      assertTrue(e.getCause().getCause() instanceof ApplicationFailure);
+      assertEquals("simulatedType", ((ApplicationFailure) e.getCause().getCause()).getType());
+      assertEquals(
+          "io.temporal.failure.ApplicationFailure: message='simulated', type='simulatedType', nonRetryable=true",
+          ((ApplicationFailure) e.getCause().getCause()).toString());
+    }
+    assertEquals(3, activitiesImpl.applicationFailureCounter.get());
   }
 
   public static class TestAsyncActivityRetry implements TestWorkflow1 {
@@ -3690,9 +3722,9 @@ public class WorkflowTest {
       }
       int c = count.incrementAndGet();
       if (c < 3) {
-        throw new IllegalStateException("simulated " + c);
-      } else {
         throw new IllegalArgumentException("simulated " + c);
+      } else {
+        throw new ApplicationFailure("simulated " + c, "NonRetryable");
       }
     }
   }
@@ -3703,7 +3735,7 @@ public class WorkflowTest {
     RetryOptions workflowRetryOptions =
         RetryOptions.newBuilder()
             .setInitialInterval(Duration.ofSeconds(1))
-            .setDoNotRetry(IllegalArgumentException.class.getName())
+            .setDoNotRetry("NonRetryable")
             .setMaximumAttempts(100)
             .setBackoffCoefficient(1.0)
             .build();
@@ -3716,11 +3748,53 @@ public class WorkflowTest {
       fail("unreachable");
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ApplicationFailure);
+      assertEquals("NonRetryable", ((ApplicationFailure) e.getCause()).getType());
       assertEquals(
-          IllegalArgumentException.class.getName(), ((ApplicationFailure) e.getCause()).getType());
-      assertEquals(
-          "message='simulated 3', type='java.lang.IllegalArgumentException', nonRetryable=false",
+          "message='simulated 3', type='NonRetryable', nonRetryable=false",
           e.getCause().getMessage());
+    }
+  }
+
+  public static class TestWorkflowNonRetryableFlag implements TestWorkflowRetry {
+
+    @Override
+    public String execute(String testName) {
+      AtomicInteger count = retryCount.get(testName);
+      if (count == null) {
+        count = new AtomicInteger();
+        retryCount.put(testName, count);
+      }
+      int c = count.incrementAndGet();
+      ApplicationFailure f = new ApplicationFailure("simulated " + c, "foo", "details");
+      if (c == 3) {
+        f.setNonRetryable(true);
+      }
+      throw f;
+    }
+  }
+
+  @Test
+  public void testNonRetryableFlag() {
+    startWorkerFor(TestWorkflowNonRetryableFlag.class);
+    RetryOptions workflowRetryOptions =
+        RetryOptions.newBuilder()
+            .setInitialInterval(Duration.ofSeconds(1))
+            .setMaximumAttempts(100)
+            .setBackoffCoefficient(1.0)
+            .build();
+    TestWorkflowRetry workflowStub =
+        workflowClient.newWorkflowStub(
+            TestWorkflowRetry.class,
+            newWorkflowOptionsBuilder(taskList).setRetryOptions(workflowRetryOptions).build());
+    try {
+      workflowStub.execute(testName.getMethodName());
+      fail("unreachable");
+    } catch (WorkflowException e) {
+      assertTrue(e.getCause() instanceof ApplicationFailure);
+      assertEquals("foo", ((ApplicationFailure) e.getCause()).getType());
+      assertEquals("details", ((ApplicationFailure) e.getCause()).getDetails().get(String.class));
+      assertEquals(
+          "message='simulated 3', type='foo', nonRetryable=true", e.getCause().getMessage());
     }
   }
 
@@ -3921,6 +3995,8 @@ public class WorkflowTest {
 
     void throwIO();
 
+    void throwApplicationFailureThreeTimes();
+
     void neverComplete();
 
     @MethodRetry(initialIntervalSeconds = 1, maximumIntervalSeconds = 1, maximumAttempts = 3)
@@ -3938,6 +4014,7 @@ public class WorkflowTest {
     private final ThreadPoolExecutor executor =
         new ThreadPoolExecutor(0, 100, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
     int lastAttempt;
+    final AtomicInteger applicationFailureCounter = new AtomicInteger();
 
     private TestActivitiesImpl(ActivityCompletionClient completionClient) {
       this.completionClient = completionClient;
@@ -4116,6 +4193,13 @@ public class WorkflowTest {
       } catch (IOException e) {
         throw Activity.wrap(e);
       }
+    }
+
+    @Override
+    public void throwApplicationFailureThreeTimes() {
+      ApplicationFailure failure = new ApplicationFailure("simulated", "simulatedType");
+      failure.setNonRetryable(applicationFailureCounter.incrementAndGet() > 2);
+      throw failure;
     }
 
     @Override

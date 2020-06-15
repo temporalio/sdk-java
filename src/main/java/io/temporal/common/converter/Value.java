@@ -25,7 +25,6 @@ import java.util.Optional;
 
 /** Value that can be extracted to an appropriate type. */
 public interface Value {
-  Value NULL = new EncodedValue(null);
 
   Optional<Payloads> toPayloads();
 

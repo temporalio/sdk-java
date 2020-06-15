@@ -142,7 +142,11 @@ public class FailureConverter {
                   ? Optional.of(info.getLastHeartbeatDetails())
                   : Optional.empty();
           return new ApplicationFailure(
-              failure.getMessage(), "ResetWorkflow", details, false, cause);
+              failure.getMessage(),
+              "ResetWorkflow",
+              new EncodedValue(details, dataConverter),
+              false,
+              cause);
         }
       case ACTIVITYFAILUREINFO:
         {
@@ -199,7 +203,9 @@ public class FailureConverter {
     if (e instanceof ApplicationFailure) {
       ApplicationFailure ae = (ApplicationFailure) e;
       ApplicationFailureInfo.Builder info =
-          ApplicationFailureInfo.newBuilder().setType(ae.getType());
+          ApplicationFailureInfo.newBuilder()
+              .setType(ae.getType())
+              .setNonRetryable(ae.isNonRetryable());
       Object value = ae.getDetails().get(Object.class);
       Optional<Payloads> details = dataConverter.toPayloads(value);
       if (details.isPresent()) {

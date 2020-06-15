@@ -23,17 +23,67 @@ import com.google.common.base.Strings;
 import io.temporal.common.converter.EncodedValue;
 import io.temporal.common.converter.Value;
 
+/**
+ * Application failure is used to communicate application specific failures between workflows and
+ * activities. Any unhandled exception which doesn't extend {@link TemporalFailure} is converted to
+ * an instance of this class before being returned to a caller.
+ *
+ * <p>The {@code type} property is used by {@link io.temporal.common.RetryOptions} to determine if
+ * an instance of this exception is non retryable. Another way to avoid retrying an exception of
+ * this type is by setting {@code nonRetryable} flag to @{code true}.
+ *
+ * <p>The conversion of an exception that doesn't extend {@link TemporalFailure} to an
+ * ApplicationFailure is done as following:
+ *
+ * <ul>
+ *   <li>type is set to the exception full type name.
+ *   <li>message is set to the exception message
+ *   <li>nonRetryable is set to false
+ *   <li>details are set to null
+ *   <li>stack trace is copied from the original exception
+ * </ul>
+ */
 public final class ApplicationFailure extends TemporalFailure {
   private final String type;
   private final Value details;
-  private final boolean nonRetryable;
+  private boolean nonRetryable;
 
-  public ApplicationFailure(
-      String message, String type, Object details, boolean nonRetryable, Exception cause) {
-    super(getMessage(message, type, nonRetryable), message, cause);
-    this.type = type;
-    this.details = new EncodedValue(details);
-    this.nonRetryable = nonRetryable;
+  /**
+   * @param message optional error message
+   * @param type optional error type that is used by {@link
+   *     io.temporal.common.RetryOptions#addDoNotRetry(String...)}.
+   * @param details optional details about the failure. They are serialized using the same approach
+   *     as arguments and results.
+   * @param cause failure cause. Each element of the cause chain is converted to ApplicationFailure
+   *     if it doesn't extend {@link TemporalFailure}.
+   */
+  public ApplicationFailure(String message, String type, Object details, Exception cause) {
+    this(message, type, new EncodedValue(details), false, cause);
+  }
+
+  /**
+   * @param message optional error message
+   * @param type optional error type that is used by {@link
+   *     io.temporal.common.RetryOptions#addDoNotRetry(String...)}.
+   * @param details optional details about the failure. They are serialized using the same approach
+   *     as arguments and results.
+   */
+  public ApplicationFailure(String message, String type, Object details) {
+    this(message, type, new EncodedValue(details), false, null);
+  }
+
+  /**
+   * @param message optional error message
+   * @param type optional error type that is used by {@link
+   *     io.temporal.common.RetryOptions#addDoNotRetry(String...)}.
+   */
+  public ApplicationFailure(String message, String type) {
+    this(message, type, new EncodedValue(null), false, null);
+  }
+
+  /** * @param message optional error message */
+  public ApplicationFailure(String message) {
+    this(message, null);
   }
 
   ApplicationFailure(
@@ -48,8 +98,12 @@ public final class ApplicationFailure extends TemporalFailure {
     return type;
   }
 
-  Value getDetails() {
+  public Value getDetails() {
     return details;
+  }
+
+  public void setNonRetryable(boolean nonRetryable) {
+    this.nonRetryable = nonRetryable;
   }
 
   public boolean isNonRetryable() {

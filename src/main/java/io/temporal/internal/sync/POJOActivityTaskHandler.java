@@ -24,6 +24,7 @@ import com.google.common.base.Joiner;
 import com.uber.m3.tally.Scope;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.failure.FailureWrapperException;
@@ -121,6 +122,9 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
       metricsScope.counter(MetricsType.LOCAL_ACTIVITY_FAILED_COUNTER).inc(1);
     } else {
       metricsScope.counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
+    }
+    if (exception instanceof ApplicationFailure) {
+      ((ApplicationFailure) exception).getDetails().setDataConverter(dataConverter);
     }
     if (exception instanceof TimeoutFailure) {
       exception = new SimulatedTimeoutFailure((TimeoutFailure) exception);

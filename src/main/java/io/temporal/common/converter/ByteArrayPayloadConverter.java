@@ -24,7 +24,7 @@ import io.temporal.proto.common.Payload;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
-public class ByteArrayPayloadConverter implements PayloadConverter {
+public final class ByteArrayPayloadConverter implements PayloadConverter {
   @Override
   public String getEncodingType() {
     return EncodingKeys.METADATA_ENCODING_RAW_NAME;
