@@ -19,7 +19,7 @@
 
 package io.temporal.internal.replay;
 
-import static io.temporal.internal.common.DataConverterUtils.toHeaderGrpc;
+import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.common.converter.EncodedValue;
