@@ -23,12 +23,12 @@ import static io.temporal.internal.common.InternalUtils.createNormalTaskList;
 import static io.temporal.internal.common.InternalUtils.createStickyTaskList;
 import static org.junit.Assert.*;
 
-import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.enums.v1.EventType;
 import io.temporal.history.v1.HistoryEvent;
-import io.temporal.workflowservice.v1.PollForDecisionTaskResponse;
+import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.TestServiceUtils;
+import io.temporal.workflowservice.v1.PollForDecisionTaskResponse;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeUnit;

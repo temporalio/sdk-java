@@ -20,10 +20,10 @@
 package io.temporal.internal.replay;
 
 import io.temporal.activity.ActivityCancellationType;
-import io.temporal.internal.common.RetryParameters;
 import io.temporal.common.v1.ActivityType;
 import io.temporal.common.v1.Payload;
 import io.temporal.common.v1.Payloads;
+import io.temporal.internal.common.RetryParameters;
 import java.util.Map;
 
 public class ExecuteActivityParameters implements Cloneable {

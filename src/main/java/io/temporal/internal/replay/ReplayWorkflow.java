@@ -19,9 +19,9 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.common.v1.Payloads;
 import io.temporal.history.v1.HistoryEvent;
+import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.query.v1.WorkflowQuery;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.Optional;

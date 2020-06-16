@@ -19,9 +19,9 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.enums.v1.RetryStatus;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.common.v1.WorkflowType;
+import io.temporal.enums.v1.RetryStatus;
 import io.temporal.failure.v1.Failure;
 
 /** Internal. Do not catch or throw by application level code. */

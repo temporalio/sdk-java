@@ -19,8 +19,8 @@
 
 package io.temporal.client;
 
-import io.temporal.internal.sync.StubMarker;
 import io.temporal.common.v1.WorkflowExecution;
+import io.temporal.internal.sync.StubMarker;
 import io.temporal.query.v1.QueryRejectCondition;
 import java.lang.reflect.Type;
 import java.util.Optional;

@@ -25,6 +25,7 @@ import static io.temporal.internal.common.InternalUtils.createStickyTaskList;
 import com.google.protobuf.ByteString;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.common.v1.WorkflowType;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.tasklist.v1.StickyExecutionAttributes;
 import io.temporal.tasklist.v1.TaskList;
 import io.temporal.workflowservice.v1.PollForDecisionTaskRequest;
@@ -33,7 +34,6 @@ import io.temporal.workflowservice.v1.RespondDecisionTaskCompletedRequest;
 import io.temporal.workflowservice.v1.RespondDecisionTaskFailedRequest;
 import io.temporal.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.workflowservice.v1.StartWorkflowExecutionRequest;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.ArrayList;
 import java.util.UUID;
 

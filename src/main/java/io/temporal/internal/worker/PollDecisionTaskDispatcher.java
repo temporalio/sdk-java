@@ -20,10 +20,9 @@
 package io.temporal.internal.worker;
 
 import io.temporal.failure.FailureConverter;
-import io.temporal.enums.v1.DecisionTaskFailed;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflowservice.v1.PollForDecisionTaskResponse;
 import io.temporal.workflowservice.v1.RespondDecisionTaskFailedRequest;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
