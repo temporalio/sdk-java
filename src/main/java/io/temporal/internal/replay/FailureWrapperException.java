@@ -17,10 +17,11 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.failure;
+package io.temporal.internal.replay;
 
 import io.temporal.proto.failure.Failure;
 
+/** Framework level exception. Do not reference in application level code. */
 public class FailureWrapperException extends RuntimeException {
 
   private final Failure failure;

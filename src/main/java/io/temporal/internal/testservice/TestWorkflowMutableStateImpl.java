@@ -73,6 +73,7 @@ import io.temporal.proto.event.UpsertWorkflowSearchAttributesEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionSignaledEventAttributes;
 import io.temporal.proto.execution.WorkflowExecutionStatus;
+import io.temporal.proto.failure.ApplicationFailureInfo;
 import io.temporal.proto.query.QueryConsistencyLevel;
 import io.temporal.proto.query.QueryRejectCondition;
 import io.temporal.proto.query.QueryRejected;
@@ -1101,11 +1102,18 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     if (data.retryState.isPresent()) {
       RetryState rs = data.retryState.get();
       Optional<String> failureType = Optional.empty();
+      RetryState.BackoffInterval backoffInterval;
       if (d.getFailure().hasApplicationFailureInfo()) {
-        failureType = Optional.of(d.getFailure().getApplicationFailureInfo().getType());
+        ApplicationFailureInfo failureInfo = d.getFailure().getApplicationFailureInfo();
+        if (failureInfo.getNonRetryable()) {
+          backoffInterval = new RetryState.BackoffInterval(RetryStatus.NonRetryableFailure);
+        } else {
+          failureType = Optional.of(failureInfo.getType());
+          backoffInterval = rs.getBackoffIntervalInSeconds(failureType, store.currentTimeMillis());
+        }
+      } else {
+        backoffInterval = new RetryState.BackoffInterval(RetryStatus.NonRetryableFailure);
       }
-      RetryState.BackoffInterval backoffInterval =
-          rs.getBackoffIntervalInSeconds(failureType, store.currentTimeMillis());
       if (backoffInterval.getRetryStatus() == RetryStatus.InProgress) {
         ContinueAsNewWorkflowExecutionDecisionAttributes.Builder continueAsNewAttr =
             ContinueAsNewWorkflowExecutionDecisionAttributes.newBuilder()
@@ -1437,10 +1445,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           int heartbeatTimeout = data.scheduledEvent.getHeartbeatTimeoutSeconds();
           long scheduledEventId = activity.getData().scheduledEventId;
           if (startToCloseTimeout > 0) {
+            int attempt = data.getAttempt();
             ctx.addTimer(
                 startToCloseTimeout,
-                () ->
-                    timeoutActivity(scheduledEventId, TimeoutType.StartToClose, data.getAttempt()),
+                () -> timeoutActivity(scheduledEventId, TimeoutType.StartToClose, attempt),
                 "Activity StartToCloseTimeout");
           }
           updateHeartbeatTimer(
@@ -1480,9 +1488,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     if (heartbeatTimeout > 0 && heartbeatTimeout < startToCloseTimeout) {
       ActivityTaskData data = activity.getData();
       data.lastHeartbeatTime = clock.getAsLong();
+      int attempt = data.getAttempt();
       ctx.addTimer(
           heartbeatTimeout,
-          () -> timeoutActivity(activityId, TimeoutType.Heartbeat, data.getAttempt()),
+          () -> timeoutActivity(activityId, TimeoutType.Heartbeat, attempt),
           "Activity Heartbeat Timeout");
     }
   }

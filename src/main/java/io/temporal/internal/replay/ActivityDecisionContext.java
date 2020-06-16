@@ -24,7 +24,6 @@ import static io.temporal.internal.common.DataConverterUtils.toHeaderGrpc;
 
 import io.temporal.activity.ActivityCancellationType;
 import io.temporal.failure.CanceledFailure;
-import io.temporal.failure.FailureWrapperException;
 import io.temporal.internal.common.RetryParameters;
 import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.Header;

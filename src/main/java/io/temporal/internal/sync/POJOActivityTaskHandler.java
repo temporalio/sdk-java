@@ -24,12 +24,13 @@ import com.google.common.base.Joiner;
 import com.uber.m3.tally.Scope;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.EncodedValue;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
-import io.temporal.failure.FailureWrapperException;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.metrics.MetricsType;
+import io.temporal.internal.replay.FailureWrapperException;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.proto.common.Payloads;
 import io.temporal.proto.failure.CanceledFailureInfo;
@@ -124,12 +125,16 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
       metricsScope.counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
     }
     if (exception instanceof ApplicationFailure) {
-      ((ApplicationFailure) exception).getDetails().setDataConverter(dataConverter);
+      ((EncodedValue) ((ApplicationFailure) exception).getDetails())
+          .setDataConverter(dataConverter);
+    }
+    if (exception instanceof CanceledFailure) {
+      ((EncodedValue) ((CanceledFailure) exception).getDetails()).setDataConverter(dataConverter);
     }
     if (exception instanceof TimeoutFailure) {
       exception = new SimulatedTimeoutFailure((TimeoutFailure) exception);
     }
-    Failure failure = FailureConverter.exceptionToFailure(exception, dataConverter);
+    Failure failure = FailureConverter.exceptionToFailure(exception);
     RespondActivityTaskFailedRequest.Builder result =
         RespondActivityTaskFailedRequest.newBuilder().setFailure(failure);
     return new ActivityTaskHandler.Result(
@@ -179,12 +184,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
           metricsScope,
           isLocalActivity);
     }
-    try {
-      return activity.execute(activityTask, metricsScope);
-    } catch (CanceledFailure e) {
-      e.getDetails().setDataConverter(dataConverter);
-      throw e;
-    }
+    return activity.execute(activityTask, metricsScope);
   }
 
   interface ActivityTaskExecutor {

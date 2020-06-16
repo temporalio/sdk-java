@@ -154,7 +154,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
     if (taskToken != null) {
       RespondActivityTaskFailedRequest request =
           RespondActivityTaskFailedRequest.newBuilder()
-              .setFailure(FailureConverter.exceptionToFailure(exception, dataConverter))
+              .setFailure(FailureConverter.exceptionToFailure(exception))
               .setTaskToken(ByteString.copyFrom(taskToken))
               .build();
       try {
@@ -176,7 +176,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       }
       RespondActivityTaskFailedByIdRequest request =
           RespondActivityTaskFailedByIdRequest.newBuilder()
-              .setFailure(FailureConverter.exceptionToFailure(exception, dataConverter))
+              .setFailure(FailureConverter.exceptionToFailure(exception))
               .setNamespace(namespace)
               .setWorkflowId(execution.getWorkflowId())
               .setRunId(execution.getRunId())

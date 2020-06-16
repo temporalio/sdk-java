@@ -162,8 +162,8 @@ public class WorkflowTest {
   private static final String ANNOTATION_TASK_LIST = "WorkflowTest-testExecute[Docker]";
 
   private TracingWorkflowInterceptor tracer;
-  private static final boolean useExternalService = true;
-  //      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
+  private static final boolean useExternalService =
+      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
   private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
   // Enable to regenerate JsonFiles used for replay testing.
   // Only enable when USE_DOCKER_SERVICE is true
@@ -831,7 +831,15 @@ public class WorkflowTest {
 
     @Override
     public String execute(String taskList) {
-      activities = Workflow.newActivityStub(TestActivities.class, newActivityOptions1(taskList));
+      ActivityOptions options =
+          ActivityOptions.newBuilder()
+              .setTaskList(taskList)
+              .setScheduleToCloseTimeout(Duration.ofSeconds(200))
+              .setStartToCloseTimeout(Duration.ofSeconds(1))
+              .setRetryOptions(
+                  RetryOptions.newBuilder().setMaximumInterval(Duration.ofSeconds(1)).build())
+              .build();
+      activities = Workflow.newActivityStub(TestActivities.class, options);
       activities.throwApplicationFailureThreeTimes();
       return "ignored";
     }
@@ -852,7 +860,7 @@ public class WorkflowTest {
       assertEquals("simulatedType", ((ApplicationFailure) e.getCause().getCause()).getType());
       assertEquals(
           "io.temporal.failure.ApplicationFailure: message='simulated', type='simulatedType', nonRetryable=true",
-          ((ApplicationFailure) e.getCause().getCause()).toString());
+          e.getCause().getCause().toString());
     }
     assertEquals(3, activitiesImpl.applicationFailureCounter.get());
   }
@@ -3774,7 +3782,7 @@ public class WorkflowTest {
   }
 
   @Test
-  public void testNonRetryableFlag() {
+  public void testWorkflowFailureNonRetryableFlag() {
     startWorkerFor(TestWorkflowNonRetryableFlag.class);
     RetryOptions workflowRetryOptions =
         RetryOptions.newBuilder()

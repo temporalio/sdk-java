@@ -25,10 +25,12 @@ import com.google.common.base.Preconditions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
+import io.temporal.common.converter.EncodedValue;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowInvocationInterceptor;
 import io.temporal.common.interceptors.WorkflowInvoker;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.metrics.MetricsType;
@@ -373,12 +375,19 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       String workflowType,
       WorkflowExecution workflowExecution,
       DataConverter dataConverter) {
-    Failure failure = FailureConverter.exceptionToFailure(exception, dataConverter);
+    if (exception instanceof ApplicationFailure) {
+      ((EncodedValue) ((ApplicationFailure) exception).getDetails())
+          .setDataConverter(dataConverter);
+    }
+    if (exception instanceof CanceledFailure) {
+      ((EncodedValue) ((CanceledFailure) exception).getDetails()).setDataConverter(dataConverter);
+    }
+    Failure failure = FailureConverter.exceptionToFailure(exception);
     return new WorkflowExecutionException(failure);
   }
 
-  static WorkflowExecutionException mapError(Error error, DataConverter dataConverter) {
-    Failure failure = FailureConverter.exceptionToFailureNoUnwrapping(error, dataConverter);
+  static WorkflowExecutionException mapError(Error error) {
+    Failure failure = FailureConverter.exceptionToFailureNoUnwrapping(error);
     return new WorkflowExecutionException(failure);
   }
 

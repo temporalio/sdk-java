@@ -24,6 +24,8 @@ import io.temporal.proto.common.RetryStatus;
 /**
  * Contains information about an activity failure. Always contains the original reason for the
  * failure as its cause. For example if an activity timed out the cause is {@link TimeoutFailure}.
+ *
+ * <p>This exception is expected to be thrown only by the framework code.
  */
 public final class ActivityFailure extends TemporalFailure {
 

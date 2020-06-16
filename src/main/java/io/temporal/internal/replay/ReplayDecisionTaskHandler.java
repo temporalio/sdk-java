@@ -117,7 +117,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
                 + ". If see continuously the workflow might be stuck.",
             e);
       }
-      Failure failure = FailureConverter.exceptionToFailure(e, null);
+      Failure failure = FailureConverter.exceptionToFailure(e);
       RespondDecisionTaskFailedRequest failedRequest =
           RespondDecisionTaskFailedRequest.newBuilder()
               .setTaskToken(decisionTask.getTaskToken())

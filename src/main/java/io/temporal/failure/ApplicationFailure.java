@@ -25,8 +25,13 @@ import io.temporal.common.converter.Value;
 
 /**
  * Application failure is used to communicate application specific failures between workflows and
- * activities. Any unhandled exception which doesn't extend {@link TemporalFailure} is converted to
- * an instance of this class before being returned to a caller.
+ * activities.
+ *
+ * <p>Throw this exception to have full control over type and details if the exception delivered to
+ * the caller workflow or client.
+ *
+ * <p>Any unhandled exception which doesn't extend {@link TemporalFailure} is converted to an
+ * instance of this class before being returned to a caller.
  *
  * <p>The {@code type} property is used by {@link io.temporal.common.RetryOptions} to determine if
  * an instance of this exception is non retryable. Another way to avoid retrying an exception of
@@ -53,7 +58,7 @@ public final class ApplicationFailure extends TemporalFailure {
    * @param type optional error type that is used by {@link
    *     io.temporal.common.RetryOptions#addDoNotRetry(String...)}.
    * @param details optional details about the failure. They are serialized using the same approach
-   *     as arguments and results.
+   *     as arguments and results and can be accessed through {@link #getDetails()}
    * @param cause failure cause. Each element of the cause chain is converted to ApplicationFailure
    *     if it doesn't extend {@link TemporalFailure}.
    */

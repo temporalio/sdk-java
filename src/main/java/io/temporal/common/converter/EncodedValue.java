@@ -40,18 +40,16 @@ public final class EncodedValue implements Value {
     this.payloads = null;
   }
 
-  @Override
   public Optional<Payloads> toPayloads() {
     if (payloads == null) {
       if (converter == null) {
         throw new IllegalStateException("converter not set");
       }
-      payloads = converter.toPayloads(value);
+      payloads = value.isPresent() ? converter.toPayloads(value.get()) : Optional.empty();
     }
     return payloads;
   }
 
-  @Override
   public void setDataConverter(DataConverter converter) {
     this.converter = Objects.requireNonNull(converter);
   }
@@ -59,7 +57,9 @@ public final class EncodedValue implements Value {
   @Override
   public <T> T get(Class<T> parameterType) throws DataConverterException {
     if (value != null) {
-      return (T) value.orElse(null);
+      @SuppressWarnings("unchecked")
+      T result = (T) value.orElse(null);
+      return result;
     } else {
       if (converter == null) {
         throw new IllegalStateException("converter not set");

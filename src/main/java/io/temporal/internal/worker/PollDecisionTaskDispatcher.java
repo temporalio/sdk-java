@@ -75,7 +75,7 @@ public final class PollDecisionTaskDispatcher
           RespondDecisionTaskFailedRequest.newBuilder()
               .setTaskToken(t.getTaskToken())
               .setCause(DecisionTaskFailedCause.ResetStickyTasklist)
-              .setFailure(FailureConverter.exceptionToFailure(exception, null))
+              .setFailure(FailureConverter.exceptionToFailure(exception))
               .build();
       log.warn("unexpected", exception);
 

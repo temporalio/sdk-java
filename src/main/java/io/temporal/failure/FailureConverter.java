@@ -178,12 +178,12 @@ public class FailureConverter {
     }
   }
 
-  public static Failure exceptionToFailure(Throwable e, DataConverter dataConverter) {
+  public static Failure exceptionToFailure(Throwable e) {
     e = CheckedExceptionWrapper.unwrap(e);
-    return exceptionToFailureNoUnwrapping(e, dataConverter);
+    return exceptionToFailureNoUnwrapping(e);
   }
 
-  public static Failure exceptionToFailureNoUnwrapping(Throwable e, DataConverter dataConverter) {
+  public static Failure exceptionToFailureNoUnwrapping(Throwable e) {
     String message;
     if (e instanceof TemporalFailure) {
       TemporalFailure tf = (TemporalFailure) e;
@@ -198,7 +198,7 @@ public class FailureConverter {
     Failure.Builder failure =
         Failure.newBuilder().setMessage(message).setSource(JAVA_SDK).setStackTrace(stackTrace);
     if (e.getCause() != null) {
-      failure.setCause(exceptionToFailure(e.getCause(), dataConverter));
+      failure.setCause(exceptionToFailure(e.getCause()));
     }
     if (e instanceof ApplicationFailure) {
       ApplicationFailure ae = (ApplicationFailure) e;
@@ -206,8 +206,7 @@ public class FailureConverter {
           ApplicationFailureInfo.newBuilder()
               .setType(ae.getType())
               .setNonRetryable(ae.isNonRetryable());
-      Object value = ae.getDetails().get(Object.class);
-      Optional<Payloads> details = dataConverter.toPayloads(value);
+      Optional<Payloads> details = ((EncodedValue) ae.getDetails()).toPayloads();
       if (details.isPresent()) {
         info.setDetails(details.get());
       }
@@ -216,8 +215,7 @@ public class FailureConverter {
       TimeoutFailure te = (TimeoutFailure) e;
       TimeoutFailureInfo.Builder info =
           TimeoutFailureInfo.newBuilder().setTimeoutType(te.getTimeoutType());
-      Object value = te.getLastHeartbeatDetails().get(Object.class);
-      Optional<Payloads> details = dataConverter.toPayloads(value);
+      Optional<Payloads> details = ((EncodedValue) te.getLastHeartbeatDetails()).toPayloads();
       if (details.isPresent()) {
         info.setLastHeartbeatDetails(details.get());
       }
@@ -225,8 +223,7 @@ public class FailureConverter {
     } else if (e instanceof CanceledFailure) {
       CanceledFailure ce = (CanceledFailure) e;
       CanceledFailureInfo.Builder info = CanceledFailureInfo.newBuilder();
-      Object value = ce.getDetails().get(Object.class);
-      Optional<Payloads> details = dataConverter.toPayloads(value);
+      Optional<Payloads> details = ((EncodedValue) ce.getDetails()).toPayloads();
       if (details.isPresent()) {
         info.setDetails(details.get());
       }

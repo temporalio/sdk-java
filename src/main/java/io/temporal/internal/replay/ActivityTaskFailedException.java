@@ -19,7 +19,6 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.failure.FailureWrapperException;
 import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.failure.Failure;
 
