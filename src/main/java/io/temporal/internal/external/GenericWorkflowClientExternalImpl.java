@@ -19,7 +19,7 @@
 
 package io.temporal.internal.external;
 
-import static io.temporal.internal.common.DataConverterUtils.toHeaderGrpc;
+import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 
 import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;

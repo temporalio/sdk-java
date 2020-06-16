@@ -20,7 +20,7 @@
 package io.temporal.internal.replay;
 
 import static io.temporal.failure.FailureConverter.JAVA_SDK;
-import static io.temporal.internal.common.DataConverterUtils.toHeaderGrpc;
+import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 
 import io.temporal.activity.ActivityCancellationType;
 import io.temporal.failure.CanceledFailure;
