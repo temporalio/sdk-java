@@ -21,10 +21,10 @@ package io.temporal.internal.worker;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.internal.common.RpcRetryOptions;
-import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
-import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
-import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
-import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
+import io.temporal.workflowservice.v1.PollForActivityTaskResponse;
+import io.temporal.workflowservice.v1.RespondActivityTaskCanceledRequest;
+import io.temporal.workflowservice.v1.RespondActivityTaskCompletedRequest;
+import io.temporal.workflowservice.v1.RespondActivityTaskFailedRequest;
 import java.time.Duration;
 
 /**

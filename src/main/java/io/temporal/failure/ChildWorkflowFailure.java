@@ -19,8 +19,8 @@
 
 package io.temporal.failure;
 
-import io.temporal.proto.common.RetryStatus;
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.enums.v1.RetryStatus;
+import io.temporal.common.v1.WorkflowExecution;
 import java.util.Objects;
 
 public final class ChildWorkflowFailure extends TemporalFailure {

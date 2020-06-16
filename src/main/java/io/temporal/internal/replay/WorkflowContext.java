@@ -20,13 +20,13 @@
 package io.temporal.internal.replay;
 
 import io.temporal.common.context.ContextPropagator;
-import io.temporal.proto.common.Header;
-import io.temporal.proto.common.Payload;
-import io.temporal.proto.common.SearchAttributes;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.common.WorkflowType;
-import io.temporal.proto.event.WorkflowExecutionStartedEventAttributes;
-import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
+import io.temporal.common.v1.Header;
+import io.temporal.common.v1.Payload;
+import io.temporal.common.v1.SearchAttributes;
+import io.temporal.common.v1.WorkflowExecution;
+import io.temporal.common.v1.WorkflowType;
+import io.temporal.history.v1.WorkflowExecutionStartedEventAttributes;
+import io.temporal.workflowservice.v1.PollForDecisionTaskResponseOrBuilder;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;

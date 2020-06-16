@@ -21,15 +21,15 @@ package io.temporal.internal.common;
 
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.replay.ClockDecisionContext;
-import io.temporal.proto.common.ActivityType;
-import io.temporal.proto.common.Payloads;
-import io.temporal.proto.event.EventType;
-import io.temporal.proto.event.HistoryEvent;
-import io.temporal.proto.event.MarkerRecordedEventAttributes;
-import io.temporal.proto.failure.CanceledFailureInfo;
-import io.temporal.proto.failure.Failure;
-import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
-import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
+import io.temporal.common.v1.ActivityType;
+import io.temporal.common.v1.Payloads;
+import io.temporal.enums.v1.EventType;
+import io.temporal.history.v1.HistoryEvent;
+import io.temporal.history.v1.MarkerRecordedEventAttributes;
+import io.temporal.failure.v1.CanceledFailureInfo;
+import io.temporal.failure.v1.Failure;
+import io.temporal.workflowservice.v1.RespondActivityTaskCanceledRequest;
+import io.temporal.workflowservice.v1.RespondActivityTaskFailedRequest;
 import java.time.Duration;
 import java.util.Optional;
 

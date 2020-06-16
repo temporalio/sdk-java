@@ -23,7 +23,7 @@ import com.google.common.base.Strings;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValue;
 import io.temporal.common.converter.Value;
-import io.temporal.proto.common.TimeoutType;
+import io.temporal.enums.v1.TimeoutType;
 
 public final class TimeoutFailure extends TemporalFailure {
   private final Value lastHeartbeatDetails;

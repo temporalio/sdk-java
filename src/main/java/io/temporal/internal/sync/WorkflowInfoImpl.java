@@ -20,8 +20,8 @@
 package io.temporal.internal.sync;
 
 import io.temporal.internal.replay.DecisionContext;
-import io.temporal.proto.common.SearchAttributes;
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.common.v1.SearchAttributes;
+import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.workflow.WorkflowInfo;
 import java.time.Duration;
 

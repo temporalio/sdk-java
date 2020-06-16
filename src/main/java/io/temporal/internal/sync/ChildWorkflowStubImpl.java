@@ -23,7 +23,7 @@ import com.google.common.base.Defaults;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor.WorkflowResult;
 import io.temporal.failure.TemporalFailure;
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ChildWorkflowStub;
 import io.temporal.workflow.CompletablePromise;

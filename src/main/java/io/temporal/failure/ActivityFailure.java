@@ -19,7 +19,7 @@
 
 package io.temporal.failure;
 
-import io.temporal.proto.common.RetryStatus;
+import io.temporal.enums.v1.RetryStatus;
 
 /**
  * Contains information about an activity failure. Always contains the original reason for the

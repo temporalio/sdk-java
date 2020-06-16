@@ -19,7 +19,7 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.proto.common.Payloads;
+import io.temporal.common.v1.Payloads;
 import java.util.Optional;
 
 public final class SignalExternalWorkflowParameters implements Cloneable {

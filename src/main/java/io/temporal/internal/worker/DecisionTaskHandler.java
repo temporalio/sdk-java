@@ -20,10 +20,10 @@
 package io.temporal.internal.worker;
 
 import io.temporal.internal.common.RpcRetryOptions;
-import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
-import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
-import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
-import io.temporal.proto.workflowservice.RespondQueryTaskCompletedRequest;
+import io.temporal.workflowservice.v1.PollForDecisionTaskResponse;
+import io.temporal.workflowservice.v1.RespondDecisionTaskCompletedRequest;
+import io.temporal.workflowservice.v1.RespondDecisionTaskFailedRequest;
+import io.temporal.workflowservice.v1.RespondQueryTaskCompletedRequest;
 
 /**
  * Interface of workflow task handlers.

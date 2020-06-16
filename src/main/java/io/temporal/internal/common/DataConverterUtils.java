@@ -19,8 +19,8 @@
 
 package io.temporal.internal.common;
 
-import io.temporal.proto.common.Header;
-import io.temporal.proto.common.Payload;
+import io.temporal.common.v1.Header;
+import io.temporal.common.v1.Payload;
 import java.lang.reflect.Field;
 import java.util.Map;
 import org.slf4j.Logger;

@@ -19,7 +19,7 @@
 
 package io.temporal.internal.worker;
 
-import io.temporal.proto.failure.Failure;
+import io.temporal.failure.v1.Failure;
 
 /** Internal. Do not throw or catch in application level code. */
 public final class WorkflowExecutionException extends RuntimeException {

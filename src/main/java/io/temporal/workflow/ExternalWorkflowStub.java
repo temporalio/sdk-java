@@ -20,7 +20,7 @@
 package io.temporal.workflow;
 
 import io.temporal.internal.sync.StubMarker;
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.common.v1.WorkflowExecution;
 
 /**
  * Supports signalling and cancelling any workflows by the workflow type and their id. This is

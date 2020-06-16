@@ -19,7 +19,7 @@
 
 package io.temporal.internal.common;
 
-import io.temporal.proto.common.Payloads;
+import io.temporal.common.v1.Payloads;
 import java.util.Optional;
 
 public class SignalWithStartWorkflowExecutionParameters {

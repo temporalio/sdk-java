@@ -20,8 +20,8 @@
 package io.temporal.internal.testservice;
 
 import io.grpc.Status;
-import io.temporal.proto.common.RetryPolicy;
-import io.temporal.proto.common.RetryStatus;
+import io.temporal.common.v1.RetryPolicy;
+import io.temporal.enums.v1.RetryStatus;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;

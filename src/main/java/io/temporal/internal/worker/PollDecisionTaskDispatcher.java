@@ -20,9 +20,9 @@
 package io.temporal.internal.worker;
 
 import io.temporal.failure.FailureConverter;
-import io.temporal.proto.event.DecisionTaskFailedCause;
-import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
-import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
+import io.temporal.enums.v1.DecisionTaskFailed;
+import io.temporal.workflowservice.v1.PollForDecisionTaskResponse;
+import io.temporal.workflowservice.v1.RespondDecisionTaskFailedRequest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.Map;
 import java.util.Objects;

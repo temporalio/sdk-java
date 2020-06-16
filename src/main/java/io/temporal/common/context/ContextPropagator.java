@@ -19,7 +19,7 @@
 
 package io.temporal.common.context;
 
-import io.temporal.proto.common.Payload;
+import io.temporal.common.v1.Payload;
 import java.util.Map;
 
 /**

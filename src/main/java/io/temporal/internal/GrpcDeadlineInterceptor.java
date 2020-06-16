@@ -25,7 +25,7 @@ import io.grpc.ClientCall;
 import io.grpc.ClientInterceptor;
 import io.grpc.Deadline;
 import io.grpc.MethodDescriptor;
-import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
+import io.temporal.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;

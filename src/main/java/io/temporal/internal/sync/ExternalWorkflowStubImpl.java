@@ -20,7 +20,7 @@
 package io.temporal.internal.sync;
 
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.workflow.CancelExternalWorkflowException;
 import io.temporal.workflow.ExternalWorkflowStub;
 import io.temporal.workflow.Promise;

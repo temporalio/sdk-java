@@ -23,9 +23,9 @@ import static junit.framework.TestCase.assertEquals;
 
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.SearchAttributesUtil;
-import io.temporal.proto.common.Payload;
-import io.temporal.proto.common.SearchAttributes;
-import io.temporal.proto.event.WorkflowExecutionStartedEventAttributes;
+import io.temporal.common.v1.Payload;
+import io.temporal.common.v1.SearchAttributes;
+import io.temporal.history.v1.WorkflowExecutionStartedEventAttributes;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Test;

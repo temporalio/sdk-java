@@ -19,9 +19,9 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.proto.common.Payloads;
-import io.temporal.proto.query.QueryConsistencyLevel;
-import io.temporal.proto.query.QueryRejectCondition;
+import io.temporal.common.v1.Payloads;
+import io.temporal.query.v1.QueryConsistencyLevel;
+import io.temporal.query.v1.QueryRejectCondition;
 import java.util.Optional;
 
 public class QueryWorkflowParameters implements Cloneable {

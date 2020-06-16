@@ -27,7 +27,7 @@ import io.grpc.ForwardingClientCall;
 import io.grpc.ForwardingClientCallListener;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
-import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
+import io.temporal.workflowservice.v1.WorkflowServiceGrpc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

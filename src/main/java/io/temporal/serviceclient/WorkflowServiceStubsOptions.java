@@ -26,7 +26,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.NameResolver;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
-import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
+import io.temporal.workflowservice.v1.WorkflowServiceGrpc;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;

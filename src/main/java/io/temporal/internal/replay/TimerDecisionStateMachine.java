@@ -19,11 +19,11 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.proto.decision.CancelTimerDecisionAttributes;
-import io.temporal.proto.decision.Decision;
-import io.temporal.proto.decision.DecisionType;
-import io.temporal.proto.decision.StartTimerDecisionAttributes;
-import io.temporal.proto.event.HistoryEvent;
+import io.temporal.decision.v1.CancelTimerDecisionAttributes;
+import io.temporal.decision.v1.Decision;
+import io.temporal.decision.v1.DecisionType;
+import io.temporal.decision.v1.StartTimerDecisionAttributes;
+import io.temporal.history.v1.HistoryEvent;
 
 /**
  * Timer doesn't have separate initiation decision as it is started immediately. But from the state

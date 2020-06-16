@@ -19,8 +19,8 @@
 
 package io.temporal.internal.common;
 
-import io.temporal.proto.common.Payloads;
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.common.v1.Payloads;
+import io.temporal.common.v1.WorkflowExecution;
 
 public class TerminateWorkflowExecutionParameters {
 

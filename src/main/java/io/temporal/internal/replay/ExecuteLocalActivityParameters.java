@@ -20,9 +20,9 @@
 package io.temporal.internal.replay;
 
 import io.temporal.common.RetryOptions;
-import io.temporal.proto.common.ActivityType;
-import io.temporal.proto.common.Payloads;
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.common.v1.ActivityType;
+import io.temporal.common.v1.Payloads;
+import io.temporal.common.v1.WorkflowExecution;
 import java.time.Duration;
 
 public class ExecuteLocalActivityParameters {

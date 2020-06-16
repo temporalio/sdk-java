@@ -23,7 +23,7 @@ import static io.temporal.workflow.WorkflowTest.NAMESPACE;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.temporal.proto.workflowservice.RegisterNamespaceRequest;
+import io.temporal.workflowservice.v1.RegisterNamespaceRequest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 

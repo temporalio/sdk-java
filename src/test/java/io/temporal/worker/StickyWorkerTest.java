@@ -39,7 +39,7 @@ import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.replay.DeciderCache;
-import io.temporal.proto.common.WorkflowIdReusePolicy;
+import io.temporal.common.v1.WorkflowIdReusePolicy;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;

@@ -21,7 +21,7 @@ package io.temporal.client;
 
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.proto.query.QueryRejectCondition;
+import io.temporal.query.v1.QueryRejectCondition;
 import java.lang.management.ManagementFactory;
 import java.util.Arrays;
 import java.util.List;

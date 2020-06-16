@@ -24,7 +24,7 @@ import static io.temporal.internal.common.InternalUtils.createStickyTaskList;
 import static io.temporal.testUtils.TestServiceUtils.*;
 
 import io.temporal.internal.testservice.TestWorkflowService;
-import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
+import io.temporal.workflowservice.v1.PollForDecisionTaskResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.concurrent.TimeUnit;
 

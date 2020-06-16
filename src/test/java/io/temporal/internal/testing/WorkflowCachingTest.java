@@ -24,9 +24,9 @@ import static io.temporal.internal.common.InternalUtils.createStickyTaskList;
 import static org.junit.Assert.*;
 
 import io.temporal.internal.testservice.TestWorkflowService;
-import io.temporal.proto.event.EventType;
-import io.temporal.proto.event.HistoryEvent;
-import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
+import io.temporal.enums.v1.EventType;
+import io.temporal.history.v1.HistoryEvent;
+import io.temporal.workflowservice.v1.PollForDecisionTaskResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.TestServiceUtils;
 import java.time.Duration;

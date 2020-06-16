@@ -24,8 +24,8 @@ import io.temporal.internal.common.StartWorkflowExecutionParameters;
 import io.temporal.internal.common.TerminateWorkflowExecutionParameters;
 import io.temporal.internal.replay.QueryWorkflowParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.workflowservice.QueryWorkflowResponse;
+import io.temporal.common.v1.WorkflowExecution;
+import io.temporal.workflowservice.v1.QueryWorkflowResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 
 public interface GenericWorkflowClientExternal {

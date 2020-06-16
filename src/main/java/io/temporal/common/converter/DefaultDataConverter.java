@@ -22,8 +22,8 @@ package io.temporal.common.converter;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.base.Defaults;
-import io.temporal.proto.common.Payload;
-import io.temporal.proto.common.Payloads;
+import io.temporal.common.v1.Payload;
+import io.temporal.common.v1.Payloads;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;

@@ -19,10 +19,10 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.proto.decision.Decision;
-import io.temporal.proto.decision.DecisionType;
-import io.temporal.proto.decision.RequestCancelExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.proto.event.HistoryEvent;
+import io.temporal.decision.v1.Decision;
+import io.temporal.decision.v1.DecisionType;
+import io.temporal.decision.v1.RequestCancelExternalWorkflowExecutionDecisionAttributes;
+import io.temporal.history.v1.HistoryEvent;
 
 final class ExternalWorkflowCancellationDecisionStateMachine extends DecisionStateMachineBase {
 

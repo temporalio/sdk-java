@@ -25,7 +25,7 @@ import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.common.OptionsUtils;
-import io.temporal.proto.common.WorkflowIdReusePolicy;
+import io.temporal.common.v1.WorkflowIdReusePolicy;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;

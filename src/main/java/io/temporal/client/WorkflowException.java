@@ -20,7 +20,7 @@
 package io.temporal.client;
 
 import io.temporal.failure.TemporalException;
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.common.v1.WorkflowExecution;
 import java.util.Objects;
 import java.util.Optional;
 

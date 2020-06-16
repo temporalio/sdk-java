@@ -19,7 +19,7 @@
 
 package io.temporal.client;
 
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.common.v1.WorkflowExecution;
 
 /**
  * This exception is thrown in the following cases:
@@ -32,13 +32,13 @@ import io.temporal.proto.common.WorkflowExecution;
  * <ul>
  *   There is a closed workflow with the same ID and the {@link
  *   WorkflowOptions#getWorkflowIdReusePolicy()} is {@link
- *   io.temporal.proto.common.WorkflowIdReusePolicy#RejectDuplicate}.
+ *   io.temporal.common.v1.WorkflowIdReusePolicy#RejectDuplicate}.
  * </ul>
  *
  * <ul>
  *   There is successfully closed workflow with the same ID and the {@link
  *   WorkflowOptions#getWorkflowIdReusePolicy()} is {@link
- *   io.temporal.proto.common.WorkflowIdReusePolicy#AllowDuplicateFailedOnly}.
+ *   io.temporal.common.v1.WorkflowIdReusePolicy#AllowDuplicateFailedOnly}.
  * </ul>
  *
  * <ul>
@@ -46,7 +46,7 @@ import io.temporal.proto.common.WorkflowExecution;
  *   once</i> on a stub created through {@link
  *   io.temporal.workflow.Workflow#newChildWorkflowStub(Class)} and the {@link
  *   WorkflowOptions#getWorkflowIdReusePolicy()} is {@link
- *   io.temporal.proto.common.WorkflowIdReusePolicy#AllowDuplicate}
+ *   io.temporal.common.v1.WorkflowIdReusePolicy#AllowDuplicate}
  * </ul>
  */
 public final class WorkflowExecutionAlreadyStarted extends WorkflowException {
