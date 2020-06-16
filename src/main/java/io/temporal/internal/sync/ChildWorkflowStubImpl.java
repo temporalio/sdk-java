@@ -22,8 +22,7 @@ package io.temporal.internal.sync;
 import com.google.common.base.Defaults;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor.WorkflowResult;
-import io.temporal.failure.CanceledFailure;
-import io.temporal.failure.ChildWorkflowFailure;
+import io.temporal.failure.TemporalFailure;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ChildWorkflowStub;
@@ -78,7 +77,7 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
     }
     try {
       return result.get();
-    } catch (ChildWorkflowFailure | CanceledFailure e) {
+    } catch (TemporalFailure e) {
       // Reset stack to the current one. Otherwise it is very confusing to see a stack of
       // an event handling method.
       e.setStackTrace(Thread.currentThread().getStackTrace());

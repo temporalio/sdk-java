@@ -22,6 +22,7 @@ package io.temporal.internal.replay;
 import static io.temporal.internal.common.DataConverterUtils.toHeaderGrpc;
 
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
+import io.temporal.common.converter.EncodedValue;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.failure.TerminatedFailure;
@@ -283,7 +284,8 @@ final class WorkflowDecisionContext {
           scheduledExternalWorkflows.remove(attributes.getInitiatedEventId());
       if (scheduled != null) {
         // TODO(maxim): Add support for passing details without using converter here
-        CanceledFailure e = new CanceledFailure("Child canceled");
+        CanceledFailure e =
+            new CanceledFailure("Child canceled", new EncodedValue(attributes.getDetails()), null);
         BiConsumer<Optional<Payloads>, Exception> completionCallback =
             scheduled.getCompletionCallback();
         completionCallback.accept(Optional.empty(), e);

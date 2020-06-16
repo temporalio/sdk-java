@@ -23,7 +23,10 @@ import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.RetryStatus;
 import io.temporal.proto.failure.Failure;
 
-/** Exception that indicates Activity time out. */
+/**
+ * Internal. Do not catch or throw in application level code. Exception that indicates Activity time
+ * out.
+ */
 @SuppressWarnings("serial")
 public final class ActivityTaskTimeoutException extends RuntimeException {
 

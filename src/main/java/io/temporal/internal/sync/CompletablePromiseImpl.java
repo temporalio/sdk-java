@@ -19,7 +19,7 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.failure.TemporalException;
+import io.temporal.failure.TemporalFailure;
 import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Functions;
@@ -131,7 +131,7 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
 
   private V throwFailure() {
     // Replace confusing async stack with the current one.
-    if (failure instanceof TemporalException) {
+    if (failure instanceof TemporalFailure) {
       failure.setStackTrace(Thread.currentThread().getStackTrace());
     }
     throw failure;

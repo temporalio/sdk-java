@@ -19,6 +19,7 @@
 
 package io.temporal.failure;
 
+import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValue;
 import io.temporal.common.converter.Value;
 
@@ -40,5 +41,10 @@ public final class CanceledFailure extends TemporalFailure {
 
   public Value getDetails() {
     return details;
+  }
+
+  @Override
+  public void setDataConverter(DataConverter converter) {
+    ((EncodedValue) details).setDataConverter(converter);
   }
 }

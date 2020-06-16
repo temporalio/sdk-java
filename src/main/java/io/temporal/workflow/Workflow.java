@@ -584,8 +584,8 @@ public final class Workflow {
    * the operation the code is blocked on. For example activity or child workflow is first cancelled
    * then throws a {@link CanceledFailure}. The same applies for {@link Workflow#sleep(long)}
    * operation. When an activity or a child workflow is invoked asynchronously then they get
-   * cancelled and a {@link Promise} that contains their result will throw CanceledException when
-   * {@link Promise#get()} is called.
+   * cancelled and a {@link Promise} that contains their result will throw {@link CanceledFailure}
+   * when {@link Promise#get()} is called.
    *
    * <p>The new cancellation scope is linked to the parent one (available as {@link
    * CancellationScope#current()}. If the parent one is cancelled then all the children scopes are
@@ -657,7 +657,7 @@ public final class Workflow {
    * <pre><code>
    *  try {
    *     // workflow logic
-   *  } catch (CanceledException e) {
+   *  } catch (CanceledFailure e) {
    *     CancellationScope detached = Workflow.newDetachedCancellationScope(() -&gt; {
    *         // cleanup logic
    *     });

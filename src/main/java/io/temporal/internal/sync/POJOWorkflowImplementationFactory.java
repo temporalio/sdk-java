@@ -25,21 +25,19 @@ import com.google.common.base.Preconditions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
-import io.temporal.common.converter.EncodedValue;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowInvocationInterceptor;
 import io.temporal.common.interceptors.WorkflowInvoker;
-import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
+import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowFactory;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.proto.common.Payloads;
-import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.failure.Failure;
 import io.temporal.worker.WorkflowImplementationOptions;
@@ -285,14 +283,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
         try {
           return workflowMethod.invoke(workflow, arguments);
         } catch (IllegalAccessException e) {
-          WorkflowExecution workflowExecution =
-              WorkflowExecution.newBuilder()
-                  .setWorkflowId(context.getWorkflowId())
-                  .setRunId(context.getRunId())
-                  .build();
-          throw new Error(
-              mapToWorkflowExecutionException(
-                  e, context.getWorkflowType(), workflowExecution, dataConverter));
+          throw new Error(mapToWorkflowExecutionException(e, dataConverter));
         } catch (InvocationTargetException e) {
           Throwable targetException = e.getTargetException();
           if (targetException instanceof Error) {
@@ -314,17 +305,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
                     + context.getWorkflowType(),
                 targetException);
           }
-          // Cast to Exception is safe as Error is handled above.
-          WorkflowExecution workflowExecution =
-              WorkflowExecution.newBuilder()
-                  .setWorkflowId(context.getWorkflowId())
-                  .setRunId(context.getRunId())
-                  .build();
-          throw mapToWorkflowExecutionException(
-              (Exception) targetException,
-              context.getWorkflowType(),
-              workflowExecution,
-              dataConverter);
+          throw mapToWorkflowExecutionException(targetException, dataConverter);
         }
       }
 
@@ -371,16 +352,9 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   }
 
   static WorkflowExecutionException mapToWorkflowExecutionException(
-      Throwable exception,
-      String workflowType,
-      WorkflowExecution workflowExecution,
-      DataConverter dataConverter) {
-    if (exception instanceof ApplicationFailure) {
-      ((EncodedValue) ((ApplicationFailure) exception).getDetails())
-          .setDataConverter(dataConverter);
-    }
-    if (exception instanceof CanceledFailure) {
-      ((EncodedValue) ((CanceledFailure) exception).getDetails()).setDataConverter(dataConverter);
+      Throwable exception, DataConverter dataConverter) {
+    if (exception instanceof TemporalFailure) {
+      ((TemporalFailure) exception).setDataConverter(dataConverter);
     }
     Failure failure = FailureConverter.exceptionToFailure(exception);
     return new WorkflowExecutionException(failure);

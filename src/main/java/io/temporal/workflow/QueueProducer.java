@@ -57,7 +57,7 @@ public interface QueueProducer<E> {
    * available.
    *
    * @param e the element to add
-   * @throws java.util.concurrent.CanceledException if surrounding @{@link CancellationScope} is
+   * @throws io.temporal.failure.CanceledFailure if surrounding @{@link CancellationScope} is
    *     cancelled while waiting
    * @throws ClassCastException if the class of the specified element prevents it from being added
    *     to this queue
@@ -94,7 +94,7 @@ public interface QueueProducer<E> {
    * @param unit a {@code TimeUnit} determining how to interpret the {@code timeout} parameter
    * @return {@code true} if successful, or {@code false} if the specified waiting time elapses
    *     before space is available
-   * @throws java.util.concurrent.CanceledException if surrounding @{@link CancellationScope} is
+   * @throws io.temporal.failure.CanceledFailure if surrounding @{@link CancellationScope} is
    *     cancelled while waiting
    * @throws ClassCastException if the class of the specified element prevents it from being added
    *     to this queue

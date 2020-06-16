@@ -127,7 +127,7 @@ public class WorkflowInternalQueueTest {
                         try {
                           assertTrue(f.cancellableTake());
                         } catch (CanceledFailure e) {
-                          trace.add("thread1 CanceledException");
+                          trace.add("thread1 CanceledFailure");
                         }
                         trace.add("thread1 done");
                       })
@@ -140,7 +140,7 @@ public class WorkflowInternalQueueTest {
 
     String[] expected =
         new String[] {
-          "root begin", "root done", "thread1 begin", "thread1 CanceledException", "thread1 done",
+          "root begin", "root done", "thread1 begin", "thread1 CanceledFailure", "thread1 done",
         };
     trace.setExpected(expected);
   }
@@ -255,7 +255,7 @@ public class WorkflowInternalQueueTest {
                           f.put(true);
                           f.put(true);
                         } catch (CanceledFailure e) {
-                          trace.add("thread1 CanceledException");
+                          trace.add("thread1 CanceledFailure");
                         }
                         trace.add("thread1 done");
                       })
@@ -289,7 +289,7 @@ public class WorkflowInternalQueueTest {
                           f.put(true);
                           f.cancellablePut(true);
                         } catch (CanceledFailure e) {
-                          trace.add("thread1 CanceledException");
+                          trace.add("thread1 CanceledFailure");
                         }
                         trace.add("thread1 done");
                       })
@@ -302,7 +302,7 @@ public class WorkflowInternalQueueTest {
 
     String[] expected =
         new String[] {
-          "root begin", "root done", "thread1 begin", "thread1 CanceledException", "thread1 done",
+          "root begin", "root done", "thread1 begin", "thread1 CanceledFailure", "thread1 done",
         };
     trace.setExpected(expected);
     r.close();

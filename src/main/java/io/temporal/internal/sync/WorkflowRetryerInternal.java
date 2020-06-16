@@ -34,6 +34,7 @@ import java.util.Optional;
  */
 final class WorkflowRetryerInternal {
 
+  /** This class is needed as Jackson is not capable to serialize RetryOptions as they are. */
   static class SerializableRetryOptions {
     private long initialIntervalMillis;
 

@@ -34,6 +34,7 @@ import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.failure.FailureConverter;
+import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.RetryParameters;
 import io.temporal.internal.metrics.MetricsType;
@@ -202,6 +203,9 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
   private RuntimeException mapActivityException(Exception failure) {
     if (failure == null) {
       return null;
+    }
+    if (failure instanceof TemporalFailure) {
+      ((TemporalFailure) failure).setDataConverter(getDataConverter());
     }
     if (failure instanceof CanceledFailure) {
       return (CanceledFailure) failure;
@@ -451,6 +455,9 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
   private RuntimeException mapChildWorkflowException(Exception failure) {
     if (failure == null) {
       return null;
+    }
+    if (failure instanceof TemporalFailure) {
+      ((TemporalFailure) failure).setDataConverter(getDataConverter());
     }
     if (failure instanceof CanceledFailure) {
       return (CanceledFailure) failure;

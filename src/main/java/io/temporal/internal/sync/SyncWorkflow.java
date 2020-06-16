@@ -27,7 +27,6 @@ import io.temporal.internal.replay.DecisionContext;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.proto.common.Payloads;
-import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
 import io.temporal.proto.event.EventType;
 import io.temporal.proto.event.HistoryEvent;
@@ -176,10 +175,9 @@ class SyncWorkflow implements ReplayWorkflow {
   }
 
   @Override
-  public WorkflowExecutionException mapUnexpectedException(
-      Throwable failure, String workflowType, WorkflowExecution workflowExecution) {
+  public WorkflowExecutionException mapUnexpectedException(Throwable failure) {
     return POJOWorkflowImplementationFactory.mapToWorkflowExecutionException(
-        failure, workflowType, workflowExecution, dataConverter);
+        failure, dataConverter);
   }
 
   @Override

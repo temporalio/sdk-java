@@ -24,10 +24,8 @@ import com.google.common.base.Joiner;
 import com.uber.m3.tally.Scope;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.EncodedValue;
-import io.temporal.failure.ApplicationFailure;
-import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
+import io.temporal.failure.TemporalFailure;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.FailureWrapperException;
@@ -93,11 +91,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
   }
 
   private ActivityTaskHandler.Result mapToActivityFailure(
-      Throwable exception,
-      String activityType,
-      String activityId,
-      Scope metricsScope,
-      boolean isLocalActivity) {
+      Throwable exception, Scope metricsScope, boolean isLocalActivity) {
 
     if (exception instanceof ActivityCancelledException) {
       if (isLocalActivity) {
@@ -124,12 +118,8 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     } else {
       metricsScope.counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
     }
-    if (exception instanceof ApplicationFailure) {
-      ((EncodedValue) ((ApplicationFailure) exception).getDetails())
-          .setDataConverter(dataConverter);
-    }
-    if (exception instanceof CanceledFailure) {
-      ((EncodedValue) ((CanceledFailure) exception).getDetails()).setDataConverter(dataConverter);
+    if (exception instanceof TemporalFailure) {
+      ((TemporalFailure) exception).setDataConverter(dataConverter);
     }
     if (exception instanceof TimeoutFailure) {
       exception = new SimulatedTimeoutFailure((TimeoutFailure) exception);
@@ -179,8 +169,6 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
                   + activityType
                   + "\" is not registered with a worker. Known types are: "
                   + knownTypes),
-          activityType,
-          pollResponse.getActivityId(),
           metricsScope,
           isLocalActivity);
     }
@@ -225,15 +213,9 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
         }
         return new ActivityTaskHandler.Result(request.build(), null, null, null);
       } catch (RuntimeException | IllegalAccessException e) {
-        return mapToActivityFailure(
-            e, task.getActivityType(), task.getActivityId(), metricsScope, false);
+        return mapToActivityFailure(e, metricsScope, false);
       } catch (InvocationTargetException e) {
-        return mapToActivityFailure(
-            e.getTargetException(),
-            task.getActivityType(),
-            task.getActivityId(),
-            metricsScope,
-            false);
+        return mapToActivityFailure(e.getTargetException(), metricsScope, false);
       } finally {
         CurrentActivityExecutionContext.unset();
       }
@@ -270,15 +252,9 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
         }
         return new ActivityTaskHandler.Result(request.build(), null, null, null);
       } catch (RuntimeException | IllegalAccessException e) {
-        return mapToActivityFailure(
-            e, task.getActivityType(), task.getActivityId(), metricsScope, true);
+        return mapToActivityFailure(e, metricsScope, true);
       } catch (InvocationTargetException e) {
-        return mapToActivityFailure(
-            e.getTargetException(),
-            task.getActivityType(),
-            task.getActivityId(),
-            metricsScope,
-            true);
+        return mapToActivityFailure(e.getTargetException(), metricsScope, true);
       } finally {
         CurrentActivityExecutionContext.unset();
       }

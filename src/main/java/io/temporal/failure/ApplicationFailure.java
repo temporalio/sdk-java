@@ -20,6 +20,7 @@
 package io.temporal.failure;
 
 import com.google.common.base.Strings;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValue;
 import io.temporal.common.converter.Value;
 
@@ -113,6 +114,11 @@ public final class ApplicationFailure extends TemporalFailure {
 
   public boolean isNonRetryable() {
     return nonRetryable;
+  }
+
+  @Override
+  public void setDataConverter(DataConverter converter) {
+    ((EncodedValue) details).setDataConverter(converter);
   }
 
   private static String getMessage(String message, String type, boolean nonRetryable) {

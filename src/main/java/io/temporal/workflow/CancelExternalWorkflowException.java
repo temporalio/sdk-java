@@ -23,7 +23,7 @@ import io.temporal.client.WorkflowException;
 import io.temporal.proto.common.WorkflowExecution;
 
 /**
- * Exception used to communicate failure of a request to signal an external workflow.
+ * Exception used to communicate failure of a request to cancel an external workflow.
  *
  * <p>TODO: Hook it up with RequestCancelExternalWorkflowExecutionFailed and
  * WorkflowExecutionCancelRequested

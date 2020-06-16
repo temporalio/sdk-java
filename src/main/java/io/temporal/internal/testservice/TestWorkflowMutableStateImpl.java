@@ -1101,7 +1101,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     WorkflowData data = workflow.getData();
     if (data.retryState.isPresent()) {
       RetryState rs = data.retryState.get();
-      Optional<String> failureType = Optional.empty();
+      Optional<String> failureType;
       RetryState.BackoffInterval backoffInterval;
       if (d.getFailure().hasApplicationFailureInfo()) {
         ApplicationFailureInfo failureInfo = d.getFailure().getApplicationFailureInfo();

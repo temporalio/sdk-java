@@ -19,6 +19,7 @@
 
 package io.temporal.failure;
 
+import io.temporal.common.converter.DataConverter;
 import io.temporal.proto.failure.Failure;
 import java.util.Optional;
 
@@ -54,4 +55,6 @@ public abstract class TemporalFailure extends TemporalException {
   public String getOriginalMessage() {
     return originalMessage == null ? "" : originalMessage;
   }
+
+  public void setDataConverter(DataConverter converter) {}
 }

@@ -20,6 +20,7 @@
 package io.temporal.failure;
 
 import com.google.common.base.Strings;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValue;
 import io.temporal.common.converter.Value;
 import io.temporal.proto.common.TimeoutType;
@@ -45,6 +46,11 @@ public final class TimeoutFailure extends TemporalFailure {
 
   public TimeoutType getTimeoutType() {
     return timeoutType;
+  }
+
+  @Override
+  public void setDataConverter(DataConverter converter) {
+    ((EncodedValue) lastHeartbeatDetails).setDataConverter(converter);
   }
 
   public static String getMessage(String message, TimeoutType timeoutType) {

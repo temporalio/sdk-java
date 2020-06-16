@@ -166,7 +166,6 @@ public class WorkflowTestingTest {
       workflow.workflow1("input1");
       fail("unreacheable");
     } catch (WorkflowException e) {
-      e.printStackTrace();
       assertEquals(
           "message='TestWorkflow-input1', type='java.lang.IllegalThreadStateException', nonRetryable=false",
           e.getCause().getMessage());

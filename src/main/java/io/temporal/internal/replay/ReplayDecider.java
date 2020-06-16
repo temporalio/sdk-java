@@ -289,16 +289,12 @@ class ReplayDecider implements Decider {
       completed = true;
     } catch (CanceledFailure e) {
       if (!cancelRequested) {
-        failure =
-            workflow.mapUnexpectedException(
-                e, context.getWorkflowType().getName(), context.getWorkflowExecution());
+        failure = workflow.mapUnexpectedException(e);
       }
       completed = true;
     } catch (Throwable e) {
       // can cast as Error is caught above.
-      failure =
-          workflow.mapUnexpectedException(
-              e, context.getWorkflowType().getName(), context.getWorkflowExecution());
+      failure = workflow.mapUnexpectedException(e);
       completed = true;
     }
   }
