@@ -28,8 +28,8 @@ public final class ActivityCompletionFailureException extends ActivityCompletion
     super(cause);
   }
 
-  public ActivityCompletionFailureException(ActivityInfo task, Throwable cause) {
-    super(task, cause);
+  public ActivityCompletionFailureException(ActivityInfo info, Throwable cause) {
+    super(info, cause);
   }
 
   public ActivityCompletionFailureException(String activityId, Throwable cause) {

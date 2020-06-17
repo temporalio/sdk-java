@@ -19,15 +19,17 @@
 
 package io.temporal.internal.testing;
 
-import static org.junit.Assert.*;
-
 import io.grpc.Status;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.internal.sync.ActivityExecutionContext;
 import io.temporal.testing.TestActivityEnvironment;
+import org.junit.Before;
+import org.junit.Test;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,8 +37,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import org.junit.Before;
-import org.junit.Test;
+
+import static org.junit.Assert.*;
 
 public class ActivityTestingTest {
 
@@ -57,7 +59,8 @@ public class ActivityTestingTest {
 
     @Override
     public String activity1(String input) {
-      return Activity.getExecutionContext().getInfo().getActivityType() + "-" + input;
+      ActivityExecutionContext executionContext = Activity.getExecutionContext();
+      return executionContext.getInfo().getActivityType() + "-" + input;
     }
   }
 
@@ -125,12 +128,13 @@ public class ActivityTestingTest {
 
     @Override
     public void activity1() throws InterruptedException {
+      ActivityExecutionContext ctx = Activity.getExecutionContext();
       for (int i = 0; i < 10; i++) {
-        Activity.getExecutionContext().heartbeat(i);
+        ctx.heartbeat(i);
       }
       Thread.sleep(1000);
       for (int i = 10; i < 20; i++) {
-        Activity.getExecutionContext().heartbeat(i);
+        ctx.heartbeat(i);
       }
     }
   }
@@ -150,8 +154,9 @@ public class ActivityTestingTest {
 
     @Override
     public void activity1() throws InterruptedException {
+      ActivityExecutionContext ctx = Activity.getExecutionContext();
       for (int i = 0; i < 10; i++) {
-        Activity.getExecutionContext().heartbeat(null);
+        ctx.heartbeat(null);
       }
       Thread.sleep(1200);
     }
@@ -196,12 +201,13 @@ public class ActivityTestingTest {
 
     @Override
     public void activity1() throws InterruptedException {
-      Activity.getExecutionContext().heartbeat(null);
+      ActivityExecutionContext ctx = Activity.getExecutionContext();
+      ctx.heartbeat(null);
       Thread.sleep(100);
-      Activity.getExecutionContext().heartbeat(null);
+      ctx.heartbeat(null);
       Thread.sleep(1000);
       try {
-        Activity.getExecutionContext().heartbeat(null);
+        ctx.heartbeat(null);
         fail("unreachable");
       } catch (ActivityCancelledException e) {
         System.out.println("activity cancelled");

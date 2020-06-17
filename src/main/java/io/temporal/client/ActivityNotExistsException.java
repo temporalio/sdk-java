@@ -31,8 +31,8 @@ public final class ActivityNotExistsException extends ActivityCompletionExceptio
     super(cause);
   }
 
-  public ActivityNotExistsException(ActivityInfo task, Throwable cause) {
-    super(task, cause);
+  public ActivityNotExistsException(ActivityInfo info, Throwable cause) {
+    super(info, cause);
   }
 
   public ActivityNotExistsException(String activityId, Throwable cause) {

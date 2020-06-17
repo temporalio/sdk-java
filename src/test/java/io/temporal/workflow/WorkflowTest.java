@@ -19,9 +19,6 @@
 
 package io.temporal.workflow;
 
-import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
-import static org.junit.Assert.*;
-
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import com.google.common.io.CharSink;
@@ -95,6 +92,21 @@ import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Assume;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Ignore;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TestName;
+import org.junit.rules.TestWatcher;
+import org.junit.rules.Timeout;
+import org.junit.runner.Description;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -137,20 +149,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Assume;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestName;
-import org.junit.rules.TestWatcher;
-import org.junit.rules.Timeout;
-import org.junit.runner.Description;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
+import static org.junit.Assert.*;
 
 public class WorkflowTest {
 
@@ -4093,7 +4094,8 @@ public class WorkflowTest {
 
     @Override
     public String activityWithDelay(long delay, boolean heartbeatMoreThanOnce) {
-      byte[] taskToken = Activity.getExecutionContext().getInfo().getTaskToken();
+      ActivityExecutionContext ctx = Activity.getExecutionContext();
+      byte[] taskToken = ctx.getInfo().getTaskToken();
       executor.execute(
           () -> {
             invocations.add("activityWithDelay");
@@ -4113,7 +4115,7 @@ public class WorkflowTest {
               completionClient.reportCancellation(taskToken, null);
             }
           });
-      Activity.getExecutionContext().doNotCompleteOnReturn();
+      ctx.doNotCompleteOnReturn();
       return "ignored";
     }
 
@@ -6259,7 +6261,7 @@ public class WorkflowTest {
     private final WorkflowCallsInterceptor next;
 
     private TracingWorkflowCallsInterceptor(FilteredTrace trace, WorkflowCallsInterceptor next) {
-      WorkflowInfo workflowInfo = Workflow.getInfo();
+      WorkflowInfo workflowInfo = Workflow.getInfo(); // checks that info is available in the constructor
       this.trace = trace;
       this.next = Objects.requireNonNull(next);
     }

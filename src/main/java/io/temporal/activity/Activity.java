@@ -49,7 +49,7 @@ import io.temporal.internal.sync.WorkflowInternal;
  *
  *     String download(String bucketName, String remoteName);
  *
- *     {@literal @}ActivityMethod(name = "transcode")
+ *     {@literal @}ActivityMethod(name = "Transcode")
  *     String processFile(String localName);
  *
  *     void deleteLocalFile(String fileName);
@@ -58,7 +58,9 @@ import io.temporal.internal.sync.WorkflowInternal;
  * </code></pre>
  *
  * An optional {@literal @}{@link ActivityMethod} annotation can be used to specify activity name.
- * By default the method name is used as an activity name.
+ * By default the method name with the first letter capitalized is used as an activity name. So the
+ * above interface defines the following activities: "Upload", "Download", "Transcode" and
+ * "DeleteLocalFile".
  *
  * <h2>Activity Implementation</h2>
  *
@@ -104,22 +106,23 @@ import io.temporal.internal.sync.WorkflowInternal;
  *
  * <h3>Accessing Activity Info</h3>
  *
- * <p>The {@link Activity} class provides static getters to access information about the workflow
- * that invoked it. Note that this information is stored in a thread-local variable. Therefore,
- * calls to Activity accessors succeed only in the thread that invoked the activity function.
+ * <p>The {@link Activity#getExecutionContext()} returns {@link ActivityExecutionContext} which
+ * provides static getters to access information about the workflow that invoked it. Note that the
+ * activity context information is stored in a thread-local variable. Therefore, calls to {@link
+ * Activity#getExecutionContext()} succeeds only in the thread that invoked the activity function.
  *
  * <pre><code>
  * public class FileProcessingActivitiesImpl implements FileProcessingActivities {
  *
  *      {@literal @}Override
  *      public String download(String bucketName, String remoteName, String localName) {
- *         log.info("namespace=" +  Activity.getNamespace());
- *         WorkflowExecution execution = Activity.getWorkflowExecution();
- *         log.info("workflowId=" + execution.getWorkflowId());
- *         log.info("runId=" + execution.getRunId());
- *         ActivityTask activityTask = Activity.getTask();
- *         log.info("activityId=" + activityTask.getActivityId());
- *         log.info("activityTimeout=" + activityTask.getStartToCloseTimeoutSeconds());
+ *         ActivityExecutionContext ctx = Activity.getExecutionContext();
+ *         ActivityInfo info = ctx.getInfo();
+ *         log.info("namespace=" +  info.getActivityNamespace());
+ *         log.info("workflowId=" + info.getWorkflowId());
+ *         log.info("runId=" + info.getRunId());
+ *         log.info("activityId=" + info.getActivityId());
+ *         log.info("activityTimeout=" + info.getStartToCloseTimeoutSeconds());
  *         return downloadFileFromS3(bucketName, remoteName, localDirectory + localName);
  *      }
  *      ...
@@ -142,9 +145,10 @@ import io.temporal.internal.sync.WorkflowInternal;
  * public class FileProcessingActivitiesImpl implements FileProcessingActivities {
  *
  *      public String download(String bucketName, String remoteName, String localName) {
- *          byte[] taskToken = Activity.getTaskToken(); // Used to correlate reply
+ *          ActivityExecutionContext ctx = Activity.getExecutionContext();
+ *          byte[] taskToken = ctx.getInfo().getTaskToken(); // Used to correlate reply
  *          asyncDownloadFileFromS3(taskToken, bucketName, remoteName, localDirectory + localName);
- *          Activity.doNotCompleteOnReturn();
+ *          ctx.doNotCompleteOnReturn();
  *          return "ignored"; // Return value is ignored when doNotCompleteOnReturn was called.
  *      }
  *      ...

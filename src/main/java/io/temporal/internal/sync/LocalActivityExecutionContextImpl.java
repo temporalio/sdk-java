@@ -21,19 +21,13 @@ package io.temporal.internal.sync;
 
 import io.temporal.activity.ActivityInfo;
 import io.temporal.client.ActivityCompletionException;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
 class LocalActivityExecutionContextImpl implements ActivityExecutionContext {
-  private final WorkflowServiceStubs service;
-  private final String namespace;
   private final ActivityInfo info;
 
-  LocalActivityExecutionContextImpl(
-      WorkflowServiceStubs service, String namespace, ActivityInfo info) {
-    this.namespace = namespace;
-    this.service = service;
+  LocalActivityExecutionContextImpl(ActivityInfo info) {
     this.info = info;
   }
 

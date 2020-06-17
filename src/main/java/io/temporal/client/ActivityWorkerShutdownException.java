@@ -31,8 +31,8 @@ import java.util.concurrent.TimeUnit;
  */
 public final class ActivityWorkerShutdownException extends ActivityCompletionException {
 
-  public ActivityWorkerShutdownException(ActivityInfo task) {
-    super(task);
+  public ActivityWorkerShutdownException(ActivityInfo info) {
+    super(info);
   }
 
   public ActivityWorkerShutdownException() {
