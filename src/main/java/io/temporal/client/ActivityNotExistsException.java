@@ -19,7 +19,7 @@
 
 package io.temporal.client;
 
-import io.temporal.activity.ActivityTask;
+import io.temporal.activity.ActivityInfo;
 
 /**
  * Usually indicates that activity was already completed (duplicated request to complete) or timed
@@ -31,7 +31,7 @@ public final class ActivityNotExistsException extends ActivityCompletionExceptio
     super(cause);
   }
 
-  public ActivityNotExistsException(ActivityTask task, Throwable cause) {
+  public ActivityNotExistsException(ActivityInfo task, Throwable cause) {
     super(task, cause);
   }
 

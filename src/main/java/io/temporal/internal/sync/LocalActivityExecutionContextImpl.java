@@ -19,9 +19,8 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.activity.ActivityTask;
+import io.temporal.activity.ActivityInfo;
 import io.temporal.client.ActivityCompletionException;
-import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.lang.reflect.Type;
 import java.util.Optional;
@@ -29,40 +28,40 @@ import java.util.Optional;
 class LocalActivityExecutionContextImpl implements ActivityExecutionContext {
   private final WorkflowServiceStubs service;
   private final String namespace;
-  private final ActivityTask task;
+  private final ActivityInfo info;
 
   LocalActivityExecutionContextImpl(
-      WorkflowServiceStubs service, String namespace, ActivityTask task) {
+      WorkflowServiceStubs service, String namespace, ActivityInfo info) {
     this.namespace = namespace;
     this.service = service;
-    this.task = task;
+    this.info = info;
   }
 
   @Override
-  public byte[] getTaskToken() {
-    throw new UnsupportedOperationException("getTaskToken is not supported for local activities");
+  public ActivityInfo getInfo() {
+    return info;
   }
 
   @Override
-  public WorkflowExecution getWorkflowExecution() {
-    return task.getWorkflowExecution();
-  }
-
-  @Override
-  public ActivityTask getTask() {
-    return task;
-  }
-
-  @Override
-  public <V> void recordActivityHeartbeat(V details) throws ActivityCompletionException {
+  public <V> void heartbeat(V details) throws ActivityCompletionException {
     throw new UnsupportedOperationException(
         "recordActivityHeartbeat is not supported for local activities");
+  }
+
+  @Override
+  public <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass) {
+    return Optional.empty();
   }
 
   @Override
   public <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsType) {
     throw new UnsupportedOperationException(
         "getHeartbeatDetails is not supported for local activities");
+  }
+
+  @Override
+  public byte[] getTaskToken() {
+    throw new UnsupportedOperationException("getTaskToken is not supported for local activities");
   }
 
   @Override
@@ -75,15 +74,5 @@ class LocalActivityExecutionContextImpl implements ActivityExecutionContext {
   public boolean isDoNotCompleteOnReturn() {
     throw new UnsupportedOperationException(
         "isDoNotCompleteOnReturn is not supported for local activities");
-  }
-
-  @Override
-  public WorkflowServiceStubs getService() {
-    return service;
-  }
-
-  @Override
-  public String getNamespace() {
-    return namespace;
   }
 }

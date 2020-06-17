@@ -19,41 +19,36 @@
 
 package io.temporal.client;
 
-import io.temporal.activity.Activity;
-import io.temporal.common.v1.WorkflowExecution;
-import io.temporal.failure.CanceledFailure;
+import java.util.Optional;
 
 /**
- * Used to complete asynchronously activities that called {@link Activity#doNotCompleteOnReturn()}.
+ * Used to complete asynchronously activities that called {@link
+ * io.temporal.internal.sync.ActivityExecutionContext#doNotCompleteOnReturn()}.
  *
- * <p>Use {@link WorkflowClient#newActivityCompletionClient()} to create an instance. TODO: Throw
- * relevant exceptions like EntityNotExists, etc.
+ * <p>Use {@link WorkflowClient#newActivityCompletionClient()} to create an instance.
  */
 public interface ActivityCompletionClient {
 
   <R> void complete(byte[] taskToken, R result) throws ActivityCompletionException;
 
-  <R> void complete(WorkflowExecution execution, String activityId, R result)
+  <R> void complete(String workflowId, Optional<String> runId, String activityId, R result)
       throws ActivityCompletionException;
 
-  // TODO: Exception serialization/deserialization or wrapping.
   void completeExceptionally(byte[] taskToken, Exception result) throws ActivityCompletionException;
 
-  void completeExceptionally(WorkflowExecution execution, String activityId, Exception result)
+  void completeExceptionally(
+      String workflowId, Optional<String> runId, String activityId, Exception result)
       throws ActivityCompletionException;
 
   <V> void reportCancellation(byte[] taskToken, V details) throws ActivityCompletionException;
 
-  <V> void reportCancellation(WorkflowExecution execution, String activityId, V details)
+  <V> void reportCancellation(
+      String workflowId, Optional<String> runId, String activityId, V details)
       throws ActivityCompletionException;
 
   <V> void heartbeat(byte[] taskToken, V details) throws ActivityCompletionException;
 
-  /**
-   * Warning: heartbeating by ids is not implemented yet.
-   *
-   * @throws CanceledFailure if activity is cancelled.
-   */
-  <V> void heartbeat(WorkflowExecution execution, String activityId, V details)
+  /** @throws ActivityCompletionException if activity should stop executing */
+  <V> void heartbeat(String workflowId, Optional<String> runId, String activityId, V details)
       throws ActivityCompletionException;
 }

@@ -19,6 +19,9 @@
 
 package io.temporal.workflow;
 
+import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
+import static org.junit.Assert.*;
+
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import com.google.common.io.CharSink;
@@ -28,10 +31,10 @@ import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.protobuf.ByteString;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityCancellationType;
+import io.temporal.activity.ActivityInfo;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
-import io.temporal.activity.ActivityTask;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.client.ActivityCompletionClient;
@@ -75,6 +78,7 @@ import io.temporal.history.v1.HistoryEvent;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.common.WorkflowExecutionUtils;
+import io.temporal.internal.sync.ActivityExecutionContext;
 import io.temporal.internal.sync.DeterministicRunnerTest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
@@ -91,21 +95,6 @@ import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Assume;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestName;
-import org.junit.rules.TestWatcher;
-import org.junit.rules.Timeout;
-import org.junit.runner.Description;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -148,9 +137,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
-
-import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
-import static org.junit.Assert.*;
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Assume;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Ignore;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TestName;
+import org.junit.rules.TestWatcher;
+import org.junit.rules.Timeout;
+import org.junit.runner.Description;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class WorkflowTest {
 
@@ -461,8 +461,8 @@ public class WorkflowTest {
     tracer.setExpected(
         "interceptExecuteWorkflow " + UUID_REGEXP,
         "sleep PT2S",
-        "executeActivity activityWithDelay",
-        "executeActivity activity2");
+        "executeActivity ActivityWithDelay",
+        "executeActivity Activity2");
   }
 
   @WorkflowInterface
@@ -762,7 +762,7 @@ public class WorkflowTest {
                       .build())
               .build();
       ActivityStub activities = Workflow.newUntypedActivityStub(options);
-      activities.execute("throwIO", Void.class);
+      activities.execute("ThrowIO", Void.class);
       return "ignored";
     }
   }
@@ -1471,7 +1471,7 @@ public class WorkflowTest {
 
     @Override
     public int execute(int count, String continueAsNewTaskList) {
-      String taskList = Workflow.getWorkflowInfo().getTaskList();
+      String taskList = Workflow.getInfo().getTaskList();
       if (count == 0) {
         assertEquals(continueAsNewTaskList, taskList);
         return 111;
@@ -1508,6 +1508,42 @@ public class WorkflowTest {
         "continueAsNew",
         "interceptExecuteWorkflow " + UUID_REGEXP,
         "continueAsNew",
+        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "continueAsNew",
+        "interceptExecuteWorkflow " + UUID_REGEXP);
+  }
+
+  @WorkflowInterface
+  public interface NoArgsWorkflow {
+    @WorkflowMethod
+    String execute();
+  }
+
+  public static class TestContinueAsNewNoArgsImpl implements NoArgsWorkflow {
+
+    @Override
+    public String execute() {
+      NoArgsWorkflow next = Workflow.newContinueAsNewStub(NoArgsWorkflow.class);
+      WorkflowInfo info = Workflow.getInfo();
+      if (!info.getContinuedExecutionRunId().isPresent()) {
+        next.execute();
+        throw new RuntimeException("unreachable");
+      } else {
+        return "done";
+      }
+    }
+  }
+
+  @Test
+  public void testContinueAsNewNoArgs() {
+    startWorkerFor(TestContinueAsNewNoArgsImpl.class);
+
+    NoArgsWorkflow client =
+        workflowClient.newWorkflowStub(
+            NoArgsWorkflow.class, newWorkflowOptionsBuilder(this.taskList).build());
+    String result = client.execute();
+    assertEquals("done", result);
+    tracer.setExpected(
         "interceptExecuteWorkflow " + UUID_REGEXP,
         "continueAsNew",
         "interceptExecuteWorkflow " + UUID_REGEXP);
@@ -1574,7 +1610,7 @@ public class WorkflowTest {
     @Override
     public String execute(String taskList) {
       ActivityStub testActivities = Workflow.newUntypedActivityStub(newActivityOptions2());
-      Promise<String> a = Async.function(testActivities::<String>execute, "activity", String.class);
+      Promise<String> a = Async.function(testActivities::<String>execute, "Activity", String.class);
       Promise<String> a1 =
           Async.function(
               testActivities::<String>execute,
@@ -1582,22 +1618,22 @@ public class WorkflowTest {
               String.class,
               "1"); // name overridden in annotation
       Promise<String> a2 =
-          Async.function(testActivities::<String>execute, "activity2", String.class, "1", 2);
+          Async.function(testActivities::<String>execute, "Activity2", String.class, "1", 2);
       Promise<String> a3 =
-          Async.function(testActivities::<String>execute, "activity3", String.class, "1", 2, 3);
+          Async.function(testActivities::<String>execute, "Activity3", String.class, "1", 2, 3);
       Promise<String> a4 =
-          Async.function(testActivities::<String>execute, "activity4", String.class, "1", 2, 3, 4);
+          Async.function(testActivities::<String>execute, "Activity4", String.class, "1", 2, 3, 4);
       assertEquals("activity", a.get());
       assertEquals("1", a1.get());
       assertEquals("12", a2.get());
       assertEquals("123", a3.get());
       assertEquals("1234", a4.get());
 
-      Async.procedure(testActivities::<Void>execute, "proc", Void.class).get();
-      Async.procedure(testActivities::<Void>execute, "proc1", Void.class, "1").get();
-      Async.procedure(testActivities::<Void>execute, "proc2", Void.class, "1", 2).get();
-      Async.procedure(testActivities::<Void>execute, "proc3", Void.class, "1", 2, 3).get();
-      Async.procedure(testActivities::<Void>execute, "proc4", Void.class, "1", 2, 3, 4).get();
+      Async.procedure(testActivities::<Void>execute, "Proc", Void.class).get();
+      Async.procedure(testActivities::<Void>execute, "Proc1", Void.class, "1").get();
+      Async.procedure(testActivities::<Void>execute, "Proc2", Void.class, "1", 2).get();
+      Async.procedure(testActivities::<Void>execute, "Proc3", Void.class, "1", 2, 3).get();
+      Async.procedure(testActivities::<Void>execute, "Proc4", Void.class, "1", 2, 3, 4).get();
       return "workflow";
     }
   }
@@ -1622,16 +1658,16 @@ public class WorkflowTest {
     @Override
     public String execute(String taskList) {
       ActivityStub testActivities = Workflow.newUntypedActivityStub(newActivityOptions2());
-      Promise<String> a = testActivities.executeAsync("activity", String.class);
+      Promise<String> a = testActivities.executeAsync("Activity", String.class);
       Promise<String> a1 =
           testActivities.executeAsync(
               "customActivity1", String.class, "1"); // name overridden in annotation
-      Promise<String> a2 = testActivities.executeAsync("activity2", String.class, "1", 2);
-      Promise<String> a3 = testActivities.executeAsync("activity3", String.class, "1", 2, 3);
-      Promise<String> a4 = testActivities.executeAsync("activity4", String.class, "1", 2, 3, 4);
-      Promise<String> a5 = testActivities.executeAsync("activity5", String.class, "1", 2, 3, 4, 5);
+      Promise<String> a2 = testActivities.executeAsync("Activity2", String.class, "1", 2);
+      Promise<String> a3 = testActivities.executeAsync("Activity3", String.class, "1", 2, 3);
+      Promise<String> a4 = testActivities.executeAsync("Activity4", String.class, "1", 2, 3, 4);
+      Promise<String> a5 = testActivities.executeAsync("Activity5", String.class, "1", 2, 3, 4, 5);
       Promise<String> a6 =
-          testActivities.executeAsync("activity6", String.class, "1", 2, 3, 4, 5, 6);
+          testActivities.executeAsync("Activity6", String.class, "1", 2, 3, 4, 5, 6);
       assertEquals("activity", a.get());
       assertEquals("1", a1.get());
       assertEquals("12", a2.get());
@@ -1640,13 +1676,13 @@ public class WorkflowTest {
       assertEquals("12345", a5.get());
       assertEquals("123456", a6.get());
 
-      testActivities.executeAsync("proc", Void.class).get();
-      testActivities.executeAsync("proc1", Void.class, "1").get();
-      testActivities.executeAsync("proc2", Void.class, "1", 2).get();
-      testActivities.executeAsync("proc3", Void.class, "1", 2, 3).get();
-      testActivities.executeAsync("proc4", Void.class, "1", 2, 3, 4).get();
-      testActivities.executeAsync("proc5", Void.class, "1", 2, 3, 4, 5).get();
-      testActivities.executeAsync("proc6", Void.class, "1", 2, 3, 4, 5, 6).get();
+      testActivities.executeAsync("Proc", Void.class).get();
+      testActivities.executeAsync("Proc1", Void.class, "1").get();
+      testActivities.executeAsync("Proc2", Void.class, "1", 2).get();
+      testActivities.executeAsync("Proc3", Void.class, "1", 2, 3).get();
+      testActivities.executeAsync("Proc4", Void.class, "1", 2, 3, 4).get();
+      testActivities.executeAsync("Proc5", Void.class, "1", 2, 3, 4, 5).get();
+      testActivities.executeAsync("Proc6", Void.class, "1", 2, 3, 4, 5, 6).get();
       return "workflow";
     }
   }
@@ -2498,7 +2534,7 @@ public class WorkflowTest {
         return "ignored";
       } catch (ActivityFailure e) {
         try {
-          assertTrue(e.getMessage().contains("throwIO"));
+          assertTrue(e.getMessage().contains("ThrowIO"));
           assertTrue(e.getCause() instanceof ApplicationFailure);
           assertEquals(IOException.class.getName(), ((ApplicationFailure) e.getCause()).getType());
           assertEquals(
@@ -3393,7 +3429,7 @@ public class WorkflowTest {
     @Override
     public String execute() {
       Promise<String> result =
-          Async.function(child::execute, "Hello", Workflow.getWorkflowInfo().getWorkflowId());
+          Async.function(child::execute, "Hello", Workflow.getInfo().getWorkflowId());
       return result.get() + " " + fromSignal.get() + "!";
     }
 
@@ -3455,7 +3491,7 @@ public class WorkflowTest {
     @Override
     public String execute() {
       Promise<String> result =
-          child.executeAsync(String.class, "Hello", Workflow.getWorkflowInfo().getWorkflowId());
+          child.executeAsync(String.class, "Hello", Workflow.getInfo().getWorkflowId());
       return result.get() + " " + fromSignal.get() + "!";
     }
 
@@ -4057,7 +4093,7 @@ public class WorkflowTest {
 
     @Override
     public String activityWithDelay(long delay, boolean heartbeatMoreThanOnce) {
-      byte[] taskToken = Activity.getTaskToken();
+      byte[] taskToken = Activity.getExecutionContext().getInfo().getTaskToken();
       executor.execute(
           () -> {
             invocations.add("activityWithDelay");
@@ -4077,7 +4113,7 @@ public class WorkflowTest {
               completionClient.reportCancellation(taskToken, null);
             }
           });
-      Activity.doNotCompleteOnReturn();
+      Activity.getExecutionContext().doNotCompleteOnReturn();
       return "ignored";
     }
 
@@ -4118,26 +4154,27 @@ public class WorkflowTest {
 
     @Override
     public String activity4(String a1, int a2, int a3, int a4) {
-      byte[] taskToken = Activity.getTaskToken();
+      byte[] taskToken = Activity.getExecutionContext().getInfo().getTaskToken();
       executor.execute(
           () -> {
             invocations.add("activity4");
             completionClient.complete(taskToken, a1 + a2 + a3 + a4);
           });
-      Activity.doNotCompleteOnReturn();
+      Activity.getExecutionContext().doNotCompleteOnReturn();
       return "ignored";
     }
 
     @Override
     public String activity5(String a1, int a2, int a3, int a4, int a5) {
-      WorkflowExecution execution = Activity.getWorkflowExecution();
-      String id = Activity.getTask().getActivityId();
+      ActivityInfo activityInfo = Activity.getExecutionContext().getInfo();
+      String workflowId = activityInfo.getWorkflowId();
+      String id = activityInfo.getActivityId();
       executor.execute(
           () -> {
             invocations.add("activity5");
-            completionClient.complete(execution, id, a1 + a2 + a3 + a4 + a5);
+            completionClient.complete(workflowId, Optional.empty(), id, a1 + a2 + a3 + a4 + a5);
           });
-      Activity.doNotCompleteOnReturn();
+      Activity.getExecutionContext().doNotCompleteOnReturn();
       return "ignored";
     }
 
@@ -4191,13 +4228,14 @@ public class WorkflowTest {
 
     @Override
     public void heartbeatAndThrowIO() {
-      ActivityTask task = Activity.getTask();
-      assertEquals(task.getAttempt(), heartbeatCounter.get());
+      ActivityExecutionContext ctx = Activity.getExecutionContext();
+      ActivityInfo info = ctx.getInfo();
+      assertEquals(info.getAttempt(), heartbeatCounter.get());
       invocations.add("throwIO");
-      Optional<Integer> heartbeatDetails = Activity.getHeartbeatDetails(int.class);
+      Optional<Integer> heartbeatDetails = ctx.getHeartbeatDetails(int.class);
       assertEquals(heartbeatCounter.get(), (int) heartbeatDetails.orElse(0));
-      Activity.heartbeat(heartbeatCounter.incrementAndGet());
-      assertEquals(heartbeatCounter.get(), (int) Activity.getHeartbeatDetails(int.class).get());
+      ctx.heartbeat(heartbeatCounter.incrementAndGet());
+      assertEquals(heartbeatCounter.get(), (int) ctx.getHeartbeatDetails(int.class).get());
       try {
         throw new IOException("simulated IO problem");
       } catch (IOException e) {
@@ -4207,12 +4245,13 @@ public class WorkflowTest {
 
     @Override
     public void throwIO() {
-      assertEquals(NAMESPACE, Activity.getTask().getWorkflowNamespace());
-      assertNotNull(Activity.getTask().getWorkflowExecution());
-      assertNotNull(Activity.getTask().getWorkflowExecution().getWorkflowId());
-      assertFalse(Activity.getTask().getWorkflowExecution().getWorkflowId().isEmpty());
-      assertFalse(Activity.getTask().getWorkflowExecution().getRunId().isEmpty());
-      lastAttempt = Activity.getTask().getAttempt();
+      ActivityInfo info = Activity.getExecutionContext().getInfo();
+      assertEquals(NAMESPACE, info.getWorkflowNamespace());
+      assertNotNull(info.getWorkflowId());
+      assertNotNull(info.getRunId());
+      assertFalse(info.getWorkflowId().isEmpty());
+      assertFalse(info.getRunId().isEmpty());
+      lastAttempt = info.getAttempt();
       invocations.add("throwIO");
       try {
         throw new IOException("simulated IO problem");
@@ -4231,7 +4270,7 @@ public class WorkflowTest {
     @Override
     public void neverComplete() {
       invocations.add("neverComplete");
-      Activity.doNotCompleteOnReturn(); // Simulate activity timeout
+      Activity.getExecutionContext().doNotCompleteOnReturn(); // Simulate activity timeout
     }
 
     @Override
@@ -4624,7 +4663,7 @@ public class WorkflowTest {
     tracer.setExpected(
         "interceptExecuteWorkflow " + UUID_REGEXP,
         "getVersion",
-        "executeActivity activity2",
+        "executeActivity Activity2",
         "getVersion",
         "executeActivity customActivity1",
         "executeActivity customActivity1",
@@ -4936,8 +4975,8 @@ public class WorkflowTest {
     tracer.setExpected(
         "interceptExecuteWorkflow " + UUID_REGEXP,
         "getVersion",
-        "executeActivity activity2",
-        "executeActivity activity");
+        "executeActivity Activity2",
+        "executeActivity Activity");
   }
 
   // The following test covers the scenario where getVersion call is removed before another
@@ -4976,7 +5015,7 @@ public class WorkflowTest {
         "getVersion",
         "getVersion",
         "getVersion",
-        "executeActivity activity");
+        "executeActivity Activity");
   }
 
   public static class TestVersionNotSupportedWorkflowImpl implements TestWorkflow1 {
@@ -5132,7 +5171,7 @@ public class WorkflowTest {
     @Override
     public WorkflowInvoker interceptExecuteWorkflow(
         WorkflowCallsInterceptor interceptor, WorkflowInvocationInterceptor next) {
-      trace.add("interceptExecuteWorkflow " + Workflow.getWorkflowInfo().getWorkflowId());
+      trace.add("interceptExecuteWorkflow " + Workflow.getInfo().getWorkflowId());
       return new BaseWorkflowInvoker(interceptor, next) {
         @Override
         public void init() {
@@ -5175,7 +5214,7 @@ public class WorkflowTest {
         "interceptExecuteWorkflow " + UUID_REGEXP,
         "sideEffect",
         "sideEffect",
-        "executeActivity activity2");
+        "executeActivity Activity2");
   }
 
   @ActivityInterface
@@ -5361,13 +5400,13 @@ public class WorkflowTest {
                   .setScheduleToCloseTimeout(Duration.ofSeconds(5))
                   .build());
       try {
-        activity.execute("execute", Void.class, "boo");
+        activity.execute("Execute", Void.class, "boo");
       } catch (ActivityFailure e) {
         result.append(e.getCause().getClass().getSimpleName());
       }
       result.append("-");
       try {
-        localActivity.execute("execute", Void.class, "boo");
+        localActivity.execute("Execute", Void.class, "boo");
       } catch (ActivityFailure e) {
         result.append(((ApplicationFailure) e.getCause()).getType());
       }
@@ -5532,7 +5571,7 @@ public class WorkflowTest {
       } catch (ActivityFailure e) {
         e.printStackTrace();
         try {
-          assertTrue(e.getMessage().contains("throwIO"));
+          assertTrue(e.getMessage().contains("ThrowIO"));
           assertTrue(e.getCause() instanceof ApplicationFailure);
           assertEquals(IOException.class.getName(), ((ApplicationFailure) e.getCause()).getType());
           assertEquals(
@@ -5884,10 +5923,10 @@ public class WorkflowTest {
         "executeActivity customActivity1",
         "executeChildWorkflow TestMultiargsWorkflowsFunc",
         "interceptExecuteWorkflow " + UUID_REGEXP,
-        "executeActivity throwIO",
+        "executeActivity ThrowIO",
         "executeChildWorkflow TestCompensationWorkflow",
         "interceptExecuteWorkflow " + UUID_REGEXP,
-        "executeActivity activity2");
+        "executeActivity Activity2");
   }
 
   @Test
@@ -5902,7 +5941,7 @@ public class WorkflowTest {
     sagaWorkflow.execute(taskList, true);
     String trace = tracer.getTrace();
     assertTrue(trace, trace.contains("executeChildWorkflow TestCompensationWorkflow"));
-    assertTrue(trace, trace.contains("executeActivity activity2"));
+    assertTrue(trace, trace.contains("executeActivity Activity2"));
   }
 
   public static class TestSignalExceptionWorkflowImpl implements TestWorkflowSignaled {
@@ -5972,14 +6011,14 @@ public class WorkflowTest {
 
     @Override
     public String execute(String taskList, String keyword) {
-      SearchAttributes searchAttributes = Workflow.getWorkflowInfo().getSearchAttributes();
+      SearchAttributes searchAttributes = Workflow.getInfo().getSearchAttributes();
       assertNull(searchAttributes);
 
       Map<String, Object> searchAttrMap = new HashMap<>();
       searchAttrMap.put("CustomKeywordField", keyword);
       Workflow.upsertSearchAttributes(searchAttrMap);
 
-      searchAttributes = Workflow.getWorkflowInfo().getSearchAttributes();
+      searchAttributes = Workflow.getInfo().getSearchAttributes();
       assertEquals(
           "testKey",
           SearchAttributesUtil.getValueFromSearchAttributes(
@@ -6008,15 +6047,15 @@ public class WorkflowTest {
     tracer.setExpected(
         "interceptExecuteWorkflow " + UUID_REGEXP,
         "upsertSearchAttributes",
-        "executeActivity activity");
+        "executeActivity Activity");
   }
 
   public static class TestMultiargsWorkflowsFuncChild implements TestMultiargsWorkflowsFunc2 {
     @Override
     public String func2(String s, int i) {
-      WorkflowInfo wi = Workflow.getWorkflowInfo();
-      String parentId = wi.getParentWorkflowId();
-      return parentId;
+      WorkflowInfo wi = Workflow.getInfo();
+      Optional<String> parentId = wi.getParentWorkflowId();
+      return parentId.get();
     }
   }
 
@@ -6031,10 +6070,11 @@ public class WorkflowTest {
       TestMultiargsWorkflowsFunc2 child =
           Workflow.newChildWorkflowStub(TestMultiargsWorkflowsFunc2.class, workflowOptions);
 
-      String parentWorkflowId = Workflow.getWorkflowInfo().getParentWorkflowId();
+      Optional<String> parentWorkflowId = Workflow.getInfo().getParentWorkflowId();
       String childsParentWorkflowId = child.func2(null, 0);
 
-      String result = String.format("%s - %s", parentWorkflowId, childsParentWorkflowId);
+      String result =
+          String.format("%s - %s", parentWorkflowId.isPresent(), childsParentWorkflowId);
       return result;
     }
   }
@@ -6050,7 +6090,7 @@ public class WorkflowTest {
         workflowClient.newWorkflowStub(TestMultiargsWorkflowsFunc.class, workflowOptions);
 
     String result = parent.func();
-    String expected = String.format("%s - %s", null, workflowId);
+    String expected = String.format("%s - %s", false, workflowId);
     assertEquals(expected, result);
   }
 
@@ -6219,7 +6259,7 @@ public class WorkflowTest {
     private final WorkflowCallsInterceptor next;
 
     private TracingWorkflowCallsInterceptor(FilteredTrace trace, WorkflowCallsInterceptor next) {
-      WorkflowInfo workflowInfo = Workflow.getWorkflowInfo();
+      WorkflowInfo workflowInfo = Workflow.getInfo();
       this.trace = trace;
       this.next = Objects.requireNonNull(next);
     }

@@ -19,10 +19,9 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.activity.ActivityTask;
+import io.temporal.activity.ActivityInfo;
+import io.temporal.activity.ActivityOptions;
 import io.temporal.client.ActivityCompletionException;
-import io.temporal.failure.CanceledFailure;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
@@ -33,30 +32,51 @@ import java.util.Optional;
  */
 public interface ActivityExecutionContext {
 
-  /**
-   * @return task token that is required to report task completion when manual activity completion
-   *     is used.
-   */
-  byte[] getTaskToken();
-
-  /** @return workfow execution that requested the activity execution */
-  io.temporal.common.v1.WorkflowExecution getWorkflowExecution();
-
-  /** @return task that caused activity execution */
-  ActivityTask getTask();
+  /** Information about activity invocation and the caller workflow */
+  ActivityInfo getInfo();
 
   /**
    * Use to notify Simple Workflow that activity execution is alive.
    *
    * @param details In case of activity timeout details are returned as a field of the exception
    *     thrown.
-   * @throws CanceledFailure Indicates that activity cancellation was requested by the
-   *     workflow.Should be rethrown from activity implementation to indicate successful
-   *     cancellation.
+   * @throws ActivityCompletionException Indicates that activity cancellation was requested by the
+   *     workflow or any other reason for activity to stop execution. Should be rethrown from
+   *     activity implementation to indicate successful cancellation.
    */
-  <V> void recordActivityHeartbeat(V details) throws ActivityCompletionException;
+  <V> void heartbeat(V details) throws ActivityCompletionException;
 
+  /**
+   * Extracts heartbeat details from the last failed attempt. This is used in combination with retry
+   * options. An activity could be scheduled with an optional {@link
+   * io.temporal.common.RetryOptions} on {@link ActivityOptions}. If an activity failed then the
+   * server would attempt to dispatch another activity task to retry according to the retry options.
+   * If there was heartbeat details reported by the activity from the failed attempt, the details
+   * would be delivered along with the activity task for the retry attempt. The activity could
+   * extract the details by {@link #getHeartbeatDetails(Class)}() and resume from the progress.
+   *
+   * @param detailsClass type of the heartbeat details
+   */
+  <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass);
+
+  /**
+   * Extracts heartbeat details from the last failed attempt. This is used in combination with retry
+   * options. An activity could be scheduled with an optional {@link
+   * io.temporal.common.RetryOptions} on {@link ActivityOptions}. If an activity failed then the
+   * server would attempt to dispatch another activity task to retry according to the retry options.
+   * If there was heartbeat details reported by the activity from the failed attempt, the details
+   * would be delivered along with the activity task for the retry attempt. The activity could
+   * extract the details by {@link #getHeartbeatDetails(Class)}() and resume from the progress.
+   *
+   * @param detailsClass type of the heartbeat details
+   */
   <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsType);
+
+  /**
+   * A correlation token that can be used to complete the activity asynchronously through {@link
+   * io.temporal.client.ActivityCompletionClient#complete(byte[], Object)}.
+   */
+  byte[] getTaskToken();
 
   /**
    * If this method is called during an activity execution then activity is not going to complete
@@ -66,12 +86,4 @@ public interface ActivityExecutionContext {
   void doNotCompleteOnReturn();
 
   boolean isDoNotCompleteOnReturn();
-
-  /**
-   * @return an instance of the Simple Workflow Java client that is the same used by the invoked
-   *     activity worker.
-   */
-  WorkflowServiceStubs getService();
-
-  String getNamespace();
 }

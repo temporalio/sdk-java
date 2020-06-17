@@ -279,7 +279,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
       @Override
       public Object execute(Object[] arguments) {
-        WorkflowInfo context = Workflow.getWorkflowInfo();
+        WorkflowInfo context = Workflow.getInfo();
         try {
           return workflowMethod.invoke(workflow, arguments);
         } catch (IllegalAccessException e) {

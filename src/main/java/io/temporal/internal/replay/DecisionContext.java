@@ -57,7 +57,7 @@ public interface DecisionContext extends ReplayAware {
 
   void setContinueAsNewOnCompletion(ContinueAsNewWorkflowExecutionParameters continueParameters);
 
-  String getContinuedExecutionRunId();
+  Optional<String> getContinuedExecutionRunId();
 
   String getTaskList();
 

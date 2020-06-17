@@ -285,7 +285,7 @@ public class MetricsTest {
         new ImmutableMap.Builder<String, String>(3)
             .put(MetricsTag.NAMESPACE, WorkflowTest.NAMESPACE)
             .put(MetricsTag.TASK_LIST, TASK_LIST)
-            .put(MetricsTag.ACTIVITY_TYPE, "runActivity")
+            .put(MetricsTag.ACTIVITY_TYPE, "RunActivity")
             .put(MetricsTag.WORKFLOW_TYPE, "TestWorkflow")
             .build();
     verify(reporter, times(1))

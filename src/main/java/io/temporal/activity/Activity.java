@@ -19,39 +19,37 @@
 
 package io.temporal.activity;
 
-import io.temporal.client.ActivityCompletionException;
-import io.temporal.common.v1.WorkflowExecution;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ChildWorkflowFailure;
-import io.temporal.failure.TimeoutFailure;
+import io.temporal.internal.sync.ActivityExecutionContext;
 import io.temporal.internal.sync.ActivityInternal;
 import io.temporal.internal.sync.WorkflowInternal;
-import io.temporal.serviceclient.WorkflowServiceStubs;
-import java.lang.reflect.Type;
-import java.util.Optional;
 
 /**
  * An activity is the implementation of a particular task in the business logic.
  *
  * <h2>Activity Interface</h2>
  *
- * <p>Activities are defined as methods of a plain Java interface. Each method defines a single
- * activity type. A single workflow can use more than one activity interface and call more than one
- * activity method from the same interface. The only requirement is that activity method arguments
- * and return values are serializable to a byte array using the provided {@link
- * io.temporal.common.converter.DataConverter} implementation. The default implementation uses JSON
- * serializer, but an alternative implementation can be easily configured.
+ * <p>Activities are defined as methods of a plain Java interface annotated with {@literal @}{@link
+ * ActivityInterface}. Each method defines a single activity type. A single workflow can use more
+ * than one activity interface and call more than one activity method from the same interface. The
+ * only requirement is that activity method arguments and return values are serializable to a byte
+ * array using the provided {@link io.temporal.common.converter.DataConverter} implementation. The
+ * default implementation uses JSON serializer, but an alternative implementation can be configured
+ * through {@link io.temporal.client.WorkflowClientOptions.Builder#setDataConverter(DataConverter)}.
  *
  * <p>Example of an interface that defines four activities:
  *
  * <pre><code>
+ * {@literal @}ActivityInterface
  * public interface FileProcessingActivities {
  *
  *     void upload(String bucketName, String localName, String targetName);
  *
  *     String download(String bucketName, String remoteName);
  *
- *     {@literal @}ActivityMethod(scheduleToCloseTimeoutSeconds = 2)
+ *     {@literal @}ActivityMethod(name = "transcode")
  *     String processFile(String localName);
  *
  *     void deleteLocalFile(String fileName);
@@ -59,9 +57,8 @@ import java.util.Optional;
  *
  * </code></pre>
  *
- * An optional {@literal @}{@link ActivityMethod} annotation can be used to specify activity options
- * like timeouts or a task list. Required options that are not specified through the annotation must
- * be specified at run time.
+ * An optional {@literal @}{@link ActivityMethod} annotation can be used to specify activity name.
+ * By default the method name is used as an activity name.
  *
  * <h2>Activity Implementation</h2>
  *
@@ -136,10 +133,10 @@ import java.util.Optional;
  * process. The whole request-reply interaction can be modeled as a single Temporal activity.
  *
  * <p>To indicate that an activity should not be completed upon its method return, call {@link
- * Activity#doNotCompleteOnReturn()} from the original activity thread. Then later, when replies
- * come, complete the activity using {@link io.temporal.client.ActivityCompletionClient}. To
- * correlate activity invocation with completion use either {@code TaskToken} or workflow and
- * activity IDs.
+ * ActivityExecutionContext#doNotCompleteOnReturn()} from the original activity thread. Then later,
+ * when replies come, complete the activity using {@link
+ * io.temporal.client.ActivityCompletionClient}. To correlate activity invocation with completion
+ * use either {@code TaskToken} or workflow and activity IDs.
  *
  * <pre><code>
  * public class FileProcessingActivitiesImpl implements FileProcessingActivities {
@@ -170,11 +167,12 @@ import java.util.Optional;
  * <h3>Activity Heartbeating</h3>
  *
  * <p>Some activities are long running. To react to their crashes quickly, use a heartbeat
- * mechanism. Use the {@link Activity#heartbeat(Object)} function to let the Temporal service know
- * that the activity is still alive. You can piggyback `details` on an activity heartbeat. If an
- * activity times out, the last value of `details` is included in the ActivityTimeoutException
- * delivered to a workflow. Then the workflow can pass the details to the next activity invocation.
- * This acts as a periodic checkpointing mechanism of an activity's progress.
+ * mechanism. Use the {@link ActivityExecutionContext#heartbeat(Object)} function to let the
+ * Temporal service know that the activity is still alive. You can piggyback `details` on an
+ * activity heartbeat. If an activity times out, the last value of `details` is included in the
+ * ActivityTimeoutException delivered to a workflow. Then the workflow can pass the details to the
+ * next activity invocation. This acts as a periodic checkpointing mechanism of an activity's
+ * progress.
  *
  * <pre><code>
  * public class FileProcessingActivitiesImpl implements FileProcessingActivities {
@@ -188,7 +186,7 @@ import java.util.Optional;
  *                 totalRead += read;
  *                 f.write(bytes, 0, read);
  *                 // Let the service know about the download progress.
- *                 Activity.heartbeat(totalRead);
+ *                 Activity.getExecutionContext().heartbeat(totalRead);
  *             }
  *         }finally{
  *             inputStream.close();
@@ -205,82 +203,14 @@ import java.util.Optional;
 public final class Activity {
 
   /**
-   * If this method is called during an activity execution then activity is not going to complete
-   * when its method returns. It is expected to be completed asynchronously using {@link
-   * io.temporal.client.ActivityCompletionClient}.
-   */
-  public static void doNotCompleteOnReturn() {
-    ActivityInternal.doNotCompleteOnReturn();
-  }
-
-  /**
-   * @return task token that is required to report task completion when manual activity completion
-   *     is used.
-   */
-  public static byte[] getTaskToken() {
-    return ActivityInternal.getTask().getTaskToken();
-  }
-
-  /** @return workfow execution that requested the activity execution */
-  public static WorkflowExecution getWorkflowExecution() {
-    return ActivityInternal.getTask().getWorkflowExecution();
-  }
-
-  /** @return task that caused activity execution */
-  public static ActivityTask getTask() {
-    return ActivityInternal.getTask();
-  }
-
-  /**
-   * Use to notify Temporal service that activity execution is alive.
+   * Activity execution context. It can be used to get information about activity invocation as well
+   * for heartbeating.
    *
-   * @param details In case of activity timeout can be accessed through {@link
-   *     TimeoutFailure#getLastHeartbeatDetails()} method.
-   * @throws ActivityCompletionException Indicates that activity execution is expected to be
-   *     interrupted. The reason for interruption is indicated by a type of subclass of the
-   *     exception.
+   * <p>Note: This static method relies on a thread local and works only in the original activity
+   * thread.
    */
-  public static <V> void heartbeat(V details) throws ActivityCompletionException {
-    ActivityInternal.recordActivityHeartbeat(details);
-  }
-
-  /**
-   * Extracts heartbeat details from the last failed attempt. This is used in combination with retry
-   * options. An activity could be scheduled with an optional {@link
-   * io.temporal.common.RetryOptions} on {@link ActivityOptions}. If an activity failed then the
-   * server would attempt to dispatch another activity task to retry according to the retry options.
-   * If there was heartbeat details reported by the activity from the failed attempt, the details
-   * would be delivered along with the activity task for the retry attempt. The activity could
-   * extract the details by {@link #getHeartbeatDetails(Class)}() and resume from the progress.
-   *
-   * @param detailsClass type of the heartbeat details
-   */
-  public static <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass) {
-    return ActivityInternal.getHeartbeatDetails(detailsClass, detailsClass);
-  }
-
-  /**
-   * Similar to {@link #getHeartbeatDetails(Class)}. Use when details is of a generic type.
-   *
-   * @param detailsClass type of the heartbeat details
-   * @param detailsType type including generic information of the heartbeat details.
-   */
-  public static <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsType) {
-    return ActivityInternal.getHeartbeatDetails(detailsClass, detailsType);
-  }
-
-  /**
-   * @return an instance of the Simple Workflow Java client that is the same used by the invoked
-   *     activity worker. It can be useful if activity wants to use WorkflowClient for some
-   *     operations like sending signal to its parent workflow. @TODO getWorkflowClient method to
-   *     hide the service.
-   */
-  public static WorkflowServiceStubs getService() {
-    return ActivityInternal.getService();
-  }
-
-  public static String getNamespace() {
-    return ActivityInternal.getNamespace();
+  public static ActivityExecutionContext getExecutionContext() {
+    return ActivityInternal.getExecutionContext();
   }
 
   /**

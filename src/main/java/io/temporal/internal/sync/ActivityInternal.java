@@ -19,40 +19,11 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.activity.ActivityTask;
-import io.temporal.serviceclient.WorkflowServiceStubs;
-import java.lang.reflect.Type;
-import java.util.Optional;
-
 public final class ActivityInternal {
 
   private ActivityInternal() {}
 
-  static ActivityExecutionContext getContext() {
+  public static ActivityExecutionContext getExecutionContext() {
     return CurrentActivityExecutionContext.get();
-  }
-
-  public static <V> void recordActivityHeartbeat(V details) {
-    getContext().recordActivityHeartbeat(details);
-  }
-
-  public static ActivityTask getTask() {
-    return getContext().getTask();
-  }
-
-  public static String getNamespace() {
-    return getContext().getNamespace();
-  }
-
-  public static WorkflowServiceStubs getService() {
-    return getContext().getService();
-  }
-
-  public static void doNotCompleteOnReturn() {
-    getContext().doNotCompleteOnReturn();
-  }
-
-  public static <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsType) {
-    return getContext().getHeartbeatDetails(detailsClass, detailsType);
   }
 }

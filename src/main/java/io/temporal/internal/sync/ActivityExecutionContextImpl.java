@@ -21,7 +21,7 @@ package io.temporal.internal.sync;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.temporal.activity.ActivityTask;
+import io.temporal.activity.ActivityInfo;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.client.ActivityCompletionFailureException;
@@ -29,7 +29,6 @@ import io.temporal.client.ActivityNotExistsException;
 import io.temporal.client.ActivityWorkerShutdownException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.v1.Payloads;
-import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
@@ -58,7 +57,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
 
   private final WorkflowServiceStubs service;
   private final String namespace;
-  private final ActivityTask task;
+  private final ActivityInfo info;
   private final DataConverter dataConverter;
   private boolean doNotCompleteOnReturn;
   private final long heartbeatIntervalMillis;
@@ -73,24 +72,24 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   ActivityExecutionContextImpl(
       WorkflowServiceStubs service,
       String namespace,
-      ActivityTask task,
+      ActivityInfo info,
       DataConverter dataConverter,
       ScheduledExecutorService heartbeatExecutor) {
     this.namespace = namespace;
     this.service = service;
-    this.task = task;
+    this.info = info;
     this.dataConverter = dataConverter;
     this.heartbeatIntervalMillis =
         Math.min(
-            (long) (0.8 * task.getHeartbeatTimeout().toMillis()), MAX_HEARTBEAT_INTERVAL_MILLIS);
+            (long) (0.8 * info.getHeartbeatTimeout().toMillis()), MAX_HEARTBEAT_INTERVAL_MILLIS);
     this.heartbeatExecutor = heartbeatExecutor;
   }
 
-  /** @see ActivityExecutionContext#recordActivityHeartbeat(Object) */
+  /** @see ActivityExecutionContext#heartbeat(Object) */
   @Override
-  public <V> void recordActivityHeartbeat(V details) throws ActivityCompletionException {
+  public <V> void heartbeat(V details) throws ActivityCompletionException {
     if (heartbeatExecutor.isShutdown()) {
-      throw new ActivityWorkerShutdownException(task);
+      throw new ActivityWorkerShutdownException(info);
     }
     lock.lock();
     try {
@@ -110,6 +109,11 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   }
 
   @Override
+  public <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass) {
+    return getHeartbeatDetails(detailsClass, detailsClass);
+  }
+
+  @Override
   public <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsType) {
     lock.lock();
     try {
@@ -118,11 +122,16 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
         Optional<V> result = (Optional<V>) this.lastDetails;
         return result;
       }
-      Optional<Payloads> details = task.getHeartbeatDetails();
+      Optional<Payloads> details = info.getHeartbeatDetails();
       return Optional.ofNullable(dataConverter.fromPayloads(details, detailsClass, detailsType));
     } finally {
       lock.unlock();
     }
+  }
+
+  @Override
+  public byte[] getTaskToken() {
+    return info.getTaskToken();
   }
 
   private void doHeartBeat(Object details) {
@@ -173,7 +182,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   private void sendHeartbeatRequest(Object details) {
     RecordActivityTaskHeartbeatRequest.Builder r =
         RecordActivityTaskHeartbeatRequest.newBuilder()
-            .setTaskToken(OptionsUtils.toByteString(task.getTaskToken()));
+            .setTaskToken(OptionsUtils.toByteString(info.getTaskToken()));
     Optional<Payloads> payloads = dataConverter.toPayloads(details);
     if (payloads.isPresent()) {
       r.setDetails(payloads.get());
@@ -182,16 +191,16 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
     try {
       status = service.blockingStub().recordActivityTaskHeartbeat(r.build());
       if (status.getCancelRequested()) {
-        lastException = new ActivityCancelledException(task);
+        lastException = new ActivityCancelledException(info);
       } else {
         lastException = null;
       }
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
-        lastException = new ActivityNotExistsException(task, e);
+        lastException = new ActivityNotExistsException(info, e);
       } else if (e.getStatus().getCode() == Status.Code.INVALID_ARGUMENT
           || e.getStatus().getCode() == Status.Code.FAILED_PRECONDITION) {
-        lastException = new ActivityCompletionFailureException(task, e);
+        lastException = new ActivityCompletionFailureException(info, e);
       } else {
         throw e;
       }
@@ -208,30 +217,9 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
     return doNotCompleteOnReturn;
   }
 
-  /** @see ActivityExecutionContext#getTask() */
+  /** @see ActivityExecutionContext#getInfo() */
   @Override
-  public ActivityTask getTask() {
-    return task;
-  }
-
-  /** @see ActivityExecutionContext#getService() */
-  @Override
-  public WorkflowServiceStubs getService() {
-    return service;
-  }
-
-  @Override
-  public byte[] getTaskToken() {
-    return task.getTaskToken();
-  }
-
-  @Override
-  public WorkflowExecution getWorkflowExecution() {
-    return task.getWorkflowExecution();
-  }
-
-  @Override
-  public String getNamespace() {
-    return namespace;
+  public ActivityInfo getInfo() {
+    return info;
   }
 }
