@@ -19,11 +19,11 @@
 
 package io.temporal.internal.worker;
 
+import io.temporal.enums.v1.DecisionTaskFailedCause;
 import io.temporal.failure.FailureConverter;
-import io.temporal.proto.event.DecisionTaskFailedCause;
-import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
-import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.workflowservice.v1.PollForDecisionTaskResponse;
+import io.temporal.workflowservice.v1.RespondDecisionTaskFailedRequest;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -74,7 +74,7 @@ public final class PollDecisionTaskDispatcher
       RespondDecisionTaskFailedRequest request =
           RespondDecisionTaskFailedRequest.newBuilder()
               .setTaskToken(t.getTaskToken())
-              .setCause(DecisionTaskFailedCause.ResetStickyTasklist)
+              .setCause(DecisionTaskFailedCause.DECISION_TASK_FAILED_CAUSE_RESET_STICKY_TASKLIST)
               .setFailure(FailureConverter.exceptionToFailure(exception))
               .build();
       log.warn("unexpected", exception);

@@ -20,8 +20,8 @@
 package io.temporal.client;
 
 import io.temporal.activity.Activity;
+import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.internal.sync.WorkflowClientInternal;
-import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;

@@ -19,8 +19,8 @@
 
 package io.temporal.internal.replay;
 
+import io.temporal.common.v1.Payloads;
 import io.temporal.internal.common.OptionsUtils;
-import io.temporal.proto.common.Payloads;
 
 public final class ContinueAsNewWorkflowExecutionParameters {
 

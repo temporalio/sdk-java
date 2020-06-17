@@ -1,60 +1,63 @@
 {
   "events": [{
     "eventId": "1",
-    "timestamp": "1591983166771693900",
+    "timestamp": "1592366097310288100",
+    "eventType": "EVENT_TYPE_WORKFLOW_EXECUTION_STARTED",
     "version": "-24",
-    "taskId": "5253128",
+    "taskId": "1050588",
     "workflowExecutionStartedEventAttributes": {
       "workflowType": {
         "name": "TestWorkflow1"
       },
       "taskList": {
-        "name": "WorkflowTest-testChildWorkflowRetry-4bd2d4a3-c8f7-40f2-a0b6-56c190e0aa67"
+        "name": "WorkflowTest-testChildWorkflowRetry-836697f0-bc49-4533-ae73-38fd03db661f",
+        "kind": "TASK_LIST_KIND_NORMAL"
       },
       "input": {
         "payloads": [{
           "metadata": {
             "encoding": "anNvbg=="
           },
-          "data": "IldvcmtmbG93VGVzdC10ZXN0Q2hpbGRXb3JrZmxvd1JldHJ5LTRiZDJkNGEzLWM4ZjctNDBmMi1hMGI2LTU2YzE5MGUwYWE2NyI="
+          "data": "IldvcmtmbG93VGVzdC10ZXN0Q2hpbGRXb3JrZmxvd1JldHJ5LTgzNjY5N2YwLWJjNDktNDUzMy1hZTczLTM4ZmQwM2RiNjYxZiI="
         }]
       },
       "workflowExecutionTimeoutSeconds": 315360000,
       "workflowRunTimeoutSeconds": 20,
       "workflowTaskTimeoutSeconds": 2,
-      "originalExecutionRunId": "5fcd851f-1544-4318-9dea-a5803d529af8",
+      "initiator": "CONTINUE_AS_NEW_INITIATOR_DECIDER",
+      "originalExecutionRunId": "76f4e8f6-b249-4ce2-bc99-bdf6d3abb3ea",
       "identity": "unknown-mac",
-      "firstExecutionRunId": "5fcd851f-1544-4318-9dea-a5803d529af8"
+      "firstExecutionRunId": "76f4e8f6-b249-4ce2-bc99-bdf6d3abb3ea"
     }
   }, {
     "eventId": "2",
-    "timestamp": "1591983166771799700",
-    "eventType": "DecisionTaskScheduled",
+    "timestamp": "1592366097310386600",
+    "eventType": "EVENT_TYPE_DECISION_TASK_SCHEDULED",
     "version": "-24",
-    "taskId": "5253129",
+    "taskId": "1050589",
     "decisionTaskScheduledEventAttributes": {
       "taskList": {
-        "name": "WorkflowTest-testChildWorkflowRetry-4bd2d4a3-c8f7-40f2-a0b6-56c190e0aa67"
+        "name": "WorkflowTest-testChildWorkflowRetry-836697f0-bc49-4533-ae73-38fd03db661f"
       },
       "startToCloseTimeoutSeconds": 2
     }
   }, {
     "eventId": "3",
-    "timestamp": "1591983166785737100",
-    "eventType": "DecisionTaskStarted",
+    "timestamp": "1592366097325022600",
+    "eventType": "EVENT_TYPE_DECISION_TASK_STARTED",
     "version": "-24",
-    "taskId": "5253134",
+    "taskId": "1050594",
     "decisionTaskStartedEventAttributes": {
       "scheduledEventId": "2",
       "identity": "unknown-mac",
-      "requestId": "f9f45099-30b7-47c1-aaae-9d28a2a525d7"
+      "requestId": "6afed4f0-d2f4-41f0-9ebd-a88d7ddba8b6"
     }
   }, {
     "eventId": "4",
-    "timestamp": "1591983166795781200",
-    "eventType": "DecisionTaskCompleted",
+    "timestamp": "1592366097334836000",
+    "eventType": "EVENT_TYPE_DECISION_TASK_COMPLETED",
     "version": "-24",
-    "taskId": "5253137",
+    "taskId": "1050597",
     "decisionTaskCompletedEventAttributes": {
       "scheduledEventId": "2",
       "startedEventId": "3",
@@ -62,24 +65,24 @@
     }
   }, {
     "eventId": "5",
-    "timestamp": "1591983166795815100",
-    "eventType": "StartChildWorkflowExecutionInitiated",
+    "timestamp": "1592366097334898200",
+    "eventType": "EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED",
     "version": "-24",
-    "taskId": "5253138",
+    "taskId": "1050598",
     "startChildWorkflowExecutionInitiatedEventAttributes": {
-      "workflowId": "8ac3a14e-a0fb-3c8a-881c-96f18d8ed768",
+      "workflowId": "83c532cc-8646-3072-ba9f-642fa5a8b79e",
       "workflowType": {
         "name": "ITestChild"
       },
       "taskList": {
-        "name": "WorkflowTest-testChildWorkflowRetry-4bd2d4a3-c8f7-40f2-a0b6-56c190e0aa67"
+        "name": "WorkflowTest-testChildWorkflowRetry-836697f0-bc49-4533-ae73-38fd03db661f"
       },
       "input": {
         "payloads": [{
           "metadata": {
             "encoding": "anNvbg=="
           },
-          "data": "IldvcmtmbG93VGVzdC10ZXN0Q2hpbGRXb3JrZmxvd1JldHJ5LTRiZDJkNGEzLWM4ZjctNDBmMi1hMGI2LTU2YzE5MGUwYWE2NyI="
+          "data": "IldvcmtmbG93VGVzdC10ZXN0Q2hpbGRXb3JrZmxvd1JldHJ5LTgzNjY5N2YwLWJjNDktNDUzMy1hZTczLTM4ZmQwM2RiNjYxZiI="
         }, {
           "metadata": {
             "encoding": "anNvbg=="
@@ -100,15 +103,15 @@
     }
   }, {
     "eventId": "6",
-    "timestamp": "1591983166808420100",
-    "eventType": "ChildWorkflowExecutionStarted",
+    "timestamp": "1592366097346165300",
+    "eventType": "EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_STARTED",
     "version": "-24",
-    "taskId": "5253141",
+    "taskId": "1050601",
     "childWorkflowExecutionStartedEventAttributes": {
       "initiatedEventId": "5",
       "workflowExecution": {
-        "workflowId": "8ac3a14e-a0fb-3c8a-881c-96f18d8ed768",
-        "runId": "ea660af5-691b-40f8-b9f7-48d22088e109"
+        "workflowId": "83c532cc-8646-3072-ba9f-642fa5a8b79e",
+        "runId": "924d6ce3-9b9e-4b39-b098-c6e27939dda3"
       },
       "workflowType": {
         "name": "ITestChild"
@@ -116,33 +119,33 @@
     }
   }, {
     "eventId": "7",
-    "timestamp": "1591983166808466200",
-    "eventType": "DecisionTaskScheduled",
+    "timestamp": "1592366097346202100",
+    "eventType": "EVENT_TYPE_DECISION_TASK_SCHEDULED",
     "version": "-24",
-    "taskId": "5253143",
+    "taskId": "1050603",
     "decisionTaskScheduledEventAttributes": {
       "taskList": {
-        "name": "unknown-mac:bb59cb91-cbd7-482d-bc86-9b662f0d0127"
+        "name": "unknown-mac:d469d90f-bd6c-4410-87bc-9404a8eb3ea6"
       },
       "startToCloseTimeoutSeconds": 2
     }
   }, {
     "eventId": "8",
-    "timestamp": "1591983166821494900",
-    "eventType": "DecisionTaskStarted",
+    "timestamp": "1592366097356151400",
+    "eventType": "EVENT_TYPE_DECISION_TASK_STARTED",
     "version": "-24",
-    "taskId": "5253147",
+    "taskId": "1050607",
     "decisionTaskStartedEventAttributes": {
       "scheduledEventId": "7",
-      "identity": "bb59cb91-cbd7-482d-bc86-9b662f0d0127",
-      "requestId": "fa1cdb44-6947-4fd3-90bc-2f7205d61e6e"
+      "identity": "d469d90f-bd6c-4410-87bc-9404a8eb3ea6",
+      "requestId": "bf77c881-20f0-4e09-812a-3340edfdb618"
     }
   }, {
     "eventId": "9",
-    "timestamp": "1591983166831250000",
-    "eventType": "DecisionTaskCompleted",
+    "timestamp": "1592366097365422400",
+    "eventType": "EVENT_TYPE_DECISION_TASK_COMPLETED",
     "version": "-24",
-    "taskId": "5253150",
+    "taskId": "1050610",
     "decisionTaskCompletedEventAttributes": {
       "scheduledEventId": "7",
       "startedEventId": "8",
@@ -150,59 +153,59 @@
     }
   }, {
     "eventId": "10",
-    "timestamp": "1591983168978736700",
-    "eventType": "ChildWorkflowExecutionFailed",
+    "timestamp": "1592366099521245600",
+    "eventType": "EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_FAILED",
     "version": "-24",
-    "taskId": "5253152",
+    "taskId": "1050612",
     "childWorkflowExecutionFailedEventAttributes": {
       "failure": {
         "message": "simulated failure",
         "source": "JavaSDK",
-        "stackTrace": "io.temporal.workflow.WorkflowTest$AngryChild.execute(WorkflowTest.java:3237)\nsun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)\nsun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)\nsun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)\njava.lang.reflect.Method.invoke(Method.java:498)\nio.temporal.internal.sync.POJOWorkflowImplementationFactory$POJOWorkflowImplementation$RootWorkflowInvocationInterceptor.execute(POJOWorkflowImplementationFactory.java:284)\nio.temporal.common.interceptors.BaseWorkflowInvoker.execute(BaseWorkflowInvoker.java:39)\nio.temporal.internal.sync.POJOWorkflowImplementationFactory$POJOWorkflowImplementation.execute(POJOWorkflowImplementationFactory.java:248)\nio.temporal.internal.sync.WorkflowExecuteRunnable.run(WorkflowExecuteRunnable.java:52)\nio.temporal.internal.sync.SyncWorkflow.lambda$start$0(SyncWorkflow.java:118)\nio.temporal.internal.sync.CancellationScopeImpl.run(CancellationScopeImpl.java:104)\nio.temporal.internal.sync.WorkflowThreadImpl$RunnableWrapper.run(WorkflowThreadImpl.java:106)\njava.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)\njava.util.concurrent.FutureTask.run(FutureTask.java:266)\njava.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)\njava.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)\njava.lang.Thread.run(Thread.java:748)\n",
+        "stackTrace": "io.temporal.workflow.WorkflowTest$AngryChild.execute(WorkflowTest.java:3292)\nsun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)\nsun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)\nsun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)\njava.lang.reflect.Method.invoke(Method.java:498)\nio.temporal.internal.sync.POJOWorkflowImplementationFactory$POJOWorkflowImplementation$RootWorkflowInvocationInterceptor.execute(POJOWorkflowImplementationFactory.java:284)\nio.temporal.common.interceptors.BaseWorkflowInvoker.execute(BaseWorkflowInvoker.java:39)\nio.temporal.internal.sync.POJOWorkflowImplementationFactory$POJOWorkflowImplementation.execute(POJOWorkflowImplementationFactory.java:248)\nio.temporal.internal.sync.WorkflowExecuteRunnable.run(WorkflowExecuteRunnable.java:52)\nio.temporal.internal.sync.SyncWorkflow.lambda$start$0(SyncWorkflow.java:117)\nio.temporal.internal.sync.CancellationScopeImpl.run(CancellationScopeImpl.java:104)\nio.temporal.internal.sync.WorkflowThreadImpl$RunnableWrapper.run(WorkflowThreadImpl.java:106)\njava.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)\njava.util.concurrent.FutureTask.run(FutureTask.java:266)\njava.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)\njava.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)\njava.lang.Thread.run(Thread.java:748)\n",
         "applicationFailureInfo": {
           "type": "java.lang.UnsupportedOperationException"
         }
       },
       "workflowExecution": {
-        "workflowId": "8ac3a14e-a0fb-3c8a-881c-96f18d8ed768",
-        "runId": "a69c48c1-4006-4e51-8351-5670dd32cbb4"
+        "workflowId": "83c532cc-8646-3072-ba9f-642fa5a8b79e",
+        "runId": "995e4d3b-6dcf-4951-92da-9e209a7d227d"
       },
       "workflowType": {
         "name": "ITestChild"
       },
       "initiatedEventId": "5",
       "startedEventId": "6",
-      "retryStatus": "MaximumAttemptsReached"
+      "retryStatus": "RETRY_STATUS_MAXIMUM_ATTEMPTS_REACHED"
     }
   }, {
     "eventId": "11",
-    "timestamp": "1591983168978773000",
-    "eventType": "DecisionTaskScheduled",
+    "timestamp": "1592366099521279600",
+    "eventType": "EVENT_TYPE_DECISION_TASK_SCHEDULED",
     "version": "-24",
-    "taskId": "5253154",
+    "taskId": "1050614",
     "decisionTaskScheduledEventAttributes": {
       "taskList": {
-        "name": "unknown-mac:bb59cb91-cbd7-482d-bc86-9b662f0d0127"
+        "name": "unknown-mac:d469d90f-bd6c-4410-87bc-9404a8eb3ea6"
       },
       "startToCloseTimeoutSeconds": 2
     }
   }, {
     "eventId": "12",
-    "timestamp": "1591983168985659400",
-    "eventType": "DecisionTaskStarted",
+    "timestamp": "1592366099528851000",
+    "eventType": "EVENT_TYPE_DECISION_TASK_STARTED",
     "version": "-24",
-    "taskId": "5253158",
+    "taskId": "1050618",
     "decisionTaskStartedEventAttributes": {
       "scheduledEventId": "11",
-      "identity": "bb59cb91-cbd7-482d-bc86-9b662f0d0127",
-      "requestId": "dae377be-e3c5-4220-85ad-854439ad2c3b"
+      "identity": "d469d90f-bd6c-4410-87bc-9404a8eb3ea6",
+      "requestId": "d40bad9b-d307-4f6a-9f52-a2494260496d"
     }
   }, {
     "eventId": "13",
-    "timestamp": "1591983168995428100",
-    "eventType": "DecisionTaskCompleted",
+    "timestamp": "1592366099548859900",
+    "eventType": "EVENT_TYPE_DECISION_TASK_COMPLETED",
     "version": "-24",
-    "taskId": "5253161",
+    "taskId": "1050621",
     "decisionTaskCompletedEventAttributes": {
       "scheduledEventId": "11",
       "startedEventId": "12",
@@ -210,34 +213,34 @@
     }
   }, {
     "eventId": "14",
-    "timestamp": "1591983168995456500",
-    "eventType": "WorkflowExecutionFailed",
+    "timestamp": "1592366099548894700",
+    "eventType": "EVENT_TYPE_WORKFLOW_EXECUTION_FAILED",
     "version": "-24",
-    "taskId": "5253162",
+    "taskId": "1050622",
     "workflowExecutionFailedEventAttributes": {
       "failure": {
         "source": "JavaSDK",
-        "stackTrace": "java.lang.Thread.getStackTrace(Thread.java:1559)\nio.temporal.internal.sync.ChildWorkflowStubImpl.execute(ChildWorkflowStubImpl.java:84)\nio.temporal.internal.sync.ChildWorkflowInvocationHandler.invoke(ChildWorkflowInvocationHandler.java:74)\ncom.sun.proxy.$Proxy49.execute(Unknown Source)\nio.temporal.workflow.WorkflowTest$TestChildWorkflowRetryWorkflow.execute(WorkflowTest.java:3200)\nsun.reflect.GeneratedMethodAccessor10.invoke(Unknown Source)\nsun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)\njava.lang.reflect.Method.invoke(Method.java:498)\nio.temporal.internal.sync.POJOWorkflowImplementationFactory$POJOWorkflowImplementation$RootWorkflowInvocationInterceptor.execute(POJOWorkflowImplementationFactory.java:284)\nio.temporal.common.interceptors.BaseWorkflowInvoker.execute(BaseWorkflowInvoker.java:39)\nio.temporal.internal.sync.POJOWorkflowImplementationFactory$POJOWorkflowImplementation.execute(POJOWorkflowImplementationFactory.java:248)\nio.temporal.internal.sync.WorkflowExecuteRunnable.run(WorkflowExecuteRunnable.java:52)\nio.temporal.internal.sync.SyncWorkflow.lambda$start$0(SyncWorkflow.java:118)\nio.temporal.internal.sync.CancellationScopeImpl.run(CancellationScopeImpl.java:104)\nio.temporal.internal.sync.WorkflowThreadImpl$RunnableWrapper.run(WorkflowThreadImpl.java:106)\njava.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)\njava.util.concurrent.FutureTask.run(FutureTask.java:266)\njava.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)\njava.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)\njava.lang.Thread.run(Thread.java:748)\n",
+        "stackTrace": "java.lang.Thread.getStackTrace(Thread.java:1559)\nio.temporal.internal.sync.ChildWorkflowStubImpl.execute(ChildWorkflowStubImpl.java:83)\nio.temporal.internal.sync.ChildWorkflowInvocationHandler.invoke(ChildWorkflowInvocationHandler.java:74)\ncom.sun.proxy.$Proxy49.execute(Unknown Source)\nio.temporal.workflow.WorkflowTest$TestChildWorkflowRetryWorkflow.execute(WorkflowTest.java:3255)\nsun.reflect.GeneratedMethodAccessor10.invoke(Unknown Source)\nsun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)\njava.lang.reflect.Method.invoke(Method.java:498)\nio.temporal.internal.sync.POJOWorkflowImplementationFactory$POJOWorkflowImplementation$RootWorkflowInvocationInterceptor.execute(POJOWorkflowImplementationFactory.java:284)\nio.temporal.common.interceptors.BaseWorkflowInvoker.execute(BaseWorkflowInvoker.java:39)\nio.temporal.internal.sync.POJOWorkflowImplementationFactory$POJOWorkflowImplementation.execute(POJOWorkflowImplementationFactory.java:248)\nio.temporal.internal.sync.WorkflowExecuteRunnable.run(WorkflowExecuteRunnable.java:52)\nio.temporal.internal.sync.SyncWorkflow.lambda$start$0(SyncWorkflow.java:117)\nio.temporal.internal.sync.CancellationScopeImpl.run(CancellationScopeImpl.java:104)\nio.temporal.internal.sync.WorkflowThreadImpl$RunnableWrapper.run(WorkflowThreadImpl.java:106)\njava.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)\njava.util.concurrent.FutureTask.run(FutureTask.java:266)\njava.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)\njava.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)\njava.lang.Thread.run(Thread.java:748)\n",
         "cause": {
           "message": "simulated failure",
           "source": "JavaSDK",
-          "stackTrace": "io.temporal.workflow.WorkflowTest$AngryChild.execute(WorkflowTest.java:3237)\nsun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)\nsun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)\nsun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)\njava.lang.reflect.Method.invoke(Method.java:498)\nio.temporal.internal.sync.POJOWorkflowImplementationFactory$POJOWorkflowImplementation$RootWorkflowInvocationInterceptor.execute(POJOWorkflowImplementationFactory.java:284)\nio.temporal.common.interceptors.BaseWorkflowInvoker.execute(BaseWorkflowInvoker.java:39)\nio.temporal.internal.sync.POJOWorkflowImplementationFactory$POJOWorkflowImplementation.execute(POJOWorkflowImplementationFactory.java:248)\nio.temporal.internal.sync.WorkflowExecuteRunnable.run(WorkflowExecuteRunnable.java:52)\nio.temporal.internal.sync.SyncWorkflow.lambda$start$0(SyncWorkflow.java:118)\nio.temporal.internal.sync.CancellationScopeImpl.run(CancellationScopeImpl.java:104)\nio.temporal.internal.sync.WorkflowThreadImpl$RunnableWrapper.run(WorkflowThreadImpl.java:106)\njava.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)\njava.util.concurrent.FutureTask.run(FutureTask.java:266)\njava.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)\njava.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)\njava.lang.Thread.run(Thread.java:748)\n",
+          "stackTrace": "io.temporal.workflow.WorkflowTest$AngryChild.execute(WorkflowTest.java:3292)\nsun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)\nsun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)\nsun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)\njava.lang.reflect.Method.invoke(Method.java:498)\nio.temporal.internal.sync.POJOWorkflowImplementationFactory$POJOWorkflowImplementation$RootWorkflowInvocationInterceptor.execute(POJOWorkflowImplementationFactory.java:284)\nio.temporal.common.interceptors.BaseWorkflowInvoker.execute(BaseWorkflowInvoker.java:39)\nio.temporal.internal.sync.POJOWorkflowImplementationFactory$POJOWorkflowImplementation.execute(POJOWorkflowImplementationFactory.java:248)\nio.temporal.internal.sync.WorkflowExecuteRunnable.run(WorkflowExecuteRunnable.java:52)\nio.temporal.internal.sync.SyncWorkflow.lambda$start$0(SyncWorkflow.java:117)\nio.temporal.internal.sync.CancellationScopeImpl.run(CancellationScopeImpl.java:104)\nio.temporal.internal.sync.WorkflowThreadImpl$RunnableWrapper.run(WorkflowThreadImpl.java:106)\njava.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)\njava.util.concurrent.FutureTask.run(FutureTask.java:266)\njava.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)\njava.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)\njava.lang.Thread.run(Thread.java:748)\n",
           "applicationFailureInfo": {
             "type": "java.lang.UnsupportedOperationException"
           }
         },
         "childWorkflowExecutionFailureInfo": {
           "workflowExecution": {
-            "workflowId": "8ac3a14e-a0fb-3c8a-881c-96f18d8ed768",
-            "runId": "a69c48c1-4006-4e51-8351-5670dd32cbb4"
+            "workflowId": "83c532cc-8646-3072-ba9f-642fa5a8b79e",
+            "runId": "995e4d3b-6dcf-4951-92da-9e209a7d227d"
           },
           "workflowType": {
             "name": "ITestChild"
           },
-          "retryStatus": "MaximumAttemptsReached"
+          "retryStatus": "RETRY_STATUS_MAXIMUM_ATTEMPTS_REACHED"
         }
       },
-      "retryStatus": "RetryPolicyNotSet",
+      "retryStatus": "RETRY_STATUS_RETRY_POLICY_NOT_SET",
       "decisionTaskCompletedEventId": "13"
     }
   }]

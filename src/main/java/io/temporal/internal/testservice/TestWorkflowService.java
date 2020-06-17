@@ -29,63 +29,63 @@ import io.grpc.StatusRuntimeException;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
+import io.temporal.common.v1.Payloads;
+import io.temporal.common.v1.RetryPolicy;
+import io.temporal.common.v1.WorkflowExecution;
+import io.temporal.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
+import io.temporal.enums.v1.SignalExternalWorkflowExecutionFailedCause;
+import io.temporal.enums.v1.WorkflowExecutionStatus;
+import io.temporal.enums.v1.WorkflowIdReusePolicy;
+import io.temporal.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
+import io.temporal.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.testservice.TestWorkflowStore.WorkflowState;
-import io.temporal.proto.common.Payloads;
-import io.temporal.proto.common.RetryPolicy;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.common.WorkflowIdReusePolicy;
-import io.temporal.proto.decision.SignalExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.proto.errordetails.WorkflowExecutionAlreadyStartedFailure;
-import io.temporal.proto.event.SignalExternalWorkflowExecutionFailedCause;
-import io.temporal.proto.event.WorkflowExecutionContinuedAsNewEventAttributes;
-import io.temporal.proto.execution.WorkflowExecutionInfo;
-import io.temporal.proto.execution.WorkflowExecutionStatus;
-import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
-import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
-import io.temporal.proto.workflowservice.ListClosedWorkflowExecutionsRequest;
-import io.temporal.proto.workflowservice.ListClosedWorkflowExecutionsResponse;
-import io.temporal.proto.workflowservice.ListOpenWorkflowExecutionsRequest;
-import io.temporal.proto.workflowservice.ListOpenWorkflowExecutionsResponse;
-import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
-import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
-import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
-import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
-import io.temporal.proto.workflowservice.QueryWorkflowRequest;
-import io.temporal.proto.workflowservice.QueryWorkflowResponse;
-import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatByIdRequest;
-import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatByIdResponse;
-import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatRequest;
-import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatResponse;
-import io.temporal.proto.workflowservice.RequestCancelWorkflowExecutionRequest;
-import io.temporal.proto.workflowservice.RequestCancelWorkflowExecutionResponse;
-import io.temporal.proto.workflowservice.RespondActivityTaskCanceledByIdRequest;
-import io.temporal.proto.workflowservice.RespondActivityTaskCanceledByIdResponse;
-import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
-import io.temporal.proto.workflowservice.RespondActivityTaskCanceledResponse;
-import io.temporal.proto.workflowservice.RespondActivityTaskCompletedByIdRequest;
-import io.temporal.proto.workflowservice.RespondActivityTaskCompletedByIdResponse;
-import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
-import io.temporal.proto.workflowservice.RespondActivityTaskCompletedResponse;
-import io.temporal.proto.workflowservice.RespondActivityTaskFailedByIdRequest;
-import io.temporal.proto.workflowservice.RespondActivityTaskFailedByIdResponse;
-import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
-import io.temporal.proto.workflowservice.RespondActivityTaskFailedResponse;
-import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
-import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedResponse;
-import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
-import io.temporal.proto.workflowservice.RespondDecisionTaskFailedResponse;
-import io.temporal.proto.workflowservice.RespondQueryTaskCompletedRequest;
-import io.temporal.proto.workflowservice.RespondQueryTaskCompletedResponse;
-import io.temporal.proto.workflowservice.SignalWithStartWorkflowExecutionRequest;
-import io.temporal.proto.workflowservice.SignalWithStartWorkflowExecutionResponse;
-import io.temporal.proto.workflowservice.SignalWorkflowExecutionRequest;
-import io.temporal.proto.workflowservice.SignalWorkflowExecutionResponse;
-import io.temporal.proto.workflowservice.StartWorkflowExecutionRequest;
-import io.temporal.proto.workflowservice.StartWorkflowExecutionResponse;
-import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.workflow.v1.WorkflowExecutionInfo;
+import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
+import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
+import io.temporal.workflowservice.v1.ListClosedWorkflowExecutionsRequest;
+import io.temporal.workflowservice.v1.ListClosedWorkflowExecutionsResponse;
+import io.temporal.workflowservice.v1.ListOpenWorkflowExecutionsRequest;
+import io.temporal.workflowservice.v1.ListOpenWorkflowExecutionsResponse;
+import io.temporal.workflowservice.v1.PollForActivityTaskRequest;
+import io.temporal.workflowservice.v1.PollForActivityTaskResponse;
+import io.temporal.workflowservice.v1.PollForDecisionTaskRequest;
+import io.temporal.workflowservice.v1.PollForDecisionTaskResponse;
+import io.temporal.workflowservice.v1.QueryWorkflowRequest;
+import io.temporal.workflowservice.v1.QueryWorkflowResponse;
+import io.temporal.workflowservice.v1.RecordActivityTaskHeartbeatByIdRequest;
+import io.temporal.workflowservice.v1.RecordActivityTaskHeartbeatByIdResponse;
+import io.temporal.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
+import io.temporal.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
+import io.temporal.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
+import io.temporal.workflowservice.v1.RequestCancelWorkflowExecutionResponse;
+import io.temporal.workflowservice.v1.RespondActivityTaskCanceledByIdRequest;
+import io.temporal.workflowservice.v1.RespondActivityTaskCanceledByIdResponse;
+import io.temporal.workflowservice.v1.RespondActivityTaskCanceledRequest;
+import io.temporal.workflowservice.v1.RespondActivityTaskCanceledResponse;
+import io.temporal.workflowservice.v1.RespondActivityTaskCompletedByIdRequest;
+import io.temporal.workflowservice.v1.RespondActivityTaskCompletedByIdResponse;
+import io.temporal.workflowservice.v1.RespondActivityTaskCompletedRequest;
+import io.temporal.workflowservice.v1.RespondActivityTaskCompletedResponse;
+import io.temporal.workflowservice.v1.RespondActivityTaskFailedByIdRequest;
+import io.temporal.workflowservice.v1.RespondActivityTaskFailedByIdResponse;
+import io.temporal.workflowservice.v1.RespondActivityTaskFailedRequest;
+import io.temporal.workflowservice.v1.RespondActivityTaskFailedResponse;
+import io.temporal.workflowservice.v1.RespondDecisionTaskCompletedRequest;
+import io.temporal.workflowservice.v1.RespondDecisionTaskCompletedResponse;
+import io.temporal.workflowservice.v1.RespondDecisionTaskFailedRequest;
+import io.temporal.workflowservice.v1.RespondDecisionTaskFailedResponse;
+import io.temporal.workflowservice.v1.RespondQueryTaskCompletedRequest;
+import io.temporal.workflowservice.v1.RespondQueryTaskCompletedResponse;
+import io.temporal.workflowservice.v1.SignalWithStartWorkflowExecutionRequest;
+import io.temporal.workflowservice.v1.SignalWithStartWorkflowExecutionResponse;
+import io.temporal.workflowservice.v1.SignalWorkflowExecutionRequest;
+import io.temporal.workflowservice.v1.SignalWorkflowExecutionResponse;
+import io.temporal.workflowservice.v1.StartWorkflowExecutionRequest;
+import io.temporal.workflowservice.v1.StartWorkflowExecutionResponse;
+import io.temporal.workflowservice.v1.WorkflowServiceGrpc;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.HashMap;
@@ -249,13 +249,13 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       if (existing != null) {
         WorkflowExecutionStatus status = existing.getWorkflowExecutionStatus();
         WorkflowIdReusePolicy policy = startRequest.getWorkflowIdReusePolicy();
-        if (status == WorkflowExecutionStatus.Running
-            || policy == WorkflowIdReusePolicy.RejectDuplicate) {
+        if (status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING
+            || policy == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE) {
           return throwDuplicatedWorkflow(startRequest, existing);
         }
-        if (policy == WorkflowIdReusePolicy.AllowDuplicateFailedOnly
-            && (status == WorkflowExecutionStatus.Completed
-                || status == WorkflowExecutionStatus.ContinuedAsNew)) {
+        if (policy == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY
+            && (status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED
+                || status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_CONTINUED_AS_NEW)) {
           return throwDuplicatedWorkflow(startRequest, existing);
         }
       }
@@ -804,7 +804,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
         source.failSignalExternalWorkflowExecution(
             signalId,
-            SignalExternalWorkflowExecutionFailedCause.ExternalWorkflowExecutionNotFound2);
+            SignalExternalWorkflowExecutionFailedCause
+                .SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED_CAUSE_EXTERNAL_WORKFLOW_EXECUTION_NOT_FOUND);
       } else {
         throw e;
       }

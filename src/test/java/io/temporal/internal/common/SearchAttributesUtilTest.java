@@ -22,7 +22,7 @@ package io.temporal.internal.common;
 import static junit.framework.TestCase.assertEquals;
 
 import io.temporal.common.converter.DataConverter;
-import io.temporal.proto.common.SearchAttributes;
+import io.temporal.common.v1.SearchAttributes;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Test;

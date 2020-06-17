@@ -19,9 +19,9 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.proto.common.ActivityType;
-import io.temporal.proto.common.RetryStatus;
-import io.temporal.proto.failure.Failure;
+import io.temporal.common.v1.ActivityType;
+import io.temporal.enums.v1.RetryStatus;
+import io.temporal.failure.v1.Failure;
 
 /**
  * Internal. Do not catch or throw in application level code. Exception that indicates Activity time

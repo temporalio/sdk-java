@@ -27,7 +27,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.google.protobuf.ByteString;
-import io.temporal.proto.common.Payload;
+import io.temporal.common.v1.Payload;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.Optional;

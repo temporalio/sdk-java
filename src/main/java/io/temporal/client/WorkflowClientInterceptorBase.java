@@ -19,7 +19,7 @@
 
 package io.temporal.client;
 
-import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.common.v1.WorkflowExecution;
 import java.util.Optional;
 
 public class WorkflowClientInterceptorBase implements WorkflowClientInterceptor {

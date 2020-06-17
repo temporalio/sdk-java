@@ -20,8 +20,8 @@
 package io.temporal.client;
 
 import io.temporal.activity.Activity;
+import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.failure.CanceledFailure;
-import io.temporal.proto.common.WorkflowExecution;
 
 /**
  * Used to complete asynchronously activities that called {@link Activity#doNotCompleteOnReturn()}.

@@ -22,7 +22,7 @@ package io.temporal.common.converter;
 import static org.junit.Assert.assertEquals;
 
 import com.google.common.base.Objects;
-import io.temporal.proto.common.Payloads;
+import io.temporal.common.v1.Payloads;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.ArrayList;

@@ -20,47 +20,47 @@
 package io.temporal.internal.replay;
 
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.v1.Header;
+import io.temporal.common.v1.Payloads;
+import io.temporal.common.v1.SearchAttributes;
+import io.temporal.common.v1.WorkflowType;
+import io.temporal.decision.v1.CancelWorkflowExecutionDecisionAttributes;
+import io.temporal.decision.v1.CompleteWorkflowExecutionDecisionAttributes;
+import io.temporal.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
+import io.temporal.decision.v1.Decision;
+import io.temporal.decision.v1.FailWorkflowExecutionDecisionAttributes;
+import io.temporal.decision.v1.RecordMarkerDecisionAttributes;
+import io.temporal.decision.v1.RequestCancelExternalWorkflowExecutionDecisionAttributes;
+import io.temporal.decision.v1.ScheduleActivityTaskDecisionAttributes;
+import io.temporal.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
+import io.temporal.decision.v1.StartChildWorkflowExecutionDecisionAttributes;
+import io.temporal.decision.v1.StartTimerDecisionAttributes;
+import io.temporal.decision.v1.UpsertWorkflowSearchAttributesDecisionAttributes;
+import io.temporal.enums.v1.DecisionType;
+import io.temporal.enums.v1.EventType;
+import io.temporal.failure.v1.Failure;
+import io.temporal.history.v1.ActivityTaskCancelRequestedEventAttributes;
+import io.temporal.history.v1.ActivityTaskCanceledEventAttributes;
+import io.temporal.history.v1.ActivityTaskStartedEventAttributes;
+import io.temporal.history.v1.ChildWorkflowExecutionCanceledEventAttributes;
+import io.temporal.history.v1.ChildWorkflowExecutionCompletedEventAttributes;
+import io.temporal.history.v1.ChildWorkflowExecutionFailedEventAttributes;
+import io.temporal.history.v1.ChildWorkflowExecutionStartedEventAttributes;
+import io.temporal.history.v1.ChildWorkflowExecutionTerminatedEventAttributes;
+import io.temporal.history.v1.ChildWorkflowExecutionTimedOutEventAttributes;
+import io.temporal.history.v1.ExternalWorkflowExecutionCancelRequestedEventAttributes;
+import io.temporal.history.v1.HistoryEvent;
+import io.temporal.history.v1.MarkerRecordedEventAttributes;
+import io.temporal.history.v1.RequestCancelExternalWorkflowExecutionFailedEventAttributes;
+import io.temporal.history.v1.StartChildWorkflowExecutionFailedEventAttributes;
+import io.temporal.history.v1.TimerCanceledEventAttributes;
+import io.temporal.history.v1.TimerFiredEventAttributes;
+import io.temporal.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.replay.HistoryHelper.DecisionEvents;
 import io.temporal.internal.worker.WorkflowExecutionException;
-import io.temporal.proto.common.Header;
-import io.temporal.proto.common.Payloads;
-import io.temporal.proto.common.SearchAttributes;
-import io.temporal.proto.common.WorkflowType;
-import io.temporal.proto.decision.CancelWorkflowExecutionDecisionAttributes;
-import io.temporal.proto.decision.CompleteWorkflowExecutionDecisionAttributes;
-import io.temporal.proto.decision.ContinueAsNewWorkflowExecutionDecisionAttributes;
-import io.temporal.proto.decision.Decision;
-import io.temporal.proto.decision.DecisionType;
-import io.temporal.proto.decision.FailWorkflowExecutionDecisionAttributes;
-import io.temporal.proto.decision.RecordMarkerDecisionAttributes;
-import io.temporal.proto.decision.RequestCancelExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.proto.decision.ScheduleActivityTaskDecisionAttributes;
-import io.temporal.proto.decision.SignalExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.proto.decision.StartChildWorkflowExecutionDecisionAttributes;
-import io.temporal.proto.decision.StartTimerDecisionAttributes;
-import io.temporal.proto.decision.UpsertWorkflowSearchAttributesDecisionAttributes;
-import io.temporal.proto.event.ActivityTaskCancelRequestedEventAttributes;
-import io.temporal.proto.event.ActivityTaskCanceledEventAttributes;
-import io.temporal.proto.event.ActivityTaskStartedEventAttributes;
-import io.temporal.proto.event.ChildWorkflowExecutionCanceledEventAttributes;
-import io.temporal.proto.event.ChildWorkflowExecutionCompletedEventAttributes;
-import io.temporal.proto.event.ChildWorkflowExecutionFailedEventAttributes;
-import io.temporal.proto.event.ChildWorkflowExecutionStartedEventAttributes;
-import io.temporal.proto.event.ChildWorkflowExecutionTerminatedEventAttributes;
-import io.temporal.proto.event.ChildWorkflowExecutionTimedOutEventAttributes;
-import io.temporal.proto.event.EventType;
-import io.temporal.proto.event.ExternalWorkflowExecutionCancelRequestedEventAttributes;
-import io.temporal.proto.event.HistoryEvent;
-import io.temporal.proto.event.MarkerRecordedEventAttributes;
-import io.temporal.proto.event.RequestCancelExternalWorkflowExecutionFailedEventAttributes;
-import io.temporal.proto.event.StartChildWorkflowExecutionFailedEventAttributes;
-import io.temporal.proto.event.TimerCanceledEventAttributes;
-import io.temporal.proto.event.TimerFiredEventAttributes;
-import io.temporal.proto.event.WorkflowExecutionStartedEventAttributes;
-import io.temporal.proto.failure.Failure;
-import io.temporal.proto.tasklist.TaskList;
-import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
+import io.temporal.tasklist.v1.TaskList;
+import io.temporal.workflowservice.v1.PollForDecisionTaskResponse;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -423,7 +423,7 @@ class DecisionsHelper {
     Decision decision =
         Decision.newBuilder()
             .setCompleteWorkflowExecutionDecisionAttributes(attributes)
-            .setDecisionType(DecisionType.CompleteWorkflowExecution)
+            .setDecisionType(DecisionType.DECISION_TYPE_COMPLETE_WORKFLOW_EXECUTION)
             .build();
     DecisionId decisionId = new DecisionId(DecisionTarget.SELF, 0);
     addDecision(decisionId, new CompleteWorkflowStateMachine(decisionId, decision));
@@ -468,7 +468,7 @@ class DecisionsHelper {
 
     Decision decision =
         Decision.newBuilder()
-            .setDecisionType(DecisionType.ContinueAsNewWorkflowExecution)
+            .setDecisionType(DecisionType.DECISION_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION)
             .setContinueAsNewWorkflowExecutionDecisionAttributes(attributes)
             .build();
 
@@ -484,7 +484,7 @@ class DecisionsHelper {
     Decision decision =
         Decision.newBuilder()
             .setFailWorkflowExecutionDecisionAttributes(attributes)
-            .setDecisionType(DecisionType.FailWorkflowExecution)
+            .setDecisionType(DecisionType.DECISION_TYPE_FAIL_WORKFLOW_EXECUTION)
             .build();
     DecisionId decisionId = new DecisionId(DecisionTarget.SELF, 0);
     addDecision(decisionId, new CompleteWorkflowStateMachine(decisionId, decision));
@@ -501,7 +501,7 @@ class DecisionsHelper {
         Decision.newBuilder()
             .setCancelWorkflowExecutionDecisionAttributes(
                 CancelWorkflowExecutionDecisionAttributes.getDefaultInstance())
-            .setDecisionType(DecisionType.CancelWorkflowExecution)
+            .setDecisionType(DecisionType.DECISION_TYPE_CANCEL_WORKFLOW_EXECUTION)
             .build();
     DecisionId decisionId = new DecisionId(DecisionTarget.SELF, 0);
     addDecision(decisionId, new CompleteWorkflowStateMachine(decisionId, decision));
@@ -525,7 +525,7 @@ class DecisionsHelper {
     }
     Decision decision =
         Decision.newBuilder()
-            .setDecisionType(DecisionType.RecordMarker)
+            .setDecisionType(DecisionType.DECISION_TYPE_RECORD_MARKER)
             .setRecordMarkerDecisionAttributes(marker)
             .build();
     long nextDecisionEventId = getNextDecisionEventId();
@@ -536,7 +536,7 @@ class DecisionsHelper {
   void upsertSearchAttributes(SearchAttributes searchAttributes) {
     Decision decision =
         Decision.newBuilder()
-            .setDecisionType(DecisionType.UpsertWorkflowSearchAttributes)
+            .setDecisionType(DecisionType.DECISION_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES)
             .setUpsertWorkflowSearchAttributesDecisionAttributes(
                 UpsertWorkflowSearchAttributesDecisionAttributes.newBuilder()
                     .setSearchAttributes(searchAttributes))
@@ -566,7 +566,7 @@ class DecisionsHelper {
                   StartTimerDecisionAttributes.newBuilder()
                       .setStartToFireTimeoutSeconds(0)
                       .setTimerId(FORCE_IMMEDIATE_DECISION_TIMER))
-              .setDecisionType(DecisionType.StartTimer)
+              .setDecisionType(DecisionType.DECISION_TYPE_START_TIMER)
               .build();
       result.add(d);
     }
@@ -577,10 +577,10 @@ class DecisionsHelper {
   private boolean isCompletionEvent(Decision decision) {
     DecisionType type = decision.getDecisionType();
     switch (type) {
-      case CancelWorkflowExecution:
-      case CompleteWorkflowExecution:
-      case FailWorkflowExecution:
-      case ContinueAsNewWorkflowExecution:
+      case DECISION_TYPE_CANCEL_WORKFLOW_EXECUTION:
+      case DECISION_TYPE_COMPLETE_WORKFLOW_EXECUTION:
+      case DECISION_TYPE_FAIL_WORKFLOW_EXECUTION:
+      case DECISION_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION:
         return true;
       default:
         return false;
@@ -658,7 +658,7 @@ class DecisionsHelper {
     }
 
     HistoryEvent event = optionalEvent.get();
-    if (event.getEventType() != EventType.MarkerRecorded) {
+    if (event.getEventType() != EventType.EVENT_TYPE_MARKER_RECORDED) {
       return Optional.empty();
     }
 
@@ -729,7 +729,7 @@ class DecisionsHelper {
       attributes.putAllDetails(eventAttributes.getDetailsMap());
       Decision markerDecision =
           Decision.newBuilder()
-              .setDecisionType(DecisionType.RecordMarker)
+              .setDecisionType(DecisionType.DECISION_TYPE_RECORD_MARKER)
               .setRecordMarkerDecisionAttributes(attributes)
               .build();
       DecisionId markerDecisionId = new DecisionId(DecisionTarget.MARKER, nextDecisionEventId);

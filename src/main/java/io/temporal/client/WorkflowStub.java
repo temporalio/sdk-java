@@ -19,9 +19,9 @@
 
 package io.temporal.client;
 
+import io.temporal.common.v1.WorkflowExecution;
+import io.temporal.enums.v1.QueryRejectCondition;
 import io.temporal.internal.sync.StubMarker;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.query.QueryRejectCondition;
 import java.lang.reflect.Type;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;

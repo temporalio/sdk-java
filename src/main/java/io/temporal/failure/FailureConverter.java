@@ -24,19 +24,19 @@ import com.google.common.collect.ImmutableSet;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValue;
+import io.temporal.common.v1.ActivityType;
+import io.temporal.common.v1.Payloads;
+import io.temporal.common.v1.WorkflowType;
+import io.temporal.failure.v1.ActivityFailureInfo;
+import io.temporal.failure.v1.ApplicationFailureInfo;
+import io.temporal.failure.v1.CanceledFailureInfo;
+import io.temporal.failure.v1.ChildWorkflowExecutionFailureInfo;
+import io.temporal.failure.v1.Failure;
+import io.temporal.failure.v1.ResetWorkflowFailureInfo;
+import io.temporal.failure.v1.ServerFailureInfo;
+import io.temporal.failure.v1.TerminatedFailureInfo;
+import io.temporal.failure.v1.TimeoutFailureInfo;
 import io.temporal.internal.common.CheckedExceptionWrapper;
-import io.temporal.proto.common.ActivityType;
-import io.temporal.proto.common.Payloads;
-import io.temporal.proto.common.WorkflowType;
-import io.temporal.proto.failure.ActivityFailureInfo;
-import io.temporal.proto.failure.ApplicationFailureInfo;
-import io.temporal.proto.failure.CanceledFailureInfo;
-import io.temporal.proto.failure.ChildWorkflowExecutionFailureInfo;
-import io.temporal.proto.failure.Failure;
-import io.temporal.proto.failure.ResetWorkflowFailureInfo;
-import io.temporal.proto.failure.ServerFailureInfo;
-import io.temporal.proto.failure.TerminatedFailureInfo;
-import io.temporal.proto.failure.TimeoutFailureInfo;
 import io.temporal.testing.SimulatedTimeoutFailure;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -85,7 +85,7 @@ public class FailureConverter {
     Exception cause =
         failure.hasCause() ? failureToException(failure.getCause(), dataConverter) : null;
     switch (failure.getFailureInfoCase()) {
-      case APPLICATIONFAILUREINFO:
+      case APPLICATION_FAILURE_INFO:
         {
           ApplicationFailureInfo info = failure.getApplicationFailureInfo();
           // Unwrap SimulatedTimeoutFailure
@@ -103,7 +103,7 @@ public class FailureConverter {
               info.getNonRetryable(),
               cause);
         }
-      case TIMEOUTFAILUREINFO:
+      case TIMEOUT_FAILURE_INFO:
         {
           TimeoutFailureInfo info = failure.getTimeoutFailureInfo();
           Optional<Payloads> lastHeartbeatDetails =
@@ -119,7 +119,7 @@ public class FailureConverter {
           tf.setStackTrace(new StackTraceElement[0]);
           return tf;
         }
-      case CANCELEDFAILUREINFO:
+      case CANCELED_FAILURE_INFO:
         {
           CanceledFailureInfo info = failure.getCanceledFailureInfo();
           Optional<Payloads> details =
@@ -127,14 +127,14 @@ public class FailureConverter {
           return new CanceledFailure(
               failure.getMessage(), new EncodedValue(details, dataConverter), cause);
         }
-      case TERMINATEDFAILUREINFO:
+      case TERMINATED_FAILURE_INFO:
         return new TerminatedFailure(failure.getMessage(), cause);
-      case SERVERFAILUREINFO:
+      case SERVER_FAILURE_INFO:
         {
           ServerFailureInfo info = failure.getServerFailureInfo();
           return new ServerFailure(failure.getMessage(), info.getNonRetryable(), cause);
         }
-      case RESETWORKFLOWFAILUREINFO:
+      case RESET_WORKFLOW_FAILURE_INFO:
         {
           ResetWorkflowFailureInfo info = failure.getResetWorkflowFailureInfo();
           Optional<Payloads> details =
@@ -148,7 +148,7 @@ public class FailureConverter {
               false,
               cause);
         }
-      case ACTIVITYFAILUREINFO:
+      case ACTIVITY_FAILURE_INFO:
         {
           ActivityFailureInfo info = failure.getActivityFailureInfo();
           return new ActivityFailure(
@@ -160,7 +160,7 @@ public class FailureConverter {
               info.getIdentity(),
               cause);
         }
-      case CHILDWORKFLOWEXECUTIONFAILUREINFO:
+      case CHILD_WORKFLOW_EXECUTION_FAILURE_INFO:
         {
           ChildWorkflowExecutionFailureInfo info = failure.getChildWorkflowExecutionFailureInfo();
           return new ChildWorkflowFailure(

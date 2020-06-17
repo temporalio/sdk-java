@@ -34,7 +34,7 @@ import io.grpc.MethodDescriptor;
 import io.grpc.ServiceDescriptor;
 import io.grpc.Status;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
+import io.temporal.workflowservice.v1.WorkflowServiceGrpc;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;

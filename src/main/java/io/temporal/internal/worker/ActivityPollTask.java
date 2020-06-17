@@ -25,11 +25,11 @@ import com.uber.m3.util.Duration;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.proto.tasklist.TaskList;
-import io.temporal.proto.tasklist.TaskListMetadata;
-import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
-import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.tasklist.v1.TaskList;
+import io.temporal.tasklist.v1.TaskListMetadata;
+import io.temporal.workflowservice.v1.PollForActivityTaskRequest;
+import io.temporal.workflowservice.v1.PollForActivityTaskResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

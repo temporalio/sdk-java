@@ -20,13 +20,13 @@
 package io.temporal.internal.testservice;
 
 import io.grpc.Deadline;
-import io.temporal.proto.execution.WorkflowExecutionInfo;
-import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
-import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
-import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
-import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
-import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
-import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
+import io.temporal.workflow.v1.WorkflowExecutionInfo;
+import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
+import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
+import io.temporal.workflowservice.v1.PollForActivityTaskRequest;
+import io.temporal.workflowservice.v1.PollForActivityTaskResponse;
+import io.temporal.workflowservice.v1.PollForDecisionTaskRequest;
+import io.temporal.workflowservice.v1.PollForDecisionTaskResponse;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;

@@ -21,7 +21,7 @@ package io.temporal.client;
 
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.proto.query.QueryRejectCondition;
+import io.temporal.enums.v1.QueryRejectCondition;
 import java.lang.management.ManagementFactory;
 import java.util.Arrays;
 import java.util.List;
@@ -119,8 +119,8 @@ public final class WorkflowClientOptions {
     /**
      * Should a query be rejected by closed and failed workflows.
      *
-     * <p>Default is {@link QueryRejectCondition#None} which means that closed and failed workflows
-     * are still queryable.
+     * <p>Default is {@link QueryRejectCondition#QUERY_REJECT_CONDITION_UNSPECIFIED} which means
+     * that closed and failed workflows are still queryable.
      */
     public Builder setQueryRejectCondition(QueryRejectCondition queryRejectCondition) {
       this.queryRejectCondition = queryRejectCondition;
@@ -158,7 +158,9 @@ public final class WorkflowClientOptions {
           interceptors == null ? EMPTY_INTERCEPTOR_ARRAY : interceptors,
           name,
           contextPropagators == null ? EMPTY_CONTEXT_PROPAGATORS : contextPropagators,
-          queryRejectCondition == null ? QueryRejectCondition.None : queryRejectCondition);
+          queryRejectCondition == null
+              ? QueryRejectCondition.QUERY_REJECT_CONDITION_UNSPECIFIED
+              : queryRejectCondition);
     }
   }
 

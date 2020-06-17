@@ -19,9 +19,8 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.proto.common.Payloads;
-import io.temporal.proto.query.QueryConsistencyLevel;
-import io.temporal.proto.query.QueryRejectCondition;
+import io.temporal.common.v1.Payloads;
+import io.temporal.enums.v1.QueryRejectCondition;
 import java.util.Optional;
 
 public class QueryWorkflowParameters implements Cloneable {
@@ -35,8 +34,6 @@ public class QueryWorkflowParameters implements Cloneable {
   private String workflowId;
 
   private QueryRejectCondition queryRejectCondition;
-
-  private QueryConsistencyLevel queryConsistencyLevel;
 
   public QueryWorkflowParameters() {}
 
@@ -92,23 +89,9 @@ public class QueryWorkflowParameters implements Cloneable {
     return this;
   }
 
-  public QueryConsistencyLevel getQueryConsistencyLevel() {
-    return queryConsistencyLevel;
-  }
-
-  public void setQueryConsistencyLevel(QueryConsistencyLevel queryConsistencyLevel) {
-    this.queryConsistencyLevel = queryConsistencyLevel;
-  }
-
-  public QueryWorkflowParameters withQueryConsistencyLevel(
-      QueryConsistencyLevel queryConsistencyLevel) {
-    this.queryConsistencyLevel = queryConsistencyLevel;
-    return this;
-  }
-
   public QueryRejectCondition getQueryRejectCondition() {
     if (queryRejectCondition == null) {
-      return QueryRejectCondition.None;
+      return QueryRejectCondition.QUERY_REJECT_CONDITION_UNSPECIFIED;
     }
     return queryRejectCondition;
   }
@@ -130,7 +113,6 @@ public class QueryWorkflowParameters implements Cloneable {
     result.setQueryType(queryType);
     result.setWorkflowId(workflowId);
     result.setQueryRejectCondition(queryRejectCondition);
-    result.setQueryConsistencyLevel(queryConsistencyLevel);
     return result;
   }
 
@@ -150,8 +132,6 @@ public class QueryWorkflowParameters implements Cloneable {
         + '\''
         + ", queryRejectCondition="
         + queryRejectCondition
-        + ", queryConsistencyLevel="
-        + queryConsistencyLevel
         + '}';
   }
 }

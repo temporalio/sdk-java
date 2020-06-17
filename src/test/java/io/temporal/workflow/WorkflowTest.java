@@ -19,9 +19,6 @@
 
 package io.temporal.workflow;
 
-import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
-import static org.junit.Assert.*;
-
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import com.google.common.io.CharSink;
@@ -60,27 +57,25 @@ import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowInvocationInterceptor;
 import io.temporal.common.interceptors.WorkflowInvoker;
+import io.temporal.common.v1.Memo;
+import io.temporal.common.v1.Payload;
+import io.temporal.common.v1.SearchAttributes;
+import io.temporal.common.v1.WorkflowExecution;
+import io.temporal.enums.v1.EventType;
+import io.temporal.enums.v1.QueryRejectCondition;
+import io.temporal.enums.v1.TimeoutType;
+import io.temporal.enums.v1.WorkflowExecutionStatus;
+import io.temporal.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.failure.TimeoutFailure;
+import io.temporal.history.v1.HistoryEvent;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.sync.DeterministicRunnerTest;
-import io.temporal.proto.common.Memo;
-import io.temporal.proto.common.Payload;
-import io.temporal.proto.common.SearchAttributes;
-import io.temporal.proto.common.TimeoutType;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.common.WorkflowIdReusePolicy;
-import io.temporal.proto.event.EventType;
-import io.temporal.proto.event.HistoryEvent;
-import io.temporal.proto.execution.WorkflowExecutionStatus;
-import io.temporal.proto.query.QueryRejectCondition;
-import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
-import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
@@ -94,6 +89,23 @@ import io.temporal.worker.WorkflowErrorPolicy;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
+import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
+import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Assume;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Ignore;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TestName;
+import org.junit.rules.TestWatcher;
+import org.junit.rules.Timeout;
+import org.junit.runner.Description;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -136,20 +148,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Assume;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestName;
-import org.junit.rules.TestWatcher;
-import org.junit.rules.Timeout;
-import org.junit.runner.Description;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
+import static org.junit.Assert.*;
 
 public class WorkflowTest {
 
@@ -1014,9 +1015,10 @@ public class WorkflowTest {
       } catch (ActivityFailure e) {
         TimeoutFailure te = (TimeoutFailure) e.getCause();
         log.info("TestHeartbeatTimeoutDetails expected timeout", e);
-        assertEquals(TimeoutType.ScheduleToClose, te.getTimeoutType());
+        assertEquals(TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE, te.getTimeoutType());
         assertTrue(te.getCause() instanceof TimeoutFailure);
-        assertEquals(TimeoutType.Heartbeat, ((TimeoutFailure) te.getCause()).getTimeoutType());
+        assertEquals(
+            TimeoutType.TIMEOUT_TYPE_HEARTBEAT, ((TimeoutFailure) te.getCause()).getTimeoutType());
         return (te.getLastHeartbeatDetails().get(String.class));
       }
       throw new RuntimeException("unreachable");
@@ -1301,7 +1303,7 @@ public class WorkflowTest {
         service.blockingStub().getWorkflowExecutionHistory(request);
 
     for (HistoryEvent event : response.getHistory().getEventsList()) {
-      assertNotEquals(EventType.ActivityTaskCancelRequested, event.getEventType());
+      assertNotEquals(EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED, event.getEventType());
     }
   }
 
@@ -1344,10 +1346,11 @@ public class WorkflowTest {
     boolean hasChildCancelled = false;
     boolean hasChildCancelRequested = false;
     for (HistoryEvent event : response.getHistory().getEventsList()) {
-      if (event.getEventType() == EventType.ChildWorkflowExecutionCanceled) {
+      if (event.getEventType() == EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED) {
         hasChildCancelled = true;
       }
-      if (event.getEventType() == EventType.ExternalWorkflowExecutionCancelRequested) {
+      if (event.getEventType()
+          == EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED) {
         hasChildCancelRequested = true;
       }
     }
@@ -1380,7 +1383,7 @@ public class WorkflowTest {
 
     boolean hasChildCancelled = false;
     for (HistoryEvent event : response.getHistory().getEventsList()) {
-      if (event.getEventType() == EventType.ChildWorkflowExecutionCanceled) {
+      if (event.getEventType() == EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED) {
         hasChildCancelled = true;
       }
     }
@@ -1411,7 +1414,8 @@ public class WorkflowTest {
 
     boolean hasChildCancelInitiated = false;
     for (HistoryEvent event : response.getHistory().getEventsList()) {
-      if (event.getEventType() == EventType.RequestCancelExternalWorkflowExecutionInitiated) {
+      if (event.getEventType()
+          == EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED) {
         hasChildCancelInitiated = true;
       }
     }
@@ -1443,10 +1447,12 @@ public class WorkflowTest {
     boolean hasChildCancelInitiated = false;
     boolean hasChildCancelRequested = false;
     for (HistoryEvent event : response.getHistory().getEventsList()) {
-      if (event.getEventType() == EventType.RequestCancelExternalWorkflowExecutionInitiated) {
+      if (event.getEventType()
+          == EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED) {
         hasChildCancelInitiated = true;
       }
-      if (event.getEventType() == EventType.ExternalWorkflowExecutionCancelRequested) {
+      if (event.getEventType()
+          == EventType.EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED) {
         hasChildCancelRequested = true;
       }
     }
@@ -1683,7 +1689,8 @@ public class WorkflowTest {
     startWorkerFor(TestMultiargsWorkflowsImpl.class);
     WorkflowOptions workflowOptions =
         newWorkflowOptionsBuilder(taskList)
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
+            .setWorkflowIdReusePolicy(
+                WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
             .build();
     TestMultiargsWorkflowsFunc stubF =
         workflowClient.newWorkflowStub(TestMultiargsWorkflowsFunc.class, workflowOptions);
@@ -1703,7 +1710,8 @@ public class WorkflowTest {
         workflowClient.newWorkflowStub(
             TestMultiargsWorkflowsFunc2.class,
             newWorkflowOptionsBuilder(taskList)
-                .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.AllowDuplicate)
+                .setWorkflowIdReusePolicy(
+                    WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE)
                 .build());
     assertResult("12", WorkflowClient.start(stubF2::func2, "1", 2));
     try {
@@ -1910,7 +1918,8 @@ public class WorkflowTest {
     String workflowId = UUID.randomUUID().toString();
     WorkflowOptions workflowOptions =
         newWorkflowOptionsBuilder(taskList)
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.AllowDuplicateFailedOnly)
+            .setWorkflowIdReusePolicy(
+                WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY)
             .setWorkflowId(workflowId)
             .build();
     TestMultiargsWorkflowsFunc1 stubF1_1 =
@@ -1923,7 +1932,8 @@ public class WorkflowTest {
     // Setting WorkflowIdReusePolicy to AllowDuplicate will trigger new run.
     workflowOptions =
         newWorkflowOptionsBuilder(taskList)
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.AllowDuplicate)
+            .setWorkflowIdReusePolicy(
+                WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE)
             .setWorkflowId(workflowId)
             .build();
     TestMultiargsWorkflowsFunc1 stubF1_3 =
@@ -2779,7 +2789,10 @@ public class WorkflowTest {
     QueryableWorkflow client4 =
         workflowClient.newWorkflowStub(
             QueryableWorkflow.class,
-            optionsBuilder.setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate).build());
+            optionsBuilder
+                .setWorkflowIdReusePolicy(
+                    WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
+                .build());
     BatchRequest batch4 = workflowClient.newSignalWithStartRequest();
     batch4.add(client4::mySignal, "Hello ");
     batch4.add(client4::execute);
@@ -2872,7 +2885,7 @@ public class WorkflowTest {
             service,
             WorkflowClientOptions.newBuilder()
                 .setNamespace(NAMESPACE)
-                .setQueryRejectCondition(QueryRejectCondition.NotOpen)
+                .setQueryRejectCondition(QueryRejectCondition.QUERY_REJECT_CONDITION_NOT_OPEN)
                 .build());
     WorkflowStub workflowStubNotOptionRejectCondition =
         client.newUntypedWorkflowStub(execution.get(), Optional.of(workflowType));
@@ -2880,7 +2893,9 @@ public class WorkflowTest {
       workflowStubNotOptionRejectCondition.query("getState", String.class);
       fail("unreachable");
     } catch (WorkflowQueryRejectedException e) {
-      assertEquals(WorkflowExecutionStatus.Completed, e.getWorkflowExecutionStatus());
+      assertEquals(
+          WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED,
+          e.getWorkflowExecutionStatus());
     }
   }
 
@@ -3088,7 +3103,8 @@ public class WorkflowTest {
         Workflow.newChildWorkflowStub(
             ITestChild.class,
             ChildWorkflowOptions.newBuilder()
-                .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
+                .setWorkflowIdReusePolicy(
+                    WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
                 .build());
     private final TestWorkflow1 self = Workflow.newContinueAsNewStub(TestWorkflow1.class);
 
@@ -3171,7 +3187,7 @@ public class WorkflowTest {
     WorkflowIdReusePolicyParent client =
         workflowClient.newWorkflowStub(WorkflowIdReusePolicyParent.class, options);
     try {
-      client.execute(false, WorkflowIdReusePolicy.RejectDuplicate);
+      client.execute(false, WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE);
       fail("unreachable");
     } catch (WorkflowFailedException e) {
       assertTrue(e.getCause() instanceof ChildWorkflowFailure);
@@ -3191,7 +3207,7 @@ public class WorkflowTest {
     WorkflowIdReusePolicyParent client =
         workflowClient.newWorkflowStub(WorkflowIdReusePolicyParent.class, options);
     try {
-      client.execute(true, WorkflowIdReusePolicy.RejectDuplicate);
+      client.execute(true, WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE);
       fail("unreachable");
     } catch (WorkflowFailedException e) {
       assertTrue(e.getCause() instanceof ChildWorkflowFailure);
@@ -3210,7 +3226,9 @@ public class WorkflowTest {
             .build();
     WorkflowIdReusePolicyParent client =
         workflowClient.newWorkflowStub(WorkflowIdReusePolicyParent.class, options);
-    assertEquals("HELLO WORLD!", client.execute(false, WorkflowIdReusePolicy.AllowDuplicate));
+    assertEquals(
+        "HELLO WORLD!",
+        client.execute(false, WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE));
   }
 
   public static class TestChildWorkflowRetryWorkflow implements TestWorkflow1 {

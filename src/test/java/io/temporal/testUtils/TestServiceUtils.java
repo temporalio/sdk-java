@@ -23,17 +23,17 @@ import static io.temporal.internal.common.InternalUtils.createNormalTaskList;
 import static io.temporal.internal.common.InternalUtils.createStickyTaskList;
 
 import com.google.protobuf.ByteString;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.common.WorkflowType;
-import io.temporal.proto.decision.StickyExecutionAttributes;
-import io.temporal.proto.tasklist.TaskList;
-import io.temporal.proto.workflowservice.PollForDecisionTaskRequest;
-import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
-import io.temporal.proto.workflowservice.RespondDecisionTaskCompletedRequest;
-import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
-import io.temporal.proto.workflowservice.SignalWorkflowExecutionRequest;
-import io.temporal.proto.workflowservice.StartWorkflowExecutionRequest;
+import io.temporal.common.v1.WorkflowExecution;
+import io.temporal.common.v1.WorkflowType;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.tasklist.v1.StickyExecutionAttributes;
+import io.temporal.tasklist.v1.TaskList;
+import io.temporal.workflowservice.v1.PollForDecisionTaskRequest;
+import io.temporal.workflowservice.v1.PollForDecisionTaskResponse;
+import io.temporal.workflowservice.v1.RespondDecisionTaskCompletedRequest;
+import io.temporal.workflowservice.v1.RespondDecisionTaskFailedRequest;
+import io.temporal.workflowservice.v1.SignalWorkflowExecutionRequest;
+import io.temporal.workflowservice.v1.StartWorkflowExecutionRequest;
 import java.util.ArrayList;
 import java.util.UUID;
 

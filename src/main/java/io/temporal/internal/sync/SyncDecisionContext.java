@@ -30,6 +30,13 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
+import io.temporal.common.v1.ActivityType;
+import io.temporal.common.v1.Payload;
+import io.temporal.common.v1.Payloads;
+import io.temporal.common.v1.SearchAttributes;
+import io.temporal.common.v1.WorkflowExecution;
+import io.temporal.common.v1.WorkflowType;
+import io.temporal.enums.v1.RetryStatus;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
@@ -47,13 +54,6 @@ import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
-import io.temporal.proto.common.ActivityType;
-import io.temporal.proto.common.Payload;
-import io.temporal.proto.common.Payloads;
-import io.temporal.proto.common.RetryStatus;
-import io.temporal.proto.common.SearchAttributes;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.common.WorkflowType;
 import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.CompletablePromise;
@@ -219,7 +219,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
           taskFailed.getStartedEventId(),
           taskFailed.getActivityType().getName(),
           taskFailed.getActivityId(),
-          RetryStatus.Timeout,
+          RetryStatus.RETRY_STATUS_TIMEOUT,
           "",
           exception);
     }

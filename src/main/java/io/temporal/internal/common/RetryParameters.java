@@ -23,7 +23,7 @@ import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
 import com.uber.m3.util.ImmutableList;
 import io.temporal.common.RetryOptions;
-import io.temporal.proto.common.RetryPolicy;
+import io.temporal.common.v1.RetryPolicy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;

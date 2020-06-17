@@ -35,23 +35,17 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.v1.Payload;
+import io.temporal.common.v1.WorkflowExecution;
+import io.temporal.enums.v1.EventType;
+import io.temporal.enums.v1.TimeoutType;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.failure.TimeoutFailure;
+import io.temporal.history.v1.History;
+import io.temporal.history.v1.HistoryEvent;
 import io.temporal.internal.common.WorkflowExecutionUtils;
-import io.temporal.proto.common.Payload;
-import io.temporal.proto.common.TimeoutType;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.event.EventType;
-import io.temporal.proto.event.History;
-import io.temporal.proto.event.HistoryEvent;
-import io.temporal.proto.execution.WorkflowExecutionInfo;
-import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
-import io.temporal.proto.workflowservice.ListClosedWorkflowExecutionsRequest;
-import io.temporal.proto.workflowservice.ListClosedWorkflowExecutionsResponse;
-import io.temporal.proto.workflowservice.ListOpenWorkflowExecutionsRequest;
-import io.temporal.proto.workflowservice.ListOpenWorkflowExecutionsResponse;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
@@ -62,6 +56,12 @@ import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflow.v1.WorkflowExecutionInfo;
+import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
+import io.temporal.workflowservice.v1.ListClosedWorkflowExecutionsRequest;
+import io.temporal.workflowservice.v1.ListClosedWorkflowExecutionsResponse;
+import io.temporal.workflowservice.v1.ListOpenWorkflowExecutionsRequest;
+import io.temporal.workflowservice.v1.ListOpenWorkflowExecutionsResponse;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
@@ -247,7 +247,8 @@ public class WorkflowTestingTest {
 
     @Override
     public String activity1(String input) {
-      throw new TimeoutFailure("simulated", "progress1", TimeoutType.ScheduleToClose);
+      throw new TimeoutFailure(
+          "simulated", "progress1", TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE);
     }
   }
 
@@ -266,7 +267,7 @@ public class WorkflowTestingTest {
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ActivityFailure);
       TimeoutFailure te = (TimeoutFailure) e.getCause().getCause();
-      assertEquals(TimeoutType.ScheduleToClose, te.getTimeoutType());
+      assertEquals(TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE, te.getTimeoutType());
       assertEquals("progress1", te.getLastHeartbeatDetails().get(String.class));
     }
   }
@@ -335,9 +336,10 @@ public class WorkflowTestingTest {
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ActivityFailure);
       assertEquals(
-          TimeoutType.ScheduleToClose, ((TimeoutFailure) e.getCause().getCause()).getTimeoutType());
+          TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE,
+          ((TimeoutFailure) e.getCause().getCause()).getTimeoutType());
       assertEquals(
-          TimeoutType.StartToClose,
+          TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE,
           ((TimeoutFailure) e.getCause().getCause().getCause()).getTimeoutType());
     }
   }
@@ -357,7 +359,8 @@ public class WorkflowTestingTest {
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ActivityFailure);
       assertEquals(
-          TimeoutType.ScheduleToStart, ((TimeoutFailure) e.getCause().getCause()).getTimeoutType());
+          TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_START,
+          ((TimeoutFailure) e.getCause().getCause()).getTimeoutType());
     }
   }
 
@@ -377,9 +380,10 @@ public class WorkflowTestingTest {
     } catch (WorkflowException e) {
       assertTrue(e.getCause() instanceof ActivityFailure);
       assertEquals(
-          TimeoutType.ScheduleToClose, ((TimeoutFailure) e.getCause().getCause()).getTimeoutType());
+          TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE,
+          ((TimeoutFailure) e.getCause().getCause()).getTimeoutType());
       assertEquals(
-          TimeoutType.StartToClose,
+          TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE,
           ((TimeoutFailure) e.getCause().getCause().getCause()).getTimeoutType());
     }
   }
@@ -410,7 +414,9 @@ public class WorkflowTestingTest {
       fail("unreacheable");
     } catch (WorkflowException e) {
       assertTrue(e instanceof WorkflowException);
-      assertEquals(TimeoutType.StartToClose, ((TimeoutFailure) e.getCause()).getTimeoutType());
+      assertEquals(
+          TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE,
+          ((TimeoutFailure) e.getCause()).getTimeoutType());
     }
   }
 
@@ -633,7 +639,7 @@ public class WorkflowTestingTest {
     List<HistoryEvent> historyEvents = history.getEventsList();
     assertTrue(
         WorkflowExecutionUtils.prettyPrintHistory(history, false),
-        WorkflowExecutionUtils.containsEvent(historyEvents, EventType.TimerCanceled));
+        WorkflowExecutionUtils.containsEvent(historyEvents, EventType.EVENT_TYPE_TIMER_CANCELED));
   }
 
   @WorkflowInterface
@@ -713,7 +719,7 @@ public class WorkflowTestingTest {
     @Override
     public String workflow(String input, String parentId) {
       Workflow.sleep(Duration.ofHours(2));
-      throw new TimeoutFailure("simulated", null, TimeoutType.ScheduleToClose);
+      throw new TimeoutFailure("simulated", null, TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE);
     }
   }
 
@@ -786,7 +792,8 @@ public class WorkflowTestingTest {
         () -> {
           ChildWorkflow child = mock(ChildWorkflow.class);
           when(child.workflow(anyString(), anyString()))
-              .thenThrow(new TimeoutFailure("foo", null, TimeoutType.ScheduleToClose));
+              .thenThrow(
+                  new TimeoutFailure("foo", null, TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE));
           return child;
         });
     testEnvironment.start();

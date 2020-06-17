@@ -22,7 +22,7 @@ package io.temporal.client;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
-import io.temporal.proto.common.WorkflowIdReusePolicy;
+import io.temporal.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.WorkflowMethod;
 import java.lang.reflect.Method;
@@ -46,7 +46,8 @@ public class WorkflowOptionsTest {
             .setWorkflowRunTimeout(Duration.ofSeconds(321))
             .setWorkflowExecutionTimeout(Duration.ofSeconds(456))
             .setWorkflowTaskTimeout(Duration.ofSeconds(13))
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
+            .setWorkflowIdReusePolicy(
+                WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
             .setMemo(getTestMemo())
             .setSearchAttributes(getTestSearchAttributes())
             .build();
@@ -91,7 +92,8 @@ public class WorkflowOptionsTest {
             .setTaskList("foo")
             .setWorkflowRunTimeout(Duration.ofSeconds(321))
             .setWorkflowTaskTimeout(Duration.ofSeconds(13))
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
+            .setWorkflowIdReusePolicy(
+                WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
             .setWorkflowId("bar")
             .setRetryOptions(retryOptions)
             .setCronSchedule("* 1 * * *")
@@ -126,7 +128,8 @@ public class WorkflowOptionsTest {
             .setTaskList("foo")
             .setWorkflowRunTimeout(Duration.ofSeconds(321))
             .setWorkflowTaskTimeout(Duration.ofSeconds(13))
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
+            .setWorkflowIdReusePolicy(
+                WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
             .setWorkflowId("bar")
             .setRetryOptions(retryOptions)
             .setCronSchedule("* 1 * * *")

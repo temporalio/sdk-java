@@ -23,7 +23,7 @@ import static io.temporal.internal.common.CheckedExceptionWrapper.unwrap;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.temporal.proto.errordetails.QueryFailedFailure;
+import io.temporal.errordetails.v1.QueryFailedFailure;
 import java.time.Duration;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;

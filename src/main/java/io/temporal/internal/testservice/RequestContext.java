@@ -20,11 +20,11 @@
 package io.temporal.internal.testservice;
 
 import io.grpc.Status;
+import io.temporal.common.v1.WorkflowExecution;
+import io.temporal.history.v1.HistoryEvent;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.TestWorkflowStore.ActivityTask;
 import io.temporal.internal.testservice.TestWorkflowStore.DecisionTask;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.event.HistoryEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;

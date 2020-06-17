@@ -20,11 +20,11 @@
 package io.temporal.internal.replay;
 
 import com.google.common.collect.PeekingIterator;
+import io.temporal.enums.v1.EventType;
+import io.temporal.history.v1.HistoryEvent;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.worker.DecisionTaskWithHistoryIterator;
-import io.temporal.proto.event.EventType;
-import io.temporal.proto.event.HistoryEvent;
-import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
+import io.temporal.workflowservice.v1.PollForDecisionTaskResponseOrBuilder;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -60,7 +60,7 @@ class HistoryHelper {
       this.events = events;
       this.decisionEvents = decisionEvents;
       for (HistoryEvent event : decisionEvents) {
-        if (event.getEventType() == EventType.MarkerRecorded) {
+        if (event.getEventType() == EventType.EVENT_TYPE_MARKER_RECORDED) {
           markers.add(event);
         }
       }
@@ -193,12 +193,13 @@ class HistoryHelper {
         EventType eventType = event.getEventType();
 
         // Sticky workers receive an event history that starts with DecisionTaskCompleted
-        if (eventType == EventType.DecisionTaskCompleted && nextDecisionEventId == -1) {
+        if (eventType == EventType.EVENT_TYPE_DECISION_TASK_COMPLETED
+            && nextDecisionEventId == -1) {
           nextDecisionEventId = event.getEventId() + 1;
           break;
         }
 
-        if (eventType == EventType.DecisionTaskStarted || !events.hasNext()) {
+        if (eventType == EventType.EVENT_TYPE_DECISION_TASK_STARTED || !events.hasNext()) {
           replayCurrentTimeMilliseconds = TimeUnit.NANOSECONDS.toMillis(event.getTimestamp());
           if (!events.hasNext()) {
             replay = false;
@@ -207,10 +208,10 @@ class HistoryHelper {
           }
           HistoryEvent peeked = events.peek();
           EventType peekedType = peeked.getEventType();
-          if (peekedType == EventType.DecisionTaskTimedOut
-              || peekedType == EventType.DecisionTaskFailed) {
+          if (peekedType == EventType.EVENT_TYPE_DECISION_TASK_TIMED_OUT
+              || peekedType == EventType.EVENT_TYPE_DECISION_TASK_FAILED) {
             continue;
-          } else if (peekedType == EventType.DecisionTaskCompleted) {
+          } else if (peekedType == EventType.EVENT_TYPE_DECISION_TASK_COMPLETED) {
             events.next(); // consume DecisionTaskCompleted
             nextDecisionEventId = peeked.getEventId() + 1; // +1 for next and skip over completed
             break;

@@ -31,12 +31,10 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.proto.common.Payloads;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.event.EventType;
-import io.temporal.proto.event.HistoryEvent;
-import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
-import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
+import io.temporal.common.v1.Payloads;
+import io.temporal.common.v1.WorkflowExecution;
+import io.temporal.enums.v1.EventType;
+import io.temporal.history.v1.HistoryEvent;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
@@ -44,6 +42,8 @@ import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
+import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -197,7 +197,7 @@ public class CleanWorkerShutdownTest {
     List<HistoryEvent> events = result.getHistory().getEventsList();
     boolean found = false;
     for (HistoryEvent e : events) {
-      if (e.getEventType() == EventType.ActivityTaskCompleted) {
+      if (e.getEventType() == EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED) {
         found = true;
         Payloads ar = e.getActivityTaskCompletedEventAttributes().getResult();
         String r =
@@ -258,7 +258,7 @@ public class CleanWorkerShutdownTest {
     List<HistoryEvent> events = result.getHistory().getEventsList();
     boolean found = false;
     for (HistoryEvent e : events) {
-      if (e.getEventType() == EventType.ActivityTaskCompleted) {
+      if (e.getEventType() == EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED) {
         found = true;
         Payloads ar = e.getActivityTaskCompletedEventAttributes().getResult();
         String r =
@@ -349,7 +349,7 @@ public class CleanWorkerShutdownTest {
     List<HistoryEvent> events = result.getHistory().getEventsList();
     boolean found = false;
     for (HistoryEvent e : events) {
-      if (e.getEventType() == EventType.ActivityTaskCompleted) {
+      if (e.getEventType() == EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED) {
         found = true;
         Payloads ar = e.getActivityTaskCompletedEventAttributes().getResult();
         String r =

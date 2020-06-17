@@ -35,11 +35,11 @@ import io.temporal.activity.ActivityOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.replay.DeciderCache;
-import io.temporal.proto.common.WorkflowIdReusePolicy;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
@@ -156,7 +156,8 @@ public class StickyWorkerTest {
             .setTaskList(taskListName)
             .setWorkflowRunTimeout(Duration.ofDays(30))
             .setWorkflowTaskTimeout(Duration.ofSeconds(30))
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
+            .setWorkflowIdReusePolicy(
+                WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
             .build();
     GreetingSignalWorkflow workflow =
         wrapper.getWorkflowClient().newWorkflowStub(GreetingSignalWorkflow.class, workflowOptions);
@@ -220,7 +221,8 @@ public class StickyWorkerTest {
             .setTaskList(taskListName)
             .setWorkflowRunTimeout(Duration.ofDays(30))
             .setWorkflowTaskTimeout(Duration.ofSeconds(1))
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
+            .setWorkflowIdReusePolicy(
+                WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
             .build();
 
     int count = 100;
@@ -419,7 +421,8 @@ public class StickyWorkerTest {
             .setTaskList(taskListName)
             .setWorkflowRunTimeout(Duration.ofDays(30))
             .setWorkflowTaskTimeout(Duration.ofSeconds(30))
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
+            .setWorkflowIdReusePolicy(
+                WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
             .build();
     GreetingSignalWorkflow workflow =
         wrapper.getWorkflowClient().newWorkflowStub(GreetingSignalWorkflow.class, workflowOptions);
@@ -460,7 +463,8 @@ public class StickyWorkerTest {
             .setTaskList(taskListName)
             .setWorkflowRunTimeout(Duration.ofDays(30))
             .setWorkflowTaskTimeout(Duration.ofSeconds(30))
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
+            .setWorkflowIdReusePolicy(
+                WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
             .build();
     GreetingSignalWorkflow workflow =
         wrapper.getWorkflowClient().newWorkflowStub(GreetingSignalWorkflow.class, workflowOptions);
@@ -505,7 +509,8 @@ public class StickyWorkerTest {
             .setTaskList(taskListName)
             .setWorkflowRunTimeout(Duration.ofDays(30))
             .setWorkflowTaskTimeout(Duration.ofSeconds(30))
-            .setWorkflowIdReusePolicy(WorkflowIdReusePolicy.RejectDuplicate)
+            .setWorkflowIdReusePolicy(
+                WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE)
             .build();
     GreetingSignalWorkflow workflow =
         wrapper.getWorkflowClient().newWorkflowStub(GreetingSignalWorkflow.class, workflowOptions);

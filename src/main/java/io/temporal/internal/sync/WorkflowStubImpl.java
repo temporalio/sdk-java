@@ -34,6 +34,12 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
+import io.temporal.common.v1.Payload;
+import io.temporal.common.v1.Payloads;
+import io.temporal.common.v1.WorkflowExecution;
+import io.temporal.common.v1.WorkflowType;
+import io.temporal.errordetails.v1.QueryFailedFailure;
+import io.temporal.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.CheckedExceptionWrapper;
@@ -45,14 +51,7 @@ import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.external.GenericWorkflowClientExternal;
 import io.temporal.internal.replay.QueryWorkflowParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
-import io.temporal.proto.common.Payload;
-import io.temporal.proto.common.Payloads;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.common.WorkflowType;
-import io.temporal.proto.errordetails.QueryFailedFailure;
-import io.temporal.proto.errordetails.WorkflowExecutionAlreadyStartedFailure;
-import io.temporal.proto.query.QueryConsistencyLevel;
-import io.temporal.proto.workflowservice.QueryWorkflowResponse;
+import io.temporal.workflowservice.v1.QueryWorkflowResponse;
 import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.List;
@@ -398,7 +397,6 @@ class WorkflowStubImpl implements WorkflowStub {
     p.setWorkflowId(execution.get().getWorkflowId());
     p.setQueryRejectCondition(clientOptions.getQueryRejectCondition());
     // Hardcode strong as Eventual should be deprecated.
-    p.setQueryConsistencyLevel(QueryConsistencyLevel.Strong);
     QueryWorkflowResponse result;
     try {
       result = genericClient.queryWorkflow(p);

@@ -27,7 +27,15 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import io.grpc.Status;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.v1.Payloads;
+import io.temporal.enums.v1.EventType;
+import io.temporal.enums.v1.QueryResultType;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.history.v1.History;
+import io.temporal.history.v1.HistoryEvent;
+import io.temporal.history.v1.TimerFiredEventAttributes;
+import io.temporal.history.v1.WorkflowExecutionSignaledEventAttributes;
+import io.temporal.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.RpcRetryOptions;
@@ -38,22 +46,14 @@ import io.temporal.internal.worker.DecisionTaskWithHistoryIterator;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.WorkflowExecutionException;
-import io.temporal.proto.common.Payloads;
-import io.temporal.proto.event.EventType;
-import io.temporal.proto.event.History;
-import io.temporal.proto.event.HistoryEvent;
-import io.temporal.proto.event.TimerFiredEventAttributes;
-import io.temporal.proto.event.WorkflowExecutionSignaledEventAttributes;
-import io.temporal.proto.event.WorkflowExecutionStartedEventAttributes;
-import io.temporal.proto.query.QueryResultType;
-import io.temporal.proto.query.WorkflowQuery;
-import io.temporal.proto.query.WorkflowQueryResult;
-import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryRequest;
-import io.temporal.proto.workflowservice.GetWorkflowExecutionHistoryResponse;
-import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
-import io.temporal.proto.workflowservice.PollForDecisionTaskResponseOrBuilder;
+import io.temporal.query.v1.WorkflowQuery;
+import io.temporal.query.v1.WorkflowQueryResult;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
+import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
+import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
+import io.temporal.workflowservice.v1.PollForDecisionTaskResponse;
+import io.temporal.workflowservice.v1.PollForDecisionTaskResponseOrBuilder;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -149,128 +149,130 @@ class ReplayDecider implements Decider {
   private void processEvent(HistoryEvent event) {
     EventType eventType = event.getEventType();
     switch (eventType) {
-      case ActivityTaskCanceled:
+      case EVENT_TYPE_ACTIVITY_TASK_CANCELED:
         context.handleActivityTaskCanceled(event);
         break;
-      case ActivityTaskCompleted:
+      case EVENT_TYPE_ACTIVITY_TASK_COMPLETED:
         context.handleActivityTaskCompleted(event);
         break;
-      case ActivityTaskFailed:
+      case EVENT_TYPE_ACTIVITY_TASK_FAILED:
         context.handleActivityTaskFailed(event);
         break;
-      case ActivityTaskStarted:
+      case EVENT_TYPE_ACTIVITY_TASK_STARTED:
         decisionsHelper.handleActivityTaskStarted(event);
         break;
-      case ActivityTaskTimedOut:
+      case EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT:
         context.handleActivityTaskTimedOut(event);
         break;
-      case ExternalWorkflowExecutionCancelRequested:
+      case EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_CANCEL_REQUESTED:
         context.handleChildWorkflowExecutionCancelRequested(event);
         break;
-      case ChildWorkflowExecutionCanceled:
+      case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED:
         context.handleChildWorkflowExecutionCanceled(event);
         break;
-      case ChildWorkflowExecutionCompleted:
+      case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_COMPLETED:
         context.handleChildWorkflowExecutionCompleted(event);
         break;
-      case ChildWorkflowExecutionFailed:
+      case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_FAILED:
+        d:
         context.handleChildWorkflowExecutionFailed(event);
         break;
-      case ChildWorkflowExecutionStarted:
+      case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_STARTED:
         context.handleChildWorkflowExecutionStarted(event);
         break;
-      case ChildWorkflowExecutionTerminated:
+      case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TERMINATED:
         context.handleChildWorkflowExecutionTerminated(event);
         break;
-      case ChildWorkflowExecutionTimedOut:
+      case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TIMED_OUT:
         context.handleChildWorkflowExecutionTimedOut(event);
         break;
-      case DecisionTaskCompleted:
+      case EVENT_TYPE_DECISION_TASK_COMPLETED:
         // NOOP
         break;
-      case DecisionTaskScheduled:
+      case EVENT_TYPE_DECISION_TASK_SCHEDULED:
         // NOOP
         break;
-      case DecisionTaskStarted:
+      case EVENT_TYPE_DECISION_TASK_STARTED:
         throw new IllegalArgumentException("not expected");
-      case DecisionTaskTimedOut:
+      case EVENT_TYPE_DECISION_TASK_TIMED_OUT:
         // Handled in the processEvent(event)
         break;
-      case ExternalWorkflowExecutionSignaled:
+      case EVENT_TYPE_EXTERNAL_WORKFLOW_EXECUTION_SIGNALED:
         context.handleExternalWorkflowExecutionSignaled(event);
         break;
-      case StartChildWorkflowExecutionFailed:
+      case EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_FAILED:
         context.handleStartChildWorkflowExecutionFailed(event);
         break;
-      case TimerFired:
+      case EVENT_TYPE_TIMER_FIRED:
         handleTimerFired(event);
         break;
-      case WorkflowExecutionCancelRequested:
+      case EVENT_TYPE_WORKFLOW_EXECUTION_CANCEL_REQUESTED:
         handleWorkflowExecutionCancelRequested(event);
         break;
-      case WorkflowExecutionSignaled:
+      case EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED:
         handleWorkflowExecutionSignaled(event);
         break;
-      case WorkflowExecutionStarted:
+      case EVENT_TYPE_WORKFLOW_EXECUTION_STARTED:
         handleWorkflowExecutionStarted(event);
         break;
-      case WorkflowExecutionTerminated:
+      case EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED:
         // NOOP
         break;
-      case WorkflowExecutionTimedOut:
+      case EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT:
         decisionsHelper.handleWorkflowExecutionCompleted(event);
         break;
-      case ActivityTaskScheduled:
+      case EVENT_TYPE_ACTIVITY_TASK_SCHEDULED:
+        d:
         decisionsHelper.handleActivityTaskScheduled(event);
         break;
-      case ActivityTaskCancelRequested:
+      case EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED:
         decisionsHelper.handleActivityTaskCancelRequested(event);
         break;
-      case RequestCancelActivityTaskFailed:
+      case EVENT_TYPE_REQUEST_CANCEL_ACTIVITY_TASK_FAILED:
         throw new Error("unexpected event");
-      case MarkerRecorded:
+      case EVENT_TYPE_MARKER_RECORDED:
         context.handleMarkerRecorded(event);
         break;
-      case WorkflowExecutionCompleted:
+      case EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED:
         decisionsHelper.handleWorkflowExecutionCompleted(event);
         break;
-      case WorkflowExecutionFailed:
+      case EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
         decisionsHelper.handleWorkflowExecutionCompleted(event);
         break;
-      case WorkflowExecutionCanceled:
+      case EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED:
         decisionsHelper.handleWorkflowExecutionCompleted(event);
         break;
-      case WorkflowExecutionContinuedAsNew:
+      case EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW:
         decisionsHelper.handleWorkflowExecutionCompleted(event);
         break;
-      case TimerStarted:
+      case EVENT_TYPE_TIMER_STARTED:
         decisionsHelper.handleTimerStarted(event);
         break;
-      case TimerCanceled:
+      case EVENT_TYPE_TIMER_CANCELED:
         context.handleTimerCanceled(event);
         break;
-      case SignalExternalWorkflowExecutionInitiated:
+      case EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED:
         decisionsHelper.handleSignalExternalWorkflowExecutionInitiated(event);
         break;
-      case SignalExternalWorkflowExecutionFailed:
+      case EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED:
         context.handleSignalExternalWorkflowExecutionFailed(event);
         break;
-      case RequestCancelExternalWorkflowExecutionInitiated:
+      case EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED:
         decisionsHelper.handleRequestCancelExternalWorkflowExecutionInitiated(event);
         break;
-      case RequestCancelExternalWorkflowExecutionFailed:
+      case EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_FAILED:
         decisionsHelper.handleRequestCancelExternalWorkflowExecutionFailed(event);
         break;
-      case StartChildWorkflowExecutionInitiated:
+      case EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED:
         decisionsHelper.handleStartChildWorkflowExecutionInitiated(event);
         break;
-      case CancelTimerFailed:
+      case EVENT_TYPE_CANCEL_TIMER_FAILED:
         decisionsHelper.handleCancelTimerFailed(event);
         break;
-      case DecisionTaskFailed:
+      case EVENT_TYPE_DECISION_TASK_FAILED:
         context.handleDecisionTaskFailed(event);
         break;
-      case UpsertWorkflowSearchAttributes:
+      case EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES:
         context.handleUpsertSearchAttributes(event);
         break;
     }
@@ -385,7 +387,7 @@ class ReplayDecider implements Decider {
   }
 
   private void handleWorkflowExecutionSignaled(HistoryEvent event) {
-    assert (event.getEventType() == EventType.WorkflowExecutionSignaled);
+    assert (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED);
     final WorkflowExecutionSignaledEventAttributes signalAttributes =
         event.getWorkflowExecutionSignaledEventAttributes();
     if (completed) {
@@ -493,7 +495,8 @@ class ReplayDecider implements Decider {
         try {
           Optional<Payloads> queryResult = workflow.query(query);
           WorkflowQueryResult.Builder result =
-              WorkflowQueryResult.newBuilder().setResultType(QueryResultType.Answered);
+              WorkflowQueryResult.newBuilder()
+                  .setResultType(QueryResultType.QUERY_RESULT_TYPE_ANSWERED);
           if (queryResult.isPresent()) {
             result.setAnswer(queryResult.get());
           }
@@ -503,7 +506,7 @@ class ReplayDecider implements Decider {
           queryResults.put(
               entry.getKey(),
               WorkflowQueryResult.newBuilder()
-                  .setResultType(QueryResultType.Failed)
+                  .setResultType(QueryResultType.QUERY_RESULT_TYPE_FAILED)
                   .setErrorMessage(e.getMessage())
                   .setAnswer(converter.toPayloads(stackTrace).get())
                   .build());

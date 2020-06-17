@@ -19,7 +19,7 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.proto.decision.Decision;
+import io.temporal.decision.v1.Decision;
 
 final class MarkerDecisionStateMachine extends DecisionStateMachineBase {
 

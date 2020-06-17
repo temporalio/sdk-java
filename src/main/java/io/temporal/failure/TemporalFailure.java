@@ -20,7 +20,7 @@
 package io.temporal.failure;
 
 import io.temporal.common.converter.DataConverter;
-import io.temporal.proto.failure.Failure;
+import io.temporal.failure.v1.Failure;
 import java.util.Optional;
 
 /**

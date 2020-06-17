@@ -24,6 +24,13 @@ import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
+import io.temporal.common.v1.Header;
+import io.temporal.common.v1.Memo;
+import io.temporal.common.v1.Payload;
+import io.temporal.common.v1.Payloads;
+import io.temporal.common.v1.RetryPolicy;
+import io.temporal.common.v1.SearchAttributes;
+import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.RetryParameters;
@@ -34,25 +41,18 @@ import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.QueryWorkflowParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
-import io.temporal.proto.common.Header;
-import io.temporal.proto.common.Memo;
-import io.temporal.proto.common.Payload;
-import io.temporal.proto.common.Payloads;
-import io.temporal.proto.common.RetryPolicy;
-import io.temporal.proto.common.SearchAttributes;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.query.WorkflowQuery;
-import io.temporal.proto.tasklist.TaskList;
-import io.temporal.proto.workflowservice.QueryWorkflowRequest;
-import io.temporal.proto.workflowservice.QueryWorkflowResponse;
-import io.temporal.proto.workflowservice.RequestCancelWorkflowExecutionRequest;
-import io.temporal.proto.workflowservice.SignalWithStartWorkflowExecutionRequest;
-import io.temporal.proto.workflowservice.SignalWithStartWorkflowExecutionResponse;
-import io.temporal.proto.workflowservice.SignalWorkflowExecutionRequest;
-import io.temporal.proto.workflowservice.StartWorkflowExecutionRequest;
-import io.temporal.proto.workflowservice.StartWorkflowExecutionResponse;
-import io.temporal.proto.workflowservice.TerminateWorkflowExecutionRequest;
+import io.temporal.query.v1.WorkflowQuery;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.tasklist.v1.TaskList;
+import io.temporal.workflowservice.v1.QueryWorkflowRequest;
+import io.temporal.workflowservice.v1.QueryWorkflowResponse;
+import io.temporal.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
+import io.temporal.workflowservice.v1.SignalWithStartWorkflowExecutionRequest;
+import io.temporal.workflowservice.v1.SignalWithStartWorkflowExecutionResponse;
+import io.temporal.workflowservice.v1.SignalWorkflowExecutionRequest;
+import io.temporal.workflowservice.v1.StartWorkflowExecutionRequest;
+import io.temporal.workflowservice.v1.StartWorkflowExecutionResponse;
+import io.temporal.workflowservice.v1.TerminateWorkflowExecutionRequest;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -321,7 +321,6 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
                     .setRunId(OptionsUtils.safeGet(queryParameters.getRunId())))
             .setQuery(query)
             .setQueryRejectCondition(queryParameters.getQueryRejectCondition())
-            .setQueryConsistencyLevel(queryParameters.getQueryConsistencyLevel())
             .build();
     return GrpcRetryer.retryWithResult(
         GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,

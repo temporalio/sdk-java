@@ -22,10 +22,10 @@ package io.temporal.internal.common;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import io.temporal.common.converter.DataConverterException;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.event.EventType;
-import io.temporal.proto.event.History;
-import io.temporal.proto.event.HistoryEvent;
+import io.temporal.common.v1.WorkflowExecution;
+import io.temporal.enums.v1.EventType;
+import io.temporal.history.v1.History;
+import io.temporal.history.v1.HistoryEvent;
 import java.util.List;
 
 /** Contains workflow execution ids and the history */
@@ -56,7 +56,7 @@ public final class WorkflowExecutionHistory {
       throw new IllegalArgumentException("Empty history");
     }
     HistoryEvent startedEvent = events.get(0);
-    if (startedEvent.getEventType() != EventType.WorkflowExecutionStarted) {
+    if (startedEvent.getEventType() != EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED) {
       throw new IllegalArgumentException(
           "First event is not WorkflowExecutionStarted but " + startedEvent);
     }

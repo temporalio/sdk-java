@@ -34,23 +34,16 @@ import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.converter.EncodedValue;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
+import io.temporal.common.v1.ActivityType;
+import io.temporal.common.v1.Payloads;
+import io.temporal.common.v1.WorkflowExecution;
+import io.temporal.enums.v1.RetryStatus;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
-import io.temporal.proto.common.ActivityType;
-import io.temporal.proto.common.Payloads;
-import io.temporal.proto.common.RetryStatus;
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
-import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatRequest;
-import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatResponse;
-import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
-import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
-import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
-import io.temporal.proto.workflowservice.WorkflowServiceGrpc;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestActivityEnvironment;
@@ -62,6 +55,13 @@ import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflowservice.v1.PollForActivityTaskResponse;
+import io.temporal.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
+import io.temporal.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
+import io.temporal.workflowservice.v1.RespondActivityTaskCanceledRequest;
+import io.temporal.workflowservice.v1.RespondActivityTaskCompletedRequest;
+import io.temporal.workflowservice.v1.RespondActivityTaskFailedRequest;
+import io.temporal.workflowservice.v1.WorkflowServiceGrpc;
 import java.io.IOException;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Type;
@@ -390,7 +390,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
               0,
               task.getActivityType().getName(),
               task.getActivityId(),
-              RetryStatus.NonRetryableFailure,
+              RetryStatus.RETRY_STATUS_NON_RETRYABLE_FAILURE,
               "TestActivityEnvironment",
               cause);
         } else {

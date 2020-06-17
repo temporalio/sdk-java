@@ -19,8 +19,8 @@
 
 package io.temporal.internal.common;
 
-import io.temporal.proto.common.RetryStatus;
-import io.temporal.proto.failure.Failure;
+import io.temporal.enums.v1.RetryStatus;
+import io.temporal.failure.v1.Failure;
 
 /** Framework level exception. Do not throw or catch in the application level code. */
 public final class WorkflowExecutionFailedException extends RuntimeException {

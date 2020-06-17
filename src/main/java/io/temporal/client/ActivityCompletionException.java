@@ -20,8 +20,8 @@
 package io.temporal.client;
 
 import io.temporal.activity.ActivityTask;
+import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.failure.TemporalException;
-import io.temporal.proto.common.WorkflowExecution;
 
 /** Base exception for all failures returned by an activity completion client. Do not extend! */
 public class ActivityCompletionException extends TemporalException {

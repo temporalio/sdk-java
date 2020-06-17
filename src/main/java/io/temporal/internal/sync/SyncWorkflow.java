@@ -22,16 +22,16 @@ package io.temporal.internal.sync;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.v1.Payloads;
+import io.temporal.common.v1.WorkflowType;
+import io.temporal.enums.v1.EventType;
+import io.temporal.history.v1.HistoryEvent;
+import io.temporal.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.DecisionContext;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.worker.WorkflowExecutionException;
-import io.temporal.proto.common.Payloads;
-import io.temporal.proto.common.WorkflowType;
-import io.temporal.proto.event.EventType;
-import io.temporal.proto.event.HistoryEvent;
-import io.temporal.proto.event.WorkflowExecutionStartedEventAttributes;
-import io.temporal.proto.query.WorkflowQuery;
+import io.temporal.query.v1.WorkflowQuery;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.util.List;
 import java.util.Objects;
@@ -82,7 +82,7 @@ class SyncWorkflow implements ReplayWorkflow {
 
   @Override
   public void start(HistoryEvent event, DecisionContext context) {
-    if (event.getEventType() != EventType.WorkflowExecutionStarted
+    if (event.getEventType() != EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
         || !event.hasWorkflowExecutionStartedEventAttributes()) {
       throw new IllegalArgumentException(
           "first event is not WorkflowExecutionStarted, but " + event.getEventType());
