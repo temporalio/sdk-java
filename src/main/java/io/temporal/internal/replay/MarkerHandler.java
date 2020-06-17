@@ -185,7 +185,7 @@ class MarkerHandler {
   private Optional<Payloads> getMarkerDataFromHistory(
       long eventId, String markerId, int expectedAcccessCount, DataConverter converter) {
     Optional<HistoryEvent> event = decisions.getOptionalDecisionEvent(eventId);
-    if (!event.isPresent() || event.get().getEventType() != EventType.MarkerRecorded) {
+    if (!event.isPresent() || event.get().getEventType() != EventType.EVENT_TYPE_MARKER_RECORDED) {
       return Optional.empty();
     }
 

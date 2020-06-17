@@ -197,7 +197,7 @@ public class CleanWorkerShutdownTest {
     List<HistoryEvent> events = result.getHistory().getEventsList();
     boolean found = false;
     for (HistoryEvent e : events) {
-      if (e.getEventType() == EventType.ActivityTaskCompleted) {
+      if (e.getEventType() == EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED) {
         found = true;
         Payloads ar = e.getActivityTaskCompletedEventAttributes().getResult();
         String r =
@@ -258,7 +258,7 @@ public class CleanWorkerShutdownTest {
     List<HistoryEvent> events = result.getHistory().getEventsList();
     boolean found = false;
     for (HistoryEvent e : events) {
-      if (e.getEventType() == EventType.ActivityTaskCompleted) {
+      if (e.getEventType() == EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED) {
         found = true;
         Payloads ar = e.getActivityTaskCompletedEventAttributes().getResult();
         String r =
@@ -349,7 +349,7 @@ public class CleanWorkerShutdownTest {
     List<HistoryEvent> events = result.getHistory().getEventsList();
     boolean found = false;
     for (HistoryEvent e : events) {
-      if (e.getEventType() == EventType.ActivityTaskCompleted) {
+      if (e.getEventType() == EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED) {
         found = true;
         Payloads ar = e.getActivityTaskCompletedEventAttributes().getResult();
         String r =

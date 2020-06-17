@@ -19,7 +19,7 @@
 
 package io.temporal.workflow;
 
-import io.temporal.common.v1.ParentClosePolicy;
+import io.temporal.enums.v1.ParentClosePolicy;
 import io.temporal.failure.CanceledFailure;
 
 /**
@@ -41,7 +41,7 @@ public enum ChildWorkflowCancellationType {
    * Initiate a cancellation request and immediately report cancellation to the parent. Note that it
    * doesn't guarantee that cancellation is delivered to the child if parent exits before the
    * delivery is done. It can be mitigated by setting {@link ParentClosePolicy} to {@link
-   * ParentClosePolicy#RequestCancel}.
+   * ParentClosePolicy#PARENT_CLOSE_POLICY_REQUEST_CANCEL}.
    */
   TRY_CANCEL,
 

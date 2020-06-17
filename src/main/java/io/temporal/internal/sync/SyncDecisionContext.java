@@ -219,7 +219,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
           taskFailed.getStartedEventId(),
           taskFailed.getActivityType().getName(),
           taskFailed.getActivityId(),
-          RetryStatus.Timeout,
+          RetryStatus.RETRY_STATUS_TIMEOUT,
           "",
           exception);
     }

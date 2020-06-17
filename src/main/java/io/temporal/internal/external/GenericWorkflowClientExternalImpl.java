@@ -321,7 +321,6 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
                     .setRunId(OptionsUtils.safeGet(queryParameters.getRunId())))
             .setQuery(query)
             .setQueryRejectCondition(queryParameters.getQueryRejectCondition())
-            .setQueryConsistencyLevel(queryParameters.getQueryConsistencyLevel())
             .build();
     return GrpcRetryer.retryWithResult(
         GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,

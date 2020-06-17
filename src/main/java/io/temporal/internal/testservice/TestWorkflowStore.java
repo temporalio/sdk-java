@@ -20,7 +20,7 @@
 package io.temporal.internal.testservice;
 
 import io.grpc.Deadline;
-import io.temporal.execution.v1.WorkflowExecutionInfo;
+import io.temporal.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.workflowservice.v1.PollForActivityTaskRequest;

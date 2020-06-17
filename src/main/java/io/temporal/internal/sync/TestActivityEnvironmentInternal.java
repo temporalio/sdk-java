@@ -390,7 +390,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
               0,
               task.getActivityType().getName(),
               task.getActivityId(),
-              RetryStatus.NonRetryableFailure,
+              RetryStatus.RETRY_STATUS_NON_RETRYABLE_FAILURE,
               "TestActivityEnvironment",
               cause);
         } else {

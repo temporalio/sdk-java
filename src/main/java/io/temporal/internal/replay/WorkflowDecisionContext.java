@@ -24,12 +24,12 @@ import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.common.converter.EncodedValue;
 import io.temporal.common.v1.Header;
-import io.temporal.common.v1.ParentClosePolicy;
 import io.temporal.common.v1.Payloads;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.decision.v1.RequestCancelExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.decision.v1.StartChildWorkflowExecutionDecisionAttributes;
+import io.temporal.enums.v1.ParentClosePolicy;
 import io.temporal.enums.v1.RetryStatus;
 import io.temporal.enums.v1.TimeoutType;
 import io.temporal.failure.CanceledFailure;
@@ -311,7 +311,8 @@ final class WorkflowDecisionContext {
       OpenChildWorkflowRequestInfo scheduled =
           scheduledExternalWorkflows.remove(attributes.getInitiatedEventId());
       if (scheduled != null) {
-        TimeoutFailure timeoutFailure = new TimeoutFailure(null, null, TimeoutType.StartToClose);
+        TimeoutFailure timeoutFailure =
+            new TimeoutFailure(null, null, TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE);
         timeoutFailure.setStackTrace(new StackTraceElement[0]);
         RuntimeException failure =
             new ChildWorkflowFailure(
@@ -344,7 +345,7 @@ final class WorkflowDecisionContext {
                 attributes.getWorkflowType().getName(),
                 attributes.getWorkflowExecution(),
                 attributes.getNamespace(),
-                RetryStatus.NonRetryableFailure,
+                RetryStatus.RETRY_STATUS_NON_RETRYABLE_FAILURE,
                 new TerminatedFailure(null, null));
         BiConsumer<Optional<Payloads>, Exception> completionCallback =
             scheduled.getCompletionCallback();
@@ -365,7 +366,7 @@ final class WorkflowDecisionContext {
                 event.getEventId(),
                 WorkflowExecution.newBuilder().setWorkflowId(attributes.getWorkflowId()).build(),
                 attributes.getWorkflowType(),
-                RetryStatus.NonRetryableFailure,
+                RetryStatus.RETRY_STATUS_NON_RETRYABLE_FAILURE,
                 null);
         failure.initCause(
             new WorkflowExecutionAlreadyStarted(

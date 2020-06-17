@@ -25,6 +25,7 @@ import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 import io.temporal.common.v1.Payloads;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.common.v1.WorkflowType;
+import io.temporal.enums.v1.QueryResultType;
 import io.temporal.failure.FailureConverter;
 import io.temporal.failure.v1.Failure;
 import io.temporal.history.v1.HistoryEvent;
@@ -33,7 +34,6 @@ import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.worker.DecisionTaskHandler;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
-import io.temporal.query.v1.QueryResultType;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.tasklist.v1.StickyExecutionAttributes;
 import io.temporal.workflow.Functions;
@@ -238,14 +238,14 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
       if (queryResult.isPresent()) {
         queryCompletedRequest.setQueryResult(queryResult.get());
       }
-      queryCompletedRequest.setCompletedType(QueryResultType.Answered);
+      queryCompletedRequest.setCompletedType(QueryResultType.QUERY_RESULT_TYPE_ANSWERED);
     } catch (Throwable e) {
       // TODO: Appropriate exception serialization.
       StringWriter sw = new StringWriter();
       PrintWriter pw = new PrintWriter(sw);
       e.printStackTrace(pw);
       queryCompletedRequest.setErrorMessage(sw.toString());
-      queryCompletedRequest.setCompletedType(QueryResultType.Failed);
+      queryCompletedRequest.setCompletedType(QueryResultType.QUERY_RESULT_TYPE_FAILED);
     } finally {
       if (stickyTaskListName == null && decider != null) {
         decider.close();

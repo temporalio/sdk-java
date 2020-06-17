@@ -191,7 +191,7 @@ public final class LocalActivityMarkerData {
       attributes.setFailure(failure.get());
     }
     return HistoryEvent.newBuilder()
-        .setEventType(EventType.MarkerRecorded)
+        .setEventType(EventType.EVENT_TYPE_MARKER_RECORDED)
         .setMarkerRecordedEventAttributes(attributes)
         .build();
   }

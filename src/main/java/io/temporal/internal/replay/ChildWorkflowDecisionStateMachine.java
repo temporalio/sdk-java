@@ -20,9 +20,9 @@
 package io.temporal.internal.replay;
 
 import io.temporal.decision.v1.Decision;
-import io.temporal.decision.v1.DecisionType;
 import io.temporal.decision.v1.RequestCancelExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.decision.v1.StartChildWorkflowExecutionDecisionAttributes;
+import io.temporal.enums.v1.DecisionType;
 import io.temporal.history.v1.HistoryEvent;
 
 final class ChildWorkflowDecisionStateMachine extends DecisionStateMachineBase {
@@ -143,14 +143,14 @@ final class ChildWorkflowDecisionStateMachine extends DecisionStateMachineBase {
             RequestCancelExternalWorkflowExecutionDecisionAttributes.newBuilder()
                 .setWorkflowId(startAttributes.getWorkflowId())
                 .setRunId(runId))
-        .setDecisionType(DecisionType.RequestCancelExternalWorkflowExecution)
+        .setDecisionType(DecisionType.DECISION_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION)
         .build();
   }
 
   private Decision createStartChildWorkflowExecutionDecision() {
     return Decision.newBuilder()
         .setStartChildWorkflowExecutionDecisionAttributes(startAttributes)
-        .setDecisionType(DecisionType.StartChildWorkflowExecution)
+        .setDecisionType(DecisionType.DECISION_TYPE_START_CHILD_WORKFLOW_EXECUTION)
         .build();
   }
 }

@@ -48,11 +48,14 @@ import io.temporal.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes
 import io.temporal.decision.v1.StartChildWorkflowExecutionDecisionAttributes;
 import io.temporal.decision.v1.StartTimerDecisionAttributes;
 import io.temporal.decision.v1.UpsertWorkflowSearchAttributesDecisionAttributes;
+import io.temporal.enums.v1.DecisionTaskFailedCause;
 import io.temporal.enums.v1.EventType;
+import io.temporal.enums.v1.QueryRejectCondition;
 import io.temporal.enums.v1.RetryStatus;
+import io.temporal.enums.v1.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.enums.v1.TimeoutType;
+import io.temporal.enums.v1.WorkflowExecutionStatus;
 import io.temporal.errordetails.v1.QueryFailedFailure;
-import io.temporal.execution.v1.WorkflowExecutionStatus;
 import io.temporal.failure.v1.ApplicationFailureInfo;
 import io.temporal.history.v1.ActivityTaskScheduledEventAttributes;
 import io.temporal.history.v1.CancelTimerFailedEventAttributes;
@@ -71,8 +74,6 @@ import io.temporal.history.v1.WorkflowExecutionSignaledEventAttributes;
 import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.StateMachines.*;
-import io.temporal.query.v1.QueryConsistencyLevel;
-import io.temporal.query.v1.QueryRejectCondition;
 import io.temporal.query.v1.QueryRejected;
 import io.temporal.query.v1.WorkflowQueryResult;
 import io.temporal.tasklist.v1.StickyExecutionAttributes;
@@ -323,17 +324,17 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       case INITIATED:
       case STARTED:
       case CANCELLATION_REQUESTED:
-        return WorkflowExecutionStatus.Running;
+        return WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING;
       case FAILED:
-        return WorkflowExecutionStatus.Failed;
+        return WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_FAILED;
       case TIMED_OUT:
-        return WorkflowExecutionStatus.TimedOut;
+        return WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_TIMED_OUT;
       case CANCELED:
-        return WorkflowExecutionStatus.Canceled;
+        return WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_CANCELED;
       case COMPLETED:
-        return WorkflowExecutionStatus.Completed;
+        return WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED;
       case CONTINUED_AS_NEW:
-        return WorkflowExecutionStatus.ContinuedAsNew;
+        return WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_CONTINUED_AS_NEW;
     }
     throw new IllegalStateException("unreachable");
   }
@@ -403,7 +404,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           if (newEvents && hasCompleteDecision(request.getDecisionsList())) {
             RespondDecisionTaskFailedRequest failedRequest =
                 RespondDecisionTaskFailedRequest.newBuilder()
-                    .setCause(DecisionTaskFailedCause.UnhandledDecision)
+                    .setCause(DecisionTaskFailedCause.DECISION_TASK_FAILED_CAUSE_UNHANDLED_DECISION)
                     .setIdentity(request.getIdentity())
                     .build();
             decision.action(Action.FAIL, ctx, failedRequest, decisionTaskCompletedId);
@@ -441,14 +442,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               if (query != null) {
                 WorkflowQueryResult result = resultEntry.getValue();
                 switch (result.getResultType()) {
-                  case Answered:
+                  case QUERY_RESULT_TYPE_ANSWERED:
                     QueryWorkflowResponse response =
                         QueryWorkflowResponse.newBuilder()
                             .setQueryResult(result.getAnswer())
                             .build();
                     query.getResult().complete(response);
                     break;
-                  case Failed:
+                  case QUERY_RESULT_TYPE_FAILED:
                     query
                         .getResult()
                         .completeExceptionally(
@@ -508,60 +509,60 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private void processDecision(
       RequestContext ctx, Decision d, String identity, long decisionTaskCompletedId) {
     switch (d.getDecisionType()) {
-      case CompleteWorkflowExecution:
+      case DECISION_TYPE_COMPLETE_WORKFLOW_EXECUTION:
         processCompleteWorkflowExecution(
             ctx,
             d.getCompleteWorkflowExecutionDecisionAttributes(),
             decisionTaskCompletedId,
             identity);
         break;
-      case FailWorkflowExecution:
+      case DECISION_TYPE_FAIL_WORKFLOW_EXECUTION:
         processFailWorkflowExecution(
             ctx, d.getFailWorkflowExecutionDecisionAttributes(), decisionTaskCompletedId, identity);
         break;
-      case CancelWorkflowExecution:
+      case DECISION_TYPE_CANCEL_WORKFLOW_EXECUTION:
         processCancelWorkflowExecution(
             ctx, d.getCancelWorkflowExecutionDecisionAttributes(), decisionTaskCompletedId);
         break;
-      case ContinueAsNewWorkflowExecution:
+      case DECISION_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION:
         processContinueAsNewWorkflowExecution(
             ctx,
             d.getContinueAsNewWorkflowExecutionDecisionAttributes(),
             decisionTaskCompletedId,
             identity);
         break;
-      case ScheduleActivityTask:
+      case DECISION_TYPE_SCHEDULE_ACTIVITY_TASK:
         processScheduleActivityTask(
             ctx, d.getScheduleActivityTaskDecisionAttributes(), decisionTaskCompletedId);
         break;
-      case RequestCancelActivityTask:
+      case DECISION_TYPE_REQUEST_CANCEL_ACTIVITY_TASK:
         processRequestCancelActivityTask(
             ctx, d.getRequestCancelActivityTaskDecisionAttributes(), decisionTaskCompletedId);
         break;
-      case StartTimer:
+      case DECISION_TYPE_START_TIMER:
         processStartTimer(ctx, d.getStartTimerDecisionAttributes(), decisionTaskCompletedId);
         break;
-      case CancelTimer:
+      case DECISION_TYPE_CANCEL_TIMER:
         processCancelTimer(ctx, d.getCancelTimerDecisionAttributes(), decisionTaskCompletedId);
         break;
-      case StartChildWorkflowExecution:
+      case DECISION_TYPE_START_CHILD_WORKFLOW_EXECUTION:
         processStartChildWorkflow(
             ctx, d.getStartChildWorkflowExecutionDecisionAttributes(), decisionTaskCompletedId);
         break;
-      case SignalExternalWorkflowExecution:
+      case DECISION_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION:
         processSignalExternalWorkflowExecution(
             ctx, d.getSignalExternalWorkflowExecutionDecisionAttributes(), decisionTaskCompletedId);
         break;
-      case RecordMarker:
+      case DECISION_TYPE_RECORD_MARKER:
         processRecordMarker(ctx, d.getRecordMarkerDecisionAttributes(), decisionTaskCompletedId);
         break;
-      case RequestCancelExternalWorkflowExecution:
+      case DECISION_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION:
         processRequestCancelExternalWorkflowExecution(
             ctx,
             d.getRequestCancelExternalWorkflowExecutionDecisionAttributes(),
             decisionTaskCompletedId);
         break;
-      case UpsertWorkflowSearchAttributes:
+      case DECISION_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES:
         processUpsertWorkflowSearchAttributes(
             ctx, d.getUpsertWorkflowSearchAttributesDecisionAttributes(), decisionTaskCompletedId);
         break;
@@ -642,7 +643,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     }
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.MarkerRecorded)
+            .setEventType(EventType.EVENT_TYPE_MARKER_RECORDED)
             .setMarkerRecordedEventAttributes(marker)
             .build();
     ctx.addEvent(event);
@@ -660,7 +661,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               .setDecisionTaskCompletedEventId(decisionTaskCompletedId);
       HistoryEvent cancellationFailed =
           HistoryEvent.newBuilder()
-              .setEventType(EventType.CancelTimerFailed)
+              .setEventType(EventType.EVENT_TYPE_CANCEL_TIMER_FAILED)
               .setCancelTimerFailedEventAttributes(failedAttr)
               .build();
       ctx.addEvent(cancellationFailed);
@@ -710,12 +711,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     ctx.addTimer(
         scheduledEvent.getScheduleToCloseTimeoutSeconds(),
         () -> {
-          timeoutActivity(activityScheduleId, TimeoutType.ScheduleToClose, attempt);
+          timeoutActivity(activityScheduleId, TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_CLOSE, attempt);
         },
         "Activity ScheduleToCloseTimeout");
     ctx.addTimer(
         scheduledEvent.getScheduleToStartTimeoutSeconds(),
-        () -> timeoutActivity(activityScheduleId, TimeoutType.ScheduleToStart, attempt),
+        () ->
+            timeoutActivity(
+                activityScheduleId, TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_START, attempt),
         "Activity ScheduleToStartTimeout");
     ctx.lockTimer();
   }
@@ -948,7 +951,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 queries.remove();
               }
             }
-            decision.action(StateMachines.Action.TIME_OUT, ctx, TimeoutType.StartToClose, 0);
+            decision.action(
+                StateMachines.Action.TIME_OUT, ctx, TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE, 0);
             scheduleDecision(ctx);
             ctx.unlockTimer(); // Unlock timer associated with the decision
           },
@@ -1104,15 +1108,17 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       if (d.getFailure().hasApplicationFailureInfo()) {
         ApplicationFailureInfo failureInfo = d.getFailure().getApplicationFailureInfo();
         if (failureInfo.getNonRetryable()) {
-          backoffInterval = new RetryState.BackoffInterval(RetryStatus.NonRetryableFailure);
+          backoffInterval =
+              new RetryState.BackoffInterval(RetryStatus.RETRY_STATUS_NON_RETRYABLE_FAILURE);
         } else {
           failureType = Optional.of(failureInfo.getType());
           backoffInterval = rs.getBackoffIntervalInSeconds(failureType, store.currentTimeMillis());
         }
       } else {
-        backoffInterval = new RetryState.BackoffInterval(RetryStatus.NonRetryableFailure);
+        backoffInterval =
+            new RetryState.BackoffInterval(RetryStatus.RETRY_STATUS_NON_RETRYABLE_FAILURE);
       }
-      if (backoffInterval.getRetryStatus() == RetryStatus.InProgress) {
+      if (backoffInterval.getRetryStatus() == RetryStatus.RETRY_STATUS_IN_PROGRESS) {
         ContinueAsNewWorkflowExecutionDecisionAttributes.Builder continueAsNewAttr =
             ContinueAsNewWorkflowExecutionDecisionAttributes.newBuilder()
                 .setInput(startRequest.getInput())
@@ -1351,7 +1357,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setDecisionTaskCompletedEventId(decisionTaskCompletedId);
     HistoryEvent event =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.UpsertWorkflowSearchAttributes)
+            .setEventType(EventType.EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES)
             .setUpsertWorkflowSearchAttributesEventAttributes(upsertEventAttr)
             .build();
     ctx.addEvent(event);
@@ -1446,7 +1452,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             int attempt = data.getAttempt();
             ctx.addTimer(
                 startToCloseTimeout,
-                () -> timeoutActivity(scheduledEventId, TimeoutType.StartToClose, attempt),
+                () ->
+                    timeoutActivity(
+                        scheduledEventId, TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE, attempt),
                 "Activity StartToCloseTimeout");
           }
           updateHeartbeatTimer(
@@ -1489,7 +1497,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       int attempt = data.getAttempt();
       ctx.addTimer(
           heartbeatTimeout,
-          () -> timeoutActivity(activityId, TimeoutType.Heartbeat, attempt),
+          () -> timeoutActivity(activityId, TimeoutType.TIMEOUT_TYPE_HEARTBEAT, attempt),
           "Activity Heartbeat Timeout");
     }
   }
@@ -1660,11 +1668,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                     && activity.getState() != State.STARTED)) {
               throw Status.NOT_FOUND.withDescription("Outdated timer").asRuntimeException();
             }
-            if (timeoutType == TimeoutType.ScheduleToStart
+            if (timeoutType == TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_START
                 && activity.getState() != StateMachines.State.INITIATED) {
               throw Status.INTERNAL.withDescription("Not in INITIATED").asRuntimeException();
             }
-            if (timeoutType == TimeoutType.Heartbeat) {
+            if (timeoutType == TimeoutType.TIMEOUT_TYPE_HEARTBEAT) {
               // Deal with timers which are never cancelled
               long heartbeatTimeout =
                   TimeUnit.SECONDS.toMillis(
@@ -1716,7 +1724,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               return;
             }
             // TODO(maxim): real retry status
-            workflow.action(StateMachines.Action.TIME_OUT, ctx, RetryStatus.Timeout, 0);
+            workflow.action(
+                StateMachines.Action.TIME_OUT, ctx, RetryStatus.RETRY_STATUS_TIMEOUT, 0);
             decision.getData().workflowCompleted = true;
             if (parent != null) {
               ctx.lockTimer(); // unlocked by the parent
@@ -1737,7 +1746,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       ChildWorkflowExecutionTimedOutEventAttributes a =
           ChildWorkflowExecutionTimedOutEventAttributes.newBuilder()
               .setInitiatedEventId(parentChildInitiatedEventId.getAsLong())
-              .setRetryStatus(RetryStatus.Timeout) // TODO(maxim): Real status
+              .setRetryStatus(RetryStatus.RETRY_STATUS_TIMEOUT) // TODO(maxim): Real status
               .setWorkflowType(startRequest.getWorkflowType())
               .setNamespace(ctx.getNamespace())
               .setWorkflowExecution(ctx.getExecution())
@@ -1836,13 +1845,15 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   @Override
   public QueryWorkflowResponse query(QueryWorkflowRequest queryRequest, long deadline) {
     WorkflowExecutionStatus status = getWorkflowExecutionStatus();
-    if (status != WorkflowExecutionStatus.Running
+    if (status != WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING
         && queryRequest.getQueryRejectCondition() != null) {
       boolean rejectNotOpen =
-          queryRequest.getQueryRejectCondition() == QueryRejectCondition.NotOpen;
+          queryRequest.getQueryRejectCondition()
+              == QueryRejectCondition.QUERY_REJECT_CONDITION_NOT_OPEN;
       boolean rejectNotCompletedCleanly =
-          queryRequest.getQueryRejectCondition() == QueryRejectCondition.NotCompletedCleanly
-              && status != WorkflowExecutionStatus.Completed;
+          queryRequest.getQueryRejectCondition()
+                  == QueryRejectCondition.QUERY_REJECT_CONDITION_NOT_COMPLETED_CLEANLY
+              && status != WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED;
       if (rejectNotOpen || rejectNotCompletedCleanly) {
         return QueryWorkflowResponse.newBuilder()
             .setQueryRejected(QueryRejected.newBuilder().setStatus(status))
@@ -1852,7 +1863,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     lock.lock();
     boolean safeToDispatchDirectly =
         isTerminalState()
-            || queryRequest.getQueryConsistencyLevel() == QueryConsistencyLevel.Eventual
             || (decision.getState() != State.INITIATED && decision.getState() != State.STARTED);
 
     if (safeToDispatchDirectly) {
@@ -1990,14 +2000,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       return;
     }
     switch (completeRequest.getCompletedType()) {
-      case Answered:
+      case QUERY_RESULT_TYPE_ANSWERED:
         QueryWorkflowResponse response =
             QueryWorkflowResponse.newBuilder()
                 .setQueryResult(completeRequest.getQueryResult())
                 .build();
         result.complete(response);
         break;
-      case Failed:
+      case QUERY_RESULT_TYPE_FAILED:
         StatusRuntimeException error =
             StatusUtils.newException(
                 Status.INVALID_ARGUMENT.withDescription(completeRequest.getErrorMessage()),
@@ -2017,7 +2027,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setSignalName(signalRequest.getSignalName());
     HistoryEvent executionSignaled =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.WorkflowExecutionSignaled)
+            .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED)
             .setWorkflowExecutionSignaledEventAttributes(a)
             .build();
     ctx.addEvent(executionSignaled);
@@ -2032,7 +2042,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setSignalName(d.getSignalName());
     HistoryEvent executionSignaled =
         HistoryEvent.newBuilder()
-            .setEventType(EventType.WorkflowExecutionSignaled)
+            .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED)
             .setWorkflowExecutionSignaledEventAttributes(a)
             .build();
     ctx.addEvent(executionSignaled);

@@ -83,10 +83,10 @@ public class WorkflowCachingTest {
     assertEquals(4, response.getHistory().getEventsCount());
     assertEquals(TASK_LIST, response.getWorkflowExecutionTaskList().getName());
     List<HistoryEvent> events = response.getHistory().getEventsList();
-    assertEquals(EventType.DecisionTaskCompleted, events.get(0).getEventType());
-    assertEquals(EventType.WorkflowExecutionSignaled, events.get(1).getEventType());
-    assertEquals(EventType.DecisionTaskScheduled, events.get(2).getEventType());
-    assertEquals(EventType.DecisionTaskStarted, events.get(3).getEventType());
+    assertEquals(EventType.EVENT_TYPE_DECISION_TASK_COMPLETED, events.get(0).getEventType());
+    assertEquals(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED, events.get(1).getEventType());
+    assertEquals(EventType.EVENT_TYPE_DECISION_TASK_SCHEDULED, events.get(2).getEventType());
+    assertEquals(EventType.EVENT_TYPE_DECISION_TASK_STARTED, events.get(3).getEventType());
   }
 
   @Test

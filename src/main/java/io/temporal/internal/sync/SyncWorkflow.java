@@ -82,7 +82,7 @@ class SyncWorkflow implements ReplayWorkflow {
 
   @Override
   public void start(HistoryEvent event, DecisionContext context) {
-    if (event.getEventType() != EventType.WorkflowExecutionStarted
+    if (event.getEventType() != EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED
         || !event.hasWorkflowExecutionStartedEventAttributes()) {
       throw new IllegalArgumentException(
           "first event is not WorkflowExecutionStarted, but " + event.getEventType());

@@ -21,8 +21,8 @@ package io.temporal.internal.replay;
 
 import io.temporal.decision.v1.CancelTimerDecisionAttributes;
 import io.temporal.decision.v1.Decision;
-import io.temporal.decision.v1.DecisionType;
 import io.temporal.decision.v1.StartTimerDecisionAttributes;
+import io.temporal.enums.v1.DecisionType;
 import io.temporal.history.v1.HistoryEvent;
 
 /**
@@ -108,14 +108,14 @@ class TimerDecisionStateMachine extends DecisionStateMachineBase {
     return Decision.newBuilder()
         .setCancelTimerDecisionAttributes(
             CancelTimerDecisionAttributes.newBuilder().setTimerId(attributes.getTimerId()))
-        .setDecisionType(DecisionType.CancelTimer)
+        .setDecisionType(DecisionType.DECISION_TYPE_CANCEL_TIMER)
         .build();
   }
 
   private Decision createStartTimerDecision() {
     return Decision.newBuilder()
         .setStartTimerDecisionAttributes(attributes)
-        .setDecisionType(DecisionType.StartTimer)
+        .setDecisionType(DecisionType.DECISION_TYPE_START_TIMER)
         .build();
   }
 }

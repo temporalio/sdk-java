@@ -24,13 +24,13 @@ import io.grpc.Deadline;
 import io.grpc.Status;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.enums.v1.EventType;
-import io.temporal.execution.v1.WorkflowExecutionInfo;
-import io.temporal.filter.v1.HistoryEventFilterType;
+import io.temporal.enums.v1.HistoryEventFilterType;
 import io.temporal.history.v1.History;
 import io.temporal.history.v1.HistoryEvent;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.RequestContext.Timer;
 import io.temporal.tasklist.v1.StickyExecutionAttributes;
+import io.temporal.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.workflowservice.v1.PollForActivityTaskRequest;
@@ -120,7 +120,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       try {
         while (true) {
           if (completed || getNextEventIdLocked() > expectedNextEventId) {
-            if (filterType == HistoryEventFilterType.CloseEvent) {
+            if (filterType == HistoryEventFilterType.HISTORY_EVENT_FILTER_TYPE_CLOSE_EVENT) {
               if (completed) {
                 List<HistoryEvent> result = new ArrayList<>(1);
                 result.add(history.get(history.size() - 1));
@@ -201,7 +201,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       List<HistoryEvent> events = ctx.getEvents();
       if (history == null) {
         if (events.isEmpty()
-            || events.get(0).getEventType() != EventType.WorkflowExecutionStarted) {
+            || events.get(0).getEventType() != EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED) {
           throw new IllegalStateException("No history found for " + executionId);
         }
         history = new HistoryStore(executionId, lock);
@@ -402,7 +402,8 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     try {
       history = getHistoryStore(executionId);
       if (!getRequest.getWaitForNewEvent()
-          && getRequest.getHistoryEventFilterType() != HistoryEventFilterType.CloseEvent) {
+          && getRequest.getHistoryEventFilterType()
+              != HistoryEventFilterType.HISTORY_EVENT_FILTER_TYPE_CLOSE_EVENT) {
         List<HistoryEvent> events = history.getEventsLocked();
         // Copy the list as it is mutable. Individual events assumed immutable.
         ArrayList<HistoryEvent> eventsCopy = new ArrayList<>(events);

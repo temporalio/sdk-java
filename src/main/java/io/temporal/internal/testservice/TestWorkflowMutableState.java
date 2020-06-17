@@ -21,7 +21,8 @@ package io.temporal.internal.testservice;
 
 import io.temporal.common.v1.Payloads;
 import io.temporal.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
-import io.temporal.execution.v1.WorkflowExecutionStatus;
+import io.temporal.enums.v1.SignalExternalWorkflowExecutionFailedCause;
+import io.temporal.enums.v1.WorkflowExecutionStatus;
 import io.temporal.history.v1.ChildWorkflowExecutionCanceledEventAttributes;
 import io.temporal.history.v1.ChildWorkflowExecutionCompletedEventAttributes;
 import io.temporal.history.v1.ChildWorkflowExecutionFailedEventAttributes;

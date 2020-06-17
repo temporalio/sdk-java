@@ -26,6 +26,7 @@ import io.temporal.common.v1.Payloads;
 import io.temporal.common.v1.SearchAttributes;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.common.v1.WorkflowType;
+import io.temporal.enums.v1.DecisionTaskFailedCause;
 import io.temporal.history.v1.DecisionTaskFailedEventAttributes;
 import io.temporal.history.v1.HistoryEvent;
 import io.temporal.history.v1.TimerFiredEventAttributes;
@@ -392,7 +393,8 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
 
   public void handleDecisionTaskFailed(HistoryEvent event) {
     DecisionTaskFailedEventAttributes attr = event.getDecisionTaskFailedEventAttributes();
-    if (attr != null && attr.getCause() == DecisionTaskFailedCause.ResetWorkflow) {
+    if (attr != null
+        && attr.getCause() == DecisionTaskFailedCause.DECISION_TASK_FAILED_CAUSE_RESET_WORKFLOW) {
       workflowContext.setCurrentRunId(attr.getNewRunId());
     }
   }

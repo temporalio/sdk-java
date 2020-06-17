@@ -56,7 +56,7 @@ public final class WorkflowExecutionHistory {
       throw new IllegalArgumentException("Empty history");
     }
     HistoryEvent startedEvent = events.get(0);
-    if (startedEvent.getEventType() != EventType.WorkflowExecutionStarted) {
+    if (startedEvent.getEventType() != EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED) {
       throw new IllegalArgumentException(
           "First event is not WorkflowExecutionStarted but " + startedEvent);
     }

@@ -32,16 +32,17 @@ import io.grpc.stub.StreamObserver;
 import io.temporal.common.v1.Payloads;
 import io.temporal.common.v1.RetryPolicy;
 import io.temporal.common.v1.WorkflowExecution;
-import io.temporal.common.v1.WorkflowIdReusePolicy;
 import io.temporal.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
+import io.temporal.enums.v1.SignalExternalWorkflowExecutionFailedCause;
+import io.temporal.enums.v1.WorkflowExecutionStatus;
+import io.temporal.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
-import io.temporal.execution.v1.WorkflowExecutionInfo;
-import io.temporal.execution.v1.WorkflowExecutionStatus;
 import io.temporal.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.testservice.TestWorkflowStore.WorkflowState;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.workflowservice.v1.ListClosedWorkflowExecutionsRequest;
@@ -248,13 +249,13 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       if (existing != null) {
         WorkflowExecutionStatus status = existing.getWorkflowExecutionStatus();
         WorkflowIdReusePolicy policy = startRequest.getWorkflowIdReusePolicy();
-        if (status == WorkflowExecutionStatus.Running
-            || policy == WorkflowIdReusePolicy.RejectDuplicate) {
+        if (status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING
+            || policy == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_REJECT_DUPLICATE) {
           return throwDuplicatedWorkflow(startRequest, existing);
         }
-        if (policy == WorkflowIdReusePolicy.AllowDuplicateFailedOnly
-            && (status == WorkflowExecutionStatus.Completed
-                || status == WorkflowExecutionStatus.ContinuedAsNew)) {
+        if (policy == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE_FAILED_ONLY
+            && (status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED
+                || status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_CONTINUED_AS_NEW)) {
           return throwDuplicatedWorkflow(startRequest, existing);
         }
       }
@@ -803,7 +804,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
         source.failSignalExternalWorkflowExecution(
             signalId,
-            SignalExternalWorkflowExecutionFailedCause.ExternalWorkflowExecutionNotFound2);
+            SignalExternalWorkflowExecutionFailedCause
+                .SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_FAILED_CAUSE_EXTERNAL_WORKFLOW_EXECUTION_NOT_FOUND);
       } else {
         throw e;
       }
