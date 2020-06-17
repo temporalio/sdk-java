@@ -21,6 +21,7 @@ package io.temporal.internal.sync;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.client.ActivityCompletionException;

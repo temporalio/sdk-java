@@ -19,11 +19,12 @@
 
 package io.temporal.client;
 
+import io.temporal.activity.ActivityExecutionContext;
 import java.util.Optional;
 
 /**
  * Used to complete asynchronously activities that called {@link
- * io.temporal.internal.sync.ActivityExecutionContext#doNotCompleteOnReturn()}.
+ * ActivityExecutionContext#doNotCompleteOnReturn()}.
  *
  * <p>Use {@link WorkflowClient#newActivityCompletionClient()} to create an instance.
  */

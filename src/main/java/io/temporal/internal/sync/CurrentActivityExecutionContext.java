@@ -19,6 +19,8 @@
 
 package io.temporal.internal.sync;
 
+import io.temporal.activity.ActivityExecutionContext;
+
 /**
  * Thread local store of the context object passed to an activity implementation. Avoid using this
  * class directly.

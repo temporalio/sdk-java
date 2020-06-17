@@ -25,7 +25,7 @@ import java.util.Optional;
 
 /**
  * The information about the activity task that the current activity is handling. Use {@link
- * io.temporal.internal.sync.ActivityExecutionContext#getInfo()} to access.
+ * ActivityExecutionContext#getInfo()} to access.
  */
 public interface ActivityInfo {
 

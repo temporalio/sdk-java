@@ -19,6 +19,8 @@
 
 package io.temporal.internal.sync;
 
+import io.temporal.activity.ActivityExecutionContext;
+
 public final class ActivityInternal {
 
   private ActivityInternal() {}

@@ -19,17 +19,16 @@
 
 package io.temporal.internal.testing;
 
+import static org.junit.Assert.*;
+
 import io.grpc.Status;
 import io.temporal.activity.Activity;
+import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.internal.sync.ActivityExecutionContext;
 import io.temporal.testing.TestActivityEnvironment;
-import org.junit.Before;
-import org.junit.Test;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,8 +36,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-
-import static org.junit.Assert.*;
+import org.junit.Before;
+import org.junit.Test;
 
 public class ActivityTestingTest {
 

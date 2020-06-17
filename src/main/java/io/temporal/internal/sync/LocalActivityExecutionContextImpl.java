@@ -19,6 +19,7 @@
 
 package io.temporal.internal.sync;
 
+import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.client.ActivityCompletionException;
 import java.lang.reflect.Type;

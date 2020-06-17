@@ -19,6 +19,9 @@
 
 package io.temporal.workflow;
 
+import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
+import static org.junit.Assert.*;
+
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import com.google.common.io.CharSink;
@@ -28,6 +31,7 @@ import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.protobuf.ByteString;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityCancellationType;
+import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
@@ -75,7 +79,6 @@ import io.temporal.history.v1.HistoryEvent;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.common.WorkflowExecutionUtils;
-import io.temporal.internal.sync.ActivityExecutionContext;
 import io.temporal.internal.sync.DeterministicRunnerTest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
@@ -92,21 +95,6 @@ import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Assume;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestName;
-import org.junit.rules.TestWatcher;
-import org.junit.rules.Timeout;
-import org.junit.runner.Description;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -149,9 +137,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
-
-import static io.temporal.client.WorkflowClient.QUERY_TYPE_STACK_TRACE;
-import static org.junit.Assert.*;
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Assume;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Ignore;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TestName;
+import org.junit.rules.TestWatcher;
+import org.junit.rules.Timeout;
+import org.junit.runner.Description;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class WorkflowTest {
 
@@ -6261,7 +6260,8 @@ public class WorkflowTest {
     private final WorkflowCallsInterceptor next;
 
     private TracingWorkflowCallsInterceptor(FilteredTrace trace, WorkflowCallsInterceptor next) {
-      WorkflowInfo workflowInfo = Workflow.getInfo(); // checks that info is available in the constructor
+      WorkflowInfo workflowInfo =
+          Workflow.getInfo(); // checks that info is available in the constructor
       this.trace = trace;
       this.next = Objects.requireNonNull(next);
     }

@@ -17,16 +17,15 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.activity;
 
-import io.temporal.activity.ActivityInfo;
-import io.temporal.activity.ActivityOptions;
 import io.temporal.client.ActivityCompletionException;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
 /**
- * Context object passed to an activity implementation.
+ * Context object passed to an activity implementation. Use {@link Activity#getExecutionContext()}
+ * from an activity implementation to access.
  *
  * @author fateev
  */
@@ -49,11 +48,12 @@ public interface ActivityExecutionContext {
   /**
    * Extracts heartbeat details from the last failed attempt. This is used in combination with retry
    * options. An activity could be scheduled with an optional {@link
-   * io.temporal.common.RetryOptions} on {@link ActivityOptions}. If an activity failed then the
-   * server would attempt to dispatch another activity task to retry according to the retry options.
-   * If there was heartbeat details reported by the activity from the failed attempt, the details
-   * would be delivered along with the activity task for the retry attempt. The activity could
-   * extract the details by {@link #getHeartbeatDetails(Class)}() and resume from the progress.
+   * io.temporal.common.RetryOptions} on {@link io.temporal.activity.ActivityOptions}. If an
+   * activity failed then the server would attempt to dispatch another activity task to retry
+   * according to the retry options. If there was heartbeat details reported by the activity from
+   * the failed attempt, the details would be delivered along with the activity task for the retry
+   * attempt. The activity could extract the details by {@link #getHeartbeatDetails(Class)}() and
+   * resume from the progress.
    *
    * @param detailsClass type of the heartbeat details
    */
@@ -62,11 +62,12 @@ public interface ActivityExecutionContext {
   /**
    * Extracts heartbeat details from the last failed attempt. This is used in combination with retry
    * options. An activity could be scheduled with an optional {@link
-   * io.temporal.common.RetryOptions} on {@link ActivityOptions}. If an activity failed then the
-   * server would attempt to dispatch another activity task to retry according to the retry options.
-   * If there was heartbeat details reported by the activity from the failed attempt, the details
-   * would be delivered along with the activity task for the retry attempt. The activity could
-   * extract the details by {@link #getHeartbeatDetails(Class)}() and resume from the progress.
+   * io.temporal.common.RetryOptions} on {@link io.temporal.activity.ActivityOptions}. If an
+   * activity failed then the server would attempt to dispatch another activity task to retry
+   * according to the retry options. If there was heartbeat details reported by the activity from
+   * the failed attempt, the details would be delivered along with the activity task for the retry
+   * attempt. The activity could extract the details by {@link #getHeartbeatDetails(Class)}() and
+   * resume from the progress.
    *
    * @param detailsClass type of the heartbeat details
    */

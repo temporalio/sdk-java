@@ -22,7 +22,6 @@ package io.temporal.activity;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ChildWorkflowFailure;
-import io.temporal.internal.sync.ActivityExecutionContext;
 import io.temporal.internal.sync.ActivityInternal;
 import io.temporal.internal.sync.WorkflowInternal;
 

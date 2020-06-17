@@ -22,6 +22,7 @@ package io.temporal.internal.sync;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.uber.m3.tally.Scope;
+import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.v1.Payloads;

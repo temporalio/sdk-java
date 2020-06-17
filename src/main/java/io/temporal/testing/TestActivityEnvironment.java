@@ -20,6 +20,7 @@
 package io.temporal.testing;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.internal.sync.TestActivityEnvironmentInternal;
 import java.lang.reflect.Type;
 import java.util.function.Consumer;
@@ -80,10 +81,10 @@ public interface TestActivityEnvironment {
 
   /**
    * Sets a listener that is called every time an activity implementation heartbeats through {@link
-   * io.temporal.activity.Activity#heartbeat(Object)}.
+   * ActivityExecutionContext#heartbeat(Object)}.
    *
    * @param detailsClass class of the details passed to the {@link
-   *     io.temporal.activity.Activity#heartbeat(Object)}.
+   *     ActivityExecutionContext#heartbeat(Object)}.
    * @param listener listener to register.
    * @param <T> Type of the heartbeat details.
    */
@@ -91,10 +92,10 @@ public interface TestActivityEnvironment {
 
   /**
    * Sets a listener that is called every time an activity implementation heartbeats through {@link
-   * io.temporal.activity.Activity#heartbeat(Object)}.
+   * io.temporal.activity.ActivityExecutionContext#heartbeat(Object)}.
    *
    * @param detailsClass class of the details passed to the {@link
-   *     io.temporal.activity.Activity#heartbeat(Object)}.
+   *     io.temporal.activity.ActivityExecutionContext#heartbeat(Object)}.
    * @param detailsType type of the details. Differs for detailsClass for generic types.
    * @param listener listener to register.
    * @param <T> Type of the heartbeat details.
