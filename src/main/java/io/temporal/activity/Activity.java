@@ -20,12 +20,13 @@
 package io.temporal.activity;
 
 import io.temporal.client.ActivityCompletionException;
+import io.temporal.failure.ActivityFailure;
+import io.temporal.failure.ChildWorkflowFailure;
+import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.sync.ActivityInternal;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.workflow.ActivityException;
-import io.temporal.workflow.ActivityTimeoutException;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
@@ -234,7 +235,7 @@ public final class Activity {
    * Use to notify Temporal service that activity execution is alive.
    *
    * @param details In case of activity timeout can be accessed through {@link
-   *     ActivityTimeoutException#getDetails(Class)} method.
+   *     TimeoutFailure#getLastHeartbeatDetails()} method.
    * @throws ActivityCompletionException Indicates that activity execution is expected to be
    *     interrupted. The reason for interruption is indicated by a type of subclass of the
    *     exception.
@@ -291,10 +292,10 @@ public final class Activity {
    * <p>The reason for such design is that returning originally thrown exception from a remote call
    * (which child workflow and activity invocations are ) would not allow adding context information
    * about a failure, like activity and child workflow id. So stubs always throw a subclass of
-   * {@link ActivityException} from calls to an activity and subclass of {@link
-   * io.temporal.workflow.ChildWorkflowException} from calls to a child workflow. The original
-   * exception is attached as a cause to these wrapper exceptions. So as exceptions are always
-   * wrapped adding checked ones to method signature causes more pain than benefit.
+   * {@link ActivityFailure} from calls to an activity and subclass of {@link ChildWorkflowFailure}
+   * from calls to a child workflow. The original exception is attached as a cause to these wrapper
+   * exceptions. So as exceptions are always wrapped adding checked ones to method signature causes
+   * more pain than benefit.
    *
    * <p>Throws original exception if e is {@link RuntimeException} or {@link Error}. Never returns.
    * But return type is not empty to be able to use it as:

@@ -17,27 +17,11 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.client;
+package io.temporal.failure;
 
-import io.temporal.proto.common.TimeoutType;
-import io.temporal.proto.common.WorkflowExecution;
-import java.util.Optional;
+public final class TerminatedFailure extends TemporalFailure {
 
-/**
- * Indicates that a workflow exceeded its execution timeout and was forcefully terminated by the
- * Temporal service.
- */
-public final class WorkflowTimedOutException extends WorkflowException {
-
-  private final TimeoutType timeoutType;
-
-  public WorkflowTimedOutException(
-      WorkflowExecution execution, Optional<String> workflowType, TimeoutType timeoutType) {
-    super(timeoutType + " timeout type", execution, workflowType, null);
-    this.timeoutType = timeoutType;
-  }
-
-  public TimeoutType getTimeoutType() {
-    return timeoutType;
+  public TerminatedFailure(String message, Throwable cause) {
+    super(message, message, cause);
   }
 }

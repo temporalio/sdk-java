@@ -17,23 +17,17 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow;
+package io.temporal.testing;
 
-/**
- * Base exception used to communicate a failure that can be thrown by operations requested by a
- * workflow code.
- */
-@SuppressWarnings("serial")
-public abstract class WorkflowOperationException extends RuntimeException {
+import com.google.common.annotations.VisibleForTesting;
+import io.temporal.failure.TimeoutFailure;
 
-  private long eventId;
+/** Internal do not use in application code. */
+@VisibleForTesting
+public final class SimulatedTimeoutFailure extends RuntimeException {
 
-  protected WorkflowOperationException(String message, long eventId) {
-    super(message);
-    this.eventId = eventId;
-  }
-
-  public long getEventId() {
-    return eventId;
+  public SimulatedTimeoutFailure(TimeoutFailure cause) {
+    super(null, cause, false, true);
+    setStackTrace(cause.getStackTrace());
   }
 }

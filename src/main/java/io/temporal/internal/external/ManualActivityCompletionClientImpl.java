@@ -27,6 +27,8 @@ import io.temporal.client.ActivityCancelledException;
 import io.temporal.client.ActivityCompletionFailureException;
 import io.temporal.client.ActivityNotExistsException;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.failure.CanceledFailure;
+import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.metrics.MetricsType;
@@ -44,7 +46,6 @@ import io.temporal.proto.workflowservice.RespondActivityTaskFailedByIdRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.Optional;
-import java.util.concurrent.CancellationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -96,7 +97,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
 
   @Override
   public void complete(Object result) {
-    Optional<Payloads> convertedResult = dataConverter.toData(result);
+    Optional<Payloads> convertedResult = dataConverter.toPayloads(result);
     if (taskToken != null) {
       RespondActivityTaskCompletedRequest.Builder request =
           RespondActivityTaskCompletedRequest.newBuilder()
@@ -145,16 +146,15 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
   }
 
   @Override
-  public void fail(Throwable failure) {
-    if (failure == null) {
-      throw new IllegalArgumentException("null failure");
+  public void fail(Throwable exception) {
+    if (exception == null) {
+      throw new IllegalArgumentException("null exception");
     }
     // When converting failures reason is class name, details are serialized exception.
     if (taskToken != null) {
       RespondActivityTaskFailedRequest request =
           RespondActivityTaskFailedRequest.newBuilder()
-              .setReason(failure.getClass().getName())
-              .setDetails(dataConverter.toData(failure).get())
+              .setFailure(FailureConverter.exceptionToFailure(exception))
               .setTaskToken(ByteString.copyFrom(taskToken))
               .build();
       try {
@@ -176,8 +176,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       }
       RespondActivityTaskFailedByIdRequest request =
           RespondActivityTaskFailedByIdRequest.newBuilder()
-              .setReason(failure.getClass().getName())
-              .setDetails(dataConverter.toData(failure).get())
+              .setFailure(FailureConverter.exceptionToFailure(exception))
               .setNamespace(namespace)
               .setWorkflowId(execution.getWorkflowId())
               .setRunId(execution.getRunId())
@@ -200,8 +199,8 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
   }
 
   @Override
-  public void recordHeartbeat(Object details) throws CancellationException {
-    Optional<Payloads> convertedDetails = dataConverter.toData(details);
+  public void recordHeartbeat(Object details) throws CanceledFailure {
+    Optional<Payloads> convertedDetails = dataConverter.toPayloads(details);
     if (taskToken != null) {
       RecordActivityTaskHeartbeatRequest.Builder request =
           RecordActivityTaskHeartbeatRequest.newBuilder()
@@ -252,7 +251,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
 
   @Override
   public void reportCancellation(Object details) {
-    Optional<Payloads> convertedDetails = dataConverter.toData(details);
+    Optional<Payloads> convertedDetails = dataConverter.toPayloads(details);
     if (taskToken != null) {
       RespondActivityTaskCanceledRequest.Builder request =
           RespondActivityTaskCanceledRequest.newBuilder()

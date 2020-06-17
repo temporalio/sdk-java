@@ -17,20 +17,21 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow;
+package io.temporal.internal.common;
 
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.common.WorkflowType;
+import com.cronutils.utils.StringUtils;
+import io.temporal.common.converter.DataConverter;
+import io.temporal.proto.common.SearchAttributes;
 
-/**
- * Indicates that a child workflow exceeded its execution timeout and was forcefully terminated by
- * the Temporal service.
- */
-@SuppressWarnings("serial")
-public final class ChildWorkflowTimedOutException extends ChildWorkflowException {
+public class SearchAttributesUtil {
+  private static final DataConverter jsonConverter = DataConverter.getDefaultInstance();
 
-  public ChildWorkflowTimedOutException(
-      long eventId, WorkflowExecution workflowExecution, WorkflowType workflowType) {
-    super("Time Out", eventId, workflowExecution, workflowType);
+  public static <T> T getValueFromSearchAttributes(
+      SearchAttributes searchAttributes, String key, Class<T> classType) {
+    if (searchAttributes == null || StringUtils.isEmpty(key)) {
+      return null;
+    }
+    return jsonConverter.fromPayload(
+        searchAttributes.getIndexedFieldsOrThrow(key), classType, classType);
   }
 }

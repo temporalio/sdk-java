@@ -19,25 +19,27 @@
 
 package io.temporal.internal.replay;
 
-import static io.temporal.internal.common.DataConverterUtils.toHeaderGrpc;
+import static io.temporal.failure.FailureConverter.JAVA_SDK;
+import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 
 import io.temporal.activity.ActivityCancellationType;
+import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.RetryParameters;
 import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.Header;
 import io.temporal.proto.common.Payloads;
-import io.temporal.proto.common.TimeoutType;
 import io.temporal.proto.decision.ScheduleActivityTaskDecisionAttributes;
 import io.temporal.proto.event.ActivityTaskCanceledEventAttributes;
 import io.temporal.proto.event.ActivityTaskCompletedEventAttributes;
 import io.temporal.proto.event.ActivityTaskFailedEventAttributes;
 import io.temporal.proto.event.ActivityTaskTimedOutEventAttributes;
 import io.temporal.proto.event.HistoryEvent;
+import io.temporal.proto.failure.CanceledFailureInfo;
+import io.temporal.proto.failure.Failure;
 import io.temporal.proto.tasklist.TaskList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CancellationException;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -72,7 +74,7 @@ final class ActivityDecisionContext {
       }
       Runnable immediateCancellationCallback =
           () -> {
-            OpenRequestInfo<Optional<Payloads>, ActivityType> scheduled =
+            OpenRequestInfo<Optional<Payloads>, OpenActivityInfo> scheduled =
                 scheduledActivities.remove(scheduledEventId);
             if (scheduled == null) {
               throw new IllegalArgumentException(
@@ -80,7 +82,7 @@ final class ActivityDecisionContext {
                       "Activity with activityId=%s and scheduledEventId=%d wasn't found",
                       activityId, scheduledEventId));
             }
-            callback.accept(null, new CancellationException("Cancelled by request"));
+            callback.accept(null, new CanceledFailure("Cancelled by request"));
           };
       if (cancellationType != ActivityCancellationType.WAIT_CANCELLATION_COMPLETED) {
         immediateCancellationCallback.run();
@@ -94,9 +96,42 @@ final class ActivityDecisionContext {
 
   private final DecisionsHelper decisions;
 
+  private static class OpenActivityInfo {
+    private final ActivityType activityType;
+    private final String activityId;
+    private final long scheduledEventId;
+    private long startedEventId;
+
+    private OpenActivityInfo(ActivityType activityType, String activityId, long scheduledEventId) {
+      this.activityType = activityType;
+      this.activityId = activityId;
+      this.scheduledEventId = scheduledEventId;
+    }
+
+    public ActivityType getActivityType() {
+      return activityType;
+    }
+
+    public String getActivityId() {
+      return activityId;
+    }
+
+    public long getScheduledEventId() {
+      return scheduledEventId;
+    }
+
+    public long getStartedEventId() {
+      return startedEventId;
+    }
+
+    public void setStartedEventId(long startedEventId) {
+      this.startedEventId = startedEventId;
+    }
+  }
+
   // key is scheduledEventId
-  private final Map<Long, OpenRequestInfo<Optional<Payloads>, ActivityType>> scheduledActivities =
-      new HashMap<>();
+  private final Map<Long, OpenRequestInfo<Optional<Payloads>, OpenActivityInfo>>
+      scheduledActivities = new HashMap<>();
 
   ActivityDecisionContext(DecisionsHelper decisions) {
     this.decisions = decisions;
@@ -104,8 +139,6 @@ final class ActivityDecisionContext {
 
   Consumer<Exception> scheduleActivityTask(
       ExecuteActivityParameters parameters, BiConsumer<Optional<Payloads>, Exception> callback) {
-    final OpenRequestInfo<Optional<Payloads>, ActivityType> context =
-        new OpenRequestInfo<>(parameters.getActivityType());
     final ScheduleActivityTaskDecisionAttributes.Builder attributes =
         ScheduleActivityTaskDecisionAttributes.newBuilder()
             .setActivityType(parameters.getActivityType());
@@ -143,6 +176,10 @@ final class ActivityDecisionContext {
     }
 
     long scheduledEventId = decisions.scheduleActivityTask(attributes.build());
+    final OpenRequestInfo<Optional<Payloads>, OpenActivityInfo> context =
+        new OpenRequestInfo<>(
+            new OpenActivityInfo(
+                parameters.getActivityType(), parameters.getActivityId(), scheduledEventId));
     context.setCompletionHandle(callback);
     scheduledActivities.put(scheduledEventId, context);
     return new ActivityDecisionContext.ActivityCancellationHandler(
@@ -152,13 +189,19 @@ final class ActivityDecisionContext {
   void handleActivityTaskCanceled(HistoryEvent event) {
     ActivityTaskCanceledEventAttributes attributes = event.getActivityTaskCanceledEventAttributes();
     if (decisions.handleActivityTaskCanceled(event)) {
-      CancellationException e = new CancellationException();
-      OpenRequestInfo<Optional<Payloads>, ActivityType> scheduled =
+      Failure failure =
+          Failure.newBuilder()
+              .setSource(JAVA_SDK)
+              .setCanceledFailureInfo(
+                  CanceledFailureInfo.newBuilder().setDetails(attributes.getDetails()))
+              .build();
+      FailureWrapperException e = new FailureWrapperException(failure);
+      OpenRequestInfo<Optional<Payloads>, OpenActivityInfo> scheduled =
           scheduledActivities.remove(attributes.getScheduledEventId());
       if (scheduled != null) {
         BiConsumer<Optional<Payloads>, Exception> completionHandle =
             scheduled.getCompletionCallback();
-        // It is OK to fail with subclass of CancellationException when cancellation requested.
+        // It is OK to fail with subclass of CanceledException when cancellation requested.
         // It allows passing information about cancellation (details in this case) to the
         // surrounding doCatch block
         completionHandle.accept(Optional.empty(), e);
@@ -170,7 +213,7 @@ final class ActivityDecisionContext {
     ActivityTaskCompletedEventAttributes attributes =
         event.getActivityTaskCompletedEventAttributes();
     if (decisions.handleActivityTaskClosed(attributes.getScheduledEventId())) {
-      OpenRequestInfo<Optional<Payloads>, ActivityType> scheduled =
+      OpenRequestInfo<Optional<Payloads>, OpenActivityInfo> scheduled =
           scheduledActivities.remove(attributes.getScheduledEventId());
       if (scheduled != null) {
         Optional<Payloads> result =
@@ -190,15 +233,18 @@ final class ActivityDecisionContext {
   void handleActivityTaskFailed(HistoryEvent event) {
     ActivityTaskFailedEventAttributes attributes = event.getActivityTaskFailedEventAttributes();
     if (decisions.handleActivityTaskClosed(attributes.getScheduledEventId())) {
-      OpenRequestInfo<Optional<Payloads>, ActivityType> scheduled =
+      OpenRequestInfo<Optional<Payloads>, OpenActivityInfo> scheduled =
           scheduledActivities.remove(attributes.getScheduledEventId());
       if (scheduled != null) {
-        String reason = attributes.getReason();
-        Optional<Payloads> details =
-            attributes.hasDetails() ? Optional.of(attributes.getDetails()) : Optional.empty();
+        OpenActivityInfo context = scheduled.getUserContext();
         ActivityTaskFailedException failure =
             new ActivityTaskFailedException(
-                event.getEventId(), scheduled.getUserContext(), null, reason, details);
+                event.getEventId(),
+                attributes.getScheduledEventId(),
+                attributes.getStartedEventId(),
+                context.getActivityType(),
+                context.getActivityId(),
+                attributes.getFailure());
         BiConsumer<Optional<Payloads>, Exception> completionHandle =
             scheduled.getCompletionCallback();
         completionHandle.accept(Optional.empty(), failure);
@@ -209,18 +255,23 @@ final class ActivityDecisionContext {
   void handleActivityTaskTimedOut(HistoryEvent event) {
     ActivityTaskTimedOutEventAttributes attributes = event.getActivityTaskTimedOutEventAttributes();
     if (decisions.handleActivityTaskClosed(attributes.getScheduledEventId())) {
-      OpenRequestInfo<Optional<Payloads>, ActivityType> scheduled =
+      OpenRequestInfo<Optional<Payloads>, OpenActivityInfo> scheduled =
           scheduledActivities.remove(attributes.getScheduledEventId());
       if (scheduled != null) {
-        TimeoutType timeoutType = attributes.getTimeoutType();
-        Optional<Payloads> details =
-            attributes.hasDetails() ? Optional.of(attributes.getDetails()) : Optional.empty();
-        ActivityTaskTimeoutException failure =
+        Failure failure = attributes.getFailure();
+        OpenActivityInfo context = scheduled.getUserContext();
+        ActivityTaskTimeoutException timeoutException =
             new ActivityTaskTimeoutException(
-                event.getEventId(), scheduled.getUserContext(), null, timeoutType, details);
+                event.getEventId(),
+                context.getScheduledEventId(),
+                context.getStartedEventId(),
+                context.getActivityType(),
+                context.getActivityId(),
+                attributes.getRetryStatus(),
+                failure);
         BiConsumer<Optional<Payloads>, Exception> completionHandle =
             scheduled.getCompletionCallback();
-        completionHandle.accept(Optional.empty(), failure);
+        completionHandle.accept(Optional.empty(), timeoutException);
       }
     }
   }

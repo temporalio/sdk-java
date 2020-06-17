@@ -20,15 +20,9 @@
 package io.temporal.common.converter;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 
 import com.google.common.base.Objects;
-import io.temporal.activity.Activity;
 import io.temporal.proto.common.Payloads;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -39,7 +33,7 @@ import org.junit.Test;
 
 public class JsonDataConverterTest {
 
-  private final DataConverter converter = GsonJsonDataConverter.getInstance();
+  private final DataConverter converter = DataConverter.getDefaultInstance();
 
   public static void foo(List<UUID> arg) {}
 
@@ -54,9 +48,10 @@ public class JsonDataConverterTest {
       list.add(UUID.randomUUID());
     }
 
-    Optional<Payloads> data = converter.toData(list);
+    Optional<Payloads> data = converter.toPayloads(list);
     @SuppressWarnings("unchecked")
-    List<UUID> result = (List<UUID>) converter.fromData(data, parameterType, genericParameterType);
+    List<UUID> result =
+        (List<UUID>) converter.fromPayloads(data, parameterType, genericParameterType);
     assertEquals(result.toString(), list, result);
   }
 
@@ -109,9 +104,9 @@ public class JsonDataConverterTest {
     list.add(new Struct1(234, "s1"));
     list.add(new Struct1(567, "s2"));
     Optional<Payloads> data =
-        converter.toData(1234, struct1, "a string", list, "an extra string :o!!!");
+        converter.toPayloads(1234, struct1, "a string", list, "an extra string :o!!!");
     Object[] deserializedArguments =
-        converter.fromDataArray(data, m.getParameterTypes(), m.getGenericParameterTypes());
+        converter.arrayFromPayloads(data, m.getParameterTypes(), m.getGenericParameterTypes());
     assertEquals(4, deserializedArguments.length);
     assertEquals(1234, (int) deserializedArguments[0]);
     assertEquals(struct1, deserializedArguments[1]);
@@ -126,65 +121,15 @@ public class JsonDataConverterTest {
     Method m =
         JsonDataConverterTest.class.getDeclaredMethod(
             "aLotOfArguments", int.class, Struct1.class, String.class, Object.class, int[].class);
-    Optional<Payloads> data = converter.toData(1);
+    Optional<Payloads> data = converter.toPayloads(1);
     @SuppressWarnings("unchecked")
     Object[] deserializedArguments =
-        converter.fromDataArray(data, m.getParameterTypes(), m.getGenericParameterTypes());
+        converter.arrayFromPayloads(data, m.getParameterTypes(), m.getGenericParameterTypes());
     assertEquals(5, deserializedArguments.length);
     assertEquals(1, (int) deserializedArguments[0]);
     assertEquals(null, deserializedArguments[1]);
     assertEquals(null, deserializedArguments[2]);
     assertEquals(null, deserializedArguments[3]);
     assertEquals(null, deserializedArguments[4]);
-  }
-
-  @Test
-  public void testClass() {
-
-    Optional<Payloads> data = converter.toData(this.getClass());
-    @SuppressWarnings("unchecked")
-    Class result = converter.fromData(data, Class.class, Class.class);
-    assertEquals(result.toString(), this.getClass(), result);
-  }
-
-  public static class NonSerializableException extends RuntimeException {
-    @SuppressWarnings("unused")
-    private final InputStream file; // gson chokes on this field
-
-    private final String foo;
-
-    public NonSerializableException(Throwable cause) {
-      super(cause);
-      try {
-        file = new FileInputStream(File.createTempFile("foo", "bar"));
-      } catch (IOException e) {
-        throw Activity.wrap(e);
-      }
-      foo = "bar";
-    }
-  }
-
-  @Test
-  public void testException() {
-    RuntimeException rootException = new IllegalArgumentException("root exception");
-    NonSerializableException nonSerializableCause = new NonSerializableException(rootException);
-    RuntimeException e = new RuntimeException("application exception", nonSerializableCause);
-
-    Optional<Payloads> converted = converter.toData(e);
-    RuntimeException fromConverted =
-        converter.fromData(converted, RuntimeException.class, RuntimeException.class);
-    assertEquals(RuntimeException.class, fromConverted.getClass());
-    assertEquals("application exception", fromConverted.getMessage());
-
-    Throwable causeFromConverted = fromConverted.getCause();
-    assertNotNull(causeFromConverted);
-    assertEquals(DataConverterException.class, causeFromConverted.getClass());
-    assertNotNull(causeFromConverted.getCause());
-    assertEquals(StackOverflowError.class, causeFromConverted.getCause().getClass());
-
-    assertNotNull(causeFromConverted.getSuppressed());
-    assertEquals(1, causeFromConverted.getSuppressed().length);
-
-    assertEquals("root exception", causeFromConverted.getSuppressed()[0].getMessage());
   }
 }

@@ -17,35 +17,34 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.failure;
 
-import io.temporal.proto.common.TimeoutType;
+import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.EncodedValue;
+import io.temporal.common.converter.Value;
 
-/**
- * SimulatedTimeoutExceptionInternal is created from a SimulatedTimeoutException. The main
- * difference is that the details are in a serialized form.
- */
-final class SimulatedTimeoutExceptionInternal extends RuntimeException {
+public final class CanceledFailure extends TemporalFailure {
+  private final Value details;
 
-  private final TimeoutType timeoutType;
-
-  private final byte[] details;
-
-  SimulatedTimeoutExceptionInternal(TimeoutType timeoutType, byte[] details) {
-    this.timeoutType = timeoutType;
+  public CanceledFailure(String message, Value details, Throwable cause) {
+    super(message, message, cause);
     this.details = details;
   }
 
-  SimulatedTimeoutExceptionInternal(TimeoutType timeoutType) {
-    this.timeoutType = timeoutType;
-    this.details = null;
+  public CanceledFailure(String message, Object details) {
+    this(message, new EncodedValue(details), null);
   }
 
-  TimeoutType getTimeoutType() {
-    return timeoutType;
+  public CanceledFailure(String message) {
+    this(message, null);
   }
 
-  byte[] getDetails() {
+  public Value getDetails() {
     return details;
+  }
+
+  @Override
+  public void setDataConverter(DataConverter converter) {
+    ((EncodedValue) details).setDataConverter(converter);
   }
 }

@@ -23,6 +23,9 @@ import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.RetryOptions;
+import io.temporal.failure.ActivityFailure;
+import io.temporal.failure.CanceledFailure;
+import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.worker.WorkerOptions;
@@ -33,7 +36,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
-import java.util.concurrent.CancellationException;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -580,9 +582,9 @@ public final class Workflow {
    * CancellationScope#run()} calls {@link Runnable#run()} on the wrapped Runnable. The returned
    * CancellationScope can be used to cancel the wrapped code. The cancellation semantic depends on
    * the operation the code is blocked on. For example activity or child workflow is first cancelled
-   * then throws a {@link CancellationException}. The same applies for {@link Workflow#sleep(long)}
+   * then throws a {@link CanceledFailure}. The same applies for {@link Workflow#sleep(long)}
    * operation. When an activity or a child workflow is invoked asynchronously then they get
-   * cancelled and a {@link Promise} that contains their result will throw CancellationException
+   * cancelled and a {@link Promise} that contains their result will throw {@link CanceledFailure}
    * when {@link Promise#get()} is called.
    *
    * <p>The new cancellation scope is linked to the parent one (available as {@link
@@ -655,7 +657,7 @@ public final class Workflow {
    * <pre><code>
    *  try {
    *     // workflow logic
-   *  } catch (CancellationException e) {
+   *  } catch (CanceledFailure e) {
    *     CancellationScope detached = Workflow.newDetachedCancellationScope(() -&gt; {
    *         // cleanup logic
    *     });
@@ -676,8 +678,7 @@ public final class Workflow {
    * are rounded <b>up</b> to the nearest second.
    *
    * @return feature that becomes ready when at least specified number of seconds passes. promise is
-   *     failed with {@link java.util.concurrent.CancellationException} if enclosing scope is
-   *     cancelled.
+   *     failed with {@link CanceledFailure} if enclosing scope is cancelled.
    */
   public static Promise<Void> newTimer(Duration delay) {
     return WorkflowInternal.newTimer(delay);
@@ -737,7 +738,7 @@ public final class Workflow {
    *
    * @param unblockCondition condition that should return true to indicate that thread should
    *     unblock.
-   * @throws CancellationException if thread (or current {@link CancellationScope} was cancelled).
+   * @throws CanceledFailure if thread (or current {@link CancellationScope} was cancelled).
    */
   public static void await(Supplier<Boolean> unblockCondition) {
     WorkflowInternal.await(
@@ -753,7 +754,7 @@ public final class Workflow {
    * passes.
    *
    * @return false if timed out.
-   * @throws CancellationException if thread (or current {@link CancellationScope} was cancelled).
+   * @throws CanceledFailure if thread (or current {@link CancellationScope} was cancelled).
    */
   public static boolean await(Duration timeout, Supplier<Boolean> unblockCondition) {
     return WorkflowInternal.await(
@@ -767,7 +768,7 @@ public final class Workflow {
 
   /**
    * Invokes function retrying in case of failures according to retry options. Synchronous variant.
-   * Use {@link Async#retry(RetryOptions, Optional, Func)} for asynchronous functions.
+   * Use {@link Async#retry(RetryOptions, Optional, Functions.Func)} for asynchronous functions.
    *
    * @param options retry options that specify retry policy
    * @param expiration stop retrying after this interval if provided
@@ -781,7 +782,8 @@ public final class Workflow {
 
   /**
    * Invokes function retrying in case of failures according to retry options. Synchronous variant.
-   * Use {@link Async#retry(RetryOptions, Optional, Func)} for asynchronous functions.
+   * Use {@link Async#retry(RetryOptions, Optional, Functions.Func)} (RetryOptions, Optional, Func)}
+   * for asynchronous functions.
    *
    * @param options retry options that specify retry policy
    * @param expiration if specified stop retrying after this interval
@@ -808,10 +810,10 @@ public final class Workflow {
    * <p>The reason for such design is that returning originally thrown exception from a remote call
    * (which child workflow and activity invocations are ) would not allow adding context information
    * about a failure, like activity and child workflow id. So stubs always throw a subclass of
-   * {@link ActivityException} from calls to an activity and subclass of {@link
-   * io.temporal.workflow.ChildWorkflowException} from calls to a child workflow. The original
-   * exception is attached as a cause to these wrapper exceptions. So as exceptions are always
-   * wrapped adding checked ones to method signature causes more pain than benefit.
+   * {@link ActivityFailure} from calls to an activity and subclass of {@link ChildWorkflowFailure}
+   * from calls to a child workflow. The original exception is attached as a cause to these wrapper
+   * exceptions. So as exceptions are always wrapped adding checked ones to method signature causes
+   * more pain than benefit.
    *
    * <p>
    *

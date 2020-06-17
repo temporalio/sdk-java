@@ -21,7 +21,7 @@ package io.temporal.internal.sync;
 
 import static org.mockito.Mockito.*;
 
-import io.temporal.common.converter.GsonJsonDataConverter;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.replay.DecisionContext;
 import io.temporal.proto.common.SearchAttributes;
@@ -38,7 +38,7 @@ public class SyncDecisionContextTest {
   public void setUp() {
     this.context =
         new SyncDecisionContext(
-            mockDecisionContext, GsonJsonDataConverter.getInstance(), null, null);
+            mockDecisionContext, DataConverter.getDefaultInstance(), null, null);
   }
 
   @Test
@@ -46,8 +46,7 @@ public class SyncDecisionContextTest {
     Map<String, Object> attr = new HashMap<>();
     attr.put("CustomKeywordField", "keyword");
     SearchAttributes serializedAttr =
-        InternalUtils.convertMapToSearchAttributes(
-            attr, GsonJsonDataConverter.getInstance().getPayloadConverter());
+        InternalUtils.convertMapToSearchAttributes(attr, DataConverter.getDefaultInstance());
 
     context.upsertSearchAttributes(attr);
     verify(mockDecisionContext, times(1)).upsertSearchAttributes(serializedAttr);

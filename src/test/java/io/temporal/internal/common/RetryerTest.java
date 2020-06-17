@@ -88,7 +88,7 @@ public class RetryerTest {
         RetryOptions.newBuilder()
             .setInitialInterval(Duration.ofMillis(10))
             .setMaximumInterval(Duration.ofMillis(100))
-            .setDoNotRetry(InterruptedException.class)
+            .setDoNotRetry(InterruptedException.class.getName())
             .validateBuildWithDefaults();
     long start = System.currentTimeMillis();
     try {

@@ -36,6 +36,7 @@ import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.StateMachines.*;
 import io.temporal.proto.common.Payloads;
+import io.temporal.proto.common.RetryStatus;
 import io.temporal.proto.common.TimeoutType;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.decision.CancelTimerDecisionAttributes;
@@ -66,12 +67,13 @@ import io.temporal.proto.event.EventType;
 import io.temporal.proto.event.ExternalWorkflowExecutionCancelRequestedEventAttributes;
 import io.temporal.proto.event.HistoryEvent;
 import io.temporal.proto.event.MarkerRecordedEventAttributes;
+import io.temporal.proto.event.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.proto.event.StartChildWorkflowExecutionFailedEventAttributes;
 import io.temporal.proto.event.UpsertWorkflowSearchAttributesEventAttributes;
 import io.temporal.proto.event.WorkflowExecutionContinuedAsNewEventAttributes;
-import io.temporal.proto.event.WorkflowExecutionFailedCause;
 import io.temporal.proto.event.WorkflowExecutionSignaledEventAttributes;
 import io.temporal.proto.execution.WorkflowExecutionStatus;
+import io.temporal.proto.failure.ApplicationFailureInfo;
 import io.temporal.proto.query.QueryConsistencyLevel;
 import io.temporal.proto.query.QueryRejectCondition;
 import io.temporal.proto.query.QueryRejected;
@@ -632,9 +634,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     MarkerRecordedEventAttributes.Builder marker =
         MarkerRecordedEventAttributes.newBuilder()
             .setMarkerName(attr.getMarkerName())
-            .setHeader(attr.getHeader())
-            .setDetails(attr.getDetails())
-            .setDecisionTaskCompletedEventId(decisionTaskCompletedId);
+            .setDecisionTaskCompletedEventId(decisionTaskCompletedId)
+            .putAllDetails(attr.getDetailsMap());
+    if (attr.hasHeader()) {
+      marker.setHeader(attr.getHeader());
+    }
+    if (attr.hasFailure()) {
+      marker.setFailure(attr.getFailure());
+    }
     HistoryEvent event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.MarkerRecorded)
@@ -689,8 +696,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       RequestContext ctx, ScheduleActivityTaskDecisionAttributes a, long decisionTaskCompletedId) {
     a = validateScheduleActivityTask(a);
     String activityId = a.getActivityId();
-    Long activityscheduledEventId = activityById.get(activityId);
-    if (activityscheduledEventId != null) {
+    Long activityScheduledEventId = activityById.get(activityId);
+    if (activityScheduledEventId != null) {
       throw Status.FAILED_PRECONDITION
           .withDescription("Already open activity with " + activityId)
           .asRuntimeException();
@@ -892,7 +899,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public void failSignalExternalWorkflowExecution(
-      String signalId, WorkflowExecutionFailedCause cause) {
+      String signalId, SignalExternalWorkflowExecutionFailedCause cause) {
     update(
         ctx -> {
           StateMachine<SignalExternalData> signal = getSignal(signalId);
@@ -992,7 +999,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     update(
         ctx -> {
           StateMachine<ChildWorkflowData> child = getChildWorkflow(a.getInitiatedEventId());
-          child.action(Action.TIME_OUT, ctx, a.getTimeoutType(), 0);
+          child.action(Action.TIME_OUT, ctx, a.getRetryStatus(), 0);
           childWorkflows.remove(a.getInitiatedEventId());
           scheduleDecision(ctx);
           ctx.unlockTimer();
@@ -1094,16 +1101,27 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     WorkflowData data = workflow.getData();
     if (data.retryState.isPresent()) {
       RetryState rs = data.retryState.get();
-      int backoffIntervalSeconds =
-          rs.getBackoffIntervalInSeconds(d.getReason(), store.currentTimeMillis());
-      if (backoffIntervalSeconds > 0) {
+      Optional<String> failureType;
+      RetryState.BackoffInterval backoffInterval;
+      if (d.getFailure().hasApplicationFailureInfo()) {
+        ApplicationFailureInfo failureInfo = d.getFailure().getApplicationFailureInfo();
+        if (failureInfo.getNonRetryable()) {
+          backoffInterval = new RetryState.BackoffInterval(RetryStatus.NonRetryableFailure);
+        } else {
+          failureType = Optional.of(failureInfo.getType());
+          backoffInterval = rs.getBackoffIntervalInSeconds(failureType, store.currentTimeMillis());
+        }
+      } else {
+        backoffInterval = new RetryState.BackoffInterval(RetryStatus.NonRetryableFailure);
+      }
+      if (backoffInterval.getRetryStatus() == RetryStatus.InProgress) {
         ContinueAsNewWorkflowExecutionDecisionAttributes.Builder continueAsNewAttr =
             ContinueAsNewWorkflowExecutionDecisionAttributes.newBuilder()
                 .setInput(startRequest.getInput())
                 .setWorkflowType(startRequest.getWorkflowType())
                 .setWorkflowRunTimeoutSeconds(startRequest.getWorkflowRunTimeoutSeconds())
                 .setWorkflowTaskTimeoutSeconds(startRequest.getWorkflowTaskTimeoutSeconds())
-                .setBackoffStartIntervalInSeconds(backoffIntervalSeconds);
+                .setBackoffStartIntervalInSeconds(backoffInterval.getIntervalSeconds());
         if (startRequest.hasTaskList()) {
           continueAsNewAttr.setTaskList(startRequest.getTaskList());
         }
@@ -1149,8 +1167,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       ChildWorkflowExecutionFailedEventAttributes a =
           ChildWorkflowExecutionFailedEventAttributes.newBuilder()
               .setInitiatedEventId(parentChildInitiatedEventId.getAsLong())
-              .setDetails(d.getDetails())
-              .setReason(d.getReason())
+              .setFailure(d.getFailure())
               .setWorkflowType(startRequest.getWorkflowType())
               .setNamespace(ctx.getNamespace())
               .setWorkflowExecution(ctx.getExecution())
@@ -1373,13 +1390,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               scheduleDecision(ctx);
             }
 
-            int executionTimeoutTimerDelay = startRequest.getWorkflowRunTimeoutSeconds();
+            int runTimeoutSeconds = startRequest.getWorkflowRunTimeoutSeconds();
             if (backoffStartIntervalInSeconds > 0) {
-              executionTimeoutTimerDelay =
-                  executionTimeoutTimerDelay + backoffStartIntervalInSeconds;
+              runTimeoutSeconds = runTimeoutSeconds + backoffStartIntervalInSeconds;
             }
-            ctx.addTimer(
-                executionTimeoutTimerDelay, this::timeoutWorkflow, "workflow execution timeout");
+            ctx.addTimer(runTimeoutSeconds, this::timeoutWorkflow, "workflow execution timeout");
           });
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
@@ -1430,10 +1445,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           int heartbeatTimeout = data.scheduledEvent.getHeartbeatTimeoutSeconds();
           long scheduledEventId = activity.getData().scheduledEventId;
           if (startToCloseTimeout > 0) {
+            int attempt = data.getAttempt();
             ctx.addTimer(
                 startToCloseTimeout,
-                () ->
-                    timeoutActivity(scheduledEventId, TimeoutType.StartToClose, data.getAttempt()),
+                () -> timeoutActivity(scheduledEventId, TimeoutType.StartToClose, attempt),
                 "Activity StartToCloseTimeout");
           }
           updateHeartbeatTimer(
@@ -1473,9 +1488,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     if (heartbeatTimeout > 0 && heartbeatTimeout < startToCloseTimeout) {
       ActivityTaskData data = activity.getData();
       data.lastHeartbeatTime = clock.getAsLong();
+      int attempt = data.getAttempt();
       ctx.addTimer(
           heartbeatTimeout,
-          () -> timeoutActivity(activityId, TimeoutType.Heartbeat, data.getAttempt()),
+          () -> timeoutActivity(activityId, TimeoutType.Heartbeat, attempt),
           "Activity Heartbeat Timeout");
     }
   }
@@ -1683,6 +1699,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     }
   }
 
+  // TODO(maxim): Add workflow retry on run timeout
   private void timeoutWorkflow() {
     lock.lock();
     try {
@@ -1700,7 +1717,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             if (isTerminalState(workflow.getState())) {
               return;
             }
-            workflow.action(StateMachines.Action.TIME_OUT, ctx, TimeoutType.StartToClose, 0);
+            // TODO(maxim): real retry status
+            workflow.action(StateMachines.Action.TIME_OUT, ctx, RetryStatus.Timeout, 0);
             decision.getData().workflowCompleted = true;
             if (parent != null) {
               ctx.lockTimer(); // unlocked by the parent
@@ -1721,7 +1739,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       ChildWorkflowExecutionTimedOutEventAttributes a =
           ChildWorkflowExecutionTimedOutEventAttributes.newBuilder()
               .setInitiatedEventId(parentChildInitiatedEventId.getAsLong())
-              .setTimeoutType(TimeoutType.StartToClose)
+              .setRetryStatus(RetryStatus.Timeout) // TODO(maxim): Real status
               .setWorkflowType(startRequest.getWorkflowType())
               .setNamespace(ctx.getNamespace())
               .setWorkflowExecution(ctx.getExecution())
@@ -2033,7 +2051,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   }
 
   private void removeActivity(long scheduledEventId) {
-    StateMachine<ActivityTaskData> activity = activities.get(scheduledEventId);
+    StateMachine<ActivityTaskData> activity = activities.remove(scheduledEventId);
     if (activity == null) {
       return;
     }

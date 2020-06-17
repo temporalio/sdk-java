@@ -58,7 +58,7 @@ public class WorkflowOptionsTest {
       backoffCoefficient = 1.97,
       maximumAttempts = 234567,
       maximumIntervalSeconds = 22,
-      doNotRetry = {NullPointerException.class, UnsupportedOperationException.class})
+      doNotRetry = {"java.lang.NullPointerException", "java.lang.UnsupportedOperationException"})
   @CronSchedule("0 * * * *" /* hourly */)
   public void workflowOptions() {}
 
@@ -76,7 +76,7 @@ public class WorkflowOptionsTest {
   public void testBothPresent() throws NoSuchMethodException {
     RetryOptions retryOptions =
         RetryOptions.newBuilder()
-            .setDoNotRetry(IllegalArgumentException.class)
+            .setDoNotRetry(IllegalArgumentException.class.getName())
             .setMaximumAttempts(11111)
             .setBackoffCoefficient(1.55)
             .setMaximumInterval(Duration.ofDays(3))
@@ -112,7 +112,7 @@ public class WorkflowOptionsTest {
   public void testChildWorkflowOptionMerge() throws NoSuchMethodException {
     RetryOptions retryOptions =
         RetryOptions.newBuilder()
-            .setDoNotRetry(IllegalArgumentException.class)
+            .setDoNotRetry(IllegalArgumentException.class.getName())
             .setMaximumAttempts(11111)
             .setBackoffCoefficient(1.55)
             .setMaximumInterval(Duration.ofDays(3))

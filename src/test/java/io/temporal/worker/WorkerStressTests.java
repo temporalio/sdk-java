@@ -101,7 +101,7 @@ public class WorkerStressTests {
     // Act
     // This will yeild around 10000 events which is above the page limit returned by the server.
     WorkflowParams w = new WorkflowParams();
-    w.TemporalSleep = Duration.ofSeconds(0);
+    w.TemporalSleepSeconds = 0;
     w.ChainSequence = 50;
     w.ConcurrentCount = 50;
     w.PayloadSizeBytes = 10000;
@@ -139,7 +139,7 @@ public class WorkerStressTests {
 
     // Act
     WorkflowParams w = new WorkflowParams();
-    w.TemporalSleep = Duration.ofSeconds(0);
+    w.TemporalSleepSeconds = 0;
     w.ChainSequence = 1;
     w.ConcurrentCount = 15;
     w.PayloadSizeBytes = 100;
@@ -213,7 +213,7 @@ public class WorkerStressTests {
     public int ConcurrentCount;
     public String TaskListName;
     public int PayloadSizeBytes;
-    public Duration TemporalSleep;
+    public int TemporalSleepSeconds;
   }
 
   @WorkflowInterface
@@ -250,7 +250,7 @@ public class WorkerStressTests {
           promise.get();
         }
 
-        Workflow.sleep(params.TemporalSleep);
+        Workflow.sleep(Duration.ofSeconds(params.TemporalSleepSeconds));
       }
       return "I'm done";
     }

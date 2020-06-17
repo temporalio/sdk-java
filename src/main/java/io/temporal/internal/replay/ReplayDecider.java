@@ -27,6 +27,7 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import io.grpc.Status;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.RpcRetryOptions;
@@ -61,7 +62,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
@@ -287,14 +287,14 @@ class ReplayDecider implements Decider {
     } catch (WorkflowExecutionException e) {
       failure = e;
       completed = true;
-    } catch (CancellationException e) {
+    } catch (CanceledFailure e) {
       if (!cancelRequested) {
         failure = workflow.mapUnexpectedException(e);
       }
       completed = true;
     } catch (Throwable e) {
       // can cast as Error is caught above.
-      failure = workflow.mapUnexpectedException((Exception) e);
+      failure = workflow.mapUnexpectedException(e);
       completed = true;
     }
   }
@@ -505,7 +505,7 @@ class ReplayDecider implements Decider {
               WorkflowQueryResult.newBuilder()
                   .setResultType(QueryResultType.Failed)
                   .setErrorMessage(e.getMessage())
-                  .setAnswer(converter.toData(stackTrace).get())
+                  .setAnswer(converter.toPayloads(stackTrace).get())
                   .build());
         }
       }

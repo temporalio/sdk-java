@@ -19,6 +19,7 @@
 
 package io.temporal.common.converter;
 
+import io.temporal.proto.common.Payload;
 import io.temporal.proto.common.Payloads;
 import java.lang.reflect.Type;
 import java.util.Optional;
@@ -31,7 +32,13 @@ import java.util.Optional;
  */
 public interface DataConverter {
 
-  PayloadConverter getPayloadConverter();
+  static DataConverter getDefaultInstance() {
+    return DefaultDataConverter.getDefaultInstance();
+  }
+
+  <T> Optional<Payload> toPayload(T value);
+
+  <T> T fromPayload(Payload payload, Class<T> valueClass, Type valueType);
 
   /**
    * Implements conversion of a list of values.
@@ -41,7 +48,7 @@ public interface DataConverter {
    * @throws DataConverterException if conversion of the value passed as parameter failed for any
    *     reason.
    */
-  Optional<Payloads> toData(Object... values) throws DataConverterException;
+  Optional<Payloads> toPayloads(Object... values) throws DataConverterException;
 
   /**
    * Implements conversion of a single value.
@@ -53,7 +60,7 @@ public interface DataConverter {
    * @throws DataConverterException if conversion of the data passed as parameter failed for any
    *     reason.
    */
-  <T> T fromData(Optional<Payloads> content, Class<T> parameterType, Type genericParameterType)
+  <T> T fromPayloads(Optional<Payloads> content, Class<T> parameterType, Type genericParameterType)
       throws DataConverterException;
 
   /**
@@ -67,7 +74,7 @@ public interface DataConverter {
    * @throws DataConverterException if conversion of the data passed as parameter failed for any
    *     reason.
    */
-  public Object[] fromDataArray(
+  Object[] arrayFromPayloads(
       Optional<Payloads> content, Class<?>[] parameterTypes, Type[] genericParameterTypes)
       throws DataConverterException;
 }

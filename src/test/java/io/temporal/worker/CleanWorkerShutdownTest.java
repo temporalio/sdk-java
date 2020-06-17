@@ -30,7 +30,7 @@ import io.temporal.client.ActivityWorkerShutdownException;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.common.converter.GsonJsonDataConverter;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.event.EventType;
@@ -201,8 +201,8 @@ public class CleanWorkerShutdownTest {
         found = true;
         Payloads ar = e.getActivityTaskCompletedEventAttributes().getResult();
         String r =
-            GsonJsonDataConverter.getInstance()
-                .fromData(Optional.of(ar), String.class, String.class);
+            DataConverter.getDefaultInstance()
+                .fromPayloads(Optional.of(ar), String.class, String.class);
         assertEquals("completed", r);
       }
     }
@@ -262,8 +262,8 @@ public class CleanWorkerShutdownTest {
         found = true;
         Payloads ar = e.getActivityTaskCompletedEventAttributes().getResult();
         String r =
-            GsonJsonDataConverter.getInstance()
-                .fromData(Optional.of(ar), String.class, String.class);
+            DataConverter.getDefaultInstance()
+                .fromPayloads(Optional.of(ar), String.class, String.class);
         assertEquals(r, "interrupted", r);
       }
     }
@@ -353,8 +353,8 @@ public class CleanWorkerShutdownTest {
         found = true;
         Payloads ar = e.getActivityTaskCompletedEventAttributes().getResult();
         String r =
-            GsonJsonDataConverter.getInstance()
-                .fromData(Optional.of(ar), String.class, String.class);
+            DataConverter.getDefaultInstance()
+                .fromPayloads(Optional.of(ar), String.class, String.class);
         assertEquals("workershutdown", r);
       }
     }

@@ -29,7 +29,9 @@ import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowInvocationInterceptor;
 import io.temporal.common.interceptors.WorkflowInvoker;
-import io.temporal.internal.common.CheckedExceptionWrapper;
+import io.temporal.failure.CanceledFailure;
+import io.temporal.failure.FailureConverter;
+import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.ReplayWorkflow;
@@ -37,7 +39,7 @@ import io.temporal.internal.replay.ReplayWorkflowFactory;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.WorkflowType;
-import io.temporal.testing.SimulatedTimeoutException;
+import io.temporal.proto.failure.Failure;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
@@ -52,7 +54,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -239,16 +240,16 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
     @Override
     public Optional<Payloads> execute(Optional<Payloads> input)
-        throws CancellationException, WorkflowExecutionException {
+        throws CanceledFailure, WorkflowExecutionException {
       Object[] args =
-          dataConverter.fromDataArray(
+          dataConverter.arrayFromPayloads(
               input, workflowMethod.getParameterTypes(), workflowMethod.getGenericParameterTypes());
       Preconditions.checkNotNull(workflowInvoker, "initialize not called");
       Object result = workflowInvoker.execute(args);
       if (workflowMethod.getReturnType() == Void.TYPE) {
         return Optional.empty();
       }
-      return dataConverter.toData(result);
+      return dataConverter.toPayloads(result);
     }
 
     private void newInstance() {
@@ -290,8 +291,8 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
           }
           // Cancellation should be delivered as it impacts which decision closes a
           // workflow.
-          if (targetException instanceof CancellationException) {
-            throw (CancellationException) targetException;
+          if (targetException instanceof CanceledFailure) {
+            throw (CanceledFailure) targetException;
           }
           if (log.isErrorEnabled()) {
             log.error(
@@ -304,8 +305,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
                     + context.getWorkflowType(),
                 targetException);
           }
-          // Cast to Exception is safe as Error is handled above.
-          throw mapToWorkflowExecutionException((Exception) targetException, dataConverter);
+          throw mapToWorkflowExecutionException(targetException, dataConverter);
         }
       }
 
@@ -352,31 +352,17 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   }
 
   static WorkflowExecutionException mapToWorkflowExecutionException(
-      Exception failure, DataConverter dataConverter) {
-    failure = CheckedExceptionWrapper.unwrap(failure);
-    // Only expected during unit tests.
-    if (failure instanceof SimulatedTimeoutException) {
-      SimulatedTimeoutException timeoutException = (SimulatedTimeoutException) failure;
-      // As SimulatedTimeoutExceptionInternal is serialized to Payloads the details
-      // is stored as byte array which json serializer understands.
-      Object d = timeoutException.getDetails();
-      Optional<Payloads> payloads = dataConverter.toData(d);
-      byte[] details;
-      if (payloads.isPresent()) {
-        details = payloads.get().toByteArray();
-      } else {
-        details = new byte[0];
-      }
-      failure = new SimulatedTimeoutExceptionInternal(timeoutException.getTimeoutType(), details);
+      Throwable exception, DataConverter dataConverter) {
+    if (exception instanceof TemporalFailure) {
+      ((TemporalFailure) exception).setDataConverter(dataConverter);
     }
-
-    return new WorkflowExecutionException(
-        failure.getClass().getName(), dataConverter.toData(failure));
+    Failure failure = FailureConverter.exceptionToFailure(exception);
+    return new WorkflowExecutionException(failure);
   }
 
-  static WorkflowExecutionException mapError(Error failure, DataConverter dataConverter) {
-    return new WorkflowExecutionException(
-        failure.getClass().getName(), dataConverter.toData(failure));
+  static WorkflowExecutionException mapError(Error error) {
+    Failure failure = FailureConverter.exceptionToFailureNoUnwrapping(error);
+    return new WorkflowExecutionException(failure);
   }
 
   @Override

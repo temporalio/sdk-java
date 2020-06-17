@@ -24,16 +24,17 @@ import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.common.context.ContextPropagator;
-import io.temporal.common.converter.GsonJsonDataConverter;
 import io.temporal.internal.common.GrpcRetryer;
-import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.RpcRetryOptions;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
+import io.temporal.internal.replay.FailureWrapperException;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.proto.common.Payload;
 import io.temporal.proto.common.WorkflowExecution;
+import io.temporal.proto.failure.CanceledFailureInfo;
+import io.temporal.proto.failure.Failure;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.proto.workflowservice.RespondActivityTaskCanceledRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
@@ -42,7 +43,6 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.MDC;
 
@@ -192,17 +192,19 @@ public final class ActivityWorker implements SuspendableWorker {
         Duration duration = Duration.ofNanos(nanoTime - task.getScheduledTimestampOfThisAttempt());
         metricsScope.timer(MetricsType.ACTIVITY_E2E_LATENCY).record(duration);
 
-      } catch (CancellationException e) {
-        RespondActivityTaskCanceledRequest cancelledRequest =
-            RespondActivityTaskCanceledRequest.newBuilder()
-                .setDetails(
-                    GsonJsonDataConverter.getInstance()
-                        .toData(OptionsUtils.safeGet(e.getMessage()))
-                        .get())
-                .build();
-        Stopwatch sw = metricsScope.timer(MetricsType.ACTIVITY_RESP_LATENCY).start();
-        sendReply(task, new Result(null, null, cancelledRequest, null), metricsScope);
-        sw.stop();
+      } catch (FailureWrapperException e) {
+        Failure failure = e.getFailure();
+        if (failure.hasCanceledFailureInfo()) {
+          CanceledFailureInfo info = failure.getCanceledFailureInfo();
+          RespondActivityTaskCanceledRequest.Builder cancelledRequest =
+              RespondActivityTaskCanceledRequest.newBuilder().setIdentity(options.getIdentity());
+          if (info.hasDetails()) {
+            cancelledRequest.setDetails(info.getDetails());
+          }
+          Stopwatch sw = metricsScope.timer(MetricsType.ACTIVITY_RESP_LATENCY).start();
+          sendReply(task, new Result(null, null, cancelledRequest.build(), null), metricsScope);
+          sw.stop();
+        }
       } finally {
         MDC.remove(LoggerTag.ACTIVITY_ID);
         MDC.remove(LoggerTag.ACTIVITY_TYPE);

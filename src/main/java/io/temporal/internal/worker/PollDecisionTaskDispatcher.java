@@ -19,7 +19,7 @@
 
 package io.temporal.internal.worker;
 
-import io.temporal.common.converter.GsonJsonDataConverter;
+import io.temporal.failure.FailureConverter;
 import io.temporal.proto.event.DecisionTaskFailedCause;
 import io.temporal.proto.workflowservice.PollForDecisionTaskResponse;
 import io.temporal.proto.workflowservice.RespondDecisionTaskFailedRequest;
@@ -66,17 +66,18 @@ public final class PollDecisionTaskDispatcher
     if (subscribers.containsKey(taskListName)) {
       subscribers.get(taskListName).accept(t);
     } else {
-      String message =
-          String.format(
-              "No handler is subscribed for the PollForDecisionTaskResponse.WorkflowExecutionTaskList %s",
-              taskListName);
+      Exception exception =
+          new Exception(
+              String.format(
+                  "No handler is subscribed for the PollForDecisionTaskResponse.WorkflowExecutionTaskList %s",
+                  taskListName));
       RespondDecisionTaskFailedRequest request =
           RespondDecisionTaskFailedRequest.newBuilder()
               .setTaskToken(t.getTaskToken())
               .setCause(DecisionTaskFailedCause.ResetStickyTasklist)
-              .setDetails(GsonJsonDataConverter.getInstance().toData(message).get())
+              .setFailure(FailureConverter.exceptionToFailure(exception))
               .build();
-      log.warn(message);
+      log.warn("unexpected", exception);
 
       try {
         service.blockingStub().respondDecisionTaskFailed(request);

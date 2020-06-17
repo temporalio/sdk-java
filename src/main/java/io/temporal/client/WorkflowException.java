@@ -19,46 +19,28 @@
 
 package io.temporal.client;
 
+import io.temporal.failure.TemporalException;
 import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.workflow.ChildWorkflowException;
+import java.util.Objects;
 import java.util.Optional;
 
-/**
- * Base exception for all workflow failures returned by an external client. Note that inside a
- * workflow implementation child workflows throw subclasses of {@link ChildWorkflowException}.
- */
-public class WorkflowException extends RuntimeException {
+/** Base exception for all workflow failures. */
+public abstract class WorkflowException extends TemporalException {
 
   private final WorkflowExecution execution;
   private final Optional<String> workflowType;
 
-  protected WorkflowException(
-      String message, WorkflowExecution execution, Optional<String> workflowType, Throwable cause) {
-    super(getMessage(message, execution, workflowType), cause);
-    this.execution = execution;
-    this.workflowType = workflowType;
+  protected WorkflowException(WorkflowExecution execution, String workflowType, Throwable cause) {
+    super(getMessage(execution, workflowType), cause);
+    this.execution = Objects.requireNonNull(execution);
+    this.workflowType = Optional.ofNullable(workflowType);
   }
 
-  private static String getMessage(
-      String message, WorkflowExecution execution, Optional<String> workflowType) {
-    StringBuilder result = new StringBuilder();
-    if (message != null) {
-      result.append(message);
-      result.append(", ");
-    }
-    if (workflowType.isPresent()) {
-      result.append("WorkflowType=\"");
-      result.append(workflowType.get());
-    }
-    if (execution != null) {
-      if (result.length() > 0) {
-        result.append("\", ");
-      }
-      result.append("WorkflowExecution=\"");
-      result.append(execution);
-      result.append("\"");
-    }
-    return result.toString();
+  protected WorkflowException(
+      String message, WorkflowExecution execution, String workflowType, Throwable cause) {
+    super(message, cause);
+    this.execution = Objects.requireNonNull(execution);
+    this.workflowType = Optional.ofNullable(workflowType);
   }
 
   public WorkflowExecution getExecution() {
@@ -67,5 +49,14 @@ public class WorkflowException extends RuntimeException {
 
   public Optional<String> getWorkflowType() {
     return workflowType;
+  }
+
+  public static String getMessage(WorkflowExecution execution, String workflowType) {
+    return "workflowId='"
+        + execution.getWorkflowId()
+        + "', runId='"
+        + execution.getRunId()
+        + (workflowType == null ? "" : "', workflowType='" + workflowType + '\'')
+        + '}';
   }
 }

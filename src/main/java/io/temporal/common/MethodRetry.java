@@ -20,6 +20,7 @@
 package io.temporal.common;
 
 import io.temporal.activity.ActivityOptions;
+import io.temporal.failure.ApplicationFailure;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -64,12 +65,8 @@ public @interface MethodRetry {
   long maximumIntervalSeconds() default 0;
 
   /**
-   * List of exceptions to retry. When matching an exact match is used. So adding
-   * RuntimeException.class to this list is going to include only RuntimeException itself, not all
-   * of its subclasses. The reason for such behaviour is to be able to support server side retries
-   * without knowledge of Java exception hierarchy. {@link Error} and {@link
-   * java.util.concurrent.CancellationException} are never retried, so they are not allowed in this
-   * list.
+   * List of failure types to not retry. The failure type of an exception is its full class name. It
+   * can be also explicitly specified by throwing an {@link ApplicationFailure}
    */
-  Class<? extends Throwable>[] doNotRetry() default {};
+  String[] doNotRetry() default {};
 }

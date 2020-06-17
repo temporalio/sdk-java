@@ -17,23 +17,20 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow;
+package io.temporal.internal.replay;
 
-import com.cronutils.utils.StringUtils;
-import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.GsonJsonDataConverter;
-import io.temporal.proto.common.SearchAttributes;
+import io.temporal.proto.failure.Failure;
 
-public class WorkflowUtils {
-  private static final DataConverter jsonConverter = GsonJsonDataConverter.getInstance();
+/** Framework level exception. Do not reference in application level code. */
+public class FailureWrapperException extends RuntimeException {
 
-  public static <T> T getValueFromSearchAttributes(
-      SearchAttributes searchAttributes, String key, Class<T> classType) {
-    if (searchAttributes == null || StringUtils.isEmpty(key)) {
-      return null;
-    }
-    return jsonConverter
-        .getPayloadConverter()
-        .fromData(searchAttributes.getIndexedFieldsOrThrow(key), classType, classType);
+  private final Failure failure;
+
+  public FailureWrapperException(Failure failure) {
+    this.failure = failure;
+  }
+
+  public Failure getFailure() {
+    return failure;
   }
 }

@@ -20,7 +20,6 @@
 package io.temporal.client;
 
 import io.temporal.proto.common.WorkflowExecution;
-import java.util.Optional;
 
 /**
  * This exception is thrown in the following cases:
@@ -50,10 +49,9 @@ import java.util.Optional;
  *   io.temporal.proto.common.WorkflowIdReusePolicy#AllowDuplicate}
  * </ul>
  */
-public final class DuplicateWorkflowException extends WorkflowException {
-
-  public DuplicateWorkflowException(
-      WorkflowExecution execution, String workflowType, String message) {
-    super(message, execution, Optional.of(workflowType), null);
+public final class WorkflowExecutionAlreadyStarted extends WorkflowException {
+  public WorkflowExecutionAlreadyStarted(
+      WorkflowExecution execution, String workflowType, Throwable cause) {
+    super(execution, workflowType, cause);
   }
 }

@@ -17,20 +17,18 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow;
+package io.temporal.failure;
 
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.common.WorkflowType;
+/** Exceptions originated at the Temporal service. */
+public final class ServerFailure extends TemporalFailure {
+  private final boolean nonRetryable;
 
-/**
- * Indicates that child workflow was forcefully terminated by an external command to Temporal
- * service.
- */
-@SuppressWarnings("serial")
-public final class ChildWorkflowTerminatedException extends ChildWorkflowException {
+  public ServerFailure(String message, boolean nonRetryable, Throwable cause) {
+    super(message, message, cause);
+    this.nonRetryable = nonRetryable;
+  }
 
-  public ChildWorkflowTerminatedException(
-      long eventId, WorkflowExecution workflowExecution, WorkflowType workflowType) {
-    super("Terminated", eventId, workflowExecution, workflowType);
+  public boolean isNonRetryable() {
+    return nonRetryable;
   }
 }

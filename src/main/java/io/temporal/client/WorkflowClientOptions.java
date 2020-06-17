@@ -21,7 +21,6 @@ package io.temporal.client;
 
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.GsonJsonDataConverter;
 import io.temporal.proto.query.QueryRejectCondition;
 import java.lang.management.ManagementFactory;
 import java.util.Arrays;
@@ -82,7 +81,7 @@ public final class WorkflowClientOptions {
      * Overrides a data converter implementation used serialize workflow and activity arguments and
      * results.
      *
-     * <p>Default is {@link GsonJsonDataConverter} data converter.
+     * <p>Default is {@link DataConverter#getDefaultInstance()}.
      */
     public Builder setDataConverter(DataConverter dataConverter) {
       this.dataConverter = Objects.requireNonNull(dataConverter);
@@ -155,7 +154,7 @@ public final class WorkflowClientOptions {
       }
       return new WorkflowClientOptions(
           namespace == null ? DEFAULT_NAMESPACE : namespace,
-          dataConverter == null ? GsonJsonDataConverter.getInstance() : dataConverter,
+          dataConverter == null ? DataConverter.getDefaultInstance() : dataConverter,
           interceptors == null ? EMPTY_INTERCEPTOR_ARRAY : interceptors,
           name,
           contextPropagators == null ? EMPTY_CONTEXT_PROPAGATORS : contextPropagators,

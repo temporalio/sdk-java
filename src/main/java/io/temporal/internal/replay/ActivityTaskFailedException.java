@@ -20,34 +20,42 @@
 package io.temporal.internal.replay;
 
 import io.temporal.proto.common.ActivityType;
-import io.temporal.proto.common.Payloads;
-import java.util.Optional;
+import io.temporal.proto.failure.Failure;
 
 /**
  * Internal. Do not catch or throw in application level code. Exception used to communicate failure
  * of remote activity. TODO: Make package level visibility.
  */
 @SuppressWarnings("serial")
-public class ActivityTaskFailedException extends RuntimeException {
+public class ActivityTaskFailedException extends FailureWrapperException {
 
+  private final long scheduledEventId;
+  private final long startedEventId;
   private final long eventId;
   private final ActivityType activityType;
   private final String activityId;
-  private final Optional<Payloads> details;
-  private final String reason;
 
   ActivityTaskFailedException(
       long eventId,
+      long scheduledEventId,
+      long startedEventId,
       ActivityType activityType,
       String activityId,
-      String reason,
-      Optional<Payloads> details) {
-    super(reason);
+      Failure failure) {
+    super(failure);
+    this.scheduledEventId = scheduledEventId;
+    this.startedEventId = startedEventId;
     this.eventId = eventId;
     this.activityType = activityType;
     this.activityId = activityId;
-    this.reason = reason;
-    this.details = details;
+  }
+
+  public long getScheduledEventId() {
+    return scheduledEventId;
+  }
+
+  public long getStartedEventId() {
+    return startedEventId;
   }
 
   public long getEventId() {
@@ -60,13 +68,5 @@ public class ActivityTaskFailedException extends RuntimeException {
 
   public String getActivityId() {
     return activityId;
-  }
-
-  public Optional<Payloads> getDetails() {
-    return details;
-  }
-
-  public String getReason() {
-    return reason;
   }
 }

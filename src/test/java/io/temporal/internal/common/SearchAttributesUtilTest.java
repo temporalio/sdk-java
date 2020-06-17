@@ -17,25 +17,25 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow;
+package io.temporal.internal.common;
 
 import static junit.framework.TestCase.assertEquals;
 
-import io.temporal.common.converter.GsonJsonDataConverter;
-import io.temporal.internal.common.InternalUtils;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.proto.common.SearchAttributes;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Test;
 
-public class WorkflowUtilsTest {
+public class SearchAttributesUtilTest {
 
   @Test
   public void TestGetValueFromSearchAttributes() {
-    assertEquals(null, WorkflowUtils.getValueFromSearchAttributes(null, "key", String.class));
+    assertEquals(
+        null, SearchAttributesUtil.getValueFromSearchAttributes(null, "key", String.class));
     assertEquals(
         null,
-        WorkflowUtils.getValueFromSearchAttributes(
+        SearchAttributesUtil.getValueFromSearchAttributes(
             SearchAttributes.getDefaultInstance(), "", String.class));
 
     Map<String, Object> attr = new HashMap<>();
@@ -48,24 +48,23 @@ public class WorkflowUtilsTest {
     Boolean boolVal = Boolean.TRUE;
     attr.put("CustomBooleanField", boolVal);
     SearchAttributes searchAttributes =
-        InternalUtils.convertMapToSearchAttributes(
-            attr, GsonJsonDataConverter.getInstance().getPayloadConverter());
+        InternalUtils.convertMapToSearchAttributes(attr, DataConverter.getDefaultInstance());
 
     assertEquals(
         stringVal,
-        WorkflowUtils.getValueFromSearchAttributes(
+        SearchAttributesUtil.getValueFromSearchAttributes(
             searchAttributes, "CustomKeywordField", String.class));
     assertEquals(
         intVal,
-        WorkflowUtils.getValueFromSearchAttributes(
+        SearchAttributesUtil.getValueFromSearchAttributes(
             searchAttributes, "CustomIntField", Integer.class));
     assertEquals(
         doubleVal,
-        WorkflowUtils.getValueFromSearchAttributes(
+        SearchAttributesUtil.getValueFromSearchAttributes(
             searchAttributes, "CustomDoubleField", Double.class));
     assertEquals(
         boolVal,
-        WorkflowUtils.getValueFromSearchAttributes(
+        SearchAttributesUtil.getValueFromSearchAttributes(
             searchAttributes, "CustomBooleanField", Boolean.class));
   }
 
@@ -75,15 +74,14 @@ public class WorkflowUtilsTest {
     String stringVal = "keyword";
     attr.put("CustomKeywordField", stringVal);
     SearchAttributes searchAttributes =
-        InternalUtils.convertMapToSearchAttributes(
-            attr, GsonJsonDataConverter.getInstance().getPayloadConverter());
+        InternalUtils.convertMapToSearchAttributes(attr, DataConverter.getDefaultInstance());
     assertEquals(
         stringVal,
-        WorkflowUtils.getValueFromSearchAttributes(
+        SearchAttributesUtil.getValueFromSearchAttributes(
             searchAttributes, "CustomKeywordField", String.class));
     assertEquals(
         stringVal,
-        WorkflowUtils.getValueFromSearchAttributes(
+        SearchAttributesUtil.getValueFromSearchAttributes(
             searchAttributes, "CustomKeywordField", String.class));
   }
 }

@@ -21,10 +21,10 @@ package io.temporal.internal.sync;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.temporal.client.DuplicateWorkflowException;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowException;
-import io.temporal.client.WorkflowFailureException;
+import io.temporal.client.WorkflowExecutionAlreadyStarted;
+import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowNotFoundException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowQueryException;
@@ -34,7 +34,8 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
-import io.temporal.common.converter.GsonJsonDataConverter;
+import io.temporal.failure.CanceledFailure;
+import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
 import io.temporal.internal.common.StartWorkflowExecutionParameters;
@@ -58,7 +59,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
@@ -105,7 +105,7 @@ class WorkflowStubImpl implements WorkflowStub {
   public void signal(String signalName, Object... input) {
     checkStarted();
     SignalExternalWorkflowParameters p = new SignalExternalWorkflowParameters();
-    p.setInput(clientOptions.getDataConverter().toData(input));
+    p.setInput(clientOptions.getDataConverter().toPayloads(input));
     p.setSignalName(signalName);
     p.setWorkflowId(execution.get().getWorkflowId());
     // TODO: Deal with signaling started workflow only, when requested
@@ -115,12 +115,12 @@ class WorkflowStubImpl implements WorkflowStub {
       genericClient.signalWorkflowExecution(p);
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
-        throw new WorkflowNotFoundException(execution.get(), workflowType, e.getMessage());
+        throw new WorkflowNotFoundException(execution.get(), workflowType.orElse(null));
       } else {
-        throw new WorkflowServiceException(execution.get(), workflowType, e);
+        throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), e);
       }
     } catch (Exception e) {
-      throw new WorkflowServiceException(execution.get(), workflowType, e);
+      throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), e);
     }
   }
 
@@ -138,12 +138,12 @@ class WorkflowStubImpl implements WorkflowStub {
                 .setRunId(f.getRunId())
                 .build();
         execution.set(exe);
-        throw new DuplicateWorkflowException(exe, workflowType.get(), e.getMessage());
+        throw new WorkflowExecutionAlreadyStarted(exe, workflowType.get(), e);
       } else {
         throw e;
       }
     } catch (Exception e) {
-      throw new WorkflowServiceException(execution.get(), workflowType, e);
+      throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), e);
     }
     return execution.get();
   }
@@ -151,9 +151,7 @@ class WorkflowStubImpl implements WorkflowStub {
   private StartWorkflowExecutionParameters getStartWorkflowExecutionParameters(
       WorkflowOptions o, Object[] args) {
     if (execution.get() != null) {
-      throw new DuplicateWorkflowException(
-          execution.get(),
-          workflowType.get(),
+      throw new IllegalStateException(
           "Cannot reuse a stub instance to start more than one workflow execution. The stub "
               + "points to already started execution. If you are trying to wait for a workflow completion either "
               + "change WorkflowIdReusePolicy from AllowDuplicate or use WorkflowStub.getResult");
@@ -164,7 +162,7 @@ class WorkflowStubImpl implements WorkflowStub {
     } else {
       p.setWorkflowId(o.getWorkflowId());
     }
-    p.setInput(clientOptions.getDataConverter().toData(args));
+    p.setInput(clientOptions.getDataConverter().toPayloads(args));
     p.setWorkflowType(WorkflowType.newBuilder().setName(workflowType.get()).build());
     p.setMemo(convertMemoFromObjectToBytes(o.getMemo()));
     p.setSearchAttributes(convertSearchAttributesFromObjectToBytes(o.getSearchAttributes()));
@@ -180,8 +178,7 @@ class WorkflowStubImpl implements WorkflowStub {
     Map<String, Payload> result = new HashMap<>();
     for (Map.Entry<String, Object> item : map.entrySet()) {
       try {
-        result.put(
-            item.getKey(), dataConverter.getPayloadConverter().toData(item.getValue()).get());
+        result.put(item.getKey(), dataConverter.toPayload(item.getValue()).get());
       } catch (DataConverterException e) {
         throw new DataConverterException("Cannot serialize key " + item.getKey(), e.getCause());
       }
@@ -194,7 +191,7 @@ class WorkflowStubImpl implements WorkflowStub {
   }
 
   private Map<String, Payload> convertSearchAttributesFromObjectToBytes(Map<String, Object> map) {
-    return convertMapFromObjectToBytes(map, GsonJsonDataConverter.getInstance());
+    return convertMapFromObjectToBytes(map, clientOptions.getDataConverter());
   }
 
   private Map<String, Payload> extractContextsAndConvertToBytes(
@@ -221,7 +218,7 @@ class WorkflowStubImpl implements WorkflowStub {
       WorkflowOptions options, String signalName, Object[] signalArgs, Object[] startArgs) {
     StartWorkflowExecutionParameters sp = getStartWorkflowExecutionParameters(options, startArgs);
 
-    Optional<Payloads> signalInput = clientOptions.getDataConverter().toData(signalArgs);
+    Optional<Payloads> signalInput = clientOptions.getDataConverter().toPayloads(signalArgs);
     SignalWithStartWorkflowExecutionParameters p =
         new SignalWithStartWorkflowExecutionParameters(sp, signalName, signalInput);
     try {
@@ -236,12 +233,12 @@ class WorkflowStubImpl implements WorkflowStub {
                 .setRunId(f.getRunId())
                 .build();
         execution.set(exe);
-        throw new DuplicateWorkflowException(exe, workflowType.get(), e.getMessage());
+        throw new WorkflowExecutionAlreadyStarted(exe, workflowType.get(), e);
       } else {
         throw e;
       }
     } catch (Exception e) {
-      throw new WorkflowServiceException(execution.get(), workflowType, e);
+      throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), e);
     }
     return execution.get();
   }
@@ -301,7 +298,7 @@ class WorkflowStubImpl implements WorkflowStub {
               timeout,
               unit,
               clientOptions.getDataConverter());
-      return clientOptions.getDataConverter().fromData(resultValue, resultClass, resultType);
+      return clientOptions.getDataConverter().fromPayloads(resultValue, resultClass, resultType);
     } catch (TimeoutException e) {
       throw e;
     } catch (Exception e) {
@@ -352,7 +349,7 @@ class WorkflowStubImpl implements WorkflowStub {
               if (r == null) {
                 return null;
               }
-              return clientOptions.getDataConverter().fromData(r, resultClass, resultType);
+              return clientOptions.getDataConverter().fromPayloads(r, resultClass, resultType);
             });
   }
 
@@ -362,38 +359,28 @@ class WorkflowStubImpl implements WorkflowStub {
     Class<Throwable> detailsClass;
     if (failure instanceof WorkflowExecutionFailedException) {
       WorkflowExecutionFailedException executionFailed = (WorkflowExecutionFailedException) failure;
-      try {
-        @SuppressWarnings("unchecked")
-        Class<Throwable> dc = (Class<Throwable>) Class.forName(executionFailed.getReason());
-        detailsClass = dc;
-      } catch (Exception e) {
-        RuntimeException ee =
-            new RuntimeException(
-                "Couldn't deserialize failure cause "
-                    + "as the reason field is expected to contain an exception class name",
-                executionFailed);
-        throw new WorkflowFailureException(
-            execution.get(), workflowType, executionFailed.getDecisionTaskCompletedEventId(), ee);
-      }
       Throwable cause =
-          clientOptions
-              .getDataConverter()
-              .fromData(executionFailed.getDetails(), detailsClass, detailsClass);
-      throw new WorkflowFailureException(
-          execution.get(), workflowType, executionFailed.getDecisionTaskCompletedEventId(), cause);
+          FailureConverter.failureToException(
+              executionFailed.getFailure(), clientOptions.getDataConverter());
+      throw new WorkflowFailedException(
+          execution.get(),
+          workflowType.orElse(null),
+          executionFailed.getDecisionTaskCompletedEventId(),
+          executionFailed.getRetryStatus(),
+          cause);
     } else if (failure instanceof StatusRuntimeException) {
       StatusRuntimeException sre = (StatusRuntimeException) failure;
       if (sre.getStatus().getCode() == Status.Code.NOT_FOUND) {
-        throw new WorkflowNotFoundException(execution.get(), workflowType, failure.getMessage());
+        throw new WorkflowNotFoundException(execution.get(), workflowType.orElse(null));
       } else {
-        throw new WorkflowServiceException(execution.get(), workflowType, failure);
+        throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), failure);
       }
-    } else if (failure instanceof CancellationException) {
-      throw (CancellationException) failure;
+    } else if (failure instanceof CanceledFailure) {
+      throw (CanceledFailure) failure;
     } else if (failure instanceof WorkflowException) {
       throw (WorkflowException) failure;
     } else {
-      throw new WorkflowServiceException(execution.get(), workflowType, failure);
+      throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), failure);
     }
   }
 
@@ -406,7 +393,7 @@ class WorkflowStubImpl implements WorkflowStub {
   public <R> R query(String queryType, Class<R> resultClass, Type resultType, Object... args) {
     checkStarted();
     QueryWorkflowParameters p = new QueryWorkflowParameters();
-    p.setInput(clientOptions.getDataConverter().toData(args));
+    p.setInput(clientOptions.getDataConverter().toPayloads(args));
     p.setQueryType(queryType);
     p.setWorkflowId(execution.get().getWorkflowId());
     p.setQueryRejectCondition(clientOptions.getQueryRejectCondition());
@@ -417,23 +404,25 @@ class WorkflowStubImpl implements WorkflowStub {
       result = genericClient.queryWorkflow(p);
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
-        throw new WorkflowNotFoundException(execution.get(), workflowType, e.getMessage());
+        throw new WorkflowNotFoundException(execution.get(), workflowType.orElse(null));
       } else if (StatusUtils.hasFailure(e, QueryFailedFailure.class)) {
-        throw new WorkflowQueryException(execution.get(), e.getMessage());
+        throw new WorkflowQueryException(execution.get(), workflowType.orElse(null), e);
       }
-      throw new WorkflowServiceException(execution.get(), workflowType, e);
+      throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), e);
     } catch (Exception e) {
-      throw new WorkflowServiceException(execution.get(), workflowType, e);
+      throw new WorkflowServiceException(execution.get(), workflowType.orElse(null), e);
     }
     if (!result.hasQueryRejected()) {
       Optional<Payloads> queryResult =
           result.hasQueryResult() ? Optional.of(result.getQueryResult()) : Optional.empty();
-      return clientOptions.getDataConverter().fromData(queryResult, resultClass, resultType);
+      return clientOptions.getDataConverter().fromPayloads(queryResult, resultClass, resultType);
     } else {
       throw new WorkflowQueryRejectedException(
           execution.get(),
+          workflowType.orElse(null),
           clientOptions.getQueryRejectCondition(),
-          result.getQueryRejected().getStatus());
+          result.getQueryRejected().getStatus(),
+          null);
     }
   }
 

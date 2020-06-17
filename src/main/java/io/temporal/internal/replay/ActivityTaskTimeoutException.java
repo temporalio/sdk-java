@@ -20,19 +20,23 @@
 package io.temporal.internal.replay;
 
 import io.temporal.proto.common.ActivityType;
-import io.temporal.proto.common.Payloads;
-import io.temporal.proto.common.TimeoutType;
-import java.util.Optional;
+import io.temporal.proto.common.RetryStatus;
+import io.temporal.proto.failure.Failure;
 
-/** Exception that indicates Activity time out. */
+/**
+ * Internal. Do not catch or throw in application level code. Exception that indicates Activity time
+ * out.
+ */
 @SuppressWarnings("serial")
 public final class ActivityTaskTimeoutException extends RuntimeException {
 
+  private final long scheduledEventId;
+  private final long startedEventId;
   private final long eventId;
 
-  private final TimeoutType timeoutType;
+  private final RetryStatus retryStatus;
 
-  private final Optional<Payloads> details;
+  private final Failure failure;
 
   private final ActivityType activityType;
 
@@ -40,29 +44,39 @@ public final class ActivityTaskTimeoutException extends RuntimeException {
 
   ActivityTaskTimeoutException(
       long eventId,
+      long scheduledEventId,
+      long startedEventId,
       ActivityType activityType,
       String activityId,
-      TimeoutType timeoutType,
-      Optional<Payloads> details) {
-    super(String.valueOf(timeoutType));
+      RetryStatus retryStatus,
+      Failure failure) {
+    this.scheduledEventId = scheduledEventId;
+    this.startedEventId = startedEventId;
     this.eventId = eventId;
     this.activityType = activityType;
     this.activityId = activityId;
-    this.timeoutType = timeoutType;
-    this.details = details;
+    this.retryStatus = retryStatus;
+    this.failure = failure;
   }
 
-  /** @return The value from the last activity heartbeat details field. */
-  public Optional<Payloads> getDetails() {
-    return details;
+  public Failure getFailure() {
+    return failure;
+  }
+
+  public long getScheduledEventId() {
+    return scheduledEventId;
+  }
+
+  public long getStartedEventId() {
+    return startedEventId;
   }
 
   public long getEventId() {
     return eventId;
   }
 
-  public TimeoutType getTimeoutType() {
-    return timeoutType;
+  public RetryStatus getRetryStatus() {
+    return retryStatus;
   }
 
   public ActivityType getActivityType() {

@@ -22,6 +22,7 @@ package io.temporal.internal.common;
 import static io.temporal.internal.common.CheckedExceptionWrapper.unwrap;
 
 import io.temporal.common.RetryOptions;
+import io.temporal.failure.ApplicationFailure;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -103,8 +104,14 @@ public final class Retryer {
       } catch (Exception e) {
         throttler.failure();
         if (options.getDoNotRetry() != null) {
-          for (Class<?> exceptionToNotRetry : options.getDoNotRetry()) {
-            if (exceptionToNotRetry.isAssignableFrom(e.getClass())) {
+          String type;
+          if (e instanceof ApplicationFailure) {
+            type = ((ApplicationFailure) e).getType();
+          } else {
+            type = e.getClass().getName();
+          }
+          for (String exceptionToNotRetry : options.getDoNotRetry()) {
+            if (exceptionToNotRetry.equals(type)) {
               rethrow(e);
             }
           }
@@ -221,11 +228,17 @@ public final class Retryer {
     if (e instanceof Error) {
       return new ValueExceptionPair<>(null, e);
     }
-    e = unwrap((Exception) e);
+    e = unwrap(e);
     long elapsed = System.currentTimeMillis() - startTime;
     if (options.getDoNotRetry() != null) {
-      for (Class<?> exceptionToNotRetry : options.getDoNotRetry()) {
-        if (exceptionToNotRetry.isAssignableFrom(e.getClass())) {
+      String type;
+      if (e instanceof ApplicationFailure) {
+        type = ((ApplicationFailure) e).getType();
+      } else {
+        type = e.getClass().getName();
+      }
+      for (String exceptionToNotRetry : options.getDoNotRetry()) {
+        if (exceptionToNotRetry.equals(type)) {
           return new ValueExceptionPair<>(null, e);
         }
       }

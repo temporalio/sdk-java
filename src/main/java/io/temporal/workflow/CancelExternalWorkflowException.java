@@ -19,32 +19,31 @@
 
 package io.temporal.workflow;
 
+import io.temporal.client.WorkflowException;
 import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.event.WorkflowExecutionFailedCause;
 
 /**
- * Exception used to communicate failure of a request to signal an external workflow. TODO: Hook it
- * up with RequestCancelExternalWorkflowExecutionFailed and WorkflowExecutionCancelRequested
+ * Exception used to communicate failure of a request to cancel an external workflow.
+ *
+ * <p>TODO: Hook it up with RequestCancelExternalWorkflowExecutionFailed and
+ * WorkflowExecutionCancelRequested
  */
 @SuppressWarnings("serial")
-public final class CancelExternalWorkflowException extends WorkflowOperationException {
+public final class CancelExternalWorkflowException extends WorkflowException {
 
-  private WorkflowExecutionFailedCause failureCause;
-
-  private WorkflowExecution signaledExecution;
-
-  public CancelExternalWorkflowException(
-      long eventId, WorkflowExecution signaledExecution, WorkflowExecutionFailedCause cause) {
-    super(cause + " for signaledExecution=\"" + signaledExecution, eventId);
-    this.signaledExecution = signaledExecution;
-    this.failureCause = cause;
+  protected CancelExternalWorkflowException(
+      WorkflowExecution execution, String workflowType, Throwable cause) {
+    super(execution, workflowType, cause);
   }
 
-  public WorkflowExecutionFailedCause getFailureCause() {
-    return failureCause;
-  }
-
-  public WorkflowExecution getSignaledExecution() {
-    return signaledExecution;
+  @Override
+  public String toString() {
+    return "CancelExternalWorkflowException{"
+        + "execution="
+        + getExecution()
+        + ", workflowType='"
+        + getWorkflowType()
+        + '\''
+        + '}';
   }
 }

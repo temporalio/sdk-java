@@ -32,12 +32,17 @@ import io.grpc.stub.StreamObserver;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
+import io.temporal.common.converter.EncodedValue;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
+import io.temporal.failure.ActivityFailure;
+import io.temporal.failure.CanceledFailure;
+import io.temporal.failure.FailureConverter;
 import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.Payloads;
+import io.temporal.proto.common.RetryStatus;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.proto.workflowservice.RecordActivityTaskHeartbeatRequest;
@@ -50,7 +55,6 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestActivityEnvironment;
 import io.temporal.testing.TestEnvironmentOptions;
-import io.temporal.workflow.ActivityFailureException;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.Functions;
@@ -68,7 +72,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -137,7 +140,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
               testEnvironmentOptions
                   .getWorkflowClientOptions()
                   .getDataConverter()
-                  .fromData(
+                  .fromPayloads(
                       requestDetails,
                       activityHeartbetListener.valueClass,
                       activityHeartbetListener.valueType);
@@ -230,7 +233,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         Object[] args,
         ActivityOptions options) {
       Optional<Payloads> input =
-          testEnvironmentOptions.getWorkflowClientOptions().getDataConverter().toData(args);
+          testEnvironmentOptions.getWorkflowClientOptions().getDataConverter().toPayloads(args);
       PollForActivityTaskResponse.Builder taskBuilder =
           PollForActivityTaskResponse.newBuilder()
               .setScheduleToCloseTimeoutSeconds(
@@ -373,37 +376,34 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         return testEnvironmentOptions
             .getWorkflowClientOptions()
             .getDataConverter()
-            .fromData(result, resultClass, resultType);
+            .fromPayloads(result, resultClass, resultType);
       } else {
         RespondActivityTaskFailedRequest taskFailed =
             response.getTaskFailed().getTaskFailedRequest();
         if (taskFailed != null) {
-          String causeClassName = taskFailed.getReason();
-          Class<? extends Exception> causeClass;
-          Exception cause;
-          try {
-            @SuppressWarnings("unchecked") // cc is just to have a place to put this annotation
-            Class<? extends Exception> cc =
-                (Class<? extends Exception>) Class.forName(causeClassName);
-            causeClass = cc;
-            Optional<Payloads> details =
-                taskFailed.hasDetails() ? Optional.of(taskFailed.getDetails()) : Optional.empty();
-            cause =
-                testEnvironmentOptions
-                    .getWorkflowClientOptions()
-                    .getDataConverter()
-                    .fromData(details, causeClass, causeClass);
-          } catch (Exception e) {
-            cause = e;
-          }
-          throw new ActivityFailureException(
-              0, task.getActivityType(), task.getActivityId(), cause);
-
+          Exception cause =
+              FailureConverter.failureToException(
+                  taskFailed.getFailure(),
+                  testEnvironmentOptions.getWorkflowClientOptions().getDataConverter());
+          throw new ActivityFailure(
+              0,
+              0,
+              task.getActivityType().getName(),
+              task.getActivityId(),
+              RetryStatus.NonRetryableFailure,
+              "TestActivityEnvironment",
+              cause);
         } else {
           RespondActivityTaskCanceledRequest taskCancelled = response.getTaskCancelled();
           if (taskCancelled != null) {
-            throw new CancellationException(
-                new String(taskCancelled.getDetails().toByteArray(), StandardCharsets.UTF_8));
+            throw new CanceledFailure(
+                "canceled",
+                new EncodedValue(
+                    taskCancelled.hasDetails()
+                        ? Optional.of(taskCancelled.getDetails())
+                        : Optional.empty(),
+                    testEnvironmentOptions.getWorkflowClientOptions().getDataConverter()),
+                null);
           }
         }
       }

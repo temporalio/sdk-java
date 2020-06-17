@@ -23,7 +23,6 @@ import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import java.lang.reflect.Method;
 import java.time.Duration;
-import java.util.Arrays;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -34,7 +33,7 @@ public class ActivityOptionsTest {
       backoffCoefficient = 1.97,
       maximumAttempts = 234567,
       maximumIntervalSeconds = 22,
-      doNotRetry = {NullPointerException.class, UnsupportedOperationException.class})
+      doNotRetry = {"java.lang.NullPointerException", "java.lang.UnsupportedOperationException"})
   public void activityAndRetryOptions() {}
 
   @Test
@@ -52,6 +51,6 @@ public class ActivityOptionsTest {
         Duration.ofSeconds(r.initialIntervalSeconds()), rMerged.getInitialInterval());
     Assert.assertEquals(
         Duration.ofSeconds(r.maximumIntervalSeconds()), rMerged.getMaximumInterval());
-    Assert.assertEquals(Arrays.asList(r.doNotRetry()), rMerged.getDoNotRetry());
+    Assert.assertArrayEquals(r.doNotRetry(), rMerged.getDoNotRetry());
   }
 }

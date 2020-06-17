@@ -21,12 +21,11 @@ package io.temporal.internal.replay;
 
 import static junit.framework.TestCase.assertEquals;
 
-import io.temporal.common.converter.GsonJsonDataConverter;
-import io.temporal.common.converter.PayloadConverter;
+import io.temporal.common.converter.DataConverter;
+import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.proto.common.Payload;
 import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.event.WorkflowExecutionStartedEventAttributes;
-import io.temporal.workflow.WorkflowUtils;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Test;
@@ -39,9 +38,9 @@ public class WorkflowContextTest {
         WorkflowExecutionStartedEventAttributes.getDefaultInstance();
     WorkflowContext workflowContext = new WorkflowContext("namespace", null, startAttr, 0, null);
 
-    PayloadConverter converter = GsonJsonDataConverter.getInstance().getPayloadConverter();
+    DataConverter converter = DataConverter.getDefaultInstance();
     Map<String, Payload> indexedFields = new HashMap<>();
-    indexedFields.put("CustomKeywordField", converter.toData("key").get());
+    indexedFields.put("CustomKeywordField", converter.toPayload("key").get());
 
     SearchAttributes searchAttributes =
         SearchAttributes.newBuilder().putAllIndexedFields(indexedFields).build();
@@ -50,7 +49,7 @@ public class WorkflowContextTest {
 
     assertEquals(
         "key",
-        WorkflowUtils.getValueFromSearchAttributes(
+        SearchAttributesUtil.getValueFromSearchAttributes(
             workflowContext.getSearchAttributes(), "CustomKeywordField", String.class));
   }
 }

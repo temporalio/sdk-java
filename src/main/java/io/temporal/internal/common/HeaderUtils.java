@@ -17,24 +17,24 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow;
+package io.temporal.internal.common;
 
-import io.temporal.proto.common.WorkflowExecution;
-import io.temporal.proto.common.WorkflowType;
+import io.temporal.proto.common.Header;
+import io.temporal.proto.common.Payload;
+import java.util.Map;
 
-/**
- * Indicates that a child workflow failed. An original cause of the child workflow failure can be
- * retrieved through {@link #getCause()}.
- */
-@SuppressWarnings("serial")
-public final class ChildWorkflowFailureException extends ChildWorkflowException {
+public class HeaderUtils {
 
-  public ChildWorkflowFailureException(
-      long eventId,
-      WorkflowExecution workflowExecution,
-      WorkflowType workflowType,
-      Throwable cause) {
-    super(cause.getMessage(), eventId, workflowExecution, workflowType);
-    initCause(cause);
+  public static Header toHeaderGrpc(Map<String, Payload> headers) {
+    if (headers == null || headers.isEmpty()) {
+      return null;
+    }
+    Header.Builder builder = Header.newBuilder();
+    for (Map.Entry<String, Payload> item : headers.entrySet()) {
+      builder.putFields(item.getKey(), item.getValue());
+    }
+    return builder.build();
   }
+
+  private HeaderUtils() {}
 }

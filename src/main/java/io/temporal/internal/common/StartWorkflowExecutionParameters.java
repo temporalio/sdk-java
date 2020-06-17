@@ -348,14 +348,14 @@ public final class StartWorkflowExecutionParameters {
       rp.setInitialIntervalInSeconds(roundUpToSeconds(retryOptions.getInitialInterval()));
       rp.setMaximumIntervalInSeconds(roundUpToSeconds(retryOptions.getMaximumInterval()));
       rp.setMaximumAttempts(retryOptions.getMaximumAttempts());
-      List<String> reasons = new ArrayList<>();
+      List<String> types = new ArrayList<>();
       // Use exception type name as the reason
-      List<Class<? extends Throwable>> doNotRetry = retryOptions.getDoNotRetry();
+      String[] doNotRetry = retryOptions.getDoNotRetry();
       if (doNotRetry != null) {
-        for (Class<? extends Throwable> r : doNotRetry) {
-          reasons.add(r.getName());
+        for (String r : doNotRetry) {
+          types.add(r);
         }
-        rp.setNonRetriableErrorTypes(reasons);
+        rp.setNonRetriableErrorTypes(types);
       }
       parameters.setRetryParameters(rp);
     }

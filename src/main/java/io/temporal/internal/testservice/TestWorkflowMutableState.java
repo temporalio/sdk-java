@@ -28,8 +28,8 @@ import io.temporal.proto.event.ChildWorkflowExecutionFailedEventAttributes;
 import io.temporal.proto.event.ChildWorkflowExecutionStartedEventAttributes;
 import io.temporal.proto.event.ChildWorkflowExecutionTimedOutEventAttributes;
 import io.temporal.proto.event.ExternalWorkflowExecutionCancelRequestedEventAttributes;
+import io.temporal.proto.event.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.proto.event.StartChildWorkflowExecutionFailedEventAttributes;
-import io.temporal.proto.event.WorkflowExecutionFailedCause;
 import io.temporal.proto.execution.WorkflowExecutionStatus;
 import io.temporal.proto.workflowservice.PollForActivityTaskRequest;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponseOrBuilder;
@@ -68,7 +68,8 @@ interface TestWorkflowMutableState {
 
   void completeSignalExternalWorkflowExecution(String signalId, String runId);
 
-  void failSignalExternalWorkflowExecution(String signalId, WorkflowExecutionFailedCause cause);
+  void failSignalExternalWorkflowExecution(
+      String signalId, SignalExternalWorkflowExecutionFailedCause cause);
 
   void failDecisionTask(RespondDecisionTaskFailedRequest request);
 

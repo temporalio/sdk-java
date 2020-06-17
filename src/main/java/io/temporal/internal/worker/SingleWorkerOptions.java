@@ -22,7 +22,6 @@ package io.temporal.internal.worker;
 import com.uber.m3.tally.Scope;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.GsonJsonDataConverter;
 import io.temporal.internal.metrics.NoopScope;
 import java.time.Duration;
 import java.util.List;
@@ -109,7 +108,7 @@ public final class SingleWorkerOptions {
       }
 
       if (dataConverter == null) {
-        dataConverter = GsonJsonDataConverter.getInstance();
+        dataConverter = DataConverter.getDefaultInstance();
       }
 
       if (metricsScope == null) {

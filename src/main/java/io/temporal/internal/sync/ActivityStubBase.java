@@ -20,7 +20,7 @@
 package io.temporal.internal.sync;
 
 import com.google.common.base.Defaults;
-import io.temporal.workflow.ActivityException;
+import io.temporal.failure.ActivityFailure;
 import io.temporal.workflow.ActivityStub;
 import io.temporal.workflow.Promise;
 import java.lang.reflect.Type;
@@ -42,7 +42,7 @@ abstract class ActivityStubBase implements ActivityStub {
     }
     try {
       return result.get();
-    } catch (ActivityException e) {
+    } catch (ActivityFailure e) {
       // Reset stack to the current one. Otherwise it is very confusing to see a stack of
       // an event handling method.
       StackTraceElement[] currentStackTrace = Thread.currentThread().getStackTrace();

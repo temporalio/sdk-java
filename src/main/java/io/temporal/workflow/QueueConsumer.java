@@ -37,7 +37,7 @@ public interface QueueConsumer<E> {
    * available.
    *
    * @return the head of this queue
-   * @throws java.util.concurrent.CancellationException if surrounding @{@link CancellationScope} is
+   * @throws io.temporal.failure.CanceledFailure if surrounding @{@link CancellationScope} is
    *     cancelled while waiting
    */
   E cancellableTake();
@@ -78,7 +78,7 @@ public interface QueueConsumer<E> {
    * @param unit a {@code TimeUnit} determining how to interpret the {@code timeout} parameter
    * @return the head of this queue, or {@code null} if the specified waiting time elapses before an
    *     element is available
-   * @throws java.util.concurrent.CancellationException if surrounding @{@link CancellationScope} is
+   * @throws io.temporal.failure.CanceledFailure if surrounding @{@link CancellationScope} is
    *     cancelled while waiting
    */
   E cancellablePoll(long timeout, TimeUnit unit);

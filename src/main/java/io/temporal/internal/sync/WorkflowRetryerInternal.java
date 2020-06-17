@@ -20,7 +20,6 @@
 package io.temporal.internal.sync;
 
 import io.temporal.common.RetryOptions;
-import io.temporal.workflow.ActivityFailureException;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Promise;
@@ -34,6 +33,54 @@ import java.util.Optional;
  * Functions.Func)} or Async{@link #retry(RetryOptions, Optional, Functions.Proc)}.
  */
 final class WorkflowRetryerInternal {
+
+  /** This class is needed as Jackson is not capable to serialize RetryOptions as they are. */
+  static class SerializableRetryOptions {
+    private long initialIntervalMillis;
+
+    private double backoffCoefficient;
+
+    private int maximumAttempts;
+
+    private long maximumIntervalMillis;
+
+    private String[] doNotRetry;
+
+    public SerializableRetryOptions() {}
+
+    public SerializableRetryOptions(
+        long initialIntervalMillis,
+        double backoffCoefficient,
+        int maximumAttempts,
+        long maximumIntervalMillis,
+        String[] doNotRetry) {
+      this.initialIntervalMillis = initialIntervalMillis;
+      this.backoffCoefficient = backoffCoefficient;
+      this.maximumAttempts = maximumAttempts;
+      this.maximumIntervalMillis = maximumIntervalMillis;
+      this.doNotRetry = doNotRetry;
+    }
+
+    public long getInitialIntervalMillis() {
+      return initialIntervalMillis;
+    }
+
+    public double getBackoffCoefficient() {
+      return backoffCoefficient;
+    }
+
+    public int getMaximumAttempts() {
+      return maximumAttempts;
+    }
+
+    public long getMaximumIntervalMillis() {
+      return maximumIntervalMillis;
+    }
+
+    public String[] getDoNotRetry() {
+      return doNotRetry;
+    }
+  }
 
   /**
    * Retry procedure synchronously.
@@ -70,13 +117,7 @@ final class WorkflowRetryerInternal {
     long startTime = WorkflowInternal.currentTimeMillis();
     // Records retry options in the history allowing changing them without breaking determinism.
     String retryId = WorkflowInternal.randomUUID().toString();
-    RetryOptions retryOptions =
-        WorkflowInternal.mutableSideEffect(
-            retryId,
-            RetryOptions.class,
-            RetryOptions.class,
-            Object::equals,
-            () -> RetryOptions.newBuilder(options).validateBuildWithDefaults());
+    RetryOptions retryOptions = getRetryOptionsSideEffect(retryId, options);
     while (true) {
       long nextSleepTime = retryOptions.calculateSleepTime(attempt);
       try {
@@ -114,13 +155,7 @@ final class WorkflowRetryerInternal {
       Functions.Func<Promise<R>> func,
       long startTime,
       long attempt) {
-    RetryOptions retryOptions =
-        WorkflowInternal.mutableSideEffect(
-            retryId,
-            RetryOptions.class,
-            RetryOptions.class,
-            Object::equals,
-            () -> RetryOptions.newBuilder(options).validateBuildWithDefaults());
+    RetryOptions retryOptions = getRetryOptionsSideEffect(retryId, options);
 
     CompletablePromise<R> funcResult = WorkflowInternal.newCompletablePromise();
     try {
@@ -150,6 +185,39 @@ final class WorkflowRetryerInternal {
         .thenCompose((r) -> r);
   }
 
+  private static RetryOptions getRetryOptionsSideEffect(String retryId, RetryOptions options) {
+    options = RetryOptions.newBuilder(options).validateBuildWithDefaults();
+    SerializableRetryOptions sOptions =
+        new SerializableRetryOptions(
+            options.getInitialInterval().toMillis(),
+            options.getBackoffCoefficient(),
+            options.getMaximumAttempts(),
+            options.getMaximumInterval().toMillis(),
+            options.getDoNotRetry());
+    SerializableRetryOptions sRetryOptions =
+        WorkflowInternal.mutableSideEffect(
+            retryId,
+            SerializableRetryOptions.class,
+            SerializableRetryOptions.class,
+            Object::equals,
+            () -> sOptions);
+    RetryOptions.Builder result =
+        RetryOptions.newBuilder()
+            .setBackoffCoefficient(sRetryOptions.getBackoffCoefficient())
+            .setInitialInterval(Duration.ofMillis(sRetryOptions.getInitialIntervalMillis()))
+            .setDoNotRetry(sRetryOptions.getDoNotRetry());
+    if (sRetryOptions.getMaximumIntervalMillis() > 0) {
+      result.setMaximumInterval(Duration.ofMillis(sRetryOptions.getMaximumIntervalMillis()));
+    }
+    if (sRetryOptions.getInitialIntervalMillis() > 0) {
+      result.setInitialInterval(Duration.ofMillis(sRetryOptions.getInitialIntervalMillis()));
+    }
+    if (sRetryOptions.getMaximumAttempts() > 0) {
+      result.setMaximumAttempts(sRetryOptions.getMaximumAttempts());
+    }
+    return result.build();
+  }
+
   static <R> Promise<R> retryAsync(
       Functions.Func2<Integer, Long, Promise<R>> func, int attempt, long startTime) {
 
@@ -166,22 +234,7 @@ final class WorkflowRetryerInternal {
               if (e == null) {
                 return WorkflowInternal.newPromise(r);
               }
-
-              if (!(e instanceof ActivityFailureException)) {
-                throw e;
-              }
-
-              ActivityFailureException afe = (ActivityFailureException) e;
-
-              if (afe.getBackoff() == null) {
-                throw e;
-              }
-
-              // newTimer runs in a separate thread, so it performs trampolining eliminating tail
-              // recursion.
-              long nextStart = WorkflowInternal.currentTimeMillis() + afe.getBackoff().toMillis();
-              return WorkflowInternal.newTimer(afe.getBackoff())
-                  .thenCompose((nil) -> retryAsync(func, afe.getAttempt() + 1, nextStart));
+              throw e;
             })
         .thenCompose((r) -> r);
   }

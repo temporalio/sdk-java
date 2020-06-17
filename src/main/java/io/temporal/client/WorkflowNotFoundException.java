@@ -20,7 +20,6 @@
 package io.temporal.client;
 
 import io.temporal.proto.common.WorkflowExecution;
-import java.util.Optional;
 
 /**
  * Thrown when workflow with the given id is not known to the Temporal service. It could be because
@@ -28,8 +27,7 @@ import java.util.Optional;
  */
 public final class WorkflowNotFoundException extends WorkflowException {
 
-  public WorkflowNotFoundException(
-      WorkflowExecution execution, Optional<String> workflowType, String message) {
-    super(message, execution, workflowType, null);
+  public WorkflowNotFoundException(WorkflowExecution execution, String workflowType) {
+    super(execution, workflowType, null);
   }
 }

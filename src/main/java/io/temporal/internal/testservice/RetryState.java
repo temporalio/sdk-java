@@ -21,10 +21,35 @@ package io.temporal.internal.testservice;
 
 import io.grpc.Status;
 import io.temporal.proto.common.RetryPolicy;
+import io.temporal.proto.common.RetryStatus;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 final class RetryState {
+
+  static class BackoffInterval {
+    private final int intervalSeconds;
+    private final RetryStatus retryStatus;
+
+    BackoffInterval(int intervalSeconds) {
+      this.intervalSeconds = intervalSeconds;
+      this.retryStatus = RetryStatus.InProgress;
+    }
+
+    BackoffInterval(RetryStatus retryStatus) {
+      this.intervalSeconds = -1;
+      this.retryStatus = retryStatus;
+    }
+
+    public int getIntervalSeconds() {
+      return intervalSeconds;
+    }
+
+    public RetryStatus getRetryStatus() {
+      return retryStatus;
+    }
+  }
 
   private final RetryPolicy retryPolicy;
   private final long expirationTime;
@@ -56,18 +81,28 @@ final class RetryState {
     return new RetryState(retryPolicy, expirationTime, attempt + 1);
   }
 
-  int getBackoffIntervalInSeconds(String errReason, long currentTimeMillis) {
+  BackoffInterval getBackoffIntervalInSeconds(Optional<String> errorType, long currentTimeMillis) {
     RetryPolicy retryPolicy = getRetryPolicy();
+    // check if error is non-retriable
+    List<String> nonRetryableErrorTypes = retryPolicy.getNonRetryableErrorTypesList();
+    if (nonRetryableErrorTypes != null && errorType.isPresent()) {
+      String type = errorType.get();
+      for (String err : nonRetryableErrorTypes) {
+        if (type.equals(err)) {
+          return new BackoffInterval(RetryStatus.NonRetryableFailure);
+        }
+      }
+    }
     long expirationTime = getExpirationTime();
     if (retryPolicy.getMaximumAttempts() == 0 && expirationTime == 0) {
-      return 0;
+      return new BackoffInterval(RetryStatus.RetryPolicyNotSet);
     }
 
     if (retryPolicy.getMaximumAttempts() > 0
         && getAttempt() >= retryPolicy.getMaximumAttempts() - 1) {
       // currAttempt starts from 0.
       // MaximumAttempts is the total attempts, including initial (non-retry) attempt.
-      return 0;
+      return new BackoffInterval(RetryStatus.MaximumAttemptsReached);
     }
     long initInterval = TimeUnit.SECONDS.toMillis(retryPolicy.getInitialIntervalInSeconds());
     long nextInterval =
@@ -78,7 +113,7 @@ final class RetryState {
       if (maxInterval > 0) {
         nextInterval = maxInterval;
       } else {
-        return 0;
+        return new BackoffInterval(RetryStatus.Timeout);
       }
     }
 
@@ -90,19 +125,10 @@ final class RetryState {
     long backoffInterval = nextInterval;
     long nextScheduleTime = currentTimeMillis + backoffInterval;
     if (expirationTime != 0 && nextScheduleTime > expirationTime) {
-      return 0;
+      return new BackoffInterval(RetryStatus.Timeout);
     }
-
-    // check if error is non-retriable
-    List<String> nonRetriableErrorReasons = retryPolicy.getNonRetryableErrorTypesList();
-    if (nonRetriableErrorReasons != null) {
-      for (String err : nonRetriableErrorReasons) {
-        if (errReason.equals(err)) {
-          return 0;
-        }
-      }
-    }
-    return (int) TimeUnit.MILLISECONDS.toSeconds((long) Math.ceil((double) backoffInterval));
+    int result = (int) TimeUnit.MILLISECONDS.toSeconds((long) Math.ceil((double) backoffInterval));
+    return new BackoffInterval(result);
   }
 
   static RetryPolicy valiateAndOverrideRetryPolicy(RetryPolicy p) {

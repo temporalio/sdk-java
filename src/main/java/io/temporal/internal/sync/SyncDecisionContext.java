@@ -21,15 +21,20 @@ package io.temporal.internal.sync;
 
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
+import io.temporal.client.WorkflowException;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.interceptors.WorkflowCallsInterceptor;
+import io.temporal.failure.ActivityFailure;
+import io.temporal.failure.CanceledFailure;
+import io.temporal.failure.ChildWorkflowFailure;
+import io.temporal.failure.FailureConverter;
+import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.RetryParameters;
 import io.temporal.internal.metrics.MetricsType;
@@ -45,17 +50,12 @@ import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
 import io.temporal.proto.common.ActivityType;
 import io.temporal.proto.common.Payload;
 import io.temporal.proto.common.Payloads;
+import io.temporal.proto.common.RetryStatus;
 import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.common.WorkflowExecution;
 import io.temporal.proto.common.WorkflowType;
-import io.temporal.workflow.ActivityException;
-import io.temporal.workflow.ActivityFailureException;
-import io.temporal.workflow.ActivityTimeoutException;
 import io.temporal.workflow.CancellationScope;
-import io.temporal.workflow.ChildWorkflowException;
-import io.temporal.workflow.ChildWorkflowFailureException;
 import io.temporal.workflow.ChildWorkflowOptions;
-import io.temporal.workflow.ChildWorkflowTimedOutException;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.Functions;
@@ -73,7 +73,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
@@ -162,12 +161,12 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
       Type resultType,
       Object[] args,
       ActivityOptions options) {
-    Optional<Payloads> input = converter.toData(args);
+    Optional<Payloads> input = converter.toPayloads(args);
     Promise<Optional<Payloads>> binaryResult = executeActivityOnce(activityName, options, input);
     if (returnClass == Void.TYPE) {
       return binaryResult.thenApply((r) -> null);
     }
-    return binaryResult.thenApply((r) -> converter.fromData(r, returnClass, resultType));
+    return binaryResult.thenApply((r) -> converter.fromPayloads(r, returnClass, resultType));
   }
 
   private Promise<Optional<Payloads>> executeActivityOnce(
@@ -180,7 +179,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
         .getCancellationRequest()
         .thenApply(
             (reason) -> {
-              cancellationCallback.accept(new CancellationException(reason));
+              cancellationCallback.accept(new CanceledFailure(reason));
               return null;
             });
     return callback.result;
@@ -205,58 +204,38 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     if (failure == null) {
       return null;
     }
-    if (failure instanceof CancellationException) {
-      return (CancellationException) failure;
+    if (failure instanceof TemporalFailure) {
+      ((TemporalFailure) failure).setDataConverter(getDataConverter());
+    }
+    if (failure instanceof CanceledFailure) {
+      return (CanceledFailure) failure;
     }
     if (failure instanceof ActivityTaskFailedException) {
       ActivityTaskFailedException taskFailed = (ActivityTaskFailedException) failure;
-      String causeClassName = taskFailed.getReason();
-      Class<? extends Exception> causeClass;
-      Exception cause;
-      try {
-        @SuppressWarnings("unchecked") // cc is just to have a place to put this annotation
-        Class<? extends Exception> cc = (Class<? extends Exception>) Class.forName(causeClassName);
-        causeClass = cc;
-        cause = getDataConverter().fromData(taskFailed.getDetails(), causeClass, causeClass);
-      } catch (Exception e) {
-        cause = e;
-      }
-      if (cause instanceof SimulatedTimeoutExceptionInternal) {
-        // This exception is thrown only in unit tests to mock the activity timeouts
-        SimulatedTimeoutExceptionInternal testTimeout = (SimulatedTimeoutExceptionInternal) cause;
-        Optional<Payloads> details;
-        if (testTimeout.getDetails().length == 0) {
-          details = Optional.empty();
-        } else {
-          try {
-            details = Optional.of(Payloads.parseFrom(testTimeout.getDetails()));
-          } catch (InvalidProtocolBufferException e) {
-            throw new DataConverterException(e);
-          }
-        }
-        return new ActivityTimeoutException(
-            taskFailed.getEventId(),
-            taskFailed.getActivityType(),
-            taskFailed.getActivityId(),
-            testTimeout.getTimeoutType(),
-            details,
-            getDataConverter());
-      }
-      return new ActivityFailureException(
-          taskFailed.getEventId(), taskFailed.getActivityType(), taskFailed.getActivityId(), cause);
+      Throwable exception =
+          FailureConverter.failureToException(taskFailed.getFailure(), getDataConverter());
+      return new ActivityFailure(
+          taskFailed.getScheduledEventId(),
+          taskFailed.getStartedEventId(),
+          taskFailed.getActivityType().getName(),
+          taskFailed.getActivityId(),
+          RetryStatus.Timeout,
+          "",
+          exception);
     }
     if (failure instanceof ActivityTaskTimeoutException) {
       ActivityTaskTimeoutException timedOut = (ActivityTaskTimeoutException) failure;
-      return new ActivityTimeoutException(
-          timedOut.getEventId(),
-          timedOut.getActivityType(),
+      return new ActivityFailure(
+          timedOut.getScheduledEventId(),
+          timedOut.getStartedEventId(),
+          timedOut.getActivityType().getName(),
           timedOut.getActivityId(),
-          timedOut.getTimeoutType(),
-          timedOut.getDetails(),
-          getDataConverter());
+          timedOut.getRetryStatus(),
+          "",
+          FailureConverter.failureToException(timedOut.getFailure(), converter));
     }
-    if (failure instanceof ActivityException) {
-      return (ActivityException) failure;
+    if (failure instanceof ActivityFailure) {
+      return (ActivityFailure) failure;
     }
     throw new IllegalArgumentException(
         "Unexpected exception type: " + failure.getClass().getName(), failure);
@@ -292,13 +271,13 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
       Type returnType,
       long elapsed,
       int attempt) {
-    Optional<Payloads> input = converter.toData(args);
+    Optional<Payloads> input = converter.toPayloads(args);
     Promise<Optional<Payloads>> binaryResult =
         executeLocalActivityOnce(name, options, input, elapsed, attempt);
     if (returnClass == Void.TYPE) {
       return binaryResult.thenApply((r) -> null);
     }
-    return binaryResult.thenApply((r) -> converter.fromData(r, returnClass, returnType));
+    return binaryResult.thenApply((r) -> converter.fromPayloads(r, returnClass, returnType));
   }
 
   private Promise<Optional<Payloads>> executeLocalActivityOnce(
@@ -316,7 +295,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
         .getCancellationRequest()
         .thenApply(
             (reason) -> {
-              cancellationCallback.accept(new CancellationException(reason));
+              cancellationCallback.accept(new CanceledFailure(reason));
               return null;
             });
     return callback.result;
@@ -386,11 +365,11 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
       Type returnType,
       Object[] args,
       ChildWorkflowOptions options) {
-    Optional<Payloads> input = converter.toData(args);
+    Optional<Payloads> input = converter.toPayloads(args);
     CompletablePromise<WorkflowExecution> execution = Workflow.newPromise();
     Promise<Optional<Payloads>> output =
         executeChildWorkflow(workflowType, options, input, execution);
-    Promise<R> result = output.thenApply((b) -> converter.fromData(b, returnClass, returnType));
+    Promise<R> result = output.thenApply((b) -> converter.fromPayloads(b, returnClass, returnType));
     return new WorkflowResult<>(result, execution);
   }
 
@@ -401,10 +380,10 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
       CompletablePromise<WorkflowExecution> executionResult) {
     CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
     if (CancellationScope.current().isCancelRequested()) {
-      CancellationException cancellationException =
-          new CancellationException("execute called from a cancelled scope");
-      executionResult.completeExceptionally(cancellationException);
-      result.completeExceptionally(cancellationException);
+      CanceledFailure CanceledFailure =
+          new CanceledFailure("execute called from a cancelled scope");
+      executionResult.completeExceptionally(CanceledFailure);
+      result.completeExceptionally(CanceledFailure);
       return result;
     }
     RetryParameters retryParameters = null;
@@ -455,7 +434,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
         .getCancellationRequest()
         .thenApply(
             (reason) -> {
-              cancellationCallback.accept(new CancellationException(reason));
+              cancellationCallback.accept(new CanceledFailure(reason));
               return null;
             });
     return result;
@@ -477,35 +456,35 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     if (failure == null) {
       return null;
     }
-    if (failure instanceof CancellationException) {
-      return (CancellationException) failure;
+    if (failure instanceof TemporalFailure) {
+      ((TemporalFailure) failure).setDataConverter(getDataConverter());
     }
-    if (failure instanceof ChildWorkflowException) {
-      return (ChildWorkflowException) failure;
+    if (failure instanceof CanceledFailure) {
+      return (CanceledFailure) failure;
+    }
+    if (failure instanceof WorkflowException) {
+      return (RuntimeException) failure;
+    }
+    if (failure instanceof ChildWorkflowFailure) {
+      return (ChildWorkflowFailure) failure;
     }
     if (!(failure instanceof ChildWorkflowTaskFailedException)) {
       return new IllegalArgumentException("Unexpected exception type: ", failure);
     }
     ChildWorkflowTaskFailedException taskFailed = (ChildWorkflowTaskFailedException) failure;
-    String causeClassName = taskFailed.getReason();
-    Exception cause;
-    try {
-      @SuppressWarnings("unchecked")
-      Class<? extends Exception> causeClass =
-          (Class<? extends Exception>) Class.forName(causeClassName);
-      cause = getDataConverter().fromData(taskFailed.getDetails(), causeClass, causeClass);
-    } catch (Exception e) {
-      cause = e;
+    Throwable cause =
+        FailureConverter.failureToException(taskFailed.getFailure(), getDataConverter());
+    // To support WorkflowExecutionAlreadyStarted set at handleStartChildWorkflowExecutionFailed
+    if (cause == null) {
+      cause = failure.getCause();
     }
-    if (cause instanceof SimulatedTimeoutExceptionInternal) {
-      // This exception is thrown only in unit tests to mock the child workflow timeouts
-      return new ChildWorkflowTimedOutException(
-          taskFailed.getEventId(), taskFailed.getWorkflowExecution(), taskFailed.getWorkflowType());
-    }
-    return new ChildWorkflowFailureException(
-        taskFailed.getEventId(),
+    return new ChildWorkflowFailure(
+        0,
+        0,
+        taskFailed.getWorkflowType().getName(),
         taskFailed.getWorkflowExecution(),
-        taskFailed.getWorkflowType(),
+        null,
+        taskFailed.getRetryStatus(),
         cause);
   }
 
@@ -527,7 +506,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
         .thenApply(
             (reason) -> {
               timers.removeTimer(fireTime, timer);
-              timer.completeExceptionally(new CancellationException(reason));
+              timer.completeExceptionally(new CanceledFailure(reason));
               return null;
             });
     return timer;
@@ -540,9 +519,9 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
         context.sideEffect(
             () -> {
               R r = func.apply();
-              return dataConverter.toData(r);
+              return dataConverter.toPayloads(r);
             });
-    return dataConverter.fromData(result, resultClass, resultType);
+    return dataConverter.fromPayloads(result, resultClass, resultType);
   }
 
   @Override
@@ -556,13 +535,13 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
             (storedBinary) -> {
               Optional<R> stored =
                   storedBinary.map(
-                      (b) -> converter.fromData(Optional.of(b), resultClass, resultType));
+                      (b) -> converter.fromPayloads(Optional.of(b), resultClass, resultType));
               R funcResult =
                   Objects.requireNonNull(
                       func.apply(), "mutableSideEffect function " + "returned null");
               if (!stored.isPresent() || updated.test(stored.get(), funcResult)) {
                 unserializedResult.set(funcResult);
-                return converter.toData(funcResult);
+                return converter.toPayloads(funcResult);
               }
               return Optional.empty(); // returned only when value doesn't need to be updated
             });
@@ -577,7 +556,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     if (unserialized != null) {
       return unserialized;
     }
-    return converter.fromData(payloads, resultClass, resultType);
+    return converter.fromPayloads(payloads, resultClass, resultType);
   }
 
   @Override
@@ -632,9 +611,9 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     queryCallbacks.put(
         queryType,
         (input) -> {
-          Object[] args = converter.fromDataArray(input, argTypes, genericArgTypes);
+          Object[] args = converter.arrayFromPayloads(input, argTypes, genericArgTypes);
           Object result = callback.apply(args);
-          return converter.toData(result);
+          return converter.toPayloads(result);
         });
   }
 
@@ -650,7 +629,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     Functions.Proc2<Optional<Payloads>, Long> signalCallback =
         (input, eventId) -> {
           try {
-            Object[] args = converter.fromDataArray(input, argTypes, genericArgTypes);
+            Object[] args = converter.arrayFromPayloads(input, argTypes, genericArgTypes);
             callback.apply(args);
           } catch (DataConverterException e) {
             logSerializationException(signalType, eventId, e);
@@ -706,7 +685,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     parameters.setSignalName(signalName);
     parameters.setWorkflowId(execution.getWorkflowId());
     parameters.setRunId(execution.getRunId());
-    Optional<Payloads> input = getDataConverter().toData(args);
+    Optional<Payloads> input = getDataConverter().toPayloads(args);
     parameters.setInput(input);
     CompletablePromise<Void> result = Workflow.newPromise();
 
@@ -727,7 +706,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
         .getCancellationRequest()
         .thenApply(
             (reason) -> {
-              cancellationCallback.accept(new CancellationException(reason));
+              cancellationCallback.accept(new CanceledFailure(reason));
               return null;
             });
     return result;
@@ -768,7 +747,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
       parameters.setWorkflowTaskTimeoutSeconds(roundUpToSeconds(ops.getWorkflowTaskTimeout()));
       parameters.setTaskList(ops.getTaskList());
     }
-    parameters.setInput(getDataConverter().toData(args).orElse(null));
+    parameters.setInput(getDataConverter().toPayloads(args).orElse(null));
     context.continueAsNewOnCompletion(parameters);
     WorkflowThread.exit(null);
   }
@@ -782,8 +761,8 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     if (failure == null) {
       return null;
     }
-    if (failure instanceof CancellationException) {
-      return (CancellationException) failure;
+    if (failure instanceof CanceledFailure) {
+      return (CanceledFailure) failure;
     }
 
     if (!(failure instanceof SignalExternalWorkflowException)) {
@@ -802,7 +781,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
 
   public <R> R getLastCompletionResult(Class<R> resultClass, Type resultType) {
     DataConverter dataConverter = getDataConverter();
-    return dataConverter.fromData(lastCompletionResult, resultClass, resultType);
+    return dataConverter.fromPayloads(lastCompletionResult, resultClass, resultType);
   }
 
   @Override
@@ -812,8 +791,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     }
 
     SearchAttributes attr =
-        InternalUtils.convertMapToSearchAttributes(
-            searchAttributes, getDataConverter().getPayloadConverter());
+        InternalUtils.convertMapToSearchAttributes(searchAttributes, getDataConverter());
     context.upsertSearchAttributes(attr);
   }
 }

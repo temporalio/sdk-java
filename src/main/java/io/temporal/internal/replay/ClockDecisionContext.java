@@ -19,12 +19,16 @@
 
 package io.temporal.internal.replay;
 
+import static io.temporal.internal.replay.MarkerHandler.MUTABLE_MARKER_DATA_KEY;
+
 import com.google.common.base.Strings;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.LocalActivityMarkerData;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.proto.common.ActivityType;
+import io.temporal.proto.common.Header;
 import io.temporal.proto.common.Payloads;
 import io.temporal.proto.common.SearchAttributes;
 import io.temporal.proto.decision.StartTimerDecisionAttributes;
@@ -32,14 +36,12 @@ import io.temporal.proto.event.HistoryEvent;
 import io.temporal.proto.event.MarkerRecordedEventAttributes;
 import io.temporal.proto.event.TimerCanceledEventAttributes;
 import io.temporal.proto.event.TimerFiredEventAttributes;
-import io.temporal.workflow.ActivityFailureException;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.function.BiConsumer;
@@ -182,8 +184,10 @@ public final class ClockDecisionContext {
       return;
     }
     BiConsumer<?, Exception> context = scheduled.getCompletionCallback();
-    CancellationException exception = new CancellationException("Cancelled by request");
-    exception.initCause(reason);
+    CanceledFailure exception = new CanceledFailure("Cancelled by request");
+    if (reason != null) {
+      exception.initCause(reason);
+    }
     context.accept(null, exception);
   }
 
@@ -205,7 +209,11 @@ public final class ClockDecisionContext {
         throw new Error("sideEffect function failed", e);
       }
     }
-    decisions.recordMarker(SIDE_EFFECT_MARKER_NAME, null, result);
+    Map<String, Payloads> details = new HashMap<>();
+    if (result.isPresent()) {
+      details.put(MUTABLE_MARKER_DATA_KEY, result.get());
+    }
+    decisions.recordMarker(SIDE_EFFECT_MARKER_NAME, Optional.empty(), details, Optional.empty());
     return result;
   }
 
@@ -230,10 +238,12 @@ public final class ClockDecisionContext {
     String name = attributes.getMarkerName();
     if (SIDE_EFFECT_MARKER_NAME.equals(name)) {
       Optional<Payloads> details =
-          attributes.hasDetails() ? Optional.of(attributes.getDetails()) : Optional.empty();
+          attributes.containsDetails(MUTABLE_MARKER_DATA_KEY)
+              ? Optional.of(attributes.getDetailsOrThrow(MUTABLE_MARKER_DATA_KEY))
+              : Optional.empty();
       sideEffectResults.put(event.getEventId(), details);
     } else if (LOCAL_ACTIVITY_MARKER_NAME.equals(name)) {
-      handleLocalActivityMarker(attributes);
+      handleLocalActivityMarker(event.getEventId(), attributes);
     } else if (!MUTABLE_SIDE_EFFECT_MARKER_NAME.equals(name) && !VERSION_MARKER_NAME.equals(name)) {
       if (log.isWarnEnabled()) {
         log.warn("Unexpected marker: " + event);
@@ -241,40 +251,32 @@ public final class ClockDecisionContext {
     }
   }
 
-  private void handleLocalActivityMarker(MarkerRecordedEventAttributes attributes) {
+  private void handleLocalActivityMarker(long eventId, MarkerRecordedEventAttributes attributes) {
     LocalActivityMarkerData marker =
-        LocalActivityMarkerData.fromEventAttributes(
-            attributes, dataConverter.getPayloadConverter());
+        LocalActivityMarkerData.fromEventAttributes(attributes, dataConverter);
     if (pendingLaTasks.containsKey(marker.getActivityId())) {
-      log.debug("Handle LocalActivityMarker for activity " + marker.getActivityId());
-
-      Optional<Payloads> details =
-          attributes.hasDetails() ? Optional.of(attributes.getDetails()) : Optional.empty();
-      decisions.recordMarker(
-          LOCAL_ACTIVITY_MARKER_NAME,
-          marker.getHeader(dataConverter.getPayloadConverter()),
-          details);
+      if (log.isDebugEnabled()) {
+        log.debug("Handle LocalActivityMarker for activity " + marker.getActivityId());
+      }
+      Map<String, Payloads> details = attributes.getDetailsMap();
+      Optional<Header> header =
+          attributes.hasHeader() ? Optional.of(attributes.getHeader()) : Optional.empty();
+      decisions.recordMarker(LOCAL_ACTIVITY_MARKER_NAME, header, details, marker.getFailure());
 
       OpenRequestInfo<Optional<Payloads>, ActivityType> scheduled =
           pendingLaTasks.remove(marker.getActivityId());
       unstartedLaTasks.remove(marker.getActivityId());
 
       Exception failure = null;
-      if (marker.getIsCancelled()) {
-        failure = new CancellationException(marker.getErrReason());
-      } else if (marker.getErrJson().isPresent()) {
-        Throwable cause =
-            dataConverter.fromData(marker.getErrJson(), Throwable.class, Throwable.class);
-        ActivityType activityType =
-            ActivityType.newBuilder().setName(marker.getActivityType()).build();
+      if (marker.getFailure().isPresent()) {
         failure =
-            new ActivityFailureException(
-                attributes.getDecisionTaskCompletedEventId(),
-                activityType,
+            new ActivityTaskFailedException(
+                eventId,
+                0,
+                0,
+                ActivityType.newBuilder().setName(marker.getActivityType()).build(),
                 marker.getActivityId(),
-                cause,
-                marker.getAttempt(),
-                marker.getBackoff());
+                marker.getFailure().get());
       }
 
       BiConsumer<Optional<Payloads>, Exception> completionHandle =
@@ -315,13 +317,13 @@ public final class ClockDecisionContext {
               if (stored.isPresent()) {
                 return Optional.empty();
               }
-              return converter.toData(maxSupported);
+              return converter.toPayloads(maxSupported);
             });
 
     if (!result.isPresent()) {
       return WorkflowInternal.DEFAULT_VERSION;
     }
-    int version = converter.fromData(result, Integer.class, Integer.class);
+    int version = converter.fromPayloads(result, Integer.class, Integer.class);
     validateVersion(changeId, version, minSupported, maxSupported);
     return version;
   }

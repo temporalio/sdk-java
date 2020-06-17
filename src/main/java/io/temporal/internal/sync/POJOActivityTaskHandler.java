@@ -24,15 +24,20 @@ import com.google.common.base.Joiner;
 import com.uber.m3.tally.Scope;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.internal.common.CheckedExceptionWrapper;
+import io.temporal.failure.FailureConverter;
+import io.temporal.failure.TemporalFailure;
+import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.metrics.MetricsType;
+import io.temporal.internal.replay.FailureWrapperException;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.proto.common.Payloads;
+import io.temporal.proto.failure.CanceledFailureInfo;
+import io.temporal.proto.failure.Failure;
 import io.temporal.proto.workflowservice.PollForActivityTaskResponse;
 import io.temporal.proto.workflowservice.RespondActivityTaskCompletedRequest;
 import io.temporal.proto.workflowservice.RespondActivityTaskFailedRequest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.testing.SimulatedTimeoutException;
+import io.temporal.testing.SimulatedTimeoutFailure;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -40,7 +45,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BiFunction;
 import org.slf4j.Logger;
@@ -87,36 +91,26 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
   }
 
   private ActivityTaskHandler.Result mapToActivityFailure(
-      Throwable failure, Scope metricsScope, boolean isLocalActivity) {
+      Throwable exception, Scope metricsScope, boolean isLocalActivity) {
 
-    if (failure instanceof ActivityCancelledException) {
+    if (exception instanceof ActivityCancelledException) {
       if (isLocalActivity) {
         metricsScope.counter(MetricsType.LOCAL_ACTIVITY_CANCELED_COUNTER).inc(1);
       }
-      throw new CancellationException(failure.getMessage());
+      String stackTrace = FailureConverter.serializeStackTrace(exception);
+      throw new FailureWrapperException(
+          Failure.newBuilder()
+              .setStackTrace(stackTrace)
+              .setCanceledFailureInfo(CanceledFailureInfo.newBuilder())
+              .build());
     }
-
-    // Only expected during unit tests.
-    if (failure instanceof SimulatedTimeoutException) {
-      SimulatedTimeoutException timeoutException = (SimulatedTimeoutException) failure;
-      Object d = timeoutException.getDetails();
-      Optional<Payloads> payloads = dataConverter.toData(d);
-      byte[] details;
-      if (payloads.isPresent()) {
-        details = payloads.get().toByteArray();
-      } else {
-        details = new byte[0];
-      }
-      failure = new SimulatedTimeoutExceptionInternal(timeoutException.getTimeoutType(), details);
-    }
-
-    if (failure instanceof Error) {
+    if (exception instanceof Error) {
       if (isLocalActivity) {
         metricsScope.counter(MetricsType.LOCAL_ACTIVITY_ERROR_COUNTER).inc(1);
       } else {
         metricsScope.counter(MetricsType.ACTIVITY_TASK_ERROR_COUNTER).inc(1);
       }
-      throw (Error) failure;
+      throw (Error) exception;
     }
 
     if (isLocalActivity) {
@@ -124,16 +118,17 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     } else {
       metricsScope.counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
     }
-
-    failure = CheckedExceptionWrapper.unwrap(failure);
-    RespondActivityTaskFailedRequest.Builder result =
-        RespondActivityTaskFailedRequest.newBuilder().setReason(failure.getClass().getName());
-    Optional<Payloads> payloads = dataConverter.toData(failure);
-    if (payloads.isPresent()) {
-      result.setDetails(payloads.get());
+    if (exception instanceof TemporalFailure) {
+      ((TemporalFailure) exception).setDataConverter(dataConverter);
     }
+    if (exception instanceof TimeoutFailure) {
+      exception = new SimulatedTimeoutFailure((TimeoutFailure) exception);
+    }
+    Failure failure = FailureConverter.exceptionToFailure(exception);
+    RespondActivityTaskFailedRequest.Builder result =
+        RespondActivityTaskFailedRequest.newBuilder().setFailure(failure);
     return new ActivityTaskHandler.Result(
-        null, new Result.TaskFailedResult(result.build(), failure), null, null);
+        null, new Result.TaskFailedResult(result.build(), exception), null, null);
   }
 
   @Override
@@ -202,7 +197,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
       CurrentActivityExecutionContext.set(context);
       try {
         Object[] args =
-            dataConverter.fromDataArray(
+            dataConverter.arrayFromPayloads(
                 input, method.getParameterTypes(), method.getGenericParameterTypes());
         Object result = method.invoke(activity, args);
         if (context.isDoNotCompleteOnReturn()) {
@@ -211,7 +206,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
         RespondActivityTaskCompletedRequest.Builder request =
             RespondActivityTaskCompletedRequest.newBuilder();
         if (method.getReturnType() != Void.TYPE) {
-          Optional<Payloads> serialized = dataConverter.toData(result);
+          Optional<Payloads> serialized = dataConverter.toPayloads(result);
           if (serialized.isPresent()) {
             request.setResult(serialized.get());
           }
@@ -244,13 +239,13 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
       Optional<Payloads> input = task.getInput();
       try {
         Object[] args =
-            dataConverter.fromDataArray(
+            dataConverter.arrayFromPayloads(
                 input, method.getParameterTypes(), method.getGenericParameterTypes());
         Object result = method.invoke(activity, args);
         RespondActivityTaskCompletedRequest.Builder request =
             RespondActivityTaskCompletedRequest.newBuilder();
         if (method.getReturnType() != Void.TYPE) {
-          Optional<Payloads> payloads = dataConverter.toData(result);
+          Optional<Payloads> payloads = dataConverter.toPayloads(result);
           if (payloads.isPresent()) {
             request.setResult(payloads.get());
           }

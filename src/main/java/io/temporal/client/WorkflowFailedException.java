@@ -19,41 +19,54 @@
 
 package io.temporal.client;
 
+import io.temporal.proto.common.RetryStatus;
 import io.temporal.proto.common.WorkflowExecution;
-import java.util.Optional;
 
 /**
  * Indicates that a workflow failed. An original cause of the workflow failure can be retrieved
  * through {@link #getCause()}.
  */
-public final class WorkflowFailureException extends WorkflowException {
+public final class WorkflowFailedException extends WorkflowException {
 
+  private final RetryStatus retryStatus;
   private final long decisionTaskCompletedEventId;
 
-  public WorkflowFailureException(
-      WorkflowExecution execution,
-      Optional<String> workflowType,
+  public WorkflowFailedException(
+      WorkflowExecution workflowExecution,
+      String workflowType,
       long decisionTaskCompletedEventId,
-      Throwable failure) {
-    super(getMessage(execution, workflowType), execution, workflowType, failure);
+      RetryStatus retryStatus,
+      Throwable cause) {
+    super(
+        getMessage(workflowExecution, workflowType, decisionTaskCompletedEventId, retryStatus),
+        workflowExecution,
+        workflowType,
+        cause);
+    this.retryStatus = retryStatus;
     this.decisionTaskCompletedEventId = decisionTaskCompletedEventId;
   }
 
-  private static String getMessage(WorkflowExecution execution, Optional<String> workflowType) {
-    StringBuilder result = new StringBuilder();
-    if (workflowType.isPresent()) {
-      result.append("WorkflowType=\"");
-      result.append(workflowType.get());
-      result.append("\", ");
-    }
-    result.append("WorkflowId=\"");
-    result.append(execution.getWorkflowId());
-    result.append("\", RunId=\"");
-    result.append(execution.getRunId());
-    return result.toString();
+  public RetryStatus getRetryStatus() {
+    return retryStatus;
   }
 
   public long getDecisionTaskCompletedEventId() {
     return decisionTaskCompletedEventId;
+  }
+
+  public static String getMessage(
+      WorkflowExecution workflowExecution,
+      String workflowType,
+      long decisionTaskCompletedEventId,
+      RetryStatus retryStatus) {
+    return "workflowId='"
+        + workflowExecution.getWorkflowId()
+        + "', runId='"
+        + workflowExecution.getRunId()
+        + (workflowType == null ? "'" : "', workflowType='" + workflowType + '\'')
+        + ", retryStatus="
+        + retryStatus
+        + ", decisionTaskCompletedEventId="
+        + decisionTaskCompletedEventId;
   }
 }

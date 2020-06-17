@@ -22,10 +22,10 @@ package io.temporal.internal.sync;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import io.temporal.failure.CanceledFailure;
 import io.temporal.workflow.QueueConsumer;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowQueue;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import org.junit.Before;
 import org.junit.Rule;
@@ -93,8 +93,8 @@ public class WorkflowInternalQueueTest {
                         trace.add("thread1 begin");
                         try {
                           assertTrue(f.take());
-                        } catch (CancellationException e) {
-                          trace.add("thread1 CancellationException");
+                        } catch (CanceledFailure e) {
+                          trace.add("thread1 CanceledException");
                         }
                         trace.add("thread1 done");
                       })
@@ -126,8 +126,8 @@ public class WorkflowInternalQueueTest {
                         trace.add("thread1 begin");
                         try {
                           assertTrue(f.cancellableTake());
-                        } catch (CancellationException e) {
-                          trace.add("thread1 CancellationException");
+                        } catch (CanceledFailure e) {
+                          trace.add("thread1 CanceledFailure");
                         }
                         trace.add("thread1 done");
                       })
@@ -140,11 +140,7 @@ public class WorkflowInternalQueueTest {
 
     String[] expected =
         new String[] {
-          "root begin",
-          "root done",
-          "thread1 begin",
-          "thread1 CancellationException",
-          "thread1 done",
+          "root begin", "root done", "thread1 begin", "thread1 CanceledFailure", "thread1 done",
         };
     trace.setExpected(expected);
   }
@@ -258,8 +254,8 @@ public class WorkflowInternalQueueTest {
                         try {
                           f.put(true);
                           f.put(true);
-                        } catch (CancellationException e) {
-                          trace.add("thread1 CancellationException");
+                        } catch (CanceledFailure e) {
+                          trace.add("thread1 CanceledFailure");
                         }
                         trace.add("thread1 done");
                       })
@@ -292,8 +288,8 @@ public class WorkflowInternalQueueTest {
                         try {
                           f.put(true);
                           f.cancellablePut(true);
-                        } catch (CancellationException e) {
-                          trace.add("thread1 CancellationException");
+                        } catch (CanceledFailure e) {
+                          trace.add("thread1 CanceledFailure");
                         }
                         trace.add("thread1 done");
                       })
@@ -306,11 +302,7 @@ public class WorkflowInternalQueueTest {
 
     String[] expected =
         new String[] {
-          "root begin",
-          "root done",
-          "thread1 begin",
-          "thread1 CancellationException",
-          "thread1 done",
+          "root begin", "root done", "thread1 begin", "thread1 CanceledFailure", "thread1 done",
         };
     trace.setExpected(expected);
     r.close();

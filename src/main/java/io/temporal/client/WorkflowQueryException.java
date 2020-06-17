@@ -20,11 +20,10 @@
 package io.temporal.client;
 
 import io.temporal.proto.common.WorkflowExecution;
-import java.util.Optional;
 
 public class WorkflowQueryException extends WorkflowException {
 
-  public WorkflowQueryException(WorkflowExecution execution, String message) {
-    super(message, execution, Optional.empty(), null);
+  public WorkflowQueryException(WorkflowExecution execution, String workflowType, Throwable cause) {
+    super(execution, workflowType, cause);
   }
 }

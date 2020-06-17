@@ -365,12 +365,18 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
 
   private void unlockTimeSkippingLockedInternal() {
     if (lockCount == 0) {
-      throw new IllegalStateException("Unbalanced lock and unlock calls");
+      throw new IllegalStateException("Unbalanced lock and unlock calls: \n" + getDiagnostics());
     }
     lockCount--;
     if (lockCount == 0) {
       timeLastLocked = -1;
       systemTimeLastLocked = -1;
     }
+  }
+
+  private String getDiagnostics() {
+    StringBuilder result = new StringBuilder();
+    getDiagnostics(result);
+    return result.toString();
   }
 }

@@ -185,10 +185,10 @@ public class SyncWorkflowWorker
       Type resultType,
       Object[] args)
       throws Exception {
-    Optional<Payloads> serializedArgs = dataConverter.toData(args);
+    Optional<Payloads> serializedArgs = dataConverter.toPayloads(args);
     Optional<Payloads> result =
         workflowWorker.queryWorkflowExecution(execution, queryType, serializedArgs);
-    return dataConverter.fromData(result, resultClass, resultType);
+    return dataConverter.fromPayloads(result, resultClass, resultType);
   }
 
   public <R> R queryWorkflowExecution(
@@ -198,10 +198,10 @@ public class SyncWorkflowWorker
       Type resultType,
       Object[] args)
       throws Exception {
-    Optional<Payloads> serializedArgs = dataConverter.toData(args);
+    Optional<Payloads> serializedArgs = dataConverter.toPayloads(args);
     Optional<Payloads> result =
         workflowWorker.queryWorkflowExecution(history, queryType, serializedArgs);
-    return dataConverter.fromData(result, resultClass, resultType);
+    return dataConverter.fromPayloads(result, resultClass, resultType);
   }
 
   @Override

@@ -167,7 +167,7 @@ class SyncWorkflow implements ReplayWorkflow {
       return Optional.empty();
     }
     if (WorkflowClient.QUERY_TYPE_STACK_TRACE.equals(query.getQueryType())) {
-      return dataConverter.toData(runner.stackTrace());
+      return dataConverter.toPayloads(runner.stackTrace());
     }
     Optional<Payloads> args =
         query.hasQueryArgs() ? Optional.of(query.getQueryArgs()) : Optional.empty();
@@ -175,13 +175,13 @@ class SyncWorkflow implements ReplayWorkflow {
   }
 
   @Override
-  public WorkflowExecutionException mapUnexpectedException(Exception failure) {
+  public WorkflowExecutionException mapUnexpectedException(Throwable failure) {
     return POJOWorkflowImplementationFactory.mapToWorkflowExecutionException(
         failure, dataConverter);
   }
 
   @Override
   public WorkflowExecutionException mapError(Error failure) {
-    return POJOWorkflowImplementationFactory.mapError(failure, dataConverter);
+    return POJOWorkflowImplementationFactory.mapError(failure);
   }
 }

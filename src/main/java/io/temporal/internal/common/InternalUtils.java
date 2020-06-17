@@ -20,7 +20,7 @@
 package io.temporal.internal.common;
 
 import com.google.common.base.Defaults;
-import io.temporal.common.converter.PayloadConverter;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.worker.Shutdownable;
 import io.temporal.proto.common.Payload;
 import io.temporal.proto.common.SearchAttributes;
@@ -85,12 +85,10 @@ public final class InternalUtils {
   }
 
   public static SearchAttributes convertMapToSearchAttributes(
-      Map<String, Object> searchAttributes, PayloadConverter converter) {
+      Map<String, Object> searchAttributes, DataConverter converter) {
     Map<String, Payload> mapOfByteBuffer = new HashMap<>();
     searchAttributes.forEach(
-        (key, value) -> {
-          mapOfByteBuffer.put(key, converter.toData(value).get());
-        });
+        (key, value) -> mapOfByteBuffer.put(key, converter.toPayload(value).get()));
     return SearchAttributes.newBuilder().putAllIndexedFields(mapOfByteBuffer).build();
   }
 

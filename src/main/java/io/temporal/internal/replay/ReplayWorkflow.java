@@ -65,7 +65,7 @@ public interface ReplayWorkflow {
    * @param failure Unexpected failure cause
    * @return Serialized failure
    */
-  WorkflowExecutionException mapUnexpectedException(Exception failure);
+  WorkflowExecutionException mapUnexpectedException(Throwable failure);
 
   WorkflowExecutionException mapError(Error failure);
 

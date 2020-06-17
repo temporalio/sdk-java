@@ -20,8 +20,8 @@
 package io.temporal.client;
 
 import io.temporal.activity.Activity;
+import io.temporal.failure.CanceledFailure;
 import io.temporal.proto.common.WorkflowExecution;
-import java.util.concurrent.CancellationException;
 
 /**
  * Used to complete asynchronously activities that called {@link Activity#doNotCompleteOnReturn()}.
@@ -52,7 +52,7 @@ public interface ActivityCompletionClient {
   /**
    * Warning: heartbeating by ids is not implemented yet.
    *
-   * @throws CancellationException if activity is cancelled.
+   * @throws CanceledFailure if activity is cancelled.
    */
   <V> void heartbeat(WorkflowExecution execution, String activityId, V details)
       throws ActivityCompletionException;
