@@ -277,9 +277,6 @@ public class MetricsTest {
     assertTrue(
         sleepDuration.toString(),
         sleepDuration.compareTo(com.uber.m3.util.Duration.ofSeconds(3)) >= 0);
-    assertTrue(
-        sleepDuration.toString(),
-        sleepDuration.compareTo(com.uber.m3.util.Duration.ofMillis(3100)) < 0);
 
     Map<String, String> activityCompletionTags =
         new ImmutableMap.Builder<String, String>(3)
