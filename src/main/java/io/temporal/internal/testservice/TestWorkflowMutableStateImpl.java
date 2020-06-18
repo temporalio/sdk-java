@@ -378,17 +378,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     completeDecisionUpdate(
         ctx -> {
           if (ctx.getInitialEventId() != historySizeFromToken + 1) {
-            StringBuilder diagnostics = new StringBuilder();
-            store.getDiagnostics(diagnostics);
             throw Status.NOT_FOUND
                 .withDescription(
                     "Expired decision: expectedHistorySize="
                         + historySizeFromToken
                         + ","
                         + " actualHistorySize="
-                        + ctx.getInitialEventId()
-                        + " history="
-                        + diagnostics)
+                        + ctx.getInitialEventId())
                 .asRuntimeException();
           }
           long decisionTaskCompletedId = ctx.getNextEventId() - 1;
