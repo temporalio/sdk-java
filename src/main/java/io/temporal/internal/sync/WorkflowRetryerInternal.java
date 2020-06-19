@@ -187,12 +187,16 @@ final class WorkflowRetryerInternal {
 
   private static RetryOptions getRetryOptionsSideEffect(String retryId, RetryOptions options) {
     options = RetryOptions.newBuilder(options).validateBuildWithDefaults();
+    long maximumIntervalMillis =
+        options.getMaximumInterval() != null ? options.getMaximumInterval().toMillis() : 0;
+    long initialIntervalMillis =
+        options.getInitialInterval() != null ? options.getInitialInterval().toMillis() : 0;
     SerializableRetryOptions sOptions =
         new SerializableRetryOptions(
-            options.getInitialInterval().toMillis(),
+            initialIntervalMillis,
             options.getBackoffCoefficient(),
             options.getMaximumAttempts(),
-            options.getMaximumInterval().toMillis(),
+            maximumIntervalMillis,
             options.getDoNotRetry());
     SerializableRetryOptions sRetryOptions =
         WorkflowInternal.mutableSideEffect(
