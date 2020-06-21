@@ -6356,5 +6356,11 @@ public class WorkflowTest {
       trace.add("upsertSearchAttributes");
       next.upsertSearchAttributes(searchAttributes);
     }
+
+    @Override
+    public Object newThread(Runnable runnable, boolean detached, String name) {
+      trace.add("upsertSearchAttributes");
+      return next.newThread(runnable, detached, name);
+    }
   }
 }

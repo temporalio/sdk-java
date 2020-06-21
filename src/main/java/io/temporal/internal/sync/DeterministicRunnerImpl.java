@@ -23,6 +23,8 @@ import com.google.common.primitives.Ints;
 import com.uber.m3.tally.Scope;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.interceptors.WorkflowCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowCallsInterceptorBase;
 import io.temporal.common.v1.Payloads;
 import io.temporal.common.v1.SearchAttributes;
 import io.temporal.common.v1.WorkflowExecution;
@@ -48,6 +50,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
@@ -110,6 +113,13 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   private boolean inRunUntilAllBlocked;
   private boolean closeRequested;
   private boolean closed;
+  private WorkflowCallsInterceptor interceptorHead =
+      new WorkflowCallsInterceptorBase(null) {
+        @Override
+        public Object newThread(Runnable runnable, boolean detached, String name) {
+          return DeterministicRunnerImpl.this.newThread(runnable, detached, name);
+        }
+      };
 
   static WorkflowThread currentThreadInternal() {
     WorkflowThread result = currentThreadThreadLocal.get();
@@ -209,6 +219,9 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
   @Override
   public void runUntilAllBlocked() throws Throwable {
+    if (!rootWorkflowThread.isStarted()) {
+      throw new IllegalStateException("start not called");
+    }
     lock.lock();
     try {
       checkClosed();
@@ -439,7 +452,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   }
 
   /** To be called only from another workflow thread. */
-  WorkflowThread newThread(Runnable runnable, boolean detached, String name) {
+  public WorkflowThread newThread(Runnable runnable, boolean detached, String name) {
     checkWorkflowThreadOnly();
     checkClosed();
     WorkflowThread result =
@@ -457,6 +470,11 @@ class DeterministicRunnerImpl implements DeterministicRunner {
             getPropagatedContexts());
     threadsToAdd.add(result); // This is synchronized collection.
     return result;
+  }
+
+  @Override
+  public void setInterceptorHead(WorkflowCallsInterceptor interceptorHead) {
+    this.interceptorHead = Objects.requireNonNull(interceptorHead);
   }
 
   /**

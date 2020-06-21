@@ -72,6 +72,8 @@ interface WorkflowThread extends CancellationScope {
 
   void start();
 
+  boolean isStarted();
+
   void setName(String name);
 
   String getName();

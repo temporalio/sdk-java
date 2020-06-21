@@ -794,4 +794,9 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
         InternalUtils.convertMapToSearchAttributes(searchAttributes, getDataConverter());
     context.upsertSearchAttributes(attr);
   }
+
+  @Override
+  public Object newThread(Runnable runnable, boolean detached, String name) {
+    return runner.newThread(runnable, detached, name);
+  }
 }

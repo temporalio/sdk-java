@@ -127,4 +127,6 @@ public interface WorkflowCallsInterceptor {
   UUID randomUUID();
 
   void upsertSearchAttributes(Map<String, Object> searchAttributes);
+
+  Object newThread(Runnable runnable, boolean detached, String name);
 }

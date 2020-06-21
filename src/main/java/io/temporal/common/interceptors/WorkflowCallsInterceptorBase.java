@@ -161,4 +161,9 @@ public class WorkflowCallsInterceptorBase implements WorkflowCallsInterceptor {
   public void upsertSearchAttributes(Map<String, Object> searchAttributes) {
     next.upsertSearchAttributes(searchAttributes);
   }
+
+  @Override
+  public Object newThread(Runnable runnable, boolean detached, String name) {
+    return next.newThread(runnable, detached, name);
+  }
 }
