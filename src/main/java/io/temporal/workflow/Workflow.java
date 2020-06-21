@@ -821,7 +821,7 @@ public final class Workflow {
    * try {
    *     return someCall();
    * } catch (Exception e) {
-   *     throw CheckedExceptionWrapper.wrap(e);
+   *     throw Workflow.wrap(e);
    * }
    * </pre>
    *
