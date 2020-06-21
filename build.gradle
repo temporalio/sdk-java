@@ -98,7 +98,7 @@ dependencies {
     api 'io.grpc:grpc-protobuf:1.29.0'
     api 'io.grpc:grpc-stub:1.29.0'
 
-    implementation group: 'com.google.guava', name: 'guava', version: '28.1-jre'
+    implementation group: 'com.google.guava', name: 'guava', version: '29.0-jre'
     implementation group: 'com.cronutils', name: 'cron-utils', version: '9.0.0'
     implementation 'io.grpc:grpc-netty-shaded:1.29.0'
     implementation group: 'com.google.protobuf', name: 'protobuf-java-util', version: '3.12.1'
