@@ -117,7 +117,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
       new WorkflowCallsInterceptorBase(null) {
         @Override
         public Object newThread(Runnable runnable, boolean detached, String name) {
-          return DeterministicRunnerImpl.this.newThread(runnable, detached, name);
+          return DeterministicRunnerImpl.this.newThreadNoInterceptor(runnable, detached, name);
         }
       };
 
@@ -453,6 +453,10 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
   /** To be called only from another workflow thread. */
   public WorkflowThread newThread(Runnable runnable, boolean detached, String name) {
+    return (WorkflowThread) interceptorHead.newThread(runnable, detached, name);
+  }
+
+  public WorkflowThread newThreadNoInterceptor(Runnable runnable, boolean detached, String name) {
     checkWorkflowThreadOnly();
     checkClosed();
     WorkflowThread result =

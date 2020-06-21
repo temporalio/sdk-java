@@ -128,5 +128,8 @@ interface DeterministicRunner {
    */
   WorkflowThread newThread(Runnable runnable, boolean detached, String name);
 
+  /** Only to be called by SyncDecisionContext. */
+  WorkflowThread newThreadNoInterceptor(Runnable runnable, boolean detached, String name);
+
   void setInterceptorHead(WorkflowCallsInterceptor interceptorHead);
 }
