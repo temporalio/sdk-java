@@ -237,13 +237,12 @@ public final class Activity {
    * try {
    *     return someCall();
    * } catch (Exception e) {
-   *     throw CheckedExceptionWrapper.throwWrapped(e);
+   *     throw Activity.wrap(e);
    * }
    * </pre>
    *
-   * If throwWrapped returned void it wouldn't be possible to write <code>
-   * throw CheckedExceptionWrapper.throwWrapped</code> and compiler would complain about missing
-   * return.
+   * If wrap returned void it wouldn't be possible to write <code>
+   * throw Activity.wrap</code> and compiler would complain about missing return.
    *
    * @return never returns as always throws.
    */
