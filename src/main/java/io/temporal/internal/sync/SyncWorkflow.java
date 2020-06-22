@@ -118,7 +118,6 @@ class SyncWorkflow implements ReplayWorkflow {
             },
             cache);
     runner.setInterceptorHead(syncContext.getWorkflowInterceptor());
-    syncContext.setRunner(runner);
   }
 
   @Override

@@ -42,9 +42,6 @@ import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -63,7 +60,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
@@ -71,6 +67,8 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Throws Error in case of any unexpected condition. It is to fail a decision, not a workflow. */
 class DeterministicRunnerImpl implements DeterministicRunner {
@@ -166,13 +164,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   private static ThreadPoolExecutor getDefaultThreadPool() {
     ThreadPoolExecutor result =
         new ThreadPoolExecutor(0, 1000, 1, TimeUnit.SECONDS, new SynchronousQueue<>());
-    result.setThreadFactory(
-        new ThreadFactory() {
-          @Override
-          public Thread newThread(Runnable r) {
-            return new Thread(r, "deterministic runner thread");
-          }
-        });
+    result.setThreadFactory(r -> new Thread(r, "deterministic runner thread"));
     return result;
   }
 
@@ -193,6 +185,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     this.threadPool = threadPool;
     this.decisionContext =
         decisionContext != null ? decisionContext : newDummySyncDecisionContext();
+    this.decisionContext.setRunner(this);
     this.clock = clock;
     this.cache = cache;
     runnerCancellationScope = new CancellationScopeImpl(true, null, null);
