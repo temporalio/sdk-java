@@ -567,7 +567,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
 
     @Override
-    public String getContinuedExecutionRunId() {
+    public Optional<String> getContinuedExecutionRunId() {
       throw new UnsupportedOperationException("not implemented");
     }
 

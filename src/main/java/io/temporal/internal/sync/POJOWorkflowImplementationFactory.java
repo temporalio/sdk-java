@@ -279,7 +279,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
       @Override
       public Object execute(Object[] arguments) {
-        WorkflowInfo context = Workflow.getWorkflowInfo();
+        WorkflowInfo info = Workflow.getInfo();
         try {
           return workflowMethod.invoke(workflow, arguments);
         } catch (IllegalAccessException e) {
@@ -298,11 +298,11 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
             log.error(
                 "Workflow execution failure "
                     + "WorkflowId="
-                    + context.getWorkflowId()
+                    + info.getWorkflowId()
                     + ", RunId="
-                    + context.getRunId()
+                    + info.getRunId()
                     + ", WorkflowType="
-                    + context.getWorkflowType(),
+                    + info.getWorkflowType(),
                 targetException);
           }
           throw mapToWorkflowExecutionException(targetException, dataConverter);

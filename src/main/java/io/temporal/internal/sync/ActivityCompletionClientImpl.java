@@ -23,6 +23,7 @@ import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.internal.external.ManualActivityCompletionClientFactory;
+import java.util.Optional;
 
 class ActivityCompletionClientImpl implements ActivityCompletionClient {
 
@@ -39,8 +40,8 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
   }
 
   @Override
-  public <R> void complete(WorkflowExecution execution, String activityId, R result) {
-    factory.getClient(execution, activityId).complete(result);
+  public <R> void complete(String workflowId, Optional<String> runId, String activityId, R result) {
+    factory.getClient(toExecution(workflowId, runId), activityId).complete(result);
   }
 
   @Override
@@ -50,8 +51,8 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
 
   @Override
   public void completeExceptionally(
-      WorkflowExecution execution, String activityId, Exception result) {
-    factory.getClient(execution, activityId).fail(result);
+      String workflowId, Optional<String> runId, String activityId, Exception result) {
+    factory.getClient(toExecution(workflowId, runId), activityId).fail(result);
   }
 
   @Override
@@ -60,8 +61,9 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
   }
 
   @Override
-  public <V> void reportCancellation(WorkflowExecution execution, String activityId, V details) {
-    factory.getClient(execution, activityId).reportCancellation(details);
+  public <V> void reportCancellation(
+      String workflowId, Optional<String> runId, String activityId, V details) {
+    factory.getClient(toExecution(workflowId, runId), activityId).reportCancellation(details);
   }
 
   @Override
@@ -70,8 +72,15 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
   }
 
   @Override
-  public <V> void heartbeat(WorkflowExecution execution, String activityId, V details)
+  public <V> void heartbeat(String workflowId, Optional<String> runId, String activityId, V details)
       throws ActivityCompletionException {
-    factory.getClient(execution, activityId).recordHeartbeat(details);
+    factory.getClient(toExecution(workflowId, runId), activityId).recordHeartbeat(details);
+  }
+
+  private static WorkflowExecution toExecution(String workflowId, Optional<String> runId) {
+    return WorkflowExecution.newBuilder()
+        .setWorkflowId(workflowId)
+        .setRunId(runId.orElse(""))
+        .build();
   }
 }

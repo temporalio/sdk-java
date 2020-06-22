@@ -65,7 +65,7 @@ public class EncodedValueTest {
   }
 
   @Test
-  @SuppressWarnings("uncheckedkk")
+  @SuppressWarnings("unchecked")
   public void testGenericParameter() {
     ArrayList<Pair> list = new ArrayList<>();
     list.add(new Pair(10, "foo"));
