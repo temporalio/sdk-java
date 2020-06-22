@@ -751,6 +751,7 @@ public class DeterministicRunnerTest {
     cache.addToCache(response, decider);
     d.runUntilAllBlocked();
     assertEquals(2, threadPool.getActiveCount());
+    assertEquals(1, cache.size());
 
     DeterministicRunnerImpl d2 =
         new DeterministicRunnerImpl(
@@ -769,11 +770,6 @@ public class DeterministicRunnerTest {
               thread.get();
             },
             cache);
-
-    // Root thread added for d2 therefore we expect a total of 3 threads used
-    assertEquals(3, threadPool.getActiveCount());
-    assertEquals(1, cache.size());
-
     // Act: This should kick out threads consumed by 'd'
     d2.runUntilAllBlocked();
 
@@ -818,6 +814,7 @@ public class DeterministicRunnerTest {
     cache.addToCache(response, decider);
     d.runUntilAllBlocked();
     assertEquals(2, threadPool.getActiveCount());
+    assertEquals(1, cache.size());
 
     DeterministicRunnerImpl d2 =
         new DeterministicRunnerImpl(
@@ -835,10 +832,6 @@ public class DeterministicRunnerTest {
               thread.get();
             },
             cache);
-
-    // Root thread added for d2 therefore we expect a total of 3 threads used
-    assertEquals(3, threadPool.getActiveCount());
-    assertEquals(1, cache.size());
 
     // Act: This should not kick out threads consumed by 'd' since there's enough capacity
     d2.runUntilAllBlocked();

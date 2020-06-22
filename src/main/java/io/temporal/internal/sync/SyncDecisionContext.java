@@ -150,6 +150,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
 
   public void setHeadInterceptor(WorkflowCallsInterceptor head) {
     if (headInterceptor == null) {
+      runner.setInterceptorHead(head);
       this.headInterceptor = head;
     }
   }

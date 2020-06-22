@@ -77,6 +77,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   private static final int ROOT_THREAD_PRIORITY = 0;
   private static final int CALLBACK_THREAD_PRIORITY = 10;
   private static final int WORKFLOW_THREAD_PRIORITY = 20000000;
+  private final Runnable rootRunnable;
 
   private static class NamedRunnable {
     private final String name;
@@ -190,22 +191,23 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     this.clock = clock;
     this.cache = cache;
     runnerCancellationScope = new CancellationScopeImpl(true, null, null);
-    // TODO: workflow instance specific thread name
-    rootWorkflowThread =
-        new WorkflowThreadImpl(
-            true,
-            threadPool,
-            this,
-            WORKFLOW_ROOT_THREAD_NAME,
-            ROOT_THREAD_PRIORITY,
-            false,
-            runnerCancellationScope,
-            root,
-            cache,
-            getContextPropagators(),
-            getPropagatedContexts());
-    threads.add(rootWorkflowThread);
-    rootWorkflowThread.start();
+    this.rootRunnable = root;
+  }
+
+  private WorkflowThreadImpl newRootWorkflowThread(
+      Runnable runnable, boolean detached, String name) {
+    return new WorkflowThreadImpl(
+        true,
+        threadPool,
+        this,
+        name,
+        ROOT_THREAD_PRIORITY,
+        detached,
+        runnerCancellationScope,
+        runnable,
+        cache,
+        getContextPropagators(),
+        getPropagatedContexts());
   }
 
   private static SyncDecisionContext newDummySyncDecisionContext() {
@@ -219,6 +221,14 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
   @Override
   public void runUntilAllBlocked() throws Throwable {
+    if (rootWorkflowThread == null) {
+      // TODO: workflow instance specific thread name
+      rootWorkflowThread =
+          (WorkflowThread)
+              interceptorHead.newThread(rootRunnable, false, WORKFLOW_ROOT_THREAD_NAME);
+      threads.add(rootWorkflowThread);
+      rootWorkflowThread.start();
+    }
     if (!rootWorkflowThread.isStarted()) {
       throw new IllegalStateException("start not called");
     }
@@ -457,21 +467,27 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   }
 
   public WorkflowThread newThreadNoInterceptor(Runnable runnable, boolean detached, String name) {
-    checkWorkflowThreadOnly();
-    checkClosed();
-    WorkflowThread result =
-        new WorkflowThreadImpl(
-            false,
-            threadPool,
-            this,
-            name,
-            WORKFLOW_THREAD_PRIORITY + (addedThreads++),
-            detached,
-            CancellationScopeImpl.current(),
-            runnable,
-            cache,
-            getContextPropagators(),
-            getPropagatedContexts());
+    WorkflowThread result;
+    if (rootWorkflowThread == null) {
+      rootWorkflowThread = newRootWorkflowThread(runnable, detached, name);
+      result = rootWorkflowThread;
+    } else {
+      checkWorkflowThreadOnly();
+      checkClosed();
+      result =
+          new WorkflowThreadImpl(
+              false,
+              threadPool,
+              this,
+              name,
+              WORKFLOW_THREAD_PRIORITY + (addedThreads++),
+              detached,
+              CancellationScopeImpl.current(),
+              runnable,
+              cache,
+              getContextPropagators(),
+              getPropagatedContexts());
+    }
     threadsToAdd.add(result); // This is synchronized collection.
     return result;
   }

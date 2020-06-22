@@ -459,6 +459,8 @@ public class WorkflowTest {
     assertEquals("activity10", result);
     tracer.setExpected(
         "interceptExecuteWorkflow " + UUID_REGEXP,
+        "newThread root",
+        "newThread null",
         "sleep PT2S",
         "executeActivity activityWithDelay",
         "executeActivity activity2");
@@ -1502,14 +1504,19 @@ public class WorkflowTest {
     assertEquals(111, result);
     tracer.setExpected(
         "interceptExecuteWorkflow " + UUID_REGEXP,
+        "newThread root",
         "continueAsNew",
         "interceptExecuteWorkflow " + UUID_REGEXP,
+        "newThread root",
         "continueAsNew",
         "interceptExecuteWorkflow " + UUID_REGEXP,
+        "newThread root",
         "continueAsNew",
         "interceptExecuteWorkflow " + UUID_REGEXP,
+        "newThread root",
         "continueAsNew",
-        "interceptExecuteWorkflow " + UUID_REGEXP);
+        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "newThread root");
   }
 
   public static class TestAsyncActivityWorkflowImpl implements TestWorkflow1 {
@@ -2329,6 +2336,7 @@ public class WorkflowTest {
       tracer.setExpected(
           "interceptExecuteWorkflow " + UUID_REGEXP,
           "registerQuery getTrace",
+          "newThread root",
           "newTimer PT0.7S",
           "newTimer PT1.3S",
           "newTimer PT10S");
@@ -2336,6 +2344,7 @@ public class WorkflowTest {
       tracer.setExpected(
           "interceptExecuteWorkflow " + UUID_REGEXP,
           "registerQuery getTrace",
+          "newThread root",
           "newTimer PT11M40S",
           "newTimer PT21M40S",
           "newTimer PT10H");
@@ -3440,8 +3449,10 @@ public class WorkflowTest {
     tracer.setExpected(
         "interceptExecuteWorkflow " + stub.getExecution().getWorkflowId(),
         "registerSignal testSignal",
+        "newThread root",
         "executeChildWorkflow SignalingChild",
         "interceptExecuteWorkflow " + UUID_REGEXP, // child
+        "newThread root",
         "signalExternalWorkflow " + UUID_REGEXP + " testSignal");
   }
 
@@ -4525,6 +4536,7 @@ public class WorkflowTest {
     assertEquals("activity1", result);
     tracer.setExpected(
         "interceptExecuteWorkflow " + UUID_REGEXP,
+        "newThread root",
         "sideEffect",
         "sleep PT1S",
         "executeActivity customActivity1");
@@ -4622,6 +4634,7 @@ public class WorkflowTest {
     assertEquals("activity22activity1activity1activity1", result);
     tracer.setExpected(
         "interceptExecuteWorkflow " + UUID_REGEXP,
+        "newThread root",
         "getVersion",
         "executeActivity activity2",
         "getVersion",
@@ -4934,6 +4947,7 @@ public class WorkflowTest {
     assertEquals("activity22activity", result);
     tracer.setExpected(
         "interceptExecuteWorkflow " + UUID_REGEXP,
+        "newThread root",
         "getVersion",
         "executeActivity activity2",
         "executeActivity activity");
@@ -4971,6 +4985,7 @@ public class WorkflowTest {
     assertEquals("activity", result);
     tracer.setExpected(
         "interceptExecuteWorkflow " + UUID_REGEXP,
+        "newThread root",
         "getVersion",
         "getVersion",
         "getVersion",
@@ -5123,7 +5138,9 @@ public class WorkflowTest {
         for (int i = 0; i < traceElements.size(); i++) {
           String t = traceElements.get(i);
           String expectedRegExp = expected.get(i);
-          assertTrue(t + " doesn't match " + expectedRegExp, t.matches(expectedRegExp));
+          assertTrue(
+              t + " doesn't match " + expectedRegExp + ": \n" + String.join("\n", traceElements),
+              t.matches(expectedRegExp));
         }
       }
     }
@@ -5172,6 +5189,7 @@ public class WorkflowTest {
     assertEquals("foo10", result);
     tracer.setExpected(
         "interceptExecuteWorkflow " + UUID_REGEXP,
+        "newThread root",
         "sideEffect",
         "sideEffect",
         "executeActivity activity2");
@@ -5880,12 +5898,15 @@ public class WorkflowTest {
     sagaWorkflow.execute(taskList, false);
     tracer.setExpected(
         "interceptExecuteWorkflow " + UUID_REGEXP,
+        "newThread root",
         "executeActivity customActivity1",
         "executeChildWorkflow TestMultiargsWorkflowsFunc",
         "interceptExecuteWorkflow " + UUID_REGEXP,
+        "newThread root",
         "executeActivity throwIO",
         "executeChildWorkflow TestCompensationWorkflow",
         "interceptExecuteWorkflow " + UUID_REGEXP,
+        "newThread root",
         "executeActivity activity2");
   }
 
@@ -6006,6 +6027,7 @@ public class WorkflowTest {
     assertEquals("done", result);
     tracer.setExpected(
         "interceptExecuteWorkflow " + UUID_REGEXP,
+        "newThread root",
         "upsertSearchAttributes",
         "executeActivity activity");
   }
@@ -6359,7 +6381,7 @@ public class WorkflowTest {
 
     @Override
     public Object newThread(Runnable runnable, boolean detached, String name) {
-      trace.add("upsertSearchAttributes");
+      trace.add("newThread " + name);
       return next.newThread(runnable, detached, name);
     }
   }
