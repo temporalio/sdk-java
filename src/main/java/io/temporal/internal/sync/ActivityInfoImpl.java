@@ -19,30 +19,35 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.activity.ActivityTask;
+import io.temporal.activity.ActivityInfo;
 import io.temporal.common.v1.Payloads;
-import io.temporal.common.v1.WorkflowExecution;
-import io.temporal.common.v1.WorkflowType;
 import io.temporal.workflowservice.v1.PollForActivityTaskResponse;
 import java.time.Duration;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
-final class ActivityTaskImpl implements ActivityTask {
+final class ActivityInfoImpl implements ActivityInfo {
   private final PollForActivityTaskResponse response;
+  private final String activityNamespace;
 
-  ActivityTaskImpl(PollForActivityTaskResponse response) {
-    this.response = response;
+  ActivityInfoImpl(PollForActivityTaskResponse response, String activityNamespace) {
+    this.response = Objects.requireNonNull(response);
+    this.activityNamespace = Objects.requireNonNull(activityNamespace);
   }
 
-  @Override
   public byte[] getTaskToken() {
     return response.getTaskToken().toByteArray();
   }
 
   @Override
-  public WorkflowExecution getWorkflowExecution() {
-    return response.getWorkflowExecution();
+  public String getWorkflowId() {
+    return response.getWorkflowExecution().getWorkflowId();
+  }
+
+  @Override
+  public String getRunId() {
+    return response.getWorkflowExecution().getRunId();
   }
 
   @Override
@@ -86,13 +91,18 @@ final class ActivityTaskImpl implements ActivityTask {
   }
 
   @Override
-  public WorkflowType getWorkflowType() {
-    return response.getWorkflowType();
+  public String getWorkflowType() {
+    return response.getWorkflowType().getName();
   }
 
   @Override
   public String getWorkflowNamespace() {
     return response.getWorkflowNamespace();
+  }
+
+  @Override
+  public String getActivityNamespace() {
+    return activityNamespace;
   }
 
   @Override

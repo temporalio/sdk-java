@@ -573,7 +573,7 @@ public final class Workflow {
     WorkflowInternal.continueAsNew(workflowType, options, args);
   }
 
-  public static WorkflowInfo getWorkflowInfo() {
+  public static WorkflowInfo getInfo() {
     return WorkflowInternal.getWorkflowInfo();
   }
 

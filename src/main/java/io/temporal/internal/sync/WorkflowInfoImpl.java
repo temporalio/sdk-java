@@ -24,6 +24,7 @@ import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.internal.replay.DecisionContext;
 import io.temporal.workflow.WorkflowInfo;
 import java.time.Duration;
+import java.util.Optional;
 
 final class WorkflowInfoImpl implements WorkflowInfo {
 
@@ -54,7 +55,7 @@ final class WorkflowInfoImpl implements WorkflowInfo {
   }
 
   @Override
-  public String getContinuedExecutionRunId() {
+  public Optional<String> getContinuedExecutionRunId() {
     return context.getContinuedExecutionRunId();
   }
 
@@ -84,14 +85,18 @@ final class WorkflowInfoImpl implements WorkflowInfo {
   }
 
   @Override
-  public String getParentWorkflowId() {
+  public Optional<String> getParentWorkflowId() {
     WorkflowExecution parentWorkflowExecution = context.getParentWorkflowExecution();
-    return parentWorkflowExecution == null ? null : parentWorkflowExecution.getWorkflowId();
+    return parentWorkflowExecution == null
+        ? Optional.empty()
+        : Optional.of(parentWorkflowExecution.getWorkflowId());
   }
 
   @Override
-  public String getParentRunId() {
+  public Optional<String> getParentRunId() {
     WorkflowExecution parentWorkflowExecution = context.getParentWorkflowExecution();
-    return parentWorkflowExecution == null ? null : parentWorkflowExecution.getRunId();
+    return parentWorkflowExecution == null
+        ? Optional.empty()
+        : Optional.of(parentWorkflowExecution.getRunId());
   }
 }

@@ -19,40 +19,46 @@
 
 package io.temporal.client;
 
-import io.temporal.activity.ActivityTask;
-import io.temporal.common.v1.WorkflowExecution;
+import io.temporal.activity.ActivityInfo;
 import io.temporal.failure.TemporalException;
+import java.util.Optional;
 
 /** Base exception for all failures returned by an activity completion client. Do not extend! */
 public class ActivityCompletionException extends TemporalException {
 
-  private final WorkflowExecution execution;
+  private final String workflowId;
+
+  private final String runId;
 
   private final String activityType;
 
   private final String activityId;
 
-  protected ActivityCompletionException(ActivityTask task) {
-    this(task, null);
+  protected ActivityCompletionException(ActivityInfo info) {
+    this(info, null);
   }
 
-  protected ActivityCompletionException(ActivityTask task, Throwable cause) {
+  protected ActivityCompletionException(ActivityInfo info, Throwable cause) {
     super(
-        task != null
-            ? "Execution="
-                + task.getWorkflowExecution()
+        info != null
+            ? "WorkflowId="
+                + info.getWorkflowId()
+                + ", RunId="
+                + info.getRunId()
                 + ", ActivityType="
-                + task.getActivityType()
+                + info.getActivityType()
                 + ", ActivityId="
-                + task.getActivityId()
+                + info.getActivityId()
             : null,
         cause);
-    if (task != null) {
-      execution = task.getWorkflowExecution();
-      activityType = task.getActivityType();
-      activityId = task.getActivityId();
+    if (info != null) {
+      workflowId = info.getWorkflowId();
+      runId = info.getRunId();
+      activityType = info.getActivityType();
+      activityId = info.getActivityId();
     } else {
-      execution = null;
+      this.workflowId = null;
+      this.runId = null;
       activityType = null;
       activityId = null;
     }
@@ -60,31 +66,41 @@ public class ActivityCompletionException extends TemporalException {
 
   protected ActivityCompletionException(String activityId, Throwable cause) {
     super("ActivityId=" + activityId, cause);
-    this.execution = null;
+    this.workflowId = null;
+    this.runId = null;
     this.activityType = null;
     this.activityId = activityId;
   }
 
   protected ActivityCompletionException(Throwable cause) {
-    this((ActivityTask) null, cause);
+    this((ActivityInfo) null, cause);
   }
 
   protected ActivityCompletionException() {
     super(null, null);
-    execution = null;
+    workflowId = null;
+    runId = null;
     activityType = null;
     activityId = null;
   }
 
-  public WorkflowExecution getExecution() {
-    return execution;
+  /** Optional as it might be not known to the exception source. */
+  public Optional<String> getWorkflowId() {
+    return Optional.ofNullable(workflowId);
   }
 
-  public String getActivityType() {
-    return activityType;
+  /** Optional as it might be not known to the exception source. */
+  public Optional<String> getRunId() {
+    return Optional.ofNullable(runId);
   }
 
-  public String getActivityId() {
-    return activityId;
+  /** Optional as it might be not known to the exception source. */
+  public Optional<String> getActivityType() {
+    return Optional.ofNullable(activityType);
+  }
+
+  /** Optional as it might be not known to the exception source. */
+  public Optional<String> getActivityId() {
+    return Optional.ofNullable(activityId);
   }
 }

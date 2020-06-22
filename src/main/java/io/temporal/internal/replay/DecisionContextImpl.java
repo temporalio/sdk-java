@@ -120,7 +120,7 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   }
 
   @Override
-  public String getContinuedExecutionRunId() {
+  public Optional<String> getContinuedExecutionRunId() {
     return workflowContext.getContinuedExecutionRunId();
   }
 

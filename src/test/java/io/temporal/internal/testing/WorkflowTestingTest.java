@@ -127,7 +127,7 @@ public class WorkflowTestingTest {
     @Override
     public String workflow1(String input) {
       Workflow.sleep(Duration.ofHours(1)); // test time skipping
-      return Workflow.getWorkflowInfo().getWorkflowType() + "-" + input;
+      return Workflow.getInfo().getWorkflowType() + "-" + input;
     }
   }
 
@@ -148,8 +148,7 @@ public class WorkflowTestingTest {
     @Override
     public String workflow1(String input) {
       Workflow.sleep(Duration.ofHours(1)); // test time skipping
-      throw new IllegalThreadStateException(
-          Workflow.getWorkflowInfo().getWorkflowType() + "-" + input);
+      throw new IllegalThreadStateException(Workflow.getInfo().getWorkflowType() + "-" + input);
     }
   }
 
@@ -181,7 +180,7 @@ public class WorkflowTestingTest {
 
     @Override
     public String activity1(String input) {
-      return Activity.getTask().getActivityType() + "-" + input;
+      return Activity.getExecutionContext().getInfo().getActivityType() + "-" + input;
     }
   }
 
@@ -214,14 +213,15 @@ public class WorkflowTestingTest {
     WorkflowOptions options = WorkflowOptions.newBuilder().setTaskList(TASK_LIST).build();
     TestWorkflow workflow = client.newWorkflowStub(TestWorkflow.class, options);
     String result = workflow.workflow1("input1");
-    assertEquals("activity1-input1", result);
+    assertEquals("Activity1-input1", result);
   }
 
   private static class FailingActivityImpl implements TestActivity {
 
     @Override
     public String activity1(String input) {
-      throw new IllegalThreadStateException(Activity.getTask().getActivityType() + "-" + input);
+      throw new IllegalThreadStateException(
+          Activity.getExecutionContext().getInfo().getActivityType() + "-" + input);
     }
   }
 
@@ -238,7 +238,7 @@ public class WorkflowTestingTest {
       workflow.workflow1("input1");
       fail("unreacheable");
     } catch (WorkflowException e) {
-      assertTrue(e.getCause().getCause().getMessage().contains("message='activity1-input1'"));
+      assertTrue(e.getCause().getCause().getMessage().contains("message='Activity1-input1'"));
       e.printStackTrace();
     }
   }
@@ -315,7 +315,7 @@ public class WorkflowTestingTest {
         } catch (InterruptedException e) {
           e.printStackTrace();
         }
-        Activity.heartbeat(System.currentTimeMillis() - start);
+        Activity.getExecutionContext().heartbeat(System.currentTimeMillis() - start);
       }
     }
   }
@@ -425,7 +425,7 @@ public class WorkflowTestingTest {
     @Override
     public String workflow1(String input) {
       Workflow.newTimer(Duration.ofHours(2)).get();
-      return Workflow.getWorkflowInfo().getWorkflowType() + "-" + input;
+      return Workflow.getInfo().getWorkflowType() + "-" + input;
     }
   }
 
@@ -544,7 +544,7 @@ public class WorkflowTestingTest {
     public String activity1(String input) {
       long start = System.currentTimeMillis();
       while (true) {
-        Activity.heartbeat(System.currentTimeMillis() - start);
+        Activity.getExecutionContext().heartbeat(System.currentTimeMillis() - start);
       }
     }
   }
@@ -659,7 +659,7 @@ public class WorkflowTestingTest {
     public String workflow(String input) {
       ChildWorkflow child = Workflow.newChildWorkflowStub(ChildWorkflow.class);
       Promise<String> result =
-          Async.function(child::workflow, input, Workflow.getWorkflowInfo().getWorkflowId());
+          Async.function(child::workflow, input, Workflow.getInfo().getWorkflowId());
       Workflow.await(() -> signaledValue != null);
       return result.get() + signaledValue;
     }
@@ -706,7 +706,7 @@ public class WorkflowTestingTest {
     public String workflow(String input) {
       ChildWorkflow child = Workflow.newChildWorkflowStub(ChildWorkflow.class);
       Promise<String> result =
-          Async.function(child::workflow, input, Workflow.getWorkflowInfo().getWorkflowId());
+          Async.function(child::workflow, input, Workflow.getInfo().getWorkflowId());
       return result.get();
     }
 
@@ -890,7 +890,7 @@ public class WorkflowTestingTest {
               .build();
       ChildWorkflow child = Workflow.newChildWorkflowStub(ChildWorkflow.class, options);
 
-      String result = child.workflow(mdcValue, Workflow.getWorkflowInfo().getWorkflowId());
+      String result = child.workflow(mdcValue, Workflow.getInfo().getWorkflowId());
       return result;
     }
 
@@ -1036,7 +1036,7 @@ public class WorkflowTestingTest {
       ChildWorkflowOptions options = ChildWorkflowOptions.newBuilder().build();
       ChildWorkflow child = Workflow.newChildWorkflowStub(ChildWorkflow.class, options);
 
-      String result = child.workflow(mdcValue, Workflow.getWorkflowInfo().getWorkflowId());
+      String result = child.workflow(mdcValue, Workflow.getInfo().getWorkflowId());
       return result;
     }
 
