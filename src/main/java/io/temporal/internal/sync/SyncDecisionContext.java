@@ -798,6 +798,6 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
 
   @Override
   public Object newThread(Runnable runnable, boolean detached, String name) {
-    return runner.newThreadNoInterceptor(runnable, detached, name);
+    return runner.newThread(runnable, detached, name);
   }
 }

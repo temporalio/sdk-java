@@ -42,6 +42,9 @@ import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -68,8 +71,6 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Throws Error in case of any unexpected condition. It is to fail a decision, not a workflow. */
 class DeterministicRunnerImpl implements DeterministicRunner {
@@ -114,11 +115,15 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   private boolean inRunUntilAllBlocked;
   private boolean closeRequested;
   private boolean closed;
+  /**
+   * Used to create a root workflow thread through the interceptor chain. The default value is used
+   * only in the unit tests.
+   */
   private WorkflowCallsInterceptor interceptorHead =
       new WorkflowCallsInterceptorBase(null) {
         @Override
         public Object newThread(Runnable runnable, boolean detached, String name) {
-          return DeterministicRunnerImpl.this.newThreadNoInterceptor(runnable, detached, name);
+          return DeterministicRunnerImpl.this.newThread(runnable, detached, name);
         }
       };
 
@@ -463,10 +468,6 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
   /** To be called only from another workflow thread. */
   public WorkflowThread newThread(Runnable runnable, boolean detached, String name) {
-    return (WorkflowThread) interceptorHead.newThread(runnable, detached, name);
-  }
-
-  public WorkflowThread newThreadNoInterceptor(Runnable runnable, boolean detached, String name) {
     WorkflowThread result;
     if (rootWorkflowThread == null) {
       rootWorkflowThread = newRootWorkflowThread(runnable, detached, name);
