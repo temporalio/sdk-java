@@ -6,7 +6,7 @@ buildscript {
 
 plugins {
     id 'com.github.sherter.google-java-format' version '0.9'
-    id 'com.google.protobuf' version '0.8.11'
+    id 'com.google.protobuf' version '0.8.12'
     id 'java-library'
     id 'net.ltgt.errorprone' version '1.2.1'
     id 'net.minecrell.licenser' version '0.4.1'
