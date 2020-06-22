@@ -42,9 +42,16 @@ public class POJOActivityMethodMetadata {
       name = activityMethod.name();
     } else {
       hasActivityMethodAnnotation = false;
-      name = activityAnnotation.namePrefix() + method.getName();
+      name = activityAnnotation.namePrefix() + getActivityNameFromMethod(method);
     }
     this.name = name;
+  }
+
+  // Capitalize the first letter
+  // TODO(maxim): make activity name generation pluggable through options
+  private static String getActivityNameFromMethod(Method method) {
+    String name = method.getName();
+    return name.substring(0, 1).toUpperCase() + name.substring(1);
   }
 
   public boolean isHasActivityMethodAnnotation() {

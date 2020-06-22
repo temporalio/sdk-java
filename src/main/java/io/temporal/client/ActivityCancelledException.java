@@ -19,7 +19,7 @@
 
 package io.temporal.client;
 
-import io.temporal.activity.ActivityTask;
+import io.temporal.activity.ActivityInfo;
 
 /**
  * Usually indicates that activity was already completed (duplicated request to complete) or timed
@@ -27,8 +27,8 @@ import io.temporal.activity.ActivityTask;
  */
 public final class ActivityCancelledException extends ActivityCompletionException {
 
-  public ActivityCancelledException(ActivityTask task) {
-    super(task);
+  public ActivityCancelledException(ActivityInfo info) {
+    super(info);
   }
 
   public ActivityCancelledException() {

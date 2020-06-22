@@ -22,6 +22,7 @@ package io.temporal.internal.sync;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.uber.m3.tally.Scope;
+import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.v1.Payloads;
@@ -159,7 +160,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
   public Result handle(
       PollForActivityTaskResponse pollResponse, Scope metricsScope, boolean isLocalActivity) {
     String activityType = pollResponse.getActivityType().getName();
-    ActivityTaskImpl activityTask = new ActivityTaskImpl(pollResponse);
+    ActivityInfoImpl activityTask = new ActivityInfoImpl(pollResponse, this.namespace);
     ActivityTaskExecutor activity = activities.get(activityType);
     if (activity == null) {
       String knownTypes = Joiner.on(", ").join(activities.keySet());
@@ -176,7 +177,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
   }
 
   interface ActivityTaskExecutor {
-    ActivityTaskHandler.Result execute(ActivityTaskImpl task, Scope metricsScope);
+    ActivityTaskHandler.Result execute(ActivityInfoImpl task, Scope metricsScope);
   }
 
   private class POJOActivityImplementation implements ActivityTaskExecutor {
@@ -189,11 +190,11 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
 
     @Override
-    public ActivityTaskHandler.Result execute(ActivityTaskImpl task, Scope metricsScope) {
+    public ActivityTaskHandler.Result execute(ActivityInfoImpl info, Scope metricsScope) {
       ActivityExecutionContext context =
           new ActivityExecutionContextImpl(
-              service, namespace, task, dataConverter, heartbeatExecutor);
-      Optional<Payloads> input = task.getInput();
+              service, namespace, info, dataConverter, heartbeatExecutor);
+      Optional<Payloads> input = info.getInput();
       CurrentActivityExecutionContext.set(context);
       try {
         Object[] args =
@@ -232,11 +233,10 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
 
     @Override
-    public ActivityTaskHandler.Result execute(ActivityTaskImpl task, Scope metricsScope) {
-      ActivityExecutionContext context =
-          new LocalActivityExecutionContextImpl(service, namespace, task);
+    public ActivityTaskHandler.Result execute(ActivityInfoImpl info, Scope metricsScope) {
+      ActivityExecutionContext context = new LocalActivityExecutionContextImpl(info);
       CurrentActivityExecutionContext.set(context);
-      Optional<Payloads> input = task.getInput();
+      Optional<Payloads> input = info.getInput();
       try {
         Object[] args =
             dataConverter.arrayFromPayloads(

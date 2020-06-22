@@ -19,7 +19,7 @@
 
 package io.temporal.client;
 
-import io.temporal.activity.ActivityTask;
+import io.temporal.activity.ActivityInfo;
 
 /** Unexpected failure when completing an activity. */
 public final class ActivityCompletionFailureException extends ActivityCompletionException {
@@ -28,8 +28,8 @@ public final class ActivityCompletionFailureException extends ActivityCompletion
     super(cause);
   }
 
-  public ActivityCompletionFailureException(ActivityTask task, Throwable cause) {
-    super(task, cause);
+  public ActivityCompletionFailureException(ActivityInfo info, Throwable cause) {
+    super(info, cause);
   }
 
   public ActivityCompletionFailureException(String activityId, Throwable cause) {

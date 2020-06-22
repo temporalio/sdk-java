@@ -19,7 +19,7 @@
 
 package io.temporal.client;
 
-import io.temporal.activity.ActivityTask;
+import io.temporal.activity.ActivityInfo;
 import io.temporal.worker.WorkerFactory;
 import java.util.concurrent.TimeUnit;
 
@@ -31,8 +31,8 @@ import java.util.concurrent.TimeUnit;
  */
 public final class ActivityWorkerShutdownException extends ActivityCompletionException {
 
-  public ActivityWorkerShutdownException(ActivityTask task) {
-    super(task);
+  public ActivityWorkerShutdownException(ActivityInfo info) {
+    super(info);
   }
 
   public ActivityWorkerShutdownException() {

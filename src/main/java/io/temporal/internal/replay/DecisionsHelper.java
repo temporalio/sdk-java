@@ -441,7 +441,10 @@ class DecisionsHelper {
         firstEvent.getWorkflowExecutionStartedEventAttributes();
     ContinueAsNewWorkflowExecutionDecisionAttributes.Builder attributes =
         ContinueAsNewWorkflowExecutionDecisionAttributes.newBuilder();
-    attributes.setInput(continueParameters.getInput());
+    Payloads input = continueParameters.getInput();
+    if (input != null) {
+      attributes.setInput(input);
+    }
     String workflowType = continueParameters.getWorkflowType();
     if (workflowType != null && !workflowType.isEmpty()) {
       attributes.setWorkflowType(WorkflowType.newBuilder().setName(workflowType));

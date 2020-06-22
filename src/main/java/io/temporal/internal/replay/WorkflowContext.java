@@ -31,6 +31,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 final class WorkflowContext {
 
@@ -102,10 +103,10 @@ final class WorkflowContext {
     this.continueAsNewOnCompletion = continueParameters;
   }
 
-  String getContinuedExecutionRunId() {
+  Optional<String> getContinuedExecutionRunId() {
     WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
     String runId = attributes.getContinuedExecutionRunId();
-    return runId.isEmpty() ? null : runId;
+    return runId.isEmpty() ? Optional.empty() : Optional.of(runId);
   }
 
   WorkflowExecution getParentWorkflowExecution() {

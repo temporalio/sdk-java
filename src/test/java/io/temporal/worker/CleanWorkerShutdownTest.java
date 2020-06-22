@@ -286,7 +286,7 @@ public class CleanWorkerShutdownTest {
       try {
         started.complete(true);
         Thread.sleep(1000);
-        Activity.heartbeat("foo");
+        Activity.getExecutionContext().heartbeat("foo");
       } catch (ActivityWorkerShutdownException e) {
         return "workershutdown";
       } catch (InterruptedException e) {
