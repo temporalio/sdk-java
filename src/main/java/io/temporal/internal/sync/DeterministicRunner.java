@@ -19,7 +19,7 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.common.interceptors.WorkflowCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.internal.replay.DeciderCache;
 import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.Workflow;
@@ -128,5 +128,5 @@ interface DeterministicRunner {
    */
   WorkflowThread newThread(Runnable runnable, boolean detached, String name);
 
-  void setInterceptorHead(WorkflowCallsInterceptor interceptorHead);
+  void setInterceptorHead(WorkflowOutboundCallsInterceptor interceptorHead);
 }

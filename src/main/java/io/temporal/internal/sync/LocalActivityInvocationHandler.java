@@ -21,7 +21,7 @@ package io.temporal.internal.sync;
 
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.MethodRetry;
-import io.temporal.common.interceptors.WorkflowCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.workflow.ActivityStub;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -29,18 +29,18 @@ import java.util.function.Function;
 
 class LocalActivityInvocationHandler extends ActivityInvocationHandlerBase {
   private final LocalActivityOptions options;
-  private final WorkflowCallsInterceptor activityExecutor;
+  private final WorkflowOutboundCallsInterceptor activityExecutor;
 
   static InvocationHandler newInstance(
       Class<?> activityInterface,
       LocalActivityOptions options,
-      WorkflowCallsInterceptor activityExecutor) {
+      WorkflowOutboundCallsInterceptor activityExecutor) {
     return new LocalActivityInvocationHandler(activityInterface, activityExecutor, options);
   }
 
   private LocalActivityInvocationHandler(
       Class<?> activityInterface,
-      WorkflowCallsInterceptor activityExecutor,
+      WorkflowOutboundCallsInterceptor activityExecutor,
       LocalActivityOptions options) {
     this.options = options;
     this.activityExecutor = activityExecutor;

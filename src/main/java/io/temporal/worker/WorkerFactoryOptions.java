@@ -20,7 +20,6 @@
 package io.temporal.worker;
 
 import com.google.common.base.Preconditions;
-import io.temporal.common.interceptors.NoopWorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowInterceptor;
 
 public class WorkerFactoryOptions {
@@ -53,7 +52,7 @@ public class WorkerFactoryOptions {
         DEFAULT_WORKFLOW_HOST_LOCAL_TASK_LIST_SCHEDULE_TO_START_TIMEOUT;
     private int workflowCacheSize;
     private int maxWorkflowThreadCount;
-    private WorkflowInterceptor workflowInterceptor;
+    private WorkflowInterceptor[] workflowInterceptors;
     private boolean enableLoggingInReplay;
     private int workflowHostLocalPollThreadCount;
 
@@ -67,7 +66,7 @@ public class WorkerFactoryOptions {
           options.workflowHostLocalTaskListScheduleToStartTimeoutSeconds;
       this.workflowCacheSize = options.workflowCacheSize;
       this.maxWorkflowThreadCount = options.maxWorkflowThreadCount;
-      this.workflowInterceptor = options.workflowInterceptor;
+      this.workflowInterceptors = options.workflowInterceptors;
       this.enableLoggingInReplay = options.enableLoggingInReplay;
       this.workflowHostLocalPollThreadCount = options.workflowHostLocalPollThreadCount;
     }
@@ -109,9 +108,8 @@ public class WorkerFactoryOptions {
       return this;
     }
 
-    // TODO: List of interceptors
-    public Builder setWorkflowInterceptor(WorkflowInterceptor workflowInterceptor) {
-      this.workflowInterceptor = workflowInterceptor;
+    public Builder setWorkflowInterceptors(WorkflowInterceptor... workflowInterceptors) {
+      this.workflowInterceptors = workflowInterceptors;
       return this;
     }
 
@@ -130,7 +128,7 @@ public class WorkerFactoryOptions {
           workflowCacheSize,
           maxWorkflowThreadCount,
           workflowHostLocalTaskListScheduleToStartTimeoutSeconds,
-          workflowInterceptor,
+          workflowInterceptors,
           enableLoggingInReplay,
           workflowHostLocalPollThreadCount,
           false);
@@ -141,7 +139,7 @@ public class WorkerFactoryOptions {
           workflowCacheSize,
           maxWorkflowThreadCount,
           workflowHostLocalTaskListScheduleToStartTimeoutSeconds,
-          workflowInterceptor,
+          workflowInterceptors,
           enableLoggingInReplay,
           workflowHostLocalPollThreadCount,
           true);
@@ -151,7 +149,7 @@ public class WorkerFactoryOptions {
   private final int workflowCacheSize;
   private final int maxWorkflowThreadCount;
   private final int workflowHostLocalTaskListScheduleToStartTimeoutSeconds;
-  private final WorkflowInterceptor workflowInterceptor;
+  private final WorkflowInterceptor[] workflowInterceptors;
   private final boolean enableLoggingInReplay;
   private final int workflowHostLocalPollThreadCount;
 
@@ -159,7 +157,7 @@ public class WorkerFactoryOptions {
       int workflowCacheSize,
       int maxWorkflowThreadCount,
       int workflowHostLocalTaskListScheduleToStartTimeoutSeconds,
-      WorkflowInterceptor workflowInterceptor,
+      WorkflowInterceptor[] workflowInterceptors,
       boolean enableLoggingInReplay,
       int workflowHostLocalPollThreadCount,
       boolean validate) {
@@ -177,8 +175,8 @@ public class WorkerFactoryOptions {
           workflowHostLocalTaskListScheduleToStartTimeoutSeconds >= 0,
           "negative workflowHostLocalTaskListScheduleToStartTimeoutSeconds");
 
-      if (workflowInterceptor == null) {
-        workflowInterceptor = new NoopWorkflowInterceptor();
+      if (workflowInterceptors == null) {
+        workflowInterceptors = new WorkflowInterceptor[0];
       }
 
       Preconditions.checkState(
@@ -191,7 +189,7 @@ public class WorkerFactoryOptions {
     this.maxWorkflowThreadCount = maxWorkflowThreadCount;
     this.workflowHostLocalTaskListScheduleToStartTimeoutSeconds =
         workflowHostLocalTaskListScheduleToStartTimeoutSeconds;
-    this.workflowInterceptor = workflowInterceptor;
+    this.workflowInterceptors = workflowInterceptors;
     this.enableLoggingInReplay = enableLoggingInReplay;
     this.workflowHostLocalPollThreadCount = workflowHostLocalPollThreadCount;
   }
@@ -208,8 +206,8 @@ public class WorkerFactoryOptions {
     return workflowHostLocalTaskListScheduleToStartTimeoutSeconds;
   }
 
-  public WorkflowInterceptor getWorkflowInterceptor() {
-    return workflowInterceptor;
+  public WorkflowInterceptor[] getWorkflowInterceptors() {
+    return workflowInterceptors;
   }
 
   public boolean isEnableLoggingInReplay() {

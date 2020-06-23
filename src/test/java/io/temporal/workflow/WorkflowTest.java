@@ -56,11 +56,10 @@ import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GsonJsonPayloadConverter;
-import io.temporal.common.interceptors.BaseWorkflowInvoker;
-import io.temporal.common.interceptors.WorkflowCallsInterceptor;
+import io.temporal.common.interceptors.BaseWorkflowInvokerInterceptor;
+import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInterceptor;
-import io.temporal.common.interceptors.WorkflowInvocationInterceptor;
-import io.temporal.common.interceptors.WorkflowInvoker;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.v1.Memo;
 import io.temporal.common.v1.Payload;
 import io.temporal.common.v1.SearchAttributes;
@@ -308,7 +307,7 @@ public class WorkflowTest {
     boolean versionTest = testMethod.contains("GetVersion") || testMethod.contains("Deterministic");
     WorkerFactoryOptions factoryOptions =
         WorkerFactoryOptions.newBuilder()
-            .setWorkflowInterceptor(tracer)
+            .setWorkflowInterceptors(tracer)
             .setWorkflowHostLocalTaskListScheduleToStartTimeoutSeconds(versionTest ? 0 : 10)
             .build();
     if (useExternalService) {
@@ -5184,13 +5183,12 @@ public class WorkflowTest {
     }
 
     @Override
-    public WorkflowInvoker interceptExecuteWorkflow(
-        WorkflowCallsInterceptor interceptor, WorkflowInvocationInterceptor next) {
+    public WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next) {
       trace.add("interceptExecuteWorkflow " + Workflow.getInfo().getWorkflowId());
-      return new BaseWorkflowInvoker(interceptor, next) {
+      return new BaseWorkflowInvokerInterceptor(next) {
         @Override
-        public void init() {
-          next.init(new TracingWorkflowCallsInterceptor(trace, interceptor));
+        public void init(WorkflowOutboundCallsInterceptor outboundCalls) {
+          next.init(new TracingWorkflowOutboundCallsInterceptor(trace, outboundCalls));
         }
       };
     }
@@ -6273,12 +6271,14 @@ public class WorkflowTest {
     }
   }
 
-  private static class TracingWorkflowCallsInterceptor implements WorkflowCallsInterceptor {
+  private static class TracingWorkflowOutboundCallsInterceptor
+      implements WorkflowOutboundCallsInterceptor {
 
     private final FilteredTrace trace;
-    private final WorkflowCallsInterceptor next;
+    private final WorkflowOutboundCallsInterceptor next;
 
-    private TracingWorkflowCallsInterceptor(FilteredTrace trace, WorkflowCallsInterceptor next) {
+    private TracingWorkflowOutboundCallsInterceptor(
+        FilteredTrace trace, WorkflowOutboundCallsInterceptor next) {
       WorkflowInfo workflowInfo =
           Workflow.getInfo(); // checks that info is available in the constructor
       this.trace = trace;

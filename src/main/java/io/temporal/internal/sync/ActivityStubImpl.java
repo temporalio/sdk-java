@@ -20,23 +20,23 @@
 package io.temporal.internal.sync;
 
 import io.temporal.activity.ActivityOptions;
-import io.temporal.common.interceptors.WorkflowCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.workflow.ActivityStub;
 import io.temporal.workflow.Promise;
 import java.lang.reflect.Type;
 
 final class ActivityStubImpl extends ActivityStubBase {
   protected final ActivityOptions options;
-  private final WorkflowCallsInterceptor activityExecutor;
+  private final WorkflowOutboundCallsInterceptor activityExecutor;
 
   static ActivityStub newInstance(
-      ActivityOptions options, WorkflowCallsInterceptor activityExecutor) {
+      ActivityOptions options, WorkflowOutboundCallsInterceptor activityExecutor) {
     ActivityOptions validatedOptions =
         ActivityOptions.newBuilder(options).validateAndBuildWithDefaults();
     return new ActivityStubImpl(validatedOptions, activityExecutor);
   }
 
-  ActivityStubImpl(ActivityOptions options, WorkflowCallsInterceptor activityExecutor) {
+  ActivityStubImpl(ActivityOptions options, WorkflowOutboundCallsInterceptor activityExecutor) {
     this.options = options;
     this.activityExecutor = activityExecutor;
   }

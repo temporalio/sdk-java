@@ -19,7 +19,7 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.common.interceptors.WorkflowCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.workflow.ExternalWorkflowStub;
 import java.lang.reflect.InvocationHandler;
@@ -34,7 +34,7 @@ class ExternalWorkflowInvocationHandler implements InvocationHandler {
   public ExternalWorkflowInvocationHandler(
       Class<?> workflowInterface,
       WorkflowExecution execution,
-      WorkflowCallsInterceptor decisionContext) {
+      WorkflowOutboundCallsInterceptor decisionContext) {
     workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
     stub = new ExternalWorkflowStubImpl(execution, decisionContext);
   }

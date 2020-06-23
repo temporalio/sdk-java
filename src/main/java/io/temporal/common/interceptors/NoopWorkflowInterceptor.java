@@ -21,8 +21,7 @@ package io.temporal.common.interceptors;
 
 public final class NoopWorkflowInterceptor implements WorkflowInterceptor {
   @Override
-  public WorkflowInvoker interceptExecuteWorkflow(
-      WorkflowCallsInterceptor interceptor, WorkflowInvocationInterceptor next) {
-    return new BaseWorkflowInvoker(interceptor, next);
+  public WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next) {
+    return new BaseWorkflowInvokerInterceptor(next);
   }
 }

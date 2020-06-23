@@ -23,8 +23,8 @@ import com.google.common.primitives.Ints;
 import com.uber.m3.tally.Scope;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.interceptors.WorkflowCallsInterceptor;
-import io.temporal.common.interceptors.WorkflowCallsInterceptorBase;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptorBase;
 import io.temporal.common.v1.Payloads;
 import io.temporal.common.v1.SearchAttributes;
 import io.temporal.common.v1.WorkflowExecution;
@@ -117,8 +117,8 @@ class DeterministicRunnerImpl implements DeterministicRunner {
    * Used to create a root workflow thread through the interceptor chain. The default value is used
    * only in the unit tests.
    */
-  private WorkflowCallsInterceptor interceptorHead =
-      new WorkflowCallsInterceptorBase(null) {
+  private WorkflowOutboundCallsInterceptor interceptorHead =
+      new WorkflowOutboundCallsInterceptorBase(null) {
         @Override
         public Object newThread(Runnable runnable, boolean detached, String name) {
           return DeterministicRunnerImpl.this.newThread(runnable, detached, name);
@@ -487,7 +487,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   }
 
   @Override
-  public void setInterceptorHead(WorkflowCallsInterceptor interceptorHead) {
+  public void setInterceptorHead(WorkflowOutboundCallsInterceptor interceptorHead) {
     this.interceptorHead = Objects.requireNonNull(interceptorHead);
   }
 

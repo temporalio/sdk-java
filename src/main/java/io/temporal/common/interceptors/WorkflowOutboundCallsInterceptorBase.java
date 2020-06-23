@@ -17,40 +17,33 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.workflow.interceptors;
+package io.temporal.common.interceptors;
 
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
-import io.temporal.common.interceptors.WorkflowCallsInterceptor;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.Functions;
+import io.temporal.workflow.Functions.Func;
+import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 import java.util.function.BiPredicate;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
-public class SignalWorkflowCallsInterceptor implements WorkflowCallsInterceptor {
+/** Convenience base class for WorkflowCallsInterceptor implementations. */
+public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCallsInterceptor {
 
-  private Function<Object[], Object[]> overrideArgs;
-  private Function<String, String> overrideSignalName;
-  private final WorkflowCallsInterceptor next;
+  private final WorkflowOutboundCallsInterceptor next;
 
-  public SignalWorkflowCallsInterceptor(
-      Function<Object[], Object[]> overrideArgs,
-      Function<String, String> overrideSignalName,
-      WorkflowCallsInterceptor next) {
-    this.overrideArgs = overrideArgs;
-    this.overrideSignalName = overrideSignalName;
-    this.next = Objects.requireNonNull(next);
+  public WorkflowOutboundCallsInterceptorBase(WorkflowOutboundCallsInterceptor next) {
+    this.next = next;
   }
 
   @Override
@@ -91,11 +84,7 @@ public class SignalWorkflowCallsInterceptor implements WorkflowCallsInterceptor 
   @Override
   public Promise<Void> signalExternalWorkflow(
       WorkflowExecution execution, String signalName, Object[] args) {
-    if (args != null && args.length > 0) {
-      args = new Object[] {"corrupted signal"};
-    }
-    return next.signalExternalWorkflow(
-        execution, overrideSignalName.apply(signalName), overrideArgs.apply(args));
+    return next.signalExternalWorkflow(execution, signalName, args);
   }
 
   @Override
@@ -124,18 +113,14 @@ public class SignalWorkflowCallsInterceptor implements WorkflowCallsInterceptor 
   }
 
   @Override
-  public <R> R sideEffect(Class<R> resultClass, Type resultType, Functions.Func<R> func) {
+  public <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func) {
     return next.sideEffect(resultClass, resultType, func);
   }
 
   @Override
   public <R> R mutableSideEffect(
-      String id,
-      Class<R> resultClass,
-      Type resultType,
-      BiPredicate<R, R> updated,
-      Functions.Func<R> func) {
-    return null;
+      String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
+    return next.mutableSideEffect(id, resultClass, resultType, updated, func);
   }
 
   @Override
@@ -154,7 +139,7 @@ public class SignalWorkflowCallsInterceptor implements WorkflowCallsInterceptor 
       String queryType,
       Class<?>[] argTypes,
       Type[] genericArgTypes,
-      Functions.Func1<Object[], Object> callback) {
+      Func1<Object[], Object> callback) {
     next.registerQuery(queryType, argTypes, genericArgTypes, callback);
   }
 

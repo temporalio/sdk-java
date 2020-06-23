@@ -33,7 +33,7 @@ import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.converter.EncodedValue;
-import io.temporal.common.interceptors.WorkflowCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.v1.ActivityType;
 import io.temporal.common.v1.Payloads;
 import io.temporal.common.v1.WorkflowExecution;
@@ -223,7 +223,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
   }
 
-  private class TestActivityExecutor implements WorkflowCallsInterceptor {
+  private class TestActivityExecutor implements WorkflowOutboundCallsInterceptor {
 
     @Override
     public <T> Promise<T> executeActivity(

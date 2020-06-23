@@ -20,8 +20,8 @@
 package io.temporal.internal.sync;
 
 import com.google.common.base.Defaults;
-import io.temporal.common.interceptors.WorkflowCallsInterceptor;
-import io.temporal.common.interceptors.WorkflowCallsInterceptor.WorkflowResult;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor.WorkflowResult;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.workflow.ChildWorkflowOptions;
@@ -37,11 +37,13 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
 
   private final String workflowType;
   private final ChildWorkflowOptions options;
-  private final WorkflowCallsInterceptor decisionContext;
+  private final WorkflowOutboundCallsInterceptor decisionContext;
   private final CompletablePromise<WorkflowExecution> execution;
 
   ChildWorkflowStubImpl(
-      String workflowType, ChildWorkflowOptions options, WorkflowCallsInterceptor decisionContext) {
+      String workflowType,
+      ChildWorkflowOptions options,
+      WorkflowOutboundCallsInterceptor decisionContext) {
     this.workflowType = Objects.requireNonNull(workflowType);
     this.options = ChildWorkflowOptions.newBuilder(options).validateAndBuildWithDefaults();
     this.decisionContext = Objects.requireNonNull(decisionContext);
