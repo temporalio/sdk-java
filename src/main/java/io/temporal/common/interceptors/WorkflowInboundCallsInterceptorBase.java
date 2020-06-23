@@ -19,10 +19,26 @@
 
 package io.temporal.common.interceptors;
 
-public interface WorkflowInvoker {
-  void init();
+/** Convenience base class for WorkflowInboundCallsInterceptor implementations. */
+public class WorkflowInboundCallsInterceptorBase implements WorkflowInboundCallsInterceptor {
+  private final WorkflowInboundCallsInterceptor next;
 
-  Object execute(Object[] arguments);
+  public WorkflowInboundCallsInterceptorBase(WorkflowInboundCallsInterceptor next) {
+    this.next = next;
+  }
 
-  void processSignal(String signalName, Object[] arguments, long eventId);
+  @Override
+  public void init(WorkflowOutboundCallsInterceptor outboundCalls) {
+    next.init(outboundCalls);
+  }
+
+  @Override
+  public Object execute(Object[] arguments) {
+    return next.execute(arguments);
+  }
+
+  @Override
+  public void processSignal(String signalName, Object[] arguments, long eventId) {
+    next.processSignal(signalName, arguments, eventId);
+  }
 }

@@ -38,9 +38,8 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
-import io.temporal.common.interceptors.BaseWorkflowInvokerInterceptor;
-import io.temporal.common.interceptors.NoopWorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowInboundCallsInterceptorBase;
 import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.internal.metrics.MetricsTag;
@@ -325,8 +324,9 @@ public class MetricsTest {
         REPORTING_FREQUENCY,
         WorkerFactoryOptions.newBuilder()
             .setWorkflowInterceptors(
+                new CorruptedSignalWorkflowInterceptor(),
                 // Add noop just to test that list of interceptors is working.
-                new CorruptedSignalWorkflowInterceptor(), new NoopWorkflowInterceptor())
+                next -> new WorkflowInboundCallsInterceptorBase(next))
             .build());
 
     Worker worker = testEnvironment.newWorker(TASK_LIST);
@@ -362,7 +362,7 @@ public class MetricsTest {
 
     @Override
     public WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next) {
-      return new BaseWorkflowInvokerInterceptor(next) {
+      return new WorkflowInboundCallsInterceptorBase(next) {
         @Override
         public void init(WorkflowOutboundCallsInterceptor outboundCalls) {
           next.init(

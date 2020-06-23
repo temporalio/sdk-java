@@ -56,8 +56,8 @@ import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GsonJsonPayloadConverter;
-import io.temporal.common.interceptors.BaseWorkflowInvokerInterceptor;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowInboundCallsInterceptorBase;
 import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.v1.Memo;
@@ -5185,7 +5185,7 @@ public class WorkflowTest {
     @Override
     public WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next) {
       trace.add("interceptExecuteWorkflow " + Workflow.getInfo().getWorkflowId());
-      return new BaseWorkflowInvokerInterceptor(next) {
+      return new WorkflowInboundCallsInterceptorBase(next) {
         @Override
         public void init(WorkflowOutboundCallsInterceptor outboundCalls) {
           next.init(new TracingWorkflowOutboundCallsInterceptor(trace, outboundCalls));
