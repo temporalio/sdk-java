@@ -713,12 +713,7 @@ public class WorkflowTest {
                 .setMaximumAttempts(3)
                 .build();
       } else {
-        retryOptions =
-            RetryOptions.newBuilder()
-                .setMaximumInterval(Duration.ofSeconds(1))
-                .setInitialInterval(Duration.ofSeconds(1))
-                .setMaximumAttempts(2)
-                .build();
+        retryOptions = RetryOptions.newBuilder().setMaximumAttempts(2).build();
       }
       TestActivities activities = Workflow.newActivityStub(TestActivities.class, options.build());
       Workflow.retry(retryOptions, Optional.of(Duration.ofDays(1)), () -> activities.throwIO());
