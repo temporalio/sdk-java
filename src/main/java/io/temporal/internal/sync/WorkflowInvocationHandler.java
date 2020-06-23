@@ -20,13 +20,13 @@
 package io.temporal.internal.sync;
 
 import com.google.common.base.Defaults;
-import io.temporal.client.WorkflowClientInterceptor;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
+import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.internal.external.GenericWorkflowClientExternal;

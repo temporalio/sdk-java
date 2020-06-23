@@ -17,8 +17,11 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.client;
+package io.temporal.common.interceptors;
 
+import io.temporal.client.ActivityCompletionClient;
+import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowStub;
 import io.temporal.common.v1.WorkflowExecution;
 import java.util.Optional;
 
