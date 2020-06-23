@@ -155,12 +155,12 @@ public class POJOActivityMetadataTest {
     Set<String> expected = new HashSet<>();
     expected.add("AM_C_bb");
     expected.add("AM_E_bb");
-    expected.add("C_a");
-    expected.add("C_b");
-    expected.add("C_c");
-    expected.add("d");
-    expected.add("a");
-    expected.add("b");
+    expected.add("C_A");
+    expected.add("C_B");
+    expected.add("C_C");
+    expected.add("D");
+    expected.add("A");
+    expected.add("B");
 
     POJOActivityImplMetadata dMetadata = POJOActivityImplMetadata.newInstance(DImpl.class);
     Set<String> dTypes = dMetadata.getActivityTypes();
@@ -202,6 +202,6 @@ public class POJOActivityMetadataTest {
     Method c = C.class.getDeclaredMethod("c");
     POJOActivityMethodMetadata cMethod = dMetadata.getMethodMetadata(c);
     assertEquals(c, cMethod.getMethod());
-    assertEquals("C_c", cMethod.getName());
+    assertEquals("C_C", cMethod.getName());
   }
 }

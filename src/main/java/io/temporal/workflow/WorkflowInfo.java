@@ -21,6 +21,7 @@ package io.temporal.workflow;
 
 import io.temporal.common.v1.SearchAttributes;
 import java.time.Duration;
+import java.util.Optional;
 
 public interface WorkflowInfo {
 
@@ -32,7 +33,7 @@ public interface WorkflowInfo {
 
   String getWorkflowType();
 
-  String getContinuedExecutionRunId();
+  Optional<String> getContinuedExecutionRunId();
 
   String getTaskList();
 
@@ -48,7 +49,7 @@ public interface WorkflowInfo {
 
   SearchAttributes getSearchAttributes();
 
-  String getParentWorkflowId();
+  Optional<String> getParentWorkflowId();
 
-  String getParentRunId();
+  Optional<String> getParentRunId();
 }

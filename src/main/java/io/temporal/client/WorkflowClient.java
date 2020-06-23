@@ -20,6 +20,7 @@
 package io.temporal.client;
 
 import io.temporal.activity.Activity;
+import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.internal.sync.WorkflowClientInternal;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -201,7 +202,7 @@ public interface WorkflowClient {
   /**
    * Creates new {@link ActivityCompletionClient} that can be used to complete activities
    * asynchronously. Only relevant for activity implementations that called {@link
-   * Activity#doNotCompleteOnReturn()}.
+   * ActivityExecutionContext#doNotCompleteOnReturn()}.
    *
    * <p>TODO: Activity completion options with retries and timeouts.
    */

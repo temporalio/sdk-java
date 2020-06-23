@@ -20,16 +20,14 @@
 package io.temporal.activity;
 
 import io.temporal.common.v1.Payloads;
-import io.temporal.common.v1.WorkflowExecution;
-import io.temporal.common.v1.WorkflowType;
 import java.time.Duration;
 import java.util.Optional;
 
 /**
  * The information about the activity task that the current activity is handling. Use {@link
- * Activity#getTask()} to access.
+ * ActivityExecutionContext#getInfo()} to access.
  */
-public interface ActivityTask {
+public interface ActivityInfo {
 
   /**
    * A correlation token that can be used to complete the activity asynchronously through {@link
@@ -37,12 +35,15 @@ public interface ActivityTask {
    */
   byte[] getTaskToken();
 
-  /** ID and RunId of the workflow that scheduled the activity. */
-  WorkflowExecution getWorkflowExecution();
+  /** WorkflowId of the workflow that scheduled the activity. */
+  String getWorkflowId();
+
+  /** RunId of the workflow that scheduled the activity. */
+  String getRunId();
 
   /**
    * ID of the activity. This ID can be used to complete the activity asynchronously through {@link
-   * io.temporal.client.ActivityCompletionClient#complete(WorkflowExecution, String, Object)}.
+   * io.temporal.client.ActivityCompletionClient#complete(String, Optional, String, Object)}.
    */
   String getActivityId();
 
@@ -64,9 +65,12 @@ public interface ActivityTask {
 
   Optional<Payloads> getHeartbeatDetails();
 
-  WorkflowType getWorkflowType();
+  String getWorkflowType();
 
   String getWorkflowNamespace();
 
+  String getActivityNamespace();
+
+  /** Activity execution attempt starting from 0. */
   int getAttempt();
 }

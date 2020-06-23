@@ -23,6 +23,7 @@ import static org.junit.Assert.*;
 
 import io.grpc.Status;
 import io.temporal.activity.Activity;
+import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.failure.ActivityFailure;
@@ -57,7 +58,8 @@ public class ActivityTestingTest {
 
     @Override
     public String activity1(String input) {
-      return Activity.getTask().getActivityType() + "-" + input;
+      ActivityExecutionContext executionContext = Activity.getExecutionContext();
+      return executionContext.getInfo().getActivityType() + "-" + input;
     }
   }
 
@@ -66,7 +68,7 @@ public class ActivityTestingTest {
     testEnvironment.registerActivitiesImplementations(new ActivityImpl());
     TestActivity activity = testEnvironment.newActivityStub(TestActivity.class);
     String result = activity.activity1("input1");
-    assertEquals("activity1-input1", result);
+    assertEquals("Activity1-input1", result);
   }
 
   private static class AngryActivityImpl implements TestActivity {
@@ -85,7 +87,7 @@ public class ActivityTestingTest {
       activity.activity1("input1");
       fail("unreachable");
     } catch (ActivityFailure e) {
-      assertTrue(e.getMessage().contains("activity1"));
+      assertTrue(e.getMessage().contains("Activity1"));
       assertTrue(e.getCause() instanceof ApplicationFailure);
       assertTrue(((ApplicationFailure) e.getCause()).getType().equals(IOException.class.getName()));
 
@@ -100,7 +102,7 @@ public class ActivityTestingTest {
 
     @Override
     public String activity1(String input) {
-      Activity.heartbeat("details1");
+      Activity.getExecutionContext().heartbeat("details1");
       return input;
     }
   }
@@ -125,12 +127,13 @@ public class ActivityTestingTest {
 
     @Override
     public void activity1() throws InterruptedException {
+      ActivityExecutionContext ctx = Activity.getExecutionContext();
       for (int i = 0; i < 10; i++) {
-        Activity.heartbeat(i);
+        ctx.heartbeat(i);
       }
       Thread.sleep(1000);
       for (int i = 10; i < 20; i++) {
-        Activity.heartbeat(i);
+        ctx.heartbeat(i);
       }
     }
   }
@@ -150,8 +153,9 @@ public class ActivityTestingTest {
 
     @Override
     public void activity1() throws InterruptedException {
+      ActivityExecutionContext ctx = Activity.getExecutionContext();
       for (int i = 0; i < 10; i++) {
-        Activity.heartbeat(null);
+        ctx.heartbeat(null);
       }
       Thread.sleep(1200);
     }
@@ -175,7 +179,7 @@ public class ActivityTestingTest {
     @Override
     public void activity1() throws InterruptedException {
       try {
-        Activity.heartbeat(null);
+        Activity.getExecutionContext().heartbeat(null);
         fail("unreachable");
       } catch (ActivityCancelledException e) {
       }
@@ -196,12 +200,13 @@ public class ActivityTestingTest {
 
     @Override
     public void activity1() throws InterruptedException {
-      Activity.heartbeat(null);
+      ActivityExecutionContext ctx = Activity.getExecutionContext();
+      ctx.heartbeat(null);
       Thread.sleep(100);
-      Activity.heartbeat(null);
+      ctx.heartbeat(null);
       Thread.sleep(1000);
       try {
-        Activity.heartbeat(null);
+        ctx.heartbeat(null);
         fail("unreachable");
       } catch (ActivityCancelledException e) {
         System.out.println("activity cancelled");
@@ -231,7 +236,7 @@ public class ActivityTestingTest {
 
     @Override
     public void activity1() throws InterruptedException {
-      Activity.heartbeat(null);
+      Activity.getExecutionContext().heartbeat(null);
       // Make sure that the activity lasts longer than the retry period.
       Thread.sleep(3000);
     }

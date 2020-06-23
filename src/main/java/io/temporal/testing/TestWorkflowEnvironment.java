@@ -181,7 +181,7 @@ public interface TestWorkflowEnvironment {
   /**
    * Initiates an orderly shutdown in which polls are stopped and already received decision and
    * activity tasks are executed. After the shutdown calls to {@link
-   * io.temporal.activity.Activity#heartbeat(Object)} start throwing {@link
+   * io.temporal.activity.ActivityExecutionContext#heartbeat(Object)} start throwing {@link
    * io.temporal.client.ActivityWorkerShutdownException}. Invocation has no additional effect if
    * already shut down. This method does not wait for previously received tasks to complete
    * execution. Use {@link #awaitTermination(long, TimeUnit)} to do that.
@@ -192,10 +192,11 @@ public interface TestWorkflowEnvironment {
    * Initiates an orderly shutdown in which polls are stopped and already received decision and
    * activity tasks are attempted to be stopped. This implementation cancels tasks via
    * Thread.interrupt(), so any task that fails to respond to interrupts may never terminate. Also
-   * after the shutdownNow calls to {@link io.temporal.activity.Activity#heartbeat(Object)} start
-   * throwing {@link io.temporal.client.ActivityWorkerShutdownException}. Invocation has no
-   * additional effect if already shut down. This method does not wait for previously received tasks
-   * to complete execution. Use {@link #awaitTermination(long, TimeUnit)} to do that.
+   * after the shutdownNow calls to {@link
+   * io.temporal.activity.ActivityExecutionContext#heartbeat(Object)} start throwing {@link
+   * io.temporal.client.ActivityWorkerShutdownException}. Invocation has no additional effect if
+   * already shut down. This method does not wait for previously received tasks to complete
+   * execution. Use {@link #awaitTermination(long, TimeUnit)} to do that.
    */
   void shutdownNow();
 
