@@ -19,28 +19,29 @@
 
 package io.temporal.common.interceptors;
 
-public class BaseWorkflowInvoker implements WorkflowInvoker {
-  private final WorkflowInvocationInterceptor next;
-  private final WorkflowCallsInterceptor interceptor;
+import io.temporal.client.ActivityCompletionClient;
+import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowStub;
+import io.temporal.common.v1.WorkflowExecution;
+import java.util.Optional;
 
-  public BaseWorkflowInvoker(
-      WorkflowCallsInterceptor interceptor, WorkflowInvocationInterceptor next) {
-    this.next = next;
-    this.interceptor = interceptor;
+/** Convenience base class for WorkflowClientInterceptor implementations. */
+public class WorkflowClientInterceptorBase implements WorkflowClientInterceptor {
+
+  @Override
+  public WorkflowStub newUntypedWorkflowStub(
+      String workflowType, WorkflowOptions options, WorkflowStub next) {
+    return next;
   }
 
   @Override
-  public void init() {
-    next.init(interceptor);
+  public WorkflowStub newUntypedWorkflowStub(
+      WorkflowExecution execution, Optional<String> workflowType, WorkflowStub next) {
+    return next;
   }
 
   @Override
-  public Object execute(Object[] arguments) {
-    return next.execute(arguments);
-  }
-
-  @Override
-  public void processSignal(String signalName, Object[] arguments, long eventId) {
-    next.processSignal(signalName, arguments, eventId);
+  public ActivityCompletionClient newActivityCompletionClient(ActivityCompletionClient next) {
+    return next;
   }
 }

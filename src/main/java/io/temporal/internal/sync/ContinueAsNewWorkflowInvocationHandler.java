@@ -21,7 +21,7 @@ package io.temporal.internal.sync;
 
 import static io.temporal.internal.common.InternalUtils.getValueOrDefault;
 
-import io.temporal.common.interceptors.WorkflowCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.workflow.ContinueAsNewOptions;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -30,13 +30,13 @@ import java.util.Optional;
 class ContinueAsNewWorkflowInvocationHandler implements InvocationHandler {
 
   private final ContinueAsNewOptions options;
-  private final WorkflowCallsInterceptor decisionContext;
+  private final WorkflowOutboundCallsInterceptor decisionContext;
   private final POJOWorkflowInterfaceMetadata workflowMetadata;
 
   ContinueAsNewWorkflowInvocationHandler(
       Class<?> interfaceClass,
       ContinueAsNewOptions options,
-      WorkflowCallsInterceptor decisionContext) {
+      WorkflowOutboundCallsInterceptor decisionContext) {
     workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(interfaceClass);
     if (!workflowMetadata.getWorkflowMethod().isPresent()) {
       throw new IllegalArgumentException(

@@ -19,7 +19,7 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.common.interceptors.WorkflowCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.workflow.CancelExternalWorkflowException;
 import io.temporal.workflow.ExternalWorkflowStub;
@@ -30,11 +30,11 @@ import java.util.Objects;
 /** Dynamic implementation of a strongly typed child workflow interface. */
 class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
 
-  private final WorkflowCallsInterceptor decisionContext;
+  private final WorkflowOutboundCallsInterceptor decisionContext;
   private final WorkflowExecution execution;
 
   public ExternalWorkflowStubImpl(
-      WorkflowExecution execution, WorkflowCallsInterceptor decisionContext) {
+      WorkflowExecution execution, WorkflowOutboundCallsInterceptor decisionContext) {
     this.decisionContext = Objects.requireNonNull(decisionContext);
     this.execution = Objects.requireNonNull(execution);
   }

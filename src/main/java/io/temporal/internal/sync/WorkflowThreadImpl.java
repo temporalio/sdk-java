@@ -88,7 +88,6 @@ class WorkflowThreadImpl implements WorkflowThread {
       originalName = thread.getName();
       thread.setName(name);
       DeterministicRunnerImpl.setCurrentThreadInternal(WorkflowThreadImpl.this);
-      decisionContext.getWorkflowId();
       MDC.put(LoggerTag.WORKFLOW_ID, decisionContext.getWorkflowId());
       MDC.put(LoggerTag.WORKFLOW_TYPE, decisionContext.getWorkflowType().getName());
       MDC.put(LoggerTag.RUN_ID, decisionContext.getRunId());
@@ -294,6 +293,11 @@ class WorkflowThreadImpl implements WorkflowThread {
         }
       }
     }
+  }
+
+  @Override
+  public boolean isStarted() {
+    return context.getStatus() != Status.CREATED;
   }
 
   public WorkflowThreadContext getContext() {

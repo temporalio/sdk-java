@@ -37,12 +37,12 @@ import java.util.UUID;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 
-/** Convenience base class for WorkflowCallsInterceptor implementations. */
-public class WorkflowCallsInterceptorBase implements WorkflowCallsInterceptor {
+/** Convenience base class for WorkflowOutboundCallsInterceptor implementations. */
+public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCallsInterceptor {
 
-  private final WorkflowCallsInterceptor next;
+  private final WorkflowOutboundCallsInterceptor next;
 
-  public WorkflowCallsInterceptorBase(WorkflowCallsInterceptor next) {
+  public WorkflowOutboundCallsInterceptorBase(WorkflowOutboundCallsInterceptor next) {
     this.next = next;
   }
 
@@ -160,5 +160,10 @@ public class WorkflowCallsInterceptorBase implements WorkflowCallsInterceptor {
   @Override
   public void upsertSearchAttributes(Map<String, Object> searchAttributes) {
     next.upsertSearchAttributes(searchAttributes);
+  }
+
+  @Override
+  public Object newThread(Runnable runnable, boolean detached, String name) {
+    return next.newThread(runnable, detached, name);
   }
 }

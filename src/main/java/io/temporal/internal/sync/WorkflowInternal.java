@@ -26,7 +26,7 @@ import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.interceptors.WorkflowCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.logging.ReplayAwareLogger;
@@ -155,7 +155,7 @@ public final class WorkflowInternal {
    * @param activityInterface interface type implemented by activities
    */
   public static <T> T newActivityStub(Class<T> activityInterface, ActivityOptions options) {
-    WorkflowCallsInterceptor decisionContext = WorkflowInternal.getWorkflowInterceptor();
+    WorkflowOutboundCallsInterceptor decisionContext = WorkflowInternal.getWorkflowInterceptor();
     InvocationHandler invocationHandler =
         ActivityInvocationHandler.newInstance(activityInterface, options, decisionContext);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
@@ -168,7 +168,7 @@ public final class WorkflowInternal {
    */
   public static <T> T newLocalActivityStub(
       Class<T> activityInterface, LocalActivityOptions options) {
-    WorkflowCallsInterceptor decisionContext = WorkflowInternal.getWorkflowInterceptor();
+    WorkflowOutboundCallsInterceptor decisionContext = WorkflowInternal.getWorkflowInterceptor();
     InvocationHandler invocationHandler =
         LocalActivityInvocationHandler.newInstance(activityInterface, options, decisionContext);
     return ActivityInvocationHandlerBase.newProxy(activityInterface, invocationHandler);
@@ -258,7 +258,7 @@ public final class WorkflowInternal {
     return result.get();
   }
 
-  private static WorkflowCallsInterceptor getWorkflowInterceptor() {
+  private static WorkflowOutboundCallsInterceptor getWorkflowInterceptor() {
     return DeterministicRunnerImpl.currentThreadInternal()
         .getDecisionContext()
         .getWorkflowInterceptor();
@@ -354,7 +354,7 @@ public final class WorkflowInternal {
       Optional<String> workflowType,
       Optional<ContinueAsNewOptions> options,
       Object[] args,
-      WorkflowCallsInterceptor decisionContext) {
+      WorkflowOutboundCallsInterceptor decisionContext) {
     decisionContext.continueAsNew(workflowType, options, args);
   }
 

@@ -25,10 +25,9 @@ import com.google.common.base.Preconditions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
-import io.temporal.common.interceptors.WorkflowCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInterceptor;
-import io.temporal.common.interceptors.WorkflowInvocationInterceptor;
-import io.temporal.common.interceptors.WorkflowInvoker;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.v1.Payloads;
 import io.temporal.common.v1.WorkflowType;
 import io.temporal.failure.CanceledFailure;
@@ -63,7 +62,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   private static final Logger log =
       LoggerFactory.getLogger(POJOWorkflowImplementationFactory.class);
   private static final byte[] EMPTY_BLOB = {};
-  private final WorkflowInterceptor workflowInterceptor;
+  private final WorkflowInterceptor[] workflowInterceptors;
 
   private DataConverter dataConverter;
   private List<ContextPropagator> contextPropagators;
@@ -84,12 +83,12 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
   POJOWorkflowImplementationFactory(
       DataConverter dataConverter,
       ExecutorService threadPool,
-      WorkflowInterceptor workflowInterceptor,
+      WorkflowInterceptor[] workflowInterceptors,
       DeciderCache cache,
       List<ContextPropagator> contextPropagators) {
     this.dataConverter = Objects.requireNonNull(dataConverter);
     this.threadPool = Objects.requireNonNull(threadPool);
-    this.workflowInterceptor = Objects.requireNonNull(workflowInterceptor);
+    this.workflowInterceptors = Objects.requireNonNull(workflowInterceptors);
     this.cache = cache;
     this.contextPropagators = contextPropagators;
   }
@@ -219,7 +218,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     private final Class<?> workflowImplementationClass;
     private final Map<String, Method> signalHandlers;
     private Object workflow;
-    private WorkflowInvoker workflowInvoker;
+    private WorkflowInboundCallsInterceptor workflowInvoker;
 
     public POJOWorkflowImplementation(
         Class<?> workflowImplementationClass,
@@ -232,10 +231,11 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
     @Override
     public void initialize() {
-      workflowInvoker =
-          workflowInterceptor.interceptExecuteWorkflow(
-              WorkflowInternal.getRootDecisionContext(), new RootWorkflowInvocationInterceptor());
-      workflowInvoker.init();
+      workflowInvoker = new RootWorkflowInboundCallsInterceptor();
+      for (WorkflowInterceptor workflowInterceptor : workflowInterceptors) {
+        workflowInvoker = workflowInterceptor.interceptWorkflow(workflowInvoker);
+      }
+      workflowInvoker.init(WorkflowInternal.getRootDecisionContext());
     }
 
     @Override
@@ -275,7 +275,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       }
     }
 
-    private class RootWorkflowInvocationInterceptor implements WorkflowInvocationInterceptor {
+    private class RootWorkflowInboundCallsInterceptor implements WorkflowInboundCallsInterceptor {
 
       @Override
       public Object execute(Object[] arguments) {
@@ -310,8 +310,8 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
       }
 
       @Override
-      public void init(WorkflowCallsInterceptor interceptor) {
-        WorkflowInternal.getRootDecisionContext().setHeadInterceptor(interceptor);
+      public void init(WorkflowOutboundCallsInterceptor outboundCalls) {
+        WorkflowInternal.getRootDecisionContext().setHeadInterceptor(outboundCalls);
         newInstance();
         WorkflowInternal.registerListener(workflow);
       }

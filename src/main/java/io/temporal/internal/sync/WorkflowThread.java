@@ -67,10 +67,16 @@ interface WorkflowThread extends CancellationScope {
   }
 
   static WorkflowThread newThread(Runnable runnable, boolean detached, String name) {
-    return currentThreadInternal().getRunner().newThread(runnable, detached, name);
+    return (WorkflowThread)
+        currentThreadInternal()
+            .getDecisionContext()
+            .getWorkflowInterceptor()
+            .newThread(runnable, detached, name);
   }
 
   void start();
+
+  boolean isStarted();
 
   void setName(String name);
 

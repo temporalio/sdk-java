@@ -29,7 +29,7 @@ import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
-import io.temporal.common.interceptors.WorkflowCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.v1.ActivityType;
 import io.temporal.common.v1.Payload;
 import io.temporal.common.v1.Payloads;
@@ -81,7 +81,7 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class SyncDecisionContext implements WorkflowCallsInterceptor {
+final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
 
   private static class SignalData {
     private final Optional<Payloads> payload;
@@ -107,7 +107,7 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
   private DeterministicRunner runner;
   private final DataConverter converter;
   private final List<ContextPropagator> contextPropagators;
-  private WorkflowCallsInterceptor headInterceptor;
+  private WorkflowOutboundCallsInterceptor headInterceptor;
   private final WorkflowTimers timers = new WorkflowTimers();
   private final Map<String, Functions.Func1<Optional<Payloads>, Optional<Payloads>>>
       queryCallbacks = new HashMap<>();
@@ -143,13 +143,14 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     return runner;
   }
 
-  public WorkflowCallsInterceptor getWorkflowInterceptor() {
+  public WorkflowOutboundCallsInterceptor getWorkflowInterceptor() {
     // This is needed for unit tests that create DeterministicRunner directly.
     return headInterceptor == null ? this : headInterceptor;
   }
 
-  public void setHeadInterceptor(WorkflowCallsInterceptor head) {
+  public void setHeadInterceptor(WorkflowOutboundCallsInterceptor head) {
     if (headInterceptor == null) {
+      runner.setInterceptorHead(head);
       this.headInterceptor = head;
     }
   }
@@ -793,5 +794,10 @@ final class SyncDecisionContext implements WorkflowCallsInterceptor {
     SearchAttributes attr =
         InternalUtils.convertMapToSearchAttributes(searchAttributes, getDataConverter());
     context.upsertSearchAttributes(attr);
+  }
+
+  @Override
+  public Object newThread(Runnable runnable, boolean detached, String name) {
+    return runner.newThread(runnable, detached, name);
   }
 }

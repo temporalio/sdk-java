@@ -19,10 +19,25 @@
 
 package io.temporal.common.interceptors;
 
-public final class NoopWorkflowInterceptor implements WorkflowInterceptor {
-  @Override
-  public WorkflowInvoker interceptExecuteWorkflow(
-      WorkflowCallsInterceptor interceptor, WorkflowInvocationInterceptor next) {
-    return new BaseWorkflowInvoker(interceptor, next);
-  }
+/**
+ * Intercepts calls to the workflow execution. Executes under workflow context. So all the
+ * restrictions on the workflow code should be obeyed.
+ */
+public interface WorkflowInboundCallsInterceptor {
+  /**
+   * Called when workflow class is instantiated.
+   *
+   * @param outboundCalls interceptor for calls that workflow makes to the SDK
+   */
+  void init(WorkflowOutboundCallsInterceptor outboundCalls);
+
+  /**
+   * Called when workflow main method is called.
+   *
+   * @return result of the workflow execution.
+   */
+  Object execute(Object[] arguments);
+
+  /** Called when signal is delivered to the workflow instance. */
+  void processSignal(String signalName, Object[] arguments, long EventId);
 }

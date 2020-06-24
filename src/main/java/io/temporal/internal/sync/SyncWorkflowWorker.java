@@ -61,7 +61,7 @@ public class SyncWorkflowWorker
       WorkflowServiceStubs service,
       String namespace,
       String taskList,
-      WorkflowInterceptor interceptorFactory,
+      WorkflowInterceptor[] workflowInterceptors,
       SingleWorkerOptions workflowOptions,
       SingleWorkerOptions localActivityOptions,
       DeciderCache cache,
@@ -75,7 +75,7 @@ public class SyncWorkflowWorker
         new POJOWorkflowImplementationFactory(
             workflowOptions.getDataConverter(),
             workflowThreadPool,
-            interceptorFactory,
+            workflowInterceptors,
             cache,
             workflowOptions.getContextPropagators());
 

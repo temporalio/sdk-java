@@ -37,15 +37,15 @@ import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 
 /**
- * Can be used to intercept workflow code calls to Temporal APIs. An instance should be created
- * through {@link WorkflowInterceptor#interceptExecuteWorkflow(WorkflowCallsInterceptor,
- * WorkflowInvocationInterceptor)}. An interceptor instance must forward all the calls to the next
- * interceptor passed to the interceptExecuteWorkflow call.
+ * Can be used to intercept workflow code calls to the Temporal APIs. An instance should be created
+ * through {@link WorkflowInterceptor#interceptWorkflow(WorkflowInboundCallsInterceptor)}. An
+ * interceptor instance must forward all the calls to the next interceptor passed to the
+ * interceptExecuteWorkflow call.
  *
  * <p>The calls to the interceptor are executed in the context of a workflow and must follow the
  * same rules all the other workflow code follows.
  */
-public interface WorkflowCallsInterceptor {
+public interface WorkflowOutboundCallsInterceptor {
 
   final class WorkflowResult<R> {
 
@@ -127,4 +127,6 @@ public interface WorkflowCallsInterceptor {
   UUID randomUUID();
 
   void upsertSearchAttributes(Map<String, Object> searchAttributes);
+
+  Object newThread(Runnable runnable, boolean detached, String name);
 }

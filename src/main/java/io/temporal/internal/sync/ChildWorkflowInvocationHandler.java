@@ -23,7 +23,7 @@ import static io.temporal.internal.common.InternalUtils.getValueOrDefault;
 
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
-import io.temporal.common.interceptors.WorkflowCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ChildWorkflowStub;
 import java.lang.reflect.InvocationHandler;
@@ -39,7 +39,7 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
   ChildWorkflowInvocationHandler(
       Class<?> workflowInterface,
       ChildWorkflowOptions options,
-      WorkflowCallsInterceptor decisionContext) {
+      WorkflowOutboundCallsInterceptor decisionContext) {
     workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
     Optional<POJOWorkflowMethodMetadata> workflowMethodMetadata =
         workflowMetadata.getWorkflowMethod();

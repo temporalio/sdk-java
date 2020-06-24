@@ -21,7 +21,7 @@ package io.temporal.workflow.interceptors;
 
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
-import io.temporal.common.interceptors.WorkflowCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ContinueAsNewOptions;
@@ -38,16 +38,16 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-public class SignalWorkflowCallsInterceptor implements WorkflowCallsInterceptor {
+public class SignalWorkflowOutboundCallsInterceptor implements WorkflowOutboundCallsInterceptor {
 
   private Function<Object[], Object[]> overrideArgs;
   private Function<String, String> overrideSignalName;
-  private final WorkflowCallsInterceptor next;
+  private final WorkflowOutboundCallsInterceptor next;
 
-  public SignalWorkflowCallsInterceptor(
+  public SignalWorkflowOutboundCallsInterceptor(
       Function<Object[], Object[]> overrideArgs,
       Function<String, String> overrideSignalName,
-      WorkflowCallsInterceptor next) {
+      WorkflowOutboundCallsInterceptor next) {
     this.overrideArgs = overrideArgs;
     this.overrideSignalName = overrideSignalName;
     this.next = Objects.requireNonNull(next);
@@ -175,5 +175,10 @@ public class SignalWorkflowCallsInterceptor implements WorkflowCallsInterceptor 
   @Override
   public void upsertSearchAttributes(Map<String, Object> searchAttributes) {
     next.upsertSearchAttributes(searchAttributes);
+  }
+
+  @Override
+  public Object newThread(Runnable runnable, boolean detached, String name) {
+    return next.newThread(runnable, detached, name);
   }
 }

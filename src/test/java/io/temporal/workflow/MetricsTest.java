@@ -38,11 +38,10 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
-import io.temporal.common.interceptors.BaseWorkflowInvoker;
-import io.temporal.common.interceptors.WorkflowCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowInboundCallsInterceptorBase;
 import io.temporal.common.interceptors.WorkflowInterceptor;
-import io.temporal.common.interceptors.WorkflowInvocationInterceptor;
-import io.temporal.common.interceptors.WorkflowInvoker;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -50,7 +49,7 @@ import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
-import io.temporal.workflow.interceptors.SignalWorkflowCallsInterceptor;
+import io.temporal.workflow.interceptors.SignalWorkflowOutboundCallsInterceptor;
 import io.temporal.workflowservice.v1.DescribeNamespaceRequest;
 import io.temporal.workflowservice.v1.StartWorkflowExecutionRequest;
 import java.time.Duration;
@@ -324,7 +323,10 @@ public class MetricsTest {
     setUp(
         REPORTING_FREQUENCY,
         WorkerFactoryOptions.newBuilder()
-            .setWorkflowInterceptor(new CorruptedSignalWorkflowInterceptor())
+            .setWorkflowInterceptors(
+                new CorruptedSignalWorkflowInterceptor(),
+                // Add noop just to test that list of interceptors is working.
+                next -> new WorkflowInboundCallsInterceptorBase(next))
             .build());
 
     Worker worker = testEnvironment.newWorker(TASK_LIST);
@@ -359,19 +361,22 @@ public class MetricsTest {
   private static class CorruptedSignalWorkflowInterceptor implements WorkflowInterceptor {
 
     @Override
-    public WorkflowInvoker interceptExecuteWorkflow(
-        WorkflowCallsInterceptor interceptor, WorkflowInvocationInterceptor next) {
-      SignalWorkflowCallsInterceptor i =
-          new SignalWorkflowCallsInterceptor(
-              args -> {
-                if (args != null && args.length > 0) {
-                  return new Object[] {"Corrupted Signal"};
-                }
-                return args;
-              },
-              sig -> sig,
-              interceptor);
-      return new BaseWorkflowInvoker(i, next);
+    public WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next) {
+      return new WorkflowInboundCallsInterceptorBase(next) {
+        @Override
+        public void init(WorkflowOutboundCallsInterceptor outboundCalls) {
+          next.init(
+              new SignalWorkflowOutboundCallsInterceptor(
+                  args -> {
+                    if (args != null && args.length > 0) {
+                      return new Object[] {"Corrupted Signal"};
+                    }
+                    return args;
+                  },
+                  sig -> sig,
+                  outboundCalls));
+        }
+      };
     }
   }
 
@@ -380,7 +385,7 @@ public class MetricsTest {
     setUp(
         REPORTING_FREQUENCY,
         WorkerFactoryOptions.newBuilder()
-            .setWorkflowInterceptor(new CorruptedSignalWorkflowInterceptor())
+            .setWorkflowInterceptors(new CorruptedSignalWorkflowInterceptor())
             .build());
 
     try {
@@ -408,7 +413,7 @@ public class MetricsTest {
     setUp(
         com.uber.m3.util.Duration.ofMillis(300),
         WorkerFactoryOptions.newBuilder()
-            .setWorkflowInterceptor(new CorruptedSignalWorkflowInterceptor())
+            .setWorkflowInterceptors(new CorruptedSignalWorkflowInterceptor())
             .build());
 
     try {

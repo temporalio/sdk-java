@@ -19,10 +19,19 @@
 
 package io.temporal.common.interceptors;
 
-public interface WorkflowInvoker {
-  void init();
+import io.temporal.client.ActivityCompletionClient;
+import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowStub;
+import io.temporal.common.v1.WorkflowExecution;
+import java.util.Optional;
 
-  Object execute(Object[] arguments);
+public interface WorkflowClientInterceptor {
 
-  void processSignal(String signalName, Object[] arguments, long eventId);
+  WorkflowStub newUntypedWorkflowStub(
+      String workflowType, WorkflowOptions options, WorkflowStub next);
+
+  WorkflowStub newUntypedWorkflowStub(
+      WorkflowExecution execution, Optional<String> workflowType, WorkflowStub next);
+
+  ActivityCompletionClient newActivityCompletionClient(ActivityCompletionClient next);
 }

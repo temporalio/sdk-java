@@ -19,6 +19,7 @@
 
 package io.temporal.internal.sync;
 
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.internal.replay.DeciderCache;
 import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.Workflow;
@@ -96,7 +97,7 @@ interface DeterministicRunner {
   void cancel(String reason);
 
   /**
-   * * Destroys all threads by throwing {@link DestroyWorkflowThreadError} without waiting for their
+   * Destroys all threads by throwing {@link DestroyWorkflowThreadError} without waiting for their
    * completion
    */
   void close();
@@ -121,4 +122,11 @@ interface DeterministicRunner {
    * called before runUntilAllBlocked.
    */
   void executeInWorkflowThread(String name, Runnable r);
+
+  /**
+   * Creates a new instance of a workflow thread. To be called only from another workflow thread.
+   */
+  WorkflowThread newThread(Runnable runnable, boolean detached, String name);
+
+  void setInterceptorHead(WorkflowOutboundCallsInterceptor interceptorHead);
 }

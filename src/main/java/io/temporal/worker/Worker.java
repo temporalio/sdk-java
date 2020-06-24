@@ -135,7 +135,7 @@ public final class Worker implements Suspendable {
             service,
             namespace,
             taskList,
-            this.factoryOptions.getWorkflowInterceptor(),
+            this.factoryOptions.getWorkflowInterceptors(),
             workflowOptions,
             localActivityOptions,
             this.cache,
