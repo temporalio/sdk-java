@@ -179,7 +179,6 @@ class WorkflowThreadImpl implements WorkflowThread {
       DeciderCache cache,
       List<ContextPropagator> contextPropagators,
       Map<String, Object> propagatedContexts) {
-    log.error("new Thread name=" + name + ", isRoot=" + root);
     this.root = root;
     this.threadPool = threadPool;
     this.runner = runner;
