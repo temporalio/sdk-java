@@ -176,12 +176,6 @@ public final class ActivityOptions {
     }
 
     public ActivityOptions validateAndBuildWithDefaults() {
-      if (scheduleToCloseTimeout == null
-          && (scheduleToStartTimeout == null || startToCloseTimeout == null)) {
-        throw new IllegalStateException(
-            "Either ScheduleToClose or both ScheduleToStart and StartToClose "
-                + "timeouts are required: ");
-      }
       return new ActivityOptions(
           heartbeatTimeout,
           scheduleToCloseTimeout,
