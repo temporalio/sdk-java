@@ -112,9 +112,14 @@ class SyncWorkflow implements ReplayWorkflow {
             threadPool,
             syncContext,
             context::currentTimeMillis,
+            "interceptor-init",
             () -> {
               workflow.initialize();
-              WorkflowInternal.newThread(false, "root", () -> workflowProc.run()).start();
+              WorkflowInternal.newThread(
+                      false,
+                      DeterministicRunnerImpl.WORKFLOW_ROOT_THREAD_NAME,
+                      () -> workflowProc.run())
+                  .start();
             },
             cache);
     runner.setInterceptorHead(syncContext.getWorkflowInterceptor());

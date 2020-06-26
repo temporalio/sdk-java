@@ -55,9 +55,11 @@ interface DeterministicRunner {
       ExecutorService threadPool,
       SyncDecisionContext decisionContext,
       Supplier<Long> clock,
+      String rootThreadName,
       Runnable root,
       DeciderCache cache) {
-    return new DeterministicRunnerImpl(threadPool, decisionContext, clock, root, cache);
+    return new DeterministicRunnerImpl(
+        threadPool, decisionContext, clock, rootThreadName, root, cache);
   }
 
   /**
@@ -72,8 +74,10 @@ interface DeterministicRunner {
       ExecutorService threadPool,
       SyncDecisionContext decisionContext,
       Supplier<Long> clock,
+      String rootThreadName,
       Runnable root) {
-    return new DeterministicRunnerImpl(threadPool, decisionContext, clock, root, null);
+    return new DeterministicRunnerImpl(
+        threadPool, decisionContext, clock, rootThreadName, root, null);
   }
 
   /**
