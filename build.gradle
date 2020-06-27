@@ -249,7 +249,7 @@ publishing {
                 name = 'Temporal Java SDK'
                 packaging = 'jar'
                 // optionally artifactId can be defined here
-                description 'Temporal Workflow Java SDK'
+                description = 'Temporal Workflow Java SDK'
                 url = 'https://github.com/temporalio/temporal-java-sdk'
 
                 scm {
