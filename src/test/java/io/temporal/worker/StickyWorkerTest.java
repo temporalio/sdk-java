@@ -430,7 +430,7 @@ public class StickyWorkerTest {
     // Act
     WorkflowClient.start(workflow::getGreeting);
 
-    Thread.sleep(200); // Wait for workflow to start
+    Thread.sleep(1000); // Wait for workflow to start
 
     DeciderCache cache = factory.getCache();
     assertNotNull(cache);

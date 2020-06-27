@@ -108,15 +108,6 @@ class WorkflowThreadImpl implements WorkflowThread {
           threadContext.setUnhandledException(e);
         }
       } catch (Error e) {
-        // Error aborts decision, not fails the workflow.
-        if (log.isErrorEnabled() && !root) {
-          StringWriter sw = new StringWriter();
-          PrintWriter pw = new PrintWriter(sw, true);
-          e.printStackTrace(pw);
-          String stackTrace = sw.getBuffer().toString();
-          log.error(
-              String.format("Workflow thread \"%s\" run failed with Error:\n%s", name, stackTrace));
-        }
         threadContext.setUnhandledException(e);
       } catch (CanceledFailure e) {
         if (!isCancelRequested()) {
@@ -126,16 +117,6 @@ class WorkflowThreadImpl implements WorkflowThread {
           log.debug(String.format("Workflow thread \"%s\" run cancelled", name));
         }
       } catch (Throwable e) {
-        if (log.isWarnEnabled() && !root) {
-          StringWriter sw = new StringWriter();
-          PrintWriter pw = new PrintWriter(sw, true);
-          e.printStackTrace(pw);
-          String stackTrace = sw.getBuffer().toString();
-          log.warn(
-              String.format(
-                  "Workflow thread \"%s\" run failed with unhandled exception:\n%s",
-                  name, stackTrace));
-        }
         threadContext.setUnhandledException(e);
       } finally {
         DeterministicRunnerImpl.setCurrentThreadInternal(null);

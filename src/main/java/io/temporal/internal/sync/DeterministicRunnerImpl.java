@@ -89,7 +89,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   }
 
   private static final Logger log = LoggerFactory.getLogger(DeterministicRunnerImpl.class);
-  static final String WORKFLOW_ROOT_THREAD_NAME = "workflow-root";
+  static final String WORKFLOW_ROOT_THREAD_NAME = "workflow-method";
   private static final ThreadLocal<WorkflowThread> currentThreadThreadLocal = new ThreadLocal<>();
 
   private final Lock lock = new ReentrantLock();
@@ -158,7 +158,13 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   }
 
   DeterministicRunnerImpl(Supplier<Long> clock, Runnable root) {
-    this(getDefaultThreadPool(), newDummySyncDecisionContext(), clock, root, null);
+    this(
+        getDefaultThreadPool(),
+        newDummySyncDecisionContext(),
+        clock,
+        WORKFLOW_ROOT_THREAD_NAME,
+        root,
+        null);
   }
 
   private static ThreadPoolExecutor getDefaultThreadPool() {
@@ -173,13 +179,14 @@ class DeterministicRunnerImpl implements DeterministicRunner {
       SyncDecisionContext decisionContext,
       Supplier<Long> clock,
       Runnable root) {
-    this(threadPool, decisionContext, clock, root, null);
+    this(threadPool, decisionContext, clock, WORKFLOW_ROOT_THREAD_NAME, root, null);
   }
 
   DeterministicRunnerImpl(
       ExecutorService threadPool,
       SyncDecisionContext decisionContext,
       Supplier<Long> clock,
+      String rootName,
       Runnable root,
       DeciderCache cache) {
     this.threadPool = threadPool;
@@ -386,8 +393,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
           throw new Error("unreachable");
         } catch (RuntimeException e) {
           log.warn(
-              "Promise that was completedExceptionally was never accessed. "
-                  + "The ignored exception:",
+              "Promise completed with exception and was never accessed. The ignored exception:",
               CheckedExceptionWrapper.unwrap(e));
         }
       }

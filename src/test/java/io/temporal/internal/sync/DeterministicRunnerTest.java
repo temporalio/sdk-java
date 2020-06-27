@@ -733,6 +733,7 @@ public class DeterministicRunnerTest {
             new SyncDecisionContext(
                 decisionContext, DataConverter.getDefaultInstance(), null, null),
             () -> 0L, // clock override
+            "test-thread",
             () -> {
               Promise<Void> thread =
                   Async.procedure(
@@ -759,6 +760,7 @@ public class DeterministicRunnerTest {
             new SyncDecisionContext(
                 decisionContext, DataConverter.getDefaultInstance(), null, null),
             () -> 0L, // clock override
+            "test-thread",
             () -> {
               Promise<Void> thread =
                   Async.procedure(
@@ -796,6 +798,7 @@ public class DeterministicRunnerTest {
             threadPool,
             null,
             () -> 0L, // clock override
+            "test-thread",
             () -> {
               Promise<Void> thread =
                   Async.procedure(
@@ -821,6 +824,7 @@ public class DeterministicRunnerTest {
             threadPool,
             null,
             () -> 0L, // clock override
+            "test-thread",
             () -> {
               Promise<Void> thread =
                   Async.procedure(

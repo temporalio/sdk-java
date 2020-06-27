@@ -154,6 +154,7 @@ public class PromiseTest {
             threadPool,
             null,
             () -> currentTime,
+            "test-thread",
             () -> {
               CompletablePromise<String> f = Workflow.newPromise();
               trace.add("root begin");
