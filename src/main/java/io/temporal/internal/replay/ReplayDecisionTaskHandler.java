@@ -19,7 +19,7 @@
 
 package io.temporal.internal.replay;
 
-import static io.temporal.internal.common.InternalUtils.createStickyTaskList;
+import static io.temporal.internal.common.InternalUtils.createStickyTaskQueue;
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
 import io.temporal.common.v1.Payloads;
@@ -35,7 +35,7 @@ import io.temporal.internal.worker.DecisionTaskHandler;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.tasklist.v1.StickyExecutionAttributes;
+import io.temporal.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.workflow.Functions;
 import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
@@ -63,10 +63,10 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
   private final String namespace;
   private final DeciderCache cache;
   private final SingleWorkerOptions options;
-  private final Duration stickyTaskListScheduleToStartTimeout;
+  private final Duration stickyTaskQueueScheduleToStartTimeout;
   private final Functions.Func<Boolean> shutdownFn;
   private WorkflowServiceStubs service;
-  private String stickyTaskListName;
+  private String stickyTaskQueueName;
   private final BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller;
 
   public ReplayDecisionTaskHandler(
@@ -74,8 +74,8 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
       ReplayWorkflowFactory asyncWorkflowFactory,
       DeciderCache cache,
       SingleWorkerOptions options,
-      String stickyTaskListName,
-      Duration stickyTaskListScheduleToStartTimeout,
+      String stickyTaskQueueName,
+      Duration stickyTaskQueueScheduleToStartTimeout,
       WorkflowServiceStubs service,
       Functions.Func<Boolean> shutdownFn,
       BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller) {
@@ -83,8 +83,8 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     this.workflowFactory = asyncWorkflowFactory;
     this.cache = cache;
     this.options = options;
-    this.stickyTaskListName = stickyTaskListName;
-    this.stickyTaskListScheduleToStartTimeout = stickyTaskListScheduleToStartTimeout;
+    this.stickyTaskQueueName = stickyTaskQueueName;
+    this.stickyTaskQueueScheduleToStartTimeout = stickyTaskQueueScheduleToStartTimeout;
     this.shutdownFn = shutdownFn;
     this.service = Objects.requireNonNull(service);
     this.laTaskPoller = laTaskPoller;
@@ -143,7 +143,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     Decider decider = null;
     AtomicBoolean createdNew = new AtomicBoolean();
     try {
-      if (stickyTaskListName == null) {
+      if (stickyTaskQueueName == null) {
         decider = createDecider(decisionTask);
       } else {
         decider =
@@ -159,7 +159,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
 
       if (result.isFinalDecision()) {
         cache.invalidate(decisionTask.getWorkflowExecution().getRunId());
-      } else if (stickyTaskListName != null && createdNew.get()) {
+      } else if (stickyTaskQueueName != null && createdNew.get()) {
         cache.addToCache(decisionTask, decider);
       }
 
@@ -200,12 +200,12 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
         decider.close();
       }
 
-      if (stickyTaskListName != null) {
+      if (stickyTaskQueueName != null) {
         cache.invalidate(decisionTask.getWorkflowExecution().getRunId());
       }
       throw e;
     } finally {
-      if (stickyTaskListName == null && decider != null) {
+      if (stickyTaskQueueName == null && decider != null) {
         decider.close();
       } else {
         cache.markProcessingDone(decisionTask);
@@ -219,7 +219,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
     Decider decider = null;
     AtomicBoolean createdNew = new AtomicBoolean();
     try {
-      if (stickyTaskListName == null) {
+      if (stickyTaskQueueName == null) {
         decider = createDecider(decisionTask);
       } else {
         decider =
@@ -232,7 +232,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
       }
 
       Optional<Payloads> queryResult = decider.query(decisionTask, decisionTask.getQuery());
-      if (stickyTaskListName != null && createdNew.get()) {
+      if (stickyTaskQueueName != null && createdNew.get()) {
         cache.addToCache(decisionTask, decider);
       }
       if (queryResult.isPresent()) {
@@ -247,7 +247,7 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
       queryCompletedRequest.setErrorMessage(sw.toString());
       queryCompletedRequest.setCompletedType(QueryResultType.QUERY_RESULT_TYPE_FAILED);
     } finally {
-      if (stickyTaskListName == null && decider != null) {
+      if (stickyTaskQueueName == null && decider != null) {
         decider.close();
       } else {
         cache.markProcessingDone(decisionTask);
@@ -265,12 +265,12 @@ public final class ReplayDecisionTaskHandler implements DecisionTaskHandler {
             .putAllQueryResults(result.getQueryResults())
             .setForceCreateNewDecisionTask(result.getForceCreateNewDecisionTask());
 
-    if (stickyTaskListName != null && !stickyTaskListScheduleToStartTimeout.isZero()) {
+    if (stickyTaskQueueName != null && !stickyTaskQueueScheduleToStartTimeout.isZero()) {
       StickyExecutionAttributes.Builder attributes =
           StickyExecutionAttributes.newBuilder()
-              .setWorkerTaskList(createStickyTaskList(stickyTaskListName))
+              .setWorkerTaskQueue(createStickyTaskQueue(stickyTaskQueueName))
               .setScheduleToStartTimeoutSeconds(
-                  roundUpToSeconds(stickyTaskListScheduleToStartTimeout));
+                  roundUpToSeconds(stickyTaskQueueScheduleToStartTimeout));
       completedRequest.setStickyAttributes(attributes);
     }
     return new Result(completedRequest.build(), null, null, null, result.isFinalDecision());

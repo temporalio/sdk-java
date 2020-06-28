@@ -39,7 +39,7 @@ public final class StartWorkflowExecutionParameters {
 
   private WorkflowType workflowType;
 
-  private String taskList;
+  private String taskQueue;
 
   private Optional<Payloads> input;
 
@@ -147,33 +147,33 @@ public final class StartWorkflowExecutionParameters {
   }
 
   /**
-   * Returns the value of the TaskList property for this object.
+   * Returns the value of the TaskQueue property for this object.
    *
-   * @return The value of the TaskList property for this object.
+   * @return The value of the TaskQueue property for this object.
    */
-  public String getTaskList() {
-    return taskList;
+  public String getTaskQueue() {
+    return taskQueue;
   }
 
   /**
-   * Sets the value of the TaskList property for this object.
+   * Sets the value of the TaskQueue property for this object.
    *
-   * @param taskList The new value for the TaskList property for this object.
+   * @param taskQueue The new value for the TaskQueue property for this object.
    */
-  public void setTaskList(String taskList) {
-    this.taskList = taskList;
+  public void setTaskQueue(String taskQueue) {
+    this.taskQueue = taskQueue;
   }
 
   /**
-   * Sets the value of the TaskList property for this object.
+   * Sets the value of the TaskQueue property for this object.
    *
    * <p>Returns a reference to this object so that method calls can be chained together.
    *
-   * @param taskList The new value for the TaskList property for this object.
+   * @param taskQueue The new value for the TaskQueue property for this object.
    * @return A reference to this updated object so that method calls can be chained together.
    */
-  public StartWorkflowExecutionParameters withTaskList(String taskList) {
-    this.taskList = taskList;
+  public StartWorkflowExecutionParameters withTaskQueue(String taskQueue) {
+    this.taskQueue = taskQueue;
     return this;
   }
 
@@ -339,7 +339,7 @@ public final class StartWorkflowExecutionParameters {
     parameters.setWorkflowExecutionTimeoutSeconds(
         roundUpToSeconds(options.getWorkflowExecutionTimeout()));
     parameters.setWorkflowTaskTimeoutSeconds(roundUpToSeconds(options.getWorkflowTaskTimeout()));
-    parameters.setTaskList(options.getTaskList());
+    parameters.setTaskQueue(options.getTaskQueue());
     parameters.setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy());
     RetryOptions retryOptions = options.getRetryOptions();
     if (retryOptions != null) {
@@ -374,8 +374,8 @@ public final class StartWorkflowExecutionParameters {
         + '\''
         + ", workflowType="
         + workflowType
-        + ", taskList='"
-        + taskList
+        + ", taskQueue='"
+        + taskQueue
         + '\''
         + ", input="
         + input
@@ -410,7 +410,7 @@ public final class StartWorkflowExecutionParameters {
         && workflowTaskTimeoutSeconds == that.workflowTaskTimeoutSeconds
         && Objects.equal(workflowId, that.workflowId)
         && Objects.equal(workflowType, that.workflowType)
-        && Objects.equal(taskList, that.taskList)
+        && Objects.equal(taskQueue, that.taskQueue)
         && Objects.equal(input, that.input)
         && workflowIdReusePolicy == that.workflowIdReusePolicy
         && Objects.equal(retryParameters, that.retryParameters)
@@ -425,7 +425,7 @@ public final class StartWorkflowExecutionParameters {
     return Objects.hashCode(
         workflowId,
         workflowType,
-        taskList,
+        taskQueue,
         input,
         workflowRunTimeoutSeconds,
         workflowTaskTimeoutSeconds,

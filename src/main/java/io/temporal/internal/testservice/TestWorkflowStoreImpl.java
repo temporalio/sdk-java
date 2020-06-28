@@ -29,7 +29,7 @@ import io.temporal.history.v1.History;
 import io.temporal.history.v1.HistoryEvent;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.RequestContext.Timer;
-import io.temporal.tasklist.v1.StickyExecutionAttributes;
+import io.temporal.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
@@ -166,11 +166,11 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
 
   private final Map<ExecutionId, HistoryStore> histories = new HashMap<>();
 
-  private final Map<TaskListId, BlockingQueue<PollForActivityTaskResponse.Builder>>
-      activityTaskLists = new HashMap<>();
+  private final Map<TaskQueueId, BlockingQueue<PollForActivityTaskResponse.Builder>>
+      activityTaskQueues = new HashMap<>();
 
-  private final Map<TaskListId, BlockingQueue<PollForDecisionTaskResponse.Builder>>
-      decisionTaskLists = new HashMap<>();
+  private final Map<TaskQueueId, BlockingQueue<PollForDecisionTaskResponse.Builder>>
+      decisionTaskQueues = new HashMap<>();
 
   private final SelfAdvancingTimer timerService =
       new SelfAdvancingTimerImpl(System.currentTimeMillis());
@@ -225,17 +225,17 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     if (decisionTask != null) {
       StickyExecutionAttributes attributes =
           ctx.getWorkflowMutableState().getStickyExecutionAttributes();
-      TaskListId id =
-          new TaskListId(
-              decisionTask.getTaskListId().getNamespace(),
+      TaskQueueId id =
+          new TaskQueueId(
+              decisionTask.getTaskQueueId().getNamespace(),
               attributes == null
-                  ? decisionTask.getTaskListId().getTaskListName()
-                  : attributes.getWorkerTaskList().getName());
-      if (id.getTaskListName().isEmpty() || id.getNamespace().isEmpty()) {
-        throw Status.INTERNAL.withDescription("Invalid TaskListId: " + id).asRuntimeException();
+                  ? decisionTask.getTaskQueueId().getTaskQueueName()
+                  : attributes.getWorkerTaskQueue().getName());
+      if (id.getTaskQueueName().isEmpty() || id.getNamespace().isEmpty()) {
+        throw Status.INTERNAL.withDescription("Invalid TaskQueueId: " + id).asRuntimeException();
       }
       BlockingQueue<PollForDecisionTaskResponse.Builder> decisionsQueue =
-          getDecisionTaskListQueue(id);
+          getDecisionTaskQueueQueue(id);
       decisionsQueue.add(decisionTask.getTask());
     }
 
@@ -243,7 +243,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     if (activityTasks != null) {
       for (ActivityTask activityTask : activityTasks) {
         BlockingQueue<PollForActivityTaskResponse.Builder> activitiesQueue =
-            getActivityTaskListQueue(activityTask.getTaskListId());
+            getActivityTaskQueueQueue(activityTask.getTaskQueueId());
         activitiesQueue.add(activityTask.getTask());
       }
     }
@@ -288,16 +288,16 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     timerService.schedule(delay, r, "registerDelayedCallback");
   }
 
-  private BlockingQueue<PollForActivityTaskResponse.Builder> getActivityTaskListQueue(
-      TaskListId taskListId) {
+  private BlockingQueue<PollForActivityTaskResponse.Builder> getActivityTaskQueueQueue(
+      TaskQueueId taskQueueId) {
     lock.lock();
     try {
       {
         BlockingQueue<PollForActivityTaskResponse.Builder> activitiesQueue =
-            activityTaskLists.get(taskListId);
+            activityTaskQueues.get(taskQueueId);
         if (activitiesQueue == null) {
           activitiesQueue = new LinkedBlockingQueue<>();
-          activityTaskLists.put(taskListId, activitiesQueue);
+          activityTaskQueues.put(taskQueueId, activitiesQueue);
         }
         return activitiesQueue;
       }
@@ -306,15 +306,15 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     }
   }
 
-  private BlockingQueue<PollForDecisionTaskResponse.Builder> getDecisionTaskListQueue(
-      TaskListId taskListId) {
+  private BlockingQueue<PollForDecisionTaskResponse.Builder> getDecisionTaskQueueQueue(
+      TaskQueueId taskQueueId) {
     lock.lock();
     try {
       BlockingQueue<PollForDecisionTaskResponse.Builder> decisionsQueue =
-          decisionTaskLists.get(taskListId);
+          decisionTaskQueues.get(taskQueueId);
       if (decisionsQueue == null) {
         decisionsQueue = new LinkedBlockingQueue<>();
-        decisionTaskLists.put(taskListId, decisionsQueue);
+        decisionTaskQueues.put(taskQueueId, decisionsQueue);
       }
       return decisionsQueue;
     } finally {
@@ -325,13 +325,14 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   @Override
   public Optional<PollForDecisionTaskResponse.Builder> pollForDecisionTask(
       PollForDecisionTaskRequest pollRequest, Deadline deadline) {
-    TaskListId taskListId =
-        new TaskListId(pollRequest.getNamespace(), pollRequest.getTaskList().getName());
+    TaskQueueId taskQueueId =
+        new TaskQueueId(pollRequest.getNamespace(), pollRequest.getTaskQueue().getName());
     BlockingQueue<PollForDecisionTaskResponse.Builder> decisionsQueue =
-        getDecisionTaskListQueue(taskListId);
+        getDecisionTaskQueueQueue(taskQueueId);
     if (log.isTraceEnabled()) {
       log.trace(
-          "Poll request on decision task list about to block waiting for a task on " + taskListId);
+          "Poll request on decision task queue about to block waiting for a task on "
+              + taskQueueId);
     }
     PollForDecisionTaskResponse.Builder result = null;
     try {
@@ -351,10 +352,10 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   @Override
   public Optional<PollForActivityTaskResponse.Builder> pollForActivityTask(
       PollForActivityTaskRequest pollRequest, Deadline deadline) {
-    TaskListId taskListId =
-        new TaskListId(pollRequest.getNamespace(), pollRequest.getTaskList().getName());
+    TaskQueueId taskQueueId =
+        new TaskQueueId(pollRequest.getNamespace(), pollRequest.getTaskQueue().getName());
     BlockingQueue<PollForActivityTaskResponse.Builder> activityTaskQueue =
-        getActivityTaskListQueue(taskListId);
+        getActivityTaskQueueQueue(taskQueueId);
     PollForActivityTaskResponse.Builder result = null;
     try {
       if (deadline == null) {
@@ -372,13 +373,13 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
 
   @Override
   public void sendQueryTask(
-      ExecutionId executionId, TaskListId taskList, PollForDecisionTaskResponse.Builder task) {
+      ExecutionId executionId, TaskQueueId taskQueue, PollForDecisionTaskResponse.Builder task) {
     lock.lock();
     try {
       HistoryStore historyStore = getHistoryStore(executionId);
       List<HistoryEvent> events = new ArrayList<>(historyStore.getEventsLocked());
       History.Builder history = History.newBuilder();
-      if (taskList.getTaskListName().equals(task.getWorkflowExecutionTaskList().getName())) {
+      if (taskQueue.getTaskQueueName().equals(task.getWorkflowExecutionTaskQueue().getName())) {
         history.addAllEvents(events);
       } else {
         history.addAllEvents(new ArrayList<>());
@@ -388,7 +389,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
       lock.unlock();
     }
     BlockingQueue<PollForDecisionTaskResponse.Builder> decisionsQueue =
-        getDecisionTaskListQueue(taskList);
+        getDecisionTaskQueueQueue(taskQueue);
     decisionsQueue.add(task);
   }
 

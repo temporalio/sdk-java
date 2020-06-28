@@ -76,7 +76,7 @@ import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.testservice.StateMachines.*;
 import io.temporal.query.v1.QueryRejected;
 import io.temporal.query.v1.WorkflowQueryResult;
-import io.temporal.tasklist.v1.StickyExecutionAttributes;
+import io.temporal.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.workflowservice.v1.PollForActivityTaskRequest;
 import io.temporal.workflowservice.v1.PollForActivityTaskResponseOrBuilder;
 import io.temporal.workflowservice.v1.PollForDecisionTaskRequest;
@@ -253,8 +253,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           .withDescription("Invalid WorkflowTaskTimeoutSeconds.")
           .asRuntimeException();
     }
-    if (!request.hasTaskList() || request.getTaskList().getName().isEmpty()) {
-      throw Status.INVALID_ARGUMENT.withDescription("Missing Tasklist.").asRuntimeException();
+    if (!request.hasTaskQueue() || request.getTaskQueue().getName().isEmpty()) {
+      throw Status.INVALID_ARGUMENT.withDescription("Missing Taskqueue.").asRuntimeException();
     }
     if (!request.hasWorkflowType() || request.getWorkflowType().getName().isEmpty()) {
       throw Status.INVALID_ARGUMENT.withDescription("Missing WorkflowType.").asRuntimeException();
@@ -474,14 +474,14 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                         .setWorkflowExecution(executionId.getExecution())
                         .setWorkflowType(startRequest.getWorkflowType())
                         .setQuery(consistent.getRequest().getQuery())
-                        .setWorkflowExecutionTaskList(startRequest.getTaskList());
-                TestWorkflowStore.TaskListId taskListId =
-                    new TestWorkflowStore.TaskListId(
+                        .setWorkflowExecutionTaskQueue(startRequest.getTaskQueue());
+                TestWorkflowStore.TaskQueueId taskQueueId =
+                    new TestWorkflowStore.TaskQueueId(
                         consistent.getRequest().getNamespace(),
                         stickyExecutionAttributes == null
-                            ? startRequest.getTaskList().getName()
-                            : stickyExecutionAttributes.getWorkerTaskList().getName());
-                store.sendQueryTask(executionId, taskListId, task);
+                            ? startRequest.getTaskQueue().getName()
+                            : stickyExecutionAttributes.getWorkerTaskQueue().getName());
+                store.sendQueryTask(executionId, taskQueueId, task);
                 this.queries.put(queryId.getQueryId(), consistent.getResult());
               }
             }
@@ -726,9 +726,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private ScheduleActivityTaskDecisionAttributes validateScheduleActivityTask(
       ScheduleActivityTaskDecisionAttributes a) {
     ScheduleActivityTaskDecisionAttributes.Builder result = a.toBuilder();
-    if (!a.hasTaskList() || a.getTaskList().getName().isEmpty()) {
+    if (!a.hasTaskQueue() || a.getTaskQueue().getName().isEmpty()) {
       throw Status.INVALID_ARGUMENT
-          .withDescription("TaskList is not set on decision")
+          .withDescription("TaskQueue is not set on decision")
           .asRuntimeException();
     }
     if (a.getActivityId().isEmpty()) {
@@ -839,9 +839,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       ab.setRetryPolicy(valiateAndOverrideRetryPolicy(a.getRetryPolicy()));
     }
 
-    // Inherit tasklist from parent workflow execution if not provided on decision
-    if (!ab.hasTaskList()) {
-      ab.setTaskList(startRequest.getTaskList());
+    // Inherit taskqueue from parent workflow execution if not provided on decision
+    if (!ab.hasTaskQueue()) {
+      ab.setTaskQueue(startRequest.getTaskQueue());
     }
 
     // Inherit workflow timeout from parent workflow execution if not provided on decision
@@ -1122,8 +1122,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 .setWorkflowRunTimeoutSeconds(startRequest.getWorkflowRunTimeoutSeconds())
                 .setWorkflowTaskTimeoutSeconds(startRequest.getWorkflowTaskTimeoutSeconds())
                 .setBackoffStartIntervalInSeconds(backoffInterval.getIntervalSeconds());
-        if (startRequest.hasTaskList()) {
-          continueAsNewAttr.setTaskList(startRequest.getTaskList());
+        if (startRequest.hasTaskQueue()) {
+          continueAsNewAttr.setTaskQueue(startRequest.getTaskQueue());
         }
         if (startRequest.hasRetryPolicy()) {
           continueAsNewAttr.setRetryPolicy(startRequest.getRetryPolicy());
@@ -1260,7 +1260,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setWorkflowType(startRequest.getWorkflowType())
             .setWorkflowRunTimeoutSeconds(startRequest.getWorkflowRunTimeoutSeconds())
             .setWorkflowTaskTimeoutSeconds(startRequest.getWorkflowTaskTimeoutSeconds())
-            .setTaskList(startRequest.getTaskList())
+            .setTaskQueue(startRequest.getTaskQueue())
             .setBackoffStartIntervalInSeconds(backoffIntervalSeconds)
             .setRetryPolicy(startRequest.getRetryPolicy())
             .setLastCompletionResult(lastCompletionResult)
@@ -1878,15 +1878,15 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               .setWorkflowExecution(executionId.getExecution())
               .setWorkflowType(startRequest.getWorkflowType())
               .setQuery(queryRequest.getQuery())
-              .setWorkflowExecutionTaskList(startRequest.getTaskList());
-      TestWorkflowStore.TaskListId taskListId =
-          new TestWorkflowStore.TaskListId(
+              .setWorkflowExecutionTaskQueue(startRequest.getTaskQueue());
+      TestWorkflowStore.TaskQueueId taskQueueId =
+          new TestWorkflowStore.TaskQueueId(
               queryRequest.getNamespace(),
               stickyExecutionAttributes == null
-                  ? startRequest.getTaskList().getName()
-                  : stickyExecutionAttributes.getWorkerTaskList().getName());
+                  ? startRequest.getTaskQueue().getName()
+                  : stickyExecutionAttributes.getWorkerTaskQueue().getName());
       queries.put(queryId.getQueryId(), result);
-      store.sendQueryTask(executionId, taskListId, task);
+      store.sendQueryTask(executionId, taskQueueId, task);
     } finally {
       lock.unlock(); // locked in the query method
     }

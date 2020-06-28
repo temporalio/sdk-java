@@ -60,8 +60,8 @@ final class WorkflowInfoImpl implements WorkflowInfo {
   }
 
   @Override
-  public String getTaskList() {
-    return context.getTaskList();
+  public String getTaskQueue() {
+    return context.getTaskQueue();
   }
 
   @Override

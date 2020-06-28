@@ -26,7 +26,7 @@ public class MetricsTag {
   public static final String EVENT_ID = "EventId";
   public static final String EVENT_TYPE = "EventType";
   public static final String RUN_ID = "RunId";
-  public static final String TASK_LIST = "TaskList";
+  public static final String TASK_QUEUE = "TaskQueue";
   public static final String TIMER_ID = "TimerId";
   public static final String WORKFLOW_ID = "WorkflowId";
   public static final String WORKFLOW_TYPE = "WorkflowType";

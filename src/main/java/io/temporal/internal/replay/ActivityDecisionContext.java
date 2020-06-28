@@ -36,7 +36,7 @@ import io.temporal.history.v1.ActivityTaskFailedEventAttributes;
 import io.temporal.history.v1.ActivityTaskTimedOutEventAttributes;
 import io.temporal.history.v1.HistoryEvent;
 import io.temporal.internal.common.RetryParameters;
-import io.temporal.tasklist.v1.TaskList;
+import io.temporal.taskqueue.v1.TaskQueue;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -161,9 +161,9 @@ final class ActivityDecisionContext {
     }
     attributes.setActivityId(activityId);
 
-    String taskList = parameters.getTaskList();
-    if (taskList != null && !taskList.isEmpty()) {
-      attributes.setTaskList(TaskList.newBuilder().setName(taskList).build());
+    String taskQueue = parameters.getTaskQueue();
+    if (taskQueue != null && !taskQueue.isEmpty()) {
+      attributes.setTaskQueue(TaskQueue.newBuilder().setName(taskQueue).build());
     }
     RetryParameters retryParameters = parameters.getRetryParameters();
     if (retryParameters != null) {

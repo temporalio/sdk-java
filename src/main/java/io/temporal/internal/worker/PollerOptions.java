@@ -23,7 +23,7 @@ import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Options for component that polls Temporal task lists for tasks. */
+/** Options for component that polls Temporal task queues for tasks. */
 public final class PollerOptions {
 
   public static Builder newBuilder() {

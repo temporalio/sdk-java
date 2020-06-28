@@ -49,7 +49,7 @@ import io.temporal.history.v1.SignalExternalWorkflowExecutionFailedEventAttribut
 import io.temporal.history.v1.StartChildWorkflowExecutionFailedEventAttributes;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.RetryParameters;
-import io.temporal.tasklist.v1.TaskList;
+import io.temporal.taskqueue.v1.TaskQueue;
 import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.SignalExternalWorkflowException;
 import java.nio.charset.StandardCharsets;
@@ -154,14 +154,14 @@ final class WorkflowDecisionContext {
     if (parameters.getWorkflowTaskTimeoutSeconds() > 0) {
       attributes.setWorkflowTaskTimeoutSeconds((int) parameters.getWorkflowTaskTimeoutSeconds());
     }
-    String taskList = parameters.getTaskList();
-    TaskList.Builder tl = TaskList.newBuilder();
-    if (taskList != null && !taskList.isEmpty()) {
-      tl.setName(taskList);
+    String taskQueue = parameters.getTaskQueue();
+    TaskQueue.Builder tl = TaskQueue.newBuilder();
+    if (taskQueue != null && !taskQueue.isEmpty()) {
+      tl.setName(taskQueue);
     } else {
-      tl.setName(workflowContext.getTaskList());
+      tl.setName(workflowContext.getTaskQueue());
     }
-    attributes.setTaskList(tl);
+    attributes.setTaskQueue(tl);
     if (parameters.getWorkflowIdReusePolicy() != null) {
       attributes.setWorkflowIdReusePolicy(parameters.getWorkflowIdReusePolicy());
     }

@@ -88,9 +88,9 @@ import io.temporal.history.v1.WorkflowExecutionTimedOutEventAttributes;
 import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.testservice.TestWorkflowStore.ActivityTask;
 import io.temporal.internal.testservice.TestWorkflowStore.DecisionTask;
-import io.temporal.internal.testservice.TestWorkflowStore.TaskListId;
+import io.temporal.internal.testservice.TestWorkflowStore.TaskQueueId;
 import io.temporal.query.v1.WorkflowQueryResult;
-import io.temporal.tasklist.v1.StickyExecutionAttributes;
+import io.temporal.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.workflowservice.v1.PollForActivityTaskRequest;
 import io.temporal.workflowservice.v1.PollForActivityTaskResponse;
@@ -659,7 +659,7 @@ class StateMachines {
             .setWorkflowExecutionTimeoutSeconds(d.getWorkflowExecutionTimeoutSeconds())
             .setWorkflowRunTimeoutSeconds(d.getWorkflowRunTimeoutSeconds())
             .setWorkflowTaskTimeoutSeconds(d.getWorkflowTaskTimeoutSeconds())
-            .setTaskList(d.getTaskList())
+            .setTaskQueue(d.getTaskQueue())
             .setWorkflowId(d.getWorkflowId())
             .setWorkflowIdReusePolicy(d.getWorkflowIdReusePolicy())
             .setWorkflowType(d.getWorkflowType())
@@ -691,7 +691,7 @@ class StateMachines {
                   .setWorkflowExecutionTimeoutSeconds(d.getWorkflowExecutionTimeoutSeconds())
                   .setWorkflowRunTimeoutSeconds(d.getWorkflowRunTimeoutSeconds())
                   .setWorkflowTaskTimeoutSeconds(d.getWorkflowTaskTimeoutSeconds())
-                  .setTaskList(d.getTaskList())
+                  .setTaskQueue(d.getTaskQueue())
                   .setWorkflowId(d.getWorkflowId())
                   .setWorkflowIdReusePolicy(d.getWorkflowIdReusePolicy())
                   .setWorkflowType(d.getWorkflowType())
@@ -777,7 +777,7 @@ class StateMachines {
             .setWorkflowExecutionTimeoutSeconds(request.getWorkflowExecutionTimeoutSeconds())
             .setIdentity(request.getIdentity())
             .setInput(request.getInput())
-            .setTaskList(request.getTaskList());
+            .setTaskQueue(request.getTaskQueue());
     if (data.retryState.isPresent()) {
       a.setAttempt(data.retryState.get().getAttempt());
     }
@@ -854,10 +854,10 @@ class StateMachines {
     } else {
       a.setWorkflowRunTimeoutSeconds(sr.getWorkflowRunTimeoutSeconds());
     }
-    if (d.hasTaskList()) {
-      a.setTaskList(d.getTaskList());
+    if (d.hasTaskQueue()) {
+      a.setTaskQueue(d.getTaskQueue());
     } else {
-      a.setTaskList(sr.getTaskList());
+      a.setTaskQueue(sr.getTaskQueue());
     }
     if (d.hasWorkflowType()) {
       a.setWorkflowType(d.getWorkflowType());
@@ -970,7 +970,7 @@ class StateMachines {
             .setScheduleToCloseTimeoutSeconds(d.getScheduleToCloseTimeoutSeconds())
             .setScheduleToStartTimeoutSeconds(d.getScheduleToStartTimeoutSeconds())
             .setStartToCloseTimeoutSeconds(d.getStartToCloseTimeoutSeconds())
-            .setTaskList(d.getTaskList())
+            .setTaskQueue(d.getTaskQueue())
             .setHeader(d.getHeader())
             .setDecisionTaskCompletedEventId(decisionTaskCompletedEventId);
     if (d.hasRetryPolicy()) {
@@ -1001,8 +1001,8 @@ class StateMachines {
             .setHeader(d.getHeader())
             .setAttempt(0);
 
-    TaskListId taskListId = new TaskListId(ctx.getNamespace(), d.getTaskList().getName());
-    ActivityTask activityTask = new ActivityTask(taskListId, taskResponse);
+    TaskQueueId taskQueueId = new TaskQueueId(ctx.getNamespace(), d.getTaskQueue().getName());
+    ActivityTask activityTask = new ActivityTask(taskQueueId, taskResponse);
     ctx.addActivityTask(activityTask);
     ctx.onCommit(
         (historySize) -> {
@@ -1036,7 +1036,7 @@ class StateMachines {
     DecisionTaskScheduledEventAttributes a =
         DecisionTaskScheduledEventAttributes.newBuilder()
             .setStartToCloseTimeoutSeconds(request.getWorkflowTaskTimeoutSeconds())
-            .setTaskList(request.getTaskList())
+            .setTaskQueue(request.getTaskQueue())
             .setAttempt(data.attempt)
             .build();
     HistoryEvent event =
@@ -1050,8 +1050,8 @@ class StateMachines {
     decisionTaskResponse.setWorkflowExecution(ctx.getExecution());
     decisionTaskResponse.setWorkflowType(request.getWorkflowType());
     decisionTaskResponse.setAttempt(data.attempt);
-    TaskListId taskListId = new TaskListId(ctx.getNamespace(), request.getTaskList().getName());
-    DecisionTask decisionTask = new DecisionTask(taskListId, decisionTaskResponse);
+    TaskQueueId taskQueueId = new TaskQueueId(ctx.getNamespace(), request.getTaskQueue().getName());
+    DecisionTask decisionTask = new DecisionTask(taskQueueId, decisionTaskResponse);
     ctx.setDecisionTask(decisionTask);
     ctx.onCommit(
         (historySize) -> {
@@ -1066,7 +1066,7 @@ class StateMachines {
     DecisionTaskScheduledEventAttributes a =
         DecisionTaskScheduledEventAttributes.newBuilder()
             .setStartToCloseTimeoutSeconds(request.getWorkflowTaskTimeoutSeconds())
-            .setTaskList(request.getTaskList())
+            .setTaskQueue(request.getTaskQueue())
             .setAttempt(data.attempt)
             .build();
     HistoryEvent event =
@@ -1089,15 +1089,15 @@ class StateMachines {
         PollForDecisionTaskResponse.newBuilder();
     StickyExecutionAttributes stickyAttributes =
         ctx.getWorkflowMutableState().getStickyExecutionAttributes();
-    String taskList =
+    String taskQueue =
         stickyAttributes == null
-            ? request.getTaskList().getName()
-            : stickyAttributes.getWorkerTaskList().getName();
+            ? request.getTaskQueue().getName()
+            : stickyAttributes.getWorkerTaskQueue().getName();
     decisionTaskResponse.setWorkflowExecution(ctx.getExecution());
     decisionTaskResponse.setWorkflowType(request.getWorkflowType());
     decisionTaskResponse.setAttempt(data.attempt);
-    TaskListId taskListId = new TaskListId(ctx.getNamespace(), taskList);
-    DecisionTask decisionTask = new DecisionTask(taskListId, decisionTaskResponse);
+    TaskQueueId taskQueueId = new TaskQueueId(ctx.getNamespace(), taskQueue);
+    DecisionTask decisionTask = new DecisionTask(taskQueueId, decisionTaskResponse);
     ctx.setDecisionTask(decisionTask);
     ctx.onCommit(
         (historySize) -> {
@@ -1183,7 +1183,7 @@ class StateMachines {
                 DecisionTaskScheduledEventAttributes.newBuilder()
                     .setStartToCloseTimeoutSeconds(
                         data.startRequest.getWorkflowTaskTimeoutSeconds())
-                    .setTaskList(request.getTaskList())
+                    .setTaskQueue(request.getTaskQueue())
                     .setAttempt(data.attempt)
                     .build();
             HistoryEvent scheduledEvent =

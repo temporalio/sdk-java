@@ -78,7 +78,7 @@ public class MetricsTest {
   private static final com.uber.m3.util.Duration REPORTING_FREQUENCY =
       com.uber.m3.util.Duration.ofMillis(10);
   private static final long REPORTING_FLUSH_TIME = 600;
-  private static final String TASK_LIST = "metrics-test";
+  private static final String TASK_QUEUE = "metrics-test";
 
   private TestWorkflowEnvironment testEnvironment;
   private StatsReporter reporter;
@@ -98,7 +98,7 @@ public class MetricsTest {
 
       ActivityOptions activityOptions =
           ActivityOptions.newBuilder()
-              .setTaskList(TASK_LIST)
+              .setTaskQueue(TASK_QUEUE)
               .setScheduleToCloseTimeout(Duration.ofSeconds(100))
               .setRetryOptions(
                   RetryOptions.newBuilder()
@@ -112,7 +112,7 @@ public class MetricsTest {
       activity.runActivity(1);
 
       ChildWorkflowOptions options =
-          ChildWorkflowOptions.newBuilder().setTaskList(TASK_LIST).build();
+          ChildWorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
       TestChildWorkflow workflow = Workflow.newChildWorkflowStub(TestChildWorkflow.class, options);
       workflow.executeChild();
 
@@ -240,7 +240,7 @@ public class MetricsTest {
   public void testWorkflowMetrics() throws InterruptedException {
     setUp(REPORTING_FREQUENCY, WorkerFactoryOptions.getDefaultInstance());
 
-    Worker worker = testEnvironment.newWorker(TASK_LIST);
+    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
     worker.registerWorkflowImplementationTypes(
         TestMetricsInWorkflow.class, TestMetricsInChildWorkflow.class);
     worker.registerActivitiesImplementations(new TestActivityImpl());
@@ -250,7 +250,7 @@ public class MetricsTest {
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
             .setWorkflowRunTimeout(Duration.ofSeconds(1000))
-            .setTaskList(TASK_LIST)
+            .setTaskQueue(TASK_QUEUE)
             .build();
     TestWorkflow workflow = workflowClient.newWorkflowStub(TestWorkflow.class, options);
     workflow.execute();
@@ -260,7 +260,7 @@ public class MetricsTest {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.NAMESPACE, WorkflowTest.NAMESPACE)
-            .put(MetricsTag.TASK_LIST, TASK_LIST)
+            .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
             .build();
 
     verify(reporter, times(1)).reportCounter("test-started", tags, 1);
@@ -280,7 +280,7 @@ public class MetricsTest {
     Map<String, String> activityCompletionTags =
         new ImmutableMap.Builder<String, String>(3)
             .put(MetricsTag.NAMESPACE, WorkflowTest.NAMESPACE)
-            .put(MetricsTag.TASK_LIST, TASK_LIST)
+            .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
             .put(MetricsTag.ACTIVITY_TYPE, "RunActivity")
             .put(MetricsTag.WORKFLOW_TYPE, "TestWorkflow")
             .build();
@@ -329,7 +329,7 @@ public class MetricsTest {
                 next -> new WorkflowInboundCallsInterceptorBase(next))
             .build());
 
-    Worker worker = testEnvironment.newWorker(TASK_LIST);
+    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
 
     worker.registerWorkflowImplementationTypes(
         SendSignalObjectWorkflowImpl.class, ReceiveSignalObjectChildWorkflowImpl.class);
@@ -338,7 +338,7 @@ public class MetricsTest {
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
             .setWorkflowRunTimeout(Duration.ofSeconds(1000))
-            .setTaskList(TASK_LIST)
+            .setTaskQueue(TASK_QUEUE)
             .build();
 
     WorkflowClient workflowClient = testEnvironment.getWorkflowClient();
@@ -352,7 +352,7 @@ public class MetricsTest {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.NAMESPACE, WorkflowTest.NAMESPACE)
-            .put(MetricsTag.TASK_LIST, TASK_LIST)
+            .put(MetricsTag.TASK_QUEUE, TASK_QUEUE)
             .build();
     verify(reporter, times(1)).reportCounter(MetricsType.CORRUPTED_SIGNALS_COUNTER, tags, 1);
     testEnvironment.close();

@@ -155,8 +155,8 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   }
 
   @Override
-  public String getTaskList() {
-    return workflowContext.getTaskList();
+  public String getTaskQueue() {
+    return workflowContext.getTaskQueue();
   }
 
   @Override

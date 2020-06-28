@@ -44,7 +44,7 @@ public final class ContinueAsNewOptions {
   public static final class Builder {
 
     private Duration workflowRunTimeout;
-    private String taskList;
+    private String taskQueue;
     private Duration workflowTaskTimeout;
 
     private Builder() {}
@@ -54,7 +54,7 @@ public final class ContinueAsNewOptions {
         return;
       }
       this.workflowRunTimeout = options.workflowRunTimeout;
-      this.taskList = options.taskList;
+      this.taskQueue = options.taskQueue;
       this.workflowTaskTimeout = options.workflowTaskTimeout;
     }
 
@@ -63,8 +63,8 @@ public final class ContinueAsNewOptions {
       return this;
     }
 
-    public Builder setTaskList(String taskList) {
-      this.taskList = taskList;
+    public Builder setTaskQueue(String taskQueue) {
+      this.taskQueue = taskQueue;
       return this;
     }
 
@@ -74,18 +74,18 @@ public final class ContinueAsNewOptions {
     }
 
     public ContinueAsNewOptions build() {
-      return new ContinueAsNewOptions(workflowRunTimeout, taskList, workflowTaskTimeout);
+      return new ContinueAsNewOptions(workflowRunTimeout, taskQueue, workflowTaskTimeout);
     }
   }
 
   private final Duration workflowRunTimeout;
-  private final String taskList;
+  private final String taskQueue;
   private final Duration workflowTaskTimeout;
 
   public ContinueAsNewOptions(
-      Duration workflowRunTimeout, String taskList, Duration workflowTaskTimeout) {
+      Duration workflowRunTimeout, String taskQueue, Duration workflowTaskTimeout) {
     this.workflowRunTimeout = workflowRunTimeout;
-    this.taskList = taskList;
+    this.taskQueue = taskQueue;
     this.workflowTaskTimeout = workflowTaskTimeout;
   }
 
@@ -93,8 +93,8 @@ public final class ContinueAsNewOptions {
     return workflowRunTimeout;
   }
 
-  public String getTaskList() {
-    return taskList;
+  public String getTaskQueue() {
+    return taskQueue;
   }
 
   public Duration getWorkflowTaskTimeout() {

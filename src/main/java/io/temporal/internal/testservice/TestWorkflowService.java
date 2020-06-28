@@ -381,10 +381,10 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     TestWorkflowMutableState mutableState = getMutableState(executionId);
     try {
       mutableState.startDecisionTask(task, pollRequest);
-      // The task always has the original tasklist is was created on as part of the response. This
+      // The task always has the original taskqueue is was created on as part of the response. This
       // may different
-      // then the task list it was scheduled on as in the case of sticky execution.
-      task.setWorkflowExecutionTaskList(mutableState.getStartRequest().getTaskList());
+      // then the task queue it was scheduled on as in the case of sticky execution.
+      task.setWorkflowExecutionTaskQueue(mutableState.getStartRequest().getTaskQueue());
       PollForDecisionTaskResponse response = task.build();
       responseObserver.onNext(response);
       responseObserver.onCompleted();
@@ -705,9 +705,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       SignalWithStartWorkflowExecutionRequest r,
       StreamObserver<SignalWithStartWorkflowExecutionResponse> responseObserver) {
     try {
-      if (!r.hasTaskList()) {
+      if (!r.hasTaskQueue()) {
         throw Status.INVALID_ARGUMENT
-            .withDescription("request missing required taskList field")
+            .withDescription("request missing required taskQueue field")
             .asRuntimeException();
       }
       if (!r.hasWorkflowType()) {
@@ -744,7 +744,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
               .setWorkflowRunTimeoutSeconds(r.getWorkflowRunTimeoutSeconds())
               .setWorkflowTaskTimeoutSeconds(r.getWorkflowTaskTimeoutSeconds())
               .setNamespace(r.getNamespace())
-              .setTaskList(r.getTaskList())
+              .setTaskQueue(r.getTaskQueue())
               .setWorkflowId(r.getWorkflowId())
               .setWorkflowIdReusePolicy(r.getWorkflowIdReusePolicy())
               .setIdentity(r.getIdentity())
@@ -832,7 +832,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
             .setWorkflowRunTimeoutSeconds(a.getWorkflowRunTimeoutSeconds())
             .setWorkflowTaskTimeoutSeconds(a.getWorkflowTaskTimeoutSeconds())
             .setNamespace(executionId.getNamespace())
-            .setTaskList(a.getTaskList())
+            .setTaskQueue(a.getTaskQueue())
             .setWorkflowId(executionId.getWorkflowId().getWorkflowId())
             .setWorkflowIdReusePolicy(previousRunStartRequest.getWorkflowIdReusePolicy())
             .setIdentity(identity)

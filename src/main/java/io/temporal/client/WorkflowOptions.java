@@ -62,7 +62,7 @@ public final class WorkflowOptions {
         .setWorkflowTaskTimeout(o.getWorkflowTaskTimeout())
         .setWorkflowRunTimeout(o.getWorkflowRunTimeout())
         .setWorkflowExecutionTimeout(o.getWorkflowExecutionTimeout())
-        .setTaskList(o.getTaskList())
+        .setTaskQueue(o.getTaskQueue())
         .setRetryOptions(RetryOptions.merge(methodRetry, o.getRetryOptions()))
         .setCronSchedule(OptionsUtils.merge(cronAnnotation, o.getCronSchedule(), String.class))
         .setMemo(o.getMemo())
@@ -83,7 +83,7 @@ public final class WorkflowOptions {
 
     private Duration workflowTaskTimeout;
 
-    private String taskList;
+    private String taskQueue;
 
     private RetryOptions retryOptions;
 
@@ -106,7 +106,7 @@ public final class WorkflowOptions {
       this.workflowTaskTimeout = options.workflowTaskTimeout;
       this.workflowRunTimeout = options.workflowRunTimeout;
       this.workflowExecutionTimeout = options.workflowExecutionTimeout;
-      this.taskList = options.taskList;
+      this.taskQueue = options.taskQueue;
       this.retryOptions = options.retryOptions;
       this.cronSchedule = options.cronSchedule;
       this.memo = options.memo;
@@ -175,11 +175,11 @@ public final class WorkflowOptions {
     }
 
     /**
-     * Task list to use for decision tasks. It should match a task list specified when creating a
+     * Task queue to use for decision tasks. It should match a task queue specified when creating a
      * {@link io.temporal.worker.Worker} that hosts the workflow code.
      */
-    public Builder setTaskList(String taskList) {
-      this.taskList = taskList;
+    public Builder setTaskQueue(String taskQueue) {
+      this.taskQueue = taskQueue;
       return this;
     }
 
@@ -224,7 +224,7 @@ public final class WorkflowOptions {
           workflowRunTimeout,
           workflowExecutionTimeout,
           workflowTaskTimeout,
-          taskList,
+          taskQueue,
           retryOptions,
           cronSchedule,
           memo,
@@ -242,7 +242,7 @@ public final class WorkflowOptions {
           workflowRunTimeout,
           workflowExecutionTimeout,
           workflowTaskTimeout,
-          taskList,
+          taskQueue,
           retryOptions,
           cronSchedule,
           memo,
@@ -261,7 +261,7 @@ public final class WorkflowOptions {
 
   private final Duration workflowTaskTimeout;
 
-  private final String taskList;
+  private final String taskQueue;
 
   private RetryOptions retryOptions;
 
@@ -279,7 +279,7 @@ public final class WorkflowOptions {
       Duration workflowRunTimeout,
       Duration workflowExecutionTimeout,
       Duration workflowTaskTimeout,
-      String taskList,
+      String taskQueue,
       RetryOptions retryOptions,
       String cronSchedule,
       Map<String, Object> memo,
@@ -290,7 +290,7 @@ public final class WorkflowOptions {
     this.workflowRunTimeout = workflowRunTimeout;
     this.workflowExecutionTimeout = workflowExecutionTimeout;
     this.workflowTaskTimeout = workflowTaskTimeout;
-    this.taskList = taskList;
+    this.taskQueue = taskQueue;
     this.retryOptions = retryOptions;
     this.cronSchedule = cronSchedule;
     this.memo = memo;
@@ -318,8 +318,8 @@ public final class WorkflowOptions {
     return workflowTaskTimeout;
   }
 
-  public String getTaskList() {
-    return taskList;
+  public String getTaskQueue() {
+    return taskQueue;
   }
 
   public RetryOptions getRetryOptions() {
@@ -356,7 +356,7 @@ public final class WorkflowOptions {
         && Objects.equal(workflowRunTimeout, that.workflowRunTimeout)
         && Objects.equal(workflowExecutionTimeout, that.workflowExecutionTimeout)
         && Objects.equal(workflowTaskTimeout, that.workflowTaskTimeout)
-        && Objects.equal(taskList, that.taskList)
+        && Objects.equal(taskQueue, that.taskQueue)
         && Objects.equal(retryOptions, that.retryOptions)
         && Objects.equal(cronSchedule, that.cronSchedule)
         && Objects.equal(memo, that.memo)
@@ -372,7 +372,7 @@ public final class WorkflowOptions {
         workflowRunTimeout,
         workflowExecutionTimeout,
         workflowTaskTimeout,
-        taskList,
+        taskQueue,
         retryOptions,
         cronSchedule,
         memo,
@@ -394,8 +394,8 @@ public final class WorkflowOptions {
         + workflowExecutionTimeout
         + ", workflowTaskTimeout="
         + workflowTaskTimeout
-        + ", taskList='"
-        + taskList
+        + ", taskQueue='"
+        + taskQueue
         + '\''
         + ", retryOptions="
         + retryOptions

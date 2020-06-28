@@ -36,7 +36,7 @@ public class ExecuteActivityParameters implements Cloneable {
   private long scheduleToCloseTimeoutSeconds;
   private long scheduleToStartTimeoutSeconds;
   private long startToCloseTimeoutSeconds;
-  private String taskList;
+  private String taskQueue;
   private RetryParameters retryParameters;
   private Map<String, Payload> context;
   private ActivityCancellationType cancellationType;
@@ -311,33 +311,33 @@ public class ExecuteActivityParameters implements Cloneable {
   }
 
   /**
-   * Returns the value of the TaskList property for this object.
+   * Returns the value of the TaskQueue property for this object.
    *
-   * @return The value of the TaskList property for this object.
+   * @return The value of the TaskQueue property for this object.
    */
-  public String getTaskList() {
-    return taskList;
+  public String getTaskQueue() {
+    return taskQueue;
   }
 
   /**
-   * Sets the value of the TaskList property for this object.
+   * Sets the value of the TaskQueue property for this object.
    *
-   * @param taskList The new value for the TaskList property for this object.
+   * @param taskQueue The new value for the TaskQueue property for this object.
    */
-  public void setTaskList(String taskList) {
-    this.taskList = taskList;
+  public void setTaskQueue(String taskQueue) {
+    this.taskQueue = taskQueue;
   }
 
   /**
-   * Sets the value of the TaskList property for this object.
+   * Sets the value of the TaskQueue property for this object.
    *
    * <p>Returns a reference to this object so that method calls can be chained together.
    *
-   * @param taskList The new value for the TaskList property for this object.
+   * @param taskQueue The new value for the TaskQueue property for this object.
    * @return A reference to this updated object so that method calls can be chained together.
    */
-  public ExecuteActivityParameters withTaskList(String taskList) {
-    this.taskList = taskList;
+  public ExecuteActivityParameters withTaskQueue(String taskQueue) {
+    this.taskQueue = taskQueue;
     return this;
   }
 
@@ -399,8 +399,8 @@ public class ExecuteActivityParameters implements Cloneable {
         + scheduleToStartTimeoutSeconds
         + ", startToCloseTimeoutSeconds="
         + startToCloseTimeoutSeconds
-        + ", taskList='"
-        + taskList
+        + ", taskQueue='"
+        + taskQueue
         + '\''
         + ", retryParameters="
         + retryParameters

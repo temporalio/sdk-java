@@ -39,7 +39,7 @@ public class WorkerFactoryOptions {
   private static final int DEFAULT_HOST_LOCAL_WORKFLOW_POLL_THREAD_COUNT = 5;
   private static final int DEFAULT_WORKFLOW_CACHE_SIZE = 600;
   private static final int DEFAULT_MAX_WORKFLOW_THREAD_COUNT = 600;
-  private static final int DEFAULT_WORKFLOW_HOST_LOCAL_TASK_LIST_SCHEDULE_TO_START_TIMEOUT = 10;
+  private static final int DEFAULT_WORKFLOW_HOST_LOCAL_TASK_QUEUE_SCHEDULE_TO_START_TIMEOUT = 10;
 
   private static final WorkerFactoryOptions DEFAULT_INSTANCE;
 
@@ -48,8 +48,8 @@ public class WorkerFactoryOptions {
   }
 
   public static class Builder {
-    private int workflowHostLocalTaskListScheduleToStartTimeoutSeconds =
-        DEFAULT_WORKFLOW_HOST_LOCAL_TASK_LIST_SCHEDULE_TO_START_TIMEOUT;
+    private int workflowHostLocalTaskQueueScheduleToStartTimeoutSeconds =
+        DEFAULT_WORKFLOW_HOST_LOCAL_TASK_QUEUE_SCHEDULE_TO_START_TIMEOUT;
     private int workflowCacheSize;
     private int maxWorkflowThreadCount;
     private WorkflowInterceptor[] workflowInterceptors;
@@ -62,8 +62,8 @@ public class WorkerFactoryOptions {
       if (options == null) {
         return;
       }
-      this.workflowHostLocalTaskListScheduleToStartTimeoutSeconds =
-          options.workflowHostLocalTaskListScheduleToStartTimeoutSeconds;
+      this.workflowHostLocalTaskQueueScheduleToStartTimeoutSeconds =
+          options.workflowHostLocalTaskQueueScheduleToStartTimeoutSeconds;
       this.workflowCacheSize = options.workflowCacheSize;
       this.maxWorkflowThreadCount = options.maxWorkflowThreadCount;
       this.workflowInterceptors = options.workflowInterceptors;
@@ -101,10 +101,10 @@ public class WorkerFactoryOptions {
      *
      * <p>Default value is 10 seconds.
      */
-    public Builder setWorkflowHostLocalTaskListScheduleToStartTimeoutSeconds(
-        int workflowHostLocalTaskListScheduleToStartTimeoutSeconds) {
-      this.workflowHostLocalTaskListScheduleToStartTimeoutSeconds =
-          workflowHostLocalTaskListScheduleToStartTimeoutSeconds;
+    public Builder setWorkflowHostLocalTaskQueueScheduleToStartTimeoutSeconds(
+        int workflowHostLocalTaskQueueScheduleToStartTimeoutSeconds) {
+      this.workflowHostLocalTaskQueueScheduleToStartTimeoutSeconds =
+          workflowHostLocalTaskQueueScheduleToStartTimeoutSeconds;
       return this;
     }
 
@@ -127,7 +127,7 @@ public class WorkerFactoryOptions {
       return new WorkerFactoryOptions(
           workflowCacheSize,
           maxWorkflowThreadCount,
-          workflowHostLocalTaskListScheduleToStartTimeoutSeconds,
+          workflowHostLocalTaskQueueScheduleToStartTimeoutSeconds,
           workflowInterceptors,
           enableLoggingInReplay,
           workflowHostLocalPollThreadCount,
@@ -138,7 +138,7 @@ public class WorkerFactoryOptions {
       return new WorkerFactoryOptions(
           workflowCacheSize,
           maxWorkflowThreadCount,
-          workflowHostLocalTaskListScheduleToStartTimeoutSeconds,
+          workflowHostLocalTaskQueueScheduleToStartTimeoutSeconds,
           workflowInterceptors,
           enableLoggingInReplay,
           workflowHostLocalPollThreadCount,
@@ -148,7 +148,7 @@ public class WorkerFactoryOptions {
 
   private final int workflowCacheSize;
   private final int maxWorkflowThreadCount;
-  private final int workflowHostLocalTaskListScheduleToStartTimeoutSeconds;
+  private final int workflowHostLocalTaskQueueScheduleToStartTimeoutSeconds;
   private final WorkflowInterceptor[] workflowInterceptors;
   private final boolean enableLoggingInReplay;
   private final int workflowHostLocalPollThreadCount;
@@ -156,7 +156,7 @@ public class WorkerFactoryOptions {
   private WorkerFactoryOptions(
       int workflowCacheSize,
       int maxWorkflowThreadCount,
-      int workflowHostLocalTaskListScheduleToStartTimeoutSeconds,
+      int workflowHostLocalTaskQueueScheduleToStartTimeoutSeconds,
       WorkflowInterceptor[] workflowInterceptors,
       boolean enableLoggingInReplay,
       int workflowHostLocalPollThreadCount,
@@ -172,8 +172,8 @@ public class WorkerFactoryOptions {
         maxWorkflowThreadCount = DEFAULT_MAX_WORKFLOW_THREAD_COUNT;
       }
       Preconditions.checkState(
-          workflowHostLocalTaskListScheduleToStartTimeoutSeconds >= 0,
-          "negative workflowHostLocalTaskListScheduleToStartTimeoutSeconds");
+          workflowHostLocalTaskQueueScheduleToStartTimeoutSeconds >= 0,
+          "negative workflowHostLocalTaskQueueScheduleToStartTimeoutSeconds");
 
       if (workflowInterceptors == null) {
         workflowInterceptors = new WorkflowInterceptor[0];
@@ -187,8 +187,8 @@ public class WorkerFactoryOptions {
     }
     this.workflowCacheSize = workflowCacheSize;
     this.maxWorkflowThreadCount = maxWorkflowThreadCount;
-    this.workflowHostLocalTaskListScheduleToStartTimeoutSeconds =
-        workflowHostLocalTaskListScheduleToStartTimeoutSeconds;
+    this.workflowHostLocalTaskQueueScheduleToStartTimeoutSeconds =
+        workflowHostLocalTaskQueueScheduleToStartTimeoutSeconds;
     this.workflowInterceptors = workflowInterceptors;
     this.enableLoggingInReplay = enableLoggingInReplay;
     this.workflowHostLocalPollThreadCount = workflowHostLocalPollThreadCount;
@@ -202,8 +202,8 @@ public class WorkerFactoryOptions {
     return maxWorkflowThreadCount;
   }
 
-  public int getWorkflowHostLocalTaskListScheduleToStartTimeoutSeconds() {
-    return workflowHostLocalTaskListScheduleToStartTimeoutSeconds;
+  public int getWorkflowHostLocalTaskQueueScheduleToStartTimeoutSeconds() {
+    return workflowHostLocalTaskQueueScheduleToStartTimeoutSeconds;
   }
 
   public WorkflowInterceptor[] getWorkflowInterceptors() {
