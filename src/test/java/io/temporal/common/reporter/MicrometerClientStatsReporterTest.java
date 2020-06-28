@@ -38,7 +38,7 @@ public class MicrometerClientStatsReporterTest {
 
   private static final String DEFAULT_REPORT_NAME = "temporal_workflow_start";
   private static final Map<String, String> DEFAULT_REPORT_TAGS =
-      ImmutableMap.of("Namespace", "namespace_name", "TaskList", "task_list");
+      ImmutableMap.of("Namespace", "namespace_name", "TaskQueue", "task_queue");
   private static final long DEFAULT_COUNT = 10;
   private static final Duration DEFAULT_DURATION = Duration.ofSeconds(10);
 
@@ -65,7 +65,7 @@ public class MicrometerClientStatsReporterTest {
     callDefaultCounter();
 
     assertEquals(
-        Arrays.asList(Tag.of("Namespace", "namespace_name"), Tag.of("TaskList", "task_list")),
+        Arrays.asList(Tag.of("Namespace", "namespace_name"), Tag.of("TaskQueue", "task_queue")),
         Metrics.globalRegistry.get(DEFAULT_REPORT_NAME).counter().getId().getTags());
     assertEquals(10, Metrics.globalRegistry.get(DEFAULT_REPORT_NAME).counter().count(), 0);
   }
@@ -75,7 +75,7 @@ public class MicrometerClientStatsReporterTest {
     callDefaultTimer();
 
     assertEquals(
-        Arrays.asList(Tag.of("Namespace", "namespace_name"), Tag.of("TaskList", "task_list")),
+        Arrays.asList(Tag.of("Namespace", "namespace_name"), Tag.of("TaskQueue", "task_queue")),
         Metrics.globalRegistry.get(DEFAULT_REPORT_NAME).timer().getId().getTags());
     assertEquals(
         10, Metrics.globalRegistry.get(DEFAULT_REPORT_NAME).timer().totalTime(TimeUnit.SECONDS), 0);

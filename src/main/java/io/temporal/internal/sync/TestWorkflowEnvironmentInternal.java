@@ -79,14 +79,14 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   }
 
   @Override
-  public Worker newWorker(String taskList) {
-    Worker result = workerFactory.newWorker(taskList, WorkerOptions.getDefaultInstance());
+  public Worker newWorker(String taskQueue) {
+    Worker result = workerFactory.newWorker(taskQueue, WorkerOptions.getDefaultInstance());
     return result;
   }
 
   @Override
-  public Worker newWorker(String taskList, WorkerOptions options) {
-    Worker result = workerFactory.newWorker(taskList, options);
+  public Worker newWorker(String taskQueue, WorkerOptions options) {
+    Worker result = workerFactory.newWorker(taskQueue, options);
     return result;
   }
 

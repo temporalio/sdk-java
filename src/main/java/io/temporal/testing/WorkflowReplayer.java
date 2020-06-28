@@ -23,7 +23,7 @@ import com.google.common.collect.ObjectArrays;
 import io.temporal.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.internal.common.WorkflowExecutionHistory;
 import io.temporal.internal.common.WorkflowExecutionUtils;
-import io.temporal.tasklist.v1.TaskList;
+import io.temporal.taskqueue.v1.TaskQueue;
 import io.temporal.worker.Worker;
 import java.io.File;
 
@@ -100,9 +100,9 @@ public final class WorkflowReplayer {
       throws Exception {
     WorkflowExecutionStartedEventAttributes attr =
         history.getEvents().get(0).getWorkflowExecutionStartedEventAttributes();
-    TaskList taskList = attr.getTaskList();
+    TaskQueue taskQueue = attr.getTaskQueue();
     TestWorkflowEnvironment testEnv = TestWorkflowEnvironment.newInstance();
-    Worker worker = testEnv.newWorker(taskList.getName());
+    Worker worker = testEnv.newWorker(taskQueue.getName());
     worker.registerWorkflowImplementationTypes(
         ObjectArrays.concat(moreWorkflowClasses, workflowClass));
     worker.replayWorkflowExecution(history);

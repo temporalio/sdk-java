@@ -32,7 +32,7 @@ import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.internal.worker.DecisionTaskHandler;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.tasklist.v1.StickyExecutionAttributes;
+import io.temporal.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.testUtils.HistoryUtils;
 import io.temporal.workflowservice.v1.PollForDecisionTaskResponse;
 import java.time.Duration;
@@ -116,7 +116,7 @@ public class ReplayDeciderTaskHandlerTests {
     assertEquals(0, cache.size()); // do not cache if final decision
     assertNotNull(result.getTaskCompleted());
     StickyExecutionAttributes attributes = result.getTaskCompleted().getStickyAttributes();
-    assertEquals("sticky", attributes.getWorkerTaskList().getName());
+    assertEquals("sticky", attributes.getWorkerTaskQueue().getName());
     assertEquals(5, attributes.getScheduleToStartTimeoutSeconds());
   }
 

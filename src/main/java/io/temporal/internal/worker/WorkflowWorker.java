@@ -57,37 +57,42 @@ import org.slf4j.MDC;
 public final class WorkflowWorker
     implements SuspendableWorker, Consumer<PollForDecisionTaskResponse> {
 
-  private static final String POLL_THREAD_NAME_PREFIX = "Workflow Poller taskList=";
+  private static final String POLL_THREAD_NAME_PREFIX = "Workflow Poller taskQueue=";
 
   private SuspendableWorker poller = new NoopSuspendableWorker();
   private PollTaskExecutor<PollForDecisionTaskResponse> pollTaskExecutor;
   private final DecisionTaskHandler handler;
   private final WorkflowServiceStubs service;
   private final String namespace;
-  private final String taskList;
+  private final String taskQueue;
   private final SingleWorkerOptions options;
-  private final String stickyTaskListName;
+  private final String stickyTaskQueueName;
   private final WorkflowRunLockManager runLocks = new WorkflowRunLockManager();
 
   public WorkflowWorker(
       WorkflowServiceStubs service,
       String namespace,
-      String taskList,
+      String taskQueue,
       SingleWorkerOptions options,
       DecisionTaskHandler handler,
-      String stickyTaskListName) {
+      String stickyTaskQueueName) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
-    this.taskList = Objects.requireNonNull(taskList);
+    this.taskQueue = Objects.requireNonNull(taskQueue);
     this.handler = handler;
-    this.stickyTaskListName = stickyTaskListName;
+    this.stickyTaskQueueName = stickyTaskQueueName;
 
     PollerOptions pollerOptions = options.getPollerOptions();
     if (pollerOptions.getPollThreadNamePrefix() == null) {
       pollerOptions =
           PollerOptions.newBuilder(pollerOptions)
               .setPollThreadNamePrefix(
-                  POLL_THREAD_NAME_PREFIX + "\"" + taskList + "\", namespace=\"" + namespace + "\"")
+                  POLL_THREAD_NAME_PREFIX
+                      + "\""
+                      + taskQueue
+                      + "\", namespace=\""
+                      + namespace
+                      + "\"")
               .build();
     }
     this.options = SingleWorkerOptions.newBuilder(options).setPollerOptions(pollerOptions).build();
@@ -97,12 +102,12 @@ public final class WorkflowWorker
   public void start() {
     if (handler.isAnyTypeSupported()) {
       pollTaskExecutor =
-          new PollTaskExecutor<>(namespace, taskList, options, new TaskHandlerImpl(handler));
+          new PollTaskExecutor<>(namespace, taskQueue, options, new TaskHandlerImpl(handler));
       poller =
           new Poller<>(
               options.getIdentity(),
               new WorkflowPollTask(
-                  service, namespace, taskList, options.getMetricsScope(), options.getIdentity()),
+                  service, namespace, taskQueue, options.getMetricsScope(), options.getIdentity()),
               pollTaskExecutor,
               options.getPollerOptions(),
               options.getMetricsScope());
@@ -283,7 +288,7 @@ public final class WorkflowWorker
       MDC.put(LoggerTag.RUN_ID, task.getWorkflowExecution().getRunId());
 
       Lock runLock = null;
-      if (!Strings.isNullOrEmpty(stickyTaskListName)) {
+      if (!Strings.isNullOrEmpty(stickyTaskQueueName)) {
         runLock = runLocks.getLockForLocking(task.getWorkflowExecution().getRunId());
         runLock.lock();
       }

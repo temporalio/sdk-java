@@ -19,15 +19,15 @@
 
 package io.temporal.testUtils;
 
-import static io.temporal.internal.common.InternalUtils.createNormalTaskList;
-import static io.temporal.internal.common.InternalUtils.createStickyTaskList;
+import static io.temporal.internal.common.InternalUtils.createNormalTaskQueue;
+import static io.temporal.internal.common.InternalUtils.createStickyTaskQueue;
 
 import com.google.protobuf.ByteString;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.common.v1.WorkflowType;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.tasklist.v1.StickyExecutionAttributes;
-import io.temporal.tasklist.v1.TaskList;
+import io.temporal.taskqueue.v1.StickyExecutionAttributes;
+import io.temporal.taskqueue.v1.TaskQueue;
 import io.temporal.workflowservice.v1.PollForDecisionTaskRequest;
 import io.temporal.workflowservice.v1.PollForDecisionTaskResponse;
 import io.temporal.workflowservice.v1.RespondDecisionTaskCompletedRequest;
@@ -41,14 +41,14 @@ public class TestServiceUtils {
   private TestServiceUtils() {}
 
   public static void startWorkflowExecution(
-      String namespace, String tasklistName, String workflowType, WorkflowServiceStubs service)
+      String namespace, String taskqueueName, String workflowType, WorkflowServiceStubs service)
       throws Exception {
-    startWorkflowExecution(namespace, tasklistName, workflowType, 100, 100, service);
+    startWorkflowExecution(namespace, taskqueueName, workflowType, 100, 100, service);
   }
 
   public static void startWorkflowExecution(
       String namespace,
-      String tasklistName,
+      String taskqueueName,
       String workflowType,
       int workflowRunTimeoutSeconds,
       int workflowTaskTimeoutSeconds,
@@ -58,7 +58,7 @@ public class TestServiceUtils {
     request.setRequestId(UUID.randomUUID().toString());
     request.setNamespace(namespace);
     request.setWorkflowId(UUID.randomUUID().toString());
-    request.setTaskList(createNormalTaskList(tasklistName));
+    request.setTaskQueue(createNormalTaskQueue(taskqueueName));
     request.setWorkflowRunTimeoutSeconds(workflowRunTimeoutSeconds);
     request.setWorkflowTaskTimeoutSeconds(workflowTaskTimeoutSeconds);
     request.setWorkflowType(WorkflowType.newBuilder().setName(workflowType));
@@ -66,21 +66,21 @@ public class TestServiceUtils {
   }
 
   public static void respondDecisionTaskCompletedWithSticky(
-      ByteString taskToken, String stickyTasklistName, WorkflowServiceStubs service)
+      ByteString taskToken, String stickyTaskqueueName, WorkflowServiceStubs service)
       throws Exception {
-    respondDecisionTaskCompletedWithSticky(taskToken, stickyTasklistName, 100, service);
+    respondDecisionTaskCompletedWithSticky(taskToken, stickyTaskqueueName, 100, service);
   }
 
   public static void respondDecisionTaskCompletedWithSticky(
       ByteString taskToken,
-      String stickyTasklistName,
+      String stickyTaskqueueName,
       int startToCloseTimeout,
       WorkflowServiceStubs service)
       throws Exception {
     RespondDecisionTaskCompletedRequest.Builder request =
         RespondDecisionTaskCompletedRequest.newBuilder();
     StickyExecutionAttributes.Builder attributes = StickyExecutionAttributes.newBuilder();
-    attributes.setWorkerTaskList(createStickyTaskList(stickyTasklistName));
+    attributes.setWorkerTaskQueue(createStickyTaskQueue(stickyTaskqueueName));
     attributes.setScheduleToStartTimeoutSeconds(startToCloseTimeout);
     request.setStickyAttributes(attributes);
     request.setTaskToken(taskToken);
@@ -96,11 +96,11 @@ public class TestServiceUtils {
   }
 
   public static PollForDecisionTaskResponse pollForDecisionTask(
-      String namespace, TaskList tasklist, WorkflowServiceStubs service) throws Exception {
+      String namespace, TaskQueue taskqueue, WorkflowServiceStubs service) throws Exception {
     PollForDecisionTaskRequest request =
         PollForDecisionTaskRequest.newBuilder()
             .setNamespace(namespace)
-            .setTaskList(tasklist)
+            .setTaskQueue(taskqueue)
             .build();
     return service.blockingStub().pollForDecisionTask(request);
   }

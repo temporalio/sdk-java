@@ -78,20 +78,20 @@ public class WorkerStressTests {
   public void longHistoryWorkflowsCompleteSuccessfully() throws InterruptedException {
 
     // Arrange
-    String taskListName = "veryLongWorkflow";
+    String taskQueueName = "veryLongWorkflow";
 
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
             WorkerFactoryOptions.newBuilder().setMaxWorkflowThreadCount(200).build());
     WorkerFactory factory = wrapper.getWorkerFactory();
-    Worker worker = factory.newWorker(taskListName, WorkerOptions.newBuilder().build());
+    Worker worker = factory.newWorker(taskQueueName, WorkerOptions.newBuilder().build());
     worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
     worker.registerActivitiesImplementations(new ActivitiesImpl());
     factory.start();
 
     WorkflowOptions workflowOptions =
         WorkflowOptions.newBuilder()
-            .setTaskList(taskListName)
+            .setTaskQueue(taskQueueName)
             .setWorkflowRunTimeout(Duration.ofSeconds(250))
             .setWorkflowTaskTimeout(Duration.ofSeconds(30))
             .build();
@@ -105,7 +105,7 @@ public class WorkerStressTests {
     w.ChainSequence = 50;
     w.ConcurrentCount = 50;
     w.PayloadSizeBytes = 10000;
-    w.TaskListName = taskListName;
+    w.TaskQueueName = taskQueueName;
 
     workflow.start(w);
     assertNotNull("I'm done.", workflow.getResult(String.class));
@@ -116,21 +116,21 @@ public class WorkerStressTests {
   public void selfEvictionDoesNotCauseDeadlock() throws InterruptedException {
 
     // Arrange
-    String taskListName = "veryLongWorkflow" + UUID.randomUUID();
+    String taskQueueName = "veryLongWorkflow" + UUID.randomUUID();
 
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
             WorkerFactoryOptions.newBuilder().setMaxWorkflowThreadCount(2).build());
 
     WorkerFactory factory = wrapper.getWorkerFactory();
-    Worker worker = factory.newWorker(taskListName, WorkerOptions.newBuilder().build());
+    Worker worker = factory.newWorker(taskQueueName, WorkerOptions.newBuilder().build());
     worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
     worker.registerActivitiesImplementations(new ActivitiesImpl());
     factory.start();
 
     WorkflowOptions workflowOptions =
         WorkflowOptions.newBuilder()
-            .setTaskList(taskListName)
+            .setTaskQueue(taskQueueName)
             .setWorkflowRunTimeout(Duration.ofSeconds(250))
             .setWorkflowTaskTimeout(Duration.ofSeconds(30))
             .build();
@@ -143,7 +143,7 @@ public class WorkerStressTests {
     w.ChainSequence = 1;
     w.ConcurrentCount = 15;
     w.PayloadSizeBytes = 100;
-    w.TaskListName = taskListName;
+    w.TaskQueueName = taskQueueName;
 
     // This will attempt to self evict given that there are only two threads available
     workflow.start(w);
@@ -211,7 +211,7 @@ public class WorkerStressTests {
 
     public int ChainSequence;
     public int ConcurrentCount;
-    public String TaskListName;
+    public String TaskQueueName;
     public int PayloadSizeBytes;
     public int TemporalSleepSeconds;
   }
@@ -231,7 +231,7 @@ public class WorkerStressTests {
           Workflow.newActivityStub(
               SleepActivity.class,
               ActivityOptions.newBuilder()
-                  .setTaskList(params.TaskListName)
+                  .setTaskQueue(params.TaskQueueName)
                   .setScheduleToStartTimeout(Duration.ofMinutes(1))
                   .setStartToCloseTimeout(Duration.ofMinutes(1))
                   .setHeartbeatTimeout(Duration.ofSeconds(20))

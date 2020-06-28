@@ -63,7 +63,7 @@ import java.util.concurrent.TimeUnit;
  *    TestWorkflowEnvironment testEnvironment = TestWorkflowEnvironment.newInstance();
  *
  *    // Creates a worker that polls tasks from the service owned by the testEnvironment.
- *    Worker worker = testEnvironment.newWorker(TASK_LIST);
+ *    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
  *    worker.registerWorkflowImplementationTypes(SignaledWorkflowImpl.class);
  *    worker.start();
  *
@@ -103,16 +103,16 @@ public interface TestWorkflowEnvironment {
   /**
    * Creates a new Worker instance that is connected to the in-memory test Temporal service.
    *
-   * @param taskList task list to poll.
+   * @param taskQueue task queue to poll.
    */
-  Worker newWorker(String taskList);
+  Worker newWorker(String taskQueue);
 
   /**
    * Creates a new Worker instance that is connected to the in-memory test Temporal service.
    *
-   * @param taskList task list to poll.
+   * @param taskQueue task queue to poll.
    */
-  Worker newWorker(String taskList, WorkerOptions options);
+  Worker newWorker(String taskQueue, WorkerOptions options);
 
   /** Creates a WorkflowClient that is connected to the in-memory test Temporal service. */
   WorkflowClient getWorkflowClient();

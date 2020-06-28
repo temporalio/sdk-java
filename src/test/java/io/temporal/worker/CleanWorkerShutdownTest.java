@@ -150,7 +150,7 @@ public class CleanWorkerShutdownTest {
 
   @Test
   public void testShutdown() throws ExecutionException, InterruptedException {
-    String taskList =
+    String taskQueue =
         "CleanWorkerShutdownTest-" + testName.getMethodName() + "-" + UUID.randomUUID().toString();
     WorkflowClient workflowClient;
     WorkerFactory workerFactory = null;
@@ -161,7 +161,7 @@ public class CleanWorkerShutdownTest {
     if (useExternalService) {
       workflowClient = WorkflowClient.newInstance(service, clientOptions);
       workerFactory = WorkerFactory.newInstance(workflowClient);
-      Worker worker = workerFactory.newWorker(taskList);
+      Worker worker = workerFactory.newWorker(taskQueue);
       worker.registerWorkflowImplementationTypes(TestWorkflowImpl.class);
       worker.registerActivitiesImplementations(new ActivitiesImpl(started));
       workerFactory.start();
@@ -170,13 +170,13 @@ public class CleanWorkerShutdownTest {
           TestEnvironmentOptions.newBuilder().setWorkflowClientOptions(clientOptions).build();
       testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
       service = testEnvironment.getWorkflowService();
-      Worker worker = testEnvironment.newWorker(taskList);
+      Worker worker = testEnvironment.newWorker(taskQueue);
       workflowClient = testEnvironment.getWorkflowClient();
       worker.registerWorkflowImplementationTypes(TestWorkflowImpl.class);
       worker.registerActivitiesImplementations(new ActivitiesImpl(started));
       testEnvironment.start();
     }
-    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskList(taskList).build();
+    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build();
     TestWorkflow workflow = workflowClient.newWorkflowStub(TestWorkflow.class, options);
     WorkflowExecution execution = WorkflowClient.start(workflow::execute);
     started.get();
@@ -211,7 +211,7 @@ public class CleanWorkerShutdownTest {
 
   @Test
   public void testShutdownNow() throws ExecutionException, InterruptedException {
-    String taskList =
+    String taskQueue =
         "CleanWorkerShutdownTest-" + testName.getMethodName() + "-" + UUID.randomUUID().toString();
     WorkflowClient workflowClient;
     WorkerFactory workerFactory = null;
@@ -222,7 +222,7 @@ public class CleanWorkerShutdownTest {
     if (useExternalService) {
       workflowClient = WorkflowClient.newInstance(service, clientOptions);
       workerFactory = WorkerFactory.newInstance(workflowClient);
-      Worker worker = workerFactory.newWorker(taskList);
+      Worker worker = workerFactory.newWorker(taskQueue);
       worker.registerWorkflowImplementationTypes(TestWorkflowImpl.class);
       worker.registerActivitiesImplementations(new ActivitiesImpl(started));
       workerFactory.start();
@@ -231,13 +231,13 @@ public class CleanWorkerShutdownTest {
           TestEnvironmentOptions.newBuilder().setWorkflowClientOptions(clientOptions).build();
       testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
       service = testEnvironment.getWorkflowService();
-      Worker worker = testEnvironment.newWorker(taskList);
+      Worker worker = testEnvironment.newWorker(taskQueue);
       workflowClient = testEnvironment.getWorkflowClient();
       worker.registerWorkflowImplementationTypes(TestWorkflowImpl.class);
       worker.registerActivitiesImplementations(new ActivitiesImpl(started));
       testEnvironment.start();
     }
-    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskList(taskList).build();
+    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build();
     TestWorkflow workflow = workflowClient.newWorkflowStub(TestWorkflow.class, options);
     WorkflowExecution execution = WorkflowClient.start(workflow::execute);
     started.get();
@@ -302,7 +302,7 @@ public class CleanWorkerShutdownTest {
    */
   @Test
   public void testShutdownHeartbeatingActivity() throws ExecutionException, InterruptedException {
-    String taskList =
+    String taskQueue =
         "CleanWorkerShutdownTest-" + testName.getMethodName() + "-" + UUID.randomUUID().toString();
     WorkflowClient workflowClient;
     WorkerFactory workerFactory = null;
@@ -313,7 +313,7 @@ public class CleanWorkerShutdownTest {
     if (useExternalService) {
       workflowClient = WorkflowClient.newInstance(service, clientOptions);
       workerFactory = WorkerFactory.newInstance(workflowClient);
-      Worker worker = workerFactory.newWorker(taskList);
+      Worker worker = workerFactory.newWorker(taskQueue);
       worker.registerWorkflowImplementationTypes(TestWorkflowImpl.class);
       worker.registerActivitiesImplementations(new HeartbeatingActivitiesImpl(started));
       workerFactory.start();
@@ -322,13 +322,13 @@ public class CleanWorkerShutdownTest {
           TestEnvironmentOptions.newBuilder().setWorkflowClientOptions(clientOptions).build();
       testEnvironment = TestWorkflowEnvironment.newInstance(testOptions);
       service = testEnvironment.getWorkflowService();
-      Worker worker = testEnvironment.newWorker(taskList);
+      Worker worker = testEnvironment.newWorker(taskQueue);
       workflowClient = testEnvironment.getWorkflowClient();
       worker.registerWorkflowImplementationTypes(TestWorkflowImpl.class);
       worker.registerActivitiesImplementations(new HeartbeatingActivitiesImpl(started));
       testEnvironment.start();
     }
-    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskList(taskList).build();
+    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build();
     TestWorkflow workflow = workflowClient.newWorkflowStub(TestWorkflow.class, options);
     WorkflowExecution execution = WorkflowClient.start(workflow::execute);
     started.get();

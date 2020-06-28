@@ -26,7 +26,7 @@ public final class ContinueAsNewWorkflowExecutionParameters {
 
   private int workflowRunTimeoutSeconds;
   private Payloads input;
-  private String taskList;
+  private String taskQueue;
   private int workflowTaskTimeoutSeconds;
   private String workflowType;
 
@@ -65,16 +65,16 @@ public final class ContinueAsNewWorkflowExecutionParameters {
     this.input = input;
   }
 
-  public String getTaskList() {
-    return OptionsUtils.safeGet(taskList);
+  public String getTaskQueue() {
+    return OptionsUtils.safeGet(taskQueue);
   }
 
-  public void setTaskList(String taskList) {
-    this.taskList = taskList;
+  public void setTaskQueue(String taskQueue) {
+    this.taskQueue = taskQueue;
   }
 
-  public ContinueAsNewWorkflowExecutionParameters withTaskList(String taskList) {
-    this.taskList = taskList;
+  public ContinueAsNewWorkflowExecutionParameters withTaskQueue(String taskQueue) {
+    this.taskQueue = taskQueue;
     return this;
   }
 
@@ -99,7 +99,7 @@ public final class ContinueAsNewWorkflowExecutionParameters {
     sb.append("Input: " + String.valueOf(input).substring(0, 512) + ", ");
     sb.append("WorkflowRunTimeout: " + workflowRunTimeoutSeconds + ", ");
     sb.append("WorkflowTaskTimeout: " + workflowTaskTimeoutSeconds + ", ");
-    sb.append("TaskList: " + taskList + ", ");
+    sb.append("TaskQueue: " + taskQueue + ", ");
     sb.append("}");
     return sb.toString();
   }
@@ -109,7 +109,7 @@ public final class ContinueAsNewWorkflowExecutionParameters {
         new ContinueAsNewWorkflowExecutionParameters();
     result.setWorkflowRunTimeoutSeconds(workflowRunTimeoutSeconds);
     result.setInput(input);
-    result.setTaskList(taskList);
+    result.setTaskQueue(taskQueue);
     result.setWorkflowTaskTimeoutSeconds(workflowTaskTimeoutSeconds);
     return result;
   }

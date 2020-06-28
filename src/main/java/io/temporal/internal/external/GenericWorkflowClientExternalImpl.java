@@ -43,7 +43,7 @@ import io.temporal.internal.replay.QueryWorkflowParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
 import io.temporal.query.v1.WorkflowQuery;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.tasklist.v1.TaskList;
+import io.temporal.taskqueue.v1.TaskQueue;
 import io.temporal.workflowservice.v1.QueryWorkflowRequest;
 import io.temporal.workflowservice.v1.QueryWorkflowResponse;
 import io.temporal.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
@@ -91,7 +91,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
       Map<String, String> tags =
           new ImmutableMap.Builder<String, String>(3)
               .put(MetricsTag.WORKFLOW_TYPE, startParameters.getWorkflowType().getName())
-              .put(MetricsTag.TASK_LIST, startParameters.getTaskList())
+              .put(MetricsTag.TASK_QUEUE, startParameters.getTaskQueue())
               .put(MetricsTag.NAMESPACE, namespace)
               .build();
       metricsScope.tagged(tags).counter(MetricsType.WORKFLOW_START_COUNTER).inc(1);
@@ -116,9 +116,9 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     if (startParameters.getWorkflowIdReusePolicy() != null) {
       request.setWorkflowIdReusePolicy(startParameters.getWorkflowIdReusePolicy());
     }
-    String taskList = startParameters.getTaskList();
-    if (taskList != null && !taskList.isEmpty()) {
-      request.setTaskList(TaskList.newBuilder().setName(taskList).build());
+    String taskQueue = startParameters.getTaskQueue();
+    if (taskQueue != null && !taskQueue.isEmpty()) {
+      request.setTaskQueue(TaskQueue.newBuilder().setName(taskQueue).build());
     }
     String workflowId = startParameters.getWorkflowId();
     if (workflowId == null) {
@@ -228,7 +228,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
               .put(
                   MetricsTag.WORKFLOW_TYPE,
                   parameters.getStartParameters().getWorkflowType().getName())
-              .put(MetricsTag.TASK_LIST, parameters.getStartParameters().getTaskList())
+              .put(MetricsTag.TASK_QUEUE, parameters.getStartParameters().getTaskQueue())
               .put(MetricsTag.NAMESPACE, namespace)
               .build();
       metricsScope.tagged(tags).counter(MetricsType.WORKFLOW_SIGNAL_WITH_START_COUNTER).inc(1);
@@ -262,9 +262,9 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     if (startParameters.getWorkflowIdReusePolicy() != null) {
       request.setWorkflowIdReusePolicy(startParameters.getWorkflowIdReusePolicy());
     }
-    String taskList = startParameters.getTaskList();
-    if (taskList != null && !taskList.isEmpty()) {
-      request.setTaskList(TaskList.newBuilder().setName(taskList).build());
+    String taskQueue = startParameters.getTaskQueue();
+    if (taskQueue != null && !taskQueue.isEmpty()) {
+      request.setTaskQueue(TaskQueue.newBuilder().setName(taskQueue).build());
     }
     String workflowId = startParameters.getWorkflowId();
     if (workflowId == null) {

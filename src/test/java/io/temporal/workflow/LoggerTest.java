@@ -52,7 +52,7 @@ public class LoggerTest {
     logger.setLevel(Level.INFO);
   }
 
-  private static final String taskList = "logger-test";
+  private static final String taskQueue = "logger-test";
 
   @WorkflowInterface
   public interface TestWorkflow {
@@ -67,7 +67,7 @@ public class LoggerTest {
     public void execute(String id) {
       workflowLogger.info("Start executing workflow {}.", id);
       ChildWorkflowOptions options =
-          ChildWorkflowOptions.newBuilder().setTaskList(taskList).build();
+          ChildWorkflowOptions.newBuilder().setTaskQueue(taskQueue).build();
       LoggerTest.TestChildWorkflow workflow =
           Workflow.newChildWorkflowStub(LoggerTest.TestChildWorkflow.class, options);
       workflow.executeChild(id);
@@ -94,7 +94,7 @@ public class LoggerTest {
   @Test
   public void testWorkflowLogger() {
     TestWorkflowEnvironment env = TestWorkflowEnvironment.newInstance();
-    Worker worker = env.newWorker(taskList);
+    Worker worker = env.newWorker(taskQueue);
     worker.registerWorkflowImplementationTypes(
         TestLoggingInWorkflow.class, TestLoggerInChildWorkflow.class);
     env.start();
@@ -103,7 +103,7 @@ public class LoggerTest {
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
             .setWorkflowRunTimeout(Duration.ofSeconds(1000))
-            .setTaskList(taskList)
+            .setTaskQueue(taskQueue)
             .build();
     LoggerTest.TestWorkflow workflow =
         workflowClient.newWorkflowStub(LoggerTest.TestWorkflow.class, options);
@@ -124,7 +124,7 @@ public class LoggerTest {
         assertTrue(event.getMDCPropertyMap().containsKey(LoggerTag.WORKFLOW_ID));
         assertTrue(event.getMDCPropertyMap().containsKey(LoggerTag.WORKFLOW_TYPE));
         assertTrue(event.getMDCPropertyMap().containsKey(LoggerTag.RUN_ID));
-        assertTrue(event.getMDCPropertyMap().containsKey(LoggerTag.TASK_LIST));
+        assertTrue(event.getMDCPropertyMap().containsKey(LoggerTag.TASK_QUEUE));
         i++;
       }
     }

@@ -610,8 +610,8 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
 
     @Override
-    public String getTaskList() {
-      return "dummy-task-list";
+    public String getTaskQueue() {
+      return "dummy-task-queue";
     }
 
     @Override

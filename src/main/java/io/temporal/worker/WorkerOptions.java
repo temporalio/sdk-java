@@ -54,7 +54,7 @@ public final class WorkerOptions {
     private int maxConcurrentActivityExecutionSize;
     private int maxConcurrentWorkflowTaskExecutionSize;
     private int maxConcurrentLocalActivityExecutionSize;
-    private double taskListActivitiesPerSecond;
+    private double taskQueueActivitiesPerSecond;
     private int workflowPollThreadCount;
     private int activityPollThreadCount;
 
@@ -68,7 +68,7 @@ public final class WorkerOptions {
       maxConcurrentActivityExecutionSize = o.maxConcurrentActivityExecutionSize;
       maxConcurrentWorkflowTaskExecutionSize = o.maxConcurrentWorkflowTaskExecutionSize;
       maxConcurrentLocalActivityExecutionSize = o.maxConcurrentLocalActivityExecutionSize;
-      taskListActivitiesPerSecond = o.taskListActivitiesPerSecond;
+      taskQueueActivitiesPerSecond = o.taskQueueActivitiesPerSecond;
       workflowPollThreadCount = o.workflowPollThreadCount;
       activityPollThreadCount = o.activityPollThreadCount;
     }
@@ -78,8 +78,8 @@ public final class WorkerOptions {
      * unlimited. If worker is not fully loaded while tasks are backing up on the service consider
      * increasing {@link #setActivityPollThreadCount(int)}.
      *
-     * <p>Note that this is a per worker limit. Use {@link #setTaskListActivitiesPerSecond(double)}
-     * to set per task list limit across multiple workers.
+     * <p>Note that this is a per worker limit. Use {@link #setTaskQueueActivitiesPerSecond(double)}
+     * to set per task queue limit across multiple workers.
      */
     public Builder setMaxActivitiesPerSecond(double maxActivitiesPerSecond) {
       if (maxActivitiesPerSecond <= 0) {
@@ -137,20 +137,20 @@ public final class WorkerOptions {
 
     /**
      * Optional: Sets the rate limiting on number of activities that can be executed per second.
-     * This is managed by the server and controls activities per second for your entire tasklist.
+     * This is managed by the server and controls activities per second for your entire taskqueue.
      * Notice that the number is represented in double, so that you can set it to less than 1 if
      * needed. For example, set the number to 0.1 means you want your activity to be executed once
      * every 10 seconds. This can be used to protect down stream services from flooding. The zero
      * value of this uses the default value. Default is unlimited.
      */
-    public Builder setTaskListActivitiesPerSecond(double taskListActivitiesPerSecond) {
-      this.taskListActivitiesPerSecond = taskListActivitiesPerSecond;
+    public Builder setTaskQueueActivitiesPerSecond(double taskQueueActivitiesPerSecond) {
+      this.taskQueueActivitiesPerSecond = taskQueueActivitiesPerSecond;
       return this;
     }
 
     /**
-     * Number of simultaneous poll requests on workflow task list. Note that the majority of the
-     * workflow tasks will be using host local task list due to caching. So try incrementing {@link
+     * Number of simultaneous poll requests on workflow task queue. Note that the majority of the
+     * workflow tasks will be using host local task queue due to caching. So try incrementing {@link
      * WorkerFactoryOptions.Builder#setWorkflowHostLocalPollThreadCount(int)} before this one.
      *
      * <p>Default is 2.
@@ -161,7 +161,7 @@ public final class WorkerOptions {
     }
 
     /**
-     * Number of simultaneous poll requests on activity task list. Consider incrementing if the
+     * Number of simultaneous poll requests on activity task queue. Consider incrementing if the
      * worker is not throttled due to `MaxActivitiesPerSecond` or
      * `MaxConcurrentActivityExecutionSize` options and still cannot keep up with the request rate.
      *
@@ -178,7 +178,7 @@ public final class WorkerOptions {
           maxConcurrentActivityExecutionSize,
           DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE,
           DEFAULT_MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE,
-          taskListActivitiesPerSecond,
+          taskQueueActivitiesPerSecond,
           workflowPollThreadCount,
           activityPollThreadCount);
     }
@@ -194,7 +194,7 @@ public final class WorkerOptions {
           maxConcurrentLocalActivityExecutionSize >= 0,
           "negative maxConcurrentLocalActivityExecutionSize");
       Preconditions.checkState(
-          taskListActivitiesPerSecond >= 0, "negative taskListActivitiesPerSecond");
+          taskQueueActivitiesPerSecond >= 0, "negative taskQueueActivitiesPerSecond");
       Preconditions.checkState(workflowPollThreadCount >= 0, "negative workflowPollThreadCount");
       Preconditions.checkState(activityPollThreadCount >= 0, "negative activityPollThreadCount");
       return new WorkerOptions(
@@ -208,7 +208,7 @@ public final class WorkerOptions {
           maxConcurrentLocalActivityExecutionSize == 0
               ? DEFAULT_MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE
               : maxConcurrentLocalActivityExecutionSize,
-          taskListActivitiesPerSecond,
+          taskQueueActivitiesPerSecond,
           workflowPollThreadCount == 0
               ? DEFAULT_WORKFLOW_POLL_THREAD_COUNT
               : workflowPollThreadCount,
@@ -222,7 +222,7 @@ public final class WorkerOptions {
   private final int maxConcurrentActivityExecutionSize;
   private final int maxConcurrentWorkflowTaskExecutionSize;
   private final int maxConcurrentLocalActivityExecutionSize;
-  private final double taskListActivitiesPerSecond;
+  private final double taskQueueActivitiesPerSecond;
   private final int workflowPollThreadCount;
   private final int activityPollThreadCount;
 
@@ -231,14 +231,14 @@ public final class WorkerOptions {
       int maxConcurrentActivityExecutionSize,
       int maxConcurrentWorkflowExecutionSize,
       int maxConcurrentLocalActivityExecutionSize,
-      double taskListActivitiesPerSecond,
+      double taskQueueActivitiesPerSecond,
       int workflowPollThreadCount,
       int activityPollThreadCount) {
     this.maxActivitiesPerSecond = maxActivitiesPerSecond;
     this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
     this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowExecutionSize;
     this.maxConcurrentLocalActivityExecutionSize = maxConcurrentLocalActivityExecutionSize;
-    this.taskListActivitiesPerSecond = taskListActivitiesPerSecond;
+    this.taskQueueActivitiesPerSecond = taskQueueActivitiesPerSecond;
     this.workflowPollThreadCount = workflowPollThreadCount;
     this.activityPollThreadCount = activityPollThreadCount;
   }
@@ -259,8 +259,8 @@ public final class WorkerOptions {
     return maxConcurrentLocalActivityExecutionSize;
   }
 
-  public double getTaskListActivitiesPerSecond() {
-    return taskListActivitiesPerSecond;
+  public double getTaskQueueActivitiesPerSecond() {
+    return taskQueueActivitiesPerSecond;
   }
 
   public int getWorkflowPollThreadCount() {
@@ -280,7 +280,7 @@ public final class WorkerOptions {
         && maxConcurrentActivityExecutionSize == that.maxConcurrentActivityExecutionSize
         && maxConcurrentWorkflowTaskExecutionSize == that.maxConcurrentWorkflowTaskExecutionSize
         && maxConcurrentLocalActivityExecutionSize == that.maxConcurrentLocalActivityExecutionSize
-        && Double.compare(that.taskListActivitiesPerSecond, taskListActivitiesPerSecond) == 0
+        && Double.compare(that.taskQueueActivitiesPerSecond, taskQueueActivitiesPerSecond) == 0
         && workflowPollThreadCount == that.workflowPollThreadCount
         && activityPollThreadCount == that.activityPollThreadCount;
   }
@@ -292,7 +292,7 @@ public final class WorkerOptions {
         maxConcurrentActivityExecutionSize,
         maxConcurrentWorkflowTaskExecutionSize,
         maxConcurrentLocalActivityExecutionSize,
-        taskListActivitiesPerSecond,
+        taskQueueActivitiesPerSecond,
         workflowPollThreadCount,
         activityPollThreadCount);
   }
@@ -308,8 +308,8 @@ public final class WorkerOptions {
         + maxConcurrentWorkflowTaskExecutionSize
         + ", maxConcurrentLocalActivityExecutionSize="
         + maxConcurrentLocalActivityExecutionSize
-        + ", taskListActivitiesPerSecond="
-        + taskListActivitiesPerSecond
+        + ", taskQueueActivitiesPerSecond="
+        + taskQueueActivitiesPerSecond
         + ", workflowPollThreadCount="
         + workflowPollThreadCount
         + ", activityPollThreadCount="

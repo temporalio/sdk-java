@@ -26,7 +26,7 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.tasklist.v1.TaskList;
+import io.temporal.taskqueue.v1.TaskQueue;
 import io.temporal.workflowservice.v1.PollForDecisionTaskRequest;
 import io.temporal.workflowservice.v1.PollForDecisionTaskResponse;
 import java.util.Objects;
@@ -38,20 +38,20 @@ final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskRespo
   private final Scope metricScope;
   private final WorkflowServiceStubs service;
   private final String namespace;
-  private final String taskList;
+  private final String taskQueue;
   private final String identity;
   private static final Logger log = LoggerFactory.getLogger(WorkflowWorker.class);
 
   WorkflowPollTask(
       WorkflowServiceStubs service,
       String namespace,
-      String taskList,
+      String taskQueue,
       Scope metricScope,
       String identity) {
     this.identity = Objects.requireNonNull(identity);
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
-    this.taskList = Objects.requireNonNull(taskList);
+    this.taskQueue = Objects.requireNonNull(taskQueue);
     this.metricScope = Objects.requireNonNull(metricScope);
   }
 
@@ -64,7 +64,7 @@ final class WorkflowPollTask implements Poller.PollTask<PollForDecisionTaskRespo
         PollForDecisionTaskRequest.newBuilder()
             .setNamespace(namespace)
             .setIdentity(identity)
-            .setTaskList(TaskList.newBuilder().setName(taskList).build())
+            .setTaskQueue(TaskQueue.newBuilder().setName(taskQueue).build())
             .build();
 
     if (log.isTraceEnabled()) {

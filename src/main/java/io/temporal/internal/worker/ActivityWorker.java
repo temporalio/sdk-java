@@ -48,27 +48,27 @@ import org.slf4j.MDC;
 
 public final class ActivityWorker implements SuspendableWorker {
 
-  private static final String POLL_THREAD_NAME_PREFIX = "Activity Poller taskList=";
+  private static final String POLL_THREAD_NAME_PREFIX = "Activity Poller taskQueue=";
 
   private SuspendableWorker poller = new NoopSuspendableWorker();
   private final ActivityTaskHandler handler;
   private final WorkflowServiceStubs service;
   private final String namespace;
-  private final String taskList;
+  private final String taskQueue;
   private final SingleWorkerOptions options;
-  private final double taskListActivitiesPerSecond;
+  private final double taskQueueActivitiesPerSecond;
 
   public ActivityWorker(
       WorkflowServiceStubs service,
       String namespace,
-      String taskList,
-      double taskListActivitiesPerSecond,
+      String taskQueue,
+      double taskQueueActivitiesPerSecond,
       SingleWorkerOptions options,
       ActivityTaskHandler handler) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
-    this.taskList = Objects.requireNonNull(taskList);
-    this.taskListActivitiesPerSecond = taskListActivitiesPerSecond;
+    this.taskQueue = Objects.requireNonNull(taskQueue);
+    this.taskQueueActivitiesPerSecond = taskQueueActivitiesPerSecond;
     this.handler = handler;
 
     PollerOptions pollerOptions = options.getPollerOptions();
@@ -76,7 +76,12 @@ public final class ActivityWorker implements SuspendableWorker {
       pollerOptions =
           PollerOptions.newBuilder(pollerOptions)
               .setPollThreadNamePrefix(
-                  POLL_THREAD_NAME_PREFIX + "\"" + taskList + "\", namespace=\"" + namespace + "\"")
+                  POLL_THREAD_NAME_PREFIX
+                      + "\""
+                      + taskQueue
+                      + "\", namespace=\""
+                      + namespace
+                      + "\"")
               .build();
     }
     this.options = SingleWorkerOptions.newBuilder(options).setPollerOptions(pollerOptions).build();
@@ -89,8 +94,8 @@ public final class ActivityWorker implements SuspendableWorker {
           new Poller<>(
               options.getIdentity(),
               new ActivityPollTask(
-                  service, namespace, taskList, options, taskListActivitiesPerSecond),
-              new PollTaskExecutor<>(namespace, taskList, options, new TaskHandlerImpl(handler)),
+                  service, namespace, taskQueue, options, taskQueueActivitiesPerSecond),
+              new PollTaskExecutor<>(namespace, taskQueue, options, new TaskHandlerImpl(handler)),
               options.getPollerOptions(),
               options.getMetricsScope());
       poller.start();

@@ -60,12 +60,12 @@ public class SyncWorkflowWorker
   public SyncWorkflowWorker(
       WorkflowServiceStubs service,
       String namespace,
-      String taskList,
+      String taskQueue,
       WorkflowInterceptor[] workflowInterceptors,
       SingleWorkerOptions workflowOptions,
       SingleWorkerOptions localActivityOptions,
       DeciderCache cache,
-      String stickyTaskListName,
+      String stickyTaskQueueName,
       Duration stickyDecisionScheduleToStartTimeout,
       ThreadPoolExecutor workflowThreadPool) {
     Objects.requireNonNull(workflowThreadPool);
@@ -82,7 +82,7 @@ public class SyncWorkflowWorker
     laTaskHandler =
         new POJOActivityTaskHandler(
             service, namespace, localActivityOptions.getDataConverter(), heartbeatExecutor);
-    laWorker = new LocalActivityWorker(namespace, taskList, localActivityOptions, laTaskHandler);
+    laWorker = new LocalActivityWorker(namespace, taskQueue, localActivityOptions, laTaskHandler);
 
     DecisionTaskHandler taskHandler =
         new ReplayDecisionTaskHandler(
@@ -90,7 +90,7 @@ public class SyncWorkflowWorker
             factory,
             cache,
             workflowOptions,
-            stickyTaskListName,
+            stickyTaskQueueName,
             stickyDecisionScheduleToStartTimeout,
             service,
             this::isShutdown,
@@ -98,7 +98,7 @@ public class SyncWorkflowWorker
 
     workflowWorker =
         new WorkflowWorker(
-            service, namespace, taskList, workflowOptions, taskHandler, stickyTaskListName);
+            service, namespace, taskQueue, workflowOptions, taskHandler, stickyTaskQueueName);
   }
 
   public void setWorkflowImplementationTypes(
