@@ -19,6 +19,7 @@
 
 package io.temporal.internal.sync;
 
+import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
 import com.uber.m3.tally.Scope;
@@ -31,11 +32,14 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.v1.ActivityType;
+import io.temporal.common.v1.Header;
 import io.temporal.common.v1.Payload;
 import io.temporal.common.v1.Payloads;
+import io.temporal.common.v1.RetryPolicy;
 import io.temporal.common.v1.SearchAttributes;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.common.v1.WorkflowType;
+import io.temporal.decision.v1.ScheduleActivityTaskDecisionAttributes;
 import io.temporal.enums.v1.RetryStatus;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
@@ -54,6 +58,7 @@ import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
+import io.temporal.taskqueue.v1.TaskQueue;
 import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.CompletablePromise;
@@ -66,6 +71,7 @@ import io.temporal.workflow.Workflow;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -304,24 +310,32 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
 
   private ExecuteActivityParameters constructExecuteActivityParameters(
       String name, ActivityOptions options, Optional<Payloads> input) {
-    ExecuteActivityParameters parameters = new ExecuteActivityParameters();
-    // TODO: Real task queue
     String taskQueue = options.getTaskQueue();
     if (taskQueue == null) {
       taskQueue = context.getTaskQueue();
     }
-    parameters
-        .withActivityType(ActivityType.newBuilder().setName(name).build())
-        .withInput(input.orElse(null))
-        .withTaskQueue(taskQueue)
-        .withScheduleToStartTimeoutSeconds(roundUpToSeconds(options.getScheduleToStartTimeout()))
-        .withStartToCloseTimeoutSeconds(roundUpToSeconds(options.getStartToCloseTimeout()))
-        .withScheduleToCloseTimeoutSeconds(roundUpToSeconds(options.getScheduleToCloseTimeout()))
-        .withHeartbeatTimeoutSeconds(roundUpToSeconds(options.getHeartbeatTimeout()))
-        .withCancellationType(options.getCancellationType());
+    ScheduleActivityTaskDecisionAttributes.Builder attributes =
+        ScheduleActivityTaskDecisionAttributes.newBuilder()
+            .setActivityType(ActivityType.newBuilder().setName(name))
+            .setTaskQueue(TaskQueue.newBuilder().setName(taskQueue))
+            .setScheduleToStartTimeoutSeconds(roundUpToSeconds(options.getScheduleToStartTimeout()))
+            .setStartToCloseTimeoutSeconds(roundUpToSeconds(options.getStartToCloseTimeout()))
+            .setScheduleToCloseTimeoutSeconds(roundUpToSeconds(options.getScheduleToCloseTimeout()))
+            .setHeartbeatTimeoutSeconds(roundUpToSeconds(options.getHeartbeatTimeout()));
+
+    if (input.isPresent()) {
+      attributes.setInput(input.get());
+    }
+
     RetryOptions retryOptions = options.getRetryOptions();
     if (retryOptions != null) {
-      parameters.setRetryParameters(new RetryParameters(retryOptions));
+      attributes.setRetryPolicy(
+          RetryPolicy.newBuilder()
+              .setInitialIntervalInSeconds(roundUpToSeconds(retryOptions.getInitialInterval()))
+              .setMaximumIntervalInSeconds(roundUpToSeconds(retryOptions.getMaximumInterval()))
+              .setBackoffCoefficient(retryOptions.getBackoffCoefficient())
+              .setMaximumAttempts(retryOptions.getMaximumAttempts())
+              .addAllNonRetryableErrorTypes(Arrays.asList(retryOptions.getDoNotRetry())));
     }
 
     // Set the context value.  Use the context propagators from the ActivityOptions
@@ -330,9 +344,11 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
     if (propagators == null) {
       propagators = this.contextPropagators;
     }
-    parameters.setContext(extractContextsAndConvertToBytes(propagators));
-
-    return parameters;
+    Header header = toHeaderGrpc(extractContextsAndConvertToBytes(propagators));
+    if (header != null) {
+      attributes.setHeader(header);
+    }
+    return new ExecuteActivityParameters(attributes, options.getCancellationType());
   }
 
   private ExecuteLocalActivityParameters constructExecuteLocalActivityParameters(

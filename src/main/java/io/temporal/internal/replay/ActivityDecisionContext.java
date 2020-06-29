@@ -20,11 +20,9 @@
 package io.temporal.internal.replay;
 
 import static io.temporal.failure.FailureConverter.JAVA_SDK;
-import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 
 import io.temporal.activity.ActivityCancellationType;
 import io.temporal.common.v1.ActivityType;
-import io.temporal.common.v1.Header;
 import io.temporal.common.v1.Payloads;
 import io.temporal.decision.v1.ScheduleActivityTaskDecisionAttributes;
 import io.temporal.failure.CanceledFailure;
@@ -35,8 +33,6 @@ import io.temporal.history.v1.ActivityTaskCompletedEventAttributes;
 import io.temporal.history.v1.ActivityTaskFailedEventAttributes;
 import io.temporal.history.v1.ActivityTaskTimedOutEventAttributes;
 import io.temporal.history.v1.HistoryEvent;
-import io.temporal.internal.common.RetryParameters;
-import io.temporal.taskqueue.v1.TaskQueue;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -139,47 +135,17 @@ final class ActivityDecisionContext {
 
   Consumer<Exception> scheduleActivityTask(
       ExecuteActivityParameters parameters, BiConsumer<Optional<Payloads>, Exception> callback) {
-    final ScheduleActivityTaskDecisionAttributes.Builder attributes =
-        ScheduleActivityTaskDecisionAttributes.newBuilder()
-            .setActivityType(parameters.getActivityType());
-    if (parameters.getInput() != null) {
-      attributes.setInput(parameters.getInput());
-    }
-    if (parameters.getHeartbeatTimeoutSeconds() > 0) {
-      attributes.setHeartbeatTimeoutSeconds((int) parameters.getHeartbeatTimeoutSeconds());
-    }
-    attributes.setScheduleToCloseTimeoutSeconds(
-        (int) parameters.getScheduleToCloseTimeoutSeconds());
-    attributes.setScheduleToStartTimeoutSeconds(
-        (int) parameters.getScheduleToStartTimeoutSeconds());
-    attributes.setStartToCloseTimeoutSeconds((int) parameters.getStartToCloseTimeoutSeconds());
+    final ScheduleActivityTaskDecisionAttributes.Builder attributes = parameters.getAttributes();
 
-    // attributes.setTaskPriority(InternalUtils.taskPriorityToString(parameters.getTaskPriority()));
-    String activityId = parameters.getActivityId();
-    if (activityId == null) {
-      activityId = String.valueOf(decisions.getAndIncrementNextId());
-    }
-    attributes.setActivityId(activityId);
-
-    String taskQueue = parameters.getTaskQueue();
-    if (taskQueue != null && !taskQueue.isEmpty()) {
-      attributes.setTaskQueue(TaskQueue.newBuilder().setName(taskQueue).build());
-    }
-    RetryParameters retryParameters = parameters.getRetryParameters();
-    if (retryParameters != null) {
-      attributes.setRetryPolicy(retryParameters.toRetryPolicy());
-    }
-
-    Header header = toHeaderGrpc(parameters.getContext());
-    if (header != null) {
-      attributes.setHeader(header);
+    if (attributes.getActivityId().isEmpty()) {
+      attributes.setActivityId(decisions.getAndIncrementNextId());
     }
 
     long scheduledEventId = decisions.scheduleActivityTask(attributes.build());
     final OpenRequestInfo<Optional<Payloads>, OpenActivityInfo> context =
         new OpenRequestInfo<>(
             new OpenActivityInfo(
-                parameters.getActivityType(), parameters.getActivityId(), scheduledEventId));
+                attributes.getActivityType(), attributes.getActivityId(), scheduledEventId));
     context.setCompletionHandle(callback);
     scheduledActivities.put(scheduledEventId, context);
     return new ActivityDecisionContext.ActivityCancellationHandler(
