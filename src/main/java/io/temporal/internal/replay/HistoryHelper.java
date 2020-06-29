@@ -165,7 +165,7 @@ class HistoryHelper {
    * Iterates through decisions and returns one DecisionEvents instance per DecisionTaskStarted
    * event.
    */
-  static class DecisionEventsIterator implements Iterator<DecisionEvents> {
+  private static class DecisionEventsIterator implements Iterator<DecisionEvents> {
 
     private EventsIterator events;
     private long replayCurrentTimeMilliseconds;
@@ -243,14 +243,14 @@ class HistoryHelper {
   }
 
   private final DecisionTaskWithHistoryIterator decisionTaskWithHistoryIterator;
-  private final DecisionEventsIterator iterator;
+  private final Iterator<DecisionEvents> iterator;
 
   HistoryHelper(DecisionTaskWithHistoryIterator decisionTasks, long replayCurrentTimeMilliseconds) {
     this.decisionTaskWithHistoryIterator = decisionTasks;
     this.iterator = new DecisionEventsIterator(decisionTasks, replayCurrentTimeMilliseconds);
   }
 
-  public DecisionEventsIterator getIterator() {
+  public Iterator<DecisionEvents> getIterator() {
     return iterator;
   }
 

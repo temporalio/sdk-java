@@ -39,7 +39,6 @@ import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflowservice.v1.PollForDecisionTaskResponseOrBuilder;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -66,7 +65,6 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   DecisionContextImpl(
       DecisionsHelper decisionsHelper,
       String namespace,
-      PollForDecisionTaskResponseOrBuilder decisionTask,
       WorkflowExecutionStartedEventAttributes startedAttributes,
       long runStartedTimestampMillis,
       SingleWorkerOptions options,
@@ -76,7 +74,7 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
     this.workflowContext =
         new WorkflowContext(
             namespace,
-            decisionTask,
+            decisionsHelper.getTask(),
             startedAttributes,
             runStartedTimestampMillis,
             options.getContextPropagators());

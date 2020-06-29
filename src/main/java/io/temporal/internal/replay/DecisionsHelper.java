@@ -70,7 +70,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
-class DecisionsHelper {
+final class DecisionsHelper {
 
   //  private static final Logger log = LoggerFactory.getLogger(DecisionsHelper.class);
 
@@ -89,9 +89,9 @@ class DecisionsHelper {
   private final PollForDecisionTaskResponse.Builder task;
 
   /**
-   * When workflow task completes the decisions are converted to events that follow the decision
-   * task completion event. The nextDecisionEventId is the id of an event that corresponds to the
-   * next decision to be added.
+   * DecisionsHelper When workflow task completes the decisions are converted to events that follow
+   * the decision task completion event. The nextDecisionEventId is the id of an event that
+   * corresponds to the next decision to be added.
    */
   private long nextDecisionEventId;
 

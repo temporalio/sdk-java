@@ -323,7 +323,7 @@ public class ReplayDeciderCacheTests {
             return new WorkflowImplementationOptions.Builder().build();
           }
         },
-        new DecisionsHelper(response.toBuilder()),
+        response.toBuilder(),
         SingleWorkerOptions.newBuilder().build(),
         (a, d) -> true);
   }
