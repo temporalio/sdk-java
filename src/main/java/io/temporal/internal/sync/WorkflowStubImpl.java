@@ -51,6 +51,8 @@ import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.external.GenericWorkflowClientExternal;
 import io.temporal.internal.replay.QueryWorkflowParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
+import io.temporal.query.v1.WorkflowQuery;
+import io.temporal.workflowservice.v1.QueryWorkflowRequest;
 import io.temporal.workflowservice.v1.QueryWorkflowResponse;
 import java.lang.reflect.Type;
 import java.util.HashMap;
@@ -375,15 +377,26 @@ class WorkflowStubImpl implements WorkflowStub {
   @Override
   public <R> R query(String queryType, Class<R> resultClass, Type resultType, Object... args) {
     checkStarted();
-    QueryWorkflowParameters p = new QueryWorkflowParameters();
-    p.setInput(clientOptions.getDataConverter().toPayloads(args));
-    p.setQueryType(queryType);
-    p.setWorkflowId(execution.get().getWorkflowId());
-    p.setQueryRejectCondition(clientOptions.getQueryRejectCondition());
-    // Hardcode strong as Eventual should be deprecated.
+    WorkflowQuery.Builder query = WorkflowQuery.newBuilder().setQueryType(queryType);
+    Optional<Payloads> input = clientOptions.getDataConverter().toPayloads(args);
+    if (input.isPresent()) {
+      query.setQueryArgs(input.get());
+    }
+    QueryWorkflowRequest request =
+        QueryWorkflowRequest.newBuilder()
+            .setNamespace(clientOptions.getNamespace())
+            .setExecution(
+                WorkflowExecution.newBuilder()
+                    .setWorkflowId(execution.get().getWorkflowId())
+                    .setRunId(execution.get().getRunId()))
+            .setQuery(query)
+            .setQueryRejectCondition(clientOptions.getQueryRejectCondition())
+            .build();
+
+    QueryWorkflowParameters parameters = new QueryWorkflowParameters(request);
     QueryWorkflowResponse result;
     try {
-      result = genericClient.queryWorkflow(p);
+      result = genericClient.queryWorkflow(parameters);
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
         throw new WorkflowNotFoundException(execution.get(), workflowType.orElse(null));

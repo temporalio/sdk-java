@@ -41,10 +41,8 @@ import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.QueryWorkflowParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
-import io.temporal.query.v1.WorkflowQuery;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.taskqueue.v1.TaskQueue;
-import io.temporal.workflowservice.v1.QueryWorkflowRequest;
 import io.temporal.workflowservice.v1.QueryWorkflowResponse;
 import io.temporal.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
 import io.temporal.workflowservice.v1.SignalWithStartWorkflowExecutionRequest;
@@ -306,25 +304,9 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
 
   @Override
   public QueryWorkflowResponse queryWorkflow(QueryWorkflowParameters queryParameters) {
-    WorkflowQuery.Builder query =
-        WorkflowQuery.newBuilder().setQueryType(queryParameters.getQueryType());
-    Optional<Payloads> input = queryParameters.getInput();
-    if (input.isPresent()) {
-      query.setQueryArgs(input.get());
-    }
-    QueryWorkflowRequest request =
-        QueryWorkflowRequest.newBuilder()
-            .setNamespace(namespace)
-            .setExecution(
-                WorkflowExecution.newBuilder()
-                    .setWorkflowId(queryParameters.getWorkflowId())
-                    .setRunId(OptionsUtils.safeGet(queryParameters.getRunId())))
-            .setQuery(query)
-            .setQueryRejectCondition(queryParameters.getQueryRejectCondition())
-            .build();
     return GrpcRetryer.retryWithResult(
         GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
-        () -> service.blockingStub().queryWorkflow(request));
+        () -> service.blockingStub().queryWorkflow(queryParameters.getRequest()));
   }
 
   @Override
