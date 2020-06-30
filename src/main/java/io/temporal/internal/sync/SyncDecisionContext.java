@@ -43,6 +43,8 @@ import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.common.v1.WorkflowType;
 import io.temporal.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
 import io.temporal.decision.v1.ScheduleActivityTaskDecisionAttributes;
+import io.temporal.decision.v1.StartChildWorkflowExecutionDecisionAttributes;
+import io.temporal.enums.v1.ParentClosePolicy;
 import io.temporal.enums.v1.RetryStatus;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
@@ -50,7 +52,7 @@ import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.common.InternalUtils;
-import io.temporal.internal.common.RetryParameters;
+import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.ActivityTaskFailedException;
 import io.temporal.internal.replay.ActivityTaskTimeoutException;
@@ -414,34 +416,51 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
       result.completeExceptionally(CanceledFailure);
       return result;
     }
-    RetryParameters retryParameters = null;
-    RetryOptions retryOptions = options.getRetryOptions();
-    if (retryOptions != null) {
-      retryParameters = new RetryParameters(retryOptions);
-    }
     List<ContextPropagator> propagators = options.getContextPropagators();
     if (propagators == null) {
       propagators = this.contextPropagators;
     }
 
+    final StartChildWorkflowExecutionDecisionAttributes.Builder attributes =
+        StartChildWorkflowExecutionDecisionAttributes.newBuilder()
+            .setWorkflowType(WorkflowType.newBuilder().setName(name).build());
+    String workflowId = options.getWorkflowId();
+    if (workflowId == null) {
+      workflowId = randomUUID().toString();
+    }
+    attributes.setWorkflowId(workflowId);
+    attributes.setNamespace(OptionsUtils.safeGet(options.getNamespace()));
+    if (input.isPresent()) {
+      attributes.setInput(input.get());
+    }
+    attributes.setWorkflowRunTimeoutSeconds(roundUpToSeconds(options.getWorkflowRunTimeout()));
+    attributes.setWorkflowExecutionTimeoutSeconds(
+        roundUpToSeconds(options.getWorkflowExecutionTimeout()));
+    attributes.setWorkflowTaskTimeoutSeconds(roundUpToSeconds(options.getWorkflowTaskTimeout()));
+    String taskQueue = options.getTaskQueue();
+    TaskQueue.Builder tl = TaskQueue.newBuilder();
+    if (taskQueue != null) {
+      attributes.setTaskQueue(TaskQueue.newBuilder().setName(taskQueue));
+    }
+    if (options.getWorkflowIdReusePolicy() != null) {
+      attributes.setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy());
+    }
+    RetryOptions retryOptions = options.getRetryOptions();
+    if (retryOptions != null) {
+      attributes.setRetryPolicy(toRetryPolicy(retryOptions));
+    }
+    attributes.setCronSchedule(OptionsUtils.safeGet(options.getCronSchedule()));
+    Header header = toHeaderGrpc(extractContextsAndConvertToBytes(propagators));
+    if (header != null) {
+      attributes.setHeader(header);
+    }
+    ParentClosePolicy parentClosePolicy = options.getParentClosePolicy();
+    if (parentClosePolicy != null) {
+      attributes.setParentClosePolicy(parentClosePolicy);
+    }
     StartChildWorkflowExecutionParameters parameters =
-        new StartChildWorkflowExecutionParameters.Builder()
-            .setWorkflowType(WorkflowType.newBuilder().setName(name).build())
-            .setWorkflowId(options.getWorkflowId())
-            .setInput(input.orElse(null))
-            .setWorkflowRunTimeoutSeconds(roundUpToSeconds(options.getWorkflowRunTimeout()))
-            .setWorkflowExecutionTimeoutSeconds(
-                roundUpToSeconds(options.getWorkflowExecutionTimeout()))
-            .setNamespace(options.getNamespace())
-            .setTaskQueue(options.getTaskQueue())
-            .setWorkflowTaskTimeoutSeconds(roundUpToSeconds(options.getWorkflowTaskTimeout()))
-            .setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy())
-            .setRetryParameters(retryParameters)
-            .setCronSchedule(options.getCronSchedule())
-            .setContext(extractContextsAndConvertToBytes(propagators))
-            .setParentClosePolicy(options.getParentClosePolicy())
-            .setCancellationType(options.getCancellationType())
-            .build();
+        new StartChildWorkflowExecutionParameters(attributes, options.getCancellationType());
+
     Consumer<Exception> cancellationCallback =
         context.startChildWorkflow(
             parameters,

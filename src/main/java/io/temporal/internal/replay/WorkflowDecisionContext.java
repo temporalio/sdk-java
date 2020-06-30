@@ -19,17 +19,13 @@
 
 package io.temporal.internal.replay;
 
-import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
-
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.common.converter.EncodedValue;
-import io.temporal.common.v1.Header;
 import io.temporal.common.v1.Payloads;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.decision.v1.RequestCancelExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.decision.v1.StartChildWorkflowExecutionDecisionAttributes;
-import io.temporal.enums.v1.ParentClosePolicy;
 import io.temporal.enums.v1.RetryStatus;
 import io.temporal.enums.v1.TimeoutType;
 import io.temporal.failure.CanceledFailure;
@@ -48,8 +44,6 @@ import io.temporal.history.v1.HistoryEvent;
 import io.temporal.history.v1.SignalExternalWorkflowExecutionFailedEventAttributes;
 import io.temporal.history.v1.StartChildWorkflowExecutionFailedEventAttributes;
 import io.temporal.internal.common.OptionsUtils;
-import io.temporal.internal.common.RetryParameters;
-import io.temporal.taskqueue.v1.TaskQueue;
 import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.SignalExternalWorkflowException;
 import java.nio.charset.StandardCharsets;
@@ -133,54 +127,7 @@ final class WorkflowDecisionContext {
       Consumer<WorkflowExecution> executionCallback,
       BiConsumer<Optional<Payloads>, Exception> callback) {
     final StartChildWorkflowExecutionDecisionAttributes.Builder attributes =
-        StartChildWorkflowExecutionDecisionAttributes.newBuilder()
-            .setWorkflowType(parameters.getWorkflowType());
-    String workflowId = parameters.getWorkflowId();
-    if (workflowId == null) {
-      workflowId = randomUUID().toString();
-    }
-    attributes.setWorkflowId(workflowId);
-    attributes.setNamespace(OptionsUtils.safeGet(parameters.getNamespace()));
-    if (parameters.getInput() != null) {
-      attributes.setInput(parameters.getInput());
-    }
-    if (parameters.getWorkflowRunTimeoutSeconds() > 0) {
-      attributes.setWorkflowRunTimeoutSeconds((int) parameters.getWorkflowRunTimeoutSeconds());
-    }
-    if (parameters.getWorkflowExecutionTimeoutSeconds() > 0) {
-      attributes.setWorkflowExecutionTimeoutSeconds(
-          (int) parameters.getWorkflowExecutionTimeoutSeconds());
-    }
-    if (parameters.getWorkflowTaskTimeoutSeconds() > 0) {
-      attributes.setWorkflowTaskTimeoutSeconds((int) parameters.getWorkflowTaskTimeoutSeconds());
-    }
-    String taskQueue = parameters.getTaskQueue();
-    TaskQueue.Builder tl = TaskQueue.newBuilder();
-    if (taskQueue != null && !taskQueue.isEmpty()) {
-      tl.setName(taskQueue);
-    } else {
-      tl.setName(workflowContext.getTaskQueue());
-    }
-    attributes.setTaskQueue(tl);
-    if (parameters.getWorkflowIdReusePolicy() != null) {
-      attributes.setWorkflowIdReusePolicy(parameters.getWorkflowIdReusePolicy());
-    }
-    RetryParameters retryParameters = parameters.getRetryParameters();
-    if (retryParameters != null) {
-      attributes.setRetryPolicy(retryParameters.toRetryPolicy());
-    }
-
-    attributes.setCronSchedule(OptionsUtils.safeGet(parameters.getCronSchedule()));
-    Header header = toHeaderGrpc(parameters.getContext());
-    if (header != null) {
-      attributes.setHeader(header);
-    }
-
-    ParentClosePolicy parentClosePolicy = parameters.getParentClosePolicy();
-    if (parentClosePolicy != null) {
-      attributes.setParentClosePolicy(parentClosePolicy);
-    }
-
+        parameters.getRequest();
     long initiatedEventId = decisions.startChildWorkflowExecution(attributes.build());
     final OpenChildWorkflowRequestInfo context =
         new OpenChildWorkflowRequestInfo(parameters.getCancellationType(), executionCallback);
