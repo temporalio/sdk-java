@@ -101,7 +101,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     StartWorkflowExecutionRequest.Builder request =
         StartWorkflowExecutionRequest.newBuilder()
             .setNamespace(namespace)
-            .setRequestId(UUID.randomUUID().toString())
+            .setRequestId(generateUniqueId())
             .setIdentity(identity);
     Optional<Payloads> input = startParameters.getInput();
     if (input.isPresent()) {
@@ -120,7 +120,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     }
     String workflowId = startParameters.getWorkflowId();
     if (workflowId == null) {
-      workflowId = UUID.randomUUID().toString();
+      workflowId = generateUniqueId();
     }
     request.setWorkflowId(workflowId);
     request.setWorkflowType(startParameters.getWorkflowType());
@@ -194,7 +194,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   public void signalWorkflowExecution(SignalExternalWorkflowParameters signalParameters) {
     SignalWorkflowExecutionRequest.Builder request =
         SignalWorkflowExecutionRequest.newBuilder()
-            .setRequestId(UUID.randomUUID().toString())
+            .setRequestId(generateUniqueId())
             .setIdentity(identity)
             .setNamespace(
                 signalParameters.getNamespace() == null
@@ -240,7 +240,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     SignalWithStartWorkflowExecutionRequest.Builder request =
         SignalWithStartWorkflowExecutionRequest.newBuilder()
             .setNamespace(namespace)
-            .setRequestId(UUID.randomUUID().toString())
+            .setRequestId(generateUniqueId())
             .setIdentity(identity)
             .setSignalName(parameters.getSignalName())
             .setWorkflowRunTimeoutSeconds(startParameters.getWorkflowRunTimeoutSeconds())
@@ -266,7 +266,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     }
     String workflowId = startParameters.getWorkflowId();
     if (workflowId == null) {
-      workflowId = UUID.randomUUID().toString();
+      workflowId = generateUniqueId();
     }
     request.setWorkflowId(workflowId);
     RetryParameters retryParameters = startParameters.getRetryParameters();
@@ -289,17 +289,22 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   }
 
   @Override
-  public void requestCancelWorkflowExecution(WorkflowExecution execution) {
-    RequestCancelWorkflowExecutionRequest request =
-        RequestCancelWorkflowExecutionRequest.newBuilder()
-            .setRequestId(UUID.randomUUID().toString())
-            .setIdentity(identity)
-            .setNamespace(namespace)
-            .setWorkflowExecution(execution)
-            .build();
+  public void requestCancelWorkflowExecution(CancelWorkflowParameters parameters) {
+    RequestCancelWorkflowExecutionRequest.Builder request = parameters.getRequest();
+    request.setRequestId(generateUniqueId());
     GrpcRetryer.retry(
         GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
-        () -> service.blockingStub().requestCancelWorkflowExecution(request));
+        () -> {
+          service.blockingStub().requestCancelWorkflowExecution(request.build());
+        });
+  }
+
+  @Override
+  public void terminateWorkflowExecution(TerminateWorkflowExecutionParameters terminateParameters) {
+    TerminateWorkflowExecutionRequest.Builder request = terminateParameters.getRequest();
+    GrpcRetryer.retry(
+        GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
+        () -> service.blockingStub().terminateWorkflowExecution(request.build()));
   }
 
   @Override
@@ -311,24 +316,6 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
 
   @Override
   public String generateUniqueId() {
-    String workflowId = UUID.randomUUID().toString();
-    return workflowId;
-  }
-
-  @Override
-  public void terminateWorkflowExecution(TerminateWorkflowExecutionParameters terminateParameters) {
-    TerminateWorkflowExecutionRequest.Builder request =
-        TerminateWorkflowExecutionRequest.newBuilder()
-            .setIdentity(identity)
-            .setWorkflowExecution(terminateParameters.getWorkflowExecution())
-            .setNamespace(namespace)
-            .setReason(terminateParameters.getReason());
-    Payloads details = terminateParameters.getDetails();
-    if (details != null) {
-      request.setDetails(details);
-    }
-    GrpcRetryer.retry(
-        GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
-        () -> service.blockingStub().terminateWorkflowExecution(request.build()));
+    return UUID.randomUUID().toString();
   }
 }

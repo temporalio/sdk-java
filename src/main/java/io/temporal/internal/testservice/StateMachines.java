@@ -84,6 +84,7 @@ import io.temporal.history.v1.WorkflowExecutionCompletedEventAttributes;
 import io.temporal.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.history.v1.WorkflowExecutionFailedEventAttributes;
 import io.temporal.history.v1.WorkflowExecutionStartedEventAttributes;
+import io.temporal.history.v1.WorkflowExecutionTerminatedEventAttributes;
 import io.temporal.history.v1.WorkflowExecutionTimedOutEventAttributes;
 import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.testservice.TestWorkflowStore.ActivityTask;
@@ -108,6 +109,7 @@ import io.temporal.workflowservice.v1.RespondActivityTaskFailedRequest;
 import io.temporal.workflowservice.v1.RespondDecisionTaskCompletedRequest;
 import io.temporal.workflowservice.v1.RespondDecisionTaskFailedRequest;
 import io.temporal.workflowservice.v1.StartWorkflowExecutionRequest;
+import io.temporal.workflowservice.v1.TerminateWorkflowExecutionRequest;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -143,6 +145,7 @@ class StateMachines {
     CANCELED,
     COMPLETED,
     CONTINUED_AS_NEW,
+    TERMINATED,
   }
 
   enum Action {
@@ -152,6 +155,7 @@ class StateMachines {
     TIME_OUT,
     REQUEST_CANCELLATION,
     CANCEL,
+    TERMINATE,
     UPDATE,
     COMPLETE,
     CONTINUE_AS_NEW,
@@ -411,8 +415,10 @@ class StateMachines {
             REQUEST_CANCELLATION,
             CANCELLATION_REQUESTED,
             StateMachines::requestWorkflowCancellation)
+        .add(STARTED, TERMINATE, TERMINATED, StateMachines::terminateWorkflow)
         .add(CANCELLATION_REQUESTED, COMPLETE, COMPLETED, StateMachines::completeWorkflow)
         .add(CANCELLATION_REQUESTED, CANCEL, CANCELED, StateMachines::cancelWorkflow)
+        .add(CANCELLATION_REQUESTED, TERMINATE, TERMINATED, StateMachines::terminateWorkflow)
         .add(CANCELLATION_REQUESTED, FAIL, FAILED, StateMachines::failWorkflow)
         .add(CANCELLATION_REQUESTED, TIME_OUT, TIMED_OUT, StateMachines::timeoutWorkflow);
   }
@@ -925,6 +931,24 @@ class StateMachines {
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED)
             .setWorkflowExecutionCanceledEventAttributes(a)
+            .build();
+    ctx.addEvent(event);
+  }
+
+  private static void terminateWorkflow(
+      RequestContext ctx,
+      WorkflowData data,
+      TerminateWorkflowExecutionRequest d,
+      long decisionTaskCompletedEventId) {
+    WorkflowExecutionTerminatedEventAttributes.Builder a =
+        WorkflowExecutionTerminatedEventAttributes.newBuilder()
+            .setDetails(d.getDetails())
+            .setIdentity(d.getIdentity())
+            .setReason(d.getReason());
+    HistoryEvent event =
+        HistoryEvent.newBuilder()
+            .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED)
+            .setWorkflowExecutionTerminatedEventAttributes(a)
             .build();
     ctx.addEvent(event);
   }

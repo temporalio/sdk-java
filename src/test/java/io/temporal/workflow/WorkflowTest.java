@@ -73,6 +73,7 @@ import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
+import io.temporal.failure.TerminatedFailure;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.history.v1.HistoryEvent;
 import io.temporal.internal.common.SearchAttributesUtil;
@@ -1097,6 +1098,24 @@ public class WorkflowTest {
       client.getResult(String.class);
       fail("unreachable");
     } catch (CanceledFailure ignored) {
+    }
+  }
+
+  @Test
+  public void testWorkflowTermination() throws InterruptedException {
+    startWorkerFor(TestSyncWorkflowImpl.class);
+    WorkflowStub client =
+        workflowClient.newUntypedWorkflowStub(
+            "TestWorkflow1", newWorkflowOptionsBuilder(taskQueue).build());
+    client.start(taskQueue);
+    Thread.sleep(1000);
+    client.terminate("boo", "detail1", "detail2");
+    try {
+      client.getResult(String.class);
+      fail("unreachable");
+    } catch (WorkflowFailedException ignored) {
+      assertTrue(ignored.getCause() instanceof TerminatedFailure);
+      assertEquals("boo", ((TerminatedFailure) ignored.getCause()).getOriginalMessage());
     }
   }
 

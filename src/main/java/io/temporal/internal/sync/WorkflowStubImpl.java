@@ -46,14 +46,18 @@ import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
 import io.temporal.internal.common.StartWorkflowExecutionParameters;
 import io.temporal.internal.common.StatusUtils;
+import io.temporal.internal.common.TerminateWorkflowExecutionParameters;
 import io.temporal.internal.common.WorkflowExecutionFailedException;
 import io.temporal.internal.common.WorkflowExecutionUtils;
+import io.temporal.internal.external.CancelWorkflowParameters;
 import io.temporal.internal.external.GenericWorkflowClientExternal;
 import io.temporal.internal.replay.QueryWorkflowParameters;
 import io.temporal.internal.replay.SignalExternalWorkflowParameters;
 import io.temporal.query.v1.WorkflowQuery;
 import io.temporal.workflowservice.v1.QueryWorkflowRequest;
 import io.temporal.workflowservice.v1.QueryWorkflowResponse;
+import io.temporal.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
+import io.temporal.workflowservice.v1.TerminateWorkflowExecutionRequest;
 import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.List;
@@ -424,13 +428,39 @@ class WorkflowStubImpl implements WorkflowStub {
   @Override
   public void cancel() {
     if (execution.get() == null || execution.get().getWorkflowId() == null) {
-      return;
+      throw new IllegalStateException("Not started");
     }
 
     // RunId can change if workflow does ContinueAsNew. So we do not set it here and
     // let the server figure out the current run.
-    genericClient.requestCancelWorkflowExecution(
-        WorkflowExecution.newBuilder().setWorkflowId(execution.get().getWorkflowId()).build());
+    RequestCancelWorkflowExecutionRequest.Builder request =
+        RequestCancelWorkflowExecutionRequest.newBuilder()
+            .setWorkflowExecution(
+                WorkflowExecution.newBuilder().setWorkflowId(execution.get().getWorkflowId()))
+            .setNamespace(clientOptions.getNamespace())
+            .setIdentity(clientOptions.getIdentity());
+    genericClient.requestCancelWorkflowExecution(new CancelWorkflowParameters(request));
+  }
+
+  @Override
+  public void terminate(String reason, Object... details) {
+    if (execution.get() == null || execution.get().getWorkflowId() == null) {
+      throw new IllegalStateException("Not started");
+    }
+
+    // RunId can change if workflow does ContinueAsNew. So we do not set it here and
+    // let the server figure out the current run.
+    TerminateWorkflowExecutionRequest.Builder request =
+        TerminateWorkflowExecutionRequest.newBuilder()
+            .setNamespace(clientOptions.getNamespace())
+            .setWorkflowExecution(
+                WorkflowExecution.newBuilder().setWorkflowId(execution.get().getWorkflowId()))
+            .setReason(reason);
+    Optional<Payloads> payloads = clientOptions.getDataConverter().toPayloads(details);
+    if (payloads.isPresent()) {
+      request.setDetails(payloads.get());
+    }
+    genericClient.terminateWorkflowExecution(new TerminateWorkflowExecutionParameters(request));
   }
 
   @Override

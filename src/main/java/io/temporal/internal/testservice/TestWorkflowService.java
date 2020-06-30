@@ -85,6 +85,8 @@ import io.temporal.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.workflowservice.v1.SignalWorkflowExecutionResponse;
 import io.temporal.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.workflowservice.v1.StartWorkflowExecutionResponse;
+import io.temporal.workflowservice.v1.TerminateWorkflowExecutionRequest;
+import io.temporal.workflowservice.v1.TerminateWorkflowExecutionResponse;
 import io.temporal.workflowservice.v1.WorkflowServiceGrpc;
 import java.io.IOException;
 import java.time.Duration;
@@ -679,6 +681,29 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
         new ExecutionId(cancelRequest.getNamespace(), cancelRequest.getWorkflowExecution());
     TestWorkflowMutableState mutableState = getMutableState(executionId);
     mutableState.requestCancelWorkflowExecution(cancelRequest, callerInfo);
+  }
+
+  @Override
+  public void terminateWorkflowExecution(
+      TerminateWorkflowExecutionRequest request,
+      StreamObserver<TerminateWorkflowExecutionResponse> responseObserver) {
+    try {
+      terminateWorkflowExecution(request);
+      responseObserver.onNext(TerminateWorkflowExecutionResponse.getDefaultInstance());
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      if (e.getStatus().getCode() == Status.Code.INTERNAL) {
+        log.error("unexpected", e);
+      }
+      responseObserver.onError(e);
+    }
+  }
+
+  private void terminateWorkflowExecution(TerminateWorkflowExecutionRequest request) {
+    ExecutionId executionId =
+        new ExecutionId(request.getNamespace(), request.getWorkflowExecution());
+    TestWorkflowMutableState mutableState = getMutableState(executionId);
+    mutableState.terminateWorkflowExecution(request);
   }
 
   @Override

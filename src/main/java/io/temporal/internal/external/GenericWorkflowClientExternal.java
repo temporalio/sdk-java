@@ -37,7 +37,7 @@ public interface GenericWorkflowClientExternal {
   WorkflowExecution signalWithStartWorkflowExecution(
       SignalWithStartWorkflowExecutionParameters parameters);
 
-  void requestCancelWorkflowExecution(WorkflowExecution execution);
+  void requestCancelWorkflowExecution(CancelWorkflowParameters parameters);
 
   QueryWorkflowResponse queryWorkflow(QueryWorkflowParameters queryParameters);
 

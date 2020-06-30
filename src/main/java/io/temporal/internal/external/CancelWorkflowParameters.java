@@ -17,19 +17,19 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.common;
+package io.temporal.internal.external;
 
-import io.temporal.workflowservice.v1.TerminateWorkflowExecutionRequest;
+import io.temporal.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
 
-public class TerminateWorkflowExecutionParameters {
+public class CancelWorkflowParameters {
 
-  private final TerminateWorkflowExecutionRequest.Builder request;
+  private final RequestCancelWorkflowExecutionRequest.Builder request;
 
-  public TerminateWorkflowExecutionParameters(TerminateWorkflowExecutionRequest.Builder request) {
+  public CancelWorkflowParameters(RequestCancelWorkflowExecutionRequest.Builder request) {
     this.request = request;
   }
 
-  public TerminateWorkflowExecutionRequest.Builder getRequest() {
+  public RequestCancelWorkflowExecutionRequest.Builder getRequest() {
     return request;
   }
 }
