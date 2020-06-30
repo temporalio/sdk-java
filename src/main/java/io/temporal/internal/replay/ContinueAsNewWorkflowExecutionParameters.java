@@ -19,98 +19,18 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.common.v1.Payloads;
-import io.temporal.internal.common.OptionsUtils;
+import io.temporal.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
 
 public final class ContinueAsNewWorkflowExecutionParameters {
 
-  private int workflowRunTimeoutSeconds;
-  private Payloads input;
-  private String taskQueue;
-  private int workflowTaskTimeoutSeconds;
-  private String workflowType;
+  private final ContinueAsNewWorkflowExecutionDecisionAttributes attributes;
 
-  public void setWorkflowType(String workflowType) {
-    this.workflowType = workflowType;
+  public ContinueAsNewWorkflowExecutionParameters(
+      ContinueAsNewWorkflowExecutionDecisionAttributes attributes) {
+    this.attributes = attributes;
   }
 
-  public String getWorkflowType() {
-    return workflowType;
-  }
-
-  public int getWorkflowRunTimeoutSeconds() {
-    return workflowRunTimeoutSeconds;
-  }
-
-  public void setWorkflowRunTimeoutSeconds(int workflowRunTimeoutSeconds) {
-    this.workflowRunTimeoutSeconds = workflowRunTimeoutSeconds;
-  }
-
-  public ContinueAsNewWorkflowExecutionParameters withWorkflowRunTimeoutSeconds(
-      int workflowRunTimeoutSeconds) {
-    this.workflowRunTimeoutSeconds = workflowRunTimeoutSeconds;
-    return this;
-  }
-
-  public ContinueAsNewWorkflowExecutionParameters withInput(Payloads input) {
-    this.input = input;
-    return this;
-  }
-
-  public Payloads getInput() {
-    return input;
-  }
-
-  public void setInput(Payloads input) {
-    this.input = input;
-  }
-
-  public String getTaskQueue() {
-    return OptionsUtils.safeGet(taskQueue);
-  }
-
-  public void setTaskQueue(String taskQueue) {
-    this.taskQueue = taskQueue;
-  }
-
-  public ContinueAsNewWorkflowExecutionParameters withTaskQueue(String taskQueue) {
-    this.taskQueue = taskQueue;
-    return this;
-  }
-
-  public int getWorkflowTaskTimeoutSeconds() {
-    return workflowTaskTimeoutSeconds;
-  }
-
-  public void setWorkflowTaskTimeoutSeconds(int workflowTaskTimeoutSeconds) {
-    this.workflowTaskTimeoutSeconds = workflowTaskTimeoutSeconds;
-  }
-
-  public ContinueAsNewWorkflowExecutionParameters withWorkflowTaskTimeoutSeconds(
-      int workflowTaskTimeoutSeconds) {
-    this.workflowTaskTimeoutSeconds = workflowTaskTimeoutSeconds;
-    return this;
-  }
-
-  @Override
-  public String toString() {
-    StringBuilder sb = new StringBuilder();
-    sb.append("{");
-    sb.append("Input: " + String.valueOf(input).substring(0, 512) + ", ");
-    sb.append("WorkflowRunTimeout: " + workflowRunTimeoutSeconds + ", ");
-    sb.append("WorkflowTaskTimeout: " + workflowTaskTimeoutSeconds + ", ");
-    sb.append("TaskQueue: " + taskQueue + ", ");
-    sb.append("}");
-    return sb.toString();
-  }
-
-  public ContinueAsNewWorkflowExecutionParameters copy() {
-    ContinueAsNewWorkflowExecutionParameters result =
-        new ContinueAsNewWorkflowExecutionParameters();
-    result.setWorkflowRunTimeoutSeconds(workflowRunTimeoutSeconds);
-    result.setInput(input);
-    result.setTaskQueue(taskQueue);
-    result.setWorkflowTaskTimeoutSeconds(workflowTaskTimeoutSeconds);
-    return result;
+  public ContinueAsNewWorkflowExecutionDecisionAttributes getAttributes() {
+    return attributes;
   }
 }

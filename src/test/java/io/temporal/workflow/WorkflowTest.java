@@ -157,7 +157,7 @@ public class WorkflowTest {
    * When set to true increases test, activity and workflow timeouts to large values to support
    * stepping through code in a debugger without timing out.
    */
-  private static final boolean DEBUGGER_TIMEOUTS = true;
+  private static final boolean DEBUGGER_TIMEOUTS = false;
 
   private static final String ANNOTATION_TASK_QUEUE = "WorkflowTest-testExecute[Docker]";
 
@@ -1472,8 +1472,16 @@ public class WorkflowTest {
         assertEquals(continueAsNewTaskQueue, taskQueue);
         return 111;
       }
+      Map<String, Object> memo = new HashMap<>();
+      memo.put("myKey", "MyValue");
+      Map<String, Object> searchAttributes = new HashMap<>();
+      searchAttributes.put("CustomKeywordField", "foo1");
       ContinueAsNewOptions options =
-          ContinueAsNewOptions.newBuilder().setTaskQueue(continueAsNewTaskQueue).build();
+          ContinueAsNewOptions.newBuilder()
+              .setTaskQueue(continueAsNewTaskQueue)
+              .setMemo(memo)
+              .setSearchAttributes(searchAttributes)
+              .build();
       TestContinueAsNew next = Workflow.newContinueAsNewStub(TestContinueAsNew.class, options);
       next.execute(count - 1, continueAsNewTaskQueue);
       throw new RuntimeException("unreachable");

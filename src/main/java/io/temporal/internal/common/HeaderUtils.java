@@ -19,8 +19,11 @@
 
 package io.temporal.internal.common;
 
+import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.v1.Header;
 import io.temporal.common.v1.Payload;
+import java.util.HashMap;
 import java.util.Map;
 
 public class HeaderUtils {
@@ -34,6 +37,22 @@ public class HeaderUtils {
       builder.putFields(item.getKey(), item.getValue());
     }
     return builder.build();
+  }
+
+  public static Map<String, Payload> convertMapFromObjectToBytes(
+      Map<String, Object> map, DataConverter dataConverter) {
+    if (map == null) {
+      return null;
+    }
+    Map<String, Payload> result = new HashMap<>();
+    for (Map.Entry<String, Object> item : map.entrySet()) {
+      try {
+        result.put(item.getKey(), dataConverter.toPayload(item.getValue()).get());
+      } catch (DataConverterException e) {
+        throw new DataConverterException("Cannot serialize key " + item.getKey(), e.getCause());
+      }
+    }
+    return result;
   }
 
   private HeaderUtils() {}

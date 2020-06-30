@@ -85,21 +85,6 @@ final class WorkflowContext {
   }
 
   void setContinueAsNewOnCompletion(ContinueAsNewWorkflowExecutionParameters continueParameters) {
-    if (continueParameters == null) {
-      continueParameters = new ContinueAsNewWorkflowExecutionParameters();
-    }
-    //            continueParameters.setChildPolicy(startedAttributes);
-    if (continueParameters.getWorkflowRunTimeoutSeconds() == 0) {
-      continueParameters.setWorkflowRunTimeoutSeconds(
-          startedAttributes.getWorkflowRunTimeoutSeconds());
-    }
-    if (continueParameters.getTaskQueue() == null) {
-      continueParameters.setTaskQueue(startedAttributes.getTaskQueue().getName());
-    }
-    if (continueParameters.getWorkflowTaskTimeoutSeconds() == 0) {
-      continueParameters.setWorkflowTaskTimeoutSeconds(
-          startedAttributes.getWorkflowTaskTimeoutSeconds());
-    }
     this.continueAsNewOnCompletion = continueParameters;
   }
 

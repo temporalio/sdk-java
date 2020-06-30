@@ -19,6 +19,7 @@
 
 package io.temporal.internal.sync;
 
+import static io.temporal.internal.common.HeaderUtils.convertMapFromObjectToBytes;
 import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
@@ -33,12 +34,14 @@ import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.v1.ActivityType;
 import io.temporal.common.v1.Header;
+import io.temporal.common.v1.Memo;
 import io.temporal.common.v1.Payload;
 import io.temporal.common.v1.Payloads;
 import io.temporal.common.v1.RetryPolicy;
 import io.temporal.common.v1.SearchAttributes;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.common.v1.WorkflowType;
+import io.temporal.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
 import io.temporal.decision.v1.ScheduleActivityTaskDecisionAttributes;
 import io.temporal.enums.v1.RetryStatus;
 import io.temporal.failure.ActivityFailure;
@@ -761,18 +764,38 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
   @Override
   public void continueAsNew(
       Optional<String> workflowType, Optional<ContinueAsNewOptions> options, Object[] args) {
-    ContinueAsNewWorkflowExecutionParameters parameters =
-        new ContinueAsNewWorkflowExecutionParameters();
+    ContinueAsNewWorkflowExecutionDecisionAttributes.Builder attributes =
+        ContinueAsNewWorkflowExecutionDecisionAttributes.newBuilder();
     if (workflowType.isPresent()) {
-      parameters.setWorkflowType(workflowType.get());
+      attributes.setWorkflowType(WorkflowType.newBuilder().setName(workflowType.get()));
     }
     if (options.isPresent()) {
       ContinueAsNewOptions ops = options.get();
-      parameters.setWorkflowRunTimeoutSeconds(roundUpToSeconds(ops.getWorkflowRunTimeout()));
-      parameters.setWorkflowTaskTimeoutSeconds(roundUpToSeconds(ops.getWorkflowTaskTimeout()));
-      parameters.setTaskQueue(ops.getTaskQueue());
+      attributes.setWorkflowRunTimeoutSeconds(roundUpToSeconds(ops.getWorkflowRunTimeout()));
+      attributes.setWorkflowTaskTimeoutSeconds(roundUpToSeconds(ops.getWorkflowTaskTimeout()));
+      if (!ops.getTaskQueue().isEmpty()) {
+        attributes.setTaskQueue(TaskQueue.newBuilder().setName(ops.getTaskQueue()));
+      }
+      Map<String, Object> memo = ops.getMemo();
+      if (memo != null) {
+        attributes.setMemo(
+            Memo.newBuilder().putAllFields(convertMapFromObjectToBytes(memo, getDataConverter())));
+      }
+      Map<String, Object> searchAttributes = ops.getSearchAttributes();
+      if (searchAttributes != null) {
+        attributes.setSearchAttributes(
+            SearchAttributes.newBuilder()
+                .putAllIndexedFields(
+                    convertMapFromObjectToBytes(searchAttributes, getDataConverter())));
+      }
     }
-    parameters.setInput(getDataConverter().toPayloads(args).orElse(null));
+    Optional<Payloads> payloads = getDataConverter().toPayloads(args);
+    if (payloads.isPresent()) {
+      attributes.setInput(payloads.get());
+    }
+    // TODO(maxim): Find out what to do about header
+    ContinueAsNewWorkflowExecutionParameters parameters =
+        new ContinueAsNewWorkflowExecutionParameters(attributes.build());
     context.continueAsNewOnCompletion(parameters);
     WorkflowThread.exit(null);
   }

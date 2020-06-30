@@ -20,6 +20,7 @@
 package io.temporal.workflow;
 
 import java.time.Duration;
+import java.util.Map;
 
 public final class ContinueAsNewOptions {
 
@@ -46,6 +47,8 @@ public final class ContinueAsNewOptions {
     private Duration workflowRunTimeout;
     private String taskQueue;
     private Duration workflowTaskTimeout;
+    private Map<String, Object> memo;
+    private Map<String, Object> searchAttributes;
 
     private Builder() {}
 
@@ -73,20 +76,39 @@ public final class ContinueAsNewOptions {
       return this;
     }
 
+    public Builder setMemo(Map<String, Object> memo) {
+      this.memo = memo;
+      return this;
+    }
+
+    public Builder setSearchAttributes(Map<String, Object> searchAttributes) {
+      this.searchAttributes = searchAttributes;
+      return this;
+    }
+
     public ContinueAsNewOptions build() {
-      return new ContinueAsNewOptions(workflowRunTimeout, taskQueue, workflowTaskTimeout);
+      return new ContinueAsNewOptions(
+          workflowRunTimeout, taskQueue, workflowTaskTimeout, memo, searchAttributes);
     }
   }
 
   private final Duration workflowRunTimeout;
   private final String taskQueue;
   private final Duration workflowTaskTimeout;
+  private final Map<String, Object> memo;
+  private final Map<String, Object> searchAttributes;
 
   public ContinueAsNewOptions(
-      Duration workflowRunTimeout, String taskQueue, Duration workflowTaskTimeout) {
+      Duration workflowRunTimeout,
+      String taskQueue,
+      Duration workflowTaskTimeout,
+      Map<String, Object> memo,
+      Map<String, Object> searchAttributes) {
     this.workflowRunTimeout = workflowRunTimeout;
     this.taskQueue = taskQueue;
     this.workflowTaskTimeout = workflowTaskTimeout;
+    this.memo = memo;
+    this.searchAttributes = searchAttributes;
   }
 
   public Duration getWorkflowRunTimeout() {
@@ -99,5 +121,13 @@ public final class ContinueAsNewOptions {
 
   public Duration getWorkflowTaskTimeout() {
     return workflowTaskTimeout;
+  }
+
+  public Map<String, Object> getMemo() {
+    return memo;
+  }
+
+  public Map<String, Object> getSearchAttributes() {
+    return searchAttributes;
   }
 }

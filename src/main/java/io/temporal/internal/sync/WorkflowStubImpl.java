@@ -19,6 +19,8 @@
 
 package io.temporal.internal.sync;
 
+import static io.temporal.internal.common.HeaderUtils.convertMapFromObjectToBytes;
+
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.client.WorkflowClientOptions;
@@ -32,8 +34,6 @@ import io.temporal.client.WorkflowQueryRejectedException;
 import io.temporal.client.WorkflowServiceException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.context.ContextPropagator;
-import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.v1.Payload;
 import io.temporal.common.v1.Payloads;
 import io.temporal.common.v1.WorkflowExecution;
@@ -167,22 +167,6 @@ class WorkflowStubImpl implements WorkflowStub {
     p.setSearchAttributes(convertSearchAttributesFromObjectToBytes(o.getSearchAttributes()));
     p.setContext(extractContextsAndConvertToBytes(o.getContextPropagators()));
     return p;
-  }
-
-  private Map<String, Payload> convertMapFromObjectToBytes(
-      Map<String, Object> map, DataConverter dataConverter) {
-    if (map == null) {
-      return null;
-    }
-    Map<String, Payload> result = new HashMap<>();
-    for (Map.Entry<String, Object> item : map.entrySet()) {
-      try {
-        result.put(item.getKey(), dataConverter.toPayload(item.getValue()).get());
-      } catch (DataConverterException e) {
-        throw new DataConverterException("Cannot serialize key " + item.getKey(), e.getCause());
-      }
-    }
-    return result;
   }
 
   private Map<String, Payload> convertMemoFromObjectToBytes(Map<String, Object> map) {
