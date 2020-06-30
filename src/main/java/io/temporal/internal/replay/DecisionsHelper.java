@@ -89,9 +89,9 @@ final class DecisionsHelper {
   private final PollForDecisionTaskResponse.Builder task;
 
   /**
-   * DecisionsHelper When workflow task completes the decisions are converted to events that follow
-   * the decision task completion event. The nextDecisionEventId is the id of an event that
-   * corresponds to the next decision to be added.
+   * When workflow task completes the decisions are converted to events that follow the decision
+   * task completion event. The nextDecisionEventId is the id of an event that corresponds to the
+   * next decision to be added.
    */
   private long nextDecisionEventId;
 

@@ -68,6 +68,7 @@ import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.SignalExternalWorkflowException;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflowservice.v1.PollForActivityTaskResponse;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -329,13 +330,7 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
 
     RetryOptions retryOptions = options.getRetryOptions();
     if (retryOptions != null) {
-      attributes.setRetryPolicy(
-          RetryPolicy.newBuilder()
-              .setInitialIntervalInSeconds(roundUpToSeconds(retryOptions.getInitialInterval()))
-              .setMaximumIntervalInSeconds(roundUpToSeconds(retryOptions.getMaximumInterval()))
-              .setBackoffCoefficient(retryOptions.getBackoffCoefficient())
-              .setMaximumAttempts(retryOptions.getMaximumAttempts())
-              .addAllNonRetryableErrorTypes(Arrays.asList(retryOptions.getDoNotRetry())));
+      attributes.setRetryPolicy(toRetryPolicy(retryOptions));
     }
 
     // Set the context value.  Use the context propagators from the ActivityOptions
@@ -351,6 +346,15 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
     return new ExecuteActivityParameters(attributes, options.getCancellationType());
   }
 
+  private static RetryPolicy.Builder toRetryPolicy(RetryOptions retryOptions) {
+    return RetryPolicy.newBuilder()
+        .setInitialIntervalInSeconds(roundUpToSeconds(retryOptions.getInitialInterval()))
+        .setMaximumIntervalInSeconds(roundUpToSeconds(retryOptions.getMaximumInterval()))
+        .setBackoffCoefficient(retryOptions.getBackoffCoefficient())
+        .setMaximumAttempts(retryOptions.getMaximumAttempts())
+        .addAllNonRetryableErrorTypes(Arrays.asList(retryOptions.getDoNotRetry()));
+  }
+
   private ExecuteLocalActivityParameters constructExecuteLocalActivityParameters(
       String name,
       LocalActivityOptions options,
@@ -358,21 +362,25 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
       long elapsed,
       int attempt) {
     options = LocalActivityOptions.newBuilder(options).validateAndBuildWithDefaults();
-    ExecuteLocalActivityParameters parameters = new ExecuteLocalActivityParameters();
-    parameters
-        .withActivityType(ActivityType.newBuilder().setName(name).build())
-        .withInput(input.orElse(null))
-        .withStartToCloseTimeout(options.getStartToCloseTimeout())
-        .withScheduleToCloseTimeout(options.getScheduleToCloseTimeout());
+
+    PollForActivityTaskResponse.Builder activityTask =
+        PollForActivityTaskResponse.newBuilder()
+            .setWorkflowNamespace(this.context.getNamespace())
+            .setWorkflowExecution(this.context.getWorkflowExecution())
+            .setScheduledTimestamp(System.currentTimeMillis())
+            .setStartToCloseTimeoutSeconds(roundUpToSeconds(options.getStartToCloseTimeout()))
+            .setScheduleToCloseTimeoutSeconds(roundUpToSeconds(options.getScheduleToCloseTimeout()))
+            .setStartedTimestamp(System.currentTimeMillis())
+            .setActivityType(ActivityType.newBuilder().setName(name))
+            .setAttempt(attempt);
+    if (input.isPresent()) {
+      activityTask.setInput(input.get());
+    }
     RetryOptions retryOptions = options.getRetryOptions();
     if (retryOptions != null) {
-      parameters.setRetryOptions(retryOptions);
+      activityTask.setRetryPolicy(toRetryPolicy(retryOptions));
     }
-    parameters.setAttempt(attempt);
-    parameters.setElapsedTime(elapsed);
-    parameters.setWorkflowNamespace(this.context.getNamespace());
-    parameters.setWorkflowExecution(this.context.getWorkflowExecution());
-    return parameters;
+    return new ExecuteLocalActivityParameters(activityTask, elapsed);
   }
 
   @Override
