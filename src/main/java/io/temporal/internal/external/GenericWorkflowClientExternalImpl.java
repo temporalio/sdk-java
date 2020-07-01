@@ -70,7 +70,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
 
   @Override
   public WorkflowExecution startWorkflow(StartWorkflowExecutionParameters startParameters) {
-    StartWorkflowExecutionRequest.Builder request = startParameters.getRequest();
+    StartWorkflowExecutionRequest request = startParameters.getRequest();
     try {
       return startWorkflowInternal(startParameters);
     } finally {
@@ -87,12 +87,12 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
 
   private WorkflowExecution startWorkflowInternal(
       StartWorkflowExecutionParameters startParameters) {
-    StartWorkflowExecutionRequest.Builder request = startParameters.getRequest();
+    StartWorkflowExecutionRequest request = startParameters.getRequest();
     StartWorkflowExecutionResponse result;
     result =
         GrpcRetryer.retryWithResult(
             GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
-            () -> service.blockingStub().startWorkflowExecution(request.build()));
+            () -> service.blockingStub().startWorkflowExecution(request));
 
     return WorkflowExecution.newBuilder()
         .setRunId(result.getRunId())
@@ -127,7 +127,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
 
   private WorkflowExecution signalWithStartWorkflowInternal(
       SignalWithStartWorkflowExecutionParameters parameters, String identity) {
-    StartWorkflowExecutionRequest.Builder startParameters = parameters.getStartParameters();
+    StartWorkflowExecutionRequest startParameters = parameters.getStartParameters();
 
     SignalWithStartWorkflowExecutionRequest.Builder request =
         SignalWithStartWorkflowExecutionRequest.newBuilder()

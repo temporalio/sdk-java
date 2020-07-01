@@ -23,13 +23,13 @@ import io.temporal.workflowservice.v1.StartWorkflowExecutionRequest;
 
 public final class StartWorkflowExecutionParameters {
 
-  private final StartWorkflowExecutionRequest.Builder request;
+  private final StartWorkflowExecutionRequest request;
 
-  public StartWorkflowExecutionParameters(StartWorkflowExecutionRequest.Builder request) {
+  public StartWorkflowExecutionParameters(StartWorkflowExecutionRequest request) {
     this.request = request;
   }
 
-  public StartWorkflowExecutionRequest.Builder getRequest() {
+  public StartWorkflowExecutionRequest getRequest() {
     return request;
   }
 }

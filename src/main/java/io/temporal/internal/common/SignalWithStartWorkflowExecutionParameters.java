@@ -25,12 +25,12 @@ import java.util.Optional;
 
 public class SignalWithStartWorkflowExecutionParameters {
 
-  private final StartWorkflowExecutionRequest.Builder startParameters;
+  private final StartWorkflowExecutionRequest startParameters;
   private final String signalName;
   private final Optional<Payloads> signalInput;
 
   public SignalWithStartWorkflowExecutionParameters(
-      StartWorkflowExecutionRequest.Builder startParameters,
+      StartWorkflowExecutionRequest startParameters,
       String signalName,
       Optional<Payloads> signalInput) {
     this.startParameters = startParameters;
@@ -38,7 +38,7 @@ public class SignalWithStartWorkflowExecutionParameters {
     this.signalInput = signalInput;
   }
 
-  public StartWorkflowExecutionRequest.Builder getStartParameters() {
+  public StartWorkflowExecutionRequest getStartParameters() {
     return startParameters;
   }
 

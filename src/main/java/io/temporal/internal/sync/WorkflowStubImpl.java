@@ -149,7 +149,7 @@ class WorkflowStubImpl implements WorkflowStub {
 
   private WorkflowExecution startWithOptions(WorkflowOptions o, Object... args) {
     StartWorkflowExecutionParameters p = getStartWorkflowExecutionParameters(o, args);
-    StartWorkflowExecutionRequest.Builder request = p.getRequest();
+    StartWorkflowExecutionRequest request = p.getRequest();
     try {
       execution.set(genericClient.startWorkflow(p));
     } catch (StatusRuntimeException e) {
@@ -235,7 +235,7 @@ class WorkflowStubImpl implements WorkflowStub {
       Map<String, Payload> context = extractContextsAndConvertToBytes(o.getContextPropagators());
       request.setHeader(Header.newBuilder().putAllFields(context));
     }
-    return new StartWorkflowExecutionParameters(request);
+    return new StartWorkflowExecutionParameters(request.build());
   }
 
   private Map<String, Payload> convertMemoFromObjectToBytes(Map<String, Object> map) {
@@ -270,11 +270,10 @@ class WorkflowStubImpl implements WorkflowStub {
       WorkflowOptions options, String signalName, Object[] signalArgs, Object[] startArgs) {
     StartWorkflowExecutionParameters startParameters =
         getStartWorkflowExecutionParameters(options, startArgs);
-    StartWorkflowExecutionRequest.Builder request = startParameters.getRequest();
+    StartWorkflowExecutionRequest request = startParameters.getRequest();
     Optional<Payloads> signalInput = clientOptions.getDataConverter().toPayloads(signalArgs);
     SignalWithStartWorkflowExecutionParameters p =
-        new SignalWithStartWorkflowExecutionParameters(
-            startParameters.getRequest(), signalName, signalInput);
+        new SignalWithStartWorkflowExecutionParameters(request, signalName, signalInput);
     try {
       execution.set(genericClient.signalWithStartWorkflowExecution(p));
     } catch (StatusRuntimeException e) {
