@@ -59,12 +59,12 @@ import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.external.CancelWorkflowParameters;
 import io.temporal.internal.external.GenericWorkflowClientExternal;
 import io.temporal.internal.replay.QueryWorkflowParameters;
-import io.temporal.internal.replay.SignalExternalWorkflowParameters;
 import io.temporal.query.v1.WorkflowQuery;
 import io.temporal.taskqueue.v1.TaskQueue;
 import io.temporal.workflowservice.v1.QueryWorkflowRequest;
 import io.temporal.workflowservice.v1.QueryWorkflowResponse;
 import io.temporal.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
+import io.temporal.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.workflowservice.v1.TerminateWorkflowExecutionRequest;
 import java.lang.reflect.Type;
@@ -116,17 +116,26 @@ class WorkflowStubImpl implements WorkflowStub {
   }
 
   @Override
-  public void signal(String signalName, Object... input) {
+  public void signal(String signalName, Object... args) {
     checkStarted();
-    SignalExternalWorkflowParameters p = new SignalExternalWorkflowParameters();
-    p.setInput(clientOptions.getDataConverter().toPayloads(input));
-    p.setSignalName(signalName);
-    p.setWorkflowId(execution.get().getWorkflowId());
-    // TODO: Deal with signaling started workflow only, when requested
-    // Commented out to support signaling workflows that called continue as new.
-    //        p.setRunId(execution.getRunId());
+    SignalWorkflowExecutionRequest.Builder request =
+        SignalWorkflowExecutionRequest.newBuilder()
+            .setSignalName(signalName)
+            .setWorkflowExecution(
+                WorkflowExecution.newBuilder().setWorkflowId(execution.get().getWorkflowId()));
+
+    if (clientOptions.getIdentity() != null) {
+      request.setIdentity(clientOptions.getIdentity());
+    }
+    if (clientOptions.getNamespace() != null) {
+      request.setNamespace(clientOptions.getNamespace());
+    }
+    Optional<Payloads> input = clientOptions.getDataConverter().toPayloads(args);
+    if (input.isPresent()) {
+      request.setInput(input.get());
+    }
     try {
-      genericClient.signalWorkflowExecution(p);
+      genericClient.signalWorkflowExecution(request.build());
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
         throw new WorkflowNotFoundException(execution.get(), workflowType.orElse(null));
@@ -174,14 +183,18 @@ class WorkflowStubImpl implements WorkflowStub {
 
     StartWorkflowExecutionRequest.Builder request =
         StartWorkflowExecutionRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
             .setWorkflowType(WorkflowType.newBuilder().setName(workflowType.get()))
             .setRequestId(UUID.randomUUID().toString())
-            .setIdentity(clientOptions.getIdentity())
             .setWorkflowRunTimeoutSeconds(roundUpToSeconds(o.getWorkflowRunTimeout()))
             .setWorkflowExecutionTimeoutSeconds(roundUpToSeconds(o.getWorkflowExecutionTimeout()))
             .setWorkflowTaskTimeoutSeconds(roundUpToSeconds(o.getWorkflowTaskTimeout()));
 
+    if (clientOptions.getIdentity() != null) {
+      request.setIdentity(clientOptions.getIdentity());
+    }
+    if (clientOptions.getNamespace() != null) {
+      request.setNamespace(clientOptions.getNamespace());
+    }
     if (o.getWorkflowId() == null) {
       request.setWorkflowId(UUID.randomUUID().toString());
     } else {

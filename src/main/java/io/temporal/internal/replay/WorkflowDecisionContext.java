@@ -43,7 +43,6 @@ import io.temporal.history.v1.ExternalWorkflowExecutionSignaledEventAttributes;
 import io.temporal.history.v1.HistoryEvent;
 import io.temporal.history.v1.SignalExternalWorkflowExecutionFailedEventAttributes;
 import io.temporal.history.v1.StartChildWorkflowExecutionFailedEventAttributes;
-import io.temporal.internal.common.OptionsUtils;
 import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.SignalExternalWorkflowException;
 import java.nio.charset.StandardCharsets;
@@ -138,23 +137,11 @@ final class WorkflowDecisionContext {
   }
 
   Consumer<Exception> signalWorkflowExecution(
-      final SignalExternalWorkflowParameters parameters, BiConsumer<Void, Exception> callback) {
-    final OpenRequestInfo<Void, Void> context = new OpenRequestInfo<>();
-    final SignalExternalWorkflowExecutionDecisionAttributes.Builder attributes =
-        SignalExternalWorkflowExecutionDecisionAttributes.newBuilder()
-            .setNamespace(OptionsUtils.safeGet(parameters.getNamespace()));
-    String signalId = decisions.getAndIncrementNextId();
-    attributes.setControl(signalId);
-    attributes.setSignalName(parameters.getSignalName());
-    Optional<Payloads> input = parameters.getInput();
-    if (input.isPresent()) {
-      attributes.setInput(input.get());
-    }
-    attributes.setExecution(
-        WorkflowExecution.newBuilder()
-            .setRunId(OptionsUtils.safeGet(parameters.getRunId()))
-            .setWorkflowId(parameters.getWorkflowId()));
-    final long finalSignalId = decisions.signalExternalWorkflowExecution(attributes.build());
+      SignalExternalWorkflowParameters parameters, BiConsumer<Void, Exception> callback) {
+    OpenRequestInfo<Void, Void> context = new OpenRequestInfo<>();
+    SignalExternalWorkflowExecutionDecisionAttributes.Builder attributes = parameters.getRequest();
+    attributes.setControl(decisions.getAndIncrementNextId());
+    long finalSignalId = decisions.signalExternalWorkflowExecution(attributes.build());
     context.setCompletionHandle(callback);
     scheduledSignals.put(finalSignalId, context);
     return (e) -> {

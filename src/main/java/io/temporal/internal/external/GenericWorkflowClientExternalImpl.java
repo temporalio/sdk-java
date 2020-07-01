@@ -24,14 +24,12 @@ import com.uber.m3.util.ImmutableMap;
 import io.temporal.common.v1.Payloads;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.internal.common.GrpcRetryer;
-import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
 import io.temporal.internal.common.StartWorkflowExecutionParameters;
 import io.temporal.internal.common.TerminateWorkflowExecutionParameters;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.QueryWorkflowParameters;
-import io.temporal.internal.replay.SignalExternalWorkflowParameters;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflowservice.v1.QueryWorkflowResponse;
 import io.temporal.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
@@ -103,28 +101,10 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   }
 
   @Override
-  public void signalWorkflowExecution(SignalExternalWorkflowParameters signalParameters) {
-    SignalWorkflowExecutionRequest.Builder request =
-        SignalWorkflowExecutionRequest.newBuilder()
-            .setRequestId(generateUniqueId())
-            .setIdentity(identity)
-            .setNamespace(
-                signalParameters.getNamespace() == null
-                    ? namespace
-                    : signalParameters.getNamespace())
-            .setSignalName(signalParameters.getSignalName())
-            .setWorkflowExecution(
-                WorkflowExecution.newBuilder()
-                    .setRunId(OptionsUtils.safeGet(signalParameters.getRunId()))
-                    .setWorkflowId(signalParameters.getWorkflowId()));
-
-    Optional<Payloads> input = signalParameters.getInput();
-    if (input.isPresent()) {
-      request.setInput(input.get());
-    }
+  public void signalWorkflowExecution(SignalWorkflowExecutionRequest request) {
     GrpcRetryer.retry(
         GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
-        () -> service.blockingStub().signalWorkflowExecution(request.build()));
+        () -> service.blockingStub().signalWorkflowExecution(request));
   }
 
   @Override
