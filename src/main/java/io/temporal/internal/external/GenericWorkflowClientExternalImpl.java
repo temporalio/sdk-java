@@ -26,7 +26,6 @@ import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
 import io.temporal.internal.common.StartWorkflowExecutionParameters;
-import io.temporal.internal.common.TerminateWorkflowExecutionParameters;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.QueryWorkflowParameters;
@@ -178,21 +177,17 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   }
 
   @Override
-  public void requestCancelWorkflowExecution(CancelWorkflowParameters parameters) {
-    RequestCancelWorkflowExecutionRequest request = parameters.getRequest();
+  public void requestCancelWorkflowExecution(RequestCancelWorkflowExecutionRequest request) {
     GrpcRetryer.retry(
         GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
-        () -> {
-          service.blockingStub().requestCancelWorkflowExecution(request);
-        });
+        () -> service.blockingStub().requestCancelWorkflowExecution(request));
   }
 
   @Override
-  public void terminateWorkflowExecution(TerminateWorkflowExecutionParameters terminateParameters) {
-    TerminateWorkflowExecutionRequest.Builder request = terminateParameters.getRequest();
+  public void terminateWorkflowExecution(TerminateWorkflowExecutionRequest request) {
     GrpcRetryer.retry(
         GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
-        () -> service.blockingStub().terminateWorkflowExecution(request.build()));
+        () -> service.blockingStub().terminateWorkflowExecution(request));
   }
 
   @Override

@@ -53,10 +53,8 @@ import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
 import io.temporal.internal.common.StartWorkflowExecutionParameters;
 import io.temporal.internal.common.StatusUtils;
-import io.temporal.internal.common.TerminateWorkflowExecutionParameters;
 import io.temporal.internal.common.WorkflowExecutionFailedException;
 import io.temporal.internal.common.WorkflowExecutionUtils;
-import io.temporal.internal.external.CancelWorkflowParameters;
 import io.temporal.internal.external.GenericWorkflowClientExternal;
 import io.temporal.internal.replay.QueryWorkflowParameters;
 import io.temporal.query.v1.WorkflowQuery;
@@ -504,7 +502,7 @@ class WorkflowStubImpl implements WorkflowStub {
                 WorkflowExecution.newBuilder().setWorkflowId(execution.get().getWorkflowId()))
             .setNamespace(clientOptions.getNamespace())
             .setIdentity(clientOptions.getIdentity());
-    genericClient.requestCancelWorkflowExecution(new CancelWorkflowParameters(request.build()));
+    genericClient.requestCancelWorkflowExecution(request.build());
   }
 
   @Override
@@ -525,7 +523,7 @@ class WorkflowStubImpl implements WorkflowStub {
     if (payloads.isPresent()) {
       request.setDetails(payloads.get());
     }
-    genericClient.terminateWorkflowExecution(new TerminateWorkflowExecutionParameters(request));
+    genericClient.terminateWorkflowExecution(request.build());
   }
 
   @Override
