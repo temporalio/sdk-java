@@ -351,7 +351,7 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
     return new ExecuteActivityParameters(attributes, options.getCancellationType());
   }
 
-  private static RetryPolicy.Builder toRetryPolicy(RetryOptions retryOptions) {
+  static RetryPolicy.Builder toRetryPolicy(RetryOptions retryOptions) {
     return RetryPolicy.newBuilder()
         .setInitialIntervalInSeconds(roundUpToSeconds(retryOptions.getInitialInterval()))
         .setMaximumIntervalInSeconds(roundUpToSeconds(retryOptions.getMaximumInterval()))
