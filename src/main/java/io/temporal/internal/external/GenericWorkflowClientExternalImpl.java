@@ -28,8 +28,8 @@ import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
 import io.temporal.internal.common.StartWorkflowExecutionParameters;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.internal.replay.QueryWorkflowParameters;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.workflowservice.v1.QueryWorkflowRequest;
 import io.temporal.workflowservice.v1.QueryWorkflowResponse;
 import io.temporal.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
 import io.temporal.workflowservice.v1.SignalWithStartWorkflowExecutionRequest;
@@ -191,10 +191,10 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   }
 
   @Override
-  public QueryWorkflowResponse queryWorkflow(QueryWorkflowParameters queryParameters) {
+  public QueryWorkflowResponse request(QueryWorkflowRequest queryParameters) {
     return GrpcRetryer.retryWithResult(
         GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
-        () -> service.blockingStub().queryWorkflow(queryParameters.getRequest()));
+        () -> service.blockingStub().queryWorkflow(queryParameters));
   }
 
   @Override

@@ -23,6 +23,7 @@ import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.common.converter.EncodedValue;
 import io.temporal.common.v1.Payloads;
 import io.temporal.common.v1.WorkflowExecution;
+import io.temporal.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
 import io.temporal.decision.v1.RequestCancelExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.decision.v1.StartChildWorkflowExecutionDecisionAttributes;
@@ -167,10 +168,9 @@ final class WorkflowDecisionContext {
     decisions.requestCancelExternalWorkflowExecution(attributes);
   }
 
-  void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionParameters continueParameters) {
-
+  void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionDecisionAttributes attributes) {
     // TODO: add validation to check if continueAsNew is not set
-    workflowContext.setContinueAsNewOnCompletion(continueParameters);
+    workflowContext.setContinueAsNewOnCompletion(attributes);
   }
 
   /** Replay safe UUID */

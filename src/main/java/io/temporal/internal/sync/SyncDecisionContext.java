@@ -58,7 +58,6 @@ import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.ActivityTaskFailedException;
 import io.temporal.internal.replay.ActivityTaskTimeoutException;
 import io.temporal.internal.replay.ChildWorkflowTaskFailedException;
-import io.temporal.internal.replay.ContinueAsNewWorkflowExecutionParameters;
 import io.temporal.internal.replay.DecisionContext;
 import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
@@ -814,9 +813,7 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
       attributes.setInput(payloads.get());
     }
     // TODO(maxim): Find out what to do about header
-    ContinueAsNewWorkflowExecutionParameters parameters =
-        new ContinueAsNewWorkflowExecutionParameters(attributes.build());
-    context.continueAsNewOnCompletion(parameters);
+    context.continueAsNewOnCompletion(attributes.build());
     WorkflowThread.exit(null);
   }
 

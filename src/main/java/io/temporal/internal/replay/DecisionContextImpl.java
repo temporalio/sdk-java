@@ -26,6 +26,7 @@ import io.temporal.common.v1.Payloads;
 import io.temporal.common.v1.SearchAttributes;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.common.v1.WorkflowType;
+import io.temporal.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
 import io.temporal.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.enums.v1.DecisionTaskFailedCause;
 import io.temporal.history.v1.DecisionTaskFailedEventAttributes;
@@ -138,14 +139,14 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   }
 
   @Override
-  public ContinueAsNewWorkflowExecutionParameters getContinueAsNewOnCompletion() {
+  public ContinueAsNewWorkflowExecutionDecisionAttributes getContinueAsNewOnCompletion() {
     return workflowContext.getContinueAsNewOnCompletion();
   }
 
   @Override
   public void setContinueAsNewOnCompletion(
-      ContinueAsNewWorkflowExecutionParameters continueParameters) {
-    workflowContext.setContinueAsNewOnCompletion(continueParameters);
+      ContinueAsNewWorkflowExecutionDecisionAttributes attributes) {
+    workflowContext.setContinueAsNewOnCompletion(attributes);
   }
 
   @Override
@@ -248,8 +249,9 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   }
 
   @Override
-  public void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionParameters parameters) {
-    workflowClient.continueAsNewOnCompletion(parameters);
+  public void continueAsNewOnCompletion(
+      ContinueAsNewWorkflowExecutionDecisionAttributes attributes) {
+    workflowClient.continueAsNewOnCompletion(attributes);
   }
 
   void setReplayCurrentTimeMilliseconds(long replayCurrentTimeMilliseconds) {

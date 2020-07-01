@@ -25,6 +25,7 @@ import io.temporal.common.v1.Payloads;
 import io.temporal.common.v1.SearchAttributes;
 import io.temporal.decision.v1.CancelWorkflowExecutionDecisionAttributes;
 import io.temporal.decision.v1.CompleteWorkflowExecutionDecisionAttributes;
+import io.temporal.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
 import io.temporal.decision.v1.Decision;
 import io.temporal.decision.v1.FailWorkflowExecutionDecisionAttributes;
 import io.temporal.decision.v1.RecordMarkerDecisionAttributes;
@@ -425,7 +426,7 @@ final class DecisionsHelper {
     addDecision(decisionId, new CompleteWorkflowStateMachine(decisionId, decision));
   }
 
-  void continueAsNewWorkflowExecution(ContinueAsNewWorkflowExecutionParameters continueParameters) {
+  void continueAsNewWorkflowExecution(ContinueAsNewWorkflowExecutionDecisionAttributes attributes) {
     addAllMissingVersionMarker();
 
     HistoryEvent firstEvent = task.getHistory().getEvents(0);
@@ -437,7 +438,7 @@ final class DecisionsHelper {
     Decision decision =
         Decision.newBuilder()
             .setDecisionType(DecisionType.DECISION_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION)
-            .setContinueAsNewWorkflowExecutionDecisionAttributes(continueParameters.getAttributes())
+            .setContinueAsNewWorkflowExecutionDecisionAttributes(attributes)
             .build();
 
     DecisionId decisionId = new DecisionId(DecisionTarget.SELF, 0);

@@ -56,7 +56,6 @@ import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.common.WorkflowExecutionFailedException;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.external.GenericWorkflowClientExternal;
-import io.temporal.internal.replay.QueryWorkflowParameters;
 import io.temporal.query.v1.WorkflowQuery;
 import io.temporal.taskqueue.v1.TaskQueue;
 import io.temporal.workflowservice.v1.QueryWorkflowRequest;
@@ -146,7 +145,7 @@ class WorkflowStubImpl implements WorkflowStub {
   }
 
   private WorkflowExecution startWithOptions(WorkflowOptions o, Object... args) {
-    StartWorkflowExecutionParameters p = getStartWorkflowExecutionParameters(o, args);
+    StartWorkflowExecutionParameters p = newStartWorkflowExecutionRequest(o, args);
     StartWorkflowExecutionRequest request = p.getRequest();
     try {
       execution.set(genericClient.startWorkflow(p));
@@ -170,7 +169,7 @@ class WorkflowStubImpl implements WorkflowStub {
     return execution.get();
   }
 
-  private StartWorkflowExecutionParameters getStartWorkflowExecutionParameters(
+  private StartWorkflowExecutionRequest newStartWorkflowExecutionRequest(
       WorkflowOptions o, Object[] args) {
     if (execution.get() != null) {
       throw new IllegalStateException(
@@ -233,7 +232,7 @@ class WorkflowStubImpl implements WorkflowStub {
       Map<String, Payload> context = extractContextsAndConvertToBytes(o.getContextPropagators());
       request.setHeader(Header.newBuilder().putAllFields(context));
     }
-    return new StartWorkflowExecutionParameters(request.build());
+    return request.build();
   }
 
   private Map<String, Payload> convertMemoFromObjectToBytes(Map<String, Object> map) {
@@ -267,7 +266,7 @@ class WorkflowStubImpl implements WorkflowStub {
   private WorkflowExecution signalWithStartWithOptions(
       WorkflowOptions options, String signalName, Object[] signalArgs, Object[] startArgs) {
     StartWorkflowExecutionParameters startParameters =
-        getStartWorkflowExecutionParameters(options, startArgs);
+        newStartWorkflowExecutionRequest(options, startArgs);
     StartWorkflowExecutionRequest request = startParameters.getRequest();
     Optional<Payloads> signalInput = clientOptions.getDataConverter().toPayloads(signalArgs);
     SignalWithStartWorkflowExecutionParameters p =
@@ -459,10 +458,9 @@ class WorkflowStubImpl implements WorkflowStub {
             .setQueryRejectCondition(clientOptions.getQueryRejectCondition())
             .build();
 
-    QueryWorkflowParameters parameters = new QueryWorkflowParameters(request);
     QueryWorkflowResponse result;
     try {
-      result = genericClient.queryWorkflow(parameters);
+      result = genericClient.request(request);
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
         throw new WorkflowNotFoundException(execution.get(), workflowType.orElse(null));

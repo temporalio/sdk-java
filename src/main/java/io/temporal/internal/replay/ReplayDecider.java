@@ -28,6 +28,7 @@ import com.uber.m3.tally.Stopwatch;
 import io.grpc.Status;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.v1.Payloads;
+import io.temporal.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
 import io.temporal.enums.v1.EventType;
 import io.temporal.enums.v1.QueryResultType;
 import io.temporal.failure.CanceledFailure;
@@ -313,10 +314,10 @@ class ReplayDecider implements Decider {
       decisionsHelper.cancelWorkflowExecution();
       metricsScope.counter(MetricsType.WORKFLOW_CANCELLED_COUNTER).inc(1);
     } else {
-      ContinueAsNewWorkflowExecutionParameters continueAsNewOnCompletion =
+      ContinueAsNewWorkflowExecutionDecisionAttributes attributes =
           context.getContinueAsNewOnCompletion();
-      if (continueAsNewOnCompletion != null) {
-        decisionsHelper.continueAsNewWorkflowExecution(continueAsNewOnCompletion);
+      if (attributes != null) {
+        decisionsHelper.continueAsNewWorkflowExecution(attributes);
         metricsScope.counter(MetricsType.WORKFLOW_CONTINUE_AS_NEW_COUNTER).inc(1);
       } else {
         Optional<Payloads> workflowOutput = workflow.getOutput();
