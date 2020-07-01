@@ -179,12 +179,11 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
 
   @Override
   public void requestCancelWorkflowExecution(CancelWorkflowParameters parameters) {
-    RequestCancelWorkflowExecutionRequest.Builder request = parameters.getRequest();
-    request.setRequestId(generateUniqueId());
+    RequestCancelWorkflowExecutionRequest request = parameters.getRequest();
     GrpcRetryer.retry(
         GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
         () -> {
-          service.blockingStub().requestCancelWorkflowExecution(request.build());
+          service.blockingStub().requestCancelWorkflowExecution(request);
         });
   }
 

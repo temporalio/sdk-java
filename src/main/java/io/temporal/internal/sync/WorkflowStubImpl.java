@@ -499,11 +499,12 @@ class WorkflowStubImpl implements WorkflowStub {
     // let the server figure out the current run.
     RequestCancelWorkflowExecutionRequest.Builder request =
         RequestCancelWorkflowExecutionRequest.newBuilder()
+            .setRequestId(UUID.randomUUID().toString())
             .setWorkflowExecution(
                 WorkflowExecution.newBuilder().setWorkflowId(execution.get().getWorkflowId()))
             .setNamespace(clientOptions.getNamespace())
             .setIdentity(clientOptions.getIdentity());
-    genericClient.requestCancelWorkflowExecution(new CancelWorkflowParameters(request));
+    genericClient.requestCancelWorkflowExecution(new CancelWorkflowParameters(request.build()));
   }
 
   @Override

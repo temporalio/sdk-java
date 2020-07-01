@@ -23,13 +23,13 @@ import io.temporal.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
 
 public class CancelWorkflowParameters {
 
-  private final RequestCancelWorkflowExecutionRequest.Builder request;
+  private final RequestCancelWorkflowExecutionRequest request;
 
-  public CancelWorkflowParameters(RequestCancelWorkflowExecutionRequest.Builder request) {
+  public CancelWorkflowParameters(RequestCancelWorkflowExecutionRequest request) {
     this.request = request;
   }
 
-  public RequestCancelWorkflowExecutionRequest.Builder getRequest() {
+  public RequestCancelWorkflowExecutionRequest getRequest() {
     return request;
   }
 }
