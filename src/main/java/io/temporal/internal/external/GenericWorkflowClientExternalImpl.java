@@ -25,7 +25,6 @@ import io.temporal.common.v1.Payloads;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
-import io.temporal.internal.common.StartWorkflowExecutionParameters;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -68,10 +67,9 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   }
 
   @Override
-  public WorkflowExecution startWorkflow(StartWorkflowExecutionParameters startParameters) {
-    StartWorkflowExecutionRequest request = startParameters.getRequest();
+  public WorkflowExecution request(StartWorkflowExecutionRequest request) {
     try {
-      return startWorkflowInternal(startParameters);
+      return startWorkflowInternal(request);
     } finally {
       // TODO: can probably cache this
       Map<String, String> tags =
@@ -84,9 +82,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
     }
   }
 
-  private WorkflowExecution startWorkflowInternal(
-      StartWorkflowExecutionParameters startParameters) {
-    StartWorkflowExecutionRequest request = startParameters.getRequest();
+  private WorkflowExecution startWorkflowInternal(StartWorkflowExecutionRequest request) {
     StartWorkflowExecutionResponse result;
     result =
         GrpcRetryer.retryWithResult(

@@ -51,7 +51,6 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
-import io.temporal.internal.common.StartWorkflowExecutionParameters;
 import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.common.WorkflowExecutionFailedException;
 import io.temporal.internal.common.WorkflowExecutionUtils;
@@ -145,10 +144,9 @@ class WorkflowStubImpl implements WorkflowStub {
   }
 
   private WorkflowExecution startWithOptions(WorkflowOptions o, Object... args) {
-    StartWorkflowExecutionParameters p = newStartWorkflowExecutionRequest(o, args);
-    StartWorkflowExecutionRequest request = p.getRequest();
+    StartWorkflowExecutionRequest request = newStartWorkflowExecutionRequest(o, args);
     try {
-      execution.set(genericClient.startWorkflow(p));
+      execution.set(genericClient.request(request));
     } catch (StatusRuntimeException e) {
       WorkflowExecutionAlreadyStartedFailure f =
           StatusUtils.getFailure(e, WorkflowExecutionAlreadyStartedFailure.class);
@@ -265,9 +263,7 @@ class WorkflowStubImpl implements WorkflowStub {
 
   private WorkflowExecution signalWithStartWithOptions(
       WorkflowOptions options, String signalName, Object[] signalArgs, Object[] startArgs) {
-    StartWorkflowExecutionParameters startParameters =
-        newStartWorkflowExecutionRequest(options, startArgs);
-    StartWorkflowExecutionRequest request = startParameters.getRequest();
+    StartWorkflowExecutionRequest request = newStartWorkflowExecutionRequest(options, startArgs);
     Optional<Payloads> signalInput = clientOptions.getDataConverter().toPayloads(signalArgs);
     SignalWithStartWorkflowExecutionParameters p =
         new SignalWithStartWorkflowExecutionParameters(request, signalName, signalInput);
