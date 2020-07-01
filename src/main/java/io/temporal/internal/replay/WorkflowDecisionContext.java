@@ -137,9 +137,9 @@ final class WorkflowDecisionContext {
   }
 
   Consumer<Exception> signalWorkflowExecution(
-      SignalExternalWorkflowParameters parameters, BiConsumer<Void, Exception> callback) {
+      SignalExternalWorkflowExecutionDecisionAttributes.Builder attributes,
+      BiConsumer<Void, Exception> callback) {
     OpenRequestInfo<Void, Void> context = new OpenRequestInfo<>();
-    SignalExternalWorkflowExecutionDecisionAttributes.Builder attributes = parameters.getRequest();
     attributes.setControl(decisions.getAndIncrementNextId());
     long finalSignalId = decisions.signalExternalWorkflowExecution(attributes.build());
     context.setCompletionHandle(callback);

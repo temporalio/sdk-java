@@ -26,6 +26,7 @@ import io.temporal.common.v1.Payloads;
 import io.temporal.common.v1.SearchAttributes;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.common.v1.WorkflowType;
+import io.temporal.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
@@ -125,7 +126,8 @@ public interface DecisionContext extends ReplayAware {
       BiConsumer<Optional<Payloads>, Exception> callback);
 
   Consumer<Exception> signalWorkflowExecution(
-      SignalExternalWorkflowParameters signalParameters, BiConsumer<Void, Exception> callback);
+      SignalExternalWorkflowExecutionDecisionAttributes.Builder attributes,
+      BiConsumer<Void, Exception> callback);
 
   Promise<Void> requestCancelWorkflowExecution(WorkflowExecution execution);
 

@@ -26,6 +26,7 @@ import io.temporal.common.v1.Payloads;
 import io.temporal.common.v1.SearchAttributes;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.common.v1.WorkflowType;
+import io.temporal.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.enums.v1.DecisionTaskFailedCause;
 import io.temporal.history.v1.DecisionTaskFailedEventAttributes;
 import io.temporal.history.v1.HistoryEvent;
@@ -234,8 +235,9 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
 
   @Override
   public Consumer<Exception> signalWorkflowExecution(
-      SignalExternalWorkflowParameters signalParameters, BiConsumer<Void, Exception> callback) {
-    return workflowClient.signalWorkflowExecution(signalParameters, callback);
+      SignalExternalWorkflowExecutionDecisionAttributes.Builder attributes,
+      BiConsumer<Void, Exception> callback) {
+    return workflowClient.signalWorkflowExecution(attributes, callback);
   }
 
   @Override

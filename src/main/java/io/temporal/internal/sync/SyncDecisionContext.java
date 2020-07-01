@@ -62,7 +62,6 @@ import io.temporal.internal.replay.ContinueAsNewWorkflowExecutionParameters;
 import io.temporal.internal.replay.DecisionContext;
 import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
-import io.temporal.internal.replay.SignalExternalWorkflowParameters;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
 import io.temporal.taskqueue.v1.TaskQueue;
 import io.temporal.workflow.CancellationScope;
@@ -729,19 +728,18 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
   @Override
   public Promise<Void> signalExternalWorkflow(
       WorkflowExecution execution, String signalName, Object[] args) {
-    SignalExternalWorkflowExecutionDecisionAttributes.Builder request =
+    SignalExternalWorkflowExecutionDecisionAttributes.Builder attributes =
         SignalExternalWorkflowExecutionDecisionAttributes.newBuilder();
-    request.setSignalName(signalName);
-    request.setExecution(execution);
+    attributes.setSignalName(signalName);
+    attributes.setExecution(execution);
     Optional<Payloads> input = getDataConverter().toPayloads(args);
     if (input.isPresent()) {
-      request.setInput(input.get());
+      attributes.setInput(input.get());
     }
-    SignalExternalWorkflowParameters parameters = new SignalExternalWorkflowParameters(request);
     CompletablePromise<Void> result = Workflow.newPromise();
     Consumer<Exception> cancellationCallback =
         context.signalWorkflowExecution(
-            parameters,
+            attributes,
             (output, failure) -> {
               if (failure != null) {
                 runner.executeInWorkflowThread(
