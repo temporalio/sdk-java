@@ -38,13 +38,13 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
   private final ThreadPoolExecutor taskExecutor;
   private final SingleWorkerOptions options;
   private final String namespace;
-  private final String taskList;
+  private final String taskQueue;
   private final TaskHandler<T> handler;
 
   PollTaskExecutor(
-      String namespace, String taskList, SingleWorkerOptions options, TaskHandler<T> handler) {
+      String namespace, String taskQueue, SingleWorkerOptions options, TaskHandler<T> handler) {
     this.namespace = namespace;
-    this.taskList = taskList;
+    this.taskQueue = taskQueue;
     this.handler = handler;
     Preconditions.checkNotNull(options, "options should not be null");
 
@@ -68,7 +68,7 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
     taskExecutor.execute(
         () -> {
           MDC.put(LoggerTag.NAMESPACE, namespace);
-          MDC.put(LoggerTag.TASK_LIST, taskList);
+          MDC.put(LoggerTag.TASK_QUEUE, taskQueue);
           try {
             handler.handle(task);
           } catch (Throwable ee) {
@@ -80,7 +80,7 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
             }
           } finally {
             MDC.remove(LoggerTag.NAMESPACE);
-            MDC.remove(LoggerTag.TASK_LIST);
+            MDC.remove(LoggerTag.TASK_QUEUE);
           }
         });
   }

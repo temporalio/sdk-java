@@ -51,7 +51,7 @@ import org.slf4j.Logger;
  *
  * <ul>
  *   <li>{@literal @}{@link WorkflowMethod} indicates an entry point to a workflow. It contains
- *       parameters such as timeouts and a task list. Required parameters (like {@code
+ *       parameters such as timeouts and a task queue. Required parameters (like {@code
  *       workflowRunTimeoutSeconds}) that are not specified through the annotation must be provided
  *       at runtime.
  *   <li>{@literal @}{@link SignalMethod} indicates a method that reacts to external signals. It
@@ -63,7 +63,7 @@ import org.slf4j.Logger;
  * <pre><code>
  * public interface FileProcessingWorkflow {
  *
- *    {@literal @}WorkflowMethod(workflowRunTimeoutSeconds = 10, taskList = "file-processing")
+ *    {@literal @}WorkflowMethod(workflowRunTimeoutSeconds = 10, taskQueue = "file-processing")
  *     String processFile(Arguments args);
  *
  *    {@literal @}QueryMethod(name="history")
@@ -134,18 +134,18 @@ import org.slf4j.Logger;
  * }
  * </code></pre>
  *
- * If different activities need different options, like timeouts or a task list, multiple
+ * If different activities need different options, like timeouts or a task queue, multiple
  * client-side stubs can be created with different options.
  *
  * <pre><code>
  * public FileProcessingWorkflowImpl() {
  *     ActivityOptions options1 = ActivityOptions.newBuilder()
- *         .setTaskList("taskList1")
+ *         .setTaskQueue("taskQueue1")
  *         .build();
  *     this.store1 = Workflow.newActivityStub(FileProcessingActivities.class, options1);
  *
  *     ActivityOptions options2 = ActivityOptions.newBuilder()
- *         .setTaskList("taskList2")
+ *         .setTaskQueue("taskQueue2")
  *         .build();
  *     this.store2 = Workflow.newActivityStub(FileProcessingActivities.class, options2);
  * }
@@ -239,7 +239,7 @@ import org.slf4j.Logger;
  *
  * <p>{@link #newChildWorkflowStub(Class)} returns a client-side stub that implements a child
  * workflow interface. It takes a child workflow type and optional child workflow options as
- * arguments. Workflow options may be needed to override the timeouts and task list if they differ
+ * arguments. Workflow options may be needed to override the timeouts and task queue if they differ
  * from the ones defined in the {@literal @}{@link WorkflowMethod} annotation or parent workflow.
  *
  * <p>The first call to the child workflow stub must always be to a method annotated with

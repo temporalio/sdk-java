@@ -19,8 +19,8 @@
 
 package io.temporal.internal.testing;
 
-import static io.temporal.internal.common.InternalUtils.createNormalTaskList;
-import static io.temporal.internal.common.InternalUtils.createStickyTaskList;
+import static io.temporal.internal.common.InternalUtils.createNormalTaskQueue;
+import static io.temporal.internal.common.InternalUtils.createStickyTaskQueue;
 import static org.junit.Assert.*;
 
 import io.temporal.enums.v1.EventType;
@@ -39,8 +39,8 @@ import org.junit.Test;
 public class WorkflowCachingTest {
 
   private final String NAMESPACE = "namespace";
-  private final String TASK_LIST = "taskList";
-  private final String HOST_TASKLIST = "stickyTaskList";
+  private final String TASK_QUEUE = "taskQueue";
+  private final String HOST_TASKQUEUE = "stickyTaskQueue";
   private final String WORKFLOW_TYPE = "wfType";
   private final String CALLER = "WorkflowStickynessTest";
 
@@ -66,22 +66,22 @@ public class WorkflowCachingTest {
   }
 
   @Test
-  public void taskCompletionWithStickyExecutionAttributesWillScheduleDecisionsOnStickyTaskList()
+  public void taskCompletionWithStickyExecutionAttributesWillScheduleDecisionsOnStickyTaskQueue()
       throws Exception {
 
-    TestServiceUtils.startWorkflowExecution(NAMESPACE, TASK_LIST, WORKFLOW_TYPE, service);
+    TestServiceUtils.startWorkflowExecution(NAMESPACE, TASK_QUEUE, WORKFLOW_TYPE, service);
     PollForDecisionTaskResponse response =
-        TestServiceUtils.pollForDecisionTask(NAMESPACE, createNormalTaskList(TASK_LIST), service);
+        TestServiceUtils.pollForDecisionTask(NAMESPACE, createNormalTaskQueue(TASK_QUEUE), service);
 
     TestServiceUtils.respondDecisionTaskCompletedWithSticky(
-        response.getTaskToken(), HOST_TASKLIST, service);
+        response.getTaskToken(), HOST_TASKQUEUE, service);
     TestServiceUtils.signalWorkflow(response.getWorkflowExecution(), NAMESPACE, service);
     response =
         TestServiceUtils.pollForDecisionTask(
-            NAMESPACE, createStickyTaskList(HOST_TASKLIST), service);
+            NAMESPACE, createStickyTaskQueue(HOST_TASKQUEUE), service);
 
     assertEquals(4, response.getHistory().getEventsCount());
-    assertEquals(TASK_LIST, response.getWorkflowExecutionTaskList().getName());
+    assertEquals(TASK_QUEUE, response.getWorkflowExecutionTaskQueue().getName());
     List<HistoryEvent> events = response.getHistory().getEventsList();
     assertEquals(EventType.EVENT_TYPE_DECISION_TASK_COMPLETED, events.get(0).getEventType());
     assertEquals(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED, events.get(1).getEventType());
@@ -91,19 +91,19 @@ public class WorkflowCachingTest {
 
   @Test
   public void taskFailureWillRescheduleTheTaskOnTheGlobalList() throws Exception {
-    TestServiceUtils.startWorkflowExecution(NAMESPACE, TASK_LIST, WORKFLOW_TYPE, service);
+    TestServiceUtils.startWorkflowExecution(NAMESPACE, TASK_QUEUE, WORKFLOW_TYPE, service);
     PollForDecisionTaskResponse response =
-        TestServiceUtils.pollForDecisionTask(NAMESPACE, createNormalTaskList(TASK_LIST), service);
+        TestServiceUtils.pollForDecisionTask(NAMESPACE, createNormalTaskQueue(TASK_QUEUE), service);
 
     TestServiceUtils.respondDecisionTaskCompletedWithSticky(
-        response.getTaskToken(), HOST_TASKLIST, service);
+        response.getTaskToken(), HOST_TASKQUEUE, service);
     TestServiceUtils.signalWorkflow(response.getWorkflowExecution(), NAMESPACE, service);
     response =
         TestServiceUtils.pollForDecisionTask(
-            NAMESPACE, createStickyTaskList(HOST_TASKLIST), service);
+            NAMESPACE, createStickyTaskQueue(HOST_TASKQUEUE), service);
     TestServiceUtils.respondDecisionTaskFailedWithSticky(response.getTaskToken(), service);
     response =
-        TestServiceUtils.pollForDecisionTask(NAMESPACE, createNormalTaskList(TASK_LIST), service);
+        TestServiceUtils.pollForDecisionTask(NAMESPACE, createNormalTaskQueue(TASK_QUEUE), service);
 
     // Assert Full history
     // Make sure first is workflow execution started
@@ -114,19 +114,19 @@ public class WorkflowCachingTest {
 
   @Test
   public void taskTimeoutWillRescheduleTheTaskOnTheGlobalList() throws Exception {
-    TestServiceUtils.startWorkflowExecution(NAMESPACE, TASK_LIST, WORKFLOW_TYPE, 10, 2, service);
+    TestServiceUtils.startWorkflowExecution(NAMESPACE, TASK_QUEUE, WORKFLOW_TYPE, 10, 2, service);
     PollForDecisionTaskResponse response =
-        TestServiceUtils.pollForDecisionTask(NAMESPACE, createNormalTaskList(TASK_LIST), service);
+        TestServiceUtils.pollForDecisionTask(NAMESPACE, createNormalTaskQueue(TASK_QUEUE), service);
 
     TestServiceUtils.respondDecisionTaskCompletedWithSticky(
-        response.getTaskToken(), HOST_TASKLIST, 1, service);
+        response.getTaskToken(), HOST_TASKQUEUE, 1, service);
     TestServiceUtils.signalWorkflow(response.getWorkflowExecution(), NAMESPACE, service);
-    TestServiceUtils.pollForDecisionTask(NAMESPACE, createStickyTaskList(HOST_TASKLIST), service);
+    TestServiceUtils.pollForDecisionTask(NAMESPACE, createStickyTaskQueue(HOST_TASKQUEUE), service);
     testService.unlockTimeSkipping(CALLER);
     testService.sleep(Duration.ofMillis(1100));
 
     response =
-        TestServiceUtils.pollForDecisionTask(NAMESPACE, createNormalTaskList(TASK_LIST), service);
+        TestServiceUtils.pollForDecisionTask(NAMESPACE, createNormalTaskQueue(TASK_QUEUE), service);
 
     // Assert Full history
     // Make sure first is workflow execution started

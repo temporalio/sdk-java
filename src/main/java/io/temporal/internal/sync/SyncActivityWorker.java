@@ -38,15 +38,15 @@ public class SyncActivityWorker implements SuspendableWorker {
   public SyncActivityWorker(
       WorkflowServiceStubs service,
       String namespace,
-      String taskList,
-      double taskListActivitiesPerSecond,
+      String taskQueue,
+      double taskQueueActivitiesPerSecond,
       SingleWorkerOptions options) {
     taskHandler =
         new POJOActivityTaskHandler(
             service, namespace, options.getDataConverter(), heartbeatExecutor);
     worker =
         new ActivityWorker(
-            service, namespace, taskList, taskListActivitiesPerSecond, options, taskHandler);
+            service, namespace, taskQueue, taskQueueActivitiesPerSecond, options, taskHandler);
   }
 
   public void setActivitiesImplementation(Object... activitiesImplementation) {

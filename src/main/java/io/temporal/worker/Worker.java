@@ -56,41 +56,41 @@ public final class Worker implements Suspendable {
 
   private final WorkerFactoryOptions factoryOptions;
   private final WorkerOptions options;
-  private final String taskList;
+  private final String taskQueue;
   final SyncWorkflowWorker workflowWorker;
   final SyncActivityWorker activityWorker;
   private final AtomicBoolean started = new AtomicBoolean();
   private final DeciderCache cache;
-  private final String stickyTaskListName;
+  private final String stickyTaskQueueName;
   private ThreadPoolExecutor threadPoolExecutor;
 
   /**
    * Creates worker that connects to an instance of the Temporal Service.
    *
    * @param client client to the Temporal Service endpoint.
-   * @param taskList task list name worker uses to poll. It uses this name for both decision and
-   *     activity task list polls.
+   * @param taskQueue task queue name worker uses to poll. It uses this name for both decision and
+   *     activity task queue polls.
    * @param options Options (like {@link DataConverter} override) for configuring worker.
-   * @param stickyTaskListName
+   * @param stickyTaskQueueName
    */
   Worker(
       WorkflowClient client,
-      String taskList,
+      String taskQueue,
       WorkerFactoryOptions factoryOptions,
       WorkerOptions options,
       DeciderCache cache,
-      String stickyTaskListName,
+      String stickyTaskQueueName,
       ThreadPoolExecutor threadPoolExecutor,
       List<ContextPropagator> contextPropagators) {
 
     Objects.requireNonNull(client, "client should not be null");
     Preconditions.checkArgument(
-        !Strings.isNullOrEmpty(taskList), "taskList should not be an empty string");
+        !Strings.isNullOrEmpty(taskQueue), "taskQueue should not be an empty string");
     this.cache = cache;
-    this.stickyTaskListName = stickyTaskListName;
+    this.stickyTaskQueueName = stickyTaskQueueName;
     this.threadPoolExecutor = Objects.requireNonNull(threadPoolExecutor);
 
-    this.taskList = taskList;
+    this.taskQueue = taskQueue;
     this.options = WorkerOptions.newBuilder(options).validateAndBuildWithDefaults();
     this.factoryOptions =
         WorkerFactoryOptions.newBuilder(factoryOptions).validateAndBuildWithDefaults();
@@ -103,15 +103,15 @@ public final class Worker implements Suspendable {
             this.factoryOptions,
             this.options,
             clientOptions,
-            taskList,
+            taskQueue,
             contextPropagators,
             metricsScope);
     activityWorker =
         new SyncActivityWorker(
             service,
             namespace,
-            taskList,
-            this.options.getTaskListActivitiesPerSecond(),
+            taskQueue,
+            this.options.getTaskQueueActivitiesPerSecond(),
             activityOptions);
 
     SingleWorkerOptions workflowOptions =
@@ -119,7 +119,7 @@ public final class Worker implements Suspendable {
             this.factoryOptions,
             this.options,
             clientOptions,
-            taskList,
+            taskQueue,
             contextPropagators,
             metricsScope);
     SingleWorkerOptions localActivityOptions =
@@ -127,21 +127,21 @@ public final class Worker implements Suspendable {
             this.factoryOptions,
             this.options,
             clientOptions,
-            taskList,
+            taskQueue,
             contextPropagators,
             metricsScope);
     workflowWorker =
         new SyncWorkflowWorker(
             service,
             namespace,
-            taskList,
+            taskQueue,
             this.factoryOptions.getWorkflowInterceptors(),
             workflowOptions,
             localActivityOptions,
             this.cache,
-            this.stickyTaskListName,
+            this.stickyTaskQueueName,
             Duration.ofSeconds(
-                this.factoryOptions.getWorkflowHostLocalTaskListScheduleToStartTimeoutSeconds()),
+                this.factoryOptions.getWorkflowHostLocalTaskQueueScheduleToStartTimeoutSeconds()),
             this.threadPoolExecutor);
   }
 
@@ -149,13 +149,13 @@ public final class Worker implements Suspendable {
       WorkerFactoryOptions factoryOptions,
       WorkerOptions options,
       WorkflowClientOptions clientOptions,
-      String taskList,
+      String taskQueue,
       List<ContextPropagator> contextPropagators,
       Scope metricsScope) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.NAMESPACE, clientOptions.getNamespace())
-            .put(MetricsTag.TASK_LIST, taskList)
+            .put(MetricsTag.TASK_QUEUE, taskQueue)
             .build();
     return SingleWorkerOptions.newBuilder()
         .setDataConverter(clientOptions.getDataConverter())
@@ -176,13 +176,13 @@ public final class Worker implements Suspendable {
       WorkerFactoryOptions factoryOptions,
       WorkerOptions options,
       WorkflowClientOptions clientOptions,
-      String taskList,
+      String taskQueue,
       List<ContextPropagator> contextPropagators,
       Scope metricsScope) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.NAMESPACE, clientOptions.getNamespace())
-            .put(MetricsTag.TASK_LIST, taskList)
+            .put(MetricsTag.TASK_QUEUE, taskQueue)
             .build();
     return SingleWorkerOptions.newBuilder()
         .setDataConverter(clientOptions.getDataConverter())
@@ -202,13 +202,13 @@ public final class Worker implements Suspendable {
       WorkerFactoryOptions factoryOptions,
       WorkerOptions options,
       WorkflowClientOptions clientOptions,
-      String taskList,
+      String taskQueue,
       List<ContextPropagator> contextPropagators,
       Scope metricsScope) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.NAMESPACE, clientOptions.getNamespace())
-            .put(MetricsTag.TASK_LIST, taskList)
+            .put(MetricsTag.TASK_QUEUE, taskQueue)
             .build();
     return SingleWorkerOptions.newBuilder()
         .setDataConverter(clientOptions.getDataConverter())
@@ -393,8 +393,8 @@ public final class Worker implements Suspendable {
     replayWorkflowExecution(history);
   }
 
-  public String getTaskList() {
-    return taskList;
+  public String getTaskQueue() {
+    return taskQueue;
   }
 
   @Override

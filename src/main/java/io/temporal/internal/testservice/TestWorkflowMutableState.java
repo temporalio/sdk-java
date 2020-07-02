@@ -30,7 +30,7 @@ import io.temporal.history.v1.ChildWorkflowExecutionStartedEventAttributes;
 import io.temporal.history.v1.ChildWorkflowExecutionTimedOutEventAttributes;
 import io.temporal.history.v1.ExternalWorkflowExecutionCancelRequestedEventAttributes;
 import io.temporal.history.v1.StartChildWorkflowExecutionFailedEventAttributes;
-import io.temporal.tasklist.v1.StickyExecutionAttributes;
+import io.temporal.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.workflowservice.v1.PollForActivityTaskRequest;
 import io.temporal.workflowservice.v1.PollForActivityTaskResponseOrBuilder;
 import io.temporal.workflowservice.v1.PollForDecisionTaskRequest;

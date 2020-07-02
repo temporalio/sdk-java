@@ -26,8 +26,8 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.tasklist.v1.TaskList;
-import io.temporal.tasklist.v1.TaskListMetadata;
+import io.temporal.taskqueue.v1.TaskQueue;
+import io.temporal.taskqueue.v1.TaskQueueMetadata;
 import io.temporal.workflowservice.v1.PollForActivityTaskRequest;
 import io.temporal.workflowservice.v1.PollForActivityTaskResponse;
 import org.slf4j.Logger;
@@ -37,23 +37,23 @@ final class ActivityPollTask implements Poller.PollTask<PollForActivityTaskRespo
 
   private final WorkflowServiceStubs service;
   private final String namespace;
-  private final String taskList;
+  private final String taskQueue;
   private final SingleWorkerOptions options;
   private static final Logger log = LoggerFactory.getLogger(ActivityPollTask.class);
-  private final double taskListActivitiesPerSecond;
+  private final double taskQueueActivitiesPerSecond;
 
   public ActivityPollTask(
       WorkflowServiceStubs service,
       String namespace,
-      String taskList,
+      String taskQueue,
       SingleWorkerOptions options,
-      double taskListActivitiesPerSecond) {
+      double taskQueueActivitiesPerSecond) {
 
     this.service = service;
     this.namespace = namespace;
-    this.taskList = taskList;
+    this.taskQueue = taskQueue;
     this.options = options;
-    this.taskListActivitiesPerSecond = taskListActivitiesPerSecond;
+    this.taskQueueActivitiesPerSecond = taskQueueActivitiesPerSecond;
   }
 
   @Override
@@ -65,20 +65,20 @@ final class ActivityPollTask implements Poller.PollTask<PollForActivityTaskRespo
         PollForActivityTaskRequest.newBuilder()
             .setNamespace(namespace)
             .setIdentity(options.getIdentity())
-            .setTaskList(TaskList.newBuilder().setName(taskList));
-    if (taskListActivitiesPerSecond > 0) {
-      pollRequest.setTaskListMetadata(
-          TaskListMetadata.newBuilder()
+            .setTaskQueue(TaskQueue.newBuilder().setName(taskQueue));
+    if (taskQueueActivitiesPerSecond > 0) {
+      pollRequest.setTaskQueueMetadata(
+          TaskQueueMetadata.newBuilder()
               .setMaxTasksPerSecond(
-                  DoubleValue.newBuilder().setValue(taskListActivitiesPerSecond).build())
+                  DoubleValue.newBuilder().setValue(taskQueueActivitiesPerSecond).build())
               .build());
     }
 
-    if (taskListActivitiesPerSecond > 0) {
-      pollRequest.setTaskListMetadata(
-          TaskListMetadata.newBuilder()
+    if (taskQueueActivitiesPerSecond > 0) {
+      pollRequest.setTaskQueueMetadata(
+          TaskQueueMetadata.newBuilder()
               .setMaxTasksPerSecond(
-                  DoubleValue.newBuilder().setValue(taskListActivitiesPerSecond).build())
+                  DoubleValue.newBuilder().setValue(taskQueueActivitiesPerSecond).build())
               .build());
     }
 

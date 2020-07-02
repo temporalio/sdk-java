@@ -68,7 +68,7 @@ public final class ChildWorkflowOptions {
 
     private Duration workflowTaskTimeout;
 
-    private String taskList;
+    private String taskQueue;
 
     private RetryOptions retryOptions;
 
@@ -96,7 +96,7 @@ public final class ChildWorkflowOptions {
       this.workflowRunTimeout = options.getWorkflowRunTimeout();
       this.workflowExecutionTimeout = options.getWorkflowExecutionTimeout();
       this.workflowTaskTimeout = options.getWorkflowTaskTimeout();
-      this.taskList = options.getTaskList();
+      this.taskQueue = options.getTaskQueue();
       this.retryOptions = options.getRetryOptions();
       this.cronSchedule = options.getCronSchedule();
       this.parentClosePolicy = options.getParentClosePolicy();
@@ -184,11 +184,11 @@ public final class ChildWorkflowOptions {
     }
 
     /**
-     * Task list to use for decision tasks. It should match a task list specified when creating a
+     * Task queue to use for decision tasks. It should match a task queue specified when creating a
      * {@link io.temporal.worker.Worker} that hosts the workflow code.
      */
-    public Builder setTaskList(String taskList) {
-      this.taskList = taskList;
+    public Builder setTaskQueue(String taskQueue) {
+      this.taskQueue = taskQueue;
       return this;
     }
 
@@ -258,7 +258,7 @@ public final class ChildWorkflowOptions {
           workflowRunTimeout,
           workflowExecutionTimeout,
           workflowTaskTimeout,
-          taskList,
+          taskQueue,
           retryOptions,
           cronSchedule,
           parentClosePolicy,
@@ -276,7 +276,7 @@ public final class ChildWorkflowOptions {
           workflowRunTimeout,
           workflowExecutionTimeout,
           workflowTaskTimeout,
-          taskList,
+          taskQueue,
           retryOptions,
           cronSchedule,
           parentClosePolicy,
@@ -301,7 +301,7 @@ public final class ChildWorkflowOptions {
 
   private final Duration workflowTaskTimeout;
 
-  private final String taskList;
+  private final String taskQueue;
 
   private final RetryOptions retryOptions;
 
@@ -324,7 +324,7 @@ public final class ChildWorkflowOptions {
       Duration workflowRunTimeout,
       Duration workflowExecutionTimeout,
       Duration workflowTaskTimeout,
-      String taskList,
+      String taskQueue,
       RetryOptions retryOptions,
       String cronSchedule,
       ParentClosePolicy parentClosePolicy,
@@ -338,7 +338,7 @@ public final class ChildWorkflowOptions {
     this.workflowRunTimeout = workflowRunTimeout;
     this.workflowExecutionTimeout = workflowExecutionTimeout;
     this.workflowTaskTimeout = workflowTaskTimeout;
-    this.taskList = taskList;
+    this.taskQueue = taskQueue;
     this.retryOptions = retryOptions;
     this.cronSchedule = cronSchedule;
     this.parentClosePolicy = parentClosePolicy;
@@ -372,8 +372,8 @@ public final class ChildWorkflowOptions {
     return workflowTaskTimeout;
   }
 
-  public String getTaskList() {
-    return taskList;
+  public String getTaskQueue() {
+    return taskQueue;
   }
 
   public RetryOptions getRetryOptions() {
@@ -419,7 +419,7 @@ public final class ChildWorkflowOptions {
         && Objects.equal(workflowRunTimeout, that.workflowRunTimeout)
         && Objects.equal(workflowExecutionTimeout, that.workflowExecutionTimeout)
         && Objects.equal(workflowTaskTimeout, that.workflowTaskTimeout)
-        && Objects.equal(taskList, that.taskList)
+        && Objects.equal(taskQueue, that.taskQueue)
         && Objects.equal(retryOptions, that.retryOptions)
         && Objects.equal(cronSchedule, that.cronSchedule)
         && parentClosePolicy == that.parentClosePolicy
@@ -438,7 +438,7 @@ public final class ChildWorkflowOptions {
         workflowRunTimeout,
         workflowExecutionTimeout,
         workflowTaskTimeout,
-        taskList,
+        taskQueue,
         retryOptions,
         cronSchedule,
         parentClosePolicy,
@@ -465,8 +465,8 @@ public final class ChildWorkflowOptions {
         + workflowExecutionTimeout
         + ", workflowTaskTimeout="
         + workflowTaskTimeout
-        + ", taskList='"
-        + taskList
+        + ", taskQueue='"
+        + taskQueue
         + '\''
         + ", retryOptions="
         + retryOptions

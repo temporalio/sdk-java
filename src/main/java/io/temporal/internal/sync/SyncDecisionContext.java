@@ -305,15 +305,15 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
   private ExecuteActivityParameters constructExecuteActivityParameters(
       String name, ActivityOptions options, Optional<Payloads> input) {
     ExecuteActivityParameters parameters = new ExecuteActivityParameters();
-    // TODO: Real task list
-    String taskList = options.getTaskList();
-    if (taskList == null) {
-      taskList = context.getTaskList();
+    // TODO: Real task queue
+    String taskQueue = options.getTaskQueue();
+    if (taskQueue == null) {
+      taskQueue = context.getTaskQueue();
     }
     parameters
         .withActivityType(ActivityType.newBuilder().setName(name).build())
         .withInput(input.orElse(null))
-        .withTaskList(taskList)
+        .withTaskQueue(taskQueue)
         .withScheduleToStartTimeoutSeconds(roundUpToSeconds(options.getScheduleToStartTimeout()))
         .withStartToCloseTimeoutSeconds(roundUpToSeconds(options.getStartToCloseTimeout()))
         .withScheduleToCloseTimeoutSeconds(roundUpToSeconds(options.getScheduleToCloseTimeout()))
@@ -406,7 +406,7 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
             .setWorkflowExecutionTimeoutSeconds(
                 roundUpToSeconds(options.getWorkflowExecutionTimeout()))
             .setNamespace(options.getNamespace())
-            .setTaskList(options.getTaskList())
+            .setTaskQueue(options.getTaskQueue())
             .setWorkflowTaskTimeoutSeconds(roundUpToSeconds(options.getWorkflowTaskTimeout()))
             .setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy())
             .setRetryParameters(retryParameters)
@@ -746,7 +746,7 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
       ContinueAsNewOptions ops = options.get();
       parameters.setWorkflowRunTimeoutSeconds(roundUpToSeconds(ops.getWorkflowRunTimeout()));
       parameters.setWorkflowTaskTimeoutSeconds(roundUpToSeconds(ops.getWorkflowTaskTimeout()));
-      parameters.setTaskList(ops.getTaskList());
+      parameters.setTaskQueue(ops.getTaskQueue());
     }
     parameters.setInput(getDataConverter().toPayloads(args).orElse(null));
     context.continueAsNewOnCompletion(parameters);

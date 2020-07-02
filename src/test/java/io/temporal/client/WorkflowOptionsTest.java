@@ -42,7 +42,7 @@ public class WorkflowOptionsTest {
   public void testOnlyOptionsAndEmptyAnnotationsPresent() throws NoSuchMethodException {
     WorkflowOptions o =
         WorkflowOptions.newBuilder()
-            .setTaskList("foo")
+            .setTaskQueue("foo")
             .setWorkflowRunTimeout(Duration.ofSeconds(321))
             .setWorkflowExecutionTimeout(Duration.ofSeconds(456))
             .setWorkflowTaskTimeout(Duration.ofSeconds(13))
@@ -89,7 +89,7 @@ public class WorkflowOptionsTest {
 
     WorkflowOptions o =
         WorkflowOptions.newBuilder()
-            .setTaskList("foo")
+            .setTaskQueue("foo")
             .setWorkflowRunTimeout(Duration.ofSeconds(321))
             .setWorkflowTaskTimeout(Duration.ofSeconds(13))
             .setWorkflowIdReusePolicy(
@@ -125,7 +125,7 @@ public class WorkflowOptionsTest {
     Map<String, Object> searchAttributes = getTestSearchAttributes();
     ChildWorkflowOptions o =
         ChildWorkflowOptions.newBuilder()
-            .setTaskList("foo")
+            .setTaskQueue("foo")
             .setWorkflowRunTimeout(Duration.ofSeconds(321))
             .setWorkflowTaskTimeout(Duration.ofSeconds(13))
             .setWorkflowIdReusePolicy(

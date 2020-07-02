@@ -83,7 +83,7 @@ public class ReplayDeciderCacheTests {
     DeciderCache replayDeciderCache = new DeciderCache(10, NoopScope.getInstance());
     PollForDecisionTaskResponse decisionTask1 =
         HistoryUtils.generateDecisionTaskWithInitialHistory(
-            "namespace", "taskList", "workflowType", service);
+            "namespace", "taskQueue", "workflowType", service);
 
     Decider decider =
         replayDeciderCache.getOrCreate(decisionTask1, () -> createFakeDecider(decisionTask1));
@@ -91,7 +91,7 @@ public class ReplayDeciderCacheTests {
 
     PollForDecisionTaskResponse decisionTask2 =
         HistoryUtils.generateDecisionTaskWithPartialHistoryFromExistingTask(
-            decisionTask1, "namespace", "stickyTaskList", service);
+            decisionTask1, "namespace", "stickyTaskQueue", service);
 
     assertEquals(
         decider,
@@ -120,7 +120,7 @@ public class ReplayDeciderCacheTests {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.NAMESPACE, "namespace")
-            .put(MetricsTag.TASK_LIST, "stickyTaskList")
+            .put(MetricsTag.TASK_QUEUE, "stickyTaskQueue")
             .build();
     StatsReporter reporter = mock(StatsReporter.class);
     Scope scope =
@@ -132,7 +132,7 @@ public class ReplayDeciderCacheTests {
     try {
       PollForDecisionTaskResponse decisionTask =
           HistoryUtils.generateDecisionTaskWithInitialHistory(
-              "namespace", "taskList", "workflowType", service);
+              "namespace", "taskQueue", "workflowType", service);
 
       Decider decider =
           replayDeciderCache.getOrCreate(decisionTask, () -> createFakeDecider(decisionTask));
@@ -141,7 +141,7 @@ public class ReplayDeciderCacheTests {
       // Act
       PollForDecisionTaskResponse decisionTask2 =
           HistoryUtils.generateDecisionTaskWithPartialHistoryFromExistingTask(
-              decisionTask, "namespace", "stickyTaskList", service);
+              decisionTask, "namespace", "stickyTaskQueue", service);
       Decider decider2 =
           replayDeciderCache.getOrCreate(
               decisionTask2, () -> doNotCreateFakeDecider(decisionTask2));
@@ -164,7 +164,7 @@ public class ReplayDeciderCacheTests {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.NAMESPACE, "namespace")
-            .put(MetricsTag.TASK_LIST, "stickyTaskList")
+            .put(MetricsTag.TASK_QUEUE, "stickyTaskQueue")
             .build();
     StatsReporter reporter = mock(StatsReporter.class);
     Scope scope =
@@ -194,7 +194,7 @@ public class ReplayDeciderCacheTests {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.NAMESPACE, "namespace")
-            .put(MetricsTag.TASK_LIST, "stickyTaskList")
+            .put(MetricsTag.TASK_QUEUE, "stickyTaskQueue")
             .build();
     StatsReporter reporter = mock(StatsReporter.class);
     Scope scope =

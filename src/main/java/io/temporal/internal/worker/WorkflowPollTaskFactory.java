@@ -30,25 +30,25 @@ public class WorkflowPollTaskFactory
 
   private final WorkflowServiceStubs service;
   private final String namespace;
-  private final String taskList;
+  private final String taskQueue;
   private final Scope metricScope;
   private final String identity;
 
   public WorkflowPollTaskFactory(
       WorkflowServiceStubs service,
       String namespace,
-      String taskList,
+      String taskQueue,
       Scope metricScope,
       String identity) {
     this.service = Objects.requireNonNull(service, "service should not be null");
     this.namespace = Objects.requireNonNull(namespace, "namespace should not be null");
-    this.taskList = Objects.requireNonNull(taskList, "taskList should not be null");
+    this.taskQueue = Objects.requireNonNull(taskQueue, "taskQueue should not be null");
     this.metricScope = Objects.requireNonNull(metricScope, "metricScope should not be null");
     this.identity = Objects.requireNonNull(identity, "identity should not be null");
   }
 
   @Override
   public Poller.PollTask<PollForDecisionTaskResponse> get() {
-    return new WorkflowPollTask(service, namespace, taskList, metricScope, identity);
+    return new WorkflowPollTask(service, namespace, taskQueue, metricScope, identity);
   }
 }

@@ -93,8 +93,8 @@ final class WorkflowContext {
       continueParameters.setWorkflowRunTimeoutSeconds(
           startedAttributes.getWorkflowRunTimeoutSeconds());
     }
-    if (continueParameters.getTaskList() == null) {
-      continueParameters.setTaskList(startedAttributes.getTaskList().getName());
+    if (continueParameters.getTaskQueue() == null) {
+      continueParameters.setTaskQueue(startedAttributes.getTaskQueue().getName());
     }
     if (continueParameters.getWorkflowTaskTimeoutSeconds() == 0) {
       continueParameters.setWorkflowTaskTimeoutSeconds(
@@ -137,9 +137,9 @@ final class WorkflowContext {
     return startedAttributes.getWorkflowTaskTimeoutSeconds();
   }
 
-  String getTaskList() {
+  String getTaskQueue() {
     WorkflowExecutionStartedEventAttributes attributes = getWorkflowStartedEventAttributes();
-    return attributes.getTaskList().getName();
+    return attributes.getTaskQueue().getName();
   }
 
   String getNamespace() {

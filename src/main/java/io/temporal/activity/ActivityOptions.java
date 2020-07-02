@@ -58,7 +58,7 @@ public final class ActivityOptions {
 
     private Duration startToCloseTimeout;
 
-    private String taskList;
+    private String taskQueue;
 
     private RetryOptions retryOptions;
 
@@ -72,7 +72,7 @@ public final class ActivityOptions {
       if (options == null) {
         return;
       }
-      this.taskList = options.taskList;
+      this.taskQueue = options.taskQueue;
       this.heartbeatTimeout = options.heartbeatTimeout;
       this.retryOptions = options.retryOptions;
       this.contextPropagators = options.contextPropagators;
@@ -84,7 +84,7 @@ public final class ActivityOptions {
 
     /**
      * Overall timeout workflow is willing to wait for activity to complete. It includes time in a
-     * task list (use {@link #setScheduleToStartTimeout(Duration)} to limit it) plus activity
+     * task queue (use {@link #setScheduleToStartTimeout(Duration)} to limit it) plus activity
      * execution time (use {@link #setStartToCloseTimeout(Duration)} to limit it). Either this
      * option or both schedule to start and start to close are required.
      */
@@ -94,7 +94,7 @@ public final class ActivityOptions {
     }
 
     /**
-     * Time activity can stay in task list before it is picked up by a worker. If schedule to close
+     * Time activity can stay in task queue before it is picked up by a worker. If schedule to close
      * is not provided then both this and start to close are required.
      */
     public Builder setScheduleToStartTimeout(Duration scheduleToStartTimeout) {
@@ -121,11 +121,11 @@ public final class ActivityOptions {
     }
 
     /**
-     * Task list to use when dispatching activity task to a worker. By default it is the same task
+     * Task queue to use when dispatching activity task to a worker. By default it is the same task
      * list name the workflow was started with.
      */
-    public Builder setTaskList(String taskList) {
-      this.taskList = taskList;
+    public Builder setTaskQueue(String taskQueue) {
+      this.taskQueue = taskQueue;
       return this;
     }
 
@@ -169,7 +169,7 @@ public final class ActivityOptions {
           scheduleToCloseTimeout,
           scheduleToStartTimeout,
           startToCloseTimeout,
-          taskList,
+          taskQueue,
           retryOptions,
           contextPropagators,
           cancellationType);
@@ -181,7 +181,7 @@ public final class ActivityOptions {
           scheduleToCloseTimeout,
           scheduleToStartTimeout,
           startToCloseTimeout,
-          taskList,
+          taskQueue,
           RetryOptions.newBuilder(retryOptions).validateBuildWithDefaults(),
           contextPropagators,
           cancellationType);
@@ -196,7 +196,7 @@ public final class ActivityOptions {
 
   private final Duration startToCloseTimeout;
 
-  private final String taskList;
+  private final String taskQueue;
 
   private final RetryOptions retryOptions;
 
@@ -209,7 +209,7 @@ public final class ActivityOptions {
       Duration scheduleToCloseTimeout,
       Duration scheduleToStartTimeout,
       Duration startToCloseTimeout,
-      String taskList,
+      String taskQueue,
       RetryOptions retryOptions,
       List<ContextPropagator> contextPropagators,
       ActivityCancellationType cancellationType) {
@@ -230,7 +230,7 @@ public final class ActivityOptions {
       this.scheduleToStartTimeout = scheduleToStartTimeout;
       this.startToCloseTimeout = startToCloseTimeout;
     }
-    this.taskList = taskList;
+    this.taskQueue = taskQueue;
     this.retryOptions = retryOptions;
     this.contextPropagators = contextPropagators;
     this.cancellationType = cancellationType;
@@ -252,8 +252,8 @@ public final class ActivityOptions {
     return startToCloseTimeout;
   }
 
-  public String getTaskList() {
-    return taskList;
+  public String getTaskQueue() {
+    return taskQueue;
   }
 
   public RetryOptions getRetryOptions() {
@@ -282,7 +282,7 @@ public final class ActivityOptions {
         && Objects.equal(scheduleToCloseTimeout, that.scheduleToCloseTimeout)
         && Objects.equal(scheduleToStartTimeout, that.scheduleToStartTimeout)
         && Objects.equal(startToCloseTimeout, that.startToCloseTimeout)
-        && Objects.equal(taskList, that.taskList)
+        && Objects.equal(taskQueue, that.taskQueue)
         && Objects.equal(retryOptions, that.retryOptions)
         && Objects.equal(contextPropagators, that.contextPropagators);
   }
@@ -294,7 +294,7 @@ public final class ActivityOptions {
         scheduleToCloseTimeout,
         scheduleToStartTimeout,
         startToCloseTimeout,
-        taskList,
+        taskQueue,
         retryOptions,
         contextPropagators,
         cancellationType);
@@ -311,8 +311,8 @@ public final class ActivityOptions {
         + scheduleToStartTimeout
         + ", startToCloseTimeout="
         + startToCloseTimeout
-        + ", taskList='"
-        + taskList
+        + ", taskQueue='"
+        + taskQueue
         + '\''
         + ", retryOptions="
         + retryOptions

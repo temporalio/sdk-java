@@ -62,19 +62,19 @@ public final class PollDecisionTaskDispatcher
     if (isShutdown()) {
       throw new RejectedExecutionException("shutdown");
     }
-    String taskListName = t.getWorkflowExecutionTaskList().getName();
-    if (subscribers.containsKey(taskListName)) {
-      subscribers.get(taskListName).accept(t);
+    String taskQueueName = t.getWorkflowExecutionTaskQueue().getName();
+    if (subscribers.containsKey(taskQueueName)) {
+      subscribers.get(taskQueueName).accept(t);
     } else {
       Exception exception =
           new Exception(
               String.format(
-                  "No handler is subscribed for the PollForDecisionTaskResponse.WorkflowExecutionTaskList %s",
-                  taskListName));
+                  "No handler is subscribed for the PollForDecisionTaskResponse.WorkflowExecutionTaskQueue %s",
+                  taskQueueName));
       RespondDecisionTaskFailedRequest request =
           RespondDecisionTaskFailedRequest.newBuilder()
               .setTaskToken(t.getTaskToken())
-              .setCause(DecisionTaskFailedCause.DECISION_TASK_FAILED_CAUSE_RESET_STICKY_TASKLIST)
+              .setCause(DecisionTaskFailedCause.DECISION_TASK_FAILED_CAUSE_RESET_STICKY_TASK_QUEUE)
               .setFailure(FailureConverter.exceptionToFailure(exception))
               .build();
       log.warn("unexpected", exception);
@@ -87,8 +87,8 @@ public final class PollDecisionTaskDispatcher
     }
   }
 
-  public void subscribe(String taskList, Consumer<PollForDecisionTaskResponse> consumer) {
-    subscribers.put(taskList, consumer);
+  public void subscribe(String taskQueue, Consumer<PollForDecisionTaskResponse> consumer) {
+    subscribers.put(taskQueue, consumer);
   }
 
   @Override

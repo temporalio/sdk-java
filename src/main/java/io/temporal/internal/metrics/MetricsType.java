@@ -124,8 +124,8 @@ public class MetricsType {
       TEMPORAL_METRICS_PREFIX + "local-activity-execution-latency";
   public static final String WORKER_PANIC_COUNTER = TEMPORAL_METRICS_PREFIX + "worker-panic";
 
-  public static final String TASK_LIST_QUEUE_LATENCY =
-      TEMPORAL_METRICS_PREFIX + "tasklist-queue-latency";
+  public static final String TASK_QUEUE_QUEUE_LATENCY =
+      TEMPORAL_METRICS_PREFIX + "taskqueue-queue-latency";
 
   public static final String UNHANDLED_SIGNALS_COUNTER =
       TEMPORAL_METRICS_PREFIX + "unhandled-signals";

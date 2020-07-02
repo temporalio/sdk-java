@@ -41,7 +41,7 @@ public final class StartChildWorkflowExecutionParameters {
 
     private Payloads input;
 
-    private String taskList;
+    private String taskQueue;
 
     private long workflowTaskTimeoutSeconds;
 
@@ -81,8 +81,8 @@ public final class StartChildWorkflowExecutionParameters {
       return this;
     }
 
-    public Builder setTaskList(String taskList) {
-      this.taskList = taskList;
+    public Builder setTaskQueue(String taskQueue) {
+      this.taskQueue = taskQueue;
       return this;
     }
 
@@ -137,7 +137,7 @@ public final class StartChildWorkflowExecutionParameters {
           input,
           workflowRunTimeoutSeconds,
           workflowExecutionTimeoutSeconds,
-          taskList,
+          taskQueue,
           workflowTaskTimeoutSeconds,
           workflowId,
           workflowType,
@@ -158,7 +158,7 @@ public final class StartChildWorkflowExecutionParameters {
 
   private final Payloads input;
 
-  private final String taskList;
+  private final String taskQueue;
 
   private final long workflowTaskTimeoutSeconds;
 
@@ -183,7 +183,7 @@ public final class StartChildWorkflowExecutionParameters {
       Payloads input,
       long workflowRunTimeoutSeconds,
       long workflowExecutionTimeoutSeconds,
-      String taskList,
+      String taskQueue,
       long workflowTaskTimeoutSeconds,
       String workflowId,
       WorkflowType workflowType,
@@ -197,7 +197,7 @@ public final class StartChildWorkflowExecutionParameters {
     this.input = input;
     this.workflowRunTimeoutSeconds = workflowRunTimeoutSeconds;
     this.workflowExecutionTimeoutSeconds = workflowExecutionTimeoutSeconds;
-    this.taskList = taskList;
+    this.taskQueue = taskQueue;
     this.workflowTaskTimeoutSeconds = workflowTaskTimeoutSeconds;
     this.workflowId = workflowId;
     this.workflowType = workflowType;
@@ -225,8 +225,8 @@ public final class StartChildWorkflowExecutionParameters {
     return input;
   }
 
-  public String getTaskList() {
-    return taskList;
+  public String getTaskQueue() {
+    return taskQueue;
   }
 
   public long getWorkflowTaskTimeoutSeconds() {
@@ -275,7 +275,7 @@ public final class StartChildWorkflowExecutionParameters {
         && workflowTaskTimeoutSeconds == that.workflowTaskTimeoutSeconds
         && Objects.equal(namespace, that.namespace)
         && Objects.equal(input, that.input)
-        && Objects.equal(taskList, that.taskList)
+        && Objects.equal(taskQueue, that.taskQueue)
         && Objects.equal(workflowId, that.workflowId)
         && Objects.equal(workflowType, that.workflowType)
         && workflowIdReusePolicy == that.workflowIdReusePolicy
@@ -293,7 +293,7 @@ public final class StartChildWorkflowExecutionParameters {
         workflowRunTimeoutSeconds,
         workflowExecutionTimeoutSeconds,
         input,
-        taskList,
+        taskQueue,
         workflowTaskTimeoutSeconds,
         workflowId,
         workflowType,
@@ -317,8 +317,8 @@ public final class StartChildWorkflowExecutionParameters {
         + workflowExecutionTimeoutSeconds
         + ", input="
         + input
-        + ", taskList='"
-        + taskList
+        + ", taskQueue='"
+        + taskQueue
         + '\''
         + ", workflowTaskTimeoutSeconds="
         + workflowTaskTimeoutSeconds

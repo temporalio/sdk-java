@@ -41,19 +41,22 @@ import java.util.function.LongSupplier;
 
 public final class LocalActivityWorker implements SuspendableWorker {
 
-  private static final String POLL_THREAD_NAME_PREFIX = "Local Activity Poller taskList=";
+  private static final String POLL_THREAD_NAME_PREFIX = "Local Activity Poller taskQueue=";
 
   private SuspendableWorker poller = new NoopSuspendableWorker();
   private final ActivityTaskHandler handler;
   private final String namespace;
-  private final String taskList;
+  private final String taskQueue;
   private final SingleWorkerOptions options;
   private final LocalActivityPollTask laPollTask;
 
   public LocalActivityWorker(
-      String namespace, String taskList, SingleWorkerOptions options, ActivityTaskHandler handler) {
+      String namespace,
+      String taskQueue,
+      SingleWorkerOptions options,
+      ActivityTaskHandler handler) {
     this.namespace = Objects.requireNonNull(namespace);
-    this.taskList = Objects.requireNonNull(taskList);
+    this.taskQueue = Objects.requireNonNull(taskQueue);
     this.handler = handler;
     this.laPollTask = new LocalActivityPollTask();
 
@@ -62,7 +65,12 @@ public final class LocalActivityWorker implements SuspendableWorker {
       pollerOptions =
           PollerOptions.newBuilder(pollerOptions)
               .setPollThreadNamePrefix(
-                  POLL_THREAD_NAME_PREFIX + "\"" + taskList + "\", namespace=\"" + namespace + "\"")
+                  POLL_THREAD_NAME_PREFIX
+                      + "\""
+                      + taskQueue
+                      + "\", namespace=\""
+                      + namespace
+                      + "\"")
               .build();
     }
     this.options = SingleWorkerOptions.newBuilder(options).setPollerOptions(pollerOptions).build();
@@ -75,7 +83,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
           new Poller<>(
               options.getIdentity(),
               laPollTask,
-              new PollTaskExecutor<>(namespace, taskList, options, new TaskHandlerImpl(handler)),
+              new PollTaskExecutor<>(namespace, taskQueue, options, new TaskHandlerImpl(handler)),
               options.getPollerOptions(),
               options.getMetricsScope());
       poller.start();

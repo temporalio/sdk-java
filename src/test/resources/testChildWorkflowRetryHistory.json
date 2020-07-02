@@ -9,9 +9,9 @@
       "workflowType": {
         "name": "TestWorkflow1"
       },
-      "taskList": {
+      "taskQueue": {
         "name": "WorkflowTest-testChildWorkflowRetry-836697f0-bc49-4533-ae73-38fd03db661f",
-        "kind": "TASK_LIST_KIND_NORMAL"
+        "kind": "TASK_QUEUE_KIND_NORMAL"
       },
       "input": {
         "payloads": [{
@@ -36,7 +36,7 @@
     "version": "-24",
     "taskId": "1050589",
     "decisionTaskScheduledEventAttributes": {
-      "taskList": {
+      "taskQueue": {
         "name": "WorkflowTest-testChildWorkflowRetry-836697f0-bc49-4533-ae73-38fd03db661f"
       },
       "startToCloseTimeoutSeconds": 2
@@ -74,7 +74,7 @@
       "workflowType": {
         "name": "ITestChild"
       },
-      "taskList": {
+      "taskQueue": {
         "name": "WorkflowTest-testChildWorkflowRetry-836697f0-bc49-4533-ae73-38fd03db661f"
       },
       "input": {
@@ -124,7 +124,7 @@
     "version": "-24",
     "taskId": "1050603",
     "decisionTaskScheduledEventAttributes": {
-      "taskList": {
+      "taskQueue": {
         "name": "unknown-mac:d469d90f-bd6c-4410-87bc-9404a8eb3ea6"
       },
       "startToCloseTimeoutSeconds": 2
@@ -184,7 +184,7 @@
     "version": "-24",
     "taskId": "1050614",
     "decisionTaskScheduledEventAttributes": {
-      "taskList": {
+      "taskQueue": {
         "name": "unknown-mac:d469d90f-bd6c-4410-87bc-9404a8eb3ea6"
       },
       "startToCloseTimeoutSeconds": 2

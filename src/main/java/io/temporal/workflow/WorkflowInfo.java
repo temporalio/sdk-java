@@ -35,7 +35,7 @@ public interface WorkflowInfo {
 
   Optional<String> getContinuedExecutionRunId();
 
-  String getTaskList();
+  String getTaskQueue();
 
   Duration getWorkflowRunTimeout();
 

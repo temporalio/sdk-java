@@ -62,7 +62,7 @@ public final class WorkerFactory {
   private final List<Worker> workers = new ArrayList<>();
   private final WorkflowClient workflowClient;
   private final UUID id =
-      UUID.randomUUID(); // Guarantee uniqueness for stickyTaskListName when multiple factories
+      UUID.randomUUID(); // Guarantee uniqueness for stickyTaskQueueName when multiple factories
   private final ThreadPoolExecutor workflowThreadPool;
   private final AtomicInteger workflowThreadCounter = new AtomicInteger();
   private final WorkerFactoryOptions factoryOptions;
@@ -107,7 +107,7 @@ public final class WorkerFactory {
             .tagged(
                 new ImmutableMap.Builder<String, String>(2)
                     .put(MetricsTag.NAMESPACE, workflowClient.getOptions().getNamespace())
-                    .put(MetricsTag.TASK_LIST, workflowClient.getOptions().getIdentity())
+                    .put(MetricsTag.TASK_QUEUE, workflowClient.getOptions().getIdentity())
                     .build());
 
     this.cache = new DeciderCache(this.factoryOptions.getWorkflowCacheSize(), metricsScope);
@@ -119,7 +119,7 @@ public final class WorkerFactory {
             new WorkflowPollTaskFactory(
                     workflowClient.getWorkflowServiceStubs(),
                     workflowClient.getOptions().getNamespace(),
-                    getStickyTaskListName(),
+                    getStickyTaskQueueName(),
                     metricsScope,
                     id.toString())
                 .get(),
@@ -136,12 +136,12 @@ public final class WorkerFactory {
    * configured at the Factory level. New workers cannot be created after the start() has been
    * called
    *
-   * @param taskList task list name worker uses to poll. It uses this name for both decision and
-   *     activity task list polls.
+   * @param taskQueue task queue name worker uses to poll. It uses this name for both decision and
+   *     activity task queue polls.
    * @return Worker
    */
-  public Worker newWorker(String taskList) {
-    return newWorker(taskList, null);
+  public Worker newWorker(String taskQueue) {
+    return newWorker(taskQueue, null);
   }
 
   /**
@@ -149,29 +149,29 @@ public final class WorkerFactory {
    * configured at the Factory level. New workers cannot be created after the start() has been
    * called
    *
-   * @param taskList task list name worker uses to poll. It uses this name for both decision and
-   *     activity task list polls.
+   * @param taskQueue task queue name worker uses to poll. It uses this name for both decision and
+   *     activity task queue polls.
    * @param options Options (like {@link DataConverter} override) for configuring worker.
    * @return Worker
    */
-  public synchronized Worker newWorker(String taskList, WorkerOptions options) {
+  public synchronized Worker newWorker(String taskQueue, WorkerOptions options) {
     Preconditions.checkArgument(
-        !Strings.isNullOrEmpty(taskList), "taskList should not be an empty string");
+        !Strings.isNullOrEmpty(taskQueue), "taskQueue should not be an empty string");
     Preconditions.checkState(
         state == State.Initial,
         String.format(statusErrorMessage, "create new worker", state.name(), State.Initial.name()));
     Worker worker =
         new Worker(
             workflowClient,
-            taskList,
+            taskQueue,
             factoryOptions,
             options,
             cache,
-            getStickyTaskListName(),
+            getStickyTaskQueueName(),
             workflowThreadPool,
             workflowClient.getOptions().getContextPropagators());
     workers.add(worker);
-    dispatcher.subscribe(taskList, worker.workflowWorker);
+    dispatcher.subscribe(taskQueue, worker.workflowWorker);
     return worker;
   }
 
@@ -300,7 +300,7 @@ public final class WorkerFactory {
     return this.cache;
   }
 
-  private String getStickyTaskListName() {
+  private String getStickyTaskQueueName() {
     return String.format("%s:%s", workflowClient.getOptions().getIdentity(), id);
   }
 

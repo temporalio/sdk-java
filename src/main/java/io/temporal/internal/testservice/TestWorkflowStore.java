@@ -39,22 +39,22 @@ interface TestWorkflowStore {
     CLOSED
   }
 
-  class TaskListId {
+  class TaskQueueId {
 
     private final String namespace;
-    private final String taskListName;
+    private final String taskQueueName;
 
-    public TaskListId(String namespace, String taskListName) {
+    public TaskQueueId(String namespace, String taskQueueName) {
       this.namespace = Objects.requireNonNull(namespace);
-      this.taskListName = Objects.requireNonNull(taskListName);
+      this.taskQueueName = Objects.requireNonNull(taskQueueName);
     }
 
     public String getNamespace() {
       return namespace;
     }
 
-    public String getTaskListName() {
-      return taskListName;
+    public String getTaskQueueName() {
+      return taskQueueName;
     }
 
     @Override
@@ -63,33 +63,33 @@ interface TestWorkflowStore {
         return true;
       }
 
-      if (o == null || !(o instanceof TaskListId)) {
+      if (o == null || !(o instanceof TaskQueueId)) {
         return false;
       }
 
-      TaskListId that = (TaskListId) o;
+      TaskQueueId that = (TaskQueueId) o;
 
       if (!namespace.equals(that.namespace)) {
         return false;
       }
-      return taskListName.equals(that.taskListName);
+      return taskQueueName.equals(that.taskQueueName);
     }
 
     @Override
     public int hashCode() {
       int result = namespace.hashCode();
-      result = 31 * result + taskListName.hashCode();
+      result = 31 * result + taskQueueName.hashCode();
       return result;
     }
 
     @Override
     public String toString() {
-      return "TaskListId{"
+      return "TaskQueueId{"
           + "namespace='"
           + namespace
           + '\''
-          + ", taskListName='"
-          + taskListName
+          + ", taskQueueName='"
+          + taskQueueName
           + '\''
           + '}';
     }
@@ -97,16 +97,16 @@ interface TestWorkflowStore {
 
   class DecisionTask {
 
-    private final TaskListId taskListId;
+    private final TaskQueueId taskQueueId;
     private final PollForDecisionTaskResponse.Builder task;
 
-    public DecisionTask(TaskListId taskListId, PollForDecisionTaskResponse.Builder task) {
-      this.taskListId = taskListId;
+    public DecisionTask(TaskQueueId taskQueueId, PollForDecisionTaskResponse.Builder task) {
+      this.taskQueueId = taskQueueId;
       this.task = task;
     }
 
-    public TaskListId getTaskListId() {
-      return taskListId;
+    public TaskQueueId getTaskQueueId() {
+      return taskQueueId;
     }
 
     public PollForDecisionTaskResponse.Builder getTask() {
@@ -116,16 +116,16 @@ interface TestWorkflowStore {
 
   class ActivityTask {
 
-    private final TaskListId taskListId;
+    private final TaskQueueId taskQueueId;
     private final PollForActivityTaskResponse.Builder task;
 
-    public ActivityTask(TaskListId taskListId, PollForActivityTaskResponse.Builder task) {
-      this.taskListId = taskListId;
+    public ActivityTask(TaskQueueId taskQueueId, PollForActivityTaskResponse.Builder task) {
+      this.taskQueueId = taskQueueId;
       this.task = task;
     }
 
-    public TaskListId getTaskListId() {
-      return taskListId;
+    public TaskQueueId getTaskQueueId() {
+      return taskQueueId;
     }
 
     public PollForActivityTaskResponse.Builder getTask() {
@@ -153,7 +153,7 @@ interface TestWorkflowStore {
 
   /** @return queryId */
   void sendQueryTask(
-      ExecutionId executionId, TaskListId taskList, PollForDecisionTaskResponse.Builder task);
+      ExecutionId executionId, TaskQueueId taskQueue, PollForDecisionTaskResponse.Builder task);
 
   GetWorkflowExecutionHistoryResponse getWorkflowExecutionHistory(
       ExecutionId executionId, GetWorkflowExecutionHistoryRequest getRequest, Deadline deadline);

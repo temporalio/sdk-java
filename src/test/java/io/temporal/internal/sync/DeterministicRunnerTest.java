@@ -709,7 +709,7 @@ public class DeterministicRunnerTest {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.NAMESPACE, "namespace")
-            .put(MetricsTag.TASK_LIST, "stickyTaskList")
+            .put(MetricsTag.TASK_QUEUE, "stickyTaskQueue")
             .build();
     StatsReporter reporter = mock(StatsReporter.class);
     Scope scope =

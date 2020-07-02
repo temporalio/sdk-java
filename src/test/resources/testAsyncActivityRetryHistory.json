@@ -9,9 +9,9 @@
       "workflowType": {
         "name": "TestWorkflow1"
       },
-      "taskList": {
+      "taskQueue": {
         "name": "WorkflowTest-testAsyncActivityRetry-a169644b-0a02-453e-b597-118cde6f4553",
-        "kind": "TASK_LIST_KIND_NORMAL"
+        "kind": "TASK_QUEUE_KIND_NORMAL"
       },
       "input": {
         "payloads": [{
@@ -36,7 +36,7 @@
     "version": "-24",
     "taskId": "1049868",
     "decisionTaskScheduledEventAttributes": {
-      "taskList": {
+      "taskQueue": {
         "name": "WorkflowTest-testAsyncActivityRetry-a169644b-0a02-453e-b597-118cde6f4553"
       },
       "startToCloseTimeoutSeconds": 5
@@ -74,7 +74,7 @@
       "activityType": {
         "name": "heartbeatAndThrowIO"
       },
-      "taskList": {
+      "taskQueue": {
         "name": "WorkflowTest-testAsyncActivityRetry-a169644b-0a02-453e-b597-118cde6f4553"
       },
       "scheduleToCloseTimeoutSeconds": 5,
@@ -136,7 +136,7 @@
     "version": "-24",
     "taskId": "1049892",
     "decisionTaskScheduledEventAttributes": {
-      "taskList": {
+      "taskQueue": {
         "name": "unknown-mac:d7a99286-96a0-4b8d-abed-71241055f540"
       },
       "startToCloseTimeoutSeconds": 5

@@ -59,7 +59,7 @@ import io.temporal.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.replay.HistoryHelper.DecisionEvents;
 import io.temporal.internal.worker.WorkflowExecutionException;
-import io.temporal.tasklist.v1.TaskList;
+import io.temporal.taskqueue.v1.TaskQueue;
 import io.temporal.workflowservice.v1.PollForDecisionTaskResponse;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -461,11 +461,11 @@ class DecisionsHelper {
       taskStartToClose = startedEvent.getWorkflowTaskTimeoutSeconds();
     }
     attributes.setWorkflowTaskTimeoutSeconds(taskStartToClose);
-    String taskList = continueParameters.getTaskList();
-    if (taskList == null || taskList.isEmpty()) {
-      taskList = startedEvent.getTaskList().getName();
+    String taskQueue = continueParameters.getTaskQueue();
+    if (taskQueue == null || taskQueue.isEmpty()) {
+      taskQueue = startedEvent.getTaskQueue().getName();
     }
-    attributes.setTaskList(TaskList.newBuilder().setName(taskList).build());
+    attributes.setTaskQueue(TaskQueue.newBuilder().setName(taskQueue).build());
 
     // TODO(maxim): Find out what to do about memo, searchAttributes and header
 

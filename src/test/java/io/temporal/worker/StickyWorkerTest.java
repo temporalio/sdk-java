@@ -128,7 +128,7 @@ public class StickyWorkerTest {
   @Test
   public void whenStickyIsEnabledThenTheWorkflowIsCachedSignals() throws Exception {
     // Arrange
-    String taskListName = "cachedStickyTest_Signal";
+    String taskQueueName = "cachedStickyTest_Signal";
 
     StatsReporter reporter =
         mock(
@@ -147,13 +147,13 @@ public class StickyWorkerTest {
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(scope, WorkerFactoryOptions.newBuilder().build());
     WorkerFactory factory = wrapper.getWorkerFactory();
-    Worker worker = factory.newWorker(taskListName, WorkerOptions.newBuilder().build());
+    Worker worker = factory.newWorker(taskQueueName, WorkerOptions.newBuilder().build());
     worker.registerWorkflowImplementationTypes(GreetingSignalWorkflowImpl.class);
     factory.start();
 
     WorkflowOptions workflowOptions =
         WorkflowOptions.newBuilder()
-            .setTaskList(taskListName)
+            .setTaskQueue(taskQueueName)
             .setWorkflowRunTimeout(Duration.ofDays(30))
             .setWorkflowTaskTimeout(Duration.ofSeconds(30))
             .setWorkflowIdReusePolicy(
@@ -178,7 +178,7 @@ public class StickyWorkerTest {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.NAMESPACE, NAMESPACE)
-            .put(MetricsTag.TASK_LIST, wrapper.getIdentity())
+            .put(MetricsTag.TASK_QUEUE, wrapper.getIdentity())
             .build();
     Thread.sleep(600);
     verify(reporter, atLeastOnce())
@@ -192,7 +192,7 @@ public class StickyWorkerTest {
   @Test
   public void workflowCacheEvictionDueToThreads() {
     // Arrange
-    String taskListName = "workflowCacheEvictionDueToThreads";
+    String taskQueueName = "workflowCacheEvictionDueToThreads";
 
     StatsReporter reporter = mock(StatsReporter.class);
     Scope scope =
@@ -210,7 +210,7 @@ public class StickyWorkerTest {
     WorkerFactory factory = wrapper.getWorkerFactory();
     Worker worker =
         factory.newWorker(
-            taskListName,
+            taskQueueName,
             WorkerOptions.newBuilder().setMaxConcurrentWorkflowTaskExecutionSize(5).build());
     worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
     worker.registerActivitiesImplementations(new ActivitiesImpl());
@@ -218,7 +218,7 @@ public class StickyWorkerTest {
 
     WorkflowOptions workflowOptions =
         WorkflowOptions.newBuilder()
-            .setTaskList(taskListName)
+            .setTaskQueue(taskQueueName)
             .setWorkflowRunTimeout(Duration.ofDays(30))
             .setWorkflowTaskTimeout(Duration.ofSeconds(1))
             .setWorkflowIdReusePolicy(
@@ -232,7 +232,7 @@ public class StickyWorkerTest {
     w.ChainSequence = 2;
     w.ConcurrentCount = 1;
     w.PayloadSizeBytes = 10;
-    w.TaskListName = taskListName;
+    w.TaskQueueName = taskQueueName;
     for (int i = 0; i < count; i++) {
       ActivitiesWorkflow workflow =
           wrapper.getWorkflowClient().newWorkflowStub(ActivitiesWorkflow.class, workflowOptions);
@@ -251,7 +251,7 @@ public class StickyWorkerTest {
   @Test
   public void whenStickyIsEnabledThenTheWorkflowIsCachedActivities() throws Exception {
     // Arrange
-    String taskListName = "cachedStickyTest_Activities";
+    String taskQueueName = "cachedStickyTest_Activities";
 
     StatsReporter reporter = mock(StatsReporter.class);
     Scope scope =
@@ -262,14 +262,14 @@ public class StickyWorkerTest {
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(scope, WorkerFactoryOptions.newBuilder().build());
     WorkerFactory factory = wrapper.getWorkerFactory();
-    Worker worker = factory.newWorker(taskListName, WorkerOptions.newBuilder().build());
+    Worker worker = factory.newWorker(taskQueueName, WorkerOptions.newBuilder().build());
     worker.registerWorkflowImplementationTypes(ActivitiesWorkflowImpl.class);
     worker.registerActivitiesImplementations(new ActivitiesImpl());
     factory.start();
 
     WorkflowOptions workflowOptions =
         WorkflowOptions.newBuilder()
-            .setTaskList(taskListName)
+            .setTaskQueue(taskQueueName)
             .setWorkflowRunTimeout(Duration.ofDays(30))
             .setWorkflowTaskTimeout(Duration.ofSeconds(30))
             .build();
@@ -282,7 +282,7 @@ public class StickyWorkerTest {
     w.ChainSequence = 2;
     w.ConcurrentCount = 1;
     w.PayloadSizeBytes = 10;
-    w.TaskListName = taskListName;
+    w.TaskQueueName = taskQueueName;
     workflow.execute(w);
 
     // Wait for reporter
@@ -292,7 +292,7 @@ public class StickyWorkerTest {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.NAMESPACE, NAMESPACE)
-            .put(MetricsTag.TASK_LIST, wrapper.getIdentity())
+            .put(MetricsTag.TASK_QUEUE, wrapper.getIdentity())
             .build();
     verify(reporter, atLeastOnce())
         .reportCounter(eq(MetricsType.STICKY_CACHE_HIT), eq(tags), anyInt());
@@ -305,7 +305,7 @@ public class StickyWorkerTest {
   @Test
   public void whenStickyIsEnabledThenTheWorkflowIsCachedChildWorkflows() throws Exception {
     // Arrange
-    String taskListName = "cachedStickyTest_ChildWorkflows";
+    String taskQueueName = "cachedStickyTest_ChildWorkflows";
 
     StatsReporter reporter = mock(StatsReporter.class);
     Scope scope =
@@ -316,14 +316,14 @@ public class StickyWorkerTest {
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(scope, WorkerFactoryOptions.newBuilder().build());
     WorkerFactory factory = wrapper.getWorkerFactory();
-    Worker worker = factory.newWorker(taskListName, WorkerOptions.newBuilder().build());
+    Worker worker = factory.newWorker(taskQueueName, WorkerOptions.newBuilder().build());
     worker.registerWorkflowImplementationTypes(
         GreetingParentWorkflowImpl.class, GreetingChildImpl.class);
     factory.start();
 
     WorkflowOptions workflowOptions =
         WorkflowOptions.newBuilder()
-            .setTaskList(taskListName)
+            .setTaskQueue(taskQueueName)
             .setWorkflowRunTimeout(Duration.ofDays(30))
             .setWorkflowTaskTimeout(Duration.ofSeconds(30))
             .build();
@@ -340,7 +340,7 @@ public class StickyWorkerTest {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.NAMESPACE, NAMESPACE)
-            .put(MetricsTag.TASK_LIST, wrapper.getIdentity())
+            .put(MetricsTag.TASK_QUEUE, wrapper.getIdentity())
             .build();
     verify(reporter, atLeastOnce())
         .reportCounter(eq(MetricsType.STICKY_CACHE_HIT), eq(tags), anyInt());
@@ -352,7 +352,7 @@ public class StickyWorkerTest {
   @Test
   public void whenStickyIsEnabledThenTheWorkflowIsCachedMutableSideEffect() throws Exception {
     // Arrange
-    String taskListName = "cachedStickyTest_MutableSideEffect";
+    String taskQueueName = "cachedStickyTest_MutableSideEffect";
 
     StatsReporter reporter = mock(StatsReporter.class);
     Scope scope =
@@ -363,13 +363,13 @@ public class StickyWorkerTest {
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(scope, WorkerFactoryOptions.newBuilder().build());
     WorkerFactory factory = wrapper.getWorkerFactory();
-    Worker worker = factory.newWorker(taskListName, WorkerOptions.newBuilder().build());
+    Worker worker = factory.newWorker(taskQueueName, WorkerOptions.newBuilder().build());
     worker.registerWorkflowImplementationTypes(TestMutableSideEffectWorkflowImpl.class);
     factory.start();
 
     WorkflowOptions workflowOptions =
         WorkflowOptions.newBuilder()
-            .setTaskList(taskListName)
+            .setTaskQueue(taskQueueName)
             .setWorkflowRunTimeout(Duration.ofDays(30))
             .setWorkflowTaskTimeout(Duration.ofSeconds(30))
             .build();
@@ -384,8 +384,8 @@ public class StickyWorkerTest {
     values.add(1234L);
     values.add(123L); // expected to be ignored as it is smaller than 1234.
     values.add(3456L);
-    mutableSideEffectValue.put(taskListName, values);
-    String result = workflow.execute(taskListName);
+    mutableSideEffectValue.put(taskQueueName, values);
+    String result = workflow.execute(taskQueueName);
     assertEquals("1234, 1234, 1234, 3456", result);
 
     // Wait for reporter
@@ -395,7 +395,7 @@ public class StickyWorkerTest {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)
             .put(MetricsTag.NAMESPACE, NAMESPACE)
-            .put(MetricsTag.TASK_LIST, wrapper.getIdentity())
+            .put(MetricsTag.TASK_QUEUE, wrapper.getIdentity())
             .build();
     verify(reporter, atLeastOnce())
         .reportCounter(eq(MetricsType.STICKY_CACHE_HIT), eq(tags), anyInt());
@@ -407,18 +407,18 @@ public class StickyWorkerTest {
   @Test
   public void whenCacheIsEvictedTheWorkerCanRecover() throws Exception {
     // Arrange
-    String taskListName = "evictedStickyTest";
+    String taskQueueName = "evictedStickyTest";
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
             NoopScope.getInstance(), WorkerFactoryOptions.newBuilder().build());
     WorkerFactory factory = wrapper.getWorkerFactory();
-    Worker worker = factory.newWorker(taskListName);
+    Worker worker = factory.newWorker(taskQueueName);
     worker.registerWorkflowImplementationTypes(GreetingSignalWorkflowImpl.class);
     factory.start();
 
     WorkflowOptions workflowOptions =
         WorkflowOptions.newBuilder()
-            .setTaskList(taskListName)
+            .setTaskQueue(taskQueueName)
             .setWorkflowRunTimeout(Duration.ofDays(30))
             .setWorkflowTaskTimeout(Duration.ofSeconds(30))
             .setWorkflowIdReusePolicy(
@@ -449,18 +449,18 @@ public class StickyWorkerTest {
   @Test
   public void workflowsCanBeQueried() throws Exception {
     // Arrange
-    String taskListName = "queryStickyTest";
+    String taskQueueName = "queryStickyTest";
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
             NoopScope.getInstance(), WorkerFactoryOptions.newBuilder().build());
     WorkerFactory factory = wrapper.getWorkerFactory();
-    Worker worker = factory.newWorker(taskListName);
+    Worker worker = factory.newWorker(taskQueueName);
     worker.registerWorkflowImplementationTypes(GreetingSignalWorkflowImpl.class);
     factory.start();
 
     WorkflowOptions workflowOptions =
         WorkflowOptions.newBuilder()
-            .setTaskList(taskListName)
+            .setTaskQueue(taskQueueName)
             .setWorkflowRunTimeout(Duration.ofDays(30))
             .setWorkflowTaskTimeout(Duration.ofSeconds(30))
             .setWorkflowIdReusePolicy(
@@ -495,18 +495,18 @@ public class StickyWorkerTest {
   @Test
   public void workflowsCanBeQueriedAfterEviction() throws Exception {
     // Arrange
-    String taskListName = "queryEvictionStickyTest";
+    String taskQueueName = "queryEvictionStickyTest";
     TestEnvironmentWrapper wrapper =
         new TestEnvironmentWrapper(
             NoopScope.getInstance(), WorkerFactoryOptions.newBuilder().build());
     WorkerFactory factory = wrapper.getWorkerFactory();
-    Worker worker = factory.newWorker(taskListName);
+    Worker worker = factory.newWorker(taskQueueName);
     worker.registerWorkflowImplementationTypes(GreetingSignalWorkflowImpl.class);
     factory.start();
 
     WorkflowOptions workflowOptions =
         WorkflowOptions.newBuilder()
-            .setTaskList(taskListName)
+            .setTaskQueue(taskQueueName)
             .setWorkflowRunTimeout(Duration.ofDays(30))
             .setWorkflowTaskTimeout(Duration.ofSeconds(30))
             .setWorkflowIdReusePolicy(
@@ -591,7 +591,7 @@ public class StickyWorkerTest {
 
     public int ChainSequence;
     public int ConcurrentCount;
-    public String TaskListName;
+    public String TaskQueueName;
     public int PayloadSizeBytes;
     public long TemporalSleepMillis;
   }
@@ -688,7 +688,7 @@ public class StickyWorkerTest {
           Workflow.newActivityStub(
               SleepActivity.class,
               ActivityOptions.newBuilder()
-                  .setTaskList(params.TaskListName)
+                  .setTaskQueue(params.TaskQueueName)
                   .setScheduleToStartTimeout(Duration.ofMinutes(1))
                   .setStartToCloseTimeout(Duration.ofMinutes(1))
                   .setHeartbeatTimeout(Duration.ofSeconds(20))
@@ -730,7 +730,7 @@ public class StickyWorkerTest {
   public interface TestMutableSideEffectWorkflow {
 
     @WorkflowMethod
-    String execute(String taskList);
+    String execute(String taskQueue);
   }
 
   private static final Map<String, Queue<Long>> mutableSideEffectValue =
@@ -739,7 +739,7 @@ public class StickyWorkerTest {
   public static class TestMutableSideEffectWorkflowImpl implements TestMutableSideEffectWorkflow {
 
     @Override
-    public String execute(String taskList) {
+    public String execute(String taskQueue) {
       StringBuilder result = new StringBuilder();
       for (int i = 0; i < 4; i++) {
         long value =
@@ -747,7 +747,7 @@ public class StickyWorkerTest {
                 "id1",
                 Long.class,
                 (o, n) -> n > o,
-                () -> mutableSideEffectValue.get(taskList).poll());
+                () -> mutableSideEffectValue.get(taskQueue).poll());
         if (result.length() > 0) {
           result.append(", ");
         }
