@@ -36,7 +36,7 @@ public class WorkflowServiceStubsOptions {
   private static final String LOCAL_DOCKER_TARGET = "127.0.0.1:7233";
 
   /** Default RPC timeout used for all non long poll calls. */
-  private static final long DEFAULT_RPC_TIMEOUT_MILLIS = 1000;
+  private static final long DEFAULT_RPC_TIMEOUT_MILLIS = 10000;
   /** Default RPC timeout used for all long poll calls. */
   private static final long DEFAULT_POLL_RPC_TIMEOUT_MILLIS = 121 * 1000;
   /** Default RPC timeout for QueryWorkflow */
