@@ -222,9 +222,10 @@ public final class Worker implements Suspendable {
   }
 
   /**
-   * Register workflow implementation classes with a worker. Overwrites previously registered types.
-   * A workflow implementation class must implement at least one interface with a method annotated
-   * with {@link WorkflowMethod}. That method becomes a workflow type that this worker supports.
+   * Registers workflow implementation classes with a worker. Can be called multiple times to add
+   * more types. A workflow implementation class must implement at least one interface with a method
+   * annotated with {@link WorkflowMethod}. That method becomes a workflow type that this worker
+   * supports.
    *
    * <p>Implementations that share a worker must implement different interfaces as a workflow type
    * is identified by the workflow interface, not by the implementation.
@@ -237,14 +238,15 @@ public final class Worker implements Suspendable {
         !started.get(),
         "registerWorkflowImplementationTypes is not allowed after worker has started");
 
-    workflowWorker.setWorkflowImplementationTypes(
-        new WorkflowImplementationOptions.Builder().build(), workflowImplementationClasses);
+    workflowWorker.addWorkflowImplementationTypes(
+        WorkflowImplementationOptions.newBuilder().build(), workflowImplementationClasses);
   }
 
   /**
-   * Register workflow implementation classes with a worker. Overwrites previously registered types.
-   * A workflow implementation class must implement at least one interface with a method annotated
-   * with {@link WorkflowMethod}. That method becomes a workflow type that this worker supports.
+   * Registers workflow implementation classes with a worker. Can be called multiple times to add *
+   * more types. A workflow implementation class must implement at least one interface with a method
+   * annotated with {@link WorkflowMethod}. That method becomes a workflow type that this worker
+   * supports.
    *
    * <p>Implementations that share a worker must implement different interfaces as a workflow type
    * is identified by the workflow interface, not by the implementation.
@@ -258,7 +260,7 @@ public final class Worker implements Suspendable {
         !started.get(),
         "registerWorkflowImplementationTypes is not allowed after worker has started");
 
-    workflowWorker.setWorkflowImplementationTypes(options, workflowImplementationClasses);
+    workflowWorker.addWorkflowImplementationTypes(options, workflowImplementationClasses);
   }
 
   /**

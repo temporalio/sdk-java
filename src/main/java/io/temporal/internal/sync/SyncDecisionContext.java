@@ -560,18 +560,40 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
 
   @Override
   public <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func) {
-    DataConverter dataConverter = getDataConverter();
-    Optional<Payloads> result =
-        context.sideEffect(
-            () -> {
-              R r = func.apply();
-              return dataConverter.toPayloads(r);
-            });
-    return dataConverter.fromPayloads(result, resultClass, resultType);
+    try {
+      DataConverter dataConverter = getDataConverter();
+      Optional<Payloads> result =
+          context.sideEffect(
+              () -> {
+                R r = func.apply();
+                return dataConverter.toPayloads(r);
+              });
+      return dataConverter.fromPayloads(result, resultClass, resultType);
+    } catch (Error e) {
+      throw e;
+    } catch (Exception e) {
+      // SideEffect cannot throw normal exception as it can lead to non deterministic behavior
+      // So fail the decision task by throwing an Error.
+      throw new Error(e);
+    }
   }
 
   @Override
   public <R> R mutableSideEffect(
+      String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
+    try {
+      return mutableSideEffectImpl(id, resultClass, resultType, updated, func);
+    } catch (Error e) {
+      throw e;
+    } catch (Exception e) {
+      // MutableSideEffect cannot throw normal exception as it can lead to non deterministic
+      // behavior
+      // So fail the decision task by throwing an Error.
+      throw new Error(e);
+    }
+  }
+
+  private <R> R mutableSideEffectImpl(
       String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
     AtomicReference<R> unserializedResult = new AtomicReference<>();
     Optional<Payloads> payloads =

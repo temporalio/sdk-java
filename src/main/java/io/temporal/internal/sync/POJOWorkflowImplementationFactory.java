@@ -93,9 +93,8 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
     this.contextPropagators = contextPropagators;
   }
 
-  void setWorkflowImplementationTypes(
+  void addWorkflowImplementationTypes(
       WorkflowImplementationOptions options, Class<?>[] workflowImplementationTypes) {
-    workflowDefinitions.clear();
     for (Class<?> type : workflowImplementationTypes) {
       addWorkflowImplementationType(options, type);
     }
@@ -103,7 +102,7 @@ final class POJOWorkflowImplementationFactory implements ReplayWorkflowFactory {
 
   <R> void addWorkflowImplementationFactory(Class<R> clazz, Functions.Func<R> factory) {
     WorkflowImplementationOptions unitTestingOptions =
-        new WorkflowImplementationOptions.Builder().setWorkflowErrorPolicy(FailWorkflow).build();
+        WorkflowImplementationOptions.newBuilder().setWorkflowErrorPolicy(FailWorkflow).build();
     addWorkflowImplementationFactory(unitTestingOptions, clazz, factory);
   }
 

@@ -5152,7 +5152,7 @@ public class WorkflowTest {
   @Test
   public void testNonDeterministicWorkflowPolicyFailWorkflow() {
     WorkflowImplementationOptions implementationOptions =
-        new WorkflowImplementationOptions.Builder()
+        WorkflowImplementationOptions.newBuilder()
             .setWorkflowErrorPolicy(WorkflowErrorPolicy.FailWorkflow)
             .build();
     worker.registerWorkflowImplementationTypes(
