@@ -13,8 +13,10 @@ plugins {
     id 'com.palantir.git-version' version '0.12.3'
     id 'maven-publish'
     id 'signing'
-    id "de.marcphilipp.nexus-publish" version "0.4.0"
-    id 'com.github.ben-manes.versions' version '0.17.0' // gradle dependencyUpdates to learn about new versions
+    id 'de.marcphilipp.nexus-publish' version '0.4.0'
+    // gradle dependencyUpdates to learn about new versions
+    id 'se.patrikerdes.use-latest-versions' version '0.2.14'
+    id 'com.github.ben-manes.versions' version '0.21.0'
 }
 
 repositories {
