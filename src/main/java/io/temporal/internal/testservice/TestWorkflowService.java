@@ -23,7 +23,6 @@ import com.google.common.base.Throwables;
 import io.grpc.Context;
 import io.grpc.Deadline;
 import io.grpc.ManagedChannel;
-import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.inprocess.InProcessChannelBuilder;
@@ -144,12 +143,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   public TestWorkflowService() {
     serverName = InProcessServerBuilder.generateName();
     try {
-      Server server =
-          InProcessServerBuilder.forName(serverName)
-              .directExecutor()
-              .addService(this)
-              .build()
-              .start();
+      InProcessServerBuilder.forName(serverName).directExecutor().addService(this).build().start();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
