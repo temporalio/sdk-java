@@ -1,3 +1,5 @@
+// Run 'gradle checkUpdates' to find out which dependencies have newer versions
+
 buildscript {
     dependencies {
         classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.12'
@@ -14,9 +16,7 @@ plugins {
     id 'maven-publish'
     id 'signing'
     id 'de.marcphilipp.nexus-publish' version '0.4.0'
-    // gradle dependencyUpdates to learn about new versions
-    id 'se.patrikerdes.use-latest-versions' version '0.2.14'
-    id 'com.github.ben-manes.versions' version '0.21.0'
+    id 'name.remal.check-updates' version '1.0.200'
 }
 
 repositories {
@@ -105,8 +105,8 @@ dependencies {
     implementation group: 'com.cronutils', name: 'cron-utils', version: '9.0.2'
     implementation 'io.grpc:grpc-netty-shaded:1.30.2'
     implementation group: 'com.google.protobuf', name: 'protobuf-java-util', version: '3.12.2'
-    implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.11.0'
-    implementation group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: '2.11.0'
+    implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.11.1'
+    implementation group: 'com.fasterxml.jackson.datatype', name: 'jackson-datatype-jsr310', version: '2.11.1'
 
     testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
     testImplementation group: 'com.googlecode.junit-toolbox', name: 'junit-toolbox', version: '2.4'
