@@ -270,7 +270,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
 
     @Override
     public ActivityTaskHandler.Result execute(ActivityInfoImpl info, Scope metricsScope) {
-      ActivityExecutionContext context = new LocalActivityExecutionContextImpl(info);
+      ActivityExecutionContext context = new LocalActivityExecutionContextImpl(info, metricsScope);
       CurrentActivityExecutionContext.set(context);
       Optional<Payloads> input = info.getInput();
       try {

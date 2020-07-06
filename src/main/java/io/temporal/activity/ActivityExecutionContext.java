@@ -89,5 +89,5 @@ public interface ActivityExecutionContext {
 
   boolean isDoNotCompleteOnReturn();
 
-  Scope getMetricScope();
+  Scope getMetricsScope();
 }

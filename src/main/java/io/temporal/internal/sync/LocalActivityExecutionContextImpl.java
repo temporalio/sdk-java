@@ -28,9 +28,11 @@ import java.util.Optional;
 
 class LocalActivityExecutionContextImpl implements ActivityExecutionContext {
   private final ActivityInfo info;
+  private final Scope metricsScope;
 
-  LocalActivityExecutionContextImpl(ActivityInfo info) {
+  LocalActivityExecutionContextImpl(ActivityInfo info, Scope metricsScope) {
     this.info = info;
+    this.metricsScope = metricsScope;
   }
 
   @Override
@@ -40,8 +42,7 @@ class LocalActivityExecutionContextImpl implements ActivityExecutionContext {
 
   @Override
   public <V> void heartbeat(V details) throws ActivityCompletionException {
-    throw new UnsupportedOperationException(
-        "recordActivityHeartbeat is not supported for local activities");
+    // Ignored
   }
 
   @Override
@@ -51,8 +52,7 @@ class LocalActivityExecutionContextImpl implements ActivityExecutionContext {
 
   @Override
   public <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsType) {
-    throw new UnsupportedOperationException(
-        "getHeartbeatDetails is not supported for local activities");
+    return Optional.empty();
   }
 
   @Override
@@ -73,7 +73,7 @@ class LocalActivityExecutionContextImpl implements ActivityExecutionContext {
   }
 
   @Override
-  public Scope getMetricScope() {
-    throw new UnsupportedOperationException("getTaskToken is not supported for local activities");
+  public Scope getMetricsScope() {
+    return metricsScope;
   }
 }

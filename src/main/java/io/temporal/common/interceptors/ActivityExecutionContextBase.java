@@ -70,7 +70,7 @@ public class ActivityExecutionContextBase implements ActivityExecutionContext {
   }
 
   @Override
-  public Scope getMetricScope() {
-    return next.getMetricScope();
+  public Scope getMetricsScope() {
+    return next.getMetricsScope();
   }
 }

@@ -223,7 +223,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   }
 
   @Override
-  public Scope getMetricScope() {
+  public Scope getMetricsScope() {
     return metricScope;
   }
 
