@@ -23,6 +23,7 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.common.RetryOptions;
+import io.temporal.common.v1.RetryPolicy;
 import io.temporal.history.v1.HistoryEvent;
 import io.temporal.internal.common.LocalActivityMarkerData;
 import io.temporal.internal.metrics.MetricsTag;
@@ -200,8 +201,9 @@ public final class LocalActivityWorker implements SuspendableWorker {
       ActivityTaskHandler.Result result = handleLocalActivity(task);
 
       LocalActivityMarkerData.Builder markerBuilder = new LocalActivityMarkerData.Builder();
-      markerBuilder.setActivityId(task.params.getActivityId());
-      markerBuilder.setActivityType(task.params.getActivityType());
+      PollForActivityTaskResponse.Builder activityTask = task.params.getActivityTask();
+      markerBuilder.setActivityId(activityTask.getActivityId());
+      markerBuilder.setActivityType(activityTask.getActivityType());
       long replayTimeMillis =
           task.currentTimeMillis.getAsLong()
               + (System.currentTimeMillis() - task.replayTimeUpdatedAtMillis.getAsLong());
@@ -230,66 +232,47 @@ public final class LocalActivityWorker implements SuspendableWorker {
     }
 
     private ActivityTaskHandler.Result handleLocalActivity(Task task) throws InterruptedException {
-      ExecuteLocalActivityParameters p = task.params;
+      ExecuteLocalActivityParameters params = task.params;
+      PollForActivityTaskResponse.Builder activityTask = params.getActivityTask();
       Map<String, String> activityTypeTag =
           new ImmutableMap.Builder<String, String>(1)
-              .put(MetricsTag.ACTIVITY_TYPE, p.getActivityType().getName())
+              .put(MetricsTag.ACTIVITY_TYPE, activityTask.getActivityType().getName())
               .build();
 
       Scope metricsScope = options.getMetricsScope().tagged(activityTypeTag);
       metricsScope.counter(MetricsType.LOCAL_ACTIVITY_TOTAL_COUNTER).inc(1);
 
-      PollForActivityTaskResponse.Builder pollTask =
-          PollForActivityTaskResponse.newBuilder()
-              .setWorkflowNamespace(p.getWorkflowNamespace())
-              .setActivityId(p.getActivityId())
-              .setWorkflowExecution(p.getWorkflowExecution())
-              .setScheduledTimestamp(System.currentTimeMillis())
-              .setStartedTimestamp(System.currentTimeMillis())
-              .setActivityType(p.getActivityType())
-              .setAttempt(p.getAttempt());
-
-      Duration scheduleToCloseTimeout = p.getScheduleToCloseTimeout();
-      if (scheduleToCloseTimeout != null) {
-        pollTask.setScheduleToCloseTimeoutSeconds(
-            (int) Math.ceil(scheduleToCloseTimeout.toMillis() / 1000f));
-      } else {
-        pollTask.setScheduleToCloseTimeoutSeconds(task.decisionTimeoutSeconds);
-      }
-      Duration startToCloseTimeout = p.getStartToCloseTimeout();
-      if (startToCloseTimeout != null) {
-        pollTask.setStartToCloseTimeoutSeconds(
-            (int) Math.ceil(startToCloseTimeout.toMillis() / 1000f));
-      } else {
-        pollTask.setStartToCloseTimeoutSeconds(pollTask.getScheduleToCloseTimeoutSeconds());
-      }
-      if (p.getInput() != null) {
-        pollTask.setInput(p.getInput());
-      }
       Stopwatch sw = metricsScope.timer(MetricsType.LOCAL_ACTIVITY_EXECUTION_LATENCY).start();
-      ActivityTaskHandler.Result result = handler.handle(pollTask.build(), metricsScope, true);
+      ActivityTaskHandler.Result result = handler.handle(activityTask.build(), metricsScope, true);
       sw.stop();
-      result.setAttempt(p.getAttempt());
+      int attempt = activityTask.getAttempt();
+      result.setAttempt(attempt);
 
       if (result.getTaskCompleted() != null
           || result.getTaskCancelled() != null
-          || p.getRetryOptions() == null) {
+          || !activityTask.hasRetryPolicy()) {
         return result;
       }
 
-      RetryOptions retryOptions = p.getRetryOptions();
-      long sleepMillis = retryOptions.calculateSleepTime(p.getAttempt());
+      RetryPolicy retryPolicy = activityTask.getRetryPolicy();
+      String[] doNotRetry = new String[retryPolicy.getNonRetryableErrorTypesCount()];
+      retryPolicy.getNonRetryableErrorTypesList().toArray(doNotRetry);
+      RetryOptions retryOptions =
+          RetryOptions.newBuilder()
+              .setMaximumInterval(Duration.ofSeconds(retryPolicy.getMaximumIntervalInSeconds()))
+              .setInitialInterval(Duration.ofSeconds(retryPolicy.getInitialIntervalInSeconds()))
+              .setMaximumAttempts(retryPolicy.getMaximumAttempts())
+              .setBackoffCoefficient(retryPolicy.getBackoffCoefficient())
+              .setDoNotRetry(doNotRetry)
+              .build();
+      long sleepMillis = retryOptions.calculateSleepTime(attempt);
       long elapsedTask = System.currentTimeMillis() - task.taskStartTime;
-      long elapsedTotal = elapsedTask + p.getElapsedTime();
-      int timeoutSeconds = pollTask.getScheduleToCloseTimeoutSeconds();
+      long elapsedTotal = elapsedTask + params.getElapsedTime();
+      int timeoutSeconds = activityTask.getScheduleToCloseTimeoutSeconds();
       Optional<Duration> expiration =
           timeoutSeconds > 0 ? Optional.of(Duration.ofSeconds(timeoutSeconds)) : Optional.empty();
       if (retryOptions.shouldRethrow(
-          result.getTaskFailed().getFailure(),
-          expiration,
-          p.getAttempt(),
-          elapsedTotal,
-          sleepMillis)) {
+          result.getTaskFailed().getFailure(), expiration, attempt, elapsedTotal, sleepMillis)) {
         return result;
       } else {
         result.setBackoff(Duration.ofMillis(sleepMillis));
@@ -298,7 +281,7 @@ public final class LocalActivityWorker implements SuspendableWorker {
       // For small backoff we do local retry. Otherwise we will schedule timer on server side.
       if (elapsedTask + sleepMillis < task.decisionTimeoutSeconds * 1000) {
         Thread.sleep(sleepMillis);
-        p.setAttempt(p.getAttempt() + 1);
+        activityTask.setAttempt(attempt + 1);
         return handleLocalActivity(task);
       } else {
         return result;

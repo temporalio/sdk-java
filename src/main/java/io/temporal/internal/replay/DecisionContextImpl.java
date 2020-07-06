@@ -26,6 +26,8 @@ import io.temporal.common.v1.Payloads;
 import io.temporal.common.v1.SearchAttributes;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.common.v1.WorkflowType;
+import io.temporal.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
+import io.temporal.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.enums.v1.DecisionTaskFailedCause;
 import io.temporal.history.v1.DecisionTaskFailedEventAttributes;
 import io.temporal.history.v1.HistoryEvent;
@@ -39,7 +41,6 @@ import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflowservice.v1.PollForDecisionTaskResponseOrBuilder;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -66,7 +67,6 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   DecisionContextImpl(
       DecisionsHelper decisionsHelper,
       String namespace,
-      PollForDecisionTaskResponseOrBuilder decisionTask,
       WorkflowExecutionStartedEventAttributes startedAttributes,
       long runStartedTimestampMillis,
       SingleWorkerOptions options,
@@ -76,7 +76,7 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
     this.workflowContext =
         new WorkflowContext(
             namespace,
-            decisionTask,
+            decisionsHelper.getTask(),
             startedAttributes,
             runStartedTimestampMillis,
             options.getContextPropagators());
@@ -139,14 +139,14 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   }
 
   @Override
-  public ContinueAsNewWorkflowExecutionParameters getContinueAsNewOnCompletion() {
+  public ContinueAsNewWorkflowExecutionDecisionAttributes getContinueAsNewOnCompletion() {
     return workflowContext.getContinueAsNewOnCompletion();
   }
 
   @Override
   public void setContinueAsNewOnCompletion(
-      ContinueAsNewWorkflowExecutionParameters continueParameters) {
-    workflowContext.setContinueAsNewOnCompletion(continueParameters);
+      ContinueAsNewWorkflowExecutionDecisionAttributes attributes) {
+    workflowContext.setContinueAsNewOnCompletion(attributes);
   }
 
   @Override
@@ -236,8 +236,9 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
 
   @Override
   public Consumer<Exception> signalWorkflowExecution(
-      SignalExternalWorkflowParameters signalParameters, BiConsumer<Void, Exception> callback) {
-    return workflowClient.signalWorkflowExecution(signalParameters, callback);
+      SignalExternalWorkflowExecutionDecisionAttributes.Builder attributes,
+      BiConsumer<Void, Exception> callback) {
+    return workflowClient.signalWorkflowExecution(attributes, callback);
   }
 
   @Override
@@ -248,8 +249,9 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
   }
 
   @Override
-  public void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionParameters parameters) {
-    workflowClient.continueAsNewOnCompletion(parameters);
+  public void continueAsNewOnCompletion(
+      ContinueAsNewWorkflowExecutionDecisionAttributes attributes) {
+    workflowClient.continueAsNewOnCompletion(attributes);
   }
 
   void setReplayCurrentTimeMilliseconds(long replayCurrentTimeMilliseconds) {

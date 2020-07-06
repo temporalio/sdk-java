@@ -693,7 +693,8 @@ public class WorkflowTestingTest {
   @Test
   public void testChild() {
     Worker worker = testEnvironment.newWorker(TASK_QUEUE);
-    worker.registerWorkflowImplementationTypes(ChildWorkflowImpl.class, ParentWorkflowImpl.class);
+    worker.registerWorkflowImplementationTypes(ParentWorkflowImpl.class);
+    worker.registerWorkflowImplementationTypes(ChildWorkflowImpl.class);
     testEnvironment.start();
     WorkflowClient client = testEnvironment.getWorkflowClient();
     WorkflowOptions options =

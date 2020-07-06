@@ -67,7 +67,7 @@ class SyncWorkflow implements ReplayWorkflow {
     this.workflow = Objects.requireNonNull(workflow);
     this.workflowImplementationOptions =
         workflowImplementationOptions == null
-            ? new WorkflowImplementationOptions.Builder().build()
+            ? WorkflowImplementationOptions.newBuilder().build()
             : workflowImplementationOptions;
     this.dataConverter = Objects.requireNonNull(dataConverter);
     this.threadPool = Objects.requireNonNull(threadPool);

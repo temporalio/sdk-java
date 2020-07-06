@@ -320,10 +320,10 @@ public class ReplayDeciderCacheTests {
 
           @Override
           public WorkflowImplementationOptions getWorkflowImplementationOptions() {
-            return new WorkflowImplementationOptions.Builder().build();
+            return WorkflowImplementationOptions.newBuilder().build();
           }
         },
-        new DecisionsHelper(response.toBuilder()),
+        response.toBuilder(),
         SingleWorkerOptions.newBuilder().build(),
         (a, d) -> true);
   }

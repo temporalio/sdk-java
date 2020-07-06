@@ -73,6 +73,7 @@ import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
+import io.temporal.failure.TerminatedFailure;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.history.v1.HistoryEvent;
 import io.temporal.internal.common.SearchAttributesUtil;
@@ -1100,6 +1101,24 @@ public class WorkflowTest {
     }
   }
 
+  @Test
+  public void testWorkflowTermination() throws InterruptedException {
+    startWorkerFor(TestSyncWorkflowImpl.class);
+    WorkflowStub client =
+        workflowClient.newUntypedWorkflowStub(
+            "TestWorkflow1", newWorkflowOptionsBuilder(taskQueue).build());
+    client.start(taskQueue);
+    Thread.sleep(1000);
+    client.terminate("boo", "detail1", "detail2");
+    try {
+      client.getResult(String.class);
+      fail("unreachable");
+    } catch (WorkflowFailedException ignored) {
+      assertTrue(ignored.getCause() instanceof TerminatedFailure);
+      assertEquals("boo", ((TerminatedFailure) ignored.getCause()).getOriginalMessage());
+    }
+  }
+
   public static class TestCancellationScopePromise implements TestWorkflow1 {
 
     @Override
@@ -1472,8 +1491,16 @@ public class WorkflowTest {
         assertEquals(continueAsNewTaskQueue, taskQueue);
         return 111;
       }
+      Map<String, Object> memo = new HashMap<>();
+      memo.put("myKey", "MyValue");
+      Map<String, Object> searchAttributes = new HashMap<>();
+      searchAttributes.put("CustomKeywordField", "foo1");
       ContinueAsNewOptions options =
-          ContinueAsNewOptions.newBuilder().setTaskQueue(continueAsNewTaskQueue).build();
+          ContinueAsNewOptions.newBuilder()
+              .setTaskQueue(continueAsNewTaskQueue)
+              .setMemo(memo)
+              .setSearchAttributes(searchAttributes)
+              .build();
       TestContinueAsNew next = Workflow.newContinueAsNewStub(TestContinueAsNew.class, options);
       next.execute(count - 1, continueAsNewTaskQueue);
       throw new RuntimeException("unreachable");
@@ -5125,7 +5152,7 @@ public class WorkflowTest {
   @Test
   public void testNonDeterministicWorkflowPolicyFailWorkflow() {
     WorkflowImplementationOptions implementationOptions =
-        new WorkflowImplementationOptions.Builder()
+        WorkflowImplementationOptions.newBuilder()
             .setWorkflowErrorPolicy(WorkflowErrorPolicy.FailWorkflow)
             .build();
     worker.registerWorkflowImplementationTypes(

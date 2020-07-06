@@ -19,6 +19,8 @@
 
 package io.temporal.internal.sync;
 
+import static io.temporal.internal.common.HeaderUtils.convertMapFromObjectToBytes;
+import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
 
 import com.uber.m3.tally.Scope;
@@ -31,11 +33,19 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.v1.ActivityType;
+import io.temporal.common.v1.Header;
+import io.temporal.common.v1.Memo;
 import io.temporal.common.v1.Payload;
 import io.temporal.common.v1.Payloads;
+import io.temporal.common.v1.RetryPolicy;
 import io.temporal.common.v1.SearchAttributes;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.common.v1.WorkflowType;
+import io.temporal.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
+import io.temporal.decision.v1.ScheduleActivityTaskDecisionAttributes;
+import io.temporal.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
+import io.temporal.decision.v1.StartChildWorkflowExecutionDecisionAttributes;
+import io.temporal.enums.v1.ParentClosePolicy;
 import io.temporal.enums.v1.RetryStatus;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
@@ -43,17 +53,16 @@ import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.common.InternalUtils;
-import io.temporal.internal.common.RetryParameters;
+import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.ActivityTaskFailedException;
 import io.temporal.internal.replay.ActivityTaskTimeoutException;
 import io.temporal.internal.replay.ChildWorkflowTaskFailedException;
-import io.temporal.internal.replay.ContinueAsNewWorkflowExecutionParameters;
 import io.temporal.internal.replay.DecisionContext;
 import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
-import io.temporal.internal.replay.SignalExternalWorkflowParameters;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
+import io.temporal.taskqueue.v1.TaskQueue;
 import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.CompletablePromise;
@@ -63,9 +72,11 @@ import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.SignalExternalWorkflowException;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflowservice.v1.PollForActivityTaskResponse;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -304,24 +315,26 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
 
   private ExecuteActivityParameters constructExecuteActivityParameters(
       String name, ActivityOptions options, Optional<Payloads> input) {
-    ExecuteActivityParameters parameters = new ExecuteActivityParameters();
-    // TODO: Real task queue
     String taskQueue = options.getTaskQueue();
     if (taskQueue == null) {
       taskQueue = context.getTaskQueue();
     }
-    parameters
-        .withActivityType(ActivityType.newBuilder().setName(name).build())
-        .withInput(input.orElse(null))
-        .withTaskQueue(taskQueue)
-        .withScheduleToStartTimeoutSeconds(roundUpToSeconds(options.getScheduleToStartTimeout()))
-        .withStartToCloseTimeoutSeconds(roundUpToSeconds(options.getStartToCloseTimeout()))
-        .withScheduleToCloseTimeoutSeconds(roundUpToSeconds(options.getScheduleToCloseTimeout()))
-        .withHeartbeatTimeoutSeconds(roundUpToSeconds(options.getHeartbeatTimeout()))
-        .withCancellationType(options.getCancellationType());
+    ScheduleActivityTaskDecisionAttributes.Builder attributes =
+        ScheduleActivityTaskDecisionAttributes.newBuilder()
+            .setActivityType(ActivityType.newBuilder().setName(name))
+            .setTaskQueue(TaskQueue.newBuilder().setName(taskQueue))
+            .setScheduleToStartTimeoutSeconds(roundUpToSeconds(options.getScheduleToStartTimeout()))
+            .setStartToCloseTimeoutSeconds(roundUpToSeconds(options.getStartToCloseTimeout()))
+            .setScheduleToCloseTimeoutSeconds(roundUpToSeconds(options.getScheduleToCloseTimeout()))
+            .setHeartbeatTimeoutSeconds(roundUpToSeconds(options.getHeartbeatTimeout()));
+
+    if (input.isPresent()) {
+      attributes.setInput(input.get());
+    }
+
     RetryOptions retryOptions = options.getRetryOptions();
     if (retryOptions != null) {
-      parameters.setRetryParameters(new RetryParameters(retryOptions));
+      attributes.setRetryPolicy(toRetryPolicy(retryOptions));
     }
 
     // Set the context value.  Use the context propagators from the ActivityOptions
@@ -330,9 +343,20 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
     if (propagators == null) {
       propagators = this.contextPropagators;
     }
-    parameters.setContext(extractContextsAndConvertToBytes(propagators));
+    Header header = toHeaderGrpc(extractContextsAndConvertToBytes(propagators));
+    if (header != null) {
+      attributes.setHeader(header);
+    }
+    return new ExecuteActivityParameters(attributes, options.getCancellationType());
+  }
 
-    return parameters;
+  static RetryPolicy.Builder toRetryPolicy(RetryOptions retryOptions) {
+    return RetryPolicy.newBuilder()
+        .setInitialIntervalInSeconds(roundUpToSeconds(retryOptions.getInitialInterval()))
+        .setMaximumIntervalInSeconds(roundUpToSeconds(retryOptions.getMaximumInterval()))
+        .setBackoffCoefficient(retryOptions.getBackoffCoefficient())
+        .setMaximumAttempts(retryOptions.getMaximumAttempts())
+        .addAllNonRetryableErrorTypes(Arrays.asList(retryOptions.getDoNotRetry()));
   }
 
   private ExecuteLocalActivityParameters constructExecuteLocalActivityParameters(
@@ -342,21 +366,25 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
       long elapsed,
       int attempt) {
     options = LocalActivityOptions.newBuilder(options).validateAndBuildWithDefaults();
-    ExecuteLocalActivityParameters parameters = new ExecuteLocalActivityParameters();
-    parameters
-        .withActivityType(ActivityType.newBuilder().setName(name).build())
-        .withInput(input.orElse(null))
-        .withStartToCloseTimeout(options.getStartToCloseTimeout())
-        .withScheduleToCloseTimeout(options.getScheduleToCloseTimeout());
+
+    PollForActivityTaskResponse.Builder activityTask =
+        PollForActivityTaskResponse.newBuilder()
+            .setWorkflowNamespace(this.context.getNamespace())
+            .setWorkflowExecution(this.context.getWorkflowExecution())
+            .setScheduledTimestamp(System.currentTimeMillis())
+            .setStartToCloseTimeoutSeconds(roundUpToSeconds(options.getStartToCloseTimeout()))
+            .setScheduleToCloseTimeoutSeconds(roundUpToSeconds(options.getScheduleToCloseTimeout()))
+            .setStartedTimestamp(System.currentTimeMillis())
+            .setActivityType(ActivityType.newBuilder().setName(name))
+            .setAttempt(attempt);
+    if (input.isPresent()) {
+      activityTask.setInput(input.get());
+    }
     RetryOptions retryOptions = options.getRetryOptions();
     if (retryOptions != null) {
-      parameters.setRetryOptions(retryOptions);
+      activityTask.setRetryPolicy(toRetryPolicy(retryOptions));
     }
-    parameters.setAttempt(attempt);
-    parameters.setElapsedTime(elapsed);
-    parameters.setWorkflowNamespace(this.context.getNamespace());
-    parameters.setWorkflowExecution(this.context.getWorkflowExecution());
-    return parameters;
+    return new ExecuteLocalActivityParameters(activityTask, elapsed);
   }
 
   @Override
@@ -387,34 +415,51 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
       result.completeExceptionally(CanceledFailure);
       return result;
     }
-    RetryParameters retryParameters = null;
-    RetryOptions retryOptions = options.getRetryOptions();
-    if (retryOptions != null) {
-      retryParameters = new RetryParameters(retryOptions);
-    }
     List<ContextPropagator> propagators = options.getContextPropagators();
     if (propagators == null) {
       propagators = this.contextPropagators;
     }
 
+    final StartChildWorkflowExecutionDecisionAttributes.Builder attributes =
+        StartChildWorkflowExecutionDecisionAttributes.newBuilder()
+            .setWorkflowType(WorkflowType.newBuilder().setName(name).build());
+    String workflowId = options.getWorkflowId();
+    if (workflowId == null) {
+      workflowId = randomUUID().toString();
+    }
+    attributes.setWorkflowId(workflowId);
+    attributes.setNamespace(OptionsUtils.safeGet(options.getNamespace()));
+    if (input.isPresent()) {
+      attributes.setInput(input.get());
+    }
+    attributes.setWorkflowRunTimeoutSeconds(roundUpToSeconds(options.getWorkflowRunTimeout()));
+    attributes.setWorkflowExecutionTimeoutSeconds(
+        roundUpToSeconds(options.getWorkflowExecutionTimeout()));
+    attributes.setWorkflowTaskTimeoutSeconds(roundUpToSeconds(options.getWorkflowTaskTimeout()));
+    String taskQueue = options.getTaskQueue();
+    TaskQueue.Builder tl = TaskQueue.newBuilder();
+    if (taskQueue != null) {
+      attributes.setTaskQueue(TaskQueue.newBuilder().setName(taskQueue));
+    }
+    if (options.getWorkflowIdReusePolicy() != null) {
+      attributes.setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy());
+    }
+    RetryOptions retryOptions = options.getRetryOptions();
+    if (retryOptions != null) {
+      attributes.setRetryPolicy(toRetryPolicy(retryOptions));
+    }
+    attributes.setCronSchedule(OptionsUtils.safeGet(options.getCronSchedule()));
+    Header header = toHeaderGrpc(extractContextsAndConvertToBytes(propagators));
+    if (header != null) {
+      attributes.setHeader(header);
+    }
+    ParentClosePolicy parentClosePolicy = options.getParentClosePolicy();
+    if (parentClosePolicy != null) {
+      attributes.setParentClosePolicy(parentClosePolicy);
+    }
     StartChildWorkflowExecutionParameters parameters =
-        new StartChildWorkflowExecutionParameters.Builder()
-            .setWorkflowType(WorkflowType.newBuilder().setName(name).build())
-            .setWorkflowId(options.getWorkflowId())
-            .setInput(input.orElse(null))
-            .setWorkflowRunTimeoutSeconds(roundUpToSeconds(options.getWorkflowRunTimeout()))
-            .setWorkflowExecutionTimeoutSeconds(
-                roundUpToSeconds(options.getWorkflowExecutionTimeout()))
-            .setNamespace(options.getNamespace())
-            .setTaskQueue(options.getTaskQueue())
-            .setWorkflowTaskTimeoutSeconds(roundUpToSeconds(options.getWorkflowTaskTimeout()))
-            .setWorkflowIdReusePolicy(options.getWorkflowIdReusePolicy())
-            .setRetryParameters(retryParameters)
-            .setCronSchedule(options.getCronSchedule())
-            .setContext(extractContextsAndConvertToBytes(propagators))
-            .setParentClosePolicy(options.getParentClosePolicy())
-            .setCancellationType(options.getCancellationType())
-            .build();
+        new StartChildWorkflowExecutionParameters(attributes, options.getCancellationType());
+
     Consumer<Exception> cancellationCallback =
         context.startChildWorkflow(
             parameters,
@@ -515,18 +560,40 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
 
   @Override
   public <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func) {
-    DataConverter dataConverter = getDataConverter();
-    Optional<Payloads> result =
-        context.sideEffect(
-            () -> {
-              R r = func.apply();
-              return dataConverter.toPayloads(r);
-            });
-    return dataConverter.fromPayloads(result, resultClass, resultType);
+    try {
+      DataConverter dataConverter = getDataConverter();
+      Optional<Payloads> result =
+          context.sideEffect(
+              () -> {
+                R r = func.apply();
+                return dataConverter.toPayloads(r);
+              });
+      return dataConverter.fromPayloads(result, resultClass, resultType);
+    } catch (Error e) {
+      throw e;
+    } catch (Exception e) {
+      // SideEffect cannot throw normal exception as it can lead to non deterministic behavior
+      // So fail the decision task by throwing an Error.
+      throw new Error(e);
+    }
   }
 
   @Override
   public <R> R mutableSideEffect(
+      String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
+    try {
+      return mutableSideEffectImpl(id, resultClass, resultType, updated, func);
+    } catch (Error e) {
+      throw e;
+    } catch (Exception e) {
+      // MutableSideEffect cannot throw normal exception as it can lead to non deterministic
+      // behavior
+      // So fail the decision task by throwing an Error.
+      throw new Error(e);
+    }
+  }
+
+  private <R> R mutableSideEffectImpl(
       String id, Class<R> resultClass, Type resultType, BiPredicate<R, R> updated, Func<R> func) {
     AtomicReference<R> unserializedResult = new AtomicReference<>();
     Optional<Payloads> payloads =
@@ -682,17 +749,18 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
   @Override
   public Promise<Void> signalExternalWorkflow(
       WorkflowExecution execution, String signalName, Object[] args) {
-    SignalExternalWorkflowParameters parameters = new SignalExternalWorkflowParameters();
-    parameters.setSignalName(signalName);
-    parameters.setWorkflowId(execution.getWorkflowId());
-    parameters.setRunId(execution.getRunId());
+    SignalExternalWorkflowExecutionDecisionAttributes.Builder attributes =
+        SignalExternalWorkflowExecutionDecisionAttributes.newBuilder();
+    attributes.setSignalName(signalName);
+    attributes.setExecution(execution);
     Optional<Payloads> input = getDataConverter().toPayloads(args);
-    parameters.setInput(input);
+    if (input.isPresent()) {
+      attributes.setInput(input.get());
+    }
     CompletablePromise<Void> result = Workflow.newPromise();
-
     Consumer<Exception> cancellationCallback =
         context.signalWorkflowExecution(
-            parameters,
+            attributes,
             (output, failure) -> {
               if (failure != null) {
                 runner.executeInWorkflowThread(
@@ -737,19 +805,37 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
   @Override
   public void continueAsNew(
       Optional<String> workflowType, Optional<ContinueAsNewOptions> options, Object[] args) {
-    ContinueAsNewWorkflowExecutionParameters parameters =
-        new ContinueAsNewWorkflowExecutionParameters();
+    ContinueAsNewWorkflowExecutionDecisionAttributes.Builder attributes =
+        ContinueAsNewWorkflowExecutionDecisionAttributes.newBuilder();
     if (workflowType.isPresent()) {
-      parameters.setWorkflowType(workflowType.get());
+      attributes.setWorkflowType(WorkflowType.newBuilder().setName(workflowType.get()));
     }
     if (options.isPresent()) {
       ContinueAsNewOptions ops = options.get();
-      parameters.setWorkflowRunTimeoutSeconds(roundUpToSeconds(ops.getWorkflowRunTimeout()));
-      parameters.setWorkflowTaskTimeoutSeconds(roundUpToSeconds(ops.getWorkflowTaskTimeout()));
-      parameters.setTaskQueue(ops.getTaskQueue());
+      attributes.setWorkflowRunTimeoutSeconds(roundUpToSeconds(ops.getWorkflowRunTimeout()));
+      attributes.setWorkflowTaskTimeoutSeconds(roundUpToSeconds(ops.getWorkflowTaskTimeout()));
+      if (!ops.getTaskQueue().isEmpty()) {
+        attributes.setTaskQueue(TaskQueue.newBuilder().setName(ops.getTaskQueue()));
+      }
+      Map<String, Object> memo = ops.getMemo();
+      if (memo != null) {
+        attributes.setMemo(
+            Memo.newBuilder().putAllFields(convertMapFromObjectToBytes(memo, getDataConverter())));
+      }
+      Map<String, Object> searchAttributes = ops.getSearchAttributes();
+      if (searchAttributes != null) {
+        attributes.setSearchAttributes(
+            SearchAttributes.newBuilder()
+                .putAllIndexedFields(
+                    convertMapFromObjectToBytes(searchAttributes, getDataConverter())));
+      }
     }
-    parameters.setInput(getDataConverter().toPayloads(args).orElse(null));
-    context.continueAsNewOnCompletion(parameters);
+    Optional<Payloads> payloads = getDataConverter().toPayloads(args);
+    if (payloads.isPresent()) {
+      attributes.setInput(payloads.get());
+    }
+    // TODO(maxim): Find out what to do about header
+    context.continueAsNewOnCompletion(attributes.build());
     WorkflowThread.exit(null);
   }
 

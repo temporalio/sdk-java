@@ -19,31 +19,15 @@
 
 package io.temporal.internal.external;
 
-import static io.temporal.internal.common.HeaderUtils.toHeaderGrpc;
-
-import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
-import io.temporal.common.v1.Header;
-import io.temporal.common.v1.Memo;
-import io.temporal.common.v1.Payload;
 import io.temporal.common.v1.Payloads;
-import io.temporal.common.v1.RetryPolicy;
-import io.temporal.common.v1.SearchAttributes;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.internal.common.GrpcRetryer;
-import io.temporal.internal.common.OptionsUtils;
-import io.temporal.internal.common.RetryParameters;
 import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
-import io.temporal.internal.common.StartWorkflowExecutionParameters;
-import io.temporal.internal.common.TerminateWorkflowExecutionParameters;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.internal.replay.QueryWorkflowParameters;
-import io.temporal.internal.replay.SignalExternalWorkflowParameters;
-import io.temporal.query.v1.WorkflowQuery;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.taskqueue.v1.TaskQueue;
 import io.temporal.workflowservice.v1.QueryWorkflowRequest;
 import io.temporal.workflowservice.v1.QueryWorkflowResponse;
 import io.temporal.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
@@ -83,76 +67,27 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   }
 
   @Override
-  public WorkflowExecution startWorkflow(StartWorkflowExecutionParameters startParameters) {
+  public WorkflowExecution request(StartWorkflowExecutionRequest request) {
     try {
-      return startWorkflowInternal(startParameters);
+      return startWorkflowInternal(request);
     } finally {
       // TODO: can probably cache this
       Map<String, String> tags =
           new ImmutableMap.Builder<String, String>(3)
-              .put(MetricsTag.WORKFLOW_TYPE, startParameters.getWorkflowType().getName())
-              .put(MetricsTag.TASK_QUEUE, startParameters.getTaskQueue())
+              .put(MetricsTag.WORKFLOW_TYPE, request.getWorkflowType().getName())
+              .put(MetricsTag.TASK_QUEUE, request.getTaskQueue().getName())
               .put(MetricsTag.NAMESPACE, namespace)
               .build();
       metricsScope.tagged(tags).counter(MetricsType.WORKFLOW_START_COUNTER).inc(1);
     }
   }
 
-  private WorkflowExecution startWorkflowInternal(
-      StartWorkflowExecutionParameters startParameters) {
-    StartWorkflowExecutionRequest.Builder request =
-        StartWorkflowExecutionRequest.newBuilder()
-            .setNamespace(namespace)
-            .setRequestId(UUID.randomUUID().toString())
-            .setIdentity(identity);
-    Optional<Payloads> input = startParameters.getInput();
-    if (input.isPresent()) {
-      request.setInput(input.get());
-    }
-    request.setWorkflowRunTimeoutSeconds(startParameters.getWorkflowRunTimeoutSeconds());
-    request.setWorkflowExecutionTimeoutSeconds(
-        startParameters.getWorkflowExecutionTimeoutSeconds());
-    request.setWorkflowTaskTimeoutSeconds(startParameters.getWorkflowTaskTimeoutSeconds());
-    if (startParameters.getWorkflowIdReusePolicy() != null) {
-      request.setWorkflowIdReusePolicy(startParameters.getWorkflowIdReusePolicy());
-    }
-    String taskQueue = startParameters.getTaskQueue();
-    if (taskQueue != null && !taskQueue.isEmpty()) {
-      request.setTaskQueue(TaskQueue.newBuilder().setName(taskQueue).build());
-    }
-    String workflowId = startParameters.getWorkflowId();
-    if (workflowId == null) {
-      workflowId = UUID.randomUUID().toString();
-    }
-    request.setWorkflowId(workflowId);
-    request.setWorkflowType(startParameters.getWorkflowType());
-    RetryParameters retryParameters = startParameters.getRetryParameters();
-    if (retryParameters != null) {
-      RetryPolicy retryPolicy = toRetryPolicy(retryParameters);
-      request.setRetryPolicy(retryPolicy);
-    }
-    if (!Strings.isNullOrEmpty(startParameters.getCronSchedule())) {
-      request.setCronSchedule(startParameters.getCronSchedule());
-    }
-    Memo memo = toMemoGrpc(startParameters.getMemo());
-    if (memo != null) {
-      request.setMemo(memo);
-    }
-    SearchAttributes searchAttributes =
-        toSearchAttributesGrpc(startParameters.getSearchAttributes());
-    if (searchAttributes != null) {
-      request.setSearchAttributes(searchAttributes);
-    }
-    Header header = toHeaderGrpc(startParameters.getContext());
-    if (header != null) {
-      request.setHeader(header);
-    }
-
+  private WorkflowExecution startWorkflowInternal(StartWorkflowExecutionRequest request) {
     StartWorkflowExecutionResponse result;
     result =
         GrpcRetryer.retryWithResult(
             GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
-            () -> service.blockingStub().startWorkflowExecution(request.build()));
+            () -> service.blockingStub().startWorkflowExecution(request));
 
     return WorkflowExecution.newBuilder()
         .setRunId(result.getRunId())
@@ -160,61 +95,11 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
         .build();
   }
 
-  private Memo toMemoGrpc(Map<String, Payload> memo) {
-    if (memo == null || memo.isEmpty()) {
-      return null;
-    }
-    Memo.Builder builder = Memo.newBuilder();
-    for (Map.Entry<String, Payload> item : memo.entrySet()) {
-      builder.putFields(item.getKey(), item.getValue());
-    }
-    return builder.build();
-  }
-
-  private SearchAttributes toSearchAttributesGrpc(Map<String, Payload> searchAttributes) {
-    if (searchAttributes == null || searchAttributes.isEmpty()) {
-      return null;
-    }
-    SearchAttributes.Builder builder = SearchAttributes.newBuilder();
-    for (Map.Entry<String, Payload> item : searchAttributes.entrySet()) {
-      builder.putIndexedFields(item.getKey(), item.getValue());
-    }
-    return builder.build();
-  }
-
-  private RetryPolicy toRetryPolicy(RetryParameters retryParameters) {
-    return RetryPolicy.newBuilder()
-        .setBackoffCoefficient(retryParameters.getBackoffCoefficient())
-        .setInitialIntervalInSeconds(retryParameters.getInitialIntervalInSeconds())
-        .setMaximumAttempts(retryParameters.getMaximumAttempts())
-        .setMaximumIntervalInSeconds(retryParameters.getMaximumIntervalInSeconds())
-        .addAllNonRetryableErrorTypes(retryParameters.getNonRetriableErrorTypes())
-        .build();
-  }
-
   @Override
-  public void signalWorkflowExecution(SignalExternalWorkflowParameters signalParameters) {
-    SignalWorkflowExecutionRequest.Builder request =
-        SignalWorkflowExecutionRequest.newBuilder()
-            .setRequestId(UUID.randomUUID().toString())
-            .setIdentity(identity)
-            .setNamespace(
-                signalParameters.getNamespace() == null
-                    ? namespace
-                    : signalParameters.getNamespace())
-            .setSignalName(signalParameters.getSignalName())
-            .setWorkflowExecution(
-                WorkflowExecution.newBuilder()
-                    .setRunId(OptionsUtils.safeGet(signalParameters.getRunId()))
-                    .setWorkflowId(signalParameters.getWorkflowId()));
-
-    Optional<Payloads> input = signalParameters.getInput();
-    if (input.isPresent()) {
-      request.setInput(input.get());
-    }
+  public void signalWorkflowExecution(SignalWorkflowExecutionRequest request) {
     GrpcRetryer.retry(
         GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
-        () -> service.blockingStub().signalWorkflowExecution(request.build()));
+        () -> service.blockingStub().signalWorkflowExecution(request));
   }
 
   @Override
@@ -228,7 +113,7 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
               .put(
                   MetricsTag.WORKFLOW_TYPE,
                   parameters.getStartParameters().getWorkflowType().getName())
-              .put(MetricsTag.TASK_QUEUE, parameters.getStartParameters().getTaskQueue())
+              .put(MetricsTag.TASK_QUEUE, parameters.getStartParameters().getTaskQueue().getName())
               .put(MetricsTag.NAMESPACE, namespace)
               .build();
       metricsScope.tagged(tags).counter(MetricsType.WORKFLOW_SIGNAL_WITH_START_COUNTER).inc(1);
@@ -237,48 +122,45 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
 
   private WorkflowExecution signalWithStartWorkflowInternal(
       SignalWithStartWorkflowExecutionParameters parameters, String identity) {
-    StartWorkflowExecutionParameters startParameters = parameters.getStartParameters();
+    StartWorkflowExecutionRequest startParameters = parameters.getStartParameters();
 
     SignalWithStartWorkflowExecutionRequest.Builder request =
         SignalWithStartWorkflowExecutionRequest.newBuilder()
             .setNamespace(namespace)
-            .setRequestId(UUID.randomUUID().toString())
+            .setRequestId(generateUniqueId())
             .setIdentity(identity)
             .setSignalName(parameters.getSignalName())
             .setWorkflowRunTimeoutSeconds(startParameters.getWorkflowRunTimeoutSeconds())
             .setWorkflowExecutionTimeoutSeconds(
                 startParameters.getWorkflowExecutionTimeoutSeconds())
             .setWorkflowTaskTimeoutSeconds(startParameters.getWorkflowTaskTimeoutSeconds())
-            .setWorkflowType(startParameters.getWorkflowType());
+            .setWorkflowType(startParameters.getWorkflowType())
+            .setWorkflowIdReusePolicy(startParameters.getWorkflowIdReusePolicy())
+            .setCronSchedule(startParameters.getCronSchedule());
 
     Optional<Payloads> signalInput = parameters.getSignalInput();
     if (signalInput.isPresent()) {
       request.setSignalInput(signalInput.get());
     }
-    Optional<Payloads> input = startParameters.getInput();
-    if (input.isPresent()) {
-      request.setInput(input.get());
+
+    if (startParameters.hasInput()) {
+      request.setInput(startParameters.getInput());
     }
-    if (startParameters.getWorkflowIdReusePolicy() != null) {
-      request.setWorkflowIdReusePolicy(startParameters.getWorkflowIdReusePolicy());
+
+    if (startParameters.hasTaskQueue()) {
+      request.setTaskQueue(startParameters.getTaskQueue());
     }
-    String taskQueue = startParameters.getTaskQueue();
-    if (taskQueue != null && !taskQueue.isEmpty()) {
-      request.setTaskQueue(TaskQueue.newBuilder().setName(taskQueue).build());
-    }
+
     String workflowId = startParameters.getWorkflowId();
-    if (workflowId == null) {
-      workflowId = UUID.randomUUID().toString();
+    if (workflowId.isEmpty()) {
+      workflowId = generateUniqueId();
     }
     request.setWorkflowId(workflowId);
-    RetryParameters retryParameters = startParameters.getRetryParameters();
-    if (retryParameters != null) {
-      RetryPolicy retryPolicy = toRetryPolicy(retryParameters);
-      request.setRetryPolicy(retryPolicy);
+
+    if (startParameters.hasRetryPolicy()) {
+      request.setRetryPolicy(startParameters.getRetryPolicy());
     }
-    if (!Strings.isNullOrEmpty(startParameters.getCronSchedule())) {
-      request.setCronSchedule(startParameters.getCronSchedule());
-    }
+
     SignalWithStartWorkflowExecutionResponse result;
     result =
         GrpcRetryer.retryWithResult(
@@ -291,62 +173,28 @@ public final class GenericWorkflowClientExternalImpl implements GenericWorkflowC
   }
 
   @Override
-  public void requestCancelWorkflowExecution(WorkflowExecution execution) {
-    RequestCancelWorkflowExecutionRequest request =
-        RequestCancelWorkflowExecutionRequest.newBuilder()
-            .setRequestId(UUID.randomUUID().toString())
-            .setIdentity(identity)
-            .setNamespace(namespace)
-            .setWorkflowExecution(execution)
-            .build();
+  public void requestCancelWorkflowExecution(RequestCancelWorkflowExecutionRequest request) {
     GrpcRetryer.retry(
         GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
         () -> service.blockingStub().requestCancelWorkflowExecution(request));
   }
 
   @Override
-  public QueryWorkflowResponse queryWorkflow(QueryWorkflowParameters queryParameters) {
-    WorkflowQuery.Builder query =
-        WorkflowQuery.newBuilder().setQueryType(queryParameters.getQueryType());
-    Optional<Payloads> input = queryParameters.getInput();
-    if (input.isPresent()) {
-      query.setQueryArgs(input.get());
-    }
-    QueryWorkflowRequest request =
-        QueryWorkflowRequest.newBuilder()
-            .setNamespace(namespace)
-            .setExecution(
-                WorkflowExecution.newBuilder()
-                    .setWorkflowId(queryParameters.getWorkflowId())
-                    .setRunId(OptionsUtils.safeGet(queryParameters.getRunId())))
-            .setQuery(query)
-            .setQueryRejectCondition(queryParameters.getQueryRejectCondition())
-            .build();
+  public void terminateWorkflowExecution(TerminateWorkflowExecutionRequest request) {
+    GrpcRetryer.retry(
+        GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
+        () -> service.blockingStub().terminateWorkflowExecution(request));
+  }
+
+  @Override
+  public QueryWorkflowResponse request(QueryWorkflowRequest queryParameters) {
     return GrpcRetryer.retryWithResult(
         GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
-        () -> service.blockingStub().queryWorkflow(request));
+        () -> service.blockingStub().queryWorkflow(queryParameters));
   }
 
   @Override
   public String generateUniqueId() {
-    String workflowId = UUID.randomUUID().toString();
-    return workflowId;
-  }
-
-  @Override
-  public void terminateWorkflowExecution(TerminateWorkflowExecutionParameters terminateParameters) {
-    TerminateWorkflowExecutionRequest.Builder request =
-        TerminateWorkflowExecutionRequest.newBuilder()
-            .setIdentity(identity)
-            .setWorkflowExecution(terminateParameters.getWorkflowExecution())
-            .setNamespace(namespace)
-            .setReason(terminateParameters.getReason());
-    Payloads details = terminateParameters.getDetails();
-    if (details != null) {
-      request.setDetails(details);
-    }
-    GrpcRetryer.retry(
-        GrpcRetryer.DEFAULT_SERVICE_OPERATION_RETRY_OPTIONS,
-        () -> service.blockingStub().terminateWorkflowExecution(request.build()));
+    return UUID.randomUUID().toString();
   }
 }

@@ -95,6 +95,7 @@ import io.temporal.workflowservice.v1.RespondDecisionTaskFailedRequest;
 import io.temporal.workflowservice.v1.RespondQueryTaskCompletedRequest;
 import io.temporal.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.workflowservice.v1.StartWorkflowExecutionRequest;
+import io.temporal.workflowservice.v1.TerminateWorkflowExecutionRequest;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -1836,6 +1837,15 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 }
               });
     }
+  }
+
+  @Override
+  public void terminateWorkflowExecution(TerminateWorkflowExecutionRequest request) {
+    update(
+        ctx -> {
+          workflow.action(Action.TERMINATE, ctx, request, 0);
+          decision.getData().workflowCompleted = true;
+        });
   }
 
   @Override

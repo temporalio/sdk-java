@@ -19,6 +19,7 @@
 
 package io.temporal.internal.sync;
 
+import com.google.common.base.Throwables;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Consumer;
@@ -101,7 +102,7 @@ class WorkflowThreadContext {
       try {
         evaluationFunction.accept(reason);
       } catch (Exception e) {
-        evaluationFunction.accept(e.toString());
+        evaluationFunction.accept(Throwables.getStackTraceAsString(e));
       } finally {
         status = Status.YIELDED;
         evaluationCondition.signal();

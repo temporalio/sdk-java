@@ -25,9 +25,15 @@ import java.util.Objects;
 
 public final class WorkflowImplementationOptions {
 
+  public static Builder newBuilder() {
+    return new Builder();
+  }
+
   public static final class Builder {
 
     private WorkflowErrorPolicy workflowErrorPolicy = BlockWorkflow;
+
+    private Builder() {}
 
     /**
      * Optional: Sets how decision worker deals with Error thrown from the workflow code which

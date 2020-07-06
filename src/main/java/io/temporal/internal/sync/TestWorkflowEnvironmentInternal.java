@@ -326,6 +326,11 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
       }
 
       @Override
+      public void terminate(String reason, Object... details) {
+        next.terminate(reason, details);
+      }
+
+      @Override
       public Optional<WorkflowOptions> getOptions() {
         return next.getOptions();
       }

@@ -23,7 +23,6 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.v1.Header;
 import io.temporal.common.v1.Payloads;
 import io.temporal.common.v1.SearchAttributes;
-import io.temporal.common.v1.WorkflowType;
 import io.temporal.decision.v1.CancelWorkflowExecutionDecisionAttributes;
 import io.temporal.decision.v1.CompleteWorkflowExecutionDecisionAttributes;
 import io.temporal.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
@@ -55,11 +54,9 @@ import io.temporal.history.v1.RequestCancelExternalWorkflowExecutionFailedEventA
 import io.temporal.history.v1.StartChildWorkflowExecutionFailedEventAttributes;
 import io.temporal.history.v1.TimerCanceledEventAttributes;
 import io.temporal.history.v1.TimerFiredEventAttributes;
-import io.temporal.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.replay.HistoryHelper.DecisionEvents;
 import io.temporal.internal.worker.WorkflowExecutionException;
-import io.temporal.taskqueue.v1.TaskQueue;
 import io.temporal.workflowservice.v1.PollForDecisionTaskResponse;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -70,7 +67,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
-class DecisionsHelper {
+final class DecisionsHelper {
 
   //  private static final Logger log = LoggerFactory.getLogger(DecisionsHelper.class);
 
@@ -429,7 +426,7 @@ class DecisionsHelper {
     addDecision(decisionId, new CompleteWorkflowStateMachine(decisionId, decision));
   }
 
-  void continueAsNewWorkflowExecution(ContinueAsNewWorkflowExecutionParameters continueParameters) {
+  void continueAsNewWorkflowExecution(ContinueAsNewWorkflowExecutionDecisionAttributes attributes) {
     addAllMissingVersionMarker();
 
     HistoryEvent firstEvent = task.getHistory().getEvents(0);
@@ -437,37 +434,6 @@ class DecisionsHelper {
       throw new IllegalStateException(
           "The first event is not WorkflowExecutionStarted: " + firstEvent);
     }
-    WorkflowExecutionStartedEventAttributes startedEvent =
-        firstEvent.getWorkflowExecutionStartedEventAttributes();
-    ContinueAsNewWorkflowExecutionDecisionAttributes.Builder attributes =
-        ContinueAsNewWorkflowExecutionDecisionAttributes.newBuilder();
-    Payloads input = continueParameters.getInput();
-    if (input != null) {
-      attributes.setInput(input);
-    }
-    String workflowType = continueParameters.getWorkflowType();
-    if (workflowType != null && !workflowType.isEmpty()) {
-      attributes.setWorkflowType(WorkflowType.newBuilder().setName(workflowType));
-    } else {
-      attributes.setWorkflowType(task.getWorkflowType());
-    }
-    int executionStartToClose = continueParameters.getWorkflowRunTimeoutSeconds();
-    if (executionStartToClose == 0) {
-      executionStartToClose = startedEvent.getWorkflowRunTimeoutSeconds();
-    }
-    attributes.setWorkflowRunTimeoutSeconds(executionStartToClose);
-    int taskStartToClose = continueParameters.getWorkflowTaskTimeoutSeconds();
-    if (taskStartToClose == 0) {
-      taskStartToClose = startedEvent.getWorkflowTaskTimeoutSeconds();
-    }
-    attributes.setWorkflowTaskTimeoutSeconds(taskStartToClose);
-    String taskQueue = continueParameters.getTaskQueue();
-    if (taskQueue == null || taskQueue.isEmpty()) {
-      taskQueue = startedEvent.getTaskQueue().getName();
-    }
-    attributes.setTaskQueue(TaskQueue.newBuilder().setName(taskQueue).build());
-
-    // TODO(maxim): Find out what to do about memo, searchAttributes and header
 
     Decision decision =
         Decision.newBuilder()

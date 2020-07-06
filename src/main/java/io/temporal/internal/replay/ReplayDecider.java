@@ -28,6 +28,7 @@ import com.uber.m3.tally.Stopwatch;
 import io.grpc.Status;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.v1.Payloads;
+import io.temporal.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
 import io.temporal.enums.v1.EventType;
 import io.temporal.enums.v1.QueryResultType;
 import io.temporal.failure.CanceledFailure;
@@ -41,7 +42,6 @@ import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.common.RpcRetryOptions;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.HistoryHelper.DecisionEvents;
-import io.temporal.internal.replay.HistoryHelper.DecisionEventsIterator;
 import io.temporal.internal.worker.DecisionTaskWithHistoryIterator;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
@@ -98,15 +98,14 @@ class ReplayDecider implements Decider {
       WorkflowServiceStubs service,
       String namespace,
       ReplayWorkflow workflow,
-      DecisionsHelper decisionsHelper,
+      PollForDecisionTaskResponse.Builder decisionTask,
       SingleWorkerOptions options,
       BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller) {
     this.service = service;
     this.workflow = workflow;
-    this.decisionsHelper = decisionsHelper;
+    this.decisionsHelper = new DecisionsHelper(decisionTask);
     this.metricsScope = options.getMetricsScope();
     this.converter = options.getDataConverter();
-    PollForDecisionTaskResponse.Builder decisionTask = decisionsHelper.getTask();
 
     HistoryEvent firstEvent = decisionTask.getHistory().getEvents(0);
     if (!firstEvent.hasWorkflowExecutionStartedEventAttributes()) {
@@ -120,7 +119,6 @@ class ReplayDecider implements Decider {
         new DecisionContextImpl(
             decisionsHelper,
             namespace,
-            decisionTask,
             startedEvent,
             Duration.ofNanos(firstEvent.getTimestamp()).toMillis(),
             options,
@@ -174,7 +172,6 @@ class ReplayDecider implements Decider {
         context.handleChildWorkflowExecutionCompleted(event);
         break;
       case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_FAILED:
-        d:
         context.handleChildWorkflowExecutionFailed(event);
         break;
       case EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_STARTED:
@@ -317,10 +314,10 @@ class ReplayDecider implements Decider {
       decisionsHelper.cancelWorkflowExecution();
       metricsScope.counter(MetricsType.WORKFLOW_CANCELLED_COUNTER).inc(1);
     } else {
-      ContinueAsNewWorkflowExecutionParameters continueAsNewOnCompletion =
+      ContinueAsNewWorkflowExecutionDecisionAttributes attributes =
           context.getContinueAsNewOnCompletion();
-      if (continueAsNewOnCompletion != null) {
-        decisionsHelper.continueAsNewWorkflowExecution(continueAsNewOnCompletion);
+      if (attributes != null) {
+        decisionsHelper.continueAsNewWorkflowExecution(attributes);
         metricsScope.counter(MetricsType.WORKFLOW_CONTINUE_AS_NEW_COUNTER).inc(1);
       } else {
         Optional<Payloads> workflowOutput = workflow.getOutput();
@@ -425,7 +422,7 @@ class ReplayDecider implements Decider {
       HistoryHelper historyHelper =
           new HistoryHelper(
               decisionTaskWithHistoryIterator, context.getReplayCurrentTimeMilliseconds());
-      DecisionEventsIterator iterator = historyHelper.getIterator();
+      Iterator<DecisionEvents> iterator = historyHelper.getIterator();
       if (decisionsHelper.getLastStartedEventId() > 0
           && decisionsHelper.getLastStartedEventId() != historyHelper.getPreviousStartedEventId()
           && decisionTask.getHistory().getEventsCount() > 0) {

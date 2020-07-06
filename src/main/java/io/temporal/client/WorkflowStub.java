@@ -139,8 +139,25 @@ public interface WorkflowStub {
 
   <R> R query(String queryType, Class<R> resultClass, Type resultType, Object... args);
 
-  /** Request cancellation. */
+  /**
+   * Request cancellation of a workflow execution.
+   *
+   * <p>Cancellation cancels {@link io.temporal.workflow.CancellationScope} that wraps the main
+   * workflow method. Note that workflow can take long time to get cancelled or even completely
+   * ignore the cancellation request.
+   */
   void cancel();
+
+  /**
+   * Terminates a workflow execution.
+   *
+   * <p>Termination is a hard stop of a workflow execution which doesn't give workflow code any
+   * chance to perform cleanup.
+   *
+   * @param reason for the termination request
+   * @param details additional details about the termination reason
+   */
+  void terminate(String reason, Object... details);
 
   Optional<WorkflowOptions> getOptions();
 }

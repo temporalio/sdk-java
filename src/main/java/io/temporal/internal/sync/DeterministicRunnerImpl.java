@@ -29,15 +29,15 @@ import io.temporal.common.v1.Payloads;
 import io.temporal.common.v1.SearchAttributes;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.common.v1.WorkflowType;
+import io.temporal.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
+import io.temporal.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.context.ContextThreadLocal;
 import io.temporal.internal.metrics.NoopScope;
-import io.temporal.internal.replay.ContinueAsNewWorkflowExecutionParameters;
 import io.temporal.internal.replay.DeciderCache;
 import io.temporal.internal.replay.DecisionContext;
 import io.temporal.internal.replay.ExecuteActivityParameters;
 import io.temporal.internal.replay.ExecuteLocalActivityParameters;
-import io.temporal.internal.replay.SignalExternalWorkflowParameters;
 import io.temporal.internal.replay.StartChildWorkflowExecutionParameters;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
@@ -594,13 +594,13 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
 
     @Override
-    public ContinueAsNewWorkflowExecutionParameters getContinueAsNewOnCompletion() {
+    public ContinueAsNewWorkflowExecutionDecisionAttributes getContinueAsNewOnCompletion() {
       throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
     public void setContinueAsNewOnCompletion(
-        ContinueAsNewWorkflowExecutionParameters continueParameters) {
+        ContinueAsNewWorkflowExecutionDecisionAttributes attributes) {
       throw new UnsupportedOperationException("not implemented");
     }
 
@@ -692,7 +692,8 @@ class DeterministicRunnerImpl implements DeterministicRunner {
 
     @Override
     public Consumer<Exception> signalWorkflowExecution(
-        SignalExternalWorkflowParameters signalParameters, BiConsumer<Void, Exception> callback) {
+        SignalExternalWorkflowExecutionDecisionAttributes.Builder attributes,
+        BiConsumer<Void, Exception> callback) {
       throw new UnsupportedOperationException("not implemented");
     }
 
@@ -702,7 +703,8 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
 
     @Override
-    public void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionParameters parameters) {
+    public void continueAsNewOnCompletion(
+        ContinueAsNewWorkflowExecutionDecisionAttributes attributes) {
       throw new UnsupportedOperationException("not implemented");
     }
 

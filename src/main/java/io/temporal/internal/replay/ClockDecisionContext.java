@@ -21,7 +21,6 @@ package io.temporal.internal.replay;
 
 import static io.temporal.internal.replay.MarkerHandler.MUTABLE_MARKER_DATA_KEY;
 
-import com.google.common.base.Strings;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.v1.ActivityType;
 import io.temporal.common.v1.Header;
@@ -38,6 +37,7 @@ import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
+import io.temporal.workflowservice.v1.PollForActivityTaskResponse;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -287,6 +287,14 @@ public final class ClockDecisionContext {
       taskCompleted = true;
       // This method is already called under the lock.
       taskCondition.signal();
+    } else {
+      log.warn(
+          "Local Activity completion ignored for eventId="
+              + eventId
+              + ", activityId="
+              + marker.getActivityId()
+              + ", activityType="
+              + marker.getActivityType());
     }
   }
 
@@ -340,14 +348,17 @@ public final class ClockDecisionContext {
 
   Consumer<Exception> scheduleLocalActivityTask(
       ExecuteLocalActivityParameters params, BiConsumer<Optional<Payloads>, Exception> callback) {
+    PollForActivityTaskResponse.Builder activityTask = params.getActivityTask();
     final OpenRequestInfo<Optional<Payloads>, ActivityType> context =
-        new OpenRequestInfo<>(params.getActivityType());
+        new OpenRequestInfo<>(activityTask.getActivityType());
     context.setCompletionHandle(callback);
-    if (Strings.isNullOrEmpty(params.getActivityId())) {
-      params.setActivityId(decisions.getAndIncrementNextId());
+    String activityId = activityTask.getActivityId();
+    if (activityId.isEmpty()) {
+      activityId = decisions.getAndIncrementNextId();
+      activityTask.setActivityId(activityId);
     }
-    pendingLaTasks.put(params.getActivityId(), context);
-    unstartedLaTasks.put(params.getActivityId(), params);
+    pendingLaTasks.put(activityId, context);
+    unstartedLaTasks.put(activityId, params);
     return null;
   }
 

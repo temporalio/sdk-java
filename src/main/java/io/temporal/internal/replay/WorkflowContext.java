@@ -25,6 +25,7 @@ import io.temporal.common.v1.Payload;
 import io.temporal.common.v1.SearchAttributes;
 import io.temporal.common.v1.WorkflowExecution;
 import io.temporal.common.v1.WorkflowType;
+import io.temporal.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
 import io.temporal.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.workflowservice.v1.PollForDecisionTaskResponseOrBuilder;
 import java.time.Duration;
@@ -38,7 +39,7 @@ final class WorkflowContext {
   private final PollForDecisionTaskResponseOrBuilder decisionTask;
   private final long runStartedTimestampMillis;
   private boolean cancelRequested;
-  private ContinueAsNewWorkflowExecutionParameters continueAsNewOnCompletion;
+  private ContinueAsNewWorkflowExecutionDecisionAttributes continueAsNewOnCompletion;
   private WorkflowExecutionStartedEventAttributes startedAttributes;
   private final String namespace;
   // RunId can change when reset happens. This remembers the actual runId that is used
@@ -80,27 +81,12 @@ final class WorkflowContext {
     cancelRequested = flag;
   }
 
-  ContinueAsNewWorkflowExecutionParameters getContinueAsNewOnCompletion() {
+  ContinueAsNewWorkflowExecutionDecisionAttributes getContinueAsNewOnCompletion() {
     return continueAsNewOnCompletion;
   }
 
-  void setContinueAsNewOnCompletion(ContinueAsNewWorkflowExecutionParameters continueParameters) {
-    if (continueParameters == null) {
-      continueParameters = new ContinueAsNewWorkflowExecutionParameters();
-    }
-    //            continueParameters.setChildPolicy(startedAttributes);
-    if (continueParameters.getWorkflowRunTimeoutSeconds() == 0) {
-      continueParameters.setWorkflowRunTimeoutSeconds(
-          startedAttributes.getWorkflowRunTimeoutSeconds());
-    }
-    if (continueParameters.getTaskQueue() == null) {
-      continueParameters.setTaskQueue(startedAttributes.getTaskQueue().getName());
-    }
-    if (continueParameters.getWorkflowTaskTimeoutSeconds() == 0) {
-      continueParameters.setWorkflowTaskTimeoutSeconds(
-          startedAttributes.getWorkflowTaskTimeoutSeconds());
-    }
-    this.continueAsNewOnCompletion = continueParameters;
+  void setContinueAsNewOnCompletion(ContinueAsNewWorkflowExecutionDecisionAttributes parameters) {
+    this.continueAsNewOnCompletion = parameters;
   }
 
   Optional<String> getContinuedExecutionRunId() {
