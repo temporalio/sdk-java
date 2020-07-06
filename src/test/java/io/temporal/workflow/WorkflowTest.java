@@ -39,6 +39,7 @@ import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.client.ActivityCompletionClient;
+import io.temporal.client.ActivityCompletionException;
 import io.temporal.client.ActivityNotExistsException;
 import io.temporal.client.BatchRequest;
 import io.temporal.client.WorkflowClient;
@@ -55,6 +56,9 @@ import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GsonJsonPayloadConverter;
+import io.temporal.common.interceptors.ActivityExecutionContextBase;
+import io.temporal.common.interceptors.ActivityInboundCallsInterceptor;
+import io.temporal.common.interceptors.ActivityInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptorBase;
@@ -289,7 +293,9 @@ public class WorkflowTest {
     } else {
       taskQueue = "WorkflowTest-" + testMethod + "-" + UUID.randomUUID().toString();
     }
-    tracer = new TracingWorkflowInterceptor();
+    FilteredTrace trace = new FilteredTrace();
+    tracer = new TracingWorkflowInterceptor(trace);
+    ActivityInterceptor activityInterceptor = new TracingActivityInterceptor(trace);
     // TODO: Create a version of TestWorkflowEnvironment that runs against a real service.
     lastStartedWorkflowType.set(null);
     WorkflowClientOptions workflowClientOptions =
@@ -309,6 +315,7 @@ public class WorkflowTest {
     WorkerFactoryOptions factoryOptions =
         WorkerFactoryOptions.newBuilder()
             .setWorkflowInterceptors(tracer)
+            .setActivityInterceptors(activityInterceptor)
             .setWorkflowHostLocalTaskQueueScheduleToStartTimeoutSeconds(versionTest ? 0 : 10)
             .build();
     if (useExternalService) {
@@ -464,7 +471,9 @@ public class WorkflowTest {
         "newThread null",
         "sleep PT2S",
         "executeActivity ActivityWithDelay",
-        "executeActivity Activity2");
+        "activity ActivityWithDelay",
+        "executeActivity Activity2",
+        "activity Activity2");
   }
 
   @WorkflowInterface
@@ -543,6 +552,16 @@ public class WorkflowTest {
           IOException.class.getName(), ((ApplicationFailure) e.getCause().getCause()).getType());
     }
     assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
+    tracer.setExpected(
+        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "newThread workflow-method",
+        "executeActivity HeartbeatAndThrowIO",
+        "activity HeartbeatAndThrowIO",
+        "heartbeat 1",
+        "activity HeartbeatAndThrowIO",
+        "heartbeat 2",
+        "activity HeartbeatAndThrowIO",
+        "heartbeat 3");
   }
 
   public static class TestActivityRetryWithExpiration implements TestWorkflow1 {
@@ -4604,7 +4623,8 @@ public class WorkflowTest {
         "newThread workflow-method",
         "sideEffect",
         "sleep PT1S",
-        "executeActivity customActivity1");
+        "executeActivity customActivity1",
+        "activity customActivity1");
   }
 
   private static final Map<String, Queue<Long>> mutableSideEffectValue =
@@ -4702,12 +4722,16 @@ public class WorkflowTest {
         "newThread workflow-method",
         "getVersion",
         "executeActivity Activity2",
+        "activity Activity2",
         "getVersion",
         "executeActivity customActivity1",
+        "activity customActivity1",
         "executeActivity customActivity1",
+        "activity customActivity1",
         "sleep PT1S",
         "getVersion",
-        "executeActivity customActivity1");
+        "executeActivity customActivity1",
+        "activity customActivity1");
   }
 
   public static class TestGetVersionSameIdOnReplay implements TestWorkflow1 {
@@ -5015,7 +5039,9 @@ public class WorkflowTest {
         "newThread workflow-method",
         "getVersion",
         "executeActivity Activity2",
-        "executeActivity Activity");
+        "activity Activity2",
+        "executeActivity Activity",
+        "activity Activity");
   }
 
   // The following test covers the scenario where getVersion call is removed before another
@@ -5055,7 +5081,8 @@ public class WorkflowTest {
         "getVersion",
         "getVersion",
         "getVersion",
-        "executeActivity Activity");
+        "executeActivity Activity",
+        "activity Activity");
   }
 
   public static class TestVersionNotSupportedWorkflowImpl implements TestWorkflow1 {
@@ -5186,8 +5213,12 @@ public class WorkflowTest {
 
   private static class TracingWorkflowInterceptor implements WorkflowInterceptor {
 
-    private final FilteredTrace trace = new FilteredTrace();
+    private final FilteredTrace trace;
     private List<String> expected;
+
+    private TracingWorkflowInterceptor(FilteredTrace trace) {
+      this.trace = trace;
+    }
 
     public String getTrace() {
       return String.join("\n", trace.getImpl());
@@ -5202,7 +5233,12 @@ public class WorkflowTest {
         List<String> traceElements = trace.getImpl();
         for (int i = 0; i < traceElements.size(); i++) {
           String t = traceElements.get(i);
-          String expectedRegExp = expected.get(i);
+          String expectedRegExp;
+          if (expected.size() <= i) {
+            expectedRegExp = "";
+          } else {
+            expectedRegExp = expected.get(i);
+          }
           assertTrue(
               t + " doesn't match " + expectedRegExp + ": \n" + String.join("\n", traceElements),
               t.matches(expectedRegExp));
@@ -5256,7 +5292,8 @@ public class WorkflowTest {
         "newThread workflow-method",
         "sideEffect",
         "sideEffect",
-        "executeActivity Activity2");
+        "executeActivity Activity2",
+        "activity Activity2");
   }
 
   @ActivityInterface
@@ -5918,7 +5955,12 @@ public class WorkflowTest {
     @Override
     public String execute(String taskQueue, boolean parallelCompensation) {
       TestActivities testActivities =
-          Workflow.newActivityStub(TestActivities.class, newActivityOptions1(taskQueue));
+          Workflow.newActivityStub(
+              TestActivities.class,
+              newActivityOptions1(taskQueue)
+                  .toBuilder()
+                  .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
+                  .build());
 
       ChildWorkflowOptions workflowOptions =
           ChildWorkflowOptions.newBuilder().setTaskQueue(taskQueue).build();
@@ -5964,14 +6006,17 @@ public class WorkflowTest {
         "interceptExecuteWorkflow " + UUID_REGEXP,
         "newThread workflow-method",
         "executeActivity customActivity1",
+        "activity customActivity1",
         "executeChildWorkflow TestMultiargsWorkflowsFunc",
         "interceptExecuteWorkflow " + UUID_REGEXP,
         "newThread workflow-method",
         "executeActivity ThrowIO",
+        "activity ThrowIO",
         "executeChildWorkflow TestCompensationWorkflow",
         "interceptExecuteWorkflow " + UUID_REGEXP,
         "newThread workflow-method",
-        "executeActivity Activity2");
+        "executeActivity Activity2",
+        "activity Activity2");
   }
 
   @Test
@@ -6093,7 +6138,8 @@ public class WorkflowTest {
         "interceptExecuteWorkflow " + UUID_REGEXP,
         "newThread workflow-method",
         "upsertSearchAttributes",
-        "executeActivity Activity");
+        "executeActivity Activity",
+        "activity Activity");
   }
 
   public static class TestMultiargsWorkflowsFuncChild implements TestMultiargsWorkflowsFunc2 {
@@ -6451,6 +6497,53 @@ public class WorkflowTest {
     public Object newThread(Runnable runnable, boolean detached, String name) {
       trace.add("newThread " + name);
       return next.newThread(runnable, detached, name);
+    }
+  }
+
+  private static class TracingActivityInterceptor implements ActivityInterceptor {
+
+    private final FilteredTrace trace;
+
+    private TracingActivityInterceptor(FilteredTrace trace) {
+      this.trace = trace;
+    }
+
+    @Override
+    public ActivityInboundCallsInterceptor interceptActivity(ActivityInboundCallsInterceptor next) {
+      return new TracingActivityInboundCallsInterceptor(trace, next);
+    }
+  }
+
+  private static class TracingActivityInboundCallsInterceptor
+      implements ActivityInboundCallsInterceptor {
+
+    private final FilteredTrace trace;
+    private final ActivityInboundCallsInterceptor next;
+    private String type;
+
+    public TracingActivityInboundCallsInterceptor(
+        FilteredTrace trace, ActivityInboundCallsInterceptor next) {
+      this.trace = trace;
+      this.next = next;
+    }
+
+    @Override
+    public void init(ActivityExecutionContext context) {
+      this.type = context.getInfo().getActivityType();
+      next.init(
+          new ActivityExecutionContextBase(context) {
+            @Override
+            public <V> void heartbeat(V details) throws ActivityCompletionException {
+              trace.add("heartbeat " + details);
+              super.heartbeat(details);
+            }
+          });
+    }
+
+    @Override
+    public Object execute(Object[] arguments) {
+      trace.add("activity " + type);
+      return next.execute(arguments);
     }
   }
 }

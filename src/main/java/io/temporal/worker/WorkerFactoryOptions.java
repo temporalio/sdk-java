@@ -116,7 +116,7 @@ public class WorkerFactoryOptions {
       return this;
     }
 
-    public Builder setActivityInterceptors(ActivityInterceptor[] activityInterceptors) {
+    public Builder setActivityInterceptors(ActivityInterceptor... activityInterceptors) {
       this.activityInterceptors = activityInterceptors;
       return this;
     }

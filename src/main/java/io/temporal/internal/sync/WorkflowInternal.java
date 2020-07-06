@@ -332,8 +332,10 @@ public final class WorkflowInternal {
   /** Prohibit instantiation */
   private WorkflowInternal() {}
 
+  /** Returns false if not under workflow code. */
   public static boolean isReplaying() {
-    return getRootDecisionContext().isReplaying();
+    Optional<WorkflowThread> thread = DeterministicRunnerImpl.currentThreadInternalIfPresent();
+    return thread.isPresent() && getRootDecisionContext().isReplaying();
   }
 
   public static WorkflowInfo getWorkflowInfo() {
