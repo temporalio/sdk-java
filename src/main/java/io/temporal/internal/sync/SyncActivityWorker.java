@@ -19,6 +19,7 @@
 
 package io.temporal.internal.sync;
 
+import io.temporal.common.interceptors.ActivityInterceptor;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.worker.ActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;
@@ -40,10 +41,15 @@ public class SyncActivityWorker implements SuspendableWorker {
       String namespace,
       String taskQueue,
       double taskQueueActivitiesPerSecond,
+      ActivityInterceptor[] activityInterceptors,
       SingleWorkerOptions options) {
     taskHandler =
         new POJOActivityTaskHandler(
-            service, namespace, options.getDataConverter(), heartbeatExecutor);
+            service,
+            namespace,
+            options.getDataConverter(),
+            heartbeatExecutor,
+            activityInterceptors);
     worker =
         new ActivityWorker(
             service, namespace, taskQueue, taskQueueActivitiesPerSecond, options, taskHandler);

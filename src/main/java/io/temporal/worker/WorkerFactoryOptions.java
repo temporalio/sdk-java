@@ -20,6 +20,7 @@
 package io.temporal.worker;
 
 import com.google.common.base.Preconditions;
+import io.temporal.common.interceptors.ActivityInterceptor;
 import io.temporal.common.interceptors.WorkflowInterceptor;
 
 public class WorkerFactoryOptions {
@@ -53,6 +54,7 @@ public class WorkerFactoryOptions {
     private int workflowCacheSize;
     private int maxWorkflowThreadCount;
     private WorkflowInterceptor[] workflowInterceptors;
+    private ActivityInterceptor[] activityInterceptors;
     private boolean enableLoggingInReplay;
     private int workflowHostLocalPollThreadCount;
 
@@ -67,6 +69,7 @@ public class WorkerFactoryOptions {
       this.workflowCacheSize = options.workflowCacheSize;
       this.maxWorkflowThreadCount = options.maxWorkflowThreadCount;
       this.workflowInterceptors = options.workflowInterceptors;
+      this.activityInterceptors = options.activityInterceptors;
       this.enableLoggingInReplay = options.enableLoggingInReplay;
       this.workflowHostLocalPollThreadCount = options.workflowHostLocalPollThreadCount;
     }
@@ -113,6 +116,11 @@ public class WorkerFactoryOptions {
       return this;
     }
 
+    public Builder setActivityInterceptors(ActivityInterceptor[] activityInterceptors) {
+      this.activityInterceptors = activityInterceptors;
+      return this;
+    }
+
     public Builder setEnableLoggingInReplay(boolean enableLoggingInReplay) {
       this.enableLoggingInReplay = enableLoggingInReplay;
       return this;
@@ -129,6 +137,7 @@ public class WorkerFactoryOptions {
           maxWorkflowThreadCount,
           workflowHostLocalTaskQueueScheduleToStartTimeoutSeconds,
           workflowInterceptors,
+          activityInterceptors,
           enableLoggingInReplay,
           workflowHostLocalPollThreadCount,
           false);
@@ -139,7 +148,8 @@ public class WorkerFactoryOptions {
           workflowCacheSize,
           maxWorkflowThreadCount,
           workflowHostLocalTaskQueueScheduleToStartTimeoutSeconds,
-          workflowInterceptors,
+          workflowInterceptors == null ? new WorkflowInterceptor[0] : workflowInterceptors,
+          activityInterceptors == null ? new ActivityInterceptor[0] : activityInterceptors,
           enableLoggingInReplay,
           workflowHostLocalPollThreadCount,
           true);
@@ -150,6 +160,7 @@ public class WorkerFactoryOptions {
   private final int maxWorkflowThreadCount;
   private final int workflowHostLocalTaskQueueScheduleToStartTimeoutSeconds;
   private final WorkflowInterceptor[] workflowInterceptors;
+  private final ActivityInterceptor[] activityInterceptors;
   private final boolean enableLoggingInReplay;
   private final int workflowHostLocalPollThreadCount;
 
@@ -158,6 +169,7 @@ public class WorkerFactoryOptions {
       int maxWorkflowThreadCount,
       int workflowHostLocalTaskQueueScheduleToStartTimeoutSeconds,
       WorkflowInterceptor[] workflowInterceptors,
+      ActivityInterceptor[] activityInterceptors,
       boolean enableLoggingInReplay,
       int workflowHostLocalPollThreadCount,
       boolean validate) {
@@ -190,6 +202,7 @@ public class WorkerFactoryOptions {
     this.workflowHostLocalTaskQueueScheduleToStartTimeoutSeconds =
         workflowHostLocalTaskQueueScheduleToStartTimeoutSeconds;
     this.workflowInterceptors = workflowInterceptors;
+    this.activityInterceptors = activityInterceptors;
     this.enableLoggingInReplay = enableLoggingInReplay;
     this.workflowHostLocalPollThreadCount = workflowHostLocalPollThreadCount;
   }
@@ -208,6 +221,10 @@ public class WorkerFactoryOptions {
 
   public WorkflowInterceptor[] getWorkflowInterceptors() {
     return workflowInterceptors;
+  }
+
+  public ActivityInterceptor[] getActivityInterceptors() {
+    return activityInterceptors;
   }
 
   public boolean isEnableLoggingInReplay() {

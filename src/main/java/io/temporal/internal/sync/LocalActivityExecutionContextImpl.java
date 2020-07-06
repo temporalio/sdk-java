@@ -19,6 +19,7 @@
 
 package io.temporal.internal.sync;
 
+import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.client.ActivityCompletionException;
@@ -69,5 +70,10 @@ class LocalActivityExecutionContextImpl implements ActivityExecutionContext {
   public boolean isDoNotCompleteOnReturn() {
     throw new UnsupportedOperationException(
         "isDoNotCompleteOnReturn is not supported for local activities");
+  }
+
+  @Override
+  public Scope getMetricScope() {
+    throw new UnsupportedOperationException("getTaskToken is not supported for local activities");
   }
 }
