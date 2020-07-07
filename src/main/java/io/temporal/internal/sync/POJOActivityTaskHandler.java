@@ -22,15 +22,19 @@ package io.temporal.internal.sync;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.uber.m3.tally.Scope;
+import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.client.ActivityCancelledException;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.interceptors.ActivityInboundCallsInterceptor;
+import io.temporal.common.interceptors.ActivityInterceptor;
 import io.temporal.common.v1.Payloads;
 import io.temporal.failure.FailureConverter;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.failure.v1.CanceledFailureInfo;
 import io.temporal.failure.v1.Failure;
+import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.FailureWrapperException;
 import io.temporal.internal.worker.ActivityTaskHandler;
@@ -44,6 +48,7 @@ import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
@@ -61,16 +66,19 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
       Collections.synchronizedMap(new HashMap<>());
   private WorkflowServiceStubs service;
   private final String namespace;
+  private final ActivityInterceptor[] interceptors;
 
   POJOActivityTaskHandler(
       WorkflowServiceStubs service,
       String namespace,
       DataConverter dataConverter,
-      ScheduledExecutorService heartbeatExecutor) {
-    this.service = service;
-    this.namespace = namespace;
-    this.dataConverter = dataConverter;
-    this.heartbeatExecutor = heartbeatExecutor;
+      ScheduledExecutorService heartbeatExecutor,
+      ActivityInterceptor[] interceptors) {
+    this.service = Objects.requireNonNull(service);
+    this.namespace = Objects.requireNonNull(namespace);
+    this.dataConverter = Objects.requireNonNull(dataConverter);
+    this.heartbeatExecutor = Objects.requireNonNull(heartbeatExecutor);
+    this.interceptors = Objects.requireNonNull(interceptors);
   }
 
   private void addActivityImplementation(
@@ -93,7 +101,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
 
   private ActivityTaskHandler.Result mapToActivityFailure(
       Throwable exception, Scope metricsScope, boolean isLocalActivity) {
-
+    exception = CheckedExceptionWrapper.unwrap(exception);
     if (exception instanceof ActivityCancelledException) {
       if (isLocalActivity) {
         metricsScope.counter(MetricsType.LOCAL_ACTIVITY_CANCELED_COUNTER).inc(1);
@@ -158,9 +166,10 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
 
   @Override
   public Result handle(
-      PollForActivityTaskResponse pollResponse, Scope metricsScope, boolean isLocalActivity) {
+      PollForActivityTaskResponse pollResponse, Scope metricsScope, boolean localActivity) {
     String activityType = pollResponse.getActivityType().getName();
-    ActivityInfoImpl activityTask = new ActivityInfoImpl(pollResponse, this.namespace);
+    ActivityInfoImpl activityTask =
+        new ActivityInfoImpl(pollResponse, this.namespace, localActivity);
     ActivityTaskExecutor activity = activities.get(activityType);
     if (activity == null) {
       String knownTypes = Joiner.on(", ").join(activities.keySet());
@@ -171,7 +180,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
                   + "\" is not registered with a worker. Known types are: "
                   + knownTypes),
           metricsScope,
-          isLocalActivity);
+          localActivity);
     }
     return activity.execute(activityTask, metricsScope);
   }
@@ -193,14 +202,19 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     public ActivityTaskHandler.Result execute(ActivityInfoImpl info, Scope metricsScope) {
       ActivityExecutionContext context =
           new ActivityExecutionContextImpl(
-              service, namespace, info, dataConverter, heartbeatExecutor);
+              service, namespace, info, dataConverter, heartbeatExecutor, metricsScope);
       Optional<Payloads> input = info.getInput();
-      CurrentActivityExecutionContext.set(context);
+      ActivityInboundCallsInterceptor inboundCallsInterceptor =
+          new POJOActivityInboundCallsInterceptor(activity, method);
+      for (ActivityInterceptor interceptor : interceptors) {
+        inboundCallsInterceptor = interceptor.interceptActivity(inboundCallsInterceptor);
+      }
+      inboundCallsInterceptor.init(context);
       try {
         Object[] args =
             dataConverter.arrayFromPayloads(
                 input, method.getParameterTypes(), method.getGenericParameterTypes());
-        Object result = method.invoke(activity, args);
+        Object result = inboundCallsInterceptor.execute(args);
         if (context.isDoNotCompleteOnReturn()) {
           return new ActivityTaskHandler.Result(null, null, null, null);
         }
@@ -213,10 +227,39 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
           }
         }
         return new ActivityTaskHandler.Result(request.build(), null, null, null);
-      } catch (RuntimeException | IllegalAccessException e) {
+      } catch (Throwable e) {
         return mapToActivityFailure(e, metricsScope, false);
+      }
+    }
+  }
+
+  private static class POJOActivityInboundCallsInterceptor
+      implements ActivityInboundCallsInterceptor {
+    private final Object activity;
+    private final Method method;
+    private ActivityExecutionContext context;
+
+    private POJOActivityInboundCallsInterceptor(Object activity, Method method) {
+      this.activity = activity;
+      this.method = method;
+    }
+
+    @Override
+    public void init(ActivityExecutionContext context) {
+      this.context = context;
+    }
+
+    @Override
+    public Object execute(Object[] arguments) {
+      CurrentActivityExecutionContext.set(context);
+      try {
+        return method.invoke(activity, arguments);
+      } catch (Error e) {
+        throw e;
       } catch (InvocationTargetException e) {
-        return mapToActivityFailure(e.getTargetException(), metricsScope, false);
+        throw Activity.wrap((Exception) e.getTargetException());
+      } catch (Exception e) {
+        throw Activity.wrap(e);
       } finally {
         CurrentActivityExecutionContext.unset();
       }
@@ -234,29 +277,30 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
 
     @Override
     public ActivityTaskHandler.Result execute(ActivityInfoImpl info, Scope metricsScope) {
-      ActivityExecutionContext context = new LocalActivityExecutionContextImpl(info);
-      CurrentActivityExecutionContext.set(context);
+      ActivityExecutionContext context = new LocalActivityExecutionContextImpl(info, metricsScope);
       Optional<Payloads> input = info.getInput();
+      ActivityInboundCallsInterceptor inboundCallsInterceptor =
+          new POJOActivityInboundCallsInterceptor(activity, method);
+      for (ActivityInterceptor interceptor : interceptors) {
+        inboundCallsInterceptor = interceptor.interceptActivity(inboundCallsInterceptor);
+      }
+      inboundCallsInterceptor.init(context);
       try {
         Object[] args =
             dataConverter.arrayFromPayloads(
                 input, method.getParameterTypes(), method.getGenericParameterTypes());
-        Object result = method.invoke(activity, args);
+        Object result = inboundCallsInterceptor.execute(args);
         RespondActivityTaskCompletedRequest.Builder request =
             RespondActivityTaskCompletedRequest.newBuilder();
         if (method.getReturnType() != Void.TYPE) {
-          Optional<Payloads> payloads = dataConverter.toPayloads(result);
-          if (payloads.isPresent()) {
-            request.setResult(payloads.get());
+          Optional<Payloads> serialized = dataConverter.toPayloads(result);
+          if (serialized.isPresent()) {
+            request.setResult(serialized.get());
           }
         }
         return new ActivityTaskHandler.Result(request.build(), null, null, null);
-      } catch (RuntimeException | IllegalAccessException e) {
-        return mapToActivityFailure(e, metricsScope, true);
-      } catch (InvocationTargetException e) {
-        return mapToActivityFailure(e.getTargetException(), metricsScope, true);
-      } finally {
-        CurrentActivityExecutionContext.unset();
+      } catch (Throwable e) {
+        return mapToActivityFailure(e, metricsScope, false);
       }
     }
   }

@@ -133,6 +133,14 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     return result;
   }
 
+  static Optional<WorkflowThread> currentThreadInternalIfPresent() {
+    WorkflowThread result = currentThreadThreadLocal.get();
+    if (result == null) {
+      return Optional.empty();
+    }
+    return Optional.of(result);
+  }
+
   static void setCurrentThreadInternal(WorkflowThread coroutine) {
     currentThreadThreadLocal.set(coroutine);
   }

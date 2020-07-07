@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal.sync;
+package io.temporal.common.interceptors;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityExecutionContext;
@@ -26,54 +26,51 @@ import io.temporal.client.ActivityCompletionException;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
-class LocalActivityExecutionContextImpl implements ActivityExecutionContext {
-  private final ActivityInfo info;
-  private final Scope metricsScope;
+/** Convenience class for implementing ActivityInterceptors. */
+public class ActivityExecutionContextBase implements ActivityExecutionContext {
+  private final ActivityExecutionContext next;
 
-  LocalActivityExecutionContextImpl(ActivityInfo info, Scope metricsScope) {
-    this.info = info;
-    this.metricsScope = metricsScope;
+  public ActivityExecutionContextBase(ActivityExecutionContext next) {
+    this.next = next;
   }
 
   @Override
   public ActivityInfo getInfo() {
-    return info;
+    return next.getInfo();
   }
 
   @Override
   public <V> void heartbeat(V details) throws ActivityCompletionException {
-    // Ignored
+    next.heartbeat(details);
   }
 
   @Override
   public <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass) {
-    return Optional.empty();
+    return next.getHeartbeatDetails(detailsClass);
   }
 
   @Override
   public <V> Optional<V> getHeartbeatDetails(Class<V> detailsClass, Type detailsType) {
-    return Optional.empty();
+    return next.getHeartbeatDetails(detailsClass, detailsType);
   }
 
   @Override
   public byte[] getTaskToken() {
-    throw new UnsupportedOperationException("getTaskToken is not supported for local activities");
+    return next.getTaskToken();
   }
 
   @Override
   public void doNotCompleteOnReturn() {
-    throw new UnsupportedOperationException(
-        "doNotCompleteOnReturn is not supported for local activities");
+    next.doNotCompleteOnReturn();
   }
 
   @Override
   public boolean isDoNotCompleteOnReturn() {
-    throw new UnsupportedOperationException(
-        "isDoNotCompleteOnReturn is not supported for local activities");
+    return next.isDoNotCompleteOnReturn();
   }
 
   @Override
   public Scope getMetricsScope() {
-    return metricsScope;
+    return next.getMetricsScope();
   }
 }

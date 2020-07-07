@@ -19,6 +19,7 @@
 
 package io.temporal.activity;
 
+import com.uber.m3.tally.Scope;
 import io.temporal.client.ActivityCompletionException;
 import java.lang.reflect.Type;
 import java.util.Optional;
@@ -87,4 +88,6 @@ public interface ActivityExecutionContext {
   void doNotCompleteOnReturn();
 
   boolean isDoNotCompleteOnReturn();
+
+  Scope getMetricsScope();
 }

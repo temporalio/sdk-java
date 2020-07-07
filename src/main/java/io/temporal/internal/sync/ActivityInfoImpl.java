@@ -30,10 +30,12 @@ import java.util.concurrent.TimeUnit;
 final class ActivityInfoImpl implements ActivityInfo {
   private final PollForActivityTaskResponse response;
   private final String activityNamespace;
+  private final boolean local;
 
-  ActivityInfoImpl(PollForActivityTaskResponse response, String activityNamespace) {
+  ActivityInfoImpl(PollForActivityTaskResponse response, String activityNamespace, boolean local) {
     this.response = Objects.requireNonNull(response);
     this.activityNamespace = Objects.requireNonNull(activityNamespace);
+    this.local = local;
   }
 
   public byte[] getTaskToken() {
@@ -108,6 +110,11 @@ final class ActivityInfoImpl implements ActivityInfo {
   @Override
   public int getAttempt() {
     return response.getAttempt();
+  }
+
+  @Override
+  public boolean isLocal() {
+    return local;
   }
 
   public Optional<Payloads> getInput() {

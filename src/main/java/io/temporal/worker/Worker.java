@@ -112,6 +112,7 @@ public final class Worker implements Suspendable {
             namespace,
             taskQueue,
             this.options.getTaskQueueActivitiesPerSecond(),
+            factoryOptions.getActivityInterceptors(),
             activityOptions);
 
     SingleWorkerOptions workflowOptions =
@@ -136,6 +137,7 @@ public final class Worker implements Suspendable {
             namespace,
             taskQueue,
             this.factoryOptions.getWorkflowInterceptors(),
+            this.factoryOptions.getActivityInterceptors(),
             workflowOptions,
             localActivityOptions,
             this.cache,

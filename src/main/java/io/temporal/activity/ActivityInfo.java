@@ -73,4 +73,7 @@ public interface ActivityInfo {
 
   /** Activity execution attempt starting from 0. */
   int getAttempt();
+
+  /** Is this activity invoked as a local activity? */
+  boolean isLocal();
 }

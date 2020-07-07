@@ -19,6 +19,7 @@
 
 package io.temporal.internal.sync;
 
+import com.uber.m3.tally.Scope;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.activity.ActivityExecutionContext;
@@ -65,6 +66,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   private Optional<Object> lastDetails;
   private boolean hasOutstandingHeartbeat;
   private final ScheduledExecutorService heartbeatExecutor;
+  private final Scope metricScope;
   private Lock lock = new ReentrantLock();
   private ScheduledFuture future;
   private ActivityCompletionException lastException;
@@ -75,7 +77,8 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
       String namespace,
       ActivityInfo info,
       DataConverter dataConverter,
-      ScheduledExecutorService heartbeatExecutor) {
+      ScheduledExecutorService heartbeatExecutor,
+      Scope metricsScope) {
     this.namespace = namespace;
     this.service = service;
     this.info = info;
@@ -84,6 +87,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
         Math.min(
             (long) (0.8 * info.getHeartbeatTimeout().toMillis()), MAX_HEARTBEAT_INTERVAL_MILLIS);
     this.heartbeatExecutor = heartbeatExecutor;
+    this.metricScope = metricsScope;
   }
 
   /** @see ActivityExecutionContext#heartbeat(Object) */
@@ -216,6 +220,11 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   @Override
   public boolean isDoNotCompleteOnReturn() {
     return doNotCompleteOnReturn;
+  }
+
+  @Override
+  public Scope getMetricsScope() {
+    return metricScope;
   }
 
   /** @see ActivityExecutionContext#getInfo() */

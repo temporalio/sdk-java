@@ -123,7 +123,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
             workflowServiceStubs,
             testEnvironmentOptions.getWorkflowClientOptions().getNamespace(),
             testEnvironmentOptions.getWorkflowClientOptions().getDataConverter(),
-            heartbeatExecutor);
+            heartbeatExecutor,
+            testEnvironmentOptions.getWorkerFactoryOptions().getActivityInterceptors());
   }
 
   private class HeartbeatInterceptingService extends WorkflowServiceGrpc.WorkflowServiceImplBase {

@@ -864,6 +864,8 @@ public final class Workflow {
    * True if workflow code is being replayed. <b>Warning!</b> Never make workflow logic depend on
    * this flag as it is going to break determinism. The only reasonable uses for this flag are
    * deduping external never failing side effects like logging or metric reporting.
+   *
+   * <p>This method always returns false if called from a non workflow thread.
    */
   public static boolean isReplaying() {
     return WorkflowInternal.isReplaying();

@@ -20,6 +20,7 @@
 package io.temporal.internal.sync;
 
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.interceptors.ActivityInterceptor;
 import io.temporal.common.interceptors.WorkflowInterceptor;
 import io.temporal.common.v1.Payloads;
 import io.temporal.common.v1.WorkflowExecution;
@@ -62,6 +63,7 @@ public class SyncWorkflowWorker
       String namespace,
       String taskQueue,
       WorkflowInterceptor[] workflowInterceptors,
+      ActivityInterceptor[] activityInterceptors,
       SingleWorkerOptions workflowOptions,
       SingleWorkerOptions localActivityOptions,
       DeciderCache cache,
@@ -81,7 +83,11 @@ public class SyncWorkflowWorker
 
     laTaskHandler =
         new POJOActivityTaskHandler(
-            service, namespace, localActivityOptions.getDataConverter(), heartbeatExecutor);
+            service,
+            namespace,
+            localActivityOptions.getDataConverter(),
+            heartbeatExecutor,
+            activityInterceptors);
     laWorker = new LocalActivityWorker(namespace, taskQueue, localActivityOptions, laTaskHandler);
 
     DecisionTaskHandler taskHandler =
