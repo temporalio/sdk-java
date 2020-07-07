@@ -166,9 +166,10 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
 
   @Override
   public Result handle(
-      PollForActivityTaskResponse pollResponse, Scope metricsScope, boolean isLocalActivity) {
+      PollForActivityTaskResponse pollResponse, Scope metricsScope, boolean localActivity) {
     String activityType = pollResponse.getActivityType().getName();
-    ActivityInfoImpl activityTask = new ActivityInfoImpl(pollResponse, this.namespace);
+    ActivityInfoImpl activityTask =
+        new ActivityInfoImpl(pollResponse, this.namespace, localActivity);
     ActivityTaskExecutor activity = activities.get(activityType);
     if (activity == null) {
       String knownTypes = Joiner.on(", ").join(activities.keySet());
@@ -179,7 +180,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
                   + "\" is not registered with a worker. Known types are: "
                   + knownTypes),
           metricsScope,
-          isLocalActivity);
+          localActivity);
     }
     return activity.execute(activityTask, metricsScope);
   }
@@ -204,7 +205,7 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
               service, namespace, info, dataConverter, heartbeatExecutor, metricsScope);
       Optional<Payloads> input = info.getInput();
       ActivityInboundCallsInterceptor inboundCallsInterceptor =
-          new POJOActivityInboundCallsInterceptor();
+          new POJOActivityInboundCallsInterceptor(activity, method);
       for (ActivityInterceptor interceptor : interceptors) {
         inboundCallsInterceptor = interceptor.interceptActivity(inboundCallsInterceptor);
       }
@@ -228,33 +229,39 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
         return new ActivityTaskHandler.Result(request.build(), null, null, null);
       } catch (Throwable e) {
         return mapToActivityFailure(e, metricsScope, false);
-      } finally {
-        CurrentActivityExecutionContext.unset();
       }
     }
+  }
 
-    private class POJOActivityInboundCallsInterceptor implements ActivityInboundCallsInterceptor {
-      private ActivityExecutionContext context;
+  private static class POJOActivityInboundCallsInterceptor
+      implements ActivityInboundCallsInterceptor {
+    private final Object activity;
+    private final Method method;
+    private ActivityExecutionContext context;
 
-      @Override
-      public void init(ActivityExecutionContext context) {
-        this.context = context;
-      }
+    private POJOActivityInboundCallsInterceptor(Object activity, Method method) {
+      this.activity = activity;
+      this.method = method;
+    }
 
-      @Override
-      public Object execute(Object[] arguments) {
-        CurrentActivityExecutionContext.set(context);
-        try {
-          return method.invoke(activity, arguments);
-        } catch (Error e) {
-          throw e;
-        } catch (InvocationTargetException e) {
-          throw Activity.wrap((Exception) e.getTargetException());
-        } catch (Exception e) {
-          throw Activity.wrap(e);
-        } finally {
-          CurrentActivityExecutionContext.unset();
-        }
+    @Override
+    public void init(ActivityExecutionContext context) {
+      this.context = context;
+    }
+
+    @Override
+    public Object execute(Object[] arguments) {
+      CurrentActivityExecutionContext.set(context);
+      try {
+        return method.invoke(activity, arguments);
+      } catch (Error e) {
+        throw e;
+      } catch (InvocationTargetException e) {
+        throw Activity.wrap((Exception) e.getTargetException());
+      } catch (Exception e) {
+        throw Activity.wrap(e);
+      } finally {
+        CurrentActivityExecutionContext.unset();
       }
     }
   }
@@ -271,28 +278,29 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     @Override
     public ActivityTaskHandler.Result execute(ActivityInfoImpl info, Scope metricsScope) {
       ActivityExecutionContext context = new LocalActivityExecutionContextImpl(info, metricsScope);
-      CurrentActivityExecutionContext.set(context);
       Optional<Payloads> input = info.getInput();
+      ActivityInboundCallsInterceptor inboundCallsInterceptor =
+          new POJOActivityInboundCallsInterceptor(activity, method);
+      for (ActivityInterceptor interceptor : interceptors) {
+        inboundCallsInterceptor = interceptor.interceptActivity(inboundCallsInterceptor);
+      }
+      inboundCallsInterceptor.init(context);
       try {
         Object[] args =
             dataConverter.arrayFromPayloads(
                 input, method.getParameterTypes(), method.getGenericParameterTypes());
-        Object result = method.invoke(activity, args);
+        Object result = inboundCallsInterceptor.execute(args);
         RespondActivityTaskCompletedRequest.Builder request =
             RespondActivityTaskCompletedRequest.newBuilder();
         if (method.getReturnType() != Void.TYPE) {
-          Optional<Payloads> payloads = dataConverter.toPayloads(result);
-          if (payloads.isPresent()) {
-            request.setResult(payloads.get());
+          Optional<Payloads> serialized = dataConverter.toPayloads(result);
+          if (serialized.isPresent()) {
+            request.setResult(serialized.get());
           }
         }
         return new ActivityTaskHandler.Result(request.build(), null, null, null);
-      } catch (RuntimeException | IllegalAccessException e) {
-        return mapToActivityFailure(e, metricsScope, true);
-      } catch (InvocationTargetException e) {
-        return mapToActivityFailure(e.getTargetException(), metricsScope, true);
-      } finally {
-        CurrentActivityExecutionContext.unset();
+      } catch (Throwable e) {
+        return mapToActivityFailure(e, metricsScope, false);
       }
     }
   }

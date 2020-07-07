@@ -5679,6 +5679,15 @@ public class WorkflowTest {
     String result = workflowStub.execute(taskQueue);
     assertEquals("test123123", result);
     assertEquals(activitiesImpl.toString(), 3, activitiesImpl.invocations.size());
+    tracer.setExpected(
+        "interceptExecuteWorkflow " + UUID_REGEXP,
+        "newThread workflow-method",
+        "executeLocalActivity ThrowIO",
+        "local activity ThrowIO",
+        "executeLocalActivity Activity2",
+        "local activity Activity2",
+        "executeActivity Activity2",
+        "activity Activity2");
   }
 
   public static class TestLocalActivityMultiBatchWorkflowImpl implements TestWorkflow1 {
@@ -6520,6 +6529,7 @@ public class WorkflowTest {
     private final FilteredTrace trace;
     private final ActivityInboundCallsInterceptor next;
     private String type;
+    private boolean local;
 
     public TracingActivityInboundCallsInterceptor(
         FilteredTrace trace, ActivityInboundCallsInterceptor next) {
@@ -6530,6 +6540,7 @@ public class WorkflowTest {
     @Override
     public void init(ActivityExecutionContext context) {
       this.type = context.getInfo().getActivityType();
+      this.local = context.getInfo().isLocal();
       next.init(
           new ActivityExecutionContextBase(context) {
             @Override
@@ -6542,7 +6553,7 @@ public class WorkflowTest {
 
     @Override
     public Object execute(Object[] arguments) {
-      trace.add("activity " + type);
+      trace.add((local ? "local " : "") + "activity " + type);
       return next.execute(arguments);
     }
   }
