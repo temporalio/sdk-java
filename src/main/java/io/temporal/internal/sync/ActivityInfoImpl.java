@@ -64,8 +64,8 @@ final class ActivityInfoImpl implements ActivityInfo {
 
   @Override
   public long getScheduledTimestamp() {
-    // Temporal timestamp is in microseconds.
-    return TimeUnit.MICROSECONDS.toMillis(response.getScheduledTimestamp());
+    // Temporal timestamp is in nanoseconds.
+    return TimeUnit.NANOSECONDS.toMillis(response.getScheduledTimestamp());
   }
 
   @Override
