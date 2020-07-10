@@ -27,6 +27,23 @@ import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.temporal.api.common.v1.Header;
+import io.temporal.api.common.v1.Memo;
+import io.temporal.api.common.v1.Payload;
+import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.common.v1.SearchAttributes;
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.common.v1.WorkflowType;
+import io.temporal.api.errordetails.v1.QueryFailedFailure;
+import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
+import io.temporal.api.query.v1.WorkflowQuery;
+import io.temporal.api.taskqueue.v1.TaskQueue;
+import io.temporal.api.workflowservice.v1.QueryWorkflowRequest;
+import io.temporal.api.workflowservice.v1.QueryWorkflowResponse;
+import io.temporal.api.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
+import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
+import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
+import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
@@ -39,15 +56,6 @@ import io.temporal.client.WorkflowServiceException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
-import io.temporal.api.common.v1.Header;
-import io.temporal.api.common.v1.Memo;
-import io.temporal.api.common.v1.Payload;
-import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.common.v1.SearchAttributes;
-import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.common.v1.WorkflowType;
-import io.temporal.api.errordetails.v1.QueryFailedFailure;
-import io.temporal.api.errordetails.v1.WorkflowExecutionAlreadyStartedFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
 import io.temporal.internal.common.CheckedExceptionWrapper;
@@ -56,14 +64,6 @@ import io.temporal.internal.common.StatusUtils;
 import io.temporal.internal.common.WorkflowExecutionFailedException;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.external.GenericWorkflowClientExternal;
-import io.temporal.api.query.v1.WorkflowQuery;
-import io.temporal.api.taskqueue.v1.TaskQueue;
-import io.temporal.api.workflowservice.v1.QueryWorkflowRequest;
-import io.temporal.api.workflowservice.v1.QueryWorkflowResponse;
-import io.temporal.api.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
-import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
 import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.List;
@@ -419,7 +419,7 @@ class WorkflowStubImpl implements WorkflowStub {
           execution.get(),
           workflowType.orElse(null),
           executionFailed.getDecisionTaskCompletedEventId(),
-          executionFailed.getRetryStatus(),
+          executionFailed.getRetryState(),
           cause);
     } else if (failure instanceof StatusRuntimeException) {
       StatusRuntimeException sre = (StatusRuntimeException) failure;

@@ -21,9 +21,6 @@ package io.temporal.failure;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
-import io.temporal.client.ActivityCancelledException;
-import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.EncodedValue;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowType;
@@ -36,6 +33,9 @@ import io.temporal.api.failure.v1.ResetWorkflowFailureInfo;
 import io.temporal.api.failure.v1.ServerFailureInfo;
 import io.temporal.api.failure.v1.TerminatedFailureInfo;
 import io.temporal.api.failure.v1.TimeoutFailureInfo;
+import io.temporal.client.ActivityCancelledException;
+import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.EncodedValue;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.testing.SimulatedTimeoutFailure;
 import java.io.PrintWriter;
@@ -156,7 +156,7 @@ public class FailureConverter {
               info.getStartedEventId(),
               info.getActivityType().getName(),
               info.getActivityId(),
-              info.getRetryStatus(),
+              info.getRetryState(),
               info.getIdentity(),
               cause);
         }
@@ -169,7 +169,7 @@ public class FailureConverter {
               info.getWorkflowType().getName(),
               info.getWorkflowExecution(),
               info.getNamespace(),
-              info.getRetryStatus(),
+              info.getRetryState(),
               cause);
         }
       case FAILUREINFO_NOT_SET:
@@ -242,7 +242,7 @@ public class FailureConverter {
               .setActivityId(ae.getActivityId() == null ? "" : ae.getActivityId())
               .setActivityType(ActivityType.newBuilder().setName(ae.getActivityType()))
               .setIdentity(ae.getIdentity())
-              .setRetryStatus(ae.getRetryStatus())
+              .setRetryState(ae.getRetryState())
               .setScheduledEventId(ae.getScheduledEventId())
               .setStartedEventId(ae.getStartedEventId());
       failure.setActivityFailureInfo(info);
@@ -253,7 +253,7 @@ public class FailureConverter {
               .setInitiatedEventId(ce.getInitiatedEventId())
               .setStartedEventId(ce.getStartedEventId())
               .setNamespace(ce.getNamespace() == null ? "" : ce.getNamespace())
-              .setRetryStatus(ce.getRetryStatus())
+              .setRetryState(ce.getRetryState())
               .setWorkflowType(WorkflowType.newBuilder().setName(ce.getWorkflowType()))
               .setWorkflowExecution(ce.getExecution());
       failure.setChildWorkflowExecutionFailureInfo(info);

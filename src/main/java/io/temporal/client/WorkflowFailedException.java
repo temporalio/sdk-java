@@ -46,7 +46,7 @@ public final class WorkflowFailedException extends WorkflowException {
     this.decisionTaskCompletedEventId = decisionTaskCompletedEventId;
   }
 
-  public RetryState getRetryStatus() {
+  public RetryState getRetryState() {
     return retryState;
   }
 

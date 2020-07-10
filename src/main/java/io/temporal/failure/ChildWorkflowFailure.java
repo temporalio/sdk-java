@@ -65,7 +65,7 @@ public final class ChildWorkflowFailure extends TemporalFailure {
     return namespace;
   }
 
-  public RetryState getRetryStatus() {
+  public RetryState getRetryState() {
     return retryState;
   }
 

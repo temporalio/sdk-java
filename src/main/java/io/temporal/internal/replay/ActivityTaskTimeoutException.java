@@ -75,7 +75,7 @@ public final class ActivityTaskTimeoutException extends RuntimeException {
     return eventId;
   }
 
-  public RetryState getRetryStatus() {
+  public RetryState getRetryState() {
     return retryState;
   }
 

@@ -20,8 +20,6 @@
 package io.temporal.internal.replay;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.common.context.ContextPropagator;
-import io.temporal.common.converter.DataConverter;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -34,6 +32,8 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.TimerFiredEventAttributes;
 import io.temporal.api.history.v1.UpsertWorkflowSearchAttributesEventAttributes;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
+import io.temporal.common.context.ContextPropagator;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.metrics.ReplayAwareScope;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.internal.worker.SingleWorkerOptions;

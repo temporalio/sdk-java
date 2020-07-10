@@ -21,23 +21,23 @@ package io.temporal.internal.replay;
 
 import static io.temporal.internal.replay.MarkerHandler.MUTABLE_MARKER_DATA_KEY;
 
-import io.temporal.common.converter.DataConverter;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Header;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.decision.v1.StartTimerDecisionAttributes;
-import io.temporal.failure.CanceledFailure;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
 import io.temporal.api.history.v1.TimerCanceledEventAttributes;
 import io.temporal.api.history.v1.TimerFiredEventAttributes;
+import io.temporal.api.workflowservice.v1.PollForActivityTaskResponse;
+import io.temporal.common.converter.DataConverter;
+import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.LocalActivityMarkerData;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.worker.LocalActivityWorker;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
-import io.temporal.api.workflowservice.v1.PollForActivityTaskResponse;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;

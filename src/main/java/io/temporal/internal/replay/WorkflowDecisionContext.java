@@ -19,8 +19,6 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.client.WorkflowExecutionAlreadyStarted;
-import io.temporal.common.converter.EncodedValue;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttributes;
@@ -29,10 +27,6 @@ import io.temporal.api.decision.v1.SignalExternalWorkflowExecutionDecisionAttrib
 import io.temporal.api.decision.v1.StartChildWorkflowExecutionDecisionAttributes;
 import io.temporal.api.enums.v1.RetryState;
 import io.temporal.api.enums.v1.TimeoutType;
-import io.temporal.failure.CanceledFailure;
-import io.temporal.failure.ChildWorkflowFailure;
-import io.temporal.failure.TerminatedFailure;
-import io.temporal.failure.TimeoutFailure;
 import io.temporal.api.history.v1.ChildWorkflowExecutionCanceledEventAttributes;
 import io.temporal.api.history.v1.ChildWorkflowExecutionCompletedEventAttributes;
 import io.temporal.api.history.v1.ChildWorkflowExecutionFailedEventAttributes;
@@ -44,6 +38,12 @@ import io.temporal.api.history.v1.ExternalWorkflowExecutionSignaledEventAttribut
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.SignalExternalWorkflowExecutionFailedEventAttributes;
 import io.temporal.api.history.v1.StartChildWorkflowExecutionFailedEventAttributes;
+import io.temporal.client.WorkflowExecutionAlreadyStarted;
+import io.temporal.common.converter.EncodedValue;
+import io.temporal.failure.CanceledFailure;
+import io.temporal.failure.ChildWorkflowFailure;
+import io.temporal.failure.TerminatedFailure;
+import io.temporal.failure.TimeoutFailure;
 import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.SignalExternalWorkflowException;
 import java.nio.charset.StandardCharsets;
@@ -255,7 +255,7 @@ final class WorkflowDecisionContext {
                 attributes.getWorkflowType().getName(),
                 attributes.getWorkflowExecution(),
                 attributes.getNamespace(),
-                attributes.getRetryStatus(),
+                attributes.getRetryState(),
                 timeoutFailure);
         BiConsumer<Optional<Payloads>, Exception> completionCallback =
             scheduled.getCompletionCallback();
@@ -326,7 +326,7 @@ final class WorkflowDecisionContext {
                 event.getEventId(),
                 attributes.getWorkflowExecution(),
                 attributes.getWorkflowType(),
-                attributes.getRetryStatus(),
+                attributes.getRetryState(),
                 attributes.getFailure());
         BiConsumer<Optional<Payloads>, Exception> completionCallback =
             scheduled.getCompletionCallback();

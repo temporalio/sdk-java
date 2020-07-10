@@ -19,10 +19,10 @@
 
 package io.temporal.client;
 
+import io.temporal.api.enums.v1.QueryRejectCondition;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
-import io.temporal.api.enums.v1.QueryRejectCondition;
 import java.lang.management.ManagementFactory;
 import java.util.Arrays;
 import java.util.List;

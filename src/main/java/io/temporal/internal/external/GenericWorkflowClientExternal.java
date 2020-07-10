@@ -20,14 +20,14 @@
 package io.temporal.internal.external;
 
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.api.workflowservice.v1.QueryWorkflowRequest;
 import io.temporal.api.workflowservice.v1.QueryWorkflowResponse;
 import io.temporal.api.workflowservice.v1.RequestCancelWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
+import io.temporal.internal.common.SignalWithStartWorkflowExecutionParameters;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 
 public interface GenericWorkflowClientExternal {
 

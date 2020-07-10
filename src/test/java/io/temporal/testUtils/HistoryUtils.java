@@ -23,9 +23,9 @@ import static io.temporal.internal.common.InternalUtils.createNormalTaskQueue;
 import static io.temporal.internal.common.InternalUtils.createStickyTaskQueue;
 import static io.temporal.testUtils.TestServiceUtils.*;
 
+import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
 import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
 import java.util.concurrent.TimeUnit;
 
 public class HistoryUtils {

@@ -28,13 +28,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.uber.m3.tally.NoopScope;
+import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
+import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
 import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.internal.worker.DecisionTaskHandler;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.testUtils.HistoryUtils;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;

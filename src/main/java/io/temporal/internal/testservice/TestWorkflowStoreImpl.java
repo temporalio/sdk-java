@@ -27,8 +27,6 @@ import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.HistoryEventFilterType;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.internal.common.WorkflowExecutionUtils;
-import io.temporal.internal.testservice.RequestContext.Timer;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
@@ -37,6 +35,8 @@ import io.temporal.api.workflowservice.v1.PollForActivityTaskRequest;
 import io.temporal.api.workflowservice.v1.PollForActivityTaskResponse;
 import io.temporal.api.workflowservice.v1.PollForDecisionTaskRequest;
 import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
+import io.temporal.internal.common.WorkflowExecutionUtils;
+import io.temporal.internal.testservice.RequestContext.Timer;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -402,7 +402,7 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
     lock.lock();
     try {
       history = getHistoryStore(executionId);
-      if (!getRequest.getWaitForNewEvent()
+      if (!getRequest.getWaitNewEvent()
           && getRequest.getHistoryEventFilterType()
               != HistoryEventFilterType.HISTORY_EVENT_FILTER_TYPE_CLOSE_EVENT) {
         List<HistoryEvent> events = history.getEventsLocked();

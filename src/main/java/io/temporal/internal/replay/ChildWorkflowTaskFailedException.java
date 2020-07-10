@@ -67,7 +67,7 @@ public class ChildWorkflowTaskFailedException extends RuntimeException {
     return failure;
   }
 
-  public RetryState getRetryStatus() {
+  public RetryState getRetryState() {
     return retryState;
   }
 }

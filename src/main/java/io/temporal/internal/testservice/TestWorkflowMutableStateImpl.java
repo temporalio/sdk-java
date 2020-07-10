@@ -20,8 +20,8 @@
 package io.temporal.internal.testservice;
 
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
-import static io.temporal.internal.testservice.TestServiceRetryState.valiateAndOverrideRetryPolicy;
 import static io.temporal.internal.testservice.StateMachines.*;
+import static io.temporal.internal.testservice.TestServiceRetryState.valiateAndOverrideRetryPolicy;
 
 import com.cronutils.model.Cron;
 import com.cronutils.model.CronType;
@@ -71,9 +71,6 @@ import io.temporal.api.history.v1.StartChildWorkflowExecutionFailedEventAttribut
 import io.temporal.api.history.v1.UpsertWorkflowSearchAttributesEventAttributes;
 import io.temporal.api.history.v1.WorkflowExecutionContinuedAsNewEventAttributes;
 import io.temporal.api.history.v1.WorkflowExecutionSignaledEventAttributes;
-import io.temporal.internal.common.StatusUtils;
-import io.temporal.internal.common.WorkflowExecutionUtils;
-import io.temporal.internal.testservice.StateMachines.*;
 import io.temporal.api.query.v1.QueryRejected;
 import io.temporal.api.query.v1.WorkflowQueryResult;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
@@ -96,6 +93,9 @@ import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
+import io.temporal.internal.common.StatusUtils;
+import io.temporal.internal.common.WorkflowExecutionUtils;
+import io.temporal.internal.testservice.StateMachines.*;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -998,7 +998,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     update(
         ctx -> {
           StateMachine<ChildWorkflowData> child = getChildWorkflow(a.getInitiatedEventId());
-          child.action(Action.TIME_OUT, ctx, a.getRetryStatus(), 0);
+          child.action(Action.TIME_OUT, ctx, a.getRetryState(), 0);
           childWorkflows.remove(a.getInitiatedEventId());
           scheduleDecision(ctx);
           ctx.unlockTimer();
@@ -1106,7 +1106,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         ApplicationFailureInfo failureInfo = d.getFailure().getApplicationFailureInfo();
         if (failureInfo.getNonRetryable()) {
           backoffInterval =
-              new TestServiceRetryState.BackoffInterval(RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE);
+              new TestServiceRetryState.BackoffInterval(
+                  RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE);
         } else {
           failureType = Optional.of(failureInfo.getType());
           backoffInterval = rs.getBackoffIntervalInSeconds(failureType, store.currentTimeMillis());
@@ -1115,7 +1116,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         backoffInterval =
             new TestServiceRetryState.BackoffInterval(RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE);
       }
-      if (backoffInterval.getRetryStatus() == RetryState.RETRY_STATE_IN_PROGRESS) {
+      if (backoffInterval.getRetryState() == RetryState.RETRY_STATE_IN_PROGRESS) {
         ContinueAsNewWorkflowExecutionDecisionAttributes.Builder continueAsNewAttr =
             ContinueAsNewWorkflowExecutionDecisionAttributes.newBuilder()
                 .setInput(startRequest.getInput())
@@ -1721,8 +1722,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               return;
             }
             // TODO(maxim): real retry status
-            workflow.action(
-                StateMachines.Action.TIME_OUT, ctx, RetryState.RETRY_STATE_TIMEOUT, 0);
+            workflow.action(StateMachines.Action.TIME_OUT, ctx, RetryState.RETRY_STATE_TIMEOUT, 0);
             decision.getData().workflowCompleted = true;
             if (parent != null) {
               ctx.lockTimer(); // unlocked by the parent
@@ -1743,7 +1743,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       ChildWorkflowExecutionTimedOutEventAttributes a =
           ChildWorkflowExecutionTimedOutEventAttributes.newBuilder()
               .setInitiatedEventId(parentChildInitiatedEventId.getAsLong())
-              .setRetryStatus(RetryState.RETRY_STATE_TIMEOUT) // TODO(maxim): Real status
+              .setRetryState(RetryState.RETRY_STATE_TIMEOUT) // TODO(maxim): Real status
               .setWorkflowType(startRequest.getWorkflowType())
               .setNamespace(ctx.getNamespace())
               .setWorkflowExecution(ctx.getExecution())

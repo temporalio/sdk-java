@@ -21,6 +21,8 @@ package io.temporal.internal.sync;
 
 import com.google.common.base.Defaults;
 import com.uber.m3.tally.Scope;
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.client.WorkflowOptions;
@@ -28,8 +30,6 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
-import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.internal.external.GenericWorkflowClientExternal;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.SignalMethod;

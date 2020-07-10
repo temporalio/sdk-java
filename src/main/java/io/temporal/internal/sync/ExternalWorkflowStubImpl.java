@@ -19,8 +19,8 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.workflow.CancelExternalWorkflowException;
 import io.temporal.workflow.ExternalWorkflowStub;
 import io.temporal.workflow.Promise;

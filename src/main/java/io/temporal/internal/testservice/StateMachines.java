@@ -86,10 +86,6 @@ import io.temporal.api.history.v1.WorkflowExecutionFailedEventAttributes;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.api.history.v1.WorkflowExecutionTerminatedEventAttributes;
 import io.temporal.api.history.v1.WorkflowExecutionTimedOutEventAttributes;
-import io.temporal.internal.common.StatusUtils;
-import io.temporal.internal.testservice.TestWorkflowStore.ActivityTask;
-import io.temporal.internal.testservice.TestWorkflowStore.DecisionTask;
-import io.temporal.internal.testservice.TestWorkflowStore.TaskQueueId;
 import io.temporal.api.query.v1.WorkflowQueryResult;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
@@ -110,6 +106,10 @@ import io.temporal.api.workflowservice.v1.RespondDecisionTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondDecisionTaskFailedRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.TerminateWorkflowExecutionRequest;
+import io.temporal.internal.common.StatusUtils;
+import io.temporal.internal.testservice.TestWorkflowStore.ActivityTask;
+import io.temporal.internal.testservice.TestWorkflowStore.DecisionTask;
+import io.temporal.internal.testservice.TestWorkflowStore.TaskQueueId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -541,7 +541,7 @@ class StateMachines {
             .setStartedEventId(data.startedEventId)
             .setWorkflowExecution(data.execution)
             .setWorkflowType(ie.getWorkflowType())
-            .setRetryStatus(retryState)
+            .setRetryState(retryState)
             .setInitiatedEventId(data.initiatedEventId)
             .build();
     HistoryEvent event =
@@ -909,7 +909,7 @@ class StateMachines {
   private static void timeoutWorkflow(
       RequestContext ctx, WorkflowData data, RetryState retryState, long notUsed) {
     WorkflowExecutionTimedOutEventAttributes.Builder a =
-        WorkflowExecutionTimedOutEventAttributes.newBuilder().setRetryStatus(retryState);
+        WorkflowExecutionTimedOutEventAttributes.newBuilder().setRetryState(retryState);
     HistoryEvent event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT)
@@ -1021,7 +1021,7 @@ class StateMachines {
             .setScheduleToCloseTimeoutSeconds(d.getScheduleToCloseTimeoutSeconds())
             .setStartToCloseTimeoutSeconds(d.getStartToCloseTimeoutSeconds())
             .setScheduledTimestamp(ctx.currentTimeInNanoseconds())
-            .setScheduledTimestampOfThisAttempt(ctx.currentTimeInNanoseconds())
+            .setScheduledTimestampThisAttempt(ctx.currentTimeInNanoseconds())
             .setHeader(d.getHeader())
             .setAttempt(0);
 
@@ -1487,7 +1487,7 @@ class StateMachines {
             .setIdentity(request.getIdentity())
             .setScheduledEventId(data.scheduledEventId)
             .setFailure(request.getFailure())
-            .setRetryStatus(retryState)
+            .setRetryState(retryState)
             .setIdentity(request.getIdentity())
             .setStartedEventId(data.startedEventId);
     HistoryEvent event =
@@ -1514,7 +1514,7 @@ class StateMachines {
             .setIdentity(request.getIdentity())
             .setScheduledEventId(data.scheduledEventId)
             .setFailure(request.getFailure())
-            .setRetryStatus(retryState)
+            .setRetryState(retryState)
             .setIdentity(request.getIdentity())
             .setStartedEventId(data.startedEventId);
     HistoryEvent event =
@@ -1555,7 +1555,7 @@ class StateMachines {
     ActivityTaskTimedOutEventAttributes.Builder a =
         ActivityTaskTimedOutEventAttributes.newBuilder()
             .setScheduledEventId(data.scheduledEventId)
-            .setRetryStatus(retryState)
+            .setRetryState(retryState)
             .setStartedEventId(data.startedEventId)
             .setFailure(failure);
     HistoryEvent event =
@@ -1592,7 +1592,7 @@ class StateMachines {
     TestServiceRetryState.BackoffInterval backoffInterval =
         data.retryState.getBackoffIntervalInSeconds(
             info.map(i -> i.getType()), data.store.currentTimeMillis());
-    if (backoffInterval.getRetryStatus() == RetryState.RETRY_STATE_IN_PROGRESS) {
+    if (backoffInterval.getRetryState() == RetryState.RETRY_STATE_IN_PROGRESS) {
       data.nextBackoffIntervalSeconds = backoffInterval.getIntervalSeconds();
       PollForActivityTaskResponse.Builder task = data.activityTask.getTask();
       if (data.heartbeatDetails != null) {
@@ -1602,13 +1602,13 @@ class StateMachines {
           (historySize) -> {
             data.retryState = nextAttempt;
             task.setAttempt(nextAttempt.getAttempt());
-            task.setScheduledTimestampOfThisAttempt(ctx.currentTimeInNanoseconds());
+            task.setScheduledTimestampThisAttempt(ctx.currentTimeInNanoseconds());
           });
     } else {
       data.startedEventId = ctx.addEvent(data.startedEvent);
       data.nextBackoffIntervalSeconds = 0;
     }
-    return backoffInterval.getRetryStatus();
+    return backoffInterval.getRetryState();
   }
 
   private static void reportActivityTaskCancellation(

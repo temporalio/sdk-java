@@ -25,10 +25,10 @@ import static org.junit.Assert.*;
 
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
 import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.TestServiceUtils;
-import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeUnit;

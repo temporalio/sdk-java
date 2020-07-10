@@ -77,7 +77,7 @@ public final class ActivityFailure extends TemporalFailure {
     return identity;
   }
 
-  public RetryState getRetryStatus() {
+  public RetryState getRetryState() {
     return retryState;
   }
 

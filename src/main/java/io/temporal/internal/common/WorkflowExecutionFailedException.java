@@ -44,7 +44,7 @@ public final class WorkflowExecutionFailedException extends RuntimeException {
     return decisionTaskCompletedEventId;
   }
 
-  public RetryState getRetryStatus() {
+  public RetryState getRetryState() {
     return retryState;
   }
 }

@@ -21,11 +21,11 @@ package io.temporal.internal.common;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
-import io.temporal.common.converter.DataConverterException;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.common.converter.DataConverterException;
 import java.util.List;
 
 /** Contains workflow execution ids and the history */

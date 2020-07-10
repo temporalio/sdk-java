@@ -25,7 +25,6 @@ import io.temporal.activity.ActivityCancellationType;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.decision.v1.ScheduleActivityTaskDecisionAttributes;
-import io.temporal.failure.CanceledFailure;
 import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.ActivityTaskCanceledEventAttributes;
@@ -33,6 +32,7 @@ import io.temporal.api.history.v1.ActivityTaskCompletedEventAttributes;
 import io.temporal.api.history.v1.ActivityTaskFailedEventAttributes;
 import io.temporal.api.history.v1.ActivityTaskTimedOutEventAttributes;
 import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.failure.CanceledFailure;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -233,7 +233,7 @@ final class ActivityDecisionContext {
                 context.getStartedEventId(),
                 context.getActivityType(),
                 context.getActivityId(),
-                attributes.getRetryStatus(),
+                attributes.getRetryState(),
                 failure);
         BiConsumer<Optional<Payloads>, Exception> completionHandle =
             scheduled.getCompletionCallback();

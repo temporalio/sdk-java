@@ -20,11 +20,11 @@
 package io.temporal.client;
 
 import com.google.common.base.Objects;
+import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
-import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.internal.common.OptionsUtils;
 import java.time.Duration;
 import java.util.List;

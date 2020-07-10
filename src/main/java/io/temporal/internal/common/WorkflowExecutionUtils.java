@@ -33,9 +33,6 @@ import com.google.protobuf.TextFormat;
 import com.uber.m3.tally.Scope;
 import io.grpc.Deadline;
 import io.grpc.Status;
-import io.temporal.client.WorkflowFailedException;
-import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.EncodedValue;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.decision.v1.Decision;
@@ -45,9 +42,6 @@ import io.temporal.api.enums.v1.HistoryEventFilterType;
 import io.temporal.api.enums.v1.RetryState;
 import io.temporal.api.enums.v1.TimeoutType;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
-import io.temporal.failure.CanceledFailure;
-import io.temporal.failure.TerminatedFailure;
-import io.temporal.failure.TimeoutFailure;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.HistoryEventOrBuilder;
@@ -57,12 +51,18 @@ import io.temporal.api.history.v1.WorkflowExecutionContinuedAsNewEventAttributes
 import io.temporal.api.history.v1.WorkflowExecutionFailedEventAttributes;
 import io.temporal.api.history.v1.WorkflowExecutionTerminatedEventAttributes;
 import io.temporal.api.history.v1.WorkflowExecutionTimedOutEventAttributes;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
+import io.temporal.client.WorkflowFailedException;
+import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.EncodedValue;
+import io.temporal.failure.CanceledFailure;
+import io.temporal.failure.TerminatedFailure;
+import io.temporal.failure.TimeoutFailure;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
@@ -173,7 +173,7 @@ public class WorkflowExecutionUtils {
         WorkflowExecutionFailedEventAttributes failed =
             closeEvent.getWorkflowExecutionFailedEventAttributes();
         throw new WorkflowExecutionFailedException(
-            failed.getFailure(), failed.getDecisionTaskCompletedEventId(), failed.getRetryStatus());
+            failed.getFailure(), failed.getDecisionTaskCompletedEventId(), failed.getRetryState());
       case EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED:
         WorkflowExecutionTerminatedEventAttributes terminated =
             closeEvent.getWorkflowExecutionTerminatedEventAttributes();
@@ -190,7 +190,7 @@ public class WorkflowExecutionUtils {
             workflowExecution,
             workflowType.orElse(null),
             0,
-            timedOut.getRetryStatus(),
+            timedOut.getRetryState(),
             new TimeoutFailure(null, null, TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE));
       default:
         throw new RuntimeException(
@@ -219,7 +219,7 @@ public class WorkflowExecutionUtils {
               .setExecution(workflowExecution)
               .setHistoryEventFilterType(
                   HistoryEventFilterType.HISTORY_EVENT_FILTER_TYPE_CLOSE_EVENT)
-              .setWaitForNewEvent(true)
+              .setWaitNewEvent(true)
               .setNextPageToken(pageToken)
               .build();
       long elapsed = System.currentTimeMillis() - start;

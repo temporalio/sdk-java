@@ -20,8 +20,8 @@
 package io.temporal.internal.common;
 
 import com.cronutils.utils.StringUtils;
-import io.temporal.common.converter.DataConverter;
 import io.temporal.api.common.v1.SearchAttributes;
+import io.temporal.common.converter.DataConverter;
 
 public class SearchAttributesUtil {
   private static final DataConverter jsonConverter = DataConverter.getDefaultInstance();

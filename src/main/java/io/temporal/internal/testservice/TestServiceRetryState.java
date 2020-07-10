@@ -46,7 +46,7 @@ final class TestServiceRetryState {
       return intervalSeconds;
     }
 
-    public RetryState getRetryStatus() {
+    public RetryState getRetryState() {
       return retryState;
     }
   }

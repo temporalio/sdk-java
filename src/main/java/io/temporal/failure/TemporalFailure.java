@@ -19,8 +19,8 @@
 
 package io.temporal.failure;
 
-import io.temporal.common.converter.DataConverter;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.common.converter.DataConverter;
 import java.util.Optional;
 
 /**

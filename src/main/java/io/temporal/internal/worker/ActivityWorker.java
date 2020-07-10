@@ -25,11 +25,15 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
-import io.temporal.common.context.ContextPropagator;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.api.workflowservice.v1.PollForActivityTaskResponse;
+import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
+import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
+import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
+import io.temporal.common.context.ContextPropagator;
 import io.temporal.internal.common.GrpcRetryer;
 import io.temporal.internal.common.RpcRetryOptions;
 import io.temporal.internal.logging.LoggerTag;
@@ -38,10 +42,6 @@ import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.FailureWrapperException;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.api.workflowservice.v1.PollForActivityTaskResponse;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
-import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -175,7 +175,7 @@ public final class ActivityWorker implements SuspendableWorker {
           .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
           .record(
               Duration.ofNanos(
-                  task.getStartedTimestamp() - task.getScheduledTimestampOfThisAttempt()));
+                  task.getStartedTimestamp() - task.getScheduledTimestampThisAttempt()));
 
       // The following tags are for logging.
       MDC.put(LoggerTag.ACTIVITY_ID, task.getActivityId());
@@ -197,7 +197,7 @@ public final class ActivityWorker implements SuspendableWorker {
 
         long nanoTime =
             TimeUnit.NANOSECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
-        Duration duration = Duration.ofNanos(nanoTime - task.getScheduledTimestampOfThisAttempt());
+        Duration duration = Duration.ofNanos(nanoTime - task.getScheduledTimestampThisAttempt());
         metricsScope.timer(MetricsType.ACTIVITY_E2E_LATENCY).record(duration);
 
       } catch (FailureWrapperException e) {
