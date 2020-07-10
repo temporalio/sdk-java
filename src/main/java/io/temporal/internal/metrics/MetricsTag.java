@@ -35,4 +35,8 @@ public class MetricsTag {
   /** Used to pass metrics scope to the interceptor */
   public static final CallOptions.Key<Scope> METRICS_TAGS_CALL_OPTIONS_KEY =
       CallOptions.Key.create("metrics-tags-call-options-key");
+
+  /** Indicates to interceptors that GetWorkflowExecutionHistory is a long poll. */
+  public static final CallOptions.Key<Boolean> HISTORY_LONG_POLL_CALL_OPTIONS_KEY =
+      CallOptions.Key.create("history-long-poll");
 }

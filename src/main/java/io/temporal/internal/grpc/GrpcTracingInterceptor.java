@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal;
+package io.temporal.internal.grpc;
 
 import io.grpc.CallOptions;
 import io.grpc.Channel;

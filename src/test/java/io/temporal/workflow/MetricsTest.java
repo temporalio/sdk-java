@@ -263,9 +263,11 @@ public class MetricsTest {
     //    verify(reporter, times(1)).reportCounter("temporal-worker-start", tags, 3);
     reporter.assertCounter("temporal-poller-start", tagsB.build());
     reporter.assertCounter(
-        "temporal-request", tagsB.put(MetricsTag.OPERATION_NAME, "PollForActivityTask").build());
+        MetricsType.TEMPORAL_LONG_REQUEST,
+        tagsB.put(MetricsTag.OPERATION_NAME, "PollForActivityTask").build());
     reporter.assertCounter(
-        "temporal-request", tagsB.put(MetricsTag.OPERATION_NAME, "PollForDecisionTask").build());
+        MetricsType.TEMPORAL_LONG_REQUEST,
+        tagsB.put(MetricsTag.OPERATION_NAME, "PollForDecisionTask").build());
 
     ImmutableMap<String, String> tags =
         new ImmutableMap.Builder<String, String>(2)

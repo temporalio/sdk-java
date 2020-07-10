@@ -19,6 +19,7 @@
 
 package io.temporal.internal.common;
 
+import static io.temporal.internal.metrics.MetricsTag.HISTORY_LONG_POLL_CALL_OPTIONS_KEY;
 import static io.temporal.internal.metrics.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -244,6 +245,7 @@ public class WorkflowExecutionUtils {
                   return service
                       .blockingStub()
                       .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                      .withOption(HISTORY_LONG_POLL_CALL_OPTIONS_KEY, true)
                       .withDeadline(expirationInRetry)
                       .getWorkflowExecutionHistory(r);
                 });

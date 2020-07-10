@@ -17,7 +17,7 @@
  *  permissions and limitations under the License.
  */
 
-package io.temporal.internal;
+package io.temporal.internal.grpc;
 
 import static io.temporal.internal.metrics.MetricsTag.OPERATION_NAME;
 import static io.temporal.internal.metrics.MetricsTag.STATUS_CODE;
@@ -78,6 +78,7 @@ class GrpcMetricsInterceptor implements ClientInterceptor {
       extends ForwardingClientCall.SimpleForwardingClientCall<ReqT, RespT> {
     private final Scope metricsScope;
     private final Stopwatch sw;
+    private final boolean longPoll;
 
     public MetricsClientCall(
         Channel next,
@@ -86,8 +87,14 @@ class GrpcMetricsInterceptor implements ClientInterceptor {
         Scope metricsScope) {
       super(next.newCall(method, callOptions));
       this.metricsScope = metricsScope;
-      metricsScope.counter(MetricsType.TEMPORAL_REQUEST).inc(1);
-      sw = metricsScope.timer(MetricsType.TEMPORAL_REQUEST_LATENCY).start();
+      longPoll = LongPollUtil.isLongPoll(method, callOptions);
+      if (longPoll) {
+        metricsScope.counter(MetricsType.TEMPORAL_LONG_REQUEST).inc(1);
+        sw = metricsScope.timer(MetricsType.TEMPORAL_LONG_REQUEST_LATENCY).start();
+      } else {
+        metricsScope.counter(MetricsType.TEMPORAL_REQUEST).inc(1);
+        sw = metricsScope.timer(MetricsType.TEMPORAL_REQUEST_LATENCY).start();
+      }
     }
 
     @Override
@@ -109,7 +116,11 @@ class GrpcMetricsInterceptor implements ClientInterceptor {
                         new ImmutableMap.Builder<String, String>(1)
                             .put(STATUS_CODE, String.valueOf(code))
                             .build());
-                scope.counter(MetricsType.TEMPORAL_REQUEST_FAILURE).inc(1);
+                if (longPoll) {
+                  scope.counter(MetricsType.TEMPORAL_LONG_REQUEST_FAILURE).inc(1);
+                } else {
+                  scope.counter(MetricsType.TEMPORAL_REQUEST_FAILURE).inc(1);
+                }
               }
               super.onClose(status, trailers);
               sw.stop();
