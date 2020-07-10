@@ -148,7 +148,6 @@ class WorkflowThreadImpl implements WorkflowThread {
 
   private static final Logger log = LoggerFactory.getLogger(WorkflowThreadImpl.class);
 
-  private final boolean root;
   private final ExecutorService threadPool;
   private final WorkflowThreadContext context;
   private final DeciderCache cache;
@@ -168,7 +167,6 @@ class WorkflowThreadImpl implements WorkflowThread {
   private long blockedUntil;
 
   WorkflowThreadImpl(
-      boolean root,
       ExecutorService threadPool,
       DeterministicRunnerImpl runner,
       String name,
@@ -179,7 +177,6 @@ class WorkflowThreadImpl implements WorkflowThread {
       DeciderCache cache,
       List<ContextPropagator> contextPropagators,
       Map<String, Object> propagatedContexts) {
-    this.root = root;
     this.threadPool = threadPool;
     this.runner = runner;
     this.context = new WorkflowThreadContext(runner.getLock());
@@ -260,9 +257,10 @@ class WorkflowThreadImpl implements WorkflowThread {
             .counter(MetricsType.STICKY_CACHE_THREAD_FORCED_EVICTION)
             .inc(1);
         if (cache != null) {
+          SyncDecisionContext decisionContext = this.runner.getDecisionContext();
           boolean evicted =
               cache.evictAnyNotInProcessing(
-                  this.runner.getDecisionContext().getContext().getRunId());
+                  decisionContext.getContext().getRunId(), decisionContext.getMetricsScope());
           if (!evicted) {
             // Note here we need to throw error, not exception. Otherwise it will be
             // translated to workflow execution exception and instead of failing the

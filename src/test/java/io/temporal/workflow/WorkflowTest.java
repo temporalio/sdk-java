@@ -29,6 +29,7 @@ import com.google.common.io.Files;
 import com.google.common.reflect.TypeToken;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.protobuf.ByteString;
+import com.uber.m3.tally.NoopScope;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityCancellationType;
 import io.temporal.activity.ActivityExecutionContext;
@@ -909,7 +910,7 @@ public class WorkflowTest {
   }
 
   @Test
-  public void testAsyncActivityRetry() throws IOException {
+  public void testAsyncActivityRetry() {
     startWorkerFor(TestAsyncActivityRetry.class);
     TestWorkflow1 workflowStub =
         workflowClient.newWorkflowStub(
@@ -918,7 +919,9 @@ public class WorkflowTest {
       workflowStub.execute(taskQueue);
       fail("unreachable");
     } catch (WorkflowException e) {
-      assertTrue(e.getCause().getCause() instanceof ApplicationFailure);
+      assertTrue(
+          String.valueOf(e.getCause().getCause()),
+          e.getCause().getCause() instanceof ApplicationFailure);
       assertEquals(
           IOException.class.getName(), ((ApplicationFailure) e.getCause().getCause()).getType());
     }
@@ -1866,7 +1869,11 @@ public class WorkflowTest {
 
       GetWorkflowExecutionHistoryResponse historyResp =
           WorkflowExecutionUtils.getHistoryPage(
-              testEnvironment.getWorkflowService(), NAMESPACE, executionF, ByteString.EMPTY);
+              testEnvironment.getWorkflowService(),
+              NAMESPACE,
+              executionF,
+              ByteString.EMPTY,
+              new NoopScope());
       HistoryEvent startEvent = historyResp.getHistory().getEvents(0);
       Memo memoFromEvent = startEvent.getWorkflowExecutionStartedEventAttributes().getMemo();
       Payload memoBytes = memoFromEvent.getFieldsMap().get(testMemoKey);
@@ -1907,7 +1914,11 @@ public class WorkflowTest {
 
       GetWorkflowExecutionHistoryResponse historyResp =
           WorkflowExecutionUtils.getHistoryPage(
-              testEnvironment.getWorkflowService(), NAMESPACE, executionF, ByteString.EMPTY);
+              testEnvironment.getWorkflowService(),
+              NAMESPACE,
+              executionF,
+              ByteString.EMPTY,
+              new NoopScope());
       HistoryEvent startEvent = historyResp.getHistory().getEvents(0);
       SearchAttributes searchAttrFromEvent =
           startEvent.getWorkflowExecutionStartedEventAttributes().getSearchAttributes();

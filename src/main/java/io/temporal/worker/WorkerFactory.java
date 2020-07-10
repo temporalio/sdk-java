@@ -48,6 +48,8 @@ import org.slf4j.LoggerFactory;
 /** Maintains worker creation and lifecycle. */
 public final class WorkerFactory {
 
+  private final Scope metricsScope;
+
   public static WorkerFactory newInstance(WorkflowClient workflowClient) {
     return WorkerFactory.newInstance(workflowClient, WorkerFactoryOptions.getDefaultInstance());
   }
@@ -99,20 +101,24 @@ public final class WorkerFactory {
     workflowThreadPool.setThreadFactory(
         r -> new Thread(r, "workflow-thread-" + workflowThreadCounter.incrementAndGet()));
 
-    Scope metricsScope =
+    metricsScope =
         this.workflowClient
             .getWorkflowServiceStubs()
             .getOptions()
             .getMetricsScope()
             .tagged(
-                new ImmutableMap.Builder<String, String>(2)
+                new ImmutableMap.Builder<String, String>(1)
                     .put(MetricsTag.NAMESPACE, workflowClient.getOptions().getNamespace())
-                    .put(MetricsTag.TASK_QUEUE, workflowClient.getOptions().getIdentity())
                     .build());
 
     this.cache = new DeciderCache(this.factoryOptions.getWorkflowCacheSize(), metricsScope);
-
-    dispatcher = new PollDecisionTaskDispatcher(workflowClient.getWorkflowServiceStubs());
+    Scope stickyScope =
+        metricsScope.tagged(
+            new ImmutableMap.Builder<String, String>(1)
+                .put(MetricsTag.TASK_QUEUE, "sticky")
+                .build());
+    dispatcher =
+        new PollDecisionTaskDispatcher(workflowClient.getWorkflowServiceStubs(), metricsScope);
     stickyPoller =
         new Poller<>(
             id.toString(),
@@ -120,7 +126,7 @@ public final class WorkerFactory {
                     workflowClient.getWorkflowServiceStubs(),
                     workflowClient.getOptions().getNamespace(),
                     getStickyTaskQueueName(),
-                    metricsScope,
+                    stickyScope,
                     id.toString())
                 .get(),
             dispatcher,
@@ -128,7 +134,7 @@ public final class WorkerFactory {
                 .setPollThreadNamePrefix(POLL_THREAD_NAME)
                 .setPollThreadCount(this.factoryOptions.getWorkflowHostLocalPollThreadCount())
                 .build(),
-            metricsScope);
+            stickyScope);
   }
 
   /**
@@ -166,6 +172,7 @@ public final class WorkerFactory {
             taskQueue,
             factoryOptions,
             options,
+            metricsScope,
             cache,
             getStickyTaskQueueName(),
             workflowThreadPool,

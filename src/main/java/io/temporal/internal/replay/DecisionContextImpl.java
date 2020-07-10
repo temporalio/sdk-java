@@ -70,6 +70,7 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
       WorkflowExecutionStartedEventAttributes startedAttributes,
       long runStartedTimestampMillis,
       SingleWorkerOptions options,
+      Scope metricsScope,
       BiFunction<LocalActivityWorker.Task, Duration, Boolean> laTaskPoller,
       ReplayDecider replayDecider) {
     this.activityClient = new ActivityDecisionContext(decisionsHelper);
@@ -85,8 +86,7 @@ final class DecisionContextImpl implements DecisionContext, HistoryEventHandler 
         new ClockDecisionContext(
             decisionsHelper, laTaskPoller, replayDecider, options.getDataConverter());
     this.enableLoggingInReplay = options.getEnableLoggingInReplay();
-    this.metricsScope =
-        new ReplayAwareScope(options.getMetricsScope(), this, workflowClock::currentTimeMillis);
+    this.metricsScope = new ReplayAwareScope(metricsScope, this, workflowClock::currentTimeMillis);
   }
 
   @Override

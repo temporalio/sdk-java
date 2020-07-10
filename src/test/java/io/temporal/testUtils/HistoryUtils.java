@@ -31,10 +31,10 @@ import java.util.concurrent.TimeUnit;
 public class HistoryUtils {
   private HistoryUtils() {}
 
-  private static final String NAMESPACE = "namespace";
-  private static final String TASK_QUEUE = "taskQueue";
-  private static final String HOST_TASK_QUEUE = "stickyTaskQueue";
-  private static final String WORKFLOW_TYPE = "workflowType";
+  public static final String NAMESPACE = "namespace";
+  public static final String TASK_QUEUE = "taskQueue";
+  public static final String HOST_TASK_QUEUE = "stickyTaskQueue";
+  public static final String WORKFLOW_TYPE = "workflowType";
 
   public static PollForDecisionTaskResponse generateDecisionTaskWithInitialHistory()
       throws Exception {

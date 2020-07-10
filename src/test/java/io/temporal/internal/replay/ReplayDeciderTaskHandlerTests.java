@@ -27,7 +27,7 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import io.temporal.internal.metrics.NoopScope;
+import com.uber.m3.tally.NoopScope;
 import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.internal.worker.DecisionTaskHandler;
 import io.temporal.internal.worker.SingleWorkerOptions;
@@ -67,7 +67,7 @@ public class ReplayDeciderTaskHandlerTests {
   @Test
   public void ifStickyExecutionAttributesAreNotSetThenWorkflowsAreNotCached() throws Throwable {
     // Arrange
-    DeciderCache cache = new DeciderCache(10, NoopScope.getInstance());
+    DeciderCache cache = new DeciderCache(10, new NoopScope());
     DecisionTaskHandler taskHandler =
         new ReplayDecisionTaskHandler(
             "namespace",
@@ -93,7 +93,7 @@ public class ReplayDeciderTaskHandlerTests {
   @Test
   public void ifStickyExecutionAttributesAreSetThenWorkflowsAreCached() throws Throwable {
     // Arrange
-    DeciderCache cache = new DeciderCache(10, NoopScope.getInstance());
+    DeciderCache cache = new DeciderCache(10, new NoopScope());
     DecisionTaskHandler taskHandler =
         new ReplayDecisionTaskHandler(
             "namespace",

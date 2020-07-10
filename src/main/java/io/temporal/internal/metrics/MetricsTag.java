@@ -19,19 +19,20 @@
 
 package io.temporal.internal.metrics;
 
+import com.uber.m3.tally.Scope;
+import io.grpc.CallOptions;
+
 public class MetricsTag {
-  public static final String ACTIVITY_ID = "ActivityId";
   public static final String ACTIVITY_TYPE = "ActivityType";
   public static final String NAMESPACE = "Namespace";
-  public static final String EVENT_ID = "EventId";
-  public static final String EVENT_TYPE = "EventType";
-  public static final String RUN_ID = "RunId";
   public static final String TASK_QUEUE = "TaskQueue";
-  public static final String TIMER_ID = "TimerId";
-  public static final String WORKFLOW_ID = "WorkflowId";
   public static final String WORKFLOW_TYPE = "WorkflowType";
-  public static final String WORKER_ID = "WorkerId";
-  public static final String WORKER_TYPE = "WorkerType";
-  public static final String SIDE_EFFECT_ID = "SideEffectId";
-  public static final String CHILD_WORKFLOW_ID = "ChildWorkflowId";
+  public static final String SIGNAL_NAME = "SignalName";
+  public static final String QUERY_TYPE = "QueryType";
+  public static final String STATUS_CODE = "StatusCode";
+  public static final String OPERATION_NAME = "Operation";
+
+  /** Used to pass metrics scope to the interceptor */
+  public static final CallOptions.Key<Scope> METRICS_TAGS_CALL_OPTIONS_KEY =
+      CallOptions.Key.create("metrics-tags-call-options-key");
 }

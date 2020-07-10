@@ -19,6 +19,8 @@
 
 package io.temporal.internal.worker;
 
+import static io.temporal.internal.metrics.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
+
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
@@ -170,7 +172,7 @@ public final class ActivityWorker implements SuspendableWorker {
                       task.getWorkflowType().getName()));
 
       metricsScope
-          .timer(MetricsType.ACTIVITY_SCHEDULED_TO_START_LATENCY)
+          .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
           .record(
               Duration.ofNanos(
                   task.getStartedTimestamp() - task.getScheduledTimestampOfThisAttempt()));
@@ -185,12 +187,13 @@ public final class ActivityWorker implements SuspendableWorker {
 
       try {
         Stopwatch sw = metricsScope.timer(MetricsType.ACTIVITY_EXEC_LATENCY).start();
-        ActivityTaskHandler.Result response = handler.handle(task, metricsScope, false);
-        sw.stop();
-
-        sw = metricsScope.timer(MetricsType.ACTIVITY_RESP_LATENCY).start();
+        ActivityTaskHandler.Result response;
+        try {
+          response = handler.handle(task, metricsScope, false);
+        } finally {
+          sw.stop();
+        }
         sendReply(task, response, metricsScope);
-        sw.stop();
 
         long nanoTime =
             TimeUnit.NANOSECONDS.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
@@ -206,9 +209,7 @@ public final class ActivityWorker implements SuspendableWorker {
           if (info.hasDetails()) {
             cancelledRequest.setDetails(info.getDetails());
           }
-          Stopwatch sw = metricsScope.timer(MetricsType.ACTIVITY_RESP_LATENCY).start();
           sendReply(task, new Result(null, null, cancelledRequest.build(), null), metricsScope);
-          sw.stop();
         }
       } finally {
         MDC.remove(LoggerTag.ACTIVITY_ID);
@@ -262,8 +263,13 @@ public final class ActivityWorker implements SuspendableWorker {
                 .setTaskToken(task.getTaskToken())
                 .setIdentity(options.getIdentity())
                 .build();
-        GrpcRetryer.retry(ro, () -> service.blockingStub().respondActivityTaskCompleted(request));
-        metricsScope.counter(MetricsType.ACTIVITY_TASK_COMPLETED_COUNTER).inc(1);
+        GrpcRetryer.retry(
+            ro,
+            () ->
+                service
+                    .blockingStub()
+                    .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                    .respondActivityTaskCompleted(request));
       } else {
         Result.TaskFailedResult taskFailed = response.getTaskFailed();
 
@@ -277,8 +283,13 @@ public final class ActivityWorker implements SuspendableWorker {
                   .build();
           ro = RpcRetryOptions.newBuilder().setRetryOptions(ro).validateBuildWithDefaults();
 
-          GrpcRetryer.retry(ro, () -> service.blockingStub().respondActivityTaskFailed(request));
-          metricsScope.counter(MetricsType.ACTIVITY_TASK_FAILED_COUNTER).inc(1);
+          GrpcRetryer.retry(
+              ro,
+              () ->
+                  service
+                      .blockingStub()
+                      .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                      .respondActivityTaskFailed(request));
         } else {
           RespondActivityTaskCanceledRequest taskCancelled = response.getTaskCancelled();
           if (taskCancelled != null) {
@@ -291,8 +302,12 @@ public final class ActivityWorker implements SuspendableWorker {
             ro = RpcRetryOptions.newBuilder().setRetryOptions(ro).validateBuildWithDefaults();
 
             GrpcRetryer.retry(
-                ro, () -> service.blockingStub().respondActivityTaskCanceled(request));
-            metricsScope.counter(MetricsType.ACTIVITY_TASK_CANCELED_COUNTER).inc(1);
+                ro,
+                () ->
+                    service
+                        .blockingStub()
+                        .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                        .respondActivityTaskCanceled(request));
           }
         }
       }

@@ -19,6 +19,8 @@
 
 package io.temporal.internal.sync;
 
+import static io.temporal.internal.metrics.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
+
 import com.uber.m3.tally.Scope;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -66,7 +68,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
   private Optional<Object> lastDetails;
   private boolean hasOutstandingHeartbeat;
   private final ScheduledExecutorService heartbeatExecutor;
-  private final Scope metricScope;
+  private final Scope metricsScope;
   private Lock lock = new ReentrantLock();
   private ScheduledFuture future;
   private ActivityCompletionException lastException;
@@ -87,7 +89,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
         Math.min(
             (long) (0.8 * info.getHeartbeatTimeout().toMillis()), MAX_HEARTBEAT_INTERVAL_MILLIS);
     this.heartbeatExecutor = heartbeatExecutor;
-    this.metricScope = metricsScope;
+    this.metricsScope = metricsScope;
   }
 
   /** @see ActivityExecutionContext#heartbeat(Object) */
@@ -194,7 +196,11 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
     }
     RecordActivityTaskHeartbeatResponse status;
     try {
-      status = service.blockingStub().recordActivityTaskHeartbeat(r.build());
+      status =
+          service
+              .blockingStub()
+              .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+              .recordActivityTaskHeartbeat(r.build());
       if (status.getCancelRequested()) {
         lastException = new ActivityCancelledException(info);
       } else {
@@ -224,7 +230,7 @@ class ActivityExecutionContextImpl implements ActivityExecutionContext {
 
   @Override
   public Scope getMetricsScope() {
-    return metricScope;
+    return metricsScope;
   }
 
   /** @see ActivityExecutionContext#getInfo() */

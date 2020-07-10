@@ -41,7 +41,6 @@ import io.temporal.enums.v1.RetryStatus;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
-import io.temporal.internal.metrics.NoopScope;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -255,7 +254,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         taskBuilder.setInput(input.get());
       }
       PollForActivityTaskResponse task = taskBuilder.build();
-      Result taskResult = activityTaskHandler.handle(task, NoopScope.getInstance(), false);
+      Result taskResult =
+          activityTaskHandler.handle(task, testEnvironmentOptions.getMetricsScope(), false);
       return Workflow.newPromise(getReply(task, taskResult, resultClass, resultType));
     }
 

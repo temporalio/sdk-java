@@ -19,10 +19,12 @@
 
 package io.temporal.internal;
 
-import static io.grpc.Status.Code.ALREADY_EXISTS;
+import static io.temporal.internal.metrics.MetricsTag.OPERATION_NAME;
+import static io.temporal.internal.metrics.MetricsTag.STATUS_CODE;
 
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
+import com.uber.m3.util.ImmutableMap;
 import io.grpc.CallOptions;
 import io.grpc.Channel;
 import io.grpc.ClientCall;
@@ -33,6 +35,7 @@ import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.ServiceDescriptor;
 import io.grpc.Status;
+import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.workflowservice.v1.WorkflowServiceGrpc;
 import java.util.Collection;
@@ -42,38 +45,49 @@ import java.util.Map;
 /** Reports metrics on GRPC service calls */
 class GrpcMetricsInterceptor implements ClientInterceptor {
 
-  private final Map<MethodDescriptor<?, ?>, Scope> methodScopes = new HashMap<>();
+  private final Scope defaultScope;
+  private final Map<MethodDescriptor<?, ?>, Map<String, String>> methodTags = new HashMap<>();
 
   GrpcMetricsInterceptor(Scope scope) {
+    this.defaultScope = scope;
     ServiceDescriptor descriptor = WorkflowServiceGrpc.getServiceDescriptor();
     String serviceName = descriptor.getName();
     Collection<MethodDescriptor<?, ?>> methods = descriptor.getMethods();
     for (MethodDescriptor<?, ?> method : methods) {
       int beginIndex = serviceName.length() + 1;
       String name = method.getFullMethodName().substring(beginIndex);
-      String scopeName = MetricsType.TEMPORAL_METRICS_PREFIX + name;
-      methodScopes.put(method, scope.subScope(scopeName));
+      Map<String, String> tags =
+          new ImmutableMap.Builder<String, String>(1).put(OPERATION_NAME, name).build();
+      methodTags.put(method, tags);
     }
   }
 
   @Override
   public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
       MethodDescriptor<ReqT, RespT> method, CallOptions callOptions, Channel next) {
-    Scope scope = methodScopes.get(method);
+    Scope scope = callOptions.getOption(MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY);
+    if (scope == null) {
+      scope = defaultScope;
+    }
+    Map<String, String> tags = methodTags.get(method);
+    scope = scope.tagged(tags);
     return new MetricsClientCall<>(next, method, callOptions, scope);
   }
 
   private static class MetricsClientCall<ReqT, RespT>
       extends ForwardingClientCall.SimpleForwardingClientCall<ReqT, RespT> {
-    private final Scope scope;
+    private final Scope metricsScope;
     private final Stopwatch sw;
 
     public MetricsClientCall(
-        Channel next, MethodDescriptor<ReqT, RespT> method, CallOptions callOptions, Scope scope) {
+        Channel next,
+        MethodDescriptor<ReqT, RespT> method,
+        CallOptions callOptions,
+        Scope metricsScope) {
       super(next.newCall(method, callOptions));
-      this.scope = scope;
-      scope.counter(MetricsType.TEMPORAL_REQUEST).inc(1);
-      sw = scope.timer(MetricsType.TEMPORAL_LATENCY).start();
+      this.metricsScope = metricsScope;
+      metricsScope.counter(MetricsType.TEMPORAL_REQUEST).inc(1);
+      sw = metricsScope.timer(MetricsType.TEMPORAL_REQUEST_LATENCY).start();
     }
 
     @Override
@@ -90,11 +104,12 @@ class GrpcMetricsInterceptor implements ClientInterceptor {
             public void onClose(Status status, Metadata trailers) {
               if (!status.isOk()) {
                 Status.Code code = status.getCode();
-                if (code == Status.Code.INVALID_ARGUMENT || code == ALREADY_EXISTS) {
-                  scope.counter(MetricsType.TEMPORAL_INVALID_REQUEST).inc(1);
-                } else {
-                  scope.counter(MetricsType.TEMPORAL_ERROR).inc(1);
-                }
+                Scope scope =
+                    metricsScope.tagged(
+                        new ImmutableMap.Builder<String, String>(1)
+                            .put(STATUS_CODE, String.valueOf(code))
+                            .build());
+                scope.counter(MetricsType.TEMPORAL_REQUEST_FAILURE).inc(1);
               }
               super.onClose(status, trailers);
               sw.stop();
