@@ -19,7 +19,7 @@
 
 package io.temporal.failure;
 
-import io.temporal.api.enums.v1.RetryStatus;
+import io.temporal.api.enums.v1.RetryState;
 
 /**
  * Contains information about an activity failure. Always contains the original reason for the
@@ -34,19 +34,19 @@ public final class ActivityFailure extends TemporalFailure {
   private final String activityType;
   private final String activityId;
   private final String identity;
-  private final RetryStatus retryStatus;
+  private final RetryState retryState;
 
   public ActivityFailure(
       long scheduledEventId,
       long startedEventId,
       String activityType,
       String activityId,
-      RetryStatus retryStatus,
+      RetryState retryState,
       String identity,
       Throwable cause) {
     super(
         getMessage(
-            scheduledEventId, startedEventId, activityType, activityId, retryStatus, identity),
+            scheduledEventId, startedEventId, activityType, activityId, retryState, identity),
         null,
         cause);
     this.scheduledEventId = scheduledEventId;
@@ -54,7 +54,7 @@ public final class ActivityFailure extends TemporalFailure {
     this.activityType = activityType;
     this.activityId = activityId;
     this.identity = identity;
-    this.retryStatus = retryStatus;
+    this.retryState = retryState;
   }
 
   public long getScheduledEventId() {
@@ -77,8 +77,8 @@ public final class ActivityFailure extends TemporalFailure {
     return identity;
   }
 
-  public RetryStatus getRetryStatus() {
-    return retryStatus;
+  public RetryState getRetryStatus() {
+    return retryState;
   }
 
   public static String getMessage(
@@ -86,7 +86,7 @@ public final class ActivityFailure extends TemporalFailure {
       long startedEventId,
       String activityType,
       String activityId,
-      RetryStatus retryStatus,
+      RetryState retryState,
       String identity) {
     return "scheduledEventId="
         + scheduledEventId
@@ -99,7 +99,7 @@ public final class ActivityFailure extends TemporalFailure {
         + ", identity='"
         + identity
         + '\''
-        + ", retryStatus="
-        + retryStatus;
+        + ", retryState="
+        + retryState;
   }
 }

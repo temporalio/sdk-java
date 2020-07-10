@@ -20,7 +20,7 @@
 package io.temporal.client;
 
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.enums.v1.RetryStatus;
+import io.temporal.api.enums.v1.RetryState;
 
 /**
  * Indicates that a workflow failed. An original cause of the workflow failure can be retrieved
@@ -28,26 +28,26 @@ import io.temporal.api.enums.v1.RetryStatus;
  */
 public final class WorkflowFailedException extends WorkflowException {
 
-  private final RetryStatus retryStatus;
+  private final RetryState retryState;
   private final long decisionTaskCompletedEventId;
 
   public WorkflowFailedException(
       WorkflowExecution workflowExecution,
       String workflowType,
       long decisionTaskCompletedEventId,
-      RetryStatus retryStatus,
+      RetryState retryState,
       Throwable cause) {
     super(
-        getMessage(workflowExecution, workflowType, decisionTaskCompletedEventId, retryStatus),
+        getMessage(workflowExecution, workflowType, decisionTaskCompletedEventId, retryState),
         workflowExecution,
         workflowType,
         cause);
-    this.retryStatus = retryStatus;
+    this.retryState = retryState;
     this.decisionTaskCompletedEventId = decisionTaskCompletedEventId;
   }
 
-  public RetryStatus getRetryStatus() {
-    return retryStatus;
+  public RetryState getRetryStatus() {
+    return retryState;
   }
 
   public long getDecisionTaskCompletedEventId() {
@@ -58,14 +58,14 @@ public final class WorkflowFailedException extends WorkflowException {
       WorkflowExecution workflowExecution,
       String workflowType,
       long decisionTaskCompletedEventId,
-      RetryStatus retryStatus) {
+      RetryState retryState) {
     return "workflowId='"
         + workflowExecution.getWorkflowId()
         + "', runId='"
         + workflowExecution.getRunId()
         + (workflowType == null ? "'" : "', workflowType='" + workflowType + '\'')
-        + ", retryStatus="
-        + retryStatus
+        + ", retryState="
+        + retryState
         + ", decisionTaskCompletedEventId="
         + decisionTaskCompletedEventId;
   }

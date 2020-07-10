@@ -37,7 +37,7 @@ import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.enums.v1.RetryStatus;
+import io.temporal.api.enums.v1.RetryState;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.FailureConverter;
@@ -396,7 +396,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
               0,
               task.getActivityType().getName(),
               task.getActivityId(),
-              RetryStatus.RETRY_STATUS_NON_RETRYABLE_FAILURE,
+              RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE,
               "TestActivityEnvironment",
               cause);
         } else {

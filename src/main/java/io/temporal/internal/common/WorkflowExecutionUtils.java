@@ -42,7 +42,7 @@ import io.temporal.api.decision.v1.Decision;
 import io.temporal.api.enums.v1.DecisionType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.HistoryEventFilterType;
-import io.temporal.api.enums.v1.RetryStatus;
+import io.temporal.api.enums.v1.RetryState;
 import io.temporal.api.enums.v1.TimeoutType;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.failure.CanceledFailure;
@@ -181,7 +181,7 @@ public class WorkflowExecutionUtils {
             workflowExecution,
             workflowType.orElse(null),
             0,
-            RetryStatus.RETRY_STATUS_NON_RETRYABLE_FAILURE,
+            RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE,
             new TerminatedFailure(terminated.getReason(), null));
       case EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT:
         WorkflowExecutionTimedOutEventAttributes timedOut =

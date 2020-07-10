@@ -21,33 +21,33 @@ package io.temporal.internal.testservice;
 
 import io.grpc.Status;
 import io.temporal.api.common.v1.RetryPolicy;
-import io.temporal.api.enums.v1.RetryStatus;
+import io.temporal.api.enums.v1.RetryState;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
-final class RetryState {
+final class TestServiceRetryState {
 
   static class BackoffInterval {
     private final int intervalSeconds;
-    private final RetryStatus retryStatus;
+    private final RetryState retryState;
 
     BackoffInterval(int intervalSeconds) {
       this.intervalSeconds = intervalSeconds;
-      this.retryStatus = RetryStatus.RETRY_STATUS_IN_PROGRESS;
+      this.retryState = RetryState.RETRY_STATE_IN_PROGRESS;
     }
 
-    BackoffInterval(RetryStatus retryStatus) {
+    BackoffInterval(RetryState retryState) {
       this.intervalSeconds = -1;
-      this.retryStatus = retryStatus;
+      this.retryState = retryState;
     }
 
     public int getIntervalSeconds() {
       return intervalSeconds;
     }
 
-    public RetryStatus getRetryStatus() {
-      return retryStatus;
+    public RetryState getRetryStatus() {
+      return retryState;
     }
   }
 
@@ -55,11 +55,11 @@ final class RetryState {
   private final long expirationTime;
   private final int attempt;
 
-  RetryState(RetryPolicy retryPolicy, long expirationTime) {
+  TestServiceRetryState(RetryPolicy retryPolicy, long expirationTime) {
     this(valiateAndOverrideRetryPolicy(retryPolicy), expirationTime, 0);
   }
 
-  private RetryState(RetryPolicy retryPolicy, long expirationTime, int attempt) {
+  private TestServiceRetryState(RetryPolicy retryPolicy, long expirationTime, int attempt) {
     this.retryPolicy = retryPolicy;
     this.expirationTime = expirationTime == 0 ? Long.MAX_VALUE : expirationTime;
     this.attempt = attempt;
@@ -77,8 +77,8 @@ final class RetryState {
     return attempt;
   }
 
-  RetryState getNextAttempt() {
-    return new RetryState(retryPolicy, expirationTime, attempt + 1);
+  TestServiceRetryState getNextAttempt() {
+    return new TestServiceRetryState(retryPolicy, expirationTime, attempt + 1);
   }
 
   BackoffInterval getBackoffIntervalInSeconds(Optional<String> errorType, long currentTimeMillis) {
@@ -89,20 +89,20 @@ final class RetryState {
       String type = errorType.get();
       for (String err : nonRetryableErrorTypes) {
         if (type.equals(err)) {
-          return new BackoffInterval(RetryStatus.RETRY_STATUS_NON_RETRYABLE_FAILURE);
+          return new BackoffInterval(RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE);
         }
       }
     }
     long expirationTime = getExpirationTime();
     if (retryPolicy.getMaximumAttempts() == 0 && expirationTime == 0) {
-      return new BackoffInterval(RetryStatus.RETRY_STATUS_RETRY_POLICY_NOT_SET);
+      return new BackoffInterval(RetryState.RETRY_STATE_RETRY_POLICY_NOT_SET);
     }
 
     if (retryPolicy.getMaximumAttempts() > 0
         && getAttempt() >= retryPolicy.getMaximumAttempts() - 1) {
       // currAttempt starts from 0.
       // MaximumAttempts is the total attempts, including initial (non-retry) attempt.
-      return new BackoffInterval(RetryStatus.RETRY_STATUS_MAXIMUM_ATTEMPTS_REACHED);
+      return new BackoffInterval(RetryState.RETRY_STATE_MAXIMUM_ATTEMPTS_REACHED);
     }
     long initInterval = TimeUnit.SECONDS.toMillis(retryPolicy.getInitialIntervalInSeconds());
     long nextInterval =
@@ -113,7 +113,7 @@ final class RetryState {
       if (maxInterval > 0) {
         nextInterval = maxInterval;
       } else {
-        return new BackoffInterval(RetryStatus.RETRY_STATUS_TIMEOUT);
+        return new BackoffInterval(RetryState.RETRY_STATE_TIMEOUT);
       }
     }
 
@@ -125,7 +125,7 @@ final class RetryState {
     long backoffInterval = nextInterval;
     long nextScheduleTime = currentTimeMillis + backoffInterval;
     if (expirationTime != 0 && nextScheduleTime > expirationTime) {
-      return new BackoffInterval(RetryStatus.RETRY_STATUS_TIMEOUT);
+      return new BackoffInterval(RetryState.RETRY_STATE_TIMEOUT);
     }
     int result = (int) TimeUnit.MILLISECONDS.toSeconds((long) Math.ceil((double) backoffInterval));
     return new BackoffInterval(result);

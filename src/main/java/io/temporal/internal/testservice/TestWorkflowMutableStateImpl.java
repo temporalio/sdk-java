@@ -20,7 +20,7 @@
 package io.temporal.internal.testservice;
 
 import static io.temporal.internal.common.OptionsUtils.roundUpToSeconds;
-import static io.temporal.internal.testservice.RetryState.valiateAndOverrideRetryPolicy;
+import static io.temporal.internal.testservice.TestServiceRetryState.valiateAndOverrideRetryPolicy;
 import static io.temporal.internal.testservice.StateMachines.*;
 
 import com.cronutils.model.Cron;
@@ -51,7 +51,7 @@ import io.temporal.api.decision.v1.UpsertWorkflowSearchAttributesDecisionAttribu
 import io.temporal.api.enums.v1.DecisionTaskFailedCause;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.QueryRejectCondition;
-import io.temporal.api.enums.v1.RetryStatus;
+import io.temporal.api.enums.v1.RetryState;
 import io.temporal.api.enums.v1.SignalExternalWorkflowExecutionFailedCause;
 import io.temporal.api.enums.v1.TimeoutType;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
@@ -163,7 +163,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   TestWorkflowMutableStateImpl(
       StartWorkflowExecutionRequest startRequest,
       String runId,
-      Optional<RetryState> retryState,
+      Optional<TestServiceRetryState> retryState,
       int backoffStartIntervalInSeconds,
       Payloads lastCompletionResult,
       Optional<TestWorkflowMutableState> parent,
@@ -1099,23 +1099,23 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       String identity) {
     WorkflowData data = workflow.getData();
     if (data.retryState.isPresent()) {
-      RetryState rs = data.retryState.get();
+      TestServiceRetryState rs = data.retryState.get();
       Optional<String> failureType;
-      RetryState.BackoffInterval backoffInterval;
+      TestServiceRetryState.BackoffInterval backoffInterval;
       if (d.getFailure().hasApplicationFailureInfo()) {
         ApplicationFailureInfo failureInfo = d.getFailure().getApplicationFailureInfo();
         if (failureInfo.getNonRetryable()) {
           backoffInterval =
-              new RetryState.BackoffInterval(RetryStatus.RETRY_STATUS_NON_RETRYABLE_FAILURE);
+              new TestServiceRetryState.BackoffInterval(RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE);
         } else {
           failureType = Optional.of(failureInfo.getType());
           backoffInterval = rs.getBackoffIntervalInSeconds(failureType, store.currentTimeMillis());
         }
       } else {
         backoffInterval =
-            new RetryState.BackoffInterval(RetryStatus.RETRY_STATUS_NON_RETRYABLE_FAILURE);
+            new TestServiceRetryState.BackoffInterval(RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE);
       }
-      if (backoffInterval.getRetryStatus() == RetryStatus.RETRY_STATUS_IN_PROGRESS) {
+      if (backoffInterval.getRetryStatus() == RetryState.RETRY_STATE_IN_PROGRESS) {
         ContinueAsNewWorkflowExecutionDecisionAttributes.Builder continueAsNewAttr =
             ContinueAsNewWorkflowExecutionDecisionAttributes.newBuilder()
                 .setInput(startRequest.getInput())
@@ -1142,7 +1142,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         WorkflowExecutionContinuedAsNewEventAttributes continuedAsNewEventAttributes =
             event.getWorkflowExecutionContinuedAsNewEventAttributes();
 
-        Optional<RetryState> continuedRetryState = Optional.of(rs.getNextAttempt());
+        Optional<TestServiceRetryState> continuedRetryState = Optional.of(rs.getNextAttempt());
         String runId =
             service.continueAsNew(
                 startRequest,
@@ -1722,7 +1722,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             }
             // TODO(maxim): real retry status
             workflow.action(
-                StateMachines.Action.TIME_OUT, ctx, RetryStatus.RETRY_STATUS_TIMEOUT, 0);
+                StateMachines.Action.TIME_OUT, ctx, RetryState.RETRY_STATE_TIMEOUT, 0);
             decision.getData().workflowCompleted = true;
             if (parent != null) {
               ctx.lockTimer(); // unlocked by the parent
@@ -1743,7 +1743,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       ChildWorkflowExecutionTimedOutEventAttributes a =
           ChildWorkflowExecutionTimedOutEventAttributes.newBuilder()
               .setInitiatedEventId(parentChildInitiatedEventId.getAsLong())
-              .setRetryStatus(RetryStatus.RETRY_STATUS_TIMEOUT) // TODO(maxim): Real status
+              .setRetryStatus(RetryState.RETRY_STATE_TIMEOUT) // TODO(maxim): Real status
               .setWorkflowType(startRequest.getWorkflowType())
               .setNamespace(ctx.getNamespace())
               .setWorkflowExecution(ctx.getExecution())

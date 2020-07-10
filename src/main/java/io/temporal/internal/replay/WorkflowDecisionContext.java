@@ -27,7 +27,7 @@ import io.temporal.api.decision.v1.ContinueAsNewWorkflowExecutionDecisionAttribu
 import io.temporal.api.decision.v1.RequestCancelExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.api.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.api.decision.v1.StartChildWorkflowExecutionDecisionAttributes;
-import io.temporal.api.enums.v1.RetryStatus;
+import io.temporal.api.enums.v1.RetryState;
 import io.temporal.api.enums.v1.TimeoutType;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
@@ -279,7 +279,7 @@ final class WorkflowDecisionContext {
                 attributes.getWorkflowType().getName(),
                 attributes.getWorkflowExecution(),
                 attributes.getNamespace(),
-                RetryStatus.RETRY_STATUS_NON_RETRYABLE_FAILURE,
+                RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE,
                 new TerminatedFailure(null, null));
         BiConsumer<Optional<Payloads>, Exception> completionCallback =
             scheduled.getCompletionCallback();
@@ -300,7 +300,7 @@ final class WorkflowDecisionContext {
                 event.getEventId(),
                 WorkflowExecution.newBuilder().setWorkflowId(attributes.getWorkflowId()).build(),
                 attributes.getWorkflowType(),
-                RetryStatus.RETRY_STATUS_NON_RETRYABLE_FAILURE,
+                RetryState.RETRY_STATE_NON_RETRYABLE_FAILURE,
                 null);
         failure.initCause(
             new WorkflowExecutionAlreadyStarted(

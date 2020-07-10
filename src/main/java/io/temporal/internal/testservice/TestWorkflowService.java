@@ -255,7 +255,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
           return throwDuplicatedWorkflow(startRequest, existing);
         }
       }
-      Optional<RetryState> retryState;
+      Optional<TestServiceRetryState> retryState;
       if (startRequest.hasRetryPolicy()) {
         long expirationInterval = startRequest.getWorkflowExecutionTimeoutSeconds();
         retryState = newRetryStateLocked(startRequest.getRetryPolicy(), expirationInterval);
@@ -278,11 +278,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
-  private Optional<RetryState> newRetryStateLocked(
+  private Optional<TestServiceRetryState> newRetryStateLocked(
       RetryPolicy retryPolicy, long expirationInterval) {
     long expirationTime =
         expirationInterval == 0 ? 0 : store.currentTimeMillis() + expirationInterval;
-    return Optional.of(new RetryState(retryPolicy, expirationTime));
+    return Optional.of(new TestServiceRetryState(retryPolicy, expirationTime));
   }
 
   private StartWorkflowExecutionResponse throwDuplicatedWorkflow(
@@ -304,7 +304,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       StartWorkflowExecutionRequest startRequest,
       String runId,
       Optional<String> continuedExecutionRunId,
-      Optional<RetryState> retryState,
+      Optional<TestServiceRetryState> retryState,
       int backoffStartIntervalInSeconds,
       Payloads lastCompletionResult,
       Optional<TestWorkflowMutableState> parent,
@@ -839,7 +839,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   public String continueAsNew(
       StartWorkflowExecutionRequest previousRunStartRequest,
       WorkflowExecutionContinuedAsNewEventAttributes a,
-      Optional<RetryState> retryState,
+      Optional<TestServiceRetryState> retryState,
       String identity,
       ExecutionId executionId,
       Optional<TestWorkflowMutableState> parent,

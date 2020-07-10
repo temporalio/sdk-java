@@ -46,7 +46,7 @@ import io.temporal.api.decision.v1.ScheduleActivityTaskDecisionAttributes;
 import io.temporal.api.decision.v1.SignalExternalWorkflowExecutionDecisionAttributes;
 import io.temporal.api.decision.v1.StartChildWorkflowExecutionDecisionAttributes;
 import io.temporal.api.enums.v1.ParentClosePolicy;
-import io.temporal.api.enums.v1.RetryStatus;
+import io.temporal.api.enums.v1.RetryState;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
@@ -231,7 +231,7 @@ final class SyncDecisionContext implements WorkflowOutboundCallsInterceptor {
           taskFailed.getStartedEventId(),
           taskFailed.getActivityType().getName(),
           taskFailed.getActivityId(),
-          RetryStatus.RETRY_STATUS_TIMEOUT,
+          RetryState.RETRY_STATE_TIMEOUT,
           "",
           exception);
     }
