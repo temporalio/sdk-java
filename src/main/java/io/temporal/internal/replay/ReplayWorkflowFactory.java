@@ -19,7 +19,7 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.common.v1.WorkflowType;
+import io.temporal.api.common.v1.WorkflowType;
 
 public interface ReplayWorkflowFactory {
   ReplayWorkflow getWorkflow(WorkflowType workflowType) throws Exception;

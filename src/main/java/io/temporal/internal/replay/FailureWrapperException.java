@@ -19,7 +19,7 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.failure.v1.Failure;
+import io.temporal.api.failure.v1.Failure;
 
 /** Framework level exception. Do not reference in application level code. */
 public class FailureWrapperException extends RuntimeException {

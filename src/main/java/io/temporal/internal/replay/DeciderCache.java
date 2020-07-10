@@ -25,7 +25,7 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.uber.m3.tally.Scope;
 import io.temporal.internal.metrics.MetricsType;
-import io.temporal.workflowservice.v1.PollForDecisionTaskResponseOrBuilder;
+import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponseOrBuilder;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;

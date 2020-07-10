@@ -33,7 +33,7 @@ import io.temporal.internal.worker.PollDecisionTaskDispatcher;
 import io.temporal.internal.worker.Poller;
 import io.temporal.internal.worker.PollerOptions;
 import io.temporal.internal.worker.WorkflowPollTaskFactory;
-import io.temporal.workflowservice.v1.PollForDecisionTaskResponse;
+import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;

@@ -20,8 +20,8 @@
 package io.temporal.internal.sync;
 
 import io.temporal.activity.ActivityInfo;
-import io.temporal.common.v1.Payloads;
-import io.temporal.workflowservice.v1.PollForActivityTaskResponse;
+import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.workflowservice.v1.PollForActivityTaskResponse;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;

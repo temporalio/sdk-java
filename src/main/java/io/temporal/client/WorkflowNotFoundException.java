@@ -19,7 +19,7 @@
 
 package io.temporal.client;
 
-import io.temporal.common.v1.WorkflowExecution;
+import io.temporal.api.common.v1.WorkflowExecution;
 
 /**
  * Thrown when workflow with the given id is not known to the Temporal service. It could be because

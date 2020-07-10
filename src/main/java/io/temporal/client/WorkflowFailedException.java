@@ -19,8 +19,8 @@
 
 package io.temporal.client;
 
-import io.temporal.common.v1.WorkflowExecution;
-import io.temporal.enums.v1.RetryStatus;
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.RetryStatus;
 
 /**
  * Indicates that a workflow failed. An original cause of the workflow failure can be retrieved

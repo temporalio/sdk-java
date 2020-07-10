@@ -23,7 +23,7 @@ import static junit.framework.TestCase.assertEquals;
 
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
-import io.temporal.common.v1.SearchAttributes;
+import io.temporal.api.common.v1.SearchAttributes;
 import java.io.FileOutputStream;
 import java.util.HashMap;
 import java.util.Map;

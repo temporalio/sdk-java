@@ -33,7 +33,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
-import io.temporal.common.v1.WorkflowExecution;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.internal.external.GenericWorkflowClientExternalImpl;
 import io.temporal.internal.external.ManualActivityCompletionClientFactory;
 import io.temporal.internal.external.ManualActivityCompletionClientFactoryImpl;

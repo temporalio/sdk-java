@@ -27,7 +27,7 @@ import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
-import io.temporal.common.v1.WorkflowExecution;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.internal.common.CheckedExceptionWrapper;
 import io.temporal.internal.logging.ReplayAwareLogger;
 import io.temporal.workflow.ActivityStub;

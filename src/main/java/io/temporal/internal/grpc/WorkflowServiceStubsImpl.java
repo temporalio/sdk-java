@@ -32,7 +32,7 @@ import io.grpc.stub.MetadataUtils;
 import io.temporal.internal.Version;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
-import io.temporal.workflowservice.v1.WorkflowServiceGrpc;
+import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;

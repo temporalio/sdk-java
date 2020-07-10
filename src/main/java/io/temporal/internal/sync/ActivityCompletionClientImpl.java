@@ -21,7 +21,7 @@ package io.temporal.internal.sync;
 
 import io.temporal.client.ActivityCompletionClient;
 import io.temporal.client.ActivityCompletionException;
-import io.temporal.common.v1.WorkflowExecution;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.internal.external.ManualActivityCompletionClientFactory;
 import java.util.Optional;
 

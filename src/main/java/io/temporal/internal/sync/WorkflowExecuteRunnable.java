@@ -19,8 +19,8 @@
 
 package io.temporal.internal.sync;
 
-import io.temporal.common.v1.Payloads;
-import io.temporal.history.v1.WorkflowExecutionStartedEventAttributes;
+import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import java.util.Objects;
 import java.util.Optional;
 

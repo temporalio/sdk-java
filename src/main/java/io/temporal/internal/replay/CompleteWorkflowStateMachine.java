@@ -19,8 +19,8 @@
 
 package io.temporal.internal.replay;
 
-import io.temporal.decision.v1.Decision;
-import io.temporal.history.v1.HistoryEvent;
+import io.temporal.api.decision.v1.Decision;
+import io.temporal.api.history.v1.HistoryEvent;
 
 final class CompleteWorkflowStateMachine implements DecisionStateMachine {
 

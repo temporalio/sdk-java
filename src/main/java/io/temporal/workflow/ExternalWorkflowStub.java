@@ -19,7 +19,7 @@
 
 package io.temporal.workflow;
 
-import io.temporal.common.v1.WorkflowExecution;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.internal.sync.StubMarker;
 
 /**

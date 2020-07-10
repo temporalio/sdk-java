@@ -19,9 +19,9 @@
 
 package io.temporal.client;
 
-import io.temporal.common.v1.WorkflowExecution;
-import io.temporal.enums.v1.QueryRejectCondition;
-import io.temporal.enums.v1.WorkflowExecutionStatus;
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.QueryRejectCondition;
+import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 
 public final class WorkflowQueryRejectedException extends WorkflowQueryException {
 

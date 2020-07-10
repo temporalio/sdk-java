@@ -28,10 +28,10 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.taskqueue.v1.TaskQueue;
-import io.temporal.taskqueue.v1.TaskQueueMetadata;
-import io.temporal.workflowservice.v1.PollForActivityTaskRequest;
-import io.temporal.workflowservice.v1.PollForActivityTaskResponse;
+import io.temporal.api.taskqueue.v1.TaskQueue;
+import io.temporal.api.taskqueue.v1.TaskQueueMetadata;
+import io.temporal.api.workflowservice.v1.PollForActivityTaskRequest;
+import io.temporal.api.workflowservice.v1.PollForActivityTaskResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

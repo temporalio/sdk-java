@@ -22,7 +22,7 @@ package io.temporal.internal.sync;
 import static org.mockito.Mockito.*;
 
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.v1.SearchAttributes;
+import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.replay.DecisionContext;
 import java.util.HashMap;

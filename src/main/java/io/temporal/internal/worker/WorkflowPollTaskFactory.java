@@ -21,7 +21,7 @@ package io.temporal.internal.worker;
 
 import com.uber.m3.tally.Scope;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.workflowservice.v1.PollForDecisionTaskResponse;
+import io.temporal.api.workflowservice.v1.PollForDecisionTaskResponse;
 import java.util.Objects;
 import java.util.function.Supplier;
 

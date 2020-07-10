@@ -19,8 +19,8 @@
 
 package io.temporal.client;
 
-import io.temporal.common.v1.WorkflowExecution;
-import io.temporal.enums.v1.QueryRejectCondition;
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.QueryRejectCondition;
 import io.temporal.internal.sync.StubMarker;
 import java.lang.reflect.Type;
 import java.util.Optional;

@@ -33,7 +33,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.reporter.TestStatsReporter;
-import io.temporal.enums.v1.WorkflowIdReusePolicy;
+import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.internal.metrics.MetricsTag;
 import io.temporal.internal.metrics.MetricsType;
 import io.temporal.internal.replay.DeciderCache;
