@@ -789,7 +789,7 @@ public class WorkflowTestingTest {
 
   @Test
   @Ignore // TODO: Find a way to mock workflows as reflection doesn't work cglib generated proxies
-          // mockito employs.
+  // mockito employs.
   public void testMockedChildSimulatedTimeout() {
     String details = "timeout Details";
     Worker worker = testEnvironment.newWorker(TASK_QUEUE);
