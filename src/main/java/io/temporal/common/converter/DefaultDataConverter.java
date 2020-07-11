@@ -46,9 +46,13 @@ public class DefaultDataConverter implements DataConverter {
           new DefaultDataConverter(
               new NullPayloadConverter(),
               new ByteArrayPayloadConverter(),
+              new ProtobufJsonPayloadConverter(),
               new JacksonJsonPayloadConverter()));
+
   private static final Object[] EMPTY_OBJECT_ARRAY = new Object[0];
+
   private final Map<String, PayloadConverter> converterMap = new ConcurrentHashMap<>();
+
   private final List<PayloadConverter> converters = new ArrayList<>();
 
   static DataConverter getDefaultInstance() {

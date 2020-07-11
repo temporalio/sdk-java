@@ -19,39 +19,49 @@
 
 package io.temporal.common.converter;
 
-import com.google.protobuf.ByteString;
+import com.google.protobuf.MessageLite;
 import io.temporal.api.common.v1.Payload;
+import java.lang.reflect.Method;
 import java.lang.reflect.Type;
+import java.nio.ByteBuffer;
 import java.util.Optional;
 
-public final class ByteArrayPayloadConverter implements PayloadConverter {
+public final class ProtobufPayloadConverter implements PayloadConverter {
+
   @Override
   public String getEncodingType() {
-    return EncodingKeys.METADATA_ENCODING_RAW_NAME;
+    return EncodingKeys.METADATA_ENCODING_PROTOBUF_NAME;
   }
 
   @Override
   public Optional<Payload> toData(Object value) throws DataConverterException {
-    if (!(value instanceof byte[])) {
+    if (!(value instanceof MessageLite)) {
       return Optional.empty();
     }
-    return Optional.of(
-        Payload.newBuilder()
-            .putMetadata(EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_RAW)
-            .setData(ByteString.copyFrom((byte[]) value))
-            .build());
+    try {
+      return Optional.of(
+          Payload.newBuilder()
+              .putMetadata(
+                  EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_PROTOBUF)
+              .setData(((MessageLite) value).toByteString())
+              .build());
+    } catch (Exception e) {
+      throw new DataConverterException(e);
+    }
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public <T> T fromData(Payload content, Class<T> valueClass, Type valueType)
       throws DataConverterException {
-    ByteString data = content.getData();
-    if (valueClass != byte[].class) {
-      throw new IllegalArgumentException(
-          "Raw encoding can be deserialized only to a byte array. valueClass="
-              + valueClass.getName());
+    if (!MessageLite.class.isAssignableFrom(valueClass)) {
+      throw new IllegalArgumentException("Not a protobuf. valueClass=" + valueClass.getName());
     }
-    return (T) data.toByteArray();
+    try {
+      Method parseFrom = valueClass.getMethod("parseFrom", ByteBuffer.class);
+      return (T) parseFrom.invoke(null, content.getData().asReadOnlyByteBuffer());
+    } catch (Exception e) {
+      throw new DataConverterException(e);
+    }
   }
 }

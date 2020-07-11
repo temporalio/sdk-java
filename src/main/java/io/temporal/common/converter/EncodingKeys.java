@@ -31,7 +31,16 @@ class EncodingKeys {
   static final String METADATA_ENCODING_RAW_NAME = "raw";
   static final ByteString METADATA_ENCODING_RAW =
       ByteString.copyFrom(METADATA_ENCODING_RAW_NAME, StandardCharsets.UTF_8);
+
   static final String METADATA_ENCODING_JSON_NAME = "json";
   static final ByteString METADATA_ENCODING_JSON =
       ByteString.copyFrom(METADATA_ENCODING_JSON_NAME, StandardCharsets.UTF_8);
+
+  static final String METADATA_ENCODING_PROTOBUF_JSON_NAME = "protobuf-json";
+  static final ByteString METADATA_ENCODING_PROTOBUF_JSON =
+      ByteString.copyFrom(METADATA_ENCODING_PROTOBUF_JSON_NAME, StandardCharsets.UTF_8);
+
+  static final String METADATA_ENCODING_PROTOBUF_NAME = "protobuf";
+  static final ByteString METADATA_ENCODING_PROTOBUF =
+      ByteString.copyFrom(METADATA_ENCODING_PROTOBUF_NAME, StandardCharsets.UTF_8);
 }
