@@ -16,7 +16,7 @@ plugins {
     id 'maven-publish'
     id 'signing'
     id 'de.marcphilipp.nexus-publish' version '0.4.0'
-    id 'name.remal.check-updates' version '1.0.200'
+    id 'name.remal.check-updates' version '1.0.203'
 }
 
 repositories {
@@ -102,7 +102,7 @@ dependencies {
     api 'io.grpc:grpc-stub:1.30.2'
 
     implementation group: 'com.google.guava', name: 'guava', version: '29.0-jre'
-    implementation group: 'com.cronutils', name: 'cron-utils', version: '9.0.2'
+    implementation group: 'com.cronutils', name: 'cron-utils', version: '9.1.0'
     implementation 'io.grpc:grpc-netty-shaded:1.30.2'
     implementation group: 'com.google.protobuf', name: 'protobuf-java-util', version: '3.12.2'
     implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.11.1'
