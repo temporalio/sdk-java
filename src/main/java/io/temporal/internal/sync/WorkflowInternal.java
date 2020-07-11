@@ -107,7 +107,7 @@ public final class WorkflowInternal {
    */
   public static void registerListener(Object implementation) {
     Class<?> cls = implementation.getClass();
-    POJOWorkflowImplMetadata workflowMetadata = POJOWorkflowImplMetadata.newInstance(cls);
+    POJOWorkflowImplMetadata workflowMetadata = POJOWorkflowImplMetadata.newListenerInstance(cls);
     for (String queryType : workflowMetadata.getQueryTypes()) {
       POJOWorkflowMethodMetadata methodMetadata =
           workflowMetadata.getQueryMethodMetadata(queryType);

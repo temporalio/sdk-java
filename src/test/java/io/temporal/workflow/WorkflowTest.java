@@ -6244,7 +6244,6 @@ public class WorkflowTest {
     assertEquals("WorkflowAImpl0, WorkflowBImpl1", results);
   }
 
-  @WorkflowInterface
   public interface SignalQueryBase {
     @SignalMethod
     void signal(String arg);
