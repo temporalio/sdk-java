@@ -43,6 +43,10 @@ public class JacksonJsonPayloadConverter implements PayloadConverter {
     mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
   }
 
+  public JacksonJsonPayloadConverter(ObjectMapper mapper) {
+    this.mapper = mapper;
+  }
+
   @Override
   public String getEncodingType() {
     return EncodingKeys.METADATA_ENCODING_JSON_NAME;
