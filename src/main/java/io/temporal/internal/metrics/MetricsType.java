@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 2020 Temporal Technologies, Inc. All Rights Reserved.
  *
- *  Copyright 2012_2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *  Copyright 2012-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  *  Modifications copyright (C) 2017 Uber Technologies, Inc.
  *
