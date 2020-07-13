@@ -490,7 +490,7 @@ class ReplayDecider implements Decider {
         completeWorkflow();
         return false;
       } else {
-        metricsScope.counter(MetricsType.WORKFLOW_TASK_ERROR_COUNTER).inc(1);
+        metricsScope.counter(MetricsType.WORKFLOW_TASK_FAILURE_COUNTER).inc(1);
         // fail decision, not a workflow
         throw e;
       }

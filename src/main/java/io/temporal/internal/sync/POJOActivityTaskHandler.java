@@ -115,9 +115,9 @@ class POJOActivityTaskHandler implements ActivityTaskHandler {
     }
     if (exception instanceof Error) {
       if (isLocalActivity) {
-        metricsScope.counter(MetricsType.LOCAL_ACTIVITY_ERROR_COUNTER).inc(1);
+        metricsScope.counter(MetricsType.LOCAL_ACTIVITY_FAILURE_COUNTER).inc(1);
       } else {
-        metricsScope.counter(MetricsType.ACTIVITY_TASK_ERROR_COUNTER).inc(1);
+        metricsScope.counter(MetricsType.ACTIVITY_TASK_FAILURE_COUNTER).inc(1);
       }
       throw (Error) exception;
     }
